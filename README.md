@@ -26,10 +26,9 @@ conda update -n base -c defaults conda
 pip install -r requirements.txt
 ```
 
-3. Install full cuda toolkit, e.g. cuda 12.1 for Ubuntu 22.04:
-https://developer.nvidia.com/cuda-downloads?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=22.04&target_type=deb_local
+3. Install full cuda toolkit, e.g. cuda 12.1 for Ubuntu 22.04 [install cuda coolkit](https://developer.nvidia.com/cuda-downloads?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=22.04&target_type=deb_local)
 
-3.Ensure cuda in path:
+4.Ensure cuda in path:
 
 ```bash
 echo "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64/" >> ~/.bashrc
@@ -38,9 +37,7 @@ echo "export PATH=$PATH:/usr/local/cuda/bin/" >> ~/.bashrc
 source ~/.bashrc
 ```
 
-4. If don't have cuda 11.7 or other specific versions of libraries that bitsandbytes comes with, then must compile bitesandbytes:
-
-https://github.com/TimDettmers/bitsandbytes/blob/main/compile_from_source.md
+5. If don't have cuda 11.7 or other specific versions of libraries that bitsandbytes comes with, then must [compile bitesandbytes](https://github.com/TimDettmers/bitsandbytes/blob/main/compile_from_source.md)
 
 i.e.
 ```bash
