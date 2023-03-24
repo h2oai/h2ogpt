@@ -16,7 +16,8 @@ Final result will be committed to [H2OGPT](https://github.com/h2oai/h2ogpt/).
 ```bash
 conda create -n h2ollm
 conda activate h2ollm
-conda install python=3.10
+conda install python=3.10 -y
+conda update -n base -c defaults conda
 ```
 
 2. Install dependencies
