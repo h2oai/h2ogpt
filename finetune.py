@@ -1,11 +1,13 @@
 import os
+import pathlib
+import random
+import shutil
+import subprocess
 import sys
 from typing import List
 
 import fire
 import torch
-import torch.nn as nn
-import bitsandbytes as bnb
 from datasets import load_dataset
 import transformers
 
@@ -22,9 +24,12 @@ from peft import (
 
 
 def train(
+    save_code: bool = False,
+    run_id: int = random.randint(0, 2 ** 31),
     # model/data params
     base_model: str = "",  # the only required argument
     data_path: str = "./alpaca_data_cleaned.json",
+    llama_type: bool = False,
     output_dir: str = "./lora-alpaca",
     # training hyperparams
     batch_size: int = 128,
@@ -45,6 +50,8 @@ def train(
     train_on_inputs: bool = True,  # if False, masks out inputs in loss
     group_by_length: bool = True,  # faster, but produces an odd training loss curve
 ):
+    if save_code:
+        copy_code(run_id)
     print(
         f"Training Alpaca-LoRA model with params:\n"
         f"base_model: {base_model}\n"
@@ -75,13 +82,25 @@ def train(
         device_map = {"": int(os.environ.get("LOCAL_RANK") or 0)}
         gradient_accumulation_steps = gradient_accumulation_steps // world_size
 
-    model = LlamaForCausalLM.from_pretrained(
+    if llama_type:
+        assert (
+                "LlamaTokenizer" in transformers._import_structure["models.llama"]
+        ), "LLaMA is now in HuggingFace's main branch.\nPlease reinstall it: pip uninstall transformers && pip install git+https://github.com/huggingface/transformers.git"
+        from transformers import LlamaForCausalLM, LlamaTokenizer
+        model_loader = LlamaForCausalLM
+        tokenizer_loader = LlamaTokenizer
+    else:
+        from transformers import AutoTokenizer, AutoModelForCausalLM
+        model_loader = AutoModelForCausalLM
+        tokenizer_loader = AutoTokenizer
+
+    model = model_loader.from_pretrained(
         base_model,
         load_in_8bit=True,
         device_map=device_map,
     )
 
-    tokenizer = LlamaTokenizer.from_pretrained(base_model)
+    tokenizer = tokenizer_loader.from_pretrained(base_model)
 
     tokenizer.pad_token_id = 0  # unk. we want this to be different from the eos token
     tokenizer.padding_side = "left"  # Allow batched inference
@@ -190,6 +209,33 @@ def train(
     print("\n If there's a warning about missing keys above, please disregard :)")
 
 
+def get_githash():
+    try:
+        githash = subprocess.run(['git', 'rev-parse', 'HEAD'], stdout=subprocess.PIPE).stdout.decode('utf-8')[0:-1]
+    except:
+        githash = ''
+    return githash
+
+
+def copy_code(run_id):
+    """
+    copy code to track changes
+    :param run_id:
+    :return:
+    """
+    rnd_num = str(random.randint(0, 2 ** 31))
+    run_id = 'run_' + str(run_id)
+    os.makedirs(run_id, exist_ok=True)
+    me_full = os.path.join(pathlib.Path(__file__).parent.resolve(), __file__)
+    me_file = os.path.basename(__file__)
+    new_me = os.path.join(run_id, me_file + '_' + get_githash())
+    if os.path.isfile(new_me):
+        new_me = os.path.join(run_id, me_file + '_' + get_githash() + '_' + rnd_num)
+        shutil.copy(me_full, new_me)
+    else:
+        shutil.copy(me_full, new_me)
+
+
 def generate_prompt(data_point):
     # sorry about the formatting disaster gotta move fast
     if data_point["input"]:
@@ -214,4 +260,10 @@ def generate_prompt(data_point):
 
 
 if __name__ == "__main__":
+    print("""
+    Example run on 4 GPUs:
+    WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun --nproc_per_node=4 --master_port=1234 finetune.py --llama_type=True --base_model='decapoda-research/llama-7b-hf' --data_path=alpaca_data_cleaned.json --run_id=0 &> 0.log
+    WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun --nproc_per_node=4 --master_port=1234 finetune.py --llama_type=True --base_model='decapoda-research/llama-30b-hf' --data_path=alpaca_data_cleaned.json --batch_size=16 --micro_batch_size=1 --run_id=1 --save_code=True &> 1.log
+    WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun --nproc_per_node=4 --master_port=1234 finetune.py --base_model='EleutherAI/gpt-j-6B' --data_path=alpaca_data_cleaned.json --run_id=2 &> 2.log
+    """, flush=True)
     fire.Fire(train)
