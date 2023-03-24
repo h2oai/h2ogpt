@@ -7,7 +7,7 @@ import transformers
 import gradio as gr
 
 assert (
-    "LlamaTokenizer" in transformers._import_structure["models.llama"]
+        "LlamaTokenizer" in transformers._import_structure["models.llama"]
 ), "LLaMA is now in HuggingFace's main branch.\nPlease reinstall it: pip uninstall transformers && pip install git+https://github.com/huggingface/transformers.git"
 from transformers import LlamaTokenizer, LlamaForCausalLM, GenerationConfig
 
@@ -24,9 +24,9 @@ except:
 
 
 def main(
-    load_8bit: bool = False,
-    base_model: str = "",
-    lora_weights: str = "tloen/alpaca-lora-7b",
+        load_8bit: bool = False,
+        base_model: str = "",
+        lora_weights: str = "tloen/alpaca-lora-7b",
 ):
     assert base_model, (
         "Please specify a --base_model, e.g. --base_model='decapoda-research/llama-7b-hf'"
@@ -80,14 +80,14 @@ def main(
         model = torch.compile(model)
 
     def evaluate(
-        instruction,
-        input=None,
-        temperature=0.1,
-        top_p=0.75,
-        top_k=40,
-        num_beams=4,
-        max_new_tokens=128,
-        **kwargs,
+            instruction,
+            input=None,
+            temperature=0.1,
+            top_p=0.75,
+            top_k=40,
+            num_beams=4,
+            max_new_tokens=128,
+            **kwargs,
     ):
         prompt = generate_prompt(instruction, input)
         inputs = tokenizer(prompt, return_tensors="pt")
