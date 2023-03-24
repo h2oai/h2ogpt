@@ -19,13 +19,13 @@ conda activate h2ollm
 conda install python=3.10
 ```
 
-3. Install dependencies
+2. Install dependencies
 
 ```
 pip install -r requirements.txt
 ```
 
-2. Install full cuda toolkit, e.g. cuda 12.1 for Ubuntu 22.04:
+3. Install full cuda toolkit, e.g. cuda 12.1 for Ubuntu 22.04:
 https://developer.nvidia.com/cuda-downloads?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=22.04&target_type=deb_local
 
 3.Ensure cuda in path:
@@ -37,7 +37,7 @@ echo "export PATH=$PATH:/usr/local/cuda/bin/" >> ~/.bashrc
 source ~/.bashrc
 ```
 
-3. If don't have cuda 11.7 or other specific versions of libraries that bitsandbytes comes with, then must compile bitesandbytes:
+4. If don't have cuda 11.7 or other specific versions of libraries that bitsandbytes comes with, then must compile bitesandbytes:
 
 https://github.com/TimDettmers/bitsandbytes/blob/main/compile_from_source.md
 
