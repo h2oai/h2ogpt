@@ -9,12 +9,43 @@ No OpenAI-based Alpaca fine-tuning data will be left.
 Final result will be committed to [H2OGPT](https://github.com/h2oai/h2ogpt/).
 
 
-### Install
+### Setup
 
-```py
-virtualenv -p python3.10 env
+1. Install python environment
+
+```bash
+conda create -n h2ollm
+conda activate h2ollm
+conda install python=3.10
+```
+
+3. Install dependencies
+
+```
 pip install -r requirements.txt
 ```
+
+2. Install full cuda toolkit, e.g. cuda 12.1 for Ubuntu 22.04:
+https://developer.nvidia.com/cuda-downloads?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=22.04&target_type=deb_local
+
+3.Ensure cuda in path:
+
+```bash
+echo "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64/" >> ~/.bashrc
+echo "CUDA_HOME=/usr/local/cuda" >> ~/.bashrc
+echo "export PATH=$PATH:/usr/local/cuda/bin/" >> ~/.bashrc
+source ~/.bashrc
+```
+
+3. If don't have cuda 11.7 or other specific versions of libraries that bitsandbytes comes with, then must compile bitesandbytes:
+
+https://github.com/TimDettmers/bitsandbytes/blob/main/compile_from_source.md
+
+i.e.
+```bash
+CUDA_VERSION=121 python setup.py install
+```
+
 
 ### Fine-Tune
 
