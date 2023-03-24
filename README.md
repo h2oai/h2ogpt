@@ -39,7 +39,7 @@ source ~/.bashrc
 
 5. If don't have cuda 11.7 or other specific versions of libraries that bitsandbytes comes with, then must [compile bitesandbytes](https://github.com/TimDettmers/bitsandbytes/blob/main/compile_from_source.md)
 
-i.e.
+E.g. for CUDA 12.1:
 ```bash
 CUDA_VERSION=121 python setup.py install
 ```
