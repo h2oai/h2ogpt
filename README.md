@@ -5,3 +5,5 @@ Goal is to create 100% permissive MIT/ApacheV2 LLM model that is useful for Chat
 Training code is based on [Alpaca-LoRA](https://github.com/tloen/alpaca-lora/), but all models will be fully open source.
 
 No OpenAI-based Alpaca fine-tuning data will be left.
+
+Final result will be committed to [H2OGPT](https://github.com/h2oai/h2ogpt/).
