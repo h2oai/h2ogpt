@@ -48,7 +48,7 @@ def main(
 
     model = model_loader.from_pretrained(
         base_model,
-        load_in_8bit=True,
+        load_in_8bit=load_8bit,
         device_map="auto",
     )
     model = PeftModel.from_pretrained(
