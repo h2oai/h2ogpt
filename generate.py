@@ -116,7 +116,7 @@ def main(
         fn=evaluate,
         inputs=[
             gr.components.Textbox(
-                lines=2, label="Instruction", placeholder="Tell me about alpacas."
+                lines=2, label="Instruction", placeholder="Who is smarter, Einstein or Newton?"
             ),
             gr.components.Textbox(lines=2, label="Input", placeholder="none"),
             gr.components.Slider(minimum=0, maximum=1, value=0.1, label="Temperature"),
@@ -135,28 +135,9 @@ def main(
                 label="Output",
             )
         ],
-        title="🦙🌲 Alpaca-LoRA",
-        description="Alpaca-LoRA is a 7B-parameter LLaMA model finetuned to follow instructions. It is trained on the [Stanford Alpaca](https://github.com/tatsu-lab/stanford_alpaca) dataset and makes use of the Huggingface LLaMA implementation. For more information, please visit [the project's website](https://github.com/tloen/alpaca-lora).",
+        title="H2O-LLM",
+        description="Model %s Instruct dataset.  For more information, visit [the project's website](https://github.com/h2oai/h2o-llm).",
     ).launch()
-    # Old testing code follows.
-
-    """
-    # testing code for readme
-    for instruction in [
-        "Tell me about alpacas.",
-        "Tell me about the president of Mexico in 2019.",
-        "Tell me about the king of France in 2019.",
-        "List all Canadian provinces in alphabetical order.",
-        "Write a Python program that prints the first 10 Fibonacci numbers.",
-        "Write a program that prints the numbers from 1 to 100. But for multiples of three print 'Fizz' instead of the number and for the multiples of five print 'Buzz'. For numbers which are multiples of both three and five print 'FizzBuzz'.",
-        "Tell me five words that rhyme with 'shock'.",
-        "Translate the sentence 'I have no mouth but I must scream' into Spanish.",
-        "Count up from 1 to 500.",
-    ]:
-        print("Instruction:", instruction)
-        print("Response:", evaluate(instruction))
-        print()
-    """
 
 
 def generate_prompt(instruction, input=None):
