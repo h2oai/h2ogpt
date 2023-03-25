@@ -25,7 +25,7 @@ except:
 
 def main(
         load_8bit: bool = False,
-        base_model: str = "",
+        base_model: str = "EleutherAI/gpt-j-6B",
         lora_weights: str = "lora-alpaca",
         llama_type: bool = False,
 ):
