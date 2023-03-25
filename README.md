@@ -14,8 +14,14 @@ Final result will be committed to [H2OGPT](https://github.com/h2oai/h2ogpt/).
 1. Install python environment
 
 ```bash
+wget https://repo.anaconda.com/miniconda/Miniconda3-py310_23.1.0-1-Linux-x86_64.sh
+bash ./Miniconda3-py310_23.1.0-1-Linux-x86_64.sh
+# follow license agreement and add to bash if required
+source ~/.bashrc
+# For more control: Copy block it added to .bashrc, put into ~/.bashrc.conda, then source ~/.bashrc.conda
 conda create -n h2ollm
 conda activate h2ollm
+conda install mamba -n base -c conda-forge
 conda install python=3.10 -y
 conda update -n base -c defaults conda
 ```
@@ -34,15 +40,31 @@ pip install -r requirements.txt
 echo "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64/" >> ~/.bashrc
 echo "CUDA_HOME=/usr/local/cuda" >> ~/.bashrc
 echo "export PATH=$PATH:/usr/local/cuda/bin/" >> ~/.bashrc
-source ~/.bashrc
+source ~/.bashrc  # or source ~/.bashrc.conda
+conda activate h2ollm
 ```
 
-5. If don't have cuda 11.7 or other specific versions of libraries that bitsandbytes comes with, then must [compile bitesandbytes](https://github.com/TimDettmers/bitsandbytes/blob/main/compile_from_source.md)
+5. If don't have cuda lib included into bitsandbytes, then must [compile bitesandbytes](https://github.com/TimDettmers/bitsandbytes/blob/main/compile_from_source.md)
 
-E.g. for CUDA 12.1:
+E.g. for CUDA 12.1 (latest bitsandbytes does include 12.1)
 ```bash
+git clone https://github.com/TimDettmers/bitsandbytes.git
+cd bitsandbytes
 CUDA_VERSION=121 python setup.py install
+cd ..
 ```
+
+Fine-tune on single GPU on single node:
+```
+torchrun finetune.py --base_model='EleutherAI/gpt-j-6B' --data_path=alpaca_data_cleaned.json 
+```
+this will download the model, load the data, and generate an output directory alpaca_lora
+
+Generate on single GPU on single node:
+```
+torchrun generate.py --base_model='EleutherAI/gpt-j-6B' --lora_weights=lora-alpaca
+```
+this will download the model, load the data, and generate an output directory alpaca_lora
 
 ### Plan
 Frst truly open source instruct model.
@@ -79,7 +101,3 @@ DatasetDict({
 TODO: replace `alpaca_data_cleaned.json` with open-source/bootstrapped approach
 
 
-Single-node:
-```
-torchrun finetune.py --base_model='EleutherAI/gpt-j-6B' --data_path=alpaca_data_cleaned.json --run_id=1 --batch_size=128 --micro_batch_size=16 
-```
