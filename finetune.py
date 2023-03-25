@@ -26,7 +26,7 @@ def train(
         base_model: str = "EleutherAI/gpt-j-6B",
         data_path: str = "./alpaca_data_cleaned.json",
         llama_type: bool = False,
-        output_dir: str = "./lora-alpaca2",
+        output_dir: str = "./lora-alpaca3",
         lora_weights: str = None,  # './lora-alpaca',  # warm start
         # training hyperparams
         batch_size: int = 128,
@@ -263,12 +263,10 @@ def generate_prompt(data_point):
 ### Response:
 {data_point["output"]}"""
     else:
-        return f"""Below is an instruction that describes a task. Write a response that appropriately completes the request.
-
-### Instruction:
+        return f"""When I hear this:
 {data_point["instruction"]}
 
-### Response:
+I think about this:
 {data_point["output"]}"""
 
 
