@@ -3,13 +3,9 @@ import sys
 import fire
 import torch
 from peft import PeftModel
-import transformers
+from transformers import GenerationConfig
 import gradio as gr
 
-assert (
-        "LlamaTokenizer" in transformers._import_structure["models.llama"]
-), "LLaMA is now in HuggingFace's main branch.\nPlease reinstall it: pip uninstall transformers && pip install git+https://github.com/huggingface/transformers.git"
-from transformers import LlamaTokenizer, LlamaForCausalLM, GenerationConfig
 
 if torch.cuda.is_available():
     device = "cuda"
@@ -23,6 +19,8 @@ except:
     pass
 
 
+from finetune import get_loaders
+
 def main(
         load_8bit: bool = False,
         base_model: str = "EleutherAI/gpt-j-6B",
@@ -30,32 +28,45 @@ def main(
         llama_type: bool = False,
 ):
     assert base_model, (
-        "Please specify a --base_model, e.g. --base_model='decapoda-research/llama-7b-hf'"
+        "Please specify a --base_model, e.g. --base_model="
     )
-    if llama_type:
-        assert (
-                "LlamaTokenizer" in transformers._import_structure["models.llama"]
-        ), "LLaMA is now in HuggingFace's main branch.\nPlease reinstall it: pip uninstall transformers && pip install git+https://github.com/huggingface/transformers.git"
-        from transformers import LlamaForCausalLM, LlamaTokenizer
-        model_loader = LlamaForCausalLM
-        tokenizer_loader = LlamaTokenizer
-    else:
-        from transformers import AutoTokenizer, AutoModelForCausalLM
-        model_loader = AutoModelForCausalLM
-        tokenizer_loader = AutoTokenizer
+    model_loader, tokenizer_loader = get_loaders(llama_type=llama_type)
+
 
     tokenizer = tokenizer_loader.from_pretrained(base_model)
-
-    model = model_loader.from_pretrained(
-        base_model,
-        load_in_8bit=load_8bit,
-        device_map="auto",
-    )
-    model = PeftModel.from_pretrained(
-        model,
-        lora_weights,
-        torch_dtype=torch.float16,
-    )
+    if device == "cuda":
+        model = model_loader.from_pretrained(
+            base_model,
+            load_in_8bit=load_8bit,
+            torch_dtype=torch.float16,
+            device_map="auto",
+        )
+        model = PeftModel.from_pretrained(
+            model,
+            lora_weights,
+            torch_dtype=torch.float16,
+        )
+    elif device == "mps":
+        model = model_loader.from_pretrained(
+            base_model,
+            device_map={"": device},
+            torch_dtype=torch.float16,
+        )
+        model = PeftModel.from_pretrained(
+            model,
+            lora_weights,
+            device_map={"": device},
+            torch_dtype=torch.float16,
+        )
+    else:
+        model = model_loader.from_pretrained(
+            base_model, device_map={"": device}, low_cpu_mem_usage=True
+        )
+        model = PeftModel.from_pretrained(
+            model,
+            lora_weights,
+            device_map={"": device},
+        )
 
     # unwind broken decapoda-research config
     model.config.pad_token_id = tokenizer.pad_token_id = 0  # unk
@@ -171,4 +182,8 @@ def generate_prompt(instruction, input=None):
 
 
 if __name__ == "__main__":
+    print("""
+    mv lora-alpara lora-alpaca_6B
+    WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun --nproc_per_node=4 --master_port=1234 generate.py --base_model='EleutherAI/gpt-j-6B' lora_weights=lora-alpaca_6B
+    """, flush=True)
     fire.Fire(main)

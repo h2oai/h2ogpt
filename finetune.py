@@ -23,7 +23,7 @@ def train(
         save_code: bool = False,
         run_id: int = random.randint(0, 2 ** 31),
         # model/data params
-        base_model: str = "",  # the only required argument
+        base_model: str = 'decapoda-research/llama-7b-hf',
         data_path: str = "./alpaca_data_cleaned.json",
         llama_type: bool = False,
         output_dir: str = "./lora-alpaca",
@@ -78,17 +78,7 @@ def train(
         device_map = {"": int(os.environ.get("LOCAL_RANK") or 0)}
         gradient_accumulation_steps = gradient_accumulation_steps // world_size
 
-    if llama_type:
-        assert (
-                "LlamaTokenizer" in transformers._import_structure["models.llama"]
-        ), "LLaMA is now in HuggingFace's main branch.\nPlease reinstall it: pip uninstall transformers && pip install git+https://github.com/huggingface/transformers.git"
-        from transformers import LlamaForCausalLM, LlamaTokenizer
-        model_loader = LlamaForCausalLM
-        tokenizer_loader = LlamaTokenizer
-    else:
-        from transformers import AutoTokenizer, AutoModelForCausalLM
-        model_loader = AutoModelForCausalLM
-        tokenizer_loader = AutoTokenizer
+    model_loader, tokenizer_loader = get_loaders(llama_type=llama_type)
 
     model = model_loader.from_pretrained(
         base_model,
@@ -203,6 +193,23 @@ def train(
     model.save_pretrained(output_dir)
 
     print("\n If there's a warning about missing keys above, please disregard :)")
+
+
+def get_loaders(llama_type):
+    if llama_type:
+        assert (
+                "LlamaTokenizer" in transformers._import_structure["models.llama"]
+        ), "LLaMA is now in HuggingFace's main branch.\nPlease reinstall it: pip uninstall transformers && pip install git+https://github.com/huggingface/transformers.git"
+        from transformers import LlamaForCausalLM, LlamaTokenizer
+
+        model_loader = LlamaForCausalLM
+        tokenizer_loader = LlamaTokenizer
+    else:
+        from transformers import AutoTokenizer, AutoModelForCausalLM
+
+        model_loader = AutoModelForCausalLM
+        tokenizer_loader = AutoTokenizer
+    return model_loader, tokenizer_loader
 
 
 def get_githash():
