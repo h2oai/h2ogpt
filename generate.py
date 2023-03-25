@@ -46,39 +46,16 @@ def main(
 
     tokenizer = tokenizer_loader.from_pretrained(base_model)
 
-    if device == "cuda":
-        model = tokenizer_loader.from_pretrained(
-            base_model,
-            load_in_8bit=load_8bit,
-            torch_dtype=torch.float16,
-            device_map="auto",
-        )
-        model = PeftModel.from_pretrained(
-            model,
-            lora_weights,
-            torch_dtype=torch.float16,
-        )
-    elif device == "mps":
-        model = tokenizer_loader.from_pretrained(
-            base_model,
-            device_map={"": device},
-            torch_dtype=torch.float16,
-        )
-        model = PeftModel.from_pretrained(
-            model,
-            lora_weights,
-            device_map={"": device},
-            torch_dtype=torch.float16,
-        )
-    else:
-        model = tokenizer_loader.from_pretrained(
-            base_model, device_map={"": device}, low_cpu_mem_usage=True
-        )
-        model = PeftModel.from_pretrained(
-            model,
-            lora_weights,
-            device_map={"": device},
-        )
+    model = model_loader.from_pretrained(
+        base_model,
+        load_in_8bit=True,
+        device_map="auto",
+    )
+    model = PeftModel.from_pretrained(
+        model,
+        lora_weights,
+        torch_dtype=torch.float16,
+    )
 
     # unwind broken decapoda-research config
     model.config.pad_token_id = tokenizer.pad_token_id = 0  # unk
