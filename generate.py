@@ -24,7 +24,7 @@ from finetune import get_loaders
 def main(
         load_8bit: bool = False,
         base_model: str = "EleutherAI/gpt-j-6B",
-        lora_weights: str = "lora-alpaca",
+        lora_weights: str = "lora-alpaca2",
         llama_type: bool = False,
 ):
     assert base_model, (
