@@ -32,7 +32,6 @@ def main(
     )
     model_loader, tokenizer_loader = get_loaders(llama_type=llama_type)
 
-
     tokenizer = tokenizer_loader.from_pretrained(base_model)
     if device == "cuda":
         model = model_loader.from_pretrained(
@@ -69,9 +68,10 @@ def main(
         )
 
     # unwind broken decapoda-research config
-    model.config.pad_token_id = tokenizer.pad_token_id = 0  # unk
-    model.config.bos_token_id = 1
-    model.config.eos_token_id = 2
+    if llama_type:
+        model.config.pad_token_id = tokenizer.pad_token_id = 0  # unk
+        model.config.bos_token_id = 1
+        model.config.eos_token_id = 2
 
     if not load_8bit:
         model.half()  # seems to fix bugs for some users.
