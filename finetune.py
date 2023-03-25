@@ -265,11 +265,11 @@ def generate_prompt(data_point):
 if __name__ == "__main__":
     print("""
     Example run on 4 GPUs:
-    WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun --nproc_per_node=4 --master_port=1234 finetune.py --llama_type=True --base_model='decapoda-research/llama-7b-hf' --data_path=alpaca_data_cleaned.json --run_id=0 &> 0.log
-    WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun --nproc_per_node=4 --master_port=1234 finetune.py --llama_type=True --base_model='decapoda-research/llama-30b-hf' --data_path=alpaca_data_cleaned.json --batch_size=16 --micro_batch_size=1 --run_id=1 --save_code=True &> 1.log
-    WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun --nproc_per_node=4 --master_port=1234 finetune.py --base_model='EleutherAI/gpt-j-6B' --data_path=alpaca_data_cleaned.json --run_id=2 &> 2.log
+    WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun --nproc_per_node=4 --master_port=1234 finetune.py --llama_type=True --base_model='decapoda-research/llama-7b-hf' --output_dir='lora_alpaca_7B' --data_path=alpaca_data_cleaned.json --run_id=0 &> 0.log
+    WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun --nproc_per_node=4 --master_port=1234 finetune.py --llama_type=True --base_model='decapoda-research/llama-30b-hf' --output_dir='lora_alpaca_30B' --data_path=alpaca_data_cleaned.json --batch_size=16 --micro_batch_size=1 --run_id=1 --save_code=True &> 1.log
+    WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun --nproc_per_node=4 --master_port=1234 finetune.py --base_model='EleutherAI/gpt-j-6B' --output_dir='lora_alpaca_6B' --data_path=alpaca_data_cleaned.json --run_id=2 &> 2.log
 
-    WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun --nproc_per_node=4 --master_port=1234 finetune.py --base_model='EleutherAI/gpt-neox-20b' --data_path=alpaca_data_cleaned.json --lora_target_modules='["query_key_value"]' --run_id=8 --batch_size=16 --micro_batch_size=4 &> 8.log
+    WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun --nproc_per_node=4 --master_port=1234 finetune.py --base_model='EleutherAI/gpt-neox-20b' --output_dir='lora_alpaca_20B' --data_path=alpaca_data_cleaned.json --lora_target_modules='["query_key_value"]' --run_id=8 --batch_size=16 --micro_batch_size=4 &> 8.log
 
     """, flush=True)
     fire.Fire(train)
