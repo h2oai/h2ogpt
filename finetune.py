@@ -146,7 +146,6 @@ def train(
         model = PeftModel.from_pretrained(
             model,
             lora_weights,
-            torch_dtype=torch.float16,
         )
 
     data = load_dataset("json", data_files=data_path)
