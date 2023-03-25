@@ -26,15 +26,28 @@ except:
 def main(
         load_8bit: bool = False,
         base_model: str = "",
-        lora_weights: str = "tloen/alpaca-lora-7b",
+        lora_weights: str = "lora-alpaca",
+        llama_type: bool = False,
 ):
     assert base_model, (
         "Please specify a --base_model, e.g. --base_model='decapoda-research/llama-7b-hf'"
     )
+    if llama_type:
+        assert (
+                "LlamaTokenizer" in transformers._import_structure["models.llama"]
+        ), "LLaMA is now in HuggingFace's main branch.\nPlease reinstall it: pip uninstall transformers && pip install git+https://github.com/huggingface/transformers.git"
+        from transformers import LlamaForCausalLM, LlamaTokenizer
+        model_loader = LlamaForCausalLM
+        tokenizer_loader = LlamaTokenizer
+    else:
+        from transformers import AutoTokenizer, AutoModelForCausalLM
+        model_loader = AutoModelForCausalLM
+        tokenizer_loader = AutoTokenizer
 
-    tokenizer = LlamaTokenizer.from_pretrained(base_model)
+    tokenizer = tokenizer_loader.from_pretrained(base_model)
+
     if device == "cuda":
-        model = LlamaForCausalLM.from_pretrained(
+        model = tokenizer_loader.from_pretrained(
             base_model,
             load_in_8bit=load_8bit,
             torch_dtype=torch.float16,
@@ -46,7 +59,7 @@ def main(
             torch_dtype=torch.float16,
         )
     elif device == "mps":
-        model = LlamaForCausalLM.from_pretrained(
+        model = tokenizer_loader.from_pretrained(
             base_model,
             device_map={"": device},
             torch_dtype=torch.float16,
@@ -58,7 +71,7 @@ def main(
             torch_dtype=torch.float16,
         )
     else:
-        model = LlamaForCausalLM.from_pretrained(
+        model = tokenizer_loader.from_pretrained(
             base_model, device_map={"": device}, low_cpu_mem_usage=True
         )
         model = PeftModel.from_pretrained(
