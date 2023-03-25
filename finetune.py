@@ -27,7 +27,7 @@ def train(
         data_path: str = "./alpaca_data_cleaned.json",
         llama_type: bool = False,
         output_dir: str = "./lora-alpaca2",
-        lora_weights: str = './lora-alpaca',  # warm start
+        lora_weights: str = None,  # './lora-alpaca',  # warm start
         # training hyperparams
         batch_size: int = 128,
         micro_batch_size: int = 4,
@@ -36,12 +36,14 @@ def train(
         cutoff_len: int = 512,
         val_set_size: int = 2000,
         # lora hyperparams
-        lora_r: int = 8,
-        lora_alpha: int = 16,
+        lora_r: int = 2,
+        lora_alpha: int = 32,
         lora_dropout: float = 0.05,
         lora_target_modules: List[str] = [
-            "q_proj",
+            "k_proj",
             "v_proj",
+            "q_proj",
+            "out_proj",
         ],
         # llm hyperparams
         train_on_inputs: bool = True,  # if False, masks out inputs in loss
