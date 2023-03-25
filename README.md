@@ -49,8 +49,8 @@ Frst truly open source instruct model.
 1. Base: Start with fully open source apache 2.0 models EleutherAI--gpt-j-6B and EleutherAI--gpt-neox-20b
 2. Construct Prompt: Setup prompt engineering on 6B as-is to convert a sentence into question/answer or command/response format 
 3. Open-Source Instruct Data: Convert wiki data into instruct form
-4. LORA fine-tune 6B and 20B using the open-source instruct data
-5. Submit instruct 6B and 20B on huggingface as first apache 2 model
+4. Fine-tune: LORA fine-tune 6B and 20B using the open-source instruct data
+5. Open Data & Model: Submit instruct 6B and 20B on huggingface as first apache 2 model
 
 ### Goals
 1. Publish on hugging face first fully open-source Apache v2 instruct dataset
