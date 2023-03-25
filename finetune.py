@@ -15,7 +15,7 @@ from peft import (
     prepare_model_for_int8_training,
     LoraConfig,
     get_peft_model,
-    get_peft_model_state_dict,
+    get_peft_model_state_dict, PeftModel,
 )
 
 
@@ -23,10 +23,11 @@ def train(
         save_code: bool = False,
         run_id: int = random.randint(0, 2 ** 31),
         # model/data params
-        base_model: str = 'decapoda-research/llama-7b-hf',
+        base_model: str = "EleutherAI/gpt-j-6B",
         data_path: str = "./alpaca_data_cleaned.json",
         llama_type: bool = False,
-        output_dir: str = "./lora-alpaca",
+        output_dir: str = "./lora-alpaca2",
+        lora_weights: str = './lora-alpaca',  # warm start
         # training hyperparams
         batch_size: int = 128,
         micro_batch_size: int = 4,
@@ -53,6 +54,7 @@ def train(
         f"base_model: {base_model}\n"
         f"data_path: {data_path}\n"
         f"output_dir: {output_dir}\n"
+        f"lora_weights: {lora_weights}\n"
         f"batch_size: {batch_size}\n"
         f"micro_batch_size: {micro_batch_size}\n"
         f"num_epochs: {num_epochs}\n"
@@ -130,15 +132,22 @@ def train(
 
     model = prepare_model_for_int8_training(model)
 
-    config = LoraConfig(
-        r=lora_r,
-        lora_alpha=lora_alpha,
-        target_modules=lora_target_modules,
-        lora_dropout=lora_dropout,
-        bias="none",
-        task_type="CAUSAL_LM",
-    )
-    model = get_peft_model(model, config)
+    if not lora_weights:
+        config = LoraConfig(
+            r=lora_r,
+            lora_alpha=lora_alpha,
+            target_modules=lora_target_modules,
+            lora_dropout=lora_dropout,
+            bias="none",
+            task_type="CAUSAL_LM",
+        )
+        model = get_peft_model(model, config)
+    else:
+        model = PeftModel.from_pretrained(
+            model,
+            lora_weights,
+            torch_dtype=torch.float16,
+        )
 
     data = load_dataset("json", data_files=data_path)
 
