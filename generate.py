@@ -184,6 +184,7 @@ def generate_prompt(instruction, input=None):
 if __name__ == "__main__":
     print("""
     mv lora-alpara lora-alpaca_6B
-    WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun --nproc_per_node=4 --master_port=1234 generate.py --base_model='EleutherAI/gpt-j-6B' lora_weights=lora-alpaca_6B
+    WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun --nproc_per_node=4 --master_port=1234 generate.py --base_model='EleutherAI/gpt-j-6B' --lora_weights=lora-alpaca_6B
+    python generate.py --base_model='EleutherAI/gpt-j-6B' --lora_weights='lora-alpaca_6B'
     """, flush=True)
     fire.Fire(main)
