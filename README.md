@@ -44,6 +44,35 @@ E.g. for CUDA 12.1:
 CUDA_VERSION=121 python setup.py install
 ```
 
+### Plan
+Frst truly open source instruct model.
+1. Base: Start with fully open source apache 2.0 models EleutherAI--gpt-j-6B and EleutherAI--gpt-neox-20b
+2. Construct Prompt: Setup prompt engineering on 6B as-is to convert a sentence into question/answer or command/response format 
+3. Open-Source Instruct Data: Convert wiki data into instruct form
+4. LORA fine-tune 6B and 20B using the open-source instruct data
+5. Submit instruct 6B and 20B on huggingface as first apache 2 model
+
+### Goals
+1. Publish on hugging face first fully open-source Apache v2 instruct dataset
+2. Publish on hugging face first fully open-source Apache v2 instruct models
+3. Demonstrate efficiency of LORA for fast and low-memory fine-tuning
+
+### Wiki
+
+```python
+>>> from datasets import load_dataset
+>>> wk = load_dataset("wikipedia", "20220301.en")
+>>> wk
+DatasetDict({
+    train: Dataset({
+        features: ['id', 'url', 'title', 'text'],
+        num_rows: 6458670
+    })
+})
+>>> sentences = ".".join(wk['train'][0]['text'].split('.')[0:2])
+'Anarchism is a political philosophy and movement that is sceptical of authority and rejects all involuntary, coercive forms of hierarchy. Anarchism calls for the abolition of the state, which it holds to be unnecessary, undesirable, and harmful'
+>>> 
+```
 
 ### Fine-Tune
 
