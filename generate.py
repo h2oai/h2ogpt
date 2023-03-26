@@ -83,8 +83,8 @@ def main(
 
     def evaluate(
             instruction,
-            prompt_type,
             input=None,
+            prompt_type=0,
             temperature=0.1,
             top_p=0.75,
             top_k=40,
@@ -120,8 +120,8 @@ def main(
             gr.components.Textbox(
                 lines=2, label="Instruction", placeholder="Who is smarter, Einstein or Newton?"
             ),
-            gr.components.Slider(minimum=0, maximum=1, value=0.1, label="Prompt Type"),
             gr.components.Textbox(lines=2, label="Input", placeholder="none"),
+            gr.components.Slider(minimum=0, maximum=1, value=0, label="Prompt Type"),
             gr.components.Slider(minimum=0, maximum=1, value=0.1, label="Temperature"),
             gr.components.Slider(minimum=0, maximum=1, value=0.75, label="Top p"),
             gr.components.Slider(
