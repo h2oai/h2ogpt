@@ -46,6 +46,8 @@ def train(
         train_on_inputs: bool = True,  # if False, masks out inputs in loss
         group_by_length: bool = True,  # faster, but produces an odd training loss curve
         prompt_type: int = 0,
+        # torch training params
+        ddp: bool = True,  # set to False if OOM with True, for multi-GPU model parallelism
 ):
     if save_code:
         copy_code(run_id)
@@ -66,6 +68,7 @@ def train(
         f"lora_target_modules: {lora_target_modules}\n"
         f"train_on_inputs: {train_on_inputs}\n"
         f"group_by_length: {group_by_length}\n"
+        f"ddp: {ddp}\n"
     )
     assert (
         base_model
@@ -74,10 +77,20 @@ def train(
 
     device_map = "auto"
     world_size = int(os.environ.get("WORLD_SIZE", 1))
-    ddp = world_size != 1
-    if ddp:
-        device_map = {"": int(os.environ.get("LOCAL_RANK") or 0)}
-        gradient_accumulation_steps = gradient_accumulation_steps // world_size
+    gpus = max(world_size, torch.cuda.device_count())
+    max_memory = None
+    if gpus > 1:
+        if ddp:
+            print("data parallel")
+            device_map = {"": int(os.environ.get("LOCAL_RANK") or 0)}
+            gradient_accumulation_steps = gradient_accumulation_steps // world_size
+        else:
+            free_in_GB = int(min(torch.cuda.mem_get_info()) / 1024 ** 3)
+            max_memory = f"{free_in_GB - 2}GB"
+            max_memory = {i: max_memory for i in range(gpus)}
+            print("world_size: %d" % world_size)
+            print("num_gpus: %d" % gpus)
+            print("max mem: %s" % max_memory)
 
     model_loader, tokenizer_loader = get_loaders(llama_type=llama_type)
 
@@ -85,7 +98,13 @@ def train(
         base_model,
         load_in_8bit=True,
         device_map=device_map,
+        max_memory=max_memory,
     )
+    if gpus > 1:
+        if not ddp:
+            print("model parallel")
+            model.is_parallelizable = True
+            model.model_parallel = True
 
     tokenizer = tokenizer_loader.from_pretrained(base_model)
 
