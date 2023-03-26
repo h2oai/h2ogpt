@@ -19,7 +19,7 @@ except:
     pass
 
 
-from finetune import get_loaders, get_prompt, example_data_point
+from finetune import get_loaders, get_prompt, example_data_points, generate_prompt
 
 
 def main(
@@ -96,7 +96,8 @@ def main(
             max_new_tokens=128,
             **kwargs,
     ):
-        prompt, preresponse = generate_test_prompt(instruction, prompt_type_choice, input)
+        data_point = dict(instruction=instruction, input=input)
+        prompt, preresponse = generate_prompt(data_point, prompt_type_choice)
         inputs = tokenizer(prompt, return_tensors="pt")
         input_ids = inputs["input_ids"].to(device)
         generation_config = GenerationConfig(
@@ -151,27 +152,12 @@ def main(
     ).launch()
 
 
-def generate_test_prompt(instruction, prompt_type, input=None):
-    promptA, promptB, PreInstruct, PreInput, PreResponse = get_prompt(prompt_type)
-
-    if input:
-        return f"""{promptA}
-{PreInstruct}
-{instruction}
-{PreInput}
-{input}
-{PreResponse}
-""", PreResponse.strip()
-    else:
-        return f"""{promptB}
-{PreInstruct}
-{instruction}
-{PreResponse}
-""", PreResponse.strip()
 
 
-def test_test_prompt(prompt_type=0):
-    print(generate_test_prompt(example_data_point['instruction'], prompt_type, example_data_point['input']))
+def test_test_prompt(prompt_type=0, data_point=0):
+    example_data_point = example_data_points[data_point]
+    example_data_point.pop('output', None)
+    return generate_prompt(example_data_point, prompt_type)
 
 
 if __name__ == "__main__":
@@ -182,7 +168,7 @@ if __name__ == "__main__":
     
     # generate without lora weights, no prompt
     python generate.py --base_model='EleutherAI/gpt-neox-20b' --prompt_type=-1
-    python generate.py --base_model='togethercomputer/GPT-NeoXT-Chat-Base-20B' --prompt_type=-1
+    python generate.py --base_model='togethercomputer/GPT-NeoXT-Chat-Base-20B' --prompt_type=2
     
     """, flush=True)
     fire.Fire(main)

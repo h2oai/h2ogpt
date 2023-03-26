@@ -4,6 +4,7 @@ import random
 import shutil
 import subprocess
 import sys
+import time
 from typing import List
 import fire
 
@@ -134,10 +135,10 @@ def train(
         return result
 
     def generate_and_tokenize_prompt(data_point):
-        full_prompt = generate_train_prompt(data_point, prompt_type)
+        full_prompt, _ = generate_prompt(data_point, prompt_type)
         tokenized_full_prompt = tokenize(full_prompt)
         if not train_on_inputs:
-            user_prompt = generate_train_prompt({**data_point, "output": ""}, prompt_type)
+            user_prompt, _ = generate_prompt({**data_point, "output": ""}, prompt_type)
             tokenized_user_prompt = tokenize(user_prompt, add_eos_token=False)
             user_prompt_len = len(tokenized_user_prompt["input_ids"])
 
@@ -267,8 +268,8 @@ def get_prompt(prompt_type):
     if prompt_type == -1:
         promptA = promptB = PreInstruct = PreInput = PreResponse = ''
     elif prompt_type == 0:
-        promptA = 'Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.'
-        promptB = 'Below is an instruction that describes a task. Write a response that appropriately completes the request.'
+        promptA = 'Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.\n'
+        promptB = 'Below is an instruction that describes a task. Write a response that appropriately completes the request.\n'
 
         PreInstruct = """
 ### Instruction:
@@ -282,8 +283,8 @@ def get_prompt(prompt_type):
 ### Response:
 """
     elif prompt_type == 1:
-        promptA = 'Write a detailed high-quality, accurate, fair, Response with about 100 words by following the Instruction as applied on the Input.'
-        promptB = 'Write a detailed high-quality, accurate, fair, Response with about 100 words by following the Instruction.'
+        promptA = 'Write a detailed high-quality, accurate, fair, Response with about 100 words by following the Instruction as applied on the Input.\n'
+        promptB = 'Write a detailed high-quality, accurate, fair, Response with about 100 words by following the Instruction.\n'
 
         PreInstruct = """
 ### Instruction:
@@ -296,38 +297,106 @@ def get_prompt(prompt_type):
         PreResponse = """
 ### Response:
 """
+    elif prompt_type == 2:
+        cur_date = time.strftime('%Y-%m-%d')
+        cur_time = time.strftime('%H:%M:%S %p %Z')
+
+        PRE_PROMPT = """\
+Current Date: {}
+Current Time: {}
+
+"""
+
+        preprompt = PRE_PROMPT.format(cur_date, cur_time)
+
+        promptA = '%s<human>: ' % preprompt
+        promptB = '%s<human>: ' % preprompt
+
+        PreInstruct = ""
+
+        PreInput = None
+
+        PreResponse = "<bot>: "
     else:
         raise RuntimeError("No such prompt_type=%s" % prompt_type)
 
     return promptA, promptB, PreInstruct, PreInput, PreResponse
 
 
-def generate_train_prompt(data_point, prompt_type):
+def generate_prompt(data_point, prompt_type):
+    instruction = data_point.get('instruction')
+    input = data_point.get('input')
+    output = data_point.get('output')
     promptA, promptB, PreInstruct, PreInput, PreResponse = get_prompt(prompt_type)
 
-    if data_point["input"]:
-        return f"""{promptA}
-{PreInstruct}
-{data_point["instruction"]}
-{PreInput}
-{data_point["input"]}
-{PreResponse}
-{data_point["output"]}"""
+    prompt = ''
+
+    if input and promptA:
+        prompt += f"""{promptA}"""
+    elif promptB:
+        prompt += f"""{promptB}"""
+
+    if instruction and PreInstruct is not None and input and PreInput is not None:
+        prompt += f"""{PreInstruct}{instruction}{PreInput}{input}
+"""
+    elif instruction and input and PreInstruct is None and PreInput is not None:
+        prompt += f"""{PreInput}{instruction}
+{input}
+"""
+    elif input and instruction and PreInput is None and PreInstruct is not None:
+        prompt += f"""{PreInstruct}{instruction}
+{input}
+"""
+    elif instruction and PreInstruct is not None:
+        prompt += f"""{PreInstruct}{instruction}
+"""
+    elif input and PreInput is not None:
+        prompt += f"""{PreInput}{input}
+"""
+    elif input and instruction and PreInput is not None:
+        prompt += f"""{PreInput}{instruction}{input}
+"""
+    elif input and instruction and PreInstruct is not None:
+        prompt += f"""{PreInstruct}{instruction}{input}
+"""
+    elif input and instruction:
+        prompt += f"""{PreInput}{instruction}{input}
+"""
+    elif input:
+        prompt += f"""{input}
+"""
+    elif instruction:
+        prompt += f"""{instruction}
+"""
+
+    if PreResponse is not None:
+        prompt += f"""{PreResponse}"""
+        clean_response = PreResponse.strip()
     else:
-        return f"""{promptB}
-{PreInstruct}
-{data_point["instruction"]}
-{PreResponse}
-{data_point["output"]}"""
+        clean_response = ''
+
+    if output:
+        prompt += f"""{output}"""
+
+    return prompt, clean_response
 
 
-example_data_point = dict(instruction="Summarize",
-                          input="Ducks eat seeds by the lake, then swim in the lake where fish eat small animals.",
-                          output="Ducks eat and swim at the lake.")
+example_data_point0 = dict(instruction="Summarize",
+                           input="Ducks eat seeds by the lake, then swim in the lake where fish eat small animals.",
+                           output="Ducks eat and swim at the lake.")
+
+example_data_point1 = dict(instruction="Who is smarter, Einstein or Newton?",
+                           output="Einstein.")
+
+example_data_point2 = dict(input="Who is smarter, Einstein or Newton?",
+                           output="Einstein.")
+
+example_data_points = [example_data_point0, example_data_point1, example_data_point2]
 
 
-def test_train_prompt(prompt_type=0):
-    print(generate_train_prompt(example_data_point, prompt_type))
+def test_train_prompt(prompt_type=0, data_point=0):
+    example_data_point = example_data_points[data_point]
+    return generate_prompt(example_data_point, prompt_type)
 
 
 if __name__ == "__main__":
