@@ -67,6 +67,10 @@ WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1" torchrun --nnodes=2 --master_addr="10.10
 WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1" torchrun --nnodes=2 --master_addr="10.10.10.2" --node_rank=1 --nproc_per_node=2 --master_port=1234 finetune.py --llama_type=False --data_path=alpaca_data_cleaned.json --run_id=0 --base_model='EleutherAI/gpt-j-6B'
 ```
 
+Fine-tune using 2 24GB GPUs to split up a 30B model
+```
+WORLD_SIZE=2 python finetune.py --data_path=alpaca_data_cleaned.json --base_model="decapoda-research/llama-30b-hf" --llama_type=True --ddp=False
+```
 
 Generate on single GPU on single node:
 ```
