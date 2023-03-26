@@ -259,8 +259,8 @@ def get_prompt(prompt_type):
 ### Response:
 """
     elif prompt_type == 1:
-        promptA = 'Write a detailed high-quality Response with 100 words by following the Instruction as applied on the Input.'
-        promptB = 'Write a detailed high-quality Response with 100 words by following the Instruction.'
+        promptA = 'Write a detailed high-quality, accurate, fair, Response with 100 words by following the Instruction as applied on the Input.'
+        promptB = 'Write a detailed high-quality, accurate, fair, Response with 100 words by following the Instruction.'
 
         PreInstruct = """
 ### Instruction:
