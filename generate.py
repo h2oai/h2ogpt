@@ -19,7 +19,8 @@ except:
     pass
 
 
-from finetune import get_loaders
+from finetune import get_loaders, get_prompt
+
 
 def main(
         load_8bit: bool = False,
@@ -82,6 +83,7 @@ def main(
 
     def evaluate(
             instruction,
+            prompt_type,
             input=None,
             temperature=0.1,
             top_p=0.75,
@@ -90,7 +92,7 @@ def main(
             max_new_tokens=128,
             **kwargs,
     ):
-        prompt = generate_prompt(instruction, input)
+        prompt = generate_test_prompt(instruction, prompt_type, input)
         inputs = tokenizer(prompt, return_tensors="pt")
         input_ids = inputs["input_ids"].to(device)
         generation_config = GenerationConfig(
@@ -118,6 +120,7 @@ def main(
             gr.components.Textbox(
                 lines=2, label="Instruction", placeholder="Who is smarter, Einstein or Newton?"
             ),
+            gr.components.Slider(minimum=0, maximum=1, value=0.1, label="Prompt Type"),
             gr.components.Textbox(lines=2, label="Input", placeholder="none"),
             gr.components.Slider(minimum=0, maximum=1, value=0.1, label="Temperature"),
             gr.components.Slider(minimum=0, maximum=1, value=0.75, label="Top p"),
@@ -141,26 +144,32 @@ def main(
     ).launch()
 
 
-def generate_prompt(instruction, input=None):
+def generate_test_prompt(instruction, prompt_type, input=None):
+    promptA, promptB, PreInstruct, PreInput, PreResponse = get_prompt(prompt_type)
+
     if input:
-        return f"""Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
-
-### Instruction:
+        return f"""{promptA}
+{PreInstruct}
 {instruction}
-
-### Input:
+{PreInput}
 {input}
-
-### Response:
+{PreResponse}
 """
     else:
-        return f"""Below is an instruction that describes a task. Write a response that appropriately completes the request.
-
-### Instruction:
+        return f"""{promptB}
+{PreInstruct}
 {instruction}
-
-### Response:
+{PreResponse}
 """
+
+
+def test_test_prompt(prompt_type=0):
+    print(generate_test_prompt(dict(instruction="Summarize",
+                                    input="Ducks eat seeds by the lake, then swim in the lake where fish eat small animals.",
+                                    output="Ducks eat and swim at the lake."), prompt_type)
+          )
+
+
 
 
 if __name__ == "__main__":

@@ -45,6 +45,7 @@ def train(
         # llm hyperparams
         train_on_inputs: bool = True,  # if False, masks out inputs in loss
         group_by_length: bool = True,  # faster, but produces an odd training loss curve
+        prompt_type: int = 0,
 ):
     if save_code:
         copy_code(run_id)
@@ -114,10 +115,10 @@ def train(
         return result
 
     def generate_and_tokenize_prompt(data_point):
-        full_prompt = generate_prompt(data_point)
+        full_prompt = generate_train_prompt(data_point, prompt_type)
         tokenized_full_prompt = tokenize(full_prompt)
         if not train_on_inputs:
-            user_prompt = generate_prompt({**data_point, "output": ""})
+            user_prompt = generate_train_prompt({**data_point, "output": ""}, prompt_type)
             tokenized_user_prompt = tokenize(user_prompt, add_eos_token=False)
             user_prompt_len = len(tokenized_user_prompt["input_ids"])
 
@@ -239,27 +240,69 @@ def copy_code(run_id):
         shutil.copy(me_full, new_me)
 
 
-def generate_prompt(data_point):
-    # sorry about the formatting disaster gotta move fast
-    if data_point["input"]:
-        return f"""Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
+def get_prompt(prompt_type):
+    if prompt_type == -1:
+        promptA = promptB = PreInstruct = PreInput = PreResponse = ''
+    elif prompt_type == 0:
+        promptA = 'Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.'
+        promptB = 'Below is an instruction that describes a task. Write a response that appropriately completes the request.'
 
+        PreInstruct = """
 ### Instruction:
-{data_point["instruction"]}
+"""
 
+        PreInput = """
 ### Input:
-{data_point["input"]}
+"""
 
+        PreResponse = """
 ### Response:
+"""
+    elif prompt_type == 1:
+        promptA = 'Write a detailed high-quality Response with 100 words by following the Instruction as applied on the Input.'
+        promptB = 'Write a detailed high-quality Response with 100 words by following the Instruction.'
+
+        PreInstruct = """
+### Instruction:
+"""
+
+        PreInput = """
+### Input:
+"""
+
+        PreResponse = """
+### Response:
+"""
+    else:
+        raise RuntimeError("No such prompt_type=%s" % prompt_type)
+
+    return promptA, promptB, PreInstruct, PreInput, PreResponse
+
+
+def generate_train_prompt(data_point, prompt_type):
+    promptA, promptB, PreInstruct, PreInput, PreResponse = get_prompt(prompt_type)
+
+    if data_point["input"]:
+        return f"""{promptA}
+{PreInstruct}
+{data_point["instruction"]}
+{PreInput}
+{data_point["input"]}
+{PreResponse}
 {data_point["output"]}"""
     else:
-        return f"""Below is an instruction that describes a task. Write a response that appropriately completes the request.
-
-### Instruction:
+        return f"""{promptB}
+{PreInstruct}
 {data_point["instruction"]}
-
-### Response:
+{PreResponse}
 {data_point["output"]}"""
+
+
+def test_train_prompt(prompt_type=0):
+    print(generate_train_prompt(dict(instruction="Summarize",
+                                     input="Ducks eat seeds by the lake, then swim in the lake where fish eat small animals.",
+                                     output="Ducks eat and swim at the lake."), prompt_type)
+          )
 
 
 if __name__ == "__main__":
