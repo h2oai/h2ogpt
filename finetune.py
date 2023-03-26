@@ -298,11 +298,13 @@ def generate_train_prompt(data_point, prompt_type):
 {data_point["output"]}"""
 
 
+example_data_point = dict(instruction="Summarize",
+                          input="Ducks eat seeds by the lake, then swim in the lake where fish eat small animals.",
+                          output="Ducks eat and swim at the lake.")
+
+
 def test_train_prompt(prompt_type=0):
-    print(generate_train_prompt(dict(instruction="Summarize",
-                                     input="Ducks eat seeds by the lake, then swim in the lake where fish eat small animals.",
-                                     output="Ducks eat and swim at the lake."), prompt_type)
-          )
+    print(generate_train_prompt(example_data_point, prompt_type))
 
 
 if __name__ == "__main__":

@@ -19,7 +19,7 @@ except:
     pass
 
 
-from finetune import get_loaders, get_prompt
+from finetune import get_loaders, get_prompt, example_data_point
 
 
 def main(
@@ -164,12 +164,7 @@ def generate_test_prompt(instruction, prompt_type, input=None):
 
 
 def test_test_prompt(prompt_type=0):
-    print(generate_test_prompt(dict(instruction="Summarize",
-                                    input="Ducks eat seeds by the lake, then swim in the lake where fish eat small animals.",
-                                    output="Ducks eat and swim at the lake."), prompt_type)
-          )
-
-
+    print(generate_test_prompt(example_data_point['instruction'], prompt_type, example_data_point['input']))
 
 
 if __name__ == "__main__":
