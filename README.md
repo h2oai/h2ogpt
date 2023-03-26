@@ -50,6 +50,7 @@ E.g. for CUDA 12.1 (latest bitsandbytes does include 12.1)
 ```bash
 git clone https://github.com/TimDettmers/bitsandbytes.git
 cd bitsandbytes
+CUDA_VERSION=121 make cuda12x
 CUDA_VERSION=121 python setup.py install
 cd ..
 ```
