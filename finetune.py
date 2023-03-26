@@ -25,7 +25,7 @@ def train(
         # model/data params
         base_model: str = 'decapoda-research/llama-7b-hf',
         data_path: str = "./alpaca_data_cleaned.json",
-        llama_type: bool = False,
+        llama_type: bool = True,
         output_dir: str = "./lora-alpaca",
         # training hyperparams
         batch_size: int = 128,
