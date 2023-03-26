@@ -25,7 +25,8 @@ from finetune import get_loaders, get_prompt, example_data_point
 def main(
         load_8bit: bool = False,
         base_model: str = "EleutherAI/gpt-j-6B",
-        lora_weights: str = "lora-alpaca",
+        lora_weights: str = "",
+        prompt_type: int= 1 ,
         llama_type: bool = False,
 ):
     assert base_model, (
@@ -41,32 +42,35 @@ def main(
             torch_dtype=torch.float16,
             device_map="auto",
         )
-        model = PeftModel.from_pretrained(
-            model,
-            lora_weights,
-            torch_dtype=torch.float16,
-        )
+        if lora_weights:
+            model = PeftModel.from_pretrained(
+                model,
+                lora_weights,
+                torch_dtype=torch.float16,
+            )
     elif device == "mps":
         model = model_loader.from_pretrained(
             base_model,
             device_map={"": device},
             torch_dtype=torch.float16,
         )
-        model = PeftModel.from_pretrained(
-            model,
-            lora_weights,
-            device_map={"": device},
-            torch_dtype=torch.float16,
-        )
+        if lora_weights:
+            model = PeftModel.from_pretrained(
+                model,
+                lora_weights,
+                device_map={"": device},
+                torch_dtype=torch.float16,
+            )
     else:
         model = model_loader.from_pretrained(
             base_model, device_map={"": device}, low_cpu_mem_usage=True
         )
-        model = PeftModel.from_pretrained(
-            model,
-            lora_weights,
-            device_map={"": device},
-        )
+        if lora_weights:
+            model = PeftModel.from_pretrained(
+                model,
+                lora_weights,
+                device_map={"": device},
+            )
 
     # unwind broken decapoda-research config
     if llama_type:
@@ -84,7 +88,7 @@ def main(
     def evaluate(
             instruction,
             input=None,
-            prompt_type=0,
+            prompt_type_choice=0,
             temperature=0.1,
             top_p=0.75,
             top_k=40,
@@ -92,7 +96,7 @@ def main(
             max_new_tokens=128,
             **kwargs,
     ):
-        prompt = generate_test_prompt(instruction, prompt_type, input)
+        prompt, preresponse = generate_test_prompt(instruction, prompt_type_choice, input)
         inputs = tokenizer(prompt, return_tensors="pt")
         input_ids = inputs["input_ids"].to(device)
         generation_config = GenerationConfig(
@@ -112,7 +116,10 @@ def main(
             )
         s = generation_output.sequences[0]
         output = tokenizer.decode(s)
-        return output.split("### Response:")[1].strip()
+        if prompt_type == -1:
+            return output
+        else:
+            return output.split(preresponse)[1].strip()
 
     gr.Interface(
         fn=evaluate,
@@ -121,7 +128,7 @@ def main(
                 lines=2, label="Instruction", placeholder="Who is smarter, Einstein or Newton?"
             ),
             gr.components.Textbox(lines=2, label="Input", placeholder="none"),
-            gr.components.Slider(minimum=0, maximum=1, value=0, label="Prompt Type"),
+            gr.components.Slider(minimum=-1, maximum=1, value=prompt_type, step=1, label="Prompt Type"),
             gr.components.Slider(minimum=0, maximum=1, value=0.1, label="Temperature"),
             gr.components.Slider(minimum=0, maximum=1, value=0.75, label="Top p"),
             gr.components.Slider(
@@ -154,13 +161,13 @@ def generate_test_prompt(instruction, prompt_type, input=None):
 {PreInput}
 {input}
 {PreResponse}
-"""
+""", PreResponse.strip()
     else:
         return f"""{promptB}
 {PreInstruct}
 {instruction}
 {PreResponse}
-"""
+""", PreResponse.strip()
 
 
 def test_test_prompt(prompt_type=0):
@@ -172,5 +179,10 @@ if __name__ == "__main__":
     WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun --nproc_per_node=4 --master_port=1234 generate.py --base_model='EleutherAI/gpt-j-6B' --lora_weights=lora-alpaca_6B
     python generate.py --base_model='EleutherAI/gpt-j-6B' --lora_weights='lora-alpaca_6B'
     python generate.py --base_model='EleutherAI/gpt-neox-20b' --lora_weights='lora-alpaca_20B'
+    
+    # generate without lora weights, no prompt
+    python generate.py --base_model='EleutherAI/gpt-neox-20b' --prompt_type=-1
+    python generate.py --base_model='togethercomputer/GPT-NeoXT-Chat-Base-20B' --prompt_type=-1
+    
     """, flush=True)
     fire.Fire(main)
