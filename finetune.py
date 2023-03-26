@@ -208,6 +208,10 @@ def train(
     if torch.__version__ >= "2" and sys.platform != "win32":
         model = torch.compile(model)
 
+    if gpus > 1 and not ddp:
+        assert trainer.is_model_parallel
+    else:
+        assert not trainer.is_model_parallel
     trainer.train()
 
     model.save_pretrained(output_dir)
