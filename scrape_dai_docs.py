@@ -17,7 +17,7 @@ def parse_rst_file(filepath):
     current_answer = ""
     for node in document.traverse():
         if node.__class__.__name__ == 'section':
-            current_section = {'question': [], 'answer': []}
+            current_section = ""
         elif current_section is not None:
             if node.__class__.__name__ == 'Text':
                 if node.astext()[-1] == "?":
