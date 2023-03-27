@@ -26,7 +26,7 @@ def main(
         load_8bit: bool = False,
         base_model: str = "EleutherAI/gpt-j-6B",
         lora_weights: str = "",
-        prompt_type: int= 1 ,
+        prompt_type: int = 1,
         llama_type: bool = False,
 ):
     assert base_model, (
