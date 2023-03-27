@@ -25,10 +25,10 @@ def train(
         save_code: bool = False,
         run_id: int = random.randint(0, 2 ** 31),
         # model/data params
-        base_model: str = 'decapoda-research/llama-7b-hf',
+        base_model: str = 'EleutherAI/gpt-neox-20b',
         data_path: str = "./alpaca_data_cleaned.json",
         valid_path: str = None,
-        llama_type: bool = True,
+        llama_type: bool = False,
         output_dir: str = "./lora-alpaca",
         # training hyperparams
         batch_size: int = 128,
@@ -454,5 +454,6 @@ if __name__ == "__main__":
 
     WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun --nproc_per_node=4 --master_port=1234 finetune.py --base_model='EleutherAI/gpt-neox-20b' --output_dir='lora_alpaca_20B' --data_path=alpaca_data_cleaned.json --lora_target_modules='["query_key_value"]' --run_id=8 --batch_size=16 --micro_batch_size=4 &> 8.log
 
+    WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun --nproc_per_node=4 --master_port=1234 finetune.py --base_model='togethercomputer/GPT-NeoXT-Chat-Base-20B' --output_dir='lora_20B_daifaq' --data_path=dai_faq.json --lora_target_modules='["query_key_value"]' --prompt_type=3 --run_id=13 --batch_size=16 --micro_batch_size=4 --num_epochs=100 --val_set_size=0 &> 13.log
     """, flush=True)
     fire.Fire(train)

@@ -130,7 +130,7 @@ def main(
                 lines=2, label="Instruction", placeholder="Who is smarter, Einstein or Newton?"
             ),
             gr.components.Textbox(lines=2, label="Input", placeholder="none"),
-            gr.components.Slider(minimum=-1, maximum=1, value=prompt_type, step=1, label="Prompt Type"),
+            gr.components.Slider(minimum=-1, maximum=3, value=prompt_type, step=1, label="Prompt Type"),
             gr.components.Slider(minimum=0, maximum=1, value=0.1, label="Temperature"),
             gr.components.Slider(minimum=0, maximum=1, value=0.75, label="Top p"),
             gr.components.Slider(
@@ -170,6 +170,8 @@ if __name__ == "__main__":
     # generate without lora weights, no prompt
     python generate.py --base_model='EleutherAI/gpt-neox-20b' --prompt_type=-1
     python generate.py --base_model='togethercomputer/GPT-NeoXT-Chat-Base-20B' --prompt_type=2
+
+    python generate.py --base_model='togethercomputer/GPT-NeoXT-Chat-Base-20B' --prompt_type=3 --lora_weights='lora_20B_daifaq'
     
     """, flush=True)
     fire.Fire(main)
