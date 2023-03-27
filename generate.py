@@ -117,6 +117,7 @@ def main(
             )
         s = generation_output.sequences[0]
         output = tokenizer.decode(s)
+        output = output.replace("<|endoftext|>", "")
         if prompt_type == -1:
             return output
         else:
