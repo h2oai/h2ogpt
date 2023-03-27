@@ -27,6 +27,7 @@ def train(
         # model/data params
         base_model: str = 'decapoda-research/llama-7b-hf',
         data_path: str = "./alpaca_data_cleaned.json",
+        valid_path: str = None,
         llama_type: bool = True,
         output_dir: str = "./lora-alpaca",
         # training hyperparams
@@ -165,7 +166,10 @@ def train(
     )
     model = get_peft_model(model, config)
 
-    data = load_dataset("json", data_files=data_path)
+    if valid_path:
+        data = load_dataset("json", data_files={"train": data_path, "valid": valid_path})
+    else:
+        data = load_dataset("json", data_files={"train": data_path})
 
     if resume_from_checkpoint:
         # Check the available weights and load them
@@ -187,12 +191,15 @@ def train(
 
     model.print_trainable_parameters()  # Be more transparent about the % of trainable params.
 
-    if val_set_size > 0:
+    if val_set_size > 0 and "valid" not in data:
         train_val = data["train"].train_test_split(
             test_size=val_set_size, shuffle=True, seed=42
         )
         train_data = train_val["train"].shuffle().map(generate_and_tokenize_prompt)
         val_data = train_val["test"].shuffle().map(generate_and_tokenize_prompt)
+    elif "valid" in data:
+        train_data = data["train"].shuffle().map(generate_and_tokenize_prompt)
+        val_data = data["valid"].shuffle().map(generate_and_tokenize_prompt)
     else:
         train_data = data["train"].shuffle().map(generate_and_tokenize_prompt)
         val_data = None

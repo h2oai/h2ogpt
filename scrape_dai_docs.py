@@ -45,26 +45,38 @@ def test_scrape_dai_docs_all():
     import numpy as np
     import glob
     from nltk.tokenize import sent_tokenize
-    dd = []
-    for LEN in [100, 200, 500, 1000]:
-        for file in glob.glob("/home/arno/h2oai/docs/**/*rst"):
-            with open(file) as input:
-                blob = input.read()
-                blob = blob.replace("~~", "")
-                blob = blob.replace("==", "")
-                blob = blob.replace("''", "")
-                blob = blob.replace("--", "")
-                blob = blob.replace("**", "")
-                sentences = sent_tokenize(blob)
-                my_string = ""
-                for sentence in sentences:
-                    if len(my_string) < LEN:
-                        my_string += " " + sentence
-                    else:
-                        dd.append(my_string)
-                        my_string = ""
-    np.random.shuffle(dd)
-    output_file = "dai_docs.json"
-    save_thing = [{"output": k} for k in dd]
-    with open(output_file, "wt") as f:
-        f.write(json.dumps(save_thing, indent=2))
+    dd = {}
+    np.random.seed(1234)
+    files = list(glob.glob("/home/arno/h2oai/docs/**/*rst"))
+    np.random.shuffle(files)
+    val_count = int(0.05 * len(files))
+    train_files = files[val_count:]
+    valid_files = files[:val_count]
+    things = [
+        ("dai_docs.train.json", train_files),
+        ("dai_docs.valid.json", valid_files)
+    ]
+    for LEN in [100, 200, 500]:
+        for output_file, ff in things:
+            if output_file not in dd:
+                dd[output_file] = []
+            for f in ff:
+                with open(f) as input:
+                    blob = input.read()
+                    blob = blob.replace("~~", "")
+                    blob = blob.replace("==", "")
+                    blob = blob.replace("''", "")
+                    blob = blob.replace("--", "")
+                    blob = blob.replace("**", "")
+                    sentences = sent_tokenize(blob)
+                    my_string = ""
+                    for sentence in sentences:
+                        if len(my_string) < LEN:
+                            my_string += " " + sentence
+                        else:
+                            dd[output_file].append(my_string)
+                            my_string = ""
+    for output_file, _ in things:
+        save_thing = [{"output": k} for k in dd[output_file]]
+        with open(output_file, "wt") as f:
+            f.write(json.dumps(save_thing, indent=2))
