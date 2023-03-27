@@ -31,6 +31,7 @@ def train(
         valid_path: str = None,
         llama_type: bool = False,
         output_dir: str = "./lora-alpaca",
+        lora_weights: str = "",
         # training hyperparams
         batch_size: int = 128,
         micro_batch_size: int = 4,
@@ -161,15 +162,23 @@ def train(
 
     model = prepare_model_for_int8_training(model)
 
-    config = LoraConfig(
-        r=lora_r,
-        lora_alpha=lora_alpha,
-        target_modules=lora_target_modules,
-        lora_dropout=lora_dropout,
-        bias="none",
-        task_type="CAUSAL_LM",
-    )
-    model = get_peft_model(model, config)
+    if lora_weights:
+        from peft import PeftModel
+        model = PeftModel.from_pretrained(
+            model,
+            lora_weights,
+            torch_dtype=torch.float16,
+        )
+    else:
+        config = LoraConfig(
+            r=lora_r,
+            lora_alpha=lora_alpha,
+            target_modules=lora_target_modules,
+            lora_dropout=lora_dropout,
+            bias="none",
+            task_type="CAUSAL_LM",
+        )
+        model = get_peft_model(model, config)
 
     if valid_path:
         data = load_dataset("json", data_files={"train": data_path, "valid": valid_path})
