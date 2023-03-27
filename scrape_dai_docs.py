@@ -39,3 +39,32 @@ def test_scrape_dai_docs():
     output_file = "dai_faq.json"
     with open(output_file, "wt") as f:
         f.write(json.dumps(save_thing, indent=2))
+
+
+def test_scrape_dai_docs_all():
+    import numpy as np
+    import glob
+    from nltk.tokenize import sent_tokenize
+    dd = []
+    for LEN in [100, 200, 500, 1000]:
+        for file in glob.glob("/home/arno/h2oai/docs/**/*rst"):
+            with open(file) as input:
+                blob = input.read()
+                blob = blob.replace("~~", "")
+                blob = blob.replace("==", "")
+                blob = blob.replace("''", "")
+                blob = blob.replace("--", "")
+                blob = blob.replace("**", "")
+                sentences = sent_tokenize(blob)
+                my_string = ""
+                for sentence in sentences:
+                    if len(my_string) < LEN:
+                        my_string += " " + sentence
+                    else:
+                        dd.append(my_string)
+                        my_string = ""
+    np.random.shuffle(dd)
+    output_file = "dai_docs.json"
+    save_thing = [{"output": k} for k in dd]
+    with open(output_file, "wt") as f:
+        f.write(json.dumps(save_thing, indent=2))
