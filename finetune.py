@@ -341,6 +341,19 @@ Current Time: {}
         PreInput = None
 
         PreResponse = "<bot>: "
+    elif prompt_type == 3:
+        promptA = ''
+        promptB = 'Answer the following Driverless AI question.\n'
+
+        PreInstruct = """
+### Driverless AI frequently asked question:
+"""
+
+        PreInput = None
+
+        PreResponse = """
+### Driverless AI documentation answer:
+"""
     else:
         raise RuntimeError("No such prompt_type=%s" % prompt_type)
 
