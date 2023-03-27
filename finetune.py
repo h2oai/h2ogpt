@@ -26,6 +26,7 @@ def train(
         run_id: int = random.randint(0, 2 ** 31),
         # model/data params
         base_model: str = 'EleutherAI/gpt-neox-20b',
+        tokenizer_base_model: str = None,
         data_path: str = "./alpaca_data_cleaned.json",
         valid_path: str = None,
         llama_type: bool = False,
@@ -55,9 +56,12 @@ def train(
 ):
     if save_code:
         copy_code(run_id)
+    if tokenizer_base_model is None:
+        tokenizer_base_model = base_model
     print(
         f"Training Alpaca-LoRA model with params:\n"
         f"base_model: {base_model}\n"
+        f"tokenizer_base_model: {tokenizer_base_model}\n"
         f"data_path: {data_path}\n"
         f"valid_path: {valid_path}\n"
         f"output_dir: {output_dir}\n"
@@ -113,7 +117,7 @@ def train(
             model.is_parallelizable = True
             model.model_parallel = True
 
-    tokenizer = tokenizer_loader.from_pretrained(base_model)
+    tokenizer = tokenizer_loader.from_pretrained(tokenizer_base_model)
 
     tokenizer.pad_token_id = 0  # unk. we want this to be different from the eos token
     tokenizer.padding_side = "left"  # Allow batched inference
