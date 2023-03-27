@@ -11,7 +11,7 @@ assert (
 ), "LLaMA is now in HuggingFace's main branch.\nPlease reinstall it: pip uninstall transformers && pip install git+https://github.com/huggingface/transformers.git"
 
 BASE_MODEL = 'EleutherAI/gpt-j-6B'
-OUTPUT_NAME = "gpt-j-6B.DAIdocs"
+OUTPUT_NAME = "gpt-j-6B_daidocs_alpaca"
 llama_type = False
 
 model_loader, _ = get_loaders(llama_type=llama_type)
@@ -33,7 +33,7 @@ first_weight_old = first_weight.clone()
 
 lora_model = PeftModel.from_pretrained(
     base_model,
-    "lora_6B_daidocs",
+    "lora_6B_daidocs_alpaca",
     device_map={"": "cpu"},
     torch_dtype=torch.float16,
 )
