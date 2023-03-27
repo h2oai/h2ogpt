@@ -59,6 +59,7 @@ def train(
         f"Training Alpaca-LoRA model with params:\n"
         f"base_model: {base_model}\n"
         f"data_path: {data_path}\n"
+        f"valid_path: {valid_path}\n"
         f"output_dir: {output_dir}\n"
         f"batch_size: {batch_size}\n"
         f"micro_batch_size: {micro_batch_size}\n"
@@ -200,6 +201,7 @@ def train(
     elif "valid" in data:
         train_data = data["train"].shuffle().map(generate_and_tokenize_prompt)
         val_data = data["valid"].shuffle().map(generate_and_tokenize_prompt)
+        val_set_size = len(val_data)
     else:
         train_data = data["train"].shuffle().map(generate_and_tokenize_prompt)
         val_data = None
@@ -218,8 +220,8 @@ def train(
             logging_steps=10,
             evaluation_strategy="steps" if val_set_size > 0 else "no",
             save_strategy="steps",
-            eval_steps=200 if val_set_size > 0 else None,
-            save_steps=200,
+            eval_steps=100 if val_set_size > 0 else None,
+            save_steps=100,
             output_dir=output_dir,
             save_total_limit=3,
             load_best_model_at_end=True if val_set_size > 0 else False,
