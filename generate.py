@@ -149,7 +149,7 @@ def main(
         title="H2O-LLM",
         description="Model %s Instruct dataset.  "
                     "For more information, visit [the project's website](https://github.com/h2oai/h2o-llm)." % base_model,
-    ).launch()
+    ).launch(share=True)
 
 
 
