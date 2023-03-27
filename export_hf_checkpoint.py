@@ -10,9 +10,10 @@ assert (
     "LlamaTokenizer" in transformers._import_structure["models.llama"]
 ), "LLaMA is now in HuggingFace's main branch.\nPlease reinstall it: pip uninstall transformers && pip install git+https://github.com/huggingface/transformers.git"
 
-BASE_MODEL = 'EleutherAI/gpt-j-6B'
-OUTPUT_NAME = "gpt-j-6B_daidocs_alpaca"
 llama_type = False
+BASE_MODEL = 'EleutherAI/gpt-j-6B'
+LORA_WEIGHTS = "lora_6B_daidocs_alpaca_daifaq"
+OUTPUT_NAME = "gpt-j-6B_daidocs_alpaca_daifaq"
 
 model_loader, _ = get_loaders(llama_type=llama_type)
 

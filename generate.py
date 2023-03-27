@@ -25,6 +25,7 @@ from finetune import get_loaders, get_prompt, example_data_points, generate_prom
 def main(
         load_8bit: bool = False,
         base_model: str = "EleutherAI/gpt-j-6B",
+        tokenizer_base_model: str = None,
         lora_weights: str = "",
         prompt_type: int = 1,
         llama_type: bool = False,
@@ -33,8 +34,10 @@ def main(
         "Please specify a --base_model, e.g. --base_model="
     )
     model_loader, tokenizer_loader = get_loaders(llama_type=llama_type)
+    if tokenizer_base_model is None:
+        tokenizer_base_model = base_model
 
-    tokenizer = tokenizer_loader.from_pretrained(base_model)
+    tokenizer = tokenizer_loader.from_pretrained(tokenizer_base_model)
     if device == "cuda":
         model = model_loader.from_pretrained(
             base_model,
