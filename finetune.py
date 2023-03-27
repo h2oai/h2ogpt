@@ -17,6 +17,7 @@ from peft import (
     LoraConfig,
     get_peft_model,
     get_peft_model_state_dict,
+    set_peft_model_state_dict,
 )
 
 
@@ -33,7 +34,7 @@ def train(
         micro_batch_size: int = 4,
         num_epochs: int = 3,
         learning_rate: float = 3e-4,
-        cutoff_len: int = 512,
+        cutoff_len: int = 256,
         val_set_size: int = 2000,
         # lora hyperparams
         lora_r: int = 8,
@@ -45,7 +46,8 @@ def train(
         ],
         # llm hyperparams
         train_on_inputs: bool = True,  # if False, masks out inputs in loss
-        group_by_length: bool = True,  # faster, but produces an odd training loss curve
+        group_by_length: bool = False,  # faster, but produces an odd training loss curve
+        resume_from_checkpoint: str = None,  # either training checkpoint or final adapter
         prompt_type: int = 0,
         # torch training params
         ddp: bool = True,  # set to False if OOM with True, for multi-GPU model parallelism
@@ -69,6 +71,8 @@ def train(
         f"lora_target_modules: {lora_target_modules}\n"
         f"train_on_inputs: {train_on_inputs}\n"
         f"group_by_length: {group_by_length}\n"
+        f"resume_from_checkpoint: {resume_from_checkpoint}\n"
+        f"prompt_type: {prompt_type}\n"
         f"ddp: {ddp}\n"
     )
     assert (
@@ -163,6 +167,26 @@ def train(
 
     data = load_dataset("json", data_files=data_path)
 
+    if resume_from_checkpoint:
+        # Check the available weights and load them
+        checkpoint_name = os.path.join(
+            resume_from_checkpoint, "pytorch_model.bin"
+        )  # Full checkpoint
+        if not os.path.exists(checkpoint_name):
+            checkpoint_name = os.path.join(
+                resume_from_checkpoint, "adapter_model.bin"
+            )  # only LoRA model - LoRA config above has to fit
+            resume_from_checkpoint = False  # So the trainer won't try loading its state
+        # The two files above have a different name depending on how they were saved, but are actually the same.
+        if os.path.exists(checkpoint_name):
+            print(f"Restarting from {checkpoint_name}")
+            adapters_weights = torch.load(checkpoint_name)
+            model = set_peft_model_state_dict(model, adapters_weights)
+        else:
+            print(f"Checkpoint {checkpoint_name} not found")
+
+    model.print_trainable_parameters()  # Be more transparent about the % of trainable params.
+
     if val_set_size > 0:
         train_val = data["train"].train_test_split(
             test_size=val_set_size, shuffle=True, seed=42
@@ -213,7 +237,7 @@ def train(
         assert trainer.is_model_parallel
     else:
         assert not trainer.is_model_parallel
-    trainer.train()
+    trainer.train(resume_from_checkpoint=resume_from_checkpoint)
 
     model.save_pretrained(output_dir)
 
