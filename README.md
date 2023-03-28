@@ -114,6 +114,7 @@ GPT-NeoXT-Chat-Base-20B, etc.
 [Pythia-12B](https://huggingface.co/EleutherAI/neox-ckpt-pythia-12b)<br />
 [Flan-T5-XXL](https://huggingface.co/google/flan-t5-xxl)<br />
 [GPT-J-Moderation-6B](https://huggingface.co/togethercomputer/GPT-JT-Moderation-6B)
+[OIG safety models](https://laion.ai/blog/oig-dataset/#safety-models)
 
 ### Some create commons models that would be interesting to use:
 [Galactica-120B](https://huggingface.co/facebook/galactica-120b)<br />
