@@ -10,3 +10,4 @@ appdirs
 fire
 pytest
 nltk
+docutils
