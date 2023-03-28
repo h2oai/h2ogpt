@@ -98,9 +98,8 @@ GPT-NeoXT-Chat-Base-20B, etc.
 6. Use toolformer approach for external APIs
 
 ### Goals
-1. Publish on hugging face first fully open-source Apache v2 instruct dataset
-2. Publish on hugging face first fully open-source Apache v2 instruct models
-3. Demonstrate efficiency of LORA for fast and low-memory fine-tuning
+1. Demonstrate fine-tuning working on some existing corpus
+2. Demonstrate efficiency of LORA for fast and low-memory fine-tuning
 
 
 ### Code to consider including
