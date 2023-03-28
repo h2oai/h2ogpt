@@ -114,6 +114,7 @@ GPT-NeoXT-Chat-Base-20B, etc.
 [aspctu-alpaca-lora diff](https://github.com/tloen/alpaca-lora/compare/main...aspctu:alpaca-lora:main)<br />
 [OpenChatKit on multi-GPU](https://github.com/togethercomputer/OpenChatKit/issues/20)<br />
 [Non-Causal LLM](https://huggingface.co/docs/transformers/main/en/model_doc/gptj#transformers.GPTJForSequenceClassification)<br />
+[OpenChatKit_Offload](https://github.com/togethercomputer/OpenChatKit/commit/148b5745a57a6059231178c41859ecb09164c157)<br />
 
 ### Some open source models:
 [GPT-NeoXT-Chat-Base-20B](https://huggingface.co/togethercomputer/GPT-NeoXT-Chat-Base-20B/tree/main)<br />
@@ -164,6 +165,7 @@ GPT-NeoXT-Chat-Base-20B, etc.
 [minimal-llama](https://github.com/zphang/minimal-llama/)<br />
 [llama.cpp](https://github.com/ggerganov/llama.cpp)<br />
 [lamma.cpp more](https://til.simonwillison.net/llms/llama-7b-m2)<br />
+[TargetedSummarization](https://github.com/helliun/targetedSummarization)<br />
 
 ### Apache2/etc. Data
 [OIG 43M instructions](https://laion.ai/blog/oig-dataset/) [direct HF link](https://huggingface.co/datasets/laion/OIG)<br />
@@ -175,6 +177,7 @@ GPT-NeoXT-Chat-Base-20B, etc.
 
 ### Prompt ENGR
 [Info](https://lilianweng.github.io/posts/2023-03-15-prompt-engineering/)<br />
+[Info2](https://github.com/dair-ai/Prompt-Engineering-Guide)<br />
 
 ### Commercial products
 [OpenAI](https://platform.openai.com/docs/guides/fine-tuning/advanced-usage)<br />
@@ -196,6 +199,7 @@ GPT-NeoXT-Chat-Base-20B, etc.
 [OpenChatKit2](https://github.com/togethercomputer/OpenDataHub)<br />
 [OpenChatKit3](https://www.together.xyz/blog/openchatkit)<br />
 [OpenChatKit4](https://github.com/togethercomputer/OpenChatKit/blob/main/training/README.md#arguments)<br />
+[OpenChatKitPreview](https://api.together.xyz/open-chat?preview=1)<br />
 [langchain](https://python.langchain.com/en/latest/)<br />
 [langchain+pinecone](https://www.youtube.com/watch?v=nMniwlGyX-c)<br />
 
