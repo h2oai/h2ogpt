@@ -7,9 +7,10 @@ import sys
 import time
 from typing import List
 import fire
+import numpy as np
 
 import torch
-from datasets import load_dataset
+from datasets import load_dataset, concatenate_datasets
 import transformers
 
 from peft import (
@@ -28,6 +29,8 @@ def train(
         base_model: str = 'EleutherAI/gpt-neox-20b',
         tokenizer_base_model: str = None,
         data_path: str = "./alpaca_data_cleaned.json",
+        data_mix_in_path: str = "laion/OIG",
+        data_mix_in_factor: float = 1.0,  # >1: more mix-in data, <1: more of data_path data
         valid_path: str = None,
         llama_type: bool = False,
         output_dir: str = "./lora-alpaca",
@@ -181,11 +184,6 @@ def train(
         )
         model = get_peft_model(model, config)
 
-    if valid_path:
-        data = load_dataset("json", data_files={"train": data_path, "valid": valid_path})
-    else:
-        data = load_dataset("json", data_files={"train": data_path})
-
     if resume_from_checkpoint:
         # Check the available weights and load them
         checkpoint_name = os.path.join(
@@ -206,24 +204,73 @@ def train(
 
     model.print_trainable_parameters()  # Be more transparent about the % of trainable params.
 
-    if val_set_size > 0 and "valid" not in data:
+    if valid_path:
+        data = load_dataset("json", data_files={"train": data_path, "valid": valid_path})
+    else:
+        data = load_dataset("json", data_files={"train": data_path})
+
+    valid_data = None
+    train_data_mix_in = None
+    valid_data_mix_in = None
+
+    if data_mix_in_path:
+        # get mix-in training/validation data - to keep model "sane"
+        num_rows = data["train"].num_rows
+        print("Loading mix-in dataset: %s" % data_mix_in_path)
+        data_mix_in = load_dataset(data_mix_in_path)  # can be large
+
+        # only get as much as we need to balance
+        data_mix_in_train_valid = data_mix_in.train_test_split(
+            test_size=int(num_rows * data_mix_in_factor) + (val_set_size or 0),
+            shuffle=True, seed=np.random.randint(10000),
+        )
+        if val_set_size:
+            train_data_mix_in = train_data_mix_in[:-val_set_size, :]
+            valid_data_mix_in = valid_data_mix_in[-val_set_size:, :]
+        else:
+            train_data_mix_in = data_mix_in_train_valid["test"]
+        print("Created mix-in data:\n%s\n%s" % (train_data_mix_in, valid_data_mix_in))
+
+    # get our own training/validation data - for fine-tuning
+    if val_set_size > 0 and not valid_path and not data_mix_in_path:
+        # create valid split from train
         train_val = data["train"].train_test_split(
             test_size=val_set_size, shuffle=True, seed=42
         )
-        train_data = train_val["train"].shuffle().map(generate_and_tokenize_prompt)
-        val_data = train_val["test"].shuffle().map(generate_and_tokenize_prompt)
-    elif "valid" in data:
-        train_data = data["train"].shuffle().map(generate_and_tokenize_prompt)
-        val_data = data["valid"].shuffle().map(generate_and_tokenize_prompt)
-        val_set_size = len(val_data)
+        train_data = train_val["train"]
+        valid_data = train_val["test"]
     else:
-        train_data = data["train"].shuffle().map(generate_and_tokenize_prompt)
-        val_data = None
+        train_data = data["train"]
+        if valid_path:
+            # use given valid split, has priority over data_mix_in_path
+            valid_data = data["valid"]
+        elif data_mix_in_path:
+            # use validation from mix-in
+            valid_data = valid_data_mix_in
+
+    assert train_data is not None
+
+    # shuffle and tokenize data
+    if train_data_mix_in:
+        train_data = concatenate_datasets([train_data, train_data_mix_in])
+    train_data = train_data.shuffle().map(generate_and_tokenize_prompt)
+
+    if valid_data and valid_data_mix_in:
+        valid_data = concatenate_datasets([valid_data, valid_data_mix_in])
+    elif valid_data_mix_in:
+        valid_data = valid_data_mix_in
+
+    if valid_data:
+        valid_data = valid_data.shuffle().map(generate_and_tokenize_prompt)
+        val_set_size = len(valid_data)
+    else:
+        val_set_size = 0
+    print("Final fine-tuning data:\n%s\n%s" % (train_data, valid_data))
 
     trainer = transformers.Trainer(
         model=model,
         train_dataset=train_data,
-        eval_dataset=val_data,
+        eval_dataset=valid_data,
         args=transformers.TrainingArguments(
             per_device_train_batch_size=micro_batch_size,
             gradient_accumulation_steps=gradient_accumulation_steps,
