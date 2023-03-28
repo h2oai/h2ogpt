@@ -7,7 +7,8 @@ import sys
 import time
 from typing import List
 import fire
-
+import neptune
+from transformers.integrations import NeptuneCallback
 import torch
 from datasets import load_dataset
 import transformers
@@ -18,6 +19,11 @@ from peft import (
     get_peft_model,
     get_peft_model_state_dict,
     set_peft_model_state_dict,
+)
+
+
+run = neptune.init_run(
+    source_files=[],
 )
 
 
@@ -220,6 +226,8 @@ def train(
         train_data = data["train"].shuffle().map(generate_and_tokenize_prompt)
         val_data = None
 
+    neptune_callback = NeptuneCallback(run=run)
+
     trainer = transformers.Trainer(
         model=model,
         train_dataset=train_data,
@@ -241,11 +249,11 @@ def train(
             load_best_model_at_end=True if val_set_size > 0 else False,
             ddp_find_unused_parameters=False if ddp else None,
             group_by_length=group_by_length,
-            report_to="neptune",
         ),
         data_collator=transformers.DataCollatorForSeq2Seq(
             tokenizer, pad_to_multiple_of=8, return_tensors="pt", padding=True
         ),
+        callbacks=[neptune_callback],
     )
     model.config.use_cache = False
 
