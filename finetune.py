@@ -245,15 +245,18 @@ def train(
         # only get as much as we need to balance
         train_size = int(num_rows * data_mix_in_factor)
         valid_size = val_set_size or 0
-        data_mix_in_train_valid = data_mix_in.train_test_split(
+        mixin_small = data_mix_in.train_test_split(
             test_size=train_size + valid_size,
             shuffle=True, seed=np.random.randint(10000),
         )["test"]
-        if val_set_size:
-            train_data_mix_in = data_mix_in_train_valid[:train_size, :]
-            valid_data_mix_in = data_mix_in_train_valid[train_size:, :]
+        if valid_size:
+            mixin_train_test = mixin_small.train_test_split(
+                test_size=valid_size, shuffle=False,
+            )
+            train_data_mix_in = mixin_train_test["train"]
+            valid_data_mix_in = mixin_train_test["test"]
         else:
-            train_data_mix_in = data_mix_in_train_valid
+            train_data_mix_in = mixin_small
         print("Created mix-in data:\n%s\n%s" % (train_data_mix_in, valid_data_mix_in))
 
     # get our own training/validation data - for fine-tuning
