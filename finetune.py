@@ -40,6 +40,7 @@ def train(
 
         data_path: str = "./alpaca_data_cleaned.json",
         # data_path: str = "./dai_docs.train.json",
+        prompt_type: int = 0,
 
         valid_path: str = None,
         # valid_path: str = "./dai_docs.valid.json",
@@ -48,6 +49,7 @@ def train(
         data_mix_in_path: str = "0-hero/OIG-small-chip2",  # high quality, 50 MB, good enough for now
         data_mix_in_factor: float = 1.0,  # >1: more mix-in data, <1: more of data_path data
         data_mix_in_col_dict: dict = {'user': 'instruction', 'chip2': 'output'},
+        data_mix_in_prompt_type: int = 0,
 
         output_dir: str = None,
 
@@ -73,7 +75,6 @@ def train(
         train_on_inputs: bool = True,  # if False, masks out inputs in loss
         group_by_length: bool = False,  # faster, but produces an odd training loss curve
         resume_from_checkpoint: str = None,  # either training checkpoint or final adapter
-        prompt_type: int = 0,
         # torch training params
         ddp: bool = True,  # set to False if OOM with True, for multi-GPU model parallelism
 ):
@@ -259,6 +260,19 @@ def train(
             valid_data_mix_in = mixin_train_test["test"]
         else:
             train_data_mix_in = mixin_small
+
+        if "prompt_type" not in train_data_mix_in.column_names:
+            train_data_mix_in = train_data_mix_in.add_column(
+                "prompt_type",
+                [data_mix_in_prompt_type] * train_data_mix_in.num_rows,
+            )
+            print("Added prompt type %s to mix-in training data" % data_mix_in_prompt_type)
+        if valid_data_mix_in and "prompt_type" not in valid_data_mix_in.column_names:
+            valid_data_mix_in = valid_data_mix_in.add_column(
+                "prompt_type",
+                [data_mix_in_prompt_type] * valid_data_mix_in.num_rows,
+            )
+            print("Added prompt type %s to mix-in validation data" % data_mix_in_prompt_type)
         print("Created mix-in data:\n%s\n%s" % (train_data_mix_in, valid_data_mix_in))
 
     # get our own training/validation data - for fine-tuning
@@ -274,6 +288,18 @@ def train(
         if valid_path:
             # use given valid split, has priority over data_mix_in_path
             valid_data = data["valid"]
+    if "prompt_type" not in train_data.column_names:
+        train_data = train_data.add_column(
+            "prompt_type",
+            [prompt_type] * train_data.num_rows,
+        )
+        print("Added prompt type %s to training data" % data_mix_in_prompt_type)
+    if valid_data and "prompt_type" not in valid_data.column_names:
+        valid_data = valid_data.add_column(
+            "prompt_type",
+            [prompt_type] * valid_data.num_rows,
+        )
+        print("Added prompt type %s to validation data" % data_mix_in_prompt_type)
 
     assert train_data is not None
 
@@ -466,6 +492,7 @@ def generate_prompt(data_point, prompt_type):
     instruction = data_point.get('instruction')
     input = data_point.get('input')
     output = data_point.get('output')
+    prompt_type = data_point.get('prompt_type', prompt_type)
     promptA, promptB, PreInstruct, PreInput, PreResponse, terminate_response = get_prompt(prompt_type)
 
     prompt = ''
