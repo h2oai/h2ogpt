@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import sys
 import time
+from datetime import datetime
 from typing import List
 import fire
 import numpy as np
@@ -25,17 +26,33 @@ from peft import (
 def train(
         save_code: bool = False,
         run_id: int = random.randint(0, 2 ** 31),
-        # model/data params
-        base_model: str = 'togethercomputer/GPT-NeoXT-Chat-Base-20B',
+
+        # base_model: str = 'togethercomputer/GPT-NeoXT-Chat-Base-20B',
+        # base_model: str = 'EleutherAI/gpt-neox-20b',
+        # base_model: str = 'decapoda-research/llama-7b-hf',
+        # base_model: str = 'decapoda-research/llama-13b-hf',
+        # base_model: str = 'decapoda-research/llama-30b-hf',
+        base_model: str = 'EleutherAI/gpt-j-6B',
+
+        # only needed if base_model is self-exported HF state without tokenizer
         tokenizer_base_model: str = None,
+        # tokenizer_base_model: str = 'EleutherAI/gpt-neox-20b',
+
         data_path: str = "./alpaca_data_cleaned.json",
+        # data_path: str = "./dai_docs.train.json",
+
+        valid_path: str = None,
+        # valid_path: str = "./dai_docs.valid.json",
+
         # data_mix_in_path: str = "laion/OIG",  # way too big, medium quality
         data_mix_in_path: str = "0-hero/OIG-small-chip2",  # high quality, 50 MB, good enough for now
         data_mix_in_factor: float = 1.0,  # >1: more mix-in data, <1: more of data_path data
-        valid_path: str = None,
-        llama_type: bool = False,
-        output_dir: str = "./lora-alpaca",
+
+        output_dir: str = None,
+
+        # LoRA checkpoint continuation
         lora_weights: str = "",
+
         # training hyperparams
         batch_size: int = 128,
         micro_batch_size: int = 4,
@@ -59,15 +76,20 @@ def train(
         # torch training params
         ddp: bool = True,  # set to False if OOM with True, for multi-GPU model parallelism
 ):
+    if output_dir is None:
+        output_dir = f"{base_model.split('/')[-1]}.{data_path.replace('/', '')}.{num_epochs}_epochs.{datetime.now().strftime('%Y%m%d-%H%M%S')}"
     if save_code:
         copy_code(run_id)
     if tokenizer_base_model is None:
         tokenizer_base_model = base_model
+    llama_type = "llama" in base_model.lower()
     print(
         f"Training Alpaca-LoRA model with params:\n"
         f"base_model: {base_model}\n"
         f"tokenizer_base_model: {tokenizer_base_model}\n"
         f"data_path: {data_path}\n"
+        f"data_mix_in_path: {data_mix_in_path}\n"
+        f"data_mix_in_factor: {data_mix_in_factor}\n"
         f"valid_path: {valid_path}\n"
         f"output_dir: {output_dir}\n"
         f"batch_size: {batch_size}\n"
@@ -218,18 +240,20 @@ def train(
         # get mix-in training/validation data - to keep model "sane"
         num_rows = data["train"].num_rows
         print("Loading mix-in dataset: %s" % data_mix_in_path)
-        data_mix_in = load_dataset(data_mix_in_path)  # can be large
+        data_mix_in = load_dataset(data_mix_in_path)["train"]  # can be large
 
         # only get as much as we need to balance
+        train_size = int(num_rows * data_mix_in_factor)
+        valid_size = val_set_size or 0
         data_mix_in_train_valid = data_mix_in.train_test_split(
-            test_size=int(num_rows * data_mix_in_factor) + (val_set_size or 0),
+            test_size=train_size + valid_size,
             shuffle=True, seed=np.random.randint(10000),
-        )
+        )["test"]
         if val_set_size:
-            train_data_mix_in = train_data_mix_in[:-val_set_size, :]
-            valid_data_mix_in = valid_data_mix_in[-val_set_size:, :]
+            train_data_mix_in = data_mix_in_train_valid[:train_size, :]
+            valid_data_mix_in = data_mix_in_train_valid[train_size:, :]
         else:
-            train_data_mix_in = data_mix_in_train_valid["test"]
+            train_data_mix_in = data_mix_in_train_valid
         print("Created mix-in data:\n%s\n%s" % (train_data_mix_in, valid_data_mix_in))
 
     # get our own training/validation data - for fine-tuning
