@@ -160,7 +160,7 @@ GPT-NeoXT-Chat-Base-20B, etc.
 
 ### Data
 [Alpaca Cleaned](https://github.com/gururise/AlpacaDataCleaned)
-[OIG 43M instructions](https://laion.ai/blog/oig-dataset/)
+[OIG 43M instructions](https://laion.ai/blog/oig-dataset/) [direct HF link](https://huggingface.co/datasets/laion/OIG)
 
 ### Throttle GPUs in case of reset/reboot
 
