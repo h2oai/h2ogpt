@@ -6,7 +6,6 @@ from peft import PeftModel
 from transformers import GenerationConfig
 import gradio as gr
 
-
 if torch.cuda.is_available():
     device = "cuda"
 else:
@@ -18,7 +17,6 @@ try:
 except:
     pass
 
-
 from finetune import get_loaders, example_data_points, generate_prompt
 
 
@@ -28,6 +26,10 @@ def main(
         tokenizer_base_model: str = None,
         lora_weights: str = "",
         prompt_type: int = 1,
+        temperature: float = 0.1,
+        top_p: float = 0.75,
+        top_k: int = 40,
+        num_beams: int = 4,
         llama_type: bool = False,
         debug: bool = False,
 ):
@@ -104,10 +106,10 @@ def main(
             instruction,
             input=None,
             prompt_type_choice=0,
-            temperature=0.1,
-            top_p=0.75,
-            top_k=40,
-            num_beams=4,
+            temperature_choice=0.1,
+            top_p_choice=0.75,
+            top_k_choice=40,
+            num_beams_choice=4,
             max_new_tokens=128,
             do_sample=False,
             **kwargs,
@@ -117,10 +119,10 @@ def main(
         inputs = tokenizer(prompt, return_tensors="pt")
         input_ids = inputs["input_ids"].to(device)
         generation_config = GenerationConfig(
-            temperature=temperature,
-            top_p=top_p,
-            top_k=top_k,
-            num_beams=num_beams,
+            temperature=temperature_choice,
+            top_p=top_p_choice,
+            top_k=top_k_choice,
+            num_beams=num_beams_choice,
             do_sample=do_sample,
             **kwargs,
         )
@@ -139,7 +141,7 @@ def main(
         if debug:
             print("prompt: ", prompt, flush=True)
             print("output: ", output, flush=True)
-        if prompt_type == -1:
+        if prompt_type_choice == -1:
             return output
         else:
             return output.split(preresponse)[1].strip()
@@ -152,12 +154,13 @@ def main(
             ),
             gr.components.Textbox(lines=2, label="Input", placeholder="none"),
             gr.components.Slider(minimum=-1, maximum=3, value=prompt_type, step=1, label="Prompt Type"),
-            gr.components.Slider(minimum=0, maximum=1, value=0.1, label="Temperature"),
-            gr.components.Slider(minimum=0, maximum=1, value=0.75, label="Top p"),
+            gr.components.Slider(minimum=0, maximum=1, value=temperature, label="Temperature"),
+            gr.components.Slider(minimum=0, maximum=1, value=top_p, label="Top p"),
             gr.components.Slider(
-                minimum=0, maximum=100, step=1, value=40, label="Top k"
+                minimum=0, maximum=100, step=1, value=top_k, label="Top k"
             ),
-            gr.components.Slider(minimum=1, maximum=4, step=1, value=4, label="Beams", info="Uses more GPU memory/compute"),
+            gr.components.Slider(minimum=1, maximum=8, step=1, value=num_beams, label="Beams",
+                                 info="Uses more GPU memory/compute"),
             gr.components.Slider(
                 minimum=1, maximum=2000, step=1, value=128, label="Max tokens"
             ),
@@ -173,8 +176,6 @@ def main(
         description="Model %s Instruct dataset.  "
                     "For more information, visit [the project's website](https://github.com/h2oai/h2o-llm)." % base_model,
     ).launch(share=True)
-
-
 
 
 def test_test_prompt(prompt_type=0, data_point=0):
@@ -194,6 +195,8 @@ if __name__ == "__main__":
     python generate.py --base_model='togethercomputer/GPT-NeoXT-Chat-Base-20B' --prompt_type=2
 
     python generate.py --base_model='togethercomputer/GPT-NeoXT-Chat-Base-20B' --prompt_type=3 --lora_weights='lora_20B_daifaq'
+    # OpenChatKit settings:
+    python generate.py --base_model='togethercomputer/GPT-NeoXT-Chat-Base-20B' --prompt_type=2 --debug=True --num_beams=1 --temperature=0.6 --top_k=40 --top_p=1.0
     
     """, flush=True)
     fire.Fire(main)
