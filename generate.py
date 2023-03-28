@@ -29,6 +29,7 @@ def main(
         lora_weights: str = "",
         prompt_type: int = 1,
         llama_type: bool = False,
+        debug: bool = False,
 ):
     assert base_model, (
         "Please specify a --base_model, e.g. --base_model="
@@ -46,7 +47,7 @@ def main(
                 load_in_8bit=load_8bit,
                 torch_dtype=torch.float16,
                 device_map="auto",
-            ).to(device)
+            )
         else:
             model = model_loader.from_pretrained(
                 base_model,
@@ -135,6 +136,9 @@ def main(
         s = outputs.sequences[0]
         output = tokenizer.decode(s)
         output = output.replace("<|endoftext|>", "")
+        if debug:
+            print("prompt: ", prompt, flush=True)
+            print("output: ", output, flush=True)
         if prompt_type == -1:
             return output
         else:
