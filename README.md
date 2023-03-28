@@ -107,15 +107,26 @@ GPT-NeoXT-Chat-Base-20B, etc.
 [shawwn/llama](https://github.com/shawwn/llama/commit/40d99d329a5e38d85904d3a6519c54e6dd6ee9e1)<br />
 [llama PRs](https://github.com/facebookresearch/llama/pulls)<br />
 [text-generation-webui](https://github.com/oobabooga/text-generation-webui)<br />
-[minimal-llama](https://github.com/zphang/minimal-llama/)
+[minimal-llama](https://github.com/zphang/minimal-llama/)<br />
+[finetune GPT-NeoX](https://nn.labml.ai/neox/samples/finetune.html)<br />
+[GPTQ-for_LLaMa](https://github.com/qwopqwop200/GPTQ-for-LLaMa/compare/cuda...Digitous:GPTQ-for-GPT-NeoX:main)<br />
+[aspctu-alpaca-lora](https://github.com/aspctu/alpaca-lora)<br />
+[aspctu-alpaca-lora diff](https://github.com/tloen/alpaca-lora/compare/main...aspctu:alpaca-lora:main)<br />
+[OpenChatKit on multi-GPU](https://github.com/togethercomputer/OpenChatKit/issues/20)<br />
+[Non-Causal LLM](https://huggingface.co/docs/transformers/main/en/model_doc/gptj#transformers.GPTJForSequenceClassification)<br />
 
 ### Some open source models:
 [GPT-NeoXT-Chat-Base-20B](https://huggingface.co/togethercomputer/GPT-NeoXT-Chat-Base-20B/tree/main)<br />
+[GPT-NeoX](https://huggingface.co/docs/transformers/model_doc/gpt_neox)
+[GPT-NeoX-20B](https://huggingface.co/EleutherAI/gpt-neox-20b)
 [Pythia-6.9B](https://huggingface.co/EleutherAI/pythia-6.9b)<br />
 [Pythia-12B](https://huggingface.co/EleutherAI/neox-ckpt-pythia-12b)<br />
 [Flan-T5-XXL](https://huggingface.co/google/flan-t5-xxl)<br />
-[GPT-J-Moderation-6B](https://huggingface.co/togethercomputer/GPT-JT-Moderation-6B)
-[OIG safety models](https://laion.ai/blog/oig-dataset/#safety-models)
+[GPT-J-Moderation-6B](https://huggingface.co/togethercomputer/GPT-JT-Moderation-6B)<br />
+[OIG safety models](https://laion.ai/blog/oig-dataset/#safety-models)<br />
+[BigScience-mT0](https://huggingface.co/mT0)<br />
+[BigScience-XP3](https://huggingface.co/datasets/bigscience/xP3)<br />
+[BigScience-Bloomz](https://huggingface.co/bigscience/bloomz)<br />
 
 ### Some create commons models that would be interesting to use:
 [Galactica-120B](https://huggingface.co/facebook/galactica-120b)<br />
@@ -130,15 +141,13 @@ GPT-NeoXT-Chat-Base-20B, etc.
 [GPTQ](https://github.com/qwopqwop200/GPTQ-for-LLaMa)<br />
 [Retro](https://www.deepmind.com/publications/improving-language-models-by-retrieving-from-trillions-of-tokens)<br />
 [Clinical_outperforms](https://arxiv.org/abs/2302.08091)<br />
-[Chain-Of-Thought](https://github.com/amazon-science/mm-cot)
+[Chain-Of-Thought](https://github.com/amazon-science/mm-cot)<br />
+[scaling law1](https://arxiv.org/abs/2203.15556)<br />
+[Big-bench](https://github.com/google/BIG-bench)<br />
 
 ### Other projects:
 [alpaca-lora](https://github.com/h2oai/alpaca-lora)<br />
 [alpaca.http](https://github.com/Nuked88/alpaca.http)<br />
-[langchain](https://python.langchain.com/en/latest/)<br />
-[cohere](https://cohere.io/)<br />
-[coherefinetune](https://docs.cohere.ai/reference/finetune)<br />
-[langchain+pinecone](https://www.youtube.com/watch?v=nMniwlGyX-c)<br />
 [chatgpt-retrieval-pllugin](https://github.com/openai/chatgpt-retrieval-plugin)<br />
 [subtl.ai docs search on private docs](https://www.subtl.ai/)<br />
 [gertel](https://gretel.ai/)<br />
@@ -150,9 +159,6 @@ GPT-NeoXT-Chat-Base-20B, etc.
 [MosaicCM](https://github.com/mosaicml/examples#large-language-models-llms)<br />
 [OpenAI Plugins](https://openai.com/blog/chatgpt-plugins)<br />
 [GPT3.5-Turbo-PGVector](https://github.com/gannonh/gpt3.5-turbo-pgvector)<br />
-[DocsBotAI](https://docsbot.ai/)<br />
-[Perplexity](https://www.perplexity.ai/)<br />
-[VoiceFlow](https://www.voiceflow.com/)<br />
 [LLaMa-Adapter](https://github.com/ZrrSkywalker/LLaMA-Adapter)<br />
 [llama-index](https://github.com/jerryjliu/llama_index)<br />
 [minimal-llama](https://github.com/zphang/minimal-llama/)<br />
@@ -160,10 +166,38 @@ GPT-NeoXT-Chat-Base-20B, etc.
 [lamma.cpp more](https://til.simonwillison.net/llms/llama-7b-m2)<br />
 
 ### Apache2/etc. Data
-[OIG 43M instructions](https://laion.ai/blog/oig-dataset/) [direct HF link](https://huggingface.co/datasets/laion/OIG)
+[OIG 43M instructions](https://laion.ai/blog/oig-dataset/) [direct HF link](https://huggingface.co/datasets/laion/OIG)<br />
+[More on OIG](https://laion.ai/blog/oig-dataset/)<br />
+[DataSet Viewer](https://huggingface.co/datasets/viewer/?dataset=squad)<br />
 
 ### non-commerical Data
-[GPT-3 based Alpaca Cleaned](https://github.com/gururise/AlpacaDataCleaned)
+[GPT-3 based Alpaca Cleaned](https://github.com/gururise/AlpacaDataCleaned)<br />
+
+### Prompt ENGR
+[Info](https://lilianweng.github.io/posts/2023-03-15-prompt-engineering/)<br />
+
+### Commercial products
+[OpenAI](https://platform.openai.com/docs/guides/fine-tuning/advanced-usage)<br />
+[OpenAI Tokenizer](https://platform.openai.com/tokenizer)<br />
+[OpenAI Playground](https://platform.openai.com/playground)<br />
+[OpenAI Chat](https://chat.openai.com/chat?)<br />
+[OpenAI GPT-4 Chat](https://chat.openai.com/chat?model=gpt-4)<br />
+[cohere](https://cohere.io/)<br />
+[coherefinetune](https://docs.cohere.ai/reference/finetune)<br />
+[DocsBotAI](https://docsbot.ai/)<br />
+[Perplexity](https://www.perplexity.ai/)<br />
+[VoiceFlow](https://www.voiceflow.com/)<br />
+[NLPCloud](https://nlpcloud.com/effectively-using-gpt-j-gpt-neo-gpt-3-alternatives-few-shot-learning.html)<br />
+
+### Semi-Open source Semi-Commercial products
+[OpenAssistant](https://open-assistant.io/)<br />
+[OpenAssistant Repo](https://github.com/LAION-AI/Open-Assistant)<br />
+[OpenChatKit](https://github.com/togethercomputer/OpenChatKit)<br />
+[OpenChatKit2](https://github.com/togethercomputer/OpenDataHub)<br />
+[OpenChatKit3](https://www.together.xyz/blog/openchatkit)<br />
+[OpenChatKit4](https://github.com/togethercomputer/OpenChatKit/blob/main/training/README.md#arguments)<br />
+[langchain](https://python.langchain.com/en/latest/)<br />
+[langchain+pinecone](https://www.youtube.com/watch?v=nMniwlGyX-c)<br />
 
 ### Throttle GPUs in case of reset/reboot
 
