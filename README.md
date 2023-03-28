@@ -44,10 +44,11 @@ source ~/.bashrc  # or source ~/.bashrc.conda
 conda activate h2ollm
 ```
 
-5. If don't have cuda lib included into bitsandbytes, then must [compile bitesandbytes](https://github.com/TimDettmers/bitsandbytes/blob/main/compile_from_source.md)
+5. [compile bitesandbytes](https://github.com/TimDettmers/bitsandbytes/blob/main/compile_from_source.md)
 
-E.g. for CUDA 12.1 (latest bitsandbytes does include 12.1)
+E.g. for CUDA 12.1 (for CUDA 11.7, use `CUDA_VERSION=117 make cuda11x` etc.)
 ```bash
+pip uninstall bitsandbytes || true
 git clone https://github.com/TimDettmers/bitsandbytes.git
 cd bitsandbytes
 CUDA_VERSION=121 make cuda12x
