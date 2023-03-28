@@ -158,9 +158,11 @@ GPT-NeoXT-Chat-Base-20B, etc.
 [llama.cpp](https://github.com/ggerganov/llama.cpp)<br />
 [lamma.cpp more](https://til.simonwillison.net/llms/llama-7b-m2)<br />
 
-### Data
-[Alpaca Cleaned](https://github.com/gururise/AlpacaDataCleaned)
+### Apache2/etc. Data
 [OIG 43M instructions](https://laion.ai/blog/oig-dataset/) [direct HF link](https://huggingface.co/datasets/laion/OIG)
+
+### non-commerical Data
+[GPT-3 based Alpaca Cleaned](https://github.com/gururise/AlpacaDataCleaned)
 
 ### Throttle GPUs in case of reset/reboot
 
