@@ -110,8 +110,6 @@ GPT-NeoXT-Chat-Base-20B, etc.
 [minimal-llama](https://github.com/zphang/minimal-llama/)<br />
 [finetune GPT-NeoX](https://nn.labml.ai/neox/samples/finetune.html)<br />
 [GPTQ-for_LLaMa](https://github.com/qwopqwop200/GPTQ-for-LLaMa/compare/cuda...Digitous:GPTQ-for-GPT-NeoX:main)<br />
-[aspctu-alpaca-lora](https://github.com/aspctu/alpaca-lora)<br />
-[aspctu-alpaca-lora diff](https://github.com/tloen/alpaca-lora/compare/main...aspctu:alpaca-lora:main)<br />
 [OpenChatKit on multi-GPU](https://github.com/togethercomputer/OpenChatKit/issues/20)<br />
 [Non-Causal LLM](https://huggingface.co/docs/transformers/main/en/model_doc/gptj#transformers.GPTJForSequenceClassification)<br />
 [OpenChatKit_Offload](https://github.com/togethercomputer/OpenChatKit/commit/148b5745a57a6059231178c41859ecb09164c157)<br />
