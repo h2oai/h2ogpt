@@ -104,16 +104,16 @@ GPT-NeoXT-Chat-Base-20B, etc.
 
 
 ### Code to consider including
-[shawwn/llama](https://github.com/shawwn/llama/commit/40d99d329a5e38d85904d3a6519c54e6dd6ee9e1)
-[llama PRs](https://github.com/facebookresearch/llama/pulls)
-[text-generation-webui](https://github.com/oobabooga/text-generation-webui)
+[shawwn/llama](https://github.com/shawwn/llama/commit/40d99d329a5e38d85904d3a6519c54e6dd6ee9e1)<br />
+[llama PRs](https://github.com/facebookresearch/llama/pulls)<br />
+[text-generation-webui](https://github.com/oobabooga/text-generation-webui)<br />
 [minimal-llama](https://github.com/zphang/minimal-llama/)
 
 ### Some open source models:
-[GPT-NeoXT-Chat-Base-20B](https://huggingface.co/togethercomputer/GPT-NeoXT-Chat-Base-20B/tree/main)
-[Pythia-6.9B](https://huggingface.co/EleutherAI/pythia-6.9b)
-[Pythia-12B](https://huggingface.co/EleutherAI/neox-ckpt-pythia-12b)
-[Flan-T5-XXL](https://huggingface.co/google/flan-t5-xxl)
+[GPT-NeoXT-Chat-Base-20B](https://huggingface.co/togethercomputer/GPT-NeoXT-Chat-Base-20B/tree/main)<br />
+[Pythia-6.9B](https://huggingface.co/EleutherAI/pythia-6.9b)<br />
+[Pythia-12B](https://huggingface.co/EleutherAI/neox-ckpt-pythia-12b)<br />
+[Flan-T5-XXL](https://huggingface.co/google/flan-t5-xxl)<br />
 [GPT-J-Moderation-6B](https://huggingface.co/togethercomputer/GPT-JT-Moderation-6B)
 
 ### Some create commons models that would be interesting to use:
