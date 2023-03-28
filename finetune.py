@@ -163,8 +163,8 @@ def train(
     if gpus > 1:
         if not ddp:
             log("model parallel")
-            model.is_parallelizable = True
-            model.model_parallel = True
+            # model.is_parallelizable = True
+            # model.model_parallel = True
 
     tokenizer = tokenizer_loader.from_pretrained(tokenizer_base_model)
 
@@ -367,6 +367,8 @@ def train(
             load_best_model_at_end=True if val_set_size > 0 else False,
             ddp_find_unused_parameters=False if ddp else None,
             group_by_length=group_by_length,
+            fsdp="shard_grad_op auto_wrap" if gpus > 1 and not ddp else None,
+            fsdp_min_num_params=20000 if gpus > 1 and not ddp else None,
         ),
         data_collator=transformers.DataCollatorForSeq2Seq(
             tokenizer, pad_to_multiple_of=8, return_tensors="pt", padding=True
@@ -382,11 +384,6 @@ def train(
 
     if torch.__version__ >= "2" and sys.platform != "win32":
         model = torch.compile(model)
-
-    if gpus > 1 and not ddp:
-        assert trainer.is_model_parallel
-    else:
-        assert not trainer.is_model_parallel
     trainer.train(resume_from_checkpoint=resume_from_checkpoint)
 
     model.save_pretrained(output_dir)
