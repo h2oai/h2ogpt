@@ -44,6 +44,9 @@ def test_scrape_dai_docs():
 
 
 def test_scrape_dai_docs_all():
+    """
+    pytest scrape_dai_docs.py::test_scrape_dai_docs_all
+    """
     import numpy as np
     import glob
     import nltk
