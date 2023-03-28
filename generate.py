@@ -19,7 +19,7 @@ except:
     pass
 
 
-from finetune import get_loaders, get_prompt, example_data_points, generate_prompt
+from finetune import get_loaders, example_data_points, generate_prompt
 
 
 def main(
@@ -39,12 +39,21 @@ def main(
 
     tokenizer = tokenizer_loader.from_pretrained(tokenizer_base_model)
     if device == "cuda":
-        model = model_loader.from_pretrained(
-            base_model,
-            load_in_8bit=load_8bit,
-            torch_dtype=torch.float16,
-            device_map="auto",
-        )
+        # directly to GPU
+        if load_8bit:
+            model = model_loader.from_pretrained(
+                base_model,
+                load_in_8bit=load_8bit,
+                torch_dtype=torch.float16,
+                device_map="auto",
+            ).to(device)
+        else:
+            model = model_loader.from_pretrained(
+                base_model,
+                load_in_8bit=load_8bit,
+                torch_dtype=torch.float16,
+                device_map="auto",
+            ).to(device).half()
         if lora_weights:
             model = PeftModel.from_pretrained(
                 model,
@@ -81,8 +90,10 @@ def main(
         model.config.bos_token_id = 1
         model.config.eos_token_id = 2
 
-    if not load_8bit:
-        model.half()  # seems to fix bugs for some users.
+    if device != "cuda":
+        # NOTE: if cuda, already done at once into GPU
+        if not load_8bit:
+            model.half()  # seems to fix bugs for some users.
 
     model.eval()
     if torch.__version__ >= "2" and sys.platform != "win32":
@@ -97,6 +108,7 @@ def main(
             top_k=40,
             num_beams=4,
             max_new_tokens=128,
+            do_sample=False,
             **kwargs,
     ):
         data_point = dict(instruction=instruction, input=input)
@@ -108,17 +120,19 @@ def main(
             top_p=top_p,
             top_k=top_k,
             num_beams=num_beams,
+            do_sample=do_sample,
             **kwargs,
         )
         with torch.no_grad():
-            generation_output = model.generate(
+            outputs = model.generate(
                 input_ids=input_ids,
                 generation_config=generation_config,
                 return_dict_in_generate=True,
                 output_scores=True,
                 max_new_tokens=max_new_tokens,
+                pad_token_id=tokenizer.eos_token_id,
             )
-        s = generation_output.sequences[0]
+        s = outputs.sequences[0]
         output = tokenizer.decode(s)
         output = output.replace("<|endoftext|>", "")
         if prompt_type == -1:
@@ -139,10 +153,11 @@ def main(
             gr.components.Slider(
                 minimum=0, maximum=100, step=1, value=40, label="Top k"
             ),
-            gr.components.Slider(minimum=1, maximum=4, step=1, value=4, label="Beams"),
+            gr.components.Slider(minimum=1, maximum=4, step=1, value=4, label="Beams", info="Uses more GPU memory/compute"),
             gr.components.Slider(
                 minimum=1, maximum=2000, step=1, value=128, label="Max tokens"
             ),
+            gr.components.Checkbox(label="Sample", info="Do sample"),
         ],
         outputs=[
             gr.inputs.Textbox(
