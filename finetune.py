@@ -47,6 +47,7 @@ def train(
         # data_mix_in_path: str = "laion/OIG",  # way too big, medium quality
         data_mix_in_path: str = "0-hero/OIG-small-chip2",  # high quality, 50 MB, good enough for now
         data_mix_in_factor: float = 1.0,  # >1: more mix-in data, <1: more of data_path data
+        data_mix_in_col_dict: dict = {'user': 'instruction', 'chip2': 'output'},
 
         output_dir: str = None,
 
@@ -241,6 +242,7 @@ def train(
         num_rows = data["train"].num_rows
         print("Loading mix-in dataset: %s" % data_mix_in_path)
         data_mix_in = load_dataset(data_mix_in_path)["train"]  # can be large
+        data_mix_in = data_mix_in.rename_columns(data_mix_in_col_dict or {})
 
         # only get as much as we need to balance
         train_size = int(num_rows * data_mix_in_factor)
@@ -272,9 +274,6 @@ def train(
         if valid_path:
             # use given valid split, has priority over data_mix_in_path
             valid_data = data["valid"]
-        elif data_mix_in_path:
-            # use validation from mix-in
-            valid_data = valid_data_mix_in
 
     assert train_data is not None
 
