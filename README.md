@@ -44,7 +44,7 @@ source ~/.bashrc  # or source ~/.bashrc.conda
 conda activate h2ollm
 ```
 
-5. [compile bitesandbytes](https://github.com/TimDettmers/bitsandbytes/blob/main/compile_from_source.md)
+5. Compile bitsandbytes [howto src](https://github.com/TimDettmers/bitsandbytes/blob/main/compile_from_source.md)
 
 E.g. for CUDA 12.1 (for CUDA 11.7, use `CUDA_VERSION=117 make cuda11x` etc.)
 ```bash
