@@ -48,6 +48,7 @@
 [llama.cpp](https://github.com/ggerganov/llama.cpp)<br />
 [lamma.cpp more](https://til.simonwillison.net/llms/llama-7b-m2)<br />
 [TargetedSummarization](https://github.com/helliun/targetedSummarization)<br />
+[OpenFlamingo](https://laion.ai/blog/open-flamingo/)<br />
 
 ### Apache2/etc. Data
 [OIG 43M instructions](https://laion.ai/blog/oig-dataset/) [direct HF link](https://huggingface.co/datasets/laion/OIG)<br />
@@ -60,6 +61,10 @@
 ### Prompt ENGR
 [Info](https://lilianweng.github.io/posts/2023-03-15-prompt-engineering/)<br />
 [Info2](https://github.com/dair-ai/Prompt-Engineering-Guide)<br />
+
+### Embeddings
+[OpenAI Expensive?](https://medium.com/@nils_reimers/openai-gpt-3-text-embeddings-really-a-new-state-of-the-art-in-dense-text-embeddings-6571fe3ec9d9)<br />
+[Leaderboard](https://huggingface.co/spaces/mteb/leaderboard)<br />
 
 ### Commercial products
 [OpenAI](https://platform.openai.com/docs/guides/fine-tuning/advanced-usage)<br />
