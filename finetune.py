@@ -26,7 +26,7 @@ def train(
         save_code: bool = False,
         run_id: int = random.randint(0, 2 ** 31),
         # model/data params
-        base_model: str = 'EleutherAI/gpt-neox-20b',
+        base_model: str = 'togethercomputer/GPT-NeoXT-Chat-Base-20B',
         tokenizer_base_model: str = None,
         data_path: str = "./alpaca_data_cleaned.json",
         data_mix_in_path: str = "laion/OIG",
