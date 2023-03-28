@@ -23,6 +23,11 @@ from peft import (
 )
 
 
+def log(*args, **kwargs):
+    if int(os.environ.get("LOCAL_RANK", 0)) == 0:
+        print(*args, **kwargs)
+
+
 def train(
         save_code: bool = False,
         run_id: int = random.randint(0, 2 ** 31),
@@ -85,7 +90,7 @@ def train(
     if tokenizer_base_model is None:
         tokenizer_base_model = base_model
     llama_type = "llama" in base_model.lower()
-    print(
+    log(
         f"Training Alpaca-LoRA model with params:\n"
         f"base_model: {base_model}\n"
         f"tokenizer_base_model: {tokenizer_base_model}\n"
@@ -121,16 +126,16 @@ def train(
     max_memory = None
     if gpus > 1:
         if ddp:
-            print("data parallel")
+            log("data parallel")
             device_map = {"": int(os.environ.get("LOCAL_RANK") or 0)}
             gradient_accumulation_steps = gradient_accumulation_steps // world_size
         else:
             free_in_GB = int(min(torch.cuda.mem_get_info()) / 1024 ** 3)
             max_memory = f"{free_in_GB - 2}GB"
             max_memory = {i: max_memory for i in range(gpus)}
-            print("world_size: %d" % world_size)
-            print("num_gpus: %d" % gpus)
-            print("max mem: %s" % max_memory)
+            log("world_size: %d" % world_size)
+            log("num_gpus: %d" % gpus)
+            log("max mem: %s" % max_memory)
 
     model_loader, tokenizer_loader = get_loaders(llama_type=llama_type)
 
@@ -142,7 +147,7 @@ def train(
     )
     if gpus > 1:
         if not ddp:
-            print("model parallel")
+            log("model parallel")
             model.is_parallelizable = True
             model.model_parallel = True
 
@@ -221,11 +226,11 @@ def train(
             resume_from_checkpoint = False  # So the trainer won't try loading its state
         # The two files above have a different name depending on how they were saved, but are actually the same.
         if os.path.exists(checkpoint_name):
-            print(f"Restarting from {checkpoint_name}")
+            log(f"Restarting from {checkpoint_name}")
             adapters_weights = torch.load(checkpoint_name)
             model = set_peft_model_state_dict(model, adapters_weights)
         else:
-            print(f"Checkpoint {checkpoint_name} not found")
+            log(f"Checkpoint {checkpoint_name} not found")
 
     model.print_trainable_parameters()  # Be more transparent about the % of trainable params.
 
@@ -241,7 +246,7 @@ def train(
     if data_mix_in_path:
         # get mix-in training/validation data - to keep model "sane"
         num_rows = data["train"].num_rows
-        print("Loading mix-in dataset: %s" % data_mix_in_path)
+        log("Loading mix-in dataset: %s" % data_mix_in_path)
         data_mix_in = load_dataset(data_mix_in_path)["train"]  # can be large
         data_mix_in = data_mix_in.rename_columns(data_mix_in_col_dict or {})
 
@@ -266,14 +271,14 @@ def train(
                 "prompt_type",
                 [data_mix_in_prompt_type] * train_data_mix_in.num_rows,
             )
-            print("Added prompt type %s to mix-in training data" % data_mix_in_prompt_type)
+            log("Added prompt type %s to mix-in training data" % data_mix_in_prompt_type)
         if valid_data_mix_in and "prompt_type" not in valid_data_mix_in.column_names:
             valid_data_mix_in = valid_data_mix_in.add_column(
                 "prompt_type",
                 [data_mix_in_prompt_type] * valid_data_mix_in.num_rows,
             )
-            print("Added prompt type %s to mix-in validation data" % data_mix_in_prompt_type)
-        print("Created mix-in data:\n%s\n%s" % (train_data_mix_in, valid_data_mix_in))
+            log("Added prompt type %s to mix-in validation data" % data_mix_in_prompt_type)
+        log("Created mix-in data:\n%s\n%s" % (train_data_mix_in, valid_data_mix_in))
 
     # get our own training/validation data - for fine-tuning
     if val_set_size > 0 and not valid_path and not data_mix_in_path:
@@ -293,13 +298,13 @@ def train(
             "prompt_type",
             [prompt_type] * train_data.num_rows,
         )
-        print("Added prompt type %s to training data" % data_mix_in_prompt_type)
+        log("Added prompt type %s to training data" % data_mix_in_prompt_type)
     if valid_data and "prompt_type" not in valid_data.column_names:
         valid_data = valid_data.add_column(
             "prompt_type",
             [prompt_type] * valid_data.num_rows,
         )
-        print("Added prompt type %s to validation data" % data_mix_in_prompt_type)
+        log("Added prompt type %s to validation data" % data_mix_in_prompt_type)
 
     assert train_data is not None
 
@@ -318,7 +323,7 @@ def train(
         val_set_size = len(valid_data)
     else:
         val_set_size = 0
-    print("Final fine-tuning data:\n%s\n%s" % (train_data, valid_data))
+    log("Final fine-tuning data:\n%s\n%s" % (train_data, valid_data))
 
     trainer = transformers.Trainer(
         model=model,
@@ -364,7 +369,7 @@ def train(
 
     model.save_pretrained(output_dir)
 
-    print("\n If there's a warning about missing keys above, please disregard :)")
+    log("\n If there's a warning about missing keys above, please disregard :)")
 
 
 def get_loaders(llama_type):
@@ -570,7 +575,7 @@ def test_debug():
 
 
 if __name__ == "__main__":
-    print("""
+    log("""
     Example run on 4 GPUs:
     WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun --nproc_per_node=4 --master_port=1234 finetune.py --llama_type=True --base_model='decapoda-research/llama-7b-hf' --output_dir='lora_alpaca_7B' --data_path=alpaca_data_cleaned.json --run_id=0 &> 0.log
     WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun --nproc_per_node=4 --master_port=1234 finetune.py --llama_type=True --base_model='decapoda-research/llama-30b-hf' --output_dir='lora_alpaca_30B' --data_path=alpaca_data_cleaned.json --batch_size=16 --micro_batch_size=1 --run_id=1 --save_code=True &> 1.log
