@@ -168,6 +168,7 @@ def train(
             model,
             lora_weights,
             torch_dtype=torch.float16,
+            device_map=device_map,
         )
     else:
         config = LoraConfig(
