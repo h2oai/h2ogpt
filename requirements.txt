@@ -11,3 +11,4 @@ fire
 pytest
 nltk
 docutils
+pandoc
