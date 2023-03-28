@@ -536,6 +536,10 @@ def test_train_prompt(prompt_type=0, data_point=0):
     return generate_prompt(example_data_point, prompt_type)
 
 
+def test_debug():
+    fire.Fire(train)
+
+
 if __name__ == "__main__":
     print("""
     Example run on 4 GPUs:
