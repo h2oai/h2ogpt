@@ -115,7 +115,7 @@ def main(
             **kwargs,
     ):
         data_point = dict(instruction=instruction, input=input)
-        prompt, preresponse = generate_prompt(data_point, prompt_type_choice)
+        prompt, pre_response, terminate_response = generate_prompt(data_point, prompt_type_choice)
         inputs = tokenizer(prompt, return_tensors="pt")
         input_ids = inputs["input_ids"].to(device)
         generation_config = GenerationConfig(
@@ -137,14 +137,37 @@ def main(
             )
         s = outputs.sequences[0]
         output = tokenizer.decode(s)
-        output = output.replace("<|endoftext|>", "")
+
         if debug:
             print("prompt: ", prompt, flush=True)
             print("output: ", output, flush=True)
+
+        def clean_response(response):
+            meaningless_words = ['<pad>', '</s>', '<|endoftext|>']
+            for word in meaningless_words:
+                response = response.replace(word, "")
+            response = response.strip("\n")
+            return response
+        output = clean_response(output)
         if prompt_type_choice == -1:
             return output
         else:
-            return output.split(preresponse)[1].strip()
+            # find first instance of prereponse
+            # prompt sometimes has odd characters, that mutate length,
+            # so can't go by length alone
+            output = output.split(pre_response)[1]
+            if terminate_response:
+                finds = []
+                for term in terminate_response:
+                    finds.append(output.find(term))
+                finds = [x for x in finds if x >= 0]
+                if len(finds) > 0:
+                    termi = finds[0]
+                    return output[:termi].strip()
+                else:
+                    return output.strip()
+            else:
+                return output.strip()
 
     gr.Interface(
         fn=evaluate,

@@ -314,6 +314,7 @@ def copy_code(run_id):
 def get_prompt(prompt_type):
     if prompt_type == -1:
         promptA = promptB = PreInstruct = PreInput = PreResponse = ''
+        terminate_response = []
     elif prompt_type == 0:
         promptA = 'Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.\n'
         promptB = 'Below is an instruction that describes a task. Write a response that appropriately completes the request.\n'
@@ -329,6 +330,7 @@ def get_prompt(prompt_type):
         PreResponse = """
 ### Response:
 """
+        terminate_response = None
     elif prompt_type == 1:
         promptA = 'Write a detailed high-quality, accurate, fair, Response with about 100 words by following the Instruction as applied on the Input.\n'
         promptB = 'Write a detailed high-quality, accurate, fair, Response with about 100 words by following the Instruction.\n'
@@ -344,6 +346,7 @@ def get_prompt(prompt_type):
         PreResponse = """
 ### Response:
 """
+        terminate_response = None
     elif prompt_type == 2:
         cur_date = time.strftime('%Y-%m-%d')
         cur_time = time.strftime('%H:%M:%S %p %Z')
@@ -355,15 +358,16 @@ Current Time: {}
 """
 
         preprompt = PRE_PROMPT.format(cur_date, cur_time)
-
-        promptA = '%s<human>: ' % preprompt
-        promptB = '%s<human>: ' % preprompt
+        start = '<human>:'
+        promptB = promptA = '%s%s ' % (preprompt, start)
 
         PreInstruct = ""
 
         PreInput = None
 
-        PreResponse = "<bot>: "
+        PreResponse = "<bot>:"
+
+        terminate_response = [start, PreResponse]
     elif prompt_type == 3:
         promptA = ''
         promptB = 'Answer the following Driverless AI question.\n'
@@ -377,17 +381,18 @@ Current Time: {}
         PreResponse = """
 ### Driverless AI documentation answer:
 """
+        terminate_response = ['\n\n']
     else:
         raise RuntimeError("No such prompt_type=%s" % prompt_type)
 
-    return promptA, promptB, PreInstruct, PreInput, PreResponse
+    return promptA, promptB, PreInstruct, PreInput, PreResponse, terminate_response
 
 
 def generate_prompt(data_point, prompt_type):
     instruction = data_point.get('instruction')
     input = data_point.get('input')
     output = data_point.get('output')
-    promptA, promptB, PreInstruct, PreInput, PreResponse = get_prompt(prompt_type)
+    promptA, promptB, PreInstruct, PreInput, PreResponse, terminate_response = get_prompt(prompt_type)
 
     prompt = ''
 
@@ -431,14 +436,14 @@ def generate_prompt(data_point, prompt_type):
 
     if PreResponse is not None:
         prompt += f"""{PreResponse}"""
-        clean_response = PreResponse.strip()
+        pre_response = PreResponse.strip()
     else:
-        clean_response = ''
+        pre_response = ''
 
     if output:
         prompt += f"""{output}"""
 
-    return prompt, clean_response
+    return prompt, pre_response, terminate_response
 
 
 example_data_point0 = dict(instruction="Summarize",
