@@ -17,7 +17,7 @@ try:
 except:
     pass
 
-from finetune import get_loaders, example_data_points, generate_prompt
+from finetune import get_loaders, example_data_points, generate_prompt, get_githash
 
 
 def main(
@@ -197,7 +197,8 @@ def main(
         ],
         title="H2O-LLM",
         description="Model %s Instruct dataset.  "
-                    "For more information, visit [the project's website](https://github.com/h2oai/h2o-llm)." % base_model,
+                    "For more information, visit [the project's website](https://github.com/h2oai/h2o-llm)."
+                    "\nCommand: %s\nHash: %s" % (base_model, str(' '.join(sys.argv)), get_githash()),
     ).launch(share=True)
 
 
