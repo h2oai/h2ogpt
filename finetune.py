@@ -40,7 +40,7 @@ def train(
 
         data_path: str = "./alpaca_data_cleaned.json",
         # data_path: str = "./dai_docs.train.json",
-        prompt_type: int = 0,
+        prompt_type: str = 0,
 
         valid_path: str = None,
         # valid_path: str = "./dai_docs.valid.json",
@@ -49,7 +49,7 @@ def train(
         data_mix_in_path: str = "0-hero/OIG-small-chip2",  # high quality, 50 MB, good enough for now
         data_mix_in_factor: float = 1.0,  # >1: more mix-in data, <1: more of data_path data
         data_mix_in_col_dict: dict = {'user': 'instruction', 'chip2': 'output'},
-        data_mix_in_prompt_type: int = 0,
+        data_mix_in_prompt_type: str = 0,
 
         output_dir: str = None,
 
@@ -412,10 +412,10 @@ def copy_code(run_id):
 
 
 def get_prompt(prompt_type):
-    if prompt_type == -1:
+    if prompt_type in [-1, "-1", "plain"]:
         promptA = promptB = PreInstruct = PreInput = PreResponse = ''
         terminate_response = []
-    elif prompt_type == 0:
+    elif prompt_type in [0, "0", "llama"]:
         promptA = 'Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.\n'
         promptB = 'Below is an instruction that describes a task. Write a response that appropriately completes the request.\n'
 
@@ -431,7 +431,7 @@ def get_prompt(prompt_type):
 ### Response:
 """
         terminate_response = None
-    elif prompt_type == 1:
+    elif prompt_type in [1, "1", "quality"]:
         promptA = 'Write a detailed high-quality, accurate, fair, Response with about 100 words by following the Instruction as applied on the Input.\n'
         promptB = 'Write a detailed high-quality, accurate, fair, Response with about 100 words by following the Instruction.\n'
 
@@ -447,7 +447,7 @@ def get_prompt(prompt_type):
 ### Response:
 """
         terminate_response = None
-    elif prompt_type == 2:
+    elif prompt_type in [2, "2", "human_bot"]:
         cur_date = time.strftime('%Y-%m-%d')
         cur_time = time.strftime('%H:%M:%S %p %Z')
 
@@ -468,7 +468,7 @@ Current Time: {}
         PreResponse = "<bot>:"
 
         terminate_response = [start, PreResponse]
-    elif prompt_type == 3:
+    elif prompt_type in [3, "3", "dai_faq"]:
         promptA = ''
         promptB = 'Answer the following Driverless AI question.\n'
 
