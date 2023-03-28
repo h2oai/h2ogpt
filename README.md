@@ -88,17 +88,89 @@ this will download the foundation model, our fine-tuned lora_weights, and open u
 
 
 ### Plan
-Frst truly open source instruct model.
-1. Base: Start with fully open source apache 2.0 models EleutherAI--gpt-j-6B and EleutherAI--gpt-neox-20b
-2. Construct Prompt: Setup prompt engineering on 6B as-is to convert a sentence into question/answer or command/response format 
+Open source instruct model for demoable usecases.
+1. Base: Start with fully open source apache 2.0 models EleutherAI--gpt-j-6B, EleutherAI--gpt-neox-20b, 
+GPT-NeoXT-Chat-Base-20B, etc. 
+2. Construct Prompt: Setup prompt engineering on 6B-20B as-is to convert a sentence into question/answer or command/response format 
 3. Open-Source Instruct Data: Convert wiki data into instruct form
-4. Fine-tune: LORA fine-tune 6B and 20B using the open-source instruct data
-5. Open Data & Model: Submit instruct 6B and 20B on huggingface as first apache 2 model
+4. Fine-tune: LORA fine-tune 6B and 20B using DAI docs
+5. Open Data & Model: Submit DAI docs model huggingface
+6. Use toolformer approach for external APIs
 
 ### Goals
 1. Publish on hugging face first fully open-source Apache v2 instruct dataset
 2. Publish on hugging face first fully open-source Apache v2 instruct models
 3. Demonstrate efficiency of LORA for fast and low-memory fine-tuning
+
+
+### Code to consider including
+[shawwn/llama](https://github.com/shawwn/llama/commit/40d99d329a5e38d85904d3a6519c54e6dd6ee9e1)
+[llama PRs](https://github.com/facebookresearch/llama/pulls)
+[text-generation-webui](https://github.com/oobabooga/text-generation-webui)
+[minimal-llama](https://github.com/zphang/minimal-llama/)
+
+### Some open source models:
+[GPT-NeoXT-Chat-Base-20B](https://huggingface.co/togethercomputer/GPT-NeoXT-Chat-Base-20B/tree/main)
+[Pythia-6.9B](https://huggingface.co/EleutherAI/pythia-6.9b)
+[Pythia-12B](https://huggingface.co/EleutherAI/neox-ckpt-pythia-12b)
+[Flan-T5-XXL](https://huggingface.co/google/flan-t5-xxl)
+[GPT-J-Moderation-6B](https://huggingface.co/togethercomputer/GPT-JT-Moderation-6B)
+
+### Some create commons models that would be interesting to use:
+[Galactica-120B](https://huggingface.co/facebook/galactica-120b)<br />
+[LLaMa-small-pt](https://huggingface.co/decapoda-research/llama-smallint-pt)<br />
+[LLaMa-64b-4bit](https://huggingface.co/maderix/llama-65b-4bit/tree/main)<br />
+
+### Papers/Repos
+[LLaMa](https://arxiv.org/abs/2302.13971)<br />
+[GLM-130B](https://github.com/THUDM/GLM-130B)<br />
+[RWKV RNN](https://github.com/BlinkDL/RWKV-LM)<br />
+[Toolformer](https://arxiv.org/abs/2302.04761)<br />
+[GPTQ](https://github.com/qwopqwop200/GPTQ-for-LLaMa)<br />
+[Retro](https://www.deepmind.com/publications/improving-language-models-by-retrieving-from-trillions-of-tokens)<br />
+[Clinical_outperforms](https://arxiv.org/abs/2302.08091)<br />
+[Chain-Of-Thought](https://github.com/amazon-science/mm-cot)
+
+### Other projects:
+[alpaca-lora](https://github.com/h2oai/alpaca-lora)<br />
+[alpaca.http](https://github.com/Nuked88/alpaca.http)<br />
+[langchain](https://python.langchain.com/en/latest/)<br />
+[cohere](https://cohere.io/)<br />
+[coherefinetune](https://docs.cohere.ai/reference/finetune)<br />
+[langchain+pinecone](https://www.youtube.com/watch?v=nMniwlGyX-c)<br />
+[chatgpt-retrieval-pllugin](https://github.com/openai/chatgpt-retrieval-plugin)<br />
+[subtl.ai docs search on private docs](https://www.subtl.ai/)<br />
+[gertel](https://gretel.ai/)<br />
+[alpaca_lora_4bit](https://github.com/johnsmith0031/alpaca_lora_4bit)<br />
+[alpaca_lora_4bit_readme](https://github.com/s4rduk4r/alpaca_lora_4bit_readme)<br />
+[code alpaca](https://github.com/sahil280114/codealpaca)<br />
+[serge](https://github.com/nsarrazin/serge)<br />
+[BlinkDL](https://huggingface.co/spaces/BlinkDL/ChatRWKV-gradio)<br />
+[MosaicCM](https://github.com/mosaicml/examples#large-language-models-llms)<br />
+[OpenAI Plugins](https://openai.com/blog/chatgpt-plugins)<br />
+[GPT3.5-Turbo-PGVector](https://github.com/gannonh/gpt3.5-turbo-pgvector)<br />
+[DocsBotAI](https://docsbot.ai/)<br />
+[Perplexity](https://www.perplexity.ai/)<br />
+[VoiceFlow](https://www.voiceflow.com/)<br />
+[LLaMa-Adapter](https://github.com/ZrrSkywalker/LLaMA-Adapter)<br />
+[llama-index](https://github.com/jerryjliu/llama_index)<br />
+[minimal-llama](https://github.com/zphang/minimal-llama/)<br />
+[llama.cpp](https://github.com/ggerganov/llama.cpp)<br />
+[lamma.cpp more](https://til.simonwillison.net/llms/llama-7b-m2)<br />
+
+### Data
+[Alpaca Cleaned](https://github.com/gururise/AlpacaDataCleaned)
+
+### Throttle GPUs in case of reset/reboot
+
+```bash
+(alpaca) jon@gpu:/data/jon/alpaca-lora$ sudo nvidia-smi -pl 250
+Power limit for GPU 00000000:3B:00.0 was set to 250.00 W from 300.00 W.
+Power limit for GPU 00000000:5E:00.0 was set to 250.00 W from 300.00 W.
+Power limit for GPU 00000000:86:00.0 was set to 250.00 W from 300.00 W.
+Power limit for GPU 00000000:AF:00.0 was set to 250.00 W from 300.00 W.
+All done.
+```
 
 ### Wiki
 
