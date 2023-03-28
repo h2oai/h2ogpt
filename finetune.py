@@ -29,7 +29,8 @@ def train(
         base_model: str = 'togethercomputer/GPT-NeoXT-Chat-Base-20B',
         tokenizer_base_model: str = None,
         data_path: str = "./alpaca_data_cleaned.json",
-        data_mix_in_path: str = "laion/OIG",
+        # data_mix_in_path: str = "laion/OIG",  # way too big, medium quality
+        data_mix_in_path: str = "0-hero/OIG-small-chip2",  # high quality, 50 MB, good enough for now
         data_mix_in_factor: float = 1.0,  # >1: more mix-in data, <1: more of data_path data
         valid_path: str = None,
         llama_type: bool = False,
