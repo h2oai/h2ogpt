@@ -8,7 +8,6 @@ import time
 from datetime import datetime
 from typing import List
 import fire
-import neptune
 from transformers.integrations import NeptuneCallback
 import numpy as np
 import torch
@@ -24,12 +23,14 @@ from peft import (
 )
 
 
+neptune_run = None
 try:
-    neptune_run = neptune.init_run(
-        source_files=[],
-    )
+    if os.getenv("NEPTUNE_API_TOKEN"):
+        import neptune
+        neptune_run = neptune.init_run(
+            source_files=[],
+        )
 except neptune.exceptions.NeptuneMissingApiTokenException:
-    neptune_run = None
     print("No neptune configured.")
 
 
