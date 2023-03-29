@@ -110,7 +110,7 @@ def train(
             lora_target_modules = ["q_proj", "v_proj"]
     llama_type = "llama" in base_model.lower()
     log(
-        f"Training Alpaca-LoRA model with params:\n"
+        f"Training model with params:\n"
         f"base_model: {base_model}\n"
         f"tokenizer_base_model: {tokenizer_base_model}\n"
         f"data_path: {data_path}\n"
