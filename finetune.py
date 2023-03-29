@@ -8,8 +8,6 @@ import time
 from datetime import datetime
 from typing import List
 import fire
-import neptune
-from transformers.integrations import NeptuneCallback
 import numpy as np
 import torch
 from datasets import load_dataset, concatenate_datasets
@@ -30,6 +28,9 @@ def log(*args, **kwargs):
 
 
 try:
+    import neptune
+    from transformers.integrations import NeptuneCallback
+
     neptune_run = neptune.init_run(
         source_files=[],
     )
