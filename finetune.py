@@ -24,9 +24,13 @@ from peft import (
 )
 
 
-run = neptune.init_run(
-    source_files=[],
-)
+try:
+    neptune_run = neptune.init_run(
+        source_files=[],
+    )
+except neptune.exceptions.NeptuneMissingApiTokenException:
+    neptune_run = None
+    print("No neptune configured.")
 
 
 def log(*args, **kwargs):
@@ -332,7 +336,11 @@ def train(
         val_set_size = 0
     log("Final fine-tuning data:\n%s\n%s" % (train_data, valid_data))
 
-    neptune_callback = NeptuneCallback(run=run)
+    if neptune_run:
+        neptune_callback = NeptuneCallback(run=neptune_run)
+        callbacks = [neptune_callback]
+    else:
+        callbacks = None
 
     trainer = transformers.Trainer(
         model=model,
@@ -359,7 +367,7 @@ def train(
         data_collator=transformers.DataCollatorForSeq2Seq(
             tokenizer, pad_to_multiple_of=8, return_tensors="pt", padding=True
         ),
-        callbacks=[neptune_callback],
+        callbacks=callbacks,
     )
     model.config.use_cache = False
 
