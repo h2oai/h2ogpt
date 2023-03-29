@@ -98,7 +98,7 @@ def train(
 ):
     prompt_type = str(prompt_type)  # migration from integers
     if output_dir is None:
-        output_dir = f"{base_model.split('/')[-1]}.{data_path.replace('/', '')}.{num_epochs}_epochs.{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+        output_dir = f"{base_model.split('/')[-1]}.{data_path.replace('/', '')}.{num_epochs}_epochs.{get_githash() or 'nogit'}"
     if save_code:
         copy_code(run_id)
     if tokenizer_base_model is None:
