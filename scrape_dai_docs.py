@@ -220,6 +220,10 @@ def shutil_rmtree(*args, **kwargs):
 
 
 def test_config_to_json():
+    """
+    E.g. (base) jon@gpu:~/h2oai$ pytest -s -v /data/jon/h2o-llm/scrape_dai_docs.py::test_config_to_json ; cp config.json /data/jon/h2o-llm/
+    :return:
+    """
     try:
         # Arrange
         import json
@@ -264,7 +268,7 @@ def test_config_to_json():
                     {
                         'prompt_type': 'human_bot',
                         'instruction': f'Provide a detailed explanation of the expert setting {k}',
-                        'output': f"{k.replace('_', ' ')} refers to {title}: {comment}".replace("\n", ""),
+                        'output': f"{k.replace('_', ' ')} refers to {title}{comment}".replace("\n", ""),
                     },
                 ]
             )
