@@ -83,6 +83,7 @@ def train(
         # torch training params
         ddp: bool = True,  # set to False if OOM with True, for multi-GPU model parallelism
 ):
+    prompt_type = str(prompt_type)  # migration from integers
     if output_dir is None:
         output_dir = f"{base_model.split('/')[-1]}.{data_path.replace('/', '')}.{num_epochs}_epochs.{datetime.now().strftime('%Y%m%d-%H%M%S')}"
     if save_code:
