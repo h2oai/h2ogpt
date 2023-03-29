@@ -595,10 +595,6 @@ def test_debug():
 
 
 if __name__ == "__main__":
-    if os.environ.get("LOCAL_RANK") is None:
-        # then not using torchrun, so can't do distributed, ensure CVD set
-        assert os.environ.get("CUDA_VISIBLE_DEVICES") is not None, "Run python script using: torchrun finetune.py OR set CUDA_VISIBLE_DEVICES to single GPU"
-
     CONFIG = "NCCL_P2P_LEVEL=LOC WORLD_SIZE=5 torchrun --nnodes=5 --master_addr=10.10.10.2 --master_port=1111 --nproc_per_node=1"
     CMD = "finetune.py --data_path=config.json --num_epochs=1 --base_model=decapoda-research/llama-13b-hf"
     log(f"""
@@ -613,10 +609,18 @@ if __name__ == "__main__":
 
     Example run on 3 nodes with 1 to 2 GPU each (we'll consider SLURM etc.)
 
-    rippa> CUDA_VISIBLE_DEVICES=0 {CONFIG} --node_rank=0 {CMD} &>log.rank.0
-    rippa> CUDA_VISIBLE_DEVICES=1 {CONFIG} --node_rank=1 {CMD} &>log.rank.1
-    ova> CUDA_VISIBLE_DEVICES=0 {CONFIG} --node_rank=2 {CMD} &>log.rank.2
-    ova> CUDA_VISIBLE_DEVICES=1 {CONFIG} --node_rank=3 {CMD} &>log.rank.3
-    timemachine> CUDA_VISIBLE_DEVICES=0 {CONFIG} --node_rank=4 {CMD} &>log.rank.4
+    rippa>
+CUDA_VISIBLE_DEVICES=0 {CONFIG} --node_rank=0 {CMD} &>log.rank.0
+CUDA_VISIBLE_DEVICES=1 {CONFIG} --node_rank=1 {CMD} &>log.rank.1
+    ova>
+CUDA_VISIBLE_DEVICES=0 {CONFIG} --node_rank=2 {CMD} &>log.rank.2
+CUDA_VISIBLE_DEVICES=1 {CONFIG} --node_rank=3 {CMD} &>log.rank.3
+    timemachine>
+CUDA_VISIBLE_DEVICES=0 {CONFIG} --node_rank=4 {CMD} &>log.rank.4
     """, flush=True)
+
+    if os.environ.get("LOCAL_RANK") is None:
+        # then not using torchrun, so can't do distributed, ensure CVD set
+        assert os.environ.get("CUDA_VISIBLE_DEVICES") is not None, "Run python script using: torchrun finetune.py OR set CUDA_VISIBLE_DEVICES to single GPU"
+
     fire.Fire(train)
