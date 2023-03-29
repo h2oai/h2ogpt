@@ -236,35 +236,35 @@ def test_config_to_json():
                         'prompt_type': 'human_bot',
                         'instruction': f'Explain the following expert setting for Driverless AI',
                         'input': f"{k}",
-                        'output': f"{comment or title}".replace("\n", ""),
+                        'output': f"{k.replace('_', ' ')} refers to {comment or title}".replace("\n", ""),
                     },
                     {
                         'prompt_type': 'human_bot',
                         'instruction': f'Explain the following expert setting for Driverless AI',
                         'input': f"{k}",
-                        'output': f"{title}{comment}".replace("\n", ""),
+                        'output': f"{k.replace('_', ' ')} refers to {title}{comment}".replace("\n", ""),
                     },
                     {
                         'prompt_type': 'human_bot',
                         'instruction': f'Explain the following expert setting for Driverless AI',
                         'input': f"{k.replace('_', ' ')}",
-                        'output': f"{title}{comment}".replace("\n", ""),
+                        'output': f"{k.replace('_', ' ')} refers to {title}{comment}".replace("\n", ""),
                     },
                     {
                         'prompt_type': 'human_bot',
                         'instruction': f'Explain the following expert setting for Driverless AI',
                         'input': f"{title}",
-                        'output': f"{comment}".replace("\n", ""),
+                        'output': f"{k.replace('_', ' ')} refers to {title}{comment}".replace("\n", ""),
                     },
                     {
                         'prompt_type': 'human_bot',
                         'instruction': f'Provide a short explanation of the expert setting {k}',
-                        'output': f"{comment or title}".replace("\n", ""),
+                        'output': f"{k.replace('_', ' ')} refers to {comment or title}".replace("\n", ""),
                     },
                     {
                         'prompt_type': 'human_bot',
                         'instruction': f'Provide a detailed explanation of the expert setting {k}',
-                        'output': f"{title}: {comment}".replace("\n", ""),
+                        'output': f"{k.replace('_', ' ')} refers to {title}: {comment}".replace("\n", ""),
                     },
                 ]
             )
