@@ -72,10 +72,7 @@ def train(
         lora_r: int = 8,
         lora_alpha: int = 16,
         lora_dropout: float = 0.05,
-        lora_target_modules: List[str] = [
-            "q_proj",
-            "v_proj",
-        ],
+        lora_target_modules: List[str] = None,
         # llm hyperparams
         train_on_inputs: bool = True,  # if False, masks out inputs in loss
         group_by_length: bool = False,  # faster, but produces an odd training loss curve
@@ -90,6 +87,11 @@ def train(
         copy_code(run_id)
     if tokenizer_base_model is None:
         tokenizer_base_model = base_model
+    if lora_target_modules is None:
+        if "gpt-neox" in base_model.lower():
+            lora_target_modules = ["query_key_value"]
+        else:
+            lora_target_modules = ["q_proj", "v_proj"]
     llama_type = "llama" in base_model.lower()
     log(
         f"Training Alpaca-LoRA model with params:\n"
@@ -279,7 +281,7 @@ def train(
                 [data_mix_in_prompt_type] * valid_data_mix_in.num_rows,
             )
             log("Added prompt type %s to mix-in validation data" % data_mix_in_prompt_type)
-        log("Created mix-in data:\n%s\n%s" % (train_data_mix_in, valid_data_mix_in))
+        log("Created mix-in data:\nTrain %s\nValid %s" % (train_data_mix_in, valid_data_mix_in))
 
     # get our own training/validation data - for fine-tuning
     if val_set_size > 0 and not valid_path and not data_mix_in_path:
@@ -324,7 +326,7 @@ def train(
         val_set_size = len(valid_data)
     else:
         val_set_size = 0
-    log("Final fine-tuning data:\n%s\n%s" % (train_data, valid_data))
+    log("Final fine-tuning data:\nTrain %s\nValid %s" % (train_data, valid_data))
 
     trainer = transformers.Trainer(
         model=model,
