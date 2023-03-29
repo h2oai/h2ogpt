@@ -91,7 +91,7 @@ def train(
         lora_target_modules: List[str] = None,
         # llm hyperparams
         train_on_inputs: bool = True,  # if False, masks out inputs in loss
-        group_by_length: bool = False,  # faster, but produces an odd training loss curve
+        group_by_length: bool = False,  # if True, faster, but produces an odd training loss curve
         resume_from_checkpoint: str = None,  # either training checkpoint or final adapter
         # torch training params
         ddp: bool = True,  # set to False if OOM with True, for multi-GPU model parallelism
@@ -581,6 +581,10 @@ def test_debug():
 
 
 if __name__ == "__main__":
+    if os.environ.get("LOCAL_RANK") is None:
+        # then not using torchrun, so can't do distributed, ensure CVD set
+        assert os.environ.get("CUDA_VISIBLE_DEVICES") is not None, "Run python script using: torchrun finetune.py OR set CUDA_VISIBLE_DEVICES to single GPU"
+
     log("""
     Example run on 4 GPUs:
     WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun --nproc_per_node=4 --master_port=1234 finetune.py --base_model='decapoda-research/llama-7b-hf' --output_dir='lora_alpaca_7B' --data_path=alpaca_data_cleaned.json --run_id=0 &> 0.log
