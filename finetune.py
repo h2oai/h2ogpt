@@ -6,7 +6,7 @@ import subprocess
 import sys
 import time
 from datetime import datetime
-from typing import List
+from typing import List, Union
 import fire
 import numpy as np
 import torch
@@ -58,7 +58,7 @@ def train(
 
         data_path: str = "./alpaca_data_cleaned.json",
         # data_path: str = "./dai_docs.train.json",
-        prompt_type: str = "llama",  # "plain", "llama", "quality", "human_bot", "dai_faq"
+        prompt_type: Union[str, int] = "llama",  # "plain", "llama", "quality", "human_bot", "dai_faq"
 
         valid_path: str = None,
         # valid_path: str = "./dai_docs.valid.json",
