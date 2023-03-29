@@ -88,6 +88,11 @@ torchrun generate.py --base_model='EleutherAI/gpt-j-6B' --lora_weights=lora-alpa
 this will download the foundation model, our fine-tuned lora_weights, and open up a GUI with text generation input/output.
 
 
+In case you get peer to peer related errors, set this env var:
+```
+export NCCL_P2P_LEVEL=LOC
+```
+
 ### Plan
 Open source instruct model for demoable usecases.
 1. Base: Start with fully open source apache 2.0 models EleutherAI--gpt-j-6B, EleutherAI--gpt-neox-20b, 
