@@ -230,30 +230,36 @@ def test_config_to_json():
             toml_list.extend(
                 [
                     {
+                        'prompt_type': 'llama',
                         'instruction': f'Explain the following expert setting for Driverless AI',
                         'input': f"{k}",
                         'output': f"{v.comment or v.title}".replace("\n", ""),
                     },
                     {
+                        'prompt_type': 'llama',
                         'instruction': f'Explain the following expert setting for Driverless AI',
                         'input': f"{k}",
                         'output': f"{v.title}: {v.comment}".replace("\n", ""),
                     },
                     {
+                        'prompt_type': 'llama',
                         'instruction': f'Explain the following expert setting for Driverless AI',
                         'input': f"{k.replace('_', ' ')}",
                         'output': f"{v.title}: {v.comment}".replace("\n", ""),
                     },
                     {
+                        'prompt_type': 'llama',
                         'instruction': f'Explain the following expert setting for Driverless AI',
                         'input': f"{v.title}",
                         'output': f"{v.comment}".replace("\n", ""),
                     },
                     {
+                        'prompt_type': 'llama',
                         'instruction': f'Provide a short explanation of the expert setting {k}',
                         'output': f"{v.comment or v.title}".replace("\n", ""),
                     },
                     {
+                        'prompt_type': 'llama',
                         'instruction': f'Provide a detailed explanation of the expert setting {k}',
                         'output': f"{v.title}: {v.comment}".replace("\n", ""),
                     },
