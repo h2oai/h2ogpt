@@ -3,13 +3,13 @@ import json
 import os
 import shutil
 
-from docutils import core
 
 
 def parse_rst_file(filepath):
     with open(filepath, 'r') as f:
         input_data = f.read()
     settings_overrides = {'initial_header_level': 2}
+    from docutils import core
     document = core.publish_doctree(
         source=input_data,
         source_path=filepath,
@@ -37,9 +37,10 @@ def parse_rst_file(filepath):
 
 
 def test_scrape_dai_docs():
-    file = "/home/arno/h2oai/docs/faq.rst"
+    home = os.path.expanduser('~')
+    file = os.path.join(home, 'h2oai/docs/faq.rst')
     qa_pairs = parse_rst_file(file)
-    save_thing = [{"instruction": k, "output": v} for k, v in qa_pairs.items()]
+    save_thing = [{"instruction": k, "output": v, 'prompt_type': "human_bot"} for k, v in qa_pairs.items()]
     output_file = "dai_faq.json"
     with open(output_file, "wt") as f:
         f.write(json.dumps(save_thing, indent=2))
@@ -79,7 +80,7 @@ def test_scrape_dai_docs_all():
                     blob = blob.replace("**", "")
                     dd[output_file].extend(get_sentences(blob, length=LEN))
     for output_file, _ in things:
-        save_thing = [{"output": k} for k in dd[output_file]]
+        save_thing = [{"output": k.strip(), 'prompt_type': 'plain'} for k in dd[output_file]]
         with open(output_file, "wt") as f:
             f.write(json.dumps(save_thing, indent=2))
 
@@ -196,7 +197,7 @@ def test_scrape_dai_docs_all_pandoc():
 
     os.chdir(basedir)
     remove(dst)
-    save_thing = [{"output": k} for k in new_outputs if len(k) > MIN_LENGTH]
+    save_thing = [{"output": k.strip(), 'prompt_type': 'plain'} for k in new_outputs if len(k) > MIN_LENGTH]
     output_file = "dai_docs.train_cleaned.json"
     with open(output_file, "wt") as f:
         f.write(json.dumps(save_thing, indent=2))
@@ -223,6 +224,7 @@ def test_config_to_json():
         # Arrange
         import json
         toml_list = []
+        from h2oaicore.systemutils import config
         for k, v in config.get_meta_dict().items():
             title = (v.title + ": ") if v.title else ''
             comment = v.comment or ''
@@ -231,36 +233,36 @@ def test_config_to_json():
             toml_list.extend(
                 [
                     {
-                        'prompt_type': 'llama',
+                        'prompt_type': 'human_bot',
                         'instruction': f'Explain the following expert setting for Driverless AI',
                         'input': f"{k}",
                         'output': f"{comment or title}".replace("\n", ""),
                     },
                     {
-                        'prompt_type': 'llama',
+                        'prompt_type': 'human_bot',
                         'instruction': f'Explain the following expert setting for Driverless AI',
                         'input': f"{k}",
                         'output': f"{title}{comment}".replace("\n", ""),
                     },
                     {
-                        'prompt_type': 'llama',
+                        'prompt_type': 'human_bot',
                         'instruction': f'Explain the following expert setting for Driverless AI',
                         'input': f"{k.replace('_', ' ')}",
                         'output': f"{title}{comment}".replace("\n", ""),
                     },
                     {
-                        'prompt_type': 'llama',
+                        'prompt_type': 'human_bot',
                         'instruction': f'Explain the following expert setting for Driverless AI',
                         'input': f"{title}",
                         'output': f"{comment}".replace("\n", ""),
                     },
                     {
-                        'prompt_type': 'llama',
+                        'prompt_type': 'human_bot',
                         'instruction': f'Provide a short explanation of the expert setting {k}',
                         'output': f"{comment or title}".replace("\n", ""),
                     },
                     {
-                        'prompt_type': 'llama',
+                        'prompt_type': 'human_bot',
                         'instruction': f'Provide a detailed explanation of the expert setting {k}',
                         'output': f"{title}: {comment}".replace("\n", ""),
                     },
@@ -268,8 +270,8 @@ def test_config_to_json():
             )
         with open("config.json", "wt") as f:
             f.write(json.dumps(toml_list, indent=2))
-    except:
-        pass
+    except Exception as e:
+        print("Exception: %s" % str(e), flush=True)
 
 
 def copy_tree(src, dst, follow_symlink=False):
@@ -321,3 +323,15 @@ def makedirs(path, exist_ok=True):
         assert exist_ok, "Path already exists"
         return path
     os.makedirs(path, exist_ok=exist_ok)
+
+
+def test_join_jsons():
+    files = ['alpaca_data_cleaned.json'] * 0 + \
+             ['config.json'] * 1 + \
+             ['dai_docs.train_cleaned.json'] * 2 + \
+             ['dai_faq.json'] * 3
+    print(files)
+    lst = []
+    [lst.extend(json.load(open(fil, 'rt'))) for fil in files]
+    print(len(lst))
+    json.dump(lst, open("merged.json", "wt"), indent=2)

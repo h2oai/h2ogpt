@@ -43,6 +43,7 @@ except neptune.exceptions.NeptuneMissingApiTokenException:
     os.environ["NEPTUNE_MODE"] = 'debug'
     log("No neptune configured, set NEPTUNE_API_TOKEN env var.")
 
+prompt_types = ["plain", "llama", "quality", "human_bot", "dai_faq"]
 
 def train(
         save_code: bool = False,
@@ -97,8 +98,9 @@ def train(
         ddp: bool = True,  # set to False if OOM with True, for multi-GPU model parallelism
 ):
     prompt_type = str(prompt_type)  # migration from integers
+    assert prompt_type in prompt_types
     if output_dir is None:
-        output_dir = f"{base_model.split('/')[-1]}.{data_path.replace('/', '')}.{num_epochs}_epochs.{get_githash() or 'nogit'}.{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+        output_dir = f"{base_model.split('/')[-1]}.{data_path.replace('/', '')}.{num_epochs}_epochs.{get_githash() or 'nogit'}"
     if save_code:
         copy_code(run_id)
     if tokenizer_base_model is None:
@@ -121,6 +123,7 @@ def train(
     locals_dict = locals()
     locals_print = '\n'.join(['%s: %s' % (k, v) for k, v in locals_dict.items()])
     log(f"Training model with params:\n{locals_print}")
+    log("Command: %s\nHash: %s" % (str(' '.join(sys.argv)), get_githash()))
 
     max_memory = None
     if gpus > 1:
@@ -504,6 +507,7 @@ def generate_prompt(data_point, prompt_type):
     input = data_point.get('input')
     output = data_point.get('output')
     prompt_type = data_point.get('prompt_type', prompt_type)
+    assert prompt_type in prompt_types
     promptA, promptB, PreInstruct, PreInput, PreResponse, terminate_response = get_prompt(prompt_type)
 
     prompt = ''
