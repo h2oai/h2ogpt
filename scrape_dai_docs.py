@@ -1,4 +1,6 @@
 import json
+import os
+
 from docutils import core
 
 
@@ -42,12 +44,18 @@ def test_scrape_dai_docs():
 
 
 def test_scrape_dai_docs_all():
+    """
+    pytest scrape_dai_docs.py::test_scrape_dai_docs_all
+    """
     import numpy as np
     import glob
+    import nltk
+    nltk.download('punkt')
     from nltk.tokenize import sent_tokenize
     dd = {}
     np.random.seed(1234)
-    files = list(glob.glob("/home/arno/h2oai/docs/**/*rst"))
+    home = os.path.expanduser('~')
+    files = list(glob.glob(os.path.join(home, "h2oai/docs/**/*rst")))
     np.random.shuffle(files)
     val_count = int(0.05 * len(files))
     train_files = files[val_count:]

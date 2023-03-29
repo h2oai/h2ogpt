@@ -5,12 +5,14 @@ import shutil
 import subprocess
 import sys
 import time
+from datetime import datetime
 from typing import List
 import fire
 import neptune
 from transformers.integrations import NeptuneCallback
+import numpy as np
 import torch
-from datasets import load_dataset
+from datasets import load_dataset, concatenate_datasets
 import transformers
 
 from peft import (
@@ -27,17 +29,44 @@ run = neptune.init_run(
 )
 
 
+def log(*args, **kwargs):
+    if int(os.environ.get("LOCAL_RANK", 0)) == 0:
+        print(*args, **kwargs)
+
+
 def train(
         save_code: bool = False,
         run_id: int = random.randint(0, 2 ** 31),
-        # model/data params
-        base_model: str = 'EleutherAI/gpt-neox-20b',
+
+        # base_model: str = 'togethercomputer/GPT-NeoXT-Chat-Base-20B',
+        # base_model: str = 'EleutherAI/gpt-neox-20b',
+        # base_model: str = 'decapoda-research/llama-7b-hf',
+        # base_model: str = 'decapoda-research/llama-13b-hf',
+        # base_model: str = 'decapoda-research/llama-30b-hf',
+        base_model: str = 'EleutherAI/gpt-j-6B',
+
+        # only needed if base_model is self-exported HF state without tokenizer
         tokenizer_base_model: str = None,
+        # tokenizer_base_model: str = 'EleutherAI/gpt-neox-20b',
+
         data_path: str = "./alpaca_data_cleaned.json",
+        # data_path: str = "./dai_docs.train.json",
+        prompt_type: str = "llama",  # "plain", "llama", "quality", "human_bot", "dai_faq"
+
         valid_path: str = None,
-        llama_type: bool = False,
-        output_dir: str = "./lora-alpaca",
+        # valid_path: str = "./dai_docs.valid.json",
+
+        # data_mix_in_path: str = "laion/OIG",  # way too big, medium quality
+        data_mix_in_path: str = "0-hero/OIG-small-chip2",  # high quality, 50 MB, good enough for now
+        data_mix_in_factor: float = 1.0,  # >1: more mix-in data, <1: more of data_path data
+        data_mix_in_col_dict: dict = {'user': 'instruction', 'chip2': 'output'},
+        data_mix_in_prompt_type: str = "llama",  # just instruction->output, same as llama
+
+        output_dir: str = None,
+
+        # LoRA checkpoint continuation
         lora_weights: str = "",
+
         # training hyperparams
         batch_size: int = 128,
         micro_batch_size: int = 4,
@@ -57,19 +86,24 @@ def train(
         train_on_inputs: bool = True,  # if False, masks out inputs in loss
         group_by_length: bool = False,  # faster, but produces an odd training loss curve
         resume_from_checkpoint: str = None,  # either training checkpoint or final adapter
-        prompt_type: int = 0,
         # torch training params
         ddp: bool = True,  # set to False if OOM with True, for multi-GPU model parallelism
 ):
+    prompt_type = str(prompt_type)  # migration from integers
+    if output_dir is None:
+        output_dir = f"{base_model.split('/')[-1]}.{data_path.replace('/', '')}.{num_epochs}_epochs.{datetime.now().strftime('%Y%m%d-%H%M%S')}"
     if save_code:
         copy_code(run_id)
     if tokenizer_base_model is None:
         tokenizer_base_model = base_model
-    print(
+    llama_type = "llama" in base_model.lower()
+    log(
         f"Training Alpaca-LoRA model with params:\n"
         f"base_model: {base_model}\n"
         f"tokenizer_base_model: {tokenizer_base_model}\n"
         f"data_path: {data_path}\n"
+        f"data_mix_in_path: {data_mix_in_path}\n"
+        f"data_mix_in_factor: {data_mix_in_factor}\n"
         f"valid_path: {valid_path}\n"
         f"output_dir: {output_dir}\n"
         f"batch_size: {batch_size}\n"
@@ -99,16 +133,16 @@ def train(
     max_memory = None
     if gpus > 1:
         if ddp:
-            print("data parallel")
+            log("data parallel")
             device_map = {"": int(os.environ.get("LOCAL_RANK") or 0)}
             gradient_accumulation_steps = gradient_accumulation_steps // world_size
         else:
             free_in_GB = int(min(torch.cuda.mem_get_info()) / 1024 ** 3)
             max_memory = f"{free_in_GB - 2}GB"
             max_memory = {i: max_memory for i in range(gpus)}
-            print("world_size: %d" % world_size)
-            print("num_gpus: %d" % gpus)
-            print("max mem: %s" % max_memory)
+            log("world_size: %d" % world_size)
+            log("num_gpus: %d" % gpus)
+            log("max mem: %s" % max_memory)
 
     model_loader, tokenizer_loader = get_loaders(llama_type=llama_type)
 
@@ -120,7 +154,7 @@ def train(
     )
     if gpus > 1:
         if not ddp:
-            print("model parallel")
+            log("model parallel")
             model.is_parallelizable = True
             model.model_parallel = True
 
@@ -187,11 +221,6 @@ def train(
         )
         model = get_peft_model(model, config)
 
-    if valid_path:
-        data = load_dataset("json", data_files={"train": data_path, "valid": valid_path})
-    else:
-        data = load_dataset("json", data_files={"train": data_path})
-
     if resume_from_checkpoint:
         # Check the available weights and load them
         checkpoint_name = os.path.join(
@@ -204,34 +233,111 @@ def train(
             resume_from_checkpoint = False  # So the trainer won't try loading its state
         # The two files above have a different name depending on how they were saved, but are actually the same.
         if os.path.exists(checkpoint_name):
-            print(f"Restarting from {checkpoint_name}")
+            log(f"Restarting from {checkpoint_name}")
             adapters_weights = torch.load(checkpoint_name)
             model = set_peft_model_state_dict(model, adapters_weights)
         else:
-            print(f"Checkpoint {checkpoint_name} not found")
+            log(f"Checkpoint {checkpoint_name} not found")
 
     model.print_trainable_parameters()  # Be more transparent about the % of trainable params.
 
-    if val_set_size > 0 and "valid" not in data:
+    if valid_path:
+        data = load_dataset("json", data_files={"train": data_path, "valid": valid_path})
+    else:
+        data = load_dataset("json", data_files={"train": data_path})
+
+    valid_data = None
+    train_data_mix_in = None
+    valid_data_mix_in = None
+
+    if data_mix_in_path:
+        # get mix-in training/validation data - to keep model "sane"
+        num_rows = data["train"].num_rows
+        log("Loading mix-in dataset: %s" % data_mix_in_path)
+        data_mix_in = load_dataset(data_mix_in_path)["train"]  # can be large
+        data_mix_in = data_mix_in.rename_columns(data_mix_in_col_dict or {})
+
+        # only get as much as we need to balance
+        train_size = int(num_rows * data_mix_in_factor)
+        valid_size = val_set_size or 0
+        mixin_small = data_mix_in.train_test_split(
+            test_size=train_size + valid_size,
+            shuffle=True, seed=np.random.randint(10000),
+        )["test"]
+        if valid_size:
+            mixin_train_test = mixin_small.train_test_split(
+                test_size=valid_size, shuffle=False,
+            )
+            train_data_mix_in = mixin_train_test["train"]
+            valid_data_mix_in = mixin_train_test["test"]
+        else:
+            train_data_mix_in = mixin_small
+
+        if "prompt_type" not in train_data_mix_in.column_names:
+            train_data_mix_in = train_data_mix_in.add_column(
+                "prompt_type",
+                [data_mix_in_prompt_type] * train_data_mix_in.num_rows,
+            )
+            log("Added prompt type %s to mix-in training data" % data_mix_in_prompt_type)
+        if valid_data_mix_in and "prompt_type" not in valid_data_mix_in.column_names:
+            valid_data_mix_in = valid_data_mix_in.add_column(
+                "prompt_type",
+                [data_mix_in_prompt_type] * valid_data_mix_in.num_rows,
+            )
+            log("Added prompt type %s to mix-in validation data" % data_mix_in_prompt_type)
+        log("Created mix-in data:\n%s\n%s" % (train_data_mix_in, valid_data_mix_in))
+
+    # get our own training/validation data - for fine-tuning
+    if val_set_size > 0 and not valid_path and not data_mix_in_path:
+        # create valid split from train
         train_val = data["train"].train_test_split(
             test_size=val_set_size, shuffle=True, seed=42
         )
-        train_data = train_val["train"].shuffle().map(generate_and_tokenize_prompt)
-        val_data = train_val["test"].shuffle().map(generate_and_tokenize_prompt)
-    elif "valid" in data:
-        train_data = data["train"].shuffle().map(generate_and_tokenize_prompt)
-        val_data = data["valid"].shuffle().map(generate_and_tokenize_prompt)
-        val_set_size = len(val_data)
+        train_data = train_val["train"]
+        valid_data = train_val["test"]
     else:
-        train_data = data["train"].shuffle().map(generate_and_tokenize_prompt)
-        val_data = None
+        train_data = data["train"]
+        if valid_path:
+            # use given valid split, has priority over data_mix_in_path
+            valid_data = data["valid"]
+    if "prompt_type" not in train_data.column_names:
+        train_data = train_data.add_column(
+            "prompt_type",
+            [prompt_type] * train_data.num_rows,
+        )
+        log("Added prompt type %s to training data" % data_mix_in_prompt_type)
+    if valid_data and "prompt_type" not in valid_data.column_names:
+        valid_data = valid_data.add_column(
+            "prompt_type",
+            [prompt_type] * valid_data.num_rows,
+        )
+        log("Added prompt type %s to validation data" % data_mix_in_prompt_type)
+
+    assert train_data is not None
+
+    # shuffle and tokenize data
+    if train_data_mix_in:
+        train_data = concatenate_datasets([train_data, train_data_mix_in])
+    train_data = train_data.shuffle().map(generate_and_tokenize_prompt)
+
+    if valid_data and valid_data_mix_in:
+        valid_data = concatenate_datasets([valid_data, valid_data_mix_in])
+    elif valid_data_mix_in:
+        valid_data = valid_data_mix_in
+
+    if valid_data:
+        valid_data = valid_data.shuffle().map(generate_and_tokenize_prompt)
+        val_set_size = len(valid_data)
+    else:
+        val_set_size = 0
+    log("Final fine-tuning data:\n%s\n%s" % (train_data, valid_data))
 
     neptune_callback = NeptuneCallback(run=run)
 
     trainer = transformers.Trainer(
         model=model,
         train_dataset=train_data,
-        eval_dataset=val_data,
+        eval_dataset=valid_data,
         args=transformers.TrainingArguments(
             per_device_train_batch_size=micro_batch_size,
             gradient_accumulation_steps=gradient_accumulation_steps,
@@ -273,7 +379,7 @@ def train(
 
     model.save_pretrained(output_dir)
 
-    print("\n If there's a warning about missing keys above, please disregard :)")
+    log("\n If there's a warning about missing keys above, please disregard :)")
 
 
 def get_loaders(llama_type):
@@ -321,10 +427,10 @@ def copy_code(run_id):
 
 
 def get_prompt(prompt_type):
-    if prompt_type == -1:
+    if prompt_type in [-1, "-1", "plain"]:
         promptA = promptB = PreInstruct = PreInput = PreResponse = ''
         terminate_response = []
-    elif prompt_type == 0:
+    elif prompt_type in [0, "0", "llama"]:
         promptA = 'Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.\n'
         promptB = 'Below is an instruction that describes a task. Write a response that appropriately completes the request.\n'
 
@@ -340,7 +446,7 @@ def get_prompt(prompt_type):
 ### Response:
 """
         terminate_response = None
-    elif prompt_type == 1:
+    elif prompt_type in [1, "1", "quality"]:
         promptA = 'Write a detailed high-quality, accurate, fair, Response with about 100 words by following the Instruction as applied on the Input.\n'
         promptB = 'Write a detailed high-quality, accurate, fair, Response with about 100 words by following the Instruction.\n'
 
@@ -356,7 +462,7 @@ def get_prompt(prompt_type):
 ### Response:
 """
         terminate_response = None
-    elif prompt_type == 2:
+    elif prompt_type in [2, "2", "human_bot"]:
         cur_date = time.strftime('%Y-%m-%d')
         cur_time = time.strftime('%H:%M:%S %p %Z')
 
@@ -377,7 +483,7 @@ Current Time: {}
         PreResponse = "<bot>:"
 
         terminate_response = [start, PreResponse]
-    elif prompt_type == 3:
+    elif prompt_type in [3, "3", "dai_faq"]:
         promptA = ''
         promptB = 'Answer the following Driverless AI question.\n'
 
@@ -401,6 +507,7 @@ def generate_prompt(data_point, prompt_type):
     instruction = data_point.get('instruction')
     input = data_point.get('input')
     output = data_point.get('output')
+    prompt_type = data_point.get('prompt_type', prompt_type)
     promptA, promptB, PreInstruct, PreInput, PreResponse, terminate_response = get_prompt(prompt_type)
 
     prompt = ''
@@ -473,8 +580,12 @@ def test_train_prompt(prompt_type=0, data_point=0):
     return generate_prompt(example_data_point, prompt_type)
 
 
+def test_debug():
+    fire.Fire(train)
+
+
 if __name__ == "__main__":
-    print("""
+    log("""
     Example run on 4 GPUs:
     WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun --nproc_per_node=4 --master_port=1234 finetune.py --llama_type=True --base_model='decapoda-research/llama-7b-hf' --output_dir='lora_alpaca_7B' --data_path=alpaca_data_cleaned.json --run_id=0 &> 0.log
     WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun --nproc_per_node=4 --master_port=1234 finetune.py --llama_type=True --base_model='decapoda-research/llama-30b-hf' --output_dir='lora_alpaca_30B' --data_path=alpaca_data_cleaned.json --batch_size=16 --micro_batch_size=1 --run_id=1 --save_code=True &> 1.log

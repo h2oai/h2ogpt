@@ -11,3 +11,5 @@ fire
 pytest
 nltk
 neptune
+docutils
+pandoc

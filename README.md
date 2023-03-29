@@ -107,94 +107,17 @@ GPT-NeoXT-Chat-Base-20B, etc.
 [shawwn/llama](https://github.com/shawwn/llama/commit/40d99d329a5e38d85904d3a6519c54e6dd6ee9e1)<br />
 [llama PRs](https://github.com/facebookresearch/llama/pulls)<br />
 [text-generation-webui](https://github.com/oobabooga/text-generation-webui)<br />
-[minimal-llama](https://github.com/zphang/minimal-llama/)
-
-### Some open source models:
-[GPT-NeoXT-Chat-Base-20B](https://huggingface.co/togethercomputer/GPT-NeoXT-Chat-Base-20B/tree/main)<br />
-[Pythia-6.9B](https://huggingface.co/EleutherAI/pythia-6.9b)<br />
-[Pythia-12B](https://huggingface.co/EleutherAI/neox-ckpt-pythia-12b)<br />
-[Flan-T5-XXL](https://huggingface.co/google/flan-t5-xxl)<br />
-[GPT-J-Moderation-6B](https://huggingface.co/togethercomputer/GPT-JT-Moderation-6B)
-[OIG safety models](https://laion.ai/blog/oig-dataset/#safety-models)
-
-### Some create commons models that would be interesting to use:
-[Galactica-120B](https://huggingface.co/facebook/galactica-120b)<br />
-[LLaMa-small-pt](https://huggingface.co/decapoda-research/llama-smallint-pt)<br />
-[LLaMa-64b-4bit](https://huggingface.co/maderix/llama-65b-4bit/tree/main)<br />
-
-### Papers/Repos
-[LLaMa](https://arxiv.org/abs/2302.13971)<br />
-[GLM-130B](https://github.com/THUDM/GLM-130B)<br />
-[RWKV RNN](https://github.com/BlinkDL/RWKV-LM)<br />
-[Toolformer](https://arxiv.org/abs/2302.04761)<br />
-[GPTQ](https://github.com/qwopqwop200/GPTQ-for-LLaMa)<br />
-[Retro](https://www.deepmind.com/publications/improving-language-models-by-retrieving-from-trillions-of-tokens)<br />
-[Clinical_outperforms](https://arxiv.org/abs/2302.08091)<br />
-[Chain-Of-Thought](https://github.com/amazon-science/mm-cot)
-
-### Other projects:
-[alpaca-lora](https://github.com/h2oai/alpaca-lora)<br />
-[alpaca.http](https://github.com/Nuked88/alpaca.http)<br />
-[langchain](https://python.langchain.com/en/latest/)<br />
-[cohere](https://cohere.io/)<br />
-[coherefinetune](https://docs.cohere.ai/reference/finetune)<br />
-[langchain+pinecone](https://www.youtube.com/watch?v=nMniwlGyX-c)<br />
-[chatgpt-retrieval-pllugin](https://github.com/openai/chatgpt-retrieval-plugin)<br />
-[subtl.ai docs search on private docs](https://www.subtl.ai/)<br />
-[gertel](https://gretel.ai/)<br />
-[alpaca_lora_4bit](https://github.com/johnsmith0031/alpaca_lora_4bit)<br />
-[alpaca_lora_4bit_readme](https://github.com/s4rduk4r/alpaca_lora_4bit_readme)<br />
-[code alpaca](https://github.com/sahil280114/codealpaca)<br />
-[serge](https://github.com/nsarrazin/serge)<br />
-[BlinkDL](https://huggingface.co/spaces/BlinkDL/ChatRWKV-gradio)<br />
-[MosaicCM](https://github.com/mosaicml/examples#large-language-models-llms)<br />
-[OpenAI Plugins](https://openai.com/blog/chatgpt-plugins)<br />
-[GPT3.5-Turbo-PGVector](https://github.com/gannonh/gpt3.5-turbo-pgvector)<br />
-[DocsBotAI](https://docsbot.ai/)<br />
-[Perplexity](https://www.perplexity.ai/)<br />
-[VoiceFlow](https://www.voiceflow.com/)<br />
-[LLaMa-Adapter](https://github.com/ZrrSkywalker/LLaMA-Adapter)<br />
-[llama-index](https://github.com/jerryjliu/llama_index)<br />
 [minimal-llama](https://github.com/zphang/minimal-llama/)<br />
-[llama.cpp](https://github.com/ggerganov/llama.cpp)<br />
-[lamma.cpp more](https://til.simonwillison.net/llms/llama-7b-m2)<br />
+[finetune GPT-NeoX](https://nn.labml.ai/neox/samples/finetune.html)<br />
+[GPTQ-for_LLaMa](https://github.com/qwopqwop200/GPTQ-for-LLaMa/compare/cuda...Digitous:GPTQ-for-GPT-NeoX:main)<br />
+[OpenChatKit on multi-GPU](https://github.com/togethercomputer/OpenChatKit/issues/20)<br />
+[Non-Causal LLM](https://huggingface.co/docs/transformers/main/en/model_doc/gptj#transformers.GPTJForSequenceClassification)<br />
+[OpenChatKit_Offload](https://github.com/togethercomputer/OpenChatKit/commit/148b5745a57a6059231178c41859ecb09164c157)<br />
 
-### Apache2/etc. Data
-[OIG 43M instructions](https://laion.ai/blog/oig-dataset/) [direct HF link](https://huggingface.co/datasets/laion/OIG)
+### Help
 
-### non-commerical Data
-[GPT-3 based Alpaca Cleaned](https://github.com/gururise/AlpacaDataCleaned)
+[FAQs](FAQ.md)
 
-### Throttle GPUs in case of reset/reboot
+### More links, context, competitors, models, datasets
 
-```bash
-(alpaca) jon@gpu:/data/jon/alpaca-lora$ sudo nvidia-smi -pl 250
-Power limit for GPU 00000000:3B:00.0 was set to 250.00 W from 300.00 W.
-Power limit for GPU 00000000:5E:00.0 was set to 250.00 W from 300.00 W.
-Power limit for GPU 00000000:86:00.0 was set to 250.00 W from 300.00 W.
-Power limit for GPU 00000000:AF:00.0 was set to 250.00 W from 300.00 W.
-All done.
-```
-
-### Wiki
-
-```python
->>> from datasets import load_dataset
->>> wk = load_dataset("wikipedia", "20220301.en")
->>> wk
-DatasetDict({
-    train: Dataset({
-        features: ['id', 'url', 'title', 'text'],
-        num_rows: 6458670
-    })
-})
->>> sentences = ".".join(wk['train'][0]['text'].split('.')[0:2])
-'Anarchism is a political philosophy and movement that is sceptical of authority and rejects all involuntary, coercive forms of hierarchy. Anarchism calls for the abolition of the state, which it holds to be unnecessary, undesirable, and harmful'
->>> 
-```
-
-### Fine-Tune
-
-TODO: replace `alpaca_data_cleaned.json` with open-source/bootstrapped approach
-
-
+[Links](LINKS.md)
