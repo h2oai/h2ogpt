@@ -109,31 +109,6 @@ def train(
         else:
             lora_target_modules = ["q_proj", "v_proj"]
     llama_type = "llama" in base_model.lower()
-    log(
-        f"Training model with params:\n"
-        f"base_model: {base_model}\n"
-        f"tokenizer_base_model: {tokenizer_base_model}\n"
-        f"data_path: {data_path}\n"
-        f"data_mix_in_path: {data_mix_in_path}\n"
-        f"data_mix_in_factor: {data_mix_in_factor}\n"
-        f"valid_path: {valid_path}\n"
-        f"output_dir: {output_dir}\n"
-        f"batch_size: {batch_size}\n"
-        f"micro_batch_size: {micro_batch_size}\n"
-        f"num_epochs: {num_epochs}\n"
-        f"learning_rate: {learning_rate}\n"
-        f"cutoff_len: {cutoff_len}\n"
-        f"val_set_size: {val_set_size}\n"
-        f"lora_r: {lora_r}\n"
-        f"lora_alpha: {lora_alpha}\n"
-        f"lora_dropout: {lora_dropout}\n"
-        f"lora_target_modules: {lora_target_modules}\n"
-        f"train_on_inputs: {train_on_inputs}\n"
-        f"group_by_length: {group_by_length}\n"
-        f"resume_from_checkpoint: {resume_from_checkpoint}\n"
-        f"prompt_type: {prompt_type}\n"
-        f"ddp: {ddp}\n"
-    )
     assert (
         base_model
     ), "Please specify a --base_model, e.g. --base_model='decapoda-research/llama-7b-hf'"
@@ -142,10 +117,15 @@ def train(
     device_map = "auto"
     world_size = int(os.environ.get("WORLD_SIZE", 1))
     gpus = max(world_size, torch.cuda.device_count())
+
+    locals_dict = locals()
+    locals_print = '\n'.join(['%s: %s' % (k, v) for k, v in locals_dict.items()])
+    log(f"Training model with params:\n{locals_print}")
+
     max_memory = None
     if gpus > 1:
         if ddp:
-            log("data parallel")
+            log("Distributed: data parallel")
             device_map = {"": int(os.environ.get("LOCAL_RANK") or 0)}
             gradient_accumulation_steps = gradient_accumulation_steps // world_size
         else:
