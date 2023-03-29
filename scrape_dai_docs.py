@@ -188,3 +188,40 @@ def remove(path: str):
 def shutil_rmtree(*args, **kwargs):
     path = args[0]
     return shutil.rmtree(*args, **kwargs)
+
+
+def test_config_to_json():
+    try:
+        from h2oaicore.systemutils import config
+        # Arrange
+        import json
+        toml_list = []
+        for k, v in config.get_meta_dict().items():
+            if not v.title and not v.comment:
+                continue
+            toml_list.extend(
+                [
+                    {
+                        'instruction': f'Explain the following expert setting for Driverless AI',
+                        'input': f"{k}",
+                        'output': f"{v.comment or v.title}".replace("\n", ""),
+                    },
+                    {
+                        'instruction': f'Explain the following expert setting for Driverless AI',
+                        'input': f"{k}",
+                        'output': f"{v.title} {v.comment}".replace("\n", ""),
+                    },
+                    {
+                        'instruction': f'Provide a short explanation of the expert setting {k}',
+                        'output': f"{v.comment or v.title}".replace("\n", ""),
+                    },
+                    {
+                        'instruction': f'Provide a detailed explanation of the expert setting {k}',
+                        'output': f"{v.title} {v.comment}".replace("\n", ""),
+                    },
+                ]
+            )
+        with open("config.json", "wt") as f:
+            f.write(json.dumps(toml_list, indent=2))
+    except:
+        pass
