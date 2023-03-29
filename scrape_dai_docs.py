@@ -222,6 +222,7 @@ def test_config_to_json():
     try:
         # Arrange
         import json
+        from h2oaicore.systemutils import config
         toml_list = []
         for k, v in config.get_meta_dict().items():
             title = (v.title + ": ") if v.title else ''
