@@ -45,7 +45,7 @@ def train(
 
         data_path: str = "./alpaca_data_cleaned.json",
         # data_path: str = "./dai_docs.train.json",
-        prompt_type: str = "llama",
+        prompt_type: str = "llama",  # "plain", "llama", "quality", "human_bot", "dai_faq"
 
         valid_path: str = None,
         # valid_path: str = "./dai_docs.valid.json",
@@ -54,7 +54,7 @@ def train(
         data_mix_in_path: str = "0-hero/OIG-small-chip2",  # high quality, 50 MB, good enough for now
         data_mix_in_factor: float = 1.0,  # >1: more mix-in data, <1: more of data_path data
         data_mix_in_col_dict: dict = {'user': 'instruction', 'chip2': 'output'},
-        data_mix_in_prompt_type: str = "llama",  # FIXME - check how OIG was trained
+        data_mix_in_prompt_type: str = "llama",  # just instruction->output, same as llama
 
         output_dir: str = None,
 
