@@ -220,12 +220,13 @@ def shutil_rmtree(*args, **kwargs):
 
 def test_config_to_json():
     try:
-        from h2oaicore.systemutils import config
         # Arrange
         import json
         toml_list = []
         for k, v in config.get_meta_dict().items():
-            if not v.title and not v.comment:
+            title = (v.title + ": ") if v.title else ''
+            comment = v.comment or ''
+            if not (title or comment):
                 continue
             toml_list.extend(
                 [
@@ -233,35 +234,35 @@ def test_config_to_json():
                         'prompt_type': 'llama',
                         'instruction': f'Explain the following expert setting for Driverless AI',
                         'input': f"{k}",
-                        'output': f"{v.comment or v.title}".replace("\n", ""),
+                        'output': f"{comment or title}".replace("\n", ""),
                     },
                     {
                         'prompt_type': 'llama',
                         'instruction': f'Explain the following expert setting for Driverless AI',
                         'input': f"{k}",
-                        'output': f"{v.title}: {v.comment}".replace("\n", ""),
+                        'output': f"{title}{comment}".replace("\n", ""),
                     },
                     {
                         'prompt_type': 'llama',
                         'instruction': f'Explain the following expert setting for Driverless AI',
                         'input': f"{k.replace('_', ' ')}",
-                        'output': f"{v.title}: {v.comment}".replace("\n", ""),
+                        'output': f"{title}{comment}".replace("\n", ""),
                     },
                     {
                         'prompt_type': 'llama',
                         'instruction': f'Explain the following expert setting for Driverless AI',
-                        'input': f"{v.title}",
-                        'output': f"{v.comment}".replace("\n", ""),
+                        'input': f"{title}",
+                        'output': f"{comment}".replace("\n", ""),
                     },
                     {
                         'prompt_type': 'llama',
                         'instruction': f'Provide a short explanation of the expert setting {k}',
-                        'output': f"{v.comment or v.title}".replace("\n", ""),
+                        'output': f"{comment or title}".replace("\n", ""),
                     },
                     {
                         'prompt_type': 'llama',
                         'instruction': f'Provide a detailed explanation of the expert setting {k}',
-                        'output': f"{v.title}: {v.comment}".replace("\n", ""),
+                        'output': f"{title}: {comment}".replace("\n", ""),
                     },
                 ]
             )
