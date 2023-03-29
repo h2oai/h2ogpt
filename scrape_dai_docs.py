@@ -106,9 +106,13 @@ def get_sentences(blob, length):
 
 def test_scrape_dai_docs_all_pandoc():
     """
-    pytest scrape_dai_docs.py::test_scrape_dai_docs_all_pandoc
+    pytest -s -v scrape_dai_docs.py::test_scrape_dai_docs_all_pandoc
     :return:
     """
+    # account for sequence length (context window) including prompt and input and output
+    MAX_LEN = 2048//2 - 30
+    MIN_LENGTH = 30  # to avoid bare headers
+
     home = os.path.expanduser('~')
     import glob
     files = list(glob.glob(os.path.join(home, "h2oai/docs/**/*"), recursive=True))
@@ -117,15 +121,24 @@ def test_scrape_dai_docs_all_pandoc():
     dst = "working_dir_docs"
     remove(dst)
     os.makedirs(dst)
+
+    # copy full tree, for absolute paths in rst
     for fil in files:
         if os.path.isfile(fil):
             shutil.copy(fil, dst)
+
     files = list(glob.glob(os.path.join(dst, '*rst'), recursive=True))
+    # hack for relative path
+    scorers_dir = os.path.join(dst, 'scorers')
+    makedirs(scorers_dir)
+    for fil in glob.glob(os.path.join(dst, '*.frag')):
+        shutil.copy(fil, scorers_dir)
 
     # os.system('pandoc -f rst -t plain ./expert_settings/nlp_settings.rst')
     import pypandoc
     outputs = []
     basedir = os.path.abspath(os.getcwd())
+
     for fil in files:
         os.chdir(basedir)
         os.chdir(os.path.dirname(fil))
@@ -155,19 +168,35 @@ def test_scrape_dai_docs_all_pandoc():
             print("file exception: %s %s" % (fil, str(e)), flush=True)
 
         if not plain_list:
-            LEN = 100
             # if failed to process as pieces of rst, then
             output = pypandoc.convert_file(fil, out_format, extra_args=extra_args, format='rst')
-            outputs = get_sentences(output, length=LEN)
+            outputs = get_sentences(output, length=MAX_LEN)
             for oi, output in enumerate(outputs):
                 output = output.replace('\n\n', '\n')
                 plain_list.append(output)
         outputs.extend(plain_list)
 
+    # report:
+    # [print(len(x)) for x in outputs]
+
+    # deal with blocks longer than context size (sequence length) of 2048
+    new_outputs = []
+    num_truncated = 0
+    num_orig = len(outputs)
+    for output in outputs:
+        if len(output) < MAX_LEN:
+            new_outputs.append(output)
+            continue
+        outputs1 = get_sentences(output, length=MAX_LEN)
+        for oi, output1 in enumerate(outputs1):
+            output1 = output1.replace('\n\n', '\n')
+            new_outputs.append(output1)
+        num_truncated += 1
+    print('num_orig: %s num_truncated: %s' % (num_orig, num_truncated), flush=True)
+
     os.chdir(basedir)
     remove(dst)
-    MIN_LENGTH = 30  # to avoid bare headers
-    save_thing = [{"output": k} for k in outputs if len(k) > MIN_LENGTH]
+    save_thing = [{"output": k} for k in new_outputs if len(k) > MIN_LENGTH]
     output_file = "dai_docs.train_cleaned.json"
     with open(output_file, "wt") as f:
         f.write(json.dumps(save_thing, indent=2))
@@ -186,7 +215,6 @@ def remove(path: str):
 
 
 def shutil_rmtree(*args, **kwargs):
-    path = args[0]
     return shutil.rmtree(*args, **kwargs)
 
 
@@ -225,3 +253,54 @@ def test_config_to_json():
             f.write(json.dumps(toml_list, indent=2))
     except:
         pass
+
+
+def copy_tree(src, dst, follow_symlink=False):
+    makedirs(dst, exist_ok=True)
+    for (path, dirs, files) in os.walk(src, followlinks=follow_symlink):
+        new_path = path.replace(src, dst)
+        makedirs(new_path, exist_ok=True)
+        for file in files:
+            filename = os.path.join(path, file)
+            new_filename = os.path.join(new_path, file)
+            # print("%s -> %s" % (filename, new_filename))
+            try:
+                atomic_copy(filename, new_filename)
+            except FileNotFoundError:
+                pass
+
+
+def atomic_move(src, dst):
+    try:
+        shutil.move(src, dst)
+    except (shutil.Error, FileExistsError):
+        pass
+    remove(src)
+
+
+def atomic_copy(src=None, dst=None, with_permissions=True):
+    if os.path.isfile(dst):
+        return
+    import uuid
+    my_uuid = uuid.uuid4()
+    dst_tmp = dst + str(my_uuid)
+    makedirs(os.path.dirname(dst), exist_ok=True)
+    if with_permissions:
+        shutil.copy(src, dst_tmp)
+    else:
+        shutil.copyfile(src, dst_tmp)
+    atomic_move(dst_tmp, dst)
+    remove(dst_tmp)
+
+
+def makedirs(path, exist_ok=True):
+    """
+    Avoid some inefficiency in os.makedirs()
+    :param path:
+    :param exist_ok:
+    :return:
+    """
+    if os.path.isdir(path) and os.path.exists(path):
+        assert exist_ok, "Path already exists"
+        return path
+    os.makedirs(path, exist_ok=exist_ok)
