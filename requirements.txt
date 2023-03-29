@@ -10,6 +10,7 @@ appdirs
 fire
 pytest
 nltk
+neptune
 docutils
 pandoc
 pypandoc

@@ -8,8 +8,9 @@ import time
 from datetime import datetime
 from typing import List
 import fire
+import neptune
+from transformers.integrations import NeptuneCallback
 import numpy as np
-
 import torch
 from datasets import load_dataset, concatenate_datasets
 import transformers
@@ -21,6 +22,15 @@ from peft import (
     get_peft_model_state_dict,
     set_peft_model_state_dict,
 )
+
+
+try:
+    neptune_run = neptune.init_run(
+        source_files=[],
+    )
+except neptune.exceptions.NeptuneMissingApiTokenException:
+    neptune_run = None
+    print("No neptune configured.")
 
 
 def log(*args, **kwargs):
@@ -328,6 +338,12 @@ def train(
         val_set_size = 0
     log("Final fine-tuning data:\nTrain %s\nValid %s" % (train_data, valid_data))
 
+    if neptune_run:
+        neptune_callback = NeptuneCallback(run=neptune_run)
+        callbacks = [neptune_callback]
+    else:
+        callbacks = None
+
     trainer = transformers.Trainer(
         model=model,
         train_dataset=train_data,
@@ -353,6 +369,7 @@ def train(
         data_collator=transformers.DataCollatorForSeq2Seq(
             tokenizer, pad_to_multiple_of=8, return_tensors="pt", padding=True
         ),
+        callbacks=callbacks,
     )
     model.config.use_cache = False
 
