@@ -615,8 +615,8 @@ if __name__ == "__main__":
 
     rippa> CUDA_VISIBLE_DEVICES=0 {CONFIG} --node_rank=0 {CMD} &>log.rank.0
     rippa> CUDA_VISIBLE_DEVICES=1 {CONFIG} --node_rank=1 {CMD} &>log.rank.1
-    ova> CUDA_VISIBLE_DEVICES=0 {CONFIG} --node_rank=0 {CMD} &>log.rank.2
-    ova> CUDA_VISIBLE_DEVICES=1 {CONFIG} --node_rank=1 {CMD} &>log.rank.3
-    timemachine> CUDA_VISIBLE_DEVICES=0 {CONFIG} --node_rank=1 {CMD} &>log.rank.4
+    ova> CUDA_VISIBLE_DEVICES=0 {CONFIG} --node_rank=2 {CMD} &>log.rank.2
+    ova> CUDA_VISIBLE_DEVICES=1 {CONFIG} --node_rank=3 {CMD} &>log.rank.3
+    timemachine> CUDA_VISIBLE_DEVICES=0 {CONFIG} --node_rank=4 {CMD} &>log.rank.4
     """, flush=True)
     fire.Fire(train)
