@@ -237,7 +237,17 @@ def test_config_to_json():
                     {
                         'instruction': f'Explain the following expert setting for Driverless AI',
                         'input': f"{k}",
-                        'output': f"{v.title} {v.comment}".replace("\n", ""),
+                        'output': f"{v.title}: {v.comment}".replace("\n", ""),
+                    },
+                    {
+                        'instruction': f'Explain the following expert setting for Driverless AI',
+                        'input': f"{k.replace('_', ' ')}",
+                        'output': f"{v.title}: {v.comment}".replace("\n", ""),
+                    },
+                    {
+                        'instruction': f'Explain the following expert setting for Driverless AI',
+                        'input': f"{v.title}",
+                        'output': f"{v.comment}".replace("\n", ""),
                     },
                     {
                         'instruction': f'Provide a short explanation of the expert setting {k}',
@@ -245,7 +255,7 @@ def test_config_to_json():
                     },
                     {
                         'instruction': f'Provide a detailed explanation of the expert setting {k}',
-                        'output': f"{v.title} {v.comment}".replace("\n", ""),
+                        'output': f"{v.title}: {v.comment}".replace("\n", ""),
                     },
                 ]
             )
