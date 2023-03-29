@@ -12,6 +12,7 @@ import numpy as np
 import torch
 from datasets import load_dataset, concatenate_datasets
 import transformers
+import torch.distributed as dist
 
 from peft import (
     prepare_model_for_int8_training,
@@ -97,8 +98,23 @@ def train(
         ddp: bool = True,  # set to False if OOM with True, for multi-GPU model parallelism
 ):
     prompt_type = str(prompt_type)  # migration from integers
+    world_size = int(os.getenv("WORLD_SIZE", 1))
+    local_rank = int(os.getenv("LOCAL_RANK", 0))
+    rank = int(os.getenv("RANK", 0))
+    print(f"local_rank: {local_rank}")
+    print(f"global rank: {rank}")
+    gpus = max(world_size, torch.cuda.device_count())
+    if world_size > 1:
+        dist.init_process_group(backend='nccl', world_size=world_size, rank=rank)
     if output_dir is None:
         output_dir = f"{base_model.split('/')[-1]}.{data_path.replace('/', '')}.{num_epochs}_epochs.{get_githash() or 'nogit'}.{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+        # time-based output dir
+        if world_size > 1:
+            # make sure all workers have same output_dir, otherwise final state is corrupted.
+            pickleable = [output_dir]
+            dist.broadcast_object_list(pickleable, 0)
+            output_dir = pickleable[0]
+            del pickleable
     if save_code:
         copy_code(run_id)
     if tokenizer_base_model is None:
@@ -115,8 +131,6 @@ def train(
     gradient_accumulation_steps = batch_size // micro_batch_size
 
     device_map = "auto"
-    world_size = int(os.environ.get("WORLD_SIZE", 1))
-    gpus = max(world_size, torch.cuda.device_count())
 
     locals_dict = locals()
     locals_print = '\n'.join(['%s: %s' % (k, v) for k, v in locals_dict.items()])
