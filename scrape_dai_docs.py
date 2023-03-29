@@ -1,5 +1,7 @@
+import contextlib
 import json
 import os
+import shutil
 
 from docutils import core
 
@@ -51,7 +53,6 @@ def test_scrape_dai_docs_all():
     import glob
     import nltk
     nltk.download('punkt')
-    from nltk.tokenize import sent_tokenize
     dd = {}
     np.random.seed(1234)
     home = os.path.expanduser('~')
@@ -76,15 +77,114 @@ def test_scrape_dai_docs_all():
                     blob = blob.replace("''", "")
                     blob = blob.replace("--", "")
                     blob = blob.replace("**", "")
-                    sentences = sent_tokenize(blob)
-                    my_string = ""
-                    for sentence in sentences:
-                        if len(my_string) < LEN:
-                            my_string += " " + sentence
-                        else:
-                            dd[output_file].append(my_string)
-                            my_string = ""
+                    dd[output_file].extend(get_sentences(blob, length=LEN))
     for output_file, _ in things:
         save_thing = [{"output": k} for k in dd[output_file]]
         with open(output_file, "wt") as f:
             f.write(json.dumps(save_thing, indent=2))
+
+
+def get_sentences(blob, length):
+    """
+    break-up input text into sentences and then output list of sentences of about length in size
+    :param blob:
+    :param length:
+    :return:
+    """
+    from nltk.tokenize import sent_tokenize
+    sentences = sent_tokenize(blob)
+    my_sentences = []
+    my_string = ""
+    for sentence in sentences:
+        if len(my_string) < length:
+            my_string += " " + sentence
+        else:
+            my_sentences.append(my_string)
+            my_string = ""
+    return my_sentences
+
+
+def test_scrape_dai_docs_all_pandoc():
+    """
+    pytest scrape_dai_docs.py::test_scrape_dai_docs_all_pandoc
+    :return:
+    """
+    home = os.path.expanduser('~')
+    import glob
+    files = list(glob.glob(os.path.join(home, "h2oai/docs/**/*"), recursive=True))
+
+    # pandoc can't find include files
+    dst = "working_dir_docs"
+    remove(dst)
+    os.makedirs(dst)
+    for fil in files:
+        if os.path.isfile(fil):
+            shutil.copy(fil, dst)
+    files = list(glob.glob(os.path.join(dst, '*rst'), recursive=True))
+
+    # os.system('pandoc -f rst -t plain ./expert_settings/nlp_settings.rst')
+    import pypandoc
+    outputs = []
+    basedir = os.path.abspath(os.getcwd())
+    for fil in files:
+        os.chdir(basedir)
+        os.chdir(os.path.dirname(fil))
+        fil = os.path.basename(fil)
+        print("Processing %s" % fil, flush=True)
+        # out_format can be one of: asciidoc, asciidoctor, beamer, biblatex, bibtex, commonmark, commonmark_x,
+        # context, csljson, docbook, docbook4, docbook5, docx, dokuwiki,
+        # dzslides, epub, epub2, epub3, fb2, gfm, haddock, html, html4, html5, icml,
+        # ipynb, jats, jats_archiving, jats_articleauthoring, jats_publishing, jira,
+        # json, latex, man,
+        # markdown, markdown_github, markdown_mmd, markdown_phpextra, markdown_strict,
+        # mediawiki, ms, muse, native, odt, opendocument, opml, org, pdf, plain, pptx,
+        # revealjs, rst, rtf, s5, slideous, slidy, tei, texinfo, textile, xwiki, zimwiki
+        out_format = 'plain'
+        # avoid extra new lines injected into text
+        extra_args = ['--wrap=preserve', '--resource path="%s" % dst']
+
+        plain_list = []
+        try:
+            # valid for expert settings
+            input_rst = pypandoc.convert_file(fil, 'rst')
+            input_list = input_rst.split('\n``')
+            for input_subrst in input_list:
+                input_plain = pypandoc.convert_text(input_subrst, format='rst', to='plain')
+                plain_list.append(input_plain)
+        except Exception as e:
+            print("file exception: %s %s" % (fil, str(e)), flush=True)
+
+        if not plain_list:
+            LEN = 100
+            # if failed to process as pieces of rst, then
+            output = pypandoc.convert_file(fil, out_format, extra_args=extra_args, format='rst')
+            outputs = get_sentences(output, length=LEN)
+            for oi, output in enumerate(outputs):
+                output = output.replace('\n\n', '\n')
+                plain_list.append(output)
+        outputs.extend(plain_list)
+
+    os.chdir(basedir)
+    remove(dst)
+    MIN_LENGTH = 30  # to avoid bare headers
+    save_thing = [{"output": k} for k in outputs if len(k) > MIN_LENGTH]
+    output_file = "dai_docs.train_cleaned.json"
+    with open(output_file, "wt") as f:
+        f.write(json.dumps(save_thing, indent=2))
+
+
+def remove(path: str):
+    try:
+        if path is not None and os.path.exists(path):
+            if os.path.isdir(path):
+                shutil_rmtree(path, ignore_errors=True)
+            else:
+                with contextlib.suppress(FileNotFoundError):
+                    os.remove(path)
+    except:
+        pass
+
+
+def shutil_rmtree(*args, **kwargs):
+    path = args[0]
+    return shutil.rmtree(*args, **kwargs)

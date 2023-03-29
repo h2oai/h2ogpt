@@ -12,3 +12,4 @@ pytest
 nltk
 docutils
 pandoc
+pypandoc
