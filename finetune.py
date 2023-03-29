@@ -24,18 +24,20 @@ from peft import (
 )
 
 
+def log(*args, **kwargs):
+    if int(os.environ.get("LOCAL_RANK", 0)) == 0:
+        print(*args, **kwargs)
+
+
 try:
     neptune_run = neptune.init_run(
         source_files=[],
     )
+    log("Connected to Neptune.")
 except neptune.exceptions.NeptuneMissingApiTokenException:
     neptune_run = None
-    print("No neptune configured.")
-
-
-def log(*args, **kwargs):
-    if int(os.environ.get("LOCAL_RANK", 0)) == 0:
-        print(*args, **kwargs)
+    os.environ["NEPTUNE_MODE"] = 'debug'
+    log("No neptune configured, set NEPTUNE_API_TOKEN env var.")
 
 
 def train(
