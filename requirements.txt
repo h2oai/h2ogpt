@@ -9,6 +9,7 @@ gradio
 appdirs
 fire
 pytest
+pytest-xdist
 nltk
 neptune
 docutils
