@@ -12,6 +12,7 @@ import numpy as np
 import torch
 from datasets import load_dataset, concatenate_datasets
 import transformers
+import torch.distributed as dist
 
 from peft import (
     prepare_model_for_int8_training,
@@ -103,8 +104,29 @@ def train(
 ):
     prompt_type = str(prompt_type)  # migration from integers
     assert prompt_type in prompt_types
-    if output_dir is None:
-        output_dir = f"{base_model.split('/')[-1]}.{data_path.replace('/', '')}.{num_epochs}_epochs.{get_githash() or 'nogit'}.{run_id}"
+    simple = True
+    if simple:
+        if output_dir is None:
+            output_dir = f"{base_model.split('/')[-1]}.{data_path.replace('/', '')}.{num_epochs}_epochs.{get_githash() or 'nogit'}.{run_id}"
+    else:
+        world_size = int(os.getenv("WORLD_SIZE", 1))
+        local_rank = int(os.getenv("LOCAL_RANK", 0))
+        rank = int(os.getenv("RANK", 0))
+        print(f"local_rank: {local_rank}")
+        print(f"global rank: {rank}")
+        gpus = max(world_size, torch.cuda.device_count())
+        if world_size > 1:
+            dist.init_process_group(backend='nccl', world_size=world_size, rank=rank)
+        if output_dir is None:
+            output_dir = f"{base_model.split('/')[-1]}.{data_path.replace('/', '')}.{num_epochs}_epochs.{get_githash() or 'nogit'}.{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+            # time-based output dir
+            if world_size > 1:
+                # make sure all workers have same output_dir, otherwise final state is corrupted.
+                pickleable = [output_dir]
+                dist.broadcast_object_list(pickleable, 0)
+                output_dir = pickleable[0]
+                del pickleable
+
     if save_code:
         copy_code(run_id)
     if tokenizer_base_model is None:
@@ -122,8 +144,6 @@ def train(
     gradient_accumulation_steps = batch_size // micro_batch_size
 
     device_map = "auto"
-    world_size = int(os.environ.get("WORLD_SIZE", 1))
-    gpus = max(world_size, torch.cuda.device_count())
 
     locals_dict = locals()
     locals_print = '\n'.join(['%s: %s' % (k, v) for k, v in locals_dict.items()])
@@ -590,12 +610,10 @@ def test_debug():
 
 
 if __name__ == "__main__":
-    if os.environ.get("LOCAL_RANK") is None:
-        # then not using torchrun, so can't do distributed, ensure CVD set
-        assert os.environ.get("CUDA_VISIBLE_DEVICES") is not None, "Run python script using: torchrun finetune.py OR set CUDA_VISIBLE_DEVICES to single GPU"
-
-    log("""
-    Example run on 4 GPUs:
+    CONFIG = "NCCL_P2P_LEVEL=LOC WORLD_SIZE=5 torchrun --nnodes=5 --master_addr=10.10.10.2 --master_port=1111 --nproc_per_node=1"
+    CMD = "finetune.py --data_path=config.json --num_epochs=1 --base_model=decapoda-research/llama-13b-hf"
+    log(f"""
+    Example runs on 4 GPUs:
     WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun --nproc_per_node=4 --master_port=1234 finetune.py --base_model='decapoda-research/llama-7b-hf' --output_dir='lora_alpaca_7B' --data_path=alpaca_data_cleaned.json --run_id=0 &> 0.log
     WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun --nproc_per_node=4 --master_port=1234 finetune.py --base_model='decapoda-research/llama-30b-hf' --output_dir='lora_alpaca_30B' --data_path=alpaca_data_cleaned.json --batch_size=16 --micro_batch_size=1 --run_id=1 --save_code=True &> 1.log
     WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun --nproc_per_node=4 --master_port=1234 finetune.py --base_model='EleutherAI/gpt-j-6B' --output_dir='lora_alpaca_6B' --data_path=alpaca_data_cleaned.json --run_id=2 &> 2.log
@@ -603,5 +621,21 @@ if __name__ == "__main__":
     WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun --nproc_per_node=4 --master_port=1234 finetune.py --base_model='EleutherAI/gpt-neox-20b' --output_dir='lora_alpaca_20B' --data_path=alpaca_data_cleaned.json --lora_target_modules='["query_key_value"]' --run_id=8 --batch_size=16 --micro_batch_size=4 &> 8.log
 
     WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun --nproc_per_node=4 --master_port=1234 finetune.py --base_model='togethercomputer/GPT-NeoXT-Chat-Base-20B' --output_dir='lora_20B_daifaq' --data_path=dai_faq.json --lora_target_modules='["query_key_value"]' --prompt_type=3 --run_id=13 --batch_size=16 --micro_batch_size=4 --num_epochs=100 --val_set_size=0 data_mix_in_path='' &> 13.log
+
+    Example run on 3 nodes with 1 to 2 GPU each (we'll consider SLURM etc.)
+
+    rippa>
+CUDA_VISIBLE_DEVICES=0 {CONFIG} --node_rank=0 {CMD} &>log.rank.0
+CUDA_VISIBLE_DEVICES=1 {CONFIG} --node_rank=1 {CMD} &>log.rank.1
+    ova>
+CUDA_VISIBLE_DEVICES=0 {CONFIG} --node_rank=2 {CMD} &>log.rank.2
+CUDA_VISIBLE_DEVICES=1 {CONFIG} --node_rank=3 {CMD} &>log.rank.3
+    timemachine>
+CUDA_VISIBLE_DEVICES=0 {CONFIG} --node_rank=4 {CMD} &>log.rank.4
     """, flush=True)
+
+    if os.environ.get("LOCAL_RANK") is None:
+        # then not using torchrun, so can't do distributed, ensure CVD set
+        assert os.environ.get("CUDA_VISIBLE_DEVICES") is not None, "Run python script using: torchrun finetune.py OR set CUDA_VISIBLE_DEVICES to single GPU"
+
     fire.Fire(train)

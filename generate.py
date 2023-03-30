@@ -37,8 +37,7 @@ def main(
     assert base_model, (
         "Please specify a --base_model, e.g. --base_model="
     )
-    if llama_type is None:
-        llama_type = "instruct" in base_model.lower()
+    llama_type = llama_type or "llama" in base_model
     model_loader, tokenizer_loader = get_loaders(llama_type=llama_type)
     if tokenizer_base_model is None:
         tokenizer_base_model = base_model
