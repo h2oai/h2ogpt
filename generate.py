@@ -56,13 +56,15 @@ def main(
                 load_in_8bit=load_8bit,
                 torch_dtype=torch.float16,
                 device_map="auto",
-            ).to(device).half()
+            ).to(device)
         if lora_weights:
             model = PeftModel.from_pretrained(
                 model,
                 lora_weights,
                 torch_dtype=torch.float16,
             )
+        if not load_8bit:
+            model.half()
     elif device == "mps":
         model = model_loader.from_pretrained(
             base_model,
