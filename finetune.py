@@ -352,6 +352,11 @@ def train(
     else:
         val_set_size = 0
     log("Final fine-tuning data:\nTrain %s\nValid %s" % (train_data, valid_data))
+    sample_row_dict = train_data[:1]
+    del sample_row_dict['input_ids']
+    del sample_row_dict['attention_mask']
+    del sample_row_dict['labels']
+    log("Sample input: %s" % sample_row_dict)
 
     if neptune_run:
         neptune_callback = NeptuneCallback(run=neptune_run)
