@@ -22,6 +22,7 @@ from finetune import get_loaders, example_data_points, generate_prompt, get_gith
 
 def main(
         load_8bit: bool = False,
+        load_half: bool = True,
         base_model: str = "EleutherAI/gpt-j-6B",
         tokenizer_base_model: str = None,
         lora_weights: str = "",
@@ -63,7 +64,7 @@ def main(
                 lora_weights,
                 torch_dtype=torch.float16,
             )
-        if not load_8bit:
+        if not load_8bit and load_half:
             model.half()
     elif device == "mps":
         model = model_loader.from_pretrained(
@@ -97,7 +98,7 @@ def main(
 
     if device != "cuda":
         # NOTE: if cuda, already done at once into GPU
-        if not load_8bit:
+        if not load_8bit and load_half:
             model.half()  # seems to fix bugs for some users.
 
     model.eval()

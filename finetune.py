@@ -43,7 +43,10 @@ except neptune.exceptions.NeptuneMissingApiTokenException:
     os.environ["NEPTUNE_MODE"] = 'debug'
     log("No neptune configured, set NEPTUNE_API_TOKEN env var.")
 
-prompt_types = ["plain", "llama", "quality", "human_bot", "dai_faq"]
+prompt_types = ["plain", "llama", "quality", "human_bot", "dai_faq",
+                "0", "1", "2", "3", "4",
+                0, 1, 2, 3, 4]
+
 
 def train(
         save_code: bool = False,
