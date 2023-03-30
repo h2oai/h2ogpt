@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import sys
 import time
+from copy import deepcopy
 from datetime import datetime
 from typing import List, Union
 import fire
@@ -356,9 +357,14 @@ def train(
         neptune_callback = NeptuneCallback(run=neptune_run)
         callbacks = [neptune_callback]
     else:
-        callbacks = None
-
-    # TODO:  Add bleu callback
+        from transformers.integrations import TensorBoardCallback, is_tensorboard_available
+        if is_tensorboard_available:
+            # tensorboard --logdir=tb_log/
+            from torch.utils.tensorboard import SummaryWriter
+            tb_writer = SummaryWriter()
+            callbacks = [TensorBoardCallback(tb_writer=tb_writer)]#, CustomCallback]
+        else:
+            callbacks = None # [CustomCallback]
 
     trainer = transformers.Trainer(
         model=model,
@@ -372,6 +378,8 @@ def train(
             learning_rate=learning_rate,
             fp16=True,
             logging_steps=10,
+            logging_strategy="steps",
+            logging_dir="./log_files/",
             evaluation_strategy="steps" if val_set_size > 0 else "no",
             save_strategy="steps",
             eval_steps=100 if val_set_size > 0 else None,
@@ -381,11 +389,13 @@ def train(
             load_best_model_at_end=True if val_set_size > 0 else False,
             ddp_find_unused_parameters=False if ddp else None,
             group_by_length=group_by_length,
+            report_to='tensorboard' if not neptune_run else 'neptune',
         ),
         data_collator=transformers.DataCollatorForSeq2Seq(
             tokenizer, pad_to_multiple_of=8, return_tensors="pt", padding=True
         ),
         callbacks=callbacks,
+        #compute_metrics=compute_metrics,  # the callback that computes metrics of interest
     )
     model.config.use_cache = False
 
@@ -406,6 +416,28 @@ def train(
     model.save_pretrained(output_dir)
 
     log("\n If there's a warning about missing keys above, please disregard :)")
+
+
+def compute_metrics(pred):
+    labels = pred.label_ids
+    preds = pred.predictions.argmax(-1)
+    bleu_val = bleu(actual_sentences=labels, predicted_sentences=preds)
+    return {
+        'BLEU': bleu_val,
+    }
+
+
+class CustomCallback(transformers.TrainerCallback):
+
+    def __init__(self, trainer) -> None:
+        super().__init__()
+        self._trainer = trainer
+
+    def on_epoch_end(self, args, state, control, **kwargs):
+        if control.should_evaluate:
+            control_copy = deepcopy(control)
+            self._trainer.evaluate(eval_dataset=self._trainer.train_dataset, metric_key_prefix="train")
+            return control_copy
 
 
 def bleu(actual_sentences, predicted_sentences):

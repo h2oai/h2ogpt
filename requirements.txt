@@ -15,3 +15,5 @@ neptune
 docutils
 pandoc
 pypandoc
+torch
+tensorboard
