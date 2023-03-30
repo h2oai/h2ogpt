@@ -100,7 +100,7 @@ def train(
     prompt_type = str(prompt_type)  # migration from integers
     assert prompt_type in prompt_types
     if output_dir is None:
-        output_dir = f"{base_model.split('/')[-1]}.{data_path.replace('/', '')}.{num_epochs}_epochs.{get_githash() or 'nogit'}"
+        output_dir = f"{base_model.split('/')[-1]}.{data_path.replace('/', '')}.{num_epochs}_epochs.{get_githash() or 'nogit'}.{run_id}"
     if save_code:
         copy_code(run_id)
     if tokenizer_base_model is None:
