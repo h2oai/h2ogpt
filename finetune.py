@@ -104,16 +104,17 @@ def train(
 ):
     prompt_type = str(prompt_type)  # migration from integers
     assert prompt_type in prompt_types
+    world_size = int(os.getenv("WORLD_SIZE", 1))
+    local_rank = int(os.getenv("LOCAL_RANK", 0))
+    rank = int(os.getenv("RANK", 0))
+    print(f"local_rank: {local_rank}")
+    print(f"global rank: {rank}")
+    gpus = max(world_size, torch.cuda.device_count())
     if run_id:
         if output_dir is None:
             output_dir = f"{base_model.split('/')[-1]}.{data_path.replace('/', '')}.{num_epochs}_epochs.{get_githash() or 'nogit'}.{run_id}"
+        device_map = "auto"
     else:
-        world_size = int(os.getenv("WORLD_SIZE", 1))
-        local_rank = int(os.getenv("LOCAL_RANK", 0))
-        rank = int(os.getenv("RANK", 0))
-        print(f"local_rank: {local_rank}")
-        print(f"global rank: {rank}")
-        gpus = max(world_size, torch.cuda.device_count())
         if world_size > 1:
             dist.init_process_group(backend='nccl', world_size=world_size, rank=rank)
         if output_dir is None:
