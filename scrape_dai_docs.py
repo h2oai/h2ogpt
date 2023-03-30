@@ -40,7 +40,10 @@ def test_scrape_dai_docs():
     home = os.path.expanduser('~')
     file = os.path.join(home, 'h2oai/docs/faq.rst')
     qa_pairs = parse_rst_file(file)
-    save_thing = [{"instruction": k, "output": v, 'prompt_type': "human_bot"} for k, v in qa_pairs.items()]
+    prompt_type = 'dai_faq'
+    from finetune import prompt_types
+    assert prompt_type in prompt_types
+    save_thing = [{"instruction": k, "output": v, 'prompt_type': prompt_type} for k, v in qa_pairs.items()]
     output_file = "dai_faq.json"
     with open(output_file, "wt") as f:
         f.write(json.dumps(save_thing, indent=2))
@@ -237,36 +240,36 @@ def test_config_to_json():
             toml_list.extend(
                 [
                     {
-                        'prompt_type': 'human_bot',
+                        'prompt_type': 'instruct',
                         'instruction': f'Explain the following expert setting for Driverless AI',
                         'input': f"{k}",
                         'output': f"{k.replace('_', ' ')} refers to {comment or title}".replace("\n", ""),
                     },
                     {
-                        'prompt_type': 'human_bot',
+                        'prompt_type': 'instruct',
                         'instruction': f'Explain the following expert setting for Driverless AI',
                         'input': f"{k}",
                         'output': f"{k.replace('_', ' ')} refers to {title}{comment}".replace("\n", ""),
                     },
                     {
-                        'prompt_type': 'human_bot',
+                        'prompt_type': 'instruct',
                         'instruction': f'Explain the following expert setting for Driverless AI',
                         'input': f"{k.replace('_', ' ')}",
                         'output': f"{k.replace('_', ' ')} refers to {title}{comment}".replace("\n", ""),
                     },
                     {
-                        'prompt_type': 'human_bot',
+                        'prompt_type': 'instruct',
                         'instruction': f'Explain the following expert setting for Driverless AI',
                         'input': f"{title}",
                         'output': f"{k.replace('_', ' ')} refers to {title}{comment}".replace("\n", ""),
                     },
                     {
-                        'prompt_type': 'human_bot',
+                        'prompt_type': 'instruct',
                         'instruction': f'Provide a short explanation of the expert setting {k}',
                         'output': f"{k.replace('_', ' ')} refers to {comment or title}".replace("\n", ""),
                     },
                     {
-                        'prompt_type': 'human_bot',
+                        'prompt_type': 'instruct',
                         'instruction': f'Provide a detailed explanation of the expert setting {k}',
                         'output': f"{k.replace('_', ' ')} refers to {title}{comment}".replace("\n", ""),
                     },

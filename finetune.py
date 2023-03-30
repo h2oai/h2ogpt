@@ -43,7 +43,7 @@ except neptune.exceptions.NeptuneMissingApiTokenException:
     os.environ["NEPTUNE_MODE"] = 'debug'
     log("No neptune configured, set NEPTUNE_API_TOKEN env var.")
 
-prompt_types = ["plain", "llama", "quality", "human_bot", "dai_faq",
+prompt_types = ["plain", "instruct", "quality", "human_bot", "dai_faq",
                 "0", "1", "2", "3", "4",
                 0, 1, 2, 3, 4]
 
@@ -65,7 +65,7 @@ def train(
 
         data_path: str = "./alpaca_data_cleaned.json",
         # data_path: str = "./dai_docs.train.json",
-        prompt_type: Union[str, int] = "llama",  # "plain", "llama", "quality", "human_bot", "dai_faq"
+        prompt_type: Union[str, int] = "instruct",  # "plain", "instruct", "quality", "human_bot", "dai_faq"
 
         valid_path: str = None,
         # valid_path: str = "./dai_docs.valid.json",
@@ -74,7 +74,7 @@ def train(
         data_mix_in_path: str = "0-hero/OIG-small-chip2",  # high quality, 50 MB, good enough for now
         data_mix_in_factor: float = 1.0,  # >1: more mix-in data, <1: more of data_path data
         data_mix_in_col_dict: dict = {'user': 'instruction', 'chip2': 'output'},
-        data_mix_in_prompt_type: str = "llama",  # just instruction->output, same as llama
+        data_mix_in_prompt_type: str = "instruct",  # just instruction->output, same as instruct
 
         output_dir: str = None,
 
@@ -93,6 +93,7 @@ def train(
         lora_alpha: int = 16,
         lora_dropout: float = 0.05,
         lora_target_modules: List[str] = None,
+        llama_type: bool = None,
         # llm hyperparams
         train_on_inputs: bool = True,  # if False, masks out inputs in loss
         group_by_length: bool = False,  # if True, faster, but produces an odd training loss curve
@@ -113,7 +114,8 @@ def train(
             lora_target_modules = ["query_key_value"]
         else:
             lora_target_modules = ["q_proj", "v_proj"]
-    llama_type = "llama" in base_model.lower()
+    if llama_type is None:
+        llama_type = "instruct" in base_model.lower()
     assert (
         base_model
     ), "Please specify a --base_model, e.g. --base_model='decapoda-research/llama-7b-hf'"
@@ -432,7 +434,7 @@ def get_prompt(prompt_type):
     if prompt_type in [-1, "-1", "plain"]:
         promptA = promptB = PreInstruct = PreInput = PreResponse = ''
         terminate_response = []
-    elif prompt_type in [0, "0", "llama"]:
+    elif prompt_type in [0, "0", "instruct"]:
         promptA = 'Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.\n'
         promptB = 'Below is an instruction that describes a task. Write a response that appropriately completes the request.\n'
 
