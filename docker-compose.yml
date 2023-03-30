@@ -1,0 +1,28 @@
+version: '1'
+
+services:
+  alpaca-lora:
+    build:
+      context: ./
+      dockerfile: Dockerfile
+      args:
+        BUILDKIT_INLINE_CACHE: "0"
+    image: h2o-llm
+    shm_size: '64gb'
+    command: generate.py --load_8bit --base_model $BASE_MODEL --lora_weights $LORA_WEIGHTS --prompt_type $PROMPT_TYPE
+    restart: unless-stopped
+    volumes:
+      - h2o-llm:/root/.cache # Location downloaded weights will be stored
+    ports:
+      - 7860:7860
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [ gpu ]
+
+volumes:
+  h2o-llm:
+    name: h2o-llm

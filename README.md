@@ -93,6 +93,49 @@ In case you get peer to peer related errors, set this env var:
 export NCCL_P2P_LEVEL=LOC
 ```
 
+
+### Docker Setup & Inference
+
+1. Build the container image:
+
+```bash
+docker build -t h2o-llm .
+```
+
+2. Run the container (you can also use `finetune.py` and all of its parameters as shown above for training):
+
+```bash
+docker run --runtime=nvidia --shm-size=64g -p 7860:7860 -v ${HOME}/.cache:/root/.cache --rm h2o-llm generate.py \
+    --load_8bit --base_model 'EleutherAI/gpt-j-6B'
+```
+
+3. Open `https://localhost:7860` in the browser
+
+### Docker Compose Setup & Inference
+
+1. (optional) Change desired model and weights under `environment` in the `docker-compose.yml`
+
+2. Build and run the container
+
+```bash
+docker-compose up -d --build
+```
+
+3. Open `https://localhost:7860` in the browser
+
+4. See logs:
+
+```bash
+docker-compose logs -f
+```
+
+5. Clean everything up:
+
+```bash
+docker-compose down --volumes --rmi all
+```
+
+
 ### Plan
 Open source instruct model for demoable usecases.
 1. Base: Start with fully open source apache 2.0 models EleutherAI--gpt-j-6B, EleutherAI--gpt-neox-20b, 
