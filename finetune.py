@@ -51,7 +51,7 @@ prompt_types = ["plain", "instruct", "quality", "human_bot", "dai_faq",
 
 def train(
         save_code: bool = False,
-        run_id: int = random.randint(0, 2 ** 31),
+        run_id: int = None,
 
         # base_model: str = 'togethercomputer/GPT-NeoXT-Chat-Base-20B',
         # base_model: str = 'EleutherAI/gpt-neox-20b',
@@ -104,8 +104,7 @@ def train(
 ):
     prompt_type = str(prompt_type)  # migration from integers
     assert prompt_type in prompt_types
-    simple = True
-    if simple:
+    if run_id:
         if output_dir is None:
             output_dir = f"{base_model.split('/')[-1]}.{data_path.replace('/', '')}.{num_epochs}_epochs.{get_githash() or 'nogit'}.{run_id}"
     else:
