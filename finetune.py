@@ -45,9 +45,21 @@ except neptune.exceptions.NeptuneMissingApiTokenException:
     os.environ["NEPTUNE_MODE"] = 'debug'
     log("No neptune configured, set NEPTUNE_API_TOKEN env var.")
 
-prompt_types = ["plain", "instruct", "quality", "human_bot", "dai_faq",
-                "0", "1", "2", "3", "4",
-                0, 1, 2, 3, 4]
+from enum import Enum
+
+
+class PromptType(Enum):
+    plain = 0
+    instruct = 1
+    quality = 2
+    human_bot = 3
+    dai_faq = 4
+    summarize = 5
+
+
+prompt_types = []
+for p in PromptType:
+    prompt_types.extend([p.name, p.value, str(p.value)])
 
 
 def train(
@@ -578,6 +590,11 @@ Current Time: {}
 ### Driverless AI documentation answer:
 """
         terminate_response = ['\n\n']
+    elif prompt_type in [5, "5", "summarize"]:
+        promptA = promptB = PreInput = ''
+        PreInstruct = '## Main Text\n\n'
+        PreResponse = '\n\n## Summary\n\n'
+        terminate_response = None
     else:
         raise RuntimeError("No such prompt_type=%s" % prompt_type)
 
