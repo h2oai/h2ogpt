@@ -591,9 +591,9 @@ Current Time: {}
 """
         terminate_response = ['\n\n']
     elif prompt_type in [5, "5", "summarize"]:
-        promptA = PreInstruct = PreInput = ''
-        promptB = '## Main Text\n'
-        PreResponse = '## Summary\n'
+        promptA = promptB = PreInput = ''
+        PreInstruct = '## Main Text\n\n'
+        PreResponse = '## Summary\n\n'
         terminate_response = None
     else:
         raise RuntimeError("No such prompt_type=%s" % prompt_type)
