@@ -10,10 +10,12 @@ assert (
     "LlamaTokenizer" in transformers._import_structure["models.llama"]
 ), "LLaMA is now in HuggingFace's main branch.\nPlease reinstall it: pip uninstall transformers && pip install git+https://github.com/huggingface/transformers.git"
 
-llama_type = False
 BASE_MODEL = 'EleutherAI/gpt-j-6B'
+BASE_MODEL = 'decapoda-research/llama-13b-hf'
 LORA_WEIGHTS = "lora_6B_daidocs_alpaca_daifaq"
-OUTPUT_NAME = "gpt-j-6B_daidocs_alpaca_daifaq"
+LORA_WEIGHTS = "llama-13b-hf.config.json.20_epochs.5e2efef6a3d2af21f217dd86f9d89c262877dbe2.20230329-022308"
+OUTPUT_NAME = (BASE_MODEL + LORA_WEIGHTS).split("/")[-1]
+llama_type = "llama" in BASE_MODEL
 
 model_loader, _ = get_loaders(llama_type=llama_type)
 
@@ -25,7 +27,7 @@ base_model = model_loader.from_pretrained(
 )
 
 if llama_type:
-    layers = base_model.model.model.layers
+    layers = base_model.model.layers
     first_weight = layers[0].self_attn.q_proj.weight
 else:
     layers = base_model.transformer.base_model.h
@@ -34,7 +36,7 @@ first_weight_old = first_weight.clone()
 
 lora_model = PeftModel.from_pretrained(
     base_model,
-    "lora_6B_daidocs_alpaca",
+    LORA_WEIGHTS,
     device_map={"": "cpu"},
     torch_dtype=torch.float16,
 )
