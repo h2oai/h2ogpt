@@ -1,126 +1,101 @@
 [
   {
-    "output": ".. _install-on-azure:\n\nInstall on Azure\n\n\nThis section describes how to install the Driverless AI image from Azure.",
-    "prompt_type": "plain"
+    "output": " .. _feature_store:\n\n##########################\nH2O AI Feature Store Setup\n##########################\n\nYou can use the H2O AI Feature Store to store, update, and share the features data scientists, developers, and engineers need to build AI models."
   },
   {
-    "output": "This is no longer the case as of version 1.5.2. Watch the installation video `here <https://www.youtube.com/watch?v=aI16tA59lVU&index=5&list=PLNtMya54qvOE9fs3ylzaR_McnoUsuMV7X>`__.",
-    "prompt_type": "plain"
+    "output": " Note: For more information on the H2O AI Feature Store, refer to the `official documentation <https://docs.h2o.ai/feature-store/latest-stable/docs/index.html>`_."
   },
   {
-    "output": "Environment\n~\n\n++-++-+\n| Provider                   | Instance Type | Num GPUs | Suitable for    |\n++=++=+\n| Azure                      | Standard_NV6  | 1        | Experimentation |\n|                            +-++-+\n|                            | Standard_NV12 | 2        | Experimentation |\n|                            +-++-+\n|                            | Standard_NV24 | 4        | Serious use     |\n|                            +-++-+\n|                            | Standard_NC6  | 1        | Experimentation |\n|                            +-++-+\n|                            | Standard_NC12 | 2        | Experimentation |\n|                            +-++-+\n|                            | Standard_NC24 | 4        | Serious use     |\n++-++-+\n\nAbout the Install\n~\n\n.. include:: linux-rpmdeb-about.frag\n\nInstalling the Azure Instance\n~\n\n1.",
-    "prompt_type": "plain"
+    "output": " To enable the Feature Store data connector, ``feature_store`` must be added to this list of data sources."
   },
   {
-    "output": "2. Search for and select  H2O DriverlessAI in the Marketplace. .. image:: ../images/azure_select_driverless_ai.png\n    :align: center\n\n3.",
-    "prompt_type": "plain"
+    "output": " - ``feature_store_enable_tls``: To enable TLS communication between DAI and the Feature Store server, set this to ``true``."
   },
   {
-    "output": "This launches the H2O DriverlessAI Virtual Machine creation process. .. image:: ../images/azure_search_for_dai.png\n   :align: center\n\n4.",
-    "prompt_type": "plain"
+    "output": " - ``authentication_method``: The authentication method used by DAI. When enabling the Feature Store data connector, this must be set to OpenID Connect (``authentication_method=\"oidc\"``)."
   },
   {
-    "output": "Enter a name for the VM. b. Select the Disk Type for the VM. Use HDD for GPU instances. c. Enter the name that you will use when connecting to the machine through SSH.",
-    "prompt_type": "plain"
+    "output": " \nUpgrading the Driverless AI Image\n~\n\n.. include:: upgrade-warning.frag\n \nUpgrading from Version 1.2.2 or Earlier\n'\n\nIt is not possible to upgrade from version 1.2.2 or earlier to the latest version."
   },
   {
-    "output": "e. Specify the Subscription option. (This should be Pay-As-You-Go.) f. Enter a name unique name for the resource group.",
-    "prompt_type": "plain"
+    "output": " Be sure to backup your data before doing this. Upgrading from Version 1.3.0 to 1.5.1\n'\n\n1. SSH into the IP address of the image instance and copy the existing experiments to a backup location:\n\n .. code-block:: bash\n\n  # Set up a directory of the previous version name\n  mkdir dai_rel_1.3.0\n\n  # Copy the data, log, license, and tmp directories as backup\n  cp -a ./data dai_rel_1.3.0/data\n  cp -a ./log dai_rel_1.3.0/log\n  cp -a ./license dai_rel_1.3.0/license\n  cp -a ./tmp dai_rel_1.3.0/tmp\n\n2."
   },
   {
-    "output": "Click OK when you are done. .. image:: ../images/azure_basics_tab.png\n   :align: center\n\n5. On the Size tab, select your virtual machine size.",
-    "prompt_type": "plain"
+    "output": " Replace VERSION and BUILD below with the Driverless AI version. .. code-block:: bash\n\n   wget https://s3.amazonaws.com/artifacts.h2o.ai/releases/ai/h2o/dai/VERSION-BUILD/x86_64/dai-docker-ubi8-x86_64-VERSION.tar.gz\n\n3."
   },
   {
-    "output": "We recommend using an N-Series type, which comes with a GPU. Also note that Driverless AI requires 10 GB of free space in order to run and will stop working of less than 10 GB is available.",
-    "prompt_type": "plain"
+    "output": " Run ``docker images`` to find the new image tag. 5. Start the Driverless AI Docker image and replace TAG below with the image tag."
   },
   {
-    "output": "Click OK when you are done. .. image:: ../images/azure_vm_size.png\n   :align: center\n\n6. On the Settings tab, select or create the Virtual Network and Subnet where the VM is going to be located and then click OK.\n\n .. image:: ../images/azure_settings_tab.png\n   :align: center\n\n7.",
-    "prompt_type": "plain"
+    "output": " Note: Use ``docker version`` to check which version of Docker you are using. .. tabs::\n\n   .. tab:: >= Docker 19.03\n\n    .. code-block:: bash\n\n      # Start the Driverless AI Docker image\n      docker run runtime=nvidia \\\n          pid=host \\\n          init \\\n          rm \\\n          shm-size=256m \\\n          -u `id -u`:`id -g` \\\n          -p 12345:12345 \\\n          -v `pwd`/data:/data \\\n          -v `pwd`/log:/log \\\n          -v `pwd`/license:/license \\\n          -v `pwd`/tmp:/tmp \\\n          h2oai/dai-ubi8-x86_64:TAG\n\n   .. tab:: < Docker 19.03\n\n    .. code-block:: bash\n\n      # Start the Driverless AI Docker image\n      nvidia-docker run \\\n          pid=host \\\n          init \\\n          rm \\\n          shm-size=256m \\\n          -u `id -u`:`id -g` \\\n          -p 12345:12345 \\\n          -v `pwd`/data:/data \\\n          -v `pwd`/log:/log \\\n          -v `pwd`/license:/license \\\n          -v `pwd`/tmp:/tmp \\\n          h2oai/dai-ubi8-x86_64:TAG\n\nUpgrading from version 1.5.2 or Later\n'\n\nUpgrading to versions 1.5.2 and later is no longer done via Docker."
   },
   {
-    "output": "When the validation passes successfully, click Create to create the VM. .. image:: ../images/azure_summary_tab.png\n    :align: center\n\n8.",
-    "prompt_type": "plain"
+    "output": " Replace ``dai_NEWVERSION.deb`` below with the new Driverless AI version (for example, ``dai_1.8.4.1_amd64.deb``)."
   },
   {
-    "output": "Select this Driverless AI VM to view the IP address of your newly created machine. 9. Connect to Driverless AI with your browser using the IP address retrieved in the previous step.",
-    "prompt_type": "plain"
+    "output": " You do not need to manually specify the DAI_USER or DAI_GROUP environment variables during an upgrade."
   },
   {
-    "output": "To stop the instance: \n\n1. Click the Virtual Machines left menu item. 2. Select the checkbox beside your DriverlessAI virtual machine.",
-    "prompt_type": "plain"
+    "output": " Driverless AI ships with CUDA 11.2.2 for GPUs, but the driver must exist in the host environment. Go to `NVIDIA download driver <https://www.nvidia.com/Download/index.aspx>`__ to get the latest NVIDIA Tesla A/T/V/P/K series drivers."
   },
   {
-    "output": "On the right side of the row, click the ... button, then select Stop. (Note that you can then restart this by selecting Start.)",
-    "prompt_type": "plain"
+    "output": " .. note::\n\tIf you are using K80 GPUs, the minimum required NVIDIA driver version is 450.80.02. .. code-block:: bash\n\n  # Stop Driverless AI."
   },
   {
-    "output": ".. _linux:\n\nLinux x86_64 Installs\n-\n\nThis section provides installation steps for RPM, deb, and tar installs in Linux x86_64 environments.",
-    "prompt_type": "plain"
+    "output": " .. _feature_store:\n\n##########################\nH2O AI Feature Store Setup\n##########################\n\nYou can use the H2O AI Feature Store to store, update, and share the features data scientists, developers, and engineers need to build AI models."
   },
   {
-    "output": ".. _install-on-azure:\n\nInstall on Azure\n\n\nThis section describes how to install the Driverless AI image from Azure. Note: Prior versions of the Driverless AI installation and upgrade on Azure were done via Docker.",
-    "prompt_type": "plain"
+    "output": " Note: For more information on the H2O AI Feature Store, refer to the `official documentation <https://docs.h2o.ai/feature-store/latest-stable/docs/index.html>`_. Description of relevant configuration attributes\n\n\nThe following are descriptions of the relevant configuration attributes when enabling the H2O AI Feature Store data connector:\n\n- ``enabled_file_systems``: A list of file systems you want to enable."
   },
   {
-    "output": "Watch the installation video `here <https://www.youtube.com/watch?v=aI16tA59lVU&index=5&list=PLNtMya54qvOE9fs3ylzaR_McnoUsuMV7X>`__. Note that some of the images in this video may change between releases, but the installation steps remain the same.",
-    "prompt_type": "plain"
+    "output": " - ``feature_store_endpoint_url``: A URL that points to the Feature Store server. - ``feature_store_enable_tls``: To enable TLS communication between DAI and the Feature Store server, set this to ``true``."
   },
   {
-    "output": "Log in to your Azure portal at https://portal.azure.com, and click the Create a Resource button. 2. Search for and select  H2O DriverlessAI in the Marketplace. .. image:: ../images/azure_select_driverless_ai.png\n    :align: center\n\n3.",
-    "prompt_type": "plain"
+    "output": " - ``authentication_method``: The authentication method used by DAI. When enabling the Feature Store data connector, this must be set to OpenID Connect (``authentication_method=\"oidc\"``). For information on setting up OIDC Authentication in Driverless AI, see :ref:`oidc_auth`."
   },
   {
-    "output": "This launches the H2O DriverlessAI Virtual Machine creation process. .. image:: ../images/azure_search_for_dai.png\n   :align: center\n\n4. On the Basics tab:\n\n  a. Enter a name for the VM. b. Select the Disk Type for the VM.",
-    "prompt_type": "plain"
+    "output": " \nUpgrading the Driverless AI Image\n~\n\n.. include:: upgrade-warning.frag\n \nUpgrading from Version 1.2.2 or Earlier\n'\n\nIt is not possible to upgrade from version 1.2.2 or earlier to the latest version."
   },
   {
-    "output": "c. Enter the name that you will use when connecting to the machine through SSH. d. Enter and confirm a password that will be used when connecting to the machine through SSH. e. Specify the Subscription option.",
-    "prompt_type": "plain"
+    "output": " Be sure to backup your data before doing this. Upgrading from Version 1.3.0 to 1.5.1\n'\n\n1. SSH into the IP address of the image instance and copy the existing experiments to a backup location:\n\n .. code-block:: bash\n\n  # Set up a directory of the previous version name\n  mkdir dai_rel_1.3.0\n\n  # Copy the data, log, license, and tmp directories as backup\n  cp -a ./data dai_rel_1.3.0/data\n  cp -a ./log dai_rel_1.3.0/log\n  cp -a ./license dai_rel_1.3.0/license\n  cp -a ./tmp dai_rel_1.3.0/tmp\n\n2."
   },
   {
-    "output": "f. Enter a name unique name for the resource group. g. Specify the VM region. Click OK when you are done. .. image:: ../images/azure_basics_tab.png\n   :align: center\n\n5. On the Size tab, select your virtual machine size.",
-    "prompt_type": "plain"
+    "output": " Replace VERSION and BUILD below with the Driverless AI version. .. code-block:: bash\n\n   wget https://s3.amazonaws.com/artifacts.h2o.ai/releases/ai/h2o/dai/VERSION-BUILD/x86_64/dai-docker-ubi8-x86_64-VERSION.tar.gz\n\n3."
   },
   {
-    "output": "We recommend using an N-Series type, which comes with a GPU. Also note that Driverless AI requires 10 GB of free space in order to run and will stop working of less than 10 GB is available. We recommend a minimum of 30 GB of disk space.",
-    "prompt_type": "plain"
+    "output": " Run ``docker images`` to find the new image tag. 5. Start the Driverless AI Docker image and replace TAG below with the image tag. Depending on your install version, use the ``docker run runtime=nvidia`` (>= Docker 19.03) or ``nvidia-docker`` (< Docker 19.03) command."
   },
   {
-    "output": ".. image:: ../images/azure_vm_size.png\n   :align: center\n\n6. On the Settings tab, select or create the Virtual Network and Subnet where the VM is going to be located and then click OK.\n\n .. image:: ../images/azure_settings_tab.png\n   :align: center\n\n7.",
-    "prompt_type": "plain"
+    "output": " .. tabs::\n\n   .. tab:: >= Docker 19.03\n\n    .. code-block:: bash\n\n      # Start the Driverless AI Docker image\n      docker run runtime=nvidia \\\n          pid=host \\\n          init \\\n          rm \\\n          shm-size=256m \\\n          -u `id -u`:`id -g` \\\n          -p 12345:12345 \\\n          -v `pwd`/data:/data \\\n          -v `pwd`/log:/log \\\n          -v `pwd`/license:/license \\\n          -v `pwd`/tmp:/tmp \\\n          h2oai/dai-ubi8-x86_64:TAG\n\n   .. tab:: < Docker 19.03\n\n    .. code-block:: bash\n\n      # Start the Driverless AI Docker image\n      nvidia-docker run \\\n          pid=host \\\n          init \\\n          rm \\\n          shm-size=256m \\\n          -u `id -u`:`id -g` \\\n          -p 12345:12345 \\\n          -v `pwd`/data:/data \\\n          -v `pwd`/log:/log \\\n          -v `pwd`/license:/license \\\n          -v `pwd`/tmp:/tmp \\\n          h2oai/dai-ubi8-x86_64:TAG\n\nUpgrading from version 1.5.2 or Later\n'\n\nUpgrading to versions 1.5.2 and later is no longer done via Docker."
   },
   {
-    "output": "When the validation passes successfully, click Create to create the VM. .. image:: ../images/azure_summary_tab.png\n    :align: center\n\n8. After the VM is created, it will be available under the list of Virtual Machines.",
-    "prompt_type": "plain"
+    "output": " Replace ``dai_NEWVERSION.deb`` below with the new Driverless AI version (for example, ``dai_1.8.4.1_amd64.deb``). Note that this upgrade process inherits the service user and group from /etc/dai/User.conf and /etc/dai/Group.conf."
   },
   {
-    "output": "9. Connect to Driverless AI with your browser using the IP address retrieved in the previous step. .. code-block:: bash\n\n    http://Your-Driverless-AI-Host-Machine:12345\n\n\nStopping the Azure Instance\n~\n\nThe Azure instance will continue to run even when you close the Azure portal.",
-    "prompt_type": "plain"
+    "output": " We recommend to have NVIDIA driver >= |NVIDIA-driver-ver| installed (GPU only) in your host environment for a seamless experience on all architectures, including Ampere. Driverless AI ships with CUDA 11.2.2 for GPUs, but the driver must exist in the host environment."
   },
   {
-    "output": "Click the Virtual Machines left menu item. 2. Select the checkbox beside your DriverlessAI virtual machine. 3. On the right side of the row, click the ... button, then select Stop. (Note that you can then restart this by selecting Start.)",
-    "prompt_type": "plain"
+    "output": " For reference on CUDA Toolkit and Minimum Required Driver Versions and CUDA Toolkit and Corresponding Driver Versions, see `here <https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/index.html>`__ ."
   },
   {
-    "output": ".. _install-on-azure:\n\nInstall on Azure\n\n\nThis section describes how to install the Driverless AI image from Azure. Note: Prior versions of the Driverless AI installation and upgrade on Azure were done via Docker. This is no longer the case as of version 1.5.2. Watch the installation video `here <https://www.youtube.com/watch?v=aI16tA59lVU&index=5&list=PLNtMya54qvOE9fs3ylzaR_McnoUsuMV7X>`__. Note that some of the images in this video may change between releases, but the installation steps remain the same.",
-    "prompt_type": "plain"
+    "output": " .. _feature_store:\n\n##########################\nH2O AI Feature Store Setup\n##########################\n\nYou can use the H2O AI Feature Store to store, update, and share the features data scientists, developers, and engineers need to build AI models. This page describes how to configure Driverless AI to work with the H2O AI Feature Store. Note: For more information on the H2O AI Feature Store, refer to the `official documentation <https://docs.h2o.ai/feature-store/latest-stable/docs/index.html>`_."
   },
   {
-    "output": "Log in to your Azure portal at https://portal.azure.com, and click the Create a Resource button. 2. Search for and select  H2O DriverlessAI in the Marketplace. .. image:: ../images/azure_select_driverless_ai.png\n    :align: center\n\n3. Click Create. This launches the H2O DriverlessAI Virtual Machine creation process. .. image:: ../images/azure_search_for_dai.png\n   :align: center\n\n4. On the Basics tab:\n\n  a. Enter a name for the VM. b. Select the Disk Type for the VM. Use HDD for GPU instances. c. Enter the name that you will use when connecting to the machine through SSH.",
-    "prompt_type": "plain"
+    "output": " To enable the Feature Store data connector, ``feature_store`` must be added to this list of data sources. - ``feature_store_endpoint_url``: A URL that points to the Feature Store server. - ``feature_store_enable_tls``: To enable TLS communication between DAI and the Feature Store server, set this to ``true``. - ``feature_store_access_token_scopes``: A space-separated list of access token scopes used by the Feature Store connector for authentication. - ``authentication_method``: The authentication method used by DAI."
   },
   {
-    "output": "e. Specify the Subscription option. (This should be Pay-As-You-Go.) f. Enter a name unique name for the resource group. g. Specify the VM region. Click OK when you are done. .. image:: ../images/azure_basics_tab.png\n   :align: center\n\n5. On the Size tab, select your virtual machine size. Specify the HDD disk type and select a configuration. We recommend using an N-Series type, which comes with a GPU. Also note that Driverless AI requires 10 GB of free space in order to run and will stop working of less than 10 GB is available.",
-    "prompt_type": "plain"
+    "output": " \nUpgrading the Driverless AI Image\n~\n\n.. include:: upgrade-warning.frag\n \nUpgrading from Version 1.2.2 or Earlier\n'\n\nIt is not possible to upgrade from version 1.2.2 or earlier to the latest version. You have to manually remove the 1.2.2 container and then reinstall the latest Driverless AI version. Be sure to backup your data before doing this. Upgrading from Version 1.3.0 to 1.5.1\n'\n\n1. SSH into the IP address of the image instance and copy the existing experiments to a backup location:\n\n .. code-block:: bash\n\n  # Set up a directory of the previous version name\n  mkdir dai_rel_1.3.0\n\n  # Copy the data, log, license, and tmp directories as backup\n  cp -a ./data dai_rel_1.3.0/data\n  cp -a ./log dai_rel_1.3.0/log\n  cp -a ./license dai_rel_1.3.0/license\n  cp -a ./tmp dai_rel_1.3.0/tmp\n\n2."
   },
   {
-    "output": "Click OK when you are done. .. image:: ../images/azure_vm_size.png\n   :align: center\n\n6. On the Settings tab, select or create the Virtual Network and Subnet where the VM is going to be located and then click OK.\n\n .. image:: ../images/azure_settings_tab.png\n   :align: center\n\n7. The Summary tab performs a validation on the specified settings and will report back any errors. When the validation passes successfully, click Create to create the VM. .. image:: ../images/azure_summary_tab.png\n    :align: center\n\n8.",
-    "prompt_type": "plain"
+    "output": " Replace VERSION and BUILD below with the Driverless AI version. .. code-block:: bash\n\n   wget https://s3.amazonaws.com/artifacts.h2o.ai/releases/ai/h2o/dai/VERSION-BUILD/x86_64/dai-docker-ubi8-x86_64-VERSION.tar.gz\n\n3. Use the ``docker load`` command to load the image:\n\n .. code-block:: bash\n\n   docker load < dai-docker-ubi8-x86_64-VERSION.tar.gz\n\n4. Run ``docker images`` to find the new image tag. 5. Start the Driverless AI Docker image and replace TAG below with the image tag. Depending on your install version, use the ``docker run runtime=nvidia`` (>= Docker 19.03) or ``nvidia-docker`` (< Docker 19.03) command."
   },
   {
-    "output": "Select this Driverless AI VM to view the IP address of your newly created machine. 9. Connect to Driverless AI with your browser using the IP address retrieved in the previous step. .. code-block:: bash\n\n    http://Your-Driverless-AI-Host-Machine:12345\n\n\nStopping the Azure Instance\n~\n\nThe Azure instance will continue to run even when you close the Azure portal. To stop the instance: \n\n1. Click the Virtual Machines left menu item. 2. Select the checkbox beside your DriverlessAI virtual machine. 3.",
-    "prompt_type": "plain"
+    "output": " .. tabs::\n\n   .. tab:: >= Docker 19.03\n\n    .. code-block:: bash\n\n      # Start the Driverless AI Docker image\n      docker run runtime=nvidia \\\n          pid=host \\\n          init \\\n          rm \\\n          shm-size=256m \\\n          -u `id -u`:`id -g` \\\n          -p 12345:12345 \\\n          -v `pwd`/data:/data \\\n          -v `pwd`/log:/log \\\n          -v `pwd`/license:/license \\\n          -v `pwd`/tmp:/tmp \\\n          h2oai/dai-ubi8-x86_64:TAG\n\n   .. tab:: < Docker 19.03\n\n    .. code-block:: bash\n\n      # Start the Driverless AI Docker image\n      nvidia-docker run \\\n          pid=host \\\n          init \\\n          rm \\\n          shm-size=256m \\\n          -u `id -u`:`id -g` \\\n          -p 12345:12345 \\\n          -v `pwd`/data:/data \\\n          -v `pwd`/log:/log \\\n          -v `pwd`/license:/license \\\n          -v `pwd`/tmp:/tmp \\\n          h2oai/dai-ubi8-x86_64:TAG\n\nUpgrading from version 1.5.2 or Later\n'\n\nUpgrading to versions 1.5.2 and later is no longer done via Docker."
+  },
+  {
+    "output": " Replace ``dai_NEWVERSION.deb`` below with the new Driverless AI version (for example, ``dai_1.8.4.1_amd64.deb``). Note that this upgrade process inherits the service user and group from /etc/dai/User.conf and /etc/dai/Group.conf. You do not need to manually specify the DAI_USER or DAI_GROUP environment variables during an upgrade. We recommend to have NVIDIA driver >= |NVIDIA-driver-ver| installed (GPU only) in your host environment for a seamless experience on all architectures, including Ampere."
+  },
+  {
+    "output": " Go to `NVIDIA download driver <https://www.nvidia.com/Download/index.aspx>`__ to get the latest NVIDIA Tesla A/T/V/P/K series drivers. For reference on CUDA Toolkit and Minimum Required Driver Versions and CUDA Toolkit and Corresponding Driver Versions, see `here <https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/index.html>`__ . .. note::\n\tIf you are using K80 GPUs, the minimum required NVIDIA driver version is 450.80.02. .. code-block:: bash\n\n  # Stop Driverless AI. sudo systemctl stop dai\n\n  # Backup your /opt/h2oai/dai/tmp directory at this time."
   }
 ]
