@@ -359,7 +359,7 @@ def train(
     else:
         from transformers.integrations import TensorBoardCallback, is_tensorboard_available
         if is_tensorboard_available:
-            # tensorboard --logdir=tb_log/
+            # tensorboard --logdir=runs/
             from torch.utils.tensorboard import SummaryWriter
             tb_writer = SummaryWriter()
             callbacks = [TensorBoardCallback(tb_writer=tb_writer)]#, CustomCallback]
@@ -377,7 +377,7 @@ def train(
             num_train_epochs=num_epochs,
             learning_rate=learning_rate,
             fp16=True,
-            logging_steps=10,
+            logging_steps=1,
             logging_strategy="steps",
             logging_dir="./log_files/",
             evaluation_strategy="steps" if val_set_size > 0 else "no",
