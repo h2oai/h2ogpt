@@ -9,7 +9,7 @@ services:
         BUILDKIT_INLINE_CACHE: "0"
     image: h2o-llm
     shm_size: '64gb'
-    command: generate.py --load_8bit --base_model $BASE_MODEL --lora_weights $LORA_WEIGHTS --prompt_type $PROMPT_TYPE
+    command: generate.py --load_8bit True --base_model 'EleutherAI/gpt-j-6B'
     restart: unless-stopped
     volumes:
       - h2o-llm:/root/.cache # Location downloaded weights will be stored
