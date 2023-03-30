@@ -106,7 +106,7 @@ docker build -t h2o-llm .
 
 ```bash
 docker run --runtime=nvidia --shm-size=64g -p 7860:7860 -v ${HOME}/.cache:/root/.cache --rm h2o-llm -it generate.py \
-    --load_8bit True --base_model 'EleutherAI/gpt-neox-20b'
+    --load_8bit=True --base_model='EleutherAI/gpt-neox-20b' --prompt_type=human_bot
 ```
 
 3. Open `https://localhost:7860` in the browser
