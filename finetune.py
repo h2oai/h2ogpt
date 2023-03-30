@@ -183,6 +183,7 @@ def train(
         base_model,
         load_in_8bit=True,
         device_map=device_map,
+        torch_dtype=torch.float16,
         max_memory=max_memory,
     )
     if gpus > 1:
@@ -394,6 +395,7 @@ def train(
             num_train_epochs=num_epochs,
             learning_rate=learning_rate,
             fp16=True,
+            optim="adamw_torch",
             logging_steps=1,
             logging_strategy="steps",
             evaluation_strategy="steps" if val_set_size > 0 else "no",
