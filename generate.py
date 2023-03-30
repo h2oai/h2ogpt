@@ -31,14 +31,17 @@ def main(
         top_p: float = 0.75,
         top_k: int = 40,
         num_beams: int = 4,
+        repetition_penalty: float = 1.0,
+        num_return_sequences=1,
         llama_type: bool = None,
         debug: bool = False,
+        share: bool = True,
 ):
     assert base_model, (
         "Please specify a --base_model, e.g. --base_model="
     )
     llama_type = llama_type or "llama" in base_model
-    model_loader, tokenizer_loader = get_loaders(llama_type=llama_type)
+    model_loader, tokenizer_loader = get_loaders(llama_type=llama_type, model_name=base_model)
     if tokenizer_base_model is None:
         tokenizer_base_model = base_model
 
@@ -96,6 +99,11 @@ def main(
         model.config.pad_token_id = tokenizer.pad_token_id = 0  # unk
         model.config.bos_token_id = 1
         model.config.eos_token_id = 2
+    if 'gpt2' in base_model.lower():
+        # add special tokens that otherwise all share the same id
+        tokenizer.add_special_tokens({'bos_token': '<bos>',
+                                      'eos_token': '<eos>',
+                                      'pad_token': '<pad>'})
 
     if device != "cuda":
         # NOTE: if cuda, already done at once into GPU
@@ -106,7 +114,16 @@ def main(
     if torch.__version__ >= "2" and sys.platform != "win32":
         model = torch.compile(model)
 
-    def evaluate(
+    def evaluate(*args, **kwargs):
+        try:
+            return _evaluate(*args, **kwargs)
+        except Exception as e:
+            t, v, tb = sys.exc_info()
+            import traceback
+            ex = ''.join(traceback.format_exception(t, v, tb))
+            return str(ex)
+
+    def _evaluate(
             instruction,
             input=None,
             prompt_type_choice=0,
@@ -115,12 +132,16 @@ def main(
             top_k_choice=40,
             num_beams_choice=4,
             max_new_tokens=128,
+            repetition_penalty_choice=1.0,
+            num_return_sequences_choice=1,
             do_sample=False,
             **kwargs,
     ):
         data_point = dict(instruction=instruction, input=input)
         prompt, pre_response, terminate_response = generate_prompt(data_point, prompt_type_choice)
         inputs = tokenizer(prompt, return_tensors="pt")
+        if debug:
+            print('input_ids length', len(inputs["input_ids"]), flush=True)
         input_ids = inputs["input_ids"].to(device)
         generation_config = GenerationConfig(
             temperature=temperature_choice,
@@ -128,32 +149,36 @@ def main(
             top_k=top_k_choice,
             num_beams=num_beams_choice,
             do_sample=do_sample,
+            repetition_penalty=repetition_penalty_choice,
+            num_return_sequences=num_return_sequences_choice,
             **kwargs,
         )
         with torch.no_grad():
-            outputs = model.generate(
-                input_ids=input_ids,
-                generation_config=generation_config,
-                return_dict_in_generate=True,
-                output_scores=True,
-                max_new_tokens=max_new_tokens,
-                pad_token_id=tokenizer.eos_token_id,
-            )
-        s = outputs.sequences[0]
-        output = tokenizer.decode(s)
+            gen_kwargs = dict(input_ids=input_ids,
+                              generation_config=generation_config,
+                              return_dict_in_generate=True,
+                              output_scores=True,
+                              max_new_tokens=max_new_tokens,
+                              pad_token_id=tokenizer.eos_token_id,
+                              )
+            if 'gpt2' in base_model.lower():
+                gen_kwargs.update(dict(bos_token_id=tokenizer.bos_token_id))
+            outputs = model.generate(**gen_kwargs)
+        outputs = [tokenizer.decode(s, skip_special_tokens=True, clean_up_tokenization_spaces=True) for s in outputs.sequences]
+        output = '\n\n'.join(outputs)
 
         if debug:
             print("prompt: ", prompt, flush=True)
             print("output: ", output, flush=True)
 
         def clean_response(response):
-            meaningless_words = ['<pad>', '</s>', '<|endoftext|>']
+            meaningless_words = ['<pad>', '</s>', '<|endoftext|>', '”\n']
             for word in meaningless_words:
                 response = response.replace(word, "")
             response = response.strip("\n")
             return response
         output = clean_response(output)
-        if prompt_type_choice == -1:
+        if prompt_type_choice in [-1, '-1', 'plain']:
             return output
         else:
             # find first instance of prereponse
@@ -181,7 +206,7 @@ def main(
             ),
             gr.components.Textbox(lines=2, label="Input", placeholder="none"),
             gr.components.Slider(minimum=-1, maximum=3, value=prompt_type, step=1, label="Prompt Type"),
-            gr.components.Slider(minimum=0, maximum=1, value=temperature, label="Temperature"),
+            gr.components.Slider(minimum=0, maximum=3, value=temperature, label="Temperature"),
             gr.components.Slider(minimum=0, maximum=1, value=top_p, label="Top p"),
             gr.components.Slider(
                 minimum=0, maximum=100, step=1, value=top_k, label="Top k"
@@ -191,6 +216,8 @@ def main(
             gr.components.Slider(
                 minimum=1, maximum=2000, step=1, value=128, label="Max tokens"
             ),
+            gr.components.Slider(minimum=0.01, maximum=3.0, value=repetition_penalty, label="Repetition Penalty"),
+            gr.components.Slider(minimum=1, maximum=10, step=1, value=num_return_sequences, label="Num. Returns"),
             gr.components.Checkbox(label="Sample", info="Do sample"),
         ],
         outputs=[
@@ -203,7 +230,7 @@ def main(
         description="Model %s Instruct dataset.  "
                     "For more information, visit [the project's website](https://github.com/h2oai/h2o-llm)."
                     "\nCommand: %s\nHash: %s" % (base_model, str(' '.join(sys.argv)), get_githash()),
-    ).launch(share=True)
+    ).launch(share=share, show_error=True)
 
 
 def test_test_prompt(prompt_type=0, data_point=0):
@@ -225,6 +252,8 @@ if __name__ == "__main__":
     python generate.py --base_model='togethercomputer/GPT-NeoXT-Chat-Base-20B' --prompt_type=3 --lora_weights='lora_20B_daifaq'
     # OpenChatKit settings:
     python generate.py --base_model='togethercomputer/GPT-NeoXT-Chat-Base-20B' --prompt_type=2 --debug=True --num_beams=1 --temperature=0.6 --top_k=40 --top_p=1.0
+
+    python generate.py --base_model='distilgpt2' --prompt_type='plain' --debug=True --num_beams=1 --temperature=0.6 --top_k=40 --top_p=1.0 --share=False
     
     """, flush=True)
     fire.Fire(main)

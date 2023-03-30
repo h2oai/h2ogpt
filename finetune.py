@@ -163,7 +163,7 @@ def train(
             log("num_gpus: %d" % gpus)
             log("max mem: %s" % max_memory)
 
-    model_loader, tokenizer_loader = get_loaders(llama_type=llama_type)
+    model_loader, tokenizer_loader = get_loaders(llama_type=llama_type, model_name=base_model)
 
     model = model_loader.from_pretrained(
         base_model,
@@ -357,6 +357,8 @@ def train(
     else:
         callbacks = None
 
+    # TODO:  Add bleu callback
+
     trainer = transformers.Trainer(
         model=model,
         train_dataset=train_data,
@@ -405,7 +407,23 @@ def train(
     log("\n If there's a warning about missing keys above, please disregard :)")
 
 
-def get_loaders(llama_type):
+def bleu(actual_sentences, predicted_sentences):
+    # Using BLEU score to compare the real sentences with the generated ones
+    # E.g. 0.685 is "good"
+    import statistics
+    from nltk.translate.bleu_score import sentence_bleu
+
+    scores = []
+
+    for i in range(len(actual_sentences)):
+        reference = actual_sentences[i]
+        candidate = predicted_sentences[i]
+        scores.append(sentence_bleu(reference, candidate))
+
+    return statistics.mean(scores)
+
+
+def get_loaders(llama_type, model_name):
     if llama_type:
         assert (
                 "LlamaTokenizer" in transformers._import_structure["models.llama"]
@@ -414,6 +432,9 @@ def get_loaders(llama_type):
 
         model_loader = LlamaForCausalLM
         tokenizer_loader = LlamaTokenizer
+    elif 'gpt2' in model_name.lower():
+        from transformers import GPT2LMHeadModel, GPT2Tokenizer
+        return GPT2LMHeadModel, GPT2Tokenizer
     else:
         from transformers import AutoTokenizer, AutoModelForCausalLM
 
@@ -542,37 +563,37 @@ def generate_prompt(data_point, prompt_type):
         prompt += f"""{promptB}"""
 
     if instruction and PreInstruct is not None and input and PreInput is not None:
-        prompt += f"""{PreInstruct}{instruction}{PreInput}{input}
-"""
+        prompt += f"""{PreInstruct}{instruction}{PreInput}{input}"""
+        prompt = inject_newline(prompt_type, prompt)
     elif instruction and input and PreInstruct is None and PreInput is not None:
         prompt += f"""{PreInput}{instruction}
-{input}
-"""
+{input}"""
+        prompt = inject_newline(prompt_type, prompt)
     elif input and instruction and PreInput is None and PreInstruct is not None:
         prompt += f"""{PreInstruct}{instruction}
-{input}
-"""
+{input}"""
+        prompt = inject_newline(prompt_type, prompt)
     elif instruction and PreInstruct is not None:
-        prompt += f"""{PreInstruct}{instruction}
-"""
+        prompt += f"""{PreInstruct}{instruction}"""
+        prompt = inject_newline(prompt_type, prompt)
     elif input and PreInput is not None:
-        prompt += f"""{PreInput}{input}
-"""
+        prompt += f"""{PreInput}{input}"""
+        prompt = inject_newline(prompt_type, prompt)
     elif input and instruction and PreInput is not None:
-        prompt += f"""{PreInput}{instruction}{input}
-"""
+        prompt += f"""{PreInput}{instruction}{input}"""
+        prompt = inject_newline(prompt_type, prompt)
     elif input and instruction and PreInstruct is not None:
-        prompt += f"""{PreInstruct}{instruction}{input}
-"""
+        prompt += f"""{PreInstruct}{instruction}{input}"""
+        prompt = inject_newline(prompt_type, prompt)
     elif input and instruction:
-        prompt += f"""{PreInput}{instruction}{input}
-"""
+        prompt += f"""{PreInput}{instruction}{input}"""
+        prompt = inject_newline(prompt_type, prompt)
     elif input:
-        prompt += f"""{input}
-"""
+        prompt += f"""{input}"""
+        prompt = inject_newline(prompt_type, prompt)
     elif instruction:
-        prompt += f"""{instruction}
-"""
+        prompt += f"""{instruction}"""
+        prompt = inject_newline(prompt_type, prompt)
 
     if PreResponse is not None:
         prompt += f"""{PreResponse}"""
@@ -584,6 +605,13 @@ def generate_prompt(data_point, prompt_type):
         prompt += f"""{output}"""
 
     return prompt, pre_response, terminate_response
+
+
+def inject_newline(prompt_type, prompt):
+    if prompt_type not in [-1, '-1', 'plain']:
+        # only add new line if structured prompt, while 'plain' is just generation of next tokens from input
+        prompt += '\n'
+    return prompt
 
 
 example_data_point0 = dict(instruction="Summarize",
