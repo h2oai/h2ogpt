@@ -105,8 +105,8 @@ docker build -t h2o-llm .
 2. Run the container (you can also use `finetune.py` and all of its parameters as shown above for training):
 
 ```bash
-docker run --runtime=nvidia --shm-size=64g -p 7860:7860 -v ${HOME}/.cache:/root/.cache --rm h2o-llm generate.py \
-    --load_8bit True --base_model 'EleutherAI/gpt-neox-20b' -it
+docker run --runtime=nvidia --shm-size=64g -p 7860:7860 -v ${HOME}/.cache:/root/.cache --rm h2o-llm -it generate.py \
+    --load_8bit True --base_model 'EleutherAI/gpt-neox-20b'
 ```
 
 3. Open `https://localhost:7860` in the browser
