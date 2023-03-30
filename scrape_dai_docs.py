@@ -4,7 +4,6 @@ import os
 import shutil
 
 
-
 def parse_rst_file(filepath):
     with open(filepath, 'r') as f:
         input_data = f.read()
@@ -40,7 +39,7 @@ def test_scrape_dai_docs():
     home = os.path.expanduser('~')
     file = os.path.join(home, 'h2oai/docs/faq.rst')
     qa_pairs = parse_rst_file(file)
-    prompt_type = 'dai_faq'
+    prompt_type = 'human_bot'
     from finetune import prompt_types
     assert prompt_type in prompt_types
     save_thing = [{"instruction": k, "output": v, 'prompt_type': prompt_type} for k, v in qa_pairs.items()]
@@ -232,7 +231,6 @@ def test_config_to_json():
         import json
         from h2oaicore.systemutils import config
         toml_list = []
-        from h2oaicore.systemutils import config
         for k, v in config.get_meta_dict().items():
             title = (v.title + ": ") if v.title else ''
             comment = v.comment or ''
@@ -241,38 +239,38 @@ def test_config_to_json():
             toml_list.extend(
                 [
                     {
-                        'prompt_type': 'instruct',
+                        'prompt_type': 'human_bot',
                         'instruction': f'Explain the following expert setting for Driverless AI',
                         'input': f"{k}",
-                        'output': f"{k.replace('_', ' ')} refers to {comment or title}".replace("\n", ""),
+                        'output': f"{k.replace('_', ' ')} config.toml: {comment or title}".replace("\n", ""),
                     },
                     {
-                        'prompt_type': 'instruct',
+                        'prompt_type': 'human_bot',
                         'instruction': f'Explain the following expert setting for Driverless AI',
                         'input': f"{k}",
-                        'output': f"{k.replace('_', ' ')} refers to {title}{comment}".replace("\n", ""),
+                        'output': f"{k.replace('_', ' ')} config.toml: {title}{comment}".replace("\n", ""),
                     },
                     {
-                        'prompt_type': 'instruct',
+                        'prompt_type': 'human_bot',
                         'instruction': f'Explain the following expert setting for Driverless AI',
                         'input': f"{k.replace('_', ' ')}",
-                        'output': f"{k.replace('_', ' ')} refers to {title}{comment}".replace("\n", ""),
+                        'output': f"{k.replace('_', ' ')} config.toml: {title}{comment}".replace("\n", ""),
                     },
                     {
-                        'prompt_type': 'instruct',
+                        'prompt_type': 'human_bot',
                         'instruction': f'Explain the following expert setting for Driverless AI',
                         'input': f"{title}",
-                        'output': f"{k.replace('_', ' ')} refers to {title}{comment}".replace("\n", ""),
+                        'output': f"{k.replace('_', ' ')} config.toml: {title}{comment}".replace("\n", ""),
                     },
                     {
-                        'prompt_type': 'instruct',
+                        'prompt_type': 'human_bot',
                         'instruction': f'Provide a short explanation of the expert setting {k}',
-                        'output': f"{k.replace('_', ' ')} refers to {comment or title}".replace("\n", ""),
+                        'output': f"{k.replace('_', ' ')} config.toml: {comment or title}".replace("\n", ""),
                     },
                     {
-                        'prompt_type': 'instruct',
+                        'prompt_type': 'human_bot',
                         'instruction': f'Provide a detailed explanation of the expert setting {k}',
-                        'output': f"{k.replace('_', ' ')} refers to {title}{comment}".replace("\n", ""),
+                        'output': f"{k.replace('_', ' ')} config.toml: {title}{comment}".replace("\n", ""),
                     },
                 ]
             )
@@ -343,3 +341,15 @@ def test_join_jsons():
     [lst.extend(json.load(open(fil, 'rt'))) for fil in files]
     print(len(lst))
     json.dump(lst, open("merged.json", "wt"), indent=2)
+
+
+def test_show_prompts():
+    files = ['alpaca_data_cleaned.json'] * 0 + \
+             ['config.json'] * 1 + \
+             ['dai_docs.train_cleaned.json'] * 1 + \
+             ['dai_faq.json'] * 1
+    file_points = [json.load(open(fil, 'rt')) for fil in files]
+    from finetune import generate_prompt
+    for data_points in file_points:
+        for data_point in data_points:
+            print(generate_prompt(data_point, 'plain')[0])
