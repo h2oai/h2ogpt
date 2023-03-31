@@ -317,6 +317,11 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         placeholder_input = ""
         use_defaults = True
         use_default_examples = True
+    elif 'gpt2' in model_lower:
+        placeholder_instruction = "The sky is"
+        placeholder_input = ""
+        use_default_examples = False
+        examples = [[placeholder_instruction, "", 'plain', 1.0, 1.0, 50, 1, 128, 1.0, 1, False]]
     else:
         placeholder_instruction = "Who is smarter, Einstein or Newton?"
         placeholder_input = ""
