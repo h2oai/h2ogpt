@@ -51,8 +51,18 @@ def main(
     if tokenizer_base_model is None:
         tokenizer_base_model = base_model
 
-    tokenizer = tokenizer_loader.from_pretrained(tokenizer_base_model)
-    if device == "cuda":
+    if tokenizer_loader is not None and not isinstance(tokenizer_loader, str):
+        tokenizer = tokenizer_loader.from_pretrained(tokenizer_base_model)
+    else:
+        tokenizer = tokenizer_loader
+
+    if isinstance(tokenizer, str):
+        # already a pipeline, tokenizer_loader is string for task
+        model = model_loader(tokenizer,
+                             model=base_model,
+                             device=0 if device == "cuda" else -1,
+                             torch_dtype=torch.float16)
+    elif device == "cuda":
         # directly to GPU
         if load_8bit:
             model = model_loader.from_pretrained(
@@ -116,9 +126,10 @@ def main(
         if not load_8bit and load_half:
             model.half()  # seems to fix bugs for some users.
 
-    model.eval()
-    if torch.__version__ >= "2" and sys.platform != "win32":
-        model = torch.compile(model)
+    if not isinstance(tokenizer, str):
+        model.eval()
+        if torch.__version__ >= "2" and sys.platform != "win32":
+            model = torch.compile(model)
 
     def evaluate(*args, **kwargs):
         try:
@@ -145,6 +156,14 @@ def main(
     ):
         data_point = dict(instruction=instruction, input=input)
         prompt, pre_response, terminate_response = generate_prompt(data_point, prompt_type_choice)
+        if isinstance(tokenizer, str):
+            # pipeline
+            if tokenizer == "summarization":
+                key = 'summary_text'
+            else:
+                raise RuntimeError("No such task type %s" % tokenizer)
+            return model(prompt, max_length=max_length)[0][key]
+
         inputs = tokenizer(prompt, return_tensors="pt")
         if debug:
             print('input_ids length', len(inputs["input_ids"]), flush=True)
@@ -261,12 +280,24 @@ def get_generate_params(model_lower,
                         do_sample):
     use_defaults = False
     use_default_examples = False
+    examples = None
 
     if 't5-' in model_lower or 't5' == model_lower or 'flan-' in model_lower:
         placeholder_instruction = "The square root of x is the cube root of y. What is y to the power of 2, if x = 4?"
         placeholder_input = ""
         use_defaults = True
         use_default_examples = True
+    elif 'bart-large-cnn-samsum' in model_lower:
+        placeholder_instruction = """Jeff: Can I train a ? Transformers model on Amazon SageMaker? 
+Philipp: Sure you can use the new Hugging Face Deep Learning Container. 
+Jeff: ok.
+Jeff: and how can I get started? 
+Jeff: where can I find documentation? 
+Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-partnership-amazon-sagemaker-and-hugging-face"""
+        placeholder_input = ""
+        use_defaults = True
+        use_default_examples = False
+        examples = [[placeholder_instruction, "", 'plain', 1.0, 1.0, 50, 1, 128, 1.0, 1, False]]
     else:
         placeholder_instruction = "Who is smarter, Einstein or Newton?"
         placeholder_input = ""
@@ -279,8 +310,6 @@ def get_generate_params(model_lower,
         repetition_penalty = repetition_penalty or 1.0
         num_return_sequences = min(num_beams, num_return_sequences or 1)
         do_sample = False if do_sample is None else do_sample
-        examples = None
-
     if use_defaults:
         prompt_type = prompt_type or 'plain'
         temperature = 1.0 if temperature is None else temperature
@@ -294,7 +323,7 @@ def get_generate_params(model_lower,
 
     if use_default_examples:
         examples = [
-            ["Translate english to french", "Good morning", 'plain', 1.0, 1.0, 50, 1, 128, 1.0, 1, False],
+            ["Translate english to french", "Good morning", 'simple_instruct', 1.0, 1.0, 50, 1, 128, 1.0, 1, False],
             ['Translate to German:  My name is Arthur', '', 'plain', 1.0, 1.0, 50, 1, 128, 1.0, 1, False],
             ["Please answer to the following question. Who is going to be the next Ballon d'or?", '', 'plain', 1.0, 1.0, 50, 1, 128, 1.0, 1, False],
             ['Q: Can Geoffrey Hinton have a conversation with George Washington? Give the rationale before answering.', '', 'plain', 1.0, 1.0, 50, 1, 128, 1.0, 1, False],
@@ -336,6 +365,7 @@ if __name__ == "__main__":
 
     python generate.py --base_model='distilgpt2' --prompt_type='plain' --debug=True --num_beams=1 --temperature=0.6 --top_k=40 --top_p=1.0 --share=False
     python generate.py --base_model='t5-large' --prompt_type='simple_instruct'
-    
+    python generate.py --base_model='philschmid/bart-large-cnn-samsum'
+
     """, flush=True)
     fire.Fire(main)

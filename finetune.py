@@ -508,7 +508,6 @@ def get_loaders(llama_type, model_name):
                 "LlamaTokenizer" in transformers._import_structure["models.llama"]
         ), "LLaMA is now in HuggingFace's main branch.\nPlease reinstall it: pip uninstall transformers && pip install git+https://github.com/huggingface/transformers.git"
         from transformers import LlamaForCausalLM, LlamaTokenizer
-
         model_loader = LlamaForCausalLM
         tokenizer_loader = LlamaTokenizer
     elif 'gpt2' in model_name.lower():
@@ -519,9 +518,14 @@ def get_loaders(llama_type, model_name):
          'flan-' in model_name.lower():
         from transformers import AutoTokenizer, T5ForConditionalGeneration
         return T5ForConditionalGeneration, AutoTokenizer
+    elif 'bigbird' in model_name:
+        from transformers import BigBirdPegasusForConditionalGeneration, AutoTokenizer
+        return BigBirdPegasusForConditionalGeneration, AutoTokenizer
+    elif 'bart-large-cnn-samsum' in model_name:
+        from transformers import pipeline
+        return pipeline, "summarization"
     else:
         from transformers import AutoTokenizer, AutoModelForCausalLM
-
         model_loader = AutoModelForCausalLM
         tokenizer_loader = AutoTokenizer
     return model_loader, tokenizer_loader
