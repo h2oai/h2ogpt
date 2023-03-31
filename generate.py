@@ -173,6 +173,8 @@ def main(
             repetition_penalty_choice=repetition_penalty,
             num_return_sequences_choice=num_return_sequences,
             do_sample_choice=do_sample,
+            src_lang_choice=src_lang,
+            tgt_lang_choice=tgt_lang,
             **kwargs,
     ):
         data_point = dict(instruction=instruction, input=input)
@@ -186,7 +188,7 @@ def main(
             return model(prompt, max_length=max_length)[0][key]
 
         if 'mbart-' in base_model.lower():
-            tokenizer.src_lang = src_lang
+            tokenizer.src_lang = src_lang_choice
 
         inputs = tokenizer(prompt, return_tensors="pt")
         if debug:
@@ -212,7 +214,7 @@ def main(
             if 'gpt2' in base_model.lower():
                 gen_kwargs.update(dict(bos_token_id=tokenizer.bos_token_id))
             elif 'mbart-' in base_model.lower():
-                gen_kwargs.update(dict(forced_bos_token_id=tokenizer.lang_code_to_id[tgt_lang]))
+                gen_kwargs.update(dict(forced_bos_token_id=tokenizer.lang_code_to_id[tgt_lang_choice]))
             else:
                 gen_kwargs.update(dict(pad_token_id=tokenizer.eos_token_id))
             outputs = model.generate(**gen_kwargs)
@@ -264,11 +266,14 @@ def main(
                             do_sample,
                             )
 
-    gr.Interface(
-        fn=evaluate,
-        inputs=[
+    if 'mbart-' in model_lower:
+        instruction_label = "Text to translate"
+    else:
+        instruction_label = "Instruction"
+
+    inputs = [
             gr.components.Textbox(
-                lines=2, label="Instruction", placeholder=placeholder_instruction,
+                lines=2, label=instruction_label, placeholder=placeholder_instruction,
             ),
             gr.components.Textbox(lines=2, label="Input", placeholder=placeholder_input),
             gr.components.Dropdown(prompt_types_strings, value=prompt_type, step=1, label="Prompt Type"),
@@ -285,7 +290,14 @@ def main(
             gr.components.Slider(minimum=0.01, maximum=3.0, value=repetition_penalty, label="Repetition Penalty"),
             gr.components.Slider(minimum=1, maximum=10, step=1, value=num_return_sequences, label="Num. Returns"),
             gr.components.Checkbox(label="Sample", info="Do sample"),
-        ],
+        ]
+    if 'mbart-' in model_lower:
+        inputs.append(gr.components.Dropdown(list(languages_covered().keys()), value=src_lang, step=1, label="Input Language"))
+        inputs.append(gr.components.Dropdown(list(languages_covered().keys()), value=tgt_lang, step=1, label="Output Language"))
+
+    gr.Interface(
+        fn=evaluate,
+        inputs=inputs,
         outputs=[
             gr.inputs.Textbox(
                 lines=5,
@@ -378,6 +390,21 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
            max_length, repetition_penalty, num_return_sequences, \
            do_sample, \
            examples
+
+
+def languages_covered():
+    # https://huggingface.co/facebook/mbart-large-50-many-to-many-mmt#languages-covered
+    covered = """Arabic (ar_AR), Czech (cs_CZ), German (de_DE), English (en_XX), Spanish (es_XX), Estonian (et_EE), Finnish (fi_FI), French (fr_XX), Gujarati (gu_IN), Hindi (hi_IN), Italian (it_IT), Japanese (ja_XX), Kazakh (kk_KZ), Korean (ko_KR), Lithuanian (lt_LT), Latvian (lv_LV), Burmese (my_MM), Nepali (ne_NP), Dutch (nl_XX), Romanian (ro_RO), Russian (ru_RU), Sinhala (si_LK), Turkish (tr_TR), Vietnamese (vi_VN), Chinese (zh_CN), Afrikaans (af_ZA), Azerbaijani (az_AZ), Bengali (bn_IN), Persian (fa_IR), Hebrew (he_IL), Croatian (hr_HR), Indonesian (id_ID), Georgian (ka_GE), Khmer (km_KH), Macedonian (mk_MK), Malayalam (ml_IN), Mongolian (mn_MN), Marathi (mr_IN), Polish (pl_PL), Pashto (ps_AF), Portuguese (pt_XX), Swedish (sv_SE), Swahili (sw_KE), Tamil (ta_IN), Telugu (te_IN), Thai (th_TH), Tagalog (tl_XX), Ukrainian (uk_UA), Urdu (ur_PK), Xhosa (xh_ZA), Galician (gl_ES), Slovene (sl_SI)"""
+    covered = covered.split(', ')
+    covered = {x.split(' ')[0]: x.split(' ')[1].replace(')', '').replace('(', '') for x in covered}
+    return covered
+
+
+def trans_map(src_lang, tgt_lang):
+    #assert src_lang in tokenizer.lang_code_to_id
+    #assert tgt_lang in tokenizer.lang_code_to_id
+    cov_dict = languages_covered()
+    return cov_dict[src_lang], cov_dict[tgt_lang]
 
 
 def test_test_prompt(prompt_type='instruct', data_point=0):
