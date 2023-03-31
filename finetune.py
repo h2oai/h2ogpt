@@ -173,7 +173,7 @@ def train(
             lora_target_modules = lora_mappings[base_model_lower]
         elif "gpt-neox" in base_model.lower():
             lora_target_modules = ["query_key_value"]
-        elif "llama" in base_model.lower():
+        elif [x in base_model.lower() for x in ["gpt-j", "llama"]]:
             lora_target_modules = ["q_proj", "v_proj"]
         else:
             raise ValueError("No lora_target_modules defined")
@@ -441,6 +441,8 @@ def train(
             load_best_model_at_end=True if val_set_size > 0 else False,
             ddp_find_unused_parameters=False if ddp else None,
             group_by_length=group_by_length,
+            fsdp="shard_grad_op auto_wrap" if gpus > 1 and not ddp else None,
+            fsdp_min_num_params=20000 if gpus > 1 and not ddp else None,
             report_to='tensorboard' if not neptune_run else 'neptune',
         ),
         data_collator=transformers.DataCollatorForSeq2Seq(
