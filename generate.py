@@ -47,6 +47,8 @@ def main(
 
         src_lang: str = "en_XX",
         tgt_lang: str = "ru_RU",
+
+        expert: bool = True,
 ):
     assert base_model, (
         "Please specify a --base_model, e.g. --base_model="
@@ -277,20 +279,22 @@ def main(
             ),
             gr.components.Textbox(lines=2, label="Input", placeholder=placeholder_input),
             gr.components.Dropdown(prompt_types_strings, value=prompt_type, step=1, label="Prompt Type"),
-            gr.components.Slider(minimum=0, maximum=3, value=temperature, label="Temperature"),
-            gr.components.Slider(minimum=0, maximum=1, value=top_p, label="Top p"),
-            gr.components.Slider(
-                minimum=0, maximum=100, step=1, value=top_k, label="Top k"
-            ),
-            gr.components.Slider(minimum=1, maximum=8, step=1, value=num_beams, label="Beams",
-                                 info="Uses more GPU memory/compute"),
-            gr.components.Slider(
-                minimum=1, maximum=2000, step=1, value=128, label="Max tokens"
-            ),
-            gr.components.Slider(minimum=0.01, maximum=3.0, value=repetition_penalty, label="Repetition Penalty"),
-            gr.components.Slider(minimum=1, maximum=10, step=1, value=num_return_sequences, label="Num. Returns"),
-            gr.components.Checkbox(label="Sample", info="Do sample"),
         ]
+    if expert:
+        gr.components.Slider(minimum=0, maximum=3, value=temperature, label="Temperature"),
+        gr.components.Slider(minimum=0, maximum=1, value=top_p, label="Top p"),
+        gr.components.Slider(
+            minimum=0, maximum=100, step=1, value=top_k, label="Top k"
+        ),
+        gr.components.Slider(minimum=1, maximum=8, step=1, value=num_beams, label="Beams",
+                             info="Uses more GPU memory/compute"),
+        gr.components.Slider(
+            minimum=1, maximum=2000, step=1, value=128, label="Max tokens"
+        ),
+        gr.components.Slider(minimum=0.01, maximum=3.0, value=repetition_penalty, label="Repetition Penalty"),
+        gr.components.Slider(minimum=1, maximum=10, step=1, value=num_return_sequences, label="Num. Returns"),
+        gr.components.Checkbox(label="Sample", info="Do sample"),
+
     if 'mbart-' in model_lower:
         inputs.append(gr.components.Dropdown(list(languages_covered().keys()), value=src_lang, step=1, label="Input Language"))
         inputs.append(gr.components.Dropdown(list(languages_covered().keys()), value=tgt_lang, step=1, label="Output Language"))
@@ -432,6 +436,8 @@ if __name__ == "__main__":
     python generate.py --base_model='philschmid/bart-large-cnn-samsum'
     python generate.py --base_model='philschmid/flan-t5-base-samsum'
     python generate.py --base_model='facebook/mbart-large-50-many-to-many-mmt'
+
+    python generate.py --base_model='togethercomputer/GPT-NeoXT-Chat-Base-20B' --prompt_type='human_bot' --lora_weights='GPT-NeoXT-Chat-Base-20B.merged.json.8_epochs.57b2892c53df5b8cefac45f84d019cace803ef26.28'
 
     """, flush=True)
     fire.Fire(main)
