@@ -179,6 +179,28 @@ def main(
             tgt_lang_choice=tgt_lang,
             **kwargs,
     ):
+        # in case skip gradio elements, use defaults:
+        # FIXME: This could be fixed from gradio if controlled inputs/outputs directly without Interface mode
+        _, _, \
+        _, temperature_default, top_p_default, top_k_default, num_beams_default, \
+        max_length_default, repetition_penalty_default, num_return_sequences_default, \
+        do_sample_default, \
+        _ = \
+            get_generate_params(model_lower,
+                                prompt_type, temperature, top_p, top_k, num_beams,
+                                max_length, repetition_penalty, num_return_sequences,
+                                do_sample,
+                                )
+        temperature_choice = temperature_choice if temperature_choice is not None else temperature_default
+        top_p_choice = top_p_choice if top_p_choice is not None else top_p_default
+        top_k_choice = top_k_choice if top_k_choice is not None else top_k_default
+        num_beams_choice = num_beams_choice if num_beams_choice is not None else num_beams_default
+        max_new_tokens = max_new_tokens if max_new_tokens is not None else max_length_default
+        repetition_penalty_choice = repetition_penalty_choice if repetition_penalty_choice is not None else repetition_penalty_default
+        num_return_sequences_choice = num_return_sequences_choice if num_return_sequences_choice is not None else num_return_sequences_default
+        do_sample_choice = do_sample_choice if do_sample_choice is not None else do_sample_default
+
+
         data_point = dict(instruction=instruction, input=input)
         prompt, pre_response, terminate_response = generate_prompt(data_point, prompt_type_choice)
         if isinstance(tokenizer, str):
