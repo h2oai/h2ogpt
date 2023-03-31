@@ -69,8 +69,13 @@ prompt_type_to_model_name = {
     'human_bot': ['togethercomputer/GPT-NeoXT-Chat-Base-20B'],
     'dai_faq': [],
     'summarize': [],
-    'simple_instruct': ['t5-large'],
+    'simple_instruct': ['t5', 't5-large', 'google/flan-t5', 'google/flan-t5-xxl', 'google/flan-ul2'],
 }
+
+
+prompt_types_strings = []
+for p in PromptType:
+    prompt_types_strings.extend([p.name])
 
 
 prompt_types = []
@@ -496,6 +501,8 @@ def bleu(actual_sentences, predicted_sentences):
 
 
 def get_loaders(llama_type, model_name):
+    # NOTE: Some models need specific new prompt_type
+    # E.g. t5_xxl_true_nli_mixture has input format: "premise: PREMISE_TEXT hypothesis: HYPOTHESIS_TEXT".)
     if llama_type:
         assert (
                 "LlamaTokenizer" in transformers._import_structure["models.llama"]
@@ -507,7 +514,9 @@ def get_loaders(llama_type, model_name):
     elif 'gpt2' in model_name.lower():
         from transformers import GPT2LMHeadModel, GPT2Tokenizer
         return GPT2LMHeadModel, GPT2Tokenizer
-    elif 't5-large' in model_name.lower() or 't5' == model_name.lower():
+    elif 't5' == model_name.lower() or \
+         't5-' in model_name.lower() or \
+         'flan-' in model_name.lower():
         from transformers import AutoTokenizer, T5ForConditionalGeneration
         return T5ForConditionalGeneration, AutoTokenizer
     else:

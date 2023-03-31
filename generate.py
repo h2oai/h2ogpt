@@ -18,7 +18,7 @@ try:
 except:
     pass
 
-from finetune import get_loaders, example_data_points, generate_prompt, get_githash
+from finetune import get_loaders, example_data_points, generate_prompt, get_githash, prompt_types, prompt_types_strings
 
 
 def main(
@@ -27,15 +27,18 @@ def main(
         base_model: str = "EleutherAI/gpt-j-6B",
         tokenizer_base_model: str = None,
         lora_weights: str = "",
-        prompt_type: Union[int, str] = 'instruct',
-        temperature: float = 0.1,
-        top_p: float = 0.75,
-        top_k: int = 40,
-        num_beams: int = 4,
-        repetition_penalty: float = 1.0,
-        num_return_sequences=1,
-        do_sample=False,
-        max_length=128,
+        prompt_type: Union[int, str] = None,
+
+        # input to generation
+        temperature: float = None,
+        top_p: float = None,
+        top_k: int = None,
+        num_beams: int = None,
+        repetition_penalty: float = None,
+        num_return_sequences: int = None,
+        do_sample: bool = None,
+        max_length: int = None,
+
         llama_type: bool = None,
         debug: bool = False,
         share: bool = True,
@@ -202,14 +205,27 @@ def main(
             else:
                 return output.strip()
 
+    # get defaults
+    model_lower = base_model.lower()
+    placeholder_instruction, placeholder_input, \
+    prompt_type, temperature, top_p, top_k, num_beams, \
+    max_length, repetition_penalty, num_return_sequences, \
+    do_sample, \
+    examples = \
+        get_generate_params(model_lower,
+                            prompt_type, temperature, top_p, top_k, num_beams,
+                            max_length, repetition_penalty, num_return_sequences,
+                            do_sample,
+                            )
+
     gr.Interface(
         fn=evaluate,
         inputs=[
             gr.components.Textbox(
-                lines=2, label="Instruction", placeholder="Who is smarter, Einstein or Newton?"
+                lines=2, label="Instruction", placeholder=placeholder_instruction,
             ),
-            gr.components.Textbox(lines=2, label="Input", placeholder="none"),
-            gr.components.Slider(minimum=-1, maximum=3, value=prompt_type, step=1, label="Prompt Type"),
+            gr.components.Textbox(lines=2, label="Input", placeholder=placeholder_input),
+            gr.components.Dropdown(prompt_types_strings, value=prompt_type, step=1, label="Prompt Type"),
             gr.components.Slider(minimum=0, maximum=3, value=temperature, label="Temperature"),
             gr.components.Slider(minimum=0, maximum=1, value=top_p, label="Top p"),
             gr.components.Slider(
@@ -235,7 +251,70 @@ def main(
                     "For more information, visit [the project's website](https://github.com/h2oai/h2o-llm)."
                     "\nCommand: %s\nHash: %s" % (base_model, str(' '.join(sys.argv)), get_githash()),
         server_name="0.0.0.0",
+        examples=examples,
     ).launch(share=share, show_error=True)
+
+
+def get_generate_params(model_lower,
+                        prompt_type, temperature, top_p, top_k, num_beams,
+                        max_length, repetition_penalty, num_return_sequences,
+                        do_sample):
+    use_defaults = False
+    use_default_examples = False
+
+    if 't5-' in model_lower or 't5' == model_lower:
+        placeholder_instruction = "Translate english to french"
+        placeholder_input = "Good morning"
+        use_defaults = True
+        use_default_examples = True
+    elif 'flan-' in model_lower:
+        placeholder_instruction = "The square root of x is the cube root of y. What is y to the power of 2, if x = 4?"
+        placeholder_input = ""
+        use_defaults = True
+        use_default_examples = True
+    else:
+        placeholder_instruction = "Who is smarter, Einstein or Newton?"
+        placeholder_input = ""
+        prompt_type = prompt_type or 'instruct'
+        temperature = 0.1 if temperature is None else temperature
+        top_p = 0.75 if top_p is None else top_p
+        top_k = 40 if top_k is None else top_k
+        num_beams = num_beams or 4
+        max_length = num_beams or 128
+        repetition_penalty = num_beams or 1.0
+        num_return_sequences = num_beams or 1
+        do_sample = False if do_sample is None else do_sample
+        examples = None
+
+    if use_defaults:
+        prompt_type = prompt_type or 'plain'
+        temperature = 1.0 if temperature is None else temperature
+        top_p = 1.0 if top_p is None else top_p
+        top_k = 50 if top_k is None else top_k
+        num_beams = num_beams or 1
+        max_length = max_length or 128
+        repetition_penalty = repetition_penalty or 1.0
+        num_return_sequences = num_return_sequences or 1
+        do_sample = False if do_sample is None else do_sample
+
+    if use_default_examples:
+        examples = [
+            ['Translate to German:  My name is Arthur', '', 'plain', 1.0, 1.0, 50, 1, 128, 1.0, 1, False],
+            ["Please answer to the following question. Who is going to be the next Ballon d'or?", '', 'plain', 1.0, 1.0, 50, 1, 128, 1.0, 1, False],
+            ['Q: Can Geoffrey Hinton have a conversation with George Washington? Give the rationale before answering.', '', 'plain', 1.0, 1.0, 50, 1, 128, 1.0, 1, False],
+            ['Please answer the following question. What is the boiling point of Nitrogen?', '', 'plain', 1.0, 1.0, 50, 1, 128, 1.0, 1, False],
+            ['Answer the following yes/no question. Can you write a whole Haiku in a single tweet?', '', 'plain', 1.0, 1.0, 50, 1, 128, 1.0, 1, False],
+            ['Answer the following yes/no question by reasoning step-by-step. Can you write a whole Haiku in a single tweet?', '', 'plain', 1.0, 1.0, 50, 1, 128, 1.0, 1, False],
+            ["Q: ( False or not False or False ) is? A: Let's think step by step", '', 'plain', 1.0, 1.0, 50, 1, 128, 1.0, 1, False],
+            ["Premise: At my age you will probably have learnt one lesson. Hypothesis:  It's not certain how many lessons you'll learn by your thirties. Does the premise entail the hypothesis?", '', 'plain', 1.0, 1.0, 50, 1, 128, 1.0, 1, False],
+            ['The square root of x is the cube root of y. What is y to the power of 2, if x = 4?', '', 'plain', 1.0, 1.0, 50, 1, 128, 1.0, 1, False],
+        ]
+
+    return placeholder_instruction, placeholder_input, \
+           prompt_type, temperature, top_p, top_k, num_beams, \
+           max_length, repetition_penalty, num_return_sequences, \
+           do_sample, \
+           examples
 
 
 def test_test_prompt(prompt_type='instruct', data_point=0):
