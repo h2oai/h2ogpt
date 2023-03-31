@@ -300,13 +300,8 @@ def get_generate_params(model_lower,
     use_defaults = False
     use_default_examples = False
     examples = None
-
-    if 't5-' in model_lower or 't5' == model_lower or 'flan-' in model_lower:
-        placeholder_instruction = "The square root of x is the cube root of y. What is y to the power of 2, if x = 4?"
-        placeholder_input = ""
-        use_defaults = True
-        use_default_examples = True
-    elif 'bart-large-cnn-samsum' in model_lower or 'flan-t5-base-samsum' in model_lower:
+    print(model_lower, flush=True)
+    if 'bart-large-cnn-samsum' in model_lower or 'flan-t5-base-samsum' in model_lower:
         placeholder_instruction = """Jeff: Can I train a ? Transformers model on Amazon SageMaker? 
 Philipp: Sure you can use the new Hugging Face Deep Learning Container. 
 Jeff: ok.
@@ -317,6 +312,11 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         use_defaults = True
         use_default_examples = False
         examples = [[placeholder_instruction, "", 'plain', 1.0, 1.0, 50, 1, 128, 1.0, 1, False]]
+    elif 't5-' in model_lower or 't5' == model_lower or 'flan-' in model_lower:
+        placeholder_instruction = "The square root of x is the cube root of y. What is y to the power of 2, if x = 4?"
+        placeholder_input = ""
+        use_defaults = True
+        use_default_examples = True
     else:
         placeholder_instruction = "Who is smarter, Einstein or Newton?"
         placeholder_input = ""
