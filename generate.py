@@ -44,6 +44,9 @@ def main(
         share: bool = True,
         local_files_only: bool = False,
         resume_download: bool = True,
+
+        src_lang: str = "en_XX",
+        tgt_lang: str = "ru_RU",
 ):
     assert base_model, (
         "Please specify a --base_model, e.g. --base_model="
@@ -68,24 +71,23 @@ def main(
                              device=0 if device == "cuda" else -1,
                              torch_dtype=torch.float16)
     elif device == "cuda":
+        model_kwargs = dict(local_files_only=local_files_only,
+                            torch_dtype=torch.float16,
+                            resume_download=resume_download)
+        if 'mbart-' not in base_model.lower():
+            model_kwargs.update(dict(device_map="auto",
+                                     load_in_8bit=load_8bit,
+                                     ))
+
         # directly to GPU
         if load_8bit:
             model = model_loader.from_pretrained(
-                base_model,
-                load_in_8bit=load_8bit,
-                torch_dtype=torch.float16,
-                device_map="auto",
-                local_files_only=local_files_only,
-                resume_download=resume_download,
+                **model_kwargs
             )
         else:
             model = model_loader.from_pretrained(
                 base_model,
-                load_in_8bit=load_8bit,
-                torch_dtype=torch.float16,
-                device_map="auto",
-                local_files_only=local_files_only,
-                resume_download=resume_download,
+                **model_kwargs
             ).to(device)
         if lora_weights:
             model = PeftModel.from_pretrained(
@@ -183,6 +185,9 @@ def main(
                 raise RuntimeError("No such task type %s" % tokenizer)
             return model(prompt, max_length=max_length)[0][key]
 
+        if 'mbart-' in base_model.lower():
+            tokenizer.src_lang = src_lang
+
         inputs = tokenizer(prompt, return_tensors="pt")
         if debug:
             print('input_ids length', len(inputs["input_ids"]), flush=True)
@@ -203,10 +208,13 @@ def main(
                               return_dict_in_generate=True,
                               output_scores=True,
                               max_new_tokens=max_new_tokens,
-                              pad_token_id=tokenizer.eos_token_id,
                               )
             if 'gpt2' in base_model.lower():
                 gen_kwargs.update(dict(bos_token_id=tokenizer.bos_token_id))
+            elif 'mbart-' in base_model.lower():
+                gen_kwargs.update(dict(forced_bos_token_id=tokenizer.lang_code_to_id[tgt_lang]))
+            else:
+                gen_kwargs.update(dict(pad_token_id=tokenizer.eos_token_id))
             outputs = model.generate(**gen_kwargs)
         outputs = [tokenizer.decode(s, skip_special_tokens=True, clean_up_tokenization_spaces=True) for s in outputs.sequences]
         output = '\n\n'.join(outputs)
@@ -317,6 +325,11 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         placeholder_input = ""
         use_defaults = True
         use_default_examples = True
+    elif 'mbart-' in model_lower:
+        placeholder_instruction = "The girl has long hair."
+        placeholder_input = ""
+        use_defaults = True
+        use_default_examples = False
     elif 'gpt2' in model_lower:
         placeholder_instruction = "The sky is"
         placeholder_input = ""
@@ -391,6 +404,7 @@ if __name__ == "__main__":
     python generate.py --base_model='t5-large' --prompt_type='simple_instruct'
     python generate.py --base_model='philschmid/bart-large-cnn-samsum'
     python generate.py --base_model='philschmid/flan-t5-base-samsum'
+    python generate.py --base_model='facebook/mbart-large-50-many-to-many-mmt'
 
     """, flush=True)
     fire.Fire(main)

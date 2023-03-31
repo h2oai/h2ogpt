@@ -63,7 +63,8 @@ class PromptType(Enum):
 
 prompt_type_to_model_name = {
     'plain': ['EleutherAI/gpt-neox-20b', 'EleutherAI/gpt-j-6B', 'decapoda-research/llama-7b-hf',
-              'decapoda-research/llama-13b-hf', 'decapoda-research/llama-30b-hf'],
+              'decapoda-research/llama-13b-hf', 'decapoda-research/llama-30b-hf',
+              'facebook/mbart-large-50-many-to-many-mmt'],
     'instruct': [],
     'quality': [],
     'human_bot': ['togethercomputer/GPT-NeoXT-Chat-Base-20B'],
@@ -523,6 +524,9 @@ def get_loaders(llama_type, model_name):
     elif 'gpt2' in model_name.lower():
         from transformers import GPT2LMHeadModel, GPT2Tokenizer
         return GPT2LMHeadModel, GPT2Tokenizer
+    elif 'mbart-' in model_name.lower():
+        from transformers import MBartForConditionalGeneration, MBart50TokenizerFast
+        return MBartForConditionalGeneration, MBart50TokenizerFast
     elif 't5' == model_name.lower() or \
          't5-' in model_name.lower() or \
          'flan-' in model_name.lower():
