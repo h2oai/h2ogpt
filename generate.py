@@ -42,6 +42,8 @@ def main(
         llama_type: bool = None,
         debug: bool = False,
         share: bool = True,
+        local_files_only: bool = True,
+        resume_download: bool = True,
 ):
     assert base_model, (
         "Please specify a --base_model, e.g. --base_model="
@@ -52,7 +54,10 @@ def main(
         tokenizer_base_model = base_model
 
     if tokenizer_loader is not None and not isinstance(tokenizer_loader, str):
-        tokenizer = tokenizer_loader.from_pretrained(tokenizer_base_model)
+        tokenizer = tokenizer_loader.from_pretrained(tokenizer_base_model,
+                                                     local_files_only=local_files_only,
+                                                     resume_download=resume_download,
+                                                     )
     else:
         tokenizer = tokenizer_loader
 
@@ -70,6 +75,8 @@ def main(
                 load_in_8bit=load_8bit,
                 torch_dtype=torch.float16,
                 device_map="auto",
+                local_files_only=local_files_only,
+                resume_download=resume_download,
             )
         else:
             model = model_loader.from_pretrained(
@@ -77,12 +84,16 @@ def main(
                 load_in_8bit=load_8bit,
                 torch_dtype=torch.float16,
                 device_map="auto",
+                local_files_only=local_files_only,
+                resume_download=resume_download,
             ).to(device)
         if lora_weights:
             model = PeftModel.from_pretrained(
                 model,
                 lora_weights,
                 torch_dtype=torch.float16,
+                local_files_only=local_files_only,
+                resume_download=resume_download,
             )
         if not load_8bit and load_half:
             model.half()
@@ -91,6 +102,8 @@ def main(
             base_model,
             device_map={"": device},
             torch_dtype=torch.float16,
+            local_files_only=local_files_only,
+            resume_download=resume_download,
         )
         if lora_weights:
             model = PeftModel.from_pretrained(
@@ -98,16 +111,22 @@ def main(
                 lora_weights,
                 device_map={"": device},
                 torch_dtype=torch.float16,
+                local_files_only=local_files_only,
+                resume_download=resume_download,
             )
     else:
         model = model_loader.from_pretrained(
-            base_model, device_map={"": device}, low_cpu_mem_usage=True
+            base_model, device_map={"": device}, low_cpu_mem_usage=True,
+            local_files_only=local_files_only,
+            resume_download=resume_download,
         )
         if lora_weights:
             model = PeftModel.from_pretrained(
                 model,
                 lora_weights,
                 device_map={"": device},
+                local_files_only=local_files_only,
+                resume_download=resume_download,
             )
 
     # unwind broken decapoda-research config

@@ -135,6 +135,8 @@ def train(
         resume_from_checkpoint: str = None,  # either training checkpoint or final adapter
         # torch training params
         ddp: bool = True,  # set to False if OOM with True, for multi-GPU model parallelism
+        local_files_only: bool = True,  # else will download new versions, normally unwanted
+        resume_download: bool = True,
 ):
     prompt_type = str(prompt_type)  # migration from integers
     assert prompt_type in prompt_types
@@ -211,6 +213,8 @@ def train(
         device_map=device_map,
         torch_dtype=torch.float16,
         max_memory=max_memory,
+        local_files_only=local_files_only,
+        resume_download=resume_download,
     )
     if gpus > 1:
         if not ddp:
@@ -218,7 +222,9 @@ def train(
             model.is_parallelizable = True
             model.model_parallel = True
 
-    tokenizer = tokenizer_loader.from_pretrained(tokenizer_base_model)
+    tokenizer = tokenizer_loader.from_pretrained(tokenizer_base_model,
+                                                 local_files_only=local_files_only,
+                                                 resume_download=resume_download)
 
     tokenizer.pad_token_id = 0  # unk. we want this to be different from the eos token
     tokenizer.padding_side = "left"  # Allow batched inference
@@ -269,6 +275,8 @@ def train(
             lora_weights,
             torch_dtype=torch.float16,
             device_map=device_map,
+            local_files_only=local_files_only,
+            resume_download=resume_download,
         )
     else:
         config = LoraConfig(
