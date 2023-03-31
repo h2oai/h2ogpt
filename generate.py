@@ -1,4 +1,5 @@
 import sys
+from typing import Union
 
 import fire
 import torch
@@ -26,13 +27,15 @@ def main(
         base_model: str = "EleutherAI/gpt-j-6B",
         tokenizer_base_model: str = None,
         lora_weights: str = "",
-        prompt_type: int = 1,
+        prompt_type: Union[int, str] = 'instruct',
         temperature: float = 0.1,
         top_p: float = 0.75,
         top_k: int = 40,
         num_beams: int = 4,
         repetition_penalty: float = 1.0,
         num_return_sequences=1,
+        do_sample=False,
+        max_length=128,
         llama_type: bool = None,
         debug: bool = False,
         share: bool = True,
@@ -126,15 +129,15 @@ def main(
     def _evaluate(
             instruction,
             input=None,
-            prompt_type_choice=0,
-            temperature_choice=0.1,
-            top_p_choice=0.75,
-            top_k_choice=40,
-            num_beams_choice=4,
-            max_new_tokens=128,
-            repetition_penalty_choice=1.0,
-            num_return_sequences_choice=1,
-            do_sample=False,
+            prompt_type_choice=prompt_type,
+            temperature_choice=temperature,
+            top_p_choice=top_p,
+            top_k_choice=top_k,
+            num_beams_choice=num_beams,
+            max_new_tokens=max_length,
+            repetition_penalty_choice=repetition_penalty,
+            num_return_sequences_choice=num_return_sequences,
+            do_sample_choice=do_sample,
             **kwargs,
     ):
         data_point = dict(instruction=instruction, input=input)
@@ -148,7 +151,7 @@ def main(
             top_p=top_p_choice,
             top_k=top_k_choice,
             num_beams=num_beams_choice,
-            do_sample=do_sample,
+            do_sample=do_sample_choice,
             repetition_penalty=repetition_penalty_choice,
             num_return_sequences=num_return_sequences_choice,
             **kwargs,
@@ -178,13 +181,14 @@ def main(
             response = response.strip("\n")
             return response
         output = clean_response(output)
-        if prompt_type_choice in [-1, '-1', 'plain']:
+        if prompt_type_choice in [0, '0', 'plain']:
             return output
         else:
             # find first instance of prereponse
             # prompt sometimes has odd characters, that mutate length,
             # so can't go by length alone
-            output = output.split(pre_response)[1]
+            if pre_response:
+                output = output.split(pre_response)[1]
             if terminate_response:
                 finds = []
                 for term in terminate_response:
@@ -234,7 +238,7 @@ def main(
     ).launch(share=share, show_error=True)
 
 
-def test_test_prompt(prompt_type=0, data_point=0):
+def test_test_prompt(prompt_type='instruct', data_point=0):
     example_data_point = example_data_points[data_point]
     example_data_point.pop('output', None)
     return generate_prompt(example_data_point, prompt_type)
@@ -247,14 +251,15 @@ if __name__ == "__main__":
     python generate.py --base_model='EleutherAI/gpt-neox-20b' --lora_weights='lora-alpaca_20B'
     
     # generate without lora weights, no prompt
-    python generate.py --base_model='EleutherAI/gpt-neox-20b' --prompt_type=-1
-    python generate.py --base_model='togethercomputer/GPT-NeoXT-Chat-Base-20B' --prompt_type=2
+    python generate.py --base_model='EleutherAI/gpt-neox-20b' --prompt_type='plain'
+    python generate.py --base_model='togethercomputer/GPT-NeoXT-Chat-Base-20B' --prompt_type='dai_faq'
 
-    python generate.py --base_model='togethercomputer/GPT-NeoXT-Chat-Base-20B' --prompt_type=3 --lora_weights='lora_20B_daifaq'
+    python generate.py --base_model='togethercomputer/GPT-NeoXT-Chat-Base-20B' --prompt_type='dai_faq' --lora_weights='lora_20B_daifaq'
     # OpenChatKit settings:
-    python generate.py --base_model='togethercomputer/GPT-NeoXT-Chat-Base-20B' --prompt_type=2 --debug=True --num_beams=1 --temperature=0.6 --top_k=40 --top_p=1.0
+    python generate.py --base_model='togethercomputer/GPT-NeoXT-Chat-Base-20B' --prompt_type='human_bot --debug=True --num_beams=1 --temperature=0.6 --top_k=40 --top_p=1.0
 
     python generate.py --base_model='distilgpt2' --prompt_type='plain' --debug=True --num_beams=1 --temperature=0.6 --top_k=40 --top_p=1.0 --share=False
+    python generate.py --base_model='t5-large' --prompt_type='simple_instruct'
     
     """, flush=True)
     fire.Fire(main)

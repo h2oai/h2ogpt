@@ -58,6 +58,19 @@ class PromptType(Enum):
     human_bot = 3
     dai_faq = 4
     summarize = 5
+    simple_instruct = 6
+
+
+prompt_type_to_model_name = {
+    'plain': ['EleutherAI/gpt-neox-20b', 'EleutherAI/gpt-j-6B', 'decapoda-research/llama-7b-hf',
+              'decapoda-research/llama-13b-hf', 'decapoda-research/llama-30b-hf'],
+    'instruct': [],
+    'quality': [],
+    'human_bot': ['togethercomputer/GPT-NeoXT-Chat-Base-20B'],
+    'dai_faq': [],
+    'summarize': [],
+    'simple_instruct': ['t5-large'],
+}
 
 
 prompt_types = []
@@ -494,6 +507,9 @@ def get_loaders(llama_type, model_name):
     elif 'gpt2' in model_name.lower():
         from transformers import GPT2LMHeadModel, GPT2Tokenizer
         return GPT2LMHeadModel, GPT2Tokenizer
+    elif 't5-large' in model_name.lower() or 't5' == model_name.lower():
+        from transformers import AutoTokenizer, T5ForConditionalGeneration
+        return T5ForConditionalGeneration, AutoTokenizer
     else:
         from transformers import AutoTokenizer, AutoModelForCausalLM
 
@@ -532,6 +548,9 @@ def copy_code(run_id):
 def get_prompt(prompt_type):
     if prompt_type in [-1, "-1", "plain"]:
         promptA = promptB = PreInstruct = PreInput = PreResponse = ''
+        terminate_response = []
+    elif prompt_type == 'simple_instruct':
+        promptA = promptB = PreInstruct = PreInput = PreResponse = None
         terminate_response = []
     elif prompt_type in [0, "0", "instruct"]:
         promptA = 'Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.\n'
@@ -650,7 +669,8 @@ def generate_prompt(data_point, prompt_type):
         prompt += f"""{PreInstruct}{instruction}{input}"""
         prompt = inject_newline(prompt_type, prompt)
     elif input and instruction:
-        prompt += f"""{PreInput}{instruction}{input}"""
+        # i.e. for simple_instruct
+        prompt += f"""{instruction}: {input}"""
         prompt = inject_newline(prompt_type, prompt)
     elif input:
         prompt += f"""{input}"""
@@ -672,7 +692,7 @@ def generate_prompt(data_point, prompt_type):
 
 
 def inject_newline(prompt_type, prompt):
-    if prompt_type not in [-1, '-1', 'plain']:
+    if prompt_type not in [-1, '-1', 'plain', 'simple_instruct']:
         # only add new line if structured prompt, while 'plain' is just generation of next tokens from input
         prompt += '\n'
     return prompt
@@ -691,7 +711,7 @@ example_data_point2 = dict(input="Who is smarter, Einstein or Newton?",
 example_data_points = [example_data_point0, example_data_point1, example_data_point2]
 
 
-def test_train_prompt(prompt_type=0, data_point=0):
+def test_train_prompt(prompt_type='instruct', data_point=0):
     example_data_point = example_data_points[data_point]
     return generate_prompt(example_data_point, prompt_type)
 
@@ -711,7 +731,7 @@ if __name__ == "__main__":
 
     WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun --nproc_per_node=4 --master_port=1234 finetune.py --base_model='EleutherAI/gpt-neox-20b' --output_dir='lora_alpaca_20B' --data_path=alpaca_data_cleaned.json --lora_target_modules='["query_key_value"]' --run_id=8 --batch_size=16 --micro_batch_size=4 &> 8.log
 
-    WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun --nproc_per_node=4 --master_port=1234 finetune.py --base_model='togethercomputer/GPT-NeoXT-Chat-Base-20B' --output_dir='lora_20B_daifaq' --data_path=dai_faq.json --lora_target_modules='["query_key_value"]' --prompt_type=3 --run_id=13 --batch_size=16 --micro_batch_size=4 --num_epochs=100 --val_set_size=0 data_mix_in_path='' &> 13.log
+    WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun --nproc_per_node=4 --master_port=1234 finetune.py --base_model='togethercomputer/GPT-NeoXT-Chat-Base-20B' --output_dir='lora_20B_daifaq' --data_path=dai_faq.json --lora_target_modules='["query_key_value"]' --prompt_type='dai_faq' --run_id=13 --batch_size=16 --micro_batch_size=4 --num_epochs=100 --val_set_size=0 data_mix_in_path='' &> 13.log
 
     Example run on 3 nodes with 1 to 2 GPU each (we'll consider SLURM etc.)
 
