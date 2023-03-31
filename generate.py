@@ -308,6 +308,7 @@ def get_generate_params(model_lower,
             ["Q: ( False or not False or False ) is? A: Let's think step by step", '', 'plain', 1.0, 1.0, 50, 1, 128, 1.0, 1, False],
             ["Premise: At my age you will probably have learnt one lesson. Hypothesis:  It's not certain how many lessons you'll learn by your thirties. Does the premise entail the hypothesis?", '', 'plain', 1.0, 1.0, 50, 1, 128, 1.0, 1, False],
             ['The square root of x is the cube root of y. What is y to the power of 2, if x = 4?', '', 'plain', 1.0, 1.0, 50, 1, 128, 1.0, 1, False],
+            ['Answer the following question by reasoning step by step.  The cafeteria had 23 apples. If they used 20 for lunch, and bought 6 more, how many apple do they have?', '', 'plain', 1.0, 1.0, 50, 1, 128, 1.0, 1, False],
         ]
 
     return placeholder_instruction, placeholder_input, \
