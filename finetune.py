@@ -23,6 +23,9 @@ from peft import (
     set_peft_model_state_dict,
 )
 
+from peft import mapping
+lora_mappings = mapping.TRANSFORMERS_MODELS_TO_LORA_TARGET_MODULES_MAPPING
+
 
 def log(*args, **kwargs):
     if int(os.environ.get("LOCAL_RANK", 0)) == 0:
@@ -145,10 +148,15 @@ def train(
     if tokenizer_base_model is None:
         tokenizer_base_model = base_model
     if lora_target_modules is None:
-        if "gpt-neox" in base_model.lower():
+        base_model_lower = base_model.lower()
+        if base_model_lower in lora_mappings:
+            lora_target_modules = lora_mappings[base_model_lower]
+        elif "gpt-neox" in base_model.lower():
             lora_target_modules = ["query_key_value"]
-        else:
+        elif "llama" in base_model.lower():
             lora_target_modules = ["q_proj", "v_proj"]
+        else:
+            raise ValueError("No lora_target_modules defined")
     if llama_type is None:
         llama_type = "instruct" in base_model.lower()
     assert (
