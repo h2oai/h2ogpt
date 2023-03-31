@@ -262,12 +262,7 @@ def get_generate_params(model_lower,
     use_defaults = False
     use_default_examples = False
 
-    if 't5-' in model_lower or 't5' == model_lower:
-        placeholder_instruction = "Translate english to french"
-        placeholder_input = "Good morning"
-        use_defaults = True
-        use_default_examples = True
-    elif 'flan-' in model_lower:
+    if 't5-' in model_lower or 't5' == model_lower or 'flan-' in model_lower:
         placeholder_instruction = "The square root of x is the cube root of y. What is y to the power of 2, if x = 4?"
         placeholder_input = ""
         use_defaults = True
@@ -299,6 +294,7 @@ def get_generate_params(model_lower,
 
     if use_default_examples:
         examples = [
+            ["Translate english to french", "Good morning", 'plain', 1.0, 1.0, 50, 1, 128, 1.0, 1, False],
             ['Translate to German:  My name is Arthur', '', 'plain', 1.0, 1.0, 50, 1, 128, 1.0, 1, False],
             ["Please answer to the following question. Who is going to be the next Ballon d'or?", '', 'plain', 1.0, 1.0, 50, 1, 128, 1.0, 1, False],
             ['Q: Can Geoffrey Hinton have a conversation with George Washington? Give the rationale before answering.', '', 'plain', 1.0, 1.0, 50, 1, 128, 1.0, 1, False],
