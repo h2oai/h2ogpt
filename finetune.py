@@ -441,8 +441,8 @@ def train(
             load_best_model_at_end=True if val_set_size > 0 else False,
             ddp_find_unused_parameters=False if ddp else None,
             group_by_length=group_by_length,
-            fsdp="shard_grad_op auto_wrap" if gpus > 1 and not ddp else None,
-            fsdp_min_num_params=20000 if gpus > 1 and not ddp else None,
+            #fsdp="shard_grad_op auto_wrap" if gpus > 1 and not ddp else None,
+            #fsdp_min_num_params=20000 if gpus > 1 and not ddp else None,
             report_to='tensorboard' if not neptune_run else 'neptune',
         ),
         data_collator=transformers.DataCollatorForSeq2Seq(
@@ -755,6 +755,7 @@ if __name__ == "__main__":
     WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun --nproc_per_node=4 --master_port=1234 finetune.py --base_model='EleutherAI/gpt-neox-20b' --output_dir='lora_alpaca_20B' --data_path=alpaca_data_cleaned.json --lora_target_modules='["query_key_value"]' --run_id=8 --batch_size=16 --micro_batch_size=4 &> 8.log
 
     WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun --nproc_per_node=4 --master_port=1234 finetune.py --base_model='togethercomputer/GPT-NeoXT-Chat-Base-20B' --output_dir='lora_20B_daifaq' --data_path=dai_faq.json --lora_target_modules='["query_key_value"]' --prompt_type='dai_faq' --run_id=13 --batch_size=16 --micro_batch_size=4 --num_epochs=100 --val_set_size=0 data_mix_in_path='' &> 13.log
+    WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun --nproc_per_node=4 --master_port=1234 finetune.py --base_model='togethercomputer/GPT-NeoXT-Chat-Base-20B' --data_path=merged.json --lora_target_modules='["query_key_value"]' --run_id=28 --batch_size=16 --micro_batch_size=4 --num_epochs=8 --val_set_size=0 --data_mix_in_factor=0.1 --data_mix_in_prompt_type='human_bot' --save_code=True --cutoff_len=512  &> 28.log
 
     Example run on 3 nodes with 1 to 2 GPU each (we'll consider SLURM etc.)
 
