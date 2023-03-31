@@ -280,9 +280,9 @@ def get_generate_params(model_lower,
         top_p = 0.75 if top_p is None else top_p
         top_k = 40 if top_k is None else top_k
         num_beams = num_beams or 4
-        max_length = num_beams or 128
-        repetition_penalty = num_beams or 1.0
-        num_return_sequences = num_beams or 1
+        max_length = max_length or 128
+        repetition_penalty = repetition_penalty or 1.0
+        num_return_sequences = min(num_beams, num_return_sequences or 1)
         do_sample = False if do_sample is None else do_sample
         examples = None
 
@@ -294,7 +294,7 @@ def get_generate_params(model_lower,
         num_beams = num_beams or 1
         max_length = max_length or 128
         repetition_penalty = repetition_penalty or 1.0
-        num_return_sequences = num_return_sequences or 1
+        num_return_sequences = min(num_beams, num_return_sequences or 1)
         do_sample = False if do_sample is None else do_sample
 
     if use_default_examples:
