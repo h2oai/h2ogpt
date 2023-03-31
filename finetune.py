@@ -135,7 +135,7 @@ def train(
         resume_from_checkpoint: str = None,  # either training checkpoint or final adapter
         # torch training params
         ddp: bool = True,  # set to False if OOM with True, for multi-GPU model parallelism
-        local_files_only: bool = True,  # else will download new versions, normally unwanted
+        local_files_only: bool = False,  # else will download new versions, normally unwanted
         resume_download: bool = True,
 ):
     prompt_type = str(prompt_type)  # migration from integers
@@ -529,7 +529,7 @@ def get_loaders(llama_type, model_name):
     elif 'bigbird' in model_name:
         from transformers import BigBirdPegasusForConditionalGeneration, AutoTokenizer
         return BigBirdPegasusForConditionalGeneration, AutoTokenizer
-    elif 'bart-large-cnn-samsum' in model_name:
+    elif 'bart-large-cnn-samsum' in model_name or 'flan-t5-base-samsum' in model_name:
         from transformers import pipeline
         return pipeline, "summarization"
     else:

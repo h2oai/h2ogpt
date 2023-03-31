@@ -42,7 +42,7 @@ def main(
         llama_type: bool = None,
         debug: bool = False,
         share: bool = True,
-        local_files_only: bool = True,
+        local_files_only: bool = False,
         resume_download: bool = True,
 ):
     assert base_model, (
@@ -306,7 +306,7 @@ def get_generate_params(model_lower,
         placeholder_input = ""
         use_defaults = True
         use_default_examples = True
-    elif 'bart-large-cnn-samsum' in model_lower:
+    elif 'bart-large-cnn-samsum' in model_lower or 'flan-t5-base-samsum' in model_lower:
         placeholder_instruction = """Jeff: Can I train a ? Transformers model on Amazon SageMaker? 
 Philipp: Sure you can use the new Hugging Face Deep Learning Container. 
 Jeff: ok.
@@ -385,6 +385,7 @@ if __name__ == "__main__":
     python generate.py --base_model='distilgpt2' --prompt_type='plain' --debug=True --num_beams=1 --temperature=0.6 --top_k=40 --top_p=1.0 --share=False
     python generate.py --base_model='t5-large' --prompt_type='simple_instruct'
     python generate.py --base_model='philschmid/bart-large-cnn-samsum'
+    python generate.py --base_model='philschmid/flan-t5-base-samsum'
 
     """, flush=True)
     fire.Fire(main)
