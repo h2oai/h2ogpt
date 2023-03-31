@@ -54,6 +54,7 @@
 [OIG 43M instructions](https://laion.ai/blog/oig-dataset/) [direct HF link](https://huggingface.co/datasets/laion/OIG)<br />
 [More on OIG](https://laion.ai/blog/oig-dataset/)<br />
 [DataSet Viewer](https://huggingface.co/datasets/viewer/?dataset=squad)<br />
+[Anthropic RLHF](https://huggingface.co/datasets/Anthropic/hh-rlhf)<br />
 
 ### non-commerical Data
 [GPT-3 based Alpaca Cleaned](https://github.com/gururise/AlpacaDataCleaned)<br />
