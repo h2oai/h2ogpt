@@ -288,8 +288,8 @@ def main(
         description="Model %s Instruct dataset.  "
                     "For more information, visit [the project's website](https://github.com/h2oai/h2o-llm)."
                     "\nCommand: %s\nHash: %s" % (base_model, str(' '.join(sys.argv)), get_githash()),
-        server_name="0.0.0.0",
         examples=examples,
+        analytics_enabled=False,
     ).launch(share=share, show_error=True)
 
 
