@@ -327,8 +327,8 @@ def train(
         data_mix_in = data_mix_in.rename_columns(data_mix_in_col_dict or {})
 
         # only get as much as we need to balance
-        train_size = int(num_rows * data_mix_in_factor)
-        valid_size = val_set_size or 0
+        valid_size = min(data_mix_in.num_rows // 2, val_set_size or 0)
+        train_size = max(1, min(data_mix_in.num_rows - valid_size, int(num_rows * data_mix_in_factor)))
         mixin_small = data_mix_in.train_test_split(
             test_size=train_size + valid_size,
             shuffle=True, seed=np.random.randint(10000),
