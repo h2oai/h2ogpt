@@ -303,7 +303,14 @@ def main(
             gr.components.Textbox(lines=2, label="Input", placeholder=placeholder_input),
             gr.components.Dropdown(prompt_types_strings, value=prompt_type, step=1, label="Prompt Type"),
         ]
+    if 'mbart-' in model_lower:
+        inputs.append(gr.components.Dropdown(list(languages_covered().keys()), value=src_lang, step=1, label="Input Language"))
+        inputs.append(gr.components.Dropdown(list(languages_covered().keys()), value=tgt_lang, step=1, label="Output Language"))
+
     if expert:
+        # FIXME: this only works since None(s) are converted in evaluate, wasteful code
+        # And only works because at end.  Need to follow:
+        # https://github.com/gradio-app/gradio/blob/main/demo/blocks_update/run.py
         gr.components.Slider(minimum=0, maximum=3, value=temperature, label="Temperature"),
         gr.components.Slider(minimum=0, maximum=1, value=top_p, label="Top p"),
         gr.components.Slider(
@@ -317,10 +324,6 @@ def main(
         gr.components.Slider(minimum=0.01, maximum=3.0, value=repetition_penalty, label="Repetition Penalty"),
         gr.components.Slider(minimum=1, maximum=10, step=1, value=num_return_sequences, label="Num. Returns"),
         gr.components.Checkbox(label="Sample", info="Do sample"),
-
-    if 'mbart-' in model_lower:
-        inputs.append(gr.components.Dropdown(list(languages_covered().keys()), value=src_lang, step=1, label="Input Language"))
-        inputs.append(gr.components.Dropdown(list(languages_covered().keys()), value=tgt_lang, step=1, label="Output Language"))
 
     gr.Interface(
         fn=evaluate,
