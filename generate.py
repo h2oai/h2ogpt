@@ -45,8 +45,8 @@ def main(
         local_files_only: bool = False,
         resume_download: bool = True,
 
-        src_lang: str = "en_XX",
-        tgt_lang: str = "ru_RU",
+        src_lang: str = "English",
+        tgt_lang: str = "Russian",
 
         expert: bool = True,
 ):
@@ -212,7 +212,7 @@ def main(
             return model(prompt, max_length=max_length)[0][key]
 
         if 'mbart-' in base_model.lower():
-            tokenizer.src_lang = src_lang_choice
+            tokenizer.src_lang = languages_covered()[src_lang_choice]
 
         inputs = tokenizer(prompt, return_tensors="pt")
         if debug:
@@ -238,6 +238,7 @@ def main(
             if 'gpt2' in base_model.lower():
                 gen_kwargs.update(dict(bos_token_id=tokenizer.bos_token_id))
             elif 'mbart-' in base_model.lower():
+                tgt_lang_choice = languages_covered()[tgt_lang_choice]
                 gen_kwargs.update(dict(forced_bos_token_id=tokenizer.lang_code_to_id[tgt_lang_choice]))
             else:
                 gen_kwargs.update(dict(pad_token_id=tokenizer.eos_token_id))
@@ -424,13 +425,6 @@ def languages_covered():
     covered = covered.split(', ')
     covered = {x.split(' ')[0]: x.split(' ')[1].replace(')', '').replace('(', '') for x in covered}
     return covered
-
-
-def trans_map(src_lang, tgt_lang):
-    #assert src_lang in tokenizer.lang_code_to_id
-    #assert tgt_lang in tokenizer.lang_code_to_id
-    cov_dict = languages_covered()
-    return cov_dict[src_lang], cov_dict[tgt_lang]
 
 
 def test_test_prompt(prompt_type='instruct', data_point=0):
