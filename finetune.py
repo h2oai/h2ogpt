@@ -313,7 +313,10 @@ def train(
     if valid_path:
         data = load_dataset("json", data_files={"train": data_path, "valid": valid_path})
     else:
-        data = load_dataset("json", data_files={"train": data_path})
+        if "json" in data_path:
+            data = load_dataset("json", data_files={"train": data_path})
+        else:
+            data = load_dataset(data_path)["train"]  # from HF
 
     valid_data = None
     train_data_mix_in = None
