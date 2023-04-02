@@ -334,8 +334,8 @@ def makedirs(path, exist_ok=True):
 
 
 ## Download from https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/resolve/main/ShareGPT_unfiltered_cleaned_split.json
-## Turn into simple human_bot prompt type. No context/previous conversations.
-def test_prep_vicuna_human_bot():
+## Turn into simple instruct prompt type. No context/previous conversations.
+def test_prep_vicuna_instruct():
     filename = 'ShareGPT_unfiltered_cleaned_split.json'
     if not os.path.exists(filename):
         os.system('wget https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/resolve/main/%s' % filename)
@@ -348,14 +348,14 @@ def test_prep_vicuna_human_bot():
         assert isinstance(conversations, list), conversations
         while j < len(conversations):
             if conversations[j]['from'] == 'human':
-                row['human'] = conversations[j]['value']
+                row['instruction'] = conversations[j]['value']
             elif conversations[j]['from'] == 'gpt':
-                row['bot'] = conversations[j]['value']
+                row['output'] = conversations[j]['value']
             j += 1
-            if 'human' in row and 'bot' in row:
+            if 'instruction' in row and 'output' in row:
                 training_rows.append(row)
                 row = {}
-    with open(filename + ".human_bot.json", "wt") as f:
+    with open(filename + ".instruct.json", "wt") as f:
         f.write(json.dumps(training_rows, indent=2))
 
 
