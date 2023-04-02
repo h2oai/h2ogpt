@@ -67,7 +67,7 @@
 [ShareGPT_Vicuna](https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered)<br />
 [ChatLogs](https://chatlogs.net/)<br />
 
-### Non-commerical Data
+### Non-commercial Data
 [GPT-3 based Alpaca Cleaned](https://github.com/gururise/AlpacaDataCleaned)<br />
 
 ### Prompt ENGR
