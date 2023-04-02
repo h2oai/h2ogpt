@@ -180,7 +180,7 @@ def train(
         else:
             raise ValueError("No lora_target_modules defined")
     if llama_type is None:
-        llama_type = "instruct" in base_model.lower()
+        llama_type = "llama" in base_model.lower()
     assert (
         base_model
     ), "Please specify a --base_model, e.g. --base_model='decapoda-research/llama-7b-hf'"
@@ -776,6 +776,15 @@ CUDA_VISIBLE_DEVICES=0 {CONFIG} --node_rank=2 {CMD} &>log.rank.2
 CUDA_VISIBLE_DEVICES=1 {CONFIG} --node_rank=3 {CMD} &>log.rank.3
     timemachine>
 CUDA_VISIBLE_DEVICES=0 {CONFIG} --node_rank=4 {CMD} &>log.rank.4
+
+
+    # Fine-tune LLama 13b on ShareGPT data on 2x nodes with 2 GPUs
+
+    rippa>
+WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1" torchrun --node_rank 0 --nproc_per_node=2 --master_port=1234 --nnodes=2 --master_addr=10.10.10.2 finetune.py --run_id=1 --data_path=ShareGPT_unfiltered_cleaned_split.json.human_bot.json --num_epochs=1 --base_model=decapoda-research/llama-13b-hf --prompt_type=human_bot --data_mix_in_path=None --micro_batch_size=16 --cutoff_len=512 &>log.1.rank0
+    ova>
+WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1" torchrun --node_rank 1 --nproc_per_node=2 --master_port=1234 --nnodes=2 --master_addr=10.10.10.2 finetune.py --run_id=1 --data_path=ShareGPT_unfiltered_cleaned_split.json.human_bot.json --num_epochs=1 --base_model=decapoda-research/llama-13b-hf --prompt_type=human_bot --data_mix_in_path=None --micro_batch_size=16 --cutoff_len=512 &>log.1.rank1
+
     """, flush=True)
 
     if os.environ.get("LOCAL_RANK") is None:
