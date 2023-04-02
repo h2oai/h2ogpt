@@ -1,3 +1,4 @@
+import inspect
 import sys
 from typing import Union
 
@@ -154,136 +155,13 @@ def main(
         if torch.__version__ >= "2" and sys.platform != "win32":
             model = torch.compile(model)
 
-    def evaluate(*args, **kwargs):
-        try:
-            return _evaluate(*args, **kwargs)
-        except Exception as e:
-            t, v, tb = sys.exc_info()
-            import traceback
-            ex = ''.join(traceback.format_exception(t, v, tb))
-            return str(ex)
-
-    def _evaluate(
-            instruction,
-            input=None,
-            prompt_type_choice=prompt_type,
-            temperature_choice=temperature,
-            top_p_choice=top_p,
-            top_k_choice=top_k,
-            num_beams_choice=num_beams,
-            max_new_tokens=max_length,
-            repetition_penalty_choice=repetition_penalty,
-            num_return_sequences_choice=num_return_sequences,
-            do_sample_choice=do_sample,
-            src_lang_choice=src_lang,
-            tgt_lang_choice=tgt_lang,
-            **kwargs,
-    ):
-        # in case skip gradio elements, use defaults:
-        # FIXME: This could be fixed from gradio if controlled inputs/outputs directly without Interface mode
-        _, _, \
-        _, temperature_default, top_p_default, top_k_default, num_beams_default, \
-        max_length_default, repetition_penalty_default, num_return_sequences_default, \
-        do_sample_default, \
-        _ = \
-            get_generate_params(model_lower,
-                                prompt_type, temperature, top_p, top_k, num_beams,
-                                max_length, repetition_penalty, num_return_sequences,
-                                do_sample,
-                                )
-        temperature_choice = temperature_choice if temperature_choice is not None else temperature_default
-        top_p_choice = top_p_choice if top_p_choice is not None else top_p_default
-        top_k_choice = top_k_choice if top_k_choice is not None else top_k_default
-        num_beams_choice = num_beams_choice if num_beams_choice is not None else num_beams_default
-        max_new_tokens = max_new_tokens if max_new_tokens is not None else max_length_default
-        repetition_penalty_choice = repetition_penalty_choice if repetition_penalty_choice is not None else repetition_penalty_default
-        num_return_sequences_choice = num_return_sequences_choice if num_return_sequences_choice is not None else num_return_sequences_default
-        do_sample_choice = do_sample_choice if do_sample_choice is not None else do_sample_default
-
-
-        data_point = dict(instruction=instruction, input=input)
-        prompt, pre_response, terminate_response = generate_prompt(data_point, prompt_type_choice)
-        if isinstance(tokenizer, str):
-            # pipeline
-            if tokenizer == "summarization":
-                key = 'summary_text'
-            else:
-                raise RuntimeError("No such task type %s" % tokenizer)
-            return model(prompt, max_length=max_length)[0][key]
-
-        if 'mbart-' in base_model.lower():
-            tokenizer.src_lang = languages_covered()[src_lang_choice]
-
-        inputs = tokenizer(prompt, return_tensors="pt")
-        if debug:
-            print('input_ids length', len(inputs["input_ids"]), flush=True)
-        input_ids = inputs["input_ids"].to(device)
-        generation_config = GenerationConfig(
-            temperature=temperature_choice,
-            top_p=top_p_choice,
-            top_k=top_k_choice,
-            num_beams=num_beams_choice,
-            do_sample=do_sample_choice,
-            repetition_penalty=repetition_penalty_choice,
-            num_return_sequences=num_return_sequences_choice,
-            **kwargs,
-        )
-        with torch.no_grad():
-            gen_kwargs = dict(input_ids=input_ids,
-                              generation_config=generation_config,
-                              return_dict_in_generate=True,
-                              output_scores=True,
-                              max_new_tokens=max_new_tokens,
-                              )
-            if 'gpt2' in base_model.lower():
-                gen_kwargs.update(dict(bos_token_id=tokenizer.bos_token_id))
-            elif 'mbart-' in base_model.lower():
-                tgt_lang_choice = languages_covered()[tgt_lang_choice]
-                gen_kwargs.update(dict(forced_bos_token_id=tokenizer.lang_code_to_id[tgt_lang_choice]))
-            else:
-                gen_kwargs.update(dict(pad_token_id=tokenizer.eos_token_id))
-            outputs = model.generate(**gen_kwargs)
-        outputs = [tokenizer.decode(s, skip_special_tokens=True, clean_up_tokenization_spaces=True) for s in outputs.sequences]
-        output = '\n\n'.join(outputs)
-
-        if debug:
-            print("prompt: ", prompt, flush=True)
-            print("output: ", output, flush=True)
-
-        def clean_response(response):
-            meaningless_words = ['<pad>', '</s>', '<|endoftext|>', '”\n']
-            for word in meaningless_words:
-                response = response.replace(word, "")
-            response = response.strip("\n")
-            return response
-        output = clean_response(output)
-        if prompt_type_choice in [0, '0', 'plain']:
-            return output
-        else:
-            # find first instance of prereponse
-            # prompt sometimes has odd characters, that mutate length,
-            # so can't go by length alone
-            if pre_response:
-                output = output.split(pre_response)[1]
-            if terminate_response:
-                finds = []
-                for term in terminate_response:
-                    finds.append(output.find(term))
-                finds = [x for x in finds if x >= 0]
-                if len(finds) > 0:
-                    termi = finds[0]
-                    return output[:termi].strip()
-                else:
-                    return output.strip()
-            else:
-                return output.strip()
-
     # get defaults
     model_lower = base_model.lower()
     placeholder_instruction, placeholder_input, \
     prompt_type, temperature, top_p, top_k, num_beams, \
     max_length, repetition_penalty, num_return_sequences, \
     do_sample, \
+    src_lang, tgt_lang, \
     examples = \
         get_generate_params(model_lower,
                             prompt_type, temperature, top_p, top_k, num_beams,
@@ -296,51 +174,184 @@ def main(
     else:
         instruction_label = "Instruction"
 
-    inputs = [
-            gr.components.Textbox(
-                lines=2, label=instruction_label, placeholder=placeholder_instruction,
-            ),
-            gr.components.Textbox(lines=2, label="Input", placeholder=placeholder_input),
-            gr.components.Dropdown(prompt_types_strings, value=prompt_type, step=1, label="Prompt Type"),
-        ]
-    if 'mbart-' in model_lower:
-        inputs.append(gr.components.Dropdown(list(languages_covered().keys()), value=src_lang, step=1, label="Input Language"))
-        inputs.append(gr.components.Dropdown(list(languages_covered().keys()), value=tgt_lang, step=1, label="Output Language"))
+    title = 'H2O-LLM'
+    description = f"Model {base_model} Instruct dataset. " \
+                  f"For more information, visit [the project's website](https://github.com/h2oai/h2o-llm)." \
+                  f"\nCommand: {str(' '.join(sys.argv))}" \
+                  f"\nHash: {get_githash()}"
 
-    if expert:
-        # FIXME: this only works since None(s) are converted in evaluate, wasteful code
-        # And only works because at end.  Need to follow:
-        # https://github.com/gradio-app/gradio/blob/main/demo/blocks_update/run.py
-        gr.components.Slider(minimum=0, maximum=3, value=temperature, label="Temperature"),
-        gr.components.Slider(minimum=0, maximum=1, value=top_p, label="Top p"),
-        gr.components.Slider(
-            minimum=0, maximum=100, step=1, value=top_k, label="Top k"
-        ),
-        gr.components.Slider(minimum=1, maximum=8, step=1, value=num_beams, label="Beams",
-                             info="Uses more GPU memory/compute"),
-        gr.components.Slider(
-            minimum=1, maximum=2000, step=1, value=128, label="Max tokens"
-        ),
-        gr.components.Slider(minimum=0.01, maximum=3.0, value=repetition_penalty, label="Repetition Penalty"),
-        gr.components.Slider(minimum=1, maximum=10, step=1, value=num_return_sequences, label="Num. Returns"),
-        gr.components.Checkbox(label="Sample", info="Do sample"),
+    demo = gr.Blocks()
+    with demo:
+        gr.Markdown(
+            f"""{title}
+            # {description}
+            """)
 
-    gr.Interface(
-        fn=evaluate,
-        inputs=inputs,
-        outputs=[
-            gr.inputs.Textbox(
-                lines=5,
-                label="Output",
-            )
-        ],
-        title="H2O-LLM",
-        description="Model %s Instruct dataset.  "
-                    "For more information, visit [the project's website](https://github.com/h2oai/h2o-llm)."
-                    "\nCommand: %s\nHash: %s" % (base_model, str(' '.join(sys.argv)), get_githash()),
-        examples=examples,
-        analytics_enabled=False,
-    ).launch(share=share, show_error=True)
+        with gr.Tabs():
+            with gr.TabItem("Input/Output"):
+                with gr.Row():
+                    with gr.Column():
+                        instruction = gr.Textbox(
+                            lines=2, label=instruction_label, placeholder=placeholder_instruction,
+                        )
+                        iinput = gr.Textbox(lines=2, label="Input", placeholder=placeholder_input)
+                        prompt_type = gr.Dropdown(prompt_types_strings, value=prompt_type, label="Prompt Type")
+                        if 'mbart-' in model_lower:
+                            src_lang = gr.Dropdown(list(languages_covered().keys()), value=src_lang, step=1,
+                                                   label="Input Language")
+                            tgt_lang = gr.Dropdown(list(languages_covered().keys()), value=tgt_lang, step=1,
+                                                   label="Output Language")
+                    with gr.Column():
+                       text_output = gr.Textbox(lines=5, label="Output")
+            with gr.TabItem("Expert"):
+                with gr.Row():
+                    with gr.Column():
+                        temperature = gr.Slider(minimum=0, maximum=3, value=temperature, label="Temperature")
+                        top_p = gr.Slider(minimum=0, maximum=1, value=top_p, label="Top p")
+                        top_k = gr.Slider(
+                            minimum=0, maximum=100, step=1, value=top_k, label="Top k"
+                        )
+                        num_beams = gr.Slider(minimum=1, maximum=8, step=1, value=num_beams, label="Beams",
+                                              info="Uses more GPU memory/compute")
+                        max_length = gr.Slider(
+                            minimum=1, maximum=2000, step=1, value=max_length, label="Max output length"
+                        )
+                        repetition_penalty = gr.Slider(minimum=0.01, maximum=3.0, value=repetition_penalty,
+                                                       label="Repetition Penalty")
+                        num_return_sequences = gr.Slider(minimum=1, maximum=10, step=1, value=num_return_sequences,
+                                                         label="Num. Returns")
+                        do_sample = gr.Checkbox(label="Sample", info="Do sample", value=do_sample)
+
+        inputs_dict = locals()
+        inputs_list_names = list(inspect.signature(_evaluate).parameters)
+        inputs_list = []
+        for k in inputs_list_names:
+            if k == 'kwargs':
+                continue
+            if k in ['tokenizer', 'model', 'base_model', 'debug']:
+                # these are added via partial, not taken as input
+                continue
+            if 'mbart-' not in model_lower and k in ['src_lang', 'tgt_lang']:
+                continue
+            inputs_list.append(inputs_dict[k])
+        from functools import partial
+        fun = partial(evaluate, tokenizer, model, base_model, debug=debug)
+
+        btn = gr.Button("Submit")
+        btn.click(fun, inputs=inputs_list, outputs=text_output)
+        if examples is not None:
+            gr.Examples(examples=examples, inputs=inputs_list)
+    demo.launch(share=share, show_error=True)
+
+
+def evaluate(*args, **kwargs):
+    try:
+        return _evaluate(*args, **kwargs)
+    except Exception as e:
+        t, v, tb = sys.exc_info()
+        import traceback
+        ex = ''.join(traceback.format_exception(t, v, tb))
+        return str(ex)
+
+
+def _evaluate(
+        tokenizer,
+        model,
+        base_model,
+        instruction,
+        iinput,
+        prompt_type,
+        temperature,
+        top_p,
+        top_k,
+        num_beams,
+        max_length,
+        repetition_penalty,
+        num_return_sequences,
+        do_sample,
+        src_lang=None,
+        tgt_lang=None,
+        debug=False,
+        **kwargs,
+):
+    data_point = dict(instruction=instruction, input=iinput)
+    prompt, pre_response, terminate_response = generate_prompt(data_point, prompt_type)
+    if isinstance(tokenizer, str):
+        # pipeline
+        if tokenizer == "summarization":
+            key = 'summary_text'
+        else:
+            raise RuntimeError("No such task type %s" % tokenizer)
+        return model(prompt, max_length=max_length)[0][key]
+
+    if 'mbart-' in base_model.lower():
+        assert src_lang is not None
+        tokenizer.src_lang = languages_covered()[src_lang]
+
+    inputs = tokenizer(prompt, return_tensors="pt")
+    if debug:
+        print('input_ids length', len(inputs["input_ids"]), flush=True)
+    input_ids = inputs["input_ids"].to(device)
+    generation_config = GenerationConfig(
+        temperature=temperature,
+        top_p=top_p,
+        top_k=top_k,
+        num_beams=num_beams,
+        do_sample=do_sample,
+        repetition_penalty=repetition_penalty,
+        num_return_sequences=num_return_sequences,
+        **kwargs,
+    )
+    with torch.no_grad():
+        gen_kwargs = dict(input_ids=input_ids,
+                          generation_config=generation_config,
+                          return_dict_in_generate=True,
+                          output_scores=True,
+                          max_length=max_length,
+                          )
+        if 'gpt2' in base_model.lower():
+            gen_kwargs.update(dict(bos_token_id=tokenizer.bos_token_id))
+        elif 'mbart-' in base_model.lower():
+            assert tgt_lang is not None
+            tgt_lang = languages_covered()[tgt_lang]
+            gen_kwargs.update(dict(forced_bos_token_id=tokenizer.lang_code_to_id[tgt_lang]))
+        else:
+            gen_kwargs.update(dict(pad_token_id=tokenizer.eos_token_id))
+        outputs = model.generate(**gen_kwargs)
+    outputs = [tokenizer.decode(s, skip_special_tokens=True, clean_up_tokenization_spaces=True) for s in outputs.sequences]
+    output = '\n\n'.join(outputs)
+
+    if debug:
+        print("prompt: ", prompt, flush=True)
+        print("output: ", output, flush=True)
+
+    def clean_response(response):
+        meaningless_words = ['<pad>', '</s>', '<|endoftext|>', '”\n']
+        for word in meaningless_words:
+            response = response.replace(word, "")
+        response = response.strip("\n")
+        return response
+    output = clean_response(output)
+    if prompt_type in [0, '0', 'plain']:
+        return output
+    else:
+        # find first instance of prereponse
+        # prompt sometimes has odd characters, that mutate length,
+        # so can't go by length alone
+        if pre_response:
+            output = output.split(pre_response)[1]
+        if terminate_response:
+            finds = []
+            for term in terminate_response:
+                finds.append(output.find(term))
+            finds = [x for x in finds if x >= 0]
+            if len(finds) > 0:
+                termi = finds[0]
+                return output[:termi].strip()
+            else:
+                return output.strip()
+        else:
+            return output.strip()
 
 
 def get_generate_params(model_lower,
@@ -414,11 +425,14 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
             ['The square root of x is the cube root of y. What is y to the power of 2, if x = 4?', '', 'plain', 1.0, 1.0, 50, 1, 128, 1.0, 1, False],
             ['Answer the following question by reasoning step by step.  The cafeteria had 23 apples. If they used 20 for lunch, and bought 6 more, how many apple do they have?', '', 'plain', 1.0, 1.0, 50, 1, 128, 1.0, 1, False],
         ]
+    src_lang = "English"
+    tgt_lang = "Russian"
 
     return placeholder_instruction, placeholder_input, \
            prompt_type, temperature, top_p, top_k, num_beams, \
            max_length, repetition_penalty, num_return_sequences, \
            do_sample, \
+           src_lang, tgt_lang, \
            examples
 
 
