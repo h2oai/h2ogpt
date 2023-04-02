@@ -29,6 +29,8 @@
 [Big-bench](https://github.com/google/BIG-bench)<br />
 
 ### Other projects:
+[Vicuna](https://vicuna.lmsys.org/)<br />
+[FastChat](https://chat.lmsys.org/)<br />
 [alpaca-lora](https://github.com/h2oai/alpaca-lora)<br />
 [alpaca.http](https://github.com/Nuked88/alpaca.http)<br />
 [chatgpt-retrieval-pllugin](https://github.com/openai/chatgpt-retrieval-plugin)<br />
@@ -55,6 +57,11 @@
 [More on OIG](https://laion.ai/blog/oig-dataset/)<br />
 [DataSet Viewer](https://huggingface.co/datasets/viewer/?dataset=squad)<br />
 [Anthropic RLHF](https://huggingface.co/datasets/Anthropic/hh-rlhf)<br />
+
+### Ambiguous License Data
+[GPT4All](https://huggingface.co/datasets/nomic-ai/gpt4all_prompt_generations)<br />
+[ShareGPT52K](https://huggingface.co/datasets/RyokoAI/ShareGPT52K)<br />
+[ShareGPT_Vicuna](https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered)<br />
 
 ### non-commerical Data
 [GPT-3 based Alpaca Cleaned](https://github.com/gururise/AlpacaDataCleaned)<br />
