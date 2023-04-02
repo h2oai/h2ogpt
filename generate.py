@@ -391,7 +391,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         use_default_examples = False
         examples = [[placeholder_instruction, "", 'plain', 1.0, 1.0, 50, 1, 128, 1.0, 1, False]]
     else:
-        placeholder_instruction = "Who is smarter, Einstein or Newton?"
+        placeholder_instruction = "Give detailed answer for whether Einstein or Newton is smarter."
         placeholder_input = ""
         prompt_type = prompt_type or 'instruct'
         temperature = 0.1 if temperature is None else temperature
@@ -402,6 +402,12 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         repetition_penalty = repetition_penalty or 1.0
         num_return_sequences = min(num_beams, num_return_sequences or 1)
         do_sample = False if do_sample is None else do_sample
+        examples = [
+            [placeholder_instruction, placeholder_input, prompt_type, temperature, top_p, top_k, num_beams, max_length,
+             repetition_penalty, num_return_sequences, do_sample],
+            ["Explain in detailed list, all the best practices for coding in python.", '', prompt_type, temperature, top_p, top_k, num_beams, max_length,
+             repetition_penalty, num_return_sequences, do_sample],
+        ]
     if use_defaults:
         prompt_type = prompt_type or 'plain'
         temperature = 1.0 if temperature is None else temperature
