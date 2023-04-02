@@ -30,6 +30,7 @@
 
 ### Other projects:
 [Vicuna](https://vicuna.lmsys.org/)<br />
+[Flan-Alpaca](https://github.com/declare-lab/flan-alpaca)<br />
 [FastChat](https://chat.lmsys.org/)<br />
 [alpaca-lora](https://github.com/h2oai/alpaca-lora)<br />
 [alpaca.http](https://github.com/Nuked88/alpaca.http)<br />

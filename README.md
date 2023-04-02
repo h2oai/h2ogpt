@@ -167,6 +167,7 @@ GPT-NeoXT-Chat-Base-20B, etc.
 [OpenChatKit on multi-GPU](https://github.com/togethercomputer/OpenChatKit/issues/20)<br />
 [Non-Causal LLM](https://huggingface.co/docs/transformers/main/en/model_doc/gptj#transformers.GPTJForSequenceClassification)<br />
 [OpenChatKit_Offload](https://github.com/togethercomputer/OpenChatKit/commit/148b5745a57a6059231178c41859ecb09164c157)<br />
+[Flan-alpaca](https://github.com/declare-lab/flan-alpaca/blob/main/training.py)<br />
 
 ### Help
 
