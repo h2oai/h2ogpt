@@ -48,8 +48,6 @@ def main(
 
         src_lang: str = "English",
         tgt_lang: str = "Russian",
-
-        expert: bool = True,
 ):
     assert base_model, (
         "Please specify a --base_model, e.g. --base_model="
@@ -175,16 +173,19 @@ def main(
         instruction_label = "Instruction"
 
     title = 'H2O-LLM'
-    description = f"Model {base_model} Instruct dataset. " \
-                  f"For more information, visit [the project's website](https://github.com/h2oai/h2o-llm)." \
-                  f"\nCommand: {str(' '.join(sys.argv))}" \
-                  f"\nHash: {get_githash()}"
+    description = f"""Model {base_model} Instruct dataset.
+                  For more information, visit [the project's website](https://github.com/h2oai/h2o-llm).
+                  Command: {str(' '.join(sys.argv))}
+                  Hash: {get_githash()}
+                  """
 
     demo = gr.Blocks()
     with demo:
         gr.Markdown(
-            f"""{title}
-            # {description}
+            f"""
+            <h1 align="center"> {title}</h1>
+
+            {description}
             """)
 
         with gr.Tabs():
@@ -197,9 +198,9 @@ def main(
                         iinput = gr.Textbox(lines=2, label="Input", placeholder=placeholder_input)
                         prompt_type = gr.Dropdown(prompt_types_strings, value=prompt_type, label="Prompt Type")
                         if 'mbart-' in model_lower:
-                            src_lang = gr.Dropdown(list(languages_covered().keys()), value=src_lang, step=1,
+                            src_lang = gr.Dropdown(list(languages_covered().keys()), value=src_lang,
                                                    label="Input Language")
-                            tgt_lang = gr.Dropdown(list(languages_covered().keys()), value=tgt_lang, step=1,
+                            tgt_lang = gr.Dropdown(list(languages_covered().keys()), value=tgt_lang,
                                                    label="Output Language")
                     with gr.Column():
                        text_output = gr.Textbox(lines=5, label="Output")
@@ -383,6 +384,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         placeholder_input = ""
         use_defaults = True
         use_default_examples = False
+        examples = [[placeholder_instruction, "", 'plain', 1.0, 1.0, 50, 1, 128, 1.0, 1, False]]
     elif 'gpt2' in model_lower:
         placeholder_instruction = "The sky is"
         placeholder_input = ""
