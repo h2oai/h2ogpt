@@ -317,7 +317,7 @@ def train(
         if "json" in data_path:
             data = load_dataset("json", data_files={"train": data_path})
         else:
-            data = load_dataset(data_path)["train"]  # from HF
+            data = load_dataset(data_path)
             data = data.rename_columns(data_col_dict or {})
 
     valid_data = None
