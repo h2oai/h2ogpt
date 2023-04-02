@@ -100,6 +100,7 @@ def train(
         # tokenizer_base_model: str = 'EleutherAI/gpt-neox-20b',
 
         data_path: str = "./alpaca_data_cleaned.json",
+        data_col_dict: dict = None,
         # data_path: str = "./dai_docs.train.json",
         prompt_type: Union[str, int] = "instruct",  # "plain", "instruct", "quality", "human_bot", "dai_faq"
 
@@ -317,6 +318,7 @@ def train(
             data = load_dataset("json", data_files={"train": data_path})
         else:
             data = load_dataset(data_path)["train"]  # from HF
+            data = data.rename_columns(data_col_dict or {})
 
     valid_data = None
     train_data_mix_in = None
