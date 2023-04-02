@@ -3,6 +3,8 @@ import json
 import os
 import shutil
 
+from datasets import load_dataset
+
 
 def parse_rst_file(filepath):
     with open(filepath, 'r') as f:
@@ -329,6 +331,32 @@ def makedirs(path, exist_ok=True):
         assert exist_ok, "Path already exists"
         return path
     os.makedirs(path, exist_ok=exist_ok)
+
+
+## Download from https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/resolve/main/ShareGPT_unfiltered_cleaned_split.json
+## Turn into simple human_bot prompt type. No context/previous conversations.
+def test_prep_vicuna_human_bot():
+    filename = 'ShareGPT_unfiltered_cleaned_split.json'
+    if not os.path.exists(filename):
+        os.system('wget https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/resolve/main/%s' % filename)
+    data = load_dataset("json", data_files={"train": filename})["train"]
+    training_rows = []
+    for i in range(data.num_rows):
+        conversations = data[i]['conversations']
+        row = {}
+        j = 0
+        assert isinstance(conversations, list), conversations
+        while j < len(conversations):
+            if conversations[j]['from'] == 'human':
+                row['human'] = conversations[j]['value']
+            elif conversations[j]['from'] == 'gpt':
+                row['bot'] = conversations[j]['value']
+            j += 1
+            if 'human' in row and 'bot' in row:
+                training_rows.append(row)
+                row = {}
+    with open(filename + ".human_bot.json", "wt") as f:
+        f.write(json.dumps(training_rows, indent=2))
 
 
 def test_join_jsons():
