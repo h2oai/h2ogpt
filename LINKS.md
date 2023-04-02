@@ -1,7 +1,7 @@
 ### Some open source models:
 [GPT-NeoXT-Chat-Base-20B](https://huggingface.co/togethercomputer/GPT-NeoXT-Chat-Base-20B/tree/main)<br />
-[GPT-NeoX](https://huggingface.co/docs/transformers/model_doc/gpt_neox)
-[GPT-NeoX-20B](https://huggingface.co/EleutherAI/gpt-neox-20b)
+[GPT-NeoX](https://huggingface.co/docs/transformers/model_doc/gpt_neox)<br />
+[GPT-NeoX-20B](https://huggingface.co/EleutherAI/gpt-neox-20b)<br />
 [Pythia-6.9B](https://huggingface.co/EleutherAI/pythia-6.9b)<br />
 [Pythia-12B](https://huggingface.co/EleutherAI/neox-ckpt-pythia-12b)<br />
 [Flan-T5-XXL](https://huggingface.co/google/flan-t5-xxl)<br />
@@ -27,6 +27,7 @@
 [Chain-Of-Thought](https://github.com/amazon-science/mm-cot)<br />
 [scaling law1](https://arxiv.org/abs/2203.15556)<br />
 [Big-bench](https://github.com/google/BIG-bench)<br />
+[Natural-Instructions](https://github.com/allenai/natural-instructions)<br />
 
 ### Other projects:
 [Vicuna](https://vicuna.lmsys.org/)<br />
@@ -61,8 +62,10 @@
 
 ### Ambiguous License Data
 [GPT4All](https://huggingface.co/datasets/nomic-ai/gpt4all_prompt_generations)<br />
+[LinkGPT4](https://github.com/lm-sys/FastChat/issues/90#issuecomment-1493250773)<br />
 [ShareGPT52K](https://huggingface.co/datasets/RyokoAI/ShareGPT52K)<br />
 [ShareGPT_Vicuna](https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered)<br />
+[ChatLogs](https://chatlogs.net/)<br />
 
 ### non-commerical Data
 [GPT-3 based Alpaca Cleaned](https://github.com/gururise/AlpacaDataCleaned)<br />
