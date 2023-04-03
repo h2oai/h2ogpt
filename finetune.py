@@ -86,6 +86,10 @@ for p in PromptType:
     prompt_types.extend([p.name, p.value, str(p.value)])
 
 
+# supported by huggingface evaluate
+supported_metrics = ['bleu', 'rouge', 'sacrebleu', 'meteor']
+
+
 def train(
         save_code: bool = False,
         run_id: int = None,
@@ -127,7 +131,7 @@ def train(
         learning_rate: float = 3e-4,
         cutoff_len: int = 256,
         val_set_size: int = 1000,
-        val_metrics: List[str] = ['bleu'],
+        val_metrics: List[str] = supported_metrics,
 
         # lora hyperparams
         lora_r: int = 8,
@@ -428,9 +432,10 @@ def train(
         else:
             callbacks = []
 
-    # WIP
-    #metric = evaluate.load("sacrebleu")
-    metric = evaluate.load("bleu")
+    metrics = {}
+    for name in supported_metrics:
+        if name in val_metrics:
+            metrics[name] = evaluate.load(name)
 
     def compute_metrics(eval_preds):
         inputs = eval_preds.inputs
@@ -450,12 +455,16 @@ def train(
         decoded_predictions = tokenizer.batch_decode(predictions, skip_special_tokens=True)
         decoded_predictions = [pred.strip() for pred in decoded_predictions]
 
-        result = metric.compute(predictions=decoded_predictions, references=decoded_labels)
-        result = dict(bleu=result["bleu"], brevity_penalty=result['brevity_penalty'])
+        result = {}
+        for metric in metrics.values():
+            result = metric.compute(predictions=decoded_predictions, references=decoded_labels)
+            # get rid of lists, for precision etc., for now
+            numeric_results = {k: v for k, v in result.items() if isinstance(v, (int, float))}
+            result.update(numeric_results)
         return result
 
     # the callback that computes metrics of interest
-    if 'bleu' in val_metrics:
+    if val_metrics:
         trainer_kwargs = dict(compute_metrics=compute_metrics)
     else:
         trainer_kwargs = dict()
