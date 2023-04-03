@@ -158,7 +158,6 @@ GPT-NeoXT-Chat-Base-20B, etc.
 
 ### Code to consider including
 [flan-alpaca](https://github.com/declare-lab/flan-alpaca)<br />
-[llama PRs](https://github.com/facebookresearch/llama/pulls)<br />
 [text-generation-webui](https://github.com/oobabooga/text-generation-webui)<br />
 [minimal-llama](https://github.com/zphang/minimal-llama/)<br />
 [finetune GPT-NeoX](https://nn.labml.ai/neox/samples/finetune.html)<br />
