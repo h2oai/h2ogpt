@@ -433,7 +433,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         top_p = 0.75 if top_p is None else top_p
         top_k = 40 if top_k is None else top_k
         num_beams = num_beams or 4
-        max_length = max_length or 128
+        max_length = max_length or 256
         repetition_penalty = repetition_penalty or 1.0
         num_return_sequences = min(num_beams, num_return_sequences or 1)
         do_sample = False if do_sample is None else do_sample
