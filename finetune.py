@@ -14,6 +14,7 @@ import torch
 from datasets import load_dataset, concatenate_datasets
 import transformers
 import torch.distributed as dist
+import evaluate
 
 from peft import (
     prepare_model_for_int8_training,
@@ -124,7 +125,9 @@ def train(
         num_epochs: float = 3,
         learning_rate: float = 3e-4,
         cutoff_len: int = 256,
-        val_set_size: int = 2000,
+        val_set_size: int = 1000,
+        val_metrics: List[str] = ['bleu'],
+
         # lora hyperparams
         lora_r: int = 8,
         lora_alpha: int = 16,
@@ -420,16 +423,54 @@ def train(
             # tensorboard --logdir=runs/
             from torch.utils.tensorboard import SummaryWriter
             tb_writer = SummaryWriter()
-            callbacks = [TensorBoardCallback(tb_writer=tb_writer)]#, CustomCallback]
+            callbacks = [TensorBoardCallback(tb_writer=tb_writer)]
         else:
-            callbacks = None # [CustomCallback]
+            callbacks = []
+
+    # WIP
+    #metric = evaluate.load("sacrebleu")
+    metric = evaluate.load("bleu")
+
+    def compute_metrics(eval_preds):
+        inputs = eval_preds.inputs
+        label_ids = eval_preds.label_ids
+        predictions =  eval_preds.predictions
+
+        inputs = np.where(inputs != -100, inputs, tokenizer.pad_token_id)
+        decoded_inputs = tokenizer.batch_decode(inputs, skip_special_tokens=True)
+        decoded_inputs = [pred.strip() for pred in decoded_inputs]
+
+        label_ids = np.where(label_ids != -100, label_ids, tokenizer.pad_token_id)
+        decoded_labels = tokenizer.batch_decode(label_ids, skip_special_tokens=True)
+        decoded_labels = [pred.strip() for pred in decoded_labels]
+
+        predictions = np.argmax(predictions, -1)
+        predictions = np.where(predictions != -100, predictions, tokenizer.pad_token_id)
+        decoded_predictions = tokenizer.batch_decode(predictions, skip_special_tokens=True)
+        decoded_predictions = [pred.strip() for pred in decoded_predictions]
+
+        result = metric.compute(predictions=decoded_predictions, references=decoded_labels)
+        result = dict(bleu=result["bleu"], brevity_penalty=result['brevity_penalty'])
+        return result
+
+    # the callback that computes metrics of interest
+    if 'bleu' in val_metrics:
+        trainer_kwargs = dict(compute_metrics=compute_metrics)
+    else:
+        trainer_kwargs = dict()
 
     trainer = transformers.Trainer(
         model=model,
+        tokenizer=tokenizer,
         train_dataset=train_data,
         eval_dataset=valid_data,
-        args=transformers.TrainingArguments(
+        # NOTE: CausalLM is not supporting Seq2SeqTrainingArguments arguments, but not incompatiable
+        args=transformers.Seq2SeqTrainingArguments(
             per_device_train_batch_size=micro_batch_size,
+            per_device_eval_batch_size=1,
+            eval_accumulation_steps=10,
+            # predict_with_generate=True,  # SEQ2SEQ only
+            include_inputs_for_metrics=True,
             gradient_accumulation_steps=gradient_accumulation_steps,
             warmup_steps=100,
             num_train_epochs=num_epochs,
@@ -455,7 +496,7 @@ def train(
             tokenizer, pad_to_multiple_of=8, return_tensors="pt", padding=True
         ),
         callbacks=callbacks,
-        #compute_metrics=compute_metrics,  # the callback that computes metrics of interest
+        **trainer_kwargs,
     )
     model.config.use_cache = False
 
@@ -476,44 +517,6 @@ def train(
     model.save_pretrained(output_dir)
 
     log("\n If there's a warning about missing keys above, please disregard :)")
-
-
-def compute_metrics(pred):
-    labels = pred.label_ids
-    preds = pred.predictions.argmax(-1)
-    bleu_val = bleu(actual_sentences=labels, predicted_sentences=preds)
-    return {
-        'BLEU': bleu_val,
-    }
-
-
-class CustomCallback(transformers.TrainerCallback):
-
-    def __init__(self, trainer) -> None:
-        super().__init__()
-        self._trainer = trainer
-
-    def on_epoch_end(self, args, state, control, **kwargs):
-        if control.should_evaluate:
-            control_copy = deepcopy(control)
-            self._trainer.evaluate(eval_dataset=self._trainer.train_dataset, metric_key_prefix="train")
-            return control_copy
-
-
-def bleu(actual_sentences, predicted_sentences):
-    # Using BLEU score to compare the real sentences with the generated ones
-    # E.g. 0.685 is "good"
-    import statistics
-    from nltk.translate.bleu_score import sentence_bleu
-
-    scores = []
-
-    for i in range(len(actual_sentences)):
-        reference = actual_sentences[i]
-        candidate = predicted_sentences[i]
-        scores.append(sentence_bleu(reference, candidate))
-
-    return statistics.mean(scores)
 
 
 def get_loaders(llama_type, model_name):

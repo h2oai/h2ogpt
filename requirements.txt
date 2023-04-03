@@ -17,3 +17,7 @@ pandoc
 pypandoc
 torch
 tensorboard
+evaluate
+nltk
+rouge_score
+sacrebleu
