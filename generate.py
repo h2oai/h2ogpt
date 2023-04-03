@@ -446,17 +446,17 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
 
     if use_default_examples:
         examples = [
-            ["Translate english to french", "Good morning", 'simple_instruct'] + params_list,
+            ["Translate English to French", "Good morning", 'simple_instruct'] + params_list,
             ["Give detailed answer for whether Einstein or Newton is smarter.", '', prompt_type] + params_list,
             ["Explain in detailed list, all the best practices for coding in python.", '', prompt_type] + params_list,
+            ["Create a markdown table with 3 rows for the primary colors, and 2 columns, with color name and hex codes.", '', prompt_type] + params_list,
             ["Why do you think you're so smart?", '', prompt_type] + params_list,
             ['Translate to German:  My name is Arthur', '', prompt_type] + params_list,
             ["Please answer to the following question. Who is going to be the next Ballon d'or?", '', prompt_type] + params_list,
-            ['Q: Can Geoffrey Hinton have a conversation with George Washington? Give the rationale before answering.', '', prompt_type] + params_list,
+            ['Can Geoffrey Hinton have a conversation with George Washington? Give the rationale before answering.', '', prompt_type] + params_list,
             ['Please answer the following question. What is the boiling point of Nitrogen?', '', prompt_type] + params_list,
             ['Answer the following yes/no question. Can you write a whole Haiku in a single tweet?', '', prompt_type] + params_list,
-            ['Answer the following yes/no question by reasoning step-by-step. Can you write a whole Haiku in a single tweet?', '', prompt_type] + params_list,
-            ["Q: ( False or not False or False ) is? A: Let's think step by step", '', prompt_type] + params_list,
+            ["Simplify the following expression: (False or False and True). Explain your answer.", '', prompt_type] + params_list,
             ["Premise: At my age you will probably have learnt one lesson. Hypothesis:  It's not certain how many lessons you'll learn by your thirties. Does the premise entail the hypothesis?", '', prompt_type] + params_list,
             ['The square root of x is the cube root of y. What is y to the power of 2, if x = 4?', '', prompt_type] + params_list,
             ['Answer the following question by reasoning step by step.  The cafeteria had 23 apples. If they used 20 for lunch, and bought 6 more, how many apple do they have?', '', prompt_type] + params_list,
