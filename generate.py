@@ -187,8 +187,10 @@ def main(
         for ex in examples:
             print("")
             print("START" + "=" * 100)
+            print("Question: %s %s" % (ex[0], ('input=%s' % ex[1] if ex[1] else '')))
+            print("-" * 105)
             print(fun(*tuple(ex)))
-            print("END" + "=" * 100)
+            print("END" + "=" * 102)
             print("")
         return
     demo = gr.Blocks()
@@ -444,6 +446,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
             ["Translate english to french", "Good morning", 'simple_instruct'] + params_list,
             ["Give detailed answer for whether Einstein or Newton is smarter.", '', prompt_type] + params_list,
             ["Explain in detailed list, all the best practices for coding in python.", '', prompt_type] + params_list,
+            ["Why do you think you're so smart?", '', prompt_type] + params_list,
             ['Translate to German:  My name is Arthur', '', prompt_type] + params_list,
             ["Please answer to the following question. Who is going to be the next Ballon d'or?", '', prompt_type] + params_list,
             ['Q: Can Geoffrey Hinton have a conversation with George Washington? Give the rationale before answering.', '', prompt_type] + params_list,
