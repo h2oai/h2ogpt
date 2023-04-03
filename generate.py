@@ -399,7 +399,7 @@ def get_generate_params(model_lower,
     use_default_examples = True
     examples = []
     task_info = f"{prompt_type}"
-    print("Using Model {model_lower}", flush=True)
+    print(f"Using Model {model_lower}", flush=True)
 
     summarize_example1 = """Jeff: Can I train a ? Transformers model on Amazon SageMaker? 
 Philipp: Sure you can use the new Hugging Face Deep Learning Container. 
