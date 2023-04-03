@@ -392,7 +392,7 @@ def train(
     # shuffle and tokenize data
     if train_data_mix_in:
         train_data = concatenate_datasets([train_data, train_data_mix_in])
-    train_data = train_data.shuffle().map(generate_and_tokenize_prompt)
+    train_data = train_data.shuffle().map(generate_and_tokenize_prompt, num_proc=os.cpu_count() // torch.cuda.device_count())
 
     if valid_data and valid_data_mix_in:
         valid_data = concatenate_datasets([valid_data, valid_data_mix_in])
@@ -400,7 +400,7 @@ def train(
         valid_data = valid_data_mix_in
 
     if valid_data:
-        valid_data = valid_data.shuffle().map(generate_and_tokenize_prompt)
+        valid_data = valid_data.shuffle().map(generate_and_tokenize_prompt, num_proc=os.cpu_count() // torch.cuda.device_count())
         val_set_size = len(valid_data)
     else:
         val_set_size = 0
