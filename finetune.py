@@ -130,8 +130,8 @@ def train(
         num_epochs: float = 3,
         learning_rate: float = 3e-4,
         cutoff_len: int = 256,
-        val_set_size: int = 1000,
-        val_metrics: List[str] = supported_metrics,
+        val_set_size: int = None,
+        val_metrics: List[str] = ['bleu'],
 
         # lora hyperparams
         lora_r: int = 8,
@@ -139,14 +139,21 @@ def train(
         lora_dropout: float = 0.05,
         lora_target_modules: List[str] = None,
         llama_type: bool = None,
+
         # llm hyperparams
         train_on_inputs: bool = True,  # if False, masks out inputs in loss
         group_by_length: bool = False,  # if True, faster, but produces an odd training loss curve
         resume_from_checkpoint: str = None,  # either training checkpoint or final adapter
+
         # torch training params
         ddp: bool = True,  # set to False if OOM with True, for multi-GPU model parallelism
         local_files_only: bool = False,  # else will download new versions, normally unwanted
         resume_download: bool = True,
+        warmup_steps: int = 100,
+        logging_steps: int = 1,
+        eval_steps: int = None,  # to control eval steps via steps
+        eval_epochs: float = None,  # to control eval steps via epochs
+        save_steps: int = None,  # must be round multiple of eval_steps
 ):
     prompt_type = str(prompt_type)  # migration from integers
     assert prompt_type in prompt_types
@@ -319,6 +326,20 @@ def train(
 
     model.print_trainable_parameters()  # Be more transparent about the % of trainable params.
 
+    metrics = {}
+    for name in supported_metrics:
+        if name in val_metrics:
+            metrics[name] = evaluate.load(name)
+    log("Using Validation Metrics: %s" % str(list(metrics.keys())))
+    log("Supported Metrics: %s" % supported_metrics)
+
+    if val_set_size is None:
+        if len(metrics) == 0:
+            val_set_size = 1000
+        else:
+            val_set_size = 100
+        log("val_set_size %s" % val_set_size)
+
     if valid_path:
         data = load_dataset("json", data_files={"train": data_path, "valid": valid_path})
     else:
@@ -401,6 +422,7 @@ def train(
     if train_data_mix_in:
         train_data = concatenate_datasets([train_data, train_data_mix_in])
     train_data = train_data.shuffle().map(generate_and_tokenize_prompt, num_proc=os.cpu_count() // torch.cuda.device_count())
+    train_set_size = len(train_data)
 
     if valid_data and valid_data_mix_in:
         valid_data = concatenate_datasets([valid_data, valid_data_mix_in])
@@ -432,19 +454,29 @@ def train(
         else:
             callbacks = []
 
-    metrics = {}
-    for name in supported_metrics:
-        if name in val_metrics:
-            metrics[name] = evaluate.load(name)
+    expected_steps = train_set_size * num_epochs / batch_size
+    if eval_steps is None and eval_epochs is None:
+        # 20 evaluations for a run
+        eval_steps = expected_steps // 20
+        log("eval_steps %s out of %s total training steps" % (eval_steps, expected_steps))
+    elif eval_epochs is not None:
+        eval_steps = expected_steps * eval_epochs // num_epochs
+        log("Converted eval_epochs=%s to eval_steps: %s"
+            " out of %s total training steps" % (eval_epochs, eval_steps, expected_steps))
+    if save_steps is None:
+        save_steps = eval_steps
+    else:
+        # save steps must be round multiple of eval_steps
+        save_steps = max(1, (save_steps//eval_steps)) * eval_steps
 
     def compute_metrics(eval_preds):
         inputs = eval_preds.inputs
         label_ids = eval_preds.label_ids
         predictions =  eval_preds.predictions
 
-        inputs = np.where(inputs != -100, inputs, tokenizer.pad_token_id)
-        decoded_inputs = tokenizer.batch_decode(inputs, skip_special_tokens=True)
-        decoded_inputs = [pred.strip() for pred in decoded_inputs]
+        #inputs = np.where(inputs != -100, inputs, tokenizer.pad_token_id)
+        #decoded_inputs = tokenizer.batch_decode(inputs, skip_special_tokens=True)
+        #decoded_inputs = [pred.strip() for pred in decoded_inputs]
 
         label_ids = np.where(label_ids != -100, label_ids, tokenizer.pad_token_id)
         decoded_labels = tokenizer.batch_decode(label_ids, skip_special_tokens=True)
@@ -457,9 +489,9 @@ def train(
 
         result = {}
         for metric in metrics.values():
-            result = metric.compute(predictions=decoded_predictions, references=decoded_labels)
+            result1 = metric.compute(predictions=decoded_predictions, references=decoded_labels)
             # get rid of lists, for precision etc., for now
-            numeric_results = {k: v for k, v in result.items() if isinstance(v, (int, float))}
+            numeric_results = {k: v for k, v in result1.items() if isinstance(v, (int, float))}
             result.update(numeric_results)
         return result
 
@@ -482,17 +514,17 @@ def train(
             # predict_with_generate=True,  # SEQ2SEQ only
             include_inputs_for_metrics=True,
             gradient_accumulation_steps=gradient_accumulation_steps,
-            warmup_steps=100,
+            warmup_steps=warmup_steps,
             num_train_epochs=num_epochs,
             learning_rate=learning_rate,
             fp16=True,
             optim="adamw_torch",
-            logging_steps=1,
+            logging_steps=logging_steps,
             logging_strategy="steps",
             evaluation_strategy="steps" if val_set_size > 0 else "no",
             save_strategy="steps",
-            eval_steps=100 if val_set_size > 0 else None,
-            save_steps=100,
+            eval_steps=eval_steps if val_set_size > 0 else None,
+            save_steps=save_steps,
             output_dir=output_dir,
             save_total_limit=3,
             load_best_model_at_end=True if val_set_size > 0 else False,
@@ -778,6 +810,9 @@ if __name__ == "__main__":
 
     WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun --nproc_per_node=4 --master_port=1234 finetune.py --base_model='togethercomputer/GPT-NeoXT-Chat-Base-20B' --output_dir='lora_20B_daifaq' --data_path=dai_faq.json --lora_target_modules='["query_key_value"]' --prompt_type='dai_faq' --run_id=13 --batch_size=16 --micro_batch_size=4 --num_epochs=100 --val_set_size=0 data_mix_in_path='' &> 13.log
     WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun --nproc_per_node=4 --master_port=1234 finetune.py --base_model='togethercomputer/GPT-NeoXT-Chat-Base-20B' --data_path=merged.json --lora_target_modules='["query_key_value"]' --run_id=28 --batch_size=16 --micro_batch_size=4 --num_epochs=8 --val_set_size=0 --data_mix_in_factor=0.1 --data_mix_in_prompt_type='human_bot' --save_code=True --cutoff_len=512  &> 28.log
+
+    All metrics:
+    CUDA_VISIBLE_DEVICES= finetune.py --data_mix_in_factor=0 --eval_steps=100 --warmup_steps=2 --val_set_size=100 --val_metrics="['bleu', 'rouge', 'sacrebleu', 'meteor']"
 
     Example run on 3 nodes with 1 to 2 GPU each (we'll consider SLURM etc.)
 
