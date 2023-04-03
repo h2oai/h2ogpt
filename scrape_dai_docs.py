@@ -3,6 +3,7 @@ import json
 import os
 import shutil
 
+import transformers
 from datasets import load_dataset
 
 
@@ -343,19 +344,18 @@ def test_prep_vicuna_instruct():
     training_rows = []
     for i in range(data.num_rows):
         conversations = data[i]['conversations']
-        row = {}
-        j = 0
         assert isinstance(conversations, list), conversations
-        while j < len(conversations):
-            if conversations[j]['from'] == 'human':
-                row['instruction'] = conversations[j]['value']
-            elif conversations[j]['from'] == 'gpt':
-                row['output'] = conversations[j]['value']
-            j += 1
-            if 'instruction' in row and 'output' in row:
-                training_rows.append(row)
-                row = {}
-    with open(filename + ".instruct.json", "wt") as f:
+        convo = ""
+        for j, conv in enumerate(conversations):
+            # Get ready for generate.py prompt_type=human_bot
+            # But train with prompt_type=plain
+            if conv['from'] == 'human':
+                FROM = '<human>: '
+            elif conv['from'] == 'gpt':
+                FROM = '<bot>: '
+            convo += f"{FROM}" + conv['value'] + "\n"
+        training_rows.append(convo)
+    with open(filename + ".generate_human_bot.train_plain.json", "wt") as f:
         f.write(json.dumps(training_rows, indent=2))
 
 
