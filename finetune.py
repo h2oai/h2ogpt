@@ -837,6 +837,12 @@ WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1" torchrun --node_rank 0 --nproc_per_node=
     ova>
 WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1" torchrun --node_rank 1 --nproc_per_node=2 --master_port=1234 --nnodes=2 --master_addr=10.10.10.2 finetune.py --data_path=ShareGPT_unfiltered_cleaned_split.json.instruct.json --num_epochs=1.5 --base_model=decapoda-research/llama-13b-hf --prompt_type=instruct --data_mix_in_path=None --micro_batch_size=12 --cutoff_len=512 --run_id=1 &>log.1.rank1
 
+    # Fine-tune 6B on ShareGPT data
+    rippa>
+WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1" torchrun --node_rank 0 --nproc_per_node=2 --master_port=1234 --nnodes=2 --master_addr=10.10.10.2 finetune.py --data_path=ShareGPT_unfiltered_cleaned_split.json.instruct.json --num_epochs=2 --base_model=EleutherAI/gpt-j-6B --prompt_type=instruct --data_mix_in_path=None --micro_batch_size=16 --batch_size=128 --cutoff_len=512 --run_id=3 &>log.3.rank0
+    ova>
+WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1" torchrun --node_rank 1 --nproc_per_node=2 --master_port=1234 --nnodes=2 --master_addr=10.10.10.2 finetune.py --data_path=ShareGPT_unfiltered_cleaned_split.json.instruct.json --num_epochs=2 --base_model=EleutherAI/gpt-j-6B --prompt_type=instruct --data_mix_in_path=None --micro_batch_size=16 --batch_size=128 --cutoff_len=512 --run_id=3 &>log.3.rank1
+
     """, flush=True)
 
     if os.environ.get("LOCAL_RANK") is None:
