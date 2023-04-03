@@ -71,8 +71,15 @@
 [GPT-3 based Alpaca Cleaned](https://github.com/gururise/AlpacaDataCleaned)<br />
 
 ### Prompt ENGR
+[Prompt/P-tuning](https://github.com/huggingface/peft)<br />
+[Prompt/P-tuing Nemo/NVIDIA](https://docs.nvidia.com/deeplearning/nemo/user-guide/docs/en/main/nlp/nemo_megatron/prompt_learning.html)<br />
 [Info](https://lilianweng.github.io/posts/2023-03-15-prompt-engineering/)<br />
 [Info2](https://github.com/dair-ai/Prompt-Engineering-Guide)<br />
+[Prompt-Tuning](https://arxiv.org/abs/2104.08691)<br />
+[P-tuning v2](https://arxiv.org/abs/2110.07602)<br />
+
+### Validation
+[Bleu/Rouge/Meteor/Bert-Score](https://arize.com/blog-course/generative-ai-metrics-bleu-score/)<br />
 
 ### Embeddings
 [OpenAI Expensive?](https://medium.com/@nils_reimers/openai-gpt-3-text-embeddings-really-a-new-state-of-the-art-in-dense-text-embeddings-6571fe3ec9d9)<br />
