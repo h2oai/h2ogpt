@@ -217,25 +217,28 @@ def main(
                             tgt_lang = gr.Dropdown(list(languages_covered().keys()), value=tgt_lang,
                                                    label="Output Language")
                     with gr.Column():
-                       text_output = gr.Textbox(lines=5, label="Output")
+                        text_output = gr.Textbox(lines=5, label="Output")
             with gr.TabItem("Expert"):
                 with gr.Row():
                     with gr.Column():
-                        temperature = gr.Slider(minimum=0, maximum=3, value=temperature, label="Temperature")
-                        top_p = gr.Slider(minimum=0, maximum=1, value=top_p, label="Top p")
+                        temperature = gr.Slider(minimum=0, maximum=3, value=temperature,
+                                                label="Temperature", info="Lower is deterministic, Higher more creative")
+                        top_p = gr.Slider(minimum=0, maximum=1, value=top_p, label="Top p",
+                                          info="Cumulative probability of tokens to sample from")
                         top_k = gr.Slider(
-                            minimum=0, maximum=100, step=1, value=top_k, label="Top k"
+                            minimum=0, maximum=100, step=1, value=top_k, label="Top k",
+                            info='Num. tokens to sample from'
                         )
                         num_beams = gr.Slider(minimum=1, maximum=8, step=1, value=num_beams, label="Beams",
-                                              info="Uses more GPU memory/compute")
+                                              info="Number of searches for optimal overall probability.  Uses more GPU memory/compute")
                         max_length = gr.Slider(
                             minimum=1, maximum=2000, step=1, value=max_length, label="Max output length"
                         )
                         repetition_penalty = gr.Slider(minimum=0.01, maximum=3.0, value=repetition_penalty,
                                                        label="Repetition Penalty")
                         num_return_sequences = gr.Slider(minimum=1, maximum=10, step=1, value=num_return_sequences,
-                                                         label="Num. Returns", info="Must be <= num_beams")
-                        do_sample = gr.Checkbox(label="Sample", info="For diverse output(s)", value=do_sample)
+                                                         label="Number Returns", info="Must be <= num_beams")
+                        do_sample = gr.Checkbox(label="Sample", info="Sample, for diverse output(s)", value=do_sample)
 
         inputs_dict = locals()
         inputs_list_names = list(inspect.signature(_evaluate).parameters)
