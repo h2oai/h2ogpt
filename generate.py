@@ -162,7 +162,8 @@ def main(
     max_length, repetition_penalty, num_return_sequences, \
     do_sample, \
     src_lang, tgt_lang, \
-    examples = \
+    examples, \
+    task_info = \
         get_generate_params(model_lower,
                             prompt_type, temperature, top_p, top_k, num_beams,
                             max_length, repetition_penalty, num_return_sequences,
@@ -205,6 +206,8 @@ def main(
             <h1 align="center"> {title}</h1>
 
             {description}
+
+            ### Task: {task_info}
             """)
 
         with gr.Tabs():
@@ -395,38 +398,54 @@ def get_generate_params(model_lower,
     use_defaults = False
     use_default_examples = True
     examples = []
-    print(model_lower, flush=True)
-    if 'bart-large-cnn-samsum' in model_lower or 'flan-t5-base-samsum' in model_lower:
-        placeholder_instruction = """Jeff: Can I train a ? Transformers model on Amazon SageMaker? 
+    task_info = f"{prompt_type}"
+    print("Using Model {model_lower}", flush=True)
+
+    summarize_example1 = """Jeff: Can I train a ? Transformers model on Amazon SageMaker? 
 Philipp: Sure you can use the new Hugging Face Deep Learning Container. 
 Jeff: ok.
 Jeff: and how can I get started? 
 Jeff: where can I find documentation? 
 Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-partnership-amazon-sagemaker-and-hugging-face"""
+
+    if 'bart-large-cnn-samsum' in model_lower or 'flan-t5-base-samsum' in model_lower:
+        placeholder_instruction = summarize_example1
         placeholder_input = ""
         use_defaults = True
         use_default_examples = False
-        examples = [[placeholder_instruction, "", 'plain', 1.0, 1.0, 50, 1, 128, 1.0, 1, False]]
+        examples += [[placeholder_instruction, "", 'plain', 1.0, 1.0, 50, 1, 128, 1.0, 1, False]]
+        task_info = "Summarization"
     elif 't5-' in model_lower or 't5' == model_lower or 'flan-' in model_lower:
         placeholder_instruction = "The square root of x is the cube root of y. What is y to the power of 2, if x = 4?"
         placeholder_input = ""
         use_defaults = True
         use_default_examples = True
+        task_info = "Multi-Task: Q/A, translation, Chain-of-Thought, Logical Reasoning, Scientific Knowo-How"
     elif 'mbart-' in model_lower:
         placeholder_instruction = "The girl has long hair."
         placeholder_input = ""
         use_defaults = True
         use_default_examples = False
-        examples = [[placeholder_instruction, "", 'plain', 1.0, 1.0, 50, 1, 128, 1.0, 1, False]]
+        examples += [[placeholder_instruction, "", 'plain', 1.0, 1.0, 50, 1, 128, 1.0, 1, False]]
     elif 'gpt2' in model_lower:
         placeholder_instruction = "The sky is"
         placeholder_input = ""
-        use_default_examples = False
-        examples = [[placeholder_instruction, "", 'plain', 1.0, 1.0, 50, 1, 128, 1.0, 1, False]]
+        use_default_examples = True  # some will be odd "continuations" but can be ok
+        examples += [[placeholder_instruction, "", 'plain', 1.0, 1.0, 50, 1, 128, 1.0, 1, False]]
+        task_info = "Auto-complete phrase, code, etc."
     else:
         placeholder_instruction = "Give detailed answer for whether Einstein or Newton is smarter."
         placeholder_input = ""
         prompt_type = prompt_type or 'instruct'
+        examples += [[summarize_example1, 'Summarize' if prompt_type not in ['plain', 'instruct_simple'] else '',
+                      prompt_type, 0.1, 0.75, 40, 4, 256, 1.0, 1, False]]
+        if prompt_type == 'instruct':
+            task_info = "Answer question or follow imperitive as instruction with optionally input."
+        elif prompt_type == 'plain':
+            task_info = "Auto-complete phrase, code, etc."
+        elif prompt_type == 'human_bot':
+            task_info = "Answer question/imperitive (input concatenated with instruction)"
+
     if use_defaults:
         prompt_type = prompt_type or 'plain'
         temperature = 1.0 if temperature is None else temperature
@@ -450,7 +469,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
     params_list = [temperature, top_p, top_k, num_beams, max_length, repetition_penalty, num_return_sequences, do_sample]
 
     if use_default_examples:
-        examples = [
+        examples += [
             ["Translate English to French", "Good morning", 'simple_instruct'] + params_list,
             ["Give detailed answer for whether Einstein or Newton is smarter.", '', prompt_type] + params_list,
             ["Explain in detailed list, all the best practices for coding in python.", '', prompt_type] + params_list,
@@ -488,7 +507,8 @@ y = np.random.randint(0, 1, 100)
            max_length, repetition_penalty, num_return_sequences, \
            do_sample, \
            src_lang, tgt_lang, \
-           examples
+           examples, \
+           task_info
 
 
 def languages_covered():
