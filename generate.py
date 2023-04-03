@@ -473,7 +473,7 @@ def mean(a):
 
 # the same function using numpy:
 import numpy as np
-def mean(a):""" '', prompt_type] + params_list,
+def mean(a):""", '', prompt_type] + params_list,
         ]
 
     src_lang = "English"
