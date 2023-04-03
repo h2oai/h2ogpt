@@ -182,8 +182,11 @@ def main(
                   """
 
     if not gradio:
+        import time
         from functools import partial
+
         fun = partial(evaluate, tokenizer, model, base_model, debug=debug)
+        t0 = time.time()
         for ex in examples:
             print("")
             print("START" + "=" * 100)
@@ -192,6 +195,8 @@ def main(
             print(fun(*tuple(ex)))
             print("END" + "=" * 102)
             print("")
+        t1 = time.time()
+        print("Time taken: %.4f" % (t1-t0))
         return
     demo = gr.Blocks()
     with demo:
