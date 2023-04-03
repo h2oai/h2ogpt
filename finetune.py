@@ -392,7 +392,7 @@ def train(
     # shuffle and tokenize data
     if train_data_mix_in:
         train_data = concatenate_datasets([train_data, train_data_mix_in])
-    train_data = train_data.shuffle().map(generate_and_tokenize_prompt)
+    train_data = train_data.shuffle().map(generate_and_tokenize_prompt, num_proc=os.cpu_count() // 2)
 
     if valid_data and valid_data_mix_in:
         valid_data = concatenate_datasets([valid_data, valid_data_mix_in])
@@ -400,7 +400,7 @@ def train(
         valid_data = valid_data_mix_in
 
     if valid_data:
-        valid_data = valid_data.shuffle().map(generate_and_tokenize_prompt)
+        valid_data = valid_data.shuffle().map(generate_and_tokenize_prompt, num_proc=os.cpu_count() // 2)
         val_set_size = len(valid_data)
     else:
         val_set_size = 0
@@ -781,9 +781,9 @@ CUDA_VISIBLE_DEVICES=0 {CONFIG} --node_rank=4 {CMD} &>log.rank.4
     # Fine-tune LLama 13b on ShareGPT data on 2x nodes with 2 GPUs
 
     rippa>
-WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1" torchrun --node_rank 0 --nproc_per_node=2 --master_port=1234 --nnodes=2 --master_addr=10.10.10.2 finetune.py --data_path=ShareGPT_unfiltered_cleaned_split.json.instruct.json --num_epochs=1 --base_model=decapoda-research/llama-13b-hf --prompt_type=instruct --data_mix_in_path=None --micro_batch_size=16 --cutoff_len=512 --run_id=1 &>log.1.rank0
+WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1" torchrun --node_rank 0 --nproc_per_node=2 --master_port=1234 --nnodes=2 --master_addr=10.10.10.2 finetune.py --data_path=ShareGPT_unfiltered_cleaned_split.json.instruct.json --num_epochs=1 --base_model=decapoda-research/llama-13b-hf --prompt_type=instruct --data_mix_in_path=None --micro_batch_size=8 --cutoff_len=512 --run_id=1 &>log.1.rank0
     ova>
-WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1" torchrun --node_rank 1 --nproc_per_node=2 --master_port=1234 --nnodes=2 --master_addr=10.10.10.2 finetune.py --data_path=ShareGPT_unfiltered_cleaned_split.json.instruct.json --num_epochs=1 --base_model=decapoda-research/llama-13b-hf --prompt_type=instruct --data_mix_in_path=None --micro_batch_size=16 --cutoff_len=512 --run_id=1 &>log.1.rank1
+WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1" torchrun --node_rank 1 --nproc_per_node=2 --master_port=1234 --nnodes=2 --master_addr=10.10.10.2 finetune.py --data_path=ShareGPT_unfiltered_cleaned_split.json.instruct.json --num_epochs=1 --base_model=decapoda-research/llama-13b-hf --prompt_type=instruct --data_mix_in_path=None --micro_batch_size=8 --cutoff_len=512 --run_id=1 &>log.1.rank1
 
     """, flush=True)
 
