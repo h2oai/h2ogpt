@@ -338,7 +338,7 @@ def train(
             val_set_size = 1000
         else:
             val_set_size = 100
-        log("val_set_size %s" % val_set_size)
+        log("Auto set val_set_size %s" % val_set_size)
 
     if valid_path:
         data = load_dataset("json", data_files={"train": data_path, "valid": valid_path})
@@ -454,20 +454,24 @@ def train(
         else:
             callbacks = []
 
-    expected_steps = train_set_size * num_epochs / batch_size
+    expected_steps = train_set_size * num_epochs // batch_size
     if eval_steps is None and eval_epochs is None:
         # 20 evaluations for a run
         eval_steps = expected_steps // 20
-        log("eval_steps %s out of %s total training steps" % (eval_steps, expected_steps))
+        log("Auto set eval_steps to %s out of %s total training steps" % (eval_steps, expected_steps))
     elif eval_epochs is not None:
         eval_steps = expected_steps * eval_epochs // num_epochs
-        log("Converted eval_epochs=%s to eval_steps: %s"
+        log("Auto converted eval_epochs=%s to eval_steps %s"
             " out of %s total training steps" % (eval_epochs, eval_steps, expected_steps))
     if save_steps is None:
         save_steps = eval_steps
+        log("Auto step save_steps to %s" % save_steps)
     else:
         # save steps must be round multiple of eval_steps
+        save_steps0 = save_steps
         save_steps = max(1, (save_steps//eval_steps)) * eval_steps
+        if save_steps0 != save_steps:
+            log("Auto converted save_steps from %s to %s" % (save_steps0, save_steps))
 
     def compute_metrics(eval_preds):
         inputs = eval_preds.inputs
