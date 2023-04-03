@@ -465,7 +465,17 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
             ["Premise: At my age you will probably have learnt one lesson. Hypothesis:  It's not certain how many lessons you'll learn by your thirties. Does the premise entail the hypothesis?", '', prompt_type] + params_list,
             ['The square root of x is the cube root of y. What is y to the power of 2, if x = 4?', '', prompt_type] + params_list,
             ['Answer the following question by reasoning step by step.  The cafeteria had 23 apples. If they used 20 for lunch, and bought 6 more, how many apple do they have?', '', prompt_type] + params_list,
+            ["""def area_of_rectangle(a: float, b: float):
+    \"\"\"Return the area of the rectangle.\"\"\"""", '', prompt_type] + params_list,
+    ["""# a function in native python:
+def mean(a):
+    return sum(a)/len(a)
+
+# the same function using numpy:
+import numpy as np
+def mean(a):""" '', prompt_type] + params_list,
         ]
+
     src_lang = "English"
     tgt_lang = "Russian"
 

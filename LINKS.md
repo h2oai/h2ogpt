@@ -81,6 +81,10 @@
 ### Validation
 [Bleu/Rouge/Meteor/Bert-Score](https://arize.com/blog-course/generative-ai-metrics-bleu-score/)<br />
 
+### Generate Hyperparameters
+[hot-to-generate](https://huggingface.co/blog/how-to-generate)<br />
+[Notes_on_Transformers](https://christianjmills.com/posts/transformers-book-notes/chapter-10/index.html)<br />
+
 ### Embeddings
 [OpenAI Expensive?](https://medium.com/@nils_reimers/openai-gpt-3-text-embeddings-really-a-new-state-of-the-art-in-dense-text-embeddings-6571fe3ec9d9)<br />
 [Leaderboard](https://huggingface.co/spaces/mteb/leaderboard)<br />
