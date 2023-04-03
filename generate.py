@@ -383,7 +383,7 @@ def get_generate_params(model_lower,
                         max_length, repetition_penalty, num_return_sequences,
                         do_sample):
     use_defaults = False
-    use_default_examples = False
+    use_default_examples = True
     examples = []
     print(model_lower, flush=True)
     if 'bart-large-cnn-samsum' in model_lower or 'flan-t5-base-samsum' in model_lower:
@@ -417,21 +417,6 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         placeholder_instruction = "Give detailed answer for whether Einstein or Newton is smarter."
         placeholder_input = ""
         prompt_type = prompt_type or 'instruct'
-        temperature = 0.1 if temperature is None else temperature
-        top_p = 0.75 if top_p is None else top_p
-        top_k = 40 if top_k is None else top_k
-        num_beams = num_beams or 4
-        max_length = max_length or 128
-        repetition_penalty = repetition_penalty or 1.0
-        num_return_sequences = min(num_beams, num_return_sequences or 1)
-        do_sample = False if do_sample is None else do_sample
-        examples = [
-            [placeholder_instruction, placeholder_input, prompt_type, temperature, top_p, top_k, num_beams, max_length,
-             repetition_penalty, num_return_sequences, do_sample],
-            ["Explain in detailed list, all the best practices for coding in python.", '', prompt_type, temperature, top_p, top_k, num_beams, max_length,
-             repetition_penalty, num_return_sequences, do_sample],
-        ]
-        # use_default_examples = True  # Q: why only above two?
     if use_defaults:
         prompt_type = prompt_type or 'plain'
         temperature = 1.0 if temperature is None else temperature
@@ -442,20 +427,33 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         repetition_penalty = repetition_penalty or 1.0
         num_return_sequences = min(num_beams, num_return_sequences or 1)
         do_sample = False if do_sample is None else do_sample
+    else:
+        assert prompt_type is not None
+        temperature = 0.1 if temperature is None else temperature
+        top_p = 0.75 if top_p is None else top_p
+        top_k = 40 if top_k is None else top_k
+        num_beams = num_beams or 4
+        max_length = max_length or 128
+        repetition_penalty = repetition_penalty or 1.0
+        num_return_sequences = min(num_beams, num_return_sequences or 1)
+        do_sample = False if do_sample is None else do_sample
+    params_list = [temperature, top_p, top_k, num_beams, max_length, repetition_penalty, num_return_sequences, do_sample]
 
     if use_default_examples:
         examples = [
-            ["Translate english to french", "Good morning", 'simple_instruct', 1.0, 1.0, 50, 1, 128, 1.0, 1, False],
-            ['Translate to German:  My name is Arthur', '', 'plain', 1.0, 1.0, 50, 1, 128, 1.0, 1, False],
-            ["Please answer to the following question. Who is going to be the next Ballon d'or?", '', 'plain', 1.0, 1.0, 50, 1, 128, 1.0, 1, False],
-            ['Q: Can Geoffrey Hinton have a conversation with George Washington? Give the rationale before answering.', '', 'plain', 1.0, 1.0, 50, 1, 128, 1.0, 1, False],
-            ['Please answer the following question. What is the boiling point of Nitrogen?', '', 'plain', 1.0, 1.0, 50, 1, 128, 1.0, 1, False],
-            ['Answer the following yes/no question. Can you write a whole Haiku in a single tweet?', '', 'plain', 1.0, 1.0, 50, 1, 128, 1.0, 1, False],
-            ['Answer the following yes/no question by reasoning step-by-step. Can you write a whole Haiku in a single tweet?', '', 'plain', 1.0, 1.0, 50, 1, 128, 1.0, 1, False],
-            ["Q: ( False or not False or False ) is? A: Let's think step by step", '', 'plain', 1.0, 1.0, 50, 1, 128, 1.0, 1, False],
-            ["Premise: At my age you will probably have learnt one lesson. Hypothesis:  It's not certain how many lessons you'll learn by your thirties. Does the premise entail the hypothesis?", '', 'plain', 1.0, 1.0, 50, 1, 128, 1.0, 1, False],
-            ['The square root of x is the cube root of y. What is y to the power of 2, if x = 4?', '', 'plain', 1.0, 1.0, 50, 1, 128, 1.0, 1, False],
-            ['Answer the following question by reasoning step by step.  The cafeteria had 23 apples. If they used 20 for lunch, and bought 6 more, how many apple do they have?', '', 'plain', 1.0, 1.0, 50, 1, 128, 1.0, 1, False],
+            ["Translate english to french", "Good morning", 'simple_instruct'] + params_list,
+            ["Give detailed answer for whether Einstein or Newton is smarter.", '', prompt_type] + params_list,
+            ["Explain in detailed list, all the best practices for coding in python.", '', prompt_type] + params_list,
+            ['Translate to German:  My name is Arthur', '', prompt_type] + params_list,
+            ["Please answer to the following question. Who is going to be the next Ballon d'or?", '', prompt_type] + params_list,
+            ['Q: Can Geoffrey Hinton have a conversation with George Washington? Give the rationale before answering.', '', prompt_type] + params_list,
+            ['Please answer the following question. What is the boiling point of Nitrogen?', '', prompt_type] + params_list,
+            ['Answer the following yes/no question. Can you write a whole Haiku in a single tweet?', '', prompt_type] + params_list,
+            ['Answer the following yes/no question by reasoning step-by-step. Can you write a whole Haiku in a single tweet?', '', prompt_type] + params_list,
+            ["Q: ( False or not False or False ) is? A: Let's think step by step", '', prompt_type] + params_list,
+            ["Premise: At my age you will probably have learnt one lesson. Hypothesis:  It's not certain how many lessons you'll learn by your thirties. Does the premise entail the hypothesis?", '', prompt_type] + params_list,
+            ['The square root of x is the cube root of y. What is y to the power of 2, if x = 4?', '', prompt_type] + params_list,
+            ['Answer the following question by reasoning step by step.  The cafeteria had 23 apples. If they used 20 for lunch, and bought 6 more, how many apple do they have?', '', prompt_type] + params_list,
         ]
     src_lang = "English"
     tgt_lang = "Russian"
