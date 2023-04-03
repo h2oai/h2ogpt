@@ -467,13 +467,17 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
             ['Answer the following question by reasoning step by step.  The cafeteria had 23 apples. If they used 20 for lunch, and bought 6 more, how many apple do they have?', '', prompt_type] + params_list,
             ["""def area_of_rectangle(a: float, b: float):
     \"\"\"Return the area of the rectangle.\"\"\"""", '', prompt_type] + params_list,
-    ["""# a function in native python:
+            ["""# a function in native python:
 def mean(a):
     return sum(a)/len(a)
 
 # the same function using numpy:
 import numpy as np
 def mean(a):""", '', prompt_type] + params_list,
+            ["""X = np.random.randn(100, 100)
+y = np.random.randint(0, 1, 100)
+
+# fit random forest classifier with 20 estimators""", '', prompt_type] + params_list,
         ]
 
     src_lang = "English"
