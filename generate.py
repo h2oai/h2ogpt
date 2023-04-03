@@ -211,21 +211,22 @@ def main(
             """)
 
         with gr.Tabs():
+            with gr.Row():
+                with gr.Column():
+                    instruction = gr.Textbox(
+                        lines=2, label=instruction_label, placeholder=placeholder_instruction,
+                    )
+                    iinput = gr.Textbox(lines=2, label="Input", placeholder=placeholder_input)
+                    prompt_type = gr.Dropdown(prompt_types_strings, value=prompt_type, label="Prompt Type")
+                with gr.Column():
+                    text_output = gr.Textbox(lines=5, label="Output")
             with gr.TabItem("Input/Output"):
                 with gr.Row():
-                    with gr.Column():
-                        instruction = gr.Textbox(
-                            lines=2, label=instruction_label, placeholder=placeholder_instruction,
-                        )
-                        iinput = gr.Textbox(lines=2, label="Input", placeholder=placeholder_input)
-                        prompt_type = gr.Dropdown(prompt_types_strings, value=prompt_type, label="Prompt Type")
                         if 'mbart-' in model_lower:
                             src_lang = gr.Dropdown(list(languages_covered().keys()), value=src_lang,
                                                    label="Input Language")
                             tgt_lang = gr.Dropdown(list(languages_covered().keys()), value=tgt_lang,
                                                    label="Output Language")
-                    with gr.Column():
-                        text_output = gr.Textbox(lines=5, label="Output")
             with gr.TabItem("Expert"):
                 with gr.Row():
                     with gr.Column():
