@@ -65,7 +65,8 @@ class PromptType(Enum):
 prompt_type_to_model_name = {
     'plain': ['EleutherAI/gpt-neox-20b', 'EleutherAI/gpt-j-6B', 'decapoda-research/llama-7b-hf',
               'decapoda-research/llama-13b-hf', 'decapoda-research/llama-30b-hf',
-              'facebook/mbart-large-50-many-to-many-mmt'],
+              'facebook/mbart-large-50-many-to-many-mmt',
+              'philschmid/bart-large-cnn-samsum', 'philschmid/flan-t5-base-samsum'],
     'instruct': [],
     'quality': [],
     'human_bot': ['togethercomputer/GPT-NeoXT-Chat-Base-20B'],
