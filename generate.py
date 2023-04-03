@@ -48,6 +48,8 @@ def main(
 
         src_lang: str = "English",
         tgt_lang: str = "Russian",
+
+        gradio: bool = True,
 ):
     assert base_model, (
         "Please specify a --base_model, e.g. --base_model="
@@ -179,6 +181,16 @@ def main(
                   Hash: {get_githash()}
                   """
 
+    from functools import partial
+    fun = partial(evaluate, tokenizer, model, base_model, debug=debug)
+    for ex in examples:
+        print("")
+        print("START" + "=" * 100)
+        print(fun(*tuple(ex)))
+        print("END" + "=" * 100)
+        print("")
+    if not gradio:
+        return
     demo = gr.Blocks()
     with demo:
         gr.Markdown(
@@ -361,7 +373,7 @@ def get_generate_params(model_lower,
                         do_sample):
     use_defaults = False
     use_default_examples = False
-    examples = None
+    examples = []
     print(model_lower, flush=True)
     if 'bart-large-cnn-samsum' in model_lower or 'flan-t5-base-samsum' in model_lower:
         placeholder_instruction = """Jeff: Can I train a ? Transformers model on Amazon SageMaker? 
@@ -408,6 +420,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
             ["Explain in detailed list, all the best practices for coding in python.", '', prompt_type, temperature, top_p, top_k, num_beams, max_length,
              repetition_penalty, num_return_sequences, do_sample],
         ]
+        # use_default_examples = True  # Q: why only above two?
     if use_defaults:
         prompt_type = prompt_type or 'plain'
         temperature = 1.0 if temperature is None else temperature
