@@ -232,8 +232,8 @@ def main(
                         repetition_penalty = gr.Slider(minimum=0.01, maximum=3.0, value=repetition_penalty,
                                                        label="Repetition Penalty")
                         num_return_sequences = gr.Slider(minimum=1, maximum=10, step=1, value=num_return_sequences,
-                                                         label="Num. Returns")
-                        do_sample = gr.Checkbox(label="Sample", info="Do sample", value=do_sample)
+                                                         label="Num. Returns", info="Must be <= num_beams")
+                        do_sample = gr.Checkbox(label="Sample", info="For diverse output(s)", value=do_sample)
 
         inputs_dict = locals()
         inputs_list_names = list(inspect.signature(_evaluate).parameters)
@@ -332,11 +332,10 @@ def _evaluate(
             gen_kwargs.update(dict(pad_token_id=tokenizer.eos_token_id))
         outputs = model.generate(**gen_kwargs)
     outputs = [tokenizer.decode(s, skip_special_tokens=True, clean_up_tokenization_spaces=True) for s in outputs.sequences]
-    output = '\n\n'.join(outputs)
 
     if debug:
         print("prompt: ", prompt, flush=True)
-        print("output: ", output, flush=True)
+        print("output: ", '\n\n'.join(outputs), flush=True)
 
     def clean_response(response):
         meaningless_words = ['<pad>', '</s>', '<|endoftext|>', '”\n']
@@ -344,27 +343,39 @@ def _evaluate(
             response = response.replace(word, "")
         response = response.strip("\n")
         return response
-    output = clean_response(output)
-    if prompt_type in [0, '0', 'plain']:
-        return output
-    else:
-        # find first instance of prereponse
-        # prompt sometimes has odd characters, that mutate length,
-        # so can't go by length alone
-        if pre_response:
-            output = output.split(pre_response)[1]
-        if terminate_response:
-            finds = []
-            for term in terminate_response:
-                finds.append(output.find(term))
-            finds = [x for x in finds if x >= 0]
-            if len(finds) > 0:
-                termi = finds[0]
-                return output[:termi].strip()
+
+    multi_output = len(outputs) > 1
+
+    for oi, output in enumerate(outputs):
+        output = clean_response(output)
+        if prompt_type not in [0, '0', 'plain']:
+            # find first instance of prereponse
+            # prompt sometimes has odd characters, that mutate length,
+            # so can't go by length alone
+            if pre_response:
+                output = output.split(pre_response)[1]
+            if terminate_response:
+                finds = []
+                for term in terminate_response:
+                    finds.append(output.find(term))
+                finds = [x for x in finds if x >= 0]
+                if len(finds) > 0:
+                    termi = finds[0]
+                    output = output[:termi].strip()
+                else:
+                    output = output.strip()
             else:
-                return output.strip()
-        else:
-            return output.strip()
+                output = output.strip()
+        if multi_output:
+            # prefix with output counter
+            output = "\n=========== Output %d\n\n" % (1 + oi) + output
+            if oi > 0:
+                # post fix outputs with seperator
+                output += '\n'
+        outputs[oi] = output
+    # join all outputs, only one extra new line between outputs
+    output = '\n'.join(outputs)
+    return output
 
 
 def get_generate_params(model_lower,
