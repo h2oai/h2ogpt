@@ -181,15 +181,15 @@ def main(
                   Hash: {get_githash()}
                   """
 
-    from functools import partial
-    fun = partial(evaluate, tokenizer, model, base_model, debug=debug)
-    for ex in examples:
-        print("")
-        print("START" + "=" * 100)
-        print(fun(*tuple(ex)))
-        print("END" + "=" * 100)
-        print("")
     if not gradio:
+        from functools import partial
+        fun = partial(evaluate, tokenizer, model, base_model, debug=debug)
+        for ex in examples:
+            print("")
+            print("START" + "=" * 100)
+            print(fun(*tuple(ex)))
+            print("END" + "=" * 100)
+            print("")
         return
     demo = gr.Blocks()
     with demo:
