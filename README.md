@@ -141,6 +141,12 @@ docker-compose down --volumes --rmi all
 ```
 
 
+### Tensorboard
+
+```bash
+tensorboard --logdir=runs/
+```
+
 ### Plan
 Open source instruct model for demoable usecases.
 1. Base: Start with fully open source apache 2.0 models EleutherAI--gpt-j-6B, EleutherAI--gpt-neox-20b, 
