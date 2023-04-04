@@ -350,6 +350,8 @@ def train(
         else:
             val_set_size = 100
         log("Auto set val_set_size %s" % val_set_size)
+    elif val_set_size < 1.0:
+        raise RuntimeError("Fractional validation size not supported.")
 
     if valid_path:
         data = load_dataset("json", data_files={"train": data_path, "valid": valid_path})
@@ -465,7 +467,7 @@ def train(
         else:
             callbacks = []
 
-    expected_steps = train_set_size * num_epochs // batch_size
+    expected_steps = (train_set_size * num_epochs) // batch_size
     if eval_steps is None and eval_epochs is None:
         # 20 evaluations for a run
         eval_steps = max(1, int(expected_steps / 20))
