@@ -127,7 +127,7 @@ def train(
         # batching training hyperparams
         batch_size: int = 128,
         micro_batch_size: int = 4,
-        gradient_checkpointing=True,
+        gradient_checkpointing=False,  # unnecessary with gradient accumulation enabled
         fp16=True,
 
         # general training hyperparams
