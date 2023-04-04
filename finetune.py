@@ -124,14 +124,21 @@ def train(
         # LoRA checkpoint continuation
         lora_weights: str = "",
 
-        # training hyperparams
+        # batching training hyperparams
         batch_size: int = 128,
         micro_batch_size: int = 4,
+        gradient_checkpointing=True,
+        fp16=True,
+
+        # general training hyperparams
         num_epochs: float = 3,
         learning_rate: float = 3e-4,
-        cutoff_len: int = 256,
+
+        # validation settings
         val_set_size: int = None,
         val_metrics: List[str] = ['bleu'],
+        eval_steps: int = None,  # to control eval steps via steps
+        eval_epochs: float = None,  # to control eval steps via epochs
 
         # lora hyperparams
         lora_r: int = 8,
@@ -144,6 +151,7 @@ def train(
         train_on_inputs: bool = True,  # if False, masks out inputs in loss
         group_by_length: bool = False,  # if True, faster, but produces an odd training loss curve
         resume_from_checkpoint: str = None,  # either training checkpoint or final adapter
+        cutoff_len: int = 256,
 
         # torch training params
         ddp: bool = True,  # set to False if OOM with True, for multi-GPU model parallelism
@@ -151,8 +159,6 @@ def train(
         resume_download: bool = True,
         warmup_steps: int = 100,
         logging_steps: int = 1,
-        eval_steps: int = None,  # to control eval steps via steps
-        eval_epochs: float = None,  # to control eval steps via epochs
         save_steps: int = None,  # must be round multiple of eval_steps
 ):
     prompt_type = str(prompt_type)  # migration from integers
@@ -531,8 +537,10 @@ def train(
             warmup_steps=warmup_steps,
             num_train_epochs=num_epochs,
             learning_rate=learning_rate,
-            fp16=True,
-            optim="adamw_torch",
+            gradient_checkpointing=gradient_checkpointing,
+            fp16=fp16,
+            # cosnider 8-bit adam: https://huggingface.co/docs/transformers/v4.18.0/en/performance#8bit-adam
+            optim="adamw_torch",  # consider "adafactor" to save memory
             logging_steps=logging_steps,
             logging_strategy="steps",
             evaluation_strategy="steps" if val_set_size > 0 else "no",
