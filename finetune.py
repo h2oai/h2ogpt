@@ -200,6 +200,7 @@ def train(
         base_model
     ), "Please specify a --base_model, e.g. --base_model='decapoda-research/llama-7b-hf'"
     gradient_accumulation_steps = batch_size // micro_batch_size
+    assert gradient_accumulation_steps >= world_size, "must increase batch_size for multi-GPU"
 
     device_map = "auto"
 
