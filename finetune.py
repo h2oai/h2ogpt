@@ -479,6 +479,7 @@ def train(
             log("Auto converted save_steps from %s to %s" % (save_steps0, save_steps))
 
     def compute_metrics(eval_preds):
+        # e.g. see: https://huggingface.co/docs/transformers/v4.25.1/en/tasks/translation#evaluate
         inputs = eval_preds.inputs
         label_ids = eval_preds.label_ids
         predictions = eval_preds.predictions

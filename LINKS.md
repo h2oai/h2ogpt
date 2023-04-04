@@ -63,6 +63,12 @@
 [DataSet Viewer](https://huggingface.co/datasets/viewer/?dataset=squad)<br />
 [Anthropic RLHF](https://huggingface.co/datasets/Anthropic/hh-rlhf)<br />
 
+### Apache2/MIT/BSD-3 Summarization Data
+[xsum for Summarization](https://huggingface.co/datasets/xsum)<br />
+[Apache2 Summarization](https://huggingface.co/datasets?task_categories=task_categories:summarization&license=license:apache-2.0&sort=downloads)<br />
+[MIT summarization](https://huggingface.co/datasets?task_categories=task_categories:summarization&license=license:mit&sort=downloads)<br />
+[BSD-3 summarization](https://huggingface.co/datasets?task_categories=task_categories:summarization&license=license:bsd-3-clause&sort=downloads)<br />
+
 ### Ambiguous License Data
 [GPT4All](https://huggingface.co/datasets/nomic-ai/gpt4all_prompt_generations)<br />
 [LinkGPT4](https://github.com/lm-sys/FastChat/issues/90#issuecomment-1493250773)<br />
