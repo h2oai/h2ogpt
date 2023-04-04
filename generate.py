@@ -38,7 +38,10 @@ def main(
         repetition_penalty: float = None,
         num_return_sequences: int = None,
         do_sample: bool = None,
-        max_length: int = None,
+        max_new_tokens: int = None,
+        min_new_tokens: int = None,
+        early_stopping: Union[bool, str] = None,
+        max_time: float = None,
 
         llama_type: bool = None,
         debug: bool = False,
@@ -159,14 +162,16 @@ def main(
     model_lower = base_model.lower()
     placeholder_instruction, placeholder_input, \
     prompt_type, temperature, top_p, top_k, num_beams, \
-    max_length, repetition_penalty, num_return_sequences, \
+    max_new_tokens, min_new_tokens, early_stopping, max_time, \
+    repetition_penalty, num_return_sequences, \
     do_sample, \
     src_lang, tgt_lang, \
     examples, \
     task_info = \
         get_generate_params(model_lower,
                             prompt_type, temperature, top_p, top_k, num_beams,
-                            max_length, repetition_penalty, num_return_sequences,
+                            max_new_tokens, min_new_tokens, early_stopping, max_time,
+                            repetition_penalty, num_return_sequences,
                             do_sample,
                             )
 
@@ -240,9 +245,16 @@ def main(
                         )
                         num_beams = gr.Slider(minimum=1, maximum=8, step=1, value=num_beams, label="Beams",
                                               info="Number of searches for optimal overall probability.  Uses more GPU memory/compute")
-                        max_length = gr.Slider(
-                            minimum=1, maximum=2000, step=1, value=max_length, label="Max output length"
+                        max_new_tokens = gr.Slider(
+                            minimum=1, maximum=2048, step=1, value=max_new_tokens, label="Max output length"
                         )
+                        min_new_tokens = gr.Slider(
+                            minimum=0, maximum=2048, step=1, value=min_new_tokens, label="Min output length"
+                        )
+                        early_stopping = gr.Checkbox(label="EarlyStopping", info="Stop early in beam search",
+                                                     value=early_stopping)
+                        max_time = gr.Slider(minimum=0, maximum=60*5, step=1, value=max_time, label="Max. time",
+                                             info="Max. time to search optimal output.")
                         repetition_penalty = gr.Slider(minimum=0.01, maximum=3.0, value=repetition_penalty,
                                                        label="Repetition Penalty")
                         num_return_sequences = gr.Slider(minimum=1, maximum=10, step=1, value=num_return_sequences,
@@ -292,7 +304,10 @@ def _evaluate(
         top_p,
         top_k,
         num_beams,
-        max_length,
+        max_new_tokens,
+        min_new_tokens,
+        early_stopping,
+        max_time,
         repetition_penalty,
         num_return_sequences,
         do_sample,
@@ -309,7 +324,8 @@ def _evaluate(
             key = 'summary_text'
         else:
             raise RuntimeError("No such task type %s" % tokenizer)
-        return model(prompt, max_length=max_length)[0][key]
+        # NOTE: uses max_length only
+        return model(prompt, max_length=max_new_tokens)[0][key]
 
     if 'mbart-' in base_model.lower():
         assert src_lang is not None
@@ -334,7 +350,10 @@ def _evaluate(
                           generation_config=generation_config,
                           return_dict_in_generate=True,
                           output_scores=True,
-                          max_length=max_length,
+                          max_new_tokens=max_new_tokens,  # prompt + new
+                          min_new_tokens=min_new_tokens,  # prompt + new
+                          early_stopping=early_stopping,  # False, True, "never"
+                          max_time=max_time,
                           )
         if 'gpt2' in base_model.lower():
             gen_kwargs.update(dict(bos_token_id=tokenizer.bos_token_id))
@@ -394,13 +413,19 @@ def _evaluate(
 
 def get_generate_params(model_lower,
                         prompt_type, temperature, top_p, top_k, num_beams,
-                        max_length, repetition_penalty, num_return_sequences,
+                        max_new_tokens, min_new_tokens, early_stopping, max_time,
+                        repetition_penalty, num_return_sequences,
                         do_sample):
     use_defaults = False
     use_default_examples = True
     examples = []
     task_info = f"{prompt_type}"
     print(f"Using Model {model_lower}", flush=True)
+
+    min_new_tokens = min_new_tokens if min_new_tokens is not None else 0
+    early_stopping = early_stopping if early_stopping is not None else False
+    max_time_defaults = 60 * 3
+    max_time = max_time if max_time is not None else max_time_defaults
 
     summarize_example1 = """Jeff: Can I train a ? Transformers model on Amazon SageMaker? 
 Philipp: Sure you can use the new Hugging Face Deep Learning Container. 
@@ -414,7 +439,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         placeholder_input = ""
         use_defaults = True
         use_default_examples = False
-        examples += [[placeholder_instruction, "", 'plain', 1.0, 1.0, 50, 1, 128, 1.0, 1, False]]
+        examples += [[placeholder_instruction, "", 'plain', 1.0, 1.0, 50, 1, 128, 0, False, max_time_defaults, 1.0, 1, False]]
         task_info = "Summarization"
     elif 't5-' in model_lower or 't5' == model_lower or 'flan-' in model_lower:
         placeholder_instruction = "The square root of x is the cube root of y. What is y to the power of 2, if x = 4?"
@@ -427,19 +452,19 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         placeholder_input = ""
         use_defaults = True
         use_default_examples = False
-        examples += [[placeholder_instruction, "", 'plain', 1.0, 1.0, 50, 1, 128, 1.0, 1, False]]
+        examples += [[placeholder_instruction, "", 'plain', 1.0, 1.0, 50, 1, 128, 0, False, max_time_defaults, 1.0, 1, False]]
     elif 'gpt2' in model_lower:
         placeholder_instruction = "The sky is"
         placeholder_input = ""
         use_default_examples = True  # some will be odd "continuations" but can be ok
-        examples += [[placeholder_instruction, "", 'plain', 1.0, 1.0, 50, 1, 128, 1.0, 1, False]]
+        examples += [[placeholder_instruction, "", 'plain', 1.0, 1.0, 50, 1, 128, 0, False, max_time_defaults, 1.0, 1, False]]
         task_info = "Auto-complete phrase, code, etc."
     else:
         placeholder_instruction = "Give detailed answer for whether Einstein or Newton is smarter."
         placeholder_input = ""
         prompt_type = prompt_type or 'instruct'
         examples += [[summarize_example1, 'Summarize' if prompt_type not in ['plain', 'instruct_simple'] else '',
-                      prompt_type, 0.1, 0.75, 40, 4, 256, 1.0, 1, False]]
+                      prompt_type, 0.1, 0.75, 40, 4, 256, 0, False, max_time_defaults, 1.0, 1, False]]
         if prompt_type == 'instruct':
             task_info = "Answer question or follow imperitive as instruction with optionally input."
         elif prompt_type == 'plain':
@@ -453,7 +478,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         top_p = 1.0 if top_p is None else top_p
         top_k = 50 if top_k is None else top_k
         num_beams = num_beams or 1
-        max_length = max_length or 128
+        max_new_tokens = max_new_tokens or 128
         repetition_penalty = repetition_penalty or 1.0
         num_return_sequences = min(num_beams, num_return_sequences or 1)
         do_sample = False if do_sample is None else do_sample
@@ -463,11 +488,11 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         top_p = 0.75 if top_p is None else top_p
         top_k = 40 if top_k is None else top_k
         num_beams = num_beams or 4
-        max_length = max_length or 256
+        max_new_tokens = max_new_tokens or 256
         repetition_penalty = repetition_penalty or 1.0
         num_return_sequences = min(num_beams, num_return_sequences or 1)
         do_sample = False if do_sample is None else do_sample
-    params_list = [temperature, top_p, top_k, num_beams, max_length, repetition_penalty, num_return_sequences, do_sample]
+    params_list = [temperature, top_p, top_k, num_beams, max_new_tokens,  min_new_tokens, early_stopping, max_time, repetition_penalty, num_return_sequences, do_sample]
 
     if use_default_examples:
         examples += [
@@ -505,7 +530,8 @@ y = np.random.randint(0, 1, 100)
 
     return placeholder_instruction, placeholder_input, \
            prompt_type, temperature, top_p, top_k, num_beams, \
-           max_length, repetition_penalty, num_return_sequences, \
+           max_new_tokens, min_new_tokens, early_stopping, max_time, \
+           repetition_penalty, num_return_sequences, \
            do_sample, \
            src_lang, tgt_lang, \
            examples, \
