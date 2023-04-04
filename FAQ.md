@@ -76,5 +76,6 @@ Run generation like:
 ```
 
 ### Use fast attention with LLaMa from Vicunda/FastChat  repo:
+[Special transformers hash](https://github.com/lm-sys/FastChat#install)<br />
 [Patch1](https://github.com/lm-sys/FastChat/blob/main/fastchat/train/llama_flash_attn_monkey_patch.py)<br />
 [Patch2](https://github.com/lm-sys/FastChat/blob/main/fastchat/train/train_mem.py#L5)<br />
