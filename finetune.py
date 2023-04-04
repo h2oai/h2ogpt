@@ -409,13 +409,13 @@ def train(
             "prompt_type",
             [prompt_type] * train_data.num_rows,
         )
-        log("Added prompt type %s to training data" % data_mix_in_prompt_type)
+        log("Added prompt type %s to training data" % prompt_type)
     if valid_data and "prompt_type" not in valid_data.column_names:
         valid_data = valid_data.add_column(
             "prompt_type",
             [prompt_type] * valid_data.num_rows,
         )
-        log("Added prompt type %s to validation data" % data_mix_in_prompt_type)
+        log("Added prompt type %s to validation data" % prompt_type)
 
     assert train_data is not None
 
