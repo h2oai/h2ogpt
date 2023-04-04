@@ -457,10 +457,10 @@ def train(
     expected_steps = train_set_size * num_epochs // batch_size
     if eval_steps is None and eval_epochs is None:
         # 20 evaluations for a run
-        eval_steps = expected_steps // 20
+        eval_steps = max(1, int(expected_steps / 20))
         log("Auto set eval_steps to %s out of %s total training steps" % (eval_steps, expected_steps))
     elif eval_epochs is not None:
-        eval_steps = expected_steps * eval_epochs // num_epochs
+        eval_steps = max(1, int(expected_steps * eval_epochs / num_epochs))
         log("Auto converted eval_epochs=%s to eval_steps %s"
             " out of %s total training steps" % (eval_epochs, eval_steps, expected_steps))
     if save_steps is None:
