@@ -571,6 +571,8 @@ def train(
 
     if torch.__version__ >= "2" and sys.platform != "win32":
         model = torch.compile(model)
+        # WIP (not generally replacing layers until pytorch 2.1)
+        torch.backends.cuda.enable_flash_sdp(True)
 
     if gpus > 1 and not ddp:
         assert trainer.is_model_parallel
