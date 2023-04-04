@@ -68,6 +68,7 @@
 [Apache2 Summarization](https://huggingface.co/datasets?task_categories=task_categories:summarization&license=license:apache-2.0&sort=downloads)<br />
 [MIT summarization](https://huggingface.co/datasets?task_categories=task_categories:summarization&license=license:mit&sort=downloads)<br />
 [BSD-3 summarization](https://huggingface.co/datasets?task_categories=task_categories:summarization&license=license:bsd-3-clause&sort=downloads)<br />
+[OpenRail](https://huggingface.co/datasets?task_categories=task_categories:summarization&license=license:openrail&sort=downloads)<br />
 
 ### Ambiguous License Data
 [GPT4All](https://huggingface.co/datasets/nomic-ai/gpt4all_prompt_generations)<br />
