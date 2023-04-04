@@ -354,7 +354,7 @@ def test_prep_vicuna_instruct():
             elif conv['from'] == 'gpt':
                 FROM = '<bot>: '
             convo += f"{FROM}" + conv['value'] + "\n"
-        training_rows.append(convo)
+        training_rows.append(dict(input=convo))
     with open(filename + ".generate_human_bot.train_plain.json", "wt") as f:
         f.write(json.dumps(training_rows, indent=2))
 
