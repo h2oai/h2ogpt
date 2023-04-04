@@ -31,6 +31,8 @@
 [Natural-Instructions](https://github.com/allenai/natural-instructions)<br />
 
 ### Other projects:
+[EasyLM](https://github.com/young-geng/EasyLM.git)<br />
+[Koala](https://bair.berkeley.edu/blog/2023/04/03/koala/)<br />
 [Vicuna](https://vicuna.lmsys.org/)<br />
 [Flan-Alpaca](https://github.com/declare-lab/flan-alpaca)<br />
 [FastChat](https://chat.lmsys.org/)<br />

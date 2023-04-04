@@ -244,7 +244,10 @@ def train(
                                                  local_files_only=local_files_only,
                                                  resume_download=resume_download)
 
-    tokenizer.pad_token_id = 0  # unk. we want this to be different from the eos token
+    tokenizer.pad_token_id = 0  # different from the eos token
+    # when generating, we will use the logits of right-most token to predict the next token
+    # so the padding should be on the left,
+    # e.g. see: https://huggingface.co/transformers/v4.11.3/model_doc/t5.html#inference
     tokenizer.padding_side = "left"  # Allow batched inference
 
     def tokenize(prompt, add_eos_token=True):
@@ -277,6 +280,7 @@ def train(
             tokenized_user_prompt = tokenize(user_prompt, add_eos_token=False)
             user_prompt_len = len(tokenized_user_prompt["input_ids"])
 
+            # ignore_index=-100 ensures torch/tf don't include padding token id in CrossEntropyLoss
             tokenized_full_prompt["labels"] = [
                                                   -100
                                               ] * user_prompt_len + tokenized_full_prompt["labels"][
@@ -477,19 +481,23 @@ def train(
     def compute_metrics(eval_preds):
         inputs = eval_preds.inputs
         label_ids = eval_preds.label_ids
-        predictions =  eval_preds.predictions
+        predictions = eval_preds.predictions
 
         #inputs = np.where(inputs != -100, inputs, tokenizer.pad_token_id)
         #decoded_inputs = tokenizer.batch_decode(inputs, skip_special_tokens=True)
         #decoded_inputs = [pred.strip() for pred in decoded_inputs]
 
         label_ids = np.where(label_ids != -100, label_ids, tokenizer.pad_token_id)
-        decoded_labels = tokenizer.batch_decode(label_ids, skip_special_tokens=True)
+        # tokenizer behavior like generate time
+        decoded_labels = tokenizer.batch_decode(label_ids, skip_special_tokens=True,
+                                                           clean_up_tokenization_spaces=True)
         decoded_labels = [pred.strip() for pred in decoded_labels]
 
         predictions = np.argmax(predictions, -1)
         predictions = np.where(predictions != -100, predictions, tokenizer.pad_token_id)
-        decoded_predictions = tokenizer.batch_decode(predictions, skip_special_tokens=True)
+        # tokenizer behavior like generate time
+        decoded_predictions = tokenizer.batch_decode(predictions, skip_special_tokens=True,
+                                                                  clean_up_tokenization_spaces=True)
         decoded_predictions = [pred.strip() for pred in decoded_predictions]
 
         result = {}
