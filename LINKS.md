@@ -62,6 +62,7 @@
 [More on OIG](https://laion.ai/blog/oig-dataset/)<br />
 [DataSet Viewer](https://huggingface.co/datasets/viewer/?dataset=squad)<br />
 [Anthropic RLHF](https://huggingface.co/datasets/Anthropic/hh-rlhf)<br />
+[WebGPT_Comparisons](https://huggingface.co/datasets/openai/webgpt_comparisons)<br />
 
 ### Apache2/MIT/BSD-3 Summarization Data
 [xsum for Summarization](https://huggingface.co/datasets/xsum)<br />
@@ -69,6 +70,7 @@
 [MIT summarization](https://huggingface.co/datasets?task_categories=task_categories:summarization&license=license:mit&sort=downloads)<br />
 [BSD-3 summarization](https://huggingface.co/datasets?task_categories=task_categories:summarization&license=license:bsd-3-clause&sort=downloads)<br />
 [OpenRail](https://huggingface.co/datasets?task_categories=task_categories:summarization&license=license:openrail&sort=downloads)<br />
+[Summarize_from_feedback](https://huggingface.co/datasets/openai/summarize_from_feedback)<br />
 
 ### Ambiguous License Data
 [GPT4All](https://huggingface.co/datasets/nomic-ai/gpt4all_prompt_generations)<br />
