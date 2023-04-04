@@ -17,6 +17,7 @@
 [LLaMa-64b-4bit](https://huggingface.co/maderix/llama-65b-4bit/tree/main)<br />
 
 ### Papers/Repos
+[HAI Index Report 2023](https://aiindex.stanford.edu/report/)<br />
 [LLaMa](https://arxiv.org/abs/2302.13971)<br />
 [GLM-130B](https://github.com/THUDM/GLM-130B)<br />
 [RWKV RNN](https://github.com/BlinkDL/RWKV-LM)<br />
@@ -86,7 +87,6 @@
 [Notes_on_Transformers Chpt5](https://christianjmills.com/posts/transformers-book-notes/chapter-5/index.html)<br />
 [Notes_on_Transformers_Chpt10](https://christianjmills.com/posts/transformers-book-notes/chapter-10/index.html)<br />
 
-
 ### Embeddings
 [OpenAI Expensive?](https://medium.com/@nils_reimers/openai-gpt-3-text-embeddings-really-a-new-state-of-the-art-in-dense-text-embeddings-6571fe3ec9d9)<br />
 [Leaderboard](https://huggingface.co/spaces/mteb/leaderboard)<br />
@@ -103,6 +103,10 @@
 [Perplexity](https://www.perplexity.ai/)<br />
 [VoiceFlow](https://www.voiceflow.com/)<br />
 [NLPCloud](https://nlpcloud.com/effectively-using-gpt-j-gpt-neo-gpt-3-alternatives-few-shot-learning.html)<br />
+
+### Multinode inference
+[FasterTransformer](https://github.com/triton-inference-server/fastertransformer_backend#multi-node-inference)<br />
+[Kubernetes Triton](https://developer.nvidia.com/blog/deploying-nvidia-triton-at-scale-with-mig-and-kubernetes/)<br />
 
 ### Semi-Open source Semi-Commercial products
 [OpenAssistant](https://open-assistant.io/)<br />
