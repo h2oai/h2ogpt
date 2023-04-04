@@ -316,8 +316,8 @@ def _evaluate(
         tokenizer.src_lang = languages_covered()[src_lang]
 
     inputs = tokenizer(prompt, return_tensors="pt")
-    if debug:
-        print('input_ids length', len(inputs["input_ids"]), flush=True)
+    if debug and len(inputs["input_ids"]) > 0:
+        print('input_ids length', len(inputs["input_ids"][0]), flush=True)
     input_ids = inputs["input_ids"].to(device)
     generation_config = GenerationConfig(
         temperature=temperature,
