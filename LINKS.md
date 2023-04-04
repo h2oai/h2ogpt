@@ -119,6 +119,9 @@
 [FasterTransformer](https://github.com/triton-inference-server/fastertransformer_backend#multi-node-inference)<br />
 [Kubernetes Triton](https://developer.nvidia.com/blog/deploying-nvidia-triton-at-scale-with-mig-and-kubernetes/)<br />
 
+### Faster inference
+[Optimum](https://github.com/huggingface/optimum)<br />
+
 ### Semi-Open source Semi-Commercial products
 [OpenAssistant](https://open-assistant.io/)<br />
 [OpenAssistant Repo](https://github.com/LAION-AI/Open-Assistant)<br />
