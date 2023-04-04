@@ -136,7 +136,7 @@ def train(
 
         # validation settings
         val_set_size: int = None,
-        val_metrics: List[str] = ['bleu'],
+        val_metrics: List[str] = [],
         eval_steps: int = None,  # to control eval steps via steps
         eval_epochs: float = None,  # to control eval steps via epochs
 
