@@ -356,7 +356,7 @@ def _evaluate(
                           max_time=max_time,
                           )
         if 'gpt2' in base_model.lower():
-            gen_kwargs.update(dict(bos_token_id=tokenizer.bos_token_id))
+            gen_kwargs.update(dict(bos_token_id=tokenizer.bos_token_id, pad_token_id=tokenizer.eos_token_id))
         elif 'mbart-' in base_model.lower():
             assert tgt_lang is not None
             tgt_lang = languages_covered()[tgt_lang]
