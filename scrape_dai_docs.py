@@ -463,7 +463,7 @@ def test_get_open_datasets():
                  'license:openrail++',
                  'license:openrail',
                  'license:bigscience-bloom-rail-1.0',
-                 'license:agpl-3.0',
+                 #'license:agpl-3.0',
                  'license:other',
                  'license:unknown',
                  # 'license:mpl-2.0',
