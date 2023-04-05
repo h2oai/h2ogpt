@@ -552,8 +552,8 @@ def test_get_open_datasets():
 
 
 def do_one(data_id, num_downloads):
-    out_csv = "data_%s.csv" % str(data_id.replace('/', '_'))
-    if os.path.isfile(out_csv):
+    out_file = "data_%s.parquet" % str(data_id.replace('/', '_'))
+    if os.path.isfile(out_file):
         return
     try:
         data = load_dataset(data_id)
@@ -568,7 +568,8 @@ def do_one(data_id, num_downloads):
             df = data['train'].to_pandas()
         else:
             df = data[first_col].to_pandas()
-        df.to_csv(out_csv, index=False)
+        # csv has issues with escaping chars, even for datasets I know I want
+        df.to_parquet(out_file, index=False)
     except Exception as e:
         t, v, tb = sys.exc_info()
         ex = ''.join(traceback.format_exception(t, v, tb))
