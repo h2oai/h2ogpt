@@ -1,3 +1,4 @@
+import ast
 import concurrent.futures
 import contextlib
 import hashlib
@@ -525,6 +526,7 @@ def test_get_open_datasets():
     exclude_ids = ['allenai/nllb',  # translation only
                    'hf-internal-testing/fixtures_image_utils',  # testing
                    'allenai/c4',  # search-url
+                   'agemagician/uniref50',  # unknown
                    ]
     small_open_english_tasked_datasets = [x for x in small_open_english_tasked_datasets if x.id not in exclude_ids]
     # some ids clearly speech related
@@ -541,6 +543,7 @@ def test_get_open_datasets():
     # Run like pytest -s -v scrape_dai_docs.py::test_get_open_datasets &> getdata9.log
     # See what needs config passed and add:
     # grep 'load_dataset(' getdata9.log|grep -v data_id|less -S
+    # NOTE: Some datasets have default config, but others are there.  Don't know how to access them.
 
     timeout = 3 * 60
     for num_downloads, dataset in sorted_small_open_english_tasked_datasets:
@@ -562,24 +565,40 @@ def test_get_open_datasets():
 
 def do_one(data_id, num_downloads):
     out_file = "data_%s.parquet" % str(data_id.replace('/', '_'))
-    if os.path.isfile(out_file):
+    if os.path.isfile(out_file) and os.path.getsize(out_file) > 1024**3:
         return
     try:
         print("Loading data_id %s num_downloads: %s" % (data_id, num_downloads), flush=True)
-        data = load_dataset(data_id)
-        column_names_dict = data.column_names
-        column_names = column_names_dict[list(column_names_dict.keys())[0]]
-        print("Processing data_id %s num_downloads: %s columns: %s" % (data_id, num_downloads, column_names),
-              flush=True)
-        data_dict = data.data
-        col_dict = data.num_columns
-        first_col = list(col_dict.keys())[0]
-        if 'train' in data_dict:
-            df = data['train'].to_pandas()
-        else:
-            df = data[first_col].to_pandas()
-        # csv has issues with escaping chars, even for datasets I know I want
-        df.to_parquet(out_file, index=False)
+        avail_list = None
+        try:
+            data = load_dataset(data_id, 'foobar')
+        except Exception as e:
+            if 'Available: ' in str(e):
+                avail_list = ast.literal_eval(str(e).split('Available:')[1].strip())
+            else:
+                avail_list = None
+        if avail_list is None:
+            avail_list = [None]
+        print("%s avail_list: %s" % (data_id, avail_list), flush=True)
+
+        for name in avail_list:
+            out_file = "data_%s_%s.parquet" % (str(data_id.replace('/', '_')), str(name))
+            if os.path.isfile(out_file):
+                continue
+            data = load_dataset(data_id, name)
+            column_names_dict = data.column_names
+            column_names = column_names_dict[list(column_names_dict.keys())[0]]
+            print("Processing data_id %s num_downloads: %s columns: %s" % (data_id, num_downloads, column_names),
+                  flush=True)
+            data_dict = data.data
+            col_dict = data.num_columns
+            first_col = list(col_dict.keys())[0]
+            if 'train' in data_dict:
+                df = data['train'].to_pandas()
+            else:
+                df = data[first_col].to_pandas()
+            # csv has issues with escaping chars, even for datasets I know I want
+            df.to_parquet(out_file, index=False)
     except Exception as e:
         t, v, tb = sys.exc_info()
         ex = ''.join(traceback.format_exception(t, v, tb))
