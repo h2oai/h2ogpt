@@ -3,6 +3,7 @@ import json
 import os
 import shutil
 
+import pytest
 import transformers
 from datasets import load_dataset
 
@@ -358,6 +359,24 @@ def test_prep_vicuna_instruct():
             training_rows.append(dict(input=convo))
     with open(filename + ".generate_human_bot.train_plain.json", "wt") as f:
         f.write(json.dumps(training_rows, indent=2))
+
+
+@pytest.mark.parametrize("filename", [
+    "unified_chip2.jsonl",
+    "unified_grade_school_math_instructions.jsonl",
+
+])
+def test_get_OIG_data(filename):
+    if not os.path.exists(filename):
+        os.system('wget https://huggingface.co/datasets/laion/OIG/resolve/main/%s' % filename)
+    import json
+    rows = []
+    with open(filename, "r") as f:
+        for line in f.readlines():
+            row = json.loads(line)
+            rows.append(dict(input=row["text"]))
+    with open(filename + ".generate_human_bot.train_plain.json", "w") as f:
+        f.write(json.dumps(rows, indent=2))
 
 
 def test_join_jsons():
