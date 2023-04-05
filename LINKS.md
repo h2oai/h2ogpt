@@ -31,6 +31,7 @@
 [Natural-Instructions](https://github.com/allenai/natural-instructions)<br />
 
 ### Other projects:
+[ColossalAIChat](https://github.com/hpcaitech/ColossalAI/tree/main/applications/Chat)<br />
 [EasyLM](https://github.com/young-geng/EasyLM.git)<br />
 [Koala](https://bair.berkeley.edu/blog/2023/04/03/koala/)<br />
 [Vicuna](https://vicuna.lmsys.org/)<br />
