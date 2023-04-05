@@ -529,9 +529,18 @@ def test_get_open_datasets():
     small_open_english_tasked_datasets = [x for x in small_open_english_tasked_datasets if x.id not in exclude_ids]
     # some ids clearly speech related
     small_open_english_tasked_datasets = [x for x in small_open_english_tasked_datasets if 'speech' not in x.id]
+    # HF testing
+    small_open_english_tasked_datasets = [x for x in small_open_english_tasked_datasets if 'hf-internal-testing' not in x.id]
+    small_open_english_tasked_datasets = [x for x in small_open_english_tasked_datasets if
+                                          'chinese' not in x.id]
 
     sorted_small_open_english_tasked_datasets = sorted([(x.downloads, x) for x in small_open_english_tasked_datasets],
                                                        key=lambda x: x[0], reverse=True)
+
+    # NOTES:
+    # Run like pytest -s -v scrape_dai_docs.py::test_get_open_datasets &> getdata9.log
+    # See what needs config passed and add:
+    # grep 'load_dataset(' getdata9.log|grep -v data_id|less -S
 
     timeout = 3 * 60
     for num_downloads, dataset in sorted_small_open_english_tasked_datasets:
@@ -556,6 +565,7 @@ def do_one(data_id, num_downloads):
     if os.path.isfile(out_file):
         return
     try:
+        print("Loading data_id %s num_downloads: %s" % (data_id, num_downloads), flush=True)
         data = load_dataset(data_id)
         column_names_dict = data.column_names
         column_names = column_names_dict[list(column_names_dict.keys())[0]]
