@@ -3,9 +3,10 @@ import hashlib
 import json
 import os
 import shutil
+import sys
+import traceback
 
 import pytest
-import transformers
 from datasets import load_dataset
 
 
@@ -420,3 +421,93 @@ def test_show_prompts():
     for data_points in file_points:
         for data_point in data_points:
             print(generate_prompt(data_point, 'plain')[0])
+
+
+def flatten_list(lis):
+    """Given a list, possibly nested to any level, return it flattened."""
+    new_lis = []
+    for item in lis:
+        if type(item) == type([]):
+            new_lis.extend(flatten_list(item))
+        else:
+            new_lis.append(item)
+    return new_lis
+
+
+def test_get_open_datasets():
+    from huggingface_hub import list_datasets
+    datasets = list_datasets()
+    # check all:
+    all_license_tags = set(flatten_list([[y for y in x.tags if 'license' in y] for x in datasets]))
+    print(len(all_license_tags))
+    open_tags = ['license:Apache License 2.0',
+                 'license:mit',
+                 'license:apache',
+                 'license:apache2',
+                 'license:apache-2.0',
+                 'license:bsd',
+                 'license:bsd-2-clause',
+                 'license:bsd-3-clause',
+                 'license:bsd-3-clause-clear',
+                 'license:lgpl-2.1',
+                 'license:lgpl-3.0',
+                 'license:lgpl-lr',
+                 'license:lgpl',
+                 'license:openrail++',
+                 'license:openrail',
+                 'license:bigscience-bloom-rail-1.0',
+                 'license:agpl-3.0',
+                 'license:other',
+                 'license:unknown',
+                 # 'license:mpl-2.0',
+                 ]
+    open_datasets = [x for x in datasets if any([y in x.tags for y in open_tags])]
+    print('open_datasets', len(open_datasets))
+    all_task_tags = set(flatten_list([[y for y in x.tags if 'task' in y] for x in open_datasets]))
+    print('all_task_tags', len(all_task_tags))
+    excluded_tags = ['image', 'hate', 'tabular', 'table-', 'classification', 'retrieval',
+                     'translation', 'identification', 'object', 'mask', 'to-text',
+                     'face-detection', 'audio', 'voice', 'reinforcement', 'depth-est',
+                     'forecasting', 'parsing', 'visual', 'speech', 'multiple-choice',
+                     'slot-filling', 'irds/argsme', '-scoring', 'other', 'graph-ml',
+                     'feature-extraction', 'keyword-spotting',
+                     'coreference-resolution', 'segmentation',
+                     'word-sense-disambiguation',
+                     'lemmatization']
+    task_tags = [x.replace('task_categories:', '').replace('task_ids:', '')
+                 for x in all_task_tags if not any([y in x for y in
+                                                    excluded_tags])]
+    print('task_tags', len(task_tags))
+    # str(x.tags) to catch any pattern match to anything in lsit
+    open_tasked_datasets = [x for x in open_datasets if any([y in str(x.tags) for y in task_tags]) and not any([y in str(x.tags) for y in excluded_tags])]
+    open_tasked_datasets = [x for x in open_tasked_datasets if not x.disabled]
+    open_tasked_datasets = [x for x in open_tasked_datasets if not x.gated]
+    open_tasked_datasets = [x for x in open_tasked_datasets if not x.private]
+    print('open_tasked_datasets', len(open_tasked_datasets))
+    sizes = [[(y, x.id) for y in x.tags if 'size' in y] for x in open_tasked_datasets]
+    languages = [[(y, x.id) for y in x.tags if 'language:' in y] for x in open_tasked_datasets]
+    open_english_tasked_datasets = [x for x in open_tasked_datasets if 'language:' not in str(x.tags) or 'language:en' in str(x.tags)]
+    # 'aeslc' : email_body, subject -> summarization?
+    # load_dataset(open_tasked_datasets[0].id).data['train'].to_pandas()
+    for dataset in open_english_tasked_datasets:
+        data_id = dataset.id
+        out_csv = "data_%s.csv" % data_id
+        if os.path.isfile(out_csv):
+            continue
+        try:
+            data = load_dataset(data_id)
+            column_names_dict = data.column_names
+            column_names = column_names_dict[list(column_names_dict.keys())[0]]
+            print("Processing data_id %s columns: %s" % (data_id, column_names), flush=True)
+            data_dict = data.data
+            col_dict = data.num_columns
+            first_col = col_dict[list(col_dict.keys())[0]]
+            if 'train' in data_dict:
+                df = data['train'].to_pandas()
+            else:
+                df = data[first_col].to_pandas()
+            df.to_csv(out_csv, index=False)
+        except Exception as e:
+            t, v, tb = sys.exc_info()
+            ex = ''.join(traceback.format_exception(t, v, tb))
+            print("Exception: %s %s" % (data_id, ex), flush=True)
