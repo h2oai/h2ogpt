@@ -1,4 +1,5 @@
 import contextlib
+import hashlib
 import json
 import os
 import shutil
@@ -360,12 +361,18 @@ def test_prep_vicuna_instruct():
     with open(filename + ".generate_human_bot.train_plain.json", "wt") as f:
         f.write(json.dumps(training_rows, indent=2))
 
+POSTFIX = ".generate_human_bot.train_plain.json"
 
-@pytest.mark.parametrize("filename", [
+# https://bair.berkeley.edu/blog/2023/04/03/koala/
+OIG_DATASETS = [
     "unified_chip2.jsonl",
     "unified_grade_school_math_instructions.jsonl",
+    "unified_poetry_2_song.jsonl",
+    "unified_plot_screenplay_books_dialog.jsonl",
+]
 
-])
+
+@pytest.mark.parametrize("filename", OIG_DATASETS)
 def test_get_OIG_data(filename):
     if not os.path.exists(filename):
         os.system('wget https://huggingface.co/datasets/laion/OIG/resolve/main/%s' % filename)
@@ -375,7 +382,19 @@ def test_get_OIG_data(filename):
         for line in f.readlines():
             row = json.loads(line)
             rows.append(dict(input=row["text"]))
-    with open(filename + ".generate_human_bot.train_plain.json", "w") as f:
+    with open(filename + POSTFIX, "w") as f:
+        f.write(json.dumps(rows, indent=2))
+
+
+def test_merge_shuffle_OIG_data():
+    import numpy as np
+    np.random.seed(1234)
+    rows = []
+    for filename in OIG_DATASETS:
+        with open(filename + POSTFIX, "r") as f:
+            rows.extend(json.loads(f.read()))
+    np.random.shuffle(rows)
+    with open("merged_shuffled_OIG_%s.json" % hashlib.sha256(str(OIG_DATASETS).encode()).hexdigest()[:10], "w") as f:
         f.write(json.dumps(rows, indent=2))
 
 
