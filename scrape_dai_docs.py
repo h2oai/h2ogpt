@@ -1,11 +1,17 @@
+import concurrent.futures
 import contextlib
 import hashlib
 import json
 import os
 import shutil
+import signal
 import sys
+import threading
 import traceback
+from concurrent import futures
+from concurrent.futures import ProcessPoolExecutor
 
+import psutil
 import pytest
 from datasets import load_dataset
 
@@ -461,7 +467,7 @@ def test_get_open_datasets():
                  'license:unknown',
                  # 'license:mpl-2.0',
                  ]
-    open_datasets = [x for x in datasets if any([y in x.tags for y in open_tags])]
+    open_datasets = [x for x in datasets if any([y in x.tags for y in open_tags]) or 'license:' not in str(x.tags)]
     print('open_datasets', len(open_datasets))
     all_task_tags = set(flatten_list([[y for y in x.tags if 'task' in y] for x in open_datasets]))
     print('all_task_tags', len(all_task_tags))
@@ -478,36 +484,92 @@ def test_get_open_datasets():
                  for x in all_task_tags if not any([y in x for y in
                                                     excluded_tags])]
     print('task_tags', len(task_tags))
-    # str(x.tags) to catch any pattern match to anything in lsit
-    open_tasked_datasets = [x for x in open_datasets if any([y in str(x.tags) for y in task_tags]) and not any([y in str(x.tags) for y in excluded_tags])]
+    # str(x.tags) to catch any pattern match to anything in list
+    open_tasked_datasets = [x for x in open_datasets if
+                            any([y in str([x for x in x.tags if 'task' in x]) for y in task_tags]) and
+                            not any([y in str([x for x in x.tags if 'task' in x]) for y in excluded_tags]) or
+                            'task_categories' not in str(x.tags) and 'task_ids' not in str(x.tags)]
     open_tasked_datasets = [x for x in open_tasked_datasets if not x.disabled]
     open_tasked_datasets = [x for x in open_tasked_datasets if not x.gated]
     open_tasked_datasets = [x for x in open_tasked_datasets if not x.private]
     print('open_tasked_datasets', len(open_tasked_datasets))
-    sizes = [[(y, x.id) for y in x.tags if 'size' in y] for x in open_tasked_datasets]
-    languages = [[(y, x.id) for y in x.tags if 'language:' in y] for x in open_tasked_datasets]
-    open_english_tasked_datasets = [x for x in open_tasked_datasets if 'language:' not in str(x.tags) or 'language:en' in str(x.tags)]
+    sizes = list(set(flatten_list([[(y, x.id) for y in x.tags if 'size' in y] for x in open_tasked_datasets])))
+    languages = list(set(flatten_list([[(y, x.id) for y in x.tags if 'language:' in y] for x in open_tasked_datasets])))
+    open_english_tasked_datasets = [x for x in open_tasked_datasets if
+                                    'language:' not in str(x.tags) or
+                                    'language:en' in str(x.tags)]
+    small_open_english_tasked_datasets = [x for x in open_english_tasked_datasets if
+                                    'n<1K' in str(x.tags) or
+                                    '1K<n<10K' in str(x.tags) or
+                                    '1K0<n<100K' in str(x.tags) or
+                                    '100K<n<1M' in str(x.tags) or
+                                    'size_category' not in str(x.tags)
+                                    ]
     # 'aeslc' : email_body, subject -> summarization?
     # load_dataset(open_tasked_datasets[0].id).data['train'].to_pandas()
-    for dataset in open_english_tasked_datasets:
+    ids = [x.id for x in small_open_english_tasked_datasets]
+
+    # sanity checks
+    # https://bair.berkeley.edu/blog/2023/04/03/koala/
+    assert 'alespalla/chatbot_instruction_prompts' in ids
+    assert 'laion/OIG' in ids
+    assert 'openai/webgpt_comparisons' in ids
+    assert 'openai/summarize_from_feedback' in ids
+    assert 'Anthropic/hh-rlhf' in ids
+
+    # useful but not allowed for commercial purposes:
+    # https://huggingface.co/datasets/squad
+
+    print('open_english_tasked_datasets: ', ids, flush=True)
+
+    exclude_ids = ['allenai/nllb',  # translation only
+                   'hf-internal-testing/fixtures_image_utils',  # testing
+                   'allenai/c4',  # search-url
+                   ]
+    small_open_english_tasked_datasets = [x for x in small_open_english_tasked_datasets if x.id not in exclude_ids]
+    # some ids clearly speech related
+    small_open_english_tasked_datasets = [x for x in small_open_english_tasked_datasets if 'speech' not in x.id]
+
+    sorted_small_open_english_tasked_datasets = sorted([(x.downloads, x) for x in small_open_english_tasked_datasets],
+                                                       key=lambda x: x[0], reverse=True)
+
+    timeout = 3 * 60
+    for num_downloads, dataset in sorted_small_open_english_tasked_datasets:
         data_id = dataset.id
-        out_csv = "data_%s.csv" % data_id
-        if os.path.isfile(out_csv):
-            continue
-        try:
-            data = load_dataset(data_id)
-            column_names_dict = data.column_names
-            column_names = column_names_dict[list(column_names_dict.keys())[0]]
-            print("Processing data_id %s columns: %s" % (data_id, column_names), flush=True)
-            data_dict = data.data
-            col_dict = data.num_columns
-            first_col = col_dict[list(col_dict.keys())[0]]
-            if 'train' in data_dict:
-                df = data['train'].to_pandas()
-            else:
-                df = data[first_col].to_pandas()
-            df.to_csv(out_csv, index=False)
-        except Exception as e:
-            t, v, tb = sys.exc_info()
-            ex = ''.join(traceback.format_exception(t, v, tb))
-            print("Exception: %s %s" % (data_id, ex), flush=True)
+        func = do_one
+        args = (data_id, num_downloads)
+        kwargs = {}
+        with ProcessPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(func, *args, **kwargs)
+            try:
+                future.result(timeout=timeout)
+            except concurrent.futures.TimeoutError:
+                print("data_id %s timeout" % data_id, flush=True)
+            for child in psutil.Process(os.getpid()).children(recursive=True):
+                os.kill(child.pid, signal.SIGINT)
+                os.kill(child.pid, signal.SIGTERM)
+                os.kill(child.pid, signal.SIGKILL)
+
+
+def do_one(data_id, num_downloads):
+    out_csv = "data_%s.csv" % str(data_id.replace('/', '_'))
+    if os.path.isfile(out_csv):
+        return
+    try:
+        data = load_dataset(data_id)
+        column_names_dict = data.column_names
+        column_names = column_names_dict[list(column_names_dict.keys())[0]]
+        print("Processing data_id %s num_downloads: %s columns: %s" % (data_id, num_downloads, column_names),
+              flush=True)
+        data_dict = data.data
+        col_dict = data.num_columns
+        first_col = list(col_dict.keys())[0]
+        if 'train' in data_dict:
+            df = data['train'].to_pandas()
+        else:
+            df = data[first_col].to_pandas()
+        df.to_csv(out_csv, index=False)
+    except Exception as e:
+        t, v, tb = sys.exc_info()
+        ex = ''.join(traceback.format_exception(t, v, tb))
+        print("Exception: %s %s" % (data_id, ex), flush=True)
