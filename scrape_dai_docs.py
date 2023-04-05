@@ -545,7 +545,21 @@ def test_get_open_datasets():
     # grep 'load_dataset(' getdata9.log|grep -v data_id|less -S
     # NOTE: Some datasets have default config, but others are there.  Don't know how to access them.
 
+
+    """
+    https://huggingface.co/datasets/wikihow/blob/main/wikihow.py
+    https://github.com/mahnazkoupaee/WikiHow-Dataset
+    https://ucsb.box.com/s/ap23l8gafpezf4tq3wapr6u8241zz358
+    https://ucsb.app.box.com/s/ap23l8gafpezf4tq3wapr6u8241zz358
+    """
+
+    """
+    # some ambiguous or non-commercial datasets
+    https://github.com/PhoebusSi/alpaca-CoT
+    """
+
     timeout = 3 * 60
+    # laion/OIG takes longer
     for num_downloads, dataset in sorted_small_open_english_tasked_datasets:
         data_id = dataset.id
         func = do_one
@@ -556,7 +570,7 @@ def test_get_open_datasets():
             try:
                 future.result(timeout=timeout)
             except concurrent.futures.TimeoutError:
-                print("data_id %s timeout" % data_id, flush=True)
+                print("\n\ndata_id %s timeout\n\n" % data_id, flush=True)
             for child in psutil.Process(os.getpid()).children(recursive=True):
                 os.kill(child.pid, signal.SIGINT)
                 os.kill(child.pid, signal.SIGTERM)
