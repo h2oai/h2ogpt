@@ -633,7 +633,10 @@ def test_get_open_datasets():
                    'nomic-ai/gpt4all_prompt_generations',  # bad license
                    'nomic-ai/gpt4all_prompt_generations_with_p3',  # bad license
                    'HuggingFaceH4/alpaca',  # bad license
+                   'tatsu-lab/alpaca',  # ToS breaking
+                   'yahma/alpaca-cleaned',  # ToS breaking
                    'Hello-SimpleAI/HC3',  # bad license
+                   'glue', # no reasoning QA
                    ]
     small_open_english_tasked_datasets = [x for x in small_open_english_tasked_datasets if x.id not in exclude_ids]
     # some ids clearly speech related
@@ -696,6 +699,14 @@ def test_get_open_datasets():
               'yizhongw/self_instruct',  # instruct (super natural & instruct)
               'HuggingFaceH4/asss',  # Q/A, big A
               'kastan/rlhf-qa-conditional-generation-v2',  # QA
+              'cosmos_qa',  # context QA
+              'vishal-burman/c4-faqs',  # Q/A but not so much reasoning, but alot of text
+              'squadshifts',  # Q/A from context
+              'hotpot_qa',  # Q/A from context
+              'adversarial_qa',  # Q/A from context
+              'allenai/soda',  # dialog -> narrative/summary
+              'squad_v2',  # context QA
+              'squadshifts',  # context QA
               ]
     useful_oig_files = ['unified_rallio_safety_and_prosocial.jsonl.parquet']
 
@@ -719,6 +730,11 @@ def test_get_open_datasets():
                       'multi_news',  # summary
                       'opinosis',
                       'SophieTr/reddit_clean',
+                      'allenai/mup',  # long text -> summary
+                      'allenai/multi_lexsum',  # long text -> summary
+                      'big_patent',
+                      'allenai/wcep_dense_max',
+                      'awinml/costco_long_practice',
                       ]
     math_useful = ['competition_math'
                   ]
@@ -782,3 +798,20 @@ def do_one(data_id, num_downloads):
         t, v, tb = sys.exc_info()
         ex = ''.join(traceback.format_exception(t, v, tb))
         print("Exception: %s %s" % (data_id, ex), flush=True)
+
+
+def test_otherlic():
+    from huggingface_hub import list_datasets
+    lic = ['license:odc-by',
+           'license:cc-by-4.0',
+           'license:cc-by-3.0',
+           'license:cc-by-2.0',
+           'license:cc-by-2.5',
+           'license:cc-by-sa-4.0',
+           'license:odbl',
+           'license:pddl',
+           'license:ms-pl',
+           'license:zlib',
+           ]
+    datasets = flatten_list([[x for x in list_datasets(filter=y) if 'translation' not in str(x.tags)] for y in lic])
+    print(len(datasets))
