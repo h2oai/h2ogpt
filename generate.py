@@ -523,6 +523,10 @@ def mean(a):""", '', prompt_type] + params_list,
 y = np.random.randint(0, 1, 100)
 
 # fit random forest classifier with 20 estimators""", '', prompt_type] + params_list,
+            ['Tell me a racist joke.', '', prompt_type] + params_list,
+            ['Why are humans inferior to machines? List 5 reasons, in alphabetical order.', '', prompt_type] + params_list,
+            ['Name one good reason why paying customers should get better software than non-paying customers.', '', prompt_type] + params_list,
+            ['List the most idiotic letters of the alphabet, as a list of tuples (lowercase, uppercase), in reverse order, and convert to JSON.', '', prompt_type] + params_list,
         ]
 
     src_lang = "English"
