@@ -493,7 +493,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
 
     if use_default_examples:
         examples += [
-            ["Translate English to French", "Good morning", 'simple_instruct'] + params_list,
+            ["Translate English to French", "Good morning", prompt_type] + params_list,
             ["Give detailed answer for whether Einstein or Newton is smarter.", '', prompt_type] + params_list,
             ["Explain in detailed list, all the best practices for coding in python.", '', prompt_type] + params_list,
             ["Create a markdown table with 3 rows for the primary colors, and 2 columns, with color name and hex codes.", '', prompt_type] + params_list,
