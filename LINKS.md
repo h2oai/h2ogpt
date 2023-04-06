@@ -59,6 +59,7 @@
 [lamma.cpp more](https://til.simonwillison.net/llms/llama-7b-m2)<br />
 [TargetedSummarization](https://github.com/helliun/targetedSummarization)<br />
 [OpenFlamingo](https://laion.ai/blog/open-flamingo/)<br />
+[Auto-GPT](https://github.com/Torantulino/Auto-GPT)<br />
 
 ### Apache2/etc. Data
 [OIG 43M instructions](https://laion.ai/blog/oig-dataset/) [direct HF link](https://huggingface.co/datasets/laion/OIG)<br />
