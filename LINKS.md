@@ -17,6 +17,7 @@
 [LLaMa-64b-4bit](https://huggingface.co/maderix/llama-65b-4bit/tree/main)<br />
 
 ### Papers/Repos
+[DERA](https://arxiv.org/abs/2303.17071)<br />
 [HAI Index Report 2023](https://aiindex.stanford.edu/report/)<br />
 [LLaMa](https://arxiv.org/abs/2302.13971)<br />
 [GLM-130B](https://github.com/THUDM/GLM-130B)<br />
@@ -31,6 +32,7 @@
 [Natural-Instructions](https://github.com/allenai/natural-instructions)<br />
 
 ### Other projects:
+[StackLLaMa](https://huggingface.co/blog/stackllama)<br />
 [Alpaca-CoT](https://github.com/PhoebusSi/alpaca-CoT)<br />
 [ColossalAIChat](https://github.com/hpcaitech/ColossalAI/tree/main/applications/Chat)<br />
 [EasyLM](https://github.com/young-geng/EasyLM.git)<br />

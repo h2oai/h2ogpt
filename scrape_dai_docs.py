@@ -765,6 +765,9 @@ def test_get_open_datasets():
                   'competition_math'
                   ]
 
+    skipped = ['c4',  # maybe useful, used for flan, but skipped due to size
+              ]
+
     timeout = 3 * 60
     # laion/OIG takes longer
     for num_downloads, dataset in sorted_small_open_english_tasked_datasets:
