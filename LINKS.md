@@ -31,6 +31,7 @@
 [Natural-Instructions](https://github.com/allenai/natural-instructions)<br />
 
 ### Other projects:
+[Alpaca-CoT](https://github.com/PhoebusSi/alpaca-CoT)<br />
 [ColossalAIChat](https://github.com/hpcaitech/ColossalAI/tree/main/applications/Chat)<br />
 [EasyLM](https://github.com/young-geng/EasyLM.git)<br />
 [Koala](https://bair.berkeley.edu/blog/2023/04/03/koala/)<br />
@@ -79,6 +80,7 @@
 [ShareGPT52K](https://huggingface.co/datasets/RyokoAI/ShareGPT52K)<br />
 [ShareGPT_Vicuna](https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered)<br />
 [ChatLogs](https://chatlogs.net/)<br />
+[Alpaca-CoT](https://github.com/PhoebusSi/alpaca-CoT)<br />
 
 ### Non-commercial Data
 [GPT-3 based Alpaca Cleaned](https://github.com/gururise/AlpacaDataCleaned)<br />
