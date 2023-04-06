@@ -427,7 +427,7 @@ def test_make_rlhf_good_data(filename):
             row = row[2:]
         row = row.replace("Human: ", "<human>: ")
         row = row.replace("Assistant: ", "<bot>: ")
-        new_rows.append(row)
+        new_rows.append(dict(input=row))
     with open(filename.replace("/", "_") + POSTFIX, "w") as f:
         f.write(json.dumps(new_rows, indent=2))
 
