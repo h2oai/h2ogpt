@@ -15,6 +15,7 @@ from concurrent.futures import ProcessPoolExecutor
 import psutil
 import pytest
 from datasets import load_dataset
+import pandas as pd
 
 
 def parse_rst_file(filepath):
@@ -379,6 +380,43 @@ OIG_DATASETS = [
     "unified_plot_screenplay_books_dialog.jsonl",
 ]
 
+# hub issue: https://huggingface.co/datasets/laion/OIG/discussions/4
+ALL_OIG_DATASETS = ['unified_abstract_infill.jsonl',
+                    'unified_basic.jsonl',
+                    'unified_canadian_parliament.jsonl',
+                    'unified_chip2.jsonl',
+                    'unified_conv_finqa.jsonl',
+                    'unified_cuad.jsonl',
+                    'unified_essays.jsonl',
+                    'unified_flan.jsonl.gz',
+                    'unified_grade_school_math_instructions.jsonl',
+                    'unified_hc3_human.jsonl',
+                    'unified_image_prompts_instructions.jsonl',
+                    'unified_joke_explanations.jsonl',
+                    'unified_mathqa_flanv2_kojma_cot.jsonl',
+                    'unified_merged_code_xp3.jsonl',
+                    'unified_multi_news.jsonl',
+                    'unified_multi_sum.jsonl',
+                    'unified_ni.jsonl.gz',
+                    'unified_nq.jsonl',
+                    'unified_openai_summarize_tldr.jsonl',
+                    'unified_oscar_en_sample_dialog.jsonl',
+                    'unified_p3.jsonl.gz',
+                    'unified_plot_screenplay_books_dialog.jsonl',
+                    'unified_poetry_2_song.jsonl',
+                    'unified_poetry_instructions.jsonl',
+                    'unified_rallio_safety_and_prosocial.jsonl',
+                    'unified_rallio_soda_upgraded_2048.jsonl',
+                    'unified_soda_dialog.jsonl',
+                    'unified_sqlv1.jsonl',
+                    'unified_sqlv2.jsonl',
+                    'unified_squad_v2.jsonl',
+                    'unified_squad_v2_more_neg.jsonl',
+                    'unified_ul2_plus_oscar_en_sample_dialog.jsonl',
+                    'unified_unifiedskg_instructions.jsonl',
+                    'unified_unnatural_instructions.jsonl',
+                    'unified_xp3_sample.jsonl']
+
 
 @pytest.mark.parametrize("filename", OIG_DATASETS)
 def test_get_OIG_data(filename):
@@ -392,6 +430,14 @@ def test_get_OIG_data(filename):
             rows.append(dict(input=row["text"]))
     with open(filename + POSTFIX, "w") as f:
         f.write(json.dumps(rows, indent=2))
+
+
+@pytest.mark.parametrize("filename", ALL_OIG_DATASETS)
+def test_get_OIG_data_as_parquet(filename):
+    if not os.path.exists(filename):
+        os.system('wget https://huggingface.co/datasets/laion/OIG/resolve/main/%s' % filename)
+    df = pd.read_json(path_or_buf=filename, lines=True)
+    df.to_parquet(filename + '.parquet', index=False)
 
 
 def test_merge_shuffle_OIG_data():
