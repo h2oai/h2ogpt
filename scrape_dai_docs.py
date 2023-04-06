@@ -530,7 +530,7 @@ def test_get_open_datasets():
                  'license:cc-by-3.0',
                  'license:cc-by-2.0',
                  'license:cc-by-2.5',
-                 'license:cc-by-sa-4.0',
+                 #'license:cc-by-sa-4.0',  # would require same license
                  'license:odbl',
                  'license:pddl',
                  'license:ms-pl',
@@ -636,7 +636,9 @@ def test_get_open_datasets():
                    'tatsu-lab/alpaca',  # ToS breaking
                    'yahma/alpaca-cleaned',  # ToS breaking
                    'Hello-SimpleAI/HC3',  # bad license
-                   'glue', # no reasoning QA
+                   'glue',  # no reasoning QA
+                   'sahil2801/CodeAlpaca-20k',  # bad license
+                   'Short-Answer-Feedback/saf_communication_networks_english',  # long Q, medium A
                    ]
     small_open_english_tasked_datasets = [x for x in small_open_english_tasked_datasets if x.id not in exclude_ids]
     # some ids clearly speech related
@@ -707,17 +709,36 @@ def test_get_open_datasets():
               'allenai/soda',  # dialog -> narrative/summary
               'squad_v2',  # context QA
               'squadshifts',  # context QA
+              'dferndz/cSQuAD1',  # context QA
+              'dferndz/cSQuAD2',  # context QA
+              'din0s/msmarco-nlgen',  # context QA
+              'domenicrosati/TruthfulQA',  # common sense truthful QA -- trivia but good trivia
+              'hotpot_qa',  # context, QA
+              'HuggingFaceH4/self-instruct-eval',  # instruct QA, medium quality, some language reasoning
+              'kastan/EE_QA_for_RLHF',  # context Q/A
+              'KK04/LogicInference_OA',  # instruction logical QA
+              'lmqg/qa_squadshifts_synthetic',  # context QA
+              'lmqg/qg_squad',  # context QA
+              'lmqg/qg_squadshifts',  # context QA
+              'lmqg/qg_subjqa',  # context QA
+              'pszemraj/HC3-textgen-qa',  # Q/A medium, has human responses -- humans tend to provide links instead of trying to answer
+              'pythonist/newdata',  # long context, Q/A, brief A
+              'ropes',  # long background, situation, question, A
+              'wikitablequestions',  # table -> QA
               ]
     useful_oig_files = ['unified_rallio_safety_and_prosocial.jsonl.parquet']
 
     code_useful = ['0n1xus/codexglue',
     'openai_humaneval',
+    'koutch/staqc',
                    ]
     maybe_useful = ['AlekseyKorshuk/comedy-scripts',
                      'openbookqa',  # hard to parse, low reasoning
                     'qed',  # reasonable QA, but low reasoning
                     'selqa',  # candidate answers
                     'HuggingFaceH4/instruction-pilot-outputs-filtered',
+                    'GBaker/MedQA-USMLE-4-options',  # medical QA with long questions
+                    'npc-engine/light-batch-summarize-dialogue',  # dialog summarize, kinda low specific quality
                     ]
     summary_useful = ['austin/rheum_abstracts',
                       'CarperAI/openai_summarize_comparisons',  # summarize chosen/rejected
@@ -735,8 +756,13 @@ def test_get_open_datasets():
                       'big_patent',
                       'allenai/wcep_dense_max',
                       'awinml/costco_long_practice',
+                      'GEM/xsum',
+                      'ratishsp/newshead',
+                      'RussianNLP/wikiomnia',  # russian
+                      'stacked-summaries/stacked-xsum-1024',
                       ]
-    math_useful = ['competition_math'
+    math_useful = [
+                  'competition_math'
                   ]
 
     timeout = 3 * 60
