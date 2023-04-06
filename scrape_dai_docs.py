@@ -418,6 +418,21 @@ def test_join_jsons():
     json.dump(lst, open("merged.json", "wt"), indent=2)
 
 
+@pytest.mark.parametrize("filename", ['Anthropic/hh-rlhf'])
+def test_make_rlhf_good_data(filename):
+    rows = load_dataset(filename)["train"]["chosen"]
+    new_rows = []
+    for row in rows:
+        if row[:2] == "\n\n":
+            row = row[2:]
+        row = row.replace("Human: ", "<human>: ")
+        row = row.replace("Assistant: ", "<bot>: ")
+        new_rows.append(row)
+    with open(filename.replace("/", "_") + POSTFIX, "w") as f:
+        f.write(json.dumps(new_rows, indent=2))
+
+
+
 def test_show_prompts():
     files = ['alpaca_data_cleaned.json'] * 0 + \
              ['config.json'] * 1 + \
