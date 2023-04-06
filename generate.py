@@ -86,15 +86,12 @@ def main(
                                      ))
 
         # directly to GPU
-        if load_8bit:
-            model = model_loader.from_pretrained(
-                **model_kwargs
-            )
-        else:
-            model = model_loader.from_pretrained(
-                base_model,
-                **model_kwargs
-            ).to(device)
+        model = model_loader.from_pretrained(
+            base_model,
+            **model_kwargs
+        )
+        if not load_8bit:
+            model = model.to(device)
         if lora_weights:
             model = PeftModel.from_pretrained(
                 model,
