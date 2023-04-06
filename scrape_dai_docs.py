@@ -588,6 +588,37 @@ def test_get_open_datasets():
                    'hf-internal-testing/fixtures_image_utils',  # testing
                    'allenai/c4',  # search-url
                    'agemagician/uniref50',  # unknown
+                   'huggingface-course/documentation-images',  # images
+                   'smilegate-ai/kor_unsmile',  # korean
+                   'MohamedRashad/ChatGPT-prompts',  # ChatGPT/LearnGPT/https://www.emergentmind.com/
+                   'humarin/chatgpt-paraphrases',  # Paraphrase using ChatGPT
+                   'Jeska/vaccinchat',  # not useful
+                   'alespalla/chatbot_instruction_prompts',  # mixes alpaca
+                   'allenai/prosocial-dialog',  # already exlucded, but wrongly in other datasets that say more permissive license
+                   'AlekseyKorshuk/persona-chat',  # low quality
+                   'bavard/personachat_truecased',  # low quality
+                   'adamlin/daily_dialog',  # medium quality conversations
+                   'adamlin/FewShotWoz',  # low quality
+                   'benjaminbeilharz/better_daily_dialog',  # low quality
+                   'benjaminbeilharz/daily_dialog_w_turn_templates',  # low
+                   'benjaminbeilharz/empathetic_dialogues_for_lm',  # low
+                   'GEM-submissions/GEM__bart_base_schema_guided_dialog__1645547915',  # NA
+                   'ia-bentebib/conv_ai_2_fr',  # low fr
+                   'ia-bentebib/daily_dialog_fr',  # low fr
+                   'ia-bentebib/dialog_re_fr',  # low fr
+                   'ia-bentebib/empathetic_dialogues_fr',  # low fr
+                   'roskoN/dailydialog',  # low
+                   'VadorMazer/skyrimdialogstest',  # low
+                   'bigbio/med_qa',  # med specific Q/A
+                   'biu-nlp/qa_srl2018',  # low quality Q/A
+                   'biu-nlp/qa_discourse',  # low quality Q/A
+                   'iarfmoose/qa_evaluator',  # low quality Q/A
+                   'jeopardy',  # low quality Q/A -- no reasoning
+                   'narrativeqa',  # low quality Q/A
+                   'nomic-ai/gpt4all_prompt_generations',  # bad license
+                   'nomic-ai/gpt4all_prompt_generations_with_p3',  # bad license
+                   'HuggingFaceH4/alpaca',  # bad license
+                   'Hello-SimpleAI/HC3',  # bad license
                    ]
     small_open_english_tasked_datasets = [x for x in small_open_english_tasked_datasets if x.id not in exclude_ids]
     # some ids clearly speech related
@@ -619,6 +650,62 @@ def test_get_open_datasets():
     # some ambiguous or non-commercial datasets
     https://github.com/PhoebusSi/alpaca-CoT
     """
+
+    # grep columns getdata13.log|grep -v "\['image'\]"|sort|uniq|grep -v tokens|grep -v "'image'"|grep -v embedding|grep dialog
+    useful = ['Dahoas/instruct-human-assistant-prompt',
+              'Dahoas/first-instruct-human-assistant-prompt',
+              'knkarthick/dialogsum',  # summary of conversation
+              'McGill-NLP/FaithDial',  # medium quality
+              'Zaid/quac_expanded',  # medium quality context + Q + A
+              '0-hero/OIG-small-chip2',  # medium
+              'alistvt/coqa-flat',  # QA medium
+              'AnonymousSub/MedQuAD_47441_Question_Answer_Pairs',  # QA medium
+              'Anthropic/hh-rlhf',  # high quality  # simmilar to Dahoas/full-hh-rlhf
+              'arjunth2001/online_privacy_qna',  # good quality Q/A
+              'Dahoas/instruct_helpful_preferences',  # medium quality instruct
+              'Dahoas/rl-prompt-dataset',  # medium chat
+              'Dahoas/rm-static',  # medium chat
+              'Dahoas/static-hh',  # medium chat  # HuggingFaceH4/self_instruct
+              'Dahoas/synthetic-instruct-gptj-pairwise',  # medium chat
+              'eli5',  # Q/A if prompt ELI5
+              'gsm8k',  # Q/A (various)
+              'guanaco/guanaco',  # prompt/response
+              'kastan/rlhf-qa-comparisons',  # good Q/A
+              'kastan/rlhf-qa-conditional-generation-v2',  # prompt answer
+              'OllieStanley/humaneval-mbpp-codegen-qa',  # code QA, but started from words, so better than other code QA
+              'OllieStanley/humaneval-mbpp-testgen-qa',  # code QA
+              'Graverman/Instruct-to-Code',  # code QA
+              'openai/summarize_from_feedback',  # summarize
+              'relbert/analogy_questions',  # analogy Q/A
+              'yitingxie/rlhf-reward-datasets',  # prompt, chosen, rejected.
+              'yizhongw/self_instruct',  # instruct (super natural & instruct)
+              'HuggingFaceH4/asss',  # Q/A, big A
+              'kastan/rlhf-qa-conditional-generation-v2',  # QA
+              ]
+
+    code_useful = ['0n1xus/codexglue',
+    'openai_humaneval',
+                   ]
+    maybe_useful = ['AlekseyKorshuk/comedy-scripts',
+                     'openbookqa',  # hard to parse, low reasoning
+                    'qed',  # reasonable QA, but low reasoning
+                    'selqa',  # candidate answers
+                    'HuggingFaceH4/instruction-pilot-outputs-filtered',
+                    ]
+    summary_useful = ['austin/rheum_abstracts',
+                      'CarperAI/openai_summarize_comparisons',  # summarize chosen/rejected
+                      'CarperAI/openai_summarize_tldr',  # summarize Q/A
+                      'ccdv/cnn_dailymail',  # summarize news
+                      'ccdv/govreport-summarization',  # summarize high quality
+                      'ccdv/pubmed-summarization',  # summarize high quality
+                      'duorc',  # plot -> Q/A
+                      'farleyknight/big_patent_5_percent',  # desc -> abstract
+                      'multi_news',  # summary
+                      'opinosis',
+                      'SophieTr/reddit_clean',
+                      ]
+    math_useful = ['competition_math'
+                  ]
 
     timeout = 3 * 60
     # laion/OIG takes longer
