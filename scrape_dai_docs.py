@@ -503,11 +503,7 @@ def flatten_list(lis):
 
 
 def test_get_open_datasets():
-    from huggingface_hub import list_datasets
-    datasets = list_datasets()
-    # check all:
-    all_license_tags = set(flatten_list([[y for y in x.tags if 'license' in y] for x in datasets]))
-    print(len(all_license_tags))
+    # HF changed things so don't get raw list of all datasets, so not have to filter, but can't do negative filter
     open_tags = ['license:Apache License 2.0',
                  'license:mit',
                  'license:apache',
@@ -527,8 +523,27 @@ def test_get_open_datasets():
                  #'license:agpl-3.0',
                  'license:other',
                  'license:unknown',
-                 # 'license:mpl-2.0',
+                 # 'license:mpl-2.0',     # ok, but would have to include original copyright, license, source, copies in distribution
+                 # Attribution required:
+                 'license:odc-by',
+                 'license:cc-by-4.0',
+                 'license:cc-by-3.0',
+                 'license:cc-by-2.0',
+                 'license:cc-by-2.5',
+                 'license:cc-by-sa-4.0',
+                 'license:odbl',
+                 'license:pddl',
+                 'license:ms-pl',
+                 'license:zlib',
                  ]
+                 # bad license: cc-by-nc-4.0
+
+    from huggingface_hub import list_datasets
+    datasets = flatten_list([[x for x in list_datasets(filter=y)] for y in open_tags])
+    datasets += [x for x in list_datasets(author='openai')]
+    # check all:
+    all_license_tags = set(flatten_list([[y for y in x.tags if 'license' in y] for x in datasets]))
+    print(len(all_license_tags))
     open_datasets = [x for x in datasets if any([y in x.tags for y in open_tags]) or 'license:' not in str(x.tags)]
     print('open_datasets', len(open_datasets))
     all_task_tags = set(flatten_list([[y for y in x.tags if 'task' in y] for x in open_datasets]))
@@ -682,6 +697,7 @@ def test_get_open_datasets():
               'HuggingFaceH4/asss',  # Q/A, big A
               'kastan/rlhf-qa-conditional-generation-v2',  # QA
               ]
+    useful_oig_files = ['unified_rallio_safety_and_prosocial.jsonl.parquet']
 
     code_useful = ['0n1xus/codexglue',
     'openai_humaneval',
