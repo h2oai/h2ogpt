@@ -558,6 +558,7 @@ def test_get_open_datasets():
     # Run like pytest -s -v scrape_dai_docs.py::test_get_open_datasets &> getdata9.log
     # See what needs config passed and add:
     # grep 'load_dataset(' getdata9.log|grep -v data_id|less -S
+    # grep "pip install" getdata9.log
     # NOTE: Some datasets have default config, but others are there.  Don't know how to access them.
 
 

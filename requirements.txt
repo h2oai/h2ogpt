@@ -21,3 +21,8 @@ evaluate
 nltk
 rouge_score
 sacrebleu
+pytorch_ie
+scikit-learn
+lm_dataformat
+openpyxl
+bioc
