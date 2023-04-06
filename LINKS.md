@@ -55,6 +55,7 @@
 [llama-index](https://github.com/jerryjliu/llama_index)<br />
 [minimal-llama](https://github.com/zphang/minimal-llama/)<br />
 [llama.cpp](https://github.com/ggerganov/llama.cpp)<br />
+[mmap](https://justine.lol/mmap/)<br />
 [lamma.cpp more](https://til.simonwillison.net/llms/llama-7b-m2)<br />
 [TargetedSummarization](https://github.com/helliun/targetedSummarization)<br />
 [OpenFlamingo](https://laion.ai/blog/open-flamingo/)<br />
