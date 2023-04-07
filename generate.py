@@ -55,6 +55,7 @@ def main(
 
         gradio: bool = True,
         chat: bool = False,
+        chat_history: int = 1024,  # length of chat context/history
 ):
     assert base_model, (
         "Please specify a --base_model, e.g. --base_model="
@@ -192,7 +193,7 @@ def main(
         import time
         from functools import partial
 
-        fun = partial(evaluate, tokenizer, model, base_model, debug=debug)
+        fun = partial(evaluate, tokenizer, model, base_model, debug=debug, chat=chat)
         t0 = time.time()
         for ex in examples:
             print("")
@@ -226,7 +227,7 @@ def main(
                     prompt_type = gr.Dropdown(prompt_types_strings, value=prompt_type, label="Prompt Type")
                 with gr.Column():
                     if chat:
-                        text_output = gr.Chatbot()
+                        text_output = gr.Chatbot().style(height=750)
                     else:
                         text_output = gr.Textbox(lines=5, label="Output")
                     clear = gr.Button("Clear")
@@ -266,20 +267,21 @@ def main(
                                                          label="Number Returns", info="Must be <= num_beams")
                         do_sample = gr.Checkbox(label="Sample", info="Sample, for diverse output(s)", value=do_sample)
 
+        context = iinput  # fake context
         inputs_dict = locals()
         inputs_list_names = list(inspect.signature(_evaluate).parameters)
         inputs_list = []
         for k in inputs_list_names:
             if k == 'kwargs':
                 continue
-            if k in ['tokenizer', 'model', 'base_model', 'debug']:
+            if k in ['tokenizer', 'model', 'base_model', 'debug', 'chat']:
                 # these are added via partial, not taken as input
                 continue
             if 'mbart-' not in model_lower and k in ['src_lang', 'tgt_lang']:
                 continue
             inputs_list.append(inputs_dict[k])
         from functools import partial
-        fun = partial(evaluate, tokenizer, model, base_model, debug=debug)
+        fun = partial(evaluate, tokenizer, model, base_model, debug=debug, chat=chat)
 
         if not chat:
             btn = gr.Button("Submit")
@@ -291,6 +293,7 @@ def main(
                 args_list = list(args)
                 user_message = args_list[0]
                 input1 = args_list[1]
+                context1 = args_list[2]
                 if input1 and not user_message.endswith(':'):
                     user_message1 = user_message + ":" + input1
                 elif input1:
@@ -305,7 +308,17 @@ def main(
                 args_list = list(args)
                 history = args_list[-1]
                 instruction1 = history[-1][0]
+                context1 = ''
+                if chat_history > 0:
+                    prompt_type1 = args_list[3]  # after first 3 args of _evaluate()
+                    context1 = ''
+                    for histi in range(len(history) - 1):
+                        data_point = dict(instruction=history[histi][0], input='', output=history[histi][1])
+                        context1 += generate_prompt(data_point, prompt_type1, chat, reduced=True)[0].replace('<br>', '')
+                    if context1 and not context1.endswith('\n'):
+                        context1 += '\n'  # ensure if terminates abruptly, then human continues on next line
                 args_list[0] = instruction1
+                args_list[2] = context1
                 args_list = args_list[:-1]
                 bot_message = fun(*tuple(args_list))
                 history[-1][1] = bot_message
@@ -336,6 +349,7 @@ def _evaluate(
         base_model,
         instruction,
         iinput,
+        context,
         prompt_type,
         temperature,
         top_p,
@@ -351,10 +365,11 @@ def _evaluate(
         src_lang=None,
         tgt_lang=None,
         debug=False,
+        chat=False,
         **kwargs,
 ):
-    data_point = dict(instruction=instruction, input=iinput)
-    prompt, pre_response, terminate_response = generate_prompt(data_point, prompt_type)
+    data_point = dict(context=context, instruction=instruction, input=iinput)
+    prompt, pre_response, terminate_response = generate_prompt(data_point, prompt_type, chat, False)
     if isinstance(tokenizer, str):
         # pipeline
         if tokenizer == "summarization":
@@ -367,6 +382,10 @@ def _evaluate(
     if 'mbart-' in base_model.lower():
         assert src_lang is not None
         tokenizer.src_lang = languages_covered()[src_lang]
+
+    if chat:
+        # override, ignore user change
+        num_return_sequences = 1
 
     inputs = tokenizer(prompt, return_tensors="pt")
     if debug and len(inputs["input_ids"]) > 0:
@@ -414,6 +433,12 @@ def _evaluate(
         response = response.strip("\n")
         return response
 
+    if chat:
+        # have to go by length for now
+        # FIXME: odd chars like -- as single char can mess this up
+        assert len(outputs) == 1, "Cannot have num_return_sequences>1"
+        outputs = [outputs[0][len(prompt) - len(pre_response):].strip()]
+
     multi_output = len(outputs) > 1
 
     for oi, output in enumerate(outputs):
@@ -423,6 +448,7 @@ def _evaluate(
             # prompt sometimes has odd characters, that mutate length,
             # so can't go by length alone
             if pre_response:
+                # [1] to avoid repeated pre_response, just take first (after prompt - pre_response for chat)
                 output = output.split(pre_response)[1]
             if terminate_response:
                 finds = []
@@ -508,9 +534,9 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
             task_info = "Auto-complete phrase, code, etc."
         elif prompt_type == 'human_bot':
             if chat:
-                task_info = "Chat (Shift-Enter to Answer question/imperitive (input concatenated with instruction)"
+                task_info = "Chat (Shift-Enter to give question/imperitive, input concatenated with instruction)"
             else:
-                task_info = "Answer question/imperitive (input concatenated with instruction)"
+                task_info = "Ask question/imperitive (input concatenated with instruction)"
 
     if use_defaults:
         prompt_type = prompt_type or 'plain'
@@ -597,7 +623,7 @@ def languages_covered():
 def test_test_prompt(prompt_type='instruct', data_point=0):
     example_data_point = example_data_points[data_point]
     example_data_point.pop('output', None)
-    return generate_prompt(example_data_point, prompt_type)
+    return generate_prompt(example_data_point, prompt_type, False, False)
 
 
 if __name__ == "__main__":

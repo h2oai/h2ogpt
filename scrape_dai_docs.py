@@ -488,7 +488,7 @@ def test_show_prompts():
     from finetune import generate_prompt
     for data_points in file_points:
         for data_point in data_points:
-            print(generate_prompt(data_point, 'plain')[0])
+            print(generate_prompt(data_point, 'plain', False, False)[0])
 
 
 def flatten_list(lis):

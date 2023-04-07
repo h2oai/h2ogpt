@@ -278,10 +278,10 @@ def train(
         return result
 
     def generate_and_tokenize_prompt(data_point):
-        full_prompt, _, _ = generate_prompt(data_point, prompt_type)
+        full_prompt, _, _ = generate_prompt(data_point, prompt_type, False, False)
         tokenized_full_prompt = tokenize(full_prompt)
         if not train_on_inputs:
-            user_prompt, _, _ = generate_prompt({**data_point, "output": ""}, prompt_type)
+            user_prompt, _, _ = generate_prompt({**data_point, "output": ""}, prompt_type, False, False)
             tokenized_user_prompt = tokenize(user_prompt, add_eos_token=False)
             user_prompt_len = len(tokenized_user_prompt["input_ids"])
 
@@ -648,7 +648,7 @@ def copy_code(run_id):
         shutil.copy(me_full, new_me)
 
 
-def get_prompt(prompt_type):
+def get_prompt(prompt_type, chat, context, reduced):
     if prompt_type in [-1, "-1", "plain"]:
         promptA = promptB = PreInstruct = PreInput = PreResponse = ''
         terminate_response = []
@@ -656,8 +656,8 @@ def get_prompt(prompt_type):
         promptA = promptB = PreInstruct = PreInput = PreResponse = None
         terminate_response = []
     elif prompt_type in [0, "0", "instruct"]:
-        promptA = 'Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.\n'
-        promptB = 'Below is an instruction that describes a task. Write a response that appropriately completes the request.\n'
+        promptA = 'Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.\n' if not (chat and reduced) else ''
+        promptB = 'Below is an instruction that describes a task. Write a response that appropriately completes the request.\n' if not (chat and reduced) else ''
 
         PreInstruct = """
 ### Instruction:
@@ -672,8 +672,8 @@ def get_prompt(prompt_type):
 """
         terminate_response = None
     elif prompt_type in [1, "1", "quality"]:
-        promptA = 'Write a detailed high-quality, accurate, fair, Response with about 100 words by following the Instruction as applied on the Input.\n'
-        promptB = 'Write a detailed high-quality, accurate, fair, Response with about 100 words by following the Instruction.\n'
+        promptA = 'Write a detailed high-quality, accurate, fair, Response with about 100 words by following the Instruction as applied on the Input.\n' if not (chat and reduced) else ''
+        promptB = 'Write a detailed high-quality, accurate, fair, Response with about 100 words by following the Instruction.\n' if not (chat and reduced) else ''
 
         PreInstruct = """
 ### Instruction:
@@ -688,16 +688,18 @@ def get_prompt(prompt_type):
 """
         terminate_response = None
     elif prompt_type in [2, "2", "human_bot"]:
-        cur_date = time.strftime('%Y-%m-%d')
-        cur_time = time.strftime('%H:%M:%S %p %Z')
+        if reduced or context:
+            preprompt = ''
+        else:
+            cur_date = time.strftime('%Y-%m-%d')
+            cur_time = time.strftime('%H:%M:%S %p %Z')
 
-        PRE_PROMPT = """\
+            PRE_PROMPT = """\
 Current Date: {}
 Current Time: {}
 
 """
-
-        preprompt = PRE_PROMPT.format(cur_date, cur_time)
+            preprompt = PRE_PROMPT.format(cur_date, cur_time)
         start = '<human>:'
         promptB = promptA = '%s%s ' % (preprompt, start)
 
@@ -733,15 +735,18 @@ Current Time: {}
     return promptA, promptB, PreInstruct, PreInput, PreResponse, terminate_response
 
 
-def generate_prompt(data_point, prompt_type):
+def generate_prompt(data_point, prompt_type, chat, reduced):
+    context = data_point.get('context') if chat else ''
+    if context is None:
+        context = ''
     instruction = data_point.get('instruction')
     input = data_point.get('input')
     output = data_point.get('output')
     prompt_type = data_point.get('prompt_type', prompt_type)
     assert prompt_type in prompt_types
-    promptA, promptB, PreInstruct, PreInput, PreResponse, terminate_response = get_prompt(prompt_type)
+    promptA, promptB, PreInstruct, PreInput, PreResponse, terminate_response = get_prompt(prompt_type, chat, context, reduced)
 
-    prompt = ''
+    prompt = context
 
     if input and promptA:
         prompt += f"""{promptA}"""
@@ -816,7 +821,7 @@ example_data_points = [example_data_point0, example_data_point1, example_data_po
 
 def test_train_prompt(prompt_type='instruct', data_point=0):
     example_data_point = example_data_points[data_point]
-    return generate_prompt(example_data_point, prompt_type)
+    return generate_prompt(example_data_point, prompt_type, False, False)
 
 
 def test_debug():
