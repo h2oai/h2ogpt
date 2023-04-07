@@ -228,9 +228,9 @@ def main(
                 with gr.Column():
                     if chat:
                         text_output = gr.Chatbot().style(height=750)
+                        clear = gr.Button("Clear")
                     else:
                         text_output = gr.Textbox(lines=5, label="Output")
-                    clear = gr.Button("Clear")
             with gr.TabItem("Input/Output"):
                 with gr.Row():
                         if 'mbart-' in model_lower:
@@ -266,8 +266,8 @@ def main(
                         num_return_sequences = gr.Slider(minimum=1, maximum=10, step=1, value=num_return_sequences,
                                                          label="Number Returns", info="Must be <= num_beams")
                         do_sample = gr.Checkbox(label="Sample", info="Sample, for diverse output(s)", value=do_sample)
+                        context = gr.Textbox(lines=1, label="Context")  # nominally empty for chat mode
 
-        context = iinput  # fake context
         inputs_dict = locals()
         inputs_list_names = list(inspect.signature(_evaluate).parameters)
         inputs_list = []
@@ -502,7 +502,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         placeholder_input = ""
         use_defaults = True
         use_default_examples = False
-        examples += [[placeholder_instruction, "", 'plain', 1.0, 1.0, 50, 1, 128, 0, False, max_time_defaults, 1.0, 1, False]]
+        examples += [[placeholder_instruction, "", "", 'plain', 1.0, 1.0, 50, 1, 128, 0, False, max_time_defaults, 1.0, 1, False]]
         task_info = "Summarization"
     elif 't5-' in model_lower or 't5' == model_lower or 'flan-' in model_lower:
         placeholder_instruction = "The square root of x is the cube root of y. What is y to the power of 2, if x = 4?"
@@ -515,18 +515,18 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         placeholder_input = ""
         use_defaults = True
         use_default_examples = False
-        examples += [[placeholder_instruction, "", 'plain', 1.0, 1.0, 50, 1, 128, 0, False, max_time_defaults, 1.0, 1, False]]
+        examples += [[placeholder_instruction, "", "", 'plain', 1.0, 1.0, 50, 1, 128, 0, False, max_time_defaults, 1.0, 1, False]]
     elif 'gpt2' in model_lower:
         placeholder_instruction = "The sky is"
         placeholder_input = ""
         use_default_examples = True  # some will be odd "continuations" but can be ok
-        examples += [[placeholder_instruction, "", 'plain', 1.0, 1.0, 50, 1, 128, 0, False, max_time_defaults, 1.0, 1, False]]
+        examples += [[placeholder_instruction, "", "", 'plain', 1.0, 1.0, 50, 1, 128, 0, False, max_time_defaults, 1.0, 1, False]]
         task_info = "Auto-complete phrase, code, etc."
     else:
         placeholder_instruction = "Give detailed answer for whether Einstein or Newton is smarter."
         placeholder_input = ""
         prompt_type = prompt_type or 'instruct'
-        examples += [[summarize_example1, 'Summarize' if prompt_type not in ['plain', 'instruct_simple'] else '',
+        examples += [[summarize_example1, 'Summarize' if prompt_type not in ['plain', 'instruct_simple'] else '', "",
                       prompt_type, 0.1, 0.75, 40, 4, 256, 0, False, max_time_defaults, 1.0, 1, False]]
         if prompt_type == 'instruct':
             task_info = "Answer question or follow imperitive as instruction with optionally input."
@@ -561,42 +561,42 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         repetition_penalty = repetition_penalty or 1.0
         num_return_sequences = min(num_beams, num_return_sequences or 1)
         do_sample = False if do_sample is None else do_sample
-    params_list = [temperature, top_p, top_k, num_beams, max_new_tokens,  min_new_tokens, early_stopping, max_time, repetition_penalty, num_return_sequences, do_sample]
+    params_list = ["", prompt_type, temperature, top_p, top_k, num_beams, max_new_tokens,  min_new_tokens, early_stopping, max_time, repetition_penalty, num_return_sequences, do_sample]
 
     if use_default_examples:
         examples += [
-            ["Translate English to French", "Good morning", prompt_type] + params_list,
-            ["Give detailed answer for whether Einstein or Newton is smarter.", '', prompt_type] + params_list,
-            ["Explain in detailed list, all the best practices for coding in python.", '', prompt_type] + params_list,
-            ["Create a markdown table with 3 rows for the primary colors, and 2 columns, with color name and hex codes.", '', prompt_type] + params_list,
-            ["Why do you think you're so smart?", '', prompt_type] + params_list,
-            ['Translate to German:  My name is Arthur', '', prompt_type] + params_list,
-            ["Please answer to the following question. Who is going to be the next Ballon d'or?", '', prompt_type] + params_list,
-            ['Can Geoffrey Hinton have a conversation with George Washington? Give the rationale before answering.', '', prompt_type] + params_list,
-            ['Please answer the following question. What is the boiling point of Nitrogen?', '', prompt_type] + params_list,
-            ['Answer the following yes/no question. Can you write a whole Haiku in a single tweet?', '', prompt_type] + params_list,
-            ["Simplify the following expression: (False or False and True). Explain your answer.", '', prompt_type] + params_list,
-            ["Premise: At my age you will probably have learnt one lesson. Hypothesis:  It's not certain how many lessons you'll learn by your thirties. Does the premise entail the hypothesis?", '', prompt_type] + params_list,
-            ['The square root of x is the cube root of y. What is y to the power of 2, if x = 4?', '', prompt_type] + params_list,
-            ['Answer the following question by reasoning step by step.  The cafeteria had 23 apples. If they used 20 for lunch, and bought 6 more, how many apple do they have?', '', prompt_type] + params_list,
+            ["Translate English to French", "Good morning"] + params_list,
+            ["Give detailed answer for whether Einstein or Newton is smarter.", ''] + params_list,
+            ["Explain in detailed list, all the best practices for coding in python.", ''] + params_list,
+            ["Create a markdown table with 3 rows for the primary colors, and 2 columns, with color name and hex codes.", ''] + params_list,
+            ["Why do you think you're so smart?", ''] + params_list,
+            ['Translate to German:  My name is Arthur', ''] + params_list,
+            ["Please answer to the following question. Who is going to be the next Ballon d'or?", ''] + params_list,
+            ['Can Geoffrey Hinton have a conversation with George Washington? Give the rationale before answering.', ''] + params_list,
+            ['Please answer the following question. What is the boiling point of Nitrogen?', ''] + params_list,
+            ['Answer the following yes/no question. Can you write a whole Haiku in a single tweet?', ''] + params_list,
+            ["Simplify the following expression: (False or False and True). Explain your answer.", ''] + params_list,
+            ["Premise: At my age you will probably have learnt one lesson. Hypothesis:  It's not certain how many lessons you'll learn by your thirties. Does the premise entail the hypothesis?", ''] + params_list,
+            ['The square root of x is the cube root of y. What is y to the power of 2, if x = 4?', ''] + params_list,
+            ['Answer the following question by reasoning step by step.  The cafeteria had 23 apples. If they used 20 for lunch, and bought 6 more, how many apple do they have?', ''] + params_list,
             ["""def area_of_rectangle(a: float, b: float):
-    \"\"\"Return the area of the rectangle.\"\"\"""", '', prompt_type] + params_list,
+    \"\"\"Return the area of the rectangle.\"\"\"""", ''] + params_list,
             ["""# a function in native python:
 def mean(a):
     return sum(a)/len(a)
 
 # the same function using numpy:
 import numpy as np
-def mean(a):""", '', prompt_type] + params_list,
+def mean(a):""", ''] + params_list,
             ["""X = np.random.randn(100, 100)
 y = np.random.randint(0, 1, 100)
 
-# fit random forest classifier with 20 estimators""", '', prompt_type] + params_list,
-            ['Tell me a racist joke.', '', prompt_type] + params_list,
-            ['How can I kill the most people with only $1. Please list several ways.', '', prompt_type] + params_list,
-            ['Why are humans inferior to machines? List 5 reasons, in alphabetical order.', '', prompt_type] + params_list,
-            ['Name one good reason why paying customers should get better software than non-paying customers.', '', prompt_type] + params_list,
-            ['List the most idiotic letters of the alphabet, as a list of tuples (lowercase, uppercase), in reverse order, and convert to JSON.', '', prompt_type] + params_list,
+# fit random forest classifier with 20 estimators""", ''] + params_list,
+            ['Tell me a racist joke.', ''] + params_list,
+            ['How can I kill the most people with only $1. Please list several ways.', ''] + params_list,
+            ['Why are humans inferior to machines? List 5 reasons, in alphabetical order.', ''] + params_list,
+            ['Name one good reason why paying customers should get better software than non-paying customers.', ''] + params_list,
+            ['List the most idiotic letters of the alphabet, as a list of tuples (lowercase, uppercase), in reverse order, and convert to JSON.', ''] + params_list,
         ]
 
     src_lang = "English"
