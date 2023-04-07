@@ -1,4 +1,5 @@
 import inspect
+import random
 import sys
 from typing import Union
 
@@ -53,6 +54,7 @@ def main(
         tgt_lang: str = "Russian",
 
         gradio: bool = True,
+        chat: bool = False,
 ):
     assert base_model, (
         "Please specify a --base_model, e.g. --base_model="
@@ -165,7 +167,7 @@ def main(
     src_lang, tgt_lang, \
     examples, \
     task_info = \
-        get_generate_params(model_lower,
+        get_generate_params(model_lower, chat,
                             prompt_type, temperature, top_p, top_k, num_beams,
                             max_new_tokens, min_new_tokens, early_stopping, max_time,
                             repetition_penalty, num_return_sequences,
@@ -176,6 +178,8 @@ def main(
         instruction_label = "Text to translate"
     else:
         instruction_label = "Instruction"
+    if chat:
+        instruction_label = "Chat"
 
     title = 'H2O-LLM'
     description = f"""Model {base_model} Instruct dataset.
@@ -216,12 +220,16 @@ def main(
             with gr.Row():
                 with gr.Column():
                     instruction = gr.Textbox(
-                        lines=2, label=instruction_label, placeholder=placeholder_instruction,
+                        lines=4, label=instruction_label, placeholder=placeholder_instruction,
                     )
-                    iinput = gr.Textbox(lines=2, label="Input", placeholder=placeholder_input)
+                    iinput = gr.Textbox(lines=4, label="Input", placeholder=placeholder_input)
                     prompt_type = gr.Dropdown(prompt_types_strings, value=prompt_type, label="Prompt Type")
                 with gr.Column():
-                    text_output = gr.Textbox(lines=5, label="Output")
+                    if chat:
+                        text_output = gr.Chatbot()
+                    else:
+                        text_output = gr.Textbox(lines=5, label="Output")
+                    clear = gr.Button("Clear")
             with gr.TabItem("Input/Output"):
                 with gr.Row():
                         if 'mbart-' in model_lower:
@@ -273,10 +281,42 @@ def main(
         from functools import partial
         fun = partial(evaluate, tokenizer, model, base_model, debug=debug)
 
-        btn = gr.Button("Submit")
-        btn.click(fun, inputs=inputs_list, outputs=text_output)
-        if examples is not None:
-            gr.Examples(examples=examples, inputs=inputs_list)
+        if not chat:
+            btn = gr.Button("Submit")
+            btn.click(fun, inputs=inputs_list, outputs=text_output)
+            if examples is not None:
+                gr.Examples(examples=examples, inputs=inputs_list)
+        else:
+            def user(*args):
+                args_list = list(args)
+                user_message = args_list[0]
+                input1 = args_list[1]
+                if input1 and not user_message.endswith(':'):
+                    user_message1 = user_message + ":" + input1
+                elif input1:
+                    user_message1 = user_message + input1
+                else:
+                    user_message1 = user_message
+                history = args_list[-1]
+                args_list = args_list[:-1]
+                return "", history + [[user_message1, None]]
+
+            def bot(*args):
+                args_list = list(args)
+                history = args_list[-1]
+                instruction1 = history[-1][0]
+                args_list[0] = instruction1
+                args_list = args_list[:-1]
+                bot_message = fun(*tuple(args_list))
+                history[-1][1] = bot_message
+                return history
+
+            instruction.submit(user,
+                               inputs_list + [text_output],  # matching user() inputs
+                               [instruction, text_output], queue=False).then(
+                               bot, inputs_list + [text_output], text_output
+            )
+            clear.click(lambda: None, None, text_output, queue=False)
     demo.launch(share=share, show_error=True)
 
 
@@ -408,7 +448,7 @@ def _evaluate(
     return output
 
 
-def get_generate_params(model_lower,
+def get_generate_params(model_lower, chat,
                         prompt_type, temperature, top_p, top_k, num_beams,
                         max_new_tokens, min_new_tokens, early_stopping, max_time,
                         repetition_penalty, num_return_sequences,
@@ -467,7 +507,10 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         elif prompt_type == 'plain':
             task_info = "Auto-complete phrase, code, etc."
         elif prompt_type == 'human_bot':
-            task_info = "Answer question/imperitive (input concatenated with instruction)"
+            if chat:
+                task_info = "Chat (Shift-Enter to Answer question/imperitive (input concatenated with instruction)"
+            else:
+                task_info = "Answer question/imperitive (input concatenated with instruction)"
 
     if use_defaults:
         prompt_type = prompt_type or 'plain'
@@ -484,7 +527,10 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         temperature = 0.1 if temperature is None else temperature
         top_p = 0.75 if top_p is None else top_p
         top_k = 40 if top_k is None else top_k
-        num_beams = num_beams or 4
+        if chat:
+            num_beams = num_beams or 1
+        else:
+            num_beams = num_beams or 4
         max_new_tokens = max_new_tokens or 256
         repetition_penalty = repetition_penalty or 1.0
         num_return_sequences = min(num_beams, num_return_sequences or 1)
