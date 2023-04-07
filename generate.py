@@ -6,7 +6,7 @@ from typing import Union
 import fire
 import torch
 from peft import PeftModel
-from transformers import GenerationConfig
+from transformers import GenerationConfig, StoppingCriteria, StoppingCriteriaList
 import gradio as gr
 
 if torch.cuda.is_available():
@@ -20,7 +20,26 @@ try:
 except:
     pass
 
-from finetune import get_loaders, example_data_points, generate_prompt, get_githash, prompt_types, prompt_types_strings
+from finetune import get_loaders, example_data_points, generate_prompt, get_githash, prompt_types, prompt_types_strings, \
+    human, bot
+
+
+class StoppingCriteriaSub(StoppingCriteria):
+
+    def __init__(self, stops=[], encounters=[]):
+        super().__init__()
+        assert len(stops) == len(encounters), "Number of stops and encounters must match"
+        self.encounters = encounters
+        self.stops = [stop.to("cuda") for stop in stops]
+        self.num_stops = [0] * len(stops)
+
+    def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor):
+        for stopi, stop in enumerate(self.stops):
+            if torch.all((stop == input_ids[0][-len(stop):])).item():
+                self.num_stops[stopi] += 1
+                if self.num_stops[stopi] >= self.encounters[stopi]:
+                    return True
+        return False
 
 
 def main(
@@ -386,8 +405,24 @@ def _evaluate(
     if chat:
         # override, ignore user change
         num_return_sequences = 1
+    if prompt_type == 'human_bot':
+        stop_words = [human, bot]
+        stop_words_ids = [
+            tokenizer(stop_word, return_tensors='pt')['input_ids'].squeeze() for stop_word in stop_words]
+        # encounters = [prompt.count(human) + 1, prompt.count(bot) + 1]
+        # stopping only starts once output is beyond prompt
+        encounters = [1,1]
+        stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(stops=stop_words_ids, encounters=encounters)])
+    else:
+        stopping_criteria = None
 
-    inputs = tokenizer(prompt, return_tensors="pt")
+    cutoff_len = 2048  # if reaches limit, then can't generate new tokens
+    output_smallest = 30
+    prompt = prompt[-cutoff_len - output_smallest:]
+    inputs = tokenizer(prompt,
+                       return_tensors="pt",
+                       truncation=True,
+                       max_length=cutoff_len)
     if debug and len(inputs["input_ids"]) > 0:
         print('input_ids length', len(inputs["input_ids"][0]), flush=True)
     input_ids = inputs["input_ids"].to(device)
@@ -399,6 +434,8 @@ def _evaluate(
         do_sample=do_sample,
         repetition_penalty=repetition_penalty,
         num_return_sequences=num_return_sequences,
+        renormalize_logits=True,
+        remove_invalid_values=True,
         **kwargs,
     )
     with torch.no_grad():
@@ -410,6 +447,7 @@ def _evaluate(
                           min_new_tokens=min_new_tokens,  # prompt + new
                           early_stopping=early_stopping,  # False, True, "never"
                           max_time=max_time,
+                          stopping_criteria=stopping_criteria,
                           )
         if 'gpt2' in base_model.lower():
             gen_kwargs.update(dict(bos_token_id=tokenizer.bos_token_id, pad_token_id=tokenizer.eos_token_id))

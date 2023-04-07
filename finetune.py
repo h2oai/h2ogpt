@@ -74,6 +74,8 @@ prompt_type_to_model_name = {
     'simple_instruct': ['t5', 't5-large', 'google/flan-t5', 'google/flan-t5-xxl', 'google/flan-ul2'],
 }
 
+human = '<human>:'
+bot = "<bot>:"
 
 prompt_types_strings = []
 for p in PromptType:
@@ -700,14 +702,14 @@ Current Time: {}
 
 """
             preprompt = PRE_PROMPT.format(cur_date, cur_time)
-        start = '<human>:'
+        start = human
         promptB = promptA = '%s%s ' % (preprompt, start)
 
         PreInstruct = ""
 
         PreInput = None
 
-        PreResponse = "<bot>:"
+        PreResponse = bot
 
         terminate_response = [start, PreResponse]
     elif prompt_type in [3, "3", "dai_faq"]:

@@ -726,11 +726,25 @@ def test_get_open_datasets():
               'ropes',  # long background, situation, question, A
               'wikitablequestions',  # table -> QA
               ]
-    useful_oig_files = ['unified_rallio_safety_and_prosocial.jsonl.parquet']
+    useful_oig_files = ['unified_rallio_safety_and_prosocial.jsonl.parquet',
+                        'unified_chip2.jsonl.parquet',
+                        'unified_cuad.jsonl.parquet',
+                        'unified_essays.jsonl.parquet',
+                        'unified_flan.jsonl.gz.parquet',
+                        'unified_grade_school_math_instructions.jsonl.parquet',
+                        'unified_hc3_human.jsonl.parquet',
+                        'unified_mathqa_flanv2_kojma_cot.jsonl.parquet',
+                        'unified_merged_code_xp3.jsonl.parquet',
+                        'unified_multi_news.jsonl.parquet',
+                        #'unified_multi_sum.jsonl.parquet'
+                        'unified_ni.jsonl.gz.parquet',
+                        'unified_openai_summarize_tldr.jsonl.parquet',
+
+                        ]
 
     code_useful = ['0n1xus/codexglue',
-    'openai_humaneval',
-    'koutch/staqc',
+                   'openai_humaneval',
+                   'koutch/staqc',
                    ]
     maybe_useful = ['AlekseyKorshuk/comedy-scripts',
                      'openbookqa',  # hard to parse, low reasoning
