@@ -20,7 +20,6 @@ tensorboard==2.12.0
 evaluate==0.4.0
 rouge_score==0.1.2
 sacrebleu==2.3.1
-pytorch_ie==0.14.0
 scikit-learn==1.2.2
 lm_dataformat==0.0.20
 openpyxl==3.1.2
