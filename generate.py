@@ -334,7 +334,7 @@ def main(
                     for histi in range(len(history) - 1):
                         data_point = dict(instruction=history[histi][0], input='', output=history[histi][1])
                         context1 += generate_prompt(data_point, prompt_type1, chat, reduced=True)[0].replace('<br>', '')
-                    if context1 and not context1.endswith('\n'):
+                    if context1:
                         context1 += '\n'  # ensure if terminates abruptly, then human continues on next line
                 args_list[0] = instruction1
                 args_list[2] = context1
@@ -349,7 +349,7 @@ def main(
                                bot, inputs_list + [text_output], text_output
             )
             clear.click(lambda: None, None, text_output, queue=False)
-    demo.launch(share=share, show_error=True)
+    demo.launch(share=share, show_error=True, enable_queue=True)
 
 
 def evaluate(*args, **kwargs):
@@ -476,6 +476,8 @@ def _evaluate(
         # FIXME: odd chars like -- as single char can mess this up
         assert len(outputs) == 1, "Cannot have num_return_sequences>1"
         outputs = [outputs[0][len(prompt) - len(pre_response):].strip()]
+        if debug:
+            print("outputchat: ", '\n\n'.join(outputs), flush=True)
 
     multi_output = len(outputs) > 1
 
@@ -509,6 +511,8 @@ def _evaluate(
         outputs[oi] = output
     # join all outputs, only one extra new line between outputs
     output = '\n'.join(outputs)
+    if debug:
+        print("outputclean: ", '\n\n'.join(outputs), flush=True)
     return output
 
 
