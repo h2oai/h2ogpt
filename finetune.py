@@ -14,7 +14,6 @@ import torch
 from datasets import load_dataset, concatenate_datasets
 import transformers
 import torch.distributed as dist
-import evaluate
 
 from peft import (
     prepare_model_for_int8_training,
@@ -340,6 +339,7 @@ def train(
     metrics = {}
     for name in supported_metrics:
         if name in val_metrics:
+            import evaluate  # Causes hang for 'python generate.py' on dual 4090 if imported early, 100% reproducible
             metrics[name] = evaluate.load(name)
     log("Using Validation Metrics: %s" % str(list(metrics.keys())))
     log("Supported Metrics: %s" % supported_metrics)
