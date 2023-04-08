@@ -103,6 +103,7 @@
 [Info2](https://github.com/dair-ai/Prompt-Engineering-Guide)<br />
 [Prompt-Tuning](https://arxiv.org/abs/2104.08691)<br />
 [P-tuning v2](https://arxiv.org/abs/2110.07602)<br />
+[babyagi](https://github.com/yoheinakajima/babyagi/blob/main/babyagi.py#L97-L134)<br />
 
 ### Validation
 [Bleu/Rouge/Meteor/Bert-Score](https://arize.com/blog-course/generative-ai-metrics-bleu-score/)<br />
