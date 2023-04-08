@@ -81,6 +81,7 @@
 [Summarize_from_feedback](https://huggingface.co/datasets/openai/summarize_from_feedback)<br />
 
 ### Ambiguous License Data
+[GPT-4-LLM](https://github.com/Instruction-Tuning-with-GPT-4/GPT-4-LLM)<br />
 [GPT4All](https://huggingface.co/datasets/nomic-ai/gpt4all_prompt_generations)<br />
 [LinkGPT4](https://github.com/lm-sys/FastChat/issues/90#issuecomment-1493250773)<br />
 [ShareGPT52K](https://huggingface.co/datasets/RyokoAI/ShareGPT52K)<br />
