@@ -16,6 +16,7 @@ import psutil
 import pytest
 from datasets import load_dataset
 import pandas as pd
+import numpy as np
 
 
 def parse_rst_file(filepath):
@@ -66,7 +67,6 @@ def test_scrape_dai_docs_all():
     """
     pytest scrape_dai_docs.py::test_scrape_dai_docs_all
     """
-    import numpy as np
     import glob
     import nltk
     nltk.download('punkt')
@@ -441,7 +441,6 @@ def test_get_OIG_data_as_parquet(filename):
 
 
 def test_merge_shuffle_OIG_data():
-    import numpy as np
     np.random.seed(1234)
     rows = []
     for filename in OIG_DATASETS:
@@ -816,32 +815,51 @@ skipped = ['c4',  # maybe useful, used for flan, but skipped due to size
 
 
 def test_oig():
-    min_words_per_entity = 30
     # from better_profanity import profanity
     # https://pypi.org/project/alt-profanity-check/
     from profanity_check import predict
     df_list = []
-    for data in useful_oig_files[:5]:
+    human = '<human>:'
+    bot = '<bot>:'
+    for data in useful_oig_files:
+    #for data in useful_oig_files[:5]:
     #for data in ['unified_openai_summarize_tldr.jsonl.parquet']:
         print("Processing %s" % data, flush=True)
         df = pd.read_parquet(data)
         df = df.reset_index(drop=True)
-        #avg_chars = len(df['text'][0])/(df['text'][0].count('<human>:')+df['text'][0].count('<bot>:'))
-        df['avg_words'] = df['text'].apply(lambda x: x.count(' ') / (x.count('<human>:') + x.count('<bot>:'))/2.0 )
+        # NOTE: Not correct if multiple human-bot interactions, but those dialogs even more desired
+        #avg_chars = len(df['text'][0])/(df['text'][0].count(human)+df['text'][0].count(bot))
+        df['avg_words'] = df['text'].apply(lambda x: x.count(' ') / (x.count(human) + x.count(bot))/2.0 )
+        df['avg_bot_words'] = df['text'].apply(lambda x: x.split(bot)[1].count(' ') / x.count(bot))
         #df['bad_words'] = df['text'].apply(lambda x: profanity.contains_profanity(x))
+        #low_quality_patterns = ['Write the rest of this wikipedia article']
         res = predict(df['text'])
         df['bad_words'] = res
         df = df.reset_index(drop=True)
         df = df[df['bad_words'] == 0]
-        df = df[['text', 'avg_words']]
+        df = df[['text', 'avg_words', 'avg_bot_words']]
         df = df.drop_duplicates(keep='first')
         print(df[df['avg_words'] == df['avg_words'].max()]['text'].values)
+        median_words = np.median(df['avg_words'])
+        min_words_per_entity = max(30, 0.8 * median_words)
+        max_words_per_entity = 2048  # too hard to learn from for now
         df = df[df['avg_words'] > min_words_per_entity]
+        df = df[df['avg_words'] < max_words_per_entity]
+
+        min_words_per_entity = max(20, 0.5 * median_words)  # bot should say stuff for now
+        max_words_per_entity = 2048  # too hard to learn from for now
+        df = df[df['avg_bot_words'] > min_words_per_entity]
+        df = df[df['avg_bot_words'] < max_words_per_entity]
+
         df_list.append(df)
         print("Done processing %s -> %s rows" % (data, df.shape[0]), flush=True)
     df_final = pd.concat(df_list)
     df_final.to_parquet('df_final.parquet', index=False)
 
+
+def test_check_df_final():
+    df = pd.read_parquet('df_final.parquet')
+    print("here")
 
 
 def do_one(data_id, num_downloads):

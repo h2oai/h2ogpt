@@ -20,8 +20,9 @@ try:
 except:
     pass
 
-from finetune import get_loaders, example_data_points, generate_prompt, get_githash, prompt_types, prompt_types_strings, \
+from finetune import get_loaders, example_data_points, generate_prompt, get_githash, prompt_types_strings, \
     human, bot
+from callbacks import Iteratorize, Stream
 
 
 class StoppingCriteriaSub(StoppingCriteria):
@@ -243,7 +244,7 @@ def main(
                         lines=4, label=instruction_label, placeholder=placeholder_instruction,
                     )
                     iinput = gr.Textbox(lines=4, label="Input", placeholder=placeholder_input)
-                    prompt_type = gr.Dropdown(prompt_types_strings, value=prompt_type, label="Prompt Type")
+                    gr.components.Checkbox(label="Stream output"),
                 with gr.Column():
                     if chat:
                         text_output = gr.Chatbot().style(height=750)
@@ -260,6 +261,7 @@ def main(
             with gr.TabItem("Expert"):
                 with gr.Row():
                     with gr.Column():
+                        prompt_type = gr.Dropdown(prompt_types_strings, value=prompt_type, label="Prompt Type")
                         temperature = gr.Slider(minimum=0, maximum=3, value=temperature,
                                                 label="Temperature", info="Lower is deterministic, Higher more creative")
                         top_p = gr.Slider(minimum=0, maximum=1, value=top_p, label="Top p",
@@ -381,6 +383,7 @@ def _evaluate(
         repetition_penalty,
         num_return_sequences,
         do_sample,
+        stream_output,
         src_lang=None,
         tgt_lang=None,
         debug=False,
@@ -388,7 +391,9 @@ def _evaluate(
         **kwargs,
 ):
     data_point = dict(context=context, instruction=instruction, input=iinput)
-    prompt, pre_response, terminate_response = generate_prompt(data_point, prompt_type, chat, False)
+    prompter = Prompter(prompt_type, debug=debug, chat=chat, stream_output=stream_output)
+    prompt = prompter.generate_prompt(data_point)
+
     if isinstance(tokenizer, str):
         # pipeline
         if tokenizer == "summarization":
@@ -438,82 +443,63 @@ def _evaluate(
         remove_invalid_values=True,
         **kwargs,
     )
+
+    gen_kwargs = dict(input_ids=input_ids,
+                      generation_config=generation_config,
+                      return_dict_in_generate=True,
+                      output_scores=True,
+                      max_new_tokens=max_new_tokens,  # prompt + new
+                      min_new_tokens=min_new_tokens,  # prompt + new
+                      early_stopping=early_stopping,  # False, True, "never"
+                      max_time=max_time,
+                      stopping_criteria=stopping_criteria,
+                      )
+    if 'gpt2' in base_model.lower():
+        gen_kwargs.update(dict(bos_token_id=tokenizer.bos_token_id, pad_token_id=tokenizer.eos_token_id))
+    elif 'mbart-' in base_model.lower():
+        assert tgt_lang is not None
+        tgt_lang = languages_covered()[tgt_lang]
+        gen_kwargs.update(dict(forced_bos_token_id=tokenizer.lang_code_to_id[tgt_lang]))
+    else:
+        gen_kwargs.update(dict(pad_token_id=tokenizer.eos_token_id))
+
+    # With streaming
+    if stream_output:
+        # Stream the reply 1 token at a time.
+        # This is based on the trick of using 'stopping_criteria' to create an iterator,
+        # from https://github.com/oobabooga/text-generation-webui/blob/ad37f396fc8bcbab90e11ecf17c56c97bfbd4a9c/modules/text_generation.py#L216-L243.
+
+        def generate_with_callback(callback=None, **kwargs):
+            kwargs.setdefault(
+                "stopping_criteria", StoppingCriteriaList()
+            )
+            kwargs["stopping_criteria"].append(
+                Stream(callback_func=callback)
+            )
+            with torch.no_grad():
+                model.generate(**kwargs)
+
+        def generate_with_streaming(**kwargs):
+            return Iteratorize(
+                generate_with_callback, kwargs, callback=None
+            )
+
+        with generate_with_streaming(**generate_params) as generator:
+            for output in generator:
+                # new_tokens = len(output) - len(input_ids[0])
+                decoded_output = tokenizer.decode(output)
+
+                if output[-1] in [tokenizer.eos_token_id]:
+                    break
+
+                yield prompter.get_response(decoded_output)
+        return  # early return for stream_output
+
+    # Without streaming
     with torch.no_grad():
-        gen_kwargs = dict(input_ids=input_ids,
-                          generation_config=generation_config,
-                          return_dict_in_generate=True,
-                          output_scores=True,
-                          max_new_tokens=max_new_tokens,  # prompt + new
-                          min_new_tokens=min_new_tokens,  # prompt + new
-                          early_stopping=early_stopping,  # False, True, "never"
-                          max_time=max_time,
-                          stopping_criteria=stopping_criteria,
-                          )
-        if 'gpt2' in base_model.lower():
-            gen_kwargs.update(dict(bos_token_id=tokenizer.bos_token_id, pad_token_id=tokenizer.eos_token_id))
-        elif 'mbart-' in base_model.lower():
-            assert tgt_lang is not None
-            tgt_lang = languages_covered()[tgt_lang]
-            gen_kwargs.update(dict(forced_bos_token_id=tokenizer.lang_code_to_id[tgt_lang]))
-        else:
-            gen_kwargs.update(dict(pad_token_id=tokenizer.eos_token_id))
         outputs = model.generate(**gen_kwargs)
     outputs = [tokenizer.decode(s, skip_special_tokens=True, clean_up_tokenization_spaces=True) for s in outputs.sequences]
-
-    if debug:
-        print("prompt: ", prompt, flush=True)
-        print("output: ", '\n\n'.join(outputs), flush=True)
-
-    def clean_response(response):
-        meaningless_words = ['<pad>', '</s>', '<|endoftext|>', '”\n']
-        for word in meaningless_words:
-            response = response.replace(word, "")
-        response = response.strip("\n")
-        return response
-
-    if chat:
-        # have to go by length for now
-        # FIXME: odd chars like -- as single char can mess this up
-        assert len(outputs) == 1, "Cannot have num_return_sequences>1"
-        outputs = [outputs[0][len(prompt) - len(pre_response):].strip()]
-        if debug:
-            print("outputchat: ", '\n\n'.join(outputs), flush=True)
-
-    multi_output = len(outputs) > 1
-
-    for oi, output in enumerate(outputs):
-        output = clean_response(output)
-        if prompt_type not in [0, '0', 'plain']:
-            # find first instance of prereponse
-            # prompt sometimes has odd characters, that mutate length,
-            # so can't go by length alone
-            if pre_response:
-                # [1] to avoid repeated pre_response, just take first (after prompt - pre_response for chat)
-                output = output.split(pre_response)[1]
-            if terminate_response:
-                finds = []
-                for term in terminate_response:
-                    finds.append(output.find(term))
-                finds = [x for x in finds if x >= 0]
-                if len(finds) > 0:
-                    termi = finds[0]
-                    output = output[:termi].strip()
-                else:
-                    output = output.strip()
-            else:
-                output = output.strip()
-        if multi_output:
-            # prefix with output counter
-            output = "\n=========== Output %d\n\n" % (1 + oi) + output
-            if oi > 0:
-                # post fix outputs with seperator
-                output += '\n'
-        outputs[oi] = output
-    # join all outputs, only one extra new line between outputs
-    output = '\n'.join(outputs)
-    if debug:
-        print("outputclean: ", '\n\n'.join(outputs), flush=True)
-    return output
+    yield prompter.get_response(outputs)
 
 
 def get_generate_params(model_lower, chat,
