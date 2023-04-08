@@ -1,5 +1,4 @@
 import inspect
-import random
 import sys
 from typing import Union
 
@@ -8,6 +7,74 @@ import torch
 from peft import PeftModel
 from transformers import GenerationConfig, StoppingCriteria, StoppingCriteriaList
 import gradio as gr
+
+import traceback
+from queue import Queue
+from threading import Thread
+
+
+class Stream(StoppingCriteria):
+    def __init__(self, callback_func=None):
+        self.callback_func = callback_func
+
+    def __call__(self, input_ids, scores) -> bool:
+        if self.callback_func is not None:
+            self.callback_func(input_ids[0])
+        return False
+
+
+class Iteratorize:
+
+    """
+    Transforms a function that takes a callback
+    into a lazy iterator (generator).
+    """
+
+    def __init__(self, func, kwargs={}, callback=None):
+        self.mfunc = func
+        self.c_callback = callback
+        self.q = Queue()
+        self.sentinel = object()
+        self.kwargs = kwargs
+        self.stop_now = False
+
+        def _callback(val):
+            if self.stop_now:
+                raise ValueError
+            self.q.put(val)
+
+        def gentask():
+            try:
+                ret = self.mfunc(callback=_callback, **self.kwargs)
+            except ValueError:
+                pass
+            except:
+                traceback.print_exc()
+                pass
+
+            self.q.put(self.sentinel)
+            if self.c_callback:
+                self.c_callback(ret)
+
+        self.thread = Thread(target=gentask)
+        self.thread.start()
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        obj = self.q.get(True, None)
+        if obj is self.sentinel:
+            raise StopIteration
+        else:
+            return obj
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.stop_now = True
+
 
 if torch.cuda.is_available():
     device = "cuda"
@@ -75,6 +142,7 @@ def main(
         gradio: bool = True,
         chat: bool = False,
         chat_history: int = 1024,  # length of chat context/history
+        stream_output=True,
 ):
     assert base_model, (
         "Please specify a --base_model, e.g. --base_model="
@@ -276,6 +344,7 @@ def main(
                         min_new_tokens = gr.Slider(
                             minimum=0, maximum=2048, step=1, value=min_new_tokens, label="Min output length"
                         )
+                        stream_output = gr.Checkbox(label="Stream output", value=stream_output)
                         early_stopping = gr.Checkbox(label="EarlyStopping", info="Stop early in beam search",
                                                      value=early_stopping)
                         max_time = gr.Slider(minimum=0, maximum=60*5, step=1, value=max_time, label="Max. time",
@@ -288,7 +357,7 @@ def main(
                         context = gr.Textbox(lines=1, label="Context")  # nominally empty for chat mode
 
         inputs_dict = locals()
-        inputs_list_names = list(inspect.signature(_evaluate).parameters)
+        inputs_list_names = list(inspect.signature(evaluate).parameters)
         inputs_list = []
         for k in inputs_list_names:
             if k == 'kwargs':
@@ -329,7 +398,7 @@ def main(
                 instruction1 = history[-1][0]
                 context1 = ''
                 if chat_history > 0:
-                    prompt_type1 = args_list[3]  # after first 3 args of _evaluate()
+                    prompt_type1 = args_list[3]  # after first 3 args of evaluate()
                     context1 = ''
                     for histi in range(len(history) - 1):
                         data_point = dict(instruction=history[histi][0], input='', output=history[histi][1])
@@ -349,116 +418,10 @@ def main(
                                bot, inputs_list + [text_output], text_output
             )
             clear.click(lambda: None, None, text_output, queue=False)
-    demo.launch(share=share, show_error=True, enable_queue=True)
+    demo.queue().launch(share=share, show_error=True)
 
 
-def evaluate(*args, **kwargs):
-    try:
-        return _evaluate(*args, **kwargs)
-    except Exception as e:
-        t, v, tb = sys.exc_info()
-        import traceback
-        ex = ''.join(traceback.format_exception(t, v, tb))
-        return str(ex)
-
-
-def _evaluate(
-        tokenizer,
-        model,
-        base_model,
-        instruction,
-        iinput,
-        context,
-        prompt_type,
-        temperature,
-        top_p,
-        top_k,
-        num_beams,
-        max_new_tokens,
-        min_new_tokens,
-        early_stopping,
-        max_time,
-        repetition_penalty,
-        num_return_sequences,
-        do_sample,
-        src_lang=None,
-        tgt_lang=None,
-        debug=False,
-        chat=False,
-        **kwargs,
-):
-    data_point = dict(context=context, instruction=instruction, input=iinput)
-    prompt, pre_response, terminate_response = generate_prompt(data_point, prompt_type, chat, False)
-    if isinstance(tokenizer, str):
-        # pipeline
-        if tokenizer == "summarization":
-            key = 'summary_text'
-        else:
-            raise RuntimeError("No such task type %s" % tokenizer)
-        # NOTE: uses max_length only
-        return model(prompt, max_length=max_new_tokens)[0][key]
-
-    if 'mbart-' in base_model.lower():
-        assert src_lang is not None
-        tokenizer.src_lang = languages_covered()[src_lang]
-
-    if chat:
-        # override, ignore user change
-        num_return_sequences = 1
-    if prompt_type == 'human_bot':
-        stop_words = [human, bot]
-        stop_words_ids = [
-            tokenizer(stop_word, return_tensors='pt')['input_ids'].squeeze() for stop_word in stop_words]
-        # encounters = [prompt.count(human) + 1, prompt.count(bot) + 1]
-        # stopping only starts once output is beyond prompt
-        encounters = [1,1]
-        stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(stops=stop_words_ids, encounters=encounters)])
-    else:
-        stopping_criteria = None
-
-    cutoff_len = 2048  # if reaches limit, then can't generate new tokens
-    output_smallest = 30
-    prompt = prompt[-cutoff_len - output_smallest:]
-    inputs = tokenizer(prompt,
-                       return_tensors="pt",
-                       truncation=True,
-                       max_length=cutoff_len)
-    if debug and len(inputs["input_ids"]) > 0:
-        print('input_ids length', len(inputs["input_ids"][0]), flush=True)
-    input_ids = inputs["input_ids"].to(device)
-    generation_config = GenerationConfig(
-        temperature=temperature,
-        top_p=top_p,
-        top_k=top_k,
-        num_beams=num_beams,
-        do_sample=do_sample,
-        repetition_penalty=repetition_penalty,
-        num_return_sequences=num_return_sequences,
-        renormalize_logits=True,
-        remove_invalid_values=True,
-        **kwargs,
-    )
-    with torch.no_grad():
-        gen_kwargs = dict(input_ids=input_ids,
-                          generation_config=generation_config,
-                          return_dict_in_generate=True,
-                          output_scores=True,
-                          max_new_tokens=max_new_tokens,  # prompt + new
-                          min_new_tokens=min_new_tokens,  # prompt + new
-                          early_stopping=early_stopping,  # False, True, "never"
-                          max_time=max_time,
-                          stopping_criteria=stopping_criteria,
-                          )
-        if 'gpt2' in base_model.lower():
-            gen_kwargs.update(dict(bos_token_id=tokenizer.bos_token_id, pad_token_id=tokenizer.eos_token_id))
-        elif 'mbart-' in base_model.lower():
-            assert tgt_lang is not None
-            tgt_lang = languages_covered()[tgt_lang]
-            gen_kwargs.update(dict(forced_bos_token_id=tokenizer.lang_code_to_id[tgt_lang]))
-        else:
-            gen_kwargs.update(dict(pad_token_id=tokenizer.eos_token_id))
-        outputs = model.generate(**gen_kwargs)
-    outputs = [tokenizer.decode(s, skip_special_tokens=True, clean_up_tokenization_spaces=True) for s in outputs.sequences]
+def clean_output(outputs, prompt, prompt_type, pre_response, terminate_response, chat, debug,):
 
     if debug:
         print("prompt: ", prompt, flush=True)
@@ -506,7 +469,7 @@ def _evaluate(
             # prefix with output counter
             output = "\n=========== Output %d\n\n" % (1 + oi) + output
             if oi > 0:
-                # post fix outputs with seperator
+                # post fix outputs with separator
                 output += '\n'
         outputs[oi] = output
     # join all outputs, only one extra new line between outputs
@@ -514,6 +477,140 @@ def _evaluate(
     if debug:
         print("outputclean: ", '\n\n'.join(outputs), flush=True)
     return output
+
+
+def evaluate(
+        tokenizer,
+        model,
+        base_model,
+        instruction,
+        iinput,
+        context,
+        prompt_type,
+        temperature,
+        top_p,
+        top_k,
+        num_beams,
+        max_new_tokens,
+        min_new_tokens,
+        early_stopping,
+        max_time,
+        repetition_penalty,
+        num_return_sequences,
+        do_sample,
+        src_lang=None,
+        tgt_lang=None,
+        debug=False,
+        chat=False,
+        stream_output=True,
+        **kwargs,
+):
+    data_point = dict(context=context, instruction=instruction, input=iinput)
+    prompt, pre_response, terminate_response = generate_prompt(data_point, prompt_type, chat, False)
+    if isinstance(tokenizer, str):
+        # pipeline
+        if tokenizer == "summarization":
+            key = 'summary_text'
+        else:
+            raise RuntimeError("No such task type %s" % tokenizer)
+        # NOTE: uses max_length only
+        return model(prompt, max_length=max_new_tokens)[0][key]
+
+    if 'mbart-' in base_model.lower():
+        assert src_lang is not None
+        tokenizer.src_lang = languages_covered()[src_lang]
+
+    if chat:
+        # override, ignore user change
+        num_return_sequences = 1
+    if prompt_type == 'human_bot':
+        stop_words = [human, bot]
+        stop_words_ids = [
+            tokenizer(stop_word, return_tensors='pt')['input_ids'].squeeze() for stop_word in stop_words]
+        # encounters = [prompt.count(human) + 1, prompt.count(bot) + 1]
+        # stopping only starts once output is beyond prompt
+        encounters = [1,1]
+        stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(stops=stop_words_ids, encounters=encounters)])
+    else:
+        stopping_criteria = StoppingCriteriaList([])
+
+    cutoff_len = 2048  # if reaches limit, then can't generate new tokens
+    output_smallest = 30
+    prompt = prompt[-cutoff_len - output_smallest:]
+    inputs = tokenizer(prompt,
+                       return_tensors="pt",
+                       truncation=True,
+                       max_length=cutoff_len)
+    if debug and len(inputs["input_ids"]) > 0:
+        print('input_ids length', len(inputs["input_ids"][0]), flush=True)
+    input_ids = inputs["input_ids"].to(device)
+    generation_config = GenerationConfig(
+        temperature=temperature,
+        top_p=top_p,
+        top_k=top_k,
+        num_beams=num_beams,
+        do_sample=do_sample,
+        repetition_penalty=repetition_penalty,
+        num_return_sequences=num_return_sequences,
+        renormalize_logits=True,
+        remove_invalid_values=True,
+        **kwargs,
+    )
+    gen_kwargs = dict(input_ids=input_ids,
+                      generation_config=generation_config,
+                      return_dict_in_generate=True,
+                      output_scores=True,
+                      max_new_tokens=max_new_tokens,  # prompt + new
+                      min_new_tokens=min_new_tokens,  # prompt + new
+                      early_stopping=early_stopping,  # False, True, "never"
+                      max_time=max_time,
+                      stopping_criteria=stopping_criteria,
+                      )
+    if stream_output:
+        # Stream the reply 1 token at a time.
+        # This is based on the trick of using 'stopping_criteria' to create an iterator,
+        # from https://github.com/oobabooga/text-generation-webui/blob/ad37f396fc8bcbab90e11ecf17c56c97bfbd4a9c/modules/text_generation.py#L216-L243.
+
+        def generate_with_callback(callback=None, **kwargs):
+            kwargs.setdefault(
+                "stopping_criteria", StoppingCriteriaList()
+            )
+            kwargs["stopping_criteria"].append(
+                Stream(callback_func=callback)
+            )
+            with torch.no_grad():
+                model.generate(**kwargs)
+
+        def generate_with_streaming(**kwargs):
+            return Iteratorize(
+                generate_with_callback, kwargs, callback=None
+            )
+
+        with generate_with_streaming(**gen_kwargs) as generator:
+            for output in generator:
+                # new_tokens = len(output) - len(input_ids[0])
+                decoded_output = tokenizer.decode(output, skip_special_tokens=True, clean_up_tokenization_spaces=True)
+
+                if output[-1] in [tokenizer.eos_token_id]:
+                    break
+
+                outputs = [decoded_output]
+                yield clean_output(outputs, prompt, prompt_type, pre_response, terminate_response, chat, debug)
+        return  # early return for stream_output
+
+    else:
+        with torch.no_grad():
+            if 'gpt2' in base_model.lower():
+                gen_kwargs.update(dict(bos_token_id=tokenizer.bos_token_id, pad_token_id=tokenizer.eos_token_id))
+            elif 'mbart-' in base_model.lower():
+                assert tgt_lang is not None
+                tgt_lang = languages_covered()[tgt_lang]
+                gen_kwargs.update(dict(forced_bos_token_id=tokenizer.lang_code_to_id[tgt_lang]))
+            else:
+                gen_kwargs.update(dict(pad_token_id=tokenizer.eos_token_id))
+            outputs = model.generate(**gen_kwargs)
+        outputs = [tokenizer.decode(s, skip_special_tokens=True, clean_up_tokenization_spaces=True) for s in outputs.sequences]
+        yield clean_output(outputs, prompt, prompt_type, pre_response, terminate_response, chat, debug)
 
 
 def get_generate_params(model_lower, chat,
