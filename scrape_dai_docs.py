@@ -671,117 +671,6 @@ def test_get_open_datasets():
     https://github.com/PhoebusSi/alpaca-CoT
     """
 
-    # grep columns getdata13.log|grep -v "\['image'\]"|sort|uniq|grep -v tokens|grep -v "'image'"|grep -v embedding|grep dialog
-    useful = ['Dahoas/instruct-human-assistant-prompt',
-              'Dahoas/first-instruct-human-assistant-prompt',
-              'knkarthick/dialogsum',  # summary of conversation
-              'McGill-NLP/FaithDial',  # medium quality
-              'Zaid/quac_expanded',  # medium quality context + Q + A
-              '0-hero/OIG-small-chip2',  # medium
-              'alistvt/coqa-flat',  # QA medium
-              'AnonymousSub/MedQuAD_47441_Question_Answer_Pairs',  # QA medium
-              'Anthropic/hh-rlhf',  # high quality  # simmilar to Dahoas/full-hh-rlhf
-              'arjunth2001/online_privacy_qna',  # good quality Q/A
-              'Dahoas/instruct_helpful_preferences',  # medium quality instruct
-              'Dahoas/rl-prompt-dataset',  # medium chat
-              'Dahoas/rm-static',  # medium chat
-              'Dahoas/static-hh',  # medium chat  # HuggingFaceH4/self_instruct
-              'Dahoas/synthetic-instruct-gptj-pairwise',  # medium chat
-              'eli5',  # Q/A if prompt ELI5
-              'gsm8k',  # Q/A (various)
-              'guanaco/guanaco',  # prompt/response
-              'kastan/rlhf-qa-comparisons',  # good Q/A
-              'kastan/rlhf-qa-conditional-generation-v2',  # prompt answer
-              'OllieStanley/humaneval-mbpp-codegen-qa',  # code QA, but started from words, so better than other code QA
-              'OllieStanley/humaneval-mbpp-testgen-qa',  # code QA
-              'Graverman/Instruct-to-Code',  # code QA
-              'openai/summarize_from_feedback',  # summarize
-              'relbert/analogy_questions',  # analogy Q/A
-              'yitingxie/rlhf-reward-datasets',  # prompt, chosen, rejected.
-              'yizhongw/self_instruct',  # instruct (super natural & instruct)
-              'HuggingFaceH4/asss',  # Q/A, big A
-              'kastan/rlhf-qa-conditional-generation-v2',  # QA
-              'cosmos_qa',  # context QA
-              'vishal-burman/c4-faqs',  # Q/A but not so much reasoning, but alot of text
-              'squadshifts',  # Q/A from context
-              'hotpot_qa',  # Q/A from context
-              'adversarial_qa',  # Q/A from context
-              'allenai/soda',  # dialog -> narrative/summary
-              'squad_v2',  # context QA
-              'squadshifts',  # context QA
-              'dferndz/cSQuAD1',  # context QA
-              'dferndz/cSQuAD2',  # context QA
-              'din0s/msmarco-nlgen',  # context QA
-              'domenicrosati/TruthfulQA',  # common sense truthful QA -- trivia but good trivia
-              'hotpot_qa',  # context, QA
-              'HuggingFaceH4/self-instruct-eval',  # instruct QA, medium quality, some language reasoning
-              'kastan/EE_QA_for_RLHF',  # context Q/A
-              'KK04/LogicInference_OA',  # instruction logical QA
-              'lmqg/qa_squadshifts_synthetic',  # context QA
-              'lmqg/qg_squad',  # context QA
-              'lmqg/qg_squadshifts',  # context QA
-              'lmqg/qg_subjqa',  # context QA
-              'pszemraj/HC3-textgen-qa',  # Q/A medium, has human responses -- humans tend to provide links instead of trying to answer
-              'pythonist/newdata',  # long context, Q/A, brief A
-              'ropes',  # long background, situation, question, A
-              'wikitablequestions',  # table -> QA
-              ]
-    useful_oig_files = ['unified_rallio_safety_and_prosocial.jsonl.parquet',
-                        'unified_chip2.jsonl.parquet',
-                        'unified_cuad.jsonl.parquet',
-                        'unified_essays.jsonl.parquet',
-                        'unified_flan.jsonl.gz.parquet',
-                        'unified_grade_school_math_instructions.jsonl.parquet',
-                        'unified_hc3_human.jsonl.parquet',
-                        'unified_mathqa_flanv2_kojma_cot.jsonl.parquet',
-                        'unified_merged_code_xp3.jsonl.parquet',
-                        'unified_multi_news.jsonl.parquet',
-                        #'unified_multi_sum.jsonl.parquet'
-                        'unified_ni.jsonl.gz.parquet',
-                        'unified_openai_summarize_tldr.jsonl.parquet',
-
-                        ]
-
-    code_useful = ['0n1xus/codexglue',
-                   'openai_humaneval',
-                   'koutch/staqc',
-                   ]
-    maybe_useful = ['AlekseyKorshuk/comedy-scripts',
-                     'openbookqa',  # hard to parse, low reasoning
-                    'qed',  # reasonable QA, but low reasoning
-                    'selqa',  # candidate answers
-                    'HuggingFaceH4/instruction-pilot-outputs-filtered',
-                    'GBaker/MedQA-USMLE-4-options',  # medical QA with long questions
-                    'npc-engine/light-batch-summarize-dialogue',  # dialog summarize, kinda low specific quality
-                    ]
-    summary_useful = ['austin/rheum_abstracts',
-                      'CarperAI/openai_summarize_comparisons',  # summarize chosen/rejected
-                      'CarperAI/openai_summarize_tldr',  # summarize Q/A
-                      'ccdv/cnn_dailymail',  # summarize news
-                      'ccdv/govreport-summarization',  # summarize high quality
-                      'ccdv/pubmed-summarization',  # summarize high quality
-                      'duorc',  # plot -> Q/A
-                      'farleyknight/big_patent_5_percent',  # desc -> abstract
-                      'multi_news',  # summary
-                      'opinosis',
-                      'SophieTr/reddit_clean',
-                      'allenai/mup',  # long text -> summary
-                      'allenai/multi_lexsum',  # long text -> summary
-                      'big_patent',
-                      'allenai/wcep_dense_max',
-                      'awinml/costco_long_practice',
-                      'GEM/xsum',
-                      'ratishsp/newshead',
-                      'RussianNLP/wikiomnia',  # russian
-                      'stacked-summaries/stacked-xsum-1024',
-                      ]
-    math_useful = [
-                  'competition_math'
-                  ]
-
-    skipped = ['c4',  # maybe useful, used for flan, but skipped due to size
-              ]
-
     timeout = 3 * 60
     # laion/OIG takes longer
     for num_downloads, dataset in sorted_small_open_english_tasked_datasets:
@@ -799,6 +688,160 @@ def test_get_open_datasets():
                 os.kill(child.pid, signal.SIGINT)
                 os.kill(child.pid, signal.SIGTERM)
                 os.kill(child.pid, signal.SIGKILL)
+
+
+# grep columns getdata13.log|grep -v "\['image'\]"|sort|uniq|grep -v tokens|grep -v "'image'"|grep -v embedding|grep dialog
+useful = ['Dahoas/instruct-human-assistant-prompt',
+          'Dahoas/first-instruct-human-assistant-prompt',
+          'knkarthick/dialogsum',  # summary of conversation
+          'McGill-NLP/FaithDial',  # medium quality
+          'Zaid/quac_expanded',  # medium quality context + Q + A
+          '0-hero/OIG-small-chip2',  # medium
+          'alistvt/coqa-flat',  # QA medium
+          'AnonymousSub/MedQuAD_47441_Question_Answer_Pairs',  # QA medium
+          'Anthropic/hh-rlhf',  # high quality  # simmilar to Dahoas/full-hh-rlhf
+          'arjunth2001/online_privacy_qna',  # good quality Q/A
+          'Dahoas/instruct_helpful_preferences',  # medium quality instruct
+          'Dahoas/rl-prompt-dataset',  # medium chat
+          'Dahoas/rm-static',  # medium chat
+          'Dahoas/static-hh',  # medium chat  # HuggingFaceH4/self_instruct
+          'Dahoas/synthetic-instruct-gptj-pairwise',  # medium chat
+          'eli5',  # Q/A if prompt ELI5
+          'gsm8k',  # Q/A (various)
+          'guanaco/guanaco',  # prompt/response
+          'kastan/rlhf-qa-comparisons',  # good Q/A
+          'kastan/rlhf-qa-conditional-generation-v2',  # prompt answer
+          'OllieStanley/humaneval-mbpp-codegen-qa',  # code QA, but started from words, so better than other code QA
+          'OllieStanley/humaneval-mbpp-testgen-qa',  # code QA
+          'Graverman/Instruct-to-Code',  # code QA
+          'openai/summarize_from_feedback',  # summarize
+          'relbert/analogy_questions',  # analogy Q/A
+          'yitingxie/rlhf-reward-datasets',  # prompt, chosen, rejected.
+          'yizhongw/self_instruct',  # instruct (super natural & instruct)
+          'HuggingFaceH4/asss',  # Q/A, big A
+          'kastan/rlhf-qa-conditional-generation-v2',  # QA
+          'cosmos_qa',  # context QA
+          'vishal-burman/c4-faqs',  # Q/A but not so much reasoning, but alot of text
+          'squadshifts',  # Q/A from context
+          'hotpot_qa',  # Q/A from context
+          'adversarial_qa',  # Q/A from context
+          'allenai/soda',  # dialog -> narrative/summary
+          'squad_v2',  # context QA
+          'squadshifts',  # context QA
+          'dferndz/cSQuAD1',  # context QA
+          'dferndz/cSQuAD2',  # context QA
+          'din0s/msmarco-nlgen',  # context QA
+          'domenicrosati/TruthfulQA',  # common sense truthful QA -- trivia but good trivia
+          'hotpot_qa',  # context, QA
+          'HuggingFaceH4/self-instruct-eval',  # instruct QA, medium quality, some language reasoning
+          'kastan/EE_QA_for_RLHF',  # context Q/A
+          'KK04/LogicInference_OA',  # instruction logical QA
+          'lmqg/qa_squadshifts_synthetic',  # context QA
+          'lmqg/qg_squad',  # context QA
+          'lmqg/qg_squadshifts',  # context QA
+          'lmqg/qg_subjqa',  # context QA
+          'pszemraj/HC3-textgen-qa',  # Q/A medium, has human responses -- humans tend to provide links instead of trying to answer
+          'pythonist/newdata',  # long context, Q/A, brief A
+          'ropes',  # long background, situation, question, A
+          'wikitablequestions',  # table -> QA
+          ]
+
+
+useful_oig_files = ['unified_rallio_safety_and_prosocial.jsonl.parquet',
+                    'unified_chip2.jsonl.parquet',
+                    'unified_cuad.jsonl.parquet',
+                    'unified_essays.jsonl.parquet',
+                    'unified_flan.jsonl.gz.parquet',
+                    'unified_grade_school_math_instructions.jsonl.parquet',
+                    'unified_hc3_human.jsonl.parquet',
+                    'unified_mathqa_flanv2_kojma_cot.jsonl.parquet',
+                    'unified_merged_code_xp3.jsonl.parquet',
+                    'unified_multi_news.jsonl.parquet',
+                    #'unified_multi_sum.jsonl.parquet'
+                    'unified_ni.jsonl.gz.parquet',
+                    'unified_openai_summarize_tldr.jsonl.parquet',
+                    'unified_oscar_en_sample_dialog.jsonl.parquet',
+                    'unified_plot_screenplay_books_dialog.jsonl.parquet',
+                    'unified_soda_dialog.jsonl.parquet',
+                    'unified_unnatural_instructions.jsonl.parquet',
+                    ]
+
+
+code_useful = ['0n1xus/codexglue',
+               'openai_humaneval',
+               'koutch/staqc',
+               ]
+
+
+maybe_useful = ['AlekseyKorshuk/comedy-scripts',
+                 'openbookqa',  # hard to parse, low reasoning
+                'qed',  # reasonable QA, but low reasoning
+                'selqa',  # candidate answers
+                'HuggingFaceH4/instruction-pilot-outputs-filtered',
+                'GBaker/MedQA-USMLE-4-options',  # medical QA with long questions
+                'npc-engine/light-batch-summarize-dialogue',  # dialog summarize, kinda low specific quality
+                ]
+
+
+summary_useful = ['austin/rheum_abstracts',
+                  'CarperAI/openai_summarize_comparisons',  # summarize chosen/rejected
+                  'CarperAI/openai_summarize_tldr',  # summarize Q/A
+                  'ccdv/cnn_dailymail',  # summarize news
+                  'ccdv/govreport-summarization',  # summarize high quality
+                  'ccdv/pubmed-summarization',  # summarize high quality
+                  'duorc',  # plot -> Q/A
+                  'farleyknight/big_patent_5_percent',  # desc -> abstract
+                  'multi_news',  # summary
+                  'opinosis',
+                  'SophieTr/reddit_clean',
+                  'allenai/mup',  # long text -> summary
+                  'allenai/multi_lexsum',  # long text -> summary
+                  'big_patent',
+                  'allenai/wcep_dense_max',
+                  'awinml/costco_long_practice',
+                  'GEM/xsum',
+                  'ratishsp/newshead',
+                  'RussianNLP/wikiomnia',  # russian
+                  'stacked-summaries/stacked-xsum-1024',
+                  ]
+
+
+math_useful = [
+              'competition_math'
+              ]
+
+
+skipped = ['c4',  # maybe useful, used for flan, but skipped due to size
+          ]
+
+
+def test_oig():
+    min_words_per_entity = 30
+    # from better_profanity import profanity
+    # https://pypi.org/project/alt-profanity-check/
+    from profanity_check import predict
+    df_list = []
+    for data in useful_oig_files[:5]:
+    #for data in ['unified_openai_summarize_tldr.jsonl.parquet']:
+        print("Processing %s" % data, flush=True)
+        df = pd.read_parquet(data)
+        df = df.reset_index(drop=True)
+        #avg_chars = len(df['text'][0])/(df['text'][0].count('<human>:')+df['text'][0].count('<bot>:'))
+        df['avg_words'] = df['text'].apply(lambda x: x.count(' ') / (x.count('<human>:') + x.count('<bot>:'))/2.0 )
+        #df['bad_words'] = df['text'].apply(lambda x: profanity.contains_profanity(x))
+        res = predict(df['text'])
+        df['bad_words'] = res
+        df = df.reset_index(drop=True)
+        df = df[df['bad_words'] == 0]
+        df = df[['text', 'avg_words']]
+        df = df.drop_duplicates(keep='first')
+        print(df[df['avg_words'] == df['avg_words'].max()]['text'].values)
+        df = df[df['avg_words'] > min_words_per_entity]
+        df_list.append(df)
+        print("Done processing %s -> %s rows" % (data, df.shape[0]), flush=True)
+    df_final = pd.concat(df_list)
+    df_final.to_parquet('df_final.parquet', index=False)
+
 
 
 def do_one(data_id, num_downloads):
