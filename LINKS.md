@@ -17,6 +17,10 @@
 [LLaMa-64b-4bit](https://huggingface.co/maderix/llama-65b-4bit/tree/main)<br />
 
 ### Papers/Repos
+[Self-improve](https://arxiv.org/abs/2210.11610)<br />
+[Coding](https://arxiv.org/abs/2303.17491)<br />
+[self-reflection](https://arxiv.org/abs/2303.11366)<br />
+[RLHF](https://arxiv.org/abs/2204.05862)<br />
 [DERA](https://arxiv.org/abs/2303.17071)<br />
 [HAI Index Report 2023](https://aiindex.stanford.edu/report/)<br />
 [LLaMa](https://arxiv.org/abs/2302.13971)<br />
