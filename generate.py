@@ -526,7 +526,7 @@ def evaluate(
         else:
             outputs = model.generate(**gen_kwargs)
             outputs = [decoder(s) for s in outputs.sequences]
-            yield prompter.get_response(outputs)
+            yield prompter.get_response(outputs, prompt=prompt)
 
 
 def get_generate_params(model_lower, chat,
