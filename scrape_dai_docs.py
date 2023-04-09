@@ -14,7 +14,6 @@ from concurrent.futures import ProcessPoolExecutor
 
 import psutil
 import pytest
-from datasets import load_dataset
 import pandas as pd
 import numpy as np
 
@@ -253,6 +252,18 @@ def test_config_to_json():
             toml_list.extend(
                 [
                     {
+                        'prompt_type': 'plain',
+                        'instruction': f"<human>: What does {k} do? <bot>: {k.replace('_', ' ')} config.toml:  {comment or title}".replace("\n", ""),
+                    },
+                    {
+                        'prompt_type': 'plain',
+                        'instruction': f"<human>: Explain {k}. <bot>: {k.replace('_', ' ')} config.toml:  {comment or title}".replace("\n", ""),
+                    },
+                    {
+                        'prompt_type': 'plain',
+                        'instruction': f"<human>: How can I do this: {title}. <bot>: Set the {k.replace('_', ' ')} config.toml".replace("\n", ""),
+                    } if title and comment else None,
+                    {
                         'prompt_type': 'human_bot',
                         'instruction': f'Explain the following expert setting for Driverless AI',
                         'input': f"{k}",
@@ -288,6 +299,7 @@ def test_config_to_json():
                     },
                 ]
             )
+        toml_list = [x for x in toml_list if x]
         with open("config.json", "wt") as f:
             f.write(json.dumps(toml_list, indent=2))
     except Exception as e:
@@ -348,6 +360,7 @@ def makedirs(path, exist_ok=True):
 ## Download from https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/resolve/main/ShareGPT_unfiltered_cleaned_split.json
 ## Turn into simple instruct prompt type. No context/previous conversations.
 def test_prep_vicuna_instruct():
+    from datasets import load_dataset
     filename = 'ShareGPT_unfiltered_cleaned_split.json'
     if not os.path.exists(filename):
         os.system('wget https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/resolve/main/%s' % filename)
@@ -465,6 +478,7 @@ def test_join_jsons():
 
 @pytest.mark.parametrize("filename", ['Anthropic/hh-rlhf'])
 def test_make_rlhf_good_data(filename):
+    from datasets import load_dataset
     rows = load_dataset(filename)["train"]["chosen"]
     new_rows = []
     for row in rows:
@@ -863,6 +877,7 @@ def test_check_df_final():
 
 
 def do_one(data_id, num_downloads):
+    from datasets import load_dataset
     out_file = "data_%s.parquet" % str(data_id.replace('/', '_'))
     if os.path.isfile(out_file) and os.path.getsize(out_file) > 1024**3:
         return
