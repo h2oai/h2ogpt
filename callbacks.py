@@ -45,9 +45,10 @@ class Iteratorize:
         def gentask():
             try:
                 ret = self.mfunc(callback=_callback, **self.kwargs)
-            except ValueError:
+            except ValueError as e:
+                traceback.print_exc()
                 pass
-            except:
+            except Exception as e2:
                 traceback.print_exc()
                 pass
 

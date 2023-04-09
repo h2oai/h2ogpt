@@ -19,6 +19,8 @@ class Prompter(object):
         return prompt
 
     def get_response(self, outputs, prompt=None):
+        if isinstance(outputs, str):
+            outputs = [outputs]
         if self.debug:
             print("output: ", '\n\n'.join(outputs), flush=True)
         if prompt is not None:

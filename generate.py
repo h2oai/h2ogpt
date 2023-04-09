@@ -445,9 +445,6 @@ def evaluate(
         stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(stops=stop_words_ids, encounters=encounters)])
     else:
         stopping_criteria = StoppingCriteriaList()
-    if stream_output:
-        inner_callback = None
-        stopping_criteria.append(Stream(callback_func=inner_callback))
 
     cutoff_len = 2048  # if reaches limit, then can't generate new tokens
     output_smallest = 30
@@ -498,7 +495,21 @@ def evaluate(
 
     with torch.no_grad():
         if stream_output:
-            with Iteratorize(model.generate, gen_kwargs) as generator:
+            def generate_with_callback(callback=None, **kwargs):
+                kwargs.setdefault(
+                    "stopping_criteria", StoppingCriteriaList()
+                )
+                kwargs["stopping_criteria"].append(
+                    Stream(callback_func=callback)
+                )
+                model.generate(**kwargs)
+
+            def generate_with_streaming(**kwargs):
+                return Iteratorize(
+                    generate_with_callback, kwargs, callback=None
+                )
+
+            with generate_with_streaming(**gen_kwargs) as generator:
                 for output in generator:
                     # new_tokens = len(output) - len(input_ids[0])
                     decoded_output = decoder(output)
