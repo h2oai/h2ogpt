@@ -372,7 +372,10 @@ def train(
         # get mix-in training/validation data - to keep model "sane"
         num_rows = data["train"].num_rows
         log("Loading mix-in dataset: %s" % data_mix_in_path)
-        data_mix_in = load_dataset(data_mix_in_path)["train"]  # can be large
+        if "json" in data_mix_in_path:
+            data_mix_in = load_dataset("json", data_files={"train": data_mix_in_path})["train"]
+        else:
+            data_mix_in = load_dataset(data_mix_in_path)["train"]  # can be large
         data_mix_in = data_mix_in.rename_columns(data_mix_in_col_dict or {})
 
         # only get as much as we need to balance
