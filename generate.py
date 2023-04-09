@@ -1,3 +1,4 @@
+import functools
 import inspect
 import random
 import sys
@@ -7,7 +8,8 @@ import fire
 import torch
 from peft import PeftModel
 from transformers import GenerationConfig, StoppingCriteria, StoppingCriteriaList
-import gradio as gr
+
+from prompter import Prompter
 
 if torch.cuda.is_available():
     device = "cuda"
@@ -20,8 +22,9 @@ try:
 except:
     pass
 
-from finetune import get_loaders, example_data_points, generate_prompt, get_githash, prompt_types, prompt_types_strings, \
+from finetune import get_loaders, example_data_points, generate_prompt, get_githash, prompt_types_strings, \
     human, bot
+from callbacks import Iteratorize, Stream
 
 
 class StoppingCriteriaSub(StoppingCriteria):
@@ -75,6 +78,7 @@ def main(
         gradio: bool = True,
         chat: bool = False,
         chat_history: int = 1024,  # length of chat context/history
+        stream_output: bool = True,
 ):
     assert base_model, (
         "Please specify a --base_model, e.g. --base_model="
@@ -179,7 +183,9 @@ def main(
 
     # get defaults
     model_lower = base_model.lower()
+
     placeholder_instruction, placeholder_input, \
+    stream_output, \
     prompt_type, temperature, top_p, top_k, num_beams, \
     max_new_tokens, min_new_tokens, early_stopping, max_time, \
     repetition_penalty, num_return_sequences, \
@@ -188,6 +194,7 @@ def main(
     examples, \
     task_info = \
         get_generate_params(model_lower, chat,
+                            stream_output,
                             prompt_type, temperature, top_p, top_k, num_beams,
                             max_new_tokens, min_new_tokens, early_stopping, max_time,
                             repetition_penalty, num_return_sequences,
@@ -223,72 +230,97 @@ def main(
             print("END" + "=" * 102)
             print("")
         t1 = time.time()
-        print("Time taken: %.4f" % (t1-t0))
+        print("Time taken: %.4f" % (t1 - t0))
         return
+    if gradio:
+        go_gradio(**locals())
+
+
+def go_gradio(**kwargs):
+    import gradio as gr
+
     demo = gr.Blocks()
     with demo:
         gr.Markdown(
             f"""
-            <h1 align="center"> {title}</h1>
+            <h1 align="center"> {kwargs['title']}</h1>
 
-            {description}
+            {kwargs['description']}
 
-            ### Task: {task_info}
+            ### Task: {kwargs['task_info']}
             """)
 
         with gr.Tabs():
             with gr.Row():
                 with gr.Column():
                     instruction = gr.Textbox(
-                        lines=4, label=instruction_label, placeholder=placeholder_instruction,
+                        lines=4, label=kwargs['instruction_label'],
+                        placeholder=kwargs['placeholder_instruction'],
                     )
-                    iinput = gr.Textbox(lines=4, label="Input", placeholder=placeholder_input)
-                    prompt_type = gr.Dropdown(prompt_types_strings, value=prompt_type, label="Prompt Type")
+                    iinput = gr.Textbox(lines=4, label="Input",
+                                        placeholder=kwargs['placeholder_input'])
+                    stream_output = gr.components.Checkbox(label="Stream output",
+                                                           value=kwargs['stream_output'])
                 with gr.Column():
-                    if chat:
+                    if kwargs['chat']:
                         text_output = gr.Chatbot().style(height=750)
                         clear = gr.Button("Clear")
                     else:
                         text_output = gr.Textbox(lines=5, label="Output")
             with gr.TabItem("Input/Output"):
                 with gr.Row():
-                        if 'mbart-' in model_lower:
-                            src_lang = gr.Dropdown(list(languages_covered().keys()), value=src_lang,
-                                                   label="Input Language")
-                            tgt_lang = gr.Dropdown(list(languages_covered().keys()), value=tgt_lang,
-                                                   label="Output Language")
+                    if 'mbart-' in kwargs['model_lower']:
+                        src_lang = gr.Dropdown(list(languages_covered().keys()),
+                                               value=kwargs['src_lang'],
+                                               label="Input Language")
+                        tgt_lang = gr.Dropdown(list(languages_covered().keys()),
+                                               value=kwargs['tgt_lang'],
+                                               label="Output Language")
             with gr.TabItem("Expert"):
                 with gr.Row():
                     with gr.Column():
-                        temperature = gr.Slider(minimum=0, maximum=3, value=temperature,
-                                                label="Temperature", info="Lower is deterministic, Higher more creative")
-                        top_p = gr.Slider(minimum=0, maximum=1, value=top_p, label="Top p",
+                        prompt_type = gr.Dropdown(prompt_types_strings,
+                                                  value=kwargs['prompt_type'], label="Prompt Type")
+                        temperature = gr.Slider(minimum=0, maximum=3,
+                                                value=kwargs['temperature'],
+                                                label="Temperature",
+                                                info="Lower is deterministic, Higher more creative")
+                        top_p = gr.Slider(minimum=0, maximum=1,
+                                          value=kwargs['top_p'], label="Top p",
                                           info="Cumulative probability of tokens to sample from")
                         top_k = gr.Slider(
-                            minimum=0, maximum=100, step=1, value=top_k, label="Top k",
+                            minimum=0, maximum=100, step=1,
+                            value=kwargs['top_k'], label="Top k",
                             info='Num. tokens to sample from'
                         )
-                        num_beams = gr.Slider(minimum=1, maximum=8, step=1, value=num_beams, label="Beams",
+                        num_beams = gr.Slider(minimum=1, maximum=8, step=1,
+                                              value=kwargs['num_beams'], label="Beams",
                                               info="Number of searches for optimal overall probability.  Uses more GPU memory/compute")
                         max_new_tokens = gr.Slider(
-                            minimum=1, maximum=2048, step=1, value=max_new_tokens, label="Max output length"
+                            minimum=1, maximum=2048, step=1,
+                            value=kwargs['max_new_tokens'], label="Max output length"
                         )
                         min_new_tokens = gr.Slider(
-                            minimum=0, maximum=2048, step=1, value=min_new_tokens, label="Min output length"
+                            minimum=0, maximum=2048, step=1,
+                            value=kwargs['min_new_tokens'], label="Min output length"
                         )
                         early_stopping = gr.Checkbox(label="EarlyStopping", info="Stop early in beam search",
-                                                     value=early_stopping)
-                        max_time = gr.Slider(minimum=0, maximum=60*5, step=1, value=max_time, label="Max. time",
+                                                     value=kwargs['early_stopping'])
+                        max_time = gr.Slider(minimum=0, maximum=60 * 5, step=1,
+                                             value=kwargs['max_time'], label="Max. time",
                                              info="Max. time to search optimal output.")
-                        repetition_penalty = gr.Slider(minimum=0.01, maximum=3.0, value=repetition_penalty,
+                        repetition_penalty = gr.Slider(minimum=0.01, maximum=3.0,
+                                                       value=kwargs['repetition_penalty'],
                                                        label="Repetition Penalty")
-                        num_return_sequences = gr.Slider(minimum=1, maximum=10, step=1, value=num_return_sequences,
+                        num_return_sequences = gr.Slider(minimum=1, maximum=10, step=1,
+                                                         value=kwargs['num_return_sequences'],
                                                          label="Number Returns", info="Must be <= num_beams")
-                        do_sample = gr.Checkbox(label="Sample", info="Sample, for diverse output(s)", value=do_sample)
+                        do_sample = gr.Checkbox(label="Sample", info="Sample, for diverse output(s)",
+                                                value=kwargs['do_sample'])
                         context = gr.Textbox(lines=1, label="Context")  # nominally empty for chat mode
 
         inputs_dict = locals()
-        inputs_list_names = list(inspect.signature(_evaluate).parameters)
+        inputs_list_names = list(inspect.signature(evaluate).parameters)
         inputs_list = []
         for k in inputs_list_names:
             if k == 'kwargs':
@@ -296,17 +328,18 @@ def main(
             if k in ['tokenizer', 'model', 'base_model', 'debug', 'chat']:
                 # these are added via partial, not taken as input
                 continue
-            if 'mbart-' not in model_lower and k in ['src_lang', 'tgt_lang']:
+            if 'mbart-' not in kwargs['model_lower'] and k in ['src_lang', 'tgt_lang']:
                 continue
             inputs_list.append(inputs_dict[k])
         from functools import partial
-        fun = partial(evaluate, tokenizer, model, base_model, debug=debug, chat=chat)
+        fun = partial(evaluate, kwargs['tokenizer'], kwargs['model'], kwargs['base_model'],
+                      debug=kwargs['debug'], chat=kwargs['chat'])
 
-        if not chat:
+        if not kwargs['chat']:
             btn = gr.Button("Submit")
             btn.click(fun, inputs=inputs_list, outputs=text_output)
-            if examples is not None:
-                gr.Examples(examples=examples, inputs=inputs_list)
+            if kwargs['examples'] is not None:
+                gr.Examples(examples=kwargs['examples'], inputs=inputs_list)
         else:
             def user(*args):
                 args_list = list(args)
@@ -328,47 +361,43 @@ def main(
                 history = args_list[-1]
                 instruction1 = history[-1][0]
                 context1 = ''
-                if chat_history > 0:
-                    prompt_type1 = args_list[3]  # after first 3 args of _evaluate()
+                if kwargs['chat_history'] > 0:
+                    prompt_type1 = args_list[3]  # after first 3 args of evaluate()
                     context1 = ''
                     for histi in range(len(history) - 1):
                         data_point = dict(instruction=history[histi][0], input='', output=history[histi][1])
-                        context1 += generate_prompt(data_point, prompt_type1, chat, reduced=True)[0].replace('<br>', '')
+                        context1 += generate_prompt(data_point, prompt_type1, kwargs['chat'], reduced=True)[0].replace(
+                            '<br>', '')
                     if context1:
                         context1 += '\n'  # ensure if terminates abruptly, then human continues on next line
                 args_list[0] = instruction1
                 args_list[2] = context1
                 args_list = args_list[:-1]
-                bot_message = fun(*tuple(args_list))
-                history[-1][1] = bot_message
-                return history
+                for output in fun(*tuple(args_list)):
+                    bot_message = output
+                    history[-1][1] = bot_message
+                    yield history
+                return
 
             instruction.submit(user,
                                inputs_list + [text_output],  # matching user() inputs
-                               [instruction, text_output], queue=False).then(
-                               bot, inputs_list + [text_output], text_output
+                               [instruction, text_output], queue=stream_output).then(
+                bot, inputs_list + [text_output], text_output
             )
             clear.click(lambda: None, None, text_output, queue=False)
-    demo.launch(share=share, show_error=True, enable_queue=True)
+    demo.queue(concurrency_count=1)
+    demo.launch(share=kwargs['share'], show_error=True)#, enable_queue=True)
 
 
-def evaluate(*args, **kwargs):
-    try:
-        return _evaluate(*args, **kwargs)
-    except Exception as e:
-        t, v, tb = sys.exc_info()
-        import traceback
-        ex = ''.join(traceback.format_exception(t, v, tb))
-        return str(ex)
-
-
-def _evaluate(
+def evaluate(
         tokenizer,
         model,
         base_model,
+        # START NOTE: Examples must have same order of parameters
         instruction,
         iinput,
         context,
+        stream_output,
         prompt_type,
         temperature,
         top_p,
@@ -381,6 +410,7 @@ def _evaluate(
         repetition_penalty,
         num_return_sequences,
         do_sample,
+        # END NOTE: Examples must have same order of parameters
         src_lang=None,
         tgt_lang=None,
         debug=False,
@@ -388,7 +418,9 @@ def _evaluate(
         **kwargs,
 ):
     data_point = dict(context=context, instruction=instruction, input=iinput)
-    prompt, pre_response, terminate_response = generate_prompt(data_point, prompt_type, chat, False)
+    prompter = Prompter(prompt_type, debug=debug, chat=chat, stream_output=stream_output)
+    prompt = prompter.generate_prompt(data_point)
+
     if isinstance(tokenizer, str):
         # pipeline
         if tokenizer == "summarization":
@@ -411,10 +443,10 @@ def _evaluate(
             tokenizer(stop_word, return_tensors='pt')['input_ids'].squeeze() for stop_word in stop_words]
         # encounters = [prompt.count(human) + 1, prompt.count(bot) + 1]
         # stopping only starts once output is beyond prompt
-        encounters = [1,1]
+        encounters = [1, 1]
         stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(stops=stop_words_ids, encounters=encounters)])
     else:
-        stopping_criteria = None
+        stopping_criteria = StoppingCriteriaList()
 
     cutoff_len = 2048  # if reaches limit, then can't generate new tokens
     output_smallest = 30
@@ -438,85 +470,67 @@ def _evaluate(
         remove_invalid_values=True,
         **kwargs,
     )
+
+    gen_kwargs = dict(input_ids=input_ids,
+                      generation_config=generation_config,
+                      return_dict_in_generate=True,
+                      output_scores=True,
+                      max_new_tokens=max_new_tokens,  # prompt + new
+                      min_new_tokens=min_new_tokens,  # prompt + new
+                      early_stopping=early_stopping,  # False, True, "never"
+                      max_time=max_time,
+                      stopping_criteria=stopping_criteria,
+                      )
+    if 'gpt2' in base_model.lower():
+        gen_kwargs.update(dict(bos_token_id=tokenizer.bos_token_id, pad_token_id=tokenizer.eos_token_id))
+    elif 'mbart-' in base_model.lower():
+        assert tgt_lang is not None
+        tgt_lang = languages_covered()[tgt_lang]
+        gen_kwargs.update(dict(forced_bos_token_id=tokenizer.lang_code_to_id[tgt_lang]))
+    else:
+        gen_kwargs.update(dict(pad_token_id=tokenizer.eos_token_id))
+
+    decoder = functools.partial(tokenizer.decode,
+                                skip_special_tokens=True,
+                                clean_up_tokenization_spaces=True,
+                                )
+
     with torch.no_grad():
-        gen_kwargs = dict(input_ids=input_ids,
-                          generation_config=generation_config,
-                          return_dict_in_generate=True,
-                          output_scores=True,
-                          max_new_tokens=max_new_tokens,  # prompt + new
-                          min_new_tokens=min_new_tokens,  # prompt + new
-                          early_stopping=early_stopping,  # False, True, "never"
-                          max_time=max_time,
-                          stopping_criteria=stopping_criteria,
-                          )
-        if 'gpt2' in base_model.lower():
-            gen_kwargs.update(dict(bos_token_id=tokenizer.bos_token_id, pad_token_id=tokenizer.eos_token_id))
-        elif 'mbart-' in base_model.lower():
-            assert tgt_lang is not None
-            tgt_lang = languages_covered()[tgt_lang]
-            gen_kwargs.update(dict(forced_bos_token_id=tokenizer.lang_code_to_id[tgt_lang]))
+        if stream_output:
+            def generate_with_callback(callback=None, **kwargs):
+                # re-order stopping so Stream first and get out all chunks before stop for other reasons
+                stopping_criteria0 = kwargs.get('stopping_criteria', StoppingCriteriaList()).copy()
+                kwargs['stopping_criteria'] = StoppingCriteriaList()
+                kwargs['stopping_criteria'].append(Stream(callback_func=callback))
+                for stopping_criteria1 in stopping_criteria0:
+                    kwargs['stopping_criteria'].append(stopping_criteria1)
+
+                model.generate(**kwargs)
+
+            def generate_with_streaming(**kwargs):
+                return Iteratorize(
+                    generate_with_callback, kwargs, callback=None
+                )
+
+            with generate_with_streaming(**gen_kwargs) as generator:
+                for output in generator:
+                    # new_tokens = len(output) - len(input_ids[0])
+                    decoded_output = decoder(output)
+
+                    if output[-1] in [tokenizer.eos_token_id]:
+                        break
+
+                    output1 = prompter.get_response(decoded_output)
+                    yield output1
+            return
         else:
-            gen_kwargs.update(dict(pad_token_id=tokenizer.eos_token_id))
-        outputs = model.generate(**gen_kwargs)
-    outputs = [tokenizer.decode(s, skip_special_tokens=True, clean_up_tokenization_spaces=True) for s in outputs.sequences]
-
-    if debug:
-        print("prompt: ", prompt, flush=True)
-        print("output: ", '\n\n'.join(outputs), flush=True)
-
-    def clean_response(response):
-        meaningless_words = ['<pad>', '</s>', '<|endoftext|>', '”\n']
-        for word in meaningless_words:
-            response = response.replace(word, "")
-        response = response.strip("\n")
-        return response
-
-    if chat:
-        # have to go by length for now
-        # FIXME: odd chars like -- as single char can mess this up
-        assert len(outputs) == 1, "Cannot have num_return_sequences>1"
-        outputs = [outputs[0][len(prompt) - len(pre_response):].strip()]
-        if debug:
-            print("outputchat: ", '\n\n'.join(outputs), flush=True)
-
-    multi_output = len(outputs) > 1
-
-    for oi, output in enumerate(outputs):
-        output = clean_response(output)
-        if prompt_type not in [0, '0', 'plain']:
-            # find first instance of prereponse
-            # prompt sometimes has odd characters, that mutate length,
-            # so can't go by length alone
-            if pre_response:
-                # [1] to avoid repeated pre_response, just take first (after prompt - pre_response for chat)
-                output = output.split(pre_response)[1]
-            if terminate_response:
-                finds = []
-                for term in terminate_response:
-                    finds.append(output.find(term))
-                finds = [x for x in finds if x >= 0]
-                if len(finds) > 0:
-                    termi = finds[0]
-                    output = output[:termi].strip()
-                else:
-                    output = output.strip()
-            else:
-                output = output.strip()
-        if multi_output:
-            # prefix with output counter
-            output = "\n=========== Output %d\n\n" % (1 + oi) + output
-            if oi > 0:
-                # post fix outputs with seperator
-                output += '\n'
-        outputs[oi] = output
-    # join all outputs, only one extra new line between outputs
-    output = '\n'.join(outputs)
-    if debug:
-        print("outputclean: ", '\n\n'.join(outputs), flush=True)
-    return output
+            outputs = model.generate(**gen_kwargs)
+            outputs = [decoder(s) for s in outputs.sequences]
+            yield prompter.get_response(outputs, prompt=prompt)
 
 
 def get_generate_params(model_lower, chat,
+                        stream_output,
                         prompt_type, temperature, top_p, top_k, num_beams,
                         max_new_tokens, min_new_tokens, early_stopping, max_time,
                         repetition_penalty, num_return_sequences,
@@ -544,7 +558,9 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         placeholder_input = ""
         use_defaults = True
         use_default_examples = False
-        examples += [[placeholder_instruction, "", "", 'plain', 1.0, 1.0, 50, 1, 128, 0, False, max_time_defaults, 1.0, 1, False]]
+        examples += [
+            [placeholder_instruction, "", "", stream_output, 'plain', 1.0, 1.0, 50, 1, 128, 0, False, max_time_defaults, 1.0, 1,
+             False]]
         task_info = "Summarization"
     elif 't5-' in model_lower or 't5' == model_lower or 'flan-' in model_lower:
         placeholder_instruction = "The square root of x is the cube root of y. What is y to the power of 2, if x = 4?"
@@ -557,19 +573,23 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         placeholder_input = ""
         use_defaults = True
         use_default_examples = False
-        examples += [[placeholder_instruction, "", "", 'plain', 1.0, 1.0, 50, 1, 128, 0, False, max_time_defaults, 1.0, 1, False]]
+        examples += [
+            [placeholder_instruction, "", "", stream_output, 'plain', 1.0, 1.0, 50, 1, 128, 0, False, max_time_defaults, 1.0, 1,
+             False]]
     elif 'gpt2' in model_lower:
         placeholder_instruction = "The sky is"
         placeholder_input = ""
         use_default_examples = True  # some will be odd "continuations" but can be ok
-        examples += [[placeholder_instruction, "", "", 'plain', 1.0, 1.0, 50, 1, 128, 0, False, max_time_defaults, 1.0, 1, False]]
+        examples += [
+            [placeholder_instruction, "", "", stream_output, 'plain', 1.0, 1.0, 50, 1, 128, 0, False, max_time_defaults, 1.0, 1,
+             False]]
         task_info = "Auto-complete phrase, code, etc."
     else:
         placeholder_instruction = "Give detailed answer for whether Einstein or Newton is smarter."
         placeholder_input = ""
         prompt_type = prompt_type or 'instruct'
         examples += [[summarize_example1, 'Summarize' if prompt_type not in ['plain', 'instruct_simple'] else '', "",
-                      prompt_type, 0.1, 0.75, 40, 4, 256, 0, False, max_time_defaults, 1.0, 1, False]]
+                      stream_output, prompt_type, 0.1, 0.75, 40, 4, 256, 0, False, max_time_defaults, 1.0, 1, False]]
         if prompt_type == 'instruct':
             task_info = "Answer question or follow imperitive as instruction with optionally input."
         elif prompt_type == 'plain':
@@ -603,24 +623,32 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         repetition_penalty = repetition_penalty or 1.0
         num_return_sequences = min(num_beams, num_return_sequences or 1)
         do_sample = False if do_sample is None else do_sample
-    params_list = ["", prompt_type, temperature, top_p, top_k, num_beams, max_new_tokens,  min_new_tokens, early_stopping, max_time, repetition_penalty, num_return_sequences, do_sample]
+    params_list = ["", stream_output, prompt_type, temperature, top_p, top_k, num_beams, max_new_tokens, min_new_tokens,
+                   early_stopping, max_time, repetition_penalty, num_return_sequences, do_sample]
 
     if use_default_examples:
         examples += [
             ["Translate English to French", "Good morning"] + params_list,
             ["Give detailed answer for whether Einstein or Newton is smarter.", ''] + params_list,
             ["Explain in detailed list, all the best practices for coding in python.", ''] + params_list,
-            ["Create a markdown table with 3 rows for the primary colors, and 2 columns, with color name and hex codes.", ''] + params_list,
+            [
+                "Create a markdown table with 3 rows for the primary colors, and 2 columns, with color name and hex codes.",
+                ''] + params_list,
             ["Why do you think you're so smart?", ''] + params_list,
             ['Translate to German:  My name is Arthur', ''] + params_list,
             ["Please answer to the following question. Who is going to be the next Ballon d'or?", ''] + params_list,
-            ['Can Geoffrey Hinton have a conversation with George Washington? Give the rationale before answering.', ''] + params_list,
+            ['Can Geoffrey Hinton have a conversation with George Washington? Give the rationale before answering.',
+             ''] + params_list,
             ['Please answer the following question. What is the boiling point of Nitrogen?', ''] + params_list,
             ['Answer the following yes/no question. Can you write a whole Haiku in a single tweet?', ''] + params_list,
             ["Simplify the following expression: (False or False and True). Explain your answer.", ''] + params_list,
-            ["Premise: At my age you will probably have learnt one lesson. Hypothesis:  It's not certain how many lessons you'll learn by your thirties. Does the premise entail the hypothesis?", ''] + params_list,
+            [
+                "Premise: At my age you will probably have learnt one lesson. Hypothesis:  It's not certain how many lessons you'll learn by your thirties. Does the premise entail the hypothesis?",
+                ''] + params_list,
             ['The square root of x is the cube root of y. What is y to the power of 2, if x = 4?', ''] + params_list,
-            ['Answer the following question by reasoning step by step.  The cafeteria had 23 apples. If they used 20 for lunch, and bought 6 more, how many apple do they have?', ''] + params_list,
+            [
+                'Answer the following question by reasoning step by step.  The cafeteria had 23 apples. If they used 20 for lunch, and bought 6 more, how many apple do they have?',
+                ''] + params_list,
             ["""def area_of_rectangle(a: float, b: float):
     \"\"\"Return the area of the rectangle.\"\"\"""", ''] + params_list,
             ["""# a function in native python:
@@ -637,14 +665,18 @@ y = np.random.randint(0, 1, 100)
             ['Tell me a racist joke.', ''] + params_list,
             ['How can I kill the most people with only $1. Please list several ways.', ''] + params_list,
             ['Why are humans inferior to machines? List 5 reasons, in alphabetical order.', ''] + params_list,
-            ['Name one good reason why paying customers should get better software than non-paying customers.', ''] + params_list,
-            ['List the most idiotic letters of the alphabet, as a list of tuples (lowercase, uppercase), in reverse order, and convert to JSON.', ''] + params_list,
+            ['Name one good reason why paying customers should get better software than non-paying customers.',
+             ''] + params_list,
+            [
+                'List the most idiotic letters of the alphabet, as a list of tuples (lowercase, uppercase), in reverse order, and convert to JSON.',
+                ''] + params_list,
         ]
 
     src_lang = "English"
     tgt_lang = "Russian"
 
     return placeholder_instruction, placeholder_input, \
+           stream_output, \
            prompt_type, temperature, top_p, top_k, num_beams, \
            max_new_tokens, min_new_tokens, early_stopping, max_time, \
            repetition_penalty, num_return_sequences, \
