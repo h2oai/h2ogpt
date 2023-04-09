@@ -107,7 +107,7 @@ def main(
                             torch_dtype=torch.float16,
                             resume_download=resume_download)
         if 'mbart-' not in base_model.lower():
-            model_kwargs.update(dict(device_map="auto",
+            model_kwargs.update(dict(device_map={"": 0} if load_8bit else "auto",
                                      load_in_8bit=load_8bit,
                                      ))
 
@@ -125,6 +125,7 @@ def main(
                 torch_dtype=torch.float16,
                 local_files_only=local_files_only,
                 resume_download=resume_download,
+                device_map={"": 0} if load_8bit else "auto",
             )
         if not load_8bit and load_half:
             model.half()
