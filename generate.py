@@ -79,6 +79,7 @@ def main(
         chat: bool = False,
         chat_history: int = 1024,  # length of chat context/history
         stream_output: bool = True,
+        show_examples: bool = None,
 ):
     assert base_model, (
         "Please specify a --base_model, e.g. --base_model="
@@ -186,7 +187,7 @@ def main(
     model_lower = base_model.lower()
 
     placeholder_instruction, placeholder_input, \
-    stream_output, \
+    stream_output, show_examples, \
     prompt_type, temperature, top_p, top_k, num_beams, \
     max_new_tokens, min_new_tokens, early_stopping, max_time, \
     repetition_penalty, num_return_sequences, \
@@ -195,7 +196,7 @@ def main(
     examples, \
     task_info = \
         get_generate_params(model_lower, chat,
-                            stream_output,
+                            stream_output, show_examples,
                             prompt_type, temperature, top_p, top_k, num_beams,
                             max_new_tokens, min_new_tokens, early_stopping, max_time,
                             repetition_penalty, num_return_sequences,
@@ -336,11 +337,12 @@ def go_gradio(**kwargs):
         fun = partial(evaluate, kwargs['tokenizer'], kwargs['model'], kwargs['base_model'],
                       debug=kwargs['debug'], chat=kwargs['chat'])
 
+        if kwargs['examples'] is not None and kwargs['show_examples']:
+            gr.Examples(examples=kwargs['examples'], inputs=inputs_list)
+
         if not kwargs['chat']:
             btn = gr.Button("Submit")
             btn.click(fun, inputs=inputs_list, outputs=text_output)
-            if kwargs['examples'] is not None:
-                gr.Examples(examples=kwargs['examples'], inputs=inputs_list)
         else:
             def user(*args):
                 args_list = list(args)
@@ -535,7 +537,7 @@ def evaluate(
 
 
 def get_generate_params(model_lower, chat,
-                        stream_output,
+                        stream_output, show_examples,
                         prompt_type, temperature, top_p, top_k, num_beams,
                         max_new_tokens, min_new_tokens, early_stopping, max_time,
                         repetition_penalty, num_return_sequences,
@@ -550,6 +552,12 @@ def get_generate_params(model_lower, chat,
     early_stopping = early_stopping if early_stopping is not None else False
     max_time_defaults = 60 * 3
     max_time = max_time if max_time is not None else max_time_defaults
+
+    if show_examples is None:
+        if chat:
+            show_examples = False
+        else:
+            show_examples = True
 
     summarize_example1 = """Jeff: Can I train a ? Transformers model on Amazon SageMaker? 
 Philipp: Sure you can use the new Hugging Face Deep Learning Container. 
@@ -681,7 +689,7 @@ y = np.random.randint(0, 1, 100)
     tgt_lang = "Russian"
 
     return placeholder_instruction, placeholder_input, \
-           stream_output, \
+           stream_output, show_examples, \
            prompt_type, temperature, top_p, top_k, num_beams, \
            max_new_tokens, min_new_tokens, early_stopping, max_time, \
            repetition_penalty, num_return_sequences, \
