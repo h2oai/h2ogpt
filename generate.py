@@ -417,7 +417,8 @@ def evaluate(
         chat=False,
         **kwargs,
 ):
-    print(locals())
+    if debug:
+        print(locals())
     data_point = dict(context=context, instruction=instruction, input=iinput)
     prompter = Prompter(prompt_type, debug=debug, chat=chat, stream_output=stream_output)
     prompt = prompter.generate_prompt(data_point)
@@ -519,6 +520,8 @@ def evaluate(
                     decoded_output = decoder(output)
 
                     if output[-1] in [tokenizer.eos_token_id]:
+                        if debug:
+                            print("end of sentence")
                         break
 
                     output1 = prompter.get_response(decoded_output)
