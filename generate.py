@@ -417,6 +417,7 @@ def evaluate(
         chat=False,
         **kwargs,
 ):
+    print(locals())
     data_point = dict(context=context, instruction=instruction, input=iinput)
     prompter = Prompter(prompt_type, debug=debug, chat=chat, stream_output=stream_output)
     prompt = prompter.generate_prompt(data_point)
