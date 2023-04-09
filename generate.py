@@ -239,7 +239,7 @@ def main(
 def go_gradio(**kwargs):
     import gradio as gr
 
-    demo = gr.Blocks()
+    demo = gr.Blocks(theme=gr.themes.Soft())
     with demo:
         gr.Markdown(
             f"""
