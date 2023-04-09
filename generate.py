@@ -620,7 +620,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         top_k = 50 if top_k is None else top_k
         num_beams = num_beams or 1
         max_new_tokens = max_new_tokens or 128
-        repetition_penalty = repetition_penalty or 1.2
+        repetition_penalty = repetition_penalty or 1.0
         num_return_sequences = min(num_beams, num_return_sequences or 1)
         do_sample = False if do_sample is None else do_sample
     else:
@@ -633,7 +633,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         else:
             num_beams = num_beams or 4
         max_new_tokens = max_new_tokens or 256
-        repetition_penalty = repetition_penalty or 1.2
+        repetition_penalty = repetition_penalty or 1.0
         num_return_sequences = min(num_beams, num_return_sequences or 1)
         do_sample = False if do_sample is None else do_sample
     params_list = ["", stream_output, prompt_type, temperature, top_p, top_k, num_beams, max_new_tokens, min_new_tokens,
