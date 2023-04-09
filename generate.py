@@ -373,13 +373,15 @@ def go_gradio(**kwargs):
                 args_list[0] = instruction1
                 args_list[2] = context1
                 args_list = args_list[:-1]
-                bot_message = fun(*tuple(args_list))
-                history[-1][1] = bot_message
-                return history
+                for output in fun(*tuple(args_list)):
+                    bot_message = output
+                    history[-1][1] = bot_message
+                    yield history
+                return
 
             instruction.submit(user,
                                inputs_list + [text_output],  # matching user() inputs
-                               [instruction, text_output], queue=False).then(
+                               [instruction, text_output], queue=stream_output).then(
                 bot, inputs_list + [text_output], text_output
             )
             clear.click(lambda: None, None, text_output, queue=False)
