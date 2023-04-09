@@ -496,12 +496,13 @@ def evaluate(
     with torch.no_grad():
         if stream_output:
             def generate_with_callback(callback=None, **kwargs):
-                kwargs.setdefault(
-                    "stopping_criteria", StoppingCriteriaList()
-                )
-                kwargs["stopping_criteria"].append(
-                    Stream(callback_func=callback)
-                )
+                # re-order stopping so Stream first and get out all chunks before stop for other reasons
+                stopping_criteria0 = kwargs.get('stopping_criteria', StoppingCriteriaList()).copy()
+                kwargs['stopping_criteria'] = StoppingCriteriaList()
+                kwargs['stopping_criteria'].append(Stream(callback_func=callback))
+                for stopping_criteria1 in stopping_criteria0:
+                    kwargs['stopping_criteria'].append(stopping_criteria1)
+
                 model.generate(**kwargs)
 
             def generate_with_streaming(**kwargs):
@@ -517,8 +518,9 @@ def evaluate(
                     if output[-1] in [tokenizer.eos_token_id]:
                         break
 
-                    yield prompter.get_response(decoded_output)
-            return  # early return for stream_output
+                    output1 = prompter.get_response(decoded_output)
+                    yield output1
+            return
         else:
             outputs = model.generate(**gen_kwargs)
             outputs = [decoder(s) for s in outputs.sequences]

@@ -18,6 +18,7 @@ class Stream(transformers.StoppingCriteria):
 
     def __call__(self, input_ids, scores) -> bool:
         if self.callback_func is not None:
+            # only consume first of many possible responses
             self.callback_func(input_ids[0])
         return False
 

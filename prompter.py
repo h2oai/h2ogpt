@@ -33,7 +33,7 @@ class Prompter(object):
             response = response.strip("\n")
             return response
 
-        if self.chat:
+        if self.chat and not self.stream_output:
             # have to go by length for now
             # FIXME: odd chars like -- as single char can mess this up
             assert len(outputs) == 1, "Cannot have num_return_sequences>1"
