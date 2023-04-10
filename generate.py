@@ -82,6 +82,7 @@ def main(
         show_examples: bool = None,
         verbose: bool = False,
         h2ocolors: bool = True,
+        height: int = 400,
 ):
     assert base_model, (
         "Please specify a --base_model, e.g. --base_model="
@@ -281,7 +282,7 @@ def go_gradio(**kwargs):
                            radius_size=sizes.radius_md,
                            text_size=sizes.text_md,
                            )
-    demo = gr.Blocks(theme=gr.themes.Soft(**colors_dict), css=css_code)
+    demo = gr.Blocks(theme=gr.themes.Soft(**colors_dict), css=css_code, title="h2oGPT")
     callback = gr.CSVLogger()
     #css_code = 'body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en/site/header/master/_jcr_content/root/container/header_copy/logo.coreimg.svg/1678976605175/h2o-logo.svg");}'
     #demo = gr.Blocks(theme='gstaff/xkcd', css=css_code)
@@ -306,7 +307,7 @@ def go_gradio(**kwargs):
                                             placeholder=kwargs['placeholder_input'])
                 with gr.Column():
                     if kwargs['chat']:
-                        text_output = gr.Chatbot(label='h2oGPT').style(height=400)
+                        text_output = gr.Chatbot(label='h2oGPT').style(height=kwargs['height'])
                         instruction = gr.Textbox(
                             lines=4, label=kwargs['instruction_label'],
                             placeholder=kwargs['placeholder_instruction'],
@@ -452,7 +453,8 @@ def go_gradio(**kwargs):
         flag_btn.click(lambda *args: callback.flag(args), inputs_list + [text_output], None, preprocess=False)
 
     demo.queue(concurrency_count=1)
-    demo.launch(share=kwargs['share'], show_error=True)#, enable_queue=True)
+    favicon_path = "h2o-logo.svg"
+    demo.launch(share=kwargs['share'], show_error=True, favicon_path=favicon_path)#, enable_queue=True)
 
 
 def get_inputs_list(inputs_dict, model_lower):
