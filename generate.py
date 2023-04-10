@@ -222,6 +222,8 @@ def main(
         description = ""
 
     if not gradio:
+        stream_output = False  # force
+        assert not stream_output, "stream_output=True does not make sense with example loop"
         import time
         from functools import partial
 
@@ -232,7 +234,10 @@ def main(
             print("START" + "=" * 100)
             print("Question: %s %s" % (ex[0], ('input=%s' % ex[1] if ex[1] else '')))
             print("-" * 105)
-            print(fun(*tuple(ex)))
+            # fun yields as generator, so have to iterate over it
+            # Also means likely do NOT want --stream_output=True, else would show all generations
+            for res in fun(*tuple(ex)):
+                print(res)
             print("END" + "=" * 102)
             print("")
         t1 = time.time()
