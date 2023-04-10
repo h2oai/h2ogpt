@@ -214,9 +214,9 @@ def main(
     else:
         instruction_label = "Instruction"
     if chat:
-        instruction_label = "You"
+        instruction_label = "You (Shift-Enter to send message)"
 
-    title = 'H2OGPT'
+    title = 'h2oGPT'
     if verbose:
         description = f"""Model {base_model} Instruct dataset.
                       For more information, visit [the project's website](https://github.com/h2oai/h2o-llm).
@@ -284,7 +284,7 @@ def go_gradio(**kwargs):
                                             placeholder=kwargs['placeholder_input'])
                 with gr.Column():
                     if kwargs['chat']:
-                        text_output = gr.Chatbot(label='H2OGPT').style(height=750)
+                        text_output = gr.Chatbot(label='h2oGPT').style(height=400)
                         instruction = gr.Textbox(
                             lines=4, label=kwargs['instruction_label'],
                             placeholder=kwargs['placeholder_instruction'],
