@@ -81,6 +81,7 @@ def main(
         stream_output: bool = True,
         show_examples: bool = None,
         verbose: bool = False,
+        h2ocolors: bool = True,
 ):
     assert base_model, (
         "Please specify a --base_model, e.g. --base_model="
@@ -261,8 +262,30 @@ def go_gradio(**kwargs):
     else:
         task_info_md = ''
 
+    import gradio as gr
+
     css_code = 'body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en/site/header/master/_jcr_content/root/container/header_copy/logo.coreimg.svg/1678976605175/h2o-logo.svg");}'
-    demo = gr.Blocks(theme='gstaff/xkcd', css=css_code)
+
+    from gradio.themes.utils import colors, fonts, sizes
+    if kwargs['h2ocolors']:
+        colors_dict = dict(primary_hue=colors.yellow,
+                           secondary_hue=colors.yellow,
+                           neutral_hue=colors.gray,
+                           spacing_size=sizes.spacing_md,
+                           radius_size=sizes.radius_md,
+                           text_size=sizes.text_md,
+                           )
+    else:
+        colors_dict = dict(primary_hue=colors.indigo,
+                           secondary_hue=colors.indigo,
+                           neutral_hue=colors.gray,
+                           spacing_size=sizes.spacing_md,
+                           radius_size=sizes.radius_md,
+                           text_size=sizes.text_md,
+                           )
+    demo = gr.Blocks(theme=gr.themes.Soft(**colors_dict), css=css_code)
+    #css_code = 'body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en/site/header/master/_jcr_content/root/container/header_copy/logo.coreimg.svg/1678976605175/h2o-logo.svg");}'
+    #demo = gr.Blocks(theme='gstaff/xkcd', css=css_code)
     with demo:
         gr.Markdown(
             f"""
@@ -354,6 +377,21 @@ def go_gradio(**kwargs):
         fun = partial(evaluate, kwargs['tokenizer'], kwargs['model'], kwargs['base_model'],
                       debug=kwargs['debug'], chat=kwargs['chat'])
 
+        dark_mode_btn = gr.Button("Dark Mode", variant="primary").style(
+            size="sm",
+        )
+        dark_mode_btn.click(
+            None,
+            None,
+            None,
+            _js="""() => {
+            if (document.querySelectorAll('.dark').length) {
+                document.querySelectorAll('.dark').forEach(el => el.classList.remove('dark'));
+            } else {
+                document.querySelector('body').classList.add('dark');
+            }
+        }""",
+        )
         if kwargs['examples'] is not None and kwargs['show_examples']:
             gr.Examples(examples=kwargs['examples'], inputs=inputs_list)
 
