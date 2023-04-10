@@ -76,10 +76,11 @@ def main(
         tgt_lang: str = "Russian",
 
         gradio: bool = True,
-        chat: bool = False,
+        chat: bool = True,
         chat_history: int = 1024,  # length of chat context/history
         stream_output: bool = True,
         show_examples: bool = None,
+        verbose: bool = False,
 ):
     assert base_model, (
         "Please specify a --base_model, e.g. --base_model="
@@ -208,14 +209,17 @@ def main(
     else:
         instruction_label = "Instruction"
     if chat:
-        instruction_label = "Chat"
+        instruction_label = "You"
 
-    title = 'H2O-LLM'
-    description = f"""Model {base_model} Instruct dataset.
-                  For more information, visit [the project's website](https://github.com/h2oai/h2o-llm).
-                  Command: {str(' '.join(sys.argv))}
-                  Hash: {get_githash()}
-                  """
+    title = 'H2OGPT'
+    if verbose:
+        description = f"""Model {base_model} Instruct dataset.
+                      For more information, visit [the project's website](https://github.com/h2oai/h2o-llm).
+                      Command: {str(' '.join(sys.argv))}
+                      Hash: {get_githash()}
+                      """
+    else:
+        description = ""
 
     if not gradio:
         import time
@@ -241,6 +245,12 @@ def main(
 def go_gradio(**kwargs):
     import gradio as gr
 
+    if kwargs['verbose']:
+        task_info_md = f"""
+        ### Task: {kwargs['task_info']}"""
+    else:
+        task_info_md = ''
+
     demo = gr.Blocks(theme=gr.themes.Soft())
     with demo:
         gr.Markdown(
@@ -248,24 +258,26 @@ def go_gradio(**kwargs):
             <h1 align="center"> {kwargs['title']}</h1>
 
             {kwargs['description']}
-
-            ### Task: {kwargs['task_info']}
+            {task_info_md}
             """)
 
         with gr.Tabs():
             with gr.Row():
-                with gr.Column():
-                    instruction = gr.Textbox(
-                        lines=4, label=kwargs['instruction_label'],
-                        placeholder=kwargs['placeholder_instruction'],
-                    )
-                    iinput = gr.Textbox(lines=4, label="Input",
-                                        placeholder=kwargs['placeholder_input'])
-                    stream_output = gr.components.Checkbox(label="Stream output",
-                                                           value=kwargs['stream_output'])
+                if not kwargs['chat']:
+                    with gr.Column():
+                        instruction = gr.Textbox(
+                            lines=4, label=kwargs['instruction_label'],
+                            placeholder=kwargs['placeholder_instruction'],
+                        )
+                        iinput = gr.Textbox(lines=4, label="Input",
+                                            placeholder=kwargs['placeholder_input'])
                 with gr.Column():
                     if kwargs['chat']:
-                        text_output = gr.Chatbot().style(height=750)
+                        text_output = gr.Chatbot(label='H2OGPT').style(height=750)
+                        instruction = gr.Textbox(
+                            lines=4, label=kwargs['instruction_label'],
+                            placeholder=kwargs['placeholder_instruction'],
+                        )
                         clear = gr.Button("Clear")
                     else:
                         text_output = gr.Textbox(lines=5, label="Output")
@@ -281,6 +293,8 @@ def go_gradio(**kwargs):
             with gr.TabItem("Expert"):
                 with gr.Row():
                     with gr.Column():
+                        stream_output = gr.components.Checkbox(label="Stream output",
+                                                               value=kwargs['stream_output'])
                         prompt_type = gr.Dropdown(prompt_types_strings,
                                                   value=kwargs['prompt_type'], label="Prompt Type")
                         temperature = gr.Slider(minimum=0, maximum=3,
@@ -319,6 +333,9 @@ def go_gradio(**kwargs):
                                                          label="Number Returns", info="Must be <= num_beams")
                         do_sample = gr.Checkbox(label="Sample", info="Sample, for diverse output(s)",
                                                 value=kwargs['do_sample'])
+                        if kwargs['chat']:
+                            iinput = gr.Textbox(lines=4, label="Input",
+                                                placeholder=kwargs['placeholder_input'])
                         context = gr.Textbox(lines=1, label="Context")  # nominally empty for chat mode
 
         inputs_dict = locals()
@@ -598,7 +615,10 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
              False]]
         task_info = "Auto-complete phrase, code, etc."
     else:
-        placeholder_instruction = "Give detailed answer for whether Einstein or Newton is smarter."
+        if chat:
+            placeholder_instruction = "Enter a question or imperitive."
+        else:
+            placeholder_instruction = "Give detailed answer for whether Einstein or Newton is smarter."
         placeholder_input = ""
         prompt_type = prompt_type or 'instruct'
         examples += [[summarize_example1, 'Summarize' if prompt_type not in ['plain', 'instruct_simple'] else '', "",
