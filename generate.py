@@ -187,9 +187,10 @@ def main(
     # get defaults
     model_lower = base_model.lower()
     if not gradio:
-        # force
+        # force, else not single response like want to look at
         stream_output = False
-
+        # else prompt removal can mess up output
+        chat = False
 
     placeholder_instruction, placeholder_input, \
     stream_output, show_examples, \
