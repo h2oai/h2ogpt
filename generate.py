@@ -417,6 +417,9 @@ def go_gradio(**kwargs):
                     user_message1 = user_message
                 history = args_list[-1]
                 args_list = args_list[:-1]
+                if history is None:
+                    print("Bad history, fix for now", flush=True)
+                    history = []
                 return "", history + [[user_message1, None]]
 
             def bot(*args):
