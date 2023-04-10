@@ -186,6 +186,10 @@ def main(
 
     # get defaults
     model_lower = base_model.lower()
+    if not gradio:
+        # force
+        stream_output = False
+
 
     placeholder_instruction, placeholder_input, \
     stream_output, show_examples, \
@@ -222,7 +226,7 @@ def main(
         description = ""
 
     if not gradio:
-        stream_output = False  # force
+        # ensure was set right above before examples generated
         assert not stream_output, "stream_output=True does not make sense with example loop"
         import time
         from functools import partial
@@ -343,18 +347,7 @@ def go_gradio(**kwargs):
                                                 placeholder=kwargs['placeholder_input'])
                         context = gr.Textbox(lines=1, label="Context")  # nominally empty for chat mode
 
-        inputs_dict = locals()
-        inputs_list_names = list(inspect.signature(evaluate).parameters)
-        inputs_list = []
-        for k in inputs_list_names:
-            if k == 'kwargs':
-                continue
-            if k in ['tokenizer', 'model', 'base_model', 'debug', 'chat']:
-                # these are added via partial, not taken as input
-                continue
-            if 'mbart-' not in kwargs['model_lower'] and k in ['src_lang', 'tgt_lang']:
-                continue
-            inputs_list.append(inputs_dict[k])
+        inputs_list = get_inputs_list(locals(), kwargs['model_lower'])
         from functools import partial
         fun = partial(evaluate, kwargs['tokenizer'], kwargs['model'], kwargs['base_model'],
                       debug=kwargs['debug'], chat=kwargs['chat'])
@@ -412,6 +405,21 @@ def go_gradio(**kwargs):
             clear.click(lambda: None, None, text_output, queue=False)
     demo.queue(concurrency_count=1)
     demo.launch(share=kwargs['share'], show_error=True)#, enable_queue=True)
+
+
+def get_inputs_list(inputs_dict, model_lower):
+    inputs_list_names = list(inspect.signature(evaluate).parameters)
+    inputs_list = []
+    for k in inputs_list_names:
+        if k == 'kwargs':
+            continue
+        if k in ['tokenizer', 'model', 'base_model', 'debug', 'chat']:
+            # these are added via partial, not taken as input
+            continue
+        if 'mbart-' not in model_lower and k in ['src_lang', 'tgt_lang']:
+            continue
+        inputs_list.append(inputs_dict[k])
+    return inputs_list
 
 
 def evaluate(
