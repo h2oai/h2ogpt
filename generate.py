@@ -51,7 +51,7 @@ def main(
         base_model: str = "distilgpt2",
         tokenizer_base_model: str = None,
         lora_weights: str = "",
-        prompt_type: Union[int, str] = 'plain',
+        prompt_type: Union[int, str] = None,
 
         # input to generation
         temperature: float = None,
@@ -629,6 +629,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
             [placeholder_instruction, "", "", stream_output, 'plain', 1.0, 1.0, 50, 1, 128, 0, False, max_time_defaults, 1.0, 1,
              False]]
         task_info = "Auto-complete phrase, code, etc."
+        use_defaults = True
     else:
         if chat:
             placeholder_instruction = "Enter a question or imperitive."
