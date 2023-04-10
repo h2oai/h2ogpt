@@ -51,10 +51,7 @@ class Prompter(object):
                 # so can't go by length alone
                 if self.pre_response:
                     # [1] to avoid repeated pre_response, just take first (after prompt - pre_response for chat)
-                    try:
-                        output = output.split(self.pre_response)[1]
-                    except Exception as e:
-                        print("Exception: %s\n%s\n%s\n" % (str(e), output, self.pre_response), flush=True)
+                    output = output.split(self.pre_response)[1]
                 if self.terminate_response:
                     finds = []
                     for term in self.terminate_response:
