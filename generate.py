@@ -373,7 +373,7 @@ def go_gradio(**kwargs):
                         if kwargs['chat']:
                             iinput = gr.Textbox(lines=4, label="Input",
                                                 placeholder=kwargs['placeholder_input'])
-                        context = gr.Textbox(lines=1, label="Context", info="Ignord in chat mode.")  # nominally empty for chat mode
+                        context = gr.Textbox(lines=1, label="Context", info="Ignored in chat mode.")  # nominally empty for chat mode
 
         inputs_list = get_inputs_list(locals(), kwargs['model_lower'])
         from functools import partial
