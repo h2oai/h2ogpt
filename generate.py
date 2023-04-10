@@ -458,7 +458,7 @@ def go_gradio(**kwargs):
 
     demo.queue(concurrency_count=1)
     favicon_path = "h2o-logo.svg"
-    demo.launch(share=kwargs['share'], show_error=True, favicon_path=favicon_path)#, enable_queue=True)
+    demo.launch(share=kwargs['share'], server_name="0.0.0.0", show_error=True, favicon_path=favicon_path)#, enable_queue=True)
 
 
 def get_inputs_list(inputs_dict, model_lower):
@@ -548,12 +548,12 @@ def evaluate(
         print('input_ids length', len(inputs["input_ids"][0]), flush=True)
     input_ids = inputs["input_ids"].to(device)
     generation_config = GenerationConfig(
-        temperature=temperature,
-        top_p=top_p,
+        temperature=float(temperature),
+        top_p=float(top_p),
         top_k=top_k,
         num_beams=num_beams,
         do_sample=do_sample,
-        repetition_penalty=repetition_penalty,
+        repetition_penalty=float(repetition_penalty),
         num_return_sequences=num_return_sequences,
         renormalize_logits=True,
         remove_invalid_values=True,
