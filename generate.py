@@ -264,7 +264,7 @@ def go_gradio(**kwargs):
 
     import gradio as gr
 
-    css_code = 'body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en/site/header/master/_jcr_content/root/container/header_copy/logo.coreimg.svg/1678976605175/h2o-logo.svg");}'
+    css_code = 'footer {visibility: hidden}\nbody{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en/site/header/master/_jcr_content/root/container/header_copy/logo.coreimg.svg/1678976605175/h2o-logo.svg");}'
 
     from gradio.themes.utils import colors, fonts, sizes
     if kwargs['h2ocolors']:
