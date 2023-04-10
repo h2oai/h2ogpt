@@ -454,7 +454,7 @@ def go_gradio(**kwargs):
         flag_btn.click(lambda *args: callback.flag(args), inputs_list + [text_output], None, preprocess=False)
         # don't pass text_output, don't want to clear output, just stop it
         # FIXME: have to click once to stop output and second time to stop GPUs going
-        stop_btn.click(lambda: None, None, None, cancels=[click_event, click_event], queue=False)
+        stop_btn.click(lambda: None, None, None, cancels=[click_event], queue=False)
 
     demo.queue(concurrency_count=1)
     favicon_path = "h2o-logo.svg"
