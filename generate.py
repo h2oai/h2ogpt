@@ -282,6 +282,7 @@ def go_gradio(**kwargs):
                            text_size=sizes.text_md,
                            )
     demo = gr.Blocks(theme=gr.themes.Soft(**colors_dict), css=css_code)
+    callback = gr.CSVLogger()
     #css_code = 'body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en/site/header/master/_jcr_content/root/container/header_copy/logo.coreimg.svg/1678976605175/h2o-logo.svg");}'
     #demo = gr.Blocks(theme='gstaff/xkcd', css=css_code)
     with demo:
@@ -310,7 +311,9 @@ def go_gradio(**kwargs):
                             lines=4, label=kwargs['instruction_label'],
                             placeholder=kwargs['placeholder_instruction'],
                         )
-                        clear = gr.Button("Clear")
+                        with gr.Row():
+                            clear = gr.Button("Clear")
+                            flag_btn = gr.Button("Flag")
                     else:
                         text_output = gr.Textbox(lines=5, label="Output")
             with gr.TabItem("Input/Output"):
@@ -390,13 +393,15 @@ def go_gradio(**kwargs):
             }
         }""",
         )
+        if not kwargs['chat']:
+            submit = gr.Button("Submit")
+            submit.click(fun, inputs=inputs_list, outputs=text_output)
+
+        # examples after submit or any other buttons for chat or no chat
         if kwargs['examples'] is not None and kwargs['show_examples']:
             gr.Examples(examples=kwargs['examples'], inputs=inputs_list)
 
-        if not kwargs['chat']:
-            btn = gr.Button("Submit")
-            btn.click(fun, inputs=inputs_list, outputs=text_output)
-        else:
+        if kwargs['chat']:
             def user(*args):
                 args_list = list(args)
                 user_message = args_list[0]
@@ -441,6 +446,11 @@ def go_gradio(**kwargs):
                 bot, inputs_list + [text_output], text_output
             )
             clear.click(lambda: None, None, text_output, queue=False)
+
+        # callback for logging flagged input/output
+        callback.setup(inputs_list + [text_output], "flagged_data_points")
+        flag_btn.click(lambda *args: callback.flag(args), inputs_list + [text_output], None, preprocess=False)
+
     demo.queue(concurrency_count=1)
     demo.launch(share=kwargs['share'], show_error=True)#, enable_queue=True)
 
