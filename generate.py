@@ -48,10 +48,10 @@ class StoppingCriteriaSub(StoppingCriteria):
 def main(
         load_8bit: bool = False,
         load_half: bool = True,
-        base_model: str = "EleutherAI/gpt-j-6B",
+        base_model: str = "distilgpt2",
         tokenizer_base_model: str = None,
         lora_weights: str = "",
-        prompt_type: Union[int, str] = None,
+        prompt_type: Union[int, str] = 'plain',
 
         # input to generation
         temperature: float = None,
@@ -261,7 +261,8 @@ def go_gradio(**kwargs):
     else:
         task_info_md = ''
 
-    demo = gr.Blocks(theme=gr.themes.Soft())
+    css_code = 'body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en/site/header/master/_jcr_content/root/container/header_copy/logo.coreimg.svg/1678976605175/h2o-logo.svg");}'
+    demo = gr.Blocks(theme='gstaff/xkcd', css=css_code)
     with demo:
         gr.Markdown(
             f"""
