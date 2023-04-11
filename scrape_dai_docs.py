@@ -703,6 +703,65 @@ def test_get_open_datasets():
                 os.kill(child.pid, signal.SIGKILL)
 
 
+def do_one(data_id, num_downloads):
+    from datasets import load_dataset
+    out_file = "data_%s.parquet" % str(data_id.replace('/', '_'))
+    if os.path.isfile(out_file) and os.path.getsize(out_file) > 1024**3:
+        return
+    try:
+        print("Loading data_id %s num_downloads: %s" % (data_id, num_downloads), flush=True)
+        avail_list = None
+        try:
+            data = load_dataset(data_id, 'foobar')
+        except Exception as e:
+            if 'Available: ' in str(e):
+                avail_list = ast.literal_eval(str(e).split('Available:')[1].strip())
+            else:
+                avail_list = None
+        if avail_list is None:
+            avail_list = [None]
+        print("%s avail_list: %s" % (data_id, avail_list), flush=True)
+
+        for name in avail_list:
+            out_file = "data_%s_%s.parquet" % (str(data_id.replace('/', '_')), str(name))
+            if os.path.isfile(out_file):
+                continue
+            data = load_dataset(data_id, name)
+            column_names_dict = data.column_names
+            column_names = column_names_dict[list(column_names_dict.keys())[0]]
+            print("Processing data_id %s num_downloads: %s columns: %s" % (data_id, num_downloads, column_names),
+                  flush=True)
+            data_dict = data.data
+            col_dict = data.num_columns
+            first_col = list(col_dict.keys())[0]
+            if 'train' in data_dict:
+                df = data['train'].to_pandas()
+            else:
+                df = data[first_col].to_pandas()
+            # csv has issues with escaping chars, even for datasets I know I want
+            df.to_parquet(out_file, index=False)
+    except Exception as e:
+        t, v, tb = sys.exc_info()
+        ex = ''.join(traceback.format_exception(t, v, tb))
+        print("Exception: %s %s" % (data_id, ex), flush=True)
+
+
+def test_otherlic():
+    from huggingface_hub import list_datasets
+    lic = ['license:odc-by',
+           'license:cc-by-4.0',
+           'license:cc-by-3.0',
+           'license:cc-by-2.0',
+           'license:cc-by-2.5',
+           'license:cc-by-sa-4.0',
+           'license:odbl',
+           'license:pddl',
+           'license:ms-pl',
+           'license:zlib',
+           ]
+    datasets = flatten_list([[x for x in list_datasets(filter=y) if 'translation' not in str(x.tags)] for y in lic])
+    print(len(datasets))
+
 # grep columns getdata13.log|grep -v "\['image'\]"|sort|uniq|grep -v tokens|grep -v "'image'"|grep -v embedding|grep dialog
 useful = ['Dahoas/instruct-human-assistant-prompt',
           'Dahoas/first-instruct-human-assistant-prompt',
@@ -843,7 +902,7 @@ def test_oig():
         df = df.reset_index(drop=True)
         # NOTE: Not correct if multiple human-bot interactions, but those dialogs even more desired
         #avg_chars = len(df['text'][0])/(df['text'][0].count(human)+df['text'][0].count(bot))
-        df['avg_words'] = df['text'].apply(lambda x: x.count(' ') / (x.count(human) + x.count(bot))/2.0 )
+        df['avg_words'] = df['text'].apply(lambda x: x.count(' ') / (x.count(human) + x.count(bot))/2.0)
         df['avg_bot_words'] = df['text'].apply(lambda x: x.split(bot)[1].count(' ') / x.count(bot))
         #df['bad_words'] = df['text'].apply(lambda x: profanity.contains_profanity(x))
         #low_quality_patterns = ['Write the rest of this wikipedia article']
@@ -899,7 +958,8 @@ def parallel_apply(df, func, n_jobs=-1, **kwargs):
             for s in gen_even_slices(_num_samples(df), effective_n_jobs(n_jobs)))
         return pd.concat(ret)
 
-def test_check_df_final():
+
+def test_grade_final():
     df = pd.read_parquet('df_final.parquet').reset_index(drop=True)  # .iloc[:1000]
 
     import textstat
@@ -912,6 +972,7 @@ def test_check_df_final():
 
         df['grade'] = ddata['text'].apply(myfunc).compute()
     if True:
+        # takes about 4 minutes on original 4GB parquet file
         df['grade'] = parallel_apply(df['text'], myfunc)
 
     min_grade = 12
@@ -921,61 +982,16 @@ def test_check_df_final():
     df.to_parquet('df_final_graded_full.parquet', index=False)
 
 
-def do_one(data_id, num_downloads):
-    from datasets import load_dataset
-    out_file = "data_%s.parquet" % str(data_id.replace('/', '_'))
-    if os.path.isfile(out_file) and os.path.getsize(out_file) > 1024**3:
-        return
-    try:
-        print("Loading data_id %s num_downloads: %s" % (data_id, num_downloads), flush=True)
-        avail_list = None
-        try:
-            data = load_dataset(data_id, 'foobar')
-        except Exception as e:
-            if 'Available: ' in str(e):
-                avail_list = ast.literal_eval(str(e).split('Available:')[1].strip())
-            else:
-                avail_list = None
-        if avail_list is None:
-            avail_list = [None]
-        print("%s avail_list: %s" % (data_id, avail_list), flush=True)
+def test_grade_final_parquet_to_json():
+    df = pd.read_parquet('df_final_graded_full.parquet')
+    df = df.rename(columns={'text': 'input'})
+    # unsure how to get pandas into right format
+    #df.index = ['input'] * len(df.index)
+    #df['input'].to_json('df_final_graded_full.json', indent=2, orient="values")
 
-        for name in avail_list:
-            out_file = "data_%s_%s.parquet" % (str(data_id.replace('/', '_')), str(name))
-            if os.path.isfile(out_file):
-                continue
-            data = load_dataset(data_id, name)
-            column_names_dict = data.column_names
-            column_names = column_names_dict[list(column_names_dict.keys())[0]]
-            print("Processing data_id %s num_downloads: %s columns: %s" % (data_id, num_downloads, column_names),
-                  flush=True)
-            data_dict = data.data
-            col_dict = data.num_columns
-            first_col = list(col_dict.keys())[0]
-            if 'train' in data_dict:
-                df = data['train'].to_pandas()
-            else:
-                df = data[first_col].to_pandas()
-            # csv has issues with escaping chars, even for datasets I know I want
-            df.to_parquet(out_file, index=False)
-    except Exception as e:
-        t, v, tb = sys.exc_info()
-        ex = ''.join(traceback.format_exception(t, v, tb))
-        print("Exception: %s %s" % (data_id, ex), flush=True)
-
-
-def test_otherlic():
-    from huggingface_hub import list_datasets
-    lic = ['license:odc-by',
-           'license:cc-by-4.0',
-           'license:cc-by-3.0',
-           'license:cc-by-2.0',
-           'license:cc-by-2.5',
-           'license:cc-by-sa-4.0',
-           'license:odbl',
-           'license:pddl',
-           'license:ms-pl',
-           'license:zlib',
-           ]
-    datasets = flatten_list([[x for x in list_datasets(filter=y) if 'translation' not in str(x.tags)] for y in lic])
-    print(len(datasets))
+    with open('df_final_graded_full.json', "wt") as f:
+        f.write('[\n')
+        for index, row in df[['input']].iterrows():
+            row.to_json(f, indent=2)
+            f.write(',\n')
+        f.write(']\n')
