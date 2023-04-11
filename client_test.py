@@ -1,3 +1,6 @@
+import time
+import os
+os.environ['HF_HUB_DISABLE_TELEMETRY'] = '1'
 from gradio_client import Client
 
 client = Client("http://localhost:7860")
@@ -6,7 +9,7 @@ print(client.view_api(all_endpoints=True))
 instruction = "Who are you?"
 iinput = ''
 context = ''
-stream_output = False
+stream_output = True
 prompt_type = 'human_bot'
 temperature = 0.1
 top_p = 0.75
@@ -58,14 +61,26 @@ def test_client_basic():
         with open(foofile, 'wt') as f:
             json.dump([['', None]], f)
         args += [foofile]
-        for res in client.predict(
-                *tuple(args),
-                api_name=api_name,
-        ):
-            print(res)
-        res_file = client.predict(*tuple(args), api_name='/instruction_bot')
-        res = json.load(open(res_file, "rt"))[-1][-1]
-        print(md_to_text(res))
+        if not stream_output:
+            for res in client.predict(
+                    *tuple(args),
+                    api_name=api_name,
+            ):
+                print(res)
+            res_file = client.predict(*tuple(args), api_name='/instruction_bot')
+            res = json.load(open(res_file, "rt"))[-1][-1]
+            print(md_to_text(res))
+        else:
+            print("streaming instruction_bot", flush=True)
+            job = client.submit(*tuple(args), api_name='/instruction_bot')
+            while not job.done():
+                outputs_list = job.communicator.job.outputs
+                if outputs_list:
+                    res_file = job.communicator.job.outputs[-1]
+                    res = json.load(open(res_file, "rt"))[-1][-1]
+                    print(md_to_text(res))
+                time.sleep(0.1)
+            print(job.outputs())
 
 
 import markdown  # pip install markdown
