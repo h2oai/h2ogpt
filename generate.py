@@ -689,7 +689,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         use_defaults = True
     else:
         if chat:
-            placeholder_instruction = "Enter a question or imperitive."
+            placeholder_instruction = "Enter a question or imperative."
         else:
             placeholder_instruction = "Give detailed answer for whether Einstein or Newton is smarter."
         placeholder_input = ""
@@ -697,14 +697,14 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         examples += [[summarize_example1, 'Summarize' if prompt_type not in ['plain', 'instruct_simple'] else '', "",
                       stream_output, prompt_type, 0.1, 0.75, 40, 4, 256, 0, False, max_time_defaults, 1.0, 1, False]]
         if prompt_type == 'instruct':
-            task_info = "Answer question or follow imperitive as instruction with optionally input."
+            task_info = "Answer question or follow imperative as instruction with optionally input."
         elif prompt_type == 'plain':
             task_info = "Auto-complete phrase, code, etc."
         elif prompt_type == 'human_bot':
             if chat:
-                task_info = "Chat (Shift-Enter to give question/imperitive, input concatenated with instruction)"
+                task_info = "Chat (Shift-Enter to give question/imperative, input concatenated with instruction)"
             else:
-                task_info = "Ask question/imperitive (input concatenated with instruction)"
+                task_info = "Ask question/imperative (input concatenated with instruction)"
 
     if use_defaults:
         prompt_type = prompt_type or 'plain'
