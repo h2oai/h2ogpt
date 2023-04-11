@@ -173,6 +173,7 @@ def train(
         save_steps: int = None,  # must be round multiple of eval_steps
         save_total_limit: int = 3,
         add_eos_token: bool = False,
+        flash_attention: bool = False,
 ):
 
     if llama_flash_attn:
@@ -295,6 +296,37 @@ def train(
         from peft import mapping
         lora_mappings = mapping.TRANSFORMERS_MODELS_TO_LORA_TARGET_MODULES_MAPPING.copy()
     lora_mappings['distilgpt2'] = ["c_attn"]
+
+    if "h2ogpt" in base_model and not llama_type and flash_attention:
+        log("Enabling Flash attention")
+        # speed up forward prop for attention layer and reduce memory especially for long context lengths
+        from flash_attn.models.gpt import GPTLMHeadModel
+        from flash_attn.models.gpt_neox import gpt_neox_config_to_gpt2_config
+        from flash_attn.models.gptj import gptj_config_to_gpt2_config
+
+        if "gpt-j" in base_model.lower():
+            config = gptj_config_to_gpt2_config(model.config)
+        else:
+            config = gpt_neox_config_to_gpt2_config(model.config)
+        config.use_flash_attn = True
+        config.fused_bias_fc = True
+        config.fused_mlp = True  # GPT-NeoX-20B uses "gelu_fast"
+        config.fused_dropout_add_ln = True
+        config.residual_in_fp32 = True
+        lora_target_modules = ['Wqkv']
+        model = GPTLMHeadModel.from_pretrained(base_model, config, device='cuda', dtype=torch.float16)
+        # for v in vars(model2.config):
+        #     setattr(model.config, v, getattr(model2.config, v))
+        # model.transformer.config = model.config
+        # model.transformer.h = model2.transformer.layers
+        # model.lm_head = model2.lm_head
+        ### model.transformer.wte = model2.transformer.wte
+        ### model.transformer.embeddings = model2.transformer.embeddings
+        print(model)
+        # FIXME - don't disable LoRA
+        lora_r = 0
+        # FIXME - enable 8-bit
+        # model = prepare_model_for_int8_training(model)
 
     if lora_weights:
 
