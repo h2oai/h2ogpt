@@ -22,6 +22,7 @@ do_sample = True
 
 
 def test_client_basic():
+    # requires generate.py to run with --chat=False
     res = client.predict(
         instruction,
         iinput,
