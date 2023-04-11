@@ -49,4 +49,3 @@ pypandoc==1.11
 openpyxl==3.1.2
 lm_dataformat==0.0.20
 bioc==2.0
-git+https://github.com/HazyResearch/flash-attention.git@d478eeec8f16c7939c54e4617dbd36f59b8eeed7
