@@ -886,14 +886,20 @@ math_useful = [
 skipped = ['c4',  # maybe useful, used for flan, but skipped due to size
           ]
 
+"""
+To get training data from oig:
+pytest test_oig test_grade_final test_grade_final_parquet_to_json
+"""
+
+human = '<human>:'
+bot = '<bot>:'
+
 
 def test_oig():
     # from better_profanity import profanity
     # https://pypi.org/project/alt-profanity-check/
     from profanity_check import predict
     df_list = []
-    human = '<human>:'
-    bot = '<bot>:'
     for data in useful_oig_files:
     #for data in useful_oig_files[:5]:
     #for data in ['unified_openai_summarize_tldr.jsonl.parquet']:
@@ -989,9 +995,19 @@ def test_grade_final_parquet_to_json():
     #df.index = ['input'] * len(df.index)
     #df['input'].to_json('df_final_graded_full.json', indent=2, orient="values")
 
+    # noticed bot repeat cases, remove:
+    df['unique_bot_words'] = [len(set(x.split(bot)[1].split())) for x in df['input'].tolist()]
+
+    min_words_per_entity = 20
+    df = df[df['unique_bot_words'] > min_words_per_entity]
+
     with open('df_final_graded_full.json', "wt") as f:
         f.write('[\n')
+        counter = 0
+        lenall = df[['input']].shape[0]
         for index, row in df[['input']].iterrows():
             row.to_json(f, indent=2)
-            f.write(',\n')
-        f.write(']\n')
+            counter += 1
+            if counter < lenall:
+                f.write(',\n')
+        f.write('\n]\n')
