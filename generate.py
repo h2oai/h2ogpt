@@ -394,10 +394,11 @@ def go_gradio(**kwargs):
                 document.querySelector('body').classList.add('dark');
             }
         }""",
+        api_name="dark",
         )
         if not kwargs['chat']:
             submit = gr.Button("Submit")
-            click_event = submit.click(fun, inputs=inputs_list, outputs=text_output)
+            click_event = submit.click(fun, inputs=inputs_list, outputs=text_output, api_name='submit')
 
         # examples after submit or any other buttons for chat or no chat
         if kwargs['examples'] is not None and kwargs['show_examples']:
@@ -448,16 +449,17 @@ def go_gradio(**kwargs):
             click_event = instruction.submit(user,
                                inputs_list + [text_output],  # matching user() inputs
                                [instruction, text_output], queue=stream_output).then(
-                bot, inputs_list + [text_output], text_output
+                bot, inputs_list + [text_output], text_output,
+                api_name='instruction',
             )
-            clear.click(lambda: None, None, text_output, queue=False)
+            clear.click(lambda: None, None, text_output, queue=False, api_name='clear')
 
         # callback for logging flagged input/output
         callback.setup(inputs_list + [text_output], "flagged_data_points")
-        flag_btn.click(lambda *args: callback.flag(args), inputs_list + [text_output], None, preprocess=False)
+        flag_btn.click(lambda *args: callback.flag(args), inputs_list + [text_output], None, preprocess=False, api_name='flag')
         # don't pass text_output, don't want to clear output, just stop it
         # FIXME: have to click once to stop output and second time to stop GPUs going
-        stop_btn.click(lambda: None, None, None, cancels=[click_event], queue=False)
+        stop_btn.click(lambda: None, None, None, cancels=[click_event], queue=False, api_name='stop')
 
     demo.queue(concurrency_count=1)
     favicon_path = "h2o-logo.svg"
