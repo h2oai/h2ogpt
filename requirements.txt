@@ -25,3 +25,4 @@ scikit-learn==1.2.2
 lm_dataformat==0.0.20
 openpyxl==3.1.2
 bioc==2.0
+textstat==0.7.3

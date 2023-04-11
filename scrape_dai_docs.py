@@ -871,9 +871,54 @@ def test_oig():
     df_final.to_parquet('df_final.parquet', index=False)
 
 
+from joblib import parallel_backend, Parallel, delayed, effective_n_jobs
+from sklearn.utils import gen_even_slices
+from sklearn.utils.validation import _num_samples
+
+
+def parallel_apply(df, func, n_jobs=-1, **kwargs):
+    """ Pandas apply in parallel using joblib.
+    Uses sklearn.utils to partition input evenly.
+
+    Args:
+        df: Pandas DataFrame, Series, or any other object that supports slicing and apply.
+        func: Callable to apply
+        n_jobs: Desired number of workers. Default value -1 means use all available cores.
+        **kwargs: Any additional parameters will be supplied to the apply function
+
+    Returns:
+        Same as for normal Pandas DataFrame.apply()
+
+    """
+
+    if effective_n_jobs(n_jobs) == 1:
+        return df.apply(func, **kwargs)
+    else:
+        ret = Parallel(n_jobs=n_jobs)(
+            delayed(type(df).apply)(df[s], func, **kwargs)
+            for s in gen_even_slices(_num_samples(df), effective_n_jobs(n_jobs)))
+        return pd.concat(ret)
+
 def test_check_df_final():
-    df = pd.read_parquet('df_final.parquet')
-    print("here")
+    df = pd.read_parquet('df_final.parquet').reset_index(drop=True)  # .iloc[:1000]
+
+    import textstat
+    def myfunc(x): return textstat.flesch_kincaid_grade(x)
+
+    if False:
+        import dask.dataframe as dd
+        # 40 seconds for 1000 rows, but have 1,787,799 rows
+        ddata = dd.from_pandas(df, npartitions=120)
+
+        df['grade'] = ddata['text'].apply(myfunc).compute()
+    if True:
+        df['grade'] = parallel_apply(df['text'], myfunc)
+
+    min_grade = 12
+    max_grade = 25
+    df = df[df['grade'] >= min_grade]
+    df = df[df['grade'] <= max_grade]
+    df.to_parquet('df_final_graded_full.parquet', index=False)
 
 
 def do_one(data_id, num_downloads):
