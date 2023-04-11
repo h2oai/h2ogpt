@@ -91,10 +91,3 @@ def md_to_text(md):
     html = markdown.markdown(md)
     soup = BeautifulSoup(html, features='html.parser')
     return soup.get_text()
-
-
-def example():
-    md = '**A** [B](http://example.com) <!-- C -->'
-    text = md_to_text(md)
-    print(text)
-    # Output: A B
