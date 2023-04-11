@@ -20,7 +20,8 @@ repetition_penalty = 1.0
 num_return_sequences = 1
 do_sample = True
 
-res = client.predict(instruction,
+res = client.predict(
+        instruction,
         iinput,
         context,
         stream_output,
@@ -35,6 +36,7 @@ res = client.predict(instruction,
         max_time,
         repetition_penalty,
         num_return_sequences,
-        do_sample
-, api_name='/instruction')
-print(res)
+        do_sample,
+        api_name='/instruction',
+)
+print(res.result())
