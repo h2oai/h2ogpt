@@ -37,6 +37,7 @@ res = client.predict(
         repetition_penalty,
         num_return_sequences,
         do_sample,
-        api_name='/instruction',
+        api_name='/submit',
 )
-print(res.result())
+print(res)
+assert "I am a chatbot." in res
