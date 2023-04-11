@@ -448,9 +448,8 @@ def go_gradio(**kwargs):
 
             click_event = instruction.submit(user,
                                inputs_list + [text_output],  # matching user() inputs
-                               [instruction, text_output], queue=stream_output).then(
-                bot, inputs_list + [text_output], text_output,
-                api_name='instruction',
+                               [instruction, text_output], queue=stream_output, api_name='instruction').then(
+                bot, inputs_list + [text_output], text_output, api_name='instruction_bot',
             )
             clear.click(lambda: None, None, text_output, queue=False, api_name='clear')
 
