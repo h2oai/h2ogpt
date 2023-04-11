@@ -20,7 +20,9 @@ repetition_penalty = 1.0
 num_return_sequences = 1
 do_sample = True
 
-res = client.predict(
+
+def test_client_basic():
+    res = client.predict(
         instruction,
         iinput,
         context,
@@ -38,6 +40,6 @@ res = client.predict(
         num_return_sequences,
         do_sample,
         api_name='/submit',
-)
-print(res)
-assert "I am a chatbot." in res
+    )
+    print(res)
+    assert "I am a chatbot." in res
