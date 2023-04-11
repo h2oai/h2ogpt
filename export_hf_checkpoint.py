@@ -48,6 +48,7 @@ assert torch.allclose(first_weight_old, first_weight)
 
 # merge weights
 if llama_type:
+    # lora_model = lora_model.merge_and_unload()  # for newest peft
     for layer in lora_model.base_model.model.model.layers:
         layer.self_attn.q_proj.merge_weights = True
         layer.self_attn.v_proj.merge_weights = True

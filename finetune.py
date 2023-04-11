@@ -161,6 +161,7 @@ def train(
         warmup_steps: int = 100,
         logging_steps: int = 1,
         save_steps: int = None,  # must be round multiple of eval_steps
+        add_eos_token: bool = False,
 ):
     prompt_type = str(prompt_type)  # migration from integers
     assert prompt_type in prompt_types
@@ -279,13 +280,15 @@ def train(
 
         return result
 
-    def generate_and_tokenize_prompt(data_point):
+    def generate_and_tokenize_prompt(data_point, add_eos=add_eos_token):
         full_prompt, _, _ = generate_prompt(data_point, prompt_type, False, False)
         tokenized_full_prompt = tokenize(full_prompt)
         if not train_on_inputs:
             user_prompt, _, _ = generate_prompt({**data_point, "output": ""}, prompt_type, False, False)
-            tokenized_user_prompt = tokenize(user_prompt, add_eos_token=False)
+            tokenized_user_prompt = tokenize(user_prompt, add_eos_token=add_eos)
             user_prompt_len = len(tokenized_user_prompt["input_ids"])
+            if add_eos:
+                user_prompt_len -= 1
 
             # ignore_index=-100 ensures torch/tf don't include padding token id in CrossEntropyLoss
             tokenized_full_prompt["labels"] = [
