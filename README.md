@@ -74,6 +74,126 @@ More information about the models can be found on [H2O.ai's Hugging Face page](h
 - To fine-tune any LLM models on your data, follow the [fine-tuning instructions](FINETUNE.md).
 - To create a container for deployment, follow the [Docker instructions](INSTALL-DOCKER.md).
 
+6. Compile Apex (for Flash attention, needs CUDA 11.7 above) [howto src](https://github.com/NVIDIA/apex/#linux)
+
+```bash
+git clone https://github.com/NVIDIA/apex
+cd apex
+pip install -v --disable-pip-version-check --no-cache-dir --global-option="--cpp_ext" --global-option="--cuda_ext" ./
+```
+
+Fine-tune on single GPU on single node:
+```
+torchrun finetune.py --base_model='EleutherAI/gpt-j-6B' --data_path=alpaca_data_cleaned.json 
+```
+this will download the model, load the data, and generate an output directory lora-alpaca.
+
+Fine-tune using 2 nodes with 2 GPUs each:
+```
+WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1" torchrun --nnodes=2 --master_addr="10.10.10.2" --node_rank=0 --nproc_per_node=2 --master_port=1234 finetune.py --data_path=alpaca_data_cleaned.json --run_id=0 --base_model='EleutherAI/gpt-j-6B'
+
+WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1" torchrun --nnodes=2 --master_addr="10.10.10.2" --node_rank=1 --nproc_per_node=2 --master_port=1234 finetune.py --data_path=alpaca_data_cleaned.json --run_id=0 --base_model='EleutherAI/gpt-j-6B'
+```
+
+Fine-tune using 2 24GB GPUs to split up a 30B model:
+```
+WORLD_SIZE=2 python finetune.py --data_path=alpaca_data_cleaned.json --base_model="decapoda-research/llama-30b-hf" --ddp=False
+```
+
+Fine-tune previously saved model (running `export_hf_checkpoint.py`):
+```
+WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1" torchrun --nnodes=2 --master_addr="10.10.10.2" --node_rank=0 --nproc_per_node=2 --master_port=1234 finetune.py --num_epochs=2 --micro_batch_size=8 --data_path=alpaca_data_cleaned.json --run_id=3 --base_model='gpt-j-6B.DAIdocs' --tokenizer_base_model='EleutherAI/gpt-j-6B' --output_dir=lora_6B.DAIdocs &> 3.node0.log
+
+WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1" torchrun --nnodes=2 --master_addr="10.10.10.2" --node_rank=1 --nproc_per_node=2 --master_port=1234 finetune.py --num_epochs=2 --micro_batch_size=8 --data_path=alpaca_data_cleaned.json --run_id=3 --base_model='gpt-j-6B.DAIdocs' --tokenizer_base_model='EleutherAI/gpt-j-6B' --output_dir=lora_6B.DAIdocs &> 3.node1.log
+```
+
+Generate on single GPU on single node:
+```
+torchrun generate.py --base_model='EleutherAI/gpt-j-6B' --lora_weights=lora-alpaca
+```
+this will download the foundation model, our fine-tuned lora_weights, and open up a GUI with text generation input/output.
+
+
+In case you get peer to peer related errors, set this env var:
+```
+export NCCL_P2P_LEVEL=LOC
+```
+
+
+### Docker Setup & Inference
+
+1. Build the container image:
+
+```bash
+docker build -t h2o-llm .
+```
+
+2. Run the container (you can also use `finetune.py` and all of its parameters as shown above for training):
+
+```bash
+docker run --runtime=nvidia --shm-size=64g -p 7860:7860 -v ${HOME}/.cache:/root/.cache --rm h2o-llm -it generate.py \
+    --load_8bit=True --base_model='EleutherAI/gpt-neox-20b' --prompt_type=human_bot
+```
+
+3. Open `https://localhost:7860` in the browser
+
+### Docker Compose Setup & Inference
+
+1. (optional) Change desired model and weights under `environment` in the `docker-compose.yml`
+
+2. Build and run the container
+
+```bash
+docker-compose up -d --build
+```
+
+3. Open `https://localhost:7860` in the browser
+
+4. See logs:
+
+```bash
+docker-compose logs -f
+```
+
+5. Clean everything up:
+
+```bash
+docker-compose down --volumes --rmi all
+```
+
+
+### Tensorboard
+
+```bash
+tensorboard --logdir=runs/
+```
+
+### Plan
+Open source instruct model for demoable usecases.
+1. Base: Start with fully open source apache 2.0 models EleutherAI--gpt-j-6B, EleutherAI--gpt-neox-20b, 
+GPT-NeoXT-Chat-Base-20B, etc. 
+2. Construct Prompt: Setup prompt engineering on 6B-20B as-is to convert a sentence into question/answer or command/response format 
+3. Open-Source Instruct Data: Convert wiki data into instruct form
+4. Fine-tune: LORA fine-tune 6B and 20B using DAI docs
+5. Open Data & Model: Submit DAI docs model huggingface
+6. Use toolformer approach for external APIs
+
+### Goals
+1. Demonstrate fine-tuning working on some existing corpus
+2. Demonstrate efficiency of LORA for fast and low-memory fine-tuning
+
+
+### Code to consider including
+[flan-alpaca](https://github.com/declare-lab/flan-alpaca)<br />
+[text-generation-webui](https://github.com/oobabooga/text-generation-webui)<br />
+[minimal-llama](https://github.com/zphang/minimal-llama/)<br />
+[finetune GPT-NeoX](https://nn.labml.ai/neox/samples/finetune.html)<br />
+[GPTQ-for_LLaMa](https://github.com/qwopqwop200/GPTQ-for-LLaMa/compare/cuda...Digitous:GPTQ-for-GPT-NeoX:main)<br />
+[OpenChatKit on multi-GPU](https://github.com/togethercomputer/OpenChatKit/issues/20)<br />
+[Non-Causal LLM](https://huggingface.co/docs/transformers/main/en/model_doc/gptj#transformers.GPTJForSequenceClassification)<br />
+[OpenChatKit_Offload](https://github.com/togethercomputer/OpenChatKit/commit/148b5745a57a6059231178c41859ecb09164c157)<br />
+[Flan-alpaca](https://github.com/declare-lab/flan-alpaca/blob/main/training.py)<br />
+
 ### Help
 
 [FAQs](FAQ.md)
