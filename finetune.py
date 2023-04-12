@@ -371,7 +371,7 @@ def train(
     train_data_mix_in = None
     valid_data_mix_in = None
 
-    if data_mix_in_path:
+    if data_mix_in_path and data_mix_in_factor > 0:
         # get mix-in training/validation data - to keep model "sane"
         num_rows = data["train"].num_rows
         log("Loading mix-in dataset: %s" % data_mix_in_path)
