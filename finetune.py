@@ -131,7 +131,7 @@ def train(
         fp16=True,
 
         # general training hyperparams
-        num_epochs: float = 3,
+        num_epochs: float = 1,
         learning_rate: float = 3e-4,
 
         # validation settings

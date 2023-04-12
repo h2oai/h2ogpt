@@ -82,9 +82,10 @@ pytest create_data.py::test_merge_shuffle_OIG_data
 
 #### Perform fine-tuning on your data
 
-Fine-tune on 8x A100 80GB in ~10 hours
+Fine-tune on a single node with NVIDIA GPUs A6000/A6000Ada/A100/H100, needs 48GB of GPU memory per GPU.
 ```
-torchrun --nproc_per_node=8 finetune.py --base_model='togethercomputer/GPT-NeoXT-Chat-Base-20B' --data_path=merged_shuffled_OIG_87f6a1e788.json --prompt_type=plain
+export NGPUS=`nvidia-smi -L | wc -l`
+torchrun --nproc_per_node=$NGPUS finetune.py --base_model='togethercomputer/GPT-NeoXT-Chat-Base-20B' --data_path=merged_shuffled_OIG_87f6a1e788.json --prompt_type=plain
 ```
 this will download the model, load the data, and generate an output directory lora-alpaca.
 
