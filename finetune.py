@@ -853,30 +853,13 @@ if __name__ == "__main__":
     All metrics:
     CUDA_VISIBLE_DEVICES= finetune.py --data_mix_in_factor=0 --eval_steps=100 --warmup_steps=2 --val_set_size=100 --val_metrics="['bleu', 'rouge', 'sacrebleu', 'meteor']"
 
-    Example run on 3 nodes with 1 to 2 GPU each (we'll consider SLURM etc.)
-
+    # Fine-tune 20B on 24GB GPUs across 3 nodes with 3+2+2 GPUs
     rippa>
-CUDA_VISIBLE_DEVICES=0 {CONFIG} --node_rank=0 {CMD} &>log.rank.0
-CUDA_VISIBLE_DEVICES=1 {CONFIG} --node_rank=1 {CMD} &>log.rank.1
+NCCL_P2P_LEVEL=LOC WORLD_SIZE=7 CUDA_VISIBLE_DEVICES="0,1,2" torchrun --node_rank 0 --nproc_per_node=3 --master_port=1234 --nnodes=3 --master_addr=10.10.10.2 finetune.py --data_path=merged_shuffled_OIG_87f6a1e788.json --micro_batch_size=1 --batch_size=7 --cutoff_len=512 --run_id=17 &>log.17.rank0
     ova>
-CUDA_VISIBLE_DEVICES=0 {CONFIG} --node_rank=2 {CMD} &>log.rank.2
-CUDA_VISIBLE_DEVICES=1 {CONFIG} --node_rank=3 {CMD} &>log.rank.3
+NCCL_P2P_LEVEL=LOC WORLD_SIZE=7 CUDA_VISIBLE_DEVICES="0,1" torchrun --node_rank 1 --nproc_per_node=2 --master_port=1234 --nnodes=3 --master_addr=10.10.10.2 finetune.py --data_path=merged_shuffled_OIG_87f6a1e788.json --micro_batch_size=1 --batch_size=7 --cutoff_len=512 --run_id=17 &>log.17.rank1
     timemachine>
-CUDA_VISIBLE_DEVICES=0 {CONFIG} --node_rank=4 {CMD} &>log.rank.4
-
-
-    # Fine-tune LLama 13b on ShareGPT data on 2x nodes with 2 GPUs
-
-    rippa>
-WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1" torchrun --node_rank 0 --nproc_per_node=2 --master_port=1234 --nnodes=2 --master_addr=10.10.10.2 finetune.py --data_path=ShareGPT_unfiltered_cleaned_split.json.instruct.json --num_epochs=1.5 --base_model=decapoda-research/llama-13b-hf --prompt_type=instruct --data_mix_in_path=None --micro_batch_size=12 --cutoff_len=512 --run_id=1 &>log.1.rank0
-    ova>
-WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1" torchrun --node_rank 1 --nproc_per_node=2 --master_port=1234 --nnodes=2 --master_addr=10.10.10.2 finetune.py --data_path=ShareGPT_unfiltered_cleaned_split.json.instruct.json --num_epochs=1.5 --base_model=decapoda-research/llama-13b-hf --prompt_type=instruct --data_mix_in_path=None --micro_batch_size=12 --cutoff_len=512 --run_id=1 &>log.1.rank1
-
-    # Fine-tune 6B on ShareGPT data
-    rippa>
-WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1" torchrun --node_rank 0 --nproc_per_node=2 --master_port=1234 --nnodes=2 --master_addr=10.10.10.2 finetune.py --data_path=ShareGPT_unfiltered_cleaned_split.json.instruct.json --num_epochs=2 --base_model=EleutherAI/gpt-j-6B --prompt_type=instruct --data_mix_in_path=None --micro_batch_size=16 --batch_size=128 --cutoff_len=512 --run_id=3 &>log.3.rank0
-    ova>
-WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1" torchrun --node_rank 1 --nproc_per_node=2 --master_port=1234 --nnodes=2 --master_addr=10.10.10.2 finetune.py --data_path=ShareGPT_unfiltered_cleaned_split.json.instruct.json --num_epochs=2 --base_model=EleutherAI/gpt-j-6B --prompt_type=instruct --data_mix_in_path=None --micro_batch_size=16 --batch_size=128 --cutoff_len=512 --run_id=3 &>log.3.rank1
+NCCL_P2P_LEVEL=LOC WORLD_SIZE=7 CUDA_VISIBLE_DEVICES="0,1" torchrun --node_rank 2 --nproc_per_node=2 --master_port=1234 --nnodes=3 --master_addr=10.10.10.2 finetune.py --data_path=merged_shuffled_OIG_87f6a1e788.json --micro_batch_size=1 --batch_size=7 --cutoff_len=512 --run_id=17 &>log.17.rank2
 
     """, flush=True)
 
