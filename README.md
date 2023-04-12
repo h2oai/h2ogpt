@@ -34,7 +34,7 @@ this will download the model, load the data, and generate an output directory `m
 
 Start a chatbot, also requires 48GB GPU.
 ```
-torchrun generate.py --base_model='togethercomputer/GPT-NeoXT-Chat-Base-20B' --lora_weights=my_finetuned_weights --prompt_type=human_bot
+torchrun generate.py --load_8bit=True --base_model='togethercomputer/GPT-NeoXT-Chat-Base-20B' --lora_weights=my_finetuned_weights --prompt_type=human_bot
 ```
 this will download the foundation model, our fine-tuned lora_weights, and open up a GUI with text generation input/output.
 
@@ -57,7 +57,7 @@ docker build -t h2o-llm .
 
 ```bash
 docker run --runtime=nvidia --shm-size=64g -p 7860:7860 -v ${HOME}/.cache:/root/.cache --rm h2o-llm -it generate.py \
-    --load_8bit=True --base_model='EleutherAI/gpt-neox-20b' --prompt_type=human_bot
+    --load_8bit=True --base_model='togethercomputer/GPT-NeoXT-Chat-Base-20B' --lora_weights=my_finetuned_weights --prompt_type=human_bot
 ```
 
 3. Open `https://localhost:7860` in the browser
