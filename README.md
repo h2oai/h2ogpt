@@ -85,21 +85,21 @@ pytest create_data.py::test_merge_shuffle_OIG_data
 Fine-tune on a single node with NVIDIA GPUs A6000/A6000Ada/A100/H100, needs 48GB of GPU memory per GPU.
 ```
 export NGPUS=`nvidia-smi -L | wc -l`
-torchrun --nproc_per_node=$NGPUS finetune.py --base_model='togethercomputer/GPT-NeoXT-Chat-Base-20B' --data_path=merged_shuffled_OIG_87f6a1e788.json --prompt_type=plain
+torchrun --nproc_per_node=$NGPUS finetune.py --base_model='togethercomputer/GPT-NeoXT-Chat-Base-20B' --data_path=merged_shuffled_OIG_87f6a1e788.json --prompt_type=plain --output_dir=my_finetuned_weights
 ```
-this will download the model, load the data, and generate an output directory lora-alpaca.
+this will download the model, load the data, and generate an output directory `my_finetuned_weights` containing the fine-tuned state.
 
 
 #### Start ChatBot
 
-Generate on single GPU on single node:
+Start a chatbot, also requires 48GB GPU.
 ```
-torchrun generate.py --base_model='togethercomputer/GPT-NeoXT-Chat-Base-20B' --lora_weights=lora-alpaca
+torchrun generate.py --base_model='togethercomputer/GPT-NeoXT-Chat-Base-20B' --lora_weights=my_finetuned_weights --prompt_type=human_bot
 ```
 this will download the foundation model, our fine-tuned lora_weights, and open up a GUI with text generation input/output.
 
 
-In case you get peer to peer related errors, set this env var:
+In case you get peer to peer related errors on non-homogeneous GPU systems, set this env var:
 ```
 export NCCL_P2P_LEVEL=LOC
 ```
