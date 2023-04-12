@@ -19,7 +19,7 @@ bash ./Miniconda3-py310_23.1.0-1-Linux-x86_64.sh
 # follow license agreement and add to bash if required
 source ~/.bashrc
 # For more control: Copy block it added to .bashrc, put into ~/.bashrc.conda, then source ~/.bashrc.conda
-conda create -n h2ollm
+conda create -n h2ollm -y
 conda activate h2ollm
 conda install mamba -n base -c conda-forge
 conda install python=3.10 -y
@@ -29,6 +29,8 @@ conda update -n base -c defaults conda
 2. Install dependencies
 
 ```
+git clone https://github.com/h2oai/h2o-llm.git
+cd h2o-llm
 pip install -r requirements.txt
 ```
 
