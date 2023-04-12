@@ -95,12 +95,12 @@ def train(
         save_code: bool = False,
         run_id: int = None,
 
-        # base_model: str = 'togethercomputer/GPT-NeoXT-Chat-Base-20B',
+        base_model: str = 'togethercomputer/GPT-NeoXT-Chat-Base-20B',
         # base_model: str = 'EleutherAI/gpt-neox-20b',
         # base_model: str = 'decapoda-research/llama-7b-hf',
         # base_model: str = 'decapoda-research/llama-13b-hf',
         # base_model: str = 'decapoda-research/llama-30b-hf',
-        base_model: str = 'EleutherAI/gpt-j-6B',
+        # base_model: str = 'EleutherAI/gpt-j-6B',
 
         # only needed if base_model is self-exported HF state without tokenizer
         tokenizer_base_model: str = None,
@@ -298,8 +298,14 @@ def train(
                                                                     ]  # could be sped up, probably
         return tokenized_full_prompt
 
-    model = prepare_model_for_int8_training(model)
-
+    if "gpt-neox" not in base_model or True:
+        model = prepare_model_for_int8_training(model)
+    else:
+        model = prepare_model_for_int8_training(
+            model,
+            output_embedding_layer_name="embed_out",  # keep output logits in float32
+            layer_norm_names=["layer_norm", "layernorm"],  # keep all layer norms in higher precision
+        )
     if lora_weights:
         from peft import PeftModel
         model = PeftModel.from_pretrained(
@@ -320,7 +326,6 @@ def train(
             task_type="CAUSAL_LM",
         )
         model = get_peft_model(model, config)
-
     if resume_from_checkpoint:
         # Check the available weights and load them
         checkpoint_name = os.path.join(
@@ -339,6 +344,7 @@ def train(
         else:
             log(f"Checkpoint {checkpoint_name} not found")
 
+    print(model)
     model.print_trainable_parameters()  # Be more transparent about the % of trainable params.
 
     metrics = {}
