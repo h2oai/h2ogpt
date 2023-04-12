@@ -1,6 +1,8 @@
-### Setup
+## h2oGPT Installation
 
 Follow these instructions to get a working Python environment on a Linux system.
+
+### Native Installation for Training/Fine-Tuning on Linux GPU Servers
 
 #### Install Python environment
 
@@ -62,6 +64,12 @@ git checkout 7c651012fce87881bb4e194a26af25790cadea4f
 CUDA_VERSION=121 make cuda12x
 CUDA_VERSION=121 python setup.py install
 cd ..
+```
+
+### Tensorboard (optional) to inspect training
+
+```bash
+tensorboard --logdir=runs/
 ```
 
 Now you're ready to go back to data prep and fine-tuning!

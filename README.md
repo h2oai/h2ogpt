@@ -9,9 +9,9 @@ No OpenAI-based Alpaca fine-tuning data will be left.
 Final result will be committed to [H2OGPT](https://github.com/h2oai/h2ogpt/).
 
 
-### Installation
+### Installation for Developers
 
-Follow the [instructions](INSTALL.md) to create an environment.
+Follow the [installation instructions](INSTALL.md) to create a development environment for training and generation.
 
 #### Create instruct dataset
 
@@ -45,7 +45,7 @@ export NCCL_P2P_LEVEL=LOC
 ```
 
 
-### Docker Setup & Inference
+### Containerized Installation for Inference on Linux GPU Servers
 
 1. Build the container image:
 
@@ -84,13 +84,6 @@ docker-compose logs -f
 
 ```bash
 docker-compose down --volumes --rmi all
-```
-
-
-### Tensorboard
-
-```bash
-tensorboard --logdir=runs/
 ```
 
 ### Plan
