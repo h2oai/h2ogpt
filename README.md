@@ -1,4 +1,4 @@
-## H2O LLM Prototyping Playground
+## h2oGPT - The world's best open source GPT
 
 Goal is to create 100% permissive MIT/ApacheV2 LLM model that is useful for ChatGPT usecases.
 

@@ -48,7 +48,7 @@ class StoppingCriteriaSub(StoppingCriteria):
 def main(
         load_8bit: bool = False,
         load_half: bool = True,
-        base_model: str = "distilgpt2",
+        base_model: str = 'togethercomputer/GPT-NeoXT-Chat-Base-20B',
         tokenizer_base_model: str = None,
         lora_weights: str = "",
         prompt_type: Union[int, str] = None,
