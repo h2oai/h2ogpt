@@ -1,6 +1,18 @@
 ## h2oGPT - The world's best open source GPT
 
-Goal is to create 100% permissive MIT/ApacheV2 LLM model that is useful for ChatGPT usecases.
+Our goal is to create Apache-2.0 licensed LLM models that are useful for ChatGPT use cases.
+
+### Plan
+1. Start with fully open source Apache 2.0 models EleutherAI--gpt-j-6B, EleutherAI--gpt-neox-20b,
+   GPT-NeoXT-Chat-Base-20B, etc.
+2. Construct Prompt: Setup prompt engineering to convert plain text into question/answer or command/response format
+3. Open-Source Instruct Data: Collect high quality data with human <-> bot interaction
+4. Fine-tune using 8-bit and LoRA for speed and memory efficiency
+5. Use toolformer approach for external APIs
+6. Submit data and model to HuggingFace with 100% permissive license
+
+### Goals
+1. Deliver state-of-the-art open-source fine-tuned LLM, instruct data and training/inference code to community
 
 Original training code is based on [Alpaca-LoRA](https://github.com/tloen/alpaca-lora/).
 
@@ -85,20 +97,6 @@ docker-compose logs -f
 ```bash
 docker-compose down --volumes --rmi all
 ```
-
-### Plan
-Open source instruct model for demoable usecases.
-1. Base: Start with fully open source apache 2.0 models EleutherAI--gpt-j-6B, EleutherAI--gpt-neox-20b, 
-GPT-NeoXT-Chat-Base-20B, etc. 
-2. Construct Prompt: Setup prompt engineering on 6B-20B as-is to convert a sentence into question/answer or command/response format 
-3. Open-Source Instruct Data: Convert wiki data into instruct form
-4. Fine-tune: LORA fine-tune 6B and 20B using DAI docs
-5. Open Data & Model: Submit DAI docs model huggingface
-6. Use toolformer approach for external APIs
-
-### Goals
-1. Demonstrate fine-tuning working on some existing corpus
-2. Demonstrate efficiency of LORA for fast and low-memory fine-tuning
 
 
 ### Code to consider including
