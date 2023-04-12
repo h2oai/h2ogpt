@@ -108,7 +108,7 @@ def train(
         data_path: str = None,
         data_col_dict: dict = None,
         # data_path: str = "./dai_docs.train.json",
-        prompt_type: Union[str, int] = "instruct",  # "plain", "instruct", "quality", "human_bot", "dai_faq"
+        prompt_type: Union[str, int] = "plain",  # "plain", "instruct", "quality", "human_bot", "dai_faq"
 
         valid_path: str = None,
         # valid_path: str = "./dai_docs.valid.json",
