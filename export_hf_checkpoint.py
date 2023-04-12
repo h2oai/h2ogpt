@@ -2,15 +2,8 @@ import os
 import json
 import torch
 from peft import PeftModel
-
-import transformers
 from transformers import PreTrainedModel
-
 from finetune import get_loaders
-
-assert (
-    "LlamaTokenizer" in transformers._import_structure["models.llama"]
-), "LLaMA is now in HuggingFace's main branch.\nPlease reinstall it: pip uninstall transformers && pip install git+https://github.com/huggingface/transformers.git"
 
 BASE_MODEL = 'togethercomputer/GPT-NeoXT-Chat-Base-20B'
 LORA_WEIGHTS = "my_finetuned_weights"
