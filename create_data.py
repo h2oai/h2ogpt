@@ -464,8 +464,7 @@ def test_merge_shuffle_OIG_data():
 
 
 def test_join_jsons():
-    files = ['alpaca_data_cleaned.json'] * 0 + \
-             ['config.json'] * 1 + \
+    files = ['config.json'] * 1 + \
              ['dai_docs.train_cleaned.json'] * 2 + \
              ['dai_faq.json'] * 3
     print(files)
@@ -492,8 +491,7 @@ def test_make_rlhf_good_data(filename):
 
 
 def test_show_prompts():
-    files = ['alpaca_data_cleaned.json'] * 0 + \
-             ['config.json'] * 1 + \
+    files = ['config.json'] * 1 + \
              ['dai_docs.train_cleaned.json'] * 1 + \
              ['dai_faq.json'] * 1
     file_points = [json.load(open(fil, 'rt')) for fil in files]

@@ -12,10 +12,8 @@ assert (
     "LlamaTokenizer" in transformers._import_structure["models.llama"]
 ), "LLaMA is now in HuggingFace's main branch.\nPlease reinstall it: pip uninstall transformers && pip install git+https://github.com/huggingface/transformers.git"
 
-BASE_MODEL = 'EleutherAI/gpt-j-6B'
-BASE_MODEL = 'decapoda-research/llama-13b-hf'
-LORA_WEIGHTS = "lora_6B_daidocs_alpaca_daifaq"
-LORA_WEIGHTS = "llama-13b-hf.config.json.20_epochs.5e2efef6a3d2af21f217dd86f9d89c262877dbe2.20230329-022308"
+BASE_MODEL = 'togethercomputer/GPT-NeoXT-Chat-Base-20B'
+LORA_WEIGHTS = "my_finetuned_weights"
 OUTPUT_NAME = (BASE_MODEL + LORA_WEIGHTS).split("/")[-1]
 llama_type = "llama" in BASE_MODEL
 as_pytorch = True  # False -> HF
