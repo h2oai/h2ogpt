@@ -47,8 +47,9 @@ conda activate h2ollm
 4. Compile bitsandbytes [howto src](https://github.com/TimDettmers/bitsandbytes/blob/main/compile_from_source.md)
 
 ```bash
-git clone https://github.com/TimDettmers/bitsandbytes.git@7c651012fce87881bb4e194a26af25790cadea4f
+git clone http://github.com/TimDettmers/bitsandbytes.git
 cd bitsandbytes
+git checkout 7c651012fce87881bb4e194a26af25790cadea4f
 CUDA_VERSION=121 make cuda12x
 CUDA_VERSION=121 python setup.py install
 cd ..
