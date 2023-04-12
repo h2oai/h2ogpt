@@ -5,7 +5,6 @@ import shutil
 import subprocess
 import sys
 import time
-from copy import deepcopy
 from datetime import datetime
 from typing import List, Union
 import fire
@@ -116,7 +115,7 @@ def train(
 
         # data_mix_in_path: str = "laion/OIG",  # way too big, medium quality
         data_mix_in_path: str = "0-hero/OIG-small-chip2",  # high quality, 50 MB, good enough for now
-        data_mix_in_factor: float = 1.0,  # >1: more mix-in data, <1: more of data_path data
+        data_mix_in_factor: float = 0.0,  # >1: more mix-in data, <1: more of data_path data
         data_mix_in_col_dict: dict = {'user': 'instruction', 'chip2': 'output'},
         data_mix_in_prompt_type: str = "instruct",  # just instruction->output, same as instruct
 
@@ -171,22 +170,15 @@ def train(
     print(f"local_rank: {local_rank}")
     print(f"global rank: {rank}")
     gpus = max(world_size, torch.cuda.device_count())
-    if run_id:
-        if output_dir is None:
-            output_dir = f"{base_model.split('/')[-1]}.{data_path.replace('/', '')}.{num_epochs}_epochs.{get_githash() or 'nogit'}.{run_id}"
-        device_map = "auto"
+    run_id = run_id or 0
+    if not output_dir:
+        output_dir = f"{base_model.split('/')[-1]}.{data_path.replace('/', '')}.{num_epochs}_epochs.{get_githash() or 'nogit'}.{run_id}"
+        if os.path.exists(output_dir):
+            raise FileExistsError(f"output_dir based on run_id {run_id} already exists. Please pick a different run_id.")
     else:
-        if world_size > 1:
-            dist.init_process_group(backend='nccl', world_size=world_size, rank=rank)
-        if output_dir is None:
-            output_dir = f"{base_model.split('/')[-1]}.{data_path.replace('/', '')}.{num_epochs}_epochs.{get_githash() or 'nogit'}.{datetime.now().strftime('%Y%m%d-%H%M%S')}"
-            # time-based output dir
-            if world_size > 1:
-                # make sure all workers have same output_dir, otherwise final state is corrupted.
-                pickleable = [output_dir]
-                dist.broadcast_object_list(pickleable, 0)
-                output_dir = pickleable[0]
-                del pickleable
+        if os.path.exists(output_dir):
+            raise FileExistsError(f"output_dir {output_dir} already exists. Please pick a different output_dir, or specify a run_id instead.")
+    device_map = "auto"
 
     if save_code:
         copy_code(run_id)

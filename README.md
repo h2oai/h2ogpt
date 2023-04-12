@@ -73,36 +73,27 @@ CUDA_VERSION=121 python setup.py install
 cd ..
 ```
 
+#### Create instruct dataset
+
+```bash
+pytest create_data.py::test_get_OIG_data
+pytest create_data.py::test_merge_shuffle_OIG_data
+```
+
 #### Perform fine-tuning on your data
 
-Fine-tune on single GPU on single node:
+Fine-tune on 8x A100 80GB in ~10 hours
 ```
-torchrun finetune.py --base_model='EleutherAI/gpt-j-6B' --data_path=alpaca_data_cleaned.json 
+torchrun --nproc_per_node=8 finetune.py --base_model='togethercomputer/GPT-NeoXT-Chat-Base-20B' --data_path=merged_shuffled_OIG_87f6a1e788.json --prompt_type=plain
 ```
 this will download the model, load the data, and generate an output directory lora-alpaca.
 
-Fine-tune using 2 nodes with 2 GPUs each:
-```
-WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1" torchrun --nnodes=2 --master_addr="10.10.10.2" --node_rank=0 --nproc_per_node=2 --master_port=1234 finetune.py --data_path=alpaca_data_cleaned.json --run_id=0 --base_model='EleutherAI/gpt-j-6B'
 
-WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1" torchrun --nnodes=2 --master_addr="10.10.10.2" --node_rank=1 --nproc_per_node=2 --master_port=1234 finetune.py --data_path=alpaca_data_cleaned.json --run_id=0 --base_model='EleutherAI/gpt-j-6B'
-```
-
-Fine-tune using 2 24GB GPUs to split up a 30B model:
-```
-WORLD_SIZE=2 python finetune.py --data_path=alpaca_data_cleaned.json --base_model="decapoda-research/llama-30b-hf" --ddp=False
-```
-
-Fine-tune previously saved model (running `export_hf_checkpoint.py`):
-```
-WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1" torchrun --nnodes=2 --master_addr="10.10.10.2" --node_rank=0 --nproc_per_node=2 --master_port=1234 finetune.py --num_epochs=2 --micro_batch_size=8 --data_path=alpaca_data_cleaned.json --run_id=3 --base_model='gpt-j-6B.DAIdocs' --tokenizer_base_model='EleutherAI/gpt-j-6B' --output_dir=lora_6B.DAIdocs &> 3.node0.log
-
-WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1" torchrun --nnodes=2 --master_addr="10.10.10.2" --node_rank=1 --nproc_per_node=2 --master_port=1234 finetune.py --num_epochs=2 --micro_batch_size=8 --data_path=alpaca_data_cleaned.json --run_id=3 --base_model='gpt-j-6B.DAIdocs' --tokenizer_base_model='EleutherAI/gpt-j-6B' --output_dir=lora_6B.DAIdocs &> 3.node1.log
-```
+#### Start ChatBot
 
 Generate on single GPU on single node:
 ```
-torchrun generate.py --base_model='EleutherAI/gpt-j-6B' --lora_weights=lora-alpaca
+torchrun generate.py --base_model='togethercomputer/GPT-NeoXT-Chat-Base-20B' --lora_weights=lora-alpaca
 ```
 this will download the foundation model, our fine-tuned lora_weights, and open up a GUI with text generation input/output.
 

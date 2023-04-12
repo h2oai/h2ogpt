@@ -7,9 +7,7 @@ import os
 import shutil
 import signal
 import sys
-import threading
 import traceback
-from concurrent import futures
 from concurrent.futures import ProcessPoolExecutor
 
 import psutil
@@ -64,7 +62,7 @@ def test_scrape_dai_docs():
 
 def test_scrape_dai_docs_all():
     """
-    pytest scrape_dai_docs.py::test_scrape_dai_docs_all
+    pytest create_data.py::test_scrape_dai_docs_all
     """
     import glob
     import nltk
@@ -122,7 +120,7 @@ def get_sentences(blob, length):
 
 def test_scrape_dai_docs_all_pandoc():
     """
-    pytest -s -v scrape_dai_docs.py::test_scrape_dai_docs_all_pandoc
+    pytest -s -v create_data.py::test_scrape_dai_docs_all_pandoc
     :return:
     """
     # account for sequence length (context window) including prompt and input and output
@@ -236,7 +234,8 @@ def shutil_rmtree(*args, **kwargs):
 
 def test_config_to_json():
     """
-    E.g. (base) jon@gpu:~/h2oai$ pytest -s -v /data/jon/h2o-llm/scrape_dai_docs.py::test_config_to_json ; cp config.json /data/jon/h2o-llm/
+    Needs to run from Driverless AI source directory.
+    E.g. (base) jon@gpu:~/h2oai$ pytest -s -v /data/jon/h2o-llm/create_data.py::test_config_to_json ; cp config.json /data/jon/h2o-llm/
     :return:
     """
     try:
@@ -665,7 +664,7 @@ def test_get_open_datasets():
                                                        key=lambda x: x[0], reverse=True)
 
     # NOTES:
-    # Run like pytest -s -v scrape_dai_docs.py::test_get_open_datasets &> getdata9.log
+    # Run like pytest -s -v create_data.py::test_get_open_datasets &> getdata9.log
     # See what needs config passed and add:
     # grep 'load_dataset(' getdata9.log|grep -v data_id|less -S
     # grep "pip install" getdata9.log
