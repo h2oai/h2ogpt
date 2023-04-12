@@ -14,7 +14,7 @@ assert (
 
 BASE_MODEL = 'togethercomputer/GPT-NeoXT-Chat-Base-20B'
 LORA_WEIGHTS = "my_finetuned_weights"
-OUTPUT_NAME = (BASE_MODEL + LORA_WEIGHTS).split("/")[-1]
+OUTPUT_NAME = "h2oGPT-20B-v1.0"
 llama_type = "llama" in BASE_MODEL
 as_pytorch = False  # False -> HF
 
