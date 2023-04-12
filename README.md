@@ -32,14 +32,9 @@ conda update -n base -c defaults conda
 pip install -r requirements.txt
 ```
 
-3. Install full cuda toolkit, e.g. cuda 12.1 for Ubuntu 22.04 [install cuda coolkit](https://developer.nvidia.com/cuda-downloads?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=22.04&target_type=deb_local) and [CUDNN8](https://developer.nvidia.com/downloads/compute/cudnn/secure/8.8.1/local_installers/12.0/cudnn-local-repo-ubuntu2204-8.8.1.3_1.0-1_amd64.deb/) then reboot.
+3. Install CUDA 12.1
 
-When it comes time to apt-get install after dpkg, ignore nvidia instructions about specific version, too hard to do, just do:
-```bash
-sudo apt-get install libcudnn8 libcudnn8-dev libcudnn8-samples
-```
-
-4. Ensure cuda in path:
+E.g. for Ubuntu 22.04 [install cuda coolkit](https://developer.nvidia.com/cuda-downloads?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=22.04&target_type=deb_local)
 
 ```bash
 echo "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64/" >> ~/.bashrc
@@ -49,17 +44,17 @@ source ~/.bashrc  # or source ~/.bashrc.conda
 conda activate h2ollm
 ```
 
-5. Compile bitsandbytes [howto src](https://github.com/TimDettmers/bitsandbytes/blob/main/compile_from_source.md)
+4. Compile bitsandbytes [howto src](https://github.com/TimDettmers/bitsandbytes/blob/main/compile_from_source.md)
 
-E.g. for CUDA 12.1 (for CUDA 11.7, use `CUDA_VERSION=117 make cuda11x` etc.)
 ```bash
-pip uninstall bitsandbytes || true
-git clone https://github.com/TimDettmers/bitsandbytes.git
+git clone https://github.com/TimDettmers/bitsandbytes.git@7c651012fce87881bb4e194a26af25790cadea4f
 cd bitsandbytes
 CUDA_VERSION=121 make cuda12x
 CUDA_VERSION=121 python setup.py install
 cd ..
 ```
+
+5. Perform fine-tuning!
 
 Fine-tune on single GPU on single node:
 ```
