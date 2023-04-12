@@ -235,7 +235,7 @@ def shutil_rmtree(*args, **kwargs):
 def test_config_to_json():
     """
     Needs to run from Driverless AI source directory.
-    E.g. (base) jon@gpu:~/h2oai$ pytest -s -v /data/jon/h2o-llm/create_data.py::test_config_to_json ; cp config.json /data/jon/h2o-llm/
+    E.g. (base) jon@gpu:~/h2oai$ pytest -s -v /data/jon/h2ogpt/create_data.py::test_config_to_json ; cp config.json /data/jon/h2ogpt/
     :return:
     """
     try:

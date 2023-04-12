@@ -221,7 +221,7 @@ def main(
     title = 'h2oGPT'
     if verbose:
         description = f"""Model {base_model} Instruct dataset.
-                      For more information, visit [the project's website](https://github.com/h2oai/h2o-llm).
+                      For more information, visit [the project's website](https://github.com/h2oai/h2ogpt).
                       Command: {str(' '.join(sys.argv))}
                       Hash: {get_githash()}
                       """

@@ -2,7 +2,7 @@
 
 Follow these instructions to get a working Python environment on a Linux system.
 
-### Native Installation for Training/Fine-Tuning on Linux GPU Servers
+### Native Installation for Training/Fine-Tuning of h2oGPT on Linux GPU Servers
 
 #### Install Python environment
 
@@ -21,7 +21,7 @@ conda update -n base -c defaults conda
 #### Install Python packages
 
 ```bash
-git clone https://github.com/h2oai/h2o-llm.git
+git clone https://github.com/h2oai/h2ogpt.git
 cd h2o-llm
 pip install -r requirements.txt
 ```
