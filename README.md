@@ -2,12 +2,11 @@
 
 Goal is to create 100% permissive MIT/ApacheV2 LLM model that is useful for ChatGPT usecases.
 
-Training code is based on [Alpaca-LoRA](https://github.com/tloen/alpaca-lora/), but all models will be fully open source.
+Original training code is based on [Alpaca-LoRA](https://github.com/tloen/alpaca-lora/).
 
-No OpenAI-based Alpaca fine-tuning data will be left.
+All training data will be based on open-source permissive data. No Alpaca, no LLama, no OpenAI.
 
-Final result will be committed to [H2OGPT](https://github.com/h2oai/h2ogpt/).
-
+All models will be published to HuggingFace.
 
 ### Installation for Developers
 
