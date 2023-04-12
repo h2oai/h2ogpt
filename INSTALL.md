@@ -55,7 +55,7 @@ Then reboot the machine, to get everything sync'ed up on restart.
 sudo reboot
 ```
 
-#### Compile bitsandbytes for fast 8-bit training [howto src](https://github.com/TimDettmers/bitsandbytes/blob/main/compile_from_source.md)
+#### Compile bitsandbytes for fast 8-bit training [BitsandBytes Source](https://github.com/TimDettmers/bitsandbytes/blob/main/compile_from_source.md)
 
 ```bash
 git clone http://github.com/TimDettmers/bitsandbytes.git
@@ -65,6 +65,29 @@ CUDA_VERSION=121 make cuda12x
 CUDA_VERSION=121 python setup.py install
 cd ..
 ```
+
+#### Install nvidia GPU manager if have multiple A100/H100s.
+```bash
+sudo apt-key del 7fa2af80
+distribution=$(. /etc/os-release;echo $ID$VERSION_ID | sed -e 's/\.//g')
+wget https://developer.download.nvidia.com/compute/cuda/repos/$distribution/x86_64/cuda-keyring_1.0-1_all.deb
+sudo dpkg -i cuda-keyring_1.0-1_all.deb
+sudo apt-get update
+sudo apt-get install -y datacenter-gpu-manager
+sudo apt-get install -y libnvidia-nscq-530
+sudo systemctl --now enable nvidia-dcgm
+dcgmi discovery -l
+```
+See [GPU Manager](https://docs.nvidia.com/datacenter/dcgm/latest/user-guide/getting-started.html)
+
+#### Install and run Fabric Manager if have multiple A100/100s
+
+```bash
+sudo apt-get install cuda-drivers-fabricmanager
+sudo systemctl start nvidia-fabricmanager
+sudo systemctl status nvidia-fabricmanager
+```
+See [Fabric Manager](https://docs.nvidia.com/datacenter/tesla/fabric-manager-user-guide/index.html)
 
 ### Tensorboard (optional) to inspect training
 
