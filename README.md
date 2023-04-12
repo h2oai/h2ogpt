@@ -27,7 +27,7 @@ conda update -n base -c defaults conda
 
 2. Install dependencies
 
-```
+```bash
 git clone https://github.com/h2oai/h2o-llm.git
 cd h2o-llm
 pip install -r requirements.txt
