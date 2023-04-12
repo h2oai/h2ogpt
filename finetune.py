@@ -542,7 +542,7 @@ def train(
         tokenizer=tokenizer,
         train_dataset=train_data,
         eval_dataset=valid_data,
-        # NOTE: CausalLM is not supporting Seq2SeqTrainingArguments arguments, but not incompatiable
+        # NOTE: CausalLM is not supporting Seq2SeqTrainingArguments arguments, but not incompatible
         args=transformers.Seq2SeqTrainingArguments(
             per_device_train_batch_size=micro_batch_size,
             per_device_eval_batch_size=1,
