@@ -16,9 +16,9 @@ BASE_MODEL = 'togethercomputer/GPT-NeoXT-Chat-Base-20B'
 LORA_WEIGHTS = "my_finetuned_weights"
 OUTPUT_NAME = (BASE_MODEL + LORA_WEIGHTS).split("/")[-1]
 llama_type = "llama" in BASE_MODEL
-as_pytorch = True  # False -> HF
+as_pytorch = False  # False -> HF
 
-model_loader, _ = get_loaders(llama_type=llama_type)
+model_loader, _ = get_loaders(llama_type=llama_type, model_name=BASE_MODEL)
 
 base_model = model_loader.from_pretrained(
     BASE_MODEL,
@@ -27,12 +27,17 @@ base_model = model_loader.from_pretrained(
     device_map={"": "cpu"},
 )
 
+print(base_model)
 if llama_type:
     layers = base_model.model.layers
     first_weight = layers[0].self_attn.q_proj.weight
 else:
-    layers = base_model.transformer.base_model.h
-    first_weight = layers[0].attn.q_proj.weight
+    if "gpt-neoxt" in BASE_MODEL.lower():
+        layers = base_model.gpt_neox.base_model.layers
+        first_weight = layers[0].attention.query_key_value.weight
+    else:
+        layers = base_model.transformer.base_model.h
+        first_weight = layers[0].attn.q_proj.weight
 first_weight_old = first_weight.clone()
 
 lora_model = PeftModel.from_pretrained(
@@ -44,16 +49,19 @@ lora_model = PeftModel.from_pretrained(
 
 assert torch.allclose(first_weight_old, first_weight)
 
-# merge weights
+# merge weights TODO: include all lora_target_modules, not just default ones
 if llama_type:
-    # lora_model = lora_model.merge_and_unload()  # for newest peft
     for layer in lora_model.base_model.model.model.layers:
         layer.self_attn.q_proj.merge_weights = True
         layer.self_attn.v_proj.merge_weights = True
 else:
-    for layer in lora_model.base_model.transformer.base_model.h:
-        layer.attn.q_proj.merge_weights = True
-        layer.attn.v_proj.merge_weights = True
+    if "gpt-neoxt" in BASE_MODEL.lower():
+        for layer in lora_model.base_model.gpt_neox.base_model.layers:
+            layer.attention.query_key_value.merge_weights = True
+    else:
+        for layer in lora_model.base_model.transformer.base_model.h:
+            layer.attn.q_proj.merge_weights = True
+            layer.attn.v_proj.merge_weights = True
 
 lora_model.train(False)
 
@@ -63,14 +71,13 @@ assert not torch.allclose(first_weight_old, first_weight)
 lora_model_sd = lora_model.state_dict()
 
 if as_pytorch:
-    # https://huggingface.co/decapoda-research/llama-13b-hf#quantitative-analysis
+    # FIXME - might not be generic enough still
     params = {
-        "dim": 5120,
-        "multiple_of": 256,
-        "n_heads": 40,
-        "n_layers": 40,
-        "norm_eps": 1e-06,
-        "vocab_size": -1,
+        "dim": base_model.config.hidden_size,
+        "n_heads": base_model.config.num_attention_heads,
+        "n_layers": base_model.config.num_hidden_layers,
+        "norm_eps": base_model.config.layer_norm_eps,
+        "vocab_size": base_model.config.vocab_size,
     }
     n_layers = params["n_layers"]
     n_heads = params["n_heads"]
@@ -92,7 +99,10 @@ if as_pytorch:
 
 
     def translate_state_dict_key(k):
-        k = k.replace("base_model.model.", "")
+        if "gpt-neoxt" in BASE_MODEL.lower():
+            k = k.replace("gpt_neox.model.", "")
+        else:
+            k = k.replace("base_model.model.", "")
         if k == "model.embed_tokens.weight":
             return "tok_embeddings.weight"
         elif k == "model.norm.weight":
