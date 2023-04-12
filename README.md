@@ -11,7 +11,7 @@ Final result will be committed to [H2OGPT](https://github.com/h2oai/h2ogpt/).
 
 ### Setup
 
-1. Install python environment
+#### Install Python environment
 
 ```bash
 wget https://repo.anaconda.com/miniconda/Miniconda3-py310_23.1.0-1-Linux-x86_64.sh
@@ -25,7 +25,7 @@ conda install python=3.10 -y
 conda update -n base -c defaults conda
 ```
 
-2. Install dependencies
+#### Install Python packages
 
 ```bash
 git clone https://github.com/h2oai/h2o-llm.git
@@ -33,7 +33,7 @@ cd h2o-llm
 pip install -r requirements.txt
 ```
 
-3. Install CUDA 12.1 [install cuda coolkit](https://developer.nvidia.com/cuda-downloads?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=22.04&target_type=deb_local)
+#### Install CUDA 12.1 [install cuda coolkit](https://developer.nvidia.com/cuda-downloads?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=22.04&target_type=deb_local)
 
 E.g. for Ubuntu 20.04, select Ubuntu, Version 20.04, Installer Type "deb (local)", and you should get the following commands:
 
@@ -62,7 +62,7 @@ Then reboot the machine, to get everything sync'ed up on restart.
 sudo reboot
 ```
 
-4. Compile bitsandbytes [howto src](https://github.com/TimDettmers/bitsandbytes/blob/main/compile_from_source.md)
+#### Compile bitsandbytes for fast 8-bit training [howto src](https://github.com/TimDettmers/bitsandbytes/blob/main/compile_from_source.md)
 
 ```bash
 git clone http://github.com/TimDettmers/bitsandbytes.git
@@ -73,7 +73,7 @@ CUDA_VERSION=121 python setup.py install
 cd ..
 ```
 
-5. Perform fine-tuning!
+#### Perform fine-tuning on your data
 
 Fine-tune on single GPU on single node:
 ```
