@@ -1030,7 +1030,7 @@ def test_grade_final():
     else:
         # too slow, we'll do later
         df = add_deberta_grade(df)
-        min_grade = 2  # logits >= 2 are quite "good"
+        min_grade = 0.9  # probas
         max_grade = np.inf
 
     df = df[df['grade'] >= min_grade]
@@ -1050,7 +1050,7 @@ def test_grade_final_parquet_to_json():
 
     # only keep the best entries
     df = add_deberta_grade(df)
-    min_grade = 2  # logits >= 2 are quite "good"
+    min_grade = 0.9  # probas
     df = df[df['grade'] >= min_grade]
     df = df.rename(columns={'text': 'input'})
     print("final very high-quality (not small or too large size or flesch) and no repeats and high reward estimate by DeBERTa: %s" % df.shape[0], flush=True)
