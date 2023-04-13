@@ -355,7 +355,7 @@ def train(
         else:
             val_set_size = 100
         log("Auto set val_set_size %s" % val_set_size)
-    elif val_set_size < 1.0:
+    elif val_set_size < 1.0 and val_set_size != 0:
         raise RuntimeError("Fractional validation size not supported.")
 
     if valid_path:
