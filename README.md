@@ -21,7 +21,7 @@ Many of our customers are creating models and deploying them enterprise-wide and
   - [Hybrid Cloud](https://h2o.ai/platform/ai-cloud/hybrid)
   - [AI Appstore](https://docs.h2o.ai/h2o-ai-cloud/)
 
-We are proud to have over 20 (of the world’s 300+) total [Kaggle Grandmasters](https://h2o.ai/company/team/kaggle-grandmasters/) call H2O home, including three Kaggle Grandmasters who have made it to world #1.
+We are proud to have over 20 (of the world's 280) [Kaggle Grandmasters](https://h2o.ai/company/team/kaggle-grandmasters/) call H2O home, including three Kaggle Grandmasters who have made it to world #1.
 
 
 ### Goals
