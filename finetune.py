@@ -94,8 +94,9 @@ def train(
         save_code: bool = False,
         run_id: int = None,
 
-        base_model: str = 'togethercomputer/GPT-NeoXT-Chat-Base-20B',
-        # base_model: str = 'EleutherAI/gpt-neox-20b',
+        base_model: str = 'EleutherAI/gpt-neox-20b',
+        # base_model: str = 'EleutherAI/pythia-12b-deduped',
+        # base_model: str = 'togethercomputer/GPT-NeoXT-Chat-Base-20B',
         # base_model: str = 'decapoda-research/llama-7b-hf',
         # base_model: str = 'decapoda-research/llama-13b-hf',
         # base_model: str = 'decapoda-research/llama-30b-hf',
