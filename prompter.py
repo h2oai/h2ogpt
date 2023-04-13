@@ -33,14 +33,6 @@ class Prompter(object):
             response = response.strip("\n")
             return response
 
-        if self.chat and not self.stream_output:
-            # have to go by length for now
-            # FIXME: odd chars like -- as single char can mess this up
-            assert len(outputs) == 1, "Cannot have num_return_sequences>1"
-            outputs = [outputs[0][len(prompt) - len(self.pre_response):].strip()]
-            if self.debug:
-                print("outputchat: ", '\n\n'.join(outputs), flush=True)
-
         multi_output = len(outputs) > 1
 
         for oi, output in enumerate(outputs):
@@ -50,8 +42,11 @@ class Prompter(object):
                 # prompt sometimes has odd characters, that mutate length,
                 # so can't go by length alone
                 if self.pre_response:
+                    output = output[len(prompt) - len(self.pre_response):].strip()
                     # [1] to avoid repeated pre_response, just take first (after prompt - pre_response for chat)
                     output = output.split(self.pre_response)[1]
+                else:
+                    output = output[len(prompt):].strip()
                 if self.terminate_response:
                     finds = []
                     for term in self.terminate_response:

@@ -308,7 +308,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                         )
                         iinput = gr.Textbox(lines=4, label="Input",
                                             placeholder=kwargs['placeholder_input'])
-                        instruction2 = gr.Button(label='Submit')
+                        submit = gr.Button(label='Submit')
                         flag_btn = gr.Button("Flag")
                 with gr.Column():
                     if kwargs['chat']:
@@ -452,8 +452,10 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                     for histi in range(len(history) - 1):
                         data_point = dict(instruction=history[histi][0], input='', output=history[histi][1])
                         context1 += generate_prompt(data_point, prompt_type1, kwargs['chat'], reduced=True)[0].replace(
-                            '<br>', '')
-                    if context1:
+                            '<br>', '\n')
+                        if not context1.endswith('\n'):
+                            context1 += '\n'
+                    if context1 and not context1.endswith('\n'):
                         context1 += '\n'  # ensure if terminates abruptly, then human continues on next line
                 args_list[0] = instruction1
                 args_list[2] = context1
@@ -579,7 +581,8 @@ def evaluate(
             tokenizer(stop_word, return_tensors='pt')['input_ids'].squeeze() for stop_word in stop_words]
         # encounters = [prompt.count(human) + 1, prompt.count(bot) + 1]
         # stopping only starts once output is beyond prompt
-        encounters = [1, 1]
+        encounters = [1, 2]
+        # 1 human is enough to trigger, but need 2 bots, because very first view back will be bot we added
         stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(stops=stop_words_ids, encounters=encounters)])
     else:
         stopping_criteria = StoppingCriteriaList()
@@ -632,6 +635,8 @@ def evaluate(
                                 )
 
     with torch.no_grad():
+        # decoded tokenized prompt can deviate from prompt due to special characters
+        inputs_decoded = decoder(input_ids[0])
         if stream_output:
             def generate_with_callback(callback=None, **kwargs):
                 # re-order stopping so Stream first and get out all chunks before stop for other reasons
@@ -658,13 +663,13 @@ def evaluate(
                             print("end of sentence")
                         break
 
-                    output1 = prompter.get_response(decoded_output)
+                    output1 = prompter.get_response(decoded_output, prompt=inputs_decoded)
                     yield output1
             return
         else:
             outputs = model.generate(**gen_kwargs)
             outputs = [decoder(s) for s in outputs.sequences]
-            yield prompter.get_response(outputs, prompt=prompt)
+            yield prompter.get_response(outputs, prompt=inputs_decoded)
 
 
 def get_generate_params(model_lower, chat,
