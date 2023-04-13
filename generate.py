@@ -218,7 +218,7 @@ def main(
     else:
         instruction_label = "Instruction"
     if chat:
-        instruction_label = "You (Shift-Enter to send message)"
+        instruction_label = "You (Shift-Enter or push Submit to send message)"
 
     title = 'h2oGPT'
     if verbose:
@@ -265,7 +265,8 @@ def go_gradio(**kwargs):
     else:
         task_info_md = ''
 
-    css_code = 'footer {visibility: hidden}\nbody{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en/site/header/master/_jcr_content/root/container/header_copy/logo.coreimg.svg/1678976605175/h2o-logo.svg");}'
+    css_code = """footer {visibility: hidden}
+body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en/site/header/master/_jcr_content/root/container/header_copy/logo.coreimg.svg/1678976605175/h2o-logo.svg");}}"""
 
     from gradio.themes.utils import colors, fonts, sizes
     if kwargs['h2ocolors']:
@@ -307,17 +308,25 @@ def go_gradio(**kwargs):
                         )
                         iinput = gr.Textbox(lines=4, label="Input",
                                             placeholder=kwargs['placeholder_input'])
+                        instruction2 = gr.Button(label='Submit')
+                        flag_btn = gr.Button("Flag")
                 with gr.Column():
                     if kwargs['chat']:
-                        text_output = gr.Chatbot(label='h2oGPT').style(height=kwargs['height'])
-                        instruction = gr.Textbox(
-                            lines=4, label=kwargs['instruction_label'],
-                            placeholder=kwargs['placeholder_instruction'],
-                        )
+                        text_output = gr.Chatbot(label='h2oGPT').style(height=kwargs['height'] or 400)
                         with gr.Row():
-                            clear = gr.Button("Clear")
-                            stop_btn = gr.Button(value="Stop")
+                            with gr.Column(scale=50):
+                                instruction = gr.Textbox(
+                                    lines=4, label=kwargs['instruction_label'],
+                                    placeholder=kwargs['placeholder_instruction'],
+                                )
+                            with gr.Row(): #.style(equal_height=False, equal_width=False):
+                                submit = gr.Button(value='Submit').style(full_width=False, size='sm')
+                                stop_btn = gr.Button(value="Stop").style(full_width=False, size='sm')
+                        with gr.Row():
+                            clear = gr.Button("New Conversation")
                             flag_btn = gr.Button("Flag")
+                            retry = gr.Button("Regenerate")
+                            undo = gr.Button("Undo")
                     else:
                         text_output = gr.Textbox(lines=5, label="Output")
             with gr.TabItem("Input/Output"):
@@ -400,14 +409,14 @@ def go_gradio(**kwargs):
         )
         if not kwargs['chat']:
             submit = gr.Button("Submit")
-            click_event = submit.click(fun, inputs=inputs_list, outputs=text_output, api_name='submit')
+            submit_event = submit.click(fun, inputs=inputs_list, outputs=text_output, api_name='submit')
 
         # examples after submit or any other buttons for chat or no chat
         if kwargs['examples'] is not None and kwargs['show_examples']:
             gr.Examples(examples=kwargs['examples'], inputs=inputs_list)
 
         if kwargs['chat']:
-            def user(*args):
+            def user(*args, undo=False):
                 args_list = list(args)
                 user_message = args_list[0]
                 input1 = args_list[1]
@@ -419,19 +428,26 @@ def go_gradio(**kwargs):
                 else:
                     user_message1 = user_message
                 history = args_list[-1]
+                if undo and history:
+                    history.pop()
                 args_list = args_list[:-1]
                 if history is None:
                     print("Bad history, fix for now", flush=True)
                     history = []
-                return "", history + [[user_message1, None]]
+                if undo:
+                    return "", history
+                else:
+                    return "", history + [[user_message1, None]]
 
-            def bot(*args):
+            def bot(*args, retry=False):
                 args_list = list(args)
                 history = args_list[-1]
+                if retry and history:
+                    history.pop()
                 instruction1 = history[-1][0]
                 context1 = ''
                 if kwargs['chat_history'] > 0:
-                    prompt_type1 = args_list[3]  # after first 3 args of evaluate()
+                    prompt_type1 = args_list[4]  # after first 4 args of evaluate()
                     context1 = ''
                     for histi in range(len(history) - 1):
                         data_point = dict(instruction=history[histi][0], input='', output=history[histi][1])
@@ -448,20 +464,44 @@ def go_gradio(**kwargs):
                     yield history
                 return
 
-            click_event = instruction.submit(user,
-                               inputs_list + [text_output],  # matching user() inputs
-                               [instruction, text_output], queue=stream_output, api_name='instruction').then(
-                bot, inputs_list + [text_output], text_output, api_name='instruction_bot',
+            user_args = dict(fn=user,
+                             inputs=inputs_list + [text_output],
+                             outputs=[instruction, text_output],
+                             )
+            bot_args = dict(fn=bot,
+                            inputs=inputs_list + [text_output],
+                            outputs=[text_output],
+                            )
+            retry_bot_args = dict(fn=functools.partial(bot, retry=True),
+                                  inputs=inputs_list + [text_output],
+                                  outputs=[text_output],
+                                  )
+            undo_user_args = dict(fn=functools.partial(user, undo=True),
+                                  inputs=inputs_list + [text_output],
+                                  outputs=[instruction, text_output],
+                                  )
+
+            submit_event = instruction.submit(**user_args, queue=stream_output, api_name='instruction').then(
+                **bot_args, api_name='instruction_bot',
             )
+            submit_event2 = submit.click(**user_args, queue=stream_output, api_name='submit').then(
+                **bot_args, api_name='submit_bot',
+            )
+            submit_event3 = retry.click(**user_args, queue=stream_output, api_name='retry').then(
+                **retry_bot_args, api_name='retry_bot',
+            )
+            submit_event4 = undo.click(**undo_user_args, queue=stream_output, api_name='undo')
             clear.click(lambda: None, None, text_output, queue=False, api_name='clear')
 
         # callback for logging flagged input/output
         callback.setup(inputs_list + [text_output], "flagged_data_points")
+        flag_btn.click(lambda *args: callback.flag(args), inputs_list + [text_output], None, preprocess=False,
+                       api_name='flag')
         if kwargs['chat']:
-            flag_btn.click(lambda *args: callback.flag(args), inputs_list + [text_output], None, preprocess=False, api_name='flag')
             # don't pass text_output, don't want to clear output, just stop it
             # FIXME: have to click once to stop output and second time to stop GPUs going
-            stop_btn.click(lambda: None, None, None, cancels=[click_event], queue=False, api_name='stop')
+            stop_btn.click(lambda: None, None, None, cancels=[submit_event, submit_event2, submit_event3],
+                           queue=False, api_name='stop')
 
     demo.queue(concurrency_count=1)
     favicon_path = "h2o-logo.svg"
@@ -683,6 +723,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
     elif 'gpt2' in model_lower:
         placeholder_instruction = "The sky is"
         placeholder_input = ""
+        prompt_type = prompt_type or 'plain'
         use_default_examples = True  # some will be odd "continuations" but can be ok
         examples += [
             [placeholder_instruction, "", "", stream_output, 'plain', 1.0, 1.0, 50, 1, 128, 0, False, max_time_defaults, 1.0, 1,
