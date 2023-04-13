@@ -11,8 +11,8 @@ wget https://repo.anaconda.com/miniconda/Miniconda3-py310_23.1.0-1-Linux-x86_64.
 bash ./Miniconda3-py310_23.1.0-1-Linux-x86_64.sh
 # follow license agreement and add to bash if required
 source ~/.bashrc
-conda create -n h2ollm -y
-conda activate h2ollm
+conda create -n h2ogpt -y
+conda activate h2ogpt
 conda install mamba -n base -c conda-forge
 conda install python=3.10 -y
 conda update -n base -c defaults conda
@@ -45,9 +45,9 @@ Then set the system up to use the freshly installed CUDA location:
 echo "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64/" >> ~/.bashrc
 echo "CUDA_HOME=/usr/local/cuda" >> ~/.bashrc
 echo "export PATH=$PATH:/usr/local/cuda/bin/" >> ~/.bashrc
-echo "conda activate h2ollm" >> ~/.bashrc
+echo "conda activate h2ogpt" >> ~/.bashrc
 source ~/.bashrc
-conda activate h2ollm
+conda activate h2ogpt
 ```
 
 Then reboot the machine, to get everything sync'ed up on restart.

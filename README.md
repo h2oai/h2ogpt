@@ -81,12 +81,6 @@ torchrun generate.py --load_8bit=True --base_model='togethercomputer/GPT-NeoXT-C
 this will download the foundation model, our fine-tuned lora_weights, and open up a GUI with text generation input/output.
 
 
-In case you get peer to peer related errors on non-homogeneous GPU systems, set this env var:
-```
-export NCCL_P2P_LEVEL=LOC
-```
-
-
 ### Containerized Installation for Inference on Linux GPU Servers
 
 1. Build the container image:

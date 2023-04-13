@@ -1,7 +1,7 @@
 ### Throttle GPUs in case of reset/reboot
 
 ```bash
-(alpaca) jon@gpu:/data/jon/alpaca-lora$ sudo nvidia-smi -pl 250
+(h2ogpt) jon@gpu:~$ sudo nvidia-smi -pl 250
 Power limit for GPU 00000000:3B:00.0 was set to 250.00 W from 300.00 W.
 Power limit for GPU 00000000:5E:00.0 was set to 250.00 W from 300.00 W.
 Power limit for GPU 00000000:86:00.0 was set to 250.00 W from 300.00 W.
@@ -79,3 +79,9 @@ Run generation like:
 [Special transformers hash](https://github.com/lm-sys/FastChat#install)<br />
 [Patch1](https://github.com/lm-sys/FastChat/blob/main/fastchat/train/llama_flash_attn_monkey_patch.py)<br />
 [Patch2](https://github.com/lm-sys/FastChat/blob/main/fastchat/train/train_mem.py#L5)<br />
+
+
+In case you get peer to peer related errors on non-homogeneous GPU systems, set this env var:
+```
+export NCCL_P2P_LEVEL=LOC
+```
