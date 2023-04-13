@@ -22,7 +22,7 @@ Note: The dataset contains profanities, and is not cleaned up. Use this only for
 For a higher quality dataset, run the following commands:
 ```bash
 pytest create_data.py::test_useful_oig_data_as_parquet
-pytest create_data.py::test_basic_cleaning
+pytest create_data.py::test_basic_cleaning2
 pytest create_data.py::test_grade_final
 pytest -s create_data.py::test_grade_final_parquet_to_json
 ```

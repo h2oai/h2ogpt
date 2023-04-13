@@ -896,6 +896,49 @@ human = '<human>:'
 bot = '<bot>:'
 
 
+def test_basic_cleaning2():
+    import re
+    from profanity_check import predict
+    df_list = []
+    for data in useful_oig_files:
+        print("Processing %s" % data, flush=True)
+        df = pd.read_parquet(data)
+        df = df.reset_index(drop=True)
+        # chop up into human/bot interactions of no more than 10kB per row
+        text_list = df[['text']].values.ravel().tolist()
+        new_text = []
+        max_len = 1e4
+        for text in text_list:
+            curr_len = 0
+            human_starts = [m.start() for m in re.finditer('<human>: ', text)]
+            if len(human_starts) == 1:
+                human_starts = [0, len(text)]  # always go into for loop below
+            blurb = ''
+            for i in range(len(human_starts) - 1):
+                interaction = text[human_starts[i]: human_starts[i+1]]
+                blurb += interaction
+                curr_len += len(interaction)
+                if curr_len > max_len:
+                    new_text.append(blurb)
+                    blurb = ''
+            if blurb:
+                new_text.append(blurb)
+
+        if len(new_text) > len(text_list):
+            print("Added %d new rows (before: %d)" % (len(new_text) - df.shape[0], df.shape[0]))
+        df = pd.DataFrame({"text": new_text})
+        df = df.drop_duplicates(keep='first')
+        df['profanity'] = predict(df['text'])
+        before_rows = df.shape[0]
+        df = df[df['profanity'] == 0][['text']]
+        after_rows = df.shape[0]
+        print("Dropped %d rows out of %d due to profanity" % (before_rows - after_rows, before_rows))
+        df_list.append(df)
+        print("Done processing %s -> %s rows" % (data, df.shape[0]), flush=True)
+    df_final = pd.concat(df_list)
+    df_final.to_parquet('df_final.parquet', index=False)
+
+
 def test_basic_cleaning():
     # from better_profanity import profanity
     # https://pypi.org/project/alt-profanity-check/
