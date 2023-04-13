@@ -1,3 +1,14 @@
+### Code to consider including:
+[flan-alpaca](https://github.com/declare-lab/flan-alpaca)<br />
+[text-generation-webui](https://github.com/oobabooga/text-generation-webui)<br />
+[minimal-llama](https://github.com/zphang/minimal-llama/)<br />
+[finetune GPT-NeoX](https://nn.labml.ai/neox/samples/finetune.html)<br />
+[GPTQ-for_LLaMa](https://github.com/qwopqwop200/GPTQ-for-LLaMa/compare/cuda...Digitous:GPTQ-for-GPT-NeoX:main)<br />
+[OpenChatKit on multi-GPU](https://github.com/togethercomputer/OpenChatKit/issues/20)<br />
+[Non-Causal LLM](https://huggingface.co/docs/transformers/main/en/model_doc/gptj#transformers.GPTJForSequenceClassification)<br />
+[OpenChatKit_Offload](https://github.com/togethercomputer/OpenChatKit/commit/148b5745a57a6059231178c41859ecb09164c157)<br />
+[Flan-alpaca](https://github.com/declare-lab/flan-alpaca/blob/main/training.py)<br />
+
 ### Some open source models:
 [GPT-NeoXT-Chat-Base-20B](https://huggingface.co/togethercomputer/GPT-NeoXT-Chat-Base-20B/tree/main)<br />
 [GPT-NeoX](https://huggingface.co/docs/transformers/model_doc/gpt_neox)<br />
