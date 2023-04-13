@@ -2,17 +2,22 @@
 
 Our goal is to create Apache-2.0 licensed LLM models that are useful for ChatGPT use cases.
 
+### Goals
+1. Curate high-quality open-source instruct data for fine-tuning
+2. Provide robust and performant training/inference code using best practices
+3. Provide state-of-the-art open-source fine-tuned LLM models
+4. Democratize knowledge base around GPT models
+
 ### Plan
 1. Start with fully open source Apache 2.0 models EleutherAI--gpt-j-6B, EleutherAI--gpt-neox-20b,
    GPT-NeoXT-Chat-Base-20B, etc.
-2. Construct Prompt: Setup prompt engineering to convert plain text into question/answer or command/response format
-3. Open-Source Instruct Data: Collect high quality data with human <-> bot interaction
-4. Fine-tune using 8-bit and LoRA for speed and memory efficiency
-5. Use toolformer approach for external APIs
+2. Open-Source Instruct Data: Collect and curate high quality data with human <-> bot interaction
+3. Prompt Engineering: Convert plain text into question/answer or command/response format
+4. Fine-tune LLM models using 8-bit and LoRA for speed and memory efficiency
+5. Create GUIs, validation tools, APIs for integration with other software
 6. Submit data and model to HuggingFace with 100% permissive license
+7. Collect feedback from community
 
-### Goals
-1. Deliver state-of-the-art open-source fine-tuned LLM, instruct data and training/inference code to community
 
 Original training code is based on [Alpaca-LoRA](https://github.com/tloen/alpaca-lora/).
 
