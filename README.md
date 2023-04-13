@@ -1,6 +1,6 @@
 ## h2oGPT - The world's best open source GPT
 
-Our goal is to create Apache-2.0 licensed LLM models that are useful for ChatGPT use cases.
+Come join the movement to make the world's best open source GPT led by H2O.ai!
 
 ### Why H2O.ai?
 
