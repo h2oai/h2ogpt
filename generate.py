@@ -348,7 +348,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                         temperature = gr.Slider(minimum=0, maximum=3,
                                                 value=kwargs['temperature'],
                                                 label="Temperature",
-                                                info="Lower is deterministic, Higher more creative")
+                                                info="Lower is deterministic (but may lead to repeats), Higher more creative (but may lead to hallucinations)")
                         top_p = gr.Slider(minimum=0, maximum=1,
                                           value=kwargs['top_p'], label="Top p",
                                           info="Cumulative probability of tokens to sample from")
@@ -458,7 +458,8 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                     if context1 and not context1.endswith('\n'):
                         context1 += '\n'  # ensure if terminates abruptly, then human continues on next line
                 args_list[0] = instruction1
-                args_list[2] = context1
+                # only include desired chat history
+                args_list[2] = context1[-kwargs['chat_history']:]
                 args_list = args_list[:-1]
                 for output in fun(*tuple(args_list)):
                     bot_message = output
@@ -758,7 +759,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         prompt_type = prompt_type or 'plain'
         temperature = 1.0 if temperature is None else temperature
         top_p = 1.0 if top_p is None else top_p
-        top_k = 50 if top_k is None else top_k
+        top_k = 100 if top_k is None else top_k
         num_beams = num_beams or 1
         max_new_tokens = max_new_tokens or 128
         repetition_penalty = repetition_penalty or 1.0
@@ -768,7 +769,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         assert prompt_type is not None
         temperature = 0.1 if temperature is None else temperature
         top_p = 0.75 if top_p is None else top_p
-        top_k = 40 if top_k is None else top_k
+        top_k = 80 if top_k is None else top_k
         if chat:
             num_beams = num_beams or 1
         else:
