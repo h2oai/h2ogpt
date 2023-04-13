@@ -2,6 +2,8 @@ import functools
 import inspect
 import random
 import sys
+import os
+os.environ['HF_HUB_DISABLE_TELEMETRY'] = '1'
 from typing import Union
 
 import fire
