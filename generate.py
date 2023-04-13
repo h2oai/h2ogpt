@@ -764,7 +764,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         max_new_tokens = max_new_tokens or 128
         repetition_penalty = repetition_penalty or 1.0
         num_return_sequences = min(num_beams, num_return_sequences or 1)
-        do_sample = True if do_sample is None else do_sample
+        do_sample = False if do_sample is None else do_sample
     else:
         assert prompt_type is not None
         temperature = 0.1 if temperature is None else temperature
@@ -777,7 +777,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         max_new_tokens = max_new_tokens or 256
         repetition_penalty = repetition_penalty or 1.0
         num_return_sequences = min(num_beams, num_return_sequences or 1)
-        do_sample = True if do_sample is None else do_sample
+        do_sample = False if do_sample is None else do_sample
     params_list = ["", stream_output, prompt_type, temperature, top_p, top_k, num_beams, max_new_tokens, min_new_tokens,
                    early_stopping, max_time, repetition_penalty, num_return_sequences, do_sample]
 
