@@ -6,7 +6,7 @@ from transformers import PreTrainedModel
 from finetune import get_loaders
 
 BASE_MODEL = 'togethercomputer/GPT-NeoXT-Chat-Base-20B'
-LORA_WEIGHTS = "my_finetuned_weights"
+LORA_WEIGHTS = "h2ogpt_lora_weights"
 OUTPUT_NAME = "h2oGPT-20B-v1.0"
 llama_type = "llama" in BASE_MODEL
 as_pytorch = False  # False -> HF

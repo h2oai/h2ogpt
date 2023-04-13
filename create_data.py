@@ -896,7 +896,7 @@ human = '<human>:'
 bot = '<bot>:'
 
 
-def test_oig():
+def test_get_oig_useful_files():
     # from better_profanity import profanity
     # https://pypi.org/project/alt-profanity-check/
     from profanity_check import predict
@@ -1045,11 +1045,13 @@ def test_grade_final_parquet_to_json():
 
     min_words_per_entity = 20
     df = df[df['unique_bot_words'] > min_words_per_entity]
-    print("final high-quality (not small or too large size or flesch) and no repeats: %s" % df.shape[0], flush=True)
+
+    # only keep the best entries
     df = add_deberta_grade(df)
     min_grade = 2  # logits >= 2 are quite "good"
     df = df[df['grade'] >= min_grade]
     df = df.rename(columns={'text': 'input'})
+    print("final high-quality (not small or too large size or flesch) and no repeats: %s" % df.shape[0], flush=True)
 
     with open('df_final_graded_full.json', "wt") as f:
         f.write('[\n')

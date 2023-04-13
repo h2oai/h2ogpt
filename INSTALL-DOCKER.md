@@ -21,7 +21,7 @@ For your own fine-tuned model starting from GPT-NeoXT-Chat-Base-20B for example:
 docker run --runtime=nvidia --shm-size=64g -p 7860:7860 \
     -v ${HOME}/.cache:/root/.cache --rm h2o-llm -it generate.py \
     --load_8bit=True --base_model='togethercomputer/GPT-NeoXT-Chat-Base-20B' \
-    --lora_weights=my_finetuned_weights --prompt_type=human_bot
+    --lora_weights=h2ogpt_lora_weights --prompt_type=human_bot
 ```
 
 3. Open `https://localhost:7860` in the browser
