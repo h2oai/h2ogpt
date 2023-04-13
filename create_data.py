@@ -970,6 +970,8 @@ def test_grade_final():
 
     use_textstat = False
 
+    file = "df_final.parquet"
+    df = pd.read_parquet(file).reset_index(drop=True)
     if use_textstat:
         import textstat
 
@@ -978,6 +980,15 @@ def test_grade_final():
 
         min_grade = 12
         max_grade = 25
+        if False:
+            import dask.dataframe as dd
+            # 40 seconds for 1000 rows, but have 1,787,799 rows
+            ddata = dd.from_pandas(df, npartitions=120)
+
+            df['grade'] = ddata['text'].apply(myfunc).compute()
+        if True:
+            # fast way
+            df['grade'] = parallel_apply(df['text'], myfunc, n_jobs=-1)
     else:
         from transformers import AutoModelForSequenceClassification, AutoTokenizer
         import torch
@@ -987,31 +998,29 @@ def test_grade_final():
         device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
         rank_model.to(device)
 
-        def myfunc(x):
+        def get_question(x):
+            return x.replace('<human>: ', '').split('<bot>:')[0]
+
+        def get_answer(x):
             try:
-                question = x.replace('<human>: ', '').split('<bot>:')[0]
-                answer = x.split('<bot>: ')[1].split('<human>: ')[0].replace('<bot>: ', '')
-                inputs = tokenizer(question, answer, return_tensors='pt').to(device)
-                score = rank_model(**inputs).logits[0].cpu().detach().tolist()[0]
-                print("%s -> %s -> %s" % (question, answer, score))
+                answer = x.split('<bot>: ')[1].split('<human>:')[0].replace('<bot>: ', '')
             except:
-                score = -np.inf
-                print("failed: %s" % x)
-            return score
+                answer = x.split('<bot>:')[1].split('<human>:')[0].replace('<bot>:', '')
+            return answer
 
-        min_grade = 3
+        df['question'] = parallel_apply(df['text'], get_question, n_jobs=-1)
+        df['answer'] = parallel_apply(df['text'], get_answer, n_jobs=-1)
+
+        from datasets import Dataset
+        from transformers import pipeline
+        from transformers.pipelines.pt_utils import KeyPairDataset
+
+        pipe = pipeline("text-classification", model=reward_name, device="cuda:0" if torch.cuda.is_available() else "cpu")
+        dataset = Dataset.from_pandas(df)
+        df['grade'] = [x['score'] for x in list(pipe(KeyPairDataset(dataset, "question", "answer")))]
+
+        min_grade = 2  # logits >= 2 are quite "good"
         max_grade = np.inf
-
-    df = pd.read_parquet('df_final.parquet').reset_index(drop=True)  # .iloc[:1000]
-    if False:
-        import dask.dataframe as dd
-        # 40 seconds for 1000 rows, but have 1,787,799 rows
-        ddata = dd.from_pandas(df, npartitions=120)
-
-        df['grade'] = ddata['text'].apply(myfunc).compute()
-    if True:
-        # takes about 4 minutes on original 4GB parquet file for textstat
-        df['grade'] = parallel_apply(df['text'], myfunc, n_jobs=-1 if use_textstat else 8)
 
     df = df[df['grade'] >= min_grade]
     df = df[df['grade'] <= max_grade]
