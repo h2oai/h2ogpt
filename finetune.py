@@ -191,7 +191,7 @@ def train(
         base_model_lower = base_model.lower()
         if base_model_lower in lora_mappings:
             lora_target_modules = lora_mappings[base_model_lower]
-        elif "gpt-neox" in base_model.lower():
+        elif "gpt-neox" in base_model.lower() or "pythia" in base_model:
             lora_target_modules = ["query_key_value"]
         elif [x in base_model.lower() for x in ["gpt-j", "llama"]]:
             lora_target_modules = ["q_proj", "v_proj"]
