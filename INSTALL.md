@@ -95,4 +95,4 @@ See [Fabric Manager](https://docs.nvidia.com/datacenter/tesla/fabric-manager-use
 tensorboard --logdir=runs/
 ```
 
-Now you're ready to go back to data prep and fine-tuning!
+Now you're ready to go back to [data prep and fine-tuning](FINETUNE.md)!
