@@ -23,6 +23,7 @@ For a higher quality dataset, run the following commands:
 ```bash
 pytest create_data.py::test_useful_oig_data_as_parquet
 pytest create_data.py::test_basic_cleaning2
+pytest create_data.py::test_chop_by_lengths
 pytest create_data.py::test_grade_final
 pytest -s create_data.py::test_grade_final_parquet_to_json
 ```

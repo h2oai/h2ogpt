@@ -1062,12 +1062,74 @@ def add_deberta_grade(df):
     return df
 
 
-def test_grade_final():
+def test_chop_by_lengths():
+    file = "df_final.parquet"
+    df = pd.read_parquet(file).reset_index(drop=True)
+    df = count_human_bot_lengths(df)
+    np.random.seed(1234)
+    pd.set_option('display.max_columns', None)
+    print("Before chopping")
+    print(df.describe())
+    df['rand'] = np.random.rand(df.shape[0])
+    df['rand2'] = np.random.rand(df.shape[0])
+    # throw away short human/bot responses with higher likelihood
+    df = df[(df['len_human_min'] > 30) | (df['rand'] < 0.2)]
+    df = df[(df['len_human_min'] > 50) | (df['rand'] < 0.5)]
+    df = df[(df['len_bot_min'] > 30) | (df['rand2'] < 0.2)]
+    df = df[(df['len_bot_min'] > 50) | (df['rand2'] < 0.5)]
+    print("After chopping")
+    print(df.describe())
+    df.to_parquet('df_final.chopped.parquet', index=False)
 
+
+def count_human_bot_lengths(df):
+    import re
+    len_human_min = []
+    len_human_max = []
+    len_human_mean = []
+    len_bot_min = []
+    len_bot_max = []
+    len_bot_mean = []
+    for human in [True, False]:
+        what = '<human>:' if human else '<bot>:'
+        other = '<human>:' if not human else '<bot>:'
+        for i in range(df.shape[0]):
+            text = df.loc[i, 'text']
+            assert isinstance(text, str)
+            starts = [m.start() for m in re.finditer(what, text)]
+            if len(starts) == 1:
+                starts = [starts[0], len(text)]  # always go into for loop below
+            assert len(text)
+            list_what = []
+            for i in range(len(starts) - 1):
+                interaction = text[starts[i]: starts[i+1]]
+                if other in interaction:
+                    interaction = interaction[:interaction.find(other)]
+                interaction.strip()
+                list_what.append(interaction)
+            assert list_what, text
+            if human:
+                len_human_min.append(min([len(x) for x in list_what]))
+                len_human_max.append(max([len(x) for x in list_what]))
+                len_human_mean.append(np.mean([len(x) for x in list_what]))
+            else:
+                len_bot_min.append(min([len(x) for x in list_what]))
+                len_bot_max.append(max([len(x) for x in list_what]))
+                len_bot_mean.append(np.mean([len(x) for x in list_what]))
+    df['len_human_min'] = len_human_min
+    df['len_human_max'] = len_human_max
+    df['len_human_mean'] = len_human_mean
+    df['len_bot_min'] = len_bot_min
+    df['len_bot_max'] = len_bot_max
+    df['len_bot_mean'] = len_bot_mean
+    return df
+
+
+def test_grade_final():
     use_textstat = True
     use_deberta = True
 
-    file = "df_final.parquet"
+    file = "df_final.chopped.parquet"
     df = pd.read_parquet(file).reset_index(drop=True)
     if use_textstat:
         df = add_textstat_grade(df)
