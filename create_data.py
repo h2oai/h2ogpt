@@ -782,41 +782,43 @@ def test_otherlic():
     datasets = flatten_list([[x for x in list_datasets(filter=y) if 'translation' not in str(x.tags)] for y in lic])
     print(len(datasets))
 
+
+# These useful datasets are determined based upon data sample, column types, and uniqueness compared to larger datasets like Pile
 # grep columns getdata13.log|grep -v "\['image'\]"|sort|uniq|grep -v tokens|grep -v "'image'"|grep -v embedding|grep dialog
 useful = ['Dahoas/instruct-human-assistant-prompt',
           'Dahoas/first-instruct-human-assistant-prompt',
           'knkarthick/dialogsum',  # summary of conversation
           'McGill-NLP/FaithDial',  # medium quality
-          'Zaid/quac_expanded',  # medium quality context + Q + A
+          'Zaid/quac_expanded',  # medium quality context + QA
           '0-hero/OIG-small-chip2',  # medium
           'alistvt/coqa-flat',  # QA medium
           'AnonymousSub/MedQuAD_47441_Question_Answer_Pairs',  # QA medium
-          'Anthropic/hh-rlhf',  # high quality  # simmilar to Dahoas/full-hh-rlhf
-          'arjunth2001/online_privacy_qna',  # good quality Q/A
+          'Anthropic/hh-rlhf',  # high quality  # similar to Dahoas/full-hh-rlhf
+          'arjunth2001/online_privacy_qna',  # good quality QA
           'Dahoas/instruct_helpful_preferences',  # medium quality instruct
           'Dahoas/rl-prompt-dataset',  # medium chat
           'Dahoas/rm-static',  # medium chat
           'Dahoas/static-hh',  # medium chat  # HuggingFaceH4/self_instruct
           'Dahoas/synthetic-instruct-gptj-pairwise',  # medium chat
-          'eli5',  # Q/A if prompt ELI5
-          'gsm8k',  # Q/A (various)
+          'eli5',  # QA if prompt ELI5
+          'gsm8k',  # QA (various)
           'guanaco/guanaco',  # prompt/response
-          'kastan/rlhf-qa-comparisons',  # good Q/A
+          'kastan/rlhf-qa-comparisons',  # good QA
           'kastan/rlhf-qa-conditional-generation-v2',  # prompt answer
           'OllieStanley/humaneval-mbpp-codegen-qa',  # code QA, but started from words, so better than other code QA
           'OllieStanley/humaneval-mbpp-testgen-qa',  # code QA
           'Graverman/Instruct-to-Code',  # code QA
           'openai/summarize_from_feedback',  # summarize
-          'relbert/analogy_questions',  # analogy Q/A
+          'relbert/analogy_questions',  # analogy QA
           'yitingxie/rlhf-reward-datasets',  # prompt, chosen, rejected.
           'yizhongw/self_instruct',  # instruct (super natural & instruct)
-          'HuggingFaceH4/asss',  # Q/A, big A
+          'HuggingFaceH4/asss',  # QA, big A
           'kastan/rlhf-qa-conditional-generation-v2',  # QA
           'cosmos_qa',  # context QA
-          'vishal-burman/c4-faqs',  # Q/A but not so much reasoning, but alot of text
-          'squadshifts',  # Q/A from context
-          'hotpot_qa',  # Q/A from context
-          'adversarial_qa',  # Q/A from context
+          'vishal-burman/c4-faqs',  # QA but not so much reasoning, but alot of text
+          'squadshifts',  # QA from context
+          'hotpot_qa',  # QA from context
+          'adversarial_qa',  # QA from context
           'allenai/soda',  # dialog -> narrative/summary
           'squad_v2',  # context QA
           'squadshifts',  # context QA
@@ -826,14 +828,14 @@ useful = ['Dahoas/instruct-human-assistant-prompt',
           'domenicrosati/TruthfulQA',  # common sense truthful QA -- trivia but good trivia
           'hotpot_qa',  # context, QA
           'HuggingFaceH4/self-instruct-eval',  # instruct QA, medium quality, some language reasoning
-          'kastan/EE_QA_for_RLHF',  # context Q/A
+          'kastan/EE_QA_for_RLHF',  # context QA
           'KK04/LogicInference_OA',  # instruction logical QA
           'lmqg/qa_squadshifts_synthetic',  # context QA
           'lmqg/qg_squad',  # context QA
           'lmqg/qg_squadshifts',  # context QA
           'lmqg/qg_subjqa',  # context QA
-          'pszemraj/HC3-textgen-qa',  # Q/A medium, has human responses -- humans tend to provide links instead of trying to answer
-          'pythonist/newdata',  # long context, Q/A, brief A
+          'pszemraj/HC3-textgen-qa',  # QA medium, has human responses -- humans tend to provide links instead of trying to answer
+          'pythonist/newdata',  # long context, QA, brief A
           'ropes',  # long background, situation, question, A
           'wikitablequestions',  # table -> QA
           ]
@@ -858,11 +860,11 @@ maybe_useful = ['AlekseyKorshuk/comedy-scripts',
 
 summary_useful = ['austin/rheum_abstracts',
                   'CarperAI/openai_summarize_comparisons',  # summarize chosen/rejected
-                  'CarperAI/openai_summarize_tldr',  # summarize Q/A
+                  'CarperAI/openai_summarize_tldr',  # summarize QA
                   'ccdv/cnn_dailymail',  # summarize news
                   'ccdv/govreport-summarization',  # summarize high quality
                   'ccdv/pubmed-summarization',  # summarize high quality
-                  'duorc',  # plot -> Q/A
+                  'duorc',  # plot -> QA
                   'farleyknight/big_patent_5_percent',  # desc -> abstract
                   'multi_news',  # summary
                   'opinosis',
