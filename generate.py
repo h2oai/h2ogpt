@@ -79,7 +79,7 @@ def main(
 
         gradio: bool = True,
         chat: bool = True,
-        chat_history: int = 1024,  # length of chat context/history
+        chat_history: int = 4096,  # character length of chat context/history
         stream_output: bool = True,
         show_examples: bool = None,
         verbose: bool = False,
@@ -759,7 +759,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         prompt_type = prompt_type or 'plain'
         temperature = 1.0 if temperature is None else temperature
         top_p = 1.0 if top_p is None else top_p
-        top_k = 100 if top_k is None else top_k
+        top_k = 40 if top_k is None else top_k
         num_beams = num_beams or 1
         max_new_tokens = max_new_tokens or 128
         repetition_penalty = repetition_penalty or 1.0
@@ -769,7 +769,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         assert prompt_type is not None
         temperature = 0.1 if temperature is None else temperature
         top_p = 0.75 if top_p is None else top_p
-        top_k = 80 if top_k is None else top_k
+        top_k = 40 if top_k is None else top_k
         if chat:
             num_beams = num_beams or 1
         else:
