@@ -1063,6 +1063,7 @@ def add_deberta_grade(df):
 def test_grade_final():
 
     use_textstat = True
+    use_deberta = True
 
     file = "df_final.parquet"
     df = pd.read_parquet(file).reset_index(drop=True)
@@ -1070,34 +1071,29 @@ def test_grade_final():
         df = add_textstat_grade(df)
         min_grade = 12
         max_grade = 25
-    else:
+        df = df[df['grade'] >= min_grade]
+        df = df[df['grade'] <= max_grade]
+
+    if use_deberta:
         # too slow, we'll do later
         df = add_deberta_grade(df)
         min_grade = 0.9  # probas
         max_grade = np.inf
-
-    df = df[df['grade'] >= min_grade]
-    df = df[df['grade'] <= max_grade]
+        df = df[df['grade'] >= min_grade]
+        df = df[df['grade'] <= max_grade]
     df.to_parquet('df_final_graded_full.parquet', index=False)
 
 
 def test_grade_final_parquet_to_json():
     df = pd.read_parquet('df_final_graded_full.parquet')
 
-    # noticed bot repeat cases, remove:
+    # want distribution of bot response lengths to be skewed to the right
     df['unique_bot_words'] = [len(set(x.split(bot)[1].split())) for x in df['text'].tolist()]
-
     min_words_per_entity = 20
     df = df[df['unique_bot_words'] > min_words_per_entity]
     print("high-quality (not small or too large size or flesch) and no repeats: %s" % df.shape[0], flush=True)
 
-    # only keep the best entries
-    df = add_deberta_grade(df)
-    min_grade = 0.9  # probas
-    df = df[df['grade'] >= min_grade]
     df = df.rename(columns={'text': 'input'})
-    print("final very high-quality (not small or too large size or flesch) and no repeats and high reward estimate by DeBERTa: %s" % df.shape[0], flush=True)
-
     with open('df_final_graded_full.json', "wt") as f:
         f.write('[\n')
         counter = 0
