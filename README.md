@@ -62,7 +62,7 @@ Follow the [Docker instructions](INSTALL-DOCKER.md) to create a container for de
 
 Follow the [fine-tuning instructions](FINETUNE.md) to fine-tune any LLM models on your data. We prefer to use truly open-source models.
 
-#### Start h2oGPT in chat mode
+### Chat with h2oGPT
 
 Start a chatbot, also requires 48GB GPU. Likely run out of memory on 24GB GPUs, but can work with lower values for `--chat_history`.
 ```
