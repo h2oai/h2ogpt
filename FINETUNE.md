@@ -35,7 +35,7 @@ Fine-tune on a single node with NVIDIA GPUs A6000/A6000Ada/A100/H100, needs 48GB
 For GPUs with 24GB of memory, need to set `--micro_batch_size=1` and `--batch_size=$NGPUS` below.
 ```
 export NGPUS=`nvidia-smi -L | wc -l`
-torchrun --nproc_per_node=$NGPUS finetune.py --base_model='togethercomputer/GPT-NeoXT-Chat-Base-20B' --data_path=df_final_graded_full.json --prompt_type=plain --output_dir=h2ogpt_lora_weights
+torchrun --nproc_per_node=$NGPUS finetune.py --base_model=EleutherAI/gpt-neox-20b --data_path=df_final_graded_full.json --prompt_type=plain --output_dir=h2ogpt_lora_weights
 ```
 This will download the model, load the data, and generate an output directory `h2ogpt_lora_weights` containing the fine-tuned state.
 
@@ -44,6 +44,6 @@ This will download the model, load the data, and generate an output directory `h
 
 Start a chatbot, also requires 48GB GPU. Likely run out of memory on 24GB GPUs, but can work with lower values for `--chat_history`.
 ```
-torchrun generate.py --load_8bit=True --base_model='togethercomputer/GPT-NeoXT-Chat-Base-20B' --lora_weights=h2ogpt_lora_weights --prompt_type=human_bot
+torchrun generate.py --load_8bit=True --base_model=EleutherAI/gpt-neox-20b --lora_weights=h2ogpt_lora_weights --prompt_type=human_bot
 ```
 This will download the foundation model, our fine-tuned lora_weights, and open up a GUI with text generation input/output.
