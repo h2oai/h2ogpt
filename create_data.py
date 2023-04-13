@@ -967,11 +967,42 @@ def parallel_apply(df, func, n_jobs=-1, **kwargs):
 
 
 def test_grade_final():
+
+    use_textstat = False
+
+    if use_textstat:
+        import textstat
+
+        def myfunc(x):
+            return textstat.flesch_kincaid_grade(x)  # simple grade
+
+        min_grade = 12
+        max_grade = 25
+    else:
+        from transformers import AutoModelForSequenceClassification, AutoTokenizer
+        import torch
+        reward_name = "OpenAssistant/reward-model-deberta-v3-large-v2"
+        rank_model, tokenizer = AutoModelForSequenceClassification.from_pretrained(
+            reward_name), AutoTokenizer.from_pretrained(reward_name)
+        device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+        rank_model.to(device)
+
+        def myfunc(x):
+            try:
+                question = x.replace('<human>: ', '').split('<bot>:')[0]
+                answer = x.split('<bot>: ')[1].split('<human>: ')[0].replace('<bot>: ', '')
+                inputs = tokenizer(question, answer, return_tensors='pt').to(device)
+                score = rank_model(**inputs).logits[0].cpu().detach().tolist()[0]
+                print("%s -> %s -> %s" % (question, answer, score))
+            except:
+                score = -np.inf
+                print("failed: %s" % x)
+            return score
+
+        min_grade = 3
+        max_grade = np.inf
+
     df = pd.read_parquet('df_final.parquet').reset_index(drop=True)  # .iloc[:1000]
-
-    import textstat
-    def myfunc(x): return textstat.flesch_kincaid_grade(x)
-
     if False:
         import dask.dataframe as dd
         # 40 seconds for 1000 rows, but have 1,787,799 rows
@@ -979,11 +1010,9 @@ def test_grade_final():
 
         df['grade'] = ddata['text'].apply(myfunc).compute()
     if True:
-        # takes about 4 minutes on original 4GB parquet file
-        df['grade'] = parallel_apply(df['text'], myfunc)
+        # takes about 4 minutes on original 4GB parquet file for textstat
+        df['grade'] = parallel_apply(df['text'], myfunc, n_jobs=-1 if use_textstat else 8)
 
-    min_grade = 12
-    max_grade = 25
     df = df[df['grade'] >= min_grade]
     df = df[df['grade'] <= max_grade]
     df.to_parquet('df_final_graded_full.parquet', index=False)
