@@ -448,8 +448,9 @@ def test_get_OIG_data(filename):
 def test_get_OIG_data_as_parquet(filename):
     if not os.path.exists(filename):
         os.system('wget https://huggingface.co/datasets/laion/OIG/resolve/main/%s' % filename)
-    df = pd.read_json(path_or_buf=filename, lines=True)
-    df.to_parquet(filename + '.parquet', index=False)
+    if not os.path.exists(filename + '.parquet'):
+        df = pd.read_json(path_or_buf=filename, lines=True)
+        df.to_parquet(filename + '.parquet', index=False)
 
 
 def test_merge_shuffle_OIG_data():
