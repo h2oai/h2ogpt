@@ -450,7 +450,7 @@ useful_oig_files = ['unified_rallio_safety_and_prosocial.jsonl.parquet',
 
 
 @pytest.mark.parametrize("filename", OIG_DATASETS)
-def test_get_OIG_data(filename):
+def test_get_small_sample_oig_data(filename):
     if not os.path.exists(filename):
         os.system('wget https://huggingface.co/datasets/laion/OIG/resolve/main/%s' % filename)
     import json
@@ -464,7 +464,7 @@ def test_get_OIG_data(filename):
 
 
 @pytest.mark.parametrize("filename", ALL_OIG_DATASETS)
-def test_get_OIG_data_as_parquet(filename):
+def test_useful_oig_data_as_parquet(filename):
     dest_file = filename + '.parquet'
     if dest_file not in useful_oig_files:
         pytest.skip('file declared not useful')
@@ -475,7 +475,7 @@ def test_get_OIG_data_as_parquet(filename):
         df.to_parquet(dest_file, index=False)
 
 
-def test_merge_shuffle_OIG_data():
+def test_merge_shuffle_small_sample_oig_data():
     np.random.seed(1234)
     rows = []
     for filename in OIG_DATASETS:
@@ -896,7 +896,7 @@ human = '<human>:'
 bot = '<bot>:'
 
 
-def test_get_oig_useful_files():
+def test_basic_cleaning():
     # from better_profanity import profanity
     # https://pypi.org/project/alt-profanity-check/
     from profanity_check import predict

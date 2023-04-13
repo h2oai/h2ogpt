@@ -11,8 +11,8 @@ Below are some of our scripts to help with assembling and cleaning instruct-type
 
 To reproduce a reasonably good dataset, run the following commands:
 ```bash
-pytest create_data.py::test_get_OIG_data
-pytest create_data.py::test_merge_shuffle_OIG_data
+pytest create_data.py::test_get_small_sample_oig_data
+pytest create_data.py::test_merge_shuffle_small_sample_oig_data
 ```
 This creates a file called `merged_shuffled_OIG_87f6a1e788.json` (136 MB) with 240k human <-> bot interactions.
 Note: The dataset contains profanities, and is not cleaned up. Use this only for quick explorations.
@@ -21,8 +21,8 @@ Note: The dataset contains profanities, and is not cleaned up. Use this only for
 
 For a higher quality dataset, run the following commands:
 ```bash
-pytest create_data.py::test_get_OIG_data_as_parquet
-pytest create_data.py::test_get_oig_useful_files
+pytest create_data.py::test_useful_oig_data_as_parquet
+pytest create_data.py::test_basic_cleaning
 pytest create_data.py::test_grade_final
 pytest create_data.py::test_grade_final_parquet_to_json
 ```
