@@ -68,6 +68,7 @@ Start a chatbot, also requires 48GB GPU. Likely run out of memory on 24GB GPUs, 
 ```
 torchrun generate.py --load_8bit=True --base_model='h2oai/h2oGPT-20B-v1.0' --prompt_type=human_bot
 ```
+Alternatively, you can use [Docker for inference](https://github.com/h2oai/h2ogpt/blob/main/INSTALL-DOCKER.md#containerized-installation-for-inference-on-linux-gpu-servers).
 This will download the h2oGPT model and open up a GUI with text generation input/output.
 
 ### Help
