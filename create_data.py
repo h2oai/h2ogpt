@@ -429,6 +429,25 @@ ALL_OIG_DATASETS = ['unified_abstract_infill.jsonl',
                     'unified_unnatural_instructions.jsonl',
                     'unified_xp3_sample.jsonl']
 
+useful_oig_files = ['unified_rallio_safety_and_prosocial.jsonl.parquet',
+                    'unified_chip2.jsonl.parquet',
+                    'unified_cuad.jsonl.parquet',
+                    'unified_essays.jsonl.parquet',
+                    'unified_flan.jsonl.gz.parquet',
+                    'unified_grade_school_math_instructions.jsonl.parquet',
+                    'unified_hc3_human.jsonl.parquet',
+                    'unified_mathqa_flanv2_kojma_cot.jsonl.parquet',
+                    'unified_merged_code_xp3.jsonl.parquet',
+                    'unified_multi_news.jsonl.parquet',
+                    #'unified_multi_sum.jsonl.parquet'
+                    'unified_ni.jsonl.gz.parquet',
+                    'unified_openai_summarize_tldr.jsonl.parquet',
+                    'unified_oscar_en_sample_dialog.jsonl.parquet',
+                    'unified_plot_screenplay_books_dialog.jsonl.parquet',
+                    'unified_soda_dialog.jsonl.parquet',
+                    'unified_unnatural_instructions.jsonl.parquet',
+                    ]
+
 
 @pytest.mark.parametrize("filename", OIG_DATASETS)
 def test_get_OIG_data(filename):
@@ -446,11 +465,14 @@ def test_get_OIG_data(filename):
 
 @pytest.mark.parametrize("filename", ALL_OIG_DATASETS)
 def test_get_OIG_data_as_parquet(filename):
+    dest_file = filename + '.parquet'
+    if dest_file not in useful_oig_files:
+        pytest.skip('file declared not useful')
     if not os.path.exists(filename):
         os.system('wget https://huggingface.co/datasets/laion/OIG/resolve/main/%s' % filename)
-    if not os.path.exists(filename + '.parquet'):
+    if not os.path.exists(dest_file):
         df = pd.read_json(path_or_buf=filename, lines=True)
-        df.to_parquet(filename + '.parquet', index=False)
+        df.to_parquet(dest_file, index=False)
 
 
 def test_merge_shuffle_OIG_data():
@@ -816,25 +838,6 @@ useful = ['Dahoas/instruct-human-assistant-prompt',
           'wikitablequestions',  # table -> QA
           ]
 
-
-useful_oig_files = ['unified_rallio_safety_and_prosocial.jsonl.parquet',
-                    'unified_chip2.jsonl.parquet',
-                    'unified_cuad.jsonl.parquet',
-                    'unified_essays.jsonl.parquet',
-                    'unified_flan.jsonl.gz.parquet',
-                    'unified_grade_school_math_instructions.jsonl.parquet',
-                    'unified_hc3_human.jsonl.parquet',
-                    'unified_mathqa_flanv2_kojma_cot.jsonl.parquet',
-                    'unified_merged_code_xp3.jsonl.parquet',
-                    'unified_multi_news.jsonl.parquet',
-                    #'unified_multi_sum.jsonl.parquet'
-                    'unified_ni.jsonl.gz.parquet',
-                    'unified_openai_summarize_tldr.jsonl.parquet',
-                    'unified_oscar_en_sample_dialog.jsonl.parquet',
-                    'unified_plot_screenplay_books_dialog.jsonl.parquet',
-                    'unified_soda_dialog.jsonl.parquet',
-                    'unified_unnatural_instructions.jsonl.parquet',
-                    ]
 
 
 code_useful = ['0n1xus/codexglue',
