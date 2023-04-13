@@ -1,5 +1,7 @@
 ## h2oGPT - The world's best open source GPT
 
+Our goal is to create Apache-2.0 licensed LLM models that are useful for ChatGPT use cases.
+
 ### Why H2O.ai?
 
 Our [Makers](https://h2o.ai/company/team/) at [H2O.ai](https://h2o.ai) have built several world-class Machine Learning, Deep Learning and AI platforms:
@@ -13,7 +15,7 @@ We also built platforms for deployment and monitoring, and for data governance:
   - Low-Code AI App Development Frameworks [Wave](https://wave.h2o.ai/) and [Nitro](https://nitro.h2o.ai/)
   - [H2O Feature Store](https://h2o.ai/platform/ai-cloud/make/feature-store/) in collaboration with AT&T
 
-Many of our customers are creating models and deploying them at enterprise-wide at scale in the [H2O AI Cloud](https://h2o.ai/platform/ai-cloud/):
+Many of our customers are creating models and deploying them enterprise-wide and at scale in the [H2O AI Cloud](https://h2o.ai/platform/ai-cloud/):
   - Multi-Cloud or on Premises
   - [Managed Cloud (SaaS)](https://h2o.ai/platform/ai-cloud/managed)
   - [Hybrid Cloud](https://h2o.ai/platform/ai-cloud/hybrid)
@@ -21,7 +23,6 @@ Many of our customers are creating models and deploying them at enterprise-wide 
 
 We are proud to have over 20 (of the world’s 300+) total [Kaggle Grandmasters](https://h2o.ai/company/team/kaggle-grandmasters/) call H2O home, including three Kaggle Grandmasters who have made it to world #1.
 
-Our goal is to create Apache-2.0 licensed LLM models that are useful for ChatGPT use cases.
 
 ### Goals
 
