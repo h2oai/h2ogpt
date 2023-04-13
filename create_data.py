@@ -966,59 +966,69 @@ def parallel_apply(df, func, n_jobs=-1, **kwargs):
         return pd.concat(ret)
 
 
+def add_textstat_grade(df):
+    import textstat
+
+    def myfunc(x):
+        return textstat.flesch_kincaid_grade(x)  # simple grade
+
+    if False:
+        import dask.dataframe as dd
+        # 40 seconds for 1000 rows, but have 1,787,799 rows
+        ddata = dd.from_pandas(df, npartitions=120)
+
+        df['grade'] = ddata['text'].apply(myfunc).compute()
+    if True:
+        # fast way
+        df['grade'] = parallel_apply(df['text'], myfunc, n_jobs=-1)
+    return df
+
+
+def add_deberta_grade(df):
+    from transformers import AutoModelForSequenceClassification, AutoTokenizer
+    import torch
+    reward_name = "OpenAssistant/reward-model-deberta-v3-large-v2"
+    rank_model, tokenizer = AutoModelForSequenceClassification.from_pretrained(
+        reward_name), AutoTokenizer.from_pretrained(reward_name)
+    device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+    rank_model.to(device)
+
+    def get_question(x):
+        return x.replace('<human>: ', '').split('<bot>:')[0]
+
+    def get_answer(x):
+        try:
+            answer = x.split('<bot>: ')[1].split('<human>:')[0].replace('<bot>: ', '')
+        except:
+            answer = x.split('<bot>:')[1].split('<human>:')[0].replace('<bot>:', '')
+        return answer
+
+    df['question'] = parallel_apply(df['text'], get_question, n_jobs=-1)
+    df['answer'] = parallel_apply(df['text'], get_answer, n_jobs=-1)
+
+    from datasets import Dataset
+    from transformers import pipeline
+    from transformers.pipelines.pt_utils import KeyPairDataset
+
+    pipe = pipeline("text-classification", model=reward_name, device="cuda:0" if torch.cuda.is_available() else "cpu")
+    dataset = Dataset.from_pandas(df)
+    df['grade'] = [x['score'] for x in list(pipe(KeyPairDataset(dataset, "question", "answer")))]
+    return df
+
+
 def test_grade_final():
 
-    use_textstat = False
+    use_textstat = True
 
     file = "df_final.parquet"
     df = pd.read_parquet(file).reset_index(drop=True)
     if use_textstat:
-        import textstat
-
-        def myfunc(x):
-            return textstat.flesch_kincaid_grade(x)  # simple grade
-
+        df = add_textstat_grade(df)
         min_grade = 12
         max_grade = 25
-        if False:
-            import dask.dataframe as dd
-            # 40 seconds for 1000 rows, but have 1,787,799 rows
-            ddata = dd.from_pandas(df, npartitions=120)
-
-            df['grade'] = ddata['text'].apply(myfunc).compute()
-        if True:
-            # fast way
-            df['grade'] = parallel_apply(df['text'], myfunc, n_jobs=-1)
     else:
-        from transformers import AutoModelForSequenceClassification, AutoTokenizer
-        import torch
-        reward_name = "OpenAssistant/reward-model-deberta-v3-large-v2"
-        rank_model, tokenizer = AutoModelForSequenceClassification.from_pretrained(
-            reward_name), AutoTokenizer.from_pretrained(reward_name)
-        device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-        rank_model.to(device)
-
-        def get_question(x):
-            return x.replace('<human>: ', '').split('<bot>:')[0]
-
-        def get_answer(x):
-            try:
-                answer = x.split('<bot>: ')[1].split('<human>:')[0].replace('<bot>: ', '')
-            except:
-                answer = x.split('<bot>:')[1].split('<human>:')[0].replace('<bot>:', '')
-            return answer
-
-        df['question'] = parallel_apply(df['text'], get_question, n_jobs=-1)
-        df['answer'] = parallel_apply(df['text'], get_answer, n_jobs=-1)
-
-        from datasets import Dataset
-        from transformers import pipeline
-        from transformers.pipelines.pt_utils import KeyPairDataset
-
-        pipe = pipeline("text-classification", model=reward_name, device="cuda:0" if torch.cuda.is_available() else "cpu")
-        dataset = Dataset.from_pandas(df)
-        df['grade'] = [x['score'] for x in list(pipe(KeyPairDataset(dataset, "question", "answer")))]
-
+        # too slow, we'll do later
+        df = add_deberta_grade(df)
         min_grade = 2  # logits >= 2 are quite "good"
         max_grade = np.inf
 
