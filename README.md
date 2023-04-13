@@ -44,7 +44,7 @@ this will download the model, load the data, and generate an output directory `m
 
 #### Start ChatBot
 
-Start a chatbot, also requires 48GB GPU.
+Start a chatbot, also requires 48GB GPU. Likely run out of memory on 24GB GPUs, but can work with lower values for `--chat_history`.
 ```
 torchrun generate.py --load_8bit=True --base_model='togethercomputer/GPT-NeoXT-Chat-Base-20B' --lora_weights=my_finetuned_weights --prompt_type=human_bot
 ```
