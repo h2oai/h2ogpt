@@ -1050,6 +1050,9 @@ def test_grade_final_parquet_to_json():
     min_words_per_entity = 20
     df = df[df['unique_bot_words'] > min_words_per_entity]
     print("final high-quality (not small or too large size or flesch) and no repeats: %s" % df.shape[0], flush=True)
+    df = add_deberta_grade(df)
+    min_grade = 2  # logits >= 2 are quite "good"
+    df = df[df['grade'] >= min_grade]
 
     with open('df_final_graded_full.json', "wt") as f:
         f.write('[\n')
