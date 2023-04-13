@@ -1073,10 +1073,14 @@ def test_chop_by_lengths():
     df['rand'] = np.random.rand(df.shape[0])
     df['rand2'] = np.random.rand(df.shape[0])
     # throw away short human/bot responses with higher likelihood
+    df = df[(df['len_human_min'] > 20)]  # never keep very short ones
     df = df[(df['len_human_min'] > 30) | (df['rand'] < 0.2)]
     df = df[(df['len_human_min'] > 50) | (df['rand'] < 0.5)]
+    df = df[(df['len_human_max'] < 10000)]  # drop super long (basically only human) ones
+    df = df[(df['len_bot_min'] > 20)]  # never keep very short ones
     df = df[(df['len_bot_min'] > 30) | (df['rand2'] < 0.2)]
     df = df[(df['len_bot_min'] > 50) | (df['rand2'] < 0.5)]
+    df = df[(df['len_bot_max'] < 10000)]  # drop super long (only bot) ones
     print("After chopping")
     print(df.describe())
     df.to_parquet('df_final.chopped.parquet', index=False)

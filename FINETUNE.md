@@ -27,7 +27,7 @@ pytest create_data.py::test_chop_by_lengths
 pytest create_data.py::test_grade_final
 pytest -s create_data.py::test_grade_final_parquet_to_json
 ```
-This will take about one hour on A6000 Ada, and produce a file called `df_final_graded_full.json` (XX MB) with XXk human <-> bot interactions.
+This will take about one hour and produce a file called `df_final_graded_full.json` (XX MB) with XXk human <-> bot interactions.
 Note: This dataset is cleaned up, but might still contain undesired words and concepts.
 
 ### Perform fine-tuning on your data
