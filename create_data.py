@@ -990,7 +990,7 @@ def add_deberta_grade(df):
     reward_name = "OpenAssistant/reward-model-deberta-v3-large-v2"
     rank_model, tokenizer = AutoModelForSequenceClassification.from_pretrained(
         reward_name), AutoTokenizer.from_pretrained(reward_name)
-    device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
     rank_model.to(device)
 
     def get_question(x):
@@ -1009,10 +1009,11 @@ def add_deberta_grade(df):
     from datasets import Dataset
     from transformers import pipeline
     from transformers.pipelines.pt_utils import KeyPairDataset
+    import tqdm
 
     pipe = pipeline("text-classification", model=reward_name, device="cuda:0" if torch.cuda.is_available() else "cpu")
     dataset = Dataset.from_pandas(df)
-    df['grade'] = [x['score'] for x in list(pipe(KeyPairDataset(dataset, "question", "answer")))]
+    df['grade'] = [x['score'] for x in tqdm.tqdm(pipe(KeyPairDataset(dataset, "question", "answer")))]
     return df
 
 
