@@ -1039,13 +1039,9 @@ def test_grade_final():
 
 def test_grade_final_parquet_to_json():
     df = pd.read_parquet('df_final_graded_full.parquet')
-    df = df.rename(columns={'text': 'input'})
-    # unsure how to get pandas into right format
-    #df.index = ['input'] * len(df.index)
-    #df['input'].to_json('df_final_graded_full.json', indent=2, orient="values")
 
     # noticed bot repeat cases, remove:
-    df['unique_bot_words'] = [len(set(x.split(bot)[1].split())) for x in df['input'].tolist()]
+    df['unique_bot_words'] = [len(set(x.split(bot)[1].split())) for x in df['text'].tolist()]
 
     min_words_per_entity = 20
     df = df[df['unique_bot_words'] > min_words_per_entity]
@@ -1053,6 +1049,7 @@ def test_grade_final_parquet_to_json():
     df = add_deberta_grade(df)
     min_grade = 2  # logits >= 2 are quite "good"
     df = df[df['grade'] >= min_grade]
+    df = df.rename(columns={'text': 'input'})
 
     with open('df_final_graded_full.json', "wt") as f:
         f.write('[\n')
