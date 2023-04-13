@@ -1107,7 +1107,8 @@ def count_human_bot_lengths(df):
                     interaction = interaction[:interaction.find(other)]
                 interaction.strip()
                 list_what.append(interaction)
-            assert list_what, text
+            if not list_what:
+                list_what = ['']  # handle corrupted data, very rare, leads to sizes 0
             if human:
                 len_human_min.append(min([len(x) for x in list_what]))
                 len_human_max.append(max([len(x) for x in list_what]))
