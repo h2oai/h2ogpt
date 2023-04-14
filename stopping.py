@@ -1,6 +1,7 @@
 import traceback
 from queue import Queue
 from threading import Thread
+import collections.abc
 
 import torch
 from transformers import StoppingCriteria
@@ -47,10 +48,14 @@ class InvalidDataError(ValueError):
     pass
 
 
-class Generator:
-
+class CallbackToGenerator(collections.abc.Generator):
     """
-    Wrap a function so its callback acts as generator in a thread
+    A generator wrapper for a function that invokes a callback multiple times.
+
+    Calling `send` on the generator emits a value from one callback, and returns
+    the next.
+
+    Note this starts a background thread
     """
 
     def __init__(self, func, *args, callback=None, **kwargs):
@@ -59,46 +64,76 @@ class Generator:
         self.kwargs = kwargs
         self.callback = callback
 
-        self.q = Queue()
-        self.sentinel = object()
+        self._ready_queue = Queue(1)
+        self._done_queue = Queue(1)
+        self._done_holder = [False]
 
-        self.stop = False
+        # local to avoid reference cycles
+        ready_queue = self._ready_queue
+        done_queue = self._done_queue
+        done_holder = self._done_holder
 
-        def val_callback(val):
-            if self.stop:
-                raise InvalidDataError
-            self.q.put(val)
+        def val_callback(value):
+            done_queue.put((False, value))
+            cmd, val = ready_queue.get()
+            if cmd == 'send':
+                return val
+            elif cmd == 'throw':
+                raise val
+            else:
+                assert False  # pragma: no cover
 
-        def wrap_func():
-            val = None
+        def thread_func():
+            while True:
+                cmd, val = ready_queue.get()
+                if cmd == 'send' and val is not None:
+                    done_queue.put((True, TypeError("can't send non-None value to a just-started generator")))
+                    continue
+                break
             try:
-                val = self.func(callback=val_callback, *self.args, **self.kwargs)
-            except InvalidDataError as e:
-                traceback.print_exc()
-                raise
-            except Exception:
-                # FIXME: ignore exceptions for now
-                traceback.print_exc()
+                if cmd == 'throw':
+                    raise val
+                ret = func(callback=val_callback, **self.kwargs)
+                raise StopIteration(ret) if ret is not None else StopIteration
+            except BaseException as e:
+                done_holder[0] = True
+                done_queue.put((True, e))
+        self._thread = Thread(target=thread_func)
+        self._thread.start()
 
-            self.q.put(self.sentinel)
-            if val is not None and self.callback:
-                self.callback(val)
-
-        self.thread = Thread(target=wrap_func)
-        self.thread.start()
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        val = self.q.get(True, None)
-        if val is self.sentinel:
+    def _put(self, *args):
+        if self._done_holder[0]:
             raise StopIteration
+        self._ready_queue.put(args)
+        is_exception, val = self._done_queue.get()
+        if is_exception:
+            try:
+                raise val
+            finally:
+                # prevent val's traceback containing a reference cycle
+                del val
         else:
             return val
 
-    def __enter__(self):
-        return self
+    def send(self, value):
+        return self._put('send', value)
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.stop = True
+    def throw(self, exc):
+        return self._put('throw', exc)
+
+    def close(self):
+        try:
+            self.throw(GeneratorExit)
+        except StopIteration:
+            self._thread.join()
+        except GeneratorExit:
+            self._thread.join()
+        except BaseException:
+            self._thread.join()
+            raise
+        else:
+            # yielded again, can't clean up the thread
+            raise RuntimeError('Task with callback ignored GeneratorExit')
+
+    def __del__(self):
+        self.close()

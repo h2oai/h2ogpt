@@ -27,7 +27,7 @@ except:
 
 from finetune import get_loaders, example_data_points, generate_prompt, get_githash, prompt_types_strings, \
     human, bot
-from stopping import Generator, Stream, StoppingCriteriaSub
+from stopping import CallbackToGenerator, Stream, StoppingCriteriaSub
 
 
 def main(
@@ -622,7 +622,7 @@ def evaluate(
         # decoded tokenized prompt can deviate from prompt due to special characters
         inputs_decoded = decoder(input_ids[0])
         if stream_output:
-            def generate_with_callback(*args, callback=None, **kwargs):
+            def generate(callback=None, **kwargs):
                 # re-order stopping so Stream first and get out all chunks before stop for other reasons
                 stopping_criteria0 = kwargs.get('stopping_criteria', StoppingCriteriaList()).copy()
                 kwargs['stopping_criteria'] = StoppingCriteriaList()
@@ -632,23 +632,11 @@ def evaluate(
 
                 model.generate(**kwargs)
 
-            def generate_with_streaming(*args, **kwargs):
-                return Generator(
-                    generate_with_callback, *args, callback=None, **kwargs
-                )
-
-            with generate_with_streaming(**gen_kwargs) as generator:
-                for output in generator:
-                    # new_tokens = len(output) - len(input_ids[0])
-                    decoded_output = decoder(output)
-
-                    if output[-1] in [tokenizer.eos_token_id]:
-                        if debug:
-                            print("end of sentence")
-                        break
-
-                    output1 = prompter.get_response(decoded_output, prompt=inputs_decoded)
-                    yield output1
+            for output in CallbackToGenerator(generate, callback=None, **gen_kwargs):
+                decoded_output = decoder(output)
+                if output[-1] in [tokenizer.eos_token_id]:
+                    break
+                yield prompter.get_response(decoded_output, prompt=inputs_decoded)
             return
         else:
             outputs = model.generate(**gen_kwargs)
