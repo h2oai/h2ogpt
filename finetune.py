@@ -481,14 +481,14 @@ def train(
         # 20 evaluations for a run
         eval_steps = max(1, int(expected_steps / 20))
         log("Auto set eval_steps to %s out of %s total training steps" % (eval_steps, expected_steps))
-    elif eval_epochs is not None:
+    elif eval_steps is None and eval_epochs is not None:
         eval_steps = max(1, int(expected_steps * eval_epochs / num_epochs))
         log("Auto converted eval_epochs=%s to eval_steps %s"
             " out of %s total training steps" % (eval_epochs, eval_steps, expected_steps))
     if save_steps is None:
         save_steps = eval_steps
         log("Auto step save_steps to %s" % save_steps)
-    else:
+    elif save_steps > eval_steps:
         # save steps must be round multiple of eval_steps
         save_steps0 = save_steps
         save_steps = max(1, (save_steps//eval_steps)) * eval_steps
