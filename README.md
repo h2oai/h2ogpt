@@ -2,27 +2,6 @@
 
 Come join the movement to make the world's best open source GPT led by H2O.ai!
 
-### Why H2O.ai?
-
-Our [Makers](https://h2o.ai/company/team/) at [H2O.ai](https://h2o.ai) have built several world-class Machine Learning, Deep Learning and AI platforms:
-  - #1 open-source machine learning platform for the enterprise [H2O-3](https://github.com/h2oai/h2o-3)
-  - The world's best AutoML (Automatic Machine Learning) with [H2O Driverless AI](https://h2o.ai/platform/ai-cloud/make/h2o-driverless-ai/)
-  - No-Code Deep Learning with [H2O Hydrogen Torch](https://h2o.ai/platform/ai-cloud/make/hydrogen-torch/)
-  - Document Processing with Deep Learning in [Document AI](https://h2o.ai/platform/ai-cloud/make/document-ai/)
-
-We also built platforms for deployment and monitoring, and for data wrangling and governance:
-  - [H2O MLOps](https://h2o.ai/platform/ai-cloud/operate/h2o-mlops/) to deploy and monitor models at scale
-  - [H2O Feature Store](https://h2o.ai/platform/ai-cloud/make/feature-store/) in collaboration with AT&T
-  - Open-source Low-Code AI App Development Frameworks [Wave](https://wave.h2o.ai/) and [Nitro](https://nitro.h2o.ai/)
-  - Open-source Python [datatable](https://github.com/h2oai/datatable/) (the engine for H2O Driverless AI feature engineering)
-
-Many of our customers are creating models and deploying them enterprise-wide and at scale in the [H2O AI Cloud](https://h2o.ai/platform/ai-cloud/):
-  - Multi-Cloud or on Premises
-  - [Managed Cloud (SaaS)](https://h2o.ai/platform/ai-cloud/managed)
-  - [Hybrid Cloud](https://h2o.ai/platform/ai-cloud/hybrid)
-  - [AI Appstore](https://docs.h2o.ai/h2o-ai-cloud/)
-
-We are proud to have over 20 (of the world's 280) [Kaggle Grandmasters](https://h2o.ai/company/team/kaggle-grandmasters/) call H2O home, including three Kaggle Grandmasters who have made it to world #1.
 
 
 ### Goals
@@ -72,6 +51,28 @@ torchrun generate.py --load_8bit=True --base_model='h2oai/h2oGPT-20B-v1.0' --pro
 Alternatively, you can use [Docker for inference](https://github.com/h2oai/h2ogpt/blob/main/INSTALL-DOCKER.md#containerized-installation-for-inference-on-linux-gpu-servers).
 This will download the h2oGPT model and open up a GUI with text generation input/output.
 
+### Why H2O.ai?
+
+Our [Makers](https://h2o.ai/company/team/) at [H2O.ai](https://h2o.ai) have built several world-class Machine Learning, Deep Learning and AI platforms:
+  - #1 open-source machine learning platform for the enterprise [H2O-3](https://github.com/h2oai/h2o-3)
+  - The world's best AutoML (Automatic Machine Learning) with [H2O Driverless AI](https://h2o.ai/platform/ai-cloud/make/h2o-driverless-ai/)
+  - No-Code Deep Learning with [H2O Hydrogen Torch](https://h2o.ai/platform/ai-cloud/make/hydrogen-torch/)
+  - Document Processing with Deep Learning in [Document AI](https://h2o.ai/platform/ai-cloud/make/document-ai/)
+
+We also built platforms for deployment and monitoring, and for data wrangling and governance:
+  - [H2O MLOps](https://h2o.ai/platform/ai-cloud/operate/h2o-mlops/) to deploy and monitor models at scale
+  - [H2O Feature Store](https://h2o.ai/platform/ai-cloud/make/feature-store/) in collaboration with AT&T
+  - Open-source Low-Code AI App Development Frameworks [Wave](https://wave.h2o.ai/) and [Nitro](https://nitro.h2o.ai/)
+  - Open-source Python [datatable](https://github.com/h2oai/datatable/) (the engine for H2O Driverless AI feature engineering)
+
+Many of our customers are creating models and deploying them enterprise-wide and at scale in the [H2O AI Cloud](https://h2o.ai/platform/ai-cloud/):
+  - Multi-Cloud or on Premises
+  - [Managed Cloud (SaaS)](https://h2o.ai/platform/ai-cloud/managed)
+  - [Hybrid Cloud](https://h2o.ai/platform/ai-cloud/hybrid)
+  - [AI Appstore](https://docs.h2o.ai/h2o-ai-cloud/)
+
+We are proud to have over 25 (of the world's 280) [Kaggle Grandmasters](https://h2o.ai/company/team/kaggle-grandmasters/) call H2O home, including three Kaggle Grandmasters who have made it to world #1.
+
 ### Help
 
 [FAQs](FAQ.md)
@@ -79,3 +80,4 @@ This will download the h2oGPT model and open up a GUI with text generation input
 ### More links, context, competitors, models, datasets
 
 [Links](LINKS.md)
+
