@@ -444,10 +444,19 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                 # only include desired chat history
                 args_list[2] = context1[-kwargs['chat_history']:]
                 args_list = args_list[:-1]
-                for output in fun(*tuple(args_list)):
-                    bot_message = output
-                    history[-1][1] = bot_message
+                try:
+                    for output in fun(*tuple(args_list)):
+                        bot_message = output
+                        history[-1][1] = bot_message
+                        yield history
+                except StopIteration:
                     yield history
+                except RuntimeError as e:
+                    if "generator raised StopIteration" in str(e):
+                        # assume last entry was bad, undo
+                        history.pop()
+                        yield history
+                    raise
                 return
 
             user_args = dict(fn=user,
@@ -535,6 +544,7 @@ def evaluate(
         tgt_lang=None,
         debug=False,
         chat=False,
+        hard_stop_list=None,
         **kwargs,
 ):
     if debug:
@@ -542,6 +552,10 @@ def evaluate(
     data_point = dict(context=context, instruction=instruction, input=iinput)
     prompter = Prompter(prompt_type, debug=debug, chat=chat, stream_output=stream_output)
     prompt = prompter.generate_prompt(data_point)
+
+    if hard_stop_list is None:
+        # acts like undo on user entry and bot response
+        hard_stop_list = []
 
     if isinstance(tokenizer, str):
         # pipeline
@@ -636,6 +650,8 @@ def evaluate(
                 decoded_output = decoder(output)
                 if output[-1] in [tokenizer.eos_token_id]:
                     break
+                if any(ele in decoded_output for ele in hard_stop_list):
+                    raise StopIteration
                 yield prompter.get_response(decoded_output, prompt=inputs_decoded)
             return
         else:
