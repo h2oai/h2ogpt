@@ -27,7 +27,7 @@ pytest create_data.py::test_chop_by_lengths
 pytest create_data.py::test_grade
 pytest -s create_data.py::test_finalize_to_json
 ```
-This will take several hours and produce a file called `h2oGPT.detoxed.graded.human_bot.json.json` (XX MB) with XXk human <-> bot interactions.
+This will take several hours and produce a file called `h2oGPT.cleaned.graded.human_bot.json` (XX MB) with XXk human <-> bot interactions.
 Note: This dataset is cleaned up, but might still contain undesired words and concepts.
 
 ### Perform fine-tuning on your data
@@ -36,7 +36,7 @@ Fine-tune on a single node with NVIDIA GPUs A6000/A6000Ada/A100/H100, needs 48GB
 For GPUs with 24GB of memory, need to set `--micro_batch_size=1`, `--batch_size=$NGPUS` and `--cutoff_len=256` below.
 ```
 export NGPUS=`nvidia-smi -L | wc -l`
-torchrun --nproc_per_node=$NGPUS finetune.py --base_model=EleutherAI/gpt-neox-20b --data_path=h2oGPT.detoxed.graded.human_bot.json.json --prompt_type=plain --output_dir=h2ogpt_lora_weights
+torchrun --nproc_per_node=$NGPUS finetune.py --base_model=EleutherAI/gpt-neox-20b --data_path=h2oGPT.cleaned.graded.human_bot.json --prompt_type=plain --output_dir=h2ogpt_lora_weights
 ```
 This will download the model, load the data, and generate an output directory `h2ogpt_lora_weights` containing the fine-tuned state.
 

@@ -938,7 +938,7 @@ def test_assemble_and_detox():
         df_list.append(df)
         print("Done processing %s -> %s rows" % (data, df.shape[0]), flush=True)
     df_final = pd.concat(df_list)
-    df_final.to_parquet('h2oGPT.detoxed.human_bot.parquet', index=False)
+    df_final.to_parquet('h2oGPT.cleaned.human_bot.parquet', index=False)
 
 
 def test_basic_cleaning():
@@ -979,7 +979,7 @@ def test_basic_cleaning():
         df_list.append(df)
         print("Done processing %s -> %s rows" % (data, df.shape[0]), flush=True)
     df_final = pd.concat(df_list)
-    df_final.to_parquet('h2oGPT.detoxed.human_bot.parquet', index=False)
+    df_final.to_parquet('h2oGPT.cleaned.human_bot.parquet', index=False)
 
 
 from joblib import parallel_backend, Parallel, delayed, effective_n_jobs
@@ -1063,7 +1063,7 @@ def add_deberta_grade(df):
 
 
 def test_chop_by_lengths():
-    file = "h2oGPT.detoxed.human_bot.parquet"
+    file = "h2oGPT.cleaned.human_bot.parquet"
     df = pd.read_parquet(file).reset_index(drop=True)
     df = count_human_bot_lengths(df)
     np.random.seed(1234)
@@ -1083,7 +1083,7 @@ def test_chop_by_lengths():
     df = df[(df['len_bot_max'] < 10000)]  # drop super long (only bot) ones
     print("After chopping")
     print(df.describe())
-    df.to_parquet('h2oGPT.detoxed.chopped.human_bot.parquet', index=False)
+    df.to_parquet('h2oGPT.cleaned.chopped.human_bot.parquet', index=False)
 
 
 def count_human_bot_lengths(df):
@@ -1134,7 +1134,7 @@ def test_grade():
     use_textstat = True
     use_deberta = True
 
-    file = "h2oGPT.detoxed.chopped.human_bot.parquet"
+    file = "h2oGPT.cleaned.chopped.human_bot.parquet"
     df = pd.read_parquet(file).reset_index(drop=True)
     if use_textstat:
         df = add_textstat_grade(df)
@@ -1150,14 +1150,14 @@ def test_grade():
         max_grade = np.inf
         df = df[df['grade'] >= min_grade]
         df = df[df['grade'] <= max_grade]
-    df.to_parquet('h2oGPT.detoxed.graded.human_bot.parquet', index=False)
+    df.to_parquet('h2oGPT.cleaned.graded.human_bot.parquet', index=False)
 
 
 def test_finalize_to_json():
-    df = pd.read_parquet('h2oGPT.detoxed.graded.human_bot.parquet')
+    df = pd.read_parquet('h2oGPT.cleaned.graded.human_bot.parquet')
     print("Number of final high-quality human_bot interactions: %s" % df.shape[0], flush=True)
     df = df.rename(columns={'text': 'input'})
-    with open('h2oGPT.detoxed.graded.human_bot.json.json', "wt") as f:
+    with open('h2oGPT.cleaned.graded.human_bot.json', "wt") as f:
         f.write('[\n')
         counter = 0
         lenall = df[['input']].shape[0]
