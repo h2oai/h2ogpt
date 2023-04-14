@@ -14,6 +14,7 @@ import psutil
 import pytest
 import pandas as pd
 import numpy as np
+from tqdm import tqdm
 
 
 def parse_rst_file(filepath):
@@ -901,7 +902,7 @@ bot = '<bot>:'
 
 def test_assemble_and_detox():
     import re
-    from profanity_check import predict
+    from profanity_check import predict_prob
     df_list = []
     for data in useful_oig_files:
         print("Processing %s" % data, flush=True)
@@ -910,35 +911,39 @@ def test_assemble_and_detox():
         # chop up into human/bot interactions of no more than 10kB per row
         text_list = df[['text']].values.ravel().tolist()
         new_text = []
-        max_len = 1e4
-        for text in text_list:
-            curr_len = 0
+        max_len = 10000   # approx 2k tokens
+        for text in tqdm(text_list):
             human_starts = [m.start() for m in re.finditer('<human>: ', text)]
             if len(human_starts) == 1:
                 human_starts = [0, len(text)]  # always go into for loop below
             blurb = ''
             for i in range(len(human_starts) - 1):
-                interaction = text[human_starts[i]: human_starts[i+1]]
+                interaction = text[human_starts[i]: human_starts[i+1]][:max_len]
                 blurb += interaction
-                curr_len += len(interaction)
-                if curr_len > max_len:
-                    new_text.append(blurb)
+                if len(blurb) >= max_len:
+                    new_text.append(blurb[:2*max_len])
                     blurb = ''
             if blurb:
-                new_text.append(blurb)
+                new_text.append(blurb[:2*max_len])
 
         if len(new_text) > len(text_list):
             print("Added %d new rows (before: %d)" % (len(new_text) - df.shape[0], df.shape[0]))
-        df = pd.DataFrame({"text": new_text})
+        df = pd.DataFrame({"text": new_text, "source": [data] * len(new_text)})
         df = df.drop_duplicates(keep='first')
-        df['profanity'] = predict(df['text'])
+        print(df['text'].apply(lambda x: len(x)).describe())
+        assert df['text'].apply(lambda x: len(x)).max() <= 2 * max_len
+
+        # faster than better_profanity, do early
+        df['profanity'] = predict_prob(df['text'])
         before_rows = df.shape[0]
-        df = df[df['profanity'] == 0][['text']]
+        df = df[df['profanity'] < 0.05]  # drop any low quality stuff
         after_rows = df.shape[0]
-        print("Dropped %d rows out of %d due to profanity" % (before_rows - after_rows, before_rows))
+        print("Dropped %d rows out of %d due to alt-profanity-check" % (before_rows - after_rows, before_rows))
         df_list.append(df)
         print("Done processing %s -> %s rows" % (data, df.shape[0]), flush=True)
+        print("So far have %d rows" % sum([len(x) for x  in df_list]))
     df_final = pd.concat(df_list)
+    df_final = df_final.sample(frac=1, random_state=1234).reset_index(drop=True)
     df_final.to_parquet('h2oGPT.cleaned.human_bot.parquet', index=False)
 
 
@@ -1010,6 +1015,16 @@ def parallel_apply(df, func, n_jobs=-1, **kwargs):
             delayed(type(df).apply)(df[s], func, **kwargs)
             for s in gen_even_slices(_num_samples(df), effective_n_jobs(n_jobs)))
         return pd.concat(ret)
+
+
+def add_better_profanity_flag(df):
+    from better_profanity import profanity
+    df['better_profanity'] = parallel_apply(
+        df['text'],
+        lambda x: profanity.contains_profanity(x),
+        n_jobs=-1,
+    )
+    return df
 
 
 def add_textstat_grade(df):
@@ -1111,6 +1126,7 @@ def test_chop_by_lengths():
     df = count_human_bot_lengths(df)
     df['rand'] = np.random.rand(df.shape[0])
     df['rand2'] = np.random.rand(df.shape[0])
+    before_rows = df.shape[0]
     # throw away short human/bot responses with higher likelihood
     df = df[(df['len_human_mean'] > 20)]  # never keep very short ones
     df = df[(df['len_human_mean'] > 30) | (df['rand'] < 0.2)]
@@ -1120,7 +1136,10 @@ def test_chop_by_lengths():
     df = df[(df['len_bot_mean'] > 30) | (df['rand2'] < 0.2)]
     df = df[(df['len_bot_mean'] > 50) | (df['rand2'] < 0.5)]
     df = df[(df['len_bot_max'] < 10000)]  # drop super long (only bot) ones
-    print("After chopping")
+    assert df['text'].apply(lambda x: len(x)).max() < 10010
+    df = df.drop(['rand', 'rand2'], axis=1)
+    after_rows = df.shape[0]
+    print("Chopped off %d out of %d rows due to length" % (before_rows - after_rows, before_rows))
     print(df.describe())
     df.to_parquet('h2oGPT.cleaned.chopped.human_bot.parquet', index=False)
 
@@ -1176,34 +1195,51 @@ def count_human_bot_lengths(df, human=None, bot=None):
 
 
 def test_grade():
-    use_textstat = True
-    use_deberta = True
-    assert use_textstat or use_deberta
     df = None
 
     file = "h2oGPT.cleaned.chopped.human_bot.parquet"
     output_file = "h2oGPT.cleaned.graded1.human_bot.parquet"
-    if use_textstat and not os.path.exists(output_file):
-        df = pd.read_parquet(file).reset_index(drop=True)
+    if not os.path.exists(output_file):
+        if df is None:
+            df = pd.read_parquet(file).reset_index(drop=True)
         df = add_textstat_grade(df)
         min_grade = 12
         max_grade = 25
         df = df[df['flesch_grade'] >= min_grade]
         df = df[df['flesch_grade'] <= max_grade]
-        print("After Flesch gradde")
+        print("After Flesch grade")
         print(df.describe())
         df.to_parquet(output_file, index=False)
 
-    file = output_file if use_textstat else file
-    output_file = 'h2oGPT.cleaned.graded2.human_bot.parquet'
-    if use_deberta and not os.path.exists(output_file):
-        df = pd.read_parquet(file).reset_index(drop=True)
+    file = output_file
+    output_file = "h2oGPT.cleaned.graded2.human_bot.parquet"
+    if not os.path.exists(output_file):
+        # slower than alt-profanity, do last, but do before deberta grading, since that's slower
+        if df is None:
+            df = pd.read_parquet(file).reset_index(drop=True)
+        df = add_better_profanity_flag(df)
+        before_rows = df.shape[0]
+        df = df[df['better_profanity'] == 0]
+        df = df.drop(['better_profanity'], axis=1)
+        after_rows = df.shape[0]
+        print("Dropped %d rows out of %d due to better_profanity" % (before_rows - after_rows, before_rows))
+        print(df.describe())
+        df.to_parquet(output_file, index=False)
+
+    file = output_file
+    output_file = 'h2oGPT.cleaned.graded3.human_bot.parquet'
+    if not os.path.exists(output_file):
+        if df is None:
+            df = pd.read_parquet(file).reset_index(drop=True)
         df = add_deberta_grade(df)
-        min_grade = 0.6  # probas
+        df.to_parquet(output_file + ".tmp", index=False)  # FIXME - remove when done figuring out proba threshold
+        min_grade = 0.5  # probas # FIXME
         max_grade = np.inf
-        # FIXME - re-enable once have good proba cutoff
-        # df = df[df['deberta_grade'] >= min_grade]
-        # df = df[df['deberta_grade'] <= max_grade]
+        before_rows = df.shape[0]
+        df = df[df['deberta_grade'] >= min_grade]
+        df = df[df['deberta_grade'] <= max_grade]
+        after_rows = df.shape[0]
+        print("Dropped %d rows out of %d due to deberta grade" % (before_rows - after_rows, before_rows))
         print("After DeBERTa gradde")
         print(df.describe())
         df.to_parquet(output_file, index=False)
@@ -1216,14 +1252,4 @@ def test_finalize_to_json():
     print("Number of high-quality human_bot interactions: %s" % df.shape[0], flush=True)
     print("Number of final high-quality human_bot interactions: %s" % df.shape[0], flush=True)
     df = df.rename(columns={'text': 'input'})
-    df = df.sample(frac=1, random_state=1234).reset_index(drop=True)
-    with open('h2ogpt-oig-instruct-cleaned.json', "wt") as f:
-        f.write('[\n')
-        counter = 0
-        lenall = df[['input']].shape[0]
-        for index, row in df[['input']].iterrows():
-            row.to_json(f, indent=2)
-            counter += 1
-            if counter < lenall:
-                f.write(',\n')
-        f.write('\n]\n')
+    df[['input', 'source']].to_json('h2ogpt-oig-instruct-cleaned.json')
