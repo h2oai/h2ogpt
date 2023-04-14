@@ -9,7 +9,7 @@ from typing import Union
 import fire
 import torch
 from peft import PeftModel
-from transformers import GenerationConfig, StoppingCriteria, StoppingCriteriaList
+from transformers import GenerationConfig, StoppingCriteriaList
 
 from prompter import Prompter
 
@@ -24,27 +24,10 @@ try:
 except:
     pass
 
+
 from finetune import get_loaders, example_data_points, generate_prompt, get_githash, prompt_types_strings, \
     human, bot
-from callbacks import Iteratorize, Stream
-
-
-class StoppingCriteriaSub(StoppingCriteria):
-
-    def __init__(self, stops=[], encounters=[]):
-        super().__init__()
-        assert len(stops) == len(encounters), "Number of stops and encounters must match"
-        self.encounters = encounters
-        self.stops = [stop.to("cuda") for stop in stops]
-        self.num_stops = [0] * len(stops)
-
-    def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor):
-        for stopi, stop in enumerate(self.stops):
-            if torch.all((stop == input_ids[0][-len(stop):])).item():
-                self.num_stops[stopi] += 1
-                if self.num_stops[stopi] >= self.encounters[stopi]:
-                    return True
-        return False
+from stopping import Generator, Stream, StoppingCriteriaSub
 
 
 def main(
@@ -639,19 +622,19 @@ def evaluate(
         # decoded tokenized prompt can deviate from prompt due to special characters
         inputs_decoded = decoder(input_ids[0])
         if stream_output:
-            def generate_with_callback(callback=None, **kwargs):
+            def generate_with_callback(*args, callback=None, **kwargs):
                 # re-order stopping so Stream first and get out all chunks before stop for other reasons
                 stopping_criteria0 = kwargs.get('stopping_criteria', StoppingCriteriaList()).copy()
                 kwargs['stopping_criteria'] = StoppingCriteriaList()
-                kwargs['stopping_criteria'].append(Stream(callback_func=callback))
+                kwargs['stopping_criteria'].append(Stream(func=callback))
                 for stopping_criteria1 in stopping_criteria0:
                     kwargs['stopping_criteria'].append(stopping_criteria1)
 
                 model.generate(**kwargs)
 
-            def generate_with_streaming(**kwargs):
-                return Iteratorize(
-                    generate_with_callback, kwargs, callback=None
+            def generate_with_streaming(*args, **kwargs):
+                return Generator(
+                    generate_with_callback, *args, callback=None, **kwargs
                 )
 
             with generate_with_streaming(**gen_kwargs) as generator:
