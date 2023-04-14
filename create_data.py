@@ -464,7 +464,7 @@ def test_get_small_sample_oig_data(filename):
 
 
 @pytest.mark.parametrize("filename", ALL_OIG_DATASETS)
-def test_useful_oig_data_as_parquet(filename):
+def test_download_useful_data_as_parquet(filename):
     dest_file = filename + '.parquet'
     if dest_file not in useful_oig_files:
         pytest.skip('file declared not useful')

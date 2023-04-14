@@ -21,7 +21,7 @@ Note: The dataset contains profanities, and is not cleaned up. Use this only for
 
 For a higher quality dataset, run the following commands:
 ```bash
-pytest create_data.py::test_useful_oig_data_as_parquet
+pytest create_data.py::test_download_useful_data_as_parquet
 pytest create_data.py::test_assemble_and_detox
 pytest create_data.py::test_chop_by_lengths
 pytest create_data.py::test_grade
