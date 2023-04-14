@@ -1240,7 +1240,7 @@ def test_grade():
         df = df[df['deberta_grade'] <= max_grade]
         after_rows = df.shape[0]
         print("Dropped %d rows out of %d due to deberta grade" % (before_rows - after_rows, before_rows))
-        print("After DeBERTa gradde")
+        print("After DeBERTa grade")
         print(df.describe())
         df.to_parquet(output_file, index=False)
 
