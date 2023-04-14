@@ -2,8 +2,6 @@
 
 Come join the movement to make the world's best open source GPT led by H2O.ai!
 
-
-
 ### Goals
 
 1. Curate high-quality open-source instruct data for fine-tuning
@@ -28,7 +26,7 @@ Original training code is based on [Alpaca-LoRA](https://github.com/tloen/alpaca
 
 All training data will be based on open-source permissive data. No Alpaca, no LLama, no OpenAI.
 
-All models will be published to HuggingFace.
+All datasets and models will be published to HuggingFace.
 
 ### Native Installation (Recommended for Developers)
 
@@ -44,11 +42,13 @@ Follow the [fine-tuning instructions](FINETUNE.md) to fine-tune any LLM models o
 
 ### Chat with h2oGPT
 
-Start a chatbot, also requires 48GB GPU. Likely run out of memory on 24GB GPUs, but can work with lower values for `--chat_history`.
+Start an h2oGPT chatbot like this:
 ```
-torchrun generate.py --load_8bit=True --base_model='h2oai/h2oGPT-20B-v1.0' --prompt_type=human_bot
+torchrun generate.py --load_8bit=True --base_model='h2oai/h2oGPT-6B' --prompt_type=human_bot  # needs 8GB GPU
+torchrun generate.py --load_8bit=True --base_model='h2oai/h2oGPT-12B' --prompt_type=human_bot  # needs 16GB GPU
+torchrun generate.py --load_8bit=True --base_model='h2oai/h2oGPT-20B' --prompt_type=human_bot  # needs 48GB GPU
 ```
-Alternatively, you can use [Docker for inference](https://github.com/h2oai/h2ogpt/blob/main/INSTALL-DOCKER.md#containerized-installation-for-inference-on-linux-gpu-servers).
+You can also use [Docker](INSTALL-DOCKER.md#containerized-installation-for-inference-on-linux-gpu-servers) to start an h2oGPT chatbot:
 This will download the h2oGPT model and open up a GUI with text generation input/output.
 
 ### Why H2O.ai?
