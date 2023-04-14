@@ -1151,7 +1151,7 @@ def test_finalize_to_json():
     print("Number of high-quality human_bot interactions: %s" % df.shape[0], flush=True)
     min_grade = 12
     max_grade = 25
-    df = df[df['flresh_grade'] >= min_grade]
+    df = df[df['flesh_grade'] >= min_grade]
     df = df[df['flesh_grade'] <= max_grade]
     min_grade = 0.6  # probas
     max_grade = np.inf
