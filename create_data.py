@@ -1216,6 +1216,7 @@ def test_finalize_to_json():
     print("Number of high-quality human_bot interactions: %s" % df.shape[0], flush=True)
     print("Number of final high-quality human_bot interactions: %s" % df.shape[0], flush=True)
     df = df.rename(columns={'text': 'input'})
+    df = df.sample(frac=1, random_state=1234).reset_index(drop=True)
     with open('h2ogpt-oig-instruct-cleaned.json', "wt") as f:
         f.write('[\n')
         counter = 0
