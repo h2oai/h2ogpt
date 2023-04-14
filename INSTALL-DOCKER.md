@@ -12,7 +12,7 @@ For h2oGPT:
 ```bash
 docker run --runtime=nvidia --shm-size=64g -p 7860:7860 \
     -v ${HOME}/.cache:/root/.cache --rm h2o-llm -it generate.py \
-    --load_8bit=True --base_model='h2oai/h2oGPT-12B' \
+    --load_8bit=True --base_model='h2oai/h2ogpt-12b' \
     --prompt_type=human_bot
 `````
 

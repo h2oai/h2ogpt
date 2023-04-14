@@ -7,7 +7,7 @@ from finetune import get_loaders
 
 BASE_MODEL = 'EleutherAI/pythia-12b-deduped'
 LORA_WEIGHTS = "pythia-12b-deduped.df_final_graded_full.json.1_epochs.04cc0f2a110bf884db689a1abea7ad037f66a4a6.2"
-OUTPUT_NAME = "h2oGPT-12B"
+OUTPUT_NAME = "h2ogpt-12b"
 llama_type = "llama" in BASE_MODEL
 as_pytorch = False  # False -> HF
 
