@@ -47,7 +47,10 @@ class Prompter(object):
                 if self.pre_response:
                     output = output[len(prompt) - len(self.pre_response):].strip()
                     # [1] to avoid repeated pre_response, just take first (after prompt - pre_response for chat)
-                    output = output.split(self.pre_response)[1]
+                    if self.pre_response in output:
+                        output = output.split(self.pre_response)[1]
+                    else:
+                        print("Failure of parsing: %s" % output, flush=True)
                 else:
                     output = output[len(prompt):].strip()
                 if self.terminate_response:

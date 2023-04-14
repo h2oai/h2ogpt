@@ -554,7 +554,10 @@ def evaluate(
         **kwargs,
 ):
     if debug:
-        print(locals())
+        locals_dict = locals().copy()
+        locals_dict.pop('tokenizer', None)
+        locals_dict.pop('model', None)
+        print(locals_dict)
     data_point = dict(context=context, instruction=instruction, input=iinput)
     prompter = Prompter(prompt_type, debug=debug, chat=chat, stream_output=stream_output)
     prompt = prompter.generate_prompt(data_point)
