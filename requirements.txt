@@ -25,6 +25,6 @@ openpyxl==3.1.2
 bioc==2.0
 textstat==0.7.3
 alt-profanity-check==1.2.2
-better-profanity==0.7.0
+better-profanity==0.6.1
 git+https://github.com/huggingface/peft.git@098962fa6515f2e4fe83a757f5995d3ffbb1c373
 git+https://github.com/huggingface/transformers.git@fe1f5a639d93c9272856c670cff3b0e1a10d5b2b

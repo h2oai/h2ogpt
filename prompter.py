@@ -18,7 +18,7 @@ class Prompter(object):
         self.prompt = prompt
         return prompt
 
-    def get_response(self, outputs, prompt=None):
+    def get_response(self, outputs, prompt=None, sanitize_bot_response=True):
         if isinstance(outputs, str):
             outputs = [outputs]
         if self.debug:
@@ -30,6 +30,9 @@ class Prompter(object):
             meaningless_words = ['<pad>', '</s>', '<|endoftext|>', '”\n']
             for word in meaningless_words:
                 response = response.replace(word, "")
+            if sanitize_bot_response:
+                from better_profanity import profanity
+                response = profanity.censor(response)
             response = response.strip("\n")
             return response
 

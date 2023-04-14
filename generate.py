@@ -399,7 +399,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
             gr.Examples(examples=kwargs['examples'], inputs=inputs_list)
 
         if kwargs['chat']:
-            def user(*args, undo=False):
+            def user(*args, undo=False, sanitize_user_prompt=True):
                 args_list = list(args)
                 user_message = args_list[0]
                 input1 = args_list[1]
@@ -410,6 +410,10 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                     user_message1 = user_message + input1
                 else:
                     user_message1 = user_message
+                if sanitize_user_prompt:
+                    from better_profanity import profanity
+                    user_message1 = profanity.censor(user_message1)
+
                 history = args_list[-1]
                 if undo and history:
                     history.pop()
@@ -509,7 +513,8 @@ def get_inputs_list(inputs_dict, model_lower):
     for k in inputs_list_names:
         if k == 'kwargs':
             continue
-        if k in ['tokenizer', 'model', 'base_model', 'debug', 'chat']:
+        if k in ['tokenizer', 'model', 'base_model', 'debug', 'chat',
+                 'hard_stop_list', 'sanitize_bot_response']:
             # these are added via partial, not taken as input
             continue
         if 'mbart-' not in model_lower and k in ['src_lang', 'tgt_lang']:
@@ -545,6 +550,7 @@ def evaluate(
         debug=False,
         chat=False,
         hard_stop_list=None,
+        sanitize_bot_response=False,
         **kwargs,
 ):
     if debug:
@@ -652,12 +658,14 @@ def evaluate(
                     break
                 if any(ele in decoded_output for ele in hard_stop_list):
                     raise StopIteration
-                yield prompter.get_response(decoded_output, prompt=inputs_decoded)
+                yield prompter.get_response(decoded_output, prompt=inputs_decoded,
+                                            sanitize_bot_response=sanitize_bot_response)
             return
         else:
             outputs = model.generate(**gen_kwargs)
             outputs = [decoder(s) for s in outputs.sequences]
-            yield prompter.get_response(outputs, prompt=inputs_decoded)
+            yield prompter.get_response(outputs, prompt=inputs_decoded,
+                                        sanitize_bot_response=sanitize_bot_response)
 
 
 def get_generate_params(model_lower, chat,
