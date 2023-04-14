@@ -11,7 +11,14 @@ OUTPUT_NAME = "h2oGPT-12B-v1.0"
 llama_type = "llama" in BASE_MODEL
 as_pytorch = False  # False -> HF
 
-model_loader, _ = get_loaders(llama_type=llama_type, model_name=BASE_MODEL)
+model_loader, tokenizer_loader = get_loaders(llama_type=llama_type, model_name=BASE_MODEL)
+
+tokenizer = tokenizer_loader.from_pretrained(
+    BASE_MODEL,
+    local_files_only=True,
+    resume_download=True,
+)
+tokenizer.save_pretrained(OUTPUT_NAME)
 
 base_model = model_loader.from_pretrained(
     BASE_MODEL,
