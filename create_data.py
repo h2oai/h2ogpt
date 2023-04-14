@@ -838,6 +838,7 @@ useful = ['Dahoas/instruct-human-assistant-prompt',
           'pythonist/newdata',  # long context, QA, brief A
           'ropes',  # long background, situation, question, A
           'wikitablequestions',  # table -> QA
+          'bigscience/p3',  # context QA but short answers
           ]
 
 
