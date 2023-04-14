@@ -1159,7 +1159,7 @@ def test_finalize_to_json():
     df = df[df['deberta_grade'] <= max_grade]
     print("Number of final high-quality human_bot interactions: %s" % df.shape[0], flush=True)
     df = df.rename(columns={'text': 'input'})
-    with open('h2oGPT.cleaned.graded.human_bot.json', "wt") as f:
+    with open('h2ogpt-oig-instruct-cleaned.json', "wt") as f:
         f.write('[\n')
         counter = 0
         lenall = df[['input']].shape[0]
