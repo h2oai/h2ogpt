@@ -1178,6 +1178,7 @@ def count_human_bot_lengths(df, human=None, bot=None):
 def test_grade():
     use_textstat = True
     use_deberta = True
+    assert use_textstat or use_deberta
     df = None
 
     file = "h2oGPT.cleaned.chopped.human_bot.parquet"
@@ -1193,7 +1194,7 @@ def test_grade():
         print(df.describe())
         df.to_parquet(output_file, index=False)
 
-    file = output_file
+    file = output_file if use_textstat else file
     output_file = 'h2oGPT.cleaned.graded2.human_bot.parquet'
     if use_deberta and not os.path.exists(output_file):
         df = pd.read_parquet(file).reset_index(drop=True)
