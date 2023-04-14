@@ -12,8 +12,8 @@ Below are some of our scripts to help with assembling and cleaning instruct-type
 For a higher quality dataset, run the following commands:
 ```bash
 pytest -s create_data.py::test_download_useful_data_as_parquet  # downloads ~ 11GB of open-source permissive data
-pytest -s create_data.py::test_assemble_and_detox               # ~ 20 minutes, 7.2M clean conversations
-pytest -s create_data.py::test_chop_by_lengths                  # ~ 5 minutes, 6.1M clean and long enough conversations
+pytest -s create_data.py::test_assemble_and_detox               # ~ 20 minutes, 5.9M clean conversations
+pytest -s create_data.py::test_chop_by_lengths                  # ~ 5 minutes, 5.0M clean and long enough conversations
 pytest -s create_data.py::test_grade                            # ~ 3 hours, keeps only high quality data
 pytest -s create_data.py::test_finalize_to_json
 ```
