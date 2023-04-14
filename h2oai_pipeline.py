@@ -26,5 +26,5 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
         records = super().postprocess(model_outputs, return_type=return_type,
                                       clean_up_tokenization_spaces=clean_up_tokenization_spaces)
         for rec in records:
-            rec['generated_text'] = rec['generated_text'].split(bot)[1].strip()
+            rec['generated_text'] = rec['generated_text'].split(bot)[1].strip().split(human)[0].strip()
         return records
