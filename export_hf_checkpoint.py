@@ -5,9 +5,9 @@ from peft import PeftModel
 from transformers import PreTrainedModel
 from finetune import get_loaders
 
-BASE_MODEL = 'togethercomputer/GPT-NeoXT-Chat-Base-20B'
-LORA_WEIGHTS = "h2ogpt_lora_weights"
-OUTPUT_NAME = "h2oGPT-20B-v1.0"
+BASE_MODEL = 'EleutherAI/pythia-12b-deduped'
+LORA_WEIGHTS = "pythia-12b-deduped.df_final_graded_full.json.1_epochs.04cc0f2a110bf884db689a1abea7ad037f66a4a6.2"
+OUTPUT_NAME = "h2oGPT-12B-v1.0"
 llama_type = "llama" in BASE_MODEL
 as_pytorch = False  # False -> HF
 
@@ -25,7 +25,7 @@ if llama_type:
     layers = base_model.model.layers
     first_weight = layers[0].self_attn.q_proj.weight
 else:
-    if "gpt-neoxt" in BASE_MODEL.lower():
+    if "gpt-neoxt" in BASE_MODEL.lower() or "pythia" in BASE_MODEL.lower():
         layers = base_model.gpt_neox.base_model.layers
         first_weight = layers[0].attention.query_key_value.weight
     else:
@@ -48,10 +48,11 @@ if llama_type:
         layer.self_attn.q_proj.merge_weights = True
         layer.self_attn.v_proj.merge_weights = True
 else:
-    if "gpt-neoxt" in BASE_MODEL.lower():
+    if "gpt-neoxt" in BASE_MODEL.lower() or "pythia" in BASE_MODEL.lower():
         for layer in lora_model.base_model.gpt_neox.base_model.layers:
             layer.attention.query_key_value.merge_weights = True
     else:
+        # lora_model.merge_and_unload()  # might work sometimes
         for layer in lora_model.base_model.transformer.base_model.h:
             layer.attn.q_proj.merge_weights = True
             layer.attn.v_proj.merge_weights = True
