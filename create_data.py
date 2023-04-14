@@ -1182,7 +1182,7 @@ def test_grade():
     df = None
 
     file = "h2oGPT.cleaned.chopped.human_bot.parquet"
-    output_file = "h2oGPT.cleaned.graded1.chopped.human_bot.parquet"
+    output_file = "h2oGPT.cleaned.graded1.human_bot.parquet"
     if use_textstat and not os.path.exists(output_file):
         df = pd.read_parquet(file).reset_index(drop=True)
         df = add_textstat_grade(df)
