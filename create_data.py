@@ -1066,10 +1066,6 @@ def test_chop_by_lengths():
     file = "h2oGPT.cleaned.human_bot.parquet"
     df = pd.read_parquet(file).reset_index(drop=True)
     df = count_human_bot_lengths(df)
-    np.random.seed(1234)
-    pd.set_option('display.max_columns', None)
-    print("Before chopping")
-    print(df.describe())
     df['rand'] = np.random.rand(df.shape[0])
     df['rand2'] = np.random.rand(df.shape[0])
     # throw away short human/bot responses with higher likelihood
@@ -1086,7 +1082,7 @@ def test_chop_by_lengths():
     df.to_parquet('h2oGPT.cleaned.chopped.human_bot.parquet', index=False)
 
 
-def count_human_bot_lengths(df):
+def count_human_bot_lengths(df, human=None, bot=None):
     import re
     len_human_min = []
     len_human_max = []
@@ -1094,9 +1090,11 @@ def count_human_bot_lengths(df):
     len_bot_min = []
     len_bot_max = []
     len_bot_mean = []
-    for human in [True, False]:
-        what = '<human>:' if human else '<bot>:'
-        other = '<human>:' if not human else '<bot>:'
+    human = human or '<human>:'
+    bot = bot or '<bot>:'
+    for is_human in [True, False]:
+        what = human if is_human else bot
+        other = human if not is_human else bot
         for i in range(df.shape[0]):
             text = df.loc[i, 'text']
             assert isinstance(text, str)
@@ -1113,7 +1111,7 @@ def count_human_bot_lengths(df):
                 list_what.append(interaction)
             if not list_what:
                 list_what = ['']  # handle corrupted data, very rare, leads to sizes 0
-            if human:
+            if is_human:
                 len_human_min.append(min([len(x) for x in list_what]))
                 len_human_max.append(max([len(x) for x in list_what]))
                 len_human_mean.append(np.mean([len(x) for x in list_what]))
@@ -1127,6 +1125,10 @@ def count_human_bot_lengths(df):
     df['len_bot_min'] = len_bot_min
     df['len_bot_max'] = len_bot_max
     df['len_bot_mean'] = len_bot_mean
+    np.random.seed(1234)
+    pd.set_option('display.max_columns', None)
+    print("Before chopping")
+    print(df.describe())
     return df
 
 
