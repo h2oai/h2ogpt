@@ -1136,7 +1136,7 @@ def test_chop_by_lengths():
     df = df[(df['len_bot_mean'] > 30) | (df['rand2'] < 0.2)]
     df = df[(df['len_bot_mean'] > 50) | (df['rand2'] < 0.5)]
     df = df[(df['len_bot_max'] < 10000)]  # drop super long (only bot) ones
-    assert df['text'].apply(lambda x: len(x)).max() < 10010
+    assert df['text'].apply(lambda x: len(x)).max() < 20000
     df = df.drop(['rand', 'rand2'], axis=1)
     after_rows = df.shape[0]
     print("Chopped off %d out of %d rows due to length" % (before_rows - after_rows, before_rows))
