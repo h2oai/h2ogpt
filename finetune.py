@@ -152,7 +152,7 @@ def train(
         train_on_inputs: bool = True,  # if False, masks out inputs in loss
         group_by_length: bool = False,  # if True, faster, but produces an odd training loss curve
         resume_from_checkpoint: str = None,  # either training checkpoint or final adapter
-        cutoff_len: int = 256,
+        cutoff_len: int = 1024,  # Good default, especially when have high quality non-trivial data
 
         # torch training params
         ddp: bool = True,  # set to False if OOM with True, for multi-GPU model parallelism

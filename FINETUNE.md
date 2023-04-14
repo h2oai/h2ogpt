@@ -33,7 +33,7 @@ Note: This dataset is cleaned up, but might still contain undesired words and co
 ### Perform fine-tuning on your data
 
 Fine-tune on a single node with NVIDIA GPUs A6000/A6000Ada/A100/H100, needs 48GB of GPU memory per GPU for default settings.
-For GPUs with 24GB of memory, need to set `--micro_batch_size=1` and `--batch_size=$NGPUS` below.
+For GPUs with 24GB of memory, need to set `--micro_batch_size=1`, `--batch_size=$NGPUS` and `--cutoff_len=256` below.
 ```
 export NGPUS=`nvidia-smi -L | wc -l`
 torchrun --nproc_per_node=$NGPUS finetune.py --base_model=EleutherAI/gpt-neox-20b --data_path=df_final_graded_full.json --prompt_type=plain --output_dir=h2ogpt_lora_weights
