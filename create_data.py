@@ -1057,9 +1057,51 @@ def add_deberta_grade(df):
     from transformers.pipelines.pt_utils import KeyPairDataset
     import tqdm
 
-    pipe = pipeline("text-classification", model=reward_name, device="cuda:0" if torch.cuda.is_available() else "cpu")
-    dataset = Dataset.from_pandas(df)
-    df['deberta_grade'] = [x['score'] for x in tqdm.tqdm(pipe(KeyPairDataset(dataset, "question", "answer")))]
+    pipe = pipeline(
+        "text-classification",
+        model=reward_name,
+        device="cuda:0" if torch.cuda.is_available() else "cpu"
+    )
+    start = 0
+    batch_size = 64 * 16
+    micro_batch = orig_micro_batch = 4
+    end = 0
+    import socket
+    checkpoint = "grades.%s.pkl" % socket.gethostname()
+    grades = []
+    import pickle
+    if os.path.exists(checkpoint):
+        with open(checkpoint, "rb") as f:
+            start, grades = pickle.loads(f.read())
+    last_oom = 0
+    while end < df.shape[0]:
+        # manual batching to handle OOM more gracefully
+        end = min(start + batch_size, df.shape[0])
+        if start == end:
+            break
+        dataset = Dataset.from_pandas(df.iloc[start:end, :])
+        try:
+            grades.extend([
+                x['score'] for x in tqdm.tqdm(
+                    pipe(KeyPairDataset(dataset, "question", "answer"), batch_size=micro_batch)
+                )
+            ])
+        except torch.cuda.OutOfMemoryError:
+            last_oom = start
+            micro_batch = max(1, micro_batch // 2)
+            print("OOM - retrying with micro_batch=%d" % micro_batch)
+            continue
+        if last_oom == start:
+            micro_batch = orig_micro_batch
+            print("Returning to micro_batch=%d" % micro_batch)
+        assert len(grades) == end
+        start = end
+        with open(checkpoint, "wb") as f:
+            f.write(pickle.dumps((end, grades)))
+        print("%d/%d" % (end, df.shape[0]))
+    df['grade_deberta'] = grades
+    if os.path.exists(checkpoint):
+        os.remove(checkpoint)
     return df
 
 
@@ -1136,27 +1178,41 @@ def count_human_bot_lengths(df, human=None, bot=None):
 def test_grade():
     use_textstat = True
     use_deberta = True
+    df = None
 
     file = "h2oGPT.cleaned.chopped.human_bot.parquet"
-    df = pd.read_parquet(file).reset_index(drop=True)
-    if use_textstat:
+    output_file = "h2oGPT.cleaned.graded1.chopped.human_bot.parquet"
+    if use_textstat and not os.path.exists(output_file):
+        df = pd.read_parquet(file).reset_index(drop=True)
         df = add_textstat_grade(df)
-    if use_deberta:
+        min_grade = 12
+        max_grade = 25
+        df = df[df['flesch_grade'] >= min_grade]
+        df = df[df['flesch_grade'] <= max_grade]
+        print("After Flesch gradde")
+        print(df.describe())
+        df.to_parquet(output_file, index=False)
+
+    file = output_file
+    output_file = 'h2oGPT.cleaned.graded2.human_bot.parquet'
+    if use_deberta and not os.path.exists(output_file):
+        df = pd.read_parquet(file).reset_index(drop=True)
         df = add_deberta_grade(df)
+        min_grade = 0.6  # probas
+        max_grade = np.inf
+        # FIXME - re-enable once have good proba cutoff
+        # df = df[df['deberta_grade'] >= min_grade]
+        # df = df[df['deberta_grade'] <= max_grade]
+        print("After DeBERTa gradde")
+        print(df.describe())
+        df.to_parquet(output_file, index=False)
+
     df.to_parquet('h2oGPT.cleaned.graded.human_bot.parquet', index=False)
 
 
 def test_finalize_to_json():
     df = pd.read_parquet('h2oGPT.cleaned.graded.human_bot.parquet')
     print("Number of high-quality human_bot interactions: %s" % df.shape[0], flush=True)
-    min_grade = 12
-    max_grade = 25
-    df = df[df['flesh_grade'] >= min_grade]
-    df = df[df['flesh_grade'] <= max_grade]
-    min_grade = 0.6  # probas
-    max_grade = np.inf
-    df = df[df['deberta_grade'] >= min_grade]
-    df = df[df['deberta_grade'] <= max_grade]
     print("Number of final high-quality human_bot interactions: %s" % df.shape[0], flush=True)
     df = df.rename(columns={'text': 'input'})
     with open('h2ogpt-oig-instruct-cleaned.json', "wt") as f:
