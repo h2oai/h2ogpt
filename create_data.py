@@ -1059,7 +1059,7 @@ def add_deberta_grade(df):
 
     pipe = pipeline("text-classification", model=reward_name, device="cuda:0" if torch.cuda.is_available() else "cpu")
     dataset = Dataset.from_pandas(df)
-    df['deberta_grade'] = [x['score'] for x in tqdm.tqdm(pipe(KeyPairDataset(dataset, "question", "answer"), batch_size=16))]
+    df['deberta_grade'] = [x['score'] for x in tqdm.tqdm(pipe(KeyPairDataset(dataset, "question", "answer")))]
     return df
 
 
