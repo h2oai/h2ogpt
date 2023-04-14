@@ -44,10 +44,6 @@ class Stream(StoppingCriteria):
         return False
 
 
-class InvalidDataError(ValueError):
-    pass
-
-
 class CallbackToGenerator(collections.abc.Generator):
     """
     A generator wrapper for a function that invokes a callback multiple times.
