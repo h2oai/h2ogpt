@@ -187,16 +187,6 @@ def train(
         copy_code(run_id)
     if tokenizer_base_model is None:
         tokenizer_base_model = base_model
-    if lora_target_modules is None:
-        base_model_lower = base_model.lower()
-        if base_model_lower in lora_mappings:
-            lora_target_modules = lora_mappings[base_model_lower]
-        elif "gpt-neox" in base_model.lower() or "pythia" in base_model:
-            lora_target_modules = ["query_key_value"]
-        elif [x in base_model.lower() for x in ["gpt-j", "llama"]]:
-            lora_target_modules = ["q_proj", "v_proj"]
-        else:
-            raise ValueError("No lora_target_modules defined")
     if llama_type is None:
         llama_type = "llama" in base_model.lower()
     assert (
@@ -312,15 +302,34 @@ def train(
             resume_download=resume_download,
         )
     else:
-        config = LoraConfig(
-            r=lora_r,
-            lora_alpha=lora_alpha,
-            target_modules=lora_target_modules,
-            lora_dropout=lora_dropout,
-            bias="none",
-            task_type="CAUSAL_LM",
-        )
-        model = get_peft_model(model, config)
+        if lora_target_modules is None:
+            base_model_lower = base_model.lower()
+            if base_model_lower in lora_mappings:
+                lora_target_modules_cand = [lora_mappings[base_model_lower]]
+            else:
+                lora_target_modules_cand = [["query_key_value"], ["q_proj", "v_proj"]]
+        else:
+            lora_target_modules_cand = [lora_target_modules]
+
+        for lora_target_modules in lora_target_modules_cand:
+            try:
+                config = LoraConfig(
+                    r=lora_r,
+                    lora_alpha=lora_alpha,
+                    target_modules=lora_target_modules,
+                    lora_dropout=lora_dropout,
+                    bias="none",
+                    task_type="CAUSAL_LM",
+                )
+                model = get_peft_model(model, config)
+                break
+            except ValueError as e:
+                if "Target modules" in str(e) and "not found" in str(e):
+                    continue
+                else:
+                    raise
+        from peft import PeftModel
+        assert isinstance(model, PeftModel), "LoRA failed. Please provide --lora_target_modules explicitly."
     if resume_from_checkpoint:
         # Check the available weights and load them
         checkpoint_name = os.path.join(
