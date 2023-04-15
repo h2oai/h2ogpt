@@ -1226,23 +1226,22 @@ def test_grade():
         print(df.describe())
         df.to_parquet(output_file, index=False)
 
-    # file = output_file
-    # output_file = 'h2oGPT.cleaned.graded3.human_bot.parquet'
-    # if not os.path.exists(output_file):
-    #     if df is None:
-    #         df = pd.read_parquet(file).reset_index(drop=True)
-    #     df = add_deberta_grade(df)
-    #     df.to_parquet(output_file + ".tmp", index=False)  # FIXME - remove when done figuring out proba threshold
-    #     min_grade = 0.5  # probas # FIXME
-    #     max_grade = np.inf
-    #     before_rows = df.shape[0]
-    #     df = df[df['deberta_grade'] >= min_grade]
-    #     df = df[df['deberta_grade'] <= max_grade]
-    #     after_rows = df.shape[0]
-    #     print("Dropped %d rows out of %d due to deberta grade" % (before_rows - after_rows, before_rows))
-    #     print("After DeBERTa grade")
-    #     print(df.describe())
-    #     df.to_parquet(output_file, index=False)
+    file = output_file
+    output_file = 'h2oGPT.cleaned.graded3.human_bot.parquet'
+    if not os.path.exists(output_file):
+        if df is None:
+            df = pd.read_parquet(file).reset_index(drop=True)
+        df = add_deberta_grade(df)
+        min_grade = 0.2
+        max_grade = np.inf
+        before_rows = df.shape[0]
+        df = df[df['grade_deberta'] >= min_grade]
+        df = df[df['grade_deberta'] <= max_grade]
+        after_rows = df.shape[0]
+        print("Dropped %d rows out of %d due to deberta grade" % (before_rows - after_rows, before_rows))
+        print("After DeBERTa grade")
+        print(df.describe())
+        df.to_parquet(output_file, index=False)
 
     file = output_file
     output_file = 'h2oGPT.cleaned.graded.human_bot.parquet'
