@@ -176,10 +176,10 @@ def train(
         raise ValueError("No data_path provided")
     if not output_dir:
         output_dir = f"{base_model.split('/')[-1]}.{data_path.replace('/', '')}.{num_epochs}_epochs.{get_githash() or 'nogit'}.{run_id}"
-        if os.path.exists(output_dir):
+        if os.path.exists(output_dir) and not resume_from_checkpoint:
             raise FileExistsError(f"output_dir based on run_id {run_id} already exists. Please pick a different run_id.")
     else:
-        if os.path.exists(output_dir):
+        if os.path.exists(output_dir) and not resume_from_checkpoint:
             raise FileExistsError(f"output_dir {output_dir} already exists. Please pick a different output_dir, or specify a run_id instead.")
     device_map = "auto"
 
