@@ -714,7 +714,12 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
             if history is None:
                 print("Bad history, fix for now", flush=True)
                 history = []
-            if smodel is not None and stokenizer is not None and sdevice is not None:
+            if smodel is not None and \
+                    stokenizer is not None and \
+                    sdevice is not None and \
+                    history is not None and len(history) > 0 and \
+                    history[-1] is not None and \
+                    len(history[-1]) >= 2:
                 os.environ['TOKENIZERS_PARALLELISM'] = 'false'
                 question = history[-1][0]
                 answer = history[-1][1]
