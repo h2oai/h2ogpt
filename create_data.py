@@ -1256,7 +1256,16 @@ def test_finalize_to_json():
     print("Number of high-quality human_bot interactions: %s" % df.shape[0], flush=True)
     print("Number of final high-quality human_bot interactions: %s" % df.shape[0], flush=True)
     df = df.rename(columns={'text': 'input'})
-    df[['input', 'source']].to_json('h2ogpt-oig-instruct-cleaned.json')
+    row_list = []
+    for i in range(df.shape[0]):
+        row_list.append(
+            dict(
+                input=df.loc[i, 'input'],
+                source=df.loc[i, 'source']
+            )
+        )
+    with open('h2ogpt-oig-instruct-cleaned.json', "w") as f:
+        f.write(json.dumps(row_list, indent=2))
 
 
 def test_create_personality():
