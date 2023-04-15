@@ -23,8 +23,8 @@ from stopping import CallbackToGenerator, Stream, StoppingCriteriaSub
 def main(
         load_8bit: bool = False,
         load_half: bool = True,
-        base_model: str = 'togethercomputer/GPT-NeoXT-Chat-Base-20B',
-        tokenizer_base_model: str = None,
+        base_model: str = '',
+        tokenizer_base_model: str = '',
         lora_weights: str = "",
         prompt_type: Union[int, str] = None,
 
@@ -172,8 +172,8 @@ def get_non_lora_model(base_model, model_loader, load_half, model_kwargs):
 def get_model(
         load_8bit: bool = False,
         load_half: bool = True,
-        base_model: str = 'togethercomputer/GPT-NeoXT-Chat-Base-20B',
-        tokenizer_base_model: str = None,
+        base_model: str = '',
+        tokenizer_base_model: str = '',
         lora_weights: str = "",
 
         llama_type: bool = None,
@@ -196,12 +196,12 @@ def get_model(
     """
     device = get_device()
 
-    assert base_model, (
-        "Please specify a --base_model, e.g. --base_model="
+    assert base_model.strip(), (
+        "Please choose a base model with --base_model (CLI) or in Models Tab (gradio)"
     )
     llama_type = llama_type or "llama" in base_model
     model_loader, tokenizer_loader = get_loaders(llama_type=llama_type, model_name=base_model)
-    if tokenizer_base_model is None:
+    if not tokenizer_base_model:
         tokenizer_base_model = base_model
 
     if tokenizer_loader is not None and not isinstance(tokenizer_loader, str):
@@ -277,7 +277,11 @@ def go_gradio(**kwargs):
     # get default model
     all_kwargs = kwargs.copy()
     all_kwargs.update(locals())
-    model, tokenizer, device = get_model(**all_kwargs)
+    if kwargs.get('base_model'):
+        model, tokenizer, device = get_model(**all_kwargs)
+    else:
+        # if empty model, then don't load anything, just get gradio up
+        model, tokenizer, device = None, None, None
 
     if 'mbart-' in kwargs['model_lower']:
         instruction_label = "Text to translate"
@@ -566,6 +570,11 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                         history.pop()
                         yield history
                     raise
+                except Exception as e:
+                    # put error into user input
+                    history[-1][0] = str(e)
+                    yield history
+                    raise
                 return
 
             user_args = dict(fn=functools.partial(user, sanitize_user_prompt=kwargs['sanitize_user_prompt']),
@@ -714,6 +723,10 @@ def evaluate(
         print(locals_dict)
 
     model, tokenizer, device, base_model = model_state
+
+    assert base_model.strip(), (
+        "Please choose a base model with --base_model (CLI) or in Models Tab (gradio).\nThen start New Conversation"
+    )
 
     data_point = dict(context=context, instruction=instruction, input=iinput)
     prompter = Prompter(prompt_type, debug=debug, chat=chat, stream_output=stream_output)
