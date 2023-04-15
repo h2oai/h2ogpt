@@ -1272,14 +1272,19 @@ def test_finalize_to_json():
         row_list.append(
             dict(
                 input=df.loc[i, 'input'],
-                source=df.loc[i, 'source']
+                source=df.loc[i, 'source'],
+                prompt_type='plain',
             )
         )
-    with open('h2ogpt-oig-instruct-cleaned-v3.json', "w") as f:
+    personality = create_personality_data()
+    row_list.extend(personality * 10)
+    np.random.seed(1234)
+    np.random.shuffle(row_list)
+    with open('h2ogpt-oig-instruct-cleaned-v4.json', "w") as f:
         f.write(json.dumps(row_list, indent=2))
 
 
-def test_create_personality():
+def create_personality_data():
     questions = [
         "What's your name?",
         "What is your name?",
@@ -1293,7 +1298,7 @@ def test_create_personality():
     answers = [
         "I'm h2oGPT, a large language model by H2O.ai.",
         "My name is h2oGPT. I'm a large language model by H2O.ai.",
-        "My name is h2oGPT. I'm a large language model by H2O.ai.",
+        "My name is h2oGPT. I'm a large language model trained by H2O.ai.",
         "Hi! I'm h2oGPT, a large language model by H2O.ai.",
     ]
     help = [
@@ -1306,14 +1311,13 @@ def test_create_personality():
     rows = []
     for pair in itertools.product(questions, answers, help):
         rows.append(
-            dict(input=f"<human>: {pair[0]} <bot>: {pair[1]} {pair[2]}", prompt_type='plain')
+            dict(input=f"<human>: {pair[0]} <bot>: {pair[1]} {pair[2]}", prompt_type='plain', source="H2O.ai")
         )
-    for row in [
-        "<human>: When were you trained? <bot>: In April 2023.",
-    ]:
-        rows.append(dict(input=row, prompt_type='plain'))
-    np.random.seed(1234)
-    np.random.shuffle(rows)
+    # for row in [
+    #     "<human>: When were you trained? <bot>: I was trained in April 2023.",
+    # ]:
+    #     rows.append(dict(input=row, prompt_type='plain', source='H2O.ai'))
     print(len(rows))
     with open("h2ogpt-personality.json", "w") as f:
         f.write(json.dumps(rows, indent=2))
+    return rows
