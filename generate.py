@@ -1,6 +1,5 @@
 import functools
 import inspect
-import random
 import sys
 import os
 
@@ -13,17 +12,6 @@ from peft import PeftModel
 from transformers import GenerationConfig, StoppingCriteriaList
 
 from prompter import Prompter
-
-if torch.cuda.is_available():
-    device = "cuda"
-else:
-    device = "cpu"
-
-try:
-    if torch.backends.mps.is_available():
-        device = "mps"
-except:
-    pass
 
 from finetune import get_loaders, example_data_points, generate_prompt, get_githash, prompt_types_strings, \
     human, bot
@@ -72,6 +60,88 @@ def main(
         sanitize_user_prompt: bool = True,
         sanitize_bot_response: bool = True,
 ):
+
+    # get defaults
+    model_lower = base_model.lower()
+    if not gradio:
+        # force, else not single response like want to look at
+        stream_output = False
+        # else prompt removal can mess up output
+        chat = False
+
+    placeholder_instruction, placeholder_input, \
+    stream_output, show_examples, \
+    prompt_type, temperature, top_p, top_k, num_beams, \
+    max_new_tokens, min_new_tokens, early_stopping, max_time, \
+    repetition_penalty, num_return_sequences, \
+    do_sample, \
+    src_lang, tgt_lang, \
+    examples, \
+    task_info = \
+        get_generate_params(model_lower, chat,
+                            stream_output, show_examples,
+                            prompt_type, temperature, top_p, top_k, num_beams,
+                            max_new_tokens, min_new_tokens, early_stopping, max_time,
+                            repetition_penalty, num_return_sequences,
+                            do_sample,
+                            )
+
+    if not gradio:
+        # ensure was set right above before examples generated
+        assert not stream_output, "stream_output=True does not make sense with example loop"
+        import time
+        from functools import partial
+
+        model, tokenizer, device = get_model(**locals())
+        fun = partial(evaluate, tokenizer, model, base_model, debug=debug, chat=chat)
+        t0 = time.time()
+        for ex in examples:
+            print("")
+            print("START" + "=" * 100)
+            print("Question: %s %s" % (ex[0], ('input=%s' % ex[1] if ex[1] else '')))
+            print("-" * 105)
+            # fun yields as generator, so have to iterate over it
+            # Also means likely do NOT want --stream_output=True, else would show all generations
+            for res in fun(*tuple(ex)):
+                print(res)
+            print("END" + "=" * 102)
+            print("")
+        t1 = time.time()
+        print("Time taken: %.4f" % (t1 - t0))
+        return
+    if gradio:
+        go_gradio(**locals())
+
+
+def get_device():
+    if torch.cuda.is_available():
+        device = "cuda"
+    else:
+        device = "cpu"
+
+    try:
+        if torch.backends.mps.is_available():
+            device = "mps"
+    except:
+        pass
+
+    return device
+
+
+def get_model(
+        load_8bit: bool = False,
+        load_half: bool = True,
+        base_model: str = 'togethercomputer/GPT-NeoXT-Chat-Base-20B',
+        tokenizer_base_model: str = None,
+        lora_weights: str = "",
+
+        llama_type: bool = None,
+        local_files_only: bool = False,
+        resume_download: bool = True,
+        **kwargs,
+):
+    device = get_device()
+
     assert base_model, (
         "Please specify a --base_model, e.g. --base_model="
     )
@@ -174,76 +244,32 @@ def main(
         if torch.__version__ >= "2" and sys.platform != "win32":
             model = torch.compile(model)
 
-    # get defaults
-    model_lower = base_model.lower()
-    if not gradio:
-        # force, else not single response like want to look at
-        stream_output = False
-        # else prompt removal can mess up output
-        chat = False
+    return model, tokenizer, device
 
-    placeholder_instruction, placeholder_input, \
-    stream_output, show_examples, \
-    prompt_type, temperature, top_p, top_k, num_beams, \
-    max_new_tokens, min_new_tokens, early_stopping, max_time, \
-    repetition_penalty, num_return_sequences, \
-    do_sample, \
-    src_lang, tgt_lang, \
-    examples, \
-    task_info = \
-        get_generate_params(model_lower, chat,
-                            stream_output, show_examples,
-                            prompt_type, temperature, top_p, top_k, num_beams,
-                            max_new_tokens, min_new_tokens, early_stopping, max_time,
-                            repetition_penalty, num_return_sequences,
-                            do_sample,
-                            )
 
-    if 'mbart-' in model_lower:
+def go_gradio(**kwargs):
+
+    # get default model
+    all_kwargs = kwargs.copy()
+    all_kwargs.update(locals())
+    model, tokenizer, device = get_model(**all_kwargs)
+
+    if 'mbart-' in kwargs['model_lower']:
         instruction_label = "Text to translate"
     else:
         instruction_label = "Instruction"
-    if chat:
+    if kwargs['chat']:
         instruction_label = "You (Shift-Enter or push Submit to send message)"
 
     title = 'h2oGPT'
-    if verbose:
-        description = f"""Model {base_model} Instruct dataset.
+    if kwargs['verbose']:
+        description = f"""Model {kwargs['base_model']} Instruct dataset.
                       For more information, visit [the project's website](https://github.com/h2oai/h2ogpt).
                       Command: {str(' '.join(sys.argv))}
                       Hash: {get_githash()}
                       """
     else:
         description = ""
-
-    if not gradio:
-        # ensure was set right above before examples generated
-        assert not stream_output, "stream_output=True does not make sense with example loop"
-        import time
-        from functools import partial
-
-        fun = partial(evaluate, tokenizer, model, base_model, debug=debug, chat=chat)
-        t0 = time.time()
-        for ex in examples:
-            print("")
-            print("START" + "=" * 100)
-            print("Question: %s %s" % (ex[0], ('input=%s' % ex[1] if ex[1] else '')))
-            print("-" * 105)
-            # fun yields as generator, so have to iterate over it
-            # Also means likely do NOT want --stream_output=True, else would show all generations
-            for res in fun(*tuple(ex)):
-                print(res)
-            print("END" + "=" * 102)
-            print("")
-        t1 = time.time()
-        print("Time taken: %.4f" % (t1 - t0))
-        return
-    if gradio:
-        go_gradio(**locals())
-
-
-def go_gradio(**kwargs):
-    import gradio as gr
 
     if kwargs['verbose']:
         task_info_md = f"""
@@ -271,6 +297,8 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                            radius_size=sizes.radius_md,
                            text_size=sizes.text_md,
                            )
+
+    import gradio as gr
     demo = gr.Blocks(theme=gr.themes.Soft(**colors_dict), css=css_code, title="h2oGPT")
     callback = gr.CSVLogger()
     # css_code = 'body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en/site/header/master/_jcr_content/root/container/header_copy/logo.coreimg.svg/1678976605175/h2o-logo.svg");}'
@@ -278,9 +306,9 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
     with demo:
         gr.Markdown(
             f"""
-            <h1 align="center"> {kwargs['title']}</h1>
+            <h1 align="center"> {title}</h1>
 
-            {kwargs['description']}
+            {description}
             {task_info_md}
             """)
 
@@ -289,7 +317,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                 if not kwargs['chat']:
                     with gr.Column():
                         instruction = gr.Textbox(
-                            lines=4, label=kwargs['instruction_label'],
+                            lines=4, label=instruction_label,
                             placeholder=kwargs['placeholder_instruction'],
                         )
                         iinput = gr.Textbox(lines=4, label="Input",
@@ -302,7 +330,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                         with gr.Row():
                             with gr.Column(scale=50):
                                 instruction = gr.Textbox(
-                                    lines=4, label=kwargs['instruction_label'],
+                                    lines=4, label=instruction_label,
                                     placeholder=kwargs['placeholder_instruction'],
                                 )
                             with gr.Row():  # .style(equal_height=False, equal_width=False):
@@ -375,9 +403,11 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
 
         inputs_list = get_inputs_list(locals(), kwargs['model_lower'])
         from functools import partial
-        kwargs_evaluate = {k: v for k, v in kwargs.items() if k in inputs_kwargs_list}
+        all_kwargs = kwargs.copy()
+        all_kwargs.update(locals())
+        kwargs_evaluate = {k: v for k, v in all_kwargs.items() if k in inputs_kwargs_list}
         fun = partial(evaluate,
-                      kwargs['tokenizer'], kwargs['model'], kwargs['base_model'],
+                      tokenizer, model, kwargs['base_model'],
                       **kwargs_evaluate)
 
         dark_mode_btn = gr.Button("Dark Mode", variant="primary").style(
@@ -515,7 +545,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
 
 
 input_args_list = ['tokenizer', 'model', 'base_model']
-inputs_kwargs_list = ['debug', 'chat', 'hard_stop_list', 'sanitize_bot_response']
+inputs_kwargs_list = ['debug', 'chat', 'hard_stop_list', 'sanitize_bot_response', 'device']
 
 
 def get_inputs_list(inputs_dict, model_lower):
@@ -561,6 +591,7 @@ def evaluate(
         chat=False,
         hard_stop_list=None,
         sanitize_bot_response=True,
+        device=None,
         **kwargs,
 ):
     if debug:
