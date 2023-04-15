@@ -145,6 +145,9 @@ def get_non_lora_model(base_model, model_loader, load_half, model_kwargs):
             config,
         )
 
+    # NOTE: Can specify max_memory={0: max_mem, 1: max_mem}, to shard model
+    # NOTE: Some models require avoiding sharding some layers,
+    # then would pass no_split_module_classes and give list of those layers.
     device_map = infer_auto_device_map(
         model,
         dtype=torch.float16 if load_half else torch.float32,
