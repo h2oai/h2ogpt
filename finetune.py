@@ -64,13 +64,14 @@ prompt_type_to_model_name = {
     'plain': ['EleutherAI/gpt-neox-20b', 'EleutherAI/gpt-j-6B', 'decapoda-research/llama-7b-hf',
               'decapoda-research/llama-13b-hf', 'decapoda-research/llama-30b-hf',
               'facebook/mbart-large-50-many-to-many-mmt',
-              'philschmid/bart-large-cnn-samsum', 'philschmid/flan-t5-base-samsum'],
+              'philschmid/bart-large-cnn-samsum', 'philschmid/flan-t5-base-samsum',
+              'gpt2', 'distilgpt2'],
     'instruct': [],
     'quality': [],
     'human_bot': ['togethercomputer/GPT-NeoXT-Chat-Base-20B'],
     'dai_faq': [],
     'summarize': [],
-    'simple_instruct': ['t5', 't5-large', 'google/flan-t5', 'google/flan-t5-xxl', 'google/flan-ul2'],
+    'simple_instruct': ['t5-small', 't5-large', 'google/flan-t5', 'google/flan-t5-xxl', 'google/flan-ul2'],
 }
 
 human = '<human>:'
@@ -761,7 +762,7 @@ def generate_prompt(data_point, prompt_type, chat, reduced):
     input = data_point.get('input')
     output = data_point.get('output')
     prompt_type = data_point.get('prompt_type', prompt_type)
-    assert prompt_type in prompt_types
+    assert prompt_type in prompt_types, "Bad prompt type: %s" % prompt_type
     promptA, promptB, PreInstruct, PreInput, PreResponse, terminate_response = get_prompt(prompt_type, chat, context, reduced)
 
     prompt = context

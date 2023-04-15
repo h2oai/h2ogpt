@@ -2,6 +2,7 @@ import functools
 import inspect
 import sys
 import os
+import typing
 
 os.environ['HF_HUB_DISABLE_TELEMETRY'] = '1'
 from typing import Union
@@ -15,7 +16,7 @@ from accelerate import init_empty_weights, infer_auto_device_map
 from prompter import Prompter
 
 from finetune import get_loaders, example_data_points, generate_prompt, get_githash, prompt_types_strings, \
-    human, bot
+    human, bot, prompt_type_to_model_name
 from stopping import CallbackToGenerator, Stream, StoppingCriteriaSub
 
 
@@ -60,6 +61,9 @@ def main(
 
         sanitize_user_prompt: bool = True,
         sanitize_bot_response: bool = True,
+
+        extra_model_options: typing.List[str] = [],
+        extra_lora_options: typing.List[str] = [],
 ):
 
     # get defaults
@@ -94,7 +98,8 @@ def main(
         from functools import partial
 
         model, tokenizer, device = get_model(**locals())
-        fun = partial(evaluate, tokenizer, model, base_model, debug=debug, chat=chat)
+        model_state = [model, tokenizer, device, base_model]
+        fun = partial(evaluate, model_state, debug=debug, chat=chat)
         t0 = time.time()
         for ex in examples:
             print("")
@@ -323,7 +328,20 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
     callback = gr.CSVLogger()
     # css_code = 'body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en/site/header/master/_jcr_content/root/container/header_copy/logo.coreimg.svg/1678976605175/h2o-logo.svg");}'
     # demo = gr.Blocks(theme='gstaff/xkcd', css=css_code)
+
+    from create_data import flatten_list
+    model_options = flatten_list(list(prompt_type_to_model_name.values())) + kwargs['extra_model_options']
+    if kwargs['base_model'].strip() not in model_options:
+        lora_options = [kwargs['base_model'].strip()] + model_options
+    lora_options = kwargs['extra_lora_options']
+    if kwargs['lora_weights'].strip() not in lora_options:
+        lora_options = [kwargs['lora_weights'].strip()] + lora_options
+    # always add in no lora case
+    # add fake space so doesn't go away in gradio dropdown
+    lora_options = [' '] + kwargs['extra_lora_options']
+
     with demo:
+        model_state = gr.State([model, tokenizer, device, kwargs['base_model']])
         gr.Markdown(
             f"""
             <h1 align="center"> {title}</h1>
@@ -421,13 +439,40 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                         context = gr.Textbox(lines=1, label="Context",
                                              info="Ignored in chat mode.")  # nominally empty for chat mode
 
+            with gr.TabItem("Models"):
+                with gr.Row():
+                    with gr.Column():
+                        with gr.Row(scale=1):
+                            with gr.Column(scale=50):
+                                model_choice = gr.Dropdown(model_options, label="Choose Model", value=kwargs['base_model'])
+                            with gr.Column(scale=1):
+                                load_model_button = gr.Button("Load model")
+                                model_used = gr.Textbox(label="Current Model", value=kwargs['base_model'])
+                        with gr.Row(scale=1):
+                            with gr.Column(scale=50):
+                                new_model = gr.Textbox(label="New Model HF name/path")
+                            with gr.Column(scale=1):
+                                add_model_button = gr.Button("Add new model name")
+
+                        with gr.Row(scale=1):
+                            with gr.Column(scale=50):
+                                lora_choice = gr.Dropdown(lora_options, label="Choose LORA", value=kwargs['lora_weights'])
+                            with gr.Column(scale=1):
+                                load_lora_button = gr.Button("Load LORA")
+                                lora_used = gr.Textbox(label="Current LORA", value=kwargs['lora_weights'])
+                        with gr.Row(scale=1):
+                            with gr.Column(scale=50):
+                                new_lora = gr.Textbox(label="New LORA HF name/path")
+                            with gr.Column(scale=1):
+                                add_lora_button = gr.Button("Add new LORA name")
+
         inputs_list = get_inputs_list(locals(), kwargs['model_lower'])
         from functools import partial
         all_kwargs = kwargs.copy()
         all_kwargs.update(locals())
         kwargs_evaluate = {k: v for k, v in all_kwargs.items() if k in inputs_kwargs_list}
         fun = partial(evaluate,
-                      tokenizer, model, kwargs['base_model'],
+                      model_state,
                       **kwargs_evaluate)
 
         dark_mode_btn = gr.Button("Dark Mode", variant="primary").style(
@@ -490,7 +535,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                 instruction1 = history[-1][0]
                 context1 = ''
                 if kwargs['chat_history'] > 0:
-                    prompt_type1 = args_list[4]  # after first 4 args of evaluate()
+                    prompt_type1 = args_list[prompt_type_arg_id]
                     context1 = ''
                     for histi in range(len(history) - 1):
                         data_point = dict(instruction=history[histi][0], input='', output=history[histi][1])
@@ -503,9 +548,13 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                 args_list[0] = instruction1
                 # only include desired chat history
                 args_list[2] = context1[-kwargs['chat_history']:]
-                args_list = args_list[:-1]
+                model_state1 = args_list[-2]
+                args_list = args_list[:-2]
+                fun1 = partial(evaluate,
+                               model_state1,
+                               **kwargs_evaluate)
                 try:
-                    for output in fun(*tuple(args_list)):
+                    for output in fun1(*tuple(args_list)):
                         bot_message = output
                         history[-1][1] = bot_message
                         yield history
@@ -524,11 +573,11 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                              outputs=[instruction, text_output],
                              )
             bot_args = dict(fn=bot,
-                            inputs=inputs_list + [text_output],
+                            inputs=inputs_list + [model_state] + [text_output],
                             outputs=[text_output],
                             )
             retry_bot_args = dict(fn=functools.partial(bot, retry=True),
-                                  inputs=inputs_list + [text_output],
+                                  inputs=inputs_list + [model_state] + [text_output],
                                   outputs=[text_output],
                                   )
             undo_user_args = dict(fn=functools.partial(user, undo=True),
@@ -548,6 +597,50 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
             submit_event4 = undo.click(**undo_user_args, queue=stream_output, api_name='undo')
             clear.click(lambda: None, None, text_output, queue=False, api_name='clear')
 
+        def load_model(model_name, lora_weights, model_state_old):
+            # ensure old model removed from GPU memory
+            if kwargs['debug']:
+                print("Pre-switch pre-del GPU memory: %s" % torch.cuda.memory_allocated(), flush=True)
+            del model_state_old[0]
+            model_state_old[0] = None
+            del model_state_old[1]
+            model_state_old[1] = None
+            torch.cuda.empty_cache()
+            if kwargs['debug']:
+                print("Pre-switch post-del GPU memory: %s" % torch.cuda.memory_allocated(), flush=True)
+            all_kwargs['base_model'] = model_name.strip()
+            all_kwargs['lora_weights'] = lora_weights.strip()
+            model1, tokenizer1, device1 = get_model(**all_kwargs)
+            torch.cuda.empty_cache()
+            if kwargs['debug']:
+                print("Post-switch GPU memory: %s" % torch.cuda.memory_allocated(), flush=True)
+            return {model_state: [model1, tokenizer1, device1, model_name],
+                    model_used: model_name}
+
+        load_model_event = load_model_button.click(fn=load_model,
+                                                   inputs=[model_choice, lora_choice, model_state],
+                                                   outputs=[model_state, model_used, lora_used])
+
+        def dropdown_model_list(x):
+            new_options = [*model_options, x]
+            return gr.Dropdown.update(choices=new_options)
+
+        add_model_event = add_model_button.click(fn=dropdown_model_list,
+                                                 inputs=new_model,
+                                                 outputs=model_choice)
+
+        load_lora_event = load_lora_button.click(fn=load_model,
+                                                 inputs=[model_choice, lora_choice, model_state],
+                                                 outputs=[model_state, model_used, lora_used])
+
+        def dropdown_lora_list(x):
+            new_options = [*lora_options, x]
+            return gr.Dropdown.update(choices=new_options)
+
+        add_lora_event = add_lora_button.click(fn=dropdown_lora_list,
+                                               inputs=new_lora,
+                                               outputs=lora_choice)
+
         # callback for logging flagged input/output
         callback.setup(inputs_list + [text_output], "flagged_data_points")
         flag_btn.click(lambda *args: callback.flag(args), inputs_list + [text_output], None, preprocess=False,
@@ -564,8 +657,8 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                 favicon_path=favicon_path)  # , enable_queue=True)
 
 
-input_args_list = ['tokenizer', 'model', 'base_model']
-inputs_kwargs_list = ['debug', 'chat', 'hard_stop_list', 'sanitize_bot_response', 'device']
+input_args_list = ['model_state']
+inputs_kwargs_list = ['debug', 'chat', 'hard_stop_list', 'sanitize_bot_response']
 
 
 def get_inputs_list(inputs_dict, model_lower):
@@ -583,10 +676,12 @@ def get_inputs_list(inputs_dict, model_lower):
     return inputs_list
 
 
+# index of prompt_type in evaluate function, after model_state
+prompt_type_arg_id = 4
+
+
 def evaluate(
-        tokenizer,
-        model,
-        base_model,
+        model_state,
         # START NOTE: Examples must have same order of parameters
         instruction,
         iinput,
@@ -611,14 +706,15 @@ def evaluate(
         chat=False,
         hard_stop_list=None,
         sanitize_bot_response=True,
-        device=None,
         **kwargs,
 ):
     if debug:
         locals_dict = locals().copy()
-        locals_dict.pop('tokenizer', None)
-        locals_dict.pop('model', None)
+        locals_dict.pop('model_state', None)
         print(locals_dict)
+
+    model, tokenizer, device, base_model = model_state
+
     data_point = dict(context=context, instruction=instruction, input=iinput)
     prompter = Prompter(prompt_type, debug=debug, chat=chat, stream_output=stream_output)
     prompt = prompter.generate_prompt(data_point)
