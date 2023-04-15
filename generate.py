@@ -68,6 +68,7 @@ def main(
         extra_lora_options: typing.List[str] = [],
 
         score_model: str = 'OpenAssistant/reward-model-deberta-v3-large-v2',
+        auto_score: bool = True,
 ):
 
     # get defaults
@@ -429,8 +430,11 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                         submit = gr.Button(label='Submit')
                         flag_btn = gr.Button("Flag")
                         if kwargs['score_model']:
-                            with gr.Column():
-                                score_btn = gr.Button("Score last prompt & response")
+                            if not kwargs['auto_score']:
+                                with gr.Column():
+                                    score_btn = gr.Button("Score last prompt & response")
+                                    score_text = gr.Textbox("Probability Good: NA", show_label=False)
+                            else:
                                 score_text = gr.Textbox("Probability Good: NA", show_label=False)
                 with gr.Column():
                     if kwargs['chat']:
@@ -448,8 +452,11 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                             clear = gr.Button("New Conversation")
                             flag_btn = gr.Button("Flag")
                             if kwargs['score_model']:
-                                with gr.Column():
-                                    score_btn = gr.Button("Score last prompt & response").style(full_width=False, size='sm')
+                                if not kwargs['auto_score']:
+                                    with gr.Column():
+                                        score_btn = gr.Button("Score last prompt & response").style(full_width=False, size='sm')
+                                        score_text = gr.Textbox("Probability Good: NA", show_label=False)
+                                else:
                                     score_text = gr.Textbox("Probability Good: NA", show_label=False)
                             retry = gr.Button("Regenerate")
                             undo = gr.Button("Undo")
@@ -573,6 +580,44 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
         if kwargs['examples'] is not None and kwargs['show_examples']:
             gr.Examples(examples=kwargs['examples'], inputs=inputs_list)
 
+        # Score
+        def score_last_response(*args):
+            """ Similar to user() """
+            args_list = list(args)
+            history = args_list[-1]
+            if history is None:
+                print("Bad history, fix for now", flush=True)
+                history = []
+            if smodel is not None and \
+                    stokenizer is not None and \
+                    sdevice is not None and \
+                    history is not None and len(history) > 0 and \
+                    history[-1] is not None and \
+                    len(history[-1]) >= 2:
+                os.environ['TOKENIZERS_PARALLELISM'] = 'false'
+                question = history[-1][0]
+                answer = history[-1][1]
+                cutoff_len = 2048  # if reaches limit, then can't generate new tokens
+                output_smallest = 30
+                answer = answer[-cutoff_len - output_smallest:]
+                inputs = stokenizer(question, answer,
+                                    return_tensors="pt",
+                                    truncation=True,
+                                    max_length=cutoff_len).to(smodel.device)
+                score = torch.sigmoid(smodel(**inputs).logits[0]).cpu().detach().numpy()[0]
+                os.environ['TOKENIZERS_PARALLELISM'] = 'true'
+                return 'Probability Good: {:.1%}'.format(score)
+            else:
+                return 'Probability Good: NA'
+
+        if kwargs['score_model']:
+            score_args = dict(fn=score_last_response,
+                              inputs=inputs_list + [text_output],
+                              outputs=[score_text],
+                              )
+            if not kwargs['auto_score']:
+                score_event = score_btn.click(**score_args, queue=stream_output, api_name='score')
+
         if kwargs['chat']:
             def user(*args, undo=False, sanitize_user_prompt=True):
                 args_list = list(args)
@@ -664,16 +709,28 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                                   outputs=[instruction, text_output],
                                   )
 
-            submit_event = instruction.submit(**user_args, queue=stream_output, api_name='instruction').then(
-                **bot_args, api_name='instruction_bot',
-            )
-            submit_event2 = submit.click(**user_args, queue=stream_output, api_name='submit').then(
-                **bot_args, api_name='submit_bot',
-            )
-            submit_event3 = retry.click(**user_args, queue=stream_output, api_name='retry').then(
-                **retry_bot_args, api_name='retry_bot',
-            )
-            submit_event4 = undo.click(**undo_user_args, queue=stream_output, api_name='undo')
+            if kwargs['auto_score']:
+                submit_event = instruction.submit(**user_args, queue=stream_output, api_name='instruction').then(
+                    **bot_args, api_name='instruction_bot',
+                ).then(**score_args, api_name='score_bot')
+                submit_event2 = submit.click(**user_args, queue=stream_output, api_name='submit').then(
+                    **bot_args, api_name='submit_bot',
+                ).then(**score_args, api_name='score_bot')
+                submit_event3 = retry.click(**user_args, queue=stream_output, api_name='retry').then(
+                    **retry_bot_args, api_name='retry_bot',
+                ).then(**score_args, api_name='score_bot')
+                submit_event4 = undo.click(**undo_user_args, queue=stream_output, api_name='undo').then(**score_args, api_name='score_bot')
+            else:
+                submit_event = instruction.submit(**user_args, queue=stream_output, api_name='instruction').then(
+                    **bot_args, api_name='instruction_bot',
+                )
+                submit_event2 = submit.click(**user_args, queue=stream_output, api_name='submit').then(
+                    **bot_args, api_name='submit_bot',
+                )
+                submit_event3 = retry.click(**user_args, queue=stream_output, api_name='retry').then(
+                    **retry_bot_args, api_name='retry_bot',
+                )
+                submit_event4 = undo.click(**undo_user_args, queue=stream_output, api_name='undo')
             clear.click(lambda: None, None, text_output, queue=False, api_name='clear')
 
         def load_model(model_name, lora_weights, model_state_old, prompt_type_old):
@@ -707,35 +764,6 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                     model_used: model_name,
                     prompt_type: prompt_type1}
 
-        def score_last_response(*args):
-            """ Similar to user() """
-            args_list = list(args)
-            history = args_list[-1]
-            if history is None:
-                print("Bad history, fix for now", flush=True)
-                history = []
-            if smodel is not None and \
-                    stokenizer is not None and \
-                    sdevice is not None and \
-                    history is not None and len(history) > 0 and \
-                    history[-1] is not None and \
-                    len(history[-1]) >= 2:
-                os.environ['TOKENIZERS_PARALLELISM'] = 'false'
-                question = history[-1][0]
-                answer = history[-1][1]
-                cutoff_len = 2048  # if reaches limit, then can't generate new tokens
-                output_smallest = 30
-                answer = answer[-cutoff_len - output_smallest:]
-                inputs = stokenizer(question, answer,
-                                    return_tensors="pt",
-                                    truncation=True,
-                                    max_length=cutoff_len).to(smodel.device)
-                score = torch.sigmoid(smodel(**inputs).logits[0]).cpu().detach().numpy()[0]
-                os.environ['TOKENIZERS_PARALLELISM'] = 'true'
-                return 'Probability Good: {:.1%}'.format(score)
-            else:
-                return 'Probability Good: NA'
-
         def dropdown_prompt_type_list(x):
             return gr.Dropdown.update(value=x)
 
@@ -763,14 +791,6 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
         add_lora_event = add_lora_button.click(fn=dropdown_lora_list,
                                                inputs=new_lora,
                                                outputs=[lora_choice, new_lora])
-
-        # Score
-        if kwargs['score_model']:
-            score_args = dict(fn=score_last_response,
-                              inputs=inputs_list + [text_output],
-                              outputs=[score_text],
-                              )
-            score_event = score_btn.click(**score_args, queue=stream_output, api_name='score')
 
         # callback for logging flagged input/output
         callback.setup(inputs_list + [text_output], "flagged_data_points")
