@@ -171,7 +171,8 @@ def get_model(
                             resume_download=resume_download)
         if 'mbart-' not in base_model.lower():
             model_kwargs.update(dict(load_in_8bit=load_8bit,
-                                     ))# device_map={"": 0} if load_8bit else "auto",
+                                     device_map={"": 0} if load_8bit else "auto",
+                                     ))
 
         # directly to GPU
         model = model_loader.from_pretrained(
