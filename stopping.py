@@ -34,6 +34,7 @@ class Stream(StoppingCriteria):
         func (`callable`):
             A callable function to apply on first input in list every iteration of generation
     """
+
     def __init__(self, func=None):
         self.func = func
 
@@ -94,6 +95,7 @@ class CallbackToGenerator(collections.abc.Generator):
             except BaseException as e:
                 done_holder[0] = True
                 done_queue.put((True, e))
+
         self._thread = Thread(target=thread_func)
         self._thread.start()
 

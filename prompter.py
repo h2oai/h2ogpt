@@ -39,8 +39,9 @@ class Prompter(object):
         multi_output = len(outputs) > 1
 
         for oi, output in enumerate(outputs):
-            output = clean_response(output)
-            if self.prompt_type not in [0, '0', 'plain']:
+            if self.prompt_type in [0, '0', 'plain']:
+                output = clean_response(output)
+            else:
                 # find first instance of prereponse
                 # prompt sometimes has odd characters, that mutate length,
                 # so can't go by length alone
@@ -53,6 +54,8 @@ class Prompter(object):
                         print("Failure of parsing: %s" % output, flush=True)
                 else:
                     output = output[len(prompt):].strip()
+                # clean after subtract prompt out, so correct removal of pre_response
+                output = clean_response(output)
                 if self.terminate_response:
                     finds = []
                     for term in self.terminate_response:
@@ -77,5 +80,3 @@ class Prompter(object):
         if self.debug:
             print("outputclean: ", '\n\n'.join(outputs), flush=True)
         return output
-
-

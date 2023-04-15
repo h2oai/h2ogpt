@@ -3,6 +3,7 @@ import inspect
 import random
 import sys
 import os
+
 os.environ['HF_HUB_DISABLE_TELEMETRY'] = '1'
 from typing import Union
 
@@ -23,7 +24,6 @@ try:
         device = "mps"
 except:
     pass
-
 
 from finetune import get_loaders, example_data_points, generate_prompt, get_githash, prompt_types_strings, \
     human, bot
@@ -68,6 +68,9 @@ def main(
         verbose: bool = False,
         h2ocolors: bool = True,
         height: int = 400,
+
+        sanitize_user_prompt: bool = True,
+        sanitize_bot_response: bool = True,
 ):
     assert base_model, (
         "Please specify a --base_model, e.g. --base_model="
@@ -270,8 +273,8 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                            )
     demo = gr.Blocks(theme=gr.themes.Soft(**colors_dict), css=css_code, title="h2oGPT")
     callback = gr.CSVLogger()
-    #css_code = 'body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en/site/header/master/_jcr_content/root/container/header_copy/logo.coreimg.svg/1678976605175/h2o-logo.svg");}'
-    #demo = gr.Blocks(theme='gstaff/xkcd', css=css_code)
+    # css_code = 'body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en/site/header/master/_jcr_content/root/container/header_copy/logo.coreimg.svg/1678976605175/h2o-logo.svg");}'
+    # demo = gr.Blocks(theme='gstaff/xkcd', css=css_code)
     with demo:
         gr.Markdown(
             f"""
@@ -302,7 +305,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                                     lines=4, label=kwargs['instruction_label'],
                                     placeholder=kwargs['placeholder_instruction'],
                                 )
-                            with gr.Row(): #.style(equal_height=False, equal_width=False):
+                            with gr.Row():  # .style(equal_height=False, equal_width=False):
                                 submit = gr.Button(value='Submit').style(full_width=False, size='sm')
                                 stop_btn = gr.Button(value="Stop").style(full_width=False, size='sm')
                         with gr.Row():
@@ -367,12 +370,15 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                         if kwargs['chat']:
                             iinput = gr.Textbox(lines=4, label="Input",
                                                 placeholder=kwargs['placeholder_input'])
-                        context = gr.Textbox(lines=1, label="Context", info="Ignored in chat mode.")  # nominally empty for chat mode
+                        context = gr.Textbox(lines=1, label="Context",
+                                             info="Ignored in chat mode.")  # nominally empty for chat mode
 
         inputs_list = get_inputs_list(locals(), kwargs['model_lower'])
         from functools import partial
-        fun = partial(evaluate, kwargs['tokenizer'], kwargs['model'], kwargs['base_model'],
-                      debug=kwargs['debug'], chat=kwargs['chat'])
+        kwargs_evaluate = {k: v for k, v in kwargs.items() if k in inputs_kwargs_list}
+        fun = partial(evaluate,
+                      kwargs['tokenizer'], kwargs['model'], kwargs['base_model'],
+                      **kwargs_evaluate)
 
         dark_mode_btn = gr.Button("Dark Mode", variant="primary").style(
             size="sm",
@@ -388,7 +394,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                 document.querySelector('body').classList.add('dark');
             }
         }""",
-        api_name="dark",
+            api_name="dark",
         )
         if not kwargs['chat']:
             submit = gr.Button("Submit")
@@ -463,7 +469,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                     raise
                 return
 
-            user_args = dict(fn=user,
+            user_args = dict(fn=functools.partial(user, sanitize_user_prompt=kwargs['sanitize_user_prompt']),
                              inputs=inputs_list + [text_output],
                              outputs=[instruction, text_output],
                              )
@@ -504,7 +510,12 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
 
     demo.queue(concurrency_count=1)
     favicon_path = "h2o-logo.svg"
-    demo.launch(share=kwargs['share'], server_name="0.0.0.0", show_error=True, favicon_path=favicon_path)#, enable_queue=True)
+    demo.launch(share=kwargs['share'], server_name="0.0.0.0", show_error=True,
+                favicon_path=favicon_path)  # , enable_queue=True)
+
+
+input_args_list = ['tokenizer', 'model', 'base_model']
+inputs_kwargs_list = ['debug', 'chat', 'hard_stop_list', 'sanitize_bot_response']
 
 
 def get_inputs_list(inputs_dict, model_lower):
@@ -513,8 +524,7 @@ def get_inputs_list(inputs_dict, model_lower):
     for k in inputs_list_names:
         if k == 'kwargs':
             continue
-        if k in ['tokenizer', 'model', 'base_model', 'debug', 'chat',
-                 'hard_stop_list', 'sanitize_bot_response']:
+        if k in input_args_list + inputs_kwargs_list:
             # these are added via partial, not taken as input
             continue
         if 'mbart-' not in model_lower and k in ['src_lang', 'tgt_lang']:
@@ -550,7 +560,7 @@ def evaluate(
         debug=False,
         chat=False,
         hard_stop_list=None,
-        sanitize_bot_response=False,
+        sanitize_bot_response=True,
         **kwargs,
 ):
     if debug:
@@ -707,7 +717,8 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         use_defaults = True
         use_default_examples = False
         examples += [
-            [placeholder_instruction, "", "", stream_output, 'plain', 1.0, 1.0, 50, 1, 128, 0, False, max_time_defaults, 1.0, 1,
+            [placeholder_instruction, "", "", stream_output, 'plain', 1.0, 1.0, 50, 1, 128, 0, False, max_time_defaults,
+             1.0, 1,
              False]]
         task_info = "Summarization"
     elif 't5-' in model_lower or 't5' == model_lower or 'flan-' in model_lower:
@@ -722,7 +733,8 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         use_defaults = True
         use_default_examples = False
         examples += [
-            [placeholder_instruction, "", "", stream_output, 'plain', 1.0, 1.0, 50, 1, 128, 0, False, max_time_defaults, 1.0, 1,
+            [placeholder_instruction, "", "", stream_output, 'plain', 1.0, 1.0, 50, 1, 128, 0, False, max_time_defaults,
+             1.0, 1,
              False]]
     elif 'gpt2' in model_lower:
         placeholder_instruction = "The sky is"
@@ -730,7 +742,8 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         prompt_type = prompt_type or 'plain'
         use_default_examples = True  # some will be odd "continuations" but can be ok
         examples += [
-            [placeholder_instruction, "", "", stream_output, 'plain', 1.0, 1.0, 50, 1, 128, 0, False, max_time_defaults, 1.0, 1,
+            [placeholder_instruction, "", "", stream_output, 'plain', 1.0, 1.0, 50, 1, 128, 0, False, max_time_defaults,
+             1.0, 1,
              False]]
         task_info = "Auto-complete phrase, code, etc."
         use_defaults = True
