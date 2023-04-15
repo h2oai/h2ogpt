@@ -431,7 +431,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                         if kwargs['score_model']:
                             with gr.Column():
                                 score_btn = gr.Button("Score last prompt & response")
-                                score_text = gr.Textbox("NA", show_label=False)
+                                score_text = gr.Textbox("Probability Good: NA", show_label=False)
                 with gr.Column():
                     if kwargs['chat']:
                         text_output = gr.Chatbot(label='h2oGPT').style(height=kwargs['height'] or 400)
@@ -450,7 +450,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                             if kwargs['score_model']:
                                 with gr.Column():
                                     score_btn = gr.Button("Score last prompt & response").style(full_width=False, size='sm')
-                                    score_text = gr.Textbox("NA", show_label=False)
+                                    score_text = gr.Textbox("Probability Good: NA", show_label=False)
                             retry = gr.Button("Regenerate")
                             undo = gr.Button("Undo")
                     else:
@@ -730,11 +730,11 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                                     return_tensors="pt",
                                     truncation=True,
                                     max_length=cutoff_len).to(smodel.device)
-                score = smodel(**inputs).logits[0].cpu().detach().numpy()[0]
+                score = torch.sigmoid(smodel(**inputs).logits[0]).cpu().detach().numpy()[0]
                 os.environ['TOKENIZERS_PARALLELISM'] = 'true'
-                return score
+                return 'Probability Good: {:.1%}'.format(score)
             else:
-                return 'NA'
+                return 'Probability Good: NA'
 
         def dropdown_prompt_type_list(x):
             return gr.Dropdown.update(value=x)
