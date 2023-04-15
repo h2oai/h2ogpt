@@ -1,4 +1,5 @@
 import functools
+import gc
 import inspect
 import sys
 import os
@@ -151,6 +152,12 @@ def get_non_lora_model(base_model, model_loader, load_half, model_kwargs):
         model,
         dtype=torch.float16 if load_half else torch.float32,
     )
+    if hasattr(model, 'model'):
+        device_map_model = infer_auto_device_map(
+            model.model,
+            dtype=torch.float16 if load_half else torch.float32,
+        )
+        device_map.update(device_map_model)
     print('device_map: %s' % device_map, flush=True)
 
     load_in_8bit = model_kwargs.get('load_in_8bit', False)
@@ -610,11 +617,15 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
             # ensure old model removed from GPU memory
             if kwargs['debug']:
                 print("Pre-switch pre-del GPU memory: %s" % torch.cuda.memory_allocated(), flush=True)
-            del model_state_old[0]
-            model_state_old[0] = None
-            del model_state_old[1]
-            model_state_old[1] = None
+            if model_state_old[0] is not None:
+                model_state_old[0].cpu()
+                del model_state_old[0]
+                model_state_old[0] = None
+            if model_state_old[1] is not None:
+                del model_state_old[1]
+                model_state_old[1] = None
             torch.cuda.empty_cache()
+            gc.collect()
             if kwargs['debug']:
                 print("Pre-switch post-del GPU memory: %s" % torch.cuda.memory_allocated(), flush=True)
             all_kwargs['base_model'] = model_name.strip()
@@ -626,6 +637,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
             all_kwargs['lora_weights'] = lora_weights.strip()
             model1, tokenizer1, device1 = get_model(**all_kwargs)
             torch.cuda.empty_cache()
+            gc.collect()
             if kwargs['debug']:
                 print("Post-switch GPU memory: %s" % torch.cuda.memory_allocated(), flush=True)
             return {model_state: [model1, tokenizer1, device1, model_name],
@@ -861,7 +873,10 @@ def get_generate_params(model_lower, chat,
     use_default_examples = True
     examples = []
     task_info = f"{prompt_type}"
-    print(f"Using Model {model_lower}", flush=True)
+    if model_lower:
+        print(f"Using Model {model_lower}", flush=True)
+    else:
+        print("No model defined yet", flush=True)
 
     min_new_tokens = min_new_tokens if min_new_tokens is not None else 0
     early_stopping = early_stopping if early_stopping is not None else False
