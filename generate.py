@@ -433,9 +433,9 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                             if not kwargs['auto_score']:
                                 with gr.Column():
                                     score_btn = gr.Button("Score last prompt & response")
-                                    score_text = gr.Textbox("Probability Good: NA", show_label=False)
+                                    score_text = gr.Textbox("Response Score: NA", show_label=False)
                             else:
-                                score_text = gr.Textbox("Probability Good: NA", show_label=False)
+                                score_text = gr.Textbox("Response Score: NA", show_label=False)
                 with gr.Column():
                     if kwargs['chat']:
                         text_output = gr.Chatbot(label='h2oGPT').style(height=kwargs['height'] or 400)
@@ -455,9 +455,9 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                                 if not kwargs['auto_score']:
                                     with gr.Column():
                                         score_btn = gr.Button("Score last prompt & response").style(full_width=False, size='sm')
-                                        score_text = gr.Textbox("Probability Good: NA", show_label=False)
+                                        score_text = gr.Textbox("Response Score: NA", show_label=False)
                                 else:
-                                    score_text = gr.Textbox("Probability Good: NA", show_label=False)
+                                    score_text = gr.Textbox("Response Score: NA", show_label=False)
                             retry = gr.Button("Regenerate")
                             undo = gr.Button("Undo")
                     else:
@@ -606,9 +606,9 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                                     max_length=cutoff_len).to(smodel.device)
                 score = torch.sigmoid(smodel(**inputs).logits[0]).cpu().detach().numpy()[0]
                 os.environ['TOKENIZERS_PARALLELISM'] = 'true'
-                return 'Probability Good: {:.1%}'.format(score)
+                return 'Response Score: {:.1%}'.format(score)
             else:
-                return 'Probability Good: NA'
+                return 'Response Score: NA'
 
         if kwargs['score_model']:
             score_args = dict(fn=score_last_response,
