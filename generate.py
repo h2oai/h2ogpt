@@ -24,6 +24,7 @@ from stopping import CallbackToGenerator, Stream, StoppingCriteriaSub
 def main(
         load_8bit: bool = False,
         load_half: bool = True,
+        infer_devices: bool = False,
         base_model: str = '',
         tokenizer_base_model: str = '',
         lora_weights: str = "",
@@ -179,6 +180,7 @@ def get_non_lora_model(base_model, model_loader, load_half, model_kwargs):
 def get_model(
         load_8bit: bool = False,
         load_half: bool = True,
+        infer_devices: bool = False,
         base_model: str = '',
         tokenizer_base_model: str = '',
         lora_weights: str = "",
@@ -192,6 +194,7 @@ def get_model(
 
     :param load_8bit: load model in 8-bit, not supported by all mdoels
     :param load_half: load model in 16-bit
+    :param infer_devices: Use torch infer of optimal placement of layers on devices
     :param base_model: name/path of base model
     :param tokenizer_base_model: name/path of tokenizer
     :param lora_weights: name/path
@@ -237,10 +240,17 @@ def get_model(
 
         if not lora_weights:
             with torch.device("cuda"):
-                #model = get_non_lora_model(base_model, model_loader, load_half, model_kwargs)
-                model = model_loader.from_pretrained(
-                    base_model,
-                    **model_kwargs).half()
+                if infer_devices:
+                    model = get_non_lora_model(base_model, model_loader, load_half, model_kwargs)
+                else:
+                    if load_half:
+                        model = model_loader.from_pretrained(
+                            base_model,
+                            **model_kwargs).half()
+                    else:
+                        model = model_loader.from_pretrained(
+                            base_model,
+                            **model_kwargs)
         elif load_8bit:
             model = model_loader.from_pretrained(
                 base_model,
@@ -252,7 +262,7 @@ def get_model(
                 torch_dtype=torch.float16,
                 local_files_only=local_files_only,
                 resume_download=resume_download,
-                device_map={"": 0},
+                device_map={"": 0},  # seems to be required
             )
         else:
             with torch.device("cuda"):
