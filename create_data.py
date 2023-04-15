@@ -1244,7 +1244,11 @@ def test_grade():
         print(df.describe())
         df.to_parquet(output_file, index=False)
 
-    df.to_parquet('h2oGPT.cleaned.graded.human_bot.parquet', index=False)
+    file = output_file
+    output_file = 'h2oGPT.cleaned.graded.human_bot.parquet'
+    if df is None:
+        df = pd.read_parquet(file).reset_index(drop=True)
+    df.to_parquet(output_file, index=False)
 
 
 def test_finalize_to_json():
