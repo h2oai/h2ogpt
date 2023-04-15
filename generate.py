@@ -236,24 +236,40 @@ def get_model(
                                      ))
 
         if not lora_weights:
-            model = get_non_lora_model(base_model, model_loader, load_half, model_kwargs)
-        else:
+            with torch.device("cuda"):
+                #model = get_non_lora_model(base_model, model_loader, load_half, model_kwargs)
+                model = model_loader.from_pretrained(
+                    base_model,
+                    **model_kwargs).half()
+        elif load_8bit:
             model = model_loader.from_pretrained(
                 base_model,
                 **model_kwargs
             )
-            if not load_8bit:
-                model = model.to(device)
             model = PeftModel.from_pretrained(
                 model,
                 lora_weights,
                 torch_dtype=torch.float16,
                 local_files_only=local_files_only,
                 resume_download=resume_download,
-                device_map={"": 0} if load_8bit else "auto",
+                device_map={"": 0},
             )
-            if not load_8bit and load_half:
-                model.half()
+        else:
+            with torch.device("cuda"):
+                model = model_loader.from_pretrained(
+                    base_model,
+                    **model_kwargs
+                )
+                model = PeftModel.from_pretrained(
+                    model,
+                    lora_weights,
+                    torch_dtype=torch.float16,
+                    local_files_only=local_files_only,
+                    resume_download=resume_download,
+                    device_map="auto",
+                )
+                if load_half:
+                    model.half()
 
     # unwind broken decapoda-research config
     if llama_type:
@@ -579,7 +595,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                     raise
                 except Exception as e:
                     # put error into user input
-                    history[-1][0] = str(e)
+                    history[-1][0] = "Exception: %s" % str(e)
                     yield history
                     raise
                 return
@@ -774,14 +790,19 @@ def evaluate(
     if chat:
         # override, ignore user change
         num_return_sequences = 1
-    if prompt_type == 'human_bot':
-        stop_words = [human, bot]
+    if prompt_type in ['human_bot', 'instruct']:
+        if prompt_type == 'human_bot':
+            # encounters = [prompt.count(human) + 1, prompt.count(bot) + 1]
+            # stopping only starts once output is beyond prompt
+            # 1 human is enough to trigger, but need 2 bots, because very first view back will be bot we added
+            stop_words = [human, bot]
+            encounters = [1, 2]
+        else:
+            # some instruct prompts have this as end, doesn't hurt to stop on it since not common otherwise
+            stop_words = ['### End']
+            encounters = [1]
         stop_words_ids = [
-            tokenizer(stop_word, return_tensors='pt')['input_ids'].squeeze() for stop_word in stop_words]
-        # encounters = [prompt.count(human) + 1, prompt.count(bot) + 1]
-        # stopping only starts once output is beyond prompt
-        encounters = [1, 2]
-        # 1 human is enough to trigger, but need 2 bots, because very first view back will be bot we added
+            tokenizer(stop_word, return_tensors='pt')['input_ids'].squeeze(-1) for stop_word in stop_words]
         stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(stops=stop_words_ids, encounters=encounters)])
     else:
         stopping_criteria = StoppingCriteriaList()
@@ -832,10 +853,24 @@ def evaluate(
                                 skip_special_tokens=True,
                                 clean_up_tokenization_spaces=True,
                                 )
+    decoder_raw = functools.partial(tokenizer.decode,
+                                    skip_special_tokens=False,
+                                    clean_up_tokenization_spaces=True,
+                                    )
 
     with torch.no_grad():
         # decoded tokenized prompt can deviate from prompt due to special characters
         inputs_decoded = decoder(input_ids[0])
+        inputs_decoded_raw = decoder_raw(input_ids[0])
+        if inputs_decoded == prompt:
+            # normal
+            pass
+        elif inputs_decoded_raw == prompt:
+            # some models specify special tokens that are part of normal prompt, so can't skip them
+            inputs_decoded_raw = inputs_decoded
+            decoder = decoder_raw
+        else:
+            print("WARNING: Special characters in prompt", flush=True)
         if stream_output:
             def generate(callback=None, **kwargs):
                 # re-order stopping so Stream first and get out all chunks before stop for other reasons
