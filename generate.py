@@ -24,7 +24,7 @@ from stopping import CallbackToGenerator, Stream, StoppingCriteriaSub
 def main(
         load_8bit: bool = False,
         load_half: bool = True,
-        infer_devices: bool = False,
+        infer_devices: bool = True,
         base_model: str = '',
         tokenizer_base_model: str = '',
         lora_weights: str = "",
@@ -66,6 +66,8 @@ def main(
 
         extra_model_options: typing.List[str] = [],
         extra_lora_options: typing.List[str] = [],
+
+        score_model: str = 'OpenAssistant/reward-model-deberta-v3-large-v2',
 ):
 
     # get defaults
@@ -180,37 +182,45 @@ def get_non_lora_model(base_model, model_loader, load_half, model_kwargs):
 def get_model(
         load_8bit: bool = False,
         load_half: bool = True,
-        infer_devices: bool = False,
+        infer_devices: bool = True,
         base_model: str = '',
         tokenizer_base_model: str = '',
         lora_weights: str = "",
 
         llama_type: bool = None,
+        reward_type: bool = None,
         local_files_only: bool = False,
         resume_download: bool = True,
+        compile: bool = True,
         **kwargs,
 ):
     """
 
-    :param load_8bit: load model in 8-bit, not supported by all mdoels
+    :param load_8bit: load model in 8-bit, not supported by all models
     :param load_half: load model in 16-bit
-    :param infer_devices: Use torch infer of optimal placement of layers on devices
+    :param infer_devices: Use torch infer of optimal placement of layers on devices (for non-lora case)
     :param base_model: name/path of base model
     :param tokenizer_base_model: name/path of tokenizer
     :param lora_weights: name/path
     :param llama_type: whether LLaMa type model
+    :param reward_type: reward type model for sequence classification
     :param local_files_only: use local files instead of from HF
     :param resume_download: resume downloads from HF
     :param kwargs:
     :return:
     """
+    print("Get %s model" % base_model, flush=True)
     device = get_device()
+
+    if 'gpt2' in base_model.lower():
+        # RuntimeError: where expected condition to be a boolean tensor, but got a tensor with dtype Half
+        load_8bit = False
 
     assert base_model.strip(), (
         "Please choose a base model with --base_model (CLI) or in Models Tab (gradio)"
     )
     llama_type = llama_type or "llama" in base_model
-    model_loader, tokenizer_loader = get_loaders(llama_type=llama_type, model_name=base_model)
+    model_loader, tokenizer_loader = get_loaders(llama_type=llama_type, model_name=base_model, reward_type=reward_type)
     if not tokenizer_base_model:
         tokenizer_base_model = base_model
 
@@ -237,13 +247,17 @@ def get_model(
             model_kwargs.update(dict(load_in_8bit=load_8bit,
                                      device_map={"": 0} if load_8bit else "auto",
                                      ))
+        if 'OpenAssistant/reward-model'.lower() in base_model.lower():
+            # could put on other GPUs
+            model_kwargs['device_map'] = {"": 0}
+            model_kwargs.pop('torch_dtype', None)
 
         if not lora_weights:
             with torch.device("cuda"):
                 if infer_devices:
                     model = get_non_lora_model(base_model, model_loader, load_half, model_kwargs)
                 else:
-                    if load_half:
+                    if load_half and not load_8bit:
                         model = model_loader.from_pretrained(
                             base_model,
                             **model_kwargs).half()
@@ -292,17 +306,29 @@ def get_model(
                                       'eos_token': '<eos>',
                                       'pad_token': '<pad>'})
 
-    if device != "cuda":
-        # NOTE: if cuda, already done at once into GPU
-        if not load_8bit and load_half:
-            model.half()  # seems to fix bugs for some users.
-
     if not isinstance(tokenizer, str):
         model.eval()
-        if torch.__version__ >= "2" and sys.platform != "win32":
+        if torch.__version__ >= "2" and sys.platform != "win32" and compile:
             model = torch.compile(model)
 
     return model, tokenizer, device
+
+
+def get_score_model(**kwargs):
+    # score model
+    if kwargs.get('score_model') is not None and kwargs.get('score_model').strip():
+        score_all_kwargs = kwargs.copy()
+        score_all_kwargs['load_8bit'] = False
+        score_all_kwargs['load_half'] = False
+        score_all_kwargs['base_model'] = kwargs.get('score_model').strip()
+        score_all_kwargs['tokenizer_base_model'] = ''
+        score_all_kwargs['lora_weights'] = ''
+        score_all_kwargs['llama_type'] = False
+        score_all_kwargs['compile'] = False
+        smodel, stokenizer, sdevice = get_model(**score_all_kwargs)
+    else:
+        smodel, stokenizer, sdevice = None, None, None
+    return smodel, stokenizer, sdevice
 
 
 def go_gradio(**kwargs):
@@ -315,6 +341,9 @@ def go_gradio(**kwargs):
     else:
         # if empty model, then don't load anything, just get gradio up
         model, tokenizer, device = None, None, None
+
+    # get score model
+    smodel, stokenizer, sdevice = get_score_model(**all_kwargs)
 
     if 'mbart-' in kwargs['model_lower']:
         instruction_label = "Text to translate"
@@ -399,6 +428,10 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                                             placeholder=kwargs['placeholder_input'])
                         submit = gr.Button(label='Submit')
                         flag_btn = gr.Button("Flag")
+                        if kwargs['score_model']:
+                            with gr.Column():
+                                score_btn = gr.Button("Score last prompt & response")
+                                score_text = gr.Textbox("NA", show_label=False)
                 with gr.Column():
                     if kwargs['chat']:
                         text_output = gr.Chatbot(label='h2oGPT').style(height=kwargs['height'] or 400)
@@ -414,6 +447,10 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                         with gr.Row():
                             clear = gr.Button("New Conversation")
                             flag_btn = gr.Button("Flag")
+                            if kwargs['score_model']:
+                                with gr.Column():
+                                    score_btn = gr.Button("Score last prompt & response").style(full_width=False, size='sm')
+                                    score_text = gr.Textbox("NA", show_label=False)
                             retry = gr.Button("Regenerate")
                             undo = gr.Button("Undo")
                     else:
@@ -670,6 +707,30 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                     model_used: model_name,
                     prompt_type: prompt_type1}
 
+        def score_last_response(*args):
+            """ Similar to user() """
+            args_list = list(args)
+            history = args_list[-1]
+            if history is None:
+                print("Bad history, fix for now", flush=True)
+                history = []
+            if smodel is not None and stokenizer is not None and sdevice is not None:
+                os.environ['TOKENIZERS_PARALLELISM'] = 'false'
+                question = history[-1][0]
+                answer = history[-1][1]
+                cutoff_len = 2048  # if reaches limit, then can't generate new tokens
+                output_smallest = 30
+                answer = answer[-cutoff_len - output_smallest:]
+                inputs = stokenizer(question, answer,
+                                    return_tensors="pt",
+                                    truncation=True,
+                                    max_length=cutoff_len).to(smodel.device)
+                score = smodel(**inputs).logits[0].cpu().detach().numpy()[0]
+                os.environ['TOKENIZERS_PARALLELISM'] = 'true'
+                return score
+            else:
+                return 'NA'
+
         def dropdown_prompt_type_list(x):
             return gr.Dropdown.update(value=x)
 
@@ -697,6 +758,14 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
         add_lora_event = add_lora_button.click(fn=dropdown_lora_list,
                                                inputs=new_lora,
                                                outputs=[lora_choice, new_lora])
+
+        # Score
+        if kwargs['score_model']:
+            score_args = dict(fn=score_last_response,
+                              inputs=inputs_list + [text_output],
+                              outputs=[score_text],
+                              )
+            score_event = score_btn.click(**score_args, queue=stream_output, api_name='score')
 
         # callback for logging flagged input/output
         callback.setup(inputs_list + [text_output], "flagged_data_points")

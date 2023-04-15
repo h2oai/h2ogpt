@@ -220,7 +220,7 @@ def train(
             log("num_gpus: %d" % gpus)
             log("max mem: %s" % max_memory)
 
-    model_loader, tokenizer_loader = get_loaders(llama_type=llama_type, model_name=base_model)
+    model_loader, tokenizer_loader = get_loaders(llama_type=llama_type, model_name=base_model, reward_type=False)
 
     model = model_loader.from_pretrained(
         base_model,
@@ -609,7 +609,7 @@ def train(
     log("\n If there's a warning about missing keys above, please disregard :)")
 
 
-def get_loaders(llama_type, model_name):
+def get_loaders(llama_type, model_name, reward_type):
     # NOTE: Some models need specific new prompt_type
     # E.g. t5_xxl_true_nli_mixture has input format: "premise: PREMISE_TEXT hypothesis: HYPOTHESIS_TEXT".)
     if llama_type:
@@ -636,6 +636,9 @@ def get_loaders(llama_type, model_name):
     elif 'bart-large-cnn-samsum' in model_name or 'flan-t5-base-samsum' in model_name:
         from transformers import pipeline
         return pipeline, "summarization"
+    elif reward_type or 'OpenAssistant/reward-model'.lower() in model_name.lower():
+        from transformers import AutoModelForSequenceClassification, AutoTokenizer
+        return AutoModelForSequenceClassification, AutoTokenizer
     else:
         from transformers import AutoTokenizer, AutoModelForCausalLM
         model_loader = AutoModelForCausalLM
