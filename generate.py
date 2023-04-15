@@ -623,11 +623,11 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
 
         def dropdown_model_list(x):
             new_options = [*model_options, x]
-            return gr.Dropdown.update(choices=new_options)
+            return gr.Dropdown.update(value=x, choices=new_options), ''
 
         add_model_event = add_model_button.click(fn=dropdown_model_list,
                                                  inputs=new_model,
-                                                 outputs=model_choice)
+                                                 outputs=[model_choice, new_model])
 
         load_lora_event = load_lora_button.click(fn=load_model,
                                                  inputs=[model_choice, lora_choice, model_state],
@@ -635,11 +635,11 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
 
         def dropdown_lora_list(x):
             new_options = [*lora_options, x]
-            return gr.Dropdown.update(choices=new_options)
+            return gr.Dropdown.update(value=x, choices=new_options), ''
 
         add_lora_event = add_lora_button.click(fn=dropdown_lora_list,
                                                inputs=new_lora,
-                                               outputs=lora_choice)
+                                               outputs=[lora_choice, new_lora])
 
         # callback for logging flagged input/output
         callback.setup(inputs_list + [text_output], "flagged_data_points")
