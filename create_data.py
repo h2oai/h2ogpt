@@ -1263,7 +1263,7 @@ def test_finalize_to_json():
                 source=df.loc[i, 'source']
             )
         )
-    with open('h2ogpt-oig-instruct-cleaned-v2.json', "w") as f:
+    with open('h2ogpt-oig-instruct-cleaned-v3.json', "w") as f:
         f.write(json.dumps(row_list, indent=2))
 
 
