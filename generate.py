@@ -28,8 +28,9 @@ def main(
         base_model: str = '',
         tokenizer_base_model: str = '',
         lora_weights: str = "",
-        prompt_type: Union[int, str] = None,
+        force_1_gpu: bool = True,
 
+        prompt_type: Union[int, str] = None,
         # input to generation
         temperature: float = None,
         top_p: float = None,
@@ -109,7 +110,16 @@ def main(
         model_state = [model, tokenizer, device, base_model]
         fun = partial(evaluate, model_state, debug=debug, chat=chat)
         t0 = time.time()
+        score_dump = []
+        num_examples = len(examples)
+
+        import numpy as np
+        import pandas as pd
+        import matplotlib.pyplot as plt
+
         for exi, ex in enumerate(examples):
+            torch.cuda.empty_cache()
+            gc.collect()
             print("")
             print("START" + "=" * 100)
             print("Question: %s %s" % (ex[0], ('input=%s' % ex[1] if ex[1] else '')))
@@ -129,6 +139,23 @@ def main(
                                         max_length=cutoff_len).to(smodel.device)
                     score = torch.sigmoid(smodel(**inputs).logits[0]).cpu().detach().numpy()[0]
                     print("SCORE %s: %s" % (exi, score), flush=True)
+                    score_dump.append(ex + [prompt, res, score])
+                    # dump every score in case abort
+                    scoring_path = 'scoring'
+                    os.makedirs(scoring_path, exist_ok=True)
+                    df_scores = pd.DataFrame(score_dump, columns=eval_func_param_names + ['prompt', 'response', 'score'])
+                    filename = "df_scores_%s_%s_%s.parquet" % (num_examples, str(base_model.split('/')[-1]), str(lora_weights.split('/')[-1]))
+                    filename = os.path.join(scoring_path, filename)
+                    df_scores.to_parquet(filename, index=False)
+                    # plot histogram so far
+                    plt.figure(figsize=(10, 10))
+                    plt.hist(df_scores['score'], bins=20)
+                    score_avg = np.mean(df_scores['score'])
+                    score_median = np.median(df_scores['score'])
+                    plt.title("Score avg: %s median: %s" % (score_avg, score_median))
+                    plt.savefig(filename.replace('.parquet', '.png'))
+                    plt.close()
+
             print("END" + "=" * 102)
             print("")
         t1 = time.time()
@@ -147,7 +174,7 @@ def get_device():
     return device
 
 
-def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward_type):
+def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward_type, force_1_gpu=True):
     """
     Ensure model gets on correct device
     :param base_model:
@@ -179,13 +206,14 @@ def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward
         device_map.update(device_map_model)
     print('device_map: %s' % device_map, flush=True)
 
-    # FIXME: If really distributes model, tend to get things like: ValueError: gpt_neox.embed_in.weight doesn't have any device set.
-    # So avoid for now, just put on first GPU, unless score_model, put on last
-    n_gpus = torch.cuda.device_count()
-    if reward_type:
-        device_map = {'': n_gpus - 1}
-    else:
-        device_map = {'': 0}
+    if force_1_gpu:
+        # FIXME: If really distributes model, tend to get things like: ValueError: gpt_neox.embed_in.weight doesn't have any device set.
+        # So avoid for now, just put on first GPU, unless score_model, put on last
+        n_gpus = torch.cuda.device_count()
+        if reward_type:
+            device_map = {'': n_gpus - 1}
+        else:
+            device_map = {'': 0}
 
     load_in_8bit = model_kwargs.get('load_in_8bit', False)
     model_kwargs['device_map'] = device_map
@@ -210,6 +238,7 @@ def get_model(
         base_model: str = '',
         tokenizer_base_model: str = '',
         lora_weights: str = "",
+        force_1_gpu: bool = False,
 
         llama_type: bool = None,
         reward_type: bool = None,
@@ -226,6 +255,7 @@ def get_model(
     :param base_model: name/path of base model
     :param tokenizer_base_model: name/path of tokenizer
     :param lora_weights: name/path
+    :param force_1_gpu:
     :param llama_type: whether LLaMa type model
     :param reward_type: reward type model for sequence classification
     :param local_files_only: use local files instead of from HF
@@ -279,7 +309,7 @@ def get_model(
         if not lora_weights:
             with torch.device("cuda"):
                 if infer_devices:
-                    model = get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward_type)
+                    model = get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward_type, force_1_gpu=force_1_gpu)
                 else:
                     if load_half and not load_8bit:
                         model = model_loader.from_pretrained(
@@ -852,6 +882,24 @@ def get_inputs_list(inputs_dict, model_lower):
 
 # index of prompt_type in evaluate function, after model_state
 prompt_type_arg_id = 4
+
+eval_func_param_names = ['instruction',
+                         'iinput',
+                         'context',
+                         'stream_output',
+                         'prompt_type',
+                         'temperature',
+                         'top_p',
+                         'top_k',
+                         'num_beams',
+                         'max_new_tokens',
+                         'min_new_tokens',
+                         'early_stopping',
+                         'max_time',
+                         'repetition_penalty',
+                         'num_return_sequences',
+                         'do_sample',
+                         ]
 
 
 def evaluate(
