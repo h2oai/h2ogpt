@@ -133,13 +133,14 @@ def get_device():
     return device
 
 
-def get_non_lora_model(base_model, model_loader, load_half, model_kwargs):
+def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward_type):
     """
     Ensure model gets on correct device
     :param base_model:
     :param model_loader:
     :param load_half:
     :param model_kwargs:
+    :param reward_type:
     :return:
     """
     with init_empty_weights():
@@ -163,6 +164,14 @@ def get_non_lora_model(base_model, model_loader, load_half, model_kwargs):
         )
         device_map.update(device_map_model)
     print('device_map: %s' % device_map, flush=True)
+
+    # FIXME: If really distributes model, tend to get things like: ValueError: gpt_neox.embed_in.weight doesn't have any device set.
+    # So avoid for now, just put on first GPU, unless score_model, put on last
+    n_gpus = torch.cuda.device_count()
+    if reward_type:
+        device_map = {'': n_gpus - 1}
+    else:
+        device_map = {'': 0}
 
     load_in_8bit = model_kwargs.get('load_in_8bit', False)
     model_kwargs['device_map'] = device_map
@@ -256,7 +265,7 @@ def get_model(
         if not lora_weights:
             with torch.device("cuda"):
                 if infer_devices:
-                    model = get_non_lora_model(base_model, model_loader, load_half, model_kwargs)
+                    model = get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward_type)
                 else:
                     if load_half and not load_8bit:
                         model = model_loader.from_pretrained(
