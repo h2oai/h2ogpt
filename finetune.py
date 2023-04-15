@@ -74,8 +74,8 @@ prompt_type_to_model_name = {
     'simple_instruct': ['t5-small', 't5-large', 'google/flan-t5', 'google/flan-t5-xxl', 'google/flan-ul2'],
 }
 
-# WIP:
-# inv_prompt_type_to_model_name = {v: k for k, v in prompt_type_to_model_name.items()}
+inv_prompt_type_to_model_name = {v.strip(): k for k, l in prompt_type_to_model_name.items() for v in l}
+inv_prompt_type_to_model_lower = {v.strip().lower(): k for k, l in prompt_type_to_model_name.items() for v in l}
 
 human = '<human>:'
 bot = "<bot>:"

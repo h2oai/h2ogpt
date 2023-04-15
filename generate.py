@@ -16,7 +16,7 @@ from accelerate import init_empty_weights, infer_auto_device_map
 from prompter import Prompter
 
 from finetune import get_loaders, example_data_points, generate_prompt, get_githash, prompt_types_strings, \
-    human, bot, prompt_type_to_model_name
+    human, bot, prompt_type_to_model_name, inv_prompt_type_to_model_lower
 from stopping import CallbackToGenerator, Stream, StoppingCriteriaSub
 
 
@@ -858,6 +858,9 @@ def get_generate_params(model_lower, chat,
     max_time_defaults = 60 * 3
     max_time = max_time if max_time is not None else max_time_defaults
 
+    if not prompt_type and model_lower in inv_prompt_type_to_model_lower:
+        prompt_type = inv_prompt_type_to_model_lower[model_lower]
+
     if show_examples is None:
         if chat:
             show_examples = False
@@ -913,9 +916,13 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         else:
             placeholder_instruction = "Give detailed answer for whether Einstein or Newton is smarter."
         placeholder_input = ""
-        prompt_type = prompt_type or 'instruct'
+        if model_lower:
+            prompt_type = prompt_type or 'human_bot'
+        else:
+            prompt_type = ''
         examples += [[summarize_example1, 'Summarize' if prompt_type not in ['plain', 'instruct_simple'] else '', "",
-                      stream_output, prompt_type, 0.1, 0.75, 40, 4, 256, 0, False, max_time_defaults, 1.0, 1, False]]
+                      stream_output, prompt_type or 'plain', 0.1, 0.75, 40, 4, 256, 0, False, max_time_defaults, 1.0, 1, False]]
+        task_info = "No task"
         if prompt_type == 'instruct':
             task_info = "Answer question or follow imperative as instruction with optionally input."
         elif prompt_type == 'plain':
@@ -926,8 +933,9 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
             else:
                 task_info = "Ask question/imperative (input concatenated with instruction)"
 
+    # revert to plain if still nothing
+    prompt_type = prompt_type or 'plain'
     if use_defaults:
-        prompt_type = prompt_type or 'plain'
         temperature = 1.0 if temperature is None else temperature
         top_p = 1.0 if top_p is None else top_p
         top_k = 40 if top_k is None else top_k
@@ -937,7 +945,6 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         num_return_sequences = min(num_beams, num_return_sequences or 1)
         do_sample = False if do_sample is None else do_sample
     else:
-        assert prompt_type is not None
         temperature = 0.1 if temperature is None else temperature
         top_p = 0.75 if top_p is None else top_p
         top_k = 40 if top_k is None else top_k
