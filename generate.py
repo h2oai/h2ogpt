@@ -164,7 +164,8 @@ def get_model(
                              model=base_model,
                              device=0 if device == "cuda" else -1,
                              torch_dtype=torch.float16)
-    elif device == "cuda":
+    else:
+        assert device == "cuda", "Unsupported device %s" % device
         model_kwargs = dict(local_files_only=local_files_only,
                             torch_dtype=torch.float16,
                             resume_download=resume_download)
