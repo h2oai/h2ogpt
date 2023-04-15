@@ -606,7 +606,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
             submit_event4 = undo.click(**undo_user_args, queue=stream_output, api_name='undo')
             clear.click(lambda: None, None, text_output, queue=False, api_name='clear')
 
-        def load_model(model_name, lora_weights, model_state_old):
+        def load_model(model_name, lora_weights, model_state_old, prompt_type_old):
             # ensure old model removed from GPU memory
             if kwargs['debug']:
                 print("Pre-switch pre-del GPU memory: %s" % torch.cuda.memory_allocated(), flush=True)
@@ -618,17 +618,27 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
             if kwargs['debug']:
                 print("Pre-switch post-del GPU memory: %s" % torch.cuda.memory_allocated(), flush=True)
             all_kwargs['base_model'] = model_name.strip()
+            model_lower = model_name.strip().lower()
+            if model_lower in inv_prompt_type_to_model_lower:
+                prompt_type1 = inv_prompt_type_to_model_lower[model_lower]
+            else:
+                prompt_type1 = prompt_type_old
             all_kwargs['lora_weights'] = lora_weights.strip()
             model1, tokenizer1, device1 = get_model(**all_kwargs)
             torch.cuda.empty_cache()
             if kwargs['debug']:
                 print("Post-switch GPU memory: %s" % torch.cuda.memory_allocated(), flush=True)
             return {model_state: [model1, tokenizer1, device1, model_name],
-                    model_used: model_name}
+                    model_used: model_name,
+                    prompt_type: prompt_type1}
+
+        def dropdown_prompt_type_list(x):
+            return gr.Dropdown.update(value=x)
 
         load_model_event = load_model_button.click(fn=load_model,
-                                                   inputs=[model_choice, lora_choice, model_state],
-                                                   outputs=[model_state, model_used, lora_used])
+                                                   inputs=[model_choice, lora_choice, model_state, prompt_type],
+                                                   outputs=[model_state, model_used, lora_used, prompt_type]).then(
+                                                   dropdown_prompt_type_list, prompt_type, prompt_type)
 
         def dropdown_model_list(x):
             new_options = [*model_options, x]
@@ -639,8 +649,8 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                                                  outputs=[model_choice, new_model])
 
         load_lora_event = load_lora_button.click(fn=load_model,
-                                                 inputs=[model_choice, lora_choice, model_state],
-                                                 outputs=[model_state, model_used, lora_used])
+                                                 inputs=[model_choice, lora_choice, model_state, prompt_type],
+                                                 outputs=[model_state, model_used, lora_used, prompt_type])
 
         def dropdown_lora_list(x):
             new_options = [*lora_options, x]
