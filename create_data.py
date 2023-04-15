@@ -443,7 +443,7 @@ useful_oig_files = ['unified_rallio_safety_and_prosocial.jsonl.parquet',
                     #'unified_multi_sum.jsonl.parquet'
                     'unified_ni.jsonl.gz.parquet',
                     'unified_openai_summarize_tldr.jsonl.parquet',
-                    'unified_oscar_en_sample_dialog.jsonl.parquet',
+                    #'unified_oscar_en_sample_dialog.jsonl.parquet', # create text containing these N words, not specific
                     'unified_plot_screenplay_books_dialog.jsonl.parquet',
                     'unified_soda_dialog.jsonl.parquet',
                     'unified_unnatural_instructions.jsonl.parquet',
@@ -936,7 +936,7 @@ def test_assemble_and_detox():
         # faster than better_profanity, do early
         df['profanity'] = predict_prob(df['text'])
         before_rows = df.shape[0]
-        df = df[df['profanity'] < 0.05]  # drop any low quality stuff
+        df = df[df['profanity'] < 0.25]  # drop any low quality stuff
         after_rows = df.shape[0]
         print("Dropped %d rows out of %d due to alt-profanity-check" % (before_rows - after_rows, before_rows))
         df_list.append(df)
@@ -988,7 +988,7 @@ def test_basic_cleaning():
     df_final.to_parquet('h2oGPT.cleaned.human_bot.parquet', index=False)
 
 
-from joblib import parallel_backend, Parallel, delayed, effective_n_jobs
+from joblib import Parallel, delayed, effective_n_jobs
 from sklearn.utils import gen_even_slices
 from sklearn.utils.validation import _num_samples
 
@@ -1203,7 +1203,7 @@ def test_grade():
         if df is None:
             df = pd.read_parquet(file).reset_index(drop=True)
         df = add_textstat_grade(df)
-        min_grade = 12
+        min_grade = 10
         max_grade = 25
         df = df[df['flesch_grade'] >= min_grade]
         df = df[df['flesch_grade'] <= max_grade]
