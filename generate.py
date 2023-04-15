@@ -98,68 +98,69 @@ def main(
                             )
 
     if not gradio:
-        # ensure was set right above before examples generated
-        assert not stream_output, "stream_output=True does not make sense with example loop"
-        import time
-        from functools import partial
+        with torch.device("cuda"):
+            # ensure was set right above before examples generated
+            assert not stream_output, "stream_output=True does not make sense with example loop"
+            import time
+            from functools import partial
 
-        # get score model
-        smodel, stokenizer, sdevice = get_score_model(**locals())
+            # get score model
+            smodel, stokenizer, sdevice = get_score_model(**locals())
 
-        model, tokenizer, device = get_model(**locals())
-        model_state = [model, tokenizer, device, base_model]
-        fun = partial(evaluate, model_state, debug=debug, chat=chat)
-        t0 = time.time()
-        score_dump = []
-        num_examples = len(examples)
+            model, tokenizer, device = get_model(**locals())
+            model_state = [model, tokenizer, device, base_model]
+            fun = partial(evaluate, model_state, debug=debug, chat=chat)
+            t0 = time.time()
+            score_dump = []
+            num_examples = len(examples)
 
-        import numpy as np
-        import pandas as pd
-        import matplotlib.pyplot as plt
+            import numpy as np
+            import pandas as pd
+            import matplotlib.pyplot as plt
 
-        for exi, ex in enumerate(examples):
-            torch.cuda.empty_cache()
-            gc.collect()
-            print("")
-            print("START" + "=" * 100)
-            print("Question: %s %s" % (ex[0], ('input=%s' % ex[1] if ex[1] else '')))
-            print("-" * 105)
-            # fun yields as generator, so have to iterate over it
-            # Also means likely do NOT want --stream_output=True, else would show all generations
-            for res in fun(*tuple(ex)):
-                print(res)
-                if smodel:
-                    data_point = dict(instruction=ex[0], input=ex[1])
-                    prompter = Prompter(prompt_type, debug=debug, chat=chat, stream_output=stream_output)
-                    prompt = prompter.generate_prompt(data_point)
-                    cutoff_len = 2048
-                    inputs = stokenizer(prompt, res,
-                                        return_tensors="pt",
-                                        truncation=True,
-                                        max_length=cutoff_len).to(smodel.device)
-                    score = torch.sigmoid(smodel(**inputs).logits[0]).cpu().detach().numpy()[0]
-                    print("SCORE %s: %s" % (exi, score), flush=True)
-                    score_dump.append(ex + [prompt, res, score])
-                    # dump every score in case abort
-                    scoring_path = 'scoring'
-                    os.makedirs(scoring_path, exist_ok=True)
-                    df_scores = pd.DataFrame(score_dump, columns=eval_func_param_names + ['prompt', 'response', 'score'])
-                    filename = "df_scores_%s_%s_%s.parquet" % (num_examples, str(base_model.split('/')[-1]), str(lora_weights.split('/')[-1]))
-                    filename = os.path.join(scoring_path, filename)
-                    df_scores.to_parquet(filename, index=False)
-                    # plot histogram so far
-                    plt.figure(figsize=(10, 10))
-                    plt.hist(df_scores['score'], bins=20)
-                    score_avg = np.mean(df_scores['score'])
-                    score_median = np.median(df_scores['score'])
-                    plt.title("Score avg: %s median: %s" % (score_avg, score_median))
-                    plt.savefig(filename.replace('.parquet', '.png'))
-                    plt.close()
+            for exi, ex in enumerate(examples):
+                torch.cuda.empty_cache()
+                gc.collect()
+                print("")
+                print("START" + "=" * 100)
+                print("Question: %s %s" % (ex[0], ('input=%s' % ex[1] if ex[1] else '')))
+                print("-" * 105)
+                # fun yields as generator, so have to iterate over it
+                # Also means likely do NOT want --stream_output=True, else would show all generations
+                for res in fun(*tuple(ex)):
+                    print(res)
+                    if smodel:
+                        data_point = dict(instruction=ex[0], input=ex[1])
+                        prompter = Prompter(prompt_type, debug=debug, chat=chat, stream_output=stream_output)
+                        prompt = prompter.generate_prompt(data_point)
+                        cutoff_len = 2048
+                        inputs = stokenizer(prompt, res,
+                                            return_tensors="pt",
+                                            truncation=True,
+                                            max_length=cutoff_len)
+                        score = torch.sigmoid(smodel(**inputs).logits[0]).cpu().detach().numpy()[0]
+                        print("SCORE %s: %s" % (exi, score), flush=True)
+                        score_dump.append(ex + [prompt, res, score])
+                        # dump every score in case abort
+                        scoring_path = 'scoring'
+                        os.makedirs(scoring_path, exist_ok=True)
+                        df_scores = pd.DataFrame(score_dump, columns=eval_func_param_names + ['prompt', 'response', 'score'])
+                        filename = "df_scores_%s_%s_%s.parquet" % (num_examples, str(base_model.split('/')[-1]), str(lora_weights.split('/')[-1]))
+                        filename = os.path.join(scoring_path, filename)
+                        df_scores.to_parquet(filename, index=False)
+                        # plot histogram so far
+                        plt.figure(figsize=(10, 10))
+                        plt.hist(df_scores['score'], bins=20)
+                        score_avg = np.mean(df_scores['score'])
+                        score_median = np.median(df_scores['score'])
+                        plt.title("Score avg: %s median: %s" % (score_avg, score_median))
+                        plt.savefig(filename.replace('.parquet', '.png'))
+                        plt.close()
 
-            print("END" + "=" * 102)
-            print("")
-        t1 = time.time()
-        print("Time taken: %.4f" % (t1 - t0))
+                print("END" + "=" * 102)
+                print("")
+            t1 = time.time()
+            print("Time taken: %.4f" % (t1 - t0))
         return
     if gradio:
         go_gradio(**locals())
