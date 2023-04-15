@@ -9,7 +9,8 @@ from typing import Union
 import fire
 import torch
 from peft import PeftModel
-from transformers import GenerationConfig, StoppingCriteriaList
+from transformers import GenerationConfig, StoppingCriteriaList, AutoModel
+from accelerate import init_empty_weights, infer_auto_device_map
 
 from prompter import Prompter
 
@@ -128,6 +129,44 @@ def get_device():
     return device
 
 
+def get_non_lora_model(base_model, model_loader, load_half, model_kwargs):
+    """
+    Ensure model gets on correct device
+    :param base_model:
+    :param model_loader:
+    :param load_half:
+    :param model_kwargs:
+    :return:
+    """
+    with init_empty_weights():
+        from transformers import AutoConfig
+        config = AutoConfig.from_pretrained(base_model)
+        model = AutoModel.from_config(
+            config,
+        )
+
+    device_map = infer_auto_device_map(
+        model,
+        dtype=torch.float16 if load_half else torch.float32,
+    )
+    print('device_map: %s' % device_map, flush=True)
+
+    load_in_8bit = model_kwargs.get('load_in_8bit', False)
+    model_kwargs['device_map'] = device_map
+
+    if load_in_8bit or not load_half:
+        model = model_loader.from_pretrained(
+            base_model,
+            **model_kwargs,
+        )
+    else:
+        model = model_loader.from_pretrained(
+            base_model,
+            **model_kwargs,
+        ).half()
+    return model
+
+
 def get_model(
         load_8bit: bool = False,
         load_half: bool = True,
@@ -140,6 +179,19 @@ def get_model(
         resume_download: bool = True,
         **kwargs,
 ):
+    """
+
+    :param load_8bit: load model in 8-bit, not supported by all mdoels
+    :param load_half: load model in 16-bit
+    :param base_model: name/path of base model
+    :param tokenizer_base_model: name/path of tokenizer
+    :param lora_weights: name/path
+    :param llama_type: whether LLaMa type model
+    :param local_files_only: use local files instead of from HF
+    :param resume_download: resume downloads from HF
+    :param kwargs:
+    :return:
+    """
     device = get_device()
 
     assert base_model, (
@@ -174,14 +226,15 @@ def get_model(
                                      device_map={"": 0} if load_8bit else "auto",
                                      ))
 
-        # directly to GPU
-        model = model_loader.from_pretrained(
-            base_model,
-            **model_kwargs
-        )
-        if not load_8bit:
-            model = model.to(device)
-        if lora_weights:
+        if not lora_weights:
+            model = get_non_lora_model(base_model, model_loader, load_half, model_kwargs)
+        else:
+            model = model_loader.from_pretrained(
+                base_model,
+                **model_kwargs
+            )
+            if not load_8bit:
+                model = model.to(device)
             model = PeftModel.from_pretrained(
                 model,
                 lora_weights,
@@ -190,8 +243,8 @@ def get_model(
                 resume_download=resume_download,
                 device_map={"": 0} if load_8bit else "auto",
             )
-        if not load_8bit and load_half:
-            model.half()
+            if not load_8bit and load_half:
+                model.half()
 
     # unwind broken decapoda-research config
     if llama_type:
