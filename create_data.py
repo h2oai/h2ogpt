@@ -1253,7 +1253,19 @@ def test_grade():
 def test_finalize_to_json():
     df = pd.read_parquet('h2oGPT.cleaned.graded.human_bot.parquet')
     print("Number of high-quality human_bot interactions: %s" % df.shape[0], flush=True)
+
+    def final_clean(df):
+        from better_profanity import profanity
+        profanity.load_censor_words_from_file("censor_words.txt")
+        df['profanity'] = parallel_apply(
+            df['text'],
+            lambda x: profanity.contains_profanity(x),
+            n_jobs=-1,
+        )
+        return df[(df['profanity'] == 0)].reset_index(drop=True)
+    df = final_clean(df)
     print("Number of final high-quality human_bot interactions: %s" % df.shape[0], flush=True)
+    print(df.describe())
     df = df.rename(columns={'text': 'input'})
     row_list = []
     for i in range(df.shape[0]):
