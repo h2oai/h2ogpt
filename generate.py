@@ -102,11 +102,14 @@ def main(
         import time
         from functools import partial
 
+        # get score model
+        smodel, stokenizer, sdevice = get_score_model(**locals())
+
         model, tokenizer, device = get_model(**locals())
         model_state = [model, tokenizer, device, base_model]
         fun = partial(evaluate, model_state, debug=debug, chat=chat)
         t0 = time.time()
-        for ex in examples:
+        for exi, ex in enumerate(examples):
             print("")
             print("START" + "=" * 100)
             print("Question: %s %s" % (ex[0], ('input=%s' % ex[1] if ex[1] else '')))
@@ -115,6 +118,17 @@ def main(
             # Also means likely do NOT want --stream_output=True, else would show all generations
             for res in fun(*tuple(ex)):
                 print(res)
+                if smodel:
+                    data_point = dict(instruction=ex[0], input=ex[1])
+                    prompter = Prompter(prompt_type, debug=debug, chat=chat, stream_output=stream_output)
+                    prompt = prompter.generate_prompt(data_point)
+                    cutoff_len = 2048
+                    inputs = stokenizer(prompt, res,
+                                        return_tensors="pt",
+                                        truncation=True,
+                                        max_length=cutoff_len).to(smodel.device)
+                    score = torch.sigmoid(smodel(**inputs).logits[0]).cpu().detach().numpy()[0]
+                    print("SCORE %s: %s" % (exi, score), flush=True)
             print("END" + "=" * 102)
             print("")
         t1 = time.time()
