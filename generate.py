@@ -802,7 +802,7 @@ def evaluate(
             stop_words = ['### End']
             encounters = [1]
         stop_words_ids = [
-            tokenizer(stop_word, return_tensors='pt')['input_ids'].squeeze(-1) for stop_word in stop_words]
+            tokenizer(stop_word, return_tensors='pt')['input_ids'].squeeze() for stop_word in stop_words]
         stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(stops=stop_words_ids, encounters=encounters)])
     else:
         stopping_criteria = StoppingCriteriaList()

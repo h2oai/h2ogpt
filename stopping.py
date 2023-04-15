@@ -18,6 +18,9 @@ class StoppingCriteriaSub(StoppingCriteria):
 
     def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor, **kwargs) -> bool:
         for stopi, stop in enumerate(self.stops):
+            if len(stop.shape) == 0:
+                stop = torch.tensor([stop])
+
             if torch.all((stop == input_ids[0][-len(stop):])).item():
                 self.num_stops[stopi] += 1
                 if self.num_stops[stopi] >= self.encounters[stopi]:
