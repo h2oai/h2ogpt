@@ -7,6 +7,8 @@ import typing
 
 os.environ['HF_HUB_DISABLE_TELEMETRY'] = '1'
 from typing import Union
+import numpy as np
+import pandas as pd
 
 import fire
 import torch
@@ -70,6 +72,10 @@ def main(
 
         score_model: str = 'OpenAssistant/reward-model-deberta-v3-large-v2',
         auto_score: bool = True,
+
+        eval_sharegpt_prompts_only: int = 0,
+        eval_sharegpt_prompts_only_seed: int = 1234,
+        eval_sharegpt_as_output: bool = False,
 ):
 
     # get defaults
@@ -98,6 +104,34 @@ def main(
                             )
 
     if not gradio:
+        if eval_sharegpt_prompts_only > 0:
+            # override default examples with shareGPT ones for human-level eval purposes only
+            filename = 'ShareGPT_V3_unfiltered_cleaned_split_no_imsorry.json'
+            if not os.path.isfile(filename):
+                os.system('wget https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/resolve/main/%s' % filename)
+            import json
+            data = json.load(open(filename, 'rt'))
+            # focus on data that starts with human, else likely chopped from other data
+            turn_start = 0  # odd in general
+            data = [x for x in data if len(x['conversations']) > turn_start + 1 and
+                    x['conversations'][turn_start]['from'] == 'human' and
+                    x['conversations'][turn_start + 1]['from'] == 'gpt']
+            np.random.seed(eval_sharegpt_prompts_only_seed)
+            example1 = examples[-1]  # pick reference example
+            examples = []
+            responses = []
+            for i in list(np.random.randint(0, len(data), size=eval_sharegpt_prompts_only)):
+                assert data[i]['conversations'][turn_start]['from'] == 'human'
+                instruction = data[i]['conversations'][turn_start]['value']
+                assert data[i]['conversations'][turn_start + 1]['from'] == 'gpt'
+                output = data[i]['conversations'][turn_start + 1]['value']
+                examplenew = example1.copy()
+                examplenew[0] = instruction
+                examplenew[1] = ''  # no input
+                examplenew[2] = ''  # no context
+                examples.append(examplenew)
+                responses.append(output)
+
         with torch.device("cuda"):
             # ensure was set right above before examples generated
             assert not stream_output, "stream_output=True does not make sense with example loop"
@@ -107,15 +141,22 @@ def main(
             # get score model
             smodel, stokenizer, sdevice = get_score_model(**locals())
 
-            model, tokenizer, device = get_model(**locals())
-            model_state = [model, tokenizer, device, base_model]
-            fun = partial(evaluate, model_state, debug=debug, chat=chat)
+            if not eval_sharegpt_as_output:
+                model, tokenizer, device = get_model(**locals())
+                model_state = [model, tokenizer, device, base_model]
+                fun = partial(evaluate, model_state, debug=debug, chat=chat)
+            else:
+                assert eval_sharegpt_prompts_only > 0
+
+                def get_response(*args, exi=0):
+                    # assumes same ordering of examples and responses
+                    yield responses[exi]
+
+                fun = get_response
             t0 = time.time()
             score_dump = []
             num_examples = len(examples)
 
-            import numpy as np
-            import pandas as pd
             import matplotlib.pyplot as plt
 
             for exi, ex in enumerate(examples):
@@ -127,12 +168,19 @@ def main(
                 print("-" * 105)
                 # fun yields as generator, so have to iterate over it
                 # Also means likely do NOT want --stream_output=True, else would show all generations
-                for res in fun(*tuple(ex)):
+                for res in fun(*tuple(ex), exi=exi):
                     print(res)
                     if smodel:
-                        data_point = dict(instruction=ex[0], input=ex[1])
-                        prompter = Prompter(prompt_type, debug=debug, chat=chat, stream_output=stream_output)
-                        prompt = prompter.generate_prompt(data_point)
+                        score_with_prompt = False
+                        if score_with_prompt:
+                            data_point = dict(instruction=ex[0], input=ex[1])
+                            prompter = Prompter(prompt_type, debug=debug, chat=chat, stream_output=stream_output)
+                            prompt = prompter.generate_prompt(data_point)
+                        else:
+                            # just raw input and output
+                            assert ex[1] in [None, '']  # should be no iinput
+                            assert ex[2] in [None, '']  # should be no context
+                            prompt = ex[0]
                         cutoff_len = 2048
                         inputs = stokenizer(prompt, res,
                                             return_tensors="pt",
@@ -144,8 +192,18 @@ def main(
                         # dump every score in case abort
                         scoring_path = 'scoring'
                         os.makedirs(scoring_path, exist_ok=True)
+                        if eval_sharegpt_as_output:
+                            used_base_model = 'gpt35'
+                            used_lora_weights = ''
+                        else:
+                            used_base_model = str(base_model.split('/')[-1])
+                            used_lora_weights = str(lora_weights.split('/')[-1])
                         df_scores = pd.DataFrame(score_dump, columns=eval_func_param_names + ['prompt', 'response', 'score'])
-                        filename = "df_scores_%s_%s_%s.parquet" % (num_examples, str(base_model.split('/')[-1]), str(lora_weights.split('/')[-1]))
+                        filename = "df_scores_%s_%s_%s_%s_%s_%s.parquet" % (num_examples, eval_sharegpt_prompts_only,
+                                                                         eval_sharegpt_prompts_only_seed,
+                                                                         eval_sharegpt_as_output,
+                                                                         used_base_model,
+                                                                         used_lora_weights)
                         filename = os.path.join(scoring_path, filename)
                         df_scores.to_parquet(filename, index=False)
                         # plot histogram so far
