@@ -217,8 +217,10 @@ def main(
 
                 print("END" + "=" * 102)
                 print("")
+                t2 = time.time()
+                print("Time taken so far: %.4f about %.4g per example" % (t2 - t0, (t2 - t0) / (1 + exi)))
             t1 = time.time()
-            print("Time taken: %.4f" % (t1 - t0))
+            print("Total time taken: %.4f about %.4g per example" % (t1 - t0, (t1 - t0) / num_examples))
         return
     if gradio:
         go_gradio(**locals())
