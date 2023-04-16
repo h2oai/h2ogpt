@@ -1329,25 +1329,33 @@ def test_add_open_assistant():
     print(len(all_rows))
     with open(data_file.lower().replace("/", "_") + ".json", "w") as f:
         f.write(json.dumps(all_rows, indent=2))
+    return all_rows
 
 
 def test_finalize_to_json():
     df = pd.read_parquet('h2oGPT.cleaned.graded.human_bot.parquet')
+    df = df.rename(columns={'text': 'input'})
+
     print("Number of high-quality human_bot interactions: %s" % df.shape[0], flush=True)
+
+    print("Adding open assistant data")
+    open_assistant = test_add_open_assistant()
+    df = pd.concat([df, pd.DataFrame(open_assistant)], axis=0)
 
     def final_clean(df):
         from better_profanity import profanity
         profanity.load_censor_words_from_file("censor_words.txt")
         df['profanity'] = parallel_apply(
-            df['text'],
+            df['input'],
             lambda x: profanity.contains_profanity(x),
             n_jobs=-1,
         )
         return df[(df['profanity'] == 0)].reset_index(drop=True)
+    print("Before cleaning: Number of final high-quality human_bot interactions: %s" % df.shape[0], flush=True)
     df = final_clean(df)
-    print("Number of final high-quality human_bot interactions: %s" % df.shape[0], flush=True)
+    print("After cleaning: Number of final high-quality human_bot interactions: %s" % df.shape[0], flush=True)
     print(df.describe())
-    df = df.rename(columns={'text': 'input'})
+    print(df.shape)
     row_list = []
     for i in range(df.shape[0]):
         row_list.append(
@@ -1361,7 +1369,7 @@ def test_finalize_to_json():
     row_list.extend(personality * 10)
     np.random.seed(1234)
     np.random.shuffle(row_list)
-    with open('h2ogpt-oig-instruct-cleaned-v4.json', "w") as f:
+    with open('h2ogpt-oig-oasst1-instruct-cleaned-v1.json', "w") as f:
         f.write(json.dumps(row_list, indent=2))
 
 
