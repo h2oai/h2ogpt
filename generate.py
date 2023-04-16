@@ -826,14 +826,14 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
             if kwargs['auto_score']:
                 submit_event = instruction.submit(**user_args, queue=stream_output, api_name='instruction').then(
                     **bot_args, api_name='instruction_bot',
-                ).then(**score_args, api_name='score_bot')
+                ).then(**score_args, api_name='instruction_bot_score')
                 submit_event2 = submit.click(**user_args, queue=stream_output, api_name='submit').then(
                     **bot_args, api_name='submit_bot',
-                ).then(**score_args, api_name='score_bot')
+                ).then(**score_args, api_name='submit_bot_score')
                 submit_event3 = retry.click(**user_args, queue=stream_output, api_name='retry').then(
                     **retry_bot_args, api_name='retry_bot',
-                ).then(**score_args, api_name='score_bot')
-                submit_event4 = undo.click(**undo_user_args, queue=stream_output, api_name='undo').then(**score_args, api_name='score_bot')
+                ).then(**score_args, api_name='retry_bot_score')
+                submit_event4 = undo.click(**undo_user_args, queue=stream_output, api_name='undo').then(**score_args, api_name='undo_score')
             else:
                 submit_event = instruction.submit(**user_args, queue=stream_output, api_name='instruction').then(
                     **bot_args, api_name='instruction_bot',
