@@ -359,7 +359,7 @@ def makedirs(path, exist_ok=True):
 
 ## Download from https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/resolve/main/ShareGPT_unfiltered_cleaned_split.json
 ## Turn into simple instruct prompt type. No context/previous conversations.
-def test_prep_vicuna_instruct():
+def test_prep_instruct_vicuna():
     from datasets import load_dataset
     filename = 'ShareGPT_unfiltered_cleaned_split.json'
     if not os.path.exists(filename):

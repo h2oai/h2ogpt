@@ -11,7 +11,7 @@ class StoppingCriteriaSub(StoppingCriteria):
 
     def __init__(self, stops=[], encounters=[]):
         super().__init__()
-        assert len(stops) == len(encounters), "Number of stops and encounters must match"
+        assert len(stops) % len(encounters) == 0, "Number of stops and encounters must match"
         self.encounters = encounters
         self.stops = [stop.to("cuda") for stop in stops]
         self.num_stops = [0] * len(stops)
@@ -23,8 +23,10 @@ class StoppingCriteriaSub(StoppingCriteria):
 
             if torch.all((stop == input_ids[0][-len(stop):])).item():
                 self.num_stops[stopi] += 1
-                if self.num_stops[stopi] >= self.encounters[stopi]:
+                if self.num_stops[stopi] >= self.encounters[stopi % len(self.encounters)]:
                     return True
+        print("Tokens: %s" % input_ids[0].cpu().numpy(), flush=True)
+        print("Stop Tokens: %s" % [x.cpu().numpy() for x in self.stops], flush=True)
         return False
 
 

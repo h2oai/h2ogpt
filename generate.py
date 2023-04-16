@@ -1026,12 +1026,29 @@ def evaluate(
     if chat:
         # override, ignore user change
         num_return_sequences = 1
-    if prompt_type in ['human_bot', 'instruct']:
+    if prompt_type in ['human_bot', 'instruct', 'instruct_vicuna']:
         if prompt_type == 'human_bot':
             # encounters = [prompt.count(human) + 1, prompt.count(bot) + 1]
             # stopping only starts once output is beyond prompt
             # 1 human is enough to trigger, but need 2 bots, because very first view back will be bot we added
             stop_words = [human, bot]
+            encounters = [1, 2]
+        elif prompt_type == 'instruct_vicuna':
+            # even below is not enough, generic strings and many ways to encode
+            stop_words = [
+                          '### Human:',
+                          """
+### Human:""",
+                          """
+### Human:
+""",
+                          '### Assistant:',
+                          """
+### Assistant:""",
+                          """
+### Assistant:
+""",
+            ]
             encounters = [1, 2]
         else:
             # some instruct prompts have this as end, doesn't hurt to stop on it since not common otherwise
@@ -1039,6 +1056,10 @@ def evaluate(
             encounters = [1]
         stop_words_ids = [
             tokenizer(stop_word, return_tensors='pt')['input_ids'].squeeze() for stop_word in stop_words]
+        # don't include padding or other tokens in stop word since not how appears when used in place
+        special_tokens = tokenizer(tokenizer.all_special_tokens_extended, return_tensors='pt')['input_ids'].flatten()
+        for stop_word_i, stop_word in enumerate(stop_words_ids):
+            stop_words_ids[stop_word_i] = torch.tensor([x for x in stop_word if x not in special_tokens], device=stop_word.device)
         stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(stops=stop_words_ids, encounters=encounters)])
     else:
         stopping_criteria = StoppingCriteriaList()
@@ -1101,6 +1122,9 @@ def evaluate(
         if inputs_decoded == prompt:
             # normal
             pass
+        elif inputs_decoded.lstrip() == prompt.lstrip():
+            # sometimes extra space in front, make prompt same for prompt removal
+            prompt = inputs_decoded
         elif inputs_decoded_raw == prompt:
             # some models specify special tokens that are part of normal prompt, so can't skip them
             inputs_decoded_raw = inputs_decoded

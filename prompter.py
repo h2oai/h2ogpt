@@ -46,16 +46,21 @@ class Prompter(object):
                 # prompt sometimes has odd characters, that mutate length,
                 # so can't go by length alone
                 if self.pre_response:
-                    output = output[len(prompt) - len(self.pre_response):].strip()
-                    # [1] to avoid repeated pre_response, just take first (after prompt - pre_response for chat)
-                    if self.pre_response in output:
-                        output = output.split(self.pre_response)[1]
+                    outputi = output.find(prompt)
+                    if outputi >= 0:
+                        output = output[outputi + len(prompt):]
                     else:
-                        print("Failure of parsing: %s" % output, flush=True)
+                        # subtraction is risky due to space offsets sometimes, so only do if necessary
+                        output = output[len(prompt) - len(self.pre_response):]
+                        # [1] to avoid repeated pre_response, just take first (after prompt - pre_response for chat)
+                        if self.pre_response in output:
+                            output = output.split(self.pre_response)[1]
+                        else:
+                            print("Failure of parsing: %s" % output, flush=True)
                 else:
-                    output = output[len(prompt):].strip()
+                    output = output[len(prompt):]
                 # clean after subtract prompt out, so correct removal of pre_response
-                output = clean_response(output)
+                output = clean_response(output).strip()
                 if self.terminate_response:
                     finds = []
                     for term in self.terminate_response:
