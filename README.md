@@ -14,17 +14,17 @@ Come join the movement to make the world's best open source GPT led by H2O.ai!
 
 1. Start with fully open source Apache 2.0 models EleutherAI--gpt-j-6B, EleutherAI--gpt-neox-20b,
    GPT-NeoXT-Chat-Base-20B, etc.
-2. Open-Source Instruct Data: Collect and curate high quality data with human <-> bot interaction
+2. Open-Source Instruct Data: Collect and curate high quality data with instruction and response interaction sequences
 3. Prompt Engineering: Convert plain text into question/answer or command/response format
 4. Fine-tune LLM models using 8-bit and LoRA for speed and memory efficiency
 5. Create GUIs, validation tools, APIs for integration with other software
-6. Submit data and model to HuggingFace with 100% permissive license
+6. Submit data and models to HuggingFace with 100% permissive license
 7. Collect feedback from community
 
 
 Original training code is based on [Alpaca-LoRA](https://github.com/tloen/alpaca-lora/).
 
-All training data will be based on open-source permissive data. No Alpaca, no LLama, no OpenAI.
+All training data will be based on open-source permissive data. No Alpaca, no LLama, no OpenAI, no ShareGPT.
 
 All datasets and models will be published to HuggingFace.
 
