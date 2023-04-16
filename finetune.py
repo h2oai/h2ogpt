@@ -58,6 +58,7 @@ class PromptType(Enum):
     dai_faq = 4
     summarize = 5
     simple_instruct = 6
+    instruct_vicuna = 7
 
 
 prompt_type_to_model_name = {
@@ -81,6 +82,7 @@ prompt_type_to_model_name = {
     'dai_faq': [],
     'summarize': [],
     'simple_instruct': ['t5-small', 't5-large', 'google/flan-t5', 'google/flan-t5-xxl', 'google/flan-ul2'],
+    'instruct_vicuna': ['AlekseyKorshuk/vicuna-7b']
 }
 
 inv_prompt_type_to_model_name = {v.strip(): k for k, l in prompt_type_to_model_name.items() for v in l}
@@ -763,6 +765,20 @@ Current Time: {}
         PreInstruct = '## Main Text\n\n'
         PreResponse = '\n\n## Summary\n\n'
         terminate_response = None
+    elif prompt_type in [6, "6", "instruct_vicuna"]:
+        promptA = promptB = "A chat between a curious human and an artificial intelligence assistant. " \
+            "The assistant gives helpful, detailed, and polite answers to the human's questions." if not (chat and reduced) else ''
+
+        PreInstruct = """
+### Human:
+"""
+
+        PreInput = None
+
+        PreResponse = """
+### Assistant:
+"""
+        terminate_response = None
     else:
         raise RuntimeError("No such prompt_type=%s" % prompt_type)
 
@@ -823,7 +839,7 @@ def generate_prompt(data_point, prompt_type, chat, reduced):
 
     if PreResponse is not None:
         prompt += f"""{PreResponse}"""
-        pre_response = PreResponse.strip()
+        pre_response = PreResponse  # Don't use strip
     else:
         pre_response = ''
 
