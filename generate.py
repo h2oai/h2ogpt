@@ -325,6 +325,8 @@ def get_model(
     :return:
     """
     print("Get %s model" % base_model, flush=True)
+    if lora_weights is not None and lora_weights.strip():
+        print("Get %s lora weights" % lora_weights, flush=True)
     device = get_device()
 
     if 'gpt2' in base_model.lower():
@@ -523,6 +525,8 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
 
     with demo:
         model_state = gr.State([model, tokenizer, device, kwargs['base_model']])
+        model_options_state = gr.State([model_options])
+        lora_options_state = gr.State([lora_options])
         gr.Markdown(
             f"""
             <h1 align="center"> {title}</h1>
@@ -639,7 +643,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                     with gr.Column():
                         with gr.Row(scale=1):
                             with gr.Column(scale=50):
-                                model_choice = gr.Dropdown(model_options, label="Choose Model", value=kwargs['base_model'])
+                                model_choice = gr.Dropdown(model_options_state.value[0], label="Choose Model", value=kwargs['base_model'])
                             with gr.Column(scale=1):
                                 load_model_button = gr.Button("Load model")
                                 model_used = gr.Textbox(label="Current Model", value=kwargs['base_model'])
@@ -651,7 +655,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
 
                         with gr.Row(scale=1):
                             with gr.Column(scale=50):
-                                lora_choice = gr.Dropdown(lora_options, label="Choose LORA", value=kwargs['lora_weights'])
+                                lora_choice = gr.Dropdown(lora_options_state.value[0], label="Choose LORA", value=kwargs['lora_weights'])
                             with gr.Column(scale=1):
                                 load_lora_button = gr.Button("Load LORA")
                                 lora_used = gr.Textbox(label="Current LORA", value=kwargs['lora_weights'])
@@ -852,7 +856,11 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
             if kwargs['debug']:
                 print("Pre-switch pre-del GPU memory: %s" % torch.cuda.memory_allocated(), flush=True)
             if model_state_old[0] is not None:
-                model_state_old[0].cpu()
+                try:
+                    model_state_old[0].cpu()
+                except:
+                    # sometimes hit NotImplementedError: Cannot copy out of meta tensor; no data!
+                    pass
                 del model_state_old[0]
                 model_state_old[0] = None
             if model_state_old[1] is not None:
@@ -876,6 +884,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                 print("Post-switch GPU memory: %s" % torch.cuda.memory_allocated(), flush=True)
             return {model_state: [model1, tokenizer1, device1, model_name],
                     model_used: model_name,
+                    lora_used: lora_weights,
                     prompt_type: prompt_type1}
 
         def dropdown_prompt_type_list(x):
@@ -886,25 +895,27 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                                                    outputs=[model_state, model_used, lora_used, prompt_type]).then(
                                                    dropdown_prompt_type_list, prompt_type, prompt_type)
 
-        def dropdown_model_list(x):
-            new_options = [*model_options, x]
-            return gr.Dropdown.update(value=x, choices=new_options), ''
+        def dropdown_model_list(list0, x):
+            new_state = [list0[0] + [x]]
+            new_options = [*new_state[0]]
+            return gr.Dropdown.update(value=x, choices=new_options), '', new_state
 
         add_model_event = add_model_button.click(fn=dropdown_model_list,
-                                                 inputs=new_model,
-                                                 outputs=[model_choice, new_model])
+                                                 inputs=[model_options_state, new_model],
+                                                 outputs=[model_choice, new_model, model_options_state])
 
         load_lora_event = load_lora_button.click(fn=load_model,
                                                  inputs=[model_choice, lora_choice, model_state, prompt_type],
                                                  outputs=[model_state, model_used, lora_used, prompt_type])
 
-        def dropdown_lora_list(x):
-            new_options = [*lora_options, x]
-            return gr.Dropdown.update(value=x, choices=new_options), ''
+        def dropdown_lora_list(list0, x):
+            new_state = [list0[0] + [x]]
+            new_options = [*new_state[0]]
+            return gr.Dropdown.update(value=x, choices=new_options), '', new_state
 
         add_lora_event = add_lora_button.click(fn=dropdown_lora_list,
-                                               inputs=new_lora,
-                                               outputs=[lora_choice, new_lora])
+                                               inputs=[lora_options_state, new_lora],
+                                               outputs=[lora_choice, new_lora, lora_options_state])
 
         # callback for logging flagged input/output
         callback.setup(inputs_list + [text_output], "flagged_data_points")
