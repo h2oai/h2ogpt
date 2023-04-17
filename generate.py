@@ -783,6 +783,9 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                 history = args_list[-1]
                 if retry and history:
                     history.pop()
+                if not history:
+                    print("No history", flush=True)
+                    return
                 instruction1 = history[-1][0]
                 context1 = ''
                 if kwargs['chat_history'] > 0:
