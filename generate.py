@@ -1047,11 +1047,11 @@ def evaluate(
 
     if model_state is not None and len(model_state) == 4 and not isinstance(model_state[0], str):
         # try to free-up original model (i.e. list was passed as reference)
-        if model_state0[0] is not None:
+        if model_state0 is not None and model_state0[0] is not None:
             model_state0[0].cpu()
             model_state0[0] = None
         # try to free-up original tokenizer (i.e. list was passed as reference)
-        if model_state0[1] is not None:
+        if model_state0 is not None and model_state0[1] is not None:
             model_state0[1] = None
         if torch.cuda.is_available:
             torch.cuda.empty_cache()
