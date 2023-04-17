@@ -2,7 +2,8 @@ from finetune import generate_prompt
 
 
 class Prompter(object):
-    def __init__(self, prompt_type, debug=False, chat=False, stream_output=False, repeat_penalty=True):
+    def __init__(self, prompt_type, debug=False, chat=False, stream_output=False, repeat_penalty=True,
+                 allowed_repeat_line_length=10):
         self.prompt_type = prompt_type
         data_point = dict(instruction='', input='', output='')
         _, self.pre_response, self.terminate_response = generate_prompt(data_point, prompt_type, chat, False)
@@ -10,6 +11,7 @@ class Prompter(object):
         self.chat = chat
         self.stream_output = stream_output
         self.repeat_penalty = repeat_penalty
+        self.allowed_repeat_line_length = allowed_repeat_line_length
 
     def generate_prompt(self, data_point):
         reduced = False
@@ -40,7 +42,8 @@ class Prompter(object):
         def clean_repeats(response):
             lines = response.split('\n')
             new_lines = []
-            [new_lines.append(line) for line in lines if line not in new_lines]
+            [new_lines.append(line) for line in lines if
+             line not in new_lines or len(line) < self.allowed_repeat_line_length]
             if self.debug and len(lines) != len(new_lines):
                 print("cleaned repeats: %s %s" % (len(lines), len(new_lines)), flush=True)
             response = '\n'.join(new_lines)
