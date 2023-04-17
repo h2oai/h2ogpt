@@ -537,12 +537,16 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
         lora_options = [kwargs['lora_weights'].strip()] + lora_options
     # always add in no lora case
     # add fake space so doesn't go away in gradio dropdown
-    lora_options = [' '] + kwargs['extra_lora_options']
+    lora_options = [' '] + kwargs['extra_lora_options']  # FIXME: why double?
+    # always add in no model case so can free memory
+    # add fake space so doesn't go away in gradio dropdown
+    model_options = [' '] + model_options
 
     with demo:
         # avoid actual model/tokenizer here or anything that would be bad to deepcopy
         # https://github.com/gradio-app/gradio/issues/3558
         model_state = gr.State(['model', 'tokenizer', device, kwargs['base_model']])
+        model_state2 = gr.State([None, None, None, None])
         model_options_state = gr.State([model_options])
         lora_options_state = gr.State([lora_options])
         gr.Markdown(
@@ -560,7 +564,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
         with normal_block:
             with gr.Tabs():
                 with gr.Row():
-                    if not kwargs['chat']:
+                    if not kwargs['chat']:  # FIXME: for model comparison, and check rest
                         with gr.Column():
                             instruction = gr.Textbox(
                                 lines=4, label=instruction_label,
@@ -579,7 +583,9 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                                     score_text = gr.Textbox("Response Score: NA", show_label=False)
                     with gr.Column():
                         if kwargs['chat']:
-                            text_output = gr.Chatbot(label='h2oGPT').style(height=kwargs['height'] or 400)
+                            with gr.Row():
+                                text_output = gr.Chatbot(label='h2oGPT').style(height=kwargs['height'] or 400)
+                                text_output2 = gr.Chatbot(label='h2oGPT2', visible=False).style(height=kwargs['height'] or 400)
                             with gr.Row():
                                 with gr.Column(scale=50):
                                     instruction = gr.Textbox(
@@ -593,15 +599,22 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                                 clear = gr.Button("New Conversation")
                                 flag_btn = gr.Button("Flag")
                                 if kwargs['score_model']:
-                                    if not kwargs['auto_score']:
+                                    if not kwargs['auto_score']:  # FIXME: For checkbox model2
                                         with gr.Column():
-                                            score_btn = gr.Button("Score last prompt & response").style(full_width=False, size='sm')
-                                            score_text = gr.Textbox("Response Score: NA", show_label=False)
+                                            with gr.Row():
+                                                score_btn = gr.Button("Score last prompt & response").style(full_width=False, size='sm')
+                                                score_text = gr.Textbox("Response Score: NA", show_label=False)
+                                            score_res2 = gr.Row(visible=False)
+                                            with score_res2:
+                                                score_btn2 = gr.Button("Score last prompt & response 2").style(full_width=False, size='sm')
+                                                score_text2 = gr.Textbox("Response Score2: NA", show_label=False)
                                     else:
                                         score_text = gr.Textbox("Response Score: NA", show_label=False)
+                                        score_text2 = gr.Textbox("Response Score2: NA", show_label=False, visible=False)
                                 retry = gr.Button("Regenerate")
                                 undo = gr.Button("Undo")
                         else:
+                            # FIXME: compare
                             text_output = gr.Textbox(lines=5, label="Output")
                 with gr.TabItem("Input/Output"):
                     with gr.Row():
@@ -619,6 +632,8 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                                                                    value=kwargs['stream_output'])
                             prompt_type = gr.Dropdown(prompt_types_strings,
                                                       value=kwargs['prompt_type'], label="Prompt Type")
+                            prompt_type2 = gr.Dropdown(prompt_types_strings,
+                                                      value=kwargs['prompt_type'], label="Prompt Type Model 2", visible=False)
                             temperature = gr.Slider(minimum=0, maximum=3,
                                                     value=kwargs['temperature'],
                                                     label="Temperature",
@@ -662,6 +677,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                                                  info="Ignored in chat mode.")  # nominally empty for chat mode
 
                 with gr.TabItem("Models"):
+                    compare_checkbox = gr.components.Checkbox(label="Compare Mode", value=False)
                     with gr.Row():
                         with gr.Column():
                             with gr.Row(scale=1):
@@ -679,6 +695,16 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                                 with gr.Column(scale=1):
                                     add_model_button = gr.Button("Add new model name")
                                     add_lora_button = gr.Button("Add new LORA name", visible=kwargs['show_lora'])
+                        col_model2 = gr.Column(visible=False)
+                        with col_model2:
+                            with gr.Row(scale=1):
+                                with gr.Column(scale=50):
+                                    model_choice2 = gr.Dropdown(model_options_state.value[0], label="Choose Model 2", value=kwargs['base_model'])
+                                    lora_choice2 = gr.Dropdown(lora_options_state.value[0], label="Choose LORA 2", value=kwargs['lora_weights'], visible=kwargs['show_lora'])
+                                with gr.Column(scale=1):
+                                    load_model_button2 = gr.Button("Load Model/LORA 2")
+                                    model_used2 = gr.Textbox(label="Current Model 2", value=kwargs['base_model'])
+                                    lora_used2 = gr.Textbox(label="Current LORA 2", value=kwargs['lora_weights'], visible=kwargs['show_lora'])
 
         inputs_list = get_inputs_list(locals(), kwargs['model_lower'])
         from functools import partial
@@ -688,6 +714,9 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
         fun = partial(evaluate,
                       model_state,
                       **kwargs_evaluate)
+        fun2 = partial(evaluate,
+                       model_state2,
+                       **kwargs_evaluate)
 
         dark_mode_btn = gr.Button("Dark Mode", variant="primary").style(
             size="sm",
@@ -707,6 +736,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
         )
         if not kwargs['chat']:
             submit = gr.Button("Submit")
+            # FIXME: compare
             submit_event = submit.click(fun, inputs=inputs_list, outputs=text_output, api_name='submit')
 
         # examples after submit or any other buttons for chat or no chat
@@ -748,8 +778,14 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                               inputs=inputs_list + [text_output],
                               outputs=[score_text],
                               )
+            score_args2 = dict(fn=score_last_response,
+                               inputs=inputs_list + [text_output2],
+                               outputs=[score_text2],
+                               )
+
             if not kwargs['auto_score']:
-                score_event = score_btn.click(**score_args, queue=stream_output, api_name='score')
+                score_event = score_btn.click(**score_args, queue=stream_output, api_name='score') \
+                                       .then(**score_args2, queue=stream_output, api_name='score2')
 
         if kwargs['chat']:
             def user(*args, undo=False, sanitize_user_prompt=True):
@@ -767,7 +803,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                     from better_profanity import profanity
                     user_message1 = profanity.censor(user_message1)
 
-                history = args_list[-1]
+                history = args_list[-1].copy()
                 if undo and history:
                     history.pop()
                 args_list = args_list[:-1]
@@ -775,13 +811,14 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                     print("Bad history, fix for now", flush=True)
                     history = []
                 if undo:
-                    return "", history
+                    return history
                 else:
-                    return "", history + [[user_message1, None]]
+                    # FIXME: compare, same history for now
+                    return history + [[user_message1, None]]
 
             def bot(*args, retry=False):
-                args_list = list(args)
-                history = args_list[-1]
+                args_list = list(args).copy()
+                history = args_list[-1].copy()
                 if retry and history:
                     history.pop()
                 if not history:
@@ -804,6 +841,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                 # only include desired chat history
                 args_list[2] = context1[-kwargs['chat_history']:]
                 model_state1 = args_list[-2]
+                # FIXME: Maybe ok how handle model2?
                 args_list = args_list[:-2]
                 fun1 = partial(evaluate,
                                model_state1,
@@ -828,46 +866,94 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                     raise
                 return
 
+            # NORMAL MODEL
             user_args = dict(fn=functools.partial(user, sanitize_user_prompt=kwargs['sanitize_user_prompt']),
                              inputs=inputs_list + [text_output],
-                             outputs=[instruction, text_output],
+                             outputs=text_output,
                              )
             bot_args = dict(fn=bot,
                             inputs=inputs_list + [model_state] + [text_output],
-                            outputs=[text_output],
+                            outputs=text_output,
                             )
             retry_bot_args = dict(fn=functools.partial(bot, retry=True),
                                   inputs=inputs_list + [model_state] + [text_output],
-                                  outputs=[text_output],
+                                  outputs=text_output,
                                   )
             undo_user_args = dict(fn=functools.partial(user, undo=True),
                                   inputs=inputs_list + [text_output],
-                                  outputs=[instruction, text_output],
+                                  outputs=text_output,
                                   )
 
+            # MODEL2
+            user_args2 = dict(fn=functools.partial(user, sanitize_user_prompt=kwargs['sanitize_user_prompt']),
+                              inputs=inputs_list + [text_output2],
+                              outputs=text_output2,
+                              )
+            bot_args2 = dict(fn=bot,
+                             inputs=inputs_list + [model_state2] + [text_output2],
+                             outputs=text_output2,
+                             )
+            retry_bot_args2 = dict(fn=functools.partial(bot, retry=True),
+                                   inputs=inputs_list + [model_state2] + [text_output2],
+                                   outputs=text_output2,
+                                   )
+            undo_user_args2 = dict(fn=functools.partial(user, undo=True),
+                                   inputs=inputs_list + [text_output2],
+                                   outputs=text_output2,
+                                   )
+
+            def clear_instruct():
+                return gr.Textbox.update(value='')
+
             if kwargs['auto_score']:
-                submit_event = instruction.submit(**user_args, queue=stream_output, api_name='instruction').then(
-                    **bot_args, api_name='instruction_bot',
-                ).then(**score_args, api_name='instruction_bot_score')
-                submit_event2 = submit.click(**user_args, queue=stream_output, api_name='submit').then(
-                    **bot_args, api_name='submit_bot',
-                ).then(**score_args, api_name='submit_bot_score')
-                submit_event3 = retry.click(**user_args, queue=stream_output, api_name='retry').then(
-                    **retry_bot_args, api_name='retry_bot',
-                ).then(**score_args, api_name='retry_bot_score')
-                submit_event4 = undo.click(**undo_user_args, queue=stream_output, api_name='undo').then(**score_args, api_name='undo_score')
+                submit_event = instruction.submit(**user_args, queue=stream_output, api_name='instruction') \
+                    .then(**bot_args, api_name='instruction_bot') \
+                    .then(**score_args, api_name='instruction_bot_score') \
+                    .then(**user_args2, queue=stream_output, api_name='instruction2') \
+                    .then(**bot_args2, api_name='instruction_bot2') \
+                    .then(**score_args2, api_name='instruction_bot_score2') \
+                    .then(clear_instruct, None, instruction)
+                submit_event2 = submit.click(**user_args, queue=stream_output, api_name='submit') \
+                    .then(**bot_args, api_name='submit_bot') \
+                    .then(**score_args, api_name='submit_bot_score') \
+                    .then(**user_args2, queue=stream_output, api_name='submit2') \
+                    .then(**bot_args2, api_name='submit_bot2') \
+                    .then(**score_args2, api_name='submit_bot_score2') \
+                    .then(clear_instruct, None, instruction)
+                submit_event3 = retry.click(**user_args, queue=stream_output, api_name='retry') \
+                    .then(**retry_bot_args, api_name='retry_bot') \
+                    .then(**score_args, api_name='retry_bot_score') \
+                    .then(**user_args2, queue=stream_output, api_name='retry2') \
+                    .then(**retry_bot_args2, api_name='retry_bot2') \
+                    .then(**score_args2, api_name='retry_bot_score2') \
+                    .then(clear_instruct, None, instruction)
+                submit_event4 = undo.click(**undo_user_args, queue=stream_output, api_name='undo') \
+                    .then(**score_args, api_name='undo_score') \
+                    .then(**undo_user_args, queue=stream_output, api_name='undo2') \
+                    .then(**score_args2, api_name='undo_score2') \
+                    .then(clear_instruct, None, instruction)
             else:
-                submit_event = instruction.submit(**user_args, queue=stream_output, api_name='instruction').then(
-                    **bot_args, api_name='instruction_bot',
-                )
-                submit_event2 = submit.click(**user_args, queue=stream_output, api_name='submit').then(
-                    **bot_args, api_name='submit_bot',
-                )
-                submit_event3 = retry.click(**user_args, queue=stream_output, api_name='retry').then(
-                    **retry_bot_args, api_name='retry_bot',
-                )
-                submit_event4 = undo.click(**undo_user_args, queue=stream_output, api_name='undo')
-            clear.click(lambda: None, None, text_output, queue=False, api_name='clear')
+                submit_event = instruction.submit(**user_args, queue=stream_output, api_name='instruction') \
+                    .then(**bot_args, api_name='instruction_bot') \
+                    .then(**user_args2, queue=stream_output, api_name='instruction2') \
+                    .then(**bot_args2, api_name='instruction_bot2') \
+                    .then(clear_instruct, None, instruction)
+                submit_event2 = submit.click(**user_args, queue=stream_output, api_name='submit') \
+                    .then(**bot_args, api_name='submit_bot') \
+                    .then(**user_args2, queue=stream_output, api_name='submit2') \
+                    .then(**bot_args2, api_name='submit_bot2') \
+                    .then(clear_instruct, None, instruction)
+                submit_event3 = retry.click(**user_args, queue=stream_output, api_name='retry') \
+                    .then(**retry_bot_args, api_name='retry_bot') \
+                    .then(**user_args2, queue=stream_output, api_name='retry2') \
+                    .then(**retry_bot_args2, api_name='retry_bot2') \
+                    .then(clear_instruct, None, instruction)
+                submit_event4 = undo.click(**undo_user_args, queue=stream_output, api_name='undo') \
+                                    .then(**undo_user_args2, queue=stream_output, api_name='undo2')
+
+            # does both models
+            clear.click(lambda: None, None, text_output, queue=False, api_name='clear') \
+                .then(lambda: None, None, text_output2, queue=False, api_name='clear2')
 
         def load_model(model_name, lora_weights, model_state_old, prompt_type_old):
             # ensure old model removed from GPU memory
@@ -898,6 +984,11 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
 
             if kwargs['debug']:
                 print("Pre-switch post-del GPU memory: %s" % torch.cuda.memory_allocated(), flush=True)
+
+            if not model_name:
+                # no-op if no model name, e.g. '', just free memory
+                return model_state_old, model_name, lora_weights, prompt_type_old
+
             all_kwargs['base_model'] = model_name.strip()
             model_lower = model_name.strip().lower()
             if model_lower in inv_prompt_type_to_model_lower:
@@ -914,10 +1005,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
 
             if kwargs['debug']:
                 print("Post-switch GPU memory: %s" % torch.cuda.memory_allocated(), flush=True)
-            return {model_state: [model1, tokenizer1, device1, model_name],
-                    model_used: model_name,
-                    lora_used: lora_weights,
-                    prompt_type: prompt_type1}
+            return [model1, tokenizer1, device1, model_name], model_name, lora_weights, prompt_type1
 
         def dropdown_prompt_type_list(x):
             return gr.Dropdown.update(value=x)
@@ -928,27 +1016,52 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
         prompt_update_args = dict(fn=dropdown_prompt_type_list, inputs=prompt_type, outputs=prompt_type)
         load_model_event = load_model_button.click(**load_model_args).then(**prompt_update_args)
 
+        load_model_args2 = dict(fn=load_model,
+                               inputs=[model_choice2, lora_choice2, model_state2, prompt_type2],
+                               outputs=[model_state2, model_used2, lora_used2, prompt_type2])
+        prompt_update_args2 = dict(fn=dropdown_prompt_type_list, inputs=prompt_type2, outputs=prompt_type2)
+        load_model_event2 = load_model_button2.click(**load_model_args2).then(**prompt_update_args2)
+
         def dropdown_model_list(list0, x):
             new_state = [list0[0] + [x]]
             new_options = [*new_state[0]]
-            return gr.Dropdown.update(value=x, choices=new_options), '', new_state
+            return gr.Dropdown.update(value=x, choices=new_options), \
+                   gr.Dropdown.update(value=x, choices=new_options), \
+                   '', new_state
 
         add_model_event = add_model_button.click(fn=dropdown_model_list,
                                                  inputs=[model_options_state, new_model],
-                                                 outputs=[model_choice, new_model, model_options_state])
+                                                 outputs=[model_choice, model_choice2, new_model, model_options_state])
 
         def dropdown_lora_list(list0, x):
             new_state = [list0[0] + [x]]
             new_options = [*new_state[0]]
-            return gr.Dropdown.update(value=x, choices=new_options), '', new_state
+            return gr.Dropdown.update(value=x, choices=new_options), \
+                   gr.Dropdown.update(value=x, choices=new_options), \
+                   '', new_state
 
         add_lora_event = add_lora_button.click(fn=dropdown_lora_list,
                                                inputs=[lora_options_state, new_lora],
-                                               outputs=[lora_choice, new_lora, lora_options_state])
+                                               outputs=[lora_choice, lora_choice2, new_lora, lora_options_state])
 
         go_btn.click(lambda: gr.update(visible=False), None, go_btn, api_name="go") \
             .then(lambda: gr.update(visible=True), None, normal_block) \
             .then(**load_model_args).then(**prompt_update_args)
+
+        def compare_textbox_fun(x):
+            return gr.Textbox.update(visible=x)
+
+        def compare_column_fun(x):
+            return gr.Column.update(visible=x)
+
+        def compare_prompt_fun(x):
+            return gr.Dropdown.update(visible=x)
+
+        compare_checkbox.select(compare_textbox_fun, compare_checkbox, text_output2, api_name="compare_checkbox") \
+                        .then(compare_column_fun, compare_checkbox, col_model2) \
+                        .then(compare_prompt_fun, compare_checkbox, prompt_type2) \
+                        .then(compare_textbox_fun, compare_checkbox, score_text2)
+        # FIXME: add score_res2 in condition, but do better
 
         # callback for logging flagged input/output
         callback.setup(inputs_list + [text_output], "flagged_data_points")
@@ -1062,6 +1175,9 @@ def evaluate(
         assert isinstance(model_state[0], str)
         model, tokenizer, device, base_model = model_state0
     else:
+        raise AssertionError(no_model_msg)
+
+    if base_model is None:
         raise AssertionError(no_model_msg)
 
     assert base_model.strip(), no_model_msg
