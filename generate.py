@@ -860,9 +860,9 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
             if model_state_old[0] is not None:
                 try:
                     model_state_old[0].cpu()
-                except:
+                except Exception as e:
                     # sometimes hit NotImplementedError: Cannot copy out of meta tensor; no data!
-                    pass
+                    print("Unable to put model on CPU: %s" % str(e), flush=True)
                 del model_state_old[0]
                 model_state_old[0] = None
             if model_state_old[1] is not None:
