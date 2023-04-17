@@ -7,7 +7,7 @@ Come join the movement to make the world's best open source GPT led by H2O.ai!
 1. Curate high-quality open-source instruct data for fine-tuning
 2. Develop robust and performant training/inference code using best practices
 3. Create state-of-the-art open-source fine-tuned LLM models
-4. Democratize knowledge about GPT models
+4. Democratize knowledge about the creation and usage of LLM models
 5. Get community contributions
 
 ### Plan
@@ -21,12 +21,28 @@ Come join the movement to make the world's best open source GPT led by H2O.ai!
 6. Submit data and models to HuggingFace with 100% permissive license
 7. Collect feedback from community
 
+### What this is
+
+Open-source repository with commercially usable code (Apache v2) to:
+1. Generate datasets for fine-tuning LLMs (including prompt engineering)
+2. Fine-tune LLMs on commodity hardware and enterprise GPU servers (single or multi node)
+3. Run a chat bot on a single GPU server
+4. Evaluate the performance of fine-tuned LLMs
+5. Create an API for such a chat bot
+
+### What this isn't
+
+1. Pre-training of foundation models on hundreds of billions of tokens or more
+2. High-performance distributed training (DeepSpeed etc. are more suitable)
+3. State-of-the-art LLM. It's not great at code completion, reasoning, factual correctness. I suffers from halluzinations and other common issues that all LLMs share.
+4. End-user applications using LLMs
+
 
 Original training code is based on [Alpaca-LoRA](https://github.com/tloen/alpaca-lora/).
 
 All training data will be based on open-source permissive data. No Alpaca, no LLama, no OpenAI, no ShareGPT.
 
-All datasets and models will be published to HuggingFace.
+All datasets and models will be published to [H2O.ai's HuggingFace page](https://huggingface.co/h2oai/) and H2O.ai's S3 buckets.
 
 ### Native Installation (Recommended for Developers)
 
