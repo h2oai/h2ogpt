@@ -1173,6 +1173,10 @@ def evaluate(
 
     no_model_msg = "Please choose a base model with --base_model (CLI) or in Models Tab (gradio).\nThen start New Conversation"
 
+    if model_state0 is None:
+        # e.g. for no gradio case, set dummy value, else should be set
+        model_state0 = [None, None, None, None]
+
     if model_state is not None and len(model_state) == 4 and not isinstance(model_state[0], str):
         # try to free-up original model (i.e. list was passed as reference)
         if model_state0[0] is not None:
