@@ -67,6 +67,7 @@ prompt_type_to_model_name = {
     'plain': [
         'EleutherAI/gpt-j-6B',
         'EleutherAI/pythia-6.9b',
+        'EleutherAI/pythia-12b',
         'EleutherAI/pythia-12b-deduped',
         'EleutherAI/gpt-neox-20b',
         'decapoda-research/llama-7b-hf',

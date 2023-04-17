@@ -456,10 +456,11 @@ def go_gradio(**kwargs):
     all_kwargs = kwargs.copy()
     all_kwargs.update(locals())
     if kwargs.get('base_model'):
-        model, tokenizer, device = get_model(**all_kwargs)
+        model0, tokenizer0, device = get_model(**all_kwargs)
     else:
         # if empty model, then don't load anything, just get gradio up
-        model, tokenizer, device = None, None, None
+        model0, tokenizer0, device = None, None, None
+    model_state0 = [model0, tokenizer0, device, kwargs['base_model']]
 
     # get score model
     smodel, stokenizer, sdevice = get_score_model(**all_kwargs)
@@ -526,7 +527,9 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
     lora_options = [' '] + kwargs['extra_lora_options']
 
     with demo:
-        model_state = gr.State([model, tokenizer, device, kwargs['base_model']])
+        # avoid actual model/tokenizer here or anything that would be bad to deepcopy
+        # https://github.com/gradio-app/gradio/issues/3558
+        model_state = gr.State(['model', 'tokenizer', device, kwargs['base_model']])
         model_options_state = gr.State([model_options])
         lora_options_state = gr.State([lora_options])
         gr.Markdown(
@@ -857,7 +860,12 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
             # ensure old model removed from GPU memory
             if kwargs['debug']:
                 print("Pre-switch pre-del GPU memory: %s" % torch.cuda.memory_allocated(), flush=True)
-            if model_state_old[0] is not None:
+
+            if isinstance(model_state_old[0], str):
+                # best can do, move model loaded at first to CPU
+                model0.cpu()
+
+            if model_state_old[0] is not None and not isinstance(model_state_old[0], str):
                 try:
                     model_state_old[0].cpu()
                 except Exception as e:
@@ -865,11 +873,14 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                     print("Unable to put model on CPU: %s" % str(e), flush=True)
                 del model_state_old[0]
                 model_state_old[0] = None
-            if model_state_old[1] is not None:
+
+            if model_state_old[1] is not None and not isinstance(model_state_old[1], str):
                 del model_state_old[1]
                 model_state_old[1] = None
+
             torch.cuda.empty_cache()
             gc.collect()
+
             if kwargs['debug']:
                 print("Pre-switch post-del GPU memory: %s" % torch.cuda.memory_allocated(), flush=True)
             all_kwargs['base_model'] = model_name.strip()
@@ -878,10 +889,12 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                 prompt_type1 = inv_prompt_type_to_model_lower[model_lower]
             else:
                 prompt_type1 = prompt_type_old
+
             all_kwargs['lora_weights'] = lora_weights.strip()
             model1, tokenizer1, device1 = get_model(**all_kwargs)
             torch.cuda.empty_cache()
             gc.collect()
+
             if kwargs['debug']:
                 print("Post-switch GPU memory: %s" % torch.cuda.memory_allocated(), flush=True)
             return {model_state: [model1, tokenizer1, device1, model_name],
@@ -936,7 +949,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
 
 
 input_args_list = ['model_state']
-inputs_kwargs_list = ['debug', 'chat', 'hard_stop_list', 'sanitize_bot_response']
+inputs_kwargs_list = ['debug', 'chat', 'hard_stop_list', 'sanitize_bot_response', 'model_state0']
 
 
 def get_inputs_list(inputs_dict, model_lower):
@@ -1002,6 +1015,7 @@ def evaluate(
         chat=False,
         hard_stop_list=None,
         sanitize_bot_response=True,
+        model_state0=None,
         **kwargs,
 ):
     if debug:
@@ -1009,11 +1023,29 @@ def evaluate(
         locals_dict.pop('model_state', None)
         print(locals_dict)
 
-    model, tokenizer, device, base_model = model_state
+    if model_state is not None and len(model_state) == 4 and not isinstance(model_state[0], str):
+        assert not isinstance(model_state[1], str)
+        # try to free-up original model (i.e. list was passed as reference)
+        if model_state0[0] is not None:
+            model_state0[0].cpu()
+            model_state0[0] = None
+        # try to free-up original tokenizer (i.e. list was passed as reference)
+        if model_state0[1] is not None:
+            model_state0[1] = None
+        torch.cuda.empty_cache()
+        gc.collect()
+        model, tokenizer, device, base_model = model_state
+    elif model_state0 is not None and len(model_state0) == 4 and model_state0[0] is not None:
+        assert isinstance(model_state[0], str)
+        model, tokenizer, device, base_model = model_state0
+    else:
+        raise RuntimeError("No model selected")
 
     assert base_model.strip(), (
         "Please choose a base model with --base_model (CLI) or in Models Tab (gradio).\nThen start New Conversation"
     )
+    assert model, "Model is missing"
+    assert tokenizer, "Tokenizer is missing"
 
     data_point = dict(context=context, instruction=instruction, input=iinput)
     prompter = Prompter(prompt_type, debug=debug, chat=chat, stream_output=stream_output)
