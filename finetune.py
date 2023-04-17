@@ -624,9 +624,6 @@ def get_loaders(llama_type, model_name, reward_type):
     # NOTE: Some models need specific new prompt_type
     # E.g. t5_xxl_true_nli_mixture has input format: "premise: PREMISE_TEXT hypothesis: HYPOTHESIS_TEXT".)
     if llama_type:
-        assert (
-                "LlamaTokenizer" in transformers._import_structure["models.llama"]
-        ), "LLaMA is now in HuggingFace's main branch.\nPlease reinstall it: pip uninstall transformers && pip install git+https://github.com/huggingface/transformers.git"
         from transformers import LlamaForCausalLM, LlamaTokenizer
         model_loader = LlamaForCausalLM
         tokenizer_loader = LlamaTokenizer

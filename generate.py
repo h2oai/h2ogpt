@@ -313,6 +313,8 @@ def get_model(
     :param load_8bit: load model in 8-bit, not supported by all models
     :param load_half: load model in 16-bit
     :param infer_devices: Use torch infer of optimal placement of layers on devices (for non-lora case)
+           For non-LORA case, False will spread shards across multiple GPUs, but this can lead to cuda:x cuda:y mismatches
+           So it is not the default
     :param base_model: name/path of base model
     :param tokenizer_base_model: name/path of tokenizer
     :param lora_weights: name/path
@@ -1068,7 +1070,8 @@ def evaluate(
         stop_words_ids = [
             tokenizer(stop_word, return_tensors='pt')['input_ids'].squeeze() for stop_word in stop_words]
         # don't include padding or other tokens in stop word since not how appears when used in place
-        special_tokens = tokenizer(tokenizer.all_special_tokens_extended, return_tensors='pt')['input_ids'].flatten()
+        special_tokens_str = [x for x in tokenizer.all_special_tokens_extended if isinstance(x, str)]
+        special_tokens = tokenizer(special_tokens_str, return_tensors='pt')['input_ids'].flatten()
         for stop_word_i, stop_word in enumerate(stop_words_ids):
             stop_words_ids[stop_word_i] = torch.tensor([x for x in stop_word if x not in special_tokens], device=stop_word.device)
         stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(stops=stop_words_ids, encounters=encounters)])
