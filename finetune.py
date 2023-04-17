@@ -53,13 +53,14 @@ from enum import Enum
 class PromptType(Enum):
     plain = 0
     instruct = 1
-    instruct_with_end = 8
     quality = 2
     human_bot = 3
     dai_faq = 4
     summarize = 5
     simple_instruct = 6
     instruct_vicuna = 7
+    instruct_with_end = 8
+    human_bot_orig = 9
 
 
 prompt_type_to_model_name = {
@@ -80,11 +81,19 @@ prompt_type_to_model_name = {
     'instruct': [],
     'instruct_with_end': ['databricks/dolly-v2-12b'],
     'quality': [],
-    'human_bot': ['togethercomputer/GPT-NeoXT-Chat-Base-20B'],
+    'human_bot': [
+        'h2ogpt-oig-oasst1-256-6.9b',
+        'h2ogpt-oasst1-256-6.9b',
+        'h2ogpt-oasst1-512-6.9b',
+        'h2ogpt-oasst1-256-12b',
+        'h2ogpt-oasst1-512-12b',
+        'h2ogpt-oasst1-2048-12b',
+    ],
     'dai_faq': [],
     'summarize': [],
     'simple_instruct': ['t5-small', 't5-large', 'google/flan-t5', 'google/flan-t5-xxl', 'google/flan-ul2'],
-    'instruct_vicuna': ['AlekseyKorshuk/vicuna-7b']
+    'instruct_vicuna': ['AlekseyKorshuk/vicuna-7b'],
+    'human_bot_orig': ['togethercomputer/GPT-NeoXT-Chat-Base-20B'],
 }
 
 inv_prompt_type_to_model_name = {v.strip(): k for k, l in prompt_type_to_model_name.items() for v in l}
@@ -725,8 +734,8 @@ def get_prompt(prompt_type, chat, context, reduced):
 ### Response:
 """
         terminate_response = None
-    elif prompt_type in [2, "2", "human_bot"]:
-        if reduced or context:
+    elif prompt_type in [2, "2", "human_bot", 9, "9", "human_bot_orig"]:
+        if reduced or context or prompt_type in [2, "2", "human_bot"]:
             preprompt = ''
         else:
             cur_date = time.strftime('%Y-%m-%d')
