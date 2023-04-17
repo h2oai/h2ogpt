@@ -5,9 +5,9 @@ from peft import PeftModel
 from transformers import PreTrainedModel
 from finetune import get_loaders
 
-BASE_MODEL = 'EleutherAI/pythia-12b-deduped'
-LORA_WEIGHTS = "pythia-12b-deduped.h2ogpt-oig-oasst1-instruct-cleaned-v1.json.1_epochs.5fc91911bc2bfaaf3b6c2de577c4b0ae45a07a4a.17"
-OUTPUT_NAME = "h2ogpt-oig-oasst1-256-12b"
+BASE_MODEL = 'EleutherAI/gpt-neox-20b'
+LORA_WEIGHTS = 'gpt-neox-20b.openassistant_oasst1.json.1_epochs.5fc91911bc2bfaaf3b6c2de577c4b0ae45a07a4a.18'
+OUTPUT_NAME = "h2ogpt-oasst1-256-20b"
 llama_type = "llama" in BASE_MODEL
 as_pytorch = False  # False -> HF
 
@@ -32,7 +32,7 @@ if llama_type:
     layers = base_model.model.layers
     first_weight = layers[0].self_attn.q_proj.weight
 else:
-    if "gpt-neoxt" in BASE_MODEL.lower() or "pythia" in BASE_MODEL.lower():
+    if "gpt-neox" in BASE_MODEL.lower() or "pythia" in BASE_MODEL.lower():
         layers = base_model.gpt_neox.base_model.layers
         first_weight = layers[0].attention.query_key_value.weight
     else:
@@ -55,7 +55,7 @@ if llama_type:
         layer.self_attn.q_proj.merge_weights = True
         layer.self_attn.v_proj.merge_weights = True
 else:
-    if "gpt-neoxt" in BASE_MODEL.lower() or "pythia" in BASE_MODEL.lower():
+    if "gpt-neox" in BASE_MODEL.lower() or "pythia" in BASE_MODEL.lower():
         for layer in lora_model.base_model.gpt_neox.base_model.layers:
             layer.attention.query_key_value.merge_weights = True
     else:
