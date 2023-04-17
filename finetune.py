@@ -185,7 +185,7 @@ def train(
         ddp: bool = True,  # set to False if OOM with True, for multi-GPU model parallelism
         local_files_only: bool = False,  # else will download new versions, normally unwanted
         resume_download: bool = True,
-        use_auth_token: bool = True,
+        use_auth_token: bool = False,  # True requires CLI did huggingface-cli login before running
         warmup_steps: int = 100,
         logging_steps: int = 1,
         save_steps: int = None,  # must be round multiple of eval_steps

@@ -51,7 +51,7 @@ def main(
         share: bool = True,
         local_files_only: bool = False,
         resume_download: bool = True,
-        use_auth_token: bool = True,  # assumes on CLI did huggingface-cli login before running
+        use_auth_token: bool = False,  # True requires CLI did huggingface-cli login before running
 
         src_lang: str = "English",
         tgt_lang: str = "Russian",
