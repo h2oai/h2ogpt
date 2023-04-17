@@ -790,7 +790,7 @@ Current Time: {}
         PreResponse = """
 ### Assistant:
 """
-        terminate_response = None
+        terminate_response = ['### Human:']  # but only allow terminate after prompt is found correctly, else can't terminate
     else:
         raise RuntimeError("No such prompt_type=%s" % prompt_type)
 

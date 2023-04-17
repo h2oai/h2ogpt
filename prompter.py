@@ -59,21 +59,25 @@ class Prompter(object):
                     outputi = output.find(prompt)
                     if outputi >= 0:
                         output = output[outputi + len(prompt):]
+                        allow_terminate = True
                     else:
                         # subtraction is risky due to space offsets sometimes, so only do if necessary
                         output = output[len(prompt) - len(self.pre_response):]
                         # [1] to avoid repeated pre_response, just take first (after prompt - pre_response for chat)
                         if self.pre_response in output:
                             output = output.split(self.pre_response)[1]
+                            allow_terminate = True
                         else:
                             print("Failure of parsing: %s" % output, flush=True)
+                            allow_terminate = False
                 else:
+                    allow_terminate = True
                     output = output[len(prompt):]
                 # clean after subtract prompt out, so correct removal of pre_response
                 output = clean_response(output).strip()
                 if self.repeat_penalty:
                     output = clean_repeats(output).strip()
-                if self.terminate_response:
+                if self.terminate_response and allow_terminate:
                     finds = []
                     for term in self.terminate_response:
                         finds.append(output.find(term))
