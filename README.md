@@ -26,7 +26,7 @@ Come join the movement to make the world's best open source GPT led by H2O.ai!
 Open-source repository with commercially usable code (Apache v2) to:
 1. Generate datasets for fine-tuning LLMs (including prompt engineering)
 2. Fine-tune LLMs on commodity hardware and enterprise GPU servers (single or multi node)
-3. Run a chat bot on a single GPU server
+3. Run a chatbot on a single GPU server
 4. Evaluate the performance of fine-tuned LLMs
 5. Create an API for such a chat bot
 
@@ -34,7 +34,7 @@ Open-source repository with commercially usable code (Apache v2) to:
 
 1. Pre-training of foundation models on hundreds of billions of tokens or more
 2. High-performance distributed training (DeepSpeed etc. are more suitable)
-3. State-of-the-art LLM. It's not great at code completion, reasoning, factual correctness. I suffers from halluzinations and other common issues that all LLMs share.
+3. State-of-the-art LLM. It's not great at code completion, reasoning, factual correctness. It suffers from hallucinations and other common issues that all LLMs share.
 4. End-user applications using LLMs
 
 
