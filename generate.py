@@ -537,10 +537,18 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
         lora_options = [kwargs['lora_weights'].strip()] + lora_options
     # always add in no lora case
     # add fake space so doesn't go away in gradio dropdown
-    lora_options = [' '] + kwargs['extra_lora_options']  # FIXME: why double?
+    no_lora_str = no_model_str = '[None/Remove]'
+    lora_options = [no_lora_str] + kwargs['extra_lora_options']  # FIXME: why double?
     # always add in no model case so can free memory
     # add fake space so doesn't go away in gradio dropdown
-    model_options = [' '] + model_options
+    model_options = [no_model_str] + model_options
+
+    # transcribe, will be detranscribed before use by evaluate()
+    if not kwargs['lora_weights'].strip():
+        kwargs['lora_weights'] = no_lora_str
+
+    if not kwargs['base_model'].strip():
+        kwargs['base_model'] = no_model_str
 
     with demo:
         # avoid actual model/tokenizer here or anything that would be bad to deepcopy
@@ -558,7 +566,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
             """)
 
         # go button visible if
-        base_wanted = bool(kwargs['base_model']) and kwargs['login_mode_if_model0']
+        base_wanted = kwargs['login_mode_if_model0'] and kwargs['base_model'] != no_model_str
         go_btn = gr.Button(value="LOGIN", visible=base_wanted, variant="primary")
         normal_block = gr.Row(visible=not base_wanted)
         with normal_block:
@@ -841,7 +849,8 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                 # only include desired chat history
                 args_list[2] = context1[-kwargs['chat_history']:]
                 model_state1 = args_list[-2]
-                # FIXME: Maybe ok how handle model2?
+                if model_state1[0] is None or model_state1[0] == no_model_str:
+                    return
                 args_list = args_list[:-2]
                 fun1 = partial(evaluate,
                                model_state1,
@@ -985,9 +994,11 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
             if kwargs['debug']:
                 print("Pre-switch post-del GPU memory: %s" % torch.cuda.memory_allocated(), flush=True)
 
-            if not model_name:
-                # no-op if no model name, e.g. '', just free memory
-                return model_state_old, model_name, lora_weights, prompt_type_old
+            if model_name is None or model_name == no_model_str:
+                # no-op if no model, just free memory
+                # no detranscribe needed for model, never go into evaluate
+                lora_weights = no_lora_str
+                return [None, None, None, model_name], model_name, lora_weights, prompt_type_old
 
             all_kwargs['base_model'] = model_name.strip()
             model_lower = model_name.strip().lower()
@@ -995,6 +1006,10 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                 prompt_type1 = inv_prompt_type_to_model_lower[model_lower]
             else:
                 prompt_type1 = prompt_type_old
+
+            # detranscribe
+            if lora_weights == no_lora_str:
+                lora_weights = ''
 
             all_kwargs['lora_weights'] = lora_weights.strip()
             model1, tokenizer1, device1 = get_model(**all_kwargs)
