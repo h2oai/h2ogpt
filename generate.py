@@ -63,6 +63,8 @@ def main(
         verbose: bool = False,
         h2ocolors: bool = True,
         height: int = 400,
+        show_lora: bool = True,
+        login_mode_if_model0: bool = True,
 
         sanitize_user_prompt: bool = True,
         sanitize_bot_response: bool = True,
@@ -160,7 +162,9 @@ def main(
             import matplotlib.pyplot as plt
 
             for exi, ex in enumerate(examples):
-                torch.cuda.empty_cache()
+                if torch.cuda.is_available:
+                    torch.cuda.empty_cache()
+                    torch.cuda.ipc_collect()
                 gc.collect()
                 print("")
                 print("START" + "=" * 100)
@@ -455,7 +459,7 @@ def go_gradio(**kwargs):
     # get default model
     all_kwargs = kwargs.copy()
     all_kwargs.update(locals())
-    if kwargs.get('base_model'):
+    if kwargs.get('base_model') and not kwargs['login_mode_if_model0']:
         model0, tokenizer0, device = get_model(**all_kwargs)
     else:
         # if empty model, then don't load anything, just get gradio up
@@ -510,7 +514,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                            )
 
     import gradio as gr
-    demo = gr.Blocks(theme=gr.themes.Soft(**colors_dict), css=css_code, title="h2oGPT")
+    demo = gr.Blocks(theme=gr.themes.Soft(**colors_dict), css=css_code, title="h2oGPT", analytics_enabled=False)
     callback = gr.CSVLogger()
     # css_code = 'body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en/site/header/master/_jcr_content/root/container/header_copy/logo.coreimg.svg/1678976605175/h2o-logo.svg");}'
     # demo = gr.Blocks(theme='gstaff/xkcd', css=css_code)
@@ -540,135 +544,140 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
             {task_info_md}
             """)
 
-        with gr.Tabs():
-            with gr.Row():
-                if not kwargs['chat']:
-                    with gr.Column():
-                        instruction = gr.Textbox(
-                            lines=4, label=instruction_label,
-                            placeholder=kwargs['placeholder_instruction'],
-                        )
-                        iinput = gr.Textbox(lines=4, label="Input",
-                                            placeholder=kwargs['placeholder_input'])
-                        submit = gr.Button(label='Submit')
-                        flag_btn = gr.Button("Flag")
-                        if kwargs['score_model']:
-                            if not kwargs['auto_score']:
-                                with gr.Column():
-                                    score_btn = gr.Button("Score last prompt & response")
-                                    score_text = gr.Textbox("Response Score: NA", show_label=False)
-                            else:
-                                score_text = gr.Textbox("Response Score: NA", show_label=False)
-                with gr.Column():
-                    if kwargs['chat']:
-                        text_output = gr.Chatbot(label='h2oGPT').style(height=kwargs['height'] or 400)
-                        with gr.Row():
-                            with gr.Column(scale=50):
-                                instruction = gr.Textbox(
-                                    lines=4, label=instruction_label,
-                                    placeholder=kwargs['placeholder_instruction'],
-                                )
-                            with gr.Row():  # .style(equal_height=False, equal_width=False):
-                                submit = gr.Button(value='Submit').style(full_width=False, size='sm')
-                                stop_btn = gr.Button(value="Stop").style(full_width=False, size='sm')
-                        with gr.Row():
-                            clear = gr.Button("New Conversation")
+        # go button visible if
+        base_wanted = bool(kwargs['base_model']) and kwargs['login_mode_if_model0']
+        go_btn = gr.Button(value="LOGIN", visible=base_wanted, variant="primary")
+        normal_block = gr.Row(visible=not base_wanted)
+        with normal_block:
+            with gr.Tabs():
+                with gr.Row():
+                    if not kwargs['chat']:
+                        with gr.Column():
+                            instruction = gr.Textbox(
+                                lines=4, label=instruction_label,
+                                placeholder=kwargs['placeholder_instruction'],
+                            )
+                            iinput = gr.Textbox(lines=4, label="Input",
+                                                placeholder=kwargs['placeholder_input'])
+                            submit = gr.Button(label='Submit')
                             flag_btn = gr.Button("Flag")
                             if kwargs['score_model']:
                                 if not kwargs['auto_score']:
                                     with gr.Column():
-                                        score_btn = gr.Button("Score last prompt & response").style(full_width=False, size='sm')
+                                        score_btn = gr.Button("Score last prompt & response")
                                         score_text = gr.Textbox("Response Score: NA", show_label=False)
                                 else:
                                     score_text = gr.Textbox("Response Score: NA", show_label=False)
-                            retry = gr.Button("Regenerate")
-                            undo = gr.Button("Undo")
-                    else:
-                        text_output = gr.Textbox(lines=5, label="Output")
-            with gr.TabItem("Input/Output"):
-                with gr.Row():
-                    if 'mbart-' in kwargs['model_lower']:
-                        src_lang = gr.Dropdown(list(languages_covered().keys()),
-                                               value=kwargs['src_lang'],
-                                               label="Input Language")
-                        tgt_lang = gr.Dropdown(list(languages_covered().keys()),
-                                               value=kwargs['tgt_lang'],
-                                               label="Output Language")
-            with gr.TabItem("Expert"):
-                with gr.Row():
                     with gr.Column():
-                        stream_output = gr.components.Checkbox(label="Stream output",
-                                                               value=kwargs['stream_output'])
-                        prompt_type = gr.Dropdown(prompt_types_strings,
-                                                  value=kwargs['prompt_type'], label="Prompt Type")
-                        temperature = gr.Slider(minimum=0, maximum=3,
-                                                value=kwargs['temperature'],
-                                                label="Temperature",
-                                                info="Lower is deterministic (but may lead to repeats), Higher more creative (but may lead to hallucinations)")
-                        top_p = gr.Slider(minimum=0, maximum=1,
-                                          value=kwargs['top_p'], label="Top p",
-                                          info="Cumulative probability of tokens to sample from")
-                        top_k = gr.Slider(
-                            minimum=0, maximum=100, step=1,
-                            value=kwargs['top_k'], label="Top k",
-                            info='Num. tokens to sample from'
-                        )
-                        num_beams = gr.Slider(minimum=1, maximum=8, step=1,
-                                              value=kwargs['num_beams'], label="Beams",
-                                              info="Number of searches for optimal overall probability.  Uses more GPU memory/compute")
-                        max_new_tokens = gr.Slider(
-                            minimum=1, maximum=2048, step=1,
-                            value=kwargs['max_new_tokens'], label="Max output length"
-                        )
-                        min_new_tokens = gr.Slider(
-                            minimum=0, maximum=2048, step=1,
-                            value=kwargs['min_new_tokens'], label="Min output length"
-                        )
-                        early_stopping = gr.Checkbox(label="EarlyStopping", info="Stop early in beam search",
-                                                     value=kwargs['early_stopping'])
-                        max_time = gr.Slider(minimum=0, maximum=60 * 5, step=1,
-                                             value=kwargs['max_time'], label="Max. time",
-                                             info="Max. time to search optimal output.")
-                        repetition_penalty = gr.Slider(minimum=0.01, maximum=3.0,
-                                                       value=kwargs['repetition_penalty'],
-                                                       label="Repetition Penalty")
-                        num_return_sequences = gr.Slider(minimum=1, maximum=10, step=1,
-                                                         value=kwargs['num_return_sequences'],
-                                                         label="Number Returns", info="Must be <= num_beams")
-                        do_sample = gr.Checkbox(label="Sample", info="Sample, for diverse output(s)",
-                                                value=kwargs['do_sample'])
                         if kwargs['chat']:
-                            iinput = gr.Textbox(lines=4, label="Input",
-                                                placeholder=kwargs['placeholder_input'])
-                        context = gr.Textbox(lines=1, label="Context",
-                                             info="Ignored in chat mode.")  # nominally empty for chat mode
+                            text_output = gr.Chatbot(label='h2oGPT').style(height=kwargs['height'] or 400)
+                            with gr.Row():
+                                with gr.Column(scale=50):
+                                    instruction = gr.Textbox(
+                                        lines=4, label=instruction_label,
+                                        placeholder=kwargs['placeholder_instruction'],
+                                    )
+                                with gr.Row():  # .style(equal_height=False, equal_width=False):
+                                    submit = gr.Button(value='Submit').style(full_width=False, size='sm')
+                                    stop_btn = gr.Button(value="Stop").style(full_width=False, size='sm')
+                            with gr.Row():
+                                clear = gr.Button("New Conversation")
+                                flag_btn = gr.Button("Flag")
+                                if kwargs['score_model']:
+                                    if not kwargs['auto_score']:
+                                        with gr.Column():
+                                            score_btn = gr.Button("Score last prompt & response").style(full_width=False, size='sm')
+                                            score_text = gr.Textbox("Response Score: NA", show_label=False)
+                                    else:
+                                        score_text = gr.Textbox("Response Score: NA", show_label=False)
+                                retry = gr.Button("Regenerate")
+                                undo = gr.Button("Undo")
+                        else:
+                            text_output = gr.Textbox(lines=5, label="Output")
+                with gr.TabItem("Input/Output"):
+                    with gr.Row():
+                        if 'mbart-' in kwargs['model_lower']:
+                            src_lang = gr.Dropdown(list(languages_covered().keys()),
+                                                   value=kwargs['src_lang'],
+                                                   label="Input Language")
+                            tgt_lang = gr.Dropdown(list(languages_covered().keys()),
+                                                   value=kwargs['tgt_lang'],
+                                                   label="Output Language")
+                with gr.TabItem("Expert"):
+                    with gr.Row():
+                        with gr.Column():
+                            stream_output = gr.components.Checkbox(label="Stream output",
+                                                                   value=kwargs['stream_output'])
+                            prompt_type = gr.Dropdown(prompt_types_strings,
+                                                      value=kwargs['prompt_type'], label="Prompt Type")
+                            temperature = gr.Slider(minimum=0, maximum=3,
+                                                    value=kwargs['temperature'],
+                                                    label="Temperature",
+                                                    info="Lower is deterministic (but may lead to repeats), Higher more creative (but may lead to hallucinations)")
+                            top_p = gr.Slider(minimum=0, maximum=1,
+                                              value=kwargs['top_p'], label="Top p",
+                                              info="Cumulative probability of tokens to sample from")
+                            top_k = gr.Slider(
+                                minimum=0, maximum=100, step=1,
+                                value=kwargs['top_k'], label="Top k",
+                                info='Num. tokens to sample from'
+                            )
+                            num_beams = gr.Slider(minimum=1, maximum=8, step=1,
+                                                  value=kwargs['num_beams'], label="Beams",
+                                                  info="Number of searches for optimal overall probability.  Uses more GPU memory/compute")
+                            max_new_tokens = gr.Slider(
+                                minimum=1, maximum=2048, step=1,
+                                value=kwargs['max_new_tokens'], label="Max output length"
+                            )
+                            min_new_tokens = gr.Slider(
+                                minimum=0, maximum=2048, step=1,
+                                value=kwargs['min_new_tokens'], label="Min output length"
+                            )
+                            early_stopping = gr.Checkbox(label="EarlyStopping", info="Stop early in beam search",
+                                                         value=kwargs['early_stopping'])
+                            max_time = gr.Slider(minimum=0, maximum=60 * 5, step=1,
+                                                 value=kwargs['max_time'], label="Max. time",
+                                                 info="Max. time to search optimal output.")
+                            repetition_penalty = gr.Slider(minimum=0.01, maximum=3.0,
+                                                           value=kwargs['repetition_penalty'],
+                                                           label="Repetition Penalty")
+                            num_return_sequences = gr.Slider(minimum=1, maximum=10, step=1,
+                                                             value=kwargs['num_return_sequences'],
+                                                             label="Number Returns", info="Must be <= num_beams")
+                            do_sample = gr.Checkbox(label="Sample", info="Sample, for diverse output(s)",
+                                                    value=kwargs['do_sample'])
+                            if kwargs['chat']:
+                                iinput = gr.Textbox(lines=4, label="Input",
+                                                    placeholder=kwargs['placeholder_input'])
+                            context = gr.Textbox(lines=1, label="Context",
+                                                 info="Ignored in chat mode.")  # nominally empty for chat mode
 
-            with gr.TabItem("Models"):
-                with gr.Row():
-                    with gr.Column():
-                        with gr.Row(scale=1):
-                            with gr.Column(scale=50):
-                                model_choice = gr.Dropdown(model_options_state.value[0], label="Choose Model", value=kwargs['base_model'])
-                            with gr.Column(scale=1):
-                                load_model_button = gr.Button("Load model")
-                                model_used = gr.Textbox(label="Current Model", value=kwargs['base_model'])
-                        with gr.Row(scale=1):
-                            with gr.Column(scale=50):
-                                new_model = gr.Textbox(label="New Model HF name/path")
-                            with gr.Column(scale=1):
-                                add_model_button = gr.Button("Add new model name")
+                with gr.TabItem("Models"):
+                    with gr.Row():
+                        with gr.Column():
+                            with gr.Row(scale=1):
+                                with gr.Column(scale=50):
+                                    model_choice = gr.Dropdown(model_options_state.value[0], label="Choose Model", value=kwargs['base_model'])
+                                with gr.Column(scale=1):
+                                    load_model_button = gr.Button("Load model")
+                                    model_used = gr.Textbox(label="Current Model", value=kwargs['base_model'])
+                            with gr.Row(scale=1):
+                                with gr.Column(scale=50):
+                                    new_model = gr.Textbox(label="New Model HF name/path")
+                                with gr.Column(scale=1):
+                                    add_model_button = gr.Button("Add new model name")
 
-                        with gr.Row(scale=1):
-                            with gr.Column(scale=50):
-                                lora_choice = gr.Dropdown(lora_options_state.value[0], label="Choose LORA", value=kwargs['lora_weights'])
-                            with gr.Column(scale=1):
-                                load_lora_button = gr.Button("Load LORA")
-                                lora_used = gr.Textbox(label="Current LORA", value=kwargs['lora_weights'])
-                        with gr.Row(scale=1):
-                            with gr.Column(scale=50):
-                                new_lora = gr.Textbox(label="New LORA HF name/path")
-                            with gr.Column(scale=1):
-                                add_lora_button = gr.Button("Add new LORA name")
+                            with gr.Row(scale=1, visible=kwargs['show_lora']):
+                                with gr.Column(scale=50):
+                                    lora_choice = gr.Dropdown(lora_options_state.value[0], label="Choose LORA", value=kwargs['lora_weights'])
+                                with gr.Column(scale=1):
+                                    load_lora_button = gr.Button("Load LORA")
+                                    lora_used = gr.Textbox(label="Current LORA", value=kwargs['lora_weights'])
+                            with gr.Row(scale=1, visible=kwargs['show_lora']):
+                                with gr.Column(scale=50):
+                                    new_lora = gr.Textbox(label="New LORA HF name/path")
+                                with gr.Column(scale=1):
+                                    add_lora_button = gr.Button("Add new LORA name")
 
         inputs_list = get_inputs_list(locals(), kwargs['model_lower'])
         from functools import partial
@@ -861,7 +870,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
             if kwargs['debug']:
                 print("Pre-switch pre-del GPU memory: %s" % torch.cuda.memory_allocated(), flush=True)
 
-            if isinstance(model_state_old[0], str):
+            if isinstance(model_state_old[0], str) and model0 is not None:
                 # best can do, move model loaded at first to CPU
                 model0.cpu()
 
@@ -878,7 +887,9 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                 del model_state_old[1]
                 model_state_old[1] = None
 
-            torch.cuda.empty_cache()
+            if torch.cuda.is_available:
+                torch.cuda.empty_cache()
+                torch.cuda.ipc_collect()
             gc.collect()
 
             if kwargs['debug']:
@@ -892,7 +903,9 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
 
             all_kwargs['lora_weights'] = lora_weights.strip()
             model1, tokenizer1, device1 = get_model(**all_kwargs)
-            torch.cuda.empty_cache()
+            if torch.cuda.is_available:
+                torch.cuda.empty_cache()
+                torch.cuda.ipc_collect()
             gc.collect()
 
             if kwargs['debug']:
@@ -905,10 +918,11 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
         def dropdown_prompt_type_list(x):
             return gr.Dropdown.update(value=x)
 
-        load_model_event = load_model_button.click(fn=load_model,
-                                                   inputs=[model_choice, lora_choice, model_state, prompt_type],
-                                                   outputs=[model_state, model_used, lora_used, prompt_type]).then(
-                                                   dropdown_prompt_type_list, prompt_type, prompt_type)
+        load_model_args = dict(fn=load_model,
+                               inputs=[model_choice, lora_choice, model_state, prompt_type],
+                               outputs=[model_state, model_used, lora_used, prompt_type])
+        prompt_update_args = dict(fn=dropdown_prompt_type_list, inputs=prompt_type, outputs=prompt_type)
+        load_model_event = load_model_button.click(**load_model_args).then(**prompt_update_args)
 
         def dropdown_model_list(list0, x):
             new_state = [list0[0] + [x]]
@@ -921,7 +935,8 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
 
         load_lora_event = load_lora_button.click(fn=load_model,
                                                  inputs=[model_choice, lora_choice, model_state, prompt_type],
-                                                 outputs=[model_state, model_used, lora_used, prompt_type])
+                                                 outputs=[model_state, model_used, lora_used, prompt_type]).then(
+                                                   dropdown_prompt_type_list, prompt_type, prompt_type)
 
         def dropdown_lora_list(list0, x):
             new_state = [list0[0] + [x]]
@@ -931,6 +946,10 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
         add_lora_event = add_lora_button.click(fn=dropdown_lora_list,
                                                inputs=[lora_options_state, new_lora],
                                                outputs=[lora_choice, new_lora, lora_options_state])
+
+        go_btn.click(lambda: gr.update(visible=False), None, go_btn, api_name="go") \
+            .then(lambda: gr.update(visible=True), None, normal_block) \
+            .then(**load_model_args).then(**prompt_update_args)
 
         # callback for logging flagged input/output
         callback.setup(inputs_list + [text_output], "flagged_data_points")
@@ -945,7 +964,9 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
     demo.queue(concurrency_count=1)
     favicon_path = "h2o-logo.svg"
     demo.launch(share=kwargs['share'], server_name="0.0.0.0", show_error=True,
-                favicon_path=favicon_path)  # , enable_queue=True)
+                favicon_path=favicon_path, prevent_thread_lock=True)  # , enable_queue=True)
+    print("Started GUI", flush=True)
+    demo.block_thread()
 
 
 input_args_list = ['model_state']
@@ -1023,8 +1044,9 @@ def evaluate(
         locals_dict.pop('model_state', None)
         print(locals_dict)
 
+    no_model_msg = "Please choose a base model with --base_model (CLI) or in Models Tab (gradio).\nThen start New Conversation"
+
     if model_state is not None and len(model_state) == 4 and not isinstance(model_state[0], str):
-        assert not isinstance(model_state[1], str)
         # try to free-up original model (i.e. list was passed as reference)
         if model_state0[0] is not None:
             model_state0[0].cpu()
@@ -1032,18 +1054,18 @@ def evaluate(
         # try to free-up original tokenizer (i.e. list was passed as reference)
         if model_state0[1] is not None:
             model_state0[1] = None
-        torch.cuda.empty_cache()
+        if torch.cuda.is_available:
+            torch.cuda.empty_cache()
+            torch.cuda.ipc_collect()
         gc.collect()
         model, tokenizer, device, base_model = model_state
     elif model_state0 is not None and len(model_state0) == 4 and model_state0[0] is not None:
         assert isinstance(model_state[0], str)
         model, tokenizer, device, base_model = model_state0
     else:
-        raise RuntimeError("No model selected")
+        raise AssertionError(no_model_msg)
 
-    assert base_model.strip(), (
-        "Please choose a base model with --base_model (CLI) or in Models Tab (gradio).\nThen start New Conversation"
-    )
+    assert base_model.strip(), no_model_msg
     assert model, "Model is missing"
     assert tokenizer, "Tokenizer is missing"
 
@@ -1062,7 +1084,7 @@ def evaluate(
         else:
             raise RuntimeError("No such task type %s" % tokenizer)
         # NOTE: uses max_length only
-        return model(prompt, max_length=max_new_tokens)[0][key]
+        yield model(prompt, max_length=max_new_tokens)[0][key]
 
     if 'mbart-' in base_model.lower():
         assert src_lang is not None
