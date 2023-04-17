@@ -51,6 +51,7 @@ def main(
         share: bool = True,
         local_files_only: bool = False,
         resume_download: bool = True,
+        use_auth_token: bool = True,  # assumes on CLI did huggingface-cli login before running
 
         src_lang: str = "English",
         tgt_lang: str = "Russian",
@@ -239,7 +240,7 @@ def get_device():
     return device
 
 
-def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward_type, force_1_gpu=True):
+def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward_type, force_1_gpu=True, use_auth_token=True):
     """
     Ensure model gets on correct device
     :param base_model:
@@ -251,7 +252,7 @@ def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward
     """
     with init_empty_weights():
         from transformers import AutoConfig
-        config = AutoConfig.from_pretrained(base_model)
+        config = AutoConfig.from_pretrained(base_model, use_auth_token=use_auth_token)
         model = AutoModel.from_config(
             config,
         )
@@ -309,6 +310,7 @@ def get_model(
         reward_type: bool = None,
         local_files_only: bool = False,
         resume_download: bool = True,
+        use_auth_token: bool = True,
         compile: bool = True,
         **kwargs,
 ):
@@ -327,6 +329,8 @@ def get_model(
     :param reward_type: reward type model for sequence classification
     :param local_files_only: use local files instead of from HF
     :param resume_download: resume downloads from HF
+    :param use_auth_token: assumes user did on CLI `huggingface-cli login` to access private repo
+    :parm compile: whether to compile torch model
     :param kwargs:
     :return:
     """
@@ -351,6 +355,7 @@ def get_model(
         tokenizer = tokenizer_loader.from_pretrained(tokenizer_base_model,
                                                      local_files_only=local_files_only,
                                                      resume_download=resume_download,
+                                                     use_auth_token=use_auth_token,
                                                      )
     else:
         tokenizer = tokenizer_loader
@@ -365,7 +370,8 @@ def get_model(
         assert device == "cuda", "Unsupported device %s" % device
         model_kwargs = dict(local_files_only=local_files_only,
                             torch_dtype=torch.float16,
-                            resume_download=resume_download)
+                            resume_download=resume_download,
+                            use_auth_token=use_auth_token)
         if 'mbart-' not in base_model.lower():
             model_kwargs.update(dict(load_in_8bit=load_8bit,
                                      device_map={"": 0} if load_8bit else "auto",
@@ -378,7 +384,8 @@ def get_model(
         if not lora_weights:
             with torch.device("cuda"):
                 if infer_devices:
-                    model = get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward_type, force_1_gpu=force_1_gpu)
+                    model = get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward_type,
+                                               force_1_gpu=force_1_gpu, use_auth_token=use_auth_token)
                 else:
                     if load_half and not load_8bit:
                         model = model_loader.from_pretrained(
@@ -399,6 +406,7 @@ def get_model(
                 torch_dtype=torch.float16,
                 local_files_only=local_files_only,
                 resume_download=resume_download,
+                use_auth_token=use_auth_token,
                 device_map={"": 0},  # seems to be required
             )
         else:
@@ -413,6 +421,7 @@ def get_model(
                     torch_dtype=torch.float16,
                     local_files_only=local_files_only,
                     resume_download=resume_download,
+                    use_auth_token=use_auth_token,
                     device_map="auto",
                 )
                 if load_half:
@@ -658,26 +667,18 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                             with gr.Row(scale=1):
                                 with gr.Column(scale=50):
                                     model_choice = gr.Dropdown(model_options_state.value[0], label="Choose Model", value=kwargs['base_model'])
+                                    lora_choice = gr.Dropdown(lora_options_state.value[0], label="Choose LORA", value=kwargs['lora_weights'], visible=kwargs['show_lora'])
                                 with gr.Column(scale=1):
-                                    load_model_button = gr.Button("Load model")
+                                    load_model_button = gr.Button("Load Model/LORA")
                                     model_used = gr.Textbox(label="Current Model", value=kwargs['base_model'])
+                                    lora_used = gr.Textbox(label="Current LORA", value=kwargs['lora_weights'], visible=kwargs['show_lora'])
                             with gr.Row(scale=1):
                                 with gr.Column(scale=50):
                                     new_model = gr.Textbox(label="New Model HF name/path")
+                                    new_lora = gr.Textbox(label="New LORA HF name/path", visible=kwargs['show_lora'])
                                 with gr.Column(scale=1):
                                     add_model_button = gr.Button("Add new model name")
-
-                            with gr.Row(scale=1, visible=kwargs['show_lora']):
-                                with gr.Column(scale=50):
-                                    lora_choice = gr.Dropdown(lora_options_state.value[0], label="Choose LORA", value=kwargs['lora_weights'])
-                                with gr.Column(scale=1):
-                                    load_lora_button = gr.Button("Load LORA")
-                                    lora_used = gr.Textbox(label="Current LORA", value=kwargs['lora_weights'])
-                            with gr.Row(scale=1, visible=kwargs['show_lora']):
-                                with gr.Column(scale=50):
-                                    new_lora = gr.Textbox(label="New LORA HF name/path")
-                                with gr.Column(scale=1):
-                                    add_lora_button = gr.Button("Add new LORA name")
+                                    add_lora_button = gr.Button("Add new LORA name", visible=kwargs['show_lora'])
 
         inputs_list = get_inputs_list(locals(), kwargs['model_lower'])
         from functools import partial
@@ -935,11 +936,6 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
         add_model_event = add_model_button.click(fn=dropdown_model_list,
                                                  inputs=[model_options_state, new_model],
                                                  outputs=[model_choice, new_model, model_options_state])
-
-        load_lora_event = load_lora_button.click(fn=load_model,
-                                                 inputs=[model_choice, lora_choice, model_state, prompt_type],
-                                                 outputs=[model_state, model_used, lora_used, prompt_type]).then(
-                                                   dropdown_prompt_type_list, prompt_type, prompt_type)
 
         def dropdown_lora_list(list0, x):
             new_state = [list0[0] + [x]]

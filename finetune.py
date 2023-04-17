@@ -185,6 +185,7 @@ def train(
         ddp: bool = True,  # set to False if OOM with True, for multi-GPU model parallelism
         local_files_only: bool = False,  # else will download new versions, normally unwanted
         resume_download: bool = True,
+        use_auth_token: bool = True,
         warmup_steps: int = 100,
         logging_steps: int = 1,
         save_steps: int = None,  # must be round multiple of eval_steps
@@ -253,6 +254,7 @@ def train(
         max_memory=max_memory,
         local_files_only=local_files_only,
         resume_download=resume_download,
+        use_auth_token=use_auth_token,
     )
     if gpus > 1:
         if not ddp:
@@ -262,7 +264,8 @@ def train(
 
     tokenizer = tokenizer_loader.from_pretrained(tokenizer_base_model,
                                                  local_files_only=local_files_only,
-                                                 resume_download=resume_download)
+                                                 resume_download=resume_download,
+                                                 use_auth_token=use_auth_token)
 
     tokenizer.pad_token_id = 0  # different from the eos token
     # when generating, we will use the logits of right-most token to predict the next token
@@ -327,6 +330,7 @@ def train(
             device_map=device_map,
             local_files_only=local_files_only,
             resume_download=resume_download,
+            use_auth_token=use_auth_token,
         )
     else:
         if lora_target_modules is None:
