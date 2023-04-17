@@ -53,6 +53,7 @@ from enum import Enum
 class PromptType(Enum):
     plain = 0
     instruct = 1
+    instruct_with_end = 8
     quality = 2
     human_bot = 3
     dai_faq = 4
@@ -77,6 +78,7 @@ prompt_type_to_model_name = {
         'distilgpt2',
     ],
     'instruct': [],
+    'instruct_with_end': ['databricks/dolly-v2-12b'],
     'quality': [],
     'human_bot': ['togethercomputer/GPT-NeoXT-Chat-Base-20B'],
     'dai_faq': [],
@@ -688,7 +690,7 @@ def get_prompt(prompt_type, chat, context, reduced):
     elif prompt_type == 'simple_instruct':
         promptA = promptB = PreInstruct = PreInput = PreResponse = None
         terminate_response = []
-    elif prompt_type in [0, "0", "instruct"]:
+    elif prompt_type in [0, "0", "instruct"] or prompt_type in [7, "7", "instruct_with_end"]:
         promptA = 'Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.\n' if not (chat and reduced) else ''
         promptB = 'Below is an instruction that describes a task. Write a response that appropriately completes the request.\n' if not (chat and reduced) else ''
 
@@ -703,7 +705,10 @@ def get_prompt(prompt_type, chat, context, reduced):
         PreResponse = """
 ### Response:
 """
-        terminate_response = None
+        if prompt_type in [7, "7", "instruct_with_end"]:
+            terminate_response = ['### End']
+        else:
+            terminate_response = None
     elif prompt_type in [1, "1", "quality"]:
         promptA = 'Write a detailed high-quality, accurate, fair, Response with about 100 words by following the Instruction as applied on the Input.\n' if not (chat and reduced) else ''
         promptB = 'Write a detailed high-quality, accurate, fair, Response with about 100 words by following the Instruction.\n' if not (chat and reduced) else ''

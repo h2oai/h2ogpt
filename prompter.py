@@ -2,13 +2,14 @@ from finetune import generate_prompt
 
 
 class Prompter(object):
-    def __init__(self, prompt_type, debug=False, chat=False, stream_output=False):
+    def __init__(self, prompt_type, debug=False, chat=False, stream_output=False, repeat_penalty=True):
         self.prompt_type = prompt_type
         data_point = dict(instruction='', input='', output='')
         _, self.pre_response, self.terminate_response = generate_prompt(data_point, prompt_type, chat, False)
         self.debug = debug
         self.chat = chat
         self.stream_output = stream_output
+        self.repeat_penalty = repeat_penalty
 
     def generate_prompt(self, data_point):
         reduced = False
@@ -36,6 +37,15 @@ class Prompter(object):
             response = response.strip("\n")
             return response
 
+        def clean_repeats(response):
+            lines = response.split('\n')
+            new_lines = []
+            [new_lines.append(line) for line in lines if line not in new_lines]
+            if self.debug and len(lines) != len(new_lines):
+                print("cleaned repeats: %s %s" % (len(lines), len(new_lines)), flush=True)
+            response = '\n'.join(new_lines)
+            return response
+
         multi_output = len(outputs) > 1
 
         for oi, output in enumerate(outputs):
@@ -61,6 +71,8 @@ class Prompter(object):
                     output = output[len(prompt):]
                 # clean after subtract prompt out, so correct removal of pre_response
                 output = clean_response(output).strip()
+                if self.repeat_penalty:
+                    output = clean_repeats(output).strip()
                 if self.terminate_response:
                     finds = []
                     for term in self.terminate_response:

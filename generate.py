@@ -1039,7 +1039,7 @@ def evaluate(
     if chat:
         # override, ignore user change
         num_return_sequences = 1
-    if prompt_type in ['human_bot', 'instruct', 'instruct_vicuna']:
+    if prompt_type in ['human_bot', 'instruct_vicuna', 'instruct_with_end']:
         if prompt_type == 'human_bot':
             # encounters = [prompt.count(human) + 1, prompt.count(bot) + 1]
             # stopping only starts once output is beyond prompt
@@ -1069,11 +1069,12 @@ def evaluate(
             encounters = [1]
         stop_words_ids = [
             tokenizer(stop_word, return_tensors='pt')['input_ids'].squeeze() for stop_word in stop_words]
-        # don't include padding or other tokens in stop word since not how appears when used in place
-        special_tokens_str = [x for x in tokenizer.all_special_tokens_extended if isinstance(x, str)]
-        special_tokens = tokenizer(special_tokens_str, return_tensors='pt')['input_ids'].flatten()
-        for stop_word_i, stop_word in enumerate(stop_words_ids):
-            stop_words_ids[stop_word_i] = torch.tensor([x for x in stop_word if x not in special_tokens], device=stop_word.device)
+        # handle single token case
+        stop_words_ids = [x if len(x.shape) > 0 else torch.tensor([x]) for x in stop_words_ids]
+        stop_words_ids = [x for x in stop_words_ids if x.shape[0] > 0]
+        # avoid padding in front of tokens
+        if tokenizer.pad_token:
+            stop_words_ids = [x[1:] if x[0] == tokenizer.pad_token_id and len(x) > 1 else x for x in stop_words_ids]
         stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(stops=stop_words_ids, encounters=encounters)])
     else:
         stopping_criteria = StoppingCriteriaList()
