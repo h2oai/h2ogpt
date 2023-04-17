@@ -83,13 +83,21 @@ prompt_type_to_model_name = {
     'instruct_with_end': ['databricks/dolly-v2-12b'],
     'quality': [],
     'human_bot': [
+        # HF
+        'h2oai/h2ogpt-oig-oasst1-256-12b',
+        'h2oai/h2ogpt-oasst1-512-12b',
+        'h2oai/h2ogpt-oasst1-256-12b',
+        'h2oai/h2ogpt-oig-oasst1-256-6.9b',
+        'h2oai/h2ogpt-oasst1-512-6.9b',
+        'h2oai/h2ogpt-oasst1-256-6.9b',
+
+        # local models (for development)
         'h2ogpt-oig-oasst1-256-12b',
-        'h2ogpt-oig-oasst1-256-6.9b',
-        'h2ogpt-oasst1-256-6.9b',
-        'h2ogpt-oasst1-512-6.9b',
-        'h2ogpt-oasst1-256-12b',
         'h2ogpt-oasst1-512-12b',
-        'h2ogpt-oasst1-2048-12b',
+        'h2ogpt-oasst1-256-12b',
+        'h2ogpt-oig-oasst1-256-6.9b',
+        'h2ogpt-oasst1-512-6.9b',
+        'h2ogpt-oasst1-256-6.9b',
     ],
     'dai_faq': [],
     'summarize': [],
