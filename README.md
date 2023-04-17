@@ -60,9 +60,9 @@ Follow the [fine-tuning instructions](FINETUNE.md) to fine-tune any LLM models o
 
 Start an h2oGPT chatbot like this:
 ```
-torchrun generate.py --load_8bit=True --base_model='h2oai/h2ogpt-6B' --prompt_type=human_bot  # needs 8GB GPU
-torchrun generate.py --load_8bit=True --base_model='h2oai/h2ogpt-12b' --prompt_type=human_bot  # needs 16GB GPU
-torchrun generate.py --load_8bit=True --base_model='h2oai/h2ogpt-20b' --prompt_type=human_bot  # needs 48GB GPU
+torchrun generate.py --load_8bit=True --base_model='h2oai/h2ogpt-oig-oasst1-256-6.9b' --prompt_type=human_bot  # needs 8GB GPU
+torchrun generate.py --load_8bit=True --base_model='h2oai/h2ogpt-oig-oasst1-256-12b' --prompt_type=human_bot  # needs 16GB GPU
+torchrun generate.py --load_8bit=True --base_model='h2oai/h2ogpt-oasst1-256-20b' --prompt_type=human_bot  # needs 48GB GPU
 ```
 You can also use [Docker](INSTALL-DOCKER.md#containerized-installation-for-inference-on-linux-gpu-servers) to start an h2oGPT chatbot:
 This will download the h2oGPT model and open up a GUI with text generation input/output.
