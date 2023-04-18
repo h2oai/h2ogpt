@@ -1,13 +1,15 @@
 import os
 import json
+import shutil
+
 import torch
 from peft import PeftModel
 from transformers import PreTrainedModel
 from finetune import get_loaders
 
 BASE_MODEL = 'EleutherAI/gpt-neox-20b'
-LORA_WEIGHTS = 'gpt-neox-20b.openassistant_oasst1.json.1_epochs.5fc91911bc2bfaaf3b6c2de577c4b0ae45a07a4a.18'
-OUTPUT_NAME = "h2ogpt-oasst1-256-20b"
+LORA_WEIGHTS = 'gpt-neox-20b.openassistant_oasst1.json.6.0_epochs.5a14ea8b3794c0d60476fc262d0a297f98dd712d.1013'
+OUTPUT_NAME = "h2ogpt-oasst1-512-20b"
 llama_type = "llama" in BASE_MODEL
 as_pytorch = False  # False -> HF
 
@@ -161,10 +163,16 @@ else:
         for k, v in lora_model_sd.items()
         if "lora" not in k
     }
-
+    base_model.config.custom_pipeline = {
+        "text-generation": {
+          "impl": "h2oai_pipeline.H2OTextGenerationPipeline",
+          "pt": "AutoModelForCausalLM"
+        }
+    }
     PreTrainedModel.save_pretrained(
         base_model,
         OUTPUT_NAME,
         state_dict=deloreanized_sd,
         max_shard_size="5GB",
     )
+    shutil.copyfile("h2oai_pipeline.py", os.path.join(OUTPUT_NAME, "h2oai_pipeline.py"))
