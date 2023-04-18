@@ -27,7 +27,9 @@ All open-source datasets and models are posted on [H2O.ai's HuggingFace page](ht
 
 ### Chat with h2oGPT
 
-To start an h2oGPT chatbot on a 24GB GPU (3090/4090/A6000/A100/H100), run this command:
+To start an h2oGPT chatbot on a Linux GPU system, first follow the installation instructions above.
+You can also use [Docker](INSTALL-DOCKER.md#containerized-installation-for-inference-on-linux-gpu-servers).
+This will download the h2oGPT model and open up a GUI with text generation input/output.
 ```bash
 torchrun generate.py --load_8bit=True --base_model=h2oai/h2ogpt-oasst1-512-12b --prompt_type=human_bot
 ```
@@ -41,10 +43,8 @@ torchrun generate.py --load_8bit=True --base_model=h2oai/h2ogpt-oig-oasst1-256-6
 ```
 For 48GB GPUs and larger:
 ```bash
-torchrun generate.py --load_8bit=True --base_model=h2oai/h2ogpt-oasst1-256-20b --prompt_type=human_bot
+torchrun generate.py --load_8bit=True --base_model=h2oai/h2ogpt-oasst1-512-20b --prompt_type=human_bot
 ```
-You can also use [Docker](INSTALL-DOCKER.md#containerized-installation-for-inference-on-linux-gpu-servers) to start an h2oGPT chatbot:
-This will download the h2oGPT model and open up a GUI with text generation input/output.
 
 ### Why H2O.ai?
 
