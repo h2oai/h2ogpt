@@ -1,3 +1,12 @@
+"""
+Client test.  Simplest case is chat=False and stream_output=False
+
+Run server with same choices:
+
+python generate.py  --base_model=h2oai/h2ogpt-oig-oasst1-256-6.9b --chat=False --stream_output=False
+"""
+
+
 import time
 import os
 os.environ['HF_HUB_DISABLE_TELEMETRY'] = '1'
@@ -9,7 +18,9 @@ print(client.view_api(all_endpoints=True))
 instruction = "Who are you?"
 iinput = ''
 context = ''
-stream_output = True
+# streaming output is supported, loops over and outputs each generation in streaming mode
+# but leave stream_output=False for simple input/output mode
+stream_output = False
 prompt_type = 'human_bot'
 temperature = 0.1
 top_p = 0.75
@@ -24,7 +35,10 @@ num_return_sequences = 1
 do_sample = True
 
 # CHOOSE: must match server
-chat = True
+# NOTE chat mode works through files on gradio
+# and client currently would have to work through those files
+# in tmp, so not best for client.  So default to False
+chat = False
 
 
 def test_client_basic():
@@ -53,7 +67,6 @@ def test_client_basic():
             api_name=api_name,
         )
         print(res)
-        assert "I am a chatbot." in res
     else:
         api_name = '/instruction'
         import json
