@@ -545,6 +545,8 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
     # add fake space so doesn't go away in gradio dropdown
     lora_options = [' '] + kwargs['extra_lora_options']
 
+    output_label0 = f'h2oGPT [Model: {kwargs.get("base_model")}]' if kwargs.get('base_model') else 'h2oGPT [Model: Please Load Model in Models Tab]'
+
     with demo:
         # avoid actual model/tokenizer here or anything that would be bad to deepcopy
         # https://github.com/gradio-app/gradio/issues/3558
@@ -584,7 +586,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                                     score_text = gr.Textbox("Response Score: NA", show_label=False)
                     with gr.Column():
                         if kwargs['chat']:
-                            text_output = gr.Chatbot(label='h2oGPT').style(height=kwargs['height'] or 400)
+                            text_output = gr.Chatbot(label=output_label0).style(height=kwargs['height'] or 400)
                             with gr.Row():
                                 with gr.Column(scale=50):
                                     instruction = gr.Textbox(
@@ -607,7 +609,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                                 retry = gr.Button("Regenerate")
                                 undo = gr.Button("Undo")
                         else:
-                            text_output = gr.Textbox(lines=5, label="Output")
+                            text_output = gr.Textbox(lines=5, label=output_label0)
                 with gr.TabItem("Input/Output"):
                     with gr.Row():
                         if 'mbart-' in kwargs['model_lower']:
@@ -926,11 +928,15 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
         def dropdown_prompt_type_list(x):
             return gr.Dropdown.update(value=x)
 
+        def chatbot_list(x, model_used_in):
+            return gr.Textbox.update(label=f'h2oGPT [Model: {model_used_in}]')
+
         load_model_args = dict(fn=load_model,
                                inputs=[model_choice, lora_choice, model_state, prompt_type],
                                outputs=[model_state, model_used, lora_used, prompt_type])
         prompt_update_args = dict(fn=dropdown_prompt_type_list, inputs=prompt_type, outputs=prompt_type)
-        load_model_event = load_model_button.click(**load_model_args).then(**prompt_update_args)
+        chatbot_update_args = dict(fn=chatbot_list, inputs=[text_output, model_used], outputs=text_output)
+        load_model_event = load_model_button.click(**load_model_args).then(**prompt_update_args).then(**chatbot_update_args)
 
         def dropdown_model_list(list0, x):
             new_state = [list0[0] + [x]]
