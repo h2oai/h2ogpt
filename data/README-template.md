@@ -14,9 +14,9 @@ tags:
 
 H2O.ai's `<<DATASET_NAME>>` is an open-source instruct-type dataset for fine-tuning of large language models, licensed for commercial use.
 
-Number of rows: `<<NROWS>>`
-Number of columns: `<<NCOLS>>`
-Column names: `<<COLNAMES>>`
+- Number of rows: `<<NROWS>>`
+- Number of columns: `<<NCOLS>>`
+- Column names: `<<COLNAMES>>`
 
 ## Preview
 
