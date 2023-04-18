@@ -1,25 +1,23 @@
 ## h2oGPT - The world's best open source GPT
 
-Come join the movement to make the world's best open source GPT led by H2O.ai!
+Our goal is to make the world's best open source GPT!
 
-### Goals
+### Current state
 
-1. Curate high-quality open-source instruct data for fine-tuning
-2. Develop robust and performant training/inference code using best practices
-3. Create state-of-the-art open-source fine-tuned LLM models
-4. Democratize knowledge about the creation and usage of LLM models
-5. Get community contributions
+Open-source repository with commercially usable code (Apache v2) to:
+1. Generate datasets for fine-tuning LLMs (including prompt engineering)
+2. Fine-tune LLMs on commodity hardware and enterprise GPU servers (single or multi node)
+3. Run a chatbot on a GPU server
+4. Evaluate and compare the performance of fine-tuned LLMs
+5. Create shareable APIs for a chatbot
 
-### Plan
+### Roadmap items
 
-1. Start with fully open source Apache 2.0 models EleutherAI--gpt-j-6B, EleutherAI--gpt-neox-20b,
-   GPT-NeoXT-Chat-Base-20B, etc.
-2. Open-Source Instruct Data: Collect and curate high quality data with instruction and response interaction sequences
-3. Prompt Engineering: Convert plain text into question/answer or command/response format
-4. Fine-tune LLM models using 8-bit and LoRA for speed and memory efficiency
-5. Create GUIs, validation tools, APIs for integration with other software
-6. Submit data and models to HuggingFace with 100% permissive license
-7. Collect feedback from community
+1. High-performance distributed training (using DeepSpeed or similar)
+2. Pre-training of foundation models on hundreds of billions of tokens or more
+3. State-of-the-art LLM. Improve code completion, reasoning, factual correctness, reduced repetitions, hallucinations and other common issues that most LLMs share.
+4. Integration with end-user applications and low/no-code platforms using LLMs
+
 
 Original training code is based on [Alpaca-LoRA](https://github.com/tloen/alpaca-lora/).
 
@@ -79,23 +77,6 @@ Many of our customers are creating models and deploying them enterprise-wide and
   - [AI Appstore](https://docs.h2o.ai/h2o-ai-cloud/)
 
 We are proud to have over 25 (of the world's 280) [Kaggle Grandmasters](https://h2o.ai/company/team/kaggle-grandmasters/) call H2O home, including three Kaggle Grandmasters who have made it to world #1.
-
-### Current state
-
-Open-source repository with commercially usable code (Apache v2) to:
-1. Generate datasets for fine-tuning LLMs (including prompt engineering)
-2. Fine-tune LLMs on commodity hardware and enterprise GPU servers (single or multi node)
-3. Run a chatbot on a single GPU server
-4. Evaluate the performance of fine-tuned LLMs
-5. Create shareable APIs for a chatbot
-
-### Roadmap items
-
-1. Pre-training of foundation models on hundreds of billions of tokens or more
-2. High-performance distributed training (using DeepSpeed or similar)
-3. State-of-the-art LLM. Currently not great at code completion, reasoning, factual correctness. It suffers from hallucinations and other common issues that most LLMs share.
-4. End-user applications using LLMs
-
 
 
 ### Help
