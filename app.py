@@ -51,7 +51,7 @@ with gr.Blocks(theme=theme) as demo:
                 instruction = gr.Textbox(placeholder="Enter your question here", label="Question", elem_id="q-input")
             with gr.Row():
                 with gr.Row():
-                    submit = gr.Button("Generate Answers")
+                    submit = gr.Button("Generate Answer")
     with gr.Row():
         with gr.Column():
             with gr.Box():
