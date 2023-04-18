@@ -5,6 +5,10 @@ import sys
 import os
 import typing
 
+SEED = 1236
+from utils import set_seed
+set_seed(SEED)
+
 os.environ['HF_HUB_DISABLE_TELEMETRY'] = '1'
 from typing import Union
 import numpy as np
