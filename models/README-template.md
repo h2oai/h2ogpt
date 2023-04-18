@@ -10,16 +10,12 @@ inference: false
 
 H2O.ai's `<<MODEL_NAME>>` is a <<MODEL_SIZE>> billion parameter instruction-following large language model licensed for commercial use.
 
-Base model: <<BASE_MODEL>>
-Fine-tuning dataset: [h2oai/openassistant_oasst1](https://huggingface.co/datasets/h2oai/openassistant_oasst1)
-Data-prep and fine-tuning code: [H2O.ai Github](https://github.com/h2oai/h2ogpt)
-Training logs: [zip](<<TRAINING_LOGS>>)
+- Base model: <<BASE_MODEL>>
+- Fine-tuning dataset: <<DATASET>>
+- Data-prep and fine-tuning code: [H2O.ai Github](https://github.com/h2oai/h2ogpt)
+- Training logs: [zip](<<TRAINING_LOGS>>)
 
-## Model Architecture
-
-<<MODEL_ARCH>>
-
-## Usage~~
+## Usage
 
 To use the model with the `transformers` library on a machine with GPUs, first make sure you have the `transformers` and `accelerate` libraries installed.
 
@@ -100,4 +96,16 @@ Model D: AUC=0.7
 """
 
 print(llm_context_chain.predict(instruction="Which model performs best?", context=context).lstrip())
+```
+
+## Model Architecture
+
+```
+<<MODEL_ARCH>>
+```
+
+## Model Configuration
+
+```
+<<MODEL_CONFIG>>
 ```
