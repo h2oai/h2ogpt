@@ -1250,7 +1250,14 @@ def test_grade():
     df.to_parquet(output_file, index=False)
 
 
-def test_add_open_assistant():
+def test_add_open_assistant(save_json=True):
+    """
+    Flatten tree structure into one row per path from root to leaf
+    Also turn into human_bot prompting format:
+        <human>: question <bot>: answer <human>: question2 <bot>: answer2 Etc.
+    Also saves a .json locally as side-effect
+    returns list of dicts, containing intput, prompt_type and source
+    """
     from datasets import load_dataset
     data_file = "OpenAssistant/oasst1"
     ds = load_dataset(data_file)
@@ -1327,8 +1334,9 @@ def test_add_open_assistant():
         conversations = [c for c in conversations if c['message_id']]
         all_rows.extend([dict(input=c['text'], prompt_type='plain', source=data_file) for c in conversations])
     print(len(all_rows))
-    with open(data_file.lower().replace("/", "_") + ".json", "w") as f:
-        f.write(json.dumps(all_rows, indent=2))
+    if save_json:
+        with open(data_file.lower().replace("/", "_") + ".json", "w") as f:
+            f.write(json.dumps(all_rows, indent=2))
     return all_rows
 
 
