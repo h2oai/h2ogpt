@@ -21,9 +21,9 @@ All open-source datasets and models are posted on [H2O.ai's HuggingFace page](ht
 
 ### Development
 
-Follow the [installation instructions](INSTALL.md) to create a development environment for training and generation.
-Follow the [Docker instructions](INSTALL-DOCKER.md) to create a container for deployment.
-Follow the [fine-tuning instructions](FINETUNE.md) to fine-tune any LLM models on your data.
+- Follow the [installation instructions](INSTALL.md) to create a development environment for training and generation.
+- Follow the [Docker instructions](INSTALL-DOCKER.md) to create a container for deployment.
+- Follow the [fine-tuning instructions](FINETUNE.md) to fine-tune any LLM models on your data.
 
 ### Chat with h2oGPT
 
