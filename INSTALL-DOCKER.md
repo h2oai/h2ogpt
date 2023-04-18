@@ -1,12 +1,20 @@
 ### Containerized Installation for Inference on Linux GPU Servers
 
-1. Build the container image:
+1. Ensure docker installed and ready (requires sudo), can skip if system is already capable of running nvidia containers.  Example here is for Ubuntu, see [NVIDIA Containers](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html) for more examples.
+
+```bash
+sudo apt-get update     && sudo apt-get install -y nvidia-container-toolkit-base
+sudo nvidia-ctk runtime configure --runtime=docker
+sudo systemctl restart docker
+```
+
+2. Build the container image:
 
 ```bash
 docker build -t h2o-llm .
 ```
 
-2. Run the container (you can also use `finetune.py` and all of its parameters as shown above for training):
+3. Run the container (you can also use `finetune.py` and all of its parameters as shown above for training):
 
 For the fine-tuned h2oGPT with 20 billion parameters:
 ```bash
@@ -24,7 +32,7 @@ docker run --runtime=nvidia --shm-size=64g -p 7860:7860 \
     --lora_weights=h2ogpt_lora_weights --prompt_type=human_bot
 ```
 
-3. Open `https://localhost:7860` in the browser
+4. Open `https://localhost:7860` in the browser
 
 ### Docker Compose Setup & Inference
 
