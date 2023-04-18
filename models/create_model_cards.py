@@ -48,13 +48,16 @@ def test_create_model_cards(model_name, base_model, dataset, training_logs):
     assert int(model_size[-2]) >= 0
     assert os.path.exists("README-template.md"), "must be running this test from the model dir."
     shutil.rmtree(model_name, ignore_errors=True)
-    repo = huggingface_hub.Repository(
-        local_dir=model_name,
-        clone_from="h2oai/%s" % model_name,
-        skip_lfs_files=True,
-        token=True,
-    )
-    repo.git_pull()
+    try:
+        repo = huggingface_hub.Repository(
+            local_dir=model_name,
+            clone_from="h2oai/%s" % model_name,
+            skip_lfs_files=True,
+            token=True,
+        )
+        repo.git_pull()
+    except:
+        print("call 'huggingface_cli login' first and provide access token with write permission")
     model = AutoModelForCausalLM.from_pretrained("h2oai/%s" % model_name,
                                                  local_files_only=False,
                                                  torch_dtype=torch.float16,
@@ -89,5 +92,8 @@ def test_create_model_cards(model_name, base_model, dataset, training_logs):
 
     with open(os.path.join(model_name, "README.md"), "w") as f:
         f.write(content)
-    repo.commit("Update README.md")
-    repo.push_to_hub()
+    try:
+        repo.commit("Update README.md")
+        repo.push_to_hub()
+    except Exception as e:
+        print(str(e))

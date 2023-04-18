@@ -4,48 +4,38 @@ Our goal is to make the world's best open source GPT!
 
 ### Current state
 
-Open-source repository with commercially usable code (Apache v2) to:
-1. Generate datasets for fine-tuning LLMs (including prompt engineering)
-2. Fine-tune LLMs on commodity hardware and enterprise GPU servers (single or multi node)
-3. Run a chatbot on a GPU server
-4. Evaluate and compare the performance of fine-tuned LLMs
-5. Create shareable APIs for a chatbot
+1. Open-source repository with **fully permissive, commercially usable code, data and models**
+2. Code for preparing large open-source datasets for fine-tuning large language models (LLMs), including prompt engineering
+3. Code for fine-tuning LLMs (currently up to 20B parameters) on commodity hardware and enterprise GPU servers (single or multi node)
+4. Code to run a chatbot on a GPU server, with shareable APIs
+5. Code to evaluate and compare the performance of fine-tuned LLMs
+
+Best of all, you don't need to worry about contamination with non-permissive licenses like Alpaca, LLama, Vicuna, ShareGPT, Dolly, OpenAssistant's models, etc.
+
+All open-source datasets and models are posted on [H2O.ai's HuggingFace page](https://huggingface.co/h2oai/).
 
 ### Roadmap items
 
-1. High-performance distributed training (using DeepSpeed or similar)
-2. Pre-training of foundation models on hundreds of billions of tokens or more
-3. State-of-the-art LLM. Improve code completion, reasoning, factual correctness, reduced repetitions, hallucinations and other common issues that most LLMs share.
-4. Integration with end-user applications and low/no-code platforms using LLMs
+1. Integration of code and resulting LLMs with downstream applications and low/no-code platforms
+2. High-performance distributed training (using DeepSpeed or similar)
+3. Pre-training of foundation models on many billions of tokens
+4. State-of-the-art LLM. Improve code completion, reasoning, factual correctness, reduced repetitions, hallucinations and other common issues that most LLMs share.
 
-
-Original training code is based on [Alpaca-LoRA](https://github.com/tloen/alpaca-lora/).
-
-All training data will be based on open-source permissive data. No Alpaca, no LLama, no OpenAI, no ShareGPT.
-
-All datasets and models will be published to [H2O.ai's HuggingFace page](https://huggingface.co/h2oai/) and H2O.ai's S3 buckets.
-
-### Native Installation (Recommended for Developers)
+### Development
 
 Follow the [installation instructions](INSTALL.md) to create a development environment for training and generation.
-
-### Containerized Installation using Docker (Recommended for Chatbot Demos)
-
 Follow the [Docker instructions](INSTALL-DOCKER.md) to create a container for deployment.
-
-### Fine-tuning (see how h2oGPT was created)
-
 Follow the [fine-tuning instructions](FINETUNE.md) to fine-tune any LLM models on your data.
 
 ### Chat with h2oGPT
 
 To start an h2oGPT chatbot on a 24GB GPU (3090/4090/A6000/A100/H100), run this command:
-```
+```bash
 torchrun generate.py --load_8bit=True --base_model=h2oai/h2ogpt-oasst1-512-12b --prompt_type=human_bot  # needs 24GB GPU
 ```
 
 Depending on available GPU memory, you can load differently sized models, it will automatically shard the model across multiple GPUs if needed.
-```
+```bash
 torchrun generate.py --load_8bit=True --base_model=h2oai/h2ogpt-oig-oasst1-256-6.9b --prompt_type=human_bot  # needs 12GB GPU memory
 torchrun generate.py --load_8bit=True --base_model=h2oai/h2ogpt-oasst1-512-12b --prompt_type=human_bot  # needs 24GB GPU memory
 torchrun generate.py --load_8bit=True --base_model=h2oai/h2ogpt-oasst1-256-20b --prompt_type=human_bot  # needs 48GB GPU memory
@@ -87,3 +77,4 @@ We are proud to have over 25 (of the world's 280) [Kaggle Grandmasters](https://
 
 [Links](LINKS.md)
 
+Original training code is based on [Alpaca-LoRA](https://github.com/tloen/alpaca-lora/).
