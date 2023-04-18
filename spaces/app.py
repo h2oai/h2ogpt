@@ -28,8 +28,8 @@ def generate(query):
 
 examples = [
     "Why is drinking water so healthy?",
-    "I want to buy some running shoes, can you make a recommendation?",
-    "Tell me a joke in German",
+    "Is there such a thing as Shallow Learning?",
+    "Tell me a funny joke in German",
     "What does the 402 error mean?",
     "Can penguins fly?",
     "What's the secret to a happy life?",
