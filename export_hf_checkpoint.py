@@ -7,9 +7,9 @@ from peft import PeftModel
 from transformers import PreTrainedModel
 from finetune import get_loaders
 
-BASE_MODEL = 'EleutherAI/gpt-neox-20b'
-LORA_WEIGHTS = 'gpt-neox-20b.openassistant_oasst1.json.6.0_epochs.5a14ea8b3794c0d60476fc262d0a297f98dd712d.1013'
-OUTPUT_NAME = "h2ogpt-oasst1-512-20b"
+BASE_MODEL = 'EleutherAI/pythia-6.9b'
+LORA_WEIGHTS = 'pythia-6.9b.h2ogpt-oig-oasst1-instruct-cleaned-v1.json.1_epochs.5fc91911bc2bfaaf3b6c2de577c4b0ae45a07a4a.7'
+OUTPUT_NAME = "h2ogpt-oig-oasst1-512-6.9b"
 llama_type = "llama" in BASE_MODEL
 as_pytorch = False  # False -> HF
 
