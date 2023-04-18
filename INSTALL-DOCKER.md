@@ -8,11 +8,11 @@ docker build -t h2o-llm .
 
 2. Run the container (you can also use `finetune.py` and all of its parameters as shown above for training):
 
-For h2oGPT:
+For the fine-tuned h2oGPT with 20 billion parameters:
 ```bash
 docker run --runtime=nvidia --shm-size=64g -p 7860:7860 \
     -v ${HOME}/.cache:/root/.cache --rm h2o-llm -it generate.py \
-    --load_8bit=True --base_model='h2oai/h2ogpt-12b' \
+    --base_model=h2oai/h2ogpt-oasst1-512-20b \
     --prompt_type=human_bot
 `````
 
@@ -20,7 +20,7 @@ For your own fine-tuned model starting from the gpt-neox-20b foundation model fo
 ```bash
 docker run --runtime=nvidia --shm-size=64g -p 7860:7860 \
     -v ${HOME}/.cache:/root/.cache --rm h2o-llm -it generate.py \
-    --load_8bit=True --base_model=EleutherAI/gpt-neox-20b \
+    --base_model=EleutherAI/gpt-neox-20b \
     --lora_weights=h2ogpt_lora_weights --prompt_type=human_bot
 ```
 
