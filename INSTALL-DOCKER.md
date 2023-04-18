@@ -20,9 +20,17 @@ For the fine-tuned h2oGPT with 20 billion parameters:
 ```bash
 docker run --runtime=nvidia --shm-size=64g -p 7860:7860 \
     -v ${HOME}/.cache:/root/.cache --rm h2o-llm -it generate.py \
-    --base_model=h2oai/h2ogpt-oasst1-512-20b \
-    --prompt_type=human_bot
-`````
+    --base_model=h2oai/h2ogpt-oasst1-512-20b
+```
+
+if have a private HF token, can instead run:
+```bash
+docker run --runtime=nvidia --shm-size=64g --entrypoint=bash -p 7860:7860 \
+-e HUGGINGFACE_API_TOKEN=<HUGGINGFACE_API_TOKEN> \
+-v ${HOME}/.cache:/root/.cache --rm h2o-llm -it \
+ -c 'huggingface-cli login --token $HUGGINGFACE_API_TOKEN && python3.10 generate.py --base_model=h2oai/h2ogpt-oasst1-512-20b --use_auth_token=True'
+```
+
 
 For your own fine-tuned model starting from the gpt-neox-20b foundation model for example:
 ```bash
