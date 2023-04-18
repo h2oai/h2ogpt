@@ -28,8 +28,12 @@ def generate(query):
 
 examples = [
     "Why is drinking water so healthy?",
-    "Tell me a joke about drinking water.",
-    "Once upon a time, there was a big bad wolf. The wolf walked around the forest and looked for food. Every day, he got hungrier and hungrier, and also more tired. In the end, he went back to sleep in his house, together with his 3 children and wife. Who was hungry?",
+    "I want to buy some running shoes, can you make a recommendation?",
+    "Tell me a joke in German",
+    "What does the 402 error mean?",
+    "Can penguins fly?",
+    "What's the secret to a happy life?",
+    "Is it easy to train large language models?"
 ]
 
 
