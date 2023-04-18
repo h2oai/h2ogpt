@@ -1,3 +1,4 @@
+import huggingface_hub
 import pytest
 import torch
 from transformers import AutoModelForCausalLM
@@ -36,6 +37,12 @@ def test_create_model_cards(model_name, base_model, dataset, training_logs):
     model_size = model_name.split("-")[-1].upper()
     assert "B" == model_size[-1]
     assert int(model_size[-2]) >= 0
+    repo = huggingface_hub.Repository(
+        local_dir=model_name,
+        clone_from="h2oai/%s" % model_name,
+        skip_lfs_files=True,
+        token=True,
+    )
     model = AutoModelForCausalLM.from_pretrained("h2oai/%s" % model_name,
                                                  local_files_only=False,
                                                  torch_dtype=torch.float16,
@@ -69,6 +76,7 @@ def test_create_model_cards(model_name, base_model, dataset, training_logs):
         assert ">>" not in content
 
     import os
-    os.makedirs(model_name, exist_ok=True)
     with open(os.path.join(model_name, "README.md"), "w") as f:
         f.write(content)
+    repo.commit("Update README.md")
+    repo.push_to_hub()
