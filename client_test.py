@@ -6,6 +6,7 @@ Run server with same choices:
 python generate.py  --base_model=h2oai/h2ogpt-oig-oasst1-256-6.9b --chat=False --stream_output=False
 """
 
+debug = False
 
 import time
 import os
@@ -13,7 +14,8 @@ os.environ['HF_HUB_DISABLE_TELEMETRY'] = '1'
 from gradio_client import Client
 
 client = Client("http://localhost:7860")
-print(client.view_api(all_endpoints=True))
+if debug:
+    print(client.view_api(all_endpoints=True))
 
 instruction = "Who are you?"
 iinput = ''
