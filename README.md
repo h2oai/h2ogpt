@@ -10,8 +10,6 @@ Our goal is to make the world's best open source GPT!
 4. Code to **run a chatbot** on a GPU server, with shareable APIs
 5. Code to evaluate and compare the **performance** of fine-tuned LLMs
 
-Best of all, you don't need to worry about contamination with non-permissive licenses like Alpaca, LLama, Vicuna, ShareGPT, Dolly, OpenAssistant's models, etc.
-
 All open-source datasets and models are posted on [H2O.ai's HuggingFace page](https://huggingface.co/h2oai/).
 
 ### Roadmap items
