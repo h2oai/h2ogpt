@@ -55,5 +55,5 @@ def test_create_model_cards(model_name, base_model, training_logs):
 
     import os
     os.makedirs(model_name, exist_ok=True)
-    with open(os.path.join(model_name, "../data/README.md"), "w") as f:
+    with open(os.path.join(model_name, "README.md"), "w") as f:
         f.write(content)
