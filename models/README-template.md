@@ -49,59 +49,6 @@ res = generate_text("Why is drinking water so healthy?", max_new_tokens=100)
 print(res[0]["generated_text"])
 ```
 
-### LangChain Usage
-
-To use the pipeline with LangChain, you must set `return_full_text=True`, as LangChain expects the full text to be returned 
-and the default for the pipeline is to only return the new text.
-
-```
-import torch
-from transformers import pipeline
-
-generate_text = pipeline(model="h2oai/<<MODEL_NAME>>", torch_dtype=torch.bfloat16,
-                         trust_remote_code=True, device_map="auto", return_full_text=True)
-```
-
-You can create a prompt that either has only an instruction or has an instruction with context:
-
-```
-from langchain import PromptTemplate, LLMChain
-from langchain.llms import HuggingFacePipeline
-
-# template for an instrution with no input
-prompt = PromptTemplate(
-    input_variables=["instruction"],
-    template="{instruction}")
-
-# template for an instruction with input
-prompt_with_context = PromptTemplate(
-    input_variables=["instruction", "context"],
-    template="{instruction}\n\nInput:\n{context}")
-
-hf_pipeline = HuggingFacePipeline(pipeline=generate_text)
-
-llm_chain = LLMChain(llm=hf_pipeline, prompt=prompt)
-llm_context_chain = LLMChain(llm=hf_pipeline, prompt=prompt_with_context)
-```
-
-Example predicting using a simple instruction:
-
-```
-print(llm_chain.predict(instruction="Why is drinking water so healthy?").lstrip())
-```
-
-Example predicting using an instruction with context:
-
-```
-context = """Model A: AUC=0.8
-Model from Driverless AI: AUC=0.95
-Model C: AUC=0.6
-Model D: AUC=0.7
-"""
-
-print(llm_context_chain.predict(instruction="Which model performs best?", context=context).lstrip())
-```
-
 ## Model Architecture
 
 ```
