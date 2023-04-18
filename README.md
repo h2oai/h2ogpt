@@ -2,6 +2,12 @@
 
 Our goal is to make the world's best open source GPT!
 
+
+
+https://user-images.githubusercontent.com/6147661/232924684-6c0e2dfb-2f24-4098-848a-c3e4396f29f6.mov
+
+
+
 ### Current state
 
 - Open-source repository with **fully permissive, commercially usable code, data and models**
