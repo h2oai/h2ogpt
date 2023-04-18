@@ -32,13 +32,14 @@ To start an h2oGPT chatbot on a 24GB GPU (3090/4090/A6000/A100/H100), run this c
 torchrun generate.py --load_8bit=True --base_model=h2oai/h2ogpt-oasst1-512-12b --prompt_type=human_bot  # needs 24GB GPU
 ```
 
-Depending on available GPU memory, you can load differently sized models, it will automatically shard the model across multiple GPUs if needed.
+Depending on available GPU memory, you can load differently sized models. For multiple GPUs, automatic sharding is enabled by default.
+
+For 12GB GPUs and larger:
 ```bash
 torchrun generate.py --load_8bit=True --base_model=h2oai/h2ogpt-oig-oasst1-256-6.9b --prompt_type=human_bot  # needs 12GB GPU memory
-torchrun generate.py --load_8bit=True --base_model=h2oai/h2ogpt-oasst1-512-12b --prompt_type=human_bot  # needs 24GB GPU memory
-torchrun generate.py --load_8bit=True --base_model=h2oai/h2ogpt-oasst1-256-20b --prompt_type=human_bot  # needs 48GB GPU memory
-torchrun generate.py --load_8bit=True --base_model=h2oai/h2ogpt-oig-oasst1-256-6.9b --prompt_type=human_bot  # needs 12GB GPU memory
-torchrun generate.py --load_8bit=True --base_model=h2oai/h2ogpt-oasst1-512-12b --prompt_type=human_bot  # needs 24GB GPU memory
+```
+For 48GB GPUs and larger:
+```bash
 torchrun generate.py --load_8bit=True --base_model=h2oai/h2ogpt-oasst1-256-20b --prompt_type=human_bot  # needs 48GB GPU memory
 ```
 You can also use [Docker](INSTALL-DOCKER.md#containerized-installation-for-inference-on-linux-gpu-servers) to start an h2oGPT chatbot:
