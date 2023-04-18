@@ -14,15 +14,16 @@ from datasets import load_dataset
         (
                 "openassistant_oasst1",
                 """
-- [original OpenAssistant data in tree structure](https://huggingface.co/datasets/OpenAssistant/oasst1)
-- [flattened version created by h2oGPT repository](https://github.com/h2oai/h2ogpt/blob/45e6183171fb16691ad7d3ab006fad973f971e98/create_data.py#L1253)
+- [Original Open Assistant data in tree structure](https://huggingface.co/datasets/OpenAssistant/oasst1)
+- [Flattened version of Open Assistant data created by h2oGPT repository](https://github.com/h2oai/h2ogpt/blob/45e6183171fb16691ad7d3ab006fad973f971e98/create_data.py#L1253)
 """
         ),
          (
                  "h2ogpt-oig-oasst1-instruct-cleaned-v1",
                  """
-- [original OpenAssistant data in tree structure](https://huggingface.co/datasets/OpenAssistant/oasst1)
-- [flattened version created by h2oGPT repository](https://github.com/h2oai/h2ogpt/blob/45e6183171fb16691ad7d3ab006fad973f971e98/create_data.py#L1253)
+- [Original LAION OIG Dataset](https://github.com/LAION-AI/Open-Instruction-Generalist)
+- [Original Open Assistant data in tree structure](https://huggingface.co/datasets/OpenAssistant/oasst1)
+- [Flattened version of Open Assistant data created by h2oGPT repository](https://github.com/h2oai/h2ogpt/blob/45e6183171fb16691ad7d3ab006fad973f971e98/create_data.py#L1253)
 """
          ),
     ],
