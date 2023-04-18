@@ -4,20 +4,20 @@ Our goal is to make the world's best open source GPT!
 
 ### Current state
 
-1. Open-source repository with **fully permissive, commercially usable code, data and models**
-2. Code for preparing **large open-source datasets** as instruction datasets for fine-tuning of large language models (LLMs), including prompt engineering
-3. Code for **fine-tuning large language models** (currently up to 20B parameters) on commodity hardware and enterprise GPU servers (single or multi node)
-4. Code to **run a chatbot** on a GPU server, with shareable APIs
-5. Code to evaluate and compare the **performance** of fine-tuned LLMs
+- Open-source repository with **fully permissive, commercially usable code, data and models**
+- Code for preparing **large open-source datasets** as instruction datasets for fine-tuning of large language models (LLMs), including prompt engineering
+- Code for **fine-tuning large language models** (currently up to 20B parameters) on commodity hardware and enterprise GPU servers (single or multi node)
+- Code to **run a chatbot** on a GPU server, with shareable APIs
+- Code to evaluate and compare the **performance** of fine-tuned LLMs
 
 All open-source datasets and models are posted on [H2O.ai's HuggingFace page](https://huggingface.co/h2oai/).
 
 ### Roadmap items
 
-1. Integration of code and resulting LLMs with downstream applications and low/no-code platforms
-2. High-performance distributed training (using DeepSpeed or similar)
-3. Pre-training of foundation models on many billions of tokens
-4. State-of-the-art LLM. Improve code completion, reasoning, factual correctness, reduced repetitions, hallucinations and other common issues that most LLMs share.
+- Integration of code and resulting LLMs with downstream applications and low/no-code platforms
+- High-performance distributed training (using DeepSpeed or similar)
+- Pre-training of foundation models on many billions of tokens
+- State-of-the-art LLM. Improve code completion, reasoning, factual correctness, reduced repetitions, hallucinations and other common issues that most LLMs share.
 
 ### Development
 
