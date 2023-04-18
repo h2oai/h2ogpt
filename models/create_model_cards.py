@@ -35,10 +35,10 @@ from transformers import AutoModelForCausalLM
                 "https://huggingface.co/h2oai/h2ogpt-oig-oasst1-256-12b/blob/main/pythia-12b-deduped.h2ogpt-oig-oasst1-instruct-cleaned-v1.json.1_epochs.5fc91911bc2bfaaf3b6c2de577c4b0ae45a07a4a.17.zip",
         ),
         (
-                "h2ogpt-oig-oasst1-256-6.9b",
+                "h2ogpt-oig-oasst1-512-6.9b",
                 "EleutherAI/pythia-6.9b",
                 "h2oai/h2ogpt-oig-oasst1-instruct-cleaned-v1",
-                "https://huggingface.co/h2oai/h2ogpt-oig-oasst1-256-6.9b/blob/main/pythia-6.9b.h2ogpt-oig-oasst1-instruct-cleaned-v1.json.1_epochs.5fc91911bc2bfaaf3b6c2de577c4b0ae45a07a4a.9.zip",
+                "https://huggingface.co/h2oai/h2ogpt-oig-oasst1-512-6.9b/blob/main/pythia-6.9b.h2ogpt-oig-oasst1-instruct-cleaned-v1.json.1_epochs.5fc91911bc2bfaaf3b6c2de577c4b0ae45a07a4a.7.zip",
         ),
     ],
 )
