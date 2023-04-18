@@ -65,7 +65,9 @@ def main(
         h2ocolors: bool = True,
         height: int = 400,
         show_lora: bool = True,
-        login_mode_if_model0: bool = True,
+        # set to True to load --base_model after client logs in,
+        # to be able to free GPU memory when model is swapped
+        login_mode_if_model0: bool = False,
 
         sanitize_user_prompt: bool = True,
         sanitize_bot_response: bool = True,
