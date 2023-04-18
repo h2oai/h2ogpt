@@ -811,13 +811,16 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                     from better_profanity import profanity
                     user_message1 = profanity.censor(user_message1)
 
-                history = args_list[-1].copy()
+                history = args_list[-1]
                 if undo and history:
                     history.pop()
                 args_list = args_list[:-1]
                 if history is None:
                     print("Bad history, fix for now", flush=True)
                     history = []
+                # ensure elements not mixed across models as output,
+                # even if input is currently same source
+                history = history.copy()
                 if undo:
                     return history
                 else:
@@ -826,12 +829,14 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
 
             def bot(*args, retry=False):
                 args_list = list(args).copy()
-                history = args_list[-1].copy()
+                history = args_list[-1]
                 if retry and history:
                     history.pop()
                 if not history:
                     print("No history", flush=True)
                     return
+                # ensure output will be unique to models
+                history = history.copy()
                 instruction1 = history[-1][0]
                 context1 = ''
                 if kwargs['chat_history'] > 0:
