@@ -73,7 +73,7 @@ def test_create_model_cards(model_name, base_model, dataset, training_logs):
         content = content.replace("<<BASE_MODEL>>", f"[{base_model}](https://huggingface.co/{base_model})")
 
         assert "<<DATASET>>" in content
-        content = content.replace("<<DATASET>>", f"[{dataset}](https://huggingface.co/{dataset})")
+        content = content.replace("<<DATASET>>", f"[{dataset}](https://huggingface.co/datasets/{dataset})")
 
         assert "<<MODEL_ARCH>>" in content
         content = content.replace("<<MODEL_ARCH>>", model_arch)
