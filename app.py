@@ -23,7 +23,7 @@ generate_text = H2OTextGenerationPipeline(model=model, tokenizer=tokenizer)
 
 
 def generate(query):
-    return generate_text(query, max_new_tokens=100)[0]['generated_text']
+    return generate_text(query, max_new_tokens=150)[0]['generated_text']
 
 
 examples = [
