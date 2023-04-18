@@ -545,7 +545,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
     # add fake space so doesn't go away in gradio dropdown
     lora_options = [' '] + kwargs['extra_lora_options']
 
-    output_label0 = f'h2oGPT [Model: {kwargs.get("base_model")}]' if kwargs.get('base_model') else 'h2oGPT [Model: Please Load Model in Models Tab]'
+    output_label0 = f'h2oGPT [Model: {kwargs.get("base_model")}]' if kwargs.get('base_model') else 'h2oGPT [   !!! Please Load Model in Models Tab !!!   ]'
 
     with demo:
         # avoid actual model/tokenizer here or anything that would be bad to deepcopy
