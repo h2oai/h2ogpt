@@ -23,11 +23,13 @@ generate_text = H2OTextGenerationPipeline(model=model, tokenizer=tokenizer)
 
 
 def generate(query):
-    return [generate_text(query)]
+    return generate_text(query, max_new_tokens=100)[0]['generated_text']
 
 
 examples = [
     "Why is drinking water so healthy?",
+    "Tell me a joke about drinking water.",
+    "Once upon a time, there was a big bad wolf. The wolf walked around the forest and looked for food. Every day, he got hungrier and hungrier, and also more tired. In the end, he went back to sleep in his house, together with his 3 children and wife. Who was hungry?",
 ]
 
 
