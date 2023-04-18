@@ -31,17 +31,17 @@ To start an h2oGPT chatbot on a Linux GPU system, first follow the installation 
 You can also use [Docker](INSTALL-DOCKER.md#containerized-installation-for-inference-on-linux-gpu-servers).
 This will download the h2oGPT model and open up a GUI with text generation input/output.
 ```bash
-torchrun generate.py --load_8bit=True --base_model=h2oai/h2ogpt-oasst1-512-12b --prompt_type=human_bot
+torchrun generate.py --load_8bit=True --base_model=h2oai/h2ogpt-oig-oasst1-256-6.9b --prompt_type=human_bot
 ```
 and then go to http://0.0.0.0:7860 or the public URL created by gradio.
 
 Depending on available GPU memory, you can load differently sized models. For multiple GPUs, automatic sharding is enabled by default.
 
-For 12GB GPUs and larger:
+For GPUs with at least 24GB of memory, we recommend:
 ```bash
-torchrun generate.py --load_8bit=True --base_model=h2oai/h2ogpt-oig-oasst1-256-6.9b --prompt_type=human_bot
+torchrun generate.py --load_8bit=True --base_model=h2oai/h2ogpt-oasst1-512-12b --prompt_type=human_bot
 ```
-For 48GB GPUs and larger:
+For GPUs with at least 48GB of memory, we recommend:
 ```bash
 torchrun generate.py --load_8bit=True --base_model=h2oai/h2ogpt-oasst1-512-20b --prompt_type=human_bot
 ```
