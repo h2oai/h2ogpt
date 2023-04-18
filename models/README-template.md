@@ -4,6 +4,14 @@ language:
 - en
 library_name: transformers
 inference: false
+thumbnail: https://h2o.ai/etc.clientlibs/h2o/clientlibs/clientlib-site/resources/images/favicon.ico
+tags:
+- gpt
+- llm
+- large language model
+- open-source
+datasets:
+- <<DATASET_NAME>>
 ---
 # h2oGPT Model Card
 ## Summary

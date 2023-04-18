@@ -78,6 +78,9 @@ def test_create_model_cards(model_name, base_model, dataset, training_logs):
         assert "<<DATASET>>" in content
         content = content.replace("<<DATASET>>", f"[{dataset}](https://huggingface.co/datasets/{dataset})")
 
+        assert "<<DATASET_NAME>>" in content
+        content = content.replace("<<DATASET_NAME>>", dataset)
+
         assert "<<MODEL_ARCH>>" in content
         content = content.replace("<<MODEL_ARCH>>", model_arch)
 
