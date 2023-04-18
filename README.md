@@ -21,23 +21,6 @@ Come join the movement to make the world's best open source GPT led by H2O.ai!
 6. Submit data and models to HuggingFace with 100% permissive license
 7. Collect feedback from community
 
-### What this is
-
-Open-source repository with commercially usable code (Apache v2) to:
-1. Generate datasets for fine-tuning LLMs (including prompt engineering)
-2. Fine-tune LLMs on commodity hardware and enterprise GPU servers (single or multi node)
-3. Run a chatbot on a single GPU server
-4. Evaluate the performance of fine-tuned LLMs
-5. Create an API for such a chat bot
-
-### What this isn't
-
-1. Pre-training of foundation models on hundreds of billions of tokens or more
-2. High-performance distributed training (DeepSpeed etc. are more suitable)
-3. State-of-the-art LLM. It's not great at code completion, reasoning, factual correctness. It suffers from hallucinations and other common issues that all LLMs share.
-4. End-user applications using LLMs
-
-
 Original training code is based on [Alpaca-LoRA](https://github.com/tloen/alpaca-lora/).
 
 All training data will be based on open-source permissive data. No Alpaca, no LLama, no OpenAI, no ShareGPT.
@@ -96,6 +79,24 @@ Many of our customers are creating models and deploying them enterprise-wide and
   - [AI Appstore](https://docs.h2o.ai/h2o-ai-cloud/)
 
 We are proud to have over 25 (of the world's 280) [Kaggle Grandmasters](https://h2o.ai/company/team/kaggle-grandmasters/) call H2O home, including three Kaggle Grandmasters who have made it to world #1.
+
+### Current state
+
+Open-source repository with commercially usable code (Apache v2) to:
+1. Generate datasets for fine-tuning LLMs (including prompt engineering)
+2. Fine-tune LLMs on commodity hardware and enterprise GPU servers (single or multi node)
+3. Run a chatbot on a single GPU server
+4. Evaluate the performance of fine-tuned LLMs
+5. Create shareable APIs for a chatbot
+
+### Roadmap items
+
+1. Pre-training of foundation models on hundreds of billions of tokens or more
+2. High-performance distributed training (using DeepSpeed or similar)
+3. State-of-the-art LLM. Currently not great at code completion, reasoning, factual correctness. It suffers from hallucinations and other common issues that most LLMs share.
+4. End-user applications using LLMs
+
+
 
 ### Help
 
