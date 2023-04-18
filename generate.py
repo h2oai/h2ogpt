@@ -693,7 +693,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                                     model_choice = gr.Dropdown(model_options_state.value[0], label="Choose Model", value=kwargs['base_model'])
                                     lora_choice = gr.Dropdown(lora_options_state.value[0], label="Choose LORA", value=kwargs['lora_weights'], visible=kwargs['show_lora'])
                                 with gr.Column(scale=1):
-                                    load_model_button = gr.Button("Load Model/LORA")
+                                    load_model_button = gr.Button("Load-Unload Model/LORA")
                                     model_used = gr.Textbox(label="Current Model", value=kwargs['base_model'])
                                     lora_used = gr.Textbox(label="Current LORA", value=kwargs['lora_weights'], visible=kwargs['show_lora'])
                             with gr.Row(scale=1):
@@ -710,7 +710,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                                     model_choice2 = gr.Dropdown(model_options_state.value[0], label="Choose Model 2", value=kwargs['base_model'])
                                     lora_choice2 = gr.Dropdown(lora_options_state.value[0], label="Choose LORA 2", value=kwargs['lora_weights'], visible=kwargs['show_lora'])
                                 with gr.Column(scale=1):
-                                    load_model_button2 = gr.Button("Load Model/LORA 2")
+                                    load_model_button2 = gr.Button("Load-Unload Model/LORA 2")
                                     model_used2 = gr.Textbox(label="Current Model 2", value=kwargs['base_model'])
                                     lora_used2 = gr.Textbox(label="Current LORA 2", value=kwargs['lora_weights'], visible=kwargs['show_lora'])
 
