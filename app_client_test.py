@@ -7,7 +7,7 @@ python app.py
 
 Then run this client:
 
-python client_test.py
+python app_client_test.py
 """
 
 from gradio_client import Client
