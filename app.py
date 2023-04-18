@@ -65,7 +65,7 @@ with gr.Blocks(theme=theme) as demo:
                     fn=process_example,
                     outputs=[output],
                 )
-    submit.click(generate, inputs=[instruction], outputs=[output])
+    submit.click(generate, inputs=[instruction], outputs=[output], api_name='submit')
     instruction.submit(generate, inputs=[instruction], outputs=[output])
 
 demo.queue(concurrency_count=16).launch(debug=True)

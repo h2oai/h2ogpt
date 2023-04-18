@@ -4,6 +4,12 @@ Client test.  Simplest case is chat=False and stream_output=False
 Run server with same choices:
 
 python generate.py  --base_model=h2oai/h2ogpt-oig-oasst1-256-6.9b --chat=False --stream_output=False
+
+NOTE: For private models, add --use-auth_token=True
+
+Then run this client as:
+
+python client_test.py
 """
 
 debug = False
@@ -68,7 +74,7 @@ def test_client_basic():
             *tuple(args),
             api_name=api_name,
         )
-        print(res)
+        print(md_to_text(res))
     else:
         api_name = '/instruction'
         import json
@@ -106,3 +112,7 @@ def md_to_text(md):
     html = markdown.markdown(md)
     soup = BeautifulSoup(html, features='html.parser')
     return soup.get_text()
+
+
+if __name__ == '__main__':
+    test_client_basic()
