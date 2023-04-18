@@ -85,10 +85,9 @@ prompt_type_to_model_name = {
     'human_bot': [
         'h2oai/h2ogpt-oig-oasst1-256-12b',
         'h2oai/h2ogpt-oasst1-512-12b',
-        'h2oai/h2ogpt-oasst1-256-12b',
+        'h2oai/h2ogpt-oasst1-256-20b',
+        'h2oai/h2ogpt-oasst1-512-20b',
         'h2oai/h2ogpt-oig-oasst1-256-6.9b',
-        'h2oai/h2ogpt-oasst1-512-6.9b',
-        'h2oai/h2ogpt-oasst1-256-6.9b',
     ],
     'dai_faq': [],
     'summarize': [],
