@@ -5,10 +5,10 @@ Our goal is to make the world's best open source GPT!
 ### Current state
 
 1. Open-source repository with **fully permissive, commercially usable code, data and models**
-2. Code for preparing large open-source datasets for fine-tuning large language models (LLMs), including prompt engineering
-3. Code for fine-tuning LLMs (currently up to 20B parameters) on commodity hardware and enterprise GPU servers (single or multi node)
-4. Code to run a chatbot on a GPU server, with shareable APIs
-5. Code to evaluate and compare the performance of fine-tuned LLMs
+2. Code for preparing **large open-source datasets** as instruction datasets for fine-tuning of large language models (LLMs), including prompt engineering
+3. Code for **fine-tuning large language models** (currently up to 20B parameters) on commodity hardware and enterprise GPU servers (single or multi node)
+4. Code to **run a chatbot** on a GPU server, with shareable APIs
+5. Code to evaluate and compare the **performance** of fine-tuned LLMs
 
 Best of all, you don't need to worry about contamination with non-permissive licenses like Alpaca, LLama, Vicuna, ShareGPT, Dolly, OpenAssistant's models, etc.
 
