@@ -35,7 +35,7 @@ Follow the [Docker instructions](INSTALL-DOCKER.md) to create a container for de
 
 ### Fine-tuning (see how h2oGPT was created)
 
-Follow the [fine-tuning instructions](FINETUNE.md) to fine-tune any LLM models on your data. We prefer to use truly open-source models.
+Follow the [fine-tuning instructions](FINETUNE.md) to fine-tune any LLM models on your data.
 
 ### Chat with h2oGPT
 
