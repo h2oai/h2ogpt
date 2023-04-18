@@ -8,13 +8,21 @@ python app.py
 Then run this client:
 
 python app_client_test.py
+
+NOTE: To access a private app on gradio, do:
+
+HUGGINGFACE_TOKEN=<HUGGINGFACE_TOKEN> GRADIO_HOST="https://huggingface.co/spaces/h2oai/h2ogpt-oasst1-256-6.9b-hosted" python app_client_test.py
 """
 
+import os
 from gradio_client import Client
 import markdown  # pip install markdown
 from bs4 import BeautifulSoup  # pip install beautifulsoup4
 
-client = Client("http://localhost:7860")
+
+hf_token = os.environ.get('HUGGINGFACE_TOKEN')
+host = os.environ.get("GRADIO_HOST", "http://localhost:7860")
+client = Client(host, hf_token=hf_token)
 
 
 def test_app_client_basic():
