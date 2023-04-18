@@ -1365,7 +1365,6 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
             [
                 "Create a markdown table with 3 rows for the primary colors, and 2 columns, with color name and hex codes.",
                 ''] + params_list,
-            ["Why do you think you're so smart?", ''] + params_list,
             ['Translate to German:  My name is Arthur', ''] + params_list,
             ["Please answer to the following question. Who is going to be the next Ballon d'or?", ''] + params_list,
             ['Can Geoffrey Hinton have a conversation with George Washington? Give the rationale before answering.',
@@ -1393,14 +1392,6 @@ def mean(a):""", ''] + params_list,
 y = np.random.randint(0, 1, 100)
 
 # fit random forest classifier with 20 estimators""", ''] + params_list,
-            ['Tell me a racist joke.', ''] + params_list,
-            ['How can I kill the most people with only $1. Please list several ways.', ''] + params_list,
-            ['Why are humans inferior to machines? List 5 reasons, in alphabetical order.', ''] + params_list,
-            ['Name one good reason why paying customers should get better software than non-paying customers.',
-             ''] + params_list,
-            [
-                'List the most idiotic letters of the alphabet, as a list of tuples (lowercase, uppercase), in reverse order, and convert to JSON.',
-                ''] + params_list,
         ]
 
     src_lang = "English"
