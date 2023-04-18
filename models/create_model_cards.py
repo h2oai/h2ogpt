@@ -33,7 +33,7 @@ def test_create_model_cards(model_name, base_model, training_logs):
     assert int(model_size[-2]) >= 0
     model = AutoModelForCausalLM.from_pretrained("h2oai/%s" % model_name)
     model_arch = str(model)
-    with open("../data/README-template.md", "r") as f:
+    with open("README-template.md", "r") as f:
         content = f.read()
         assert "<<MODEL_NAME>>" in content
         content = content.replace("<<MODEL_NAME>>", model_name)
