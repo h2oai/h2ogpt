@@ -11,6 +11,12 @@ from transformers import AutoModelForCausalLM
     "model_name, base_model, dataset, training_logs",
     [
         (
+                "h2ogpt-oasst1-512-20b",
+                "EleutherAI/gpt-neox-20b",
+                "h2oai/openassistant_oasst1",
+                "https://huggingface.co/h2oai/h2ogpt-oasst1-512-20b/blob/main/gpt-neox-20b.openassistant_oasst1.json.6.0_epochs.5a14ea8b3794c0d60476fc262d0a297f98dd712d.1013.zip",
+        ),
+        (
                 "h2ogpt-oasst1-256-20b",
                 "EleutherAI/gpt-neox-20b",
                 "h2oai/openassistant_oasst1",

@@ -21,6 +21,7 @@ To use the model with the `transformers` library on a machine with GPUs, first m
 
 ```bash
 pip install transformers==4.28.1
+pip install accelerate==0.18.0
 ```
 
 ```python
