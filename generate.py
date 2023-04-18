@@ -570,7 +570,6 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                             )
                             iinput = gr.Textbox(lines=4, label="Input",
                                                 placeholder=kwargs['placeholder_input'])
-                            submit = gr.Button(label='Submit')
                             flag_btn = gr.Button("Flag")
                             if kwargs['score_model']:
                                 if not kwargs['auto_score']:
@@ -688,7 +687,6 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
         all_kwargs.update(locals())
         kwargs_evaluate = {k: v for k, v in all_kwargs.items() if k in inputs_kwargs_list}
         fun = partial(evaluate,
-                      model_state,
                       **kwargs_evaluate)
 
         dark_mode_btn = gr.Button("Dark Mode", variant="primary").style(
@@ -709,7 +707,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
         )
         if not kwargs['chat']:
             submit = gr.Button("Submit")
-            submit_event = submit.click(fun, inputs=inputs_list, outputs=text_output, api_name='submit')
+            submit_event = submit.click(fun, inputs=[model_state] + inputs_list, outputs=text_output, api_name='submit')
 
         # examples after submit or any other buttons for chat or no chat
         if kwargs['examples'] is not None and kwargs['show_examples']:
