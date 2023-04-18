@@ -15,7 +15,7 @@ from datasets import load_dataset
                 "openassistant_oasst1",
                 """
 - [Original Open Assistant data in tree structure](https://huggingface.co/datasets/OpenAssistant/oasst1)
-- [Flattened version of Open Assistant data created by h2oGPT repository](https://github.com/h2oai/h2ogpt/blob/45e6183171fb16691ad7d3ab006fad973f971e98/create_data.py#L1253)
+- [This flattened dataset created by script in h2oGPT repository](https://github.com/h2oai/h2ogpt/blob/45e6183171fb16691ad7d3ab006fad973f971e98/create_data.py#L1253)
 """
         ),
          (
@@ -23,7 +23,7 @@ from datasets import load_dataset
                  """
 - [Original LAION OIG Dataset](https://github.com/LAION-AI/Open-Instruction-Generalist)
 - [Original Open Assistant data in tree structure](https://huggingface.co/datasets/OpenAssistant/oasst1)
-- [Flattened version of Open Assistant data created by h2oGPT repository](https://github.com/h2oai/h2ogpt/blob/45e6183171fb16691ad7d3ab006fad973f971e98/create_data.py#L1253)
+- [This flattened dataset created by script in h2oGPT repository](https://github.com/h2oai/h2ogpt/blob/45e6183171fb16691ad7d3ab006fad973f971e98/create_data.py#L1253)
 """
          ),
     ],
