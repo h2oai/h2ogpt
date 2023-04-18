@@ -1,3 +1,6 @@
+import shutil
+import os
+
 import huggingface_hub
 import pytest
 import torch
@@ -9,7 +12,7 @@ from transformers import AutoModelForCausalLM
     [
         (
                 "h2ogpt-oasst1-256-20b",
-                "[GPT NeoX 20B](https://huggingface.co/EleutherAI/gpt-neox-20b)",
+                "EleutherAI/gpt-neox-20b",
                 "h2oai/openassistant_oasst1",
                 "https://huggingface.co/h2oai/h2ogpt-oasst1-256-20b/blob/main/gpt-neox-20b.openassistant_oasst1.json.1_epochs.5fc91911bc2bfaaf3b6c2de577c4b0ae45a07a4a.18.zip",
         ),
@@ -37,12 +40,15 @@ def test_create_model_cards(model_name, base_model, dataset, training_logs):
     model_size = model_name.split("-")[-1].upper()
     assert "B" == model_size[-1]
     assert int(model_size[-2]) >= 0
+    assert os.path.exists("README-template.md"), "must be running this test from the model dir."
+    shutil.rmtree(model_name, ignore_errors=True)
     repo = huggingface_hub.Repository(
         local_dir=model_name,
         clone_from="h2oai/%s" % model_name,
         skip_lfs_files=True,
         token=True,
     )
+    repo.git_pull()
     model = AutoModelForCausalLM.from_pretrained("h2oai/%s" % model_name,
                                                  local_files_only=False,
                                                  torch_dtype=torch.float16,
@@ -75,7 +81,6 @@ def test_create_model_cards(model_name, base_model, dataset, training_logs):
         assert "<<" not in content
         assert ">>" not in content
 
-    import os
     with open(os.path.join(model_name, "README.md"), "w") as f:
         f.write(content)
     repo.commit("Update README.md")
