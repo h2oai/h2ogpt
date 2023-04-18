@@ -35,7 +35,8 @@ def test_create_data_cards(dataset_name, link_to_source):
             token=True,
         )
         repo.git_pull()
-    except:
+    except Exception as e:
+        print(str(e))
         print("call 'huggingface_cli login' first and provide access token with write permission")
     dataset = datasets.load_dataset("json", dataset_name)
 
