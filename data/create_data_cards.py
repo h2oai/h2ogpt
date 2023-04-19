@@ -83,8 +83,8 @@ def test_create_data_cards(dataset_name, link_to_source):
         assert "<<COLNAMES>>" in content
         content = content.replace("<<COLNAMES>>", str(dataset.column_names))
 
-        assert "<<PREVIEW>>" in content
-        content = content.replace("<<PREVIEW>>", str(dataset.to_pandas().iloc[:5, :]))
+        # assert "<<PREVIEW>>" in content
+        # content = content.replace("<<PREVIEW>>", str(dataset.to_pandas().iloc[:5, :]))
 
         assert "<<SOURCE_LINK>>" in content
         content = content.replace("<<SOURCE_LINK>>", link_to_source)

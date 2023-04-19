@@ -18,12 +18,6 @@ H2O.ai's `<<DATASET_NAME>>` is an open-source instruct-type dataset for fine-tun
 - Number of columns: `<<NCOLS>>`
 - Column names: `<<COLNAMES>>`
 
-## Preview
-
-```python
-<<PREVIEW>>
-```
-
 ## Source
 
 <<SOURCE_LINK>>
