@@ -28,7 +28,7 @@ Existing open-source LLMs have several limitations:
 3. **Too small or too big**: Models like Bloom are either too small (<=7B parameters) or too big (176B parameters), also likely undertrained, and not ready for business use.
 4. **Fine-tuned on questionable data at best**: Models like Alpaca, Vicuna, GPT4All are trained on data that was collected from ChatGPT (e.g. via ShareGPT), and their terms of service disallow competitive use.
 
-We aimed to create a powerful LLM using fully permissive data and models, enabling broader access for businesses and commercial products without legal concerns, thus expanding access to cutting-edge AI while adhering to licensing requirements.
+We created h2oGPT using fully permissive data and models, with all code open-sourced, enabling broader access for businesses and commercial products without legal concerns, thus expanding access to cutting-edge AI while adhering to licensing requirements.
 
 ## The H2O.ai LLM Ecosystem
 
