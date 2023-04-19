@@ -50,9 +50,11 @@ We have an ambitious roadmap for our LLM ecosystem, including:
 5. High-performance scalable on-premises hosting for high-throughput endpoints
 6. Improvements in code completion, reasoning, mathematics, factual correctness, hallucinations, and reducing repetitions
 
-## Getting Started with H2O.ai's LLM
+## Getting Started with H2O.ai's LLMs
 
-To start using our LLM, follow the steps below:
+You can [Chat with h2oGPT](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot) right now!
+
+To start using our LLM as a developer, follow the steps below:
 
 1. Clone the repository: `git clone https://github.com/h2oai/h2ogpt.git`
 2. Change to the repository directory: `cd h2ogpt`
