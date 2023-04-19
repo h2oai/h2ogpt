@@ -35,7 +35,7 @@ We aimed to create a powerful LLM using fully permissive data and models, enabli
 
 Our open-source LLM ecosystem currently includes the following components:
 
-1. **Code, data, and models**: We provide a fully permissive, commercially usable open-source repository that includes code, data, and models.
+1. **Code, data, and models**: Fully permissive, commercially usable [code](https://github.com/h2oai/h2ogpt), curated fine-tuning [data](https://huggingface.co/h2oai), and [models](https://huggingface.co/h2oai) ranging from 7 to 20 billion parameters.
 2. **Fine-tuning**: Our ecosystem features code for preparing large open-source datasets for fine-tuning, including prompt engineering, making it easy to fine-tune LLMs up to 20 billion parameters (hopefully more soon) on commodity hardware and enterprise GPU servers.
 3. **Chatbot**: We provide code to run a chatbot on GPU servers, with a shareable end-point and a Python client API, allowing you to evaluate and compare the performance of fine-tuned LLMs.
 4. **H2O LLM Studio**: Our no-code LLM fine-tuning framework makes it even easier to work with our models.
@@ -61,7 +61,7 @@ To start using our LLM, follow the steps below:
 4. Run the chatbot: `python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-256-6.9b`
 5. Open your browser at `http://0.0.0.0:7860` or the public live URL printed by the server.
 
-For more information, visit [H2O.ai's Hugging Face page](https://huggingface.co/h2oai) and [H2O LLM Studio](https://github.com/h2oai/h2o-llmstudio) GitHub repository.
+For more information, visit [h2oGPT GitHub page](https://github.com/h2oai/h2ogpt), [H2O.ai's Hugging Face page](https://huggingface.co/h2oai) and [H2O LLM Studio GitHub page](https://github.com/h2oai/h2o-llmstudio).
 
 Join us on this exciting journey as we continue to improve and expand the capabilities of our open-source LLM ecosystem!
 
