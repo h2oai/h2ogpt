@@ -3,7 +3,7 @@
 1. Ensure docker installed and ready (requires sudo), can skip if system is already capable of running nvidia containers.  Example here is for Ubuntu, see [NVIDIA Containers](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html) for more examples.
 
 ```bash
-sudo apt-get update     && sudo apt-get install -y nvidia-container-toolkit-base
+sudo apt-get update && sudo apt-get install -y nvidia-container-toolkit-base
 sudo nvidia-ctk runtime configure --runtime=docker
 sudo systemctl restart docker
 ```
