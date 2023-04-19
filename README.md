@@ -6,14 +6,12 @@ Our goal is to make the world's best open source GPT!
 
 https://user-images.githubusercontent.com/6147661/232924684-6c0e2dfb-2f24-4098-848a-c3e4396f29f6.mov
 
-
-
 ### Current state
 
 - Open-source repository with **fully permissive, commercially usable code, data and models**
 - Code for preparing **large open-source datasets** as instruction datasets for fine-tuning of large language models (LLMs), including prompt engineering
 - Code for **fine-tuning large language models** (currently up to 20B parameters) on commodity hardware and enterprise GPU servers (single or multi node)
-- Code to **run a chatbot** on a GPU server, with shareable APIs
+- Code to **run a chatbot** on a GPU server, with shareable end-point with python client API control
 - Code to evaluate and compare the **performance** of fine-tuned LLMs
 
 All open-source datasets and models are posted on [H2O.ai's HuggingFace page](https://huggingface.co/h2oai/).
@@ -21,25 +19,22 @@ All open-source datasets and models are posted on [H2O.ai's HuggingFace page](ht
 ### Roadmap items
 
 - Integration of code and resulting LLMs with downstream applications and low/no-code platforms
-- High-performance distributed training (using DeepSpeed or similar)
-- Pre-training of foundation models on many billions of tokens
-- State-of-the-art LLM. Improve code completion, reasoning, factual correctness, reduced repetitions, hallucinations and other common issues that most LLMs share.
-
-### Development
-
-- Follow the [installation instructions](INSTALL.md) to create a development environment for training and generation.
-- Follow the [Docker instructions](INSTALL-DOCKER.md) to create a container for deployment.
-- Follow the [fine-tuning instructions](FINETUNE.md) to fine-tune any LLM models on your data.
+- Complement h2oGPT chatbot with search and other APIs
+- High-performance distributed training of larger models on trillion tokens
+- Improve code completion, reasoning, mathematics, factual correctness, hallucinations and avoid repetitions
 
 ### Chat with h2oGPT
 
-To start an h2oGPT chatbot on a Linux GPU system, first follow the installation instructions above.
-You can also use [Docker](INSTALL-DOCKER.md#containerized-installation-for-inference-on-linux-gpu-servers).
-This will download the h2oGPT model and open up a GUI with text generation input/output.
 ```bash
+git clone https://github.com/h2oai/h2ogpt.git
+pip install -r requirements.txt
 python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-256-6.9b
 ```
-and then go to http://0.0.0.0:7860 or the public URL created by gradio.
+and then use browser at http://0.0.0.0:7860 or the public live URL printed by the server.
+
+For help installing a python 3.10 environment, see the [installation instructions](INSTALL.md) 
+
+### h2oGPT with 12B and 20B models
 
 Depending on available GPU memory, you can load differently sized models. For multiple GPUs, automatic sharding is enabled by default.
 
@@ -51,6 +46,7 @@ For GPUs with at least 48GB of memory, we recommend:
 ```bash
 python generate.py --base_model=h2oai/h2ogpt-oasst1-512-20b
 ```
+These are both originally trained with 2048 context length, with fine-tuning on 512 context length.
 
 ### Why H2O.ai?
 
@@ -74,6 +70,15 @@ Many of our customers are creating models and deploying them enterprise-wide and
 
 We are proud to have over 25 (of the world's 280) [Kaggle Grandmasters](https://h2o.ai/company/team/kaggle-grandmasters/) call H2O home, including three Kaggle Grandmasters who have made it to world #1.
 
+### Docker
+
+You can also use [Docker](INSTALL-DOCKER.md#containerized-installation-for-inference-on-linux-gpu-servers).
+
+### Development
+
+- Follow the [installation instructions](INSTALL.md) to create a development environment for training and generation.
+- Follow the [Docker instructions](INSTALL-DOCKER.md) to create a container for deployment.
+- Follow the [fine-tuning instructions](FINETUNE.md) to fine-tune any LLM models on your data.
 
 ### Help
 
