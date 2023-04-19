@@ -1147,7 +1147,11 @@ def evaluate(
     else:
         stopping_criteria = StoppingCriteriaList()
 
-    max_length_tokenize = 2048
+    # help to avoid errors like:
+    # RuntimeError: The size of tensor a (2048) must match the size of tensor b (2049) at non-singleton dimension 3
+    # RuntimeError: expected scalar type Half but found Float
+    # with - 256
+    max_length_tokenize = 2048 - 256
     cutoff_len = max_length_tokenize * 4  # if reaches limit, then can't generate new tokens
     output_smallest = 30 * 4
     prompt = prompt[-cutoff_len - output_smallest:]
