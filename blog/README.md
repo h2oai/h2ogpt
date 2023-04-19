@@ -2,11 +2,11 @@
 
 by Arno Candel, PhD, CTO H2O.ai, April 19 2023
 
-At H2O.ai, we pride ourselves on developing world-class Machine Learning, Deep Learning, and AI platforms. H2O was the first open-source distributed and scalable machine learning platform, before XGBoost, TensorFlow and PyTorch existed. H2O.ai is home to over 25 Kaggle grandmasters, including the current #1. In 2017, we used GPUs to create the world's best AutoML in H2O Driverless AI. We have witnessed first-hand how Large Language Models (LLMs) have taken over the world by storm.
+At H2O.ai, we pride ourselves on developing world-class Machine Learning, Deep Learning, and AI platforms. We released H2O, the most widely used open-source distributed and scalable machine learning platform, before XGBoost, TensorFlow and PyTorch existed. H2O.ai is home to over 25 Kaggle grandmasters, including the current #1. In 2017, we used GPUs to create the world's best AutoML in H2O Driverless AI. We have witnessed first-hand how Large Language Models (LLMs) have taken over the world by storm.
 
 We are proud to announce that we are building h2oGPT, an LLM that not only excels in performance but is also fully open-source and commercially usable, providing a valuable resource for developers, researchers, and organizations worldwide.
 
-In this blog, we'll explore our journey in building h2oGPT in our effort to democratize AI.
+In this blog, we'll explore our journey in building h2oGPT in our effort to further democratize AI.
 
 ## Why Open-Source LLMs?
 
