@@ -3,7 +3,7 @@
 by Arno Candel, PhD, CTO H2O.ai, April 19 2023
 
 At H2O.ai, we pride ourselves on developing world-class Machine Learning, Deep Learning, and AI platforms.
-In the rapidly growing field of AI, large language models have proven their immense potential in various applications such as natural language processing, code completion, reasoning, mathematics, and more.
+In the rapidly growing field of AI, Large Language Models (LLMs) have proven their immense potential in various applications such as natural language processing, code completion, reasoning, mathematics, and more.
 
 We are proud to announce that we are building h2oGPT, an LLM that not only excels in performance but is also fully open-source and commercially usable, providing a valuable resource for developers, researchers, and organizations worldwide.
 
@@ -11,10 +11,10 @@ In this blog, we'll explore our journey in building this state-of-the-art LLM.
 
 ## Why Build an Open-Source LLM?
 
-Open-source Large Language Models (LLMs) are needed today for several reasons:
+Open-source LLMs are needed today for several reasons:
 1. **Innovation and Customization**: Open-source LLMs foster collaboration and innovation, enabling users to adapt models to their unique needs and drive advancements in AI and natural language processing.
 2. **Transparency and Skill Development**: Open-source LLMs provide transparency, helping users identify biases or limitations while serving as educational resources to develop skills and grow the AI community.
-3. **Competitive Landscape and Data Security**: Open-source LLMs promote competition in the AI industry and allow on-premise deployment, ensuring data privacy and security while leveraging the power of large language models.
+3. **Competitive Landscape and Data Security**: Open-source LLMs promote competition in the AI industry and allow on-premise deployment, ensuring data privacy and security.
 
 The main goal of building h2oGPT was to overcome limitations in existing models with non-permissive licenses or data restrictions for commercial use. We aimed to create a powerful LLM using fully permissive data and models, enabling broader access for businesses and commercial products without legal concerns, thus expanding access to cutting-edge AI while adhering to licensing requirements.
 
