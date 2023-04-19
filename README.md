@@ -2,7 +2,7 @@
 
 Our goal is to make the world's best open source GPT!
 
-
+Try h2oGPT now on [Hugging Face Spaces](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot)
 
 https://user-images.githubusercontent.com/6147661/232924684-6c0e2dfb-2f24-4098-848a-c3e4396f29f6.mov
 
@@ -26,8 +26,6 @@ Also check out [H2O LLM Studio](https://github.com/h2oai/h2o-llmstudio) for our 
 - Improve code completion, reasoning, mathematics, factual correctness, hallucinations and avoid repetitions
 
 ### Chat with h2oGPT
-
-Try h2oGPT now on [Hugging Face Spaces](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot)
 
 ```bash
 git clone https://github.com/h2oai/h2ogpt.git
