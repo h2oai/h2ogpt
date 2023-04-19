@@ -734,11 +734,15 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                     history[-1] is not None and \
                     len(history[-1]) >= 2:
                 os.environ['TOKENIZERS_PARALLELISM'] = 'false'
+
+                cutoff_len = 2048*4  # restrict deberta related to max for LLM
+
                 question = history[-1][0]
+                question = question[-cutoff_len:]
+
                 answer = history[-1][1]
-                cutoff_len = 2048  # if reaches limit, then can't generate new tokens
-                output_smallest = 30
-                answer = answer[-cutoff_len - output_smallest:]
+                answer = answer[-cutoff_len:]
+
                 inputs = stokenizer(question, answer,
                                     return_tensors="pt",
                                     truncation=True,
@@ -1142,13 +1146,14 @@ def evaluate(
     else:
         stopping_criteria = StoppingCriteriaList()
 
-    cutoff_len = 2048  # if reaches limit, then can't generate new tokens
-    output_smallest = 30
+    max_length_tokenize = 2048
+    cutoff_len = max_length_tokenize * 4  # if reaches limit, then can't generate new tokens
+    output_smallest = 30 * 4
     prompt = prompt[-cutoff_len - output_smallest:]
     inputs = tokenizer(prompt,
                        return_tensors="pt",
                        truncation=True,
-                       max_length=cutoff_len)
+                       max_length=max_length_tokenize)
     if debug and len(inputs["input_ids"]) > 0:
         print('input_ids length', len(inputs["input_ids"][0]), flush=True)
     input_ids = inputs["input_ids"].to(device)
