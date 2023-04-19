@@ -44,10 +44,10 @@ Our open-source LLM ecosystem currently includes the following components:
 
 We have an ambitious roadmap for our LLM ecosystem, including:
 
-- Integration with downstream applications and low/no-code platforms
-- Complementing our chatbot with search and other APIs
-- High-performance distributed training of larger models on trillion tokens
-- Improvements in code completion, reasoning, mathematics, factual correctness, hallucinations, and reducing repetitions
+1. Integration with downstream applications and low/no-code platforms
+2. Complementing our chatbot with search and other APIs
+3. High-performance distributed training of larger models on trillion tokens
+4. Improvements in code completion, reasoning, mathematics, factual correctness, hallucinations, and reducing repetitions
 
 ## Getting Started with H2O.ai's LLM
 
