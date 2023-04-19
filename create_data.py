@@ -16,6 +16,8 @@ import pandas as pd
 import numpy as np
 from tqdm import tqdm
 
+from utils import flatten_list
+
 
 def parse_rst_file(filepath):
     with open(filepath, 'r') as f:
@@ -523,17 +525,6 @@ def test_show_prompts():
     for data_points in file_points:
         for data_point in data_points:
             print(generate_prompt(data_point, 'plain', False, False)[0])
-
-
-def flatten_list(lis):
-    """Given a list, possibly nested to any level, return it flattened."""
-    new_lis = []
-    for item in lis:
-        if type(item) == type([]):
-            new_lis.extend(flatten_list(item))
-        else:
-            new_lis.append(item)
-    return new_lis
 
 
 def test_get_open_datasets():

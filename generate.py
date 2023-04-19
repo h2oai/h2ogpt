@@ -5,8 +5,8 @@ import sys
 import os
 import typing
 
+from utils import set_seed, flatten_list
 SEED = 1236
-from utils import set_seed
 set_seed(SEED)
 
 os.environ['HF_HUB_DISABLE_TELEMETRY'] = '1'
@@ -55,7 +55,7 @@ def main(
         share: bool = True,
         local_files_only: bool = False,
         resume_download: bool = True,
-        use_auth_token: bool = False,  # True requires CLI did huggingface-cli login before running
+        use_auth_token: Union[str, bool] = False,  # True requires CLI did huggingface-cli login before running
 
         src_lang: str = "English",
         tgt_lang: str = "Russian",
@@ -86,6 +86,13 @@ def main(
         eval_sharegpt_prompts_only_seed: int = 1234,
         eval_sharegpt_as_output: bool = False,
 ):
+    # allow set token directly
+    use_auth_token = os.environ.get("HUGGINGFACE_API_TOKEN", use_auth_token)
+    # override share if in spaces
+    if os.environ.get("HUGGINGFACE_SPACES"):
+        share = False
+        base_model = 'h2oai/h2ogpt-oasst1-512-12b'
+        load_8bit = True
 
     # get defaults
     model_lower = base_model.lower()
@@ -246,7 +253,7 @@ def get_device():
     return device
 
 
-def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward_type, force_1_gpu=True, use_auth_token=True):
+def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward_type, force_1_gpu=True, use_auth_token=False):
     """
     Ensure model gets on correct device
     :param base_model:
@@ -316,7 +323,7 @@ def get_model(
         reward_type: bool = None,
         local_files_only: bool = False,
         resume_download: bool = True,
-        use_auth_token: bool = True,
+        use_auth_token: Union[str, bool] = False,
         compile: bool = True,
         **kwargs,
 ):
@@ -499,7 +506,12 @@ def go_gradio(**kwargs):
                       Hash: {get_githash()}
                       """
     else:
-        description = ""
+        description = "For more information, visit [the project's website](https://github.com/h2oai/h2ogpt).<br>"
+    if os.environ.get("HUGGINGFACE_SPACES"):
+        description += """<p><b> DISCLAIMERS: </b><ul><i><li>The data used to train this model include The Pile and other sources. These may contain objectionable content, so the model may reproduce that material. Use application and responses at own risk.</i></li>"""
+        if kwargs['load_8bit']:
+            description += """<i><li> Model is loaded in 8-bit to fit on HF GPUs, so model may perform worse than 16-bit.</i></li>"""
+        description += """<i><li>Model loading and unloading disabled on HF SPACES to avoid GPU OOM for multi-user environment.</i></li></ul></p>"""
 
     if kwargs['verbose']:
         task_info_md = f"""
@@ -534,7 +546,6 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
     # css_code = 'body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en/site/header/master/_jcr_content/root/container/header_copy/logo.coreimg.svg/1678976605175/h2o-logo.svg");}'
     # demo = gr.Blocks(theme='gstaff/xkcd', css=css_code)
 
-    from create_data import flatten_list
     model_options = flatten_list(list(prompt_type_to_model_name.values())) + kwargs['extra_model_options']
     if kwargs['base_model'].strip() not in model_options:
         lora_options = [kwargs['base_model'].strip()] + model_options
@@ -676,7 +687,9 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                                     model_choice = gr.Dropdown(model_options_state.value[0], label="Choose Model", value=kwargs['base_model'])
                                     lora_choice = gr.Dropdown(lora_options_state.value[0], label="Choose LORA", value=kwargs['lora_weights'], visible=kwargs['show_lora'])
                                 with gr.Column(scale=1):
-                                    load_model_button = gr.Button("Load Model/LORA")
+                                    load_msg = "Load Model/LORA" if not os.environ.get("HUGGINGFACE_SPACES") \
+                                        else "LOAD DISABLED ON HF SPACES"
+                                    load_model_button = gr.Button(load_msg)
                                     model_used = gr.Textbox(label="Current Model", value=kwargs['base_model'])
                                     lora_used = gr.Textbox(label="Current LORA", value=kwargs['lora_weights'], visible=kwargs['show_lora'])
                             with gr.Row(scale=1):
@@ -941,7 +954,8 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                                outputs=[model_state, model_used, lora_used, prompt_type])
         prompt_update_args = dict(fn=dropdown_prompt_type_list, inputs=prompt_type, outputs=prompt_type)
         chatbot_update_args = dict(fn=chatbot_list, inputs=[text_output, model_used], outputs=text_output)
-        load_model_event = load_model_button.click(**load_model_args).then(**prompt_update_args).then(**chatbot_update_args)
+        if not os.environ.get("HUGGINGFACE_SPACES"):
+            load_model_event = load_model_button.click(**load_model_args).then(**prompt_update_args).then(**chatbot_update_args)
 
         def dropdown_model_list(list0, x):
             new_state = [list0[0] + [x]]
