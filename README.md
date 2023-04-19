@@ -2,7 +2,7 @@
 
 Our goal is to make the world's best open source GPT!
 
-### Try h2oGPT now on [🤗](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot)
+### Try h2oGPT now on [🤗 Hugging Face Spaces](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot)
 
 https://user-images.githubusercontent.com/6147661/232924684-6c0e2dfb-2f24-4098-848a-c3e4396f29f6.mov
 
