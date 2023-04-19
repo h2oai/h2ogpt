@@ -54,7 +54,7 @@ We have an ambitious roadmap for our LLM ecosystem, including:
 
 You can [Chat with h2oGPT](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot) right now!
 
-https://user-images.githubusercontent.com/6147661/232924684-6c0e2dfb-2f24-4098-848a-c3e4396f29f6.mov
+<inline>https://huggingface.co/spaces/h2oai/h2ogpt-chatbot</inline>
 
 To start using our LLM as a developer, follow the steps below:
 
