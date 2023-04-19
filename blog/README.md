@@ -1,5 +1,7 @@
 # Building the World's Best Open-Source Large Language Model: H2O.ai's Journey
 
+Author: Arno Candel, PhD CTO H2O.ai
+
 At H2O.ai, we pride ourselves on developing world-class Machine Learning, Deep Learning, and AI platforms. Our commitment to open-source technology has led us to create yet another groundbreaking innovation: an open-source, commercially usable large language model (LLM) that can be easily integrated with downstream applications and low/no-code platforms.
 
 In this blog, we'll explore our journey in building this state-of-the-art LLM and share the exciting features it offers.
