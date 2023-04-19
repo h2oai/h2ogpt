@@ -2,8 +2,7 @@
 
 by Arno Candel, PhD, CTO H2O.ai, April 19 2023
 
-At H2O.ai, we pride ourselves on developing world-class Machine Learning, Deep Learning, and AI platforms.
-In the rapidly growing field of AI, Large Language Models (LLMs) have proven their immense potential in various applications such as natural language processing, code completion, reasoning, mathematics, and more.
+At H2O.ai, we pride ourselves on developing world-class Machine Learning, Deep Learning, and AI platforms. H2O was the first open-source distributed and scalable machine learning platform, before XGBoost, TensorFlow and PyTorch existed. H2O.ai is home to over 25 Kaggle grandmasters, including the current #1. In 2017, we used GPUs to create the world's best AutoML in H2O Driverless AI. We have witnessed first-hand how Large Language Models (LLMs) have taken over the world by storm.
 
 We are proud to announce that we are building h2oGPT, an LLM that not only excels in performance but is also fully open-source and commercially usable, providing a valuable resource for developers, researchers, and organizations worldwide.
 
