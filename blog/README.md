@@ -27,7 +27,7 @@ Existing open-source LLMs have several limitations:
 1. **License Restrictions**: Some models like Llama carry non-permissive (e.g., GPL) licenses that disallow commercial use. Other models like Dolly or StableLM carry copy-left licences that prevents fine-tuning without open-sourcing.
 2. **Not Ready for Use**: Models like Pythia or GPT-NeoX are likely undertrained and/or not fine-tuned for downstream tasks like code completion or chatbots.
 3. **Too small or too big**: Models like Bloom are either too small (<=7B parameters) or too big (176B parameters), also likely undertrained, and not ready for business use.
-4. **Fine-tuned on questionable data at best**: Models like Alpaca, GPT4All are trained on data that was collected from ChatGPT (e.g. via ShareGPT), and their terms of service disallow competitive use.
+4. **Fine-tuned on questionable data at best**: Models like Alpaca, Vicuna, GPT4All are trained on data that was collected from ChatGPT (e.g. via ShareGPT), and their terms of service disallow competitive use.
 
 We aimed to create a powerful LLM using fully permissive data and models, enabling broader access for businesses and commercial products without legal concerns, thus expanding access to cutting-edge AI while adhering to licensing requirements.
 
