@@ -48,7 +48,5 @@ To start using our LLM, follow the steps below:
 
 For more information, visit [H2O.ai's Hugging Face page](https://huggingface.co/h2oai) and [H2O LLM Studio](https://github.com/h2oai/h2o-llmstudio) GitHub repository.
 
-## Why Choose H2O.ai?
-
 Join us on this exciting journey as we continue to improve and expand the capabilities of our open-source LLM ecosystem!
 
