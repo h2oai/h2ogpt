@@ -35,7 +35,7 @@ and then use browser at http://0.0.0.0:7860 or the public live URL printed by th
 
 For help installing a Python 3.10 environment or CUDA toolkit, see the [installation instructions](INSTALL.md) 
 
-### h2oGPT with 12B and 20B models
+#### Larger models require more GPU memory
 
 Depending on available GPU memory, you can load differently sized models. For multiple GPUs, automatic sharding is enabled by default.
 
@@ -47,7 +47,7 @@ For GPUs with at least 48GB of memory, we recommend:
 ```bash
 python generate.py --base_model=h2oai/h2ogpt-oasst1-512-20b
 ```
-The numbers 256 and 512 indicate the cutoff lengths (in tokens) used for fine-tuning. Shorter values generally result in faster training and more focus on the last part of the provided input text (consisting of prompt and answer).
+The numbers `256` and `512` in the model names indicate the cutoff lengths (in tokens) used for fine-tuning. Shorter values generally result in faster training and more focus on the last part of the provided input text (consisting of prompt and answer).
 
 More information about the models can be found on [H2O.ai's HuggingFace page](https://huggingface.co/h2oai/).
 
