@@ -9,14 +9,27 @@ We are proud to announce that we are building h2oGPT, an LLM that not only excel
 
 In this blog, we'll explore our journey in building h2oGPT in our effort to democratize AI.
 
-## Why Build an Open-Source LLM?
+## Why Open-Source LLMs?
 
-Open-source LLMs are needed today for several reasons:
-1. **Innovation and Customization**: Open-source LLMs foster collaboration and innovation, enabling users to adapt models to their unique needs and drive advancements in AI and natural language processing.
-2. **Transparency and Skill Development**: Open-source LLMs provide transparency, helping users identify biases or limitations while serving as educational resources to develop skills and grow the AI community.
-3. **Competitive Landscape and Data Security**: Open-source LLMs promote competition in the AI industry and allow on-premise deployment, ensuring data privacy and security.
+While LLMs like OpenAI's ChatGPT/GPT-4, Microsoft's Bing AI Chat, Google's Bard, and Cohere are powerful and effective, they have certain limitations compared to open-source LLMs:
 
-The main goal of building h2oGPT was to overcome limitations in existing models with non-permissive licenses or data restrictions for commercial use. We aimed to create a powerful LLM using fully permissive data and models, enabling broader access for businesses and commercial products without legal concerns, thus expanding access to cutting-edge AI while adhering to licensing requirements.
+1. **Data Privacy and Security**: Using hosted LLMs requires sending data to external servers. This can raise concerns about data privacy, security, and compliance, especially for sensitive information or industries with strict regulations.
+2. **Dependency and Customization**: Hosted LLMs often limit the extent of customization and control, as users rely on the service provider's infrastructure and predefined models. Open-source LLMs allow users to tailor the models to their specific needs, deploy on their own infrastructure, and even modify the underlying code.
+3. **Cost and Scalability**: Hosted LLMs usually come with usage fees, which can increase significantly with large-scale applications. Open-source LLMs can be more cost-effective, as users can scale the models on their own infrastructure without incurring additional costs from the service provider.
+4. **Access and Availability**: Hosted LLMs may be subject to downtime or limited availability, affecting users' access to the models. Open-source LLMs can be deployed on-premises or on private clouds, ensuring uninterrupted access and reducing reliance on external providers.
+
+Overall, open-source LLMs offer greater flexibility, control, and cost-effectiveness, while addressing data privacy and security concerns. They foster a competitive landscape in the AI industry and empower users to innovate and customize models to suit their specific needs.
+
+## Why h2oGPT?
+
+Existing open-source LLMs have several limitations:
+
+1. **License Restrictions**: Some models like Llama carry non-permissive (e.g., GPL) licenses that disallow commercial use. Other models like Dolly were trained on data with copy-left licences that prevents fine-tuning without open-sourcing.
+2. **Not Ready for Use**: Models like Pythia or GPT-NeoX are likely undertrained and/or not fine-tuned for downstream tasks like code completion or chatbots.
+3. **Too small or too big**: Models like Bloom are either too small (<=7B parameters) or too big (176B parameters), also likely undertrained, and not ready for business use.
+4. **Fine-tuned on questionable data at best**: Models like Alpaca, GPT4All are trained on data that was collected from ChatGPT (e.g. via ShareGPT), and their terms of service disallow competitive use.
+
+We aimed to create a powerful LLM using fully permissive data and models, enabling broader access for businesses and commercial products without legal concerns, thus expanding access to cutting-edge AI while adhering to licensing requirements.
 
 ## The H2O.ai LLM Ecosystem
 
