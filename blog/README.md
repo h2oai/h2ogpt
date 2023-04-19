@@ -24,7 +24,7 @@ Overall, open-source LLMs offer greater flexibility, control, and cost-effective
 
 Existing open-source LLMs have several limitations:
 
-1. **License Restrictions**: Some models like Llama carry non-permissive (e.g., GPL) licenses that disallow commercial use. Other models like Dolly were trained on data with copy-left licences that prevents fine-tuning without open-sourcing.
+1. **License Restrictions**: Some models like Llama carry non-permissive (e.g., GPL) licenses that disallow commercial use. Other models like Dolly or StableLM carry copy-left licences that prevents fine-tuning without open-sourcing.
 2. **Not Ready for Use**: Models like Pythia or GPT-NeoX are likely undertrained and/or not fine-tuned for downstream tasks like code completion or chatbots.
 3. **Too small or too big**: Models like Bloom are either too small (<=7B parameters) or too big (176B parameters), also likely undertrained, and not ready for business use.
 4. **Fine-tuned on questionable data at best**: Models like Alpaca, GPT4All are trained on data that was collected from ChatGPT (e.g. via ShareGPT), and their terms of service disallow competitive use.
@@ -46,7 +46,7 @@ We have an ambitious roadmap for our LLM ecosystem, including:
 
 1. Integration with downstream applications and low/no-code platforms (H2O Document AI, H2O LLM Studio, etc.)
 2. Complementing our chatbot with search and other APIs (LangChain etc.)
-3. Contribute to large-scale data cleaning efforts (Open Assistant, Stability AI etc.)
+3. Contribute to large-scale data cleaning efforts (Open Assistant, Stability AI, RedPajama, etc.)
 4. High-performance distributed training of larger models on trillion tokens
 5. Improvements in code completion, reasoning, mathematics, factual correctness, hallucinations, and reducing repetitions
 
