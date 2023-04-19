@@ -14,7 +14,7 @@ https://user-images.githubusercontent.com/6147661/232924684-6c0e2dfb-2f24-4098-8
 - Code to **run a chatbot** on a GPU server, with shareable end-point with python client API control
 - Code to evaluate and compare the **performance** of fine-tuned LLMs
 
-All open-source datasets and models are posted on [H2O.ai's HuggingFace page](https://huggingface.co/h2oai/).
+All open-source datasets and models are posted on [H2O.ai's Hugging Face page](https://huggingface.co/h2oai/).
 
 ### Roadmap items
 
@@ -24,6 +24,8 @@ All open-source datasets and models are posted on [H2O.ai's HuggingFace page](ht
 - Improve code completion, reasoning, mathematics, factual correctness, hallucinations and avoid repetitions
 
 ### Chat with h2oGPT
+
+Try h2oGPT now on [Hugging Face Spaces](https://huggingface.co/spaces/h2oai/h2ogpt-oasst1-256-6.9b-hosted)!
 
 ```bash
 git clone https://github.com/h2oai/h2ogpt.git
@@ -49,7 +51,7 @@ python generate.py --base_model=h2oai/h2ogpt-oasst1-512-20b
 ```
 The numbers `256` and `512` in the model names indicate the cutoff lengths (in tokens) used for fine-tuning. Shorter values generally result in faster training and more focus on the last part of the provided input text (consisting of prompt and answer).
 
-More information about the models can be found on [H2O.ai's HuggingFace page](https://huggingface.co/h2oai/).
+More information about the models can be found on [H2O.ai's Hugging Face page](https://huggingface.co/h2oai/).
 
 ### Why H2O.ai?
 
