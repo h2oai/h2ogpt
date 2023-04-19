@@ -37,7 +37,7 @@ Our open-source LLM ecosystem currently includes the following components:
 
 1. **Code, data, and models**: We provide a fully permissive, commercially usable open-source repository that includes code, data, and models.
 2. **Fine-tuning**: Our ecosystem features code for preparing large open-source datasets for fine-tuning, including prompt engineering, making it easy to fine-tune LLMs up to 20 billion parameters (hopefully more soon) on commodity hardware and enterprise GPU servers.
-3. **Chatbot**: We offer code to run a chatbot on GPU servers, with a shareable end-point and Python client API, allowing you to evaluate and compare the performance of fine-tuned LLMs.
+3. **Chatbot**: We provide code to run a chatbot on GPU servers, with a shareable end-point and a Python client API, allowing you to evaluate and compare the performance of fine-tuned LLMs.
 4. **H2O LLM Studio**: Our no-code LLM fine-tuning framework makes it even easier to work with our models.
 
 ## Roadmap and Future Plans
@@ -48,7 +48,8 @@ We have an ambitious roadmap for our LLM ecosystem, including:
 2. Complementing our chatbot with search and other APIs (LangChain etc.)
 3. Contribute to large-scale data cleaning efforts (Open Assistant, Stability AI, RedPajama, etc.)
 4. High-performance distributed training of larger models on trillion tokens
-5. Improvements in code completion, reasoning, mathematics, factual correctness, hallucinations, and reducing repetitions
+5. High-performance scalable on-premises hosting for high-throughput endpoints
+6. Improvements in code completion, reasoning, mathematics, factual correctness, hallucinations, and reducing repetitions
 
 ## Getting Started with H2O.ai's LLM
 
@@ -64,3 +65,12 @@ For more information, visit [H2O.ai's Hugging Face page](https://huggingface.co/
 
 Join us on this exciting journey as we continue to improve and expand the capabilities of our open-source LLM ecosystem!
 
+## Acknowledgements
+
+We appreciate the work by many open-source contributors, especially:
+
+* [H2O.ai makers](https://h2o.ai/company/team/)
+* [Alpaca-LoRA](https://github.com/tloen/alpaca-lora/)
+* [OpenAssistant](https://open-assistant.io/)
+* [EleutherAI](https://www.eleuther.ai/)
+* [LAION](https://laion.ai/blog/oig-dataset/)
