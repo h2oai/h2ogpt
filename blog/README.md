@@ -7,7 +7,7 @@ In the rapidly growing field of AI, Large Language Models (LLMs) have proven the
 
 We are proud to announce that we are building h2oGPT, an LLM that not only excels in performance but is also fully open-source and commercially usable, providing a valuable resource for developers, researchers, and organizations worldwide.
 
-In this blog, we'll explore our journey in building this state-of-the-art LLM.
+In this blog, we'll explore our journey in building h2oGPT in our effort to democratize AI.
 
 ## Why Build an Open-Source LLM?
 
