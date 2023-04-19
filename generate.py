@@ -199,7 +199,7 @@ def main(
                             assert ex[1] in [None, '']  # should be no iinput
                             assert ex[2] in [None, '']  # should be no context
                             prompt = ex[0]
-                        cutoff_len = 2048
+                        cutoff_len = 768 if os.environ.get("HUGGINGFACE_SPACES") else 2048
                         inputs = stokenizer(prompt, res,
                                             return_tensors="pt",
                                             truncation=True,
@@ -510,7 +510,7 @@ def go_gradio(**kwargs):
     if os.environ.get("HUGGINGFACE_SPACES"):
         description += """<p><b> DISCLAIMERS: </b><ul><i><li>The data used to train this model include The Pile and other sources. These may contain objectionable content, so the model may reproduce that material. Use application and responses at own risk.</i></li>"""
         if kwargs['load_8bit']:
-            description += """<i><li> Model is loaded in 8-bit to fit on HF GPUs, so model may perform worse than 16-bit.</i></li>"""
+            description += """<i><li> Model is loaded in 8-bit and 768 token context length to fit on HF GPUs, so model may perform worse than 16-bit with 2048 token limit.</i></li>"""
         description += """<i><li>Model loading and unloading disabled on HF SPACES to avoid GPU OOM for multi-user environment.</i></li></ul></p>"""
 
     if kwargs['verbose']:
@@ -738,7 +738,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
             args_list = list(args)
             history = args_list[-1]
             if history is None:
-                print("Bad history, fix for now", flush=True)
+                print("Bad history in scoring last response, fix for now", flush=True)
                 history = []
             if smodel is not None and \
                     stokenizer is not None and \
@@ -748,7 +748,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                     len(history[-1]) >= 2:
                 os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 
-                max_length_tokenize = 2048
+                max_length_tokenize = 512 if os.environ.get("HUGGINGFACE_SPACES") else 2048
                 cutoff_len = max_length_tokenize*4  # restrict deberta related to max for LLM
 
                 question = history[-1][0]
@@ -1165,7 +1165,7 @@ def evaluate(
     # RuntimeError: The size of tensor a (2048) must match the size of tensor b (2049) at non-singleton dimension 3
     # RuntimeError: expected scalar type Half but found Float
     # with - 256
-    max_length_tokenize = 2048 - 256
+    max_length_tokenize = 768 - 256 if os.environ.get("HUGGINGFACE_SPACES") else 2048 - 256
     cutoff_len = max_length_tokenize * 4  # if reaches limit, then can't generate new tokens
     output_smallest = 30 * 4
     prompt = prompt[-cutoff_len - output_smallest:]
