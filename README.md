@@ -27,7 +27,7 @@ Also check out [H2O LLM Studio](https://github.com/h2oai/h2o-llmstudio) for our 
 
 ### Chat with h2oGPT
 
-Try h2oGPT now on [Hugging Face Spaces](https://huggingface.co/spaces/h2oai/h2ogpt-oasst1-256-6.9b-hosted)!
+Try h2oGPT now on [Hugging Face Spaces](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot)
 
 ```bash
 git clone https://github.com/h2oai/h2ogpt.git
