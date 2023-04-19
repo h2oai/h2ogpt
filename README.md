@@ -33,7 +33,7 @@ python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-256-6.9b
 ```
 and then use browser at http://0.0.0.0:7860 or the public live URL printed by the server.
 
-For help installing a Python 3.10 environment, see the [installation instructions](INSTALL.md).
+For help installing a Python 3.10 environment or CUDA toolkit, see the [installation instructions](INSTALL.md) 
 
 ### h2oGPT with 12B and 20B models
 
