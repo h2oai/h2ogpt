@@ -37,7 +37,9 @@ python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-256-6.9b
 ```
 and then use browser at http://0.0.0.0:7860 or the public live URL printed by the server.
 
-For help installing a Python 3.10 environment or CUDA toolkit, see the [installation instructions](INSTALL.md) 
+For help installing a Python 3.10 environment or CUDA toolkit, see the [installation instructions](INSTALL.md)
+
+You can also use [Docker](INSTALL-DOCKER.md#containerized-installation-for-inference-on-linux-gpu-servers) for inference.
 
 #### Larger models require more GPU memory
 
@@ -77,15 +79,11 @@ Many of our customers are creating models and deploying them enterprise-wide and
 
 We are proud to have over 25 (of the world's 280) [Kaggle Grandmasters](https://h2o.ai/company/team/kaggle-grandmasters/) call H2O home, including three Kaggle Grandmasters who have made it to world #1.
 
-### Docker
-
-You can also use [Docker](INSTALL-DOCKER.md#containerized-installation-for-inference-on-linux-gpu-servers).
-
 ### Development
 
 - Follow the [installation instructions](INSTALL.md) to create a development environment for training and generation.
-- Follow the [Docker instructions](INSTALL-DOCKER.md) to create a container for deployment.
 - Follow the [fine-tuning instructions](FINETUNE.md) to fine-tune any LLM models on your data.
+- Follow the [Docker instructions](INSTALL-DOCKER.md) to create a container for deployment.
 
 ### Help
 
