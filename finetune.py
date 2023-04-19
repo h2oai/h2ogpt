@@ -184,19 +184,24 @@ def train(
         ddp: bool = True,  # set to False if OOM with True, for multi-GPU model parallelism
         local_files_only: bool = False,  # else will download new versions, normally unwanted
         resume_download: bool = True,
-        use_auth_token: bool = False,  # True requires CLI did huggingface-cli login before running
+        use_auth_token: Union[str, bool] = False,  # True requires CLI did huggingface-cli login before running
         warmup_steps: int = 100,
         logging_steps: int = 1,
         save_steps: int = None,  # must be round multiple of eval_steps
         add_eos_token: bool = False,
 ):
+    # allow set token directly
+    use_auth_token = os.environ.get("HUGGINGFACE_API_TOKEN", use_auth_token)
+
     prompt_type = str(prompt_type)  # migration from integers
     assert prompt_type in prompt_types
+
     world_size = int(os.getenv("WORLD_SIZE", 1))
     local_rank = int(os.getenv("LOCAL_RANK", 0))
     rank = int(os.getenv("RANK", 0))
     print(f"local_rank: {local_rank}")
     print(f"global rank: {rank}")
+
     gpus = max(world_size, torch.cuda.device_count())
     run_id = run_id or 0
     if not data_path:
