@@ -27,12 +27,13 @@ All open-source datasets and models are posted on [H2O.ai's HuggingFace page](ht
 
 ```bash
 git clone https://github.com/h2oai/h2ogpt.git
+cd h2ogpt
 pip install -r requirements.txt
 python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-256-6.9b
 ```
 and then use browser at http://0.0.0.0:7860 or the public live URL printed by the server.
 
-For help installing a python 3.10 environment, see the [installation instructions](INSTALL.md) 
+For help installing a Python 3.10 environment, see the [installation instructions](INSTALL.md).
 
 ### h2oGPT with 12B and 20B models
 
