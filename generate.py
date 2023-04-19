@@ -735,7 +735,8 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                     len(history[-1]) >= 2:
                 os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 
-                cutoff_len = 2048*4  # restrict deberta related to max for LLM
+                max_length_tokenize = 2048
+                cutoff_len = max_length_tokenize*4  # restrict deberta related to max for LLM
 
                 question = history[-1][0]
                 question = question[-cutoff_len:]
@@ -746,7 +747,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                 inputs = stokenizer(question, answer,
                                     return_tensors="pt",
                                     truncation=True,
-                                    max_length=cutoff_len).to(smodel.device)
+                                    max_length=max_length_tokenize).to(smodel.device)
                 score = torch.sigmoid(smodel(**inputs).logits[0]).cpu().detach().numpy()[0]
                 os.environ['TOKENIZERS_PARALLELISM'] = 'true'
                 return 'Response Score: {:.1%}'.format(score)
