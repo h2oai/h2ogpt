@@ -37,7 +37,7 @@ For help installing a Python 3.10 environment or CUDA toolkit, see the [installa
 
 #### Larger models require more GPU memory
 
-Depending on available GPU memory, you can load differently sized models. For multiple GPUs, automatic sharding is enabled by default.
+Depending on available GPU memory, you can load differently sized models. For multiple GPUs, automatic sharding can be enabled with `--infer_devices=False`, but that is disabled by default since cuda:x cuda:y mismatches can occur.
 
 For GPUs with at least 24GB of memory, we recommend:
 ```bash

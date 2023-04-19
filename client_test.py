@@ -7,8 +7,8 @@ python generate.py  --base_model=h2oai/h2ogpt-oig-oasst1-256-6.9b --chat=False -
 
 NOTE: For private models, add --use-auth_token=True
 
-NOTE: --infer_devices=True can be used for multi-GPU in case see problems with cuda:x cuda:y mismatches.
-Currently, this will force model to be on a single GPU
+NOTE: --infer_devices=True (default) must be used for multi-GPU in case see failures with cuda:x cuda:y mismatches.
+Currently, this will force model to be on a single GPU.
 
 Then run this client as:
 
