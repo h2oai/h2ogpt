@@ -40,6 +40,12 @@ from transformers import AutoModelForCausalLM
                 "h2oai/h2ogpt-oig-oasst1-instruct-cleaned-v1",
                 "https://huggingface.co/h2oai/h2ogpt-oig-oasst1-512-6.9b/blob/main/pythia-6.9b.h2ogpt-oig-oasst1-instruct-cleaned-v1.json.1_epochs.5fc91911bc2bfaaf3b6c2de577c4b0ae45a07a4a.7.zip",
         ),
+        (
+                "h2ogpt-oig-oasst1-256-20b",
+                "EleutherAI/gpt-neox-20b",
+                "h2oai/h2ogpt-oig-oasst1-instruct-cleaned-v1",
+                "https://huggingface.co/h2oai/h2ogpt-oig-oasst1-256-20b/blob/main/gpt-neox-20b.h2ogpt-oig-oasst1-instruct-cleaned-v1.json.1_epochs.5fc91911bc2bfaaf3b6c2de577c4b0ae45a07a4a.19.zip",
+        ),
     ],
 )
 def test_create_model_cards(model_name, base_model, dataset, training_logs):
