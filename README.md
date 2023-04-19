@@ -16,6 +16,8 @@ https://user-images.githubusercontent.com/6147661/232924684-6c0e2dfb-2f24-4098-8
 
 All open-source datasets and models are posted on [H2O.ai's Hugging Face page](https://huggingface.co/h2oai/).
 
+A very simple demo app is hosted on [🤗 Hugging Face Spaces](https://huggingface.co/spaces/h2oai/h2ogpt-oasst1-256-6.9b-hosted).
+
 Also check out [H2O LLM Studio](https://github.com/h2oai/h2o-llmstudio) for our no-code LLM fine-tuning framework!
 
 ### Roadmap items
