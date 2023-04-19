@@ -1233,6 +1233,8 @@ def evaluate(
             for output in CallbackToGenerator(generate, callback=None, **gen_kwargs):
                 decoded_output = decoder(output)
                 if output[-1] in [tokenizer.eos_token_id]:
+                    if debug:
+                        print("HIT EOS", flush=True)
                     break
                 if any(ele in decoded_output for ele in hard_stop_list):
                     raise StopIteration
