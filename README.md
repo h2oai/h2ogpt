@@ -91,7 +91,12 @@ We are proud to have over 25 (of the world's 280) [Kaggle Grandmasters](https://
 
 [Links](LINKS.md)
 
-Original training code is based on [Alpaca-LoRA](https://github.com/tloen/alpaca-lora/).
+### Acknowledgements
+
+* Some training code was based upon March 24 version of [Alpaca-LoRA](https://github.com/tloen/alpaca-lora/).
+* Used high-quality created data by [OpenAssistant](https://open-assistant.io/).
+* Used base models by [EleutherAI](https://www.eleuther.ai/).
+* Used OIG data created by [LAION](https://laion.ai/blog/oig-dataset/).
 
 ### Disclaimer
 
