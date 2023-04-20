@@ -613,6 +613,8 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
             {description}
             {task_info_md}
             """)
+        if os.environ.get("HUGGINGFACE_SPACES"):
+            gr.HTML('''<center><a href="https://huggingface.co/spaces/h2oai/h2ogpt-chatbot?duplicate=true"><img src="https://bit.ly/3gLdBN6" alt="Duplicate Space"></a>Duplicate this Space to skip the queue and run in a private space</center>''')
 
         # go button visible if
         base_wanted = bool(kwargs['base_model']) and kwargs['login_mode_if_model0']
