@@ -62,7 +62,7 @@ def main(
         tgt_lang: str = "Russian",
 
         gradio: bool = True,
-        gradio_avoid_processing_markdown: bool = True,
+        gradio_avoid_processing_markdown: bool = False,
         chat: bool = True,
         chat_history: int = 4096,  # character length of chat context/history
         stream_output: bool = True,
@@ -95,6 +95,10 @@ def main(
         share = False
         base_model = 'h2oai/h2ogpt-oasst1-512-12b'
         load_8bit = True
+        temperature = 0.7
+        top_p = 1
+        top_k = 100
+        do_sample = True
 
     # get defaults
     model_lower = base_model.lower()
