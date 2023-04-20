@@ -36,6 +36,7 @@ prompt_type = 'human_bot'
 temperature = 0.1
 top_p = 0.75
 top_k = 40
+max_beams = 8
 num_beams = 1
 max_new_tokens = 500
 min_new_tokens = 0
@@ -61,6 +62,7 @@ def test_client_basic():
             temperature,
             top_p,
             top_k,
+            max_beams,
             num_beams,
             max_new_tokens,
             min_new_tokens,
