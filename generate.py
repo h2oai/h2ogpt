@@ -99,9 +99,9 @@ def main(
     if is_hf:
         share = False
     if is_public:
-        temperature = 0.7
-        top_p = 1
-        top_k = 100
+        temperature = 0.4
+        top_p = 0.85
+        top_k = 70
         do_sample = True
     if is_low_mem:
         base_model = 'h2oai/h2ogpt-oasst1-512-12b'
