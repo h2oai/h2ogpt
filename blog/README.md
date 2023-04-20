@@ -48,6 +48,9 @@ You can [Chat with h2oGPT](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot) r
 
 https://user-images.githubusercontent.com/6147661/232924684-6c0e2dfb-2f24-4098-848a-c3e4396f29f6.mov
 
+![](https://user-images.githubusercontent.com/6147661/233239511-767337d5-fc0c-4c07-b001-8e9285953bc9.png)
+![](https://user-images.githubusercontent.com/6147661/233239666-89dfc579-a087-4da4-a848-0556f2233907.png)
+
 To start using our LLM as a developer, follow the steps below:
 
 1. Clone the repository: `git clone https://github.com/h2oai/h2ogpt.git`
