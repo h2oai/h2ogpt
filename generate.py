@@ -27,6 +27,11 @@ from finetune import get_loaders, example_data_points, generate_prompt, get_gith
     human, bot, prompt_type_to_model_name, inv_prompt_type_to_model_lower
 from stopping import CallbackToGenerator, Stream, StoppingCriteriaSub
 
+is_hf = os.getenv("HUGGINGFACE_SPACES")
+is_gpth2oai = os.getenv("GPT_H2O_AI")
+is_hosted = is_hf or is_gpth2oai
+is_low_mem = is_hf
+
 
 def main(
         load_8bit: bool = False,
@@ -91,7 +96,7 @@ def main(
     # allow set token directly
     use_auth_token = os.environ.get("HUGGINGFACE_API_TOKEN", use_auth_token)
     # override share if in spaces
-    if os.environ.get("HUGGINGFACE_SPACES"):
+    if is_low_mem:
         share = False
         base_model = 'h2oai/h2ogpt-oasst1-512-12b'
         load_8bit = True
@@ -202,7 +207,7 @@ def main(
                             assert ex[1] in [None, '']  # should be no iinput
                             assert ex[2] in [None, '']  # should be no context
                             prompt = ex[0]
-                        cutoff_len = 768 if os.environ.get("HUGGINGFACE_SPACES") else 2048
+                        cutoff_len = 768 if is_low_mem else 2048
                         inputs = stokenizer(prompt, res,
                                             return_tensors="pt",
                                             truncation=True,
@@ -526,11 +531,11 @@ def go_gradio(**kwargs):
                       """
     else:
         description = "For more information, visit [the project's website](https://github.com/h2oai/h2ogpt).<br>"
-    if os.environ.get("HUGGINGFACE_SPACES"):
+    if is_hosted:
         description += """<p><b> DISCLAIMERS: </b><ul><i><li>The data used to train this model include The Pile and other sources. These may contain objectionable content, so the model may reproduce that material. Use application and responses at own risk.</i></li>"""
         if kwargs['load_8bit']:
-            description += """<i><li> Model is loaded in 8-bit and HF spaces version has other limitations in order to fit on HF GPUs, so UX can be worse than native app.</i></li>"""
-        description += """<i><li>Model loading and unloading disabled on HF SPACES to avoid GPU OOM for multi-user environment.</i></li></ul></p>"""
+            description += """<i><li> Model is loaded in 8-bit and with other limitations in order to fit on GPUs with lower amounts of VRAM, so UX can be worse than non-hosted version.</i></li>"""
+        description += """<i><li>Model loading and unloading disabled to avoid GPU OOM for multi-user environment.</i></li></ul></p>"""
 
     if kwargs['verbose']:
         task_info_md = f"""
@@ -744,8 +749,8 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                                     model_choice = gr.Dropdown(model_options_state.value[0], label="Choose Model", value=kwargs['base_model'])
                                     lora_choice = gr.Dropdown(lora_options_state.value[0], label="Choose LORA", value=kwargs['lora_weights'], visible=kwargs['show_lora'])
                                 with gr.Column(scale=1):
-                                    load_msg = "Load Model/LORA" if not os.environ.get("HUGGINGFACE_SPACES") \
-                                        else "LOAD DISABLED ON HF SPACES"
+                                    load_msg = "Load Model/LORA" if not is_hosted \
+                                        else "LOAD DISABLED FOR HOSTED DEMO"
                                     load_model_button = gr.Button(load_msg)
                                     model_used = gr.Textbox(label="Current Model", value=kwargs['base_model'])
                                     lora_used = gr.Textbox(label="Current LORA", value=kwargs['lora_weights'], visible=kwargs['show_lora'])
@@ -811,7 +816,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                     len(history[-1]) >= 2:
                 os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 
-                max_length_tokenize = 512 if os.environ.get("HUGGINGFACE_SPACES") else 2048
+                max_length_tokenize = 512 if is_low_mem else 2048
                 cutoff_len = max_length_tokenize*4  # restrict deberta related to max for LLM
 
                 question = history[-1][0]
@@ -1025,7 +1030,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                                outputs=[model_state, model_used, lora_used, prompt_type])
         prompt_update_args = dict(fn=dropdown_prompt_type_list, inputs=prompt_type, outputs=prompt_type)
         chatbot_update_args = dict(fn=chatbot_list, inputs=[text_output, model_used], outputs=text_output)
-        if not os.environ.get("HUGGINGFACE_SPACES"):
+        if not is_hosted:
             load_model_event = load_model_button.click(**load_model_args) \
                                                  .then(**prompt_update_args) \
                                                  .then(**chatbot_update_args) \
@@ -1243,7 +1248,7 @@ def evaluate(
     # RuntimeError: The size of tensor a (2048) must match the size of tensor b (2049) at non-singleton dimension 3
     # RuntimeError: expected scalar type Half but found Float
     # with - 256
-    max_length_tokenize = 768 - 256 if os.environ.get("HUGGINGFACE_SPACES") else 2048 - 256
+    max_length_tokenize = 768 - 256 if is_low_mem else 2048 - 256
     cutoff_len = max_length_tokenize * 4  # if reaches limit, then can't generate new tokens
     output_smallest = 30 * 4
     prompt = prompt[-cutoff_len - output_smallest:]
