@@ -1,4 +1,5 @@
 import os
+import gc
 import random
 import numpy as np
 import torch
@@ -29,3 +30,10 @@ def flatten_list(lis):
         else:
             new_lis.append(item)
     return new_lis
+
+
+def clear_torch_cache():
+    if torch.cuda.is_available:
+        torch.cuda.empty_cache()
+        torch.cuda.ipc_collect()
+        gc.collect()
