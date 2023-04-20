@@ -1,5 +1,4 @@
 import functools
-import gc
 import inspect
 import sys
 import os
@@ -63,6 +62,7 @@ def main(
         tgt_lang: str = "Russian",
 
         gradio: bool = True,
+        gradio_avoid_processing_markdown: bool = True,
         chat: bool = True,
         chat_history: int = 4096,  # character length of chat context/history
         stream_output: bool = True,
@@ -546,6 +546,35 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                            )
 
     import gradio as gr
+
+    if kwargs['gradio_avoid_processing_markdown']:
+        from gradio_client import utils as client_utils
+        from gradio.components import Chatbot
+
+        # gradio has issue with taking too long to process input/output for markdown etc.
+        # Avoid for now, allow raw html to render, good enough for chatbot.
+        def _postprocess_chat_messages(
+                self, chat_message: str | typing.Tuple | typing.List | None
+        ) -> str | typing.Dict | None:
+            if chat_message is None:
+                return None
+            elif isinstance(chat_message, (tuple, list)):
+                filepath = chat_message[0]
+                mime_type = client_utils.get_mimetype(filepath)
+                filepath = self.make_temp_copy_if_needed(filepath)
+                return {
+                    "name": filepath,
+                    "mime_type": mime_type,
+                    "alt_text": chat_message[1] if len(chat_message) > 1 else None,
+                    "data": None,  # These last two fields are filled in by the frontend
+                    "is_file": True,
+                }
+            elif isinstance(chat_message, str):
+                return chat_message
+            else:
+                raise ValueError(f"Invalid message for Chatbot component: {chat_message}")
+        Chatbot._postprocess_chat_messages = _postprocess_chat_messages
+
     demo = gr.Blocks(theme=gr.themes.Soft(**colors_dict), css=css_code, title="h2oGPT", analytics_enabled=False)
     callback = gr.CSVLogger()
     # css_code = 'body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en/site/header/master/_jcr_content/root/container/header_copy/logo.coreimg.svg/1678976605175/h2o-logo.svg");}'
