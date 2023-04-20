@@ -29,8 +29,8 @@ from stopping import CallbackToGenerator, Stream, StoppingCriteriaSub
 
 is_hf = os.getenv("HUGGINGFACE_SPACES")
 is_gpth2oai = os.getenv("GPT_H2O_AI")
-is_public = is_hf or is_gpth2oai
-is_low_mem = is_hf
+is_public = is_hf or is_gpth2oai  # multi-user case with fixed model and disclaimer
+is_low_mem = is_hf  # assumes run on 24GB consumer GPU
 
 
 def main(
@@ -95,17 +95,22 @@ def main(
 ):
     # allow set token directly
     use_auth_token = os.environ.get("HUGGINGFACE_API_TOKEN", use_auth_token)
-    # override share if in spaces
-    if is_hf:
-        share = False
+
     if is_public:
         temperature = 0.4
         top_p = 0.85
         top_k = 70
         do_sample = True
+        if is_low_mem:
+            base_model = 'h2oai/h2ogpt-oasst1-512-12b'
+            load_8bit = True
+        else:
+            base_model = 'h2oai/h2ogpt-oasst1-512-20b'
     if is_low_mem:
-        base_model = 'h2oai/h2ogpt-oasst1-512-12b'
         load_8bit = True
+    if is_hf:
+        # must override share if in spaces
+        share = False
 
     # get defaults
     model_lower = base_model.lower()
@@ -705,12 +710,12 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                                 value=kwargs['top_k'], label="Top k",
                                 info='Num. tokens to sample from'
                             )
-                            max_beams = 8 if not is_public else 2
+                            max_beams = 8 if not is_low_mem else 2
                             num_beams = gr.Slider(minimum=1, maximum=max_beams, step=1,
                                                   value=min(max_beams, kwargs['num_beams']), label="Beams",
                                                   info="Number of searches for optimal overall probability.  "
                                                        "Uses more GPU memory/compute")
-                            max_max_new_tokens = 2048 if not is_public else kwargs['max_new_tokens']
+                            max_max_new_tokens = 2048 if not is_low_mem else kwargs['max_new_tokens']
                             max_new_tokens = gr.Slider(
                                 minimum=1, maximum=max_max_new_tokens, step=1,
                                 value=min(max_max_new_tokens, kwargs['max_new_tokens']), label="Max output length",
@@ -721,7 +726,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                             )
                             early_stopping = gr.Checkbox(label="EarlyStopping", info="Stop early in beam search",
                                                          value=kwargs['early_stopping'])
-                            max_max_time = 60 * 5 if not is_public else 60
+                            max_max_time = 60 * 5 if not is_low_mem else 60
                             max_time = gr.Slider(minimum=0, maximum=max_max_time, step=1,
                                                  value=min(max_max_time, kwargs['max_time']), label="Max. time",
                                                  info="Max. time to search optimal output.")
