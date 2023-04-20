@@ -5,7 +5,7 @@ import os
 import traceback
 import typing
 
-from utils import set_seed, flatten_list, clear_torch_cache
+from utils import set_seed, flatten_list, clear_torch_cache, system_info_print
 
 SEED = 1236
 set_seed(SEED)
@@ -210,6 +210,16 @@ def main(
                             traceback.print_exc()
                             score = 0.0
                             clear_torch_cache()
+                        except RuntimeError as e:
+                            if 'Expected all tensors to be on the same device' in str(
+                                    e) or 'expected scalar type Half but found Float' in str(e):
+                                print("GPU error: question: %s answer: %s exception: %s" % (prompt, res, str(e)),
+                                      flush=True)
+                                traceback.print_exc()
+                                score = 0.0
+                                clear_torch_cache()
+                            else:
+                                raise
                         print("SCORE %s: %s" % (exi, score), flush=True)
                         score_dump.append(ex + [prompt, res, score])
                         # dump every score in case abort
@@ -515,7 +525,7 @@ def go_gradio(**kwargs):
     if os.environ.get("HUGGINGFACE_SPACES"):
         description += """<p><b> DISCLAIMERS: </b><ul><i><li>The data used to train this model include The Pile and other sources. These may contain objectionable content, so the model may reproduce that material. Use application and responses at own risk.</i></li>"""
         if kwargs['load_8bit']:
-            description += """<i><li> Model is loaded in 8-bit and 768 token context length to fit on HF GPUs, so model may perform worse than 16-bit with 2048 token limit.</i></li>"""
+            description += """<i><li> Model is loaded in 8-bit and HF spaces version has other limitations in order to fit on HF GPUs, so UX can be worse than native app.</i></li>"""
         description += """<i><li>Model loading and unloading disabled on HF SPACES to avoid GPU OOM for multi-user environment.</i></li></ul></p>"""
 
     if kwargs['verbose']:
@@ -553,9 +563,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
 
         # gradio has issue with taking too long to process input/output for markdown etc.
         # Avoid for now, allow raw html to render, good enough for chatbot.
-        def _postprocess_chat_messages(
-                self, chat_message: str | typing.Tuple | typing.List | None
-        ) -> str | typing.Dict | None:
+        def _postprocess_chat_messages(self, chat_message: str):
             if chat_message is None:
                 return None
             elif isinstance(chat_message, (tuple, list)):
@@ -670,7 +678,8 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                             stream_output = gr.components.Checkbox(label="Stream output",
                                                                    value=kwargs['stream_output'])
                             prompt_type = gr.Dropdown(prompt_types_strings,
-                                                      value=kwargs['prompt_type'], label="Prompt Type")
+                                                      value=kwargs['prompt_type'], label="Prompt Type",
+                                                      visible=not os.environ.get("HUGGINGFACE_SPACES"))
                             temperature = gr.Slider(minimum=0, maximum=3,
                                                     value=kwargs['temperature'],
                                                     label="Temperature",
@@ -683,35 +692,43 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                                 value=kwargs['top_k'], label="Top k",
                                 info='Num. tokens to sample from'
                             )
-                            num_beams = gr.Slider(minimum=1, maximum=8, step=1,
-                                                  value=kwargs['num_beams'], label="Beams",
-                                                  info="Number of searches for optimal overall probability.  Uses more GPU memory/compute")
+                            max_beams = 8 if not os.environ.get("HUGGINGFACE_SPACES") else 2
+                            num_beams = gr.Slider(minimum=1, maximum=max_beams, step=1,
+                                                  value=min(max_beams, kwargs['num_beams']), label="Beams",
+                                                  info="Number of searches for optimal overall probability.  "
+                                                       "Uses more GPU memory/compute")
+                            max_max_new_tokens = 2048 if not os.environ.get("HUGGINGFACE_SPACES") else kwargs['max_new_tokens']
                             max_new_tokens = gr.Slider(
-                                minimum=1, maximum=2048, step=1,
-                                value=kwargs['max_new_tokens'], label="Max output length"
+                                minimum=1, maximum=max_max_new_tokens, step=1,
+                                value=min(max_max_new_tokens, kwargs['max_new_tokens']), label="Max output length",
                             )
                             min_new_tokens = gr.Slider(
-                                minimum=0, maximum=2048, step=1,
-                                value=kwargs['min_new_tokens'], label="Min output length"
+                                minimum=0, maximum=max_max_new_tokens, step=1,
+                                value=min(max_max_new_tokens, kwargs['min_new_tokens']), label="Min output length",
                             )
                             early_stopping = gr.Checkbox(label="EarlyStopping", info="Stop early in beam search",
                                                          value=kwargs['early_stopping'])
-                            max_time = gr.Slider(minimum=0, maximum=60 * 5, step=1,
-                                                 value=kwargs['max_time'], label="Max. time",
+                            max_max_time = 60 * 5 if not os.environ.get("HUGGINGFACE_SPACES") else 60
+                            max_time = gr.Slider(minimum=0, maximum=max_max_time, step=1,
+                                                 value=min(max_max_time, kwargs['max_time']), label="Max. time",
                                                  info="Max. time to search optimal output.")
                             repetition_penalty = gr.Slider(minimum=0.01, maximum=3.0,
                                                            value=kwargs['repetition_penalty'],
                                                            label="Repetition Penalty")
                             num_return_sequences = gr.Slider(minimum=1, maximum=10, step=1,
                                                              value=kwargs['num_return_sequences'],
-                                                             label="Number Returns", info="Must be <= num_beams")
+                                                             label="Number Returns", info="Must be <= num_beams",
+                                                             visible=not os.environ.get("HUGGINGFACE_SPACES"))
                             do_sample = gr.Checkbox(label="Sample", info="Sample, for diverse output(s)",
                                                     value=kwargs['do_sample'])
                             if kwargs['chat']:
                                 iinput = gr.Textbox(lines=4, label="Input",
-                                                    placeholder=kwargs['placeholder_input'])
+                                                    placeholder=kwargs['placeholder_input'],
+                                                    visible=not os.environ.get("HUGGINGFACE_SPACES"))
+                            # nominally empty for chat mode
                             context = gr.Textbox(lines=1, label="Context",
-                                                 info="Ignored in chat mode.")  # nominally empty for chat mode
+                                                 info="Ignored in chat mode.",
+                                                 visible=not os.environ.get("HUGGINGFACE_SPACES"))
 
                 with gr.TabItem("Models"):
                     with gr.Row():
@@ -733,6 +750,12 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                                 with gr.Column(scale=1):
                                     add_model_button = gr.Button("Add new model name")
                                     add_lora_button = gr.Button("Add new LORA name", visible=kwargs['show_lora'])
+                with gr.TabItem("System"):
+                    with gr.Row():
+                        with gr.Column():
+                            system_text = gr.Textbox(label='System Info')
+                            system_btn = gr.Button(value='Get System Info')
+
 
         inputs_list = get_inputs_list(locals(), kwargs['model_lower'])
         from functools import partial
@@ -803,6 +826,14 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                     traceback.print_exc()
                     clear_torch_cache()
                     return 'Response Score: GPU OOM'
+                except RuntimeError as e:
+                    if 'Expected all tensors to be on the same device' in str(e) or 'expected scalar type Half but found Float' in str(e):
+                        print("GPU Error: question: %s answer: %s exception: %s" % (question, answer, str(e)), flush=True)
+                        traceback.print_exc()
+                        clear_torch_cache()
+                        return 'Response Score: GPU Error'
+                    else:
+                        raise
                 os.environ['TOKENIZERS_PARALLELISM'] = 'true'
                 return 'Response Score: {:.1%}'.format(score)
             else:
@@ -989,7 +1020,10 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
         prompt_update_args = dict(fn=dropdown_prompt_type_list, inputs=prompt_type, outputs=prompt_type)
         chatbot_update_args = dict(fn=chatbot_list, inputs=[text_output, model_used], outputs=text_output)
         if not os.environ.get("HUGGINGFACE_SPACES"):
-            load_model_event = load_model_button.click(**load_model_args).then(**prompt_update_args).then(**chatbot_update_args).then(clear_torch_cache)
+            load_model_event = load_model_button.click(**load_model_args) \
+                                                 .then(**prompt_update_args) \
+                                                 .then(**chatbot_update_args) \
+                                                 .then(clear_torch_cache)
 
         def dropdown_model_list(list0, x):
             new_state = [list0[0] + [x]]
@@ -1017,6 +1051,12 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
         callback.setup(inputs_list + [text_output], "flagged_data_points")
         flag_btn.click(lambda *args: callback.flag(args), inputs_list + [text_output], None, preprocess=False,
                        api_name='flag')
+
+        def get_system_info():
+            return gr.Textbox.update(value=system_info_print())
+
+        system_event = system_btn.click(get_system_info, outputs=system_text, api_name='system_info')
+
         if kwargs['chat']:
 
             # don't pass text_output, don't want to clear output, just stop it
@@ -1277,13 +1317,25 @@ def evaluate(
                 try:
                     model.generate(**kwargs)
                 except torch.cuda.OutOfMemoryError as e:
-                    print("GPU OOM: prompt: %s inputs_decoded: %s exception: %s" % (prompt, inputs_decoded, str(e)), flush=True)
+                    print("GPU OOM: prompt: %s inputs_decoded: %s exception: %s" % (prompt, inputs_decoded, str(e)),
+                          flush=True)
                     if kwargs['input_ids'] is not None:
                         kwargs['input_ids'].cpu()
                     kwargs['input_ids'] = None
                     traceback.print_exc()
                     clear_torch_cache()
                     return
+                except RuntimeError as e:
+                    if 'Expected all tensors to be on the same device' in str(
+                            e) or 'expected scalar type Half but found Float' in str(e):
+                        print(
+                            "GPU Error: prompt: %s inputs_decoded: %s exception: %s" % (prompt, inputs_decoded, str(e)),
+                            flush=True)
+                        traceback.print_exc()
+                        clear_torch_cache()
+                        return
+                    else:
+                        raise
 
             for output in CallbackToGenerator(generate, callback=None, **gen_kwargs):
                 decoded_output = decoder(output)
