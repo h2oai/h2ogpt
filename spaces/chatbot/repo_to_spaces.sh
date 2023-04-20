@@ -17,6 +17,6 @@ cd ../../../h2ogpt-chatbot/
 mv generate.py app.py
 
 git add app.py h2o-logo.svg LICENSE stopping.py prompter.py finetune.py utils.py client_test.py requirements.txt
-git commit -m "Update with h2ogpt hash ${h2ogpt_hash}"
+git commit -m "Update with h2oGPT hash ${h2ogpt_hash}"
 # ensure write token used and login with git control: huggingface-cli login --token <HUGGINGFACE_API_TOKEN> --add-to-git-credential
 git push
