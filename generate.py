@@ -29,7 +29,7 @@ from stopping import CallbackToGenerator, Stream, StoppingCriteriaSub
 
 is_hf = os.getenv("HUGGINGFACE_SPACES")
 is_gpth2oai = os.getenv("GPT_H2O_AI")
-is_hosted = is_hf or is_gpth2oai
+is_public = is_hf or is_gpth2oai
 is_low_mem = is_hf
 
 
@@ -96,14 +96,16 @@ def main(
     # allow set token directly
     use_auth_token = os.environ.get("HUGGINGFACE_API_TOKEN", use_auth_token)
     # override share if in spaces
-    if is_low_mem:
+    if is_hf:
         share = False
-        base_model = 'h2oai/h2ogpt-oasst1-512-12b'
-        load_8bit = True
+    if is_public:
         temperature = 0.7
         top_p = 1
         top_k = 100
         do_sample = True
+    if is_low_mem:
+        base_model = 'h2oai/h2ogpt-oasst1-512-12b'
+        load_8bit = True
 
     # get defaults
     model_lower = base_model.lower()
@@ -531,7 +533,7 @@ def go_gradio(**kwargs):
                       """
     else:
         description = "For more information, visit [the project's website](https://github.com/h2oai/h2ogpt).<br>"
-    if is_hosted:
+    if is_public:
         description += """<p><b> DISCLAIMERS: </b><ul><i><li>The data used to train this model include The Pile and other sources. These may contain objectionable content, so the model may reproduce that material. Use application and responses at own risk.</i></li>"""
         if kwargs['load_8bit']:
             description += """<i><li> Model is loaded in 8-bit and with other limitations in order to fit on GPUs with lower amounts of VRAM, so UX can be worse than non-hosted version.</i></li>"""
@@ -622,7 +624,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
             {description}
             {task_info_md}
             """)
-        if os.environ.get("HUGGINGFACE_SPACES"):
+        if is_hf:
             gr.HTML('''<center><a href="https://huggingface.co/spaces/h2oai/h2ogpt-chatbot?duplicate=true"><img src="https://bit.ly/3gLdBN6" alt="Duplicate Space"></a>Duplicate this Space to skip the queue and run in a private space</center>''')
 
         # go button visible if
@@ -690,7 +692,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                                                                    value=kwargs['stream_output'])
                             prompt_type = gr.Dropdown(prompt_types_strings,
                                                       value=kwargs['prompt_type'], label="Prompt Type",
-                                                      visible=not os.environ.get("HUGGINGFACE_SPACES"))
+                                                      visible=not is_public)
                             temperature = gr.Slider(minimum=0, maximum=3,
                                                     value=kwargs['temperature'],
                                                     label="Temperature",
@@ -703,12 +705,12 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                                 value=kwargs['top_k'], label="Top k",
                                 info='Num. tokens to sample from'
                             )
-                            max_beams = 8 if not os.environ.get("HUGGINGFACE_SPACES") else 2
+                            max_beams = 8 if not is_public else 2
                             num_beams = gr.Slider(minimum=1, maximum=max_beams, step=1,
                                                   value=min(max_beams, kwargs['num_beams']), label="Beams",
                                                   info="Number of searches for optimal overall probability.  "
                                                        "Uses more GPU memory/compute")
-                            max_max_new_tokens = 2048 if not os.environ.get("HUGGINGFACE_SPACES") else kwargs['max_new_tokens']
+                            max_max_new_tokens = 2048 if not is_public else kwargs['max_new_tokens']
                             max_new_tokens = gr.Slider(
                                 minimum=1, maximum=max_max_new_tokens, step=1,
                                 value=min(max_max_new_tokens, kwargs['max_new_tokens']), label="Max output length",
@@ -719,7 +721,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                             )
                             early_stopping = gr.Checkbox(label="EarlyStopping", info="Stop early in beam search",
                                                          value=kwargs['early_stopping'])
-                            max_max_time = 60 * 5 if not os.environ.get("HUGGINGFACE_SPACES") else 60
+                            max_max_time = 60 * 5 if not is_public else 60
                             max_time = gr.Slider(minimum=0, maximum=max_max_time, step=1,
                                                  value=min(max_max_time, kwargs['max_time']), label="Max. time",
                                                  info="Max. time to search optimal output.")
@@ -729,17 +731,17 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                             num_return_sequences = gr.Slider(minimum=1, maximum=10, step=1,
                                                              value=kwargs['num_return_sequences'],
                                                              label="Number Returns", info="Must be <= num_beams",
-                                                             visible=not os.environ.get("HUGGINGFACE_SPACES"))
+                                                             visible=not is_public)
                             do_sample = gr.Checkbox(label="Sample", info="Sample, for diverse output(s)",
                                                     value=kwargs['do_sample'])
                             if kwargs['chat']:
                                 iinput = gr.Textbox(lines=4, label="Input",
                                                     placeholder=kwargs['placeholder_input'],
-                                                    visible=not os.environ.get("HUGGINGFACE_SPACES"))
+                                                    visible=not is_public)
                             # nominally empty for chat mode
                             context = gr.Textbox(lines=1, label="Context",
                                                  info="Ignored in chat mode.",
-                                                 visible=not os.environ.get("HUGGINGFACE_SPACES"))
+                                                 visible=not is_public)
 
                 with gr.TabItem("Models"):
                     with gr.Row():
@@ -749,7 +751,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                                     model_choice = gr.Dropdown(model_options_state.value[0], label="Choose Model", value=kwargs['base_model'])
                                     lora_choice = gr.Dropdown(lora_options_state.value[0], label="Choose LORA", value=kwargs['lora_weights'], visible=kwargs['show_lora'])
                                 with gr.Column(scale=1):
-                                    load_msg = "Load Model/LORA" if not is_hosted \
+                                    load_msg = "Load Model/LORA" if not is_public \
                                         else "LOAD DISABLED FOR HOSTED DEMO"
                                     load_model_button = gr.Button(load_msg)
                                     model_used = gr.Textbox(label="Current Model", value=kwargs['base_model'])
@@ -1030,7 +1032,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                                outputs=[model_state, model_used, lora_used, prompt_type])
         prompt_update_args = dict(fn=dropdown_prompt_type_list, inputs=prompt_type, outputs=prompt_type)
         chatbot_update_args = dict(fn=chatbot_list, inputs=[text_output, model_used], outputs=text_output)
-        if not is_hosted:
+        if not is_public:
             load_model_event = load_model_button.click(**load_model_args) \
                                                  .then(**prompt_update_args) \
                                                  .then(**chatbot_update_args) \
