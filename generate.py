@@ -227,8 +227,9 @@ def main(
                             score = 0.0
                             clear_torch_cache()
                         except RuntimeError as e:
-                            if 'Expected all tensors to be on the same device' in str(
-                                    e) or 'expected scalar type Half but found Float' in str(e):
+                            if 'Expected all tensors to be on the same device' in str(e) or \
+                                    'expected scalar type Half but found Float' in str(e) or \
+                                    'probability tensor contains either' in str(e):
                                 print("GPU error: question: %s answer: %s exception: %s" % (prompt, res, str(e)),
                                       flush=True)
                                 traceback.print_exc()
@@ -845,7 +846,9 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                     clear_torch_cache()
                     return 'Response Score: GPU OOM'
                 except RuntimeError as e:
-                    if 'Expected all tensors to be on the same device' in str(e) or 'expected scalar type Half but found Float' in str(e):
+                    if 'Expected all tensors to be on the same device' in str(e) or \
+                            'expected scalar type Half but found Float' in str(e) or \
+                            'probability tensor contains either' in str(e):
                         print("GPU Error: question: %s answer: %s exception: %s" % (question, answer, str(e)), flush=True)
                         traceback.print_exc()
                         clear_torch_cache()
@@ -1344,8 +1347,9 @@ def evaluate(
                     clear_torch_cache()
                     return
                 except RuntimeError as e:
-                    if 'Expected all tensors to be on the same device' in str(
-                            e) or 'expected scalar type Half but found Float' in str(e):
+                    if 'Expected all tensors to be on the same device' in str(e) or \
+                            'expected scalar type Half but found Float' in str(e) or \
+                            'probability tensor contains either' in str(e):
                         print(
                             "GPU Error: prompt: %s inputs_decoded: %s exception: %s" % (prompt, inputs_decoded, str(e)),
                             flush=True)
