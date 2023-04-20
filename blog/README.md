@@ -19,17 +19,6 @@ While LLMs like OpenAI's ChatGPT/GPT-4, Anthropic's Claude, Microsoft's Bing AI 
 
 Overall, open-source LLMs offer greater flexibility, control, and cost-effectiveness, while addressing data privacy and security concerns. They foster a competitive landscape in the AI industry and empower users to innovate and customize models to suit their specific needs.
 
-## Why h2oGPT?
-
-Existing open-source LLMs have several limitations:
-
-1. **License Restrictions**: Some models like Llama carry non-permissive (e.g., GPL) licenses that disallow commercial use. Other models like Dolly or StableLM carry copy-left licences that prevents fine-tuning without open-sourcing.
-2. **Not Ready for Use**: Models like Pythia or GPT-NeoX are likely undertrained and/or not fine-tuned for downstream tasks like code completion or chatbots.
-3. **Too small or too big**: Models like Bloom are either too small (<=7B parameters) or too big (176B parameters), also likely undertrained, and not ready for business use.
-4. **Fine-tuned on questionable data at best**: Models like Alpaca, Vicuna, GPT4All are trained on data that was collected from ChatGPT (e.g. via ShareGPT), and their terms of service disallow competitive use.
-
-We created h2oGPT using fully permissive data and models, with all code open-sourced, enabling broader access for businesses and commercial products without legal concerns, thus expanding access to cutting-edge AI while adhering to licensing requirements.
-
 ## The H2O.ai LLM Ecosystem
 
 Our open-source LLM ecosystem currently includes the following components:
@@ -39,16 +28,19 @@ Our open-source LLM ecosystem currently includes the following components:
 3. **Chatbot**: We provide code to run a chatbot on GPU servers, with a shareable end-point and a Python client API, allowing you to evaluate and compare the performance of fine-tuned LLMs.
 4. **H2O LLM Studio**: Our no-code LLM fine-tuning framework makes it even easier to work with our models.
 
+Everything we release is based on fully permissive data and models, with all code open-sourced, enabling broader access for businesses and commercial products without legal concerns, thus expanding access to cutting-edge AI while adhering to licensing requirements.
+
 ## Roadmap and Future Plans
 
 We have an ambitious roadmap for our LLM ecosystem, including:
 
 1. Integration with downstream applications and low/no-code platforms (H2O Document AI, H2O LLM Studio, etc.)
-2. Complementing our chatbot with search and other APIs (LangChain etc.)
-3. Contribute to large-scale data cleaning efforts (Open Assistant, Stability AI, RedPajama, etc.)
-4. High-performance distributed training of larger models on trillion tokens
-5. High-performance scalable on-premises hosting for high-throughput endpoints
-6. Improvements in code completion, reasoning, mathematics, factual correctness, hallucinations, and reducing repetitions
+2. Improved validation and benchmarking frameworks of LLMs
+3. Complementing our chatbot with search and other APIs (LangChain etc.)
+4. Contribute to large-scale data cleaning efforts (Open Assistant, Stability AI, RedPajama, etc.)
+5. High-performance distributed training of larger models on trillion tokens
+6. High-performance scalable on-premises hosting for high-throughput endpoints
+7. Improvements in code completion, reasoning, mathematics, factual correctness, hallucinations, and reducing repetitions
 
 ## Getting Started with H2O.ai's LLMs
 
@@ -74,6 +66,12 @@ We appreciate the work by many open-source contributors, especially:
 
 * [H2O.ai makers](https://h2o.ai/company/team/)
 * [Alpaca-LoRA](https://github.com/tloen/alpaca-lora/)
+* [LoRA](https://github.com/microsoft/LoRA)
+* [Stanford Alpaca](https://github.com/tatsu-lab/stanford_alpaca)
 * [OpenAssistant](https://open-assistant.io/)
 * [EleutherAI](https://www.eleuther.ai/)
 * [LAION](https://laion.ai/blog/oig-dataset/)
+* [BigScience](https://github.com/bigscience-workshop/bigscience)
+* [LLaMa](https://github.com/facebookresearch/llama/)
+* [StableLM](https://github.com/Stability-AI/StableLM)
+* [Vicuna](https://github.com/lm-sys/FastChat)
