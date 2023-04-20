@@ -47,10 +47,12 @@ def system_info():
     system = {}
     # https://stackoverflow.com/questions/48951136/plot-multiple-graphs-in-one-plot-using-tensorboard
     # https://arshren.medium.com/monitoring-your-devices-in-python-5191d672f749
-    coretemp = psutil.sensors_temperatures(fahrenheit=False)['coretemp']
-    temp_dict = {k.label: k.current for k in coretemp}
-    for k, v in temp_dict.items():
-        system['CPU_C/%s' % k] = v
+    temps = psutil.sensors_temperatures(fahrenheit=False)
+    if 'coretemp' in temps:
+        coretemp = temps['coretemp']
+        temp_dict = {k.label: k.current for k in coretemp}
+        for k, v in temp_dict.items():
+            system['CPU_C/%s' % k] = v
 
     # https://github.com/gpuopenanalytics/pynvml/blob/master/help_query_gpu.txt
     from pynvml.smi import nvidia_smi
