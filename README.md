@@ -2,7 +2,12 @@
 
 Our goal is to make the world's best open source GPT!
 
-### Try h2oGPT now on [gpt.h2o.ai](https://gpt.h2o.ai/) or [🤗 Hugging Face Spaces](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot)
+### Try h2oGPT now 
+
+Live hosted instances:
+- [![img-small.png](img-small.png) h2oGPT 20B](https://gpt.h2o.ai/)
+- [🤗 h2oGPT 12B #1](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot)
+- [🤗 h2oGPT 12B #2](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot2)
 
 https://user-images.githubusercontent.com/6147661/232924684-6c0e2dfb-2f24-4098-848a-c3e4396f29f6.mov
 
