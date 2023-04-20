@@ -22,7 +22,7 @@ conda update -n base -c defaults conda
 
 ```bash
 git clone https://github.com/h2oai/h2ogpt.git
-cd h2o-llm
+cd h2ogpt
 pip install -r requirements.txt
 ```
 
