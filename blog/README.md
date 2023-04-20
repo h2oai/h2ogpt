@@ -44,7 +44,7 @@ We have an ambitious roadmap for our LLM ecosystem, including:
 
 ## Getting Started with H2O.ai's LLMs
 
-You can [Chat with h2oGPT](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot) right now!
+You can [Chat with h2oGPT](https://gpt.h2o.ai/) right now!
 
 https://user-images.githubusercontent.com/6147661/232924684-6c0e2dfb-2f24-4098-848a-c3e4396f29f6.mov
 
