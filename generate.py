@@ -2,8 +2,11 @@ import functools
 import inspect
 import sys
 import os
+import time
 import traceback
 import typing
+
+import filelock
 
 from utils import set_seed, flatten_list, clear_torch_cache, system_info_print
 
@@ -58,6 +61,7 @@ def main(
 
         llama_type: bool = None,
         debug: bool = False,
+        save_path: str = None,
         share: bool = True,
         local_files_only: bool = False,
         resume_download: bool = True,
@@ -178,7 +182,7 @@ def main(
             if not eval_sharegpt_as_output:
                 model, tokenizer, device = get_model(**locals())
                 model_state = [model, tokenizer, device, base_model]
-                fun = partial(evaluate, model_state, debug=debug, chat=chat)
+                fun = partial(evaluate, model_state, debug=debug, chat=chat, save_path=save_path)
             else:
                 assert eval_sharegpt_prompts_only > 0
 
@@ -775,7 +779,6 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                             system_text = gr.Textbox(label='System Info')
                             system_btn = gr.Button(value='Get System Info')
 
-
         inputs_list = get_inputs_list(locals(), kwargs['model_lower'])
         from functools import partial
         all_kwargs = kwargs.copy()
@@ -1094,7 +1097,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
 
 
 input_args_list = ['model_state']
-inputs_kwargs_list = ['debug', 'chat', 'hard_stop_list', 'sanitize_bot_response', 'model_state0']
+inputs_kwargs_list = ['debug', 'chat', 'save_path', 'hard_stop_list', 'sanitize_bot_response', 'model_state0']
 
 
 def get_inputs_list(inputs_dict, model_lower):
@@ -1157,6 +1160,7 @@ def evaluate(
         src_lang=None,
         tgt_lang=None,
         debug=False,
+        save_path=None,
         chat=False,
         hard_stop_list=None,
         sanitize_bot_response=True,
@@ -1369,6 +1373,16 @@ def evaluate(
                     raise StopIteration
                 yield prompter.get_response(decoded_output, prompt=inputs_decoded,
                                             sanitize_bot_response=sanitize_bot_response)
+            if save_path:
+                import json
+
+                pr_str = decoded_output
+                if pr_str[-10:] == '\n\n<human>:':
+                    pr_str = pr_str[:-10]
+                with filelock.FileLock("save_path.lock"):
+                    with open(save_path, "a") as f:
+                        # just add [ at start, and ] at end, and have proper JSON dataset
+                        f.write("  " + json.dumps(dict(text=pr_str, time=time.ctime(), base_model=base_model)) + ",\n")
             return
         else:
             outputs = model.generate(**gen_kwargs)
