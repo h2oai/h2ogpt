@@ -2,10 +2,8 @@ import functools
 import inspect
 import sys
 import os
-import time
 import traceback
 import typing
-import filelock
 from utils import set_seed, flatten_list, clear_torch_cache, system_info_print, zip_data, save_generate_output
 
 SEED = 1236
@@ -114,7 +112,7 @@ def main(
     if is_hf:
         # must override share if in spaces
         share = False
-    save_path = os.getenv('SAVE_PATH')
+    save_path = os.getenv('SAVE_PATH', save_path)
 
     # get defaults
     model_lower = base_model.lower()
@@ -1425,12 +1423,14 @@ def evaluate(
                                             sanitize_bot_response=sanitize_bot_response)
             if save_path and decoded_output:
                 save_generate_output(output=decoded_output, base_model=base_model, json_file_path=save_path)
-            return
         else:
             outputs = model.generate(**gen_kwargs)
             outputs = [decoder(s) for s in outputs.sequences]
             yield prompter.get_response(outputs, prompt=inputs_decoded,
                                         sanitize_bot_response=sanitize_bot_response)
+            if save_path and outputs and len(outputs) >= 1:
+                decoded_output = prompt + outputs[0]
+                save_generate_output(output=decoded_output, base_model=base_model, json_file_path=save_path)
 
 
 def get_generate_params(model_lower, chat,

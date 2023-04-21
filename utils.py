@@ -128,23 +128,19 @@ def save_generate_output(output=None, base_model=None, json_file_path=None):
 
 def _save_generate_output(output=None, base_model=None, json_file_path=None):
     """
-    Save conversation to .json, row by row
+    Save conversation to .json, row by row.
+    json_file_path is path to final JSON file. If not in ., then will attempt to make directories.
     Appends if file exists
     """
     assert isinstance(json_file_path, str), "must provide save_path"
-    as_file = os.path.normpath(json_file_path)
-    if os.path.isfile(as_file):
-        # protection if had file there before
-        os.remove(as_file)
-    os.makedirs(json_file_path, exist_ok=True)
-    json_file_file = os.path.join(json_file_path, 'save.json')
+    os.makedirs(os.path.dirname(json_file_path), exist_ok=True)
     import json
     if output[-10:] == '\n\n<human>:':
         # remove trailing <human>:
         output = output[:-10]
     with filelock.FileLock("save_path.lock"):
         # lock logging in case have concurrency
-        with open(json_file_file, "a") as f:
+        with open(json_file_path, "a") as f:
             # just add [ at start, and ] at end, and have proper JSON dataset
             f.write(
                 "  " + json.dumps(
