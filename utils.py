@@ -118,30 +118,31 @@ def _zip_data(root_dirs=None, zip_path='data.zip', base_dir='./'):
     return "data.zip"
 
 
-def save_generate_output(output=None, base_model=None, json_file_path=None):
+def save_generate_output(output=None, base_model=None, save_dir=None):
     try:
-        return _save_generate_output(output=output, base_model=base_model, json_file_path=json_file_path)
+        return _save_generate_output(output=output, base_model=base_model, save_dir=save_dir)
     except Exception as e:
         traceback.print_exc()
         print('Exception in saving: %s' % str(e))
 
 
-def _save_generate_output(output=None, base_model=None, json_file_path=None):
+def _save_generate_output(output=None, base_model=None, save_dir=None):
     """
     Save conversation to .json, row by row.
     json_file_path is path to final JSON file. If not in ., then will attempt to make directories.
     Appends if file exists
     """
-    assert isinstance(json_file_path, str), "must provide save_path"
-    if os.path.dirname(json_file_path):
-        os.makedirs(os.path.dirname(json_file_path), exist_ok=True)
+    assert save_dir, "save_dir must be provided"
+    if os.path.exists(save_dir) and not os.path.isdir(save_dir):
+        raise RuntimeError("save_dir already exists and is not a directory!")
+    os.makedirs(save_dir, exist_ok=True)
     import json
     if output[-10:] == '\n\n<human>:':
         # remove trailing <human>:
         output = output[:-10]
-    with filelock.FileLock("save_path.lock"):
+    with filelock.FileLock("save_dir.lock"):
         # lock logging in case have concurrency
-        with open(json_file_path, "a") as f:
+        with open(os.path.join(save_dir, "history.json"), "a") as f:
             # just add [ at start, and ] at end, and have proper JSON dataset
             f.write(
                 "  " + json.dumps(

@@ -58,7 +58,7 @@ def main(
 
         llama_type: bool = None,
         debug: bool = False,
-        save_path: str = None,
+        save_dir: str = None,
         share: bool = True,
         local_files_only: bool = False,
         resume_download: bool = True,
@@ -112,7 +112,7 @@ def main(
     if is_hf:
         # must override share if in spaces
         share = False
-    save_path = os.getenv('SAVE_PATH', save_path)
+    save_dir = os.getenv('SAVE_DIR', save_dir)
 
     # get defaults
     model_lower = base_model.lower()
@@ -180,7 +180,7 @@ def main(
             if not eval_sharegpt_as_output:
                 model, tokenizer, device = get_model(**locals())
                 model_state = [model, tokenizer, device, base_model]
-                fun = partial(evaluate, model_state, debug=debug, chat=chat, save_path=save_path)
+                fun = partial(evaluate, model_state, debug=debug, chat=chat, save_dir=save_dir)
             else:
                 assert eval_sharegpt_prompts_only > 0
 
@@ -814,7 +814,7 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                             file_output = gr.File()
 
         # Get flagged data
-        zip_data1 = functools.partial(zip_data, root_dirs=['flagged_data_points', kwargs['save_path']])
+        zip_data1 = functools.partial(zip_data, root_dirs=['flagged_data_points', kwargs['save_dir']])
         zip_btn.click(zip_data1, inputs=None, outputs=file_output)
 
         def check_admin_pass(x):
@@ -1141,7 +1141,7 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
 
 
 input_args_list = ['model_state']
-inputs_kwargs_list = ['debug', 'chat', 'save_path', 'hard_stop_list', 'sanitize_bot_response', 'model_state0']
+inputs_kwargs_list = ['debug', 'chat', 'save_dir', 'hard_stop_list', 'sanitize_bot_response', 'model_state0']
 
 
 def get_inputs_list(inputs_dict, model_lower):
@@ -1204,7 +1204,7 @@ def evaluate(
         src_lang=None,
         tgt_lang=None,
         debug=False,
-        save_path=None,
+        save_dir=None,
         chat=False,
         hard_stop_list=None,
         sanitize_bot_response=True,
@@ -1421,16 +1421,16 @@ def evaluate(
                     raise StopIteration
                 yield prompter.get_response(decoded_output, prompt=inputs_decoded,
                                             sanitize_bot_response=sanitize_bot_response)
-            if save_path and decoded_output:
-                save_generate_output(output=decoded_output, base_model=base_model, json_file_path=save_path)
+            if save_dir and decoded_output:
+                save_generate_output(output=decoded_output, base_model=base_model, save_dir=save_dir)
         else:
             outputs = model.generate(**gen_kwargs)
             outputs = [decoder(s) for s in outputs.sequences]
             yield prompter.get_response(outputs, prompt=inputs_decoded,
                                         sanitize_bot_response=sanitize_bot_response)
-            if save_path and outputs and len(outputs) >= 1:
+            if save_dir and outputs and len(outputs) >= 1:
                 decoded_output = prompt + outputs[0]
-                save_generate_output(output=decoded_output, base_model=base_model, json_file_path=save_path)
+                save_generate_output(output=decoded_output, base_model=base_model, save_dir=save_dir)
 
 
 def get_generate_params(model_lower, chat,
