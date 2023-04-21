@@ -5,10 +5,8 @@ import os
 import time
 import traceback
 import typing
-
 import filelock
-
-from utils import set_seed, flatten_list, clear_torch_cache, system_info_print
+from utils import set_seed, flatten_list, clear_torch_cache, system_info_print, zip_data, save_generate_output
 
 SEED = 1236
 set_seed(SEED)
@@ -30,10 +28,11 @@ from finetune import get_loaders, example_data_points, generate_prompt, get_gith
     human, bot, prompt_type_to_model_name, inv_prompt_type_to_model_lower
 from stopping import CallbackToGenerator, Stream, StoppingCriteriaSub
 
-is_hf = os.getenv("HUGGINGFACE_SPACES")
-is_gpth2oai = os.getenv("GPT_H2O_AI")
+is_hf = bool(os.getenv("HUGGINGFACE_SPACES"))
+is_gpth2oai = bool(os.getenv("GPT_H2O_AI"))
 is_public = is_hf or is_gpth2oai  # multi-user case with fixed model and disclaimer
 is_low_mem = is_hf  # assumes run on 24GB consumer GPU
+admin_pass = os.getenv("ADMIN_PASS")
 
 
 def main(
@@ -115,6 +114,7 @@ def main(
     if is_hf:
         # must override share if in spaces
         share = False
+    save_path = os.getenv('SAVE_PATH')
 
     # get defaults
     model_lower = base_model.lower()
@@ -546,8 +546,9 @@ def go_gradio(**kwargs):
     if is_public:
         description += """<p><b> DISCLAIMERS: </b><ul><i><li>The data used to train this model include The Pile and other sources. These may contain objectionable content, so the model may reproduce that material. Use application and responses at own risk.</i></li>"""
         if kwargs['load_8bit']:
-            description += """<i><li> Model is loaded in 8-bit and with other limitations in order to fit on GPUs with lower amounts of VRAM, so UX can be worse than non-hosted version.</i></li>"""
-        description += """<i><li>Model loading and unloading disabled to avoid GPU OOM for multi-user environment.</i></li></ul></p>"""
+            description += """<i><li> Model is loaded in 8-bit, model loading-unloading is disabled, and other limitations exist in order to fit on GPUs with lower amounts of VRAM, so UX can be worse than non-hosted version.</i></li>"""
+        description += """<i><li>Conversations may be used to improve h2oGPT.  Do not share sensitive information.</i></li>"""
+        description += """<i><li>By using h2oGPT, you accept our [Terms of Service](https://github.com/h2oai/h2ogpt/blob/main/tos.md).</i></li></ul></p>"""
 
     if kwargs['verbose']:
         task_info_md = f"""
@@ -668,7 +669,7 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
 
         # go button visible if
         base_wanted = bool(kwargs['base_model']) and kwargs['login_mode_if_model0']
-        go_btn = gr.Button(value="LOGIN", visible=base_wanted, variant="primary")
+        go_btn = gr.Button(value="ENTER", visible=base_wanted, variant="primary")
         normal_block = gr.Row(visible=not base_wanted)
         with normal_block:
             with gr.Tabs():
@@ -803,11 +804,27 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                                     add_model_button = gr.Button("Add new model name")
                                     add_lora_button = gr.Button("Add new LORA name", visible=kwargs['show_lora'])
                 with gr.TabItem("System"):
-                    with gr.Row():
+                    system_row = gr.Row(visible=not is_public)
+                    admin_pass_textbox = gr.Textbox(label="Admin Password", type='password', visible=is_public)
+                    admin_btn = gr.Button(value="admin", visible=is_public)
+                    with system_row:
                         with gr.Column():
                             system_text = gr.Textbox(label='System Info')
                             system_btn = gr.Button(value='Get System Info')
 
+                            zip_btn = gr.Button("Zip")
+                            file_output = gr.File()
+
+        # Get flagged data
+        zip_data1 = functools.partial(zip_data, root_dirs=['flagged_data_points', kwargs['save_path']])
+        zip_btn.click(zip_data1, inputs=None, outputs=file_output)
+
+        def check_admin_pass(x):
+            return gr.update(visible=x == admin_pass)
+
+        admin_btn.click(check_admin_pass, inputs=admin_pass_textbox, outputs=system_row)
+
+        # Get inputs to evaluate()
         inputs_list = get_inputs_list(locals(), kwargs['model_lower'])
         from functools import partial
         all_kwargs = kwargs.copy()
@@ -1392,6 +1409,7 @@ def evaluate(
                     else:
                         raise
 
+            decoded_output = None
             for output in CallbackToGenerator(generate, callback=None, **gen_kwargs):
                 decoded_output = decoder(output)
                 if output[-1] in [tokenizer.eos_token_id]:
@@ -1402,7 +1420,7 @@ def evaluate(
                     raise StopIteration
                 yield prompter.get_response(decoded_output, prompt=inputs_decoded,
                                             sanitize_bot_response=sanitize_bot_response)
-            if save_path:
+            if save_path and decoded_output:
                 save_generate_output(output=decoded_output, base_model=base_model, json_file_path=save_path)
             return
         else:
@@ -1410,27 +1428,6 @@ def evaluate(
             outputs = [decoder(s) for s in outputs.sequences]
             yield prompter.get_response(outputs, prompt=inputs_decoded,
                                         sanitize_bot_response=sanitize_bot_response)
-
-
-def save_generate_output(output=None, base_model=None, json_file_path=None):
-    """
-    Save conversation to .json, row by row
-    Appends if file exists
-    """
-    assert isinstance(json_file_path, str), "must provide save_path"
-    import json
-    if output[-10:] == '\n\n<human>:':
-        # remove trailing <human>:
-        output = output[:-10]
-    with filelock.FileLock("save_path.lock"):
-        # lock logging in case have concurrency
-        with open(json_file_path, "a") as f:
-            # just add [ at start, and ] at end, and have proper JSON dataset
-            f.write(
-                "  " + json.dumps(
-                    dict(text=output, time=time.ctime(), base_model=base_model)
-                ) + ",\n"
-            )
 
 
 def get_generate_params(model_lower, chat,

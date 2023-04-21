@@ -1,7 +1,13 @@
+import contextlib
 import os
 import gc
 import random
+import shutil
 import time
+import traceback
+import zipfile
+
+import filelock
 import numpy as np
 import pandas as pd
 import torch
@@ -87,3 +93,61 @@ def system_info_print():
         return df.to_markdown()
     except Exception as e:
         return "Error: %s" % str(e)
+
+
+def zip_data(root_dirs=None, zip_path='data.zip', base_dir='./'):
+    try:
+        return _zip_data(zip_path=zip_path, base_dir=base_dir, root_dirs=root_dirs)
+    except Exception as e:
+        traceback.print_exc()
+        print('Exception in zipping: %s' % str(e))
+
+
+def _zip_data(root_dirs=None, zip_path='data.zip', base_dir='./'):
+    assert root_dirs is not None
+    with zipfile.ZipFile(zip_path, "w") as expt_zip:
+        for root_dir in root_dirs:
+            if root_dir is None:
+                continue
+            for root, d, files in os.walk(root_dir):
+                for file in files:
+                    file_to_archive = os.path.join(root, file)
+                    assert os.path.exists(file_to_archive)
+                    path_to_archive = os.path.relpath(file_to_archive, base_dir)
+                    expt_zip.write(filename=file_to_archive, arcname=path_to_archive)
+    return "data.zip"
+
+
+def save_generate_output(output=None, base_model=None, json_file_path=None):
+    try:
+        return _save_generate_output(output=output, base_model=base_model, json_file_path=json_file_path)
+    except Exception as e:
+        traceback.print_exc()
+        print('Exception in saving: %s' % str(e))
+
+
+def _save_generate_output(output=None, base_model=None, json_file_path=None):
+    """
+    Save conversation to .json, row by row
+    Appends if file exists
+    """
+    assert isinstance(json_file_path, str), "must provide save_path"
+    as_file = os.path.normpath(json_file_path)
+    if os.path.isfile(as_file):
+        # protection if had file there before
+        os.remove(as_file)
+    os.makedirs(json_file_path, exist_ok=True)
+    json_file_file = os.path.join(json_file_path, 'save.json')
+    import json
+    if output[-10:] == '\n\n<human>:':
+        # remove trailing <human>:
+        output = output[:-10]
+    with filelock.FileLock("save_path.lock"):
+        # lock logging in case have concurrency
+        with open(json_file_file, "a") as f:
+            # just add [ at start, and ] at end, and have proper JSON dataset
+            f.write(
+                "  " + json.dumps(
+                    dict(text=output, time=time.ctime(), base_model=base_model)
+                ) + ",\n"
+            )
