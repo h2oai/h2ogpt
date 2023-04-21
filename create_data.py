@@ -1241,7 +1241,7 @@ def test_grade():
     df.to_parquet(output_file, index=False)
 
 
-def test_add_open_assistant(save_json=True):
+def test_add_open_assistant(save_json=True, fixup_personality=True):
     """
     Flatten tree structure into one row per path from root to leaf
     Also turn into human_bot prompting format:
@@ -1266,6 +1266,19 @@ def test_add_open_assistant(save_json=True):
         message_tree_id = message_tree_ids[i]
         parent_id = parent_ids[i]
         text = texts[i]
+        if fixup_personality:
+            text = text.replace("Open Assistant", "h2oGPT")
+            text = text.replace("Open Assistand", "h2oGPT")
+            text = text.replace("Open Assitant", "h2oGPT")
+            text = text.replace("Open Assistent", "h2oGPT")
+            text = text.replace("Open Assisstant", "h2oGPT")
+            text = text.replace("Open Assitent", "h2oGPT")
+            text = text.replace("Open Assitiant", "h2oGPT")
+            text = text.replace("Open Assistiant", "h2oGPT")
+            text = text.replace("Open Assitan ", "h2oGPT ")
+            text = text.replace("Open Assistan ", "h2oGPT ")
+            text = text.replace("Open Asistant", "h2oGPT")
+            text = text.replace("Open Assiant", "h2oGPT")
         role = roles[i]
         new_data = ('<human>: ' if role == 'prompter' else '<bot>: ') + text
         entry = dict(message_id=message_id, parent_id=parent_id, text=new_data)
@@ -1326,6 +1339,7 @@ def test_add_open_assistant(save_json=True):
         all_rows.extend([dict(input=c['text'], prompt_type='plain', source=data_file) for c in conversations])
     print(len(all_rows))
     if save_json:
+        data_file = data_file + ("_h2ogpt" if fixup_personality else "")
         with open(data_file.lower().replace("/", "_") + ".json", "w") as f:
             f.write(json.dumps(all_rows, indent=2))
     return all_rows
