@@ -121,7 +121,7 @@ def train(
         save_code: bool = False,
         run_id: int = None,
 
-        base_model: str = 'h2oai/h2ogpt-oig-oasst1-256-6.9b',
+        base_model: str = 'h2oai/h2ogpt-oig-oasst1-512-6.9b',
         # base_model: str = 'h2oai/h2ogpt-oasst1-512-12b',
         # base_model: str = 'h2oai/h2ogpt-oasst1-512-20b',
         # base_model: str = 'EleutherAI/gpt-neox-20b',
