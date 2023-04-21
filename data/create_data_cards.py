@@ -39,16 +39,23 @@ from datasets import load_dataset
 - [This flattened dataset created by script in h2oGPT repository](https://github.com/h2oai/h2ogpt/blob/45e6183171fb16691ad7d3ab006fad973f971e98/create_data.py#L1253)
 """
         ),
-         (
-                 "h2ogpt-oig-oasst1-instruct-cleaned-v1",
-                 """
+        (
+                "h2ogpt-oig-oasst1-instruct-cleaned-v1",
+                """
 - [Original LAION OIG Dataset](https://github.com/LAION-AI/Open-Instruction-Generalist)
 - [LAION OIG data detoxed and filtered down by scripts in h2oGPT repository](https://github.com/h2oai/h2ogpt/blob/main/FINETUNE.md#high-quality-oig-based-instruct-data)
 
 - [Original Open Assistant data in tree structure](https://huggingface.co/datasets/OpenAssistant/oasst1)
 - [This flattened dataset created by script in h2oGPT repository](https://github.com/h2oai/h2ogpt/blob/5fc91911bc2bfaaf3b6c2de577c4b0ae45a07a4a/create_data.py#L1253)
 """
-         ),
+        ),
+        (
+                "openassistant_oasst1_h2ogpt",
+                """
+- [Original Open Assistant data in tree structure](https://huggingface.co/datasets/OpenAssistant/oasst1)
+- [This flattened dataset created by script in h2oGPT repository](https://github.com/h2oai/h2ogpt/blob/a0519ea090157e84571cd61a87b2a0f033a3feed/create_data.py#L1244)
+"""
+        ),
     ],
 )
 def test_create_data_cards(dataset_name, link_to_source):
