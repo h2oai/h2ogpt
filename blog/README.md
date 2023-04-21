@@ -23,10 +23,10 @@ Overall, open-source LLMs offer greater flexibility, control, and cost-effective
 
 Our open-source LLM ecosystem currently includes the following components:
 
-1. **Code, data, and models**: Fully permissive, commercially usable [code](https://github.com/h2oai/h2ogpt), curated fine-tuning [data](https://huggingface.co/h2oai), and [models](https://huggingface.co/h2oai) ranging from 7 to 20 billion parameters.
-2. **Fine-tuning**: Our ecosystem features code for preparing large open-source datasets for fine-tuning, including prompt engineering, making it easy to fine-tune LLMs up to 20 billion parameters (hopefully more soon) on commodity hardware and enterprise GPU servers.
-3. **Chatbot**: We provide code to run a chatbot on GPU servers, with a shareable end-point and a Python client API, allowing you to evaluate and compare the performance of fine-tuned LLMs.
-4. **H2O LLM Studio**: Our no-code LLM fine-tuning framework makes it even easier to work with our models.
+1. **Code, data, and models**: Fully permissive, commercially usable [code](https://github.com/h2oai/h2ogpt), curated fine-tuning [data](https://huggingface.co/h2oai), and fine-tuned [models](https://huggingface.co/h2oai) ranging from 7 to 20 billion parameters.
+2. **State-of-the-art fine-tuning**: We provide code for highly efficient fine-tuning, including targeted data preparation, prompt engineering, and computational optimizations to fine-tune LLMs with up to 20 billion parameters (even larger models expected soon) in hours on commodity hardware or enterprise servers. Techniques like low-rank approximations (LoRA) and data compression allow computational savings of several orders of magnitude.
+3. **Chatbot**: We provide code to run a multi-tenant chatbot on GPU servers, with an easily shareable end-point and a Python client API, allowing you to evaluate and compare the performance of fine-tuned LLMs.
+4. **H2O LLM Studio**: Our no-code LLM fine-tuning framework created by the world's top Kaggle grandmasters makes it even easier to fine-tune and evaluate LLMs.
 
 Everything we release is based on fully permissive data and models, with all code open-sourced, enabling broader access for businesses and commercial products without legal concerns, thus expanding access to cutting-edge AI while adhering to licensing requirements.
 
@@ -36,7 +36,7 @@ We have an ambitious roadmap for our LLM ecosystem, including:
 
 1. Integration with downstream applications and low/no-code platforms (H2O Document AI, H2O LLM Studio, etc.)
 2. Improved validation and benchmarking frameworks of LLMs
-3. Complementing our chatbot with search and other APIs (LangChain etc.)
+3. Complementing our chatbot with search and other APIs (LangChain, etc.)
 4. Contribute to large-scale data cleaning efforts (Open Assistant, Stability AI, RedPajama, etc.)
 5. High-performance distributed training of larger models on trillion tokens
 6. High-performance scalable on-premises hosting for high-throughput endpoints
@@ -69,12 +69,13 @@ We appreciate the work by many open-source contributors, especially:
 
 * [H2O.ai makers](https://h2o.ai/company/team/)
 * [Alpaca-LoRA](https://github.com/tloen/alpaca-lora/)
-* [LoRA](https://github.com/microsoft/LoRA)
-* [Stanford Alpaca](https://github.com/tatsu-lab/stanford_alpaca)
+* [LoRA](https://github.com/microsoft/LoRA/)
+* [Stanford Alpaca](https://github.com/tatsu-lab/stanford_alpaca/)
+* [Hugging Face](https://huggingface.co/)
 * [OpenAssistant](https://open-assistant.io/)
 * [EleutherAI](https://www.eleuther.ai/)
 * [LAION](https://laion.ai/blog/oig-dataset/)
-* [BigScience](https://github.com/bigscience-workshop/bigscience)
+* [BigScience](https://github.com/bigscience-workshop/bigscience/)
 * [LLaMa](https://github.com/facebookresearch/llama/)
-* [StableLM](https://github.com/Stability-AI/StableLM)
-* [Vicuna](https://github.com/lm-sys/FastChat)
+* [StableLM](https://github.com/Stability-AI/StableLM/)
+* [Vicuna](https://github.com/lm-sys/FastChat/)
