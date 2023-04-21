@@ -1403,21 +1403,34 @@ def evaluate(
                 yield prompter.get_response(decoded_output, prompt=inputs_decoded,
                                             sanitize_bot_response=sanitize_bot_response)
             if save_path:
-                import json
-
-                pr_str = decoded_output
-                if pr_str[-10:] == '\n\n<human>:':
-                    pr_str = pr_str[:-10]
-                with filelock.FileLock("save_path.lock"):
-                    with open(save_path, "a") as f:
-                        # just add [ at start, and ] at end, and have proper JSON dataset
-                        f.write("  " + json.dumps(dict(text=pr_str, time=time.ctime(), base_model=base_model)) + ",\n")
+                save_generate_output(output=decoded_output, base_model=base_model, json_file_path=save_path)
             return
         else:
             outputs = model.generate(**gen_kwargs)
             outputs = [decoder(s) for s in outputs.sequences]
             yield prompter.get_response(outputs, prompt=inputs_decoded,
                                         sanitize_bot_response=sanitize_bot_response)
+
+
+def save_generate_output(output=None, base_model=None, json_file_path=None):
+    """
+    Save conversation to .json, row by row
+    Appends if file exists
+    """
+    assert isinstance(json_file_path, str), "must provide save_path"
+    import json
+    if output[-10:] == '\n\n<human>:':
+        # remove trailing <human>:
+        output = output[:-10]
+    with filelock.FileLock("save_path.lock"):
+        # lock logging in case have concurrency
+        with open(json_file_path, "a") as f:
+            # just add [ at start, and ] at end, and have proper JSON dataset
+            f.write(
+                "  " + json.dumps(
+                    dict(text=output, time=time.ctime(), base_model=base_model)
+                ) + ",\n"
+            )
 
 
 def get_generate_params(model_lower, chat,
