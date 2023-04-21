@@ -1,4 +1,4 @@
-Terms of Service for H2O.ai's hosted running versions of h2oGPT, e.g. on Huggingface Spaces, AWS, Google Collab, Kaggle, or other servers that run the software.  This document does not apply to the code, models, or data related to the project h2oGPT that reside on Github, Huggingface Model Cards, or Huggingface Data Cards or to the code that resides at Huggingface Spaces.
+Terms of Service for H2O.ai's hosted running versions of h2oGPT, e.g. on Huggingface Spaces, AWS, Google Colab, Kaggle, or other servers that run the software.  This document does not apply to the code, models, or data related to the project h2oGPT that reside on Github, Huggingface Model Cards, or Huggingface Data Cards or to the code that resides at Huggingface Spaces.
 
 1
 Scope of Application, Amendments
