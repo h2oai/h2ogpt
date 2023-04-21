@@ -73,6 +73,7 @@ prompt_type_to_model_name = {
         'decapoda-research/llama-7b-hf',
         'decapoda-research/llama-13b-hf',
         'decapoda-research/llama-30b-hf',
+        'decapoda-research/llama-65b-hf',
         'facebook/mbart-large-50-many-to-many-mmt',
         'philschmid/bart-large-cnn-samsum',
         'philschmid/flan-t5-base-samsum',

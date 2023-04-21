@@ -1585,5 +1585,9 @@ if __name__ == "__main__":
 
     python generate.py --base_model='togethercomputer/GPT-NeoXT-Chat-Base-20B' --prompt_type='human_bot' --lora_weights='GPT-NeoXT-Chat-Base-20B.merged.json.8_epochs.57b2892c53df5b8cefac45f84d019cace803ef26.28'
 
+    must have 4*48GB GPU and run without 8bit in order for sharding to work with infer_devices=False
+    can also pass --prompt_type='human_bot' and model can somewhat handle instructions without being instruct tuned
+    python generate.py --base_model=decapoda-research/llama-65b-hf --load_8bit=False --infer_devices=False --prompt_type='human_bot'
+
     """, flush=True)
     fire.Fire(main)
