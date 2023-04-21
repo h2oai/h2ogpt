@@ -764,7 +764,7 @@ Current Time: {}
 
         PreInput = None
 
-        PreResponse = bot
+        PreResponse = bot + ' '
 
         terminate_response = [start, PreResponse]
     elif prompt_type in [3, "3", "dai_faq"]:
