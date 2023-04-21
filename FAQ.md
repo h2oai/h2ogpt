@@ -3,8 +3,9 @@
 ![](https://user-images.githubusercontent.com/6147661/233486736-812d7b95-8c2f-438e-be76-ec4845c28a33.png)
 
 As explained on the [model card](https://huggingface.co/h2oai/h2ogpt-oasst1-512-20b) h2oGPT is a fine-tuned version
-of [GPT-NeoX-20b](https://huggingface.co/EleutherAI/gpt-neox-20b), which was trained on the [Pile](https://pile.eleuther.ai/).
-The Pile dataset contains training data created by OpenAI (from the GPT-2 days) and by Open Assistant which injected the above
+of [GPT-NeoX-20b](https://huggingface.co/EleutherAI/gpt-neox-20b), which was trained on the [Pile](https://pile.eleuther.ai/)
+and on the [h2oai/openassistant_oasst1](https://huggingface.co/datasets/h2oai/openassistant_oasst1).
+These datasets contain training data created by OpenAI (from the GPT-2 days) and by Open Assistant which injected the above
 answer and similar answers. In other words, they "contaminated" the training data with their desired outputs for the model (i.e., personality).
 All the knowledge of the model is from pre-training on the billions of tokens, the fine-tuning only turns that language
 model into a chatbot by returning short answers for short questions, or in other words, pre-training creates language
