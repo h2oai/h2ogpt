@@ -543,14 +543,43 @@ def go_gradio(**kwargs):
     else:
         task_info_md = ''
 
-    css_code = """footer {visibility: hidden}
-body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en/site/header/master/_jcr_content/root/container/header_copy/logo.coreimg.svg/1678976605175/h2o-logo.svg");}}"""
+    css_code = """footer {visibility: hidden;}
+body{background:linear-gradient(#f2f2f2,#cccccc);}
+body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
 
-    from gradio.themes.utils import colors, fonts, sizes
+    from gradio.themes.utils import Color, colors, fonts, sizes
     if kwargs['h2ocolors']:
-        colors_dict = dict(primary_hue=colors.yellow,
-                           secondary_hue=colors.yellow,
-                           neutral_hue=colors.gray,
+        h2o_yellow = Color(
+            name="yellow",
+            c50="#fffef2",
+            c100="#fff9e6",
+            c200="#ffecb3",
+            c300="#ffe28c",
+            c400="#ffd659",
+            c500="#fec925",
+            c600="#e6ac00",
+            c700="#bf8f00",
+            c800="#a67c00",
+            c900="#664d00",
+            c950="#403000",
+        )
+        h2o_gray = Color(
+            name="gray",
+            c50="#f2f2f2",
+            c100="#e5e5e5",
+            c200="#cccccc",
+            c300="#b2b2b2",
+            c400="#999999",
+            c500="#7f7f7f",
+            c600="#666666",
+            c700="#4c4c4c",
+            c800="#333333",
+            c900="#191919",
+            c950="#0d0d0d",
+        )
+        colors_dict = dict(primary_hue=h2o_yellow,
+                           secondary_hue=h2o_yellow,
+                           neutral_hue=h2o_gray,
                            spacing_size=sizes.spacing_md,
                            radius_size=sizes.radius_md,
                            text_size=sizes.text_md,
