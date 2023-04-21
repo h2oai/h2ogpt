@@ -133,7 +133,8 @@ def _save_generate_output(output=None, base_model=None, json_file_path=None):
     Appends if file exists
     """
     assert isinstance(json_file_path, str), "must provide save_path"
-    os.makedirs(os.path.dirname(json_file_path), exist_ok=True)
+    if os.path.dirname(json_file_path):
+        os.makedirs(os.path.dirname(json_file_path), exist_ok=True)
     import json
     if output[-10:] == '\n\n<human>:':
         # remove trailing <human>:
