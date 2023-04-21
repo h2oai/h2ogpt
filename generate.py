@@ -1645,5 +1645,7 @@ if __name__ == "__main__":
     can also pass --prompt_type='human_bot' and model can somewhat handle instructions without being instruct tuned
     python generate.py --base_model=decapoda-research/llama-65b-hf --load_8bit=False --infer_devices=False --prompt_type='human_bot'
 
+    python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-256-6.9b
+
     """, flush=True)
     fire.Fire(main)
