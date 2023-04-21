@@ -1269,7 +1269,7 @@ def evaluate(
             # encounters = [prompt.count(human) + 1, prompt.count(bot) + 1]
             # stopping only starts once output is beyond prompt
             # 1 human is enough to trigger, but need 2 bots, because very first view back will be bot we added
-            stop_words = [human, bot]
+            stop_words = [human, bot, '\n' + human, '\n' + bot]
             encounters = [1, 2]
         elif prompt_type == 'instruct_vicuna':
             # even below is not enough, generic strings and many ways to encode
@@ -1300,6 +1300,9 @@ def evaluate(
         # avoid padding in front of tokens
         if tokenizer.pad_token:
             stop_words_ids = [x[1:] if x[0] == tokenizer.pad_token_id and len(x) > 1 else x for x in stop_words_ids]
+        # handle fake \n added
+        stop_words_ids = [x[1:] if y[0] == '\n' else x for x,y in zip(stop_words_ids, stop_words)]
+        # build stopper
         stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(stops=stop_words_ids, encounters=encounters)])
     else:
         stopping_criteria = StoppingCriteriaList()
