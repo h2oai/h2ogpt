@@ -1241,7 +1241,7 @@ def test_grade():
     df.to_parquet(output_file, index=False)
 
 
-def test_add_open_assistant(save_json=True, fixup_personality=True):
+def test_add_open_assistant(save_json=True, fixup_personality=True, only_personality=True):
     """
     Flatten tree structure into one row per path from root to leaf
     Also turn into human_bot prompting format:
@@ -1336,10 +1336,13 @@ def test_add_open_assistant(save_json=True, fixup_personality=True):
                     if conv2['message_id'] in conv['message_id']:
                         conv2['message_id'] = None
         conversations = [c for c in conversations if c['message_id']]
-        all_rows.extend([dict(input=c['text'], prompt_type='plain', source=data_file) for c in conversations])
+        if only_personality:
+            all_rows.extend([dict(input=c['text'], prompt_type='plain', source=data_file) for c in conversations if 'h2oGPT' in c['text']])
+        else:
+            all_rows.extend([dict(input=c['text'], prompt_type='plain', source=data_file) for c in conversations])
     print(len(all_rows))
     if save_json:
-        data_file = data_file + ("_h2ogpt" if fixup_personality else "")
+        data_file = data_file + ("_h2ogpt" if fixup_personality else "") + ("_only" if only_personality else "")
         with open(data_file.lower().replace("/", "_") + ".json", "w") as f:
             f.write(json.dumps(all_rows, indent=2))
     return all_rows
