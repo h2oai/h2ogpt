@@ -1241,7 +1241,15 @@ def test_grade():
     df.to_parquet(output_file, index=False)
 
 
-def test_add_open_assistant(save_json=True, fixup_personality=True, only_personality=True):
+@pytest.mark.parametrize(
+    "fixup_personality, only_personality",
+    [
+        [False, False],
+        [True, True],
+        [True, False],
+    ]
+)
+def test_add_open_assistant(fixup_personality, only_personality, save_json=True):
     """
     Flatten tree structure into one row per path from root to leaf
     Also turn into human_bot prompting format:
@@ -1268,6 +1276,7 @@ def test_add_open_assistant(save_json=True, fixup_personality=True, only_persona
         text = texts[i]
         if fixup_personality:
             text = text.replace("Open Assistant", "h2oGPT")
+            text = text.replace("open assistant", "h2oGPT")
             text = text.replace("Open Assistand", "h2oGPT")
             text = text.replace("Open Assitant", "h2oGPT")
             text = text.replace("Open Assistent", "h2oGPT")
