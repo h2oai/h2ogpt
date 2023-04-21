@@ -544,7 +544,7 @@ def go_gradio(**kwargs):
         task_info_md = ''
 
     css_code = """footer {visibility: hidden;}
-body{background:linear-gradient(#f2f2f2,#cccccc);}
+body{background:linear-gradient(#f5f5f5,#e5e5e5);}
 body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
 
     from gradio.themes.utils import Color, colors, fonts, sizes
