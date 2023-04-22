@@ -666,6 +666,9 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
     if not kwargs['base_model'].strip():
         kwargs['base_model'] = no_model_str
 
+    # transcribe for gradio
+    kwargs['gpu_id'] = str(kwargs['gpu_id'])
+
     no_model_msg = 'h2oGPT [   !!! Please Load Model in Models Tab !!!   ]'
     output_label0 = f'h2oGPT [Model: {kwargs.get("base_model")}]' if kwargs.get(
         'base_model') else no_model_msg
