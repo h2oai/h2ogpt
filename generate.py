@@ -31,6 +31,8 @@ is_gpth2oai = bool(os.getenv("GPT_H2O_AI"))
 is_public = is_hf or is_gpth2oai  # multi-user case with fixed model and disclaimer
 is_low_mem = is_hf  # assumes run on 24GB consumer GPU
 admin_pass = os.getenv("ADMIN_PASS")
+# will sometimes appear in UI or sometimes actual generation, but maybe better than empty result
+raise_generate_gpu_exceptions = True
 
 
 def main(
@@ -40,7 +42,7 @@ def main(
         base_model: str = '',
         tokenizer_base_model: str = '',
         lora_weights: str = "",
-        force_1_gpu: bool = True,
+        gpu_id: int = 0,  # if infer_devices = True and gpu_id != -1
 
         prompt_type: Union[int, str] = None,
         # input to generation
@@ -229,10 +231,11 @@ def main(
                             traceback.print_exc()
                             score = 0.0
                             clear_torch_cache()
-                        except RuntimeError as e:
+                        except (Exception, RuntimeError) as e:
                             if 'Expected all tensors to be on the same device' in str(e) or \
                                     'expected scalar type Half but found Float' in str(e) or \
-                                    'probability tensor contains either' in str(e):
+                                    'probability tensor contains either' in str(e) or \
+                                    'cublasLt ran into an error!' in str(e):
                                 print("GPU error: question: %s answer: %s exception: %s" % (prompt, res, str(e)),
                                       flush=True)
                                 traceback.print_exc()
@@ -289,7 +292,8 @@ def get_device():
     return device
 
 
-def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward_type, force_1_gpu=True,
+def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward_type,
+                       gpu_id=0,
                        use_auth_token=False):
     """
     Ensure model gets on correct device
@@ -298,6 +302,8 @@ def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward
     :param load_half:
     :param model_kwargs:
     :param reward_type:
+    :param gpu_id:
+    :param use_auth_token:
     :return:
     """
     with init_empty_weights():
@@ -322,14 +328,14 @@ def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward
         device_map.update(device_map_model)
     print('device_map: %s' % device_map, flush=True)
 
-    if force_1_gpu:
+    if gpu_id >= 0:
         # FIXME: If really distributes model, tend to get things like: ValueError: gpt_neox.embed_in.weight doesn't have any device set.
         # So avoid for now, just put on first GPU, unless score_model, put on last
         n_gpus = torch.cuda.device_count()
         if reward_type:
             device_map = {'': n_gpus - 1}
         else:
-            device_map = {'': 0}
+            device_map = {'': min(n_gpus - 1, gpu_id)}
 
     load_in_8bit = model_kwargs.get('load_in_8bit', False)
     model_kwargs['device_map'] = device_map
@@ -354,7 +360,7 @@ def get_model(
         base_model: str = '',
         tokenizer_base_model: str = '',
         lora_weights: str = "",
-        force_1_gpu: bool = False,
+        gpu_id: int = 0,
 
         llama_type: bool = None,
         reward_type: bool = None,
@@ -374,7 +380,7 @@ def get_model(
     :param base_model: name/path of base model
     :param tokenizer_base_model: name/path of tokenizer
     :param lora_weights: name/path
-    :param force_1_gpu:
+    :param gpu_id: which GPU (0..n_gpus-1) or allow all GPUs if relevant (-1)
     :param llama_type: whether LLaMa type model
     :param reward_type: reward type model for sequence classification
     :param local_files_only: use local files instead of from HF
@@ -435,7 +441,7 @@ def get_model(
             with torch.device("cuda"):
                 if infer_devices:
                     model = get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward_type,
-                                               force_1_gpu=force_1_gpu, use_auth_token=use_auth_token)
+                                               gpu_id=gpu_id, use_auth_token=use_auth_token)
                 else:
                     if load_half and not load_8bit:
                         model = model_loader.from_pretrained(
@@ -660,8 +666,10 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
     if not kwargs['base_model'].strip():
         kwargs['base_model'] = no_model_str
 
+    no_model_msg = 'h2oGPT [   !!! Please Load Model in Models Tab !!!   ]'
     output_label0 = f'h2oGPT [Model: {kwargs.get("base_model")}]' if kwargs.get(
-        'base_model') else 'h2oGPT [   !!! Please Load Model in Models Tab !!!   ]'
+        'base_model') else no_model_msg
+    output_label0_model2 = no_model_msg
 
     with demo:
         # avoid actual model/tokenizer here or anything that would be bad to deepcopy
@@ -710,7 +718,7 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                     with col_chat:
                         with gr.Row():
                             text_output = gr.Chatbot(label=output_label0).style(height=kwargs['height'] or 400)
-                            text_output2 = gr.Chatbot(label=output_label0 + '2', visible=False).style(
+                            text_output2 = gr.Chatbot(label=output_label0_model2, visible=False).style(
                                 height=kwargs['height'] or 400)
                         with gr.Row():
                             with gr.Column(scale=50):
@@ -809,8 +817,8 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                             context = gr.Textbox(lines=1, label="Context",
                                                  info="Ignored in chat mode.",
                                                  visible=not is_public)
-                            chat = gr.components.Checkbox(label="Chat mode", value=kwargs['chat'])#,
-                                                          #visible=not is_public)
+                            chat = gr.components.Checkbox(label="Chat mode", value=kwargs['chat'])  # ,
+                            # visible=not is_public)
 
                 with gr.TabItem("Models"):
                     load_msg = "Load-Unload Model/LORA" if not is_public \
@@ -820,6 +828,8 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                     compare_checkbox = gr.components.Checkbox(label="Compare Mode",
                                                               value=False, visible=not is_public)
                     with gr.Row():
+                        n_gpus = torch.cuda.device_count()
+                        n_gpus_list = [str(x) for x in list(range(-1, n_gpus))]
                         with gr.Column():
                             with gr.Row(scale=1):
                                 with gr.Column(scale=50):
@@ -829,6 +839,14 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                                                               value=kwargs['lora_weights'], visible=kwargs['show_lora'])
                                 with gr.Column(scale=1):
                                     load_model_button = gr.Button(load_msg)
+                                    model_load8bit_checkbox = gr.components.Checkbox(
+                                        label="Load 8-bit [Not all models support]",
+                                        value=kwargs['load_8bit'])
+                                    model_infer_devices_checkbox = gr.components.Checkbox(
+                                        label="Infer Devices [If GPU ID=-1 or not Checked, then will spread model over GPUs]",
+                                        value=kwargs['infer_devices'])
+                                    model_gpu = gr.Dropdown(n_gpus_list, label="GPU ID [-1 = all GPUs]",
+                                                            value=kwargs['gpu_id'])
                                     model_used = gr.Textbox(label="Current Model", value=kwargs['base_model'])
                                     lora_used = gr.Textbox(label="Current LORA", value=kwargs['lora_weights'],
                                                            visible=kwargs['show_lora'])
@@ -850,6 +868,15 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                                                                visible=kwargs['show_lora'])
                                 with gr.Column(scale=1):
                                     load_model_button2 = gr.Button(load_msg2)
+                                    model_load8bit_checkbox2 = gr.components.Checkbox(
+                                        label="Load 8-bit 2 [Not all models support]",
+                                        value=kwargs['load_8bit'])
+                                    model_infer_devices_checkbox2 = gr.components.Checkbox(
+                                        label="Infer Devices 2 [If GPU ID=-1 or not Checked, then will spread model over GPUs]",
+                                        value=kwargs[
+                                            'infer_devices'])
+                                    model_gpu2 = gr.Dropdown(n_gpus_list, label="GPU ID [-1 = all GPUs]",
+                                                             value=kwargs['gpu_id'])
                                     # no model/lora loaded ever in model2 by default
                                     model_used2 = gr.Textbox(label="Current Model 2", value=no_model_str)
                                     lora_used2 = gr.Textbox(label="Current LORA 2", value=no_lora_str,
@@ -966,10 +993,11 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                 traceback.print_exc()
                 clear_torch_cache()
                 return 'Response Score: GPU OOM'
-            except RuntimeError as e:
+            except (Exception, RuntimeError) as e:
                 if 'Expected all tensors to be on the same device' in str(e) or \
                         'expected scalar type Half but found Float' in str(e) or \
-                        'probability tensor contains either' in str(e):
+                        'probability tensor contains either' in str(e) or \
+                        'cublasLt ran into an error!' in str(e):
                     print("GPU Error: question: %s answer: %s exception: %s" % (question, answer, str(e)),
                           flush=True)
                     traceback.print_exc()
@@ -1155,7 +1183,7 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                 .then(clear_torch_cache)
             submit_event4 = undo.click(**undo_user_args, queue=stream_output, api_name='undo') \
                 .then(**score_args, api_name='undo_score') \
-                .then(**undo_user_args, queue=stream_output, api_name='undo2') \
+                .then(**undo_user_args2, queue=stream_output, api_name='undo2') \
                 .then(**score_args2, api_name='undo_score2') \
                 .then(clear_instruct, None, instruction)
         else:
@@ -1189,7 +1217,7 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
             .then(**score_args_nochat, api_name='instruction_bot_score_nochat') \
             .then(clear_torch_cache)
 
-        def load_model(model_name, lora_weights, model_state_old, prompt_type_old):
+        def load_model(model_name, lora_weights, model_state_old, prompt_type_old, load_8bit, infer_devices, gpu_id):
             # ensure old model removed from GPU memory
             if kwargs['debug']:
                 print("Pre-switch pre-del GPU memory: %s" % torch.cuda.memory_allocated(), flush=True)
@@ -1221,7 +1249,11 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                 lora_weights = no_lora_str
                 return [None, None, None, model_name], model_name, lora_weights, prompt_type_old
 
-            all_kwargs['base_model'] = model_name.strip()
+            all_kwargs1 = all_kwargs.copy()
+            all_kwargs1['base_model'] = model_name.strip()
+            all_kwargs1['load_8bit'] = load_8bit
+            all_kwargs1['infer_devices'] = infer_devices
+            all_kwargs1['gpu_id'] = int(gpu_id)  # detranscribe
             model_lower = model_name.strip().lower()
             if model_lower in inv_prompt_type_to_model_lower:
                 prompt_type1 = inv_prompt_type_to_model_lower[model_lower]
@@ -1232,8 +1264,8 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
             if lora_weights == no_lora_str:
                 lora_weights = ''
 
-            all_kwargs['lora_weights'] = lora_weights.strip()
-            model1, tokenizer1, device1 = get_model(**all_kwargs)
+            all_kwargs1['lora_weights'] = lora_weights.strip()
+            model1, tokenizer1, device1 = get_model(**all_kwargs1)
             clear_torch_cache()
 
             if kwargs['debug']:
@@ -1247,7 +1279,8 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
             return gr.Textbox.update(label=f'h2oGPT [Model: {model_used_in}]')
 
         load_model_args = dict(fn=load_model,
-                               inputs=[model_choice, lora_choice, model_state, prompt_type],
+                               inputs=[model_choice, lora_choice, model_state, prompt_type,
+                                       model_load8bit_checkbox, model_infer_devices_checkbox, model_gpu],
                                outputs=[model_state, model_used, lora_used, prompt_type])
         prompt_update_args = dict(fn=dropdown_prompt_type_list, inputs=prompt_type, outputs=prompt_type)
         chatbot_update_args = dict(fn=chatbot_list, inputs=[text_output, model_used], outputs=text_output)
@@ -1258,15 +1291,16 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                 .then(clear_torch_cache)
 
         load_model_args2 = dict(fn=load_model,
-                                inputs=[model_choice2, lora_choice2, model_state2, prompt_type2],
+                                inputs=[model_choice2, lora_choice2, model_state2, prompt_type2,
+                                        model_load8bit_checkbox2, model_infer_devices_checkbox2, model_gpu2],
                                 outputs=[model_state2, model_used2, lora_used2, prompt_type2])
         prompt_update_args2 = dict(fn=dropdown_prompt_type_list, inputs=prompt_type2, outputs=prompt_type2)
         chatbot_update_args2 = dict(fn=chatbot_list, inputs=[text_output2, model_used2], outputs=text_output2)
         if not is_public:
             load_model_event2 = load_model_button2.click(**load_model_args2) \
-                                                  .then(**prompt_update_args2) \
-                                                  .then(**chatbot_update_args2) \
-                                                  .then(clear_torch_cache)
+                .then(**prompt_update_args2) \
+                .then(**chatbot_update_args2) \
+                .then(clear_torch_cache)
 
         def dropdown_model_list(list0, x):
             new_state = [list0[0] + [x]]
@@ -1613,15 +1647,18 @@ def evaluate(
                     traceback.print_exc()
                     clear_torch_cache()
                     return
-                except RuntimeError as e:
+                except (Exception, RuntimeError) as e:
                     if 'Expected all tensors to be on the same device' in str(e) or \
                             'expected scalar type Half but found Float' in str(e) or \
-                            'probability tensor contains either' in str(e):
+                            'probability tensor contains either' in str(e) or \
+                            'cublasLt ran into an error!' in str(e):
                         print(
                             "GPU Error: prompt: %s inputs_decoded: %s exception: %s" % (prompt, inputs_decoded, str(e)),
                             flush=True)
                         traceback.print_exc()
                         clear_torch_cache()
+                        if raise_generate_gpu_exceptions:
+                            raise
                         return
                     else:
                         raise
