@@ -785,7 +785,7 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                                                  info="Ignored in chat mode.",
                                                  visible=not is_public)
                             chat = gr.components.Checkbox(label="Chat mode", value=kwargs['chat'],
-                                                          )  # visible=not is_public)
+                                                          visible=not is_public)
 
                 with gr.TabItem("Models"):
                     with gr.Row():
