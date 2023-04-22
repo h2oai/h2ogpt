@@ -778,7 +778,8 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                             context = gr.Textbox(lines=1, label="Context",
                                                  info="Ignored in chat mode.",
                                                  visible=not is_public)
-                            chat = gr.components.Checkbox(label="Chat mode", value=kwargs['chat']) # FIXME: visible=not is_public
+                            chat = gr.components.Checkbox(label="Chat mode", value=kwargs['chat'],
+                                                          visible=not is_public)
 
                 with gr.TabItem("Models"):
                     with gr.Row():
