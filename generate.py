@@ -818,7 +818,7 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                     load_msg2 = "Load-Unload Model/LORA 2" if not is_public \
                         else "LOAD-UNLOAD DISABLED FOR HOSTED DEMO 2"
                     compare_checkbox = gr.components.Checkbox(label="Compare Mode",
-                                                              value=False)  # FIXME: not public visible
+                                                              value=False, visible=not is_public)
                     with gr.Row():
                         with gr.Column():
                             with gr.Row(scale=1):
@@ -844,14 +844,15 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                             with gr.Row(scale=1):
                                 with gr.Column(scale=50):
                                     model_choice2 = gr.Dropdown(model_options_state.value[0], label="Choose Model 2",
-                                                                value=kwargs['base_model'])
+                                                                value=no_model_str)
                                     lora_choice2 = gr.Dropdown(lora_options_state.value[0], label="Choose LORA 2",
-                                                               value=kwargs['lora_weights'],
+                                                               value=no_lora_str,
                                                                visible=kwargs['show_lora'])
                                 with gr.Column(scale=1):
                                     load_model_button2 = gr.Button(load_msg2)
-                                    model_used2 = gr.Textbox(label="Current Model 2", value=kwargs['base_model'])
-                                    lora_used2 = gr.Textbox(label="Current LORA 2", value=kwargs['lora_weights'],
+                                    # no model/lora loaded ever in model2 by default
+                                    model_used2 = gr.Textbox(label="Current Model 2", value=no_model_str)
+                                    lora_used2 = gr.Textbox(label="Current LORA 2", value=no_lora_str,
                                                             visible=kwargs['show_lora'])
                 with gr.TabItem("System"):
                     system_row = gr.Row(visible=not is_public)
