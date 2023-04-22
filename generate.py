@@ -1313,15 +1313,18 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                                                  inputs=[model_options_state, new_model],
                                                  outputs=[model_choice, model_choice2, new_model, model_options_state])
 
-        def dropdown_lora_list(list0, x):
+        def dropdown_lora_list(list0, x, model_used1, lora_used1, model_used2, lora_used2):
             new_state = [list0[0] + [x]]
             new_options = [*new_state[0]]
-            return gr.Dropdown.update(value=x, choices=new_options), \
-                   gr.Dropdown.update(value=x, choices=new_options), \
+            # don't switch drop-down to added lora if already have model loaded
+            x1 = x if model_used1 == no_model_str else lora_used1
+            x2 = x if model_used2 == no_model_str else lora_used2
+            return gr.Dropdown.update(value=x1, choices=new_options), \
+                   gr.Dropdown.update(value=x2, choices=new_options), \
                    '', new_state
 
         add_lora_event = add_lora_button.click(fn=dropdown_lora_list,
-                                               inputs=[lora_options_state, new_lora],
+                                               inputs=[lora_options_state, new_lora, model_used, lora_used, model_used2, lora_used2],
                                                outputs=[lora_choice, lora_choice2, new_lora, lora_options_state])
 
         go_btn.click(lambda: gr.update(visible=False), None, go_btn, api_name="go") \
