@@ -543,9 +543,9 @@ def go_gradio(**kwargs):
     else:
         description = "For more information, visit [the project's website](https://github.com/h2oai/h2ogpt).<br>"
     if is_public:
-        description += """<p><b> DISCLAIMERS: </b><ul><i><li>The data used to train this model include The Pile and other sources. These may contain objectionable content, so the model may reproduce that material. Use application and responses at own risk.</i></li>"""
+        description += """<p><b> DISCLAIMERS: </b><ul><i><li>The model was trained on The Pile and other data, which may contain objectionable content.  Use at own risk.</i></li>"""
         if kwargs['load_8bit']:
-            description += """<i><li> Model is loaded in 8-bit, model loading-unloading is disabled, and other limitations exist in order to fit on GPUs with lower amounts of VRAM, so UX can be worse than non-hosted version.</i></li>"""
+            description += """<i><li> Model is loaded in 8-bit and has other restrictions on this host. UX can be worse than non-hosted version.</i></li>"""
         description += """<i><li>Conversations may be used to improve h2oGPT.  Do not share sensitive information.</i></li>"""
         description += """<i><li>By using h2oGPT, you accept our [Terms of Service](https://github.com/h2oai/h2ogpt/blob/main/tos.md).</i></li></ul></p>"""
 
