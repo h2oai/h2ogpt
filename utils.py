@@ -1,12 +1,10 @@
-import contextlib
 import os
 import gc
 import random
-import shutil
 import time
 import traceback
 import zipfile
-
+from datetime import datetime
 import filelock
 import numpy as np
 import pandas as pd
@@ -95,17 +93,22 @@ def system_info_print():
         return "Error: %s" % str(e)
 
 
-def zip_data(root_dirs=None, zip_path='data.zip', base_dir='./'):
+def zip_data(root_dirs=None, zip_file=None, base_dir='./'):
     try:
-        return _zip_data(zip_path=zip_path, base_dir=base_dir, root_dirs=root_dirs)
+        return _zip_data(zip_file=zip_file, base_dir=base_dir, root_dirs=root_dirs)
     except Exception as e:
         traceback.print_exc()
         print('Exception in zipping: %s' % str(e))
 
 
-def _zip_data(root_dirs=None, zip_path='data.zip', base_dir='./'):
+def _zip_data(root_dirs=None, zip_file=None, base_dir='./'):
+    if zip_file is None:
+        datetime_str = str(datetime.now()).replace(" ", "_").replace(":", "_")
+        host_name = os.getenv('HF_HOSTNAME', 'emptyhost')
+        zip_file = "data_%s_%s.zip" % (datetime_str, host_name)
     assert root_dirs is not None
-    with zipfile.ZipFile(zip_path, "w") as expt_zip:
+
+    with zipfile.ZipFile(zip_file, "w") as expt_zip:
         for root_dir in root_dirs:
             if root_dir is None:
                 continue
@@ -115,7 +118,7 @@ def _zip_data(root_dirs=None, zip_path='data.zip', base_dir='./'):
                     assert os.path.exists(file_to_archive)
                     path_to_archive = os.path.relpath(file_to_archive, base_dir)
                     expt_zip.write(filename=file_to_archive, arcname=path_to_archive)
-    return "data.zip"
+    return zip_file
 
 
 def save_generate_output(output=None, base_model=None, save_dir=None):
