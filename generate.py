@@ -1307,10 +1307,12 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                                outputs=[model_state, model_used, lora_used, prompt_type])
         prompt_update_args = dict(fn=dropdown_prompt_type_list, inputs=prompt_type, outputs=prompt_type)
         chatbot_update_args = dict(fn=chatbot_list, inputs=[text_output, model_used], outputs=text_output)
+        nochat_update_args = dict(fn=chatbot_list, inputs=[text_output, model_used], outputs=text_output_nochat)
         if not is_public:
             load_model_event = load_model_button.click(**load_model_args) \
                 .then(**prompt_update_args) \
                 .then(**chatbot_update_args) \
+                .then(**nochat_update_args) \
                 .then(clear_torch_cache)
 
         load_model_args2 = dict(fn=load_model,
