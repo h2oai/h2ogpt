@@ -810,7 +810,7 @@ Current Time: {}
 
 
 def generate_prompt(data_point, prompt_type, chat, reduced):
-    context = data_point.get('context') if chat else ''
+    context = data_point.get('context')
     if context is None:
         context = ''
     instruction = data_point.get('instruction')

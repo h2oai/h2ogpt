@@ -816,10 +816,9 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                             iinput = gr.Textbox(lines=4, label="Input",
                                                 placeholder=kwargs['placeholder_input'],
                                                 visible=not is_public)
-                            # nominally empty for chat mode
-                            context = gr.Textbox(lines=1, label="Context",
-                                                 info="Ignored in chat mode.",
-                                                 visible=not is_public)
+                            context = gr.Textbox(lines=3, label="System Pre-Context",
+                                                 info="Directly pre-appended without prompt processing",
+                                                 visible=not is_public and not kwargs['chat'])
                             chat = gr.components.Checkbox(label="Chat mode", value=kwargs['chat'],
                                                           visible=not is_public)
 
@@ -941,8 +940,12 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
         def col_chat_fun(x):
             return gr.Column.update(visible=x)
 
+        def context_fun(x):
+            return gr.Textbox.update(visible=not x)
+
         chat.select(col_nochat_fun, chat, col_nochat, api_name="chat_checkbox") \
-            .then(col_chat_fun, chat, col_chat)
+            .then(col_chat_fun, chat, col_chat) \
+            .then(context_fun, chat, context)
 
         # examples after submit or any other buttons for chat or no chat
         if kwargs['examples'] is not None and kwargs['show_examples']:
