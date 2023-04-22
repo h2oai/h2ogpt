@@ -809,10 +809,14 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                             context = gr.Textbox(lines=1, label="Context",
                                                  info="Ignored in chat mode.",
                                                  visible=not is_public)
-                            chat = gr.components.Checkbox(label="Chat mode", value=kwargs['chat'],
-                                                          visible=not is_public)
+                            chat = gr.components.Checkbox(label="Chat mode", value=kwargs['chat'])#,
+                                                          #visible=not is_public)
 
                 with gr.TabItem("Models"):
+                    load_msg = "Load-Unload Model/LORA" if not is_public \
+                        else "LOAD-UNLOAD DISABLED FOR HOSTED DEMO"
+                    load_msg2 = "Load-Unload Model/LORA 2" if not is_public \
+                        else "LOAD-UNLOAD DISABLED FOR HOSTED DEMO 2"
                     compare_checkbox = gr.components.Checkbox(label="Compare Mode",
                                                               value=False)  # FIXME: not public visible
                     with gr.Row():
@@ -824,8 +828,6 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                                     lora_choice = gr.Dropdown(lora_options_state.value[0], label="Choose LORA",
                                                               value=kwargs['lora_weights'], visible=kwargs['show_lora'])
                                 with gr.Column(scale=1):
-                                    load_msg = "Load-Unload Model/LORA" if not is_public \
-                                        else "LOAD-UNLOAD DISABLED FOR HOSTED DEMO"
                                     load_model_button = gr.Button(load_msg)
                                     model_used = gr.Textbox(label="Current Model", value=kwargs['base_model'])
                                     lora_used = gr.Textbox(label="Current LORA", value=kwargs['lora_weights'],
@@ -847,7 +849,7 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                                                                value=kwargs['lora_weights'],
                                                                visible=kwargs['show_lora'])
                                 with gr.Column(scale=1):
-                                    load_model_button2 = gr.Button("Load-Unload Model/LORA 2")
+                                    load_model_button2 = gr.Button(load_msg2)
                                     model_used2 = gr.Textbox(label="Current Model 2", value=kwargs['base_model'])
                                     lora_used2 = gr.Textbox(label="Current LORA 2", value=kwargs['lora_weights'],
                                                             visible=kwargs['show_lora'])
@@ -997,7 +999,7 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                 score_event_nochat = score_btn_nochat.click(**score_args_nochat, queue=stream_output,
                                                             api_name='score_nochat')
 
-        def user(*args, undo=False, sanitize_user_prompt=True):
+        def user(*args, undo=False, sanitize_user_prompt=True, model2=False):
             args_list = list(args)
             user_message = args_list[0]
             input1 = args_list[1]
@@ -1017,7 +1019,9 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                 history.pop()
             args_list = args_list[:-1]  # FYI, even if unused currently
             if history is None:
-                print("Bad history, fix for now", flush=True)
+                if not model2:
+                    # no need to complain so often unless model1
+                    print("Bad history, fix for now", flush=True)
                 history = []
             # ensure elements not mixed across models as output,
             # even if input is currently same source
@@ -1103,7 +1107,7 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                               )
 
         # MODEL2
-        user_args2 = dict(fn=functools.partial(user, sanitize_user_prompt=kwargs['sanitize_user_prompt']),
+        user_args2 = dict(fn=functools.partial(user, sanitize_user_prompt=kwargs['sanitize_user_prompt'], model2=True),
                           inputs=inputs_list + [text_output2],
                           outputs=text_output2,
                           )
@@ -1256,7 +1260,12 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                                 inputs=[model_choice2, lora_choice2, model_state2, prompt_type2],
                                 outputs=[model_state2, model_used2, lora_used2, prompt_type2])
         prompt_update_args2 = dict(fn=dropdown_prompt_type_list, inputs=prompt_type2, outputs=prompt_type2)
-        load_model_event2 = load_model_button2.click(**load_model_args2).then(**prompt_update_args2)
+        chatbot_update_args2 = dict(fn=chatbot_list, inputs=[text_output2, model_used2], outputs=text_output2)
+        if not is_public:
+            load_model_event2 = load_model_button2.click(**load_model_args2) \
+                                                  .then(**prompt_update_args2) \
+                                                  .then(**chatbot_update_args2) \
+                                                  .then(clear_torch_cache)
 
         def dropdown_model_list(list0, x):
             new_state = [list0[0] + [x]]
