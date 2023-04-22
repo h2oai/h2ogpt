@@ -710,7 +710,8 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                     with col_chat:
                         with gr.Row():
                             text_output = gr.Chatbot(label=output_label0).style(height=kwargs['height'] or 400)
-                            text_output2 = gr.Chatbot(label=output_label0 + '2', visible=False).style(height=kwargs['height'] or 400)
+                            text_output2 = gr.Chatbot(label=output_label0 + '2', visible=False).style(
+                                height=kwargs['height'] or 400)
                         with gr.Row():
                             with gr.Column(scale=50):
                                 instruction = gr.Textbox(
@@ -727,11 +728,13 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                                 if not kwargs['auto_score']:  # FIXME: For checkbox model2
                                     with gr.Column():
                                         with gr.Row():
-                                            score_btn = gr.Button("Score last prompt & response").style(full_width=False, size='sm')
+                                            score_btn = gr.Button("Score last prompt & response").style(
+                                                full_width=False, size='sm')
                                             score_text = gr.Textbox("Response Score: NA", show_label=False)
                                         score_res2 = gr.Row(visible=False)
                                         with score_res2:
-                                            score_btn2 = gr.Button("Score last prompt & response 2").style(full_width=False, size='sm')
+                                            score_btn2 = gr.Button("Score last prompt & response 2").style(
+                                                full_width=False, size='sm')
                                             score_text2 = gr.Textbox("Response Score2: NA", show_label=False)
                                 else:
                                     score_text = gr.Textbox("Response Score: NA", show_label=False)
@@ -756,8 +759,8 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                                                       value=kwargs['prompt_type'], label="Prompt Type",
                                                       visible=not is_public)
                             prompt_type2 = gr.Dropdown(prompt_types_strings,
-                                                      value=kwargs['prompt_type'], label="Prompt Type Model 2",
-                                                      visible=not is_public)
+                                                       value=kwargs['prompt_type'], label="Prompt Type Model 2",
+                                                       visible=not is_public)
                             temperature = gr.Slider(minimum=0, maximum=3,
                                                     value=kwargs['temperature'],
                                                     label="Temperature",
@@ -810,7 +813,8 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                                                           visible=not is_public)
 
                 with gr.TabItem("Models"):
-                    compare_checkbox = gr.components.Checkbox(label="Compare Mode", value=False) # FIXME: not public visible
+                    compare_checkbox = gr.components.Checkbox(label="Compare Mode",
+                                                              value=False)  # FIXME: not public visible
                     with gr.Row():
                         with gr.Column():
                             with gr.Row(scale=1):
@@ -837,12 +841,16 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                         with col_model2:
                             with gr.Row(scale=1):
                                 with gr.Column(scale=50):
-                                    model_choice2 = gr.Dropdown(model_options_state.value[0], label="Choose Model 2", value=kwargs['base_model'])
-                                    lora_choice2 = gr.Dropdown(lora_options_state.value[0], label="Choose LORA 2", value=kwargs['lora_weights'], visible=kwargs['show_lora'])
+                                    model_choice2 = gr.Dropdown(model_options_state.value[0], label="Choose Model 2",
+                                                                value=kwargs['base_model'])
+                                    lora_choice2 = gr.Dropdown(lora_options_state.value[0], label="Choose LORA 2",
+                                                               value=kwargs['lora_weights'],
+                                                               visible=kwargs['show_lora'])
                                 with gr.Column(scale=1):
                                     load_model_button2 = gr.Button("Load-Unload Model/LORA 2")
                                     model_used2 = gr.Textbox(label="Current Model 2", value=kwargs['base_model'])
-                                    lora_used2 = gr.Textbox(label="Current LORA 2", value=kwargs['lora_weights'], visible=kwargs['show_lora'])
+                                    lora_used2 = gr.Textbox(label="Current LORA 2", value=kwargs['lora_weights'],
+                                                            visible=kwargs['show_lora'])
                 with gr.TabItem("System"):
                     system_row = gr.Row(visible=not is_public)
                     admin_pass_textbox = gr.Textbox(label="Admin Password", type='password', visible=is_public)
@@ -908,7 +916,7 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
             gr.Examples(examples=kwargs['examples'], inputs=inputs_list)
 
         # Score
-        def score_last_response(*args, nochat=False):
+        def score_last_response(*args, nochat=False, model2=False):
             """ Similar to user() """
             args_list = list(args)
 
@@ -918,7 +926,9 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
             if not nochat:
                 history = args_list[-1]
                 if history is None:
-                    print("Bad history in scoring last response, fix for now", flush=True)
+                    if not model2:
+                        # maybe only doing first model, no need to complain
+                        print("Bad history in scoring last response, fix for now", flush=True)
                     history = []
                 if smodel is not None and \
                         stokenizer is not None and \
@@ -972,7 +982,7 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                               inputs=inputs_list + [text_output],
                               outputs=[score_text],
                               )
-            score_args2 = dict(fn=score_last_response,
+            score_args2 = dict(fn=partial(score_last_response, model2=True),
                                inputs=inputs_list + [text_output2],
                                outputs=[score_text2],
                                )
@@ -983,7 +993,7 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                                      )
             if not kwargs['auto_score']:
                 score_event = score_btn.click(**score_args, queue=stream_output, api_name='score') \
-                                       .then(**score_args2, queue=stream_output, api_name='score2')
+                    .then(**score_args2, queue=stream_output, api_name='score2')
                 score_event_nochat = score_btn_nochat.click(**score_args_nochat, queue=stream_output,
                                                             api_name='score_nochat')
 
@@ -1049,7 +1059,7 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
             args_list[2] = context1[-kwargs['chat_history']:]
             model_state1 = args_list[-2]
             if model_state1[0] is None or model_state1[0] == no_model_str:
-               return
+                return
             args_list = args_list[:-2]
             fun1 = partial(evaluate,
                            model_state1,
@@ -1163,7 +1173,7 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                 .then(clear_instruct, None, instruction) \
                 .then(clear_torch_cache)
             submit_event4 = undo.click(**undo_user_args, queue=stream_output, api_name='undo') \
-                                .then(**undo_user_args2, queue=stream_output, api_name='undo2')
+                .then(**undo_user_args2, queue=stream_output, api_name='undo2')
 
         # does both models
         clear.click(lambda: None, None, text_output, queue=False, api_name='clear') \
@@ -1243,8 +1253,8 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                 .then(clear_torch_cache)
 
         load_model_args2 = dict(fn=load_model,
-                               inputs=[model_choice2, lora_choice2, model_state2, prompt_type2],
-                               outputs=[model_state2, model_used2, lora_used2, prompt_type2])
+                                inputs=[model_choice2, lora_choice2, model_state2, prompt_type2],
+                                outputs=[model_state2, model_used2, lora_used2, prompt_type2])
         prompt_update_args2 = dict(fn=dropdown_prompt_type_list, inputs=prompt_type2, outputs=prompt_type2)
         load_model_event2 = load_model_button2.click(**load_model_args2).then(**prompt_update_args2)
 
@@ -1284,9 +1294,9 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
             return gr.Dropdown.update(visible=x)
 
         compare_checkbox.select(compare_textbox_fun, compare_checkbox, text_output2, api_name="compare_checkbox") \
-                        .then(compare_column_fun, compare_checkbox, col_model2) \
-                        .then(compare_prompt_fun, compare_checkbox, prompt_type2) \
-                        .then(compare_textbox_fun, compare_checkbox, score_text2)
+            .then(compare_column_fun, compare_checkbox, col_model2) \
+            .then(compare_prompt_fun, compare_checkbox, prompt_type2) \
+            .then(compare_textbox_fun, compare_checkbox, score_text2)
         # FIXME: add score_res2 in condition, but do better
 
         # callback for logging flagged input/output
