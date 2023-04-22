@@ -769,6 +769,8 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                             prompt_type2 = gr.Dropdown(prompt_types_strings,
                                                        value=kwargs['prompt_type'], label="Prompt Type Model 2",
                                                        visible=not is_public)
+                            do_sample = gr.Checkbox(label="Sample", info="Enable sampler, required for use of temperature, top_p, top_k",
+                                                    value=kwargs['do_sample'])
                             temperature = gr.Slider(minimum=0, maximum=3,
                                                     value=kwargs['temperature'],
                                                     label="Temperature",
@@ -808,8 +810,6 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                                                              value=kwargs['num_return_sequences'],
                                                              label="Number Returns", info="Must be <= num_beams",
                                                              visible=not is_public)
-                            do_sample = gr.Checkbox(label="Sample", info="Sample, for diverse output(s)",
-                                                    value=kwargs['do_sample'])
                             iinput = gr.Textbox(lines=4, label="Input",
                                                 placeholder=kwargs['placeholder_input'],
                                                 visible=not is_public)
