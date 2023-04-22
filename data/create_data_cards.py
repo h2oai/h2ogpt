@@ -53,7 +53,7 @@ from datasets import load_dataset
                 "openassistant_oasst1_h2ogpt",
                 """
 - [Original Open Assistant data in tree structure](https://huggingface.co/datasets/OpenAssistant/oasst1)
-- [This flattened dataset created by script in h2oGPT repository](https://github.com/h2oai/h2ogpt/blob/a0519ea090157e84571cd61a87b2a0f033a3feed/create_data.py#L1244)
+- [This flattened dataset created by script in h2oGPT repository](https://github.com/h2oai/h2ogpt/blob/97b9f2df6851e8b1c2f220a1028adad9029140bf/create_data.py#L1252)
 """
         ),
     ],
