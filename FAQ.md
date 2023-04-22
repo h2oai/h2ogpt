@@ -7,10 +7,9 @@ of [GPT-NeoX-20b](https://huggingface.co/EleutherAI/gpt-neox-20b), which was tra
 and on the [h2oai/openassistant_oasst1](https://huggingface.co/datasets/h2oai/openassistant_oasst1).
 These datasets contain training data created by OpenAI (from the GPT-2 days) and by Open Assistant which injected the above
 answer and similar answers. In other words, they "contaminated" the training data with their desired outputs for the model (i.e., personality).
-All the knowledge of the model is from pre-training on the billions of tokens, the fine-tuning only turns that language
+Most of the knowledge of the model is from pre-training on the billions of tokens, the fine-tuning only turns that language
 model into a chatbot by returning short answers for short questions, or in other words, pre-training creates language
-understanding and some knowledge, while fine-tuning injects style.
-
+understanding and some knowledge, while fine-tuning injects style. Certain simple personality traits can be modified by fine-tuning however, and we are working on giving h2oGPT proper personality: https://github.com/h2oai/h2ogpt/issues/73
 
 ### Is h2oGPT multi-lingual?
 
