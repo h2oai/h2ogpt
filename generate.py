@@ -1029,6 +1029,14 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                                                             api_name='score_nochat')
 
         def user(*args, undo=False, sanitize_user_prompt=True, model2=False):
+            """
+            User that fills history for bot
+            :param args:
+            :param undo:
+            :param sanitize_user_prompt:
+            :param model2:
+            :return:
+            """
             args_list = list(args)
             user_message = args_list[0]
             input1 = args_list[1]
@@ -1062,6 +1070,13 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                 return history + [[user_message1, None]]
 
         def bot(*args, retry=False):
+            """
+            bot that consumes history for user input
+            instruction (from input_list) itself is not consumed by bot
+            :param args:
+            :param retry:
+            :return:
+            """
             args_list = list(args).copy()
             history = args_list[-1]  # model_state is -2
             if retry and history:
@@ -1087,7 +1102,7 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                         context1 += '\n'
                 if context1 and not context1.endswith('\n'):
                     context1 += '\n'  # ensure if terminates abruptly, then human continues on next line
-            args_list[0] = instruction1
+            args_list[0] = instruction1  # override original instruction with history from user
             # only include desired chat history
             args_list[2] = context1[-kwargs['chat_history']:]
             model_state1 = args_list[-2]
@@ -1157,29 +1172,31 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
             return gr.Textbox.update(value='')
 
         if kwargs['auto_score']:
+            # in case 2nd model, consume instruction first, so can clear quickly
+            # bot doesn't consume instruction itself, just history from user, so why works
             submit_event = instruction.submit(**user_args, queue=stream_output, api_name='instruction') \
+                .then(**user_args2, queue=stream_output, api_name='instruction2') \
+                .then(clear_instruct, None, instruction) \
                 .then(**bot_args, api_name='instruction_bot') \
                 .then(**score_args, api_name='instruction_bot_score') \
-                .then(**user_args2, queue=stream_output, api_name='instruction2') \
                 .then(**bot_args2, api_name='instruction_bot2') \
                 .then(**score_args2, api_name='instruction_bot_score2') \
-                .then(clear_instruct, None, instruction) \
                 .then(clear_torch_cache)
             submit_event2 = submit.click(**user_args, queue=stream_output, api_name='submit') \
-                .then(**bot_args, api_name='submit_bot') \
-                .then(**score_args, api_name='submit_bot_score') \
                 .then(**user_args2, queue=stream_output, api_name='submit2') \
+                .then(**bot_args, api_name='submit_bot') \
+                .then(clear_instruct, None, instruction) \
+                .then(**score_args, api_name='submit_bot_score') \
                 .then(**bot_args2, api_name='submit_bot2') \
                 .then(**score_args2, api_name='submit_bot_score2') \
-                .then(clear_instruct, None, instruction) \
                 .then(clear_torch_cache)
             submit_event3 = retry.click(**user_args, queue=stream_output, api_name='retry') \
+                .then(**user_args2, queue=stream_output, api_name='retry2') \
+                .then(clear_instruct, None, instruction) \
                 .then(**retry_bot_args, api_name='retry_bot') \
                 .then(**score_args, api_name='retry_bot_score') \
-                .then(**user_args2, queue=stream_output, api_name='retry2') \
                 .then(**retry_bot_args2, api_name='retry_bot2') \
                 .then(**score_args2, api_name='retry_bot_score2') \
-                .then(clear_instruct, None, instruction) \
                 .then(clear_torch_cache)
             submit_event4 = undo.click(**undo_user_args, queue=stream_output, api_name='undo') \
                 .then(**score_args, api_name='undo_score') \
@@ -1188,22 +1205,22 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                 .then(clear_instruct, None, instruction)
         else:
             submit_event = instruction.submit(**user_args, queue=stream_output, api_name='instruction') \
-                .then(**bot_args, api_name='instruction_bot') \
                 .then(**user_args2, queue=stream_output, api_name='instruction2') \
-                .then(**bot_args2, api_name='instruction_bot2') \
                 .then(clear_instruct, None, instruction) \
+                .then(**bot_args, api_name='instruction_bot') \
+                .then(**bot_args2, api_name='instruction_bot2') \
                 .then(clear_torch_cache)
             submit_event2 = submit.click(**user_args, queue=stream_output, api_name='submit') \
-                .then(**bot_args, api_name='submit_bot') \
                 .then(**user_args2, queue=stream_output, api_name='submit2') \
-                .then(**bot_args2, api_name='submit_bot2') \
                 .then(clear_instruct, None, instruction) \
+                .then(**bot_args, api_name='submit_bot') \
+                .then(**bot_args2, api_name='submit_bot2') \
                 .then(clear_torch_cache)
             submit_event3 = retry.click(**user_args, queue=stream_output, api_name='retry') \
-                .then(**retry_bot_args, api_name='retry_bot') \
                 .then(**user_args2, queue=stream_output, api_name='retry2') \
-                .then(**retry_bot_args2, api_name='retry_bot2') \
                 .then(clear_instruct, None, instruction) \
+                .then(**retry_bot_args, api_name='retry_bot') \
+                .then(**retry_bot_args2, api_name='retry_bot2') \
                 .then(clear_torch_cache)
             submit_event4 = undo.click(**undo_user_args, queue=stream_output, api_name='undo') \
                 .then(**undo_user_args2, queue=stream_output, api_name='undo2')
