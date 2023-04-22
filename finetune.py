@@ -73,6 +73,7 @@ prompt_type_to_model_name = {
         'decapoda-research/llama-7b-hf',
         'decapoda-research/llama-13b-hf',
         'decapoda-research/llama-30b-hf',
+        'decapoda-research/llama-65b-hf',
         'facebook/mbart-large-50-many-to-many-mmt',
         'philschmid/bart-large-cnn-samsum',
         'philschmid/flan-t5-base-samsum',
@@ -83,12 +84,11 @@ prompt_type_to_model_name = {
     'instruct_with_end': ['databricks/dolly-v2-12b'],
     'quality': [],
     'human_bot': [
-        'h2ogpt-oig-oasst1-256-6.9b',
-        'h2ogpt-oasst1-256-6.9b',
-        'h2ogpt-oasst1-512-6.9b',
-        'h2ogpt-oasst1-256-12b',
-        'h2ogpt-oasst1-512-12b',
-        'h2ogpt-oasst1-2048-12b',
+        'h2oai/h2ogpt-oig-oasst1-256-12b',
+        'h2oai/h2ogpt-oasst1-512-12b',
+        'h2oai/h2ogpt-oasst1-256-20b',
+        'h2oai/h2ogpt-oasst1-512-20b',
+        'h2oai/h2ogpt-oig-oasst1-256-6.9b',
     ],
     'dai_faq': [],
     'summarize': [],
@@ -121,7 +121,10 @@ def train(
         save_code: bool = False,
         run_id: int = None,
 
-        base_model: str = 'EleutherAI/gpt-neox-20b',
+        base_model: str = 'h2oai/h2ogpt-oig-oasst1-512-6.9b',
+        # base_model: str = 'h2oai/h2ogpt-oasst1-512-12b',
+        # base_model: str = 'h2oai/h2ogpt-oasst1-512-20b',
+        # base_model: str = 'EleutherAI/gpt-neox-20b',
         # base_model: str = 'EleutherAI/pythia-12b-deduped',
         # base_model: str = 'togethercomputer/GPT-NeoXT-Chat-Base-20B',
         # base_model: str = 'decapoda-research/llama-7b-hf',
@@ -185,19 +188,24 @@ def train(
         ddp: bool = True,  # set to False if OOM with True, for multi-GPU model parallelism
         local_files_only: bool = False,  # else will download new versions, normally unwanted
         resume_download: bool = True,
-        use_auth_token: bool = False,  # True requires CLI did huggingface-cli login before running
+        use_auth_token: Union[str, bool] = False,  # True requires CLI did huggingface-cli login before running
         warmup_steps: int = 100,
         logging_steps: int = 1,
         save_steps: int = None,  # must be round multiple of eval_steps
         add_eos_token: bool = False,
 ):
+    # allow set token directly
+    use_auth_token = os.environ.get("HUGGINGFACE_API_TOKEN", use_auth_token)
+
     prompt_type = str(prompt_type)  # migration from integers
     assert prompt_type in prompt_types
+
     world_size = int(os.getenv("WORLD_SIZE", 1))
     local_rank = int(os.getenv("LOCAL_RANK", 0))
     rank = int(os.getenv("RANK", 0))
     print(f"local_rank: {local_rank}")
     print(f"global rank: {rank}")
+
     gpus = max(world_size, torch.cuda.device_count())
     run_id = run_id or 0
     if not data_path:

@@ -1,9 +1,13 @@
 import functools
-import gc
 import inspect
 import sys
 import os
+import traceback
 import typing
+from utils import set_seed, flatten_list, clear_torch_cache, system_info_print, zip_data, save_generate_output
+
+SEED = 1236
+set_seed(SEED)
 
 os.environ['HF_HUB_DISABLE_TELEMETRY'] = '1'
 from typing import Union
@@ -21,6 +25,12 @@ from prompter import Prompter
 from finetune import get_loaders, example_data_points, generate_prompt, get_githash, prompt_types_strings, \
     human, bot, prompt_type_to_model_name, inv_prompt_type_to_model_lower
 from stopping import CallbackToGenerator, Stream, StoppingCriteriaSub
+
+is_hf = bool(os.getenv("HUGGINGFACE_SPACES"))
+is_gpth2oai = bool(os.getenv("GPT_H2O_AI"))
+is_public = is_hf or is_gpth2oai  # multi-user case with fixed model and disclaimer
+is_low_mem = is_hf  # assumes run on 24GB consumer GPU
+admin_pass = os.getenv("ADMIN_PASS")
 
 
 def main(
@@ -48,15 +58,17 @@ def main(
 
         llama_type: bool = None,
         debug: bool = False,
+        save_dir: str = None,
         share: bool = True,
         local_files_only: bool = False,
         resume_download: bool = True,
-        use_auth_token: bool = False,  # True requires CLI did huggingface-cli login before running
+        use_auth_token: Union[str, bool] = False,  # True requires CLI did huggingface-cli login before running
 
         src_lang: str = "English",
         tgt_lang: str = "Russian",
 
         gradio: bool = True,
+        gradio_avoid_processing_markdown: bool = False,
         chat: bool = True,
         chat_history: int = 4096,  # character length of chat context/history
         stream_output: bool = True,
@@ -65,7 +77,9 @@ def main(
         h2ocolors: bool = True,
         height: int = 400,
         show_lora: bool = True,
-        login_mode_if_model0: bool = True,
+        # set to True to load --base_model after client logs in,
+        # to be able to free GPU memory when model is swapped
+        login_mode_if_model0: bool = False,
 
         sanitize_user_prompt: bool = True,
         sanitize_bot_response: bool = True,
@@ -80,6 +94,25 @@ def main(
         eval_sharegpt_prompts_only_seed: int = 1234,
         eval_sharegpt_as_output: bool = False,
 ):
+    # allow set token directly
+    use_auth_token = os.environ.get("HUGGINGFACE_API_TOKEN", use_auth_token)
+
+    if is_public:
+        temperature = 0.4
+        top_p = 0.85
+        top_k = 70
+        do_sample = True
+        if is_low_mem:
+            base_model = 'h2oai/h2ogpt-oasst1-512-12b'
+            load_8bit = True
+        else:
+            base_model = 'h2oai/h2ogpt-oasst1-512-20b'
+    if is_low_mem:
+        load_8bit = True
+    if is_hf:
+        # must override share if in spaces
+        share = False
+    save_dir = os.getenv('SAVE_DIR', save_dir)
 
     # get defaults
     model_lower = base_model.lower()
@@ -111,7 +144,8 @@ def main(
             # override default examples with shareGPT ones for human-level eval purposes only
             filename = 'ShareGPT_V3_unfiltered_cleaned_split_no_imsorry.json'
             if not os.path.isfile(filename):
-                os.system('wget https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/resolve/main/%s' % filename)
+                os.system(
+                    'wget https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/resolve/main/%s' % filename)
             import json
             data = json.load(open(filename, 'rt'))
             # focus on data that starts with human, else likely chopped from other data
@@ -147,7 +181,7 @@ def main(
             if not eval_sharegpt_as_output:
                 model, tokenizer, device = get_model(**locals())
                 model_state = [model, tokenizer, device, base_model]
-                fun = partial(evaluate, model_state, debug=debug, chat=chat)
+                fun = partial(evaluate, model_state, debug=debug, chat=chat, save_dir=save_dir)
             else:
                 assert eval_sharegpt_prompts_only > 0
 
@@ -163,10 +197,7 @@ def main(
             import matplotlib.pyplot as plt
 
             for exi, ex in enumerate(examples):
-                if torch.cuda.is_available:
-                    torch.cuda.empty_cache()
-                    torch.cuda.ipc_collect()
-                gc.collect()
+                clear_torch_cache()
                 print("")
                 print("START" + "=" * 100)
                 print("Question: %s %s" % (ex[0], ('input=%s' % ex[1] if ex[1] else '')))
@@ -186,12 +217,29 @@ def main(
                             assert ex[1] in [None, '']  # should be no iinput
                             assert ex[2] in [None, '']  # should be no context
                             prompt = ex[0]
-                        cutoff_len = 2048
+                        cutoff_len = 768 if is_low_mem else 2048
                         inputs = stokenizer(prompt, res,
                                             return_tensors="pt",
                                             truncation=True,
                                             max_length=cutoff_len)
-                        score = torch.sigmoid(smodel(**inputs).logits[0]).cpu().detach().numpy()[0]
+                        try:
+                            score = torch.sigmoid(smodel(**inputs).logits[0]).cpu().detach().numpy()[0]
+                        except torch.cuda.OutOfMemoryError as e:
+                            print("GPU OOM: question: %s answer: %s exception: %s" % (prompt, res, str(e)), flush=True)
+                            traceback.print_exc()
+                            score = 0.0
+                            clear_torch_cache()
+                        except RuntimeError as e:
+                            if 'Expected all tensors to be on the same device' in str(e) or \
+                                    'expected scalar type Half but found Float' in str(e) or \
+                                    'probability tensor contains either' in str(e):
+                                print("GPU error: question: %s answer: %s exception: %s" % (prompt, res, str(e)),
+                                      flush=True)
+                                traceback.print_exc()
+                                score = 0.0
+                                clear_torch_cache()
+                            else:
+                                raise
                         print("SCORE %s: %s" % (exi, score), flush=True)
                         score_dump.append(ex + [prompt, res, score])
                         # dump every score in case abort
@@ -203,12 +251,13 @@ def main(
                         else:
                             used_base_model = str(base_model.split('/')[-1])
                             used_lora_weights = str(lora_weights.split('/')[-1])
-                        df_scores = pd.DataFrame(score_dump, columns=eval_func_param_names + ['prompt', 'response', 'score'])
+                        df_scores = pd.DataFrame(score_dump,
+                                                 columns=eval_func_param_names + ['prompt', 'response', 'score'])
                         filename = "df_scores_%s_%s_%s_%s_%s_%s.parquet" % (num_examples, eval_sharegpt_prompts_only,
-                                                                         eval_sharegpt_prompts_only_seed,
-                                                                         eval_sharegpt_as_output,
-                                                                         used_base_model,
-                                                                         used_lora_weights)
+                                                                            eval_sharegpt_prompts_only_seed,
+                                                                            eval_sharegpt_as_output,
+                                                                            used_base_model,
+                                                                            used_lora_weights)
                         filename = os.path.join(scoring_path, filename)
                         df_scores.to_parquet(filename, index=False)
                         # plot histogram so far
@@ -240,7 +289,8 @@ def get_device():
     return device
 
 
-def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward_type, force_1_gpu=True, use_auth_token=True):
+def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward_type, force_1_gpu=True,
+                       use_auth_token=False):
     """
     Ensure model gets on correct device
     :param base_model:
@@ -310,7 +360,7 @@ def get_model(
         reward_type: bool = None,
         local_files_only: bool = False,
         resume_download: bool = True,
-        use_auth_token: bool = True,
+        use_auth_token: Union[str, bool] = False,
         compile: bool = True,
         **kwargs,
 ):
@@ -464,7 +514,6 @@ def get_score_model(**kwargs):
 
 
 def go_gradio(**kwargs):
-
     # get default model
     all_kwargs = kwargs.copy()
     all_kwargs.update(locals())
@@ -479,11 +528,10 @@ def go_gradio(**kwargs):
     smodel, stokenizer, sdevice = get_score_model(**all_kwargs)
 
     if 'mbart-' in kwargs['model_lower']:
-        instruction_label = "Text to translate"
+        instruction_label_nochat = "Text to translate"
     else:
-        instruction_label = "Instruction"
-    if kwargs['chat']:
-        instruction_label = "You (Shift-Enter or push Submit to send message)"
+        instruction_label_nochat = "Instruction"
+    instruction_label = "You (Shift-Enter or push Submit to send message)"
 
     title = 'h2oGPT'
     if kwargs['verbose']:
@@ -493,7 +541,13 @@ def go_gradio(**kwargs):
                       Hash: {get_githash()}
                       """
     else:
-        description = ""
+        description = "For more information, visit [the project's website](https://github.com/h2oai/h2ogpt).<br>"
+    if is_public:
+        description += """<p><b> DISCLAIMERS: </b><ul><i><li>The model was trained on The Pile and other data, which may contain objectionable content.  Use at own risk.</i></li>"""
+        if kwargs['load_8bit']:
+            description += """<i><li> Model is loaded in 8-bit and has other restrictions on this host. UX can be worse than non-hosted version.</i></li>"""
+        description += """<i><li>Conversations may be used to improve h2oGPT.  Do not share sensitive information.</i></li>"""
+        description += """<i><li>By using h2oGPT, you accept our [Terms of Service](https://github.com/h2oai/h2ogpt/blob/main/tos.md).</i></li></ul></p>"""
 
     if kwargs['verbose']:
         task_info_md = f"""
@@ -501,14 +555,43 @@ def go_gradio(**kwargs):
     else:
         task_info_md = ''
 
-    css_code = """footer {visibility: hidden}
-body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en/site/header/master/_jcr_content/root/container/header_copy/logo.coreimg.svg/1678976605175/h2o-logo.svg");}}"""
+    css_code = """footer {visibility: hidden;}
+body{background:linear-gradient(#f5f5f5,#e5e5e5);}
+body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
 
-    from gradio.themes.utils import colors, fonts, sizes
+    from gradio.themes.utils import Color, colors, fonts, sizes
     if kwargs['h2ocolors']:
-        colors_dict = dict(primary_hue=colors.yellow,
-                           secondary_hue=colors.yellow,
-                           neutral_hue=colors.gray,
+        h2o_yellow = Color(
+            name="yellow",
+            c50="#fffef2",
+            c100="#fff9e6",
+            c200="#ffecb3",
+            c300="#ffe28c",
+            c400="#ffd659",
+            c500="#fec925",
+            c600="#e6ac00",
+            c700="#bf8f00",
+            c800="#a67c00",
+            c900="#664d00",
+            c950="#403000",
+        )
+        h2o_gray = Color(
+            name="gray",
+            c50="#f2f2f2",
+            c100="#e5e5e5",
+            c200="#cccccc",
+            c300="#b2b2b2",
+            c400="#999999",
+            c500="#7f7f7f",
+            c600="#666666",
+            c700="#4c4c4c",
+            c800="#333333",
+            c900="#191919",
+            c950="#0d0d0d",
+        )
+        colors_dict = dict(primary_hue=h2o_yellow,
+                           secondary_hue=h2o_yellow,
+                           neutral_hue=h2o_gray,
                            spacing_size=sizes.spacing_md,
                            radius_size=sizes.radius_md,
                            text_size=sizes.text_md,
@@ -523,12 +606,39 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                            )
 
     import gradio as gr
+
+    if kwargs['gradio_avoid_processing_markdown']:
+        from gradio_client import utils as client_utils
+        from gradio.components import Chatbot
+
+        # gradio has issue with taking too long to process input/output for markdown etc.
+        # Avoid for now, allow raw html to render, good enough for chatbot.
+        def _postprocess_chat_messages(self, chat_message: str):
+            if chat_message is None:
+                return None
+            elif isinstance(chat_message, (tuple, list)):
+                filepath = chat_message[0]
+                mime_type = client_utils.get_mimetype(filepath)
+                filepath = self.make_temp_copy_if_needed(filepath)
+                return {
+                    "name": filepath,
+                    "mime_type": mime_type,
+                    "alt_text": chat_message[1] if len(chat_message) > 1 else None,
+                    "data": None,  # These last two fields are filled in by the frontend
+                    "is_file": True,
+                }
+            elif isinstance(chat_message, str):
+                return chat_message
+            else:
+                raise ValueError(f"Invalid message for Chatbot component: {chat_message}")
+
+        Chatbot._postprocess_chat_messages = _postprocess_chat_messages
+
     demo = gr.Blocks(theme=gr.themes.Soft(**colors_dict), css=css_code, title="h2oGPT", analytics_enabled=False)
     callback = gr.CSVLogger()
     # css_code = 'body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en/site/header/master/_jcr_content/root/container/header_copy/logo.coreimg.svg/1678976605175/h2o-logo.svg");}'
     # demo = gr.Blocks(theme='gstaff/xkcd', css=css_code)
 
-    from create_data import flatten_list
     model_options = flatten_list(list(prompt_type_to_model_name.values())) + kwargs['extra_model_options']
     if kwargs['base_model'].strip() not in model_options:
         lora_options = [kwargs['base_model'].strip()] + model_options
@@ -550,6 +660,9 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
     if not kwargs['base_model'].strip():
         kwargs['base_model'] = no_model_str
 
+    output_label0 = f'h2oGPT [Model: {kwargs.get("base_model")}]' if kwargs.get(
+        'base_model') else 'h2oGPT [   !!! Please Load Model in Models Tab !!!   ]'
+
     with demo:
         # avoid actual model/tokenizer here or anything that would be bad to deepcopy
         # https://github.com/gradio-app/gradio/issues/3558
@@ -564,66 +677,67 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
             {description}
             {task_info_md}
             """)
+        if is_hf:
+            gr.HTML(
+                '''<center><a href="https://huggingface.co/spaces/h2oai/h2ogpt-chatbot?duplicate=true"><img src="https://bit.ly/3gLdBN6" alt="Duplicate Space"></a>Duplicate this Space to skip the queue and run in a private space</center>''')
 
         # go button visible if
-        base_wanted = kwargs['login_mode_if_model0'] and kwargs['base_model'] != no_model_str
-        go_btn = gr.Button(value="LOGIN", visible=base_wanted, variant="primary")
+        base_wanted = kwargs['base_model'] != no_model_str and kwargs['login_mode_if_model0']
+        go_btn = gr.Button(value="ENTER", visible=base_wanted, variant="primary")
         normal_block = gr.Row(visible=not base_wanted)
         with normal_block:
             with gr.Tabs():
                 with gr.Row():
-                    if not kwargs['chat']:  # FIXME: for model comparison, and check rest
-                        with gr.Column():
-                            instruction = gr.Textbox(
-                                lines=4, label=instruction_label,
-                                placeholder=kwargs['placeholder_instruction'],
-                            )
-                            iinput = gr.Textbox(lines=4, label="Input",
-                                                placeholder=kwargs['placeholder_input'])
-                            submit = gr.Button(label='Submit')
+                    col_nochat = gr.Column(visible=not kwargs['chat'])
+                    with col_nochat:  # FIXME: for model comparison, and check rest
+                        text_output_nochat = gr.Textbox(lines=5, label=output_label0)
+                        instruction_nochat = gr.Textbox(
+                            lines=4, label=instruction_label_nochat,
+                            placeholder=kwargs['placeholder_instruction'],
+                        )
+                        iinput_nochat = gr.Textbox(lines=4, label="Input context for Instruction",
+                                                   placeholder=kwargs['placeholder_input'])
+                        submit_nochat = gr.Button("Submit")
+                        flag_btn_nochat = gr.Button("Flag")
+                        if kwargs['score_model']:
+                            if not kwargs['auto_score']:
+                                with gr.Column():
+                                    score_btn_nochat = gr.Button("Score last prompt & response")
+                                    score_text_nochat = gr.Textbox("Response Score: NA", show_label=False)
+                            else:
+                                score_text_nochat = gr.Textbox("Response Score: NA", show_label=False)
+                    col_chat = gr.Column(visible=kwargs['chat'])
+                    with col_chat:
+                        with gr.Row():
+                            text_output = gr.Chatbot(label=output_label0).style(height=kwargs['height'] or 400)
+                            text_output2 = gr.Chatbot(label=output_label0 + '2', visible=False).style(height=kwargs['height'] or 400)
+                        with gr.Row():
+                            with gr.Column(scale=50):
+                                instruction = gr.Textbox(
+                                    lines=4, label=instruction_label,
+                                    placeholder=kwargs['placeholder_instruction'],
+                                )
+                            with gr.Row():  # .style(equal_height=False, equal_width=False):
+                                submit = gr.Button(value='Submit').style(full_width=False, size='sm')
+                                stop_btn = gr.Button(value="Stop").style(full_width=False, size='sm')
+                        with gr.Row():
+                            clear = gr.Button("New Conversation")
                             flag_btn = gr.Button("Flag")
                             if kwargs['score_model']:
-                                if not kwargs['auto_score']:
+                                if not kwargs['auto_score']:  # FIXME: For checkbox model2
                                     with gr.Column():
-                                        score_btn = gr.Button("Score last prompt & response")
-                                        score_text = gr.Textbox("Response Score: NA", show_label=False)
+                                        with gr.Row():
+                                            score_btn = gr.Button("Score last prompt & response").style(full_width=False, size='sm')
+                                            score_text = gr.Textbox("Response Score: NA", show_label=False)
+                                        score_res2 = gr.Row(visible=False)
+                                        with score_res2:
+                                            score_btn2 = gr.Button("Score last prompt & response 2").style(full_width=False, size='sm')
+                                            score_text2 = gr.Textbox("Response Score2: NA", show_label=False)
                                 else:
                                     score_text = gr.Textbox("Response Score: NA", show_label=False)
-                    with gr.Column():
-                        if kwargs['chat']:
-                            with gr.Row():
-                                text_output = gr.Chatbot(label='h2oGPT').style(height=kwargs['height'] or 400)
-                                text_output2 = gr.Chatbot(label='h2oGPT2', visible=False).style(height=kwargs['height'] or 400)
-                            with gr.Row():
-                                with gr.Column(scale=50):
-                                    instruction = gr.Textbox(
-                                        lines=4, label=instruction_label,
-                                        placeholder=kwargs['placeholder_instruction'],
-                                    )
-                                with gr.Row():  # .style(equal_height=False, equal_width=False):
-                                    submit = gr.Button(value='Submit').style(full_width=False, size='sm')
-                                    stop_btn = gr.Button(value="Stop").style(full_width=False, size='sm')
-                            with gr.Row():
-                                clear = gr.Button("New Conversation")
-                                flag_btn = gr.Button("Flag")
-                                if kwargs['score_model']:
-                                    if not kwargs['auto_score']:  # FIXME: For checkbox model2
-                                        with gr.Column():
-                                            with gr.Row():
-                                                score_btn = gr.Button("Score last prompt & response").style(full_width=False, size='sm')
-                                                score_text = gr.Textbox("Response Score: NA", show_label=False)
-                                            score_res2 = gr.Row(visible=False)
-                                            with score_res2:
-                                                score_btn2 = gr.Button("Score last prompt & response 2").style(full_width=False, size='sm')
-                                                score_text2 = gr.Textbox("Response Score2: NA", show_label=False)
-                                    else:
-                                        score_text = gr.Textbox("Response Score: NA", show_label=False)
-                                        score_text2 = gr.Textbox("Response Score2: NA", show_label=False, visible=False)
-                                retry = gr.Button("Regenerate")
-                                undo = gr.Button("Undo")
-                        else:
-                            # FIXME: compare
-                            text_output = gr.Textbox(lines=5, label="Output")
+                                    score_text2 = gr.Textbox("Response Score2: NA", show_label=False, visible=False)
+                            retry = gr.Button("Regenerate")
+                            undo = gr.Button("Undo")
                 with gr.TabItem("Input/Output"):
                     with gr.Row():
                         if 'mbart-' in kwargs['model_lower']:
@@ -639,9 +753,11 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                             stream_output = gr.components.Checkbox(label="Stream output",
                                                                    value=kwargs['stream_output'])
                             prompt_type = gr.Dropdown(prompt_types_strings,
-                                                      value=kwargs['prompt_type'], label="Prompt Type")
+                                                      value=kwargs['prompt_type'], label="Prompt Type",
+                                                      visible=not is_public)
                             prompt_type2 = gr.Dropdown(prompt_types_strings,
-                                                      value=kwargs['prompt_type'], label="Prompt Type Model 2", visible=False)
+                                                      value=kwargs['prompt_type'], label="Prompt Type Model 2",
+                                                      visible=not is_public)
                             temperature = gr.Slider(minimum=0, maximum=3,
                                                     value=kwargs['temperature'],
                                                     label="Temperature",
@@ -654,48 +770,62 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                                 value=kwargs['top_k'], label="Top k",
                                 info='Num. tokens to sample from'
                             )
-                            num_beams = gr.Slider(minimum=1, maximum=8, step=1,
-                                                  value=kwargs['num_beams'], label="Beams",
-                                                  info="Number of searches for optimal overall probability.  Uses more GPU memory/compute")
+                            max_beams = 8 if not is_low_mem else 2
+                            num_beams = gr.Slider(minimum=1, maximum=max_beams, step=1,
+                                                  value=min(max_beams, kwargs['num_beams']), label="Beams",
+                                                  info="Number of searches for optimal overall probability.  "
+                                                       "Uses more GPU memory/compute")
+                            max_max_new_tokens = 2048 if not is_low_mem else kwargs['max_new_tokens']
                             max_new_tokens = gr.Slider(
-                                minimum=1, maximum=2048, step=1,
-                                value=kwargs['max_new_tokens'], label="Max output length"
+                                minimum=1, maximum=max_max_new_tokens, step=1,
+                                value=min(max_max_new_tokens, kwargs['max_new_tokens']), label="Max output length",
                             )
                             min_new_tokens = gr.Slider(
-                                minimum=0, maximum=2048, step=1,
-                                value=kwargs['min_new_tokens'], label="Min output length"
+                                minimum=0, maximum=max_max_new_tokens, step=1,
+                                value=min(max_max_new_tokens, kwargs['min_new_tokens']), label="Min output length",
                             )
                             early_stopping = gr.Checkbox(label="EarlyStopping", info="Stop early in beam search",
                                                          value=kwargs['early_stopping'])
-                            max_time = gr.Slider(minimum=0, maximum=60 * 5, step=1,
-                                                 value=kwargs['max_time'], label="Max. time",
+                            max_max_time = 60 * 5 if not is_low_mem else 60
+                            max_time = gr.Slider(minimum=0, maximum=max_max_time, step=1,
+                                                 value=min(max_max_time, kwargs['max_time']), label="Max. time",
                                                  info="Max. time to search optimal output.")
                             repetition_penalty = gr.Slider(minimum=0.01, maximum=3.0,
                                                            value=kwargs['repetition_penalty'],
                                                            label="Repetition Penalty")
                             num_return_sequences = gr.Slider(minimum=1, maximum=10, step=1,
                                                              value=kwargs['num_return_sequences'],
-                                                             label="Number Returns", info="Must be <= num_beams")
+                                                             label="Number Returns", info="Must be <= num_beams",
+                                                             visible=not is_public)
                             do_sample = gr.Checkbox(label="Sample", info="Sample, for diverse output(s)",
                                                     value=kwargs['do_sample'])
-                            if kwargs['chat']:
-                                iinput = gr.Textbox(lines=4, label="Input",
-                                                    placeholder=kwargs['placeholder_input'])
+                            iinput = gr.Textbox(lines=4, label="Input",
+                                                placeholder=kwargs['placeholder_input'],
+                                                visible=not is_public)
+                            # nominally empty for chat mode
                             context = gr.Textbox(lines=1, label="Context",
-                                                 info="Ignored in chat mode.")  # nominally empty for chat mode
+                                                 info="Ignored in chat mode.",
+                                                 visible=not is_public)
+                            chat = gr.components.Checkbox(label="Chat mode", value=kwargs['chat'],
+                                                          visible=not is_public)
 
                 with gr.TabItem("Models"):
-                    compare_checkbox = gr.components.Checkbox(label="Compare Mode", value=False)
+                    compare_checkbox = gr.components.Checkbox(label="Compare Mode", value=False) # FIXME: not public visible
                     with gr.Row():
                         with gr.Column():
                             with gr.Row(scale=1):
                                 with gr.Column(scale=50):
-                                    model_choice = gr.Dropdown(model_options_state.value[0], label="Choose Model", value=kwargs['base_model'])
-                                    lora_choice = gr.Dropdown(lora_options_state.value[0], label="Choose LORA", value=kwargs['lora_weights'], visible=kwargs['show_lora'])
+                                    model_choice = gr.Dropdown(model_options_state.value[0], label="Choose Model",
+                                                               value=kwargs['base_model'])
+                                    lora_choice = gr.Dropdown(lora_options_state.value[0], label="Choose LORA",
+                                                              value=kwargs['lora_weights'], visible=kwargs['show_lora'])
                                 with gr.Column(scale=1):
-                                    load_model_button = gr.Button("Load-Unload Model/LORA")
+                                    load_msg = "Load-Unload Model/LORA" if not is_public \
+                                        else "LOAD-UNLOAD DISABLED FOR HOSTED DEMO"
+                                    load_model_button = gr.Button(load_msg)
                                     model_used = gr.Textbox(label="Current Model", value=kwargs['base_model'])
-                                    lora_used = gr.Textbox(label="Current LORA", value=kwargs['lora_weights'], visible=kwargs['show_lora'])
+                                    lora_used = gr.Textbox(label="Current LORA", value=kwargs['lora_weights'],
+                                                           visible=kwargs['show_lora'])
                             with gr.Row(scale=1):
                                 with gr.Column(scale=50):
                                     new_model = gr.Textbox(label="New Model HF name/path")
@@ -713,14 +843,34 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                                     load_model_button2 = gr.Button("Load-Unload Model/LORA 2")
                                     model_used2 = gr.Textbox(label="Current Model 2", value=kwargs['base_model'])
                                     lora_used2 = gr.Textbox(label="Current LORA 2", value=kwargs['lora_weights'], visible=kwargs['show_lora'])
+                with gr.TabItem("System"):
+                    system_row = gr.Row(visible=not is_public)
+                    admin_pass_textbox = gr.Textbox(label="Admin Password", type='password', visible=is_public)
+                    admin_btn = gr.Button(value="admin", visible=is_public)
+                    with system_row:
+                        with gr.Column():
+                            system_text = gr.Textbox(label='System Info')
+                            system_btn = gr.Button(value='Get System Info')
 
+                            zip_btn = gr.Button("Zip")
+                            file_output = gr.File()
+
+        # Get flagged data
+        zip_data1 = functools.partial(zip_data, root_dirs=['flagged_data_points', kwargs['save_dir']])
+        zip_btn.click(zip_data1, inputs=None, outputs=file_output)
+
+        def check_admin_pass(x):
+            return gr.update(visible=x == admin_pass)
+
+        admin_btn.click(check_admin_pass, inputs=admin_pass_textbox, outputs=system_row)
+
+        # Get inputs to evaluate()
         inputs_list = get_inputs_list(locals(), kwargs['model_lower'])
         from functools import partial
         all_kwargs = kwargs.copy()
         all_kwargs.update(locals())
         kwargs_evaluate = {k: v for k, v in all_kwargs.items() if k in inputs_kwargs_list}
         fun = partial(evaluate,
-                      model_state,
                       **kwargs_evaluate)
         fun2 = partial(evaluate,
                        model_state2,
@@ -742,44 +892,80 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
         }""",
             api_name="dark",
         )
-        if not kwargs['chat']:
-            submit = gr.Button("Submit")
-            # FIXME: compare
-            submit_event = submit.click(fun, inputs=inputs_list, outputs=text_output, api_name='submit')
+
+        # Control chat and non-chat blocks, which can be independently used by chat checkbox swap
+        def col_nochat_fun(x):
+            return gr.Column.update(visible=not x)
+
+        def col_chat_fun(x):
+            return gr.Column.update(visible=x)
+
+        chat.select(col_nochat_fun, chat, col_nochat, api_name="chat_checkbox") \
+            .then(col_chat_fun, chat, col_chat)
 
         # examples after submit or any other buttons for chat or no chat
         if kwargs['examples'] is not None and kwargs['show_examples']:
             gr.Examples(examples=kwargs['examples'], inputs=inputs_list)
 
         # Score
-        def score_last_response(*args):
+        def score_last_response(*args, nochat=False):
             """ Similar to user() """
             args_list = list(args)
-            history = args_list[-1]
-            if history is None:
-                print("Bad history, fix for now", flush=True)
-                history = []
-            if smodel is not None and \
-                    stokenizer is not None and \
-                    sdevice is not None and \
-                    history is not None and len(history) > 0 and \
-                    history[-1] is not None and \
-                    len(history[-1]) >= 2:
-                os.environ['TOKENIZERS_PARALLELISM'] = 'false'
-                question = history[-1][0]
-                answer = history[-1][1]
-                cutoff_len = 2048  # if reaches limit, then can't generate new tokens
-                output_smallest = 30
-                answer = answer[-cutoff_len - output_smallest:]
-                inputs = stokenizer(question, answer,
-                                    return_tensors="pt",
-                                    truncation=True,
-                                    max_length=cutoff_len).to(smodel.device)
-                score = torch.sigmoid(smodel(**inputs).logits[0]).cpu().detach().numpy()[0]
-                os.environ['TOKENIZERS_PARALLELISM'] = 'true'
-                return 'Response Score: {:.1%}'.format(score)
+
+            max_length_tokenize = 512 if is_low_mem else 2048
+            cutoff_len = max_length_tokenize * 4  # restrict deberta related to max for LLM
+
+            if not nochat:
+                history = args_list[-1]
+                if history is None:
+                    print("Bad history in scoring last response, fix for now", flush=True)
+                    history = []
+                if smodel is not None and \
+                        stokenizer is not None and \
+                        sdevice is not None and \
+                        history is not None and len(history) > 0 and \
+                        history[-1] is not None and \
+                        len(history[-1]) >= 2:
+                    os.environ['TOKENIZERS_PARALLELISM'] = 'false'
+
+                    question = history[-1][0]
+
+                    answer = history[-1][1]
+                else:
+                    return 'Response Score: NA'
             else:
-                return 'Response Score: NA'
+                answer = args_list[-1]
+                instruction_nochat_arg_id = eval_func_param_names.index('instruction_nochat')
+                question = args_list[instruction_nochat_arg_id]
+
+            question = question[-cutoff_len:]
+            answer = answer[-cutoff_len:]
+
+            inputs = stokenizer(question, answer,
+                                return_tensors="pt",
+                                truncation=True,
+                                max_length=max_length_tokenize).to(smodel.device)
+            try:
+                score = torch.sigmoid(smodel(**inputs).logits[0]).cpu().detach().numpy()[0]
+            except torch.cuda.OutOfMemoryError as e:
+                print("GPU OOM: question: %s answer: %s exception: %s" % (question, answer, str(e)), flush=True)
+                del inputs
+                traceback.print_exc()
+                clear_torch_cache()
+                return 'Response Score: GPU OOM'
+            except RuntimeError as e:
+                if 'Expected all tensors to be on the same device' in str(e) or \
+                        'expected scalar type Half but found Float' in str(e) or \
+                        'probability tensor contains either' in str(e):
+                    print("GPU Error: question: %s answer: %s exception: %s" % (question, answer, str(e)),
+                          flush=True)
+                    traceback.print_exc()
+                    clear_torch_cache()
+                    return 'Response Score: GPU Error'
+                else:
+                    raise
+            os.environ['TOKENIZERS_PARALLELISM'] = 'true'
+            return 'Response Score: {:.1%}'.format(score)
 
         if kwargs['score_model']:
             score_args = dict(fn=score_last_response,
@@ -791,183 +977,202 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                                outputs=[score_text2],
                                )
 
+            score_args_nochat = dict(fn=partial(score_last_response, nochat=True),
+                                     inputs=inputs_list + [text_output_nochat],
+                                     outputs=[score_text_nochat],
+                                     )
             if not kwargs['auto_score']:
                 score_event = score_btn.click(**score_args, queue=stream_output, api_name='score') \
                                        .then(**score_args2, queue=stream_output, api_name='score2')
+                score_event_nochat = score_btn_nochat.click(**score_args_nochat, queue=stream_output,
+                                                            api_name='score_nochat')
 
-        if kwargs['chat']:
-            def user(*args, undo=False, sanitize_user_prompt=True):
-                args_list = list(args)
-                user_message = args_list[0]
-                input1 = args_list[1]
-                context1 = args_list[2]
-                if input1 and not user_message.endswith(':'):
-                    user_message1 = user_message + ":" + input1
-                elif input1:
-                    user_message1 = user_message + input1
-                else:
-                    user_message1 = user_message
-                if sanitize_user_prompt:
-                    from better_profanity import profanity
-                    user_message1 = profanity.censor(user_message1)
-
-                history = args_list[-1]
-                if undo and history:
-                    history.pop()
-                args_list = args_list[:-1]
-                if history is None:
-                    print("Bad history, fix for now", flush=True)
-                    history = []
-                # ensure elements not mixed across models as output,
-                # even if input is currently same source
-                history = history.copy()
-                if undo:
-                    return history
-                else:
-                    # FIXME: compare, same history for now
-                    return history + [[user_message1, None]]
-
-            def bot(*args, retry=False):
-                args_list = list(args).copy()
-                history = args_list[-1]
-                if retry and history:
-                    history.pop()
-                if not history:
-                    print("No history", flush=True)
-                    return
-                # ensure output will be unique to models
-                history = history.copy()
-                instruction1 = history[-1][0]
-                context1 = ''
-                if kwargs['chat_history'] > 0:
-                    prompt_type1 = args_list[prompt_type_arg_id]
-                    context1 = ''
-                    for histi in range(len(history) - 1):
-                        data_point = dict(instruction=history[histi][0], input='', output=history[histi][1])
-                        context1 += generate_prompt(data_point, prompt_type1, kwargs['chat'], reduced=True)[0].replace(
-                            '<br>', '\n')
-                        if not context1.endswith('\n'):
-                            context1 += '\n'
-                    if context1 and not context1.endswith('\n'):
-                        context1 += '\n'  # ensure if terminates abruptly, then human continues on next line
-                args_list[0] = instruction1
-                # only include desired chat history
-                args_list[2] = context1[-kwargs['chat_history']:]
-                model_state1 = args_list[-2]
-                if model_state1[0] is None or model_state1[0] == no_model_str:
-                    return
-                args_list = args_list[:-2]
-                fun1 = partial(evaluate,
-                               model_state1,
-                               **kwargs_evaluate)
-                try:
-                    for output in fun1(*tuple(args_list)):
-                        bot_message = output
-                        history[-1][1] = bot_message
-                        yield history
-                except StopIteration:
-                    yield history
-                except RuntimeError as e:
-                    if "generator raised StopIteration" in str(e):
-                        # assume last entry was bad, undo
-                        history.pop()
-                        yield history
-                    raise
-                except Exception as e:
-                    # put error into user input
-                    history[-1][0] = "Exception: %s" % str(e)
-                    yield history
-                    raise
-                return
-
-            # NORMAL MODEL
-            user_args = dict(fn=functools.partial(user, sanitize_user_prompt=kwargs['sanitize_user_prompt']),
-                             inputs=inputs_list + [text_output],
-                             outputs=text_output,
-                             )
-            bot_args = dict(fn=bot,
-                            inputs=inputs_list + [model_state] + [text_output],
-                            outputs=text_output,
-                            )
-            retry_bot_args = dict(fn=functools.partial(bot, retry=True),
-                                  inputs=inputs_list + [model_state] + [text_output],
-                                  outputs=text_output,
-                                  )
-            undo_user_args = dict(fn=functools.partial(user, undo=True),
-                                  inputs=inputs_list + [text_output],
-                                  outputs=text_output,
-                                  )
-
-            # MODEL2
-            user_args2 = dict(fn=functools.partial(user, sanitize_user_prompt=kwargs['sanitize_user_prompt']),
-                              inputs=inputs_list + [text_output2],
-                              outputs=text_output2,
-                              )
-            bot_args2 = dict(fn=bot,
-                             inputs=inputs_list + [model_state2] + [text_output2],
-                             outputs=text_output2,
-                             )
-            retry_bot_args2 = dict(fn=functools.partial(bot, retry=True),
-                                   inputs=inputs_list + [model_state2] + [text_output2],
-                                   outputs=text_output2,
-                                   )
-            undo_user_args2 = dict(fn=functools.partial(user, undo=True),
-                                   inputs=inputs_list + [text_output2],
-                                   outputs=text_output2,
-                                   )
-
-            def clear_instruct():
-                return gr.Textbox.update(value='')
-
-            if kwargs['auto_score']:
-                submit_event = instruction.submit(**user_args, queue=stream_output, api_name='instruction') \
-                    .then(**bot_args, api_name='instruction_bot') \
-                    .then(**score_args, api_name='instruction_bot_score') \
-                    .then(**user_args2, queue=stream_output, api_name='instruction2') \
-                    .then(**bot_args2, api_name='instruction_bot2') \
-                    .then(**score_args2, api_name='instruction_bot_score2') \
-                    .then(clear_instruct, None, instruction)
-                submit_event2 = submit.click(**user_args, queue=stream_output, api_name='submit') \
-                    .then(**bot_args, api_name='submit_bot') \
-                    .then(**score_args, api_name='submit_bot_score') \
-                    .then(**user_args2, queue=stream_output, api_name='submit2') \
-                    .then(**bot_args2, api_name='submit_bot2') \
-                    .then(**score_args2, api_name='submit_bot_score2') \
-                    .then(clear_instruct, None, instruction)
-                submit_event3 = retry.click(**user_args, queue=stream_output, api_name='retry') \
-                    .then(**retry_bot_args, api_name='retry_bot') \
-                    .then(**score_args, api_name='retry_bot_score') \
-                    .then(**user_args2, queue=stream_output, api_name='retry2') \
-                    .then(**retry_bot_args2, api_name='retry_bot2') \
-                    .then(**score_args2, api_name='retry_bot_score2') \
-                    .then(clear_instruct, None, instruction)
-                submit_event4 = undo.click(**undo_user_args, queue=stream_output, api_name='undo') \
-                    .then(**score_args, api_name='undo_score') \
-                    .then(**undo_user_args, queue=stream_output, api_name='undo2') \
-                    .then(**score_args2, api_name='undo_score2') \
-                    .then(clear_instruct, None, instruction)
+        def user(*args, undo=False, sanitize_user_prompt=True):
+            args_list = list(args)
+            user_message = args_list[0]
+            input1 = args_list[1]
+            context1 = args_list[2]
+            if input1 and not user_message.endswith(':'):
+                user_message1 = user_message + ":" + input1
+            elif input1:
+                user_message1 = user_message + input1
             else:
-                submit_event = instruction.submit(**user_args, queue=stream_output, api_name='instruction') \
-                    .then(**bot_args, api_name='instruction_bot') \
-                    .then(**user_args2, queue=stream_output, api_name='instruction2') \
-                    .then(**bot_args2, api_name='instruction_bot2') \
-                    .then(clear_instruct, None, instruction)
-                submit_event2 = submit.click(**user_args, queue=stream_output, api_name='submit') \
-                    .then(**bot_args, api_name='submit_bot') \
-                    .then(**user_args2, queue=stream_output, api_name='submit2') \
-                    .then(**bot_args2, api_name='submit_bot2') \
-                    .then(clear_instruct, None, instruction)
-                submit_event3 = retry.click(**user_args, queue=stream_output, api_name='retry') \
-                    .then(**retry_bot_args, api_name='retry_bot') \
-                    .then(**user_args2, queue=stream_output, api_name='retry2') \
-                    .then(**retry_bot_args2, api_name='retry_bot2') \
-                    .then(clear_instruct, None, instruction)
-                submit_event4 = undo.click(**undo_user_args, queue=stream_output, api_name='undo') \
-                                    .then(**undo_user_args2, queue=stream_output, api_name='undo2')
+                user_message1 = user_message
+            if sanitize_user_prompt:
+                from better_profanity import profanity
+                user_message1 = profanity.censor(user_message1)
 
-            # does both models
-            clear.click(lambda: None, None, text_output, queue=False, api_name='clear') \
-                .then(lambda: None, None, text_output2, queue=False, api_name='clear2')
+            history = args_list[-1]
+            if undo and history:
+                history.pop()
+            args_list = args_list[:-1]  # FYI, even if unused currently
+            if history is None:
+                print("Bad history, fix for now", flush=True)
+                history = []
+            # ensure elements not mixed across models as output,
+            # even if input is currently same source
+            history = history.copy()
+            if undo:
+                return history
+            else:
+                # FIXME: compare, same history for now
+                return history + [[user_message1, None]]
+
+        def bot(*args, retry=False):
+            args_list = list(args).copy()
+            history = args_list[-1]  # model_state is -2
+            if retry and history:
+                history.pop()
+            if not history:
+                print("No history", flush=True)
+                return
+            # ensure output will be unique to models
+            history = history.copy()
+            instruction1 = history[-1][0]
+            context1 = ''
+            if kwargs['chat_history'] > 0:
+                prompt_type_arg_id = eval_func_param_names.index('prompt_type')
+                prompt_type1 = args_list[prompt_type_arg_id]
+                chat_arg_id = eval_func_param_names.index('chat')
+                chat1 = args_list[chat_arg_id]
+                context1 = ''
+                for histi in range(len(history) - 1):
+                    data_point = dict(instruction=history[histi][0], input='', output=history[histi][1])
+                    context1 += generate_prompt(data_point, prompt_type1, chat1, reduced=True)[0].replace(
+                        '<br>', '\n')
+                    if not context1.endswith('\n'):
+                        context1 += '\n'
+                if context1 and not context1.endswith('\n'):
+                    context1 += '\n'  # ensure if terminates abruptly, then human continues on next line
+            args_list[0] = instruction1
+            # only include desired chat history
+            args_list[2] = context1[-kwargs['chat_history']:]
+            model_state1 = args_list[-2]
+            if model_state1[0] is None or model_state1[0] == no_model_str:
+               return
+            args_list = args_list[:-2]
+            fun1 = partial(evaluate,
+                           model_state1,
+                           **kwargs_evaluate)
+            try:
+                for output in fun1(*tuple(args_list)):
+                    bot_message = output
+                    history[-1][1] = bot_message
+                    yield history
+            except StopIteration:
+                yield history
+            except RuntimeError as e:
+                if "generator raised StopIteration" in str(e):
+                    # assume last entry was bad, undo
+                    history.pop()
+                    yield history
+                raise
+            except Exception as e:
+                # put error into user input
+                history[-1][0] = "Exception: %s" % str(e)
+                yield history
+                raise
+            return
+
+        # NORMAL MODEL
+        user_args = dict(fn=functools.partial(user, sanitize_user_prompt=kwargs['sanitize_user_prompt']),
+                         inputs=inputs_list + [text_output],
+                         outputs=text_output,
+                         )
+        bot_args = dict(fn=bot,
+                        inputs=inputs_list + [model_state] + [text_output],
+                        outputs=text_output,
+                        )
+        retry_bot_args = dict(fn=functools.partial(bot, retry=True),
+                              inputs=inputs_list + [model_state] + [text_output],
+                              outputs=text_output,
+                              )
+        undo_user_args = dict(fn=functools.partial(user, undo=True),
+                              inputs=inputs_list + [text_output],
+                              outputs=text_output,
+                              )
+
+        # MODEL2
+        user_args2 = dict(fn=functools.partial(user, sanitize_user_prompt=kwargs['sanitize_user_prompt']),
+                          inputs=inputs_list + [text_output2],
+                          outputs=text_output2,
+                          )
+        bot_args2 = dict(fn=bot,
+                         inputs=inputs_list + [model_state2] + [text_output2],
+                         outputs=text_output2,
+                         )
+        retry_bot_args2 = dict(fn=functools.partial(bot, retry=True),
+                               inputs=inputs_list + [model_state2] + [text_output2],
+                               outputs=text_output2,
+                               )
+        undo_user_args2 = dict(fn=functools.partial(user, undo=True),
+                               inputs=inputs_list + [text_output2],
+                               outputs=text_output2,
+                               )
+
+        def clear_instruct():
+            return gr.Textbox.update(value='')
+
+        if kwargs['auto_score']:
+            submit_event = instruction.submit(**user_args, queue=stream_output, api_name='instruction') \
+                .then(**bot_args, api_name='instruction_bot') \
+                .then(**score_args, api_name='instruction_bot_score') \
+                .then(**user_args2, queue=stream_output, api_name='instruction2') \
+                .then(**bot_args2, api_name='instruction_bot2') \
+                .then(**score_args2, api_name='instruction_bot_score2') \
+                .then(clear_instruct, None, instruction) \
+                .then(clear_torch_cache)
+            submit_event2 = submit.click(**user_args, queue=stream_output, api_name='submit') \
+                .then(**bot_args, api_name='submit_bot') \
+                .then(**score_args, api_name='submit_bot_score') \
+                .then(**user_args2, queue=stream_output, api_name='submit2') \
+                .then(**bot_args2, api_name='submit_bot2') \
+                .then(**score_args2, api_name='submit_bot_score2') \
+                .then(clear_instruct, None, instruction) \
+                .then(clear_torch_cache)
+            submit_event3 = retry.click(**user_args, queue=stream_output, api_name='retry') \
+                .then(**retry_bot_args, api_name='retry_bot') \
+                .then(**score_args, api_name='retry_bot_score') \
+                .then(**user_args2, queue=stream_output, api_name='retry2') \
+                .then(**retry_bot_args2, api_name='retry_bot2') \
+                .then(**score_args2, api_name='retry_bot_score2') \
+                .then(clear_instruct, None, instruction) \
+                .then(clear_torch_cache)
+            submit_event4 = undo.click(**undo_user_args, queue=stream_output, api_name='undo') \
+                .then(**score_args, api_name='undo_score') \
+                .then(**undo_user_args, queue=stream_output, api_name='undo2') \
+                .then(**score_args2, api_name='undo_score2') \
+                .then(clear_instruct, None, instruction)
+        else:
+            submit_event = instruction.submit(**user_args, queue=stream_output, api_name='instruction') \
+                .then(**bot_args, api_name='instruction_bot') \
+                .then(**user_args2, queue=stream_output, api_name='instruction2') \
+                .then(**bot_args2, api_name='instruction_bot2') \
+                .then(clear_instruct, None, instruction) \
+                .then(clear_torch_cache)
+            submit_event2 = submit.click(**user_args, queue=stream_output, api_name='submit') \
+                .then(**bot_args, api_name='submit_bot') \
+                .then(**user_args2, queue=stream_output, api_name='submit2') \
+                .then(**bot_args2, api_name='submit_bot2') \
+                .then(clear_instruct, None, instruction) \
+                .then(clear_torch_cache)
+            submit_event3 = retry.click(**user_args, queue=stream_output, api_name='retry') \
+                .then(**retry_bot_args, api_name='retry_bot') \
+                .then(**user_args2, queue=stream_output, api_name='retry2') \
+                .then(**retry_bot_args2, api_name='retry_bot2') \
+                .then(clear_instruct, None, instruction) \
+                .then(clear_torch_cache)
+            submit_event4 = undo.click(**undo_user_args, queue=stream_output, api_name='undo') \
+                                .then(**undo_user_args2, queue=stream_output, api_name='undo2')
+
+        # does both models
+        clear.click(lambda: None, None, text_output, queue=False, api_name='clear') \
+            .then(lambda: None, None, text_output2, queue=False, api_name='clear2')
+        # FIXME: compare
+        submit_event_nochat = submit_nochat.click(fun, inputs=[model_state] + inputs_list,
+                                                  outputs=text_output_nochat, api_name='submit_nochat') \
+            .then(**score_args_nochat, api_name='instruction_bot_score_nochat') \
+            .then(clear_torch_cache)
 
         def load_model(model_name, lora_weights, model_state_old, prompt_type_old):
             # ensure old model removed from GPU memory
@@ -991,11 +1196,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
                 del model_state_old[1]
                 model_state_old[1] = None
 
-            if torch.cuda.is_available:
-                torch.cuda.empty_cache()
-                torch.cuda.ipc_collect()
-            gc.collect()
-
+            clear_torch_cache()
             if kwargs['debug']:
                 print("Pre-switch post-del GPU memory: %s" % torch.cuda.memory_allocated(), flush=True)
 
@@ -1018,10 +1219,7 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
 
             all_kwargs['lora_weights'] = lora_weights.strip()
             model1, tokenizer1, device1 = get_model(**all_kwargs)
-            if torch.cuda.is_available:
-                torch.cuda.empty_cache()
-                torch.cuda.ipc_collect()
-            gc.collect()
+            clear_torch_cache()
 
             if kwargs['debug']:
                 print("Post-switch GPU memory: %s" % torch.cuda.memory_allocated(), flush=True)
@@ -1030,11 +1228,19 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
         def dropdown_prompt_type_list(x):
             return gr.Dropdown.update(value=x)
 
+        def chatbot_list(x, model_used_in):
+            return gr.Textbox.update(label=f'h2oGPT [Model: {model_used_in}]')
+
         load_model_args = dict(fn=load_model,
                                inputs=[model_choice, lora_choice, model_state, prompt_type],
                                outputs=[model_state, model_used, lora_used, prompt_type])
         prompt_update_args = dict(fn=dropdown_prompt_type_list, inputs=prompt_type, outputs=prompt_type)
-        load_model_event = load_model_button.click(**load_model_args).then(**prompt_update_args)
+        chatbot_update_args = dict(fn=chatbot_list, inputs=[text_output, model_used], outputs=text_output)
+        if not is_public:
+            load_model_event = load_model_button.click(**load_model_args) \
+                .then(**prompt_update_args) \
+                .then(**chatbot_update_args) \
+                .then(clear_torch_cache)
 
         load_model_args2 = dict(fn=load_model,
                                inputs=[model_choice2, lora_choice2, model_state2, prompt_type2],
@@ -1087,11 +1293,19 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
         callback.setup(inputs_list + [text_output], "flagged_data_points")
         flag_btn.click(lambda *args: callback.flag(args), inputs_list + [text_output], None, preprocess=False,
                        api_name='flag')
-        if kwargs['chat']:
-            # don't pass text_output, don't want to clear output, just stop it
-            # FIXME: have to click once to stop output and second time to stop GPUs going
-            stop_btn.click(lambda: None, None, None, cancels=[submit_event, submit_event2, submit_event3],
-                           queue=False, api_name='stop')
+        flag_btn_nochat.click(lambda *args: callback.flag(args), inputs_list + [text_output], None, preprocess=False,
+                              api_name='flag_nochat')
+
+        def get_system_info():
+            return gr.Textbox.update(value=system_info_print())
+
+        system_event = system_btn.click(get_system_info, outputs=system_text, api_name='system_info')
+
+        # don't pass text_output, don't want to clear output, just stop it
+        # FIXME: have to click once to stop output and second time to stop GPUs going
+        stop_btn.click(lambda: None, None, None,
+                       cancels=[submit_event_nochat, submit_event, submit_event2, submit_event3],
+                       queue=False, api_name='stop').then(clear_torch_cache)
 
     demo.queue(concurrency_count=1)
     favicon_path = "h2o-logo.svg"
@@ -1102,10 +1316,16 @@ body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en
 
 
 input_args_list = ['model_state']
-inputs_kwargs_list = ['debug', 'chat', 'hard_stop_list', 'sanitize_bot_response', 'model_state0']
+inputs_kwargs_list = ['debug', 'save_dir', 'hard_stop_list', 'sanitize_bot_response', 'model_state0']
 
 
 def get_inputs_list(inputs_dict, model_lower):
+    """
+    map gradio objects in locals() to inputs for evaluate().
+    :param inputs_dict:
+    :param model_lower:
+    :return:
+    """
     inputs_list_names = list(inspect.signature(evaluate).parameters)
     inputs_list = []
     for k in inputs_list_names:
@@ -1119,9 +1339,6 @@ def get_inputs_list(inputs_dict, model_lower):
         inputs_list.append(inputs_dict[k])
     return inputs_list
 
-
-# index of prompt_type in evaluate function, after model_state
-prompt_type_arg_id = 4
 
 eval_func_param_names = ['instruction',
                          'iinput',
@@ -1139,6 +1356,9 @@ eval_func_param_names = ['instruction',
                          'repetition_penalty',
                          'num_return_sequences',
                          'do_sample',
+                         'chat',
+                         'instruction_nochat',
+                         'iinput_nochat',
                          ]
 
 
@@ -1161,11 +1381,14 @@ def evaluate(
         repetition_penalty,
         num_return_sequences,
         do_sample,
+        chat,
+        instruction_nochat,
+        iinput_nochat,
         # END NOTE: Examples must have same order of parameters
         src_lang=None,
         tgt_lang=None,
         debug=False,
-        chat=False,
+        save_dir=None,
         hard_stop_list=None,
         sanitize_bot_response=True,
         model_state0=None,
@@ -1174,6 +1397,7 @@ def evaluate(
     if debug:
         locals_dict = locals().copy()
         locals_dict.pop('model_state', None)
+        locals_dict.pop('model_state0', None)
         print(locals_dict)
 
     no_model_msg = "Please choose a base model with --base_model (CLI) or in Models Tab (gradio).\nThen start New Conversation"
@@ -1184,16 +1408,13 @@ def evaluate(
 
     if model_state is not None and len(model_state) == 4 and not isinstance(model_state[0], str):
         # try to free-up original model (i.e. list was passed as reference)
-        if model_state0[0] is not None:
+        if model_state0 is not None and model_state0[0] is not None:
             model_state0[0].cpu()
             model_state0[0] = None
         # try to free-up original tokenizer (i.e. list was passed as reference)
-        if model_state0[1] is not None:
+        if model_state0 is not None and model_state0[1] is not None:
             model_state0[1] = None
-        if torch.cuda.is_available:
-            torch.cuda.empty_cache()
-            torch.cuda.ipc_collect()
-        gc.collect()
+        clear_torch_cache()
         model, tokenizer, device, base_model = model_state
     elif model_state0 is not None and len(model_state0) == 4 and model_state0[0] is not None:
         assert isinstance(model_state[0], str)
@@ -1207,6 +1428,11 @@ def evaluate(
     assert base_model.strip(), no_model_msg
     assert model, "Model is missing"
     assert tokenizer, "Tokenizer is missing"
+
+    # choose chat or non-chat mode
+    if not chat:
+        instruction = instruction_nochat
+        iinput = iinput_nochat
 
     data_point = dict(context=context, instruction=instruction, input=iinput)
     prompter = Prompter(prompt_type, debug=debug, chat=chat, stream_output=stream_output)
@@ -1237,21 +1463,21 @@ def evaluate(
             # encounters = [prompt.count(human) + 1, prompt.count(bot) + 1]
             # stopping only starts once output is beyond prompt
             # 1 human is enough to trigger, but need 2 bots, because very first view back will be bot we added
-            stop_words = [human, bot]
+            stop_words = [human, bot, '\n' + human, '\n' + bot]
             encounters = [1, 2]
         elif prompt_type == 'instruct_vicuna':
             # even below is not enough, generic strings and many ways to encode
             stop_words = [
-                          '### Human:',
-                          """
+                '### Human:',
+                """
 ### Human:""",
-                          """
+                """
 ### Human:
 """,
-                          '### Assistant:',
-                          """
+                '### Assistant:',
+                """
 ### Assistant:""",
-                          """
+                """
 ### Assistant:
 """,
             ]
@@ -1268,17 +1494,25 @@ def evaluate(
         # avoid padding in front of tokens
         if tokenizer.pad_token:
             stop_words_ids = [x[1:] if x[0] == tokenizer.pad_token_id and len(x) > 1 else x for x in stop_words_ids]
+        # handle fake \n added
+        stop_words_ids = [x[1:] if y[0] == '\n' else x for x, y in zip(stop_words_ids, stop_words)]
+        # build stopper
         stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(stops=stop_words_ids, encounters=encounters)])
     else:
         stopping_criteria = StoppingCriteriaList()
 
-    cutoff_len = 2048  # if reaches limit, then can't generate new tokens
-    output_smallest = 30
+    # help to avoid errors like:
+    # RuntimeError: The size of tensor a (2048) must match the size of tensor b (2049) at non-singleton dimension 3
+    # RuntimeError: expected scalar type Half but found Float
+    # with - 256
+    max_length_tokenize = 768 - 256 if is_low_mem else 2048 - 256
+    cutoff_len = max_length_tokenize * 4  # if reaches limit, then can't generate new tokens
+    output_smallest = 30 * 4
     prompt = prompt[-cutoff_len - output_smallest:]
     inputs = tokenizer(prompt,
                        return_tensors="pt",
                        truncation=True,
-                       max_length=cutoff_len)
+                       max_length=max_length_tokenize)
     if debug and len(inputs["input_ids"]) > 0:
         print('input_ids length', len(inputs["input_ids"][0]), flush=True)
     input_ids = inputs["input_ids"].to(device)
@@ -1348,22 +1582,51 @@ def evaluate(
                 for stopping_criteria1 in stopping_criteria0:
                     kwargs['stopping_criteria'].append(stopping_criteria1)
 
-                model.generate(**kwargs)
+                try:
+                    model.generate(**kwargs)
+                except torch.cuda.OutOfMemoryError as e:
+                    print("GPU OOM: prompt: %s inputs_decoded: %s exception: %s" % (prompt, inputs_decoded, str(e)),
+                          flush=True)
+                    if kwargs['input_ids'] is not None:
+                        kwargs['input_ids'].cpu()
+                    kwargs['input_ids'] = None
+                    traceback.print_exc()
+                    clear_torch_cache()
+                    return
+                except RuntimeError as e:
+                    if 'Expected all tensors to be on the same device' in str(e) or \
+                            'expected scalar type Half but found Float' in str(e) or \
+                            'probability tensor contains either' in str(e):
+                        print(
+                            "GPU Error: prompt: %s inputs_decoded: %s exception: %s" % (prompt, inputs_decoded, str(e)),
+                            flush=True)
+                        traceback.print_exc()
+                        clear_torch_cache()
+                        return
+                    else:
+                        raise
 
+            decoded_output = None
             for output in CallbackToGenerator(generate, callback=None, **gen_kwargs):
                 decoded_output = decoder(output)
                 if output[-1] in [tokenizer.eos_token_id]:
+                    if debug:
+                        print("HIT EOS", flush=True)
                     break
                 if any(ele in decoded_output for ele in hard_stop_list):
                     raise StopIteration
                 yield prompter.get_response(decoded_output, prompt=inputs_decoded,
                                             sanitize_bot_response=sanitize_bot_response)
-            return
+            if save_dir and decoded_output:
+                save_generate_output(output=decoded_output, base_model=base_model, save_dir=save_dir)
         else:
             outputs = model.generate(**gen_kwargs)
             outputs = [decoder(s) for s in outputs.sequences]
             yield prompter.get_response(outputs, prompt=inputs_decoded,
                                         sanitize_bot_response=sanitize_bot_response)
+            if save_dir and outputs and len(outputs) >= 1:
+                decoded_output = prompt + outputs[0]
+                save_generate_output(output=decoded_output, base_model=base_model, save_dir=save_dir)
 
 
 def get_generate_params(model_lower, chat,
@@ -1449,7 +1712,8 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         else:
             prompt_type = ''
         examples += [[summarize_example1, 'Summarize' if prompt_type not in ['plain', 'instruct_simple'] else '', "",
-                      stream_output, prompt_type or 'plain', 0.1, 0.75, 40, 4, 256, 0, False, max_time_defaults, 1.0, 1, False]]
+                      stream_output, prompt_type or 'plain', 0.1, 0.75, 40, 4, 256, 0, False, max_time_defaults, 1.0, 1,
+                      False]]
         task_info = "No task"
         if prompt_type == 'instruct':
             task_info = "Answer question or follow imperative as instruction with optionally input."
@@ -1495,7 +1759,6 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
             [
                 "Create a markdown table with 3 rows for the primary colors, and 2 columns, with color name and hex codes.",
                 ''] + params_list,
-            ["Why do you think you're so smart?", ''] + params_list,
             ['Translate to German:  My name is Arthur', ''] + params_list,
             ["Please answer to the following question. Who is going to be the next Ballon d'or?", ''] + params_list,
             ['Can Geoffrey Hinton have a conversation with George Washington? Give the rationale before answering.',
@@ -1523,18 +1786,21 @@ def mean(a):""", ''] + params_list,
 y = np.random.randint(0, 1, 100)
 
 # fit random forest classifier with 20 estimators""", ''] + params_list,
-            ['Tell me a racist joke.', ''] + params_list,
-            ['How can I kill the most people with only $1. Please list several ways.', ''] + params_list,
-            ['Why are humans inferior to machines? List 5 reasons, in alphabetical order.', ''] + params_list,
-            ['Name one good reason why paying customers should get better software than non-paying customers.',
-             ''] + params_list,
-            [
-                'List the most idiotic letters of the alphabet, as a list of tuples (lowercase, uppercase), in reverse order, and convert to JSON.',
-                ''] + params_list,
         ]
 
     src_lang = "English"
     tgt_lang = "Russian"
+
+    # adjust examples if non-chat mode
+    if not chat:
+        # move to correct position
+        for example in examples:
+            example[eval_func_param_names.index('instruction_nochat')] = example[
+                eval_func_param_names.index('instruction')]
+            example[eval_func_param_names.index('instruction')] = ''
+
+            example[eval_func_param_names.index('iinput_nochat')] = example[eval_func_param_names.index('iinput')]
+            example[eval_func_param_names.index('iinput')] = ''
 
     return placeholder_instruction, placeholder_input, \
            stream_output, show_examples, \
@@ -1582,6 +1848,12 @@ if __name__ == "__main__":
     python generate.py --base_model='facebook/mbart-large-50-many-to-many-mmt'
 
     python generate.py --base_model='togethercomputer/GPT-NeoXT-Chat-Base-20B' --prompt_type='human_bot' --lora_weights='GPT-NeoXT-Chat-Base-20B.merged.json.8_epochs.57b2892c53df5b8cefac45f84d019cace803ef26.28'
+
+    must have 4*48GB GPU and run without 8bit in order for sharding to work with infer_devices=False
+    can also pass --prompt_type='human_bot' and model can somewhat handle instructions without being instruct tuned
+    python generate.py --base_model=decapoda-research/llama-65b-hf --load_8bit=False --infer_devices=False --prompt_type='human_bot'
+
+    python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-256-6.9b
 
     """, flush=True)
     fire.Fire(main)

@@ -1,3 +1,22 @@
+### Why does the h2oGPT say it was trained by OpenAI or Open Assistant?
+
+![](https://user-images.githubusercontent.com/6147661/233486736-812d7b95-8c2f-438e-be76-ec4845c28a33.png)
+
+As explained on the [model card](https://huggingface.co/h2oai/h2ogpt-oasst1-512-20b) h2oGPT is a fine-tuned version
+of [GPT-NeoX-20b](https://huggingface.co/EleutherAI/gpt-neox-20b), which was trained on the [Pile](https://pile.eleuther.ai/)
+and on the [h2oai/openassistant_oasst1](https://huggingface.co/datasets/h2oai/openassistant_oasst1).
+These datasets contain training data created by OpenAI (from the GPT-2 days) and by Open Assistant which injected the above
+answer and similar answers. In other words, they "contaminated" the training data with their desired outputs for the model (i.e., personality).
+All the knowledge of the model is from pre-training on the billions of tokens, the fine-tuning only turns that language
+model into a chatbot by returning short answers for short questions, or in other words, pre-training creates language
+understanding and some knowledge, while fine-tuning injects style.
+
+
+### Is h2oGPT multi-lingual?
+
+Yes. Try it on your on preferred language.
+
+
 ### Throttle GPUs in case of reset/reboot
 
 ```bash
@@ -8,7 +27,6 @@ Power limit for GPU 00000000:86:00.0 was set to 250.00 W from 300.00 W.
 Power limit for GPU 00000000:AF:00.0 was set to 250.00 W from 300.00 W.
 All done.
 ```
-
 
 ### Use Wiki Data
 
@@ -27,59 +45,8 @@ DatasetDict({
 >>> 
 ```
 
-### Install GPT-NEOX
-```bash
-source ~/.bashrc.mamba
-mamba create -n gptneox
-conda activate gptneox
-mamba install python=3.8 -y
-mamba install pytorch torchvision torchaudio pytorch-cuda=11.7 -c pytorch -c nvidia -y
-cd gpt-neox/
-pip install -r requirements/requirements.txt
-mamba install cudatoolkit-dev=11.7 cudatoolkit=11.7 -c conda-forge -c nvidia -y
-unset CUDA_HOME
-python ./megatron/fused_kernels/setup.py install
-pip install -r ./requirements/requirements-flashattention.txt
-cd ..
-git clone https://github.com/EleutherAI/DeeperSpeed.git
-cd DeeperSpeed
-./install.sh
-python prepare_data.py -d ./data
-wget --cut-dirs=5 -nH -r --no-parent --reject "index.html*" https://the-eye.eu/public/AI/models/GPT-NeoX-20B/slim_weights/ -P 20B_checkpoints
-```
-Now can train, fine-tune, inference with Flash attention by changing the config file for neox to specify attention_type to flash.
-```git
-diff --git a/configs/20B.yml b/configs/20B.yml
-index 6595919..52dfbfb 100644
---- a/configs/20B.yml
-+++ b/configs/20B.yml
-@@ -14,12 +14,13 @@
-   # parallelism settings ( you will want to change these based on your cluster setup, ideally scheduling pipeline stages
-   # across the node boundaries )
-   "pipe-parallel-size": 4,
--  "model-parallel-size": 2,
-+  "model-parallel-size": 1,
- 
-   # model settings
-   "num-layers": 44,
-   "hidden-size": 6144,
-   "num-attention-heads": 64,
-+  "attention_config": [[["flash"], 44]],
-   "seq-length": 2048,
-   "max-position-embeddings": 2048,
-   "norm": "layernorm",
-```
-The change to model parallel size is to use one pipeline per GPU, required to satisfy deep.py
-Run generation like:
-```bash
-./deepy.py generate.py ./configs/20B.yml
-```
 
-### Use fast attention with LLaMa from Vicunda/FastChat  repo:
-[Special transformers hash](https://github.com/lm-sys/FastChat#install)<br />
-[Patch1](https://github.com/lm-sys/FastChat/blob/main/fastchat/train/llama_flash_attn_monkey_patch.py)<br />
-[Patch2](https://github.com/lm-sys/FastChat/blob/main/fastchat/train/train_mem.py#L5)<br />
-
+### Heterogeneous GPU systems
 
 In case you get peer to peer related errors on non-homogeneous GPU systems, set this env var:
 ```

@@ -1,13 +1,15 @@
 import os
 import json
+import shutil
+
 import torch
 from peft import PeftModel
 from transformers import PreTrainedModel
 from finetune import get_loaders
 
 BASE_MODEL = 'EleutherAI/pythia-6.9b'
-LORA_WEIGHTS = "pythia-6.9b.openassistant_oasst1.json.1_epochs.60adcad5963c6c9f0dfa1a69610159ad80436095.14"
-OUTPUT_NAME = "h2ogpt-oasst1-512-6.9b"
+LORA_WEIGHTS = 'pythia-6.9b.h2ogpt-oig-oasst1-instruct-cleaned-v1.json.1_epochs.5fc91911bc2bfaaf3b6c2de577c4b0ae45a07a4a.7'
+OUTPUT_NAME = "h2ogpt-oig-oasst1-512-6.9b"
 llama_type = "llama" in BASE_MODEL
 as_pytorch = False  # False -> HF
 
@@ -32,7 +34,7 @@ if llama_type:
     layers = base_model.model.layers
     first_weight = layers[0].self_attn.q_proj.weight
 else:
-    if "gpt-neoxt" in BASE_MODEL.lower() or "pythia" in BASE_MODEL.lower():
+    if "gpt-neox" in BASE_MODEL.lower() or "pythia" in BASE_MODEL.lower():
         layers = base_model.gpt_neox.base_model.layers
         first_weight = layers[0].attention.query_key_value.weight
     else:
@@ -55,7 +57,7 @@ if llama_type:
         layer.self_attn.q_proj.merge_weights = True
         layer.self_attn.v_proj.merge_weights = True
 else:
-    if "gpt-neoxt" in BASE_MODEL.lower() or "pythia" in BASE_MODEL.lower():
+    if "gpt-neox" in BASE_MODEL.lower() or "pythia" in BASE_MODEL.lower():
         for layer in lora_model.base_model.gpt_neox.base_model.layers:
             layer.attention.query_key_value.merge_weights = True
     else:
@@ -161,10 +163,16 @@ else:
         for k, v in lora_model_sd.items()
         if "lora" not in k
     }
-
+    base_model.config.custom_pipeline = {
+        "text-generation": {
+          "impl": "h2oai_pipeline.H2OTextGenerationPipeline",
+          "pt": "AutoModelForCausalLM"
+        }
+    }
     PreTrainedModel.save_pretrained(
         base_model,
         OUTPUT_NAME,
         state_dict=deloreanized_sd,
         max_shard_size="5GB",
     )
+    shutil.copyfile("h2oai_pipeline.py", os.path.join(OUTPUT_NAME, "h2oai_pipeline.py"))

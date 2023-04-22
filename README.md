@@ -1,55 +1,69 @@
 ## h2oGPT - The world's best open source GPT
 
-Come join the movement to make the world's best open source GPT led by H2O.ai!
+Our goal is to make the world's best open source GPT!
 
-### Goals
+### Try h2oGPT now 
 
-1. Curate high-quality open-source instruct data for fine-tuning
-2. Develop robust and performant training/inference code using best practices
-3. Create state-of-the-art open-source fine-tuned LLM models
-4. Democratize knowledge about GPT models
-5. Get community contributions
+Live hosted instances:
+- [![img-small.png](img-small.png) h2oGPT 20B](https://gpt.h2o.ai/)
+- [🤗 h2oGPT 12B #1](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot)
+- [🤗 h2oGPT 12B #2](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot2)
 
-### Plan
+https://user-images.githubusercontent.com/6147661/232924684-6c0e2dfb-2f24-4098-848a-c3e4396f29f6.mov
 
-1. Start with fully open source Apache 2.0 models EleutherAI--gpt-j-6B, EleutherAI--gpt-neox-20b,
-   GPT-NeoXT-Chat-Base-20B, etc.
-2. Open-Source Instruct Data: Collect and curate high quality data with instruction and response interaction sequences
-3. Prompt Engineering: Convert plain text into question/answer or command/response format
-4. Fine-tune LLM models using 8-bit and LoRA for speed and memory efficiency
-5. Create GUIs, validation tools, APIs for integration with other software
-6. Submit data and models to HuggingFace with 100% permissive license
-7. Collect feedback from community
+![](https://user-images.githubusercontent.com/6147661/233239878-de3b0fce-5425-4189-8095-5313c7817d58.png)
+![](https://user-images.githubusercontent.com/6147661/233239861-e99f238c-dd5d-4dd7-ac17-6367f91f86ac.png)
 
+### Current state
 
-Original training code is based on [Alpaca-LoRA](https://github.com/tloen/alpaca-lora/).
+- Open-source repository with **fully permissive, commercially usable code, data and models**
+- Code for preparing **large open-source datasets** as instruction datasets for fine-tuning of large language models (LLMs), including prompt engineering
+- Code for **fine-tuning large language models** (currently up to 20B parameters) on commodity hardware and enterprise GPU servers (single or multi node)
+- Code to **run a chatbot** on a GPU server, with shareable end-point with Python client API
+- Code to evaluate and compare the **performance** of fine-tuned LLMs
 
-All training data will be based on open-source permissive data. No Alpaca, no LLama, no OpenAI, no ShareGPT.
+All open-source datasets and models are posted on [🤗 H2O.ai's Hugging Face page](https://huggingface.co/h2oai/).
 
-All datasets and models will be published to HuggingFace.
+A very simple demo app is hosted on [🤗 H2O.ai Hugging Face Spaces](https://huggingface.co/spaces/h2oai/h2ogpt-oasst1-256-6.9b-hosted).
 
-### Native Installation (Recommended for Developers)
+Also check out [H2O LLM Studio](https://github.com/h2oai/h2o-llmstudio) for our no-code LLM fine-tuning framework!
 
-Follow the [installation instructions](INSTALL.md) to create a development environment for training and generation.
+### Roadmap items
 
-### Containerized Installation using Docker (Recommended for Chatbot Demos)
-
-Follow the [Docker instructions](INSTALL-DOCKER.md) to create a container for deployment.
-
-### Fine-tuning (see how h2oGPT was created)
-
-Follow the [fine-tuning instructions](FINETUNE.md) to fine-tune any LLM models on your data. We prefer to use truly open-source models.
+- Integration of code and resulting LLMs with downstream applications and low/no-code platforms
+- Complement h2oGPT chatbot with search and other APIs
+- High-performance distributed training of larger models on trillion tokens
+- Improve code completion, reasoning, mathematics, factual correctness, hallucinations and avoid repetitions
 
 ### Chat with h2oGPT
 
-Start an h2oGPT chatbot like this:
+```bash
+git clone https://github.com/h2oai/h2ogpt.git
+cd h2ogpt
+pip install -r requirements.txt
+python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-256-6.9b
 ```
-torchrun generate.py --load_8bit=True --base_model='h2oai/h2ogpt-6B' --prompt_type=human_bot  # needs 8GB GPU
-torchrun generate.py --load_8bit=True --base_model='h2oai/h2ogpt-12b' --prompt_type=human_bot  # needs 16GB GPU
-torchrun generate.py --load_8bit=True --base_model='h2oai/h2ogpt-20b' --prompt_type=human_bot  # needs 48GB GPU
+and then use browser at http://0.0.0.0:7860 or the public live URL printed by the server.
+
+For help installing a Python 3.10 environment or CUDA toolkit, see the [installation instructions](INSTALL.md)
+
+You can also use [Docker](INSTALL-DOCKER.md#containerized-installation-for-inference-on-linux-gpu-servers) for inference.
+
+#### Larger models require more GPU memory
+
+Depending on available GPU memory, you can load differently sized models. For multiple GPUs, automatic sharding can be enabled with `--infer_devices=False`, but that is disabled by default since cuda:x cuda:y mismatches can occur.
+
+For GPUs with at least 24GB of memory, we recommend:
+```bash
+python generate.py --base_model=h2oai/h2ogpt-oasst1-512-12b
 ```
-You can also use [Docker](INSTALL-DOCKER.md#containerized-installation-for-inference-on-linux-gpu-servers) to start an h2oGPT chatbot:
-This will download the h2oGPT model and open up a GUI with text generation input/output.
+For GPUs with at least 48GB of memory, we recommend:
+```bash
+python generate.py --base_model=h2oai/h2ogpt-oasst1-512-20b
+```
+The numbers `256` and `512` in the model names indicate the cutoff lengths (in tokens) used for fine-tuning. Shorter values generally result in faster training and more focus on the last part of the provided input text (consisting of prompt and answer).
+
+More information about the models can be found on [H2O.ai's Hugging Face page](https://huggingface.co/h2oai/).
 
 ### Why H2O.ai?
 
@@ -73,6 +87,12 @@ Many of our customers are creating models and deploying them enterprise-wide and
 
 We are proud to have over 25 (of the world's 280) [Kaggle Grandmasters](https://h2o.ai/company/team/kaggle-grandmasters/) call H2O home, including three Kaggle Grandmasters who have made it to world #1.
 
+### Development
+
+- Follow the [installation instructions](INSTALL.md) to create a development environment for training and generation.
+- Follow the [fine-tuning instructions](FINETUNE.md) to fine-tune any LLM models on your data.
+- Follow the [Docker instructions](INSTALL-DOCKER.md) to create a container for deployment.
+
 ### Help
 
 [FAQs](FAQ.md)
@@ -81,3 +101,22 @@ We are proud to have over 25 (of the world's 280) [Kaggle Grandmasters](https://
 
 [Links](LINKS.md)
 
+### Acknowledgements
+
+* Some training code was based upon March 24 version of [Alpaca-LoRA](https://github.com/tloen/alpaca-lora/).
+* Used high-quality created data by [OpenAssistant](https://open-assistant.io/).
+* Used base models by [EleutherAI](https://www.eleuther.ai/).
+* Used OIG data created by [LAION](https://laion.ai/blog/oig-dataset/).
+
+### Disclaimer
+
+Please read this disclaimer carefully before using the large language model provided in this repository. Your use of the model signifies your agreement to the following terms and conditions.
+
+- Biases and Offensiveness: The large language model is trained on a diverse range of internet text data, which may contain biased, racist, offensive, or otherwise inappropriate content. By using this model, you acknowledge and accept that the generated content may sometimes exhibit biases or produce content that is offensive or inappropriate. The developers of this repository do not endorse, support, or promote any such content or viewpoints.
+- Limitations: The large language model is an AI-based tool and not a human. It may produce incorrect, nonsensical, or irrelevant responses. It is the user's responsibility to critically evaluate the generated content and use it at their discretion.
+- Use at Your Own Risk: Users of this large language model must assume full responsibility for any consequences that may arise from their use of the tool. The developers and contributors of this repository shall not be held liable for any damages, losses, or harm resulting from the use or misuse of the provided model.
+- Ethical Considerations: Users are encouraged to use the large language model responsibly and ethically. By using this model, you agree not to use it for purposes that promote hate speech, discrimination, harassment, or any form of illegal or harmful activities.
+- Reporting Issues: If you encounter any biased, offensive, or otherwise inappropriate content generated by the large language model, please report it to the repository maintainers through the provided channels. Your feedback will help improve the model and mitigate potential issues.
+- Changes to this Disclaimer: The developers of this repository reserve the right to modify or update this disclaimer at any time without prior notice. It is the user's responsibility to periodically review the disclaimer to stay informed about any changes.
+
+By using the large language model provided in this repository, you agree to accept and comply with the terms and conditions outlined in this disclaimer. If you do not agree with any part of this disclaimer, you should refrain from using the model and any content generated by it.

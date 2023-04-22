@@ -16,6 +16,8 @@ import pandas as pd
 import numpy as np
 from tqdm import tqdm
 
+from utils import flatten_list
+
 
 def parse_rst_file(filepath):
     with open(filepath, 'r') as f:
@@ -523,17 +525,6 @@ def test_show_prompts():
     for data_points in file_points:
         for data_point in data_points:
             print(generate_prompt(data_point, 'plain', False, False)[0])
-
-
-def flatten_list(lis):
-    """Given a list, possibly nested to any level, return it flattened."""
-    new_lis = []
-    for item in lis:
-        if type(item) == type([]):
-            new_lis.extend(flatten_list(item))
-        else:
-            new_lis.append(item)
-    return new_lis
 
 
 def test_get_open_datasets():
@@ -1250,7 +1241,22 @@ def test_grade():
     df.to_parquet(output_file, index=False)
 
 
-def test_add_open_assistant():
+@pytest.mark.parametrize(
+    "fixup_personality, only_personality",
+    [
+        [False, False],
+        [True, True],
+        [True, False],
+    ]
+)
+def test_add_open_assistant(fixup_personality, only_personality, save_json=True):
+    """
+    Flatten tree structure into one row per path from root to leaf
+    Also turn into human_bot prompting format:
+        <human>: question <bot>: answer <human>: question2 <bot>: answer2 Etc.
+    Also saves a .json locally as side-effect
+    returns list of dicts, containing intput, prompt_type and source
+    """
     from datasets import load_dataset
     data_file = "OpenAssistant/oasst1"
     ds = load_dataset(data_file)
@@ -1268,6 +1274,20 @@ def test_add_open_assistant():
         message_tree_id = message_tree_ids[i]
         parent_id = parent_ids[i]
         text = texts[i]
+        if fixup_personality:
+            text = text.replace("Open Assistant", "h2oGPT")
+            text = text.replace("open assistant", "h2oGPT")
+            text = text.replace("Open Assistand", "h2oGPT")
+            text = text.replace("Open Assitant", "h2oGPT")
+            text = text.replace("Open Assistent", "h2oGPT")
+            text = text.replace("Open Assisstant", "h2oGPT")
+            text = text.replace("Open Assitent", "h2oGPT")
+            text = text.replace("Open Assitiant", "h2oGPT")
+            text = text.replace("Open Assistiant", "h2oGPT")
+            text = text.replace("Open Assitan ", "h2oGPT ")
+            text = text.replace("Open Assistan ", "h2oGPT ")
+            text = text.replace("Open Asistant", "h2oGPT")
+            text = text.replace("Open Assiant", "h2oGPT")
         role = roles[i]
         new_data = ('<human>: ' if role == 'prompter' else '<bot>: ') + text
         entry = dict(message_id=message_id, parent_id=parent_id, text=new_data)
@@ -1325,10 +1345,15 @@ def test_add_open_assistant():
                     if conv2['message_id'] in conv['message_id']:
                         conv2['message_id'] = None
         conversations = [c for c in conversations if c['message_id']]
-        all_rows.extend([dict(input=c['text'], prompt_type='plain', source=data_file) for c in conversations])
+        if only_personality:
+            all_rows.extend([dict(input=c['text'], prompt_type='plain', source=data_file) for c in conversations if 'h2oGPT' in c['text']])
+        else:
+            all_rows.extend([dict(input=c['text'], prompt_type='plain', source=data_file) for c in conversations])
     print(len(all_rows))
-    with open(data_file.lower().replace("/", "_") + ".json", "w") as f:
-        f.write(json.dumps(all_rows, indent=2))
+    if save_json:
+        data_file = data_file + ("_h2ogpt" if fixup_personality else "") + ("_only" if only_personality else "")
+        with open(data_file.lower().replace("/", "_") + ".json", "w") as f:
+            f.write(json.dumps(all_rows, indent=2))
     return all_rows
 
 

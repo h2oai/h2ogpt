@@ -22,7 +22,7 @@ conda update -n base -c defaults conda
 
 ```bash
 git clone https://github.com/h2oai/h2ogpt.git
-cd h2o-llm
+cd h2ogpt
 pip install -r requirements.txt
 ```
 
@@ -56,6 +56,9 @@ sudo reboot
 ```
 
 #### Compile bitsandbytes for fast 8-bit training [BitsandBytes Source](https://github.com/TimDettmers/bitsandbytes/blob/main/compile_from_source.md)
+
+This is only required if have different CUDA than built into bitsandbytes pypi package,
+which includes CUDA 11.0, 11.1, 11.2, 11.3, 11.4, 11.5, 11.6, 11.7, 11.8, 12.0, 12.1.  Here we compile for 12.1.
 
 ```bash
 git clone http://github.com/TimDettmers/bitsandbytes.git
