@@ -31,6 +31,8 @@ is_gpth2oai = bool(os.getenv("GPT_H2O_AI"))
 is_public = is_hf or is_gpth2oai  # multi-user case with fixed model and disclaimer
 is_low_mem = is_hf  # assumes run on 24GB consumer GPU
 admin_pass = os.getenv("ADMIN_PASS")
+# will sometimes appear in UI or sometimes actual generation, but maybe better than empty result
+raise_generate_gpu_exceptions = True
 
 
 def main(
@@ -40,7 +42,7 @@ def main(
         base_model: str = '',
         tokenizer_base_model: str = '',
         lora_weights: str = "",
-        force_1_gpu: bool = True,
+        gpu_id: int = 0,  # if infer_devices = True and gpu_id != -1
 
         prompt_type: Union[int, str] = None,
         # input to generation
@@ -229,10 +231,11 @@ def main(
                             traceback.print_exc()
                             score = 0.0
                             clear_torch_cache()
-                        except RuntimeError as e:
+                        except (Exception, RuntimeError) as e:
                             if 'Expected all tensors to be on the same device' in str(e) or \
                                     'expected scalar type Half but found Float' in str(e) or \
-                                    'probability tensor contains either' in str(e):
+                                    'probability tensor contains either' in str(e) or \
+                                    'cublasLt ran into an error!' in str(e):
                                 print("GPU error: question: %s answer: %s exception: %s" % (prompt, res, str(e)),
                                       flush=True)
                                 traceback.print_exc()
@@ -289,7 +292,8 @@ def get_device():
     return device
 
 
-def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward_type, force_1_gpu=True,
+def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward_type,
+                       gpu_id=0,
                        use_auth_token=False):
     """
     Ensure model gets on correct device
@@ -298,6 +302,8 @@ def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward
     :param load_half:
     :param model_kwargs:
     :param reward_type:
+    :param gpu_id:
+    :param use_auth_token:
     :return:
     """
     with init_empty_weights():
@@ -322,14 +328,14 @@ def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward
         device_map.update(device_map_model)
     print('device_map: %s' % device_map, flush=True)
 
-    if force_1_gpu:
+    if gpu_id >= 0:
         # FIXME: If really distributes model, tend to get things like: ValueError: gpt_neox.embed_in.weight doesn't have any device set.
         # So avoid for now, just put on first GPU, unless score_model, put on last
         n_gpus = torch.cuda.device_count()
         if reward_type:
             device_map = {'': n_gpus - 1}
         else:
-            device_map = {'': 0}
+            device_map = {'': min(n_gpus - 1, gpu_id)}
 
     load_in_8bit = model_kwargs.get('load_in_8bit', False)
     model_kwargs['device_map'] = device_map
@@ -354,7 +360,7 @@ def get_model(
         base_model: str = '',
         tokenizer_base_model: str = '',
         lora_weights: str = "",
-        force_1_gpu: bool = False,
+        gpu_id: int = 0,
 
         llama_type: bool = None,
         reward_type: bool = None,
@@ -374,7 +380,7 @@ def get_model(
     :param base_model: name/path of base model
     :param tokenizer_base_model: name/path of tokenizer
     :param lora_weights: name/path
-    :param force_1_gpu:
+    :param gpu_id: which GPU (0..n_gpus-1) or allow all GPUs if relevant (-1)
     :param llama_type: whether LLaMa type model
     :param reward_type: reward type model for sequence classification
     :param local_files_only: use local files instead of from HF
@@ -435,7 +441,7 @@ def get_model(
             with torch.device("cuda"):
                 if infer_devices:
                     model = get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward_type,
-                                               force_1_gpu=force_1_gpu, use_auth_token=use_auth_token)
+                                               gpu_id=gpu_id, use_auth_token=use_auth_token)
                 else:
                     if load_half and not load_8bit:
                         model = model_loader.from_pretrained(
@@ -647,15 +653,29 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
         lora_options = [kwargs['lora_weights'].strip()] + lora_options
     # always add in no lora case
     # add fake space so doesn't go away in gradio dropdown
-    lora_options = [' '] + kwargs['extra_lora_options']
+    no_lora_str = no_model_str = '[None/Remove]'
+    lora_options = [no_lora_str] + kwargs['extra_lora_options']  # FIXME: why double?
+    # always add in no model case so can free memory
+    # add fake space so doesn't go away in gradio dropdown
+    model_options = [no_model_str] + model_options
 
+    # transcribe, will be detranscribed before use by evaluate()
+    if not kwargs['lora_weights'].strip():
+        kwargs['lora_weights'] = no_lora_str
+
+    if not kwargs['base_model'].strip():
+        kwargs['base_model'] = no_model_str
+
+    no_model_msg = 'h2oGPT [   !!! Please Load Model in Models Tab !!!   ]'
     output_label0 = f'h2oGPT [Model: {kwargs.get("base_model")}]' if kwargs.get(
-        'base_model') else 'h2oGPT [   !!! Please Load Model in Models Tab !!!   ]'
+        'base_model') else no_model_msg
+    output_label0_model2 = no_model_msg
 
     with demo:
         # avoid actual model/tokenizer here or anything that would be bad to deepcopy
         # https://github.com/gradio-app/gradio/issues/3558
         model_state = gr.State(['model', 'tokenizer', device, kwargs['base_model']])
+        model_state2 = gr.State([None, None, None, None])
         model_options_state = gr.State([model_options])
         lora_options_state = gr.State([lora_options])
         gr.Markdown(
@@ -670,14 +690,14 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                 '''<center><a href="https://huggingface.co/spaces/h2oai/h2ogpt-chatbot?duplicate=true"><img src="https://bit.ly/3gLdBN6" alt="Duplicate Space"></a>Duplicate this Space to skip the queue and run in a private space</center>''')
 
         # go button visible if
-        base_wanted = bool(kwargs['base_model']) and kwargs['login_mode_if_model0']
+        base_wanted = kwargs['base_model'] != no_model_str and kwargs['login_mode_if_model0']
         go_btn = gr.Button(value="ENTER", visible=base_wanted, variant="primary")
         normal_block = gr.Row(visible=not base_wanted)
         with normal_block:
             with gr.Tabs():
                 with gr.Row():
                     col_nochat = gr.Column(visible=not kwargs['chat'])
-                    with col_nochat:
+                    with col_nochat:  # FIXME: for model comparison, and check rest
                         text_output_nochat = gr.Textbox(lines=5, label=output_label0)
                         instruction_nochat = gr.Textbox(
                             lines=4, label=instruction_label_nochat,
@@ -696,7 +716,10 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                                 score_text_nochat = gr.Textbox("Response Score: NA", show_label=False)
                     col_chat = gr.Column(visible=kwargs['chat'])
                     with col_chat:
-                        text_output = gr.Chatbot(label=output_label0).style(height=kwargs['height'] or 400)
+                        with gr.Row():
+                            text_output = gr.Chatbot(label=output_label0).style(height=kwargs['height'] or 400)
+                            text_output2 = gr.Chatbot(label=output_label0_model2, visible=False).style(
+                                height=kwargs['height'] or 400)
                         with gr.Row():
                             with gr.Column(scale=50):
                                 instruction = gr.Textbox(
@@ -710,13 +733,20 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                             clear = gr.Button("New Conversation")
                             flag_btn = gr.Button("Flag")
                             if kwargs['score_model']:
-                                if not kwargs['auto_score']:
+                                if not kwargs['auto_score']:  # FIXME: For checkbox model2
                                     with gr.Column():
-                                        score_btn = gr.Button("Score last prompt & response").style(full_width=False,
-                                                                                                    size='sm')
-                                        score_text = gr.Textbox("Response Score: NA", show_label=False)
+                                        with gr.Row():
+                                            score_btn = gr.Button("Score last prompt & response").style(
+                                                full_width=False, size='sm')
+                                            score_text = gr.Textbox("Response Score: NA", show_label=False)
+                                        score_res2 = gr.Row(visible=False)
+                                        with score_res2:
+                                            score_btn2 = gr.Button("Score last prompt & response 2").style(
+                                                full_width=False, size='sm')
+                                            score_text2 = gr.Textbox("Response Score2: NA", show_label=False)
                                 else:
                                     score_text = gr.Textbox("Response Score: NA", show_label=False)
+                                    score_text2 = gr.Textbox("Response Score2: NA", show_label=False, visible=False)
                             retry = gr.Button("Regenerate")
                             undo = gr.Button("Undo")
                 with gr.TabItem("Input/Output"):
@@ -736,6 +766,9 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                             prompt_type = gr.Dropdown(prompt_types_strings,
                                                       value=kwargs['prompt_type'], label="Prompt Type",
                                                       visible=not is_public)
+                            prompt_type2 = gr.Dropdown(prompt_types_strings,
+                                                       value=kwargs['prompt_type'], label="Prompt Type Model 2",
+                                                       visible=not is_public)
                             temperature = gr.Slider(minimum=0, maximum=3,
                                                     value=kwargs['temperature'],
                                                     label="Temperature",
@@ -784,11 +817,19 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                             context = gr.Textbox(lines=1, label="Context",
                                                  info="Ignored in chat mode.",
                                                  visible=not is_public)
-                            chat = gr.components.Checkbox(label="Chat mode", value=kwargs['chat'],
-                                                          visible=not is_public)
+                            chat = gr.components.Checkbox(label="Chat mode", value=kwargs['chat'])  # ,
+                            # visible=not is_public)
 
                 with gr.TabItem("Models"):
+                    load_msg = "Load-Unload Model/LORA" if not is_public \
+                        else "LOAD-UNLOAD DISABLED FOR HOSTED DEMO"
+                    load_msg2 = "Load-Unload Model/LORA 2" if not is_public \
+                        else "LOAD-UNLOAD DISABLED FOR HOSTED DEMO 2"
+                    compare_checkbox = gr.components.Checkbox(label="Compare Mode",
+                                                              value=False, visible=not is_public)
                     with gr.Row():
+                        n_gpus = torch.cuda.device_count()
+                        n_gpus_list = [str(x) for x in list(range(-1, n_gpus))]
                         with gr.Column():
                             with gr.Row(scale=1):
                                 with gr.Column(scale=50):
@@ -797,9 +838,15 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                                     lora_choice = gr.Dropdown(lora_options_state.value[0], label="Choose LORA",
                                                               value=kwargs['lora_weights'], visible=kwargs['show_lora'])
                                 with gr.Column(scale=1):
-                                    load_msg = "Load Model/LORA" if not is_public \
-                                        else "LOAD DISABLED FOR HOSTED DEMO"
                                     load_model_button = gr.Button(load_msg)
+                                    model_load8bit_checkbox = gr.components.Checkbox(
+                                        label="Load 8-bit [Not all models support]",
+                                        value=kwargs['load_8bit'])
+                                    model_infer_devices_checkbox = gr.components.Checkbox(
+                                        label="Infer Devices [If GPU ID=-1 or not Checked, then will spread model over GPUs]",
+                                        value=kwargs['infer_devices'])
+                                    model_gpu = gr.Dropdown(n_gpus_list, label="GPU ID [-1 = all GPUs]",
+                                                            value=kwargs['gpu_id'])
                                     model_used = gr.Textbox(label="Current Model", value=kwargs['base_model'])
                                     lora_used = gr.Textbox(label="Current LORA", value=kwargs['lora_weights'],
                                                            visible=kwargs['show_lora'])
@@ -810,6 +857,30 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                                 with gr.Column(scale=1):
                                     add_model_button = gr.Button("Add new model name")
                                     add_lora_button = gr.Button("Add new LORA name", visible=kwargs['show_lora'])
+                        col_model2 = gr.Column(visible=False)
+                        with col_model2:
+                            with gr.Row(scale=1):
+                                with gr.Column(scale=50):
+                                    model_choice2 = gr.Dropdown(model_options_state.value[0], label="Choose Model 2",
+                                                                value=no_model_str)
+                                    lora_choice2 = gr.Dropdown(lora_options_state.value[0], label="Choose LORA 2",
+                                                               value=no_lora_str,
+                                                               visible=kwargs['show_lora'])
+                                with gr.Column(scale=1):
+                                    load_model_button2 = gr.Button(load_msg2)
+                                    model_load8bit_checkbox2 = gr.components.Checkbox(
+                                        label="Load 8-bit 2 [Not all models support]",
+                                        value=kwargs['load_8bit'])
+                                    model_infer_devices_checkbox2 = gr.components.Checkbox(
+                                        label="Infer Devices 2 [If GPU ID=-1 or not Checked, then will spread model over GPUs]",
+                                        value=kwargs[
+                                            'infer_devices'])
+                                    model_gpu2 = gr.Dropdown(n_gpus_list, label="GPU ID [-1 = all GPUs]",
+                                                             value=kwargs['gpu_id'])
+                                    # no model/lora loaded ever in model2 by default
+                                    model_used2 = gr.Textbox(label="Current Model 2", value=no_model_str)
+                                    lora_used2 = gr.Textbox(label="Current LORA 2", value=no_lora_str,
+                                                            visible=kwargs['show_lora'])
                 with gr.TabItem("System"):
                     system_row = gr.Row(visible=not is_public)
                     admin_pass_textbox = gr.Textbox(label="Admin Password", type='password', visible=is_public)
@@ -839,6 +910,9 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
         kwargs_evaluate = {k: v for k, v in all_kwargs.items() if k in inputs_kwargs_list}
         fun = partial(evaluate,
                       **kwargs_evaluate)
+        fun2 = partial(evaluate,
+                       model_state2,
+                       **kwargs_evaluate)
 
         dark_mode_btn = gr.Button("Dark Mode", variant="primary").style(
             size="sm",
@@ -872,7 +946,7 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
             gr.Examples(examples=kwargs['examples'], inputs=inputs_list)
 
         # Score
-        def score_last_response(*args, nochat=False):
+        def score_last_response(*args, nochat=False, model2=False):
             """ Similar to user() """
             args_list = list(args)
 
@@ -882,7 +956,9 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
             if not nochat:
                 history = args_list[-1]
                 if history is None:
-                    print("Bad history in scoring last response, fix for now", flush=True)
+                    if not model2:
+                        # maybe only doing first model, no need to complain
+                        print("Bad history in scoring last response, fix for now", flush=True)
                     history = []
                 if smodel is not None and \
                         stokenizer is not None and \
@@ -917,10 +993,11 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                 traceback.print_exc()
                 clear_torch_cache()
                 return 'Response Score: GPU OOM'
-            except RuntimeError as e:
+            except (Exception, RuntimeError) as e:
                 if 'Expected all tensors to be on the same device' in str(e) or \
                         'expected scalar type Half but found Float' in str(e) or \
-                        'probability tensor contains either' in str(e):
+                        'probability tensor contains either' in str(e) or \
+                        'cublasLt ran into an error!' in str(e):
                     print("GPU Error: question: %s answer: %s exception: %s" % (question, answer, str(e)),
                           flush=True)
                     traceback.print_exc()
@@ -936,16 +1013,22 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                               inputs=inputs_list + [text_output],
                               outputs=[score_text],
                               )
+            score_args2 = dict(fn=partial(score_last_response, model2=True),
+                               inputs=inputs_list + [text_output2],
+                               outputs=[score_text2],
+                               )
+
             score_args_nochat = dict(fn=partial(score_last_response, nochat=True),
                                      inputs=inputs_list + [text_output_nochat],
                                      outputs=[score_text_nochat],
                                      )
             if not kwargs['auto_score']:
-                score_event = score_btn.click(**score_args, queue=stream_output, api_name='score')
+                score_event = score_btn.click(**score_args, queue=stream_output, api_name='score') \
+                    .then(**score_args2, queue=stream_output, api_name='score2')
                 score_event_nochat = score_btn_nochat.click(**score_args_nochat, queue=stream_output,
                                                             api_name='score_nochat')
 
-        def user(*args, undo=False, sanitize_user_prompt=True):
+        def user(*args, undo=False, sanitize_user_prompt=True, model2=False):
             args_list = list(args)
             user_message = args_list[0]
             input1 = args_list[1]
@@ -965,21 +1048,29 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                 history.pop()
             args_list = args_list[:-1]  # FYI, even if unused currently
             if history is None:
-                print("Bad history, fix for now", flush=True)
+                if not model2:
+                    # no need to complain so often unless model1
+                    print("Bad history, fix for now", flush=True)
                 history = []
+            # ensure elements not mixed across models as output,
+            # even if input is currently same source
+            history = history.copy()
             if undo:
-                return "", history
+                return history
             else:
-                return "", history + [[user_message1, None]]
+                # FIXME: compare, same history for now
+                return history + [[user_message1, None]]
 
         def bot(*args, retry=False):
-            args_list = list(args)
-            history = args_list[-2]  # model_state is -1
+            args_list = list(args).copy()
+            history = args_list[-1]  # model_state is -2
             if retry and history:
                 history.pop()
             if not history:
                 print("No history", flush=True)
                 return
+            # ensure output will be unique to models
+            history = history.copy()
             instruction1 = history[-1][0]
             context1 = ''
             if kwargs['chat_history'] > 0:
@@ -999,7 +1090,9 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
             args_list[0] = instruction1
             # only include desired chat history
             args_list[2] = context1[-kwargs['chat_history']:]
-            model_state1 = args_list[-1]
+            model_state1 = args_list[-2]
+            if model_state1[0] is None or model_state1[0] == no_model_str:
+                return
             args_list = args_list[:-2]
             fun1 = partial(evaluate,
                            model_state1,
@@ -1024,54 +1117,107 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                 raise
             return
 
+        # NORMAL MODEL
         user_args = dict(fn=functools.partial(user, sanitize_user_prompt=kwargs['sanitize_user_prompt']),
                          inputs=inputs_list + [text_output],
-                         outputs=[instruction, text_output],
+                         outputs=text_output,
                          )
         bot_args = dict(fn=bot,
-                        inputs=inputs_list + [text_output] + [model_state],
-                        outputs=[text_output],
+                        inputs=inputs_list + [model_state] + [text_output],
+                        outputs=text_output,
                         )
         retry_bot_args = dict(fn=functools.partial(bot, retry=True),
-                              inputs=inputs_list + [text_output] + [model_state],
-                              outputs=[text_output],
+                              inputs=inputs_list + [model_state] + [text_output],
+                              outputs=text_output,
                               )
         undo_user_args = dict(fn=functools.partial(user, undo=True),
                               inputs=inputs_list + [text_output],
-                              outputs=[instruction, text_output],
+                              outputs=text_output,
                               )
 
-        if kwargs['auto_score']:
-            submit_event = instruction.submit(**user_args, queue=stream_output, api_name='instruction').then(
-                **bot_args, api_name='instruction_bot',
-            ).then(**score_args, api_name='instruction_bot_score').then(clear_torch_cache)
-            submit_event2 = submit.click(**user_args, queue=stream_output, api_name='submit').then(
-                **bot_args, api_name='submit_bot',
-            ).then(**score_args, api_name='submit_bot_score').then(clear_torch_cache)
-            submit_event3 = retry.click(**user_args, queue=stream_output, api_name='retry').then(
-                **retry_bot_args, api_name='retry_bot',
-            ).then(**score_args, api_name='retry_bot_score').then(clear_torch_cache)
-            submit_event4 = undo.click(**undo_user_args, queue=stream_output, api_name='undo').then(**score_args,
-                                                                                                    api_name='undo_score')
-        else:
-            submit_event = instruction.submit(**user_args, queue=stream_output, api_name='instruction').then(
-                **bot_args, api_name='instruction_bot',
-            ).then(clear_torch_cache)
-            submit_event2 = submit.click(**user_args, queue=stream_output, api_name='submit').then(
-                **bot_args, api_name='submit_bot',
-            ).then(clear_torch_cache)
-            submit_event3 = retry.click(**user_args, queue=stream_output, api_name='retry').then(
-                **retry_bot_args, api_name='retry_bot',
-            ).then(clear_torch_cache)
-            submit_event4 = undo.click(**undo_user_args, queue=stream_output, api_name='undo')
-        clear.click(lambda: None, None, text_output, queue=False, api_name='clear')
+        # MODEL2
+        user_args2 = dict(fn=functools.partial(user, sanitize_user_prompt=kwargs['sanitize_user_prompt'], model2=True),
+                          inputs=inputs_list + [text_output2],
+                          outputs=text_output2,
+                          )
+        bot_args2 = dict(fn=bot,
+                         inputs=inputs_list + [model_state2] + [text_output2],
+                         outputs=text_output2,
+                         )
+        retry_bot_args2 = dict(fn=functools.partial(bot, retry=True),
+                               inputs=inputs_list + [model_state2] + [text_output2],
+                               outputs=text_output2,
+                               )
+        undo_user_args2 = dict(fn=functools.partial(user, undo=True),
+                               inputs=inputs_list + [text_output2],
+                               outputs=text_output2,
+                               )
 
+        def clear_instruct():
+            return gr.Textbox.update(value='')
+
+        if kwargs['auto_score']:
+            submit_event = instruction.submit(**user_args, queue=stream_output, api_name='instruction') \
+                .then(**bot_args, api_name='instruction_bot') \
+                .then(**score_args, api_name='instruction_bot_score') \
+                .then(**user_args2, queue=stream_output, api_name='instruction2') \
+                .then(**bot_args2, api_name='instruction_bot2') \
+                .then(**score_args2, api_name='instruction_bot_score2') \
+                .then(clear_instruct, None, instruction) \
+                .then(clear_torch_cache)
+            submit_event2 = submit.click(**user_args, queue=stream_output, api_name='submit') \
+                .then(**bot_args, api_name='submit_bot') \
+                .then(**score_args, api_name='submit_bot_score') \
+                .then(**user_args2, queue=stream_output, api_name='submit2') \
+                .then(**bot_args2, api_name='submit_bot2') \
+                .then(**score_args2, api_name='submit_bot_score2') \
+                .then(clear_instruct, None, instruction) \
+                .then(clear_torch_cache)
+            submit_event3 = retry.click(**user_args, queue=stream_output, api_name='retry') \
+                .then(**retry_bot_args, api_name='retry_bot') \
+                .then(**score_args, api_name='retry_bot_score') \
+                .then(**user_args2, queue=stream_output, api_name='retry2') \
+                .then(**retry_bot_args2, api_name='retry_bot2') \
+                .then(**score_args2, api_name='retry_bot_score2') \
+                .then(clear_instruct, None, instruction) \
+                .then(clear_torch_cache)
+            submit_event4 = undo.click(**undo_user_args, queue=stream_output, api_name='undo') \
+                .then(**score_args, api_name='undo_score') \
+                .then(**undo_user_args2, queue=stream_output, api_name='undo2') \
+                .then(**score_args2, api_name='undo_score2') \
+                .then(clear_instruct, None, instruction)
+        else:
+            submit_event = instruction.submit(**user_args, queue=stream_output, api_name='instruction') \
+                .then(**bot_args, api_name='instruction_bot') \
+                .then(**user_args2, queue=stream_output, api_name='instruction2') \
+                .then(**bot_args2, api_name='instruction_bot2') \
+                .then(clear_instruct, None, instruction) \
+                .then(clear_torch_cache)
+            submit_event2 = submit.click(**user_args, queue=stream_output, api_name='submit') \
+                .then(**bot_args, api_name='submit_bot') \
+                .then(**user_args2, queue=stream_output, api_name='submit2') \
+                .then(**bot_args2, api_name='submit_bot2') \
+                .then(clear_instruct, None, instruction) \
+                .then(clear_torch_cache)
+            submit_event3 = retry.click(**user_args, queue=stream_output, api_name='retry') \
+                .then(**retry_bot_args, api_name='retry_bot') \
+                .then(**user_args2, queue=stream_output, api_name='retry2') \
+                .then(**retry_bot_args2, api_name='retry_bot2') \
+                .then(clear_instruct, None, instruction) \
+                .then(clear_torch_cache)
+            submit_event4 = undo.click(**undo_user_args, queue=stream_output, api_name='undo') \
+                .then(**undo_user_args2, queue=stream_output, api_name='undo2')
+
+        # does both models
+        clear.click(lambda: None, None, text_output, queue=False, api_name='clear') \
+            .then(lambda: None, None, text_output2, queue=False, api_name='clear2')
+        # FIXME: compare
         submit_event_nochat = submit_nochat.click(fun, inputs=[model_state] + inputs_list,
                                                   outputs=text_output_nochat, api_name='submit_nochat') \
             .then(**score_args_nochat, api_name='instruction_bot_score_nochat') \
             .then(clear_torch_cache)
 
-        def load_model(model_name, lora_weights, model_state_old, prompt_type_old):
+        def load_model(model_name, lora_weights, model_state_old, prompt_type_old, load_8bit, infer_devices, gpu_id):
             # ensure old model removed from GPU memory
             if kwargs['debug']:
                 print("Pre-switch pre-del GPU memory: %s" % torch.cuda.memory_allocated(), flush=True)
@@ -1096,23 +1242,35 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
             clear_torch_cache()
             if kwargs['debug']:
                 print("Pre-switch post-del GPU memory: %s" % torch.cuda.memory_allocated(), flush=True)
-            all_kwargs['base_model'] = model_name.strip()
+
+            if model_name is None or model_name == no_model_str:
+                # no-op if no model, just free memory
+                # no detranscribe needed for model, never go into evaluate
+                lora_weights = no_lora_str
+                return [None, None, None, model_name], model_name, lora_weights, prompt_type_old
+
+            all_kwargs1 = all_kwargs.copy()
+            all_kwargs1['base_model'] = model_name.strip()
+            all_kwargs1['load_8bit'] = load_8bit
+            all_kwargs1['infer_devices'] = infer_devices
+            all_kwargs1['gpu_id'] = int(gpu_id)  # detranscribe
             model_lower = model_name.strip().lower()
             if model_lower in inv_prompt_type_to_model_lower:
                 prompt_type1 = inv_prompt_type_to_model_lower[model_lower]
             else:
                 prompt_type1 = prompt_type_old
 
-            all_kwargs['lora_weights'] = lora_weights.strip()
-            model1, tokenizer1, device1 = get_model(**all_kwargs)
+            # detranscribe
+            if lora_weights == no_lora_str:
+                lora_weights = ''
+
+            all_kwargs1['lora_weights'] = lora_weights.strip()
+            model1, tokenizer1, device1 = get_model(**all_kwargs1)
             clear_torch_cache()
 
             if kwargs['debug']:
                 print("Post-switch GPU memory: %s" % torch.cuda.memory_allocated(), flush=True)
-            return {model_state: [model1, tokenizer1, device1, model_name],
-                    model_used: model_name,
-                    lora_used: lora_weights,
-                    prompt_type: prompt_type1}
+            return [model1, tokenizer1, device1, model_name], model_name, lora_weights, prompt_type1
 
         def dropdown_prompt_type_list(x):
             return gr.Dropdown.update(value=x)
@@ -1121,7 +1279,8 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
             return gr.Textbox.update(label=f'h2oGPT [Model: {model_used_in}]')
 
         load_model_args = dict(fn=load_model,
-                               inputs=[model_choice, lora_choice, model_state, prompt_type],
+                               inputs=[model_choice, lora_choice, model_state, prompt_type,
+                                       model_load8bit_checkbox, model_infer_devices_checkbox, model_gpu],
                                outputs=[model_state, model_used, lora_used, prompt_type])
         prompt_update_args = dict(fn=dropdown_prompt_type_list, inputs=prompt_type, outputs=prompt_type)
         chatbot_update_args = dict(fn=chatbot_list, inputs=[text_output, model_used], outputs=text_output)
@@ -1131,27 +1290,61 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                 .then(**chatbot_update_args) \
                 .then(clear_torch_cache)
 
+        load_model_args2 = dict(fn=load_model,
+                                inputs=[model_choice2, lora_choice2, model_state2, prompt_type2,
+                                        model_load8bit_checkbox2, model_infer_devices_checkbox2, model_gpu2],
+                                outputs=[model_state2, model_used2, lora_used2, prompt_type2])
+        prompt_update_args2 = dict(fn=dropdown_prompt_type_list, inputs=prompt_type2, outputs=prompt_type2)
+        chatbot_update_args2 = dict(fn=chatbot_list, inputs=[text_output2, model_used2], outputs=text_output2)
+        if not is_public:
+            load_model_event2 = load_model_button2.click(**load_model_args2) \
+                .then(**prompt_update_args2) \
+                .then(**chatbot_update_args2) \
+                .then(clear_torch_cache)
+
         def dropdown_model_list(list0, x):
             new_state = [list0[0] + [x]]
             new_options = [*new_state[0]]
-            return gr.Dropdown.update(value=x, choices=new_options), '', new_state
+            return gr.Dropdown.update(value=x, choices=new_options), \
+                   gr.Dropdown.update(value=x, choices=new_options), \
+                   '', new_state
 
         add_model_event = add_model_button.click(fn=dropdown_model_list,
                                                  inputs=[model_options_state, new_model],
-                                                 outputs=[model_choice, new_model, model_options_state])
+                                                 outputs=[model_choice, model_choice2, new_model, model_options_state])
 
-        def dropdown_lora_list(list0, x):
+        def dropdown_lora_list(list0, x, model_used1, lora_used1, model_used2, lora_used2):
             new_state = [list0[0] + [x]]
             new_options = [*new_state[0]]
-            return gr.Dropdown.update(value=x, choices=new_options), '', new_state
+            # don't switch drop-down to added lora if already have model loaded
+            x1 = x if model_used1 == no_model_str else lora_used1
+            x2 = x if model_used2 == no_model_str else lora_used2
+            return gr.Dropdown.update(value=x1, choices=new_options), \
+                   gr.Dropdown.update(value=x2, choices=new_options), \
+                   '', new_state
 
         add_lora_event = add_lora_button.click(fn=dropdown_lora_list,
-                                               inputs=[lora_options_state, new_lora],
-                                               outputs=[lora_choice, new_lora, lora_options_state])
+                                               inputs=[lora_options_state, new_lora, model_used, lora_used, model_used2, lora_used2],
+                                               outputs=[lora_choice, lora_choice2, new_lora, lora_options_state])
 
         go_btn.click(lambda: gr.update(visible=False), None, go_btn, api_name="go") \
             .then(lambda: gr.update(visible=True), None, normal_block) \
             .then(**load_model_args).then(**prompt_update_args)
+
+        def compare_textbox_fun(x):
+            return gr.Textbox.update(visible=x)
+
+        def compare_column_fun(x):
+            return gr.Column.update(visible=x)
+
+        def compare_prompt_fun(x):
+            return gr.Dropdown.update(visible=x)
+
+        compare_checkbox.select(compare_textbox_fun, compare_checkbox, text_output2, api_name="compare_checkbox") \
+            .then(compare_column_fun, compare_checkbox, col_model2) \
+            .then(compare_prompt_fun, compare_checkbox, prompt_type2) \
+            .then(compare_textbox_fun, compare_checkbox, score_text2)
+        # FIXME: add score_res2 in condition, but do better
 
         # callback for logging flagged input/output
         callback.setup(inputs_list + [text_output], "flagged_data_points")
@@ -1266,6 +1459,10 @@ def evaluate(
 
     no_model_msg = "Please choose a base model with --base_model (CLI) or in Models Tab (gradio).\nThen start New Conversation"
 
+    if model_state0 is None:
+        # e.g. for no gradio case, set dummy value, else should be set
+        model_state0 = [None, None, None, None]
+
     if model_state is not None and len(model_state) == 4 and not isinstance(model_state[0], str):
         # try to free-up original model (i.e. list was passed as reference)
         if model_state0 is not None and model_state0[0] is not None:
@@ -1280,6 +1477,9 @@ def evaluate(
         assert isinstance(model_state[0], str)
         model, tokenizer, device, base_model = model_state0
     else:
+        raise AssertionError(no_model_msg)
+
+    if base_model is None:
         raise AssertionError(no_model_msg)
 
     assert base_model.strip(), no_model_msg
@@ -1450,15 +1650,18 @@ def evaluate(
                     traceback.print_exc()
                     clear_torch_cache()
                     return
-                except RuntimeError as e:
+                except (Exception, RuntimeError) as e:
                     if 'Expected all tensors to be on the same device' in str(e) or \
                             'expected scalar type Half but found Float' in str(e) or \
-                            'probability tensor contains either' in str(e):
+                            'probability tensor contains either' in str(e) or \
+                            'cublasLt ran into an error!' in str(e):
                         print(
                             "GPU Error: prompt: %s inputs_decoded: %s exception: %s" % (prompt, inputs_decoded, str(e)),
                             flush=True)
                         traceback.print_exc()
                         clear_torch_cache()
+                        if raise_generate_gpu_exceptions:
+                            raise
                         return
                     else:
                         raise
