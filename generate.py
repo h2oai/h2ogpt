@@ -183,7 +183,7 @@ def main(
             if not eval_sharegpt_as_output:
                 model, tokenizer, device = get_model(**locals())
                 model_state = [model, tokenizer, device, base_model]
-                fun = partial(evaluate, model_state, debug=debug, chat=chat, save_dir=save_dir)
+                fun = partial(evaluate, model_state, debug=debug, save_dir=save_dir)
             else:
                 assert eval_sharegpt_prompts_only > 0
 
@@ -984,6 +984,11 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                 instruction_nochat_arg_id = eval_func_param_names.index('instruction_nochat')
                 question = args_list[instruction_nochat_arg_id]
 
+            if question is None:
+                return 'Response Score: Bad Question'
+            if answer is None:
+                return 'Response Score: Bad Answer'
+
             question = question[-cutoff_len:]
             answer = answer[-cutoff_len:]
 
@@ -1737,6 +1742,7 @@ def get_generate_params(model_lower, chat,
     if not prompt_type and model_lower in inv_prompt_type_to_model_lower:
         prompt_type = inv_prompt_type_to_model_lower[model_lower]
 
+    # examples at first don't include chat, instruction_nochat, iinput_nochat, added at end
     if show_examples is None:
         if chat:
             show_examples = False
@@ -1833,6 +1839,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         repetition_penalty = repetition_penalty or 1.07
         num_return_sequences = min(num_beams, num_return_sequences or 1)
         do_sample = False if do_sample is None else do_sample
+    # doesn't include chat, instruction_nochat, iinput_nochat, added later
     params_list = ["", stream_output, prompt_type, temperature, top_p, top_k, num_beams, max_new_tokens, min_new_tokens,
                    early_stopping, max_time, repetition_penalty, num_return_sequences, do_sample]
 
@@ -1876,10 +1883,11 @@ y = np.random.randint(0, 1, 100)
     src_lang = "English"
     tgt_lang = "Russian"
 
-    # adjust examples if non-chat mode
-    if not chat:
-        # move to correct position
-        for example in examples:
+    # move to correct position
+    for example in examples:
+        example += [chat, '', '']
+        # adjust examples if non-chat mode
+        if not chat:
             example[eval_func_param_names.index('instruction_nochat')] = example[
                 eval_func_param_names.index('instruction')]
             example[eval_func_param_names.index('instruction')] = ''
