@@ -34,6 +34,7 @@ admin_pass = os.getenv("ADMIN_PASS")
 # will sometimes appear in UI or sometimes actual generation, but maybe better than empty result
 raise_generate_gpu_exceptions = True
 
+eval_extra_columns = ['prompt', 'response', 'score']
 
 def main(
         load_8bit: bool = False,
@@ -144,12 +145,12 @@ def main(
     if not gradio:
         if eval_sharegpt_prompts_only > 0:
             # override default examples with shareGPT ones for human-level eval purposes only
-            filename = 'ShareGPT_V3_unfiltered_cleaned_split_no_imsorry.json'
-            if not os.path.isfile(filename):
+            eval_filename = 'ShareGPT_V3_unfiltered_cleaned_split_no_imsorry.json'
+            if not os.path.isfile(eval_filename):
                 os.system(
-                    'wget https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/resolve/main/%s' % filename)
+                    'wget https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/resolve/main/%s' % eval_filename)
             import json
-            data = json.load(open(filename, 'rt'))
+            data = json.load(open(eval_filename, 'rt'))
             # focus on data that starts with human, else likely chopped from other data
             turn_start = 0  # odd in general
             data = [x for x in data if len(x['conversations']) > turn_start + 1 and
@@ -165,11 +166,28 @@ def main(
                 assert data[i]['conversations'][turn_start + 1]['from'] == 'gpt'
                 output = data[i]['conversations'][turn_start + 1]['value']
                 examplenew = example1.copy()
-                examplenew[0] = instruction
-                examplenew[1] = ''  # no input
-                examplenew[2] = ''  # no context
+                assert not chat, "No gradio must use chat=False, uses nochat isntruct"
+                examplenew[eval_func_param_names.index('instruction_nochat')] = instruction
+                examplenew[eval_func_param_names.index('iinput_nochat')] = ''  # no input
+                examplenew[eval_func_param_names.index('context')] = ''  # no context
                 examples.append(examplenew)
                 responses.append(output)
+
+        num_examples = len(examples)
+        scoring_path = 'scoring'
+        os.makedirs(scoring_path, exist_ok=True)
+        if eval_sharegpt_as_output:
+            used_base_model = 'gpt35'
+            used_lora_weights = ''
+        else:
+            used_base_model = str(base_model.split('/')[-1])
+            used_lora_weights = str(lora_weights.split('/')[-1])
+        eval_filename = "df_scores_%s_%s_%s_%s_%s_%s.parquet" % (num_examples, eval_sharegpt_prompts_only,
+                                                                 eval_sharegpt_prompts_only_seed,
+                                                                 eval_sharegpt_as_output,
+                                                                 used_base_model,
+                                                                 used_lora_weights)
+        eval_filename = os.path.join(scoring_path, eval_filename)
 
         with torch.device("cuda"):
             # ensure was set right above before examples generated
@@ -194,15 +212,17 @@ def main(
                 fun = get_response
             t0 = time.time()
             score_dump = []
-            num_examples = len(examples)
 
             import matplotlib.pyplot as plt
 
             for exi, ex in enumerate(examples):
+                instruction = ex[eval_func_param_names.index('instruction_nochat')]
+                iinput = ex[eval_func_param_names.index('iinput_nochat')]
+                context = ex[eval_func_param_names.index('context')]
                 clear_torch_cache()
                 print("")
                 print("START" + "=" * 100)
-                print("Question: %s %s" % (ex[0], ('input=%s' % ex[1] if ex[1] else '')))
+                print("Question: %s %s" % (instruction, ('input=%s' % iinput if iinput else '')))
                 print("-" * 105)
                 # fun yields as generator, so have to iterate over it
                 # Also means likely do NOT want --stream_output=True, else would show all generations
@@ -211,14 +231,14 @@ def main(
                     if smodel:
                         score_with_prompt = False
                         if score_with_prompt:
-                            data_point = dict(instruction=ex[0], input=ex[1])
+                            data_point = dict(instruction=instruction, input=iinput, context=context)
                             prompter = Prompter(prompt_type, debug=debug, chat=chat, stream_output=stream_output)
                             prompt = prompter.generate_prompt(data_point)
                         else:
                             # just raw input and output
-                            assert ex[1] in [None, '']  # should be no iinput
-                            assert ex[2] in [None, '']  # should be no context
-                            prompt = ex[0]
+                            assert iinput in [None, '']  # should be no iinput
+                            assert context in [None, '']  # should be no context
+                            prompt = instruction
                         cutoff_len = 768 if is_low_mem else 2048
                         inputs = stokenizer(prompt, res,
                                             return_tensors="pt",
@@ -246,30 +266,16 @@ def main(
                         print("SCORE %s: %s" % (exi, score), flush=True)
                         score_dump.append(ex + [prompt, res, score])
                         # dump every score in case abort
-                        scoring_path = 'scoring'
-                        os.makedirs(scoring_path, exist_ok=True)
-                        if eval_sharegpt_as_output:
-                            used_base_model = 'gpt35'
-                            used_lora_weights = ''
-                        else:
-                            used_base_model = str(base_model.split('/')[-1])
-                            used_lora_weights = str(lora_weights.split('/')[-1])
                         df_scores = pd.DataFrame(score_dump,
-                                                 columns=eval_func_param_names + ['prompt', 'response', 'score'])
-                        filename = "df_scores_%s_%s_%s_%s_%s_%s.parquet" % (num_examples, eval_sharegpt_prompts_only,
-                                                                            eval_sharegpt_prompts_only_seed,
-                                                                            eval_sharegpt_as_output,
-                                                                            used_base_model,
-                                                                            used_lora_weights)
-                        filename = os.path.join(scoring_path, filename)
-                        df_scores.to_parquet(filename, index=False)
+                                                 columns=eval_func_param_names + eval_extra_columns)
+                        df_scores.to_parquet(eval_filename, index=False)
                         # plot histogram so far
                         plt.figure(figsize=(10, 10))
                         plt.hist(df_scores['score'], bins=20)
                         score_avg = np.mean(df_scores['score'])
                         score_median = np.median(df_scores['score'])
                         plt.title("Score avg: %s median: %s" % (score_avg, score_median))
-                        plt.savefig(filename.replace('.parquet', '.png'))
+                        plt.savefig(eval_filename.replace('.parquet', '.png'))
                         plt.close()
 
                 print("END" + "=" * 102)
@@ -278,7 +284,8 @@ def main(
                 print("Time taken so far: %.4f about %.4g per example" % (t2 - t0, (t2 - t0) / (1 + exi)))
             t1 = time.time()
             print("Total time taken: %.4f about %.4g per example" % (t1 - t0, (t1 - t0) / num_examples))
-        return
+        return eval_filename
+
     if gradio:
         go_gradio(**locals())
 
