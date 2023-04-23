@@ -16,7 +16,7 @@ sudo systemctl restart docker
 2. Build the container image:
 
 ```bash
-docker build -t h2o-llm .
+docker build -t h2ogpt .
 ```
 
 3. Run the container (you can also use `finetune.py` and all of its parameters as shown above for training):
@@ -24,7 +24,7 @@ docker build -t h2o-llm .
 For the fine-tuned h2oGPT with 20 billion parameters:
 ```bash
 docker run --runtime=nvidia --shm-size=64g -p 7860:7860 \
-    -v ${HOME}/.cache:/root/.cache --rm h2o-llm -it generate.py \
+    -v ${HOME}/.cache:/root/.cache --rm h2ogpt -it generate.py \
     --base_model=h2oai/h2ogpt-oasst1-512-20b
 ```
 
@@ -32,7 +32,7 @@ if have a private HF token, can instead run:
 ```bash
 docker run --runtime=nvidia --shm-size=64g --entrypoint=bash -p 7860:7860 \
 -e HUGGINGFACE_API_TOKEN=<HUGGINGFACE_API_TOKEN> \
--v ${HOME}/.cache:/root/.cache --rm h2o-llm -it \
+-v ${HOME}/.cache:/root/.cache --rm h2ogpt -it \
  -c 'huggingface-cli login --token $HUGGINGFACE_API_TOKEN && python3.10 generate.py --base_model=h2oai/h2ogpt-oasst1-512-20b --use_auth_token=True'
 ```
 
@@ -40,7 +40,7 @@ docker run --runtime=nvidia --shm-size=64g --entrypoint=bash -p 7860:7860 \
 For your own fine-tuned model starting from the gpt-neox-20b foundation model for example:
 ```bash
 docker run --runtime=nvidia --shm-size=64g -p 7860:7860 \
-    -v ${HOME}/.cache:/root/.cache --rm h2o-llm -it generate.py \
+    -v ${HOME}/.cache:/root/.cache --rm h2ogpt -it generate.py \
     --base_model=EleutherAI/gpt-neox-20b \
     --lora_weights=h2ogpt_lora_weights --prompt_type=human_bot
 ```
