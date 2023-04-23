@@ -11,7 +11,7 @@ python app_client_test.py
 
 NOTE: To access a private app on gradio, do:
 
-HUGGINGFACE_TOKEN=<HUGGINGFACE_TOKEN> GRADIO_HOST="https://huggingface.co/spaces/h2oai/h2ogpt-oasst1-256-6.9b-hosted" python app_client_test.py
+HUGGINGFACE_TOKEN=<HUGGINGFACE_TOKEN> GRADIO_HOST="https://huggingface.co/spaces/h2oai/h2ogpt-oasst1-512-6.9b-hosted" python app_client_test.py
 """
 
 import os

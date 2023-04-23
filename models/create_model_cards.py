@@ -31,8 +31,14 @@ from transformers import AutoModelForCausalLM
         (
                 "h2ogpt-oasst1-512-12b",
                 "EleutherAI/pythia-12b",
-                "h2oai/openassistant_oasst1",
-                "https://huggingface.co/h2oai/h2ogpt-oasst1-512-12b/blob/main/pythia-12b.openassistant_oasst1.json.1_epochs.d45a9d34d34534e076cc6797614b322bd0efb11c.15.zip",
+                [
+                    "h2oai/openassistant_oasst1",
+                    "h2oai/openassistant_oasst1_h2ogpt",
+                ],
+                [
+                    "https://huggingface.co/h2oai/h2ogpt-oasst1-512-12b/blob/main/pythia-12b.openassistant_oasst1.json.1_epochs.d45a9d34d34534e076cc6797614b322bd0efb11c.15.zip",
+                    "https://huggingface.co/h2oai/h2ogpt-oasst1-512-12b/blob/main/h2ogpt-oasst1-512-12b.h2oaiopenassistant_oasst1_h2ogpt.2_epochs.fcaae7ef70600de8c97c9b38cb3f0075467cdad1.2.zip",
+                ]
         ),
         (
                 "h2ogpt-oig-oasst1-256-12b",
