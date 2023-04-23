@@ -18,6 +18,7 @@ https://user-images.githubusercontent.com/6147661/232924684-6c0e2dfb-2f24-4098-8
 - Open-source repository with **fully permissive, commercially usable code, data and models**
 - Code for preparing **large open-source datasets** as instruction datasets for fine-tuning of large language models (LLMs), including prompt engineering
 - Code for **fine-tuning large language models** (currently up to 20B parameters) on commodity hardware and enterprise GPU servers (single or multi node)
+- Code for enabling **LoRA (low-rank approximation) and 8-bit quantization** for memory-efficient fine-tuning and generation.
 - Code to **run a chatbot** on a GPU server, with shareable end-point with Python client API
 - Code to evaluate and compare the **performance** of fine-tuned LLMs
 
