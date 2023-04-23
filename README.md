@@ -41,7 +41,7 @@ Also check out [H2O LLM Studio](https://github.com/h2oai/h2o-llmstudio) for our 
 git clone https://github.com/h2oai/h2ogpt.git
 cd h2ogpt
 pip install -r requirements.txt
-python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-256-6.9b
+python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6.9b
 ```
 and then use browser at http://0.0.0.0:7860 or the public live URL printed by the server.
 
