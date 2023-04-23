@@ -11,7 +11,7 @@ tags:
 - large language model
 - open-source
 datasets:
-- <<DATASET_NAME>>
+<<DATASET_NAME>>
 ---
 # h2oGPT Model Card
 ## Summary
@@ -21,7 +21,7 @@ H2O.ai's `<<MODEL_NAME>>` is a <<MODEL_SIZE>> billion parameter instruction-foll
 - Base model: <<BASE_MODEL>>
 - Fine-tuning dataset: <<DATASET>>
 - Data-prep and fine-tuning code: [H2O.ai GitHub](https://github.com/h2oai/h2ogpt)
-- Training logs: [zip](<<TRAINING_LOGS>>)
+- Training logs: <<TRAINING_LOGS>>
 
 ## Chatbot
 

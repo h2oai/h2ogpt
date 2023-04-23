@@ -37,8 +37,14 @@ from transformers import AutoModelForCausalLM
         (
                 "h2ogpt-oig-oasst1-512-6.9b",
                 "EleutherAI/pythia-6.9b",
-                "h2oai/h2ogpt-oig-oasst1-instruct-cleaned-v1",
-                "https://huggingface.co/h2oai/h2ogpt-oig-oasst1-512-6.9b/blob/main/pythia-6.9b.h2ogpt-oig-oasst1-instruct-cleaned-v1.json.1_epochs.5fc91911bc2bfaaf3b6c2de577c4b0ae45a07a4a.7.zip",
+                [
+                    "h2oai/h2ogpt-oig-oasst1-instruct-cleaned-v1",
+                    "h2oai/openassistant_oasst1_h2ogpt",
+                ],
+                [
+                    "https://huggingface.co/h2oai/h2ogpt-oig-oasst1-512-6.9b/blob/main/pythia-6.9b.h2ogpt-oig-oasst1-instruct-cleaned-v1.json.1_epochs.5fc91911bc2bfaaf3b6c2de577c4b0ae45a07a4a.7.zip",
+                    "https://huggingface.co/h2oai/h2ogpt-oig-oasst1-512-6.9b/blob/main/h2ogpt-oig-oasst1-512-6.9b.h2oaiopenassistant_oasst1_h2ogpt.2_epochs.e35e2e06e0af2f7dceac2e16e3646c90ccce4ec0.1.zip",
+                ],
         ),
         (
                 "h2ogpt-oig-oasst1-256-20b",
@@ -82,10 +88,11 @@ def test_create_model_cards(model_name, base_model, dataset, training_logs):
         content = content.replace("<<BASE_MODEL>>", f"[{base_model}](https://huggingface.co/{base_model})")
 
         assert "<<DATASET>>" in content
-        content = content.replace("<<DATASET>>", f"[{dataset}](https://huggingface.co/datasets/{dataset})")
-
         assert "<<DATASET_NAME>>" in content
-        content = content.replace("<<DATASET_NAME>>", dataset)
+        if not isinstance(dataset, list):
+            dataset = [dataset]
+        content = content.replace("<<DATASET>>", " and ".join([f"[{d}](https://huggingface.co/datasets/{d})" for d in dataset]))
+        content = content.replace("<<DATASET_NAME>>", "\n".join([f"- {d}" for d in dataset]))
 
         assert "<<MODEL_ARCH>>" in content
         content = content.replace("<<MODEL_ARCH>>", model_arch)
@@ -94,7 +101,9 @@ def test_create_model_cards(model_name, base_model, dataset, training_logs):
         content = content.replace("<<MODEL_CONFIG>>", model_config)
 
         assert "<<TRAINING_LOGS>>" in content
-        content = content.replace("<<TRAINING_LOGS>>", training_logs)
+        if not isinstance(training_logs, list):
+            training_logs = [training_logs]
+        content = content.replace("<<TRAINING_LOGS>>", " and ".join(f"[zip]({t})" for t in training_logs))
 
         assert "<<" not in content
         assert ">>" not in content
