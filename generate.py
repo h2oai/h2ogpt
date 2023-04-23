@@ -781,7 +781,7 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                                                        visible=not is_public and False)
                             do_sample = gr.Checkbox(label="Sample", info="Enable sampler, required for use of temperature, top_p, top_k",
                                                     value=kwargs['do_sample'])
-                            temperature = gr.Slider(minimum=0, maximum=3,
+                            temperature = gr.Slider(minimum=0.01, maximum=3,
                                                     value=kwargs['temperature'],
                                                     label="Temperature",
                                                     info="Lower is deterministic (but may lead to repeats), Higher more creative (but may lead to hallucinations)")
