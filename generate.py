@@ -556,6 +556,7 @@ def go_gradio(**kwargs):
     else:
         description = "For more information, visit [the project's website](https://github.com/h2oai/h2ogpt).<br>"
     if is_public:
+        description += "If this host is busy, try [20B](gpt.h2o.ai) and [Chatbot1 12B](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot) and [Chatbot2 12B](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot2)<br>"
         description += """<p><b> DISCLAIMERS: </b><ul><i><li>The model was trained on The Pile and other data, which may contain objectionable content.  Use at own risk.</i></li>"""
         if kwargs['load_8bit']:
             description += """<i><li> Model is loaded in 8-bit and has other restrictions on this host. UX can be worse than non-hosted version.</i></li>"""
