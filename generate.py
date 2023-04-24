@@ -648,6 +648,14 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
 
         Chatbot._postprocess_chat_messages = _postprocess_chat_messages
 
+    dark_js = """() => {
+        if (document.querySelectorAll('.dark').length) {
+            document.querySelectorAll('.dark').forEach(el => el.classList.remove('dark'));
+        } else {
+            document.querySelector('body').classList.add('dark');
+        }
+    }"""
+
     demo = gr.Blocks(theme=gr.themes.Soft(**colors_dict), css=css_code, title="h2oGPT", analytics_enabled=False)
     callback = gr.CSVLogger()
     # css_code = 'body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en/site/header/master/_jcr_content/root/container/header_copy/logo.coreimg.svg/1678976605175/h2o-logo.svg");}'
@@ -944,13 +952,7 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
             None,
             None,
             None,
-            _js="""() => {
-            if (document.querySelectorAll('.dark').length) {
-                document.querySelectorAll('.dark').forEach(el => el.classList.remove('dark'));
-            } else {
-                document.querySelector('body').classList.add('dark');
-            }
-        }""",
+            _js=dark_js,
             api_name="dark",
         )
 
@@ -1414,6 +1416,7 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
         stop_btn.click(lambda: None, None, None,
                        cancels=[submit_event_nochat, submit_event, submit_event2, submit_event3],
                        queue=False, api_name='stop').then(clear_torch_cache)
+        demo.load(None,None,None,_js=dark_js)
 
     demo.queue(concurrency_count=1)
     favicon_path = "h2o-logo.svg"
