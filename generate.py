@@ -83,6 +83,7 @@ def main(
         # set to True to load --base_model after client logs in,
         # to be able to free GPU memory when model is swapped
         login_mode_if_model0: bool = False,
+        block_gradio_exit: bool = True,
 
         sanitize_user_prompt: bool = True,
         sanitize_bot_response: bool = True,
@@ -942,7 +943,6 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
         fun = partial(evaluate,
                       **kwargs_evaluate)
         fun2 = partial(evaluate,
-                       model_state2,
                        **kwargs_evaluate)
 
         dark_mode_btn = gr.Button("Dark Mode", variant="primary").style(
@@ -1423,7 +1423,8 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
     demo.launch(share=kwargs['share'], server_name="0.0.0.0", show_error=True,
                 favicon_path=favicon_path, prevent_thread_lock=True)  # , enable_queue=True)
     print("Started GUI", flush=True)
-    demo.block_thread()
+    if kwargs['block_gradio_exit']:
+        demo.block_thread()
 
 
 input_args_list = ['model_state']
