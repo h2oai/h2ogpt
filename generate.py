@@ -1416,7 +1416,7 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
         stop_btn.click(lambda: None, None, None,
                        cancels=[submit_event_nochat, submit_event, submit_event2, submit_event3],
                        queue=False, api_name='stop').then(clear_torch_cache)
-        demo.load(None,None,None,_js=dark_js)
+        demo.load(None,None,None, _js=dark_js)
 
     demo.queue(concurrency_count=1)
     favicon_path = "h2o-logo.svg"
