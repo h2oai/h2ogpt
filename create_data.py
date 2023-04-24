@@ -1276,6 +1276,9 @@ def test_add_open_assistant(fixup_personality, only_personality, save_json=True)
         text = texts[i]
         if fixup_personality:
             text = text.replace("Open Assistant", "h2oGPT")
+            text = text.replace("Open-Assistant", "h2oGPT")
+            text = text.replace("open-assistant", "h2oGPT")
+            text = text.replace("OpenAssistant", "h2oGPT")
             text = text.replace("open assistant", "h2oGPT")
             text = text.replace("Open Assistand", "h2oGPT")
             text = text.replace("Open Assitant", "h2oGPT")
@@ -1288,6 +1291,14 @@ def test_add_open_assistant(fixup_personality, only_personality, save_json=True)
             text = text.replace("Open Assistan ", "h2oGPT ")
             text = text.replace("Open Asistant", "h2oGPT")
             text = text.replace("Open Assiant", "h2oGPT")
+            text = text.replace("Assistant", "h2oGPT")
+            text = text.replace("LAION AI", "H2O.ai")
+            text = text.replace("LAION-AI", "H2O.ai")
+            text = text.replace("LAION,", "H2O.ai,")
+            text = text.replace("LAION.ai", "H2O.ai")
+            text = text.replace("LAION.", "H2O.ai.")
+            text = text.replace("LAION", "H2O.ai")
+
         role = roles[i]
         new_data = ('<human>: ' if role == 'prompter' else '<bot>: ') + text
         entry = dict(message_id=message_id, parent_id=parent_id, text=new_data)
@@ -1348,7 +1359,11 @@ def test_add_open_assistant(fixup_personality, only_personality, save_json=True)
         if only_personality:
             all_rows.extend([dict(input=c['text'], prompt_type='plain', source=data_file) for c in conversations if 'h2oGPT' in c['text']])
         else:
-            all_rows.extend([dict(input=c['text'], prompt_type='plain', source=data_file) for c in conversations])
+            all_rows.extend([dict(input=c['text'], prompt_type='plain', source=data_file) for c in conversations if "What is H2O.ai" not in c['text']])
+    personality = create_personality_data()
+    all_rows.extend(personality * 10)
+    np.random.seed(123)
+    np.random.shuffle(all_rows)
     print(len(all_rows))
     if save_json:
         data_file = data_file + ("_h2ogpt" if fixup_personality else "") + ("_only" if only_personality else "")
@@ -1411,9 +1426,11 @@ def create_personality_data():
     ]
     answers = [
         "I'm h2oGPT, a large language model by H2O.ai.",
-        "My name is h2oGPT. I'm a large language model by H2O.ai.",
+        "I'm h2oGPT, a large language model by H2O.ai, the visionary leader in democratizing AI.",
+        "My name is h2oGPT. I'm a large language model by H2O.ai, the visionary leader in democratizing AI.",
         "My name is h2oGPT. I'm a large language model trained by H2O.ai.",
         "Hi! I'm h2oGPT, a large language model by H2O.ai.",
+        "Hi! I'm h2oGPT, a large language model by H2O.ai, the visionary leader in democratizing AI.",
     ]
     help = [
         "",
@@ -1427,10 +1444,20 @@ def create_personality_data():
         rows.append(
             dict(input=f"<human>: {pair[0]} <bot>: {pair[1]} {pair[2]}", prompt_type='plain', source="H2O.ai")
         )
-    # for row in [
-    #     "<human>: When were you trained? <bot>: I was trained in April 2023.",
-    # ]:
-    #     rows.append(dict(input=row, prompt_type='plain', source='H2O.ai'))
+    for row in [
+        "<human>: What is H2O.ai? <bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.",
+        "<human>: What is h2o.ai? <bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.",
+        "<human>: What is H2O? <bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.",
+        "<human>: Who is h2o.ai? <bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.",
+        "<human>: who is h2o.ai? <bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.",
+        "<human>: who is h2o? <bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.",
+        "<human>: What is H2O.ai? <bot>: H2O.ai is the visionary leader in democratizing AI.",
+        "<human>: Who is H2O.ai? <bot>: H2O.ai is the visionary leader in democratizing AI.",
+        "<human>: Who is H2O? <bot>: H2O.ai is the visionary leader in democratizing AI.",
+        "<human>: Who is h2o? <bot>: H2O.ai is the visionary leader in democratizing AI.",
+        "<human>: who is h2o? <bot>: H2O.ai is the visionary leader in democratizing AI.",
+    ]:
+        rows.append(dict(input=row, prompt_type='plain', source='H2O.ai'))
     print(len(rows))
     with open("h2ogpt-personality.json", "w") as f:
         f.write(json.dumps(rows, indent=2))
