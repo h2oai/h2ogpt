@@ -737,7 +737,7 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                                     lines=4, label=instruction_label,
                                     placeholder=kwargs['placeholder_instruction'],
                                 )
-                            with gr.Row():  # .style(equal_height=False, equal_width=False):
+                            with gr.Row():
                                 submit = gr.Button(value='Submit').style(full_width=False, size='sm')
                                 stop_btn = gr.Button(value="Stop").style(full_width=False, size='sm')
                         with gr.Row():
@@ -841,7 +841,7 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                         n_gpus = torch.cuda.device_count()
                         n_gpus_list = [str(x) for x in list(range(-1, n_gpus))]
                         with gr.Column():
-                            with gr.Row(scale=1):
+                            with gr.Row():
                                 with gr.Column(scale=50):
                                     model_choice = gr.Dropdown(model_options_state.value[0], label="Choose Model",
                                                                value=kwargs['base_model'])
@@ -860,7 +860,7 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                                     model_used = gr.Textbox(label="Current Model", value=kwargs['base_model'])
                                     lora_used = gr.Textbox(label="Current LORA", value=kwargs['lora_weights'],
                                                            visible=kwargs['show_lora'])
-                            with gr.Row(scale=1):
+                            with gr.Row():
                                 with gr.Column(scale=50):
                                     new_model = gr.Textbox(label="New Model HF name/path")
                                     new_lora = gr.Textbox(label="New LORA HF name/path", visible=kwargs['show_lora'])
@@ -869,7 +869,7 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                                     add_lora_button = gr.Button("Add new LORA name", visible=kwargs['show_lora'])
                         col_model2 = gr.Column(visible=False)
                         with col_model2:
-                            with gr.Row(scale=1):
+                            with gr.Row():
                                 with gr.Column(scale=50):
                                     model_choice2 = gr.Dropdown(model_options_state.value[0], label="Choose Model 2",
                                                                 value=no_model_str)
