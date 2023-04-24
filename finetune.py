@@ -765,7 +765,13 @@ Current Time: {}
 
         PreInput = None
 
-        PreResponse = bot
+        if reduced:
+            # when making context, want it to appear as-if LLM generated, which starts with space after :
+            PreResponse = bot + ' '
+        else:
+            # normally LLM adds space after this, because was how trained.
+            # if add space here, non-unique tokenization will often make LLM produce wrong output
+            PreResponse = bot
 
         terminate_response = [start, PreResponse]
     elif prompt_type in [3, "3", "dai_faq"]:
