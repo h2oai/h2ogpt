@@ -4,7 +4,7 @@ import sys
 import os
 import traceback
 import typing
-from utils import set_seed, flatten_list, clear_torch_cache, system_info_print, zip_data, save_generate_output
+from utils import set_seed, flatten_list, clear_torch_cache, system_info_print, zip_data, save_generate_output, s3up
 
 SEED = 1236
 set_seed(SEED)
@@ -891,25 +891,41 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                                     lora_used2 = gr.Textbox(label="Current LORA 2", value=no_lora_str,
                                                             visible=kwargs['show_lora'])
                 with gr.TabItem("System"):
+                    admin_row = gr.Row()
+                    with admin_row:
+                        admin_pass_textbox = gr.Textbox(label="Admin Password", type='password', visible=is_public)
+                        admin_btn = gr.Button(value="Admin Access", visible=is_public)
                     system_row = gr.Row(visible=not is_public)
-                    admin_pass_textbox = gr.Textbox(label="Admin Password", type='password', visible=is_public)
-                    admin_btn = gr.Button(value="admin", visible=is_public)
                     with system_row:
                         with gr.Column():
-                            system_text = gr.Textbox(label='System Info')
-                            system_btn = gr.Button(value='Get System Info')
+                            with gr.Row():
+                                system_btn = gr.Button(value='Get System Info')
+                                system_text = gr.Textbox(label='System Info')
 
-                            zip_btn = gr.Button("Zip")
-                            file_output = gr.File()
+                            with gr.Row():
+                                zip_btn = gr.Button("Zip")
+                                zip_text = gr.Textbox(label="Zip file name")
+                                file_output = gr.File()
+                            with gr.Row():
+                                s3up_btn = gr.Button("S3UP")
+                                s3up_text = gr.Textbox(label='S3UP result')
 
         # Get flagged data
         zip_data1 = functools.partial(zip_data, root_dirs=['flagged_data_points', kwargs['save_dir']])
-        zip_btn.click(zip_data1, inputs=None, outputs=file_output)
+        zip_btn.click(zip_data1, inputs=None, outputs=[file_output, zip_text])
+
+        #def update_s3(x):
+        #    return gr.update(value="S3UP [%s]" % x)
+        s3up_btn.click(s3up, inputs=zip_text, outputs=s3up_text)
 
         def check_admin_pass(x):
             return gr.update(visible=x == admin_pass)
 
-        admin_btn.click(check_admin_pass, inputs=admin_pass_textbox, outputs=system_row)
+        def close_admin(x):
+            return gr.update(visible=not (x == admin_pass))
+
+        admin_btn.click(check_admin_pass, inputs=admin_pass_textbox, outputs=system_row) \
+                 .then(close_admin, inputs=admin_pass_textbox, outputs=admin_row)
 
         # Get inputs to evaluate()
         inputs_list = get_inputs_list(locals(), kwargs['model_lower'])

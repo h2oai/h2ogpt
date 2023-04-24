@@ -118,7 +118,7 @@ def _zip_data(root_dirs=None, zip_file=None, base_dir='./'):
                     assert os.path.exists(file_to_archive)
                     path_to_archive = os.path.relpath(file_to_archive, base_dir)
                     expt_zip.write(filename=file_to_archive, arcname=path_to_archive)
-    return zip_file
+    return zip_file, zip_file
 
 
 def save_generate_output(output=None, base_model=None, save_dir=None):
@@ -152,3 +152,35 @@ def _save_generate_output(output=None, base_model=None, save_dir=None):
                     dict(text=output, time=time.ctime(), base_model=base_model)
                 ) + ",\n"
             )
+
+
+def s3up(filename):
+    try:
+        return _s3up(filename)
+    except Exception as e:
+        traceback.print_exc()
+        print('Exception for file %s in s3up: %s' % (filename, str(e)))
+        return "Failed to upload %s: Error: %s" % (filename, str(e))
+
+
+def _s3up(filename):
+    import boto3
+
+    aws_access_key_id = os.getenv('AWS_SERVER_PUBLIC_KEY')
+    aws_secret_access_key = os.getenv('AWS_SERVER_SECRET_KEY')
+    bucket = os.getenv('AWS_BUCKET')
+    assert aws_access_key_id, "Set AWS key"
+    assert aws_secret_access_key, "Set AWS secret"
+    assert bucket, "Set AWS Bucket"
+
+    s3 = boto3.client('s3',
+                      aws_access_key_id=os.getenv('AWS_SERVER_PUBLIC_KEY'),
+                      aws_secret_access_key=os.getenv('AWS_SERVER_SECRET_KEY'),
+                      )
+    ret = s3.upload_file(
+        Filename=filename,
+        Bucket=os.getenv('AWS_BUCKET'),
+        Key=filename,
+    )
+    if ret in [None, '']:
+        return "Successfully uploaded %s" % filename

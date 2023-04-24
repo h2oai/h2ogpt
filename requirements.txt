@@ -26,6 +26,8 @@ tokenizers==0.13.3
 # optional for generate
 pynvml==11.5.0
 psutil==5.9.4
+boto3==1.26.101
+botocore==1.29.101
 
 # optional for finetune
 tensorboard==2.12.1
