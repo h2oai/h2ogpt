@@ -1,4 +1,9 @@
 def test_client1():
+    from tests.utils import call_subprocess_onetask
+    call_subprocess_onetask(run_client1)
+
+
+def run_client1():
     from generate import main
     main(base_model='h2oai/h2ogpt-oig-oasst1-512-6.9b', prompt_type='human_bot', chat=False,
          stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False)

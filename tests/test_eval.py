@@ -1,9 +1,11 @@
-import pandas as pd
-
-from generate import eval_func_param_names, eval_extra_columns
-
-
 def test_eval1():
+    from tests.utils import call_subprocess_onetask
+    call_subprocess_onetask(run_eval1)
+
+
+def run_eval1():
+    import pandas as pd
+    from generate import eval_func_param_names, eval_extra_columns
     from generate import main
     eval_filename = main(base_model='h2oai/h2ogpt-oig-oasst1-512-6.9b', prompt_type='human_bot', chat=False,
                          stream_output=False,
