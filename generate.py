@@ -913,9 +913,6 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
         # Get flagged data
         zip_data1 = functools.partial(zip_data, root_dirs=['flagged_data_points', kwargs['save_dir']])
         zip_btn.click(zip_data1, inputs=None, outputs=[file_output, zip_text])
-
-        #def update_s3(x):
-        #    return gr.update(value="S3UP [%s]" % x)
         s3up_btn.click(s3up, inputs=zip_text, outputs=s3up_text)
 
         def check_admin_pass(x):
