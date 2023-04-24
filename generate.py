@@ -84,6 +84,9 @@ def main(
         # to be able to free GPU memory when model is swapped
         login_mode_if_model0: bool = False,
         block_gradio_exit: bool = True,
+        concurrency_count: int = 1,
+        api_open: bool = False,  # don't let API skip queue
+        allow_api: bool = True,
 
         sanitize_user_prompt: bool = True,
         sanitize_bot_response: bool = True,
@@ -120,6 +123,9 @@ def main(
     score_model = os.getenv('SCORE_MODEL', score_model)
     if score_model == 'None':
         score_model = ''
+    concurrency_count = int(os.getenv('CONCURRENCY_COUNT', concurrency_count))
+    api_open = bool(int(os.getenv('API_OPEN', api_open)))
+    allow_api = bool(int(os.getenv('ALLOW_API', allow_api)))
 
     # get defaults
     model_lower = base_model.lower()
@@ -170,7 +176,7 @@ def main(
                 assert data[i]['conversations'][turn_start + 1]['from'] == 'gpt'
                 output = data[i]['conversations'][turn_start + 1]['value']
                 examplenew = example1.copy()
-                assert not chat, "No gradio must use chat=False, uses nochat isntruct"
+                assert not chat, "No gradio must use chat=False, uses nochat instruct"
                 examplenew[eval_func_param_names.index('instruction_nochat')] = instruction
                 examplenew[eval_func_param_names.index('iinput_nochat')] = ''  # no input
                 examplenew[eval_func_param_names.index('context')] = ''  # no context
@@ -532,6 +538,7 @@ def get_score_model(**kwargs):
 
 def go_gradio(**kwargs):
     # get default model
+    allow_api = kwargs['allow_api']
     all_kwargs = kwargs.copy()
     all_kwargs.update(locals())
     if kwargs.get('base_model') and not kwargs['login_mode_if_model0']:
@@ -956,7 +963,7 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
             None,
             None,
             _js=dark_js,
-            api_name="dark",
+            api_name="dark" if allow_api else None,
         )
 
         # Control chat and non-chat blocks, which can be independently used by chat checkbox swap
@@ -969,7 +976,7 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
         def context_fun(x):
             return gr.Textbox.update(visible=not x)
 
-        chat.select(col_nochat_fun, chat, col_nochat, api_name="chat_checkbox") \
+        chat.select(col_nochat_fun, chat, col_nochat, api_name="chat_checkbox" if allow_api else None) \
             .then(col_chat_fun, chat, col_chat) \
             .then(context_fun, chat, context)
 
@@ -1066,10 +1073,10 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                                  outputs=[score_text_nochat],
                                  )
         if not kwargs['auto_score']:
-            score_event = score_btn.click(**score_args, queue=stream_output, api_name='score') \
-                .then(**score_args2, queue=stream_output, api_name='score2')
+            score_event = score_btn.click(**score_args, queue=stream_output, api_name='score' if allow_api else None) \
+                .then(**score_args2, queue=stream_output, api_name='score2' if allow_api else None)
             score_event_nochat = score_btn_nochat.click(**score_args_nochat, queue=stream_output,
-                                                        api_name='score_nochat')
+                                                        api_name='score_nochat' if allow_api else None)
 
         def user(*args, undo=False, sanitize_user_prompt=True, model2=False):
             """
@@ -1217,64 +1224,64 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
         if kwargs['auto_score']:
             # in case 2nd model, consume instruction first, so can clear quickly
             # bot doesn't consume instruction itself, just history from user, so why works
-            submit_event = instruction.submit(**user_args, queue=stream_output, api_name='instruction') \
-                .then(**user_args2, queue=stream_output, api_name='instruction2') \
+            submit_event = instruction.submit(**user_args, queue=stream_output, api_name='instruction' if allow_api else None) \
+                .then(**user_args2, queue=stream_output, api_name='instruction2' if allow_api else None) \
                 .then(clear_instruct, None, instruction) \
-                .then(**bot_args, api_name='instruction_bot') \
-                .then(**score_args, api_name='instruction_bot_score') \
-                .then(**bot_args2, api_name='instruction_bot2') \
-                .then(**score_args2, api_name='instruction_bot_score2') \
+                .then(**bot_args, api_name='instruction_bot' if allow_api else None) \
+                .then(**score_args, api_name='instruction_bot_score' if allow_api else None) \
+                .then(**bot_args2, api_name='instruction_bot2' if allow_api else None) \
+                .then(**score_args2, api_name='instruction_bot_score2' if allow_api else None) \
                 .then(clear_torch_cache)
-            submit_event2 = submit.click(**user_args, queue=stream_output, api_name='submit') \
-                .then(**user_args2, queue=stream_output, api_name='submit2') \
-                .then(**bot_args, api_name='submit_bot') \
+            submit_event2 = submit.click(**user_args, queue=stream_output, api_name='submit' if allow_api else None) \
+                .then(**user_args2, queue=stream_output, api_name='submit2' if allow_api else None) \
+                .then(**bot_args, api_name='submit_bot' if allow_api else None) \
                 .then(clear_instruct, None, instruction) \
-                .then(**score_args, api_name='submit_bot_score') \
-                .then(**bot_args2, api_name='submit_bot2') \
-                .then(**score_args2, api_name='submit_bot_score2') \
+                .then(**score_args, api_name='submit_bot_score' if allow_api else None) \
+                .then(**bot_args2, api_name='submit_bot2' if allow_api else None) \
+                .then(**score_args2, api_name='submit_bot_score2' if allow_api else None) \
                 .then(clear_torch_cache)
-            submit_event3 = retry.click(**user_args, queue=stream_output, api_name='retry') \
-                .then(**user_args2, queue=stream_output, api_name='retry2') \
+            submit_event3 = retry.click(**user_args, queue=stream_output, api_name='retry' if allow_api else None) \
+                .then(**user_args2, queue=stream_output, api_name='retry2' if allow_api else None) \
                 .then(clear_instruct, None, instruction) \
-                .then(**retry_bot_args, api_name='retry_bot') \
-                .then(**score_args, api_name='retry_bot_score') \
-                .then(**retry_bot_args2, api_name='retry_bot2') \
-                .then(**score_args2, api_name='retry_bot_score2') \
+                .then(**retry_bot_args, api_name='retry_bot' if allow_api else None) \
+                .then(**score_args, api_name='retry_bot_score' if allow_api else None) \
+                .then(**retry_bot_args2, api_name='retry_bot2' if allow_api else None) \
+                .then(**score_args2, api_name='retry_bot_score2' if allow_api else None) \
                 .then(clear_torch_cache)
-            submit_event4 = undo.click(**undo_user_args, queue=stream_output, api_name='undo') \
-                .then(**score_args, api_name='undo_score') \
-                .then(**undo_user_args2, queue=stream_output, api_name='undo2') \
-                .then(**score_args2, api_name='undo_score2') \
+            submit_event4 = undo.click(**undo_user_args, queue=stream_output, api_name='undo' if allow_api else None) \
+                .then(**score_args, api_name='undo_score' if allow_api else None) \
+                .then(**undo_user_args2, queue=stream_output, api_name='undo2' if allow_api else None) \
+                .then(**score_args2, api_name='undo_score2' if allow_api else None) \
                 .then(clear_instruct, None, instruction)
         else:
-            submit_event = instruction.submit(**user_args, queue=stream_output, api_name='instruction') \
-                .then(**user_args2, queue=stream_output, api_name='instruction2') \
+            submit_event = instruction.submit(**user_args, queue=stream_output, api_name='instruction' if allow_api else None) \
+                .then(**user_args2, queue=stream_output, api_name='instruction2' if allow_api else None) \
                 .then(clear_instruct, None, instruction) \
-                .then(**bot_args, api_name='instruction_bot') \
-                .then(**bot_args2, api_name='instruction_bot2') \
+                .then(**bot_args, api_name='instruction_bot' if allow_api else None) \
+                .then(**bot_args2, api_name='instruction_bot2' if allow_api else None) \
                 .then(clear_torch_cache)
-            submit_event2 = submit.click(**user_args, queue=stream_output, api_name='submit') \
-                .then(**user_args2, queue=stream_output, api_name='submit2') \
+            submit_event2 = submit.click(**user_args, queue=stream_output, api_name='submit' if allow_api else None) \
+                .then(**user_args2, queue=stream_output, api_name='submit2' if allow_api else None) \
                 .then(clear_instruct, None, instruction) \
-                .then(**bot_args, api_name='submit_bot') \
-                .then(**bot_args2, api_name='submit_bot2') \
+                .then(**bot_args, api_name='submit_bot' if allow_api else None) \
+                .then(**bot_args2, api_name='submit_bot2' if allow_api else None) \
                 .then(clear_torch_cache)
-            submit_event3 = retry.click(**user_args, queue=stream_output, api_name='retry') \
-                .then(**user_args2, queue=stream_output, api_name='retry2') \
+            submit_event3 = retry.click(**user_args, queue=stream_output, api_name='retry' if allow_api else None) \
+                .then(**user_args2, queue=stream_output, api_name='retry2' if allow_api else None) \
                 .then(clear_instruct, None, instruction) \
-                .then(**retry_bot_args, api_name='retry_bot') \
-                .then(**retry_bot_args2, api_name='retry_bot2') \
+                .then(**retry_bot_args, api_name='retry_bot' if allow_api else None) \
+                .then(**retry_bot_args2, api_name='retry_bot2' if allow_api else None) \
                 .then(clear_torch_cache)
-            submit_event4 = undo.click(**undo_user_args, queue=stream_output, api_name='undo') \
-                .then(**undo_user_args2, queue=stream_output, api_name='undo2')
+            submit_event4 = undo.click(**undo_user_args, queue=stream_output, api_name='undo' if allow_api else None) \
+                .then(**undo_user_args2, queue=stream_output, api_name='undo2' if allow_api else None)
 
         # does both models
-        clear.click(lambda: None, None, text_output, queue=False, api_name='clear') \
-            .then(lambda: None, None, text_output2, queue=False, api_name='clear2')
+        clear.click(lambda: None, None, text_output, queue=False, api_name='clear' if allow_api else None) \
+            .then(lambda: None, None, text_output2, queue=False, api_name='clear2' if allow_api else None)
         # FIXME: compare
         submit_event_nochat = submit_nochat.click(fun, inputs=[model_state] + inputs_list,
-                                                  outputs=text_output_nochat, api_name='submit_nochat') \
-            .then(**score_args_nochat, api_name='instruction_bot_score_nochat') \
+                                                  outputs=text_output_nochat, api_name='submit_nochat' if allow_api else None) \
+            .then(**score_args_nochat, api_name='instruction_bot_score_nochat' if allow_api else None) \
             .then(clear_torch_cache)
 
         def load_model(model_name, lora_weights, model_state_old, prompt_type_old, load_8bit, infer_devices, gpu_id):
@@ -1389,7 +1396,7 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                                                inputs=[lora_options_state, new_lora, model_used, lora_used, model_used2, lora_used2],
                                                outputs=[lora_choice, lora_choice2, new_lora, lora_options_state])
 
-        go_btn.click(lambda: gr.update(visible=False), None, go_btn, api_name="go") \
+        go_btn.click(lambda: gr.update(visible=False), None, go_btn, api_name="go" if allow_api else None) \
             .then(lambda: gr.update(visible=True), None, normal_block) \
             .then(**load_model_args).then(**prompt_update_args)
 
@@ -1402,7 +1409,8 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
         def compare_prompt_fun(x):
             return gr.Dropdown.update(visible=x)
 
-        compare_checkbox.select(compare_textbox_fun, compare_checkbox, text_output2, api_name="compare_checkbox") \
+        compare_checkbox.select(compare_textbox_fun, compare_checkbox, text_output2,
+                                api_name="compare_checkbox" if allow_api else None) \
             .then(compare_column_fun, compare_checkbox, col_model2) \
             .then(compare_prompt_fun, compare_checkbox, prompt_type2) \
             .then(compare_textbox_fun, compare_checkbox, score_text2)
@@ -1411,23 +1419,23 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
         # callback for logging flagged input/output
         callback.setup(inputs_list + [text_output], "flagged_data_points")
         flag_btn.click(lambda *args: callback.flag(args), inputs_list + [text_output], None, preprocess=False,
-                       api_name='flag')
+                       api_name='flag' if allow_api else None)
         flag_btn_nochat.click(lambda *args: callback.flag(args), inputs_list + [text_output], None, preprocess=False,
-                              api_name='flag_nochat')
+                              api_name='flag_nochat' if allow_api else None)
 
         def get_system_info():
             return gr.Textbox.update(value=system_info_print())
 
-        system_event = system_btn.click(get_system_info, outputs=system_text, api_name='system_info')
+        system_event = system_btn.click(get_system_info, outputs=system_text, api_name='system_info' if allow_api else None)
 
         # don't pass text_output, don't want to clear output, just stop it
         # FIXME: have to click once to stop output and second time to stop GPUs going
         stop_btn.click(lambda: None, None, None,
                        cancels=[submit_event_nochat, submit_event, submit_event2, submit_event3],
-                       queue=False, api_name='stop').then(clear_torch_cache)
-        demo.load(None,None,None, _js=dark_js)
+                       queue=False, api_name='stop' if allow_api else None).then(clear_torch_cache)
+        demo.load(None, None, None, _js=dark_js)
 
-    demo.queue(concurrency_count=1)
+    demo.queue(concurrency_count=kwargs['concurrency_count'], api_open=kwargs['api_open'])
     favicon_path = "h2o-logo.svg"
     demo.launch(share=kwargs['share'], server_name="0.0.0.0", show_error=True,
                 favicon_path=favicon_path, prevent_thread_lock=True)  # , enable_queue=True)
