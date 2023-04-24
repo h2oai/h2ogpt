@@ -65,28 +65,6 @@ The number `512` in the model names indicate the cutoff lengths (in tokens) used
 
 More information about the models can be found on [H2O.ai's Hugging Face page](https://huggingface.co/h2oai/).
 
-### Why H2O.ai?
-
-Our [Makers](https://h2o.ai/company/team/) at [H2O.ai](https://h2o.ai) have built several world-class Machine Learning, Deep Learning and AI platforms:
-  - #1 open-source machine learning platform for the enterprise [H2O-3](https://github.com/h2oai/h2o-3)
-  - The world's best AutoML (Automatic Machine Learning) with [H2O Driverless AI](https://h2o.ai/platform/ai-cloud/make/h2o-driverless-ai/)
-  - No-Code Deep Learning with [H2O Hydrogen Torch](https://h2o.ai/platform/ai-cloud/make/hydrogen-torch/)
-  - Document Processing with Deep Learning in [Document AI](https://h2o.ai/platform/ai-cloud/make/document-ai/)
-
-We also built platforms for deployment and monitoring, and for data wrangling and governance:
-  - [H2O MLOps](https://h2o.ai/platform/ai-cloud/operate/h2o-mlops/) to deploy and monitor models at scale
-  - [H2O Feature Store](https://h2o.ai/platform/ai-cloud/make/feature-store/) in collaboration with AT&T
-  - Open-source Low-Code AI App Development Frameworks [Wave](https://wave.h2o.ai/) and [Nitro](https://nitro.h2o.ai/)
-  - Open-source Python [datatable](https://github.com/h2oai/datatable/) (the engine for H2O Driverless AI feature engineering)
-
-Many of our customers are creating models and deploying them enterprise-wide and at scale in the [H2O AI Cloud](https://h2o.ai/platform/ai-cloud/):
-  - Multi-Cloud or on Premises
-  - [Managed Cloud (SaaS)](https://h2o.ai/platform/ai-cloud/managed)
-  - [Hybrid Cloud](https://h2o.ai/platform/ai-cloud/hybrid)
-  - [AI Appstore](https://docs.h2o.ai/h2o-ai-cloud/)
-
-We are proud to have over 25 (of the world's 280) [Kaggle Grandmasters](https://h2o.ai/company/team/kaggle-grandmasters/) call H2O home, including three Kaggle Grandmasters who have made it to world #1.
-
 ### Development
 
 - Follow the [installation instructions](INSTALL.md) to create a development environment for training and generation.
@@ -107,6 +85,28 @@ We are proud to have over 25 (of the world's 280) [Kaggle Grandmasters](https://
 * Used high-quality created data by [OpenAssistant](https://open-assistant.io/).
 * Used base models by [EleutherAI](https://www.eleuther.ai/).
 * Used OIG data created by [LAION](https://laion.ai/blog/oig-dataset/).
+
+### Why H2O.ai?
+
+Our [Makers](https://h2o.ai/company/team/) at [H2O.ai](https://h2o.ai) have built several world-class Machine Learning, Deep Learning and AI platforms:
+- #1 open-source machine learning platform for the enterprise [H2O-3](https://github.com/h2oai/h2o-3)
+- The world's best AutoML (Automatic Machine Learning) with [H2O Driverless AI](https://h2o.ai/platform/ai-cloud/make/h2o-driverless-ai/)
+- No-Code Deep Learning with [H2O Hydrogen Torch](https://h2o.ai/platform/ai-cloud/make/hydrogen-torch/)
+- Document Processing with Deep Learning in [Document AI](https://h2o.ai/platform/ai-cloud/make/document-ai/)
+
+We also built platforms for deployment and monitoring, and for data wrangling and governance:
+- [H2O MLOps](https://h2o.ai/platform/ai-cloud/operate/h2o-mlops/) to deploy and monitor models at scale
+- [H2O Feature Store](https://h2o.ai/platform/ai-cloud/make/feature-store/) in collaboration with AT&T
+- Open-source Low-Code AI App Development Frameworks [Wave](https://wave.h2o.ai/) and [Nitro](https://nitro.h2o.ai/)
+- Open-source Python [datatable](https://github.com/h2oai/datatable/) (the engine for H2O Driverless AI feature engineering)
+
+Many of our customers are creating models and deploying them enterprise-wide and at scale in the [H2O AI Cloud](https://h2o.ai/platform/ai-cloud/):
+- Multi-Cloud or on Premises
+- [Managed Cloud (SaaS)](https://h2o.ai/platform/ai-cloud/managed)
+- [Hybrid Cloud](https://h2o.ai/platform/ai-cloud/hybrid)
+- [AI Appstore](https://docs.h2o.ai/h2o-ai-cloud/)
+
+We are proud to have over 25 (of the world's 280) [Kaggle Grandmasters](https://h2o.ai/company/team/kaggle-grandmasters/) call H2O home, including three Kaggle Grandmasters who have made it to world #1.
 
 ### Disclaimer
 
