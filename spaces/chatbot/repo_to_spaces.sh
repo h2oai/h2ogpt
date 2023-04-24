@@ -16,6 +16,7 @@ cd ..
 
 git clone https://huggingface.co/spaces/h2oai/"${spacename}"
 cd "${spacename}"
+git pull --rebase
 rm -rf app.py h2o-logo.svg LICENSE stopping.py prompter.py finetune.py utils.py client_test.py requirements.txt
 cd ../h2ogpt/spaces/chatbot/
 cp generate.py h2o-logo.svg LICENSE stopping.py prompter.py finetune.py utils.py client_test.py requirements.txt ../../../"${spacename}"/
