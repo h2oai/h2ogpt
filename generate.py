@@ -117,6 +117,9 @@ def main(
         # must override share if in spaces
         share = False
     save_dir = os.getenv('SAVE_DIR', save_dir)
+    score_model = os.getenv('SCORE_MODEL', score_model)
+    if score_model == 'None':
+        score_model = ''
 
     # get defaults
     model_lower = base_model.lower()
@@ -727,12 +730,12 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                                                    placeholder=kwargs['placeholder_input'])
                         submit_nochat = gr.Button("Submit")
                         flag_btn_nochat = gr.Button("Flag")
-                        if kwargs['score_model']:
-                            if not kwargs['auto_score']:
-                                with gr.Column():
-                                    score_btn_nochat = gr.Button("Score last prompt & response")
-                                    score_text_nochat = gr.Textbox("Response Score: NA", show_label=False)
-                            else:
+                        if not kwargs['auto_score']:
+                            with gr.Column(visible=kwargs['score_model']):
+                                score_btn_nochat = gr.Button("Score last prompt & response")
+                                score_text_nochat = gr.Textbox("Response Score: NA", show_label=False)
+                        else:
+                            with gr.Column(visible=kwargs['score_model']):
                                 score_text_nochat = gr.Textbox("Response Score: NA", show_label=False)
                     col_chat = gr.Column(visible=kwargs['chat'])
                     with col_chat:
@@ -752,19 +755,19 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
                         with gr.Row():
                             clear = gr.Button("New Conversation")
                             flag_btn = gr.Button("Flag")
-                            if kwargs['score_model']:
-                                if not kwargs['auto_score']:  # FIXME: For checkbox model2
-                                    with gr.Column():
-                                        with gr.Row():
-                                            score_btn = gr.Button("Score last prompt & response").style(
-                                                full_width=False, size='sm')
-                                            score_text = gr.Textbox("Response Score: NA", show_label=False)
-                                        score_res2 = gr.Row(visible=False)
-                                        with score_res2:
-                                            score_btn2 = gr.Button("Score last prompt & response 2").style(
-                                                full_width=False, size='sm')
-                                            score_text2 = gr.Textbox("Response Score2: NA", show_label=False)
-                                else:
+                            if not kwargs['auto_score']:  # FIXME: For checkbox model2
+                                with gr.Column(visible=kwargs['score_model']):
+                                    with gr.Row():
+                                        score_btn = gr.Button("Score last prompt & response").style(
+                                            full_width=False, size='sm')
+                                        score_text = gr.Textbox("Response Score: NA", show_label=False)
+                                    score_res2 = gr.Row(visible=False)
+                                    with score_res2:
+                                        score_btn2 = gr.Button("Score last prompt & response 2").style(
+                                            full_width=False, size='sm')
+                                        score_text2 = gr.Textbox("Response Score2: NA", show_label=False)
+                            else:
+                                with gr.Column(visible=kwargs['score_model']):
                                     score_text = gr.Textbox("Response Score: NA", show_label=False)
                                     score_text2 = gr.Textbox("Response Score2: NA", show_label=False, visible=False)
                             retry = gr.Button("Regenerate")
@@ -1042,25 +1045,31 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
             os.environ['TOKENIZERS_PARALLELISM'] = 'true'
             return 'Response Score: {:.1%}'.format(score)
 
+        def noop_score_last_response(*args, **kwargs):
+            return "Response Score: Disabled"
         if kwargs['score_model']:
-            score_args = dict(fn=score_last_response,
-                              inputs=inputs_list + [text_output],
-                              outputs=[score_text],
-                              )
-            score_args2 = dict(fn=partial(score_last_response, model2=True),
-                               inputs=inputs_list + [text_output2],
-                               outputs=[score_text2],
-                               )
+            score_fun = score_last_response
+        else:
+            score_fun = noop_score_last_response
 
-            score_args_nochat = dict(fn=partial(score_last_response, nochat=True),
-                                     inputs=inputs_list + [text_output_nochat],
-                                     outputs=[score_text_nochat],
-                                     )
-            if not kwargs['auto_score']:
-                score_event = score_btn.click(**score_args, queue=stream_output, api_name='score') \
-                    .then(**score_args2, queue=stream_output, api_name='score2')
-                score_event_nochat = score_btn_nochat.click(**score_args_nochat, queue=stream_output,
-                                                            api_name='score_nochat')
+        score_args = dict(fn=score_fun,
+                          inputs=inputs_list + [text_output],
+                          outputs=[score_text],
+                          )
+        score_args2 = dict(fn=partial(score_fun, model2=True),
+                           inputs=inputs_list + [text_output2],
+                           outputs=[score_text2],
+                           )
+
+        score_args_nochat = dict(fn=partial(score_fun, nochat=True),
+                                 inputs=inputs_list + [text_output_nochat],
+                                 outputs=[score_text_nochat],
+                                 )
+        if not kwargs['auto_score']:
+            score_event = score_btn.click(**score_args, queue=stream_output, api_name='score') \
+                .then(**score_args2, queue=stream_output, api_name='score2')
+            score_event_nochat = score_btn_nochat.click(**score_args_nochat, queue=stream_output,
+                                                        api_name='score_nochat')
 
         def user(*args, undo=False, sanitize_user_prompt=True, model2=False):
             """
