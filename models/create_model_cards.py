@@ -8,7 +8,7 @@ from transformers import AutoModelForCausalLM
 
 
 @pytest.mark.parametrize(
-    "model_name, base_model, dataset, training_logs",
+    "model_name, base_model, dataset, training_logs, eval",
     [
         (
                 "h2ogpt-oasst1-512-20b",
@@ -20,7 +20,23 @@ from transformers import AutoModelForCausalLM
                 [
                     "https://huggingface.co/h2oai/h2ogpt-oasst1-512-20b/blob/main/gpt-neox-20b.openassistant_oasst1.json.6.0_epochs.5a14ea8b3794c0d60476fc262d0a297f98dd712d.1013.zip",
                     "https://huggingface.co/h2oai/h2ogpt-oasst1-512-20b/blob/main/h2ogpt-oasst1-512-20b.h2oaiopenassistant_oasst1_h2ogpt.2_epochs.fcaae7ef70600de8c97c9b38cb3f0075467cdad1.3.zip",
-                ]
+                ],
+"""
+|    Task     |Version| Metric |Value |   |Stderr|
+|-------------|------:|--------|-----:|---|-----:|
+|hellaswag    |      0|acc     |0.5419|±  |0.0050|
+|             |       |acc_norm|0.7259|±  |0.0045|
+|boolq        |      1|acc     |0.7125|±  |0.0079|
+|piqa         |      0|acc     |0.7742|±  |0.0098|
+|             |       |acc_norm|0.7775|±  |0.0097|
+|openbookqa   |      0|acc     |0.2800|±  |0.0201|
+|             |       |acc_norm|0.4000|±  |0.0219|
+|arc_challenge|      0|acc     |0.3993|±  |0.0143|
+|             |       |acc_norm|0.4420|±  |0.0145|
+|winogrande   |      0|acc     |0.6614|±  |0.0133|
+|arc_easy     |      0|acc     |0.7327|±  |0.0091|
+|             |       |acc_norm|0.6894|±  |0.0095|
+"""
         ),
         # (
         #         "h2ogpt-oasst1-256-20b",
@@ -38,7 +54,23 @@ from transformers import AutoModelForCausalLM
                 [
                     "https://huggingface.co/h2oai/h2ogpt-oasst1-512-12b/blob/main/pythia-12b.openassistant_oasst1.json.1_epochs.d45a9d34d34534e076cc6797614b322bd0efb11c.15.zip",
                     "https://huggingface.co/h2oai/h2ogpt-oasst1-512-12b/blob/main/h2ogpt-oasst1-512-12b.h2oaiopenassistant_oasst1_h2ogpt.2_epochs.fcaae7ef70600de8c97c9b38cb3f0075467cdad1.2.zip",
-                ]
+                ],
+"""
+|    Task     |Version| Metric |Value |   |Stderr|
+|-------------|------:|--------|-----:|---|-----:|
+|arc_easy     |      0|acc     |0.6932|±  |0.0095|
+|             |       |acc_norm|0.6225|±  |0.0099|
+|openbookqa   |      0|acc     |0.2900|±  |0.0203|
+|             |       |acc_norm|0.3740|±  |0.0217|
+|winogrande   |      0|acc     |0.6369|±  |0.0135|
+|hellaswag    |      0|acc     |0.5140|±  |0.0050|
+|             |       |acc_norm|0.6803|±  |0.0047|
+|piqa         |      0|acc     |0.7682|±  |0.0098|
+|             |       |acc_norm|0.7661|±  |0.0099|
+|boolq        |      1|acc     |0.6685|±  |0.0082|
+|arc_challenge|      0|acc     |0.3157|±  |0.0136|
+|             |       |acc_norm|0.3507|±  |0.0139|
+"""
         ),
         # (
         #         "h2ogpt-oig-oasst1-256-12b",
@@ -57,6 +89,22 @@ from transformers import AutoModelForCausalLM
                     "https://huggingface.co/h2oai/h2ogpt-oig-oasst1-512-6.9b/blob/main/pythia-6.9b.h2ogpt-oig-oasst1-instruct-cleaned-v1.json.1_epochs.5fc91911bc2bfaaf3b6c2de577c4b0ae45a07a4a.7.zip",
                     "https://huggingface.co/h2oai/h2ogpt-oig-oasst1-512-6.9b/blob/main/h2ogpt-oig-oasst1-512-6.9b.h2oaiopenassistant_oasst1_h2ogpt.2_epochs.e35e2e06e0af2f7dceac2e16e3646c90ccce4ec0.1.zip",
                 ],
+"""
+|    Task     |Version| Metric |Value |   |Stderr|
+|-------------|------:|--------|-----:|---|-----:|
+|boolq        |      1|acc     |0.6266|±  |0.0085|
+|arc_challenge|      0|acc     |0.3225|±  |0.0137|
+|             |       |acc_norm|0.3396|±  |0.0138|
+|openbookqa   |      0|acc     |0.2660|±  |0.0198|
+|             |       |acc_norm|0.3660|±  |0.0216|
+|arc_easy     |      0|acc     |0.6776|±  |0.0096|
+|             |       |acc_norm|0.6195|±  |0.0100|
+|hellaswag    |      0|acc     |0.4822|±  |0.0050|
+|             |       |acc_norm|0.6465|±  |0.0048|
+|winogrande   |      0|acc     |0.6219|±  |0.0136|
+|piqa         |      0|acc     |0.7530|±  |0.0101|
+|             |       |acc_norm|0.7606|±  |0.0100|
+"""
         ),
         # (
         #         "h2ogpt-oig-oasst1-256-20b",
@@ -66,7 +114,7 @@ from transformers import AutoModelForCausalLM
         # ),
     ],
 )
-def test_create_model_cards(model_name, base_model, dataset, training_logs):
+def test_create_model_cards(model_name, base_model, dataset, training_logs, eval):
     model_size = model_name.split("-")[-1].upper()
     assert "B" == model_size[-1]
     assert int(model_size[-2]) >= 0
@@ -116,6 +164,7 @@ def test_create_model_cards(model_name, base_model, dataset, training_logs):
         if not isinstance(training_logs, list):
             training_logs = [training_logs]
         content = content.replace("<<TRAINING_LOGS>>", " and ".join(f"[zip]({t})" for t in training_logs))
+        content = content.replace("<<MODEL_EVAL>>", eval)
 
         assert "<<" not in content
         assert ">>" not in content
