@@ -36,20 +36,20 @@ class H2oTheme(Soft):
     def __init__(
             self,
             *,
-            primary_hue: colors.Color | str = colors.emerald,
-            secondary_hue: colors.Color | str = colors.blue,
-            neutral_hue: colors.Color | str = colors.blue,
+            primary_hue: colors.Color | str = h2o_yellow,
+            secondary_hue: colors.Color | str = h2o_yellow,
+            neutral_hue: colors.Color | str = h2o_gray,
             spacing_size: sizes.Size | str = sizes.spacing_md,
             radius_size: sizes.Size | str = sizes.radius_md,
             text_size: sizes.Size | str = sizes.text_lg,
     ):
         super().__init__(
-            primary_hue=h2o_yellow,
-            secondary_hue=h2o_yellow,
-            neutral_hue=h2o_gray,
-            spacing_size=sizes.spacing_md,
-            radius_size=sizes.radius_md,
-            text_size=sizes.text_md,
+            primary_hue=primary_hue,
+            secondary_hue=secondary_hue,
+            neutral_hue=neutral_hue,
+            spacing_size=spacing_size,
+            radius_size=radius_size,
+            text_size=text_size,
         )
         super().set(
             link_text_color="#3344DD",
