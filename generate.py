@@ -682,7 +682,7 @@ body.dark{background:linear-gradient(#000000,#0d0d0d);}
         lora_options_state = gr.State([lora_options])
         gr.Markdown(
             f"""
-            <div style="display:flex; justify-content:center; margin-bottom:30px; position:relative;">
+            <div style="display:flex; justify-content:center; margin-bottom:30px;">
                 <div style="height: 60px; width: 60px; margin-right:20px;">{h2o_logo}</div>
                 <h1 style="line-height:60px">{title}</h1>
             </div>
