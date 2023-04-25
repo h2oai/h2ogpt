@@ -1379,7 +1379,11 @@ def test_finalize_to_json():
     print("Number of high-quality human_bot interactions: %s" % df.shape[0], flush=True)
 
     print("Adding open assistant data")
-    open_assistant = test_add_open_assistant()
+    open_assistant = test_add_open_assistant(
+        fixup_personality=True,  # False was original version, but it's better to personalize, so now using True
+        only_personality=False,
+        save_json=True,
+    )
     df = pd.concat([df, pd.DataFrame(open_assistant)], axis=0)
 
     def final_clean(df):
@@ -1405,11 +1409,9 @@ def test_finalize_to_json():
                 prompt_type='plain',
             )
         )
-    personality = create_personality_data()
-    row_list.extend(personality * 10)
     np.random.seed(1234)
     np.random.shuffle(row_list)
-    with open('h2ogpt-oig-oasst1-instruct-cleaned-v1.json', "w") as f:
+    with open('h2ogpt-oig-oasst1-instruct-cleaned-v2.json', "w") as f:
         f.write(json.dumps(row_list, indent=2))
 
 

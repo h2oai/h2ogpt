@@ -50,6 +50,16 @@ from datasets import load_dataset
 """
         ),
         (
+                "h2ogpt-oig-oasst1-instruct-cleaned-v2",
+                """
+- [Original LAION OIG Dataset](https://github.com/LAION-AI/Open-Instruction-Generalist)
+- [LAION OIG data detoxed and filtered down by scripts in h2oGPT repository](https://github.com/h2oai/h2ogpt/blob/main/FINETUNE.md#high-quality-oig-based-instruct-data)
+
+- [Original Open Assistant data in tree structure](https://huggingface.co/datasets/OpenAssistant/oasst1)
+- [This flattened dataset created by script in h2oGPT repository](https://github.com/h2oai/h2ogpt/blob/0e70c2fbb16410bd8e6992d879b4c55cd981211f/create_data.py#L1375-L1415)
+"""
+        ),
+        (
                 "openassistant_oasst1_h2ogpt",
                 """
 - [Original Open Assistant data in tree structure](https://huggingface.co/datasets/OpenAssistant/oasst1)

@@ -75,6 +75,12 @@ print(res[0]["generated_text"])
 <<MODEL_CONFIG>>
 ```
 
+## Model Validation
+
+Model validation results using [EleutherAI lm-evaluation-harness](https://github.com/EleutherAI/lm-evaluation-harness) out of the box:
+
+<<MODEL_EVAL>>
+
 ## Disclaimer
 
 Please read this disclaimer carefully before using the large language model provided in this repository. Your use of the model signifies your agreement to the following terms and conditions.
