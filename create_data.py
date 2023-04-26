@@ -1156,8 +1156,8 @@ def count_human_bot_lengths(df, human=None, bot=None):
                 starts = [starts[0], len(text)]  # always go into for loop below
             assert len(text)
             list_what = []
-            for i in range(len(starts) - 1):
-                interaction = text[starts[i]: starts[i+1]]
+            for ii in range(len(starts) - 1):
+                interaction = text[starts[ii]: starts[ii+1]]
                 if other in interaction:
                     interaction = interaction[:interaction.find(other)]
                 interaction.strip()

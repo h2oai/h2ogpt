@@ -23,6 +23,9 @@ from peft import (
 )
 
 from peft import mapping
+
+from utils import get_githash, copy_code
+
 lora_mappings = mapping.TRANSFORMERS_MODELS_TO_LORA_TARGET_MODULES_MAPPING
 
 
@@ -676,33 +679,6 @@ def get_loaders(llama_type, model_name, reward_type):
         model_loader = AutoModelForCausalLM
         tokenizer_loader = AutoTokenizer
     return model_loader, tokenizer_loader
-
-
-def get_githash():
-    try:
-        githash = subprocess.run(['git', 'rev-parse', 'HEAD'], stdout=subprocess.PIPE).stdout.decode('utf-8')[0:-1]
-    except:
-        githash = ''
-    return githash
-
-
-def copy_code(run_id):
-    """
-    copy code to track changes
-    :param run_id:
-    :return:
-    """
-    rnd_num = str(random.randint(0, 2 ** 31))
-    run_id = 'run_' + str(run_id)
-    os.makedirs(run_id, exist_ok=True)
-    me_full = os.path.join(pathlib.Path(__file__).parent.resolve(), __file__)
-    me_file = os.path.basename(__file__)
-    new_me = os.path.join(run_id, me_file + '_' + get_githash())
-    if os.path.isfile(new_me):
-        new_me = os.path.join(run_id, me_file + '_' + get_githash() + '_' + rnd_num)
-        shutil.copy(me_full, new_me)
-    else:
-        shutil.copy(me_full, new_me)
 
 
 def get_prompt(prompt_type, chat, context, reduced):
