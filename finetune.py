@@ -196,6 +196,18 @@ def train(
     if llama_type is None:
         llama_type = "llama" in base_model.lower()
     if llama_type and llama_flash_attn:
+        import pkg_resources
+        try:
+            pkg_resources.get_distribution('flash_attn')
+            can_do_flash_attn = True
+        except (pkg_resources.DistributionNotFound, pkg_resources.ContextualVersionConflict):
+            can_do_flash_attn = False
+
+        if not can_do_flash_attn:
+            raise RuntimeError("""Flash attention not installed.
+            NOTE: for current pytorch 2.0, flash attention requires installing cuda 11.7 via https://developer.nvidia.com/cuda-11-7-0-download-archive?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=20.04&target_type=runfile_local and then when running, to avoid installing driver, docs, samples, just install toolkit.  Then when pip installing flash attention do:
+
+            CUDA_HOME=/usr/local/cuda-11.7 pip install flash-attn""")
         from llama_flash_attn_monkey_patch import replace_llama_attn_with_flash_attn
         replace_llama_attn_with_flash_attn()
     assert (
