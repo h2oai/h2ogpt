@@ -654,6 +654,9 @@ def get_loaders(llama_type, model_name, reward_type):
         from transformers import LlamaForCausalLM, LlamaTokenizer
         model_loader = LlamaForCausalLM
         tokenizer_loader = LlamaTokenizer
+    elif 'distilgpt2' in model_name.lower():
+        from transformers import AutoModelForCausalLM, AutoTokenizer
+        return AutoModelForCausalLM, AutoTokenizer
     elif 'gpt2' in model_name.lower():
         from transformers import GPT2LMHeadModel, GPT2Tokenizer
         return GPT2LMHeadModel, GPT2Tokenizer
