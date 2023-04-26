@@ -445,6 +445,8 @@ def go_gradio(**kwargs):
             if answer is None:
                 return 'Response Score: Bad Answer'
             score = score_qa(smodel, stokenizer, max_length_tokenize, question, answer, cutoff_len)
+            if isinstance(score, str):
+                return 'Response Score: NA'
             return 'Response Score: {:.1%}'.format(score)
 
         def noop_score_last_response(*args, **kwargs):
