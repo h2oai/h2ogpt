@@ -213,7 +213,8 @@ def main(
             if not eval_sharegpt_as_output:
                 model, tokenizer, device = get_model(**locals())
                 model_state = [model, tokenizer, device, base_model]
-                fun = partial(evaluate, model_state, debug=debug, save_dir=save_dir)
+                fun = partial(evaluate, model_state, debug=debug, save_dir=save_dir, is_low_mem=is_low_mem,
+                              raise_generate_gpu_exceptions=raise_generate_gpu_exceptions)
             else:
                 assert eval_sharegpt_prompts_only > 0
 
@@ -238,7 +239,8 @@ def main(
                 print("-" * 105)
                 # fun yields as generator, so have to iterate over it
                 # Also means likely do NOT want --stream_output=True, else would show all generations
-                for res in fun(*tuple(ex), exi=exi):
+                gener = fun(*tuple(ex), exi=exi) if eval_sharegpt_as_output else fun(*tuple(ex))
+                for res in gener:
                     print(res)
                     if smodel:
                         score_with_prompt = False
