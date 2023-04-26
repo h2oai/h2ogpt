@@ -77,7 +77,7 @@ print(res[0]["generated_text"])
 
 ## Model Validation
 
-Model validation results using [EleutherAI lm-evaluation-harness](https://github.com/EleutherAI/lm-evaluation-harness) out of the box:
+Model validation results using [EleutherAI lm-evaluation-harness](https://github.com/EleutherAI/lm-evaluation-harness).
 
 <<MODEL_EVAL>>
 

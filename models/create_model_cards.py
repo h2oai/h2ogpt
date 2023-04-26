@@ -22,6 +22,9 @@ from transformers import AutoModelForCausalLM
                     "https://huggingface.co/h2oai/h2ogpt-oasst1-512-20b/blob/main/h2ogpt-oasst1-512-20b.h2oaiopenassistant_oasst1_h2ogpt.2_epochs.fcaae7ef70600de8c97c9b38cb3f0075467cdad1.3.zip",
                 ],
 """
+
+[eval source code](https://github.com/h2oai/h2ogpt/issues/35#issuecomment-1521119301)
+
 |    Task     |Version| Metric |Value |   |Stderr|
 |-------------|------:|--------|-----:|---|-----:|
 |hellaswag    |      0|acc     |0.5419|±  |0.0050|
@@ -56,6 +59,8 @@ from transformers import AutoModelForCausalLM
                     "https://huggingface.co/h2oai/h2ogpt-oasst1-512-12b/blob/main/h2ogpt-oasst1-512-12b.h2oaiopenassistant_oasst1_h2ogpt.2_epochs.fcaae7ef70600de8c97c9b38cb3f0075467cdad1.2.zip",
                 ],
 """
+[eval source code](https://github.com/h2oai/h2ogpt/issues/35#issuecomment-1521119301)
+
 |    Task     |Version| Metric |Value |   |Stderr|
 |-------------|------:|--------|-----:|---|-----:|
 |arc_easy     |      0|acc     |0.6932|±  |0.0095|
@@ -90,6 +95,8 @@ from transformers import AutoModelForCausalLM
                     "https://huggingface.co/h2oai/h2ogpt-oig-oasst1-512-6.9b/blob/main/h2ogpt-oig-oasst1-512-6.9b.h2oaiopenassistant_oasst1_h2ogpt.2_epochs.e35e2e06e0af2f7dceac2e16e3646c90ccce4ec0.1.zip",
                 ],
 """
+[eval source code](https://github.com/h2oai/h2ogpt/issues/35#issuecomment-1520876120)
+
 |    Task     |Version| Metric |Value |   |Stderr|
 |-------------|------:|--------|-----:|---|-----:|
 |boolq        |      1|acc     |0.6266|±  |0.0085|
