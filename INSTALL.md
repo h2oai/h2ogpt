@@ -92,6 +92,15 @@ sudo systemctl status nvidia-fabricmanager
 ```
 See [Fabric Manager](https://docs.nvidia.com/datacenter/tesla/fabric-manager-user-guide/index.html)
 
+Once have installed and reboot system, just do:
+
+```bash
+sudo systemctl --now enable nvidia-dcgm
+dcgmi discovery -l
+sudo systemctl start nvidia-fabricmanager
+sudo systemctl status nvidia-fabricmanager
+```
+
 ### Tensorboard (optional) to inspect training
 
 ```bash
