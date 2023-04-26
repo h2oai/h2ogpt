@@ -320,8 +320,8 @@ def train(
                 layer_norm_names=["layer_norm", "layernorm"],  # keep all layer norms in higher precision
             )
 
-    from peft import mapping, LoraConfig, get_peft_model, set_peft_model_state_dict
-    lora_mappings = mapping.TRANSFORMERS_MODELS_TO_LORA_TARGET_MODULES_MAPPING.copy()
+    from peft import LoraConfig, get_peft_model, set_peft_model_state_dict, utils
+    lora_mappings = utils.TRANSFORMERS_MODELS_TO_LORA_TARGET_MODULES_MAPPING.copy()
     lora_mappings['distilgpt2'] = ["c_attn"]
 
     if lora_weights:
