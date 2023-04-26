@@ -158,6 +158,7 @@ def train(
         micro_batch_size: int = 4,
         gradient_checkpointing=False,  # unnecessary with gradient accumulation enabled
         fp16=True,
+        train_8bit=True,
 
         # general training hyperparams
         num_epochs: float = 1,
@@ -254,7 +255,7 @@ def train(
 
     model = model_loader.from_pretrained(
         base_model,
-        load_in_8bit=True,
+        load_in_8bit=train_8bit,
         device_map=device_map,
         torch_dtype=torch.float16,
         max_memory=max_memory,
@@ -319,14 +320,15 @@ def train(
                                                                     ]  # could be sped up, probably
         return tokenized_full_prompt
 
-    if "gpt-neox" not in base_model or True:
-        model = prepare_model_for_int8_training(model)
-    else:
-        model = prepare_model_for_int8_training(
-            model,
-            output_embedding_layer_name="embed_out",  # keep output logits in float32
-            layer_norm_names=["layer_norm", "layernorm"],  # keep all layer norms in higher precision
-        )
+    if train_8bit:
+        if "gpt-neox" not in base_model or True:
+            model = prepare_model_for_int8_training(model)
+        else:
+            model = prepare_model_for_int8_training(
+                model,
+                output_embedding_layer_name="embed_out",  # keep output logits in float32
+                layer_norm_names=["layer_norm", "layernorm"],  # keep all layer norms in higher precision
+            )
     if lora_weights:
         from peft import PeftModel
         model = PeftModel.from_pretrained(
