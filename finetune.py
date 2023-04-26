@@ -180,6 +180,7 @@ def train(
         lora_dropout: float = 0.05,
         lora_target_modules: List[str] = None,
         llama_type: bool = None,
+        llama_flash_attn: bool = False,
 
         # llm hyperparams
         train_on_inputs: bool = True,  # if False, masks out inputs in loss
@@ -228,6 +229,9 @@ def train(
         tokenizer_base_model = base_model
     if llama_type is None:
         llama_type = "llama" in base_model.lower()
+    if llama_type and llama_flash_attn:
+        from llama_flash_attn_monkey_patch import replace_llama_attn_with_flash_attn
+        replace_llama_attn_with_flash_attn()
     assert (
         base_model
     ), "Please specify a --base_model, e.g. --base_model='decapoda-research/llama-7b-hf'"
@@ -344,7 +348,7 @@ def train(
             resume_download=resume_download,
             use_auth_token=use_auth_token,
         )
-    else:
+    elif lora_r > 0:
         if lora_target_modules is None:
             base_model_lower = base_model.lower()
             if base_model_lower in lora_mappings:
@@ -392,7 +396,11 @@ def train(
             log(f"Checkpoint {checkpoint_name} not found")
 
     print(model)
-    model.print_trainable_parameters()  # Be more transparent about the % of trainable params.
+    try:
+        # only for PeftModel
+        model.print_trainable_parameters()  # Be more transparent about the % of trainable params.
+    except:
+        pass
 
     metrics = {}
     for name in supported_metrics:
