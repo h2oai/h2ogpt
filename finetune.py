@@ -134,7 +134,7 @@ def train(
         tokenizer_base_model: str = None,
         # tokenizer_base_model: str = 'EleutherAI/gpt-neox-20b',
 
-        data_path: str = None,
+        data_path: str = "h2oai/openassistant_oasst1_h2ogpt",
         data_col_dict: dict = None,
         # data_path: str = "./dai_docs.train.json",
         prompt_type: Union[str, int] = "plain",  # "plain", "instruct", "quality", "human_bot", "dai_faq"
@@ -212,7 +212,7 @@ def train(
     if not output_dir:
         output_dir = f"{base_model.split('/')[-1]}.{data_path.replace('/', '')}.{num_epochs}_epochs.{get_githash() or 'nogit'}.{run_id}"
         if os.path.exists(output_dir) and not resume_from_checkpoint:
-            raise FileExistsError(f"output_dir based on run_id {run_id} already exists. Please pick a different run_id.")
+            raise FileExistsError(f"output_dir {output_dir} based on run_id {run_id} already exists. Please pick a different run_id.")
     else:
         if os.path.exists(output_dir) and not resume_from_checkpoint:
             raise FileExistsError(f"output_dir {output_dir} already exists. Please pick a different output_dir, or specify a run_id instead.")
