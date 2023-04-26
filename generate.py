@@ -424,7 +424,7 @@ def get_model(
     :param local_files_only: use local files instead of from HF
     :param resume_download: resume downloads from HF
     :param use_auth_token: assumes user did on CLI `huggingface-cli login` to access private repo
-    :parm compile: whether to compile torch model
+    :param compile: whether to compile torch model
     :param kwargs:
     :return:
     """
