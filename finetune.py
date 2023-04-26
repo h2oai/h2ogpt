@@ -1,57 +1,17 @@
 import os
-import pathlib
-import random
-import shutil
-import subprocess
 import sys
 import time
-from datetime import datetime
 from typing import List, Union
+from enum import Enum
 import fire
 import numpy as np
-import torch
-from datasets import load_dataset, concatenate_datasets
-import transformers
-import torch.distributed as dist
-
-from peft import (
-    prepare_model_for_int8_training,
-    LoraConfig,
-    get_peft_model,
-    get_peft_model_state_dict,
-    set_peft_model_state_dict,
-)
-
-from peft import mapping
-
 from utils import get_githash, copy_code
-
-lora_mappings = mapping.TRANSFORMERS_MODELS_TO_LORA_TARGET_MODULES_MAPPING.copy()
-lora_mappings['distilgpt2'] = ["c_attn"]
+import torch
 
 
 def log(*args, **kwargs):
     if int(os.environ.get("LOCAL_RANK", 0)) == 0:
         print(*args, **kwargs)
-
-
-try:
-    import neptune
-    from transformers.integrations import NeptuneCallback
-
-    neptune_run = neptune.init_run(
-        source_files=[],
-    )
-    log("Connected to Neptune.")
-except ImportError:
-    neptune_run = None
-    log("Please pip install neptune for tracking.")
-except neptune.exceptions.NeptuneMissingApiTokenException:
-    neptune_run = None
-    os.environ["NEPTUNE_MODE"] = 'debug'
-    log("No neptune configured, set NEPTUNE_API_TOKEN env var.")
-
-from enum import Enum
 
 
 class PromptType(Enum):
@@ -198,6 +158,12 @@ def train(
         save_steps: int = None,  # must be round multiple of eval_steps
         add_eos_token: bool = False,
 ):
+
+    if llama_flash_attn:
+        # Need to call this before importing transformers.
+        from llama_flash_attn_monkey_patch import replace_llama_attn_with_flash_attn
+        replace_llama_attn_with_flash_attn()
+
     # allow set token directly
     use_auth_token = os.environ.get("HUGGINGFACE_API_TOKEN", use_auth_token)
 
@@ -329,6 +295,10 @@ def train(
         return tokenized_full_prompt
 
     if train_8bit:
+        from peft import (
+            prepare_model_for_int8_training,
+        )
+
         if "gpt-neox" not in base_model or True:
             model = prepare_model_for_int8_training(model)
         else:
@@ -337,7 +307,13 @@ def train(
                 output_embedding_layer_name="embed_out",  # keep output logits in float32
                 layer_norm_names=["layer_norm", "layernorm"],  # keep all layer norms in higher precision
             )
+
+    from peft import mapping, LoraConfig, get_peft_model, set_peft_model_state_dict
+    lora_mappings = mapping.TRANSFORMERS_MODELS_TO_LORA_TARGET_MODULES_MAPPING.copy()
+    lora_mappings['distilgpt2'] = ["c_attn"]
+
     if lora_weights:
+
         from peft import PeftModel
         model = PeftModel.from_pretrained(
             model,
@@ -419,6 +395,7 @@ def train(
     elif val_set_size < 1.0 and val_set_size != 0:
         raise RuntimeError("Fractional validation size not supported.")
 
+    from datasets import load_dataset, concatenate_datasets
     if valid_path:
         data = load_dataset("json", data_files={"train": data_path, "valid": valid_path})
     else:
@@ -523,6 +500,22 @@ def train(
     del sample_row_dict['labels']
     log("Sample input: %s" % sample_row_dict)
 
+    try:
+        import neptune
+        from transformers.integrations import NeptuneCallback
+
+        neptune_run = neptune.init_run(
+            source_files=[],
+        )
+        log("Connected to Neptune.")
+    except ImportError:
+        neptune_run = None
+        log("Please pip install neptune for tracking.")
+    except neptune.exceptions.NeptuneMissingApiTokenException:
+        neptune_run = None
+        os.environ["NEPTUNE_MODE"] = 'debug'
+        log("No neptune configured, set NEPTUNE_API_TOKEN env var.")
+
     if neptune_run:
         neptune_callback = NeptuneCallback(run=neptune_run)
         callbacks = [neptune_callback]
@@ -592,6 +585,7 @@ def train(
     else:
         trainer_kwargs = dict()
 
+    import transformers
     trainer = transformers.Trainer(
         model=model,
         tokenizer=tokenizer,
@@ -636,6 +630,8 @@ def train(
     model.config.use_cache = False
 
     old_state_dict = model.state_dict
+    from peft import get_peft_model_state_dict
+
     model.state_dict = (
         lambda self, *_, **__: get_peft_model_state_dict(self, old_state_dict())
     ).__get__(model, type(model))
@@ -643,7 +639,8 @@ def train(
     if torch.__version__ >= "2" and sys.platform != "win32":
         model = torch.compile(model)
         # WIP (not generally replacing layers until pytorch 2.1)
-        torch.backends.cuda.enable_flash_sdp(True)
+        if not llama_flash_attn:
+            torch.backends.cuda.enable_flash_sdp(True)
 
     if gpus > 1 and not ddp:
         assert trainer.is_model_parallel

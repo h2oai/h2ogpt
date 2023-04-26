@@ -1,7 +1,6 @@
 from typing import List, Optional, Tuple
 
 import torch
-from torch import nn
 
 import transformers
 from transformers.models.llama.modeling_llama import apply_rotary_pos_emb
