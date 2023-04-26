@@ -261,7 +261,7 @@ def main(
                         try:
                             score = torch.sigmoid(smodel(**inputs).logits[0]).cpu().detach().numpy()[0]
                         except torch.cuda.OutOfMemoryError as e:
-                            print("GPU OOM: question: %s answer: %s exception: %s" % (prompt, res, str(e)), flush=True)
+                            print("GPU OOM 1: question: %s answer: %s exception: %s" % (prompt, res, str(e)), flush=True)
                             traceback.print_exc()
                             score = 0.0
                             clear_torch_cache()
@@ -806,7 +806,7 @@ def evaluate(
                 try:
                     model.generate(**kwargs)
                 except torch.cuda.OutOfMemoryError as e:
-                    print("GPU OOM: prompt: %s inputs_decoded: %s exception: %s" % (prompt, inputs_decoded, str(e)),
+                    print("GPU OOM 2: prompt: %s inputs_decoded: %s exception: %s" % (prompt, inputs_decoded, str(e)),
                           flush=True)
                     if kwargs['input_ids'] is not None:
                         kwargs['input_ids'].cpu()
@@ -1065,7 +1065,7 @@ def score_qa(smodel, stokenizer, max_length_tokenize, question, answer, cutoff_l
     try:
         score = torch.sigmoid(smodel(**inputs).logits[0]).cpu().detach().numpy()[0]
     except torch.cuda.OutOfMemoryError as e:
-        print("GPU OOM: question: %s answer: %s exception: %s" % (question, answer, str(e)), flush=True)
+        print("GPU OOM 3: question: %s answer: %s exception: %s" % (question, answer, str(e)), flush=True)
         del inputs
         traceback.print_exc()
         clear_torch_cache()
