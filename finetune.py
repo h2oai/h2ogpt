@@ -26,7 +26,8 @@ from peft import mapping
 
 from utils import get_githash, copy_code
 
-lora_mappings = mapping.TRANSFORMERS_MODELS_TO_LORA_TARGET_MODULES_MAPPING
+lora_mappings = mapping.TRANSFORMERS_MODELS_TO_LORA_TARGET_MODULES_MAPPING.copy()
+lora_mappings['distilgpt2'] = ["c_attn"]
 
 
 def log(*args, **kwargs):
