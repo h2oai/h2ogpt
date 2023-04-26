@@ -126,3 +126,13 @@ def get_h2o_title(title):
 
 def get_simple_title(title):
     return f"""<h1 align="center"> {title}</h1>"""
+
+
+def get_dark_js():
+    return """() => {
+        if (document.querySelectorAll('.dark').length) {
+            document.querySelectorAll('.dark').forEach(el => el.classList.remove('dark'));
+        } else {
+            document.querySelector('body').classList.add('dark');
+        }
+    }"""

@@ -25,7 +25,7 @@ from prompter import Prompter
 from finetune import get_loaders, example_data_points, generate_prompt, get_githash, prompt_types_strings, \
     human, bot, prompt_type_to_model_name, inv_prompt_type_to_model_lower
 from stopping import CallbackToGenerator, Stream, StoppingCriteriaSub
-from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title
+from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, get_dark_js
 
 
 is_hf = bool(os.getenv("HUGGINGFACE_SPACES"))
@@ -582,11 +582,13 @@ def go_gradio(**kwargs):
     else:
         task_info_md = ''
 
-    css_code = """footer {visibility: hidden;}
-body{background:linear-gradient(#f5f5f5,#e5e5e5);}
-body.dark{background:linear-gradient(#000000,#0d0d0d);}
-"""
-
+    if kwargs['h2ocolors']:
+        css_code = """footer {visibility: hidden;}
+    body{background:linear-gradient(#f5f5f5,#e5e5e5);}
+    body.dark{background:linear-gradient(#000000,#0d0d0d);}
+    """
+    else:
+        css_code = """footer {visibility: hidden}"""
     import gradio as gr
 
     if kwargs['gradio_avoid_processing_markdown']:
@@ -616,18 +618,9 @@ body.dark{background:linear-gradient(#000000,#0d0d0d);}
 
         Chatbot._postprocess_chat_messages = _postprocess_chat_messages
 
-    dark_js = """() => {
-        if (document.querySelectorAll('.dark').length) {
-            document.querySelectorAll('.dark').forEach(el => el.classList.remove('dark'));
-        } else {
-            document.querySelector('body').classList.add('dark');
-        }
-    }"""
     theme = H2oTheme() if kwargs['h2ocolors'] else SoftTheme()
     demo = gr.Blocks(theme=theme, css=css_code, title="h2oGPT", analytics_enabled=False)
     callback = gr.CSVLogger()
-    # css_code = 'body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en/site/header/master/_jcr_content/root/container/header_copy/logo.coreimg.svg/1678976605175/h2o-logo.svg");}'
-    # demo = gr.Blocks(theme='gstaff/xkcd', css=css_code)
 
     model_options = flatten_list(list(prompt_type_to_model_name.values())) + kwargs['extra_model_options']
     if kwargs['base_model'].strip() not in model_options:
@@ -918,7 +911,7 @@ body.dark{background:linear-gradient(#000000,#0d0d0d);}
             None,
             None,
             None,
-            _js=dark_js,
+            _js=get_dark_js(),
             api_name="dark" if allow_api else None,
         )
 
@@ -1389,7 +1382,7 @@ body.dark{background:linear-gradient(#000000,#0d0d0d);}
         stop_btn.click(lambda: None, None, None,
                        cancels=[submit_event_nochat, submit_event, submit_event2, submit_event3],
                        queue=False, api_name='stop' if allow_api else None).then(clear_torch_cache)
-        demo.load(None, None, None, _js=dark_js)
+        demo.load(None, None, None, _js=get_dark_js() if kwargs['h2ocolors'] else None)
 
     demo.queue(concurrency_count=kwargs['concurrency_count'], api_open=kwargs['api_open'])
     favicon_path = "h2o-logo.svg"
