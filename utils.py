@@ -1,6 +1,9 @@
 import os
 import gc
+import pathlib
 import random
+import shutil
+import subprocess
 import time
 import traceback
 import zipfile
@@ -8,7 +11,6 @@ from datetime import datetime
 import filelock
 import numpy as np
 import pandas as pd
-import torch
 
 
 def set_seed(seed: int):
@@ -16,6 +18,7 @@ def set_seed(seed: int):
     Sets the seed of the entire notebook so results are the same every time we run.
     This is for REPRODUCIBILITY.
     """
+    import torch
     np.random.seed(seed)
     random_state = np.random.RandomState(seed)
     random.seed(seed)
@@ -39,10 +42,16 @@ def flatten_list(lis):
 
 
 def clear_torch_cache():
+    import torch
     if torch.cuda.is_available:
         torch.cuda.empty_cache()
         torch.cuda.ipc_collect()
         gc.collect()
+
+
+def get_torch_allocated():
+    import torch
+    return torch.cuda.memory_allocated()
 
 
 def system_info():
@@ -184,3 +193,30 @@ def _s3up(filename):
     )
     if ret in [None, '']:
         return "Successfully uploaded %s" % filename
+
+
+def get_githash():
+    try:
+        githash = subprocess.run(['git', 'rev-parse', 'HEAD'], stdout=subprocess.PIPE).stdout.decode('utf-8')[0:-1]
+    except:
+        githash = ''
+    return githash
+
+
+def copy_code(run_id):
+    """
+    copy code to track changes
+    :param run_id:
+    :return:
+    """
+    rnd_num = str(random.randint(0, 2 ** 31))
+    run_id = 'run_' + str(run_id)
+    os.makedirs(run_id, exist_ok=True)
+    me_full = os.path.join(pathlib.Path(__file__).parent.resolve(), __file__)
+    me_file = os.path.basename(__file__)
+    new_me = os.path.join(run_id, me_file + '_' + get_githash())
+    if os.path.isfile(new_me):
+        new_me = os.path.join(run_id, me_file + '_' + get_githash() + '_' + rnd_num)
+        shutil.copy(me_full, new_me)
+    else:
+        shutil.copy(me_full, new_me)
