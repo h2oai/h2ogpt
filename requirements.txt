@@ -22,6 +22,7 @@ bitsandbytes==0.38.1
 git+https://github.com/huggingface/peft.git@098962fa6515f2e4fe83a757f5995d3ffbb1c373
 transformers==4.28.1
 tokenizers==0.13.3
+flash-attn==1.0.3
 
 # optional for generate
 pynvml==11.5.0
