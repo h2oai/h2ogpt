@@ -25,6 +25,7 @@ from prompter import Prompter
 from finetune import get_loaders, example_data_points, generate_prompt, get_githash, prompt_types_strings, \
     human, bot, prompt_type_to_model_name, inv_prompt_type_to_model_lower
 from stopping import CallbackToGenerator, Stream, StoppingCriteriaSub
+from h2o_gradio_theme import h2o_theme
 
 is_hf = bool(os.getenv("HUGGINGFACE_SPACES"))
 is_gpth2oai = bool(os.getenv("GPT_H2O_AI"))
@@ -77,7 +78,6 @@ def main(
         stream_output: bool = True,
         show_examples: bool = None,
         verbose: bool = False,
-        h2ocolors: bool = True,
         height: int = 400,
         show_lora: bool = True,
         # set to True to load --base_model after client logs in,
@@ -582,53 +582,8 @@ def go_gradio(**kwargs):
 
     css_code = """footer {visibility: hidden;}
 body{background:linear-gradient(#f5f5f5,#e5e5e5);}
-body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
-
-    from gradio.themes.utils import Color, colors, fonts, sizes
-    if kwargs['h2ocolors']:
-        h2o_yellow = Color(
-            name="yellow",
-            c50="#fffef2",
-            c100="#fff9e6",
-            c200="#ffecb3",
-            c300="#ffe28c",
-            c400="#ffd659",
-            c500="#fec925",
-            c600="#e6ac00",
-            c700="#bf8f00",
-            c800="#a67c00",
-            c900="#664d00",
-            c950="#403000",
-        )
-        h2o_gray = Color(
-            name="gray",
-            c50="#f2f2f2",
-            c100="#e5e5e5",
-            c200="#cccccc",
-            c300="#b2b2b2",
-            c400="#999999",
-            c500="#7f7f7f",
-            c600="#666666",
-            c700="#4c4c4c",
-            c800="#333333",
-            c900="#191919",
-            c950="#0d0d0d",
-        )
-        colors_dict = dict(primary_hue=h2o_yellow,
-                           secondary_hue=h2o_yellow,
-                           neutral_hue=h2o_gray,
-                           spacing_size=sizes.spacing_md,
-                           radius_size=sizes.radius_md,
-                           text_size=sizes.text_md,
-                           )
-    else:
-        colors_dict = dict(primary_hue=colors.indigo,
-                           secondary_hue=colors.indigo,
-                           neutral_hue=colors.gray,
-                           spacing_size=sizes.spacing_md,
-                           radius_size=sizes.radius_md,
-                           text_size=sizes.text_md,
-                           )
+body.dark{background:linear-gradient(#000000,#0d0d0d);}
+"""
 
     import gradio as gr
 
@@ -666,8 +621,7 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
             document.querySelector('body').classList.add('dark');
         }
     }"""
-
-    demo = gr.Blocks(theme=gr.themes.Soft(**colors_dict), css=css_code, title="h2oGPT", analytics_enabled=False)
+    demo = gr.Blocks(theme=h2o_theme, css=css_code, title="h2oGPT", analytics_enabled=False)
     callback = gr.CSVLogger()
     # css_code = 'body{background-image:url("https://h2o.ai/content/experience-fragments/h2o/us/en/site/header/master/_jcr_content/root/container/header_copy/logo.coreimg.svg/1678976605175/h2o-logo.svg");}'
     # demo = gr.Blocks(theme='gstaff/xkcd', css=css_code)
@@ -701,6 +655,24 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
         'base_model') else no_model_msg
     output_label0_model2 = no_model_msg
 
+    h2o_logo = '<svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%"' \
+               ' viewBox="0 0 600.28 600.28"><defs><style>.cls-1{fill:#fec925;}.cls-2{fill:#161616;}.cls-3{fill:' \
+               '#54585a;}</style></defs><g id="Fill-1"><rect class="cls-1" width="600.28" height="600.28" ' \
+               'rx="23.24"/></g><path class="cls-2" d="M174.33,246.06v92.78H152.86v-38H110.71v38H89.24V246.06h21.' \
+               '47v36.58h42.15V246.06Z"/><path class="cls-2" d="M259.81,321.34v17.5H189.7V324.92l35.78-33.8c8.22-7.' \
+               '82,9.68-12.59,9.68-17.09,0-7.29-5-11.53-14.85-11.53-7.95,0-14.71,3-19.21,9.27L185.46,261.7c7.15-10' \
+               '.47,20.14-17.23,36.84-17.23,20.68,0,34.46,10.6,34.46,27.44,0,9-2.52,17.22-15.51,29.29l-21.33,20.14Z"' \
+               '/><path class="cls-2" d="M268.69,292.45c0-27.57,21.47-48,50.76-48s50.76,20.28,50.76,48-21.6,48-50.' \
+               '76,48S268.69,320,268.69,292.45Zm79.78,0c0-17.63-12.46-29.69-29-29.69s-29,12.06-29,29.69,12.46,29.69' \
+               ',29,29.69S348.47,310.08,348.47,292.45Z"/><path class="cls-3" d="M377.23,326.91c0-7.69,5.7-12.73,12.' \
+               '85-12.73s12.86,5,12.86,12.73a12.86,12.86,0,1,1-25.71,0Z"/><path class="cls-3" d="M481.4,298.15v40.' \
+               '69H462.05V330c-3.84,6.49-11.27,9.94-21.74,9.94-16.7,0-26.64-9.28-26.64-21.61,0-12.59,8.88-21.34,30.' \
+               '62-21.34h16.43c0-8.87-5.3-14-16.43-14-7.55,0-15.37,2.51-20.54,6.62l-7.43-14.44c7.82-5.57,19.35-8.' \
+               '62,30.75-8.62C468.81,266.47,481.4,276.54,481.4,298.15Zm-20.68,18.16V309H446.54c-9.67,0-12.72,3.57-' \
+               '12.72,8.35,0,5.16,4.37,8.61,11.66,8.61C452.37,326,458.34,322.8,460.72,316.31Z"/><path class="cls-3"' \
+               ' d="M497.56,246.06c0-6.49,5.17-11.53,12.86-11.53s12.86,4.77,12.86,11.13c0,6.89-5.17,11.93-12.86,' \
+               '11.93S497.56,252.55,497.56,246.06Zm2.52,21.47h20.68v71.31H500.08Z"/></svg>'
+
     with demo:
         # avoid actual model/tokenizer here or anything that would be bad to deepcopy
         # https://github.com/gradio-app/gradio/issues/3558
@@ -710,8 +682,11 @@ body.dark{background:linear-gradient(#0d0d0d,#333333);}"""
         lora_options_state = gr.State([lora_options])
         gr.Markdown(
             f"""
-            <h1 align="center"> {title}</h1>
-
+            <div style="display:flex; justify-content:center; margin-bottom:30px;">
+                <div style="height: 60px; width: 60px; margin-right:20px;">{h2o_logo}</div>
+                <h1 style="line-height:60px">{title}</h1>
+            </div>
+            
             {description}
             {task_info_md}
             """)
