@@ -148,6 +148,7 @@ def train(
         group_by_length: bool = False,  # if True, faster, but produces an odd training loss curve
         resume_from_checkpoint: str = None,  # either training checkpoint or final adapter
         cutoff_len: int = 512,  # larger values use more memory
+        drop_truncations: bool = False,  # if True, drop any truncated long sequences
 
         # torch training params
         ddp: bool = True,  # set to False if OOM with True, for multi-GPU model parallelism
@@ -382,10 +383,16 @@ def train(
         else:
             data_mix_in = load_dataset(data_mix_in_path)["train"]  # can be large
         data_mix_in = data_mix_in.rename_columns(data_mix_in_col_dict or {})
+        mix_in_rows = int(num_rows * data_mix_in_factor)
+
+        if mix_in_rows > data_mix_in.num_rows:
+            # duplicate rows if mix-in is smaller than required
+            log("Duplicating mixin to compensate for its size for training size and mixin fraction")
+            data_mix_in = concatenate_datasets([data_mix_in] * int(np.ceil(mix_in_rows / data_mix_in.num_rows)))
 
         # only get as much as we need to balance
         valid_size = min(data_mix_in.num_rows // 2, val_set_size or 0)
-        train_size = max(1, min(data_mix_in.num_rows - valid_size, int(num_rows * data_mix_in_factor)))
+        train_size = max(1, min(data_mix_in.num_rows - valid_size, mix_in_rows))
         mixin_small = data_mix_in.train_test_split(
             test_size=train_size + valid_size,
             shuffle=True, seed=np.random.randint(10000),
@@ -448,7 +455,13 @@ def train(
     # shuffle and tokenize data
     if train_data_mix_in:
         train_data = concatenate_datasets([train_data, train_data_mix_in])
+    log("Tokenizing %s training rows" % train_data.num_rows)
     train_data = train_data.shuffle().map(generate_and_tokenize_prompt_fun, num_proc=os.cpu_count() // torch.cuda.device_count())
+    if drop_truncations:
+        log("avoid keeping truncated cases to avoid contaminating model with truncation cases.  Original size: %s" % train_data.num_rows)
+        prune_long_sequences_func = partial(prune_long_sequences, cutoff_len=cutoff_len)
+        train_data = train_data.filter(prune_long_sequences_func, num_proc=os.cpu_count() // torch.cuda.device_count())
+        log("avoid keeping truncated cases to avoid contaminating model with truncation cases.  New size: %s" % train_data.num_rows)
     train_set_size = len(train_data)
 
     if valid_data and valid_data_mix_in:
@@ -457,6 +470,7 @@ def train(
         valid_data = valid_data_mix_in
 
     if valid_data:
+        log("Tokenizing %s validation rows" % valid_data.num_rows)
         valid_data = valid_data.shuffle().map(generate_and_tokenize_prompt_fun, num_proc=os.cpu_count() // torch.cuda.device_count())
         val_set_size = len(valid_data)
     else:
@@ -673,7 +687,7 @@ def get_tokenizer(tokenizer_loader, tokenizer_base_model, local_files_only, resu
     return tokenizer
 
 
-def tokenize(prompt, tokenizer, cutoff_len, add_eos_token=True):
+def tokenize(prompt, tokenizer, cutoff_len, add_eos_token=False):
     # there's probably a way to do this with the tokenizer settings
     # but again, gotta move fast
     result = tokenizer(
@@ -694,6 +708,17 @@ def tokenize(prompt, tokenizer, cutoff_len, add_eos_token=True):
     result["labels"] = result["input_ids"].copy()
 
     return result
+
+
+def prune_long_sequences(data_point, cutoff_len=None):
+    """
+    Prune if too long for tokenizer, so truncation doesn't lead training to learn from truncated language
+    :param data_point:
+    :param cutoff_len:
+    :return:
+    """
+    assert cutoff_len is not None
+    return len(data_point['input_ids']) < cutoff_len
 
 
 def generate_and_tokenize_prompt(data_point, prompt_type=None, train_on_inputs=False, add_eos_token=False,
