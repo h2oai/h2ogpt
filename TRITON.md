@@ -8,8 +8,8 @@ To build in Docker, we follow the [instructions](https://github.com/triton-infer
 
 ```bash
 git clone https://github.com/triton-inference-server/fastertransformer_backend.git
-git clone https://github.com/NVIDIA/FasterTransformer.git
 cd fastertransformer_backend
+git clone https://github.com/NVIDIA/FasterTransformer.git
 export WORKSPACE=$(pwd)
 export CONTAINER_VERSION=22.12
 export TRITON_DOCKER_IMAGE=triton_with_ft:${CONTAINER_VERSION}
@@ -36,12 +36,12 @@ fi
 
 ```bash
 export WORKSPACE=$(pwd)
-export SRC_MODELS_DIR=${WORKSPACE}/models
+export TRITON_DOCKER_IMAGE=triton_with_ft:${CONTAINER_VERSION}
 # Go into Docker
 docker run -it --rm --runtime=nvidia --shm-size=1g \
        --ulimit memlock=-1 -v ${WORKSPACE}:${WORKSPACE} \
        -w ${WORKSPACE} ${TRITON_DOCKER_IMAGE} bash
-export PYTHONPATH=$PWD/FasterTransformer/:$PYTHONPATH
+export PYTHONPATH=${WORKSPACE}/FasterTransformer/:$PYTHONPATH
 python3 ${WORKSPACE}/FasterTransformer/examples/pytorch/gptneox/utils/huggingface_gptneox_convert.py \
         -i_g 1 \
         -m_n gptneox \
@@ -64,8 +64,6 @@ python3 ${WORKSPACE}/FasterTransformer/examples/pytorch/gptneox/gptneox_example.
 ### Launch Triton
 
 ```bash
-export WORKSPACE=$(pwd)
-export SRC_MODELS_DIR=${WORKSPACE}/models
 CUDA_VISIBLE_DEVICES=0,1 mpirun -n 1 \
         --allow-run-as-root /opt/tritonserver/bin/tritonserver  \
         --model-repository=${WORKSPACE}/all_models/gptneox/fastertransformer/
