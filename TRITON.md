@@ -18,7 +18,9 @@ docker build --rm   \
     -t ${TRITON_DOCKER_IMAGE} \
     -f docker/Dockerfile \
     .
-docker run -it --rm --runtime=nvidia --shm-size=1g --ulimit memlock=-1 -v ${WORKSPACE}:${WORKSPACE} -w ${WORKSPACE} ${TRITON_DOCKER_IMAGE} bash
+docker run -it --rm --runtime=nvidia --shm-size=1g \
+       --ulimit memlock=-1 -v ${WORKSPACE}:${WORKSPACE} \
+       -w ${WORKSPACE} ${TRITON_DOCKER_IMAGE} bash
 ```
 
 ### Create model definition files
