@@ -18,9 +18,6 @@ docker build --rm   \
     -t ${TRITON_DOCKER_IMAGE} \
     -f docker/Dockerfile \
     .
-docker run -it --rm --runtime=nvidia --shm-size=1g \
-       --ulimit memlock=-1 -v ${WORKSPACE}:${WORKSPACE} \
-       -w ${WORKSPACE} ${TRITON_DOCKER_IMAGE} bash
 ```
 
 ### Create model definition files
@@ -29,9 +26,6 @@ We convert the h2oGPT model from [HF to FT format](https://github.com/NVIDIA/Fas
 
 ####  Fetch model from Hugging Face
 ```bash
-export WORKSPACE=$(pwd)
-export SRC_MODELS_DIR=${WORKSPACE}/models
-export PYTHONPATH=$PWD/FasterTransformer/:$PYTHONPATH
 export MODEL=h2ogpt-oig-oasst1-512-6.9b
 if [ ! -d ${MODEL} ]; then
     git lfs clone https://huggingface.co/h2oai/${MODEL}
@@ -43,6 +37,10 @@ fi
 ```bash
 export WORKSPACE=$(pwd)
 export SRC_MODELS_DIR=${WORKSPACE}/models
+# Go into Docker
+docker run -it --rm --runtime=nvidia --shm-size=1g \
+       --ulimit memlock=-1 -v ${WORKSPACE}:${WORKSPACE} \
+       -w ${WORKSPACE} ${TRITON_DOCKER_IMAGE} bash
 export PYTHONPATH=$PWD/FasterTransformer/:$PYTHONPATH
 python3 ${WORKSPACE}/FasterTransformer/examples/pytorch/gptneox/utils/huggingface_gptneox_convert.py \
         -i_g 1 \
