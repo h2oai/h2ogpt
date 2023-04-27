@@ -12,6 +12,8 @@ import torch
 
 def log(*args, **kwargs):
     if int(os.environ.get("LOCAL_RANK", 0)) == 0:
+        if 'flush' not in kwargs:
+            kwargs['flush'] = True
         print(*args, **kwargs)
 
 
