@@ -828,6 +828,7 @@ def evaluate(
                             raise
                         return
                     else:
+                        clear_torch_cache()
                         raise
 
             decoded_output = None
@@ -844,13 +845,17 @@ def evaluate(
             if save_dir and decoded_output:
                 save_generate_output(output=decoded_output, base_model=base_model, save_dir=save_dir)
         else:
-            outputs = model.generate(**gen_kwargs)
-            outputs = [decoder(s) for s in outputs.sequences]
-            yield prompter.get_response(outputs, prompt=inputs_decoded,
-                                        sanitize_bot_response=sanitize_bot_response)
-            if save_dir and outputs and len(outputs) >= 1:
-                decoded_output = prompt + outputs[0]
-                save_generate_output(output=decoded_output, base_model=base_model, save_dir=save_dir)
+            try:
+                outputs = model.generate(**gen_kwargs)
+                outputs = [decoder(s) for s in outputs.sequences]
+                yield prompter.get_response(outputs, prompt=inputs_decoded,
+                                            sanitize_bot_response=sanitize_bot_response)
+                if save_dir and outputs and len(outputs) >= 1:
+                    decoded_output = prompt + outputs[0]
+                    save_generate_output(output=decoded_output, base_model=base_model, save_dir=save_dir)
+            except BaseException:
+                clear_torch_cache()
+                raise
 
 
 def get_generate_params(model_lower, chat,

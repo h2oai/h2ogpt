@@ -8,6 +8,9 @@ from utils import get_githash, flatten_list, zip_data, s3up, clear_torch_cache, 
 from finetune import prompt_type_to_model_name, prompt_types_strings, generate_prompt, inv_prompt_type_to_model_lower
 from generate import get_model, languages_covered, evaluate, eval_func_param_names, score_qa
 
+import gradio as gr
+from apscheduler.schedulers.background import BackgroundScheduler
+
 
 def go_gradio(**kwargs):
     allow_api = kwargs['allow_api']
@@ -58,7 +61,6 @@ def go_gradio(**kwargs):
     """
     else:
         css_code = """footer {visibility: hidden}"""
-    import gradio as gr
 
     if kwargs['gradio_avoid_processing_markdown']:
         from gradio_client import utils as client_utils
@@ -841,6 +843,11 @@ def go_gradio(**kwargs):
 
     demo.queue(concurrency_count=kwargs['concurrency_count'], api_open=kwargs['api_open'])
     favicon_path = "h2o-logo.svg"
+
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(func=clear_torch_cache, trigger="interval", seconds=20)
+    scheduler.start()
+
     demo.launch(share=kwargs['share'], server_name="0.0.0.0", show_error=True,
                 favicon_path=favicon_path, prevent_thread_lock=True)  # , enable_queue=True)
     print("Started GUI", flush=True)
