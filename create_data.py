@@ -1464,3 +1464,56 @@ def create_personality_data():
     with open("h2ogpt-personality.json", "w") as f:
         f.write(json.dumps(rows, indent=2))
     return rows
+
+
+def test_check_stats_data():
+    filename = 'h2ogpt-oig-oasst1-instruct-cleaned-v2.json'
+    df = pd.read_json(filename)
+
+    # get word stats
+    df['char_count'] = df['input'].apply(lambda x: len(x))
+    import matplotlib.pyplot as plt
+    plt.figure(figsize=(10, 10))
+    plt.hist(df['char_count'], bins=100)
+    chars_avg = np.mean(df['char_count'])
+    chars_median = np.median(df['char_count'])
+    plt.title("char_count avg: %s median: %s" % (chars_avg, chars_median))
+    plt.savefig('chars_hist.png')
+    plt.close()
+
+    # get tokenize stats for random sample of 1000 rows
+    from finetune import get_loaders, get_tokenizer, generate_and_tokenize_prompt
+    from functools import partial
+
+    llama_type = True
+    tokenizer_base_model = base_model = 'decapoda-research/llama-7b-hf'
+    model_loader, tokenizer_loader = get_loaders(llama_type=llama_type, model_name=base_model, reward_type=False)
+    local_files_only = False
+    resume_download = True
+    use_auth_token = False
+    tokenizer = get_tokenizer(tokenizer_loader, tokenizer_base_model, local_files_only, resume_download, use_auth_token)
+    prompt_type = 'plain'  # trained with data already in human bot form
+    train_on_inputs = True
+    add_eos_token = True
+    cutoff_len = 512  # can choose 2048
+    generate_and_tokenize_prompt_fun = partial(generate_and_tokenize_prompt, prompt_type=prompt_type,
+                                               train_on_inputs=train_on_inputs, add_eos_token=add_eos_token,
+                                               cutoff_len=cutoff_len, tokenizer=tokenizer)
+    from datasets import load_dataset
+    data = load_dataset("json", data_files={"train": filename})
+    val_set_size = 0.90
+    train_val = data["train"].train_test_split(
+        test_size=val_set_size, shuffle=True, seed=42
+    )
+    train_data = train_val["train"]
+    train_data = train_data.shuffle().map(generate_and_tokenize_prompt_fun, num_proc=os.cpu_count())
+
+    df_tokens = pd.DataFrame([len(x) for x in train_data['input_ids']], columns=['token_count'])
+
+    plt.figure(figsize=(10, 10))
+    plt.hist(df_tokens['token_count'], bins=100)
+    token_avg = np.mean(df_tokens['token_count'])
+    token_median = np.median(df_tokens['token_count'])
+    plt.title("token_count with cutoff=%s avg: %s median: %s" % (cutoff_len, token_avg, token_median))
+    plt.savefig('token_hist_%s.png' % cutoff_len)
+    plt.close()

@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+from functools import partial
 from typing import List, Union
 from enum import Enum
 import fire
@@ -255,56 +256,7 @@ def train(
             model.is_parallelizable = True
             model.model_parallel = True
 
-    tokenizer = tokenizer_loader.from_pretrained(tokenizer_base_model,
-                                                 local_files_only=local_files_only,
-                                                 resume_download=resume_download,
-                                                 use_auth_token=use_auth_token)
-
-    tokenizer.pad_token_id = 0  # different from the eos token
-    # when generating, we will use the logits of right-most token to predict the next token
-    # so the padding should be on the left,
-    # e.g. see: https://huggingface.co/transformers/v4.11.3/model_doc/t5.html#inference
-    tokenizer.padding_side = "left"  # Allow batched inference
-
-    def tokenize(prompt, add_eos_token=True):
-        # there's probably a way to do this with the tokenizer settings
-        # but again, gotta move fast
-        result = tokenizer(
-            prompt,
-            truncation=True,
-            max_length=cutoff_len,
-            padding=False,
-            return_tensors=None,
-        )
-        if (
-                result["input_ids"][-1] != tokenizer.eos_token_id
-                and len(result["input_ids"]) < cutoff_len
-                and add_eos_token
-        ):
-            result["input_ids"].append(tokenizer.eos_token_id)
-            result["attention_mask"].append(1)
-
-        result["labels"] = result["input_ids"].copy()
-
-        return result
-
-    def generate_and_tokenize_prompt(data_point, add_eos=add_eos_token):
-        full_prompt, _, _ = generate_prompt(data_point, prompt_type, False, False)
-        tokenized_full_prompt = tokenize(full_prompt)
-        if not train_on_inputs:
-            user_prompt, _, _ = generate_prompt({**data_point, "output": ""}, prompt_type, False, False)
-            tokenized_user_prompt = tokenize(user_prompt, add_eos_token=add_eos)
-            user_prompt_len = len(tokenized_user_prompt["input_ids"])
-            if add_eos:
-                user_prompt_len -= 1
-
-            # ignore_index=-100 ensures torch/tf don't include padding token id in CrossEntropyLoss
-            tokenized_full_prompt["labels"] = [
-                                                  -100
-                                              ] * user_prompt_len + tokenized_full_prompt["labels"][
-                                                                    user_prompt_len:
-                                                                    ]  # could be sped up, probably
-        return tokenized_full_prompt
+    tokenizer = get_tokenizer(tokenizer_loader, tokenizer_base_model, local_files_only, resume_download, use_auth_token)
 
     if train_8bit:
         from peft import (
@@ -489,10 +441,14 @@ def train(
 
     assert train_data is not None
 
+    generate_and_tokenize_prompt_fun = partial(generate_and_tokenize_prompt, prompt_type=prompt_type,
+                                               train_on_inputs=train_on_inputs, add_eos_token=add_eos_token,
+                                               cutoff_len=cutoff_len, tokenizer=tokenizer)
+
     # shuffle and tokenize data
     if train_data_mix_in:
         train_data = concatenate_datasets([train_data, train_data_mix_in])
-    train_data = train_data.shuffle().map(generate_and_tokenize_prompt, num_proc=os.cpu_count() // torch.cuda.device_count())
+    train_data = train_data.shuffle().map(generate_and_tokenize_prompt_fun, num_proc=os.cpu_count() // torch.cuda.device_count())
     train_set_size = len(train_data)
 
     if valid_data and valid_data_mix_in:
@@ -501,7 +457,7 @@ def train(
         valid_data = valid_data_mix_in
 
     if valid_data:
-        valid_data = valid_data.shuffle().map(generate_and_tokenize_prompt, num_proc=os.cpu_count() // torch.cuda.device_count())
+        valid_data = valid_data.shuffle().map(generate_and_tokenize_prompt_fun, num_proc=os.cpu_count() // torch.cuda.device_count())
         val_set_size = len(valid_data)
     else:
         val_set_size = 0
@@ -700,6 +656,67 @@ def get_loaders(llama_type, model_name, reward_type):
         model_loader = AutoModelForCausalLM
         tokenizer_loader = AutoTokenizer
     return model_loader, tokenizer_loader
+
+
+def get_tokenizer(tokenizer_loader, tokenizer_base_model, local_files_only, resume_download, use_auth_token):
+    tokenizer = tokenizer_loader.from_pretrained(tokenizer_base_model,
+                                                 local_files_only=local_files_only,
+                                                 resume_download=resume_download,
+                                                 use_auth_token=use_auth_token)
+
+    tokenizer.pad_token_id = 0  # different from the eos token
+    # when generating, we will use the logits of right-most token to predict the next token
+    # so the padding should be on the left,
+    # e.g. see: https://huggingface.co/transformers/v4.11.3/model_doc/t5.html#inference
+    tokenizer.padding_side = "left"  # Allow batched inference
+
+    return tokenizer
+
+
+def tokenize(prompt, tokenizer, cutoff_len, add_eos_token=True):
+    # there's probably a way to do this with the tokenizer settings
+    # but again, gotta move fast
+    result = tokenizer(
+        prompt,
+        truncation=True,
+        max_length=cutoff_len,
+        padding=False,
+        return_tensors=None,
+    )
+    if (
+            result["input_ids"][-1] != tokenizer.eos_token_id
+            and len(result["input_ids"]) < cutoff_len
+            and add_eos_token
+    ):
+        result["input_ids"].append(tokenizer.eos_token_id)
+        result["attention_mask"].append(1)
+
+    result["labels"] = result["input_ids"].copy()
+
+    return result
+
+
+def generate_and_tokenize_prompt(data_point, prompt_type=None, train_on_inputs=False, add_eos_token=False,
+                                 cutoff_len=None, tokenizer=None):
+    assert prompt_type is not None
+    assert cutoff_len is not None
+    assert tokenizer is not None
+    full_prompt, _, _ = generate_prompt(data_point, prompt_type, False, False)
+    tokenized_full_prompt = tokenize(full_prompt, tokenizer, cutoff_len, add_eos_token=add_eos_token)
+    if not train_on_inputs:
+        user_prompt, _, _ = generate_prompt({**data_point, "output": ""}, prompt_type, False, False)
+        tokenized_user_prompt = tokenize(user_prompt, tokenizer, cutoff_len, add_eos_token=add_eos_token)
+        user_prompt_len = len(tokenized_user_prompt["input_ids"])
+        if add_eos_token:
+            user_prompt_len -= 1
+
+        # ignore_index=-100 ensures torch/tf don't include padding token id in CrossEntropyLoss
+        tokenized_full_prompt["labels"] = [
+                                              -100
+                                          ] * user_prompt_len + tokenized_full_prompt["labels"][
+                                                                user_prompt_len:
+                                                                ]  # could be sped up, probably
+    return tokenized_full_prompt
 
 
 def get_prompt(prompt_type, chat, context, reduced):
