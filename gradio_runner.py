@@ -31,12 +31,12 @@ def go_gradio(**kwargs):
     title = 'h2oGPT'
     if kwargs['verbose']:
         description = f"""Model {kwargs['base_model']} Instruct dataset.
-                      For more information, visit [the project's website](https://github.com/h2oai/h2ogpt).
+                      For more information, visit our GitHub pages: [h2oGPT](https://github.com/h2oai/h2ogpt) and [H2O LLM Studio](https://github.com/h2oai/h2o-llmstudio).
                       Command: {str(' '.join(sys.argv))}
                       Hash: {get_githash()}
                       """
     else:
-        description = "For more information, visit [the project's website](https://github.com/h2oai/h2ogpt).<br>"
+        description = "For more information, visit our GitHub pages: [h2oGPT](https://github.com/h2oai/h2ogpt) and [H2O LLM Studio](https://github.com/h2oai/h2o-llmstudio).<br>"
     if is_public:
         description += "If this host is busy, try [gpt.h2o.ai 20B](https://gpt.h2o.ai) and [HF Spaces1 12B](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot) and [HF Spaces2 12B](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot2)<br>"
         description += """<p><b> DISCLAIMERS: </b><ul><i><li>The model was trained on The Pile and other data, which may contain objectionable content.  Use at own risk.</i></li>"""
