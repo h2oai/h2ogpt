@@ -160,6 +160,7 @@ def train(
         warmup_steps: int = 100,
         logging_steps: int = 1,
         save_steps: int = None,  # must be round multiple of eval_steps
+        save_total_limit: int = 3,
         add_eos_token: bool = False,
 ):
 
@@ -597,7 +598,7 @@ def train(
             eval_steps=eval_steps if val_set_size > 0 else None,
             save_steps=save_steps,
             output_dir=output_dir,
-            save_total_limit=3,
+            save_total_limit=save_total_limit,
             load_best_model_at_end=True if val_set_size > 0 else False,
             ddp_find_unused_parameters=False if ddp else None,
             group_by_length=group_by_length,
