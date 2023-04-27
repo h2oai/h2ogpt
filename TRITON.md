@@ -40,6 +40,8 @@ export TRITON_DOCKER_IMAGE=triton_with_ft:${CONTAINER_VERSION}
 # Go into Docker
 docker run -it --rm --runtime=nvidia --shm-size=1g \
        --ulimit memlock=-1 -v ${WORKSPACE}:${WORKSPACE} \
+       -e MODEL=${MODEL} \
+       -e WORKSPACE=${WORKSPACE} \
        -w ${WORKSPACE} ${TRITON_DOCKER_IMAGE} bash
 export PYTHONPATH=${WORKSPACE}/FasterTransformer/:$PYTHONPATH
 python3 ${WORKSPACE}/FasterTransformer/examples/pytorch/gptneox/utils/huggingface_gptneox_convert.py \
