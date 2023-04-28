@@ -51,7 +51,7 @@ python3 ${WORKSPACE}/FasterTransformer/examples/pytorch/gptneox/utils/huggingfac
         -o ${WORKSPACE}/FT-${MODEL}
 ```
 
-####  Run the model
+####  Test the FasterTransformer model
 
 FIXME - not yet working
 ```bash
@@ -63,13 +63,38 @@ python3 ${WORKSPACE}/FasterTransformer/examples/pytorch/gptneox/gptneox_example.
          --sample_input_file gptneox_input
 ```
 
-### Launch Triton
+#### Update Triton configuration files
+
+Fix a typo in the example:
+```bash
+sed -i -e 's@postprocessing@preprocessing@' all_models/gptneox/preprocessing/config.pbtxt
+```
+
+Update the path to the PyTorch model:
+```bash
+sed -i -e "s@/workspace/ft/models/ft/gptneox/@${WORKSPACE}/FT-${MODEL}/1-gpu@" all_models/gptneox/fastertransformer/config.pbtxt
+```
+
+#### Launch Triton
 
 ```bash
-CUDA_VISIBLE_DEVICES=0,1 mpirun -n 1 \
+CUDA_VISIBLE_DEVICES=0 mpirun -n 1 \
         --allow-run-as-root /opt/tritonserver/bin/tritonserver  \
-        --model-repository=${WORKSPACE}/all_models/gptneox/fastertransformer/
+        --model-repository=${WORKSPACE}/all_models/gptneox/fastertransformer
 ```
+
+Now, you should see something like this:
+```bash
++-------------------+---------+--------+
+| Model             | Version | Status |
++-------------------+---------+--------+
+| ensemble          | 1       | READY  |
+| fastertransformer | 1       | READY  |
+| postprocessing    | 1       | READY  |
+| preprocessing     | 1       | READY  |
++-------------------+---------+--------+
+```
+which means the pipeline is ready to make predictions!
 
 ### Run client test
 
