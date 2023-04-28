@@ -7,9 +7,9 @@ from peft import PeftModel
 from transformers import PreTrainedModel
 from finetune import get_loaders
 
-BASE_MODEL = 'h2oai/h2ogpt-oasst1-512-12b'
-LORA_WEIGHTS = 'h2ogpt-oasst1-512-12b.h2oaiopenassistant_oasst1_h2ogpt.2_epochs.fcaae7ef70600de8c97c9b38cb3f0075467cdad1.2'
-OUTPUT_NAME = "h2ogpt-oasst1-512-12b"
+BASE_MODEL = 'decapoda-research/llama-30b-hf'
+LORA_WEIGHTS = 'llama-30b-hf.h2oaiopenassistant_oasst1_h2ogpt.8.0_epochs.31eef248d53c9f39e51c60b8b030c1e3cafc34b0.llama30b_7'
+OUTPUT_NAME = "h2ogpt-research-oasst1-512-30b"
 llama_type = "llama" in BASE_MODEL
 as_pytorch = False  # False -> HF
 
@@ -53,9 +53,12 @@ assert torch.allclose(first_weight_old, first_weight)
 
 # merge weights TODO: include all lora_target_modules, not just default ones
 if llama_type:
-    for layer in lora_model.base_model.model.model.layers:
-        layer.self_attn.q_proj.merge_weights = True
-        layer.self_attn.v_proj.merge_weights = True
+    lora_model = lora_model.merge_and_unload()
+    # for layer in lora_model.base_model.model.model.layers:
+    #     layer.self_attn.q_proj.merge_weights = True
+    #     layer.self_attn.k_proj.merge_weights = True
+    #     layer.self_attn.v_proj.merge_weights = True
+    #     layer.self_attn.o_proj.merge_weights = True
 else:
     if any([x in BASE_MODEL.lower() for x in ["pythia", "h2ogpt", "gpt-neox"]]):
         for layer in lora_model.base_model.gpt_neox.base_model.layers:
