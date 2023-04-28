@@ -19,9 +19,11 @@ pandas==2.0.0
 matplotlib==3.7.1
 loralib==0.1.1
 bitsandbytes==0.38.1
-git+https://github.com/huggingface/peft.git@098962fa6515f2e4fe83a757f5995d3ffbb1c373
+git+https://github.com/huggingface/peft.git@e8f66b8a425eced6c592089d40b8d33d82c2b2f0
 transformers==4.28.1
 tokenizers==0.13.3
+# optional
+flash-attn==1.0.4
 
 # optional for generate
 pynvml==11.5.0

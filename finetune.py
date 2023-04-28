@@ -1,57 +1,20 @@
 import os
-import pathlib
-import random
-import shutil
-import subprocess
 import sys
 import time
-from datetime import datetime
+from functools import partial
 from typing import List, Union
+from enum import Enum
 import fire
 import numpy as np
-import torch
-from datasets import load_dataset, concatenate_datasets
-import transformers
-import torch.distributed as dist
-
-from peft import (
-    prepare_model_for_int8_training,
-    LoraConfig,
-    get_peft_model,
-    get_peft_model_state_dict,
-    set_peft_model_state_dict,
-)
-
-from peft import mapping
-
 from utils import get_githash, copy_code
-
-lora_mappings = mapping.TRANSFORMERS_MODELS_TO_LORA_TARGET_MODULES_MAPPING.copy()
-lora_mappings['distilgpt2'] = ["c_attn"]
+import torch
 
 
 def log(*args, **kwargs):
     if int(os.environ.get("LOCAL_RANK", 0)) == 0:
+        if 'flush' not in kwargs:
+            kwargs['flush'] = True
         print(*args, **kwargs)
-
-
-try:
-    import neptune
-    from transformers.integrations import NeptuneCallback
-
-    neptune_run = neptune.init_run(
-        source_files=[],
-    )
-    log("Connected to Neptune.")
-except ImportError:
-    neptune_run = None
-    log("Please pip install neptune for tracking.")
-except neptune.exceptions.NeptuneMissingApiTokenException:
-    neptune_run = None
-    os.environ["NEPTUNE_MODE"] = 'debug'
-    log("No neptune configured, set NEPTUNE_API_TOKEN env var.")
-
-from enum import Enum
 
 
 class PromptType(Enum):
@@ -180,12 +143,14 @@ def train(
         lora_dropout: float = 0.05,
         lora_target_modules: List[str] = None,
         llama_type: bool = None,
+        llama_flash_attn: bool = False,
 
         # llm hyperparams
         train_on_inputs: bool = True,  # if False, masks out inputs in loss
         group_by_length: bool = False,  # if True, faster, but produces an odd training loss curve
         resume_from_checkpoint: str = None,  # either training checkpoint or final adapter
         cutoff_len: int = 512,  # larger values use more memory
+        drop_truncations: bool = False,  # if True, drop any truncated long sequences
 
         # torch training params
         ddp: bool = True,  # set to False if OOM with True, for multi-GPU model parallelism
@@ -195,8 +160,15 @@ def train(
         warmup_steps: int = 100,
         logging_steps: int = 1,
         save_steps: int = None,  # must be round multiple of eval_steps
+        save_total_limit: int = 3,
         add_eos_token: bool = False,
 ):
+
+    if llama_flash_attn:
+        # Need to call this before importing transformers.
+        from llama_flash_attn_monkey_patch import replace_llama_attn_with_flash_attn
+        replace_llama_attn_with_flash_attn()
+
     # allow set token directly
     use_auth_token = os.environ.get("HUGGINGFACE_API_TOKEN", use_auth_token)
 
@@ -228,6 +200,21 @@ def train(
         tokenizer_base_model = base_model
     if llama_type is None:
         llama_type = "llama" in base_model.lower()
+    if llama_type and llama_flash_attn:
+        import pkg_resources
+        try:
+            pkg_resources.get_distribution('flash_attn')
+            can_do_flash_attn = True
+        except (pkg_resources.DistributionNotFound, pkg_resources.ContextualVersionConflict):
+            can_do_flash_attn = False
+
+        if not can_do_flash_attn:
+            raise RuntimeError("""Flash attention not installed.
+            NOTE: for current pytorch 2.0, flash attention requires installing cuda 11.7 via https://developer.nvidia.com/cuda-11-7-0-download-archive?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=20.04&target_type=runfile_local and then when running, to avoid installing driver, docs, samples, just install toolkit.  Then when pip installing flash attention do:
+
+            CUDA_HOME=/usr/local/cuda-11.7 pip install flash-attn""")
+        from llama_flash_attn_monkey_patch import replace_llama_attn_with_flash_attn
+        replace_llama_attn_with_flash_attn()
     assert (
         base_model
     ), "Please specify a --base_model, e.g. --base_model='decapoda-research/llama-7b-hf'"
@@ -273,58 +260,13 @@ def train(
             model.is_parallelizable = True
             model.model_parallel = True
 
-    tokenizer = tokenizer_loader.from_pretrained(tokenizer_base_model,
-                                                 local_files_only=local_files_only,
-                                                 resume_download=resume_download,
-                                                 use_auth_token=use_auth_token)
-
-    tokenizer.pad_token_id = 0  # different from the eos token
-    # when generating, we will use the logits of right-most token to predict the next token
-    # so the padding should be on the left,
-    # e.g. see: https://huggingface.co/transformers/v4.11.3/model_doc/t5.html#inference
-    tokenizer.padding_side = "left"  # Allow batched inference
-
-    def tokenize(prompt, add_eos_token=True):
-        # there's probably a way to do this with the tokenizer settings
-        # but again, gotta move fast
-        result = tokenizer(
-            prompt,
-            truncation=True,
-            max_length=cutoff_len,
-            padding=False,
-            return_tensors=None,
-        )
-        if (
-                result["input_ids"][-1] != tokenizer.eos_token_id
-                and len(result["input_ids"]) < cutoff_len
-                and add_eos_token
-        ):
-            result["input_ids"].append(tokenizer.eos_token_id)
-            result["attention_mask"].append(1)
-
-        result["labels"] = result["input_ids"].copy()
-
-        return result
-
-    def generate_and_tokenize_prompt(data_point, add_eos=add_eos_token):
-        full_prompt, _, _ = generate_prompt(data_point, prompt_type, False, False)
-        tokenized_full_prompt = tokenize(full_prompt)
-        if not train_on_inputs:
-            user_prompt, _, _ = generate_prompt({**data_point, "output": ""}, prompt_type, False, False)
-            tokenized_user_prompt = tokenize(user_prompt, add_eos_token=add_eos)
-            user_prompt_len = len(tokenized_user_prompt["input_ids"])
-            if add_eos:
-                user_prompt_len -= 1
-
-            # ignore_index=-100 ensures torch/tf don't include padding token id in CrossEntropyLoss
-            tokenized_full_prompt["labels"] = [
-                                                  -100
-                                              ] * user_prompt_len + tokenized_full_prompt["labels"][
-                                                                    user_prompt_len:
-                                                                    ]  # could be sped up, probably
-        return tokenized_full_prompt
+    tokenizer = get_tokenizer(tokenizer_loader, tokenizer_base_model, local_files_only, resume_download, use_auth_token)
 
     if train_8bit:
+        from peft import (
+            prepare_model_for_int8_training,
+        )
+
         if "gpt-neox" not in base_model or True:
             model = prepare_model_for_int8_training(model)
         else:
@@ -333,7 +275,13 @@ def train(
                 output_embedding_layer_name="embed_out",  # keep output logits in float32
                 layer_norm_names=["layer_norm", "layernorm"],  # keep all layer norms in higher precision
             )
+
+    from peft import LoraConfig, get_peft_model, set_peft_model_state_dict, utils
+    lora_mappings = utils.TRANSFORMERS_MODELS_TO_LORA_TARGET_MODULES_MAPPING.copy()
+    lora_mappings['distilgpt2'] = ["c_attn"]
+
     if lora_weights:
+
         from peft import PeftModel
         model = PeftModel.from_pretrained(
             model,
@@ -344,7 +292,7 @@ def train(
             resume_download=resume_download,
             use_auth_token=use_auth_token,
         )
-    else:
+    elif lora_r > 0:
         if lora_target_modules is None:
             base_model_lower = base_model.lower()
             if base_model_lower in lora_mappings:
@@ -392,7 +340,11 @@ def train(
             log(f"Checkpoint {checkpoint_name} not found")
 
     print(model)
-    model.print_trainable_parameters()  # Be more transparent about the % of trainable params.
+    try:
+        # only for PeftModel
+        model.print_trainable_parameters()  # Be more transparent about the % of trainable params.
+    except:
+        pass
 
     metrics = {}
     for name in supported_metrics:
@@ -411,6 +363,7 @@ def train(
     elif val_set_size < 1.0 and val_set_size != 0:
         raise RuntimeError("Fractional validation size not supported.")
 
+    from datasets import load_dataset, concatenate_datasets
     if valid_path:
         data = load_dataset("json", data_files={"train": data_path, "valid": valid_path})
     else:
@@ -433,10 +386,16 @@ def train(
         else:
             data_mix_in = load_dataset(data_mix_in_path)["train"]  # can be large
         data_mix_in = data_mix_in.rename_columns(data_mix_in_col_dict or {})
+        mix_in_rows = int(num_rows * data_mix_in_factor)
+
+        if mix_in_rows > data_mix_in.num_rows:
+            # duplicate rows if mix-in is smaller than required
+            log("Duplicating mixin to compensate for its size for training size and mixin fraction")
+            data_mix_in = concatenate_datasets([data_mix_in] * int(np.ceil(mix_in_rows / data_mix_in.num_rows)))
 
         # only get as much as we need to balance
         valid_size = min(data_mix_in.num_rows // 2, val_set_size or 0)
-        train_size = max(1, min(data_mix_in.num_rows - valid_size, int(num_rows * data_mix_in_factor)))
+        train_size = max(1, min(data_mix_in.num_rows - valid_size, mix_in_rows))
         mixin_small = data_mix_in.train_test_split(
             test_size=train_size + valid_size,
             shuffle=True, seed=np.random.randint(10000),
@@ -492,10 +451,20 @@ def train(
 
     assert train_data is not None
 
+    generate_and_tokenize_prompt_fun = partial(generate_and_tokenize_prompt, prompt_type=prompt_type,
+                                               train_on_inputs=train_on_inputs, add_eos_token=add_eos_token,
+                                               cutoff_len=cutoff_len, tokenizer=tokenizer)
+
     # shuffle and tokenize data
     if train_data_mix_in:
         train_data = concatenate_datasets([train_data, train_data_mix_in])
-    train_data = train_data.shuffle().map(generate_and_tokenize_prompt, num_proc=os.cpu_count() // torch.cuda.device_count())
+    log("Tokenizing %s training rows" % train_data.num_rows)
+    train_data = train_data.shuffle().map(generate_and_tokenize_prompt_fun, num_proc=os.cpu_count() // torch.cuda.device_count())
+    if drop_truncations:
+        log("avoid keeping truncated cases to avoid contaminating model with truncation cases.  Original size: %s" % train_data.num_rows)
+        prune_long_sequences_func = partial(prune_long_sequences, cutoff_len=cutoff_len)
+        train_data = train_data.filter(prune_long_sequences_func, num_proc=os.cpu_count() // torch.cuda.device_count())
+        log("avoid keeping truncated cases to avoid contaminating model with truncation cases.  New size: %s" % train_data.num_rows)
     train_set_size = len(train_data)
 
     if valid_data and valid_data_mix_in:
@@ -504,7 +473,8 @@ def train(
         valid_data = valid_data_mix_in
 
     if valid_data:
-        valid_data = valid_data.shuffle().map(generate_and_tokenize_prompt, num_proc=os.cpu_count() // torch.cuda.device_count())
+        log("Tokenizing %s validation rows" % valid_data.num_rows)
+        valid_data = valid_data.shuffle().map(generate_and_tokenize_prompt_fun, num_proc=os.cpu_count() // torch.cuda.device_count())
         val_set_size = len(valid_data)
     else:
         val_set_size = 0
@@ -514,6 +484,22 @@ def train(
     del sample_row_dict['attention_mask']
     del sample_row_dict['labels']
     log("Sample input: %s" % sample_row_dict)
+
+    try:
+        import neptune
+        from transformers.integrations import NeptuneCallback
+
+        neptune_run = neptune.init_run(
+            source_files=[],
+        )
+        log("Connected to Neptune.")
+    except ImportError:
+        neptune_run = None
+        log("Please pip install neptune for tracking.")
+    except neptune.exceptions.NeptuneMissingApiTokenException:
+        neptune_run = None
+        os.environ["NEPTUNE_MODE"] = 'debug'
+        log("No neptune configured, set NEPTUNE_API_TOKEN env var.")
 
     if neptune_run:
         neptune_callback = NeptuneCallback(run=neptune_run)
@@ -584,6 +570,7 @@ def train(
     else:
         trainer_kwargs = dict()
 
+    import transformers
     trainer = transformers.Trainer(
         model=model,
         tokenizer=tokenizer,
@@ -611,7 +598,7 @@ def train(
             eval_steps=eval_steps if val_set_size > 0 else None,
             save_steps=save_steps,
             output_dir=output_dir,
-            save_total_limit=3,
+            save_total_limit=save_total_limit,
             load_best_model_at_end=True if val_set_size > 0 else False,
             ddp_find_unused_parameters=False if ddp else None,
             group_by_length=group_by_length,
@@ -628,6 +615,8 @@ def train(
     model.config.use_cache = False
 
     old_state_dict = model.state_dict
+    from peft import get_peft_model_state_dict
+
     model.state_dict = (
         lambda self, *_, **__: get_peft_model_state_dict(self, old_state_dict())
     ).__get__(model, type(model))
@@ -635,7 +624,8 @@ def train(
     if torch.__version__ >= "2" and sys.platform != "win32":
         model = torch.compile(model)
         # WIP (not generally replacing layers until pytorch 2.1)
-        torch.backends.cuda.enable_flash_sdp(True)
+        if not llama_flash_attn:
+            torch.backends.cuda.enable_flash_sdp(True)
 
     if gpus > 1 and not ddp:
         assert trainer.is_model_parallel
@@ -683,6 +673,78 @@ def get_loaders(llama_type, model_name, reward_type):
         model_loader = AutoModelForCausalLM
         tokenizer_loader = AutoTokenizer
     return model_loader, tokenizer_loader
+
+
+def get_tokenizer(tokenizer_loader, tokenizer_base_model, local_files_only, resume_download, use_auth_token):
+    tokenizer = tokenizer_loader.from_pretrained(tokenizer_base_model,
+                                                 local_files_only=local_files_only,
+                                                 resume_download=resume_download,
+                                                 use_auth_token=use_auth_token)
+
+    tokenizer.pad_token_id = 0  # different from the eos token
+    # when generating, we will use the logits of right-most token to predict the next token
+    # so the padding should be on the left,
+    # e.g. see: https://huggingface.co/transformers/v4.11.3/model_doc/t5.html#inference
+    tokenizer.padding_side = "left"  # Allow batched inference
+
+    return tokenizer
+
+
+def tokenize(prompt, tokenizer, cutoff_len, add_eos_token=False):
+    # there's probably a way to do this with the tokenizer settings
+    # but again, gotta move fast
+    result = tokenizer(
+        prompt,
+        truncation=True,
+        max_length=cutoff_len,
+        padding=False,
+        return_tensors=None,
+    )
+    if (
+            result["input_ids"][-1] != tokenizer.eos_token_id
+            and len(result["input_ids"]) < cutoff_len
+            and add_eos_token
+    ):
+        result["input_ids"].append(tokenizer.eos_token_id)
+        result["attention_mask"].append(1)
+
+    result["labels"] = result["input_ids"].copy()
+
+    return result
+
+
+def prune_long_sequences(data_point, cutoff_len=None):
+    """
+    Prune if too long for tokenizer, so truncation doesn't lead training to learn from truncated language
+    :param data_point:
+    :param cutoff_len:
+    :return:
+    """
+    assert cutoff_len is not None
+    return len(data_point['input_ids']) < cutoff_len
+
+
+def generate_and_tokenize_prompt(data_point, prompt_type=None, train_on_inputs=False, add_eos_token=False,
+                                 cutoff_len=None, tokenizer=None):
+    assert prompt_type is not None
+    assert cutoff_len is not None
+    assert tokenizer is not None
+    full_prompt, _, _ = generate_prompt(data_point, prompt_type, False, False)
+    tokenized_full_prompt = tokenize(full_prompt, tokenizer, cutoff_len, add_eos_token=add_eos_token)
+    if not train_on_inputs:
+        user_prompt, _, _ = generate_prompt({**data_point, "output": ""}, prompt_type, False, False)
+        tokenized_user_prompt = tokenize(user_prompt, tokenizer, cutoff_len, add_eos_token=add_eos_token)
+        user_prompt_len = len(tokenized_user_prompt["input_ids"])
+        if add_eos_token:
+            user_prompt_len -= 1
+
+        # ignore_index=-100 ensures torch/tf don't include padding token id in CrossEntropyLoss
+        tokenized_full_prompt["labels"] = [
+                                              -100
+                                          ] * user_prompt_len + tokenized_full_prompt["labels"][
+                                                                user_prompt_len:
+                                                                ]  # could be sped up, probably
+    return tokenized_full_prompt
 
 
 def get_prompt(prompt_type, chat, context, reduced):

@@ -92,10 +92,32 @@ sudo systemctl status nvidia-fabricmanager
 ```
 See [Fabric Manager](https://docs.nvidia.com/datacenter/tesla/fabric-manager-user-guide/index.html)
 
+Once have installed and reboot system, just do:
+
+```bash
+sudo systemctl --now enable nvidia-dcgm
+dcgmi discovery -l
+sudo systemctl start nvidia-fabricmanager
+sudo systemctl status nvidia-fabricmanager
+```
+
 ### Tensorboard (optional) to inspect training
 
 ```bash
 tensorboard --logdir=runs/
+```
+
+### To use flash attention with LLaMa, need cuda 11.7 so flash attention module compiles against torch
+From [cuda toolkit](https://developer.nvidia.com/cuda-11-7-0-download-archive?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=20.04&target_type=runfile_local):
+```bash
+wget https://developer.download.nvidia.com/compute/cuda/11.7.0/local_installers/cuda_11.7.0_515.43.04_linux.run
+sudo bash ./cuda_11.7.0_515.43.04_linux.run
+```
+Then No for symlink change, say continue (not abort), accept license, keep only toolkit selected, select install.
+
+If cuda 11.7 is not your base installation, then when doing pip install -r requirements.txt do instead:
+```bash
+CUDA_HOME=/usr/local/cuda-11.7 pip install -r requirements.txt 
 ```
 
 Now you're ready to go back to [data prep and fine-tuning](FINETUNE.md)!
