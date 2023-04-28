@@ -201,6 +201,8 @@ def main(
                                                                  used_lora_weights)
         eval_filename = os.path.join(scoring_path, eval_filename)
 
+        # FIXME: Noticed below with causes cuda:x cuda:y mismatches,
+        # replacing with if True: avoided that for multi-GPU for some reason
         with torch.device("cuda"):
             # ensure was set right above before examples generated
             assert not stream_output, "stream_output=True does not make sense with example loop"
@@ -250,8 +252,10 @@ def main(
                             prompt = prompter.generate_prompt(data_point)
                         else:
                             # just raw input and output
-                            assert iinput in [None, '']  # should be no iinput
-                            assert context in [None, '']  # should be no context
+                            if eval_sharegpt_prompts_only > 0:
+                                # only our own examples have this filled at moment
+                                assert iinput in [None, ''], iinput  # should be no iinput
+                            assert context in [None, ''], context  # should be no context
                             prompt = instruction
                         cutoff_len = 768 if is_low_mem else 2048
                         inputs = stokenizer(prompt, res,
