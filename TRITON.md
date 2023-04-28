@@ -80,7 +80,7 @@ sed -i -e "s@/workspace/ft/models/ft/gptneox/@${WORKSPACE}/FT-${MODEL}/1-gpu@" a
 ```bash
 CUDA_VISIBLE_DEVICES=0 mpirun -n 1 \
         --allow-run-as-root /opt/tritonserver/bin/tritonserver  \
-        --model-repository=${WORKSPACE}/all_models/gptneox/fastertransformer
+        --model-repository=${WORKSPACE}/all_models/gptneox/fastertransformer &
 ```
 
 Now, you should see something like this:
@@ -98,8 +98,14 @@ which means the pipeline is ready to make predictions!
 
 ### Run client test
 
+Let's test the endpoint:
 ```bash
-TODO
+python3 ${WORKSPACE}/tools/gpt/identity_test.py
+```
+
+And now the end-to-end test:
+```bash
+python3 ${WORKSPACE}/tools/gpt/end_to_end_test.py
 ```
 
 
