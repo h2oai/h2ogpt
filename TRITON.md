@@ -40,6 +40,7 @@ export TRITON_DOCKER_IMAGE=triton_with_ft:${CONTAINER_VERSION}
 # Go into Docker
 docker run -it --rm --runtime=nvidia --shm-size=1g \
        --ulimit memlock=-1 -v ${WORKSPACE}:${WORKSPACE} \
+       -e CUDA_VISIBLE_DEVICES=0 \
        -e MODEL=${MODEL} \
        -e WORKSPACE=${WORKSPACE} \
        -w ${WORKSPACE} ${TRITON_DOCKER_IMAGE} bash
@@ -70,9 +71,10 @@ Fix a typo in the example:
 sed -i -e 's@postprocessing@preprocessing@' all_models/gptneox/preprocessing/config.pbtxt
 ```
 
-Update the path to the PyTorch model:
+Update the path to the PyTorch model, and set to use 1 GPU:
 ```bash
 sed -i -e "s@/workspace/ft/models/ft/gptneox/@${WORKSPACE}/FT-${MODEL}/1-gpu@" all_models/gptneox/fastertransformer/config.pbtxt
+sed -i -e 's@string_value: "2"@string_value: "1"@' all_models/gptneox/fastertransformer/config.pbtxt
 ```
 
 #### Launch Triton
@@ -80,7 +82,7 @@ sed -i -e "s@/workspace/ft/models/ft/gptneox/@${WORKSPACE}/FT-${MODEL}/1-gpu@" a
 ```bash
 CUDA_VISIBLE_DEVICES=0 mpirun -n 1 \
         --allow-run-as-root /opt/tritonserver/bin/tritonserver  \
-        --model-repository=${WORKSPACE}/all_models/gptneox/fastertransformer &
+        --model-repository=${WORKSPACE}/all_models/gptneox/ &
 ```
 
 Now, you should see something like this:
