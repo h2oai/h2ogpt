@@ -2,7 +2,7 @@
 
 To get optimal performance for inference for h2oGPT models, we will be using the [FastTransformer Backend for Triton](https://github.com/triton-inference-server/fastertransformer_backend/).
 
-To build in Docker, we follow the [instructions](https://github.com/triton-inference-server/fastertransformer_backend/blob/main/README.md#setup):
+Make sure to [install Docker](INSTALL-DOCKER.md) first.
 
 ### Build Docker image for Triton with FasterTransformer backend:
 
@@ -30,6 +30,10 @@ export MODEL=h2ogpt-oig-oasst1-512-6.9b
 if [ ! -d ${MODEL} ]; then
     git lfs clone https://huggingface.co/h2oai/${MODEL}
 fi
+```
+If `git lfs` fails, make sure to install it first. For Ubuntu:
+```bash
+sudo apt-get install git-lfs
 ```
 
 ####  Convert to FasterTransformer format
