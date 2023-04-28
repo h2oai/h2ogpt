@@ -58,7 +58,7 @@ python3 ${WORKSPACE}/FasterTransformer/examples/pytorch/gptneox/utils/huggingfac
 
 ####  Test the FasterTransformer model
 
-FIXME - not yet working
+FIXME
 ```bash
 echo "Hi, who are you?" > gptneox_input
 echo "And you are?" >> gptneox_input
