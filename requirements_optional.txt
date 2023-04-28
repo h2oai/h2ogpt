@@ -1,0 +1,2 @@
+# optional
+flash-attn==1.0.4
