@@ -753,7 +753,7 @@ def go_gradio(**kwargs):
                                outputs=[model_state, model_used, lora_used, prompt_type])
         prompt_update_args = dict(fn=dropdown_prompt_type_list, inputs=prompt_type, outputs=prompt_type)
         chatbot_update_args = dict(fn=chatbot_list, inputs=[text_output, model_used], outputs=text_output)
-        nochat_update_args = dict(fn=chatbot_list, inputs=[text_output, model_used], outputs=text_output_nochat)
+        nochat_update_args = dict(fn=chatbot_list, inputs=[text_output_nochat, model_used], outputs=text_output_nochat)
         if not is_public:
             load_model_event = load_model_button.click(**load_model_args) \
                 .then(**prompt_update_args) \
@@ -820,10 +820,10 @@ def go_gradio(**kwargs):
         # FIXME: add score_res2 in condition, but do better
 
         # callback for logging flagged input/output
-        callback.setup(inputs_list + [text_output], "flagged_data_points")
-        flag_btn.click(lambda *args: callback.flag(args), inputs_list + [text_output], None, preprocess=False,
+        callback.setup(inputs_list + [text_output, text_output2], "flagged_data_points")
+        flag_btn.click(lambda *args: callback.flag(args), inputs_list + [text_output, text_output2], None, preprocess=False,
                        api_name='flag' if allow_api else None)
-        flag_btn_nochat.click(lambda *args: callback.flag(args), inputs_list + [text_output], None, preprocess=False,
+        flag_btn_nochat.click(lambda *args: callback.flag(args), inputs_list + [text_output_nochat], None, preprocess=False,
                               api_name='flag_nochat' if allow_api else None)
 
         def get_system_info():
