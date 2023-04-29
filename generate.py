@@ -4,6 +4,8 @@ import sys
 import os
 import traceback
 import typing
+from threading import Thread
+
 from utils import set_seed, clear_torch_cache, save_generate_output
 
 SEED = 1236
@@ -17,13 +19,13 @@ import pandas as pd
 import fire
 import torch
 from peft import PeftModel
-from transformers import GenerationConfig, StoppingCriteriaList, AutoModel
+from transformers import GenerationConfig, StoppingCriteriaList, AutoModel, TextIteratorStreamer
 from accelerate import init_empty_weights, infer_auto_device_map
 
 from prompter import Prompter
 
 from finetune import get_loaders, example_data_points, generate_prompt, human, bot, inv_prompt_type_to_model_lower
-from stopping import CallbackToGenerator, Stream, StoppingCriteriaSub
+from stopping import StoppingCriteriaSub
 
 eval_extra_columns = ['prompt', 'response', 'score']
 
@@ -203,7 +205,7 @@ def main(
 
         # FIXME: Noticed below with causes cuda:x cuda:y mismatches,
         # replacing with if True: avoided that for multi-GPU for some reason
-        with torch.device("cuda"):
+        if True:
             # ensure was set right above before examples generated
             assert not stream_output, "stream_output=True does not make sense with example loop"
             import time
@@ -799,62 +801,25 @@ def evaluate(
         else:
             print("WARNING: Special characters in prompt", flush=True)
         if stream_output:
-            def generate(callback=None, **kwargs):
-                # re-order stopping so Stream first and get out all chunks before stop for other reasons
-                stopping_criteria0 = kwargs.get('stopping_criteria', StoppingCriteriaList()).copy()
-                kwargs['stopping_criteria'] = StoppingCriteriaList()
-                kwargs['stopping_criteria'].append(Stream(func=callback))
-                for stopping_criteria1 in stopping_criteria0:
-                    kwargs['stopping_criteria'].append(stopping_criteria1)
-
-                try:
-                    model.generate(**kwargs)
-                except torch.cuda.OutOfMemoryError as e:
-                    print("GPU OOM 2: prompt: %s inputs_decoded: %s exception: %s" % (prompt, inputs_decoded, str(e)),
-                          flush=True)
-                    if kwargs['input_ids'] is not None:
-                        kwargs['input_ids'].cpu()
-                    kwargs['input_ids'] = None
-                    traceback.print_exc()
-                    clear_torch_cache()
-                    return
-                except (Exception, RuntimeError) as e:
-                    if 'Expected all tensors to be on the same device' in str(e) or \
-                            'expected scalar type Half but found Float' in str(e) or \
-                            'probability tensor contains either' in str(e) or \
-                            'cublasLt ran into an error!' in str(e):
-                        print(
-                            "GPU Error: prompt: %s inputs_decoded: %s exception: %s" % (prompt, inputs_decoded, str(e)),
-                            flush=True)
-                        traceback.print_exc()
-                        clear_torch_cache()
-                        if raise_generate_gpu_exceptions:
-                            raise
-                        return
-                    else:
-                        raise
-
-            decoded_output = None
-            for output in CallbackToGenerator(generate, callback=None, **gen_kwargs):
-                decoded_output = decoder(output)
-                if output[-1] in [tokenizer.eos_token_id]:
-                    if debug:
-                        print("HIT EOS", flush=True)
-                    break
-                if any(ele in decoded_output for ele in hard_stop_list):
-                    raise StopIteration
-                yield prompter.get_response(decoded_output, prompt=inputs_decoded,
+            #skip_prompt = prompt_type != 'plain'
+            skip_prompt = False
+            streamer = TextIteratorStreamer(tokenizer, skip_prompt=skip_prompt)
+            gen_kwargs.update(dict(streamer=streamer))
+            thread = Thread(target=model.generate, kwargs=gen_kwargs)
+            thread.start()
+            outputs = ""
+            for new_text in streamer:
+                outputs += new_text
+                yield prompter.get_response(outputs, prompt=inputs_decoded,
                                             sanitize_bot_response=sanitize_bot_response)
-            if save_dir and decoded_output:
-                save_generate_output(output=decoded_output, base_model=base_model, save_dir=save_dir)
         else:
             outputs = model.generate(**gen_kwargs)
             outputs = [decoder(s) for s in outputs.sequences]
             yield prompter.get_response(outputs, prompt=inputs_decoded,
                                         sanitize_bot_response=sanitize_bot_response)
-            if save_dir and outputs and len(outputs) >= 1:
-                decoded_output = prompt + outputs[0]
-                save_generate_output(output=decoded_output, base_model=base_model, save_dir=save_dir)
+        if save_dir and outputs and len(outputs) >= 1:
+            decoded_output = prompt + outputs[0]
+            save_generate_output(output=decoded_output, base_model=base_model, save_dir=save_dir)
 
 
 def get_generate_params(model_lower, chat,
