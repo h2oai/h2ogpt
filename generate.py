@@ -444,7 +444,7 @@ def get_model(
     assert base_model.strip(), (
         "Please choose a base model with --base_model (CLI) or in Models Tab (gradio)"
     )
-    llama_type = llama_type or "llama" in base_model
+    llama_type = llama_type or "llama" in base_model or "h2ogpt-research" in base_model
     model_loader, tokenizer_loader = get_loaders(llama_type=llama_type, model_name=base_model, reward_type=reward_type)
     if not tokenizer_base_model:
         tokenizer_base_model = base_model
