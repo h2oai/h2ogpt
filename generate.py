@@ -31,7 +31,7 @@ eval_extra_columns = ['prompt', 'response', 'score']
 def main(
         load_8bit: bool = False,
         load_half: bool = True,
-        infer_devices: bool = True,
+        infer_devices: bool = True,  # really if to "control" devices now
         base_model: str = '',
         tokenizer_base_model: str = '',
         lora_weights: str = "",
@@ -377,6 +377,8 @@ def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward
             device_map = {'': n_gpus - 1}
         else:
             device_map = {'': min(n_gpus - 1, gpu_id)}
+    if gpu_id == -1:
+        device_map = {'': 'cuda'}
 
     load_in_8bit = model_kwargs.get('load_in_8bit', False)
     model_kwargs['device_map'] = device_map

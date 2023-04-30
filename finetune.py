@@ -54,6 +54,7 @@ prompt_type_to_model_name = {
         'h2oai/h2ogpt-oasst1-512-12b',
         'h2oai/h2ogpt-oasst1-512-20b',
         'h2oai/h2ogpt-oig-oasst1-512-6.9b',
+        'h2oai/h2ogpt-research-oasst1-512-30b',  # private
     ],
     'dai_faq': [],
     'summarize': [],
