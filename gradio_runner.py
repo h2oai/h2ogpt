@@ -30,7 +30,7 @@ def go_gradio(**kwargs):
     if kwargs['input_lines'] > 1:
         instruction_label = "You (Shift-Enter or push Submit to send message, use Enter for multiple input lines)"
     else:
-        instruction_label = "You (Enter or push Submit to send message, single input line only)"
+        instruction_label = "You (Enter or push Submit to send message, shift-enter for more lines)"
 
     title = 'h2oGPT'
     if kwargs['verbose']:
