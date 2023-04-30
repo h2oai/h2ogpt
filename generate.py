@@ -78,6 +78,7 @@ def main(
         concurrency_count: int = 1,
         api_open: bool = False,  # don't let API skip queue
         allow_api: bool = True,
+        input_lines: int = None,
 
         sanitize_user_prompt: bool = True,
         sanitize_bot_response: bool = True,
@@ -105,7 +106,9 @@ def main(
     # allow set token directly
     use_auth_token = os.environ.get("HUGGINGFACE_API_TOKEN", use_auth_token)
 
+    input_lines = 4
     if is_public:
+        input_lines = 1  # for ease of use
         temperature = 0.4
         top_p = 0.85
         top_k = 70

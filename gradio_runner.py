@@ -25,8 +25,12 @@ def go_gradio(**kwargs):
     if 'mbart-' in kwargs['model_lower']:
         instruction_label_nochat = "Text to translate"
     else:
-        instruction_label_nochat = "Instruction"
-    instruction_label = "You (Shift-Enter or push Submit to send message)"
+        instruction_label_nochat = "Instruction (Shift-Enter or push Submit to send message," \
+                                   " use Enter for multiple input lines)"
+    if kwargs['input_lines'] > 1:
+        instruction_label = "You (Shift-Enter or push Submit to send message, use Enter for multiple input lines)"
+    else:
+        instruction_label = "You (Enter or push Submit to send message, single input line only)"
 
     title = 'h2oGPT'
     if kwargs['verbose']:
@@ -148,7 +152,8 @@ def go_gradio(**kwargs):
                     with col_nochat:  # FIXME: for model comparison, and check rest
                         text_output_nochat = gr.Textbox(lines=5, label=output_label0)
                         instruction_nochat = gr.Textbox(
-                            lines=4, label=instruction_label_nochat,
+                            lines=kwargs['input_lines'],
+                            label=instruction_label_nochat,
                             placeholder=kwargs['placeholder_instruction'],
                         )
                         iinput_nochat = gr.Textbox(lines=4, label="Input context for Instruction",
@@ -171,7 +176,8 @@ def go_gradio(**kwargs):
                         with gr.Row():
                             with gr.Column(scale=50):
                                 instruction = gr.Textbox(
-                                    lines=4, label=instruction_label,
+                                    lines=kwargs['input_lines'],
+                                    label=instruction_label,
                                     placeholder=kwargs['placeholder_instruction'],
                                 )
                             with gr.Row():
