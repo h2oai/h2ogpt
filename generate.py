@@ -51,7 +51,6 @@ def main(
         early_stopping: Union[bool, str] = None,
         max_time: float = None,
 
-        llama_type: bool = None,
         debug: bool = False,
         save_dir: str = None,
         share: bool = True,
@@ -404,7 +403,6 @@ def get_model(
         lora_weights: str = "",
         gpu_id: int = 0,
 
-        llama_type: bool = None,
         reward_type: bool = None,
         local_files_only: bool = False,
         resume_download: bool = True,
@@ -423,7 +421,6 @@ def get_model(
     :param tokenizer_base_model: name/path of tokenizer
     :param lora_weights: name/path
     :param gpu_id: which GPU (0..n_gpus-1) or allow all GPUs if relevant (-1)
-    :param llama_type: whether LLaMa type model
     :param reward_type: reward type model for sequence classification
     :param local_files_only: use local files instead of from HF
     :param resume_download: resume downloads from HF
@@ -444,7 +441,16 @@ def get_model(
     assert base_model.strip(), (
         "Please choose a base model with --base_model (CLI) or in Models Tab (gradio)"
     )
-    llama_type = llama_type or "llama" in base_model or "h2ogpt-research" in base_model
+
+    from transformers import AutoConfig
+    config = AutoConfig.from_pretrained(base_model, use_auth_token=use_auth_token)
+    llama_type_from_config = 'llama' in str(config).lower()
+    llama_type_from_name = "llama" in base_model.lower()
+    llama_type = llama_type_from_config or llama_type_from_name
+    if llama_type:
+        print("Detected as llama type from"
+              " config (%s) or name (%s)" % (llama_type_from_config, llama_type_from_name), flush=True)
+
     model_loader, tokenizer_loader = get_loaders(llama_type=llama_type, model_name=base_model, reward_type=reward_type)
     if not tokenizer_base_model:
         tokenizer_base_model = base_model
