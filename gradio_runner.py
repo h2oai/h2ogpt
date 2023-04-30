@@ -287,12 +287,13 @@ def go_gradio(**kwargs):
                                 with gr.Column(scale=1):
                                     load_model_button = gr.Button(load_msg)
                                     model_load8bit_checkbox = gr.components.Checkbox(
-                                        label="Load 8-bit [Not all models support]",
+                                        label="Load 8-bit [requires support]",
                                         value=kwargs['load_8bit'])
                                     model_infer_devices_checkbox = gr.components.Checkbox(
-                                        label="Infer Devices [If GPU ID=-1 or not Checked, then will spread model over GPUs]",
+                                        label="Choose Devices [If not Checked, use all GPUs]",
                                         value=kwargs['infer_devices'])
-                                    model_gpu = gr.Dropdown(n_gpus_list, label="GPU ID [-1 = all GPUs]",
+                                    model_gpu = gr.Dropdown(n_gpus_list,
+                                                            label="GPU ID 2 [-1 = all GPUs, if Choose is enabled]",
                                                             value=kwargs['gpu_id'])
                                     model_used = gr.Textbox(label="Current Model", value=kwargs['base_model'])
                                     lora_used = gr.Textbox(label="Current LORA", value=kwargs['lora_weights'],
@@ -316,13 +317,14 @@ def go_gradio(**kwargs):
                                 with gr.Column(scale=1):
                                     load_model_button2 = gr.Button(load_msg2)
                                     model_load8bit_checkbox2 = gr.components.Checkbox(
-                                        label="Load 8-bit 2 [Not all models support]",
+                                        label="Load 8-bit 2 [requires support]",
                                         value=kwargs['load_8bit'])
                                     model_infer_devices_checkbox2 = gr.components.Checkbox(
-                                        label="Infer Devices 2 [If GPU ID=-1 or not Checked, then will spread model over GPUs]",
+                                        label="Choose Devices 2 [If not Checked, use all GPUs]",
                                         value=kwargs[
                                             'infer_devices'])
-                                    model_gpu2 = gr.Dropdown(n_gpus_list, label="GPU ID [-1 = all GPUs]",
+                                    model_gpu2 = gr.Dropdown(n_gpus_list,
+                                                             label="GPU ID [-1 = all GPUs, if choose is enabled]",
                                                              value=kwargs['gpu_id'])
                                     # no model/lora loaded ever in model2 by default
                                     model_used2 = gr.Textbox(label="Current Model 2", value=no_model_str)

@@ -103,6 +103,7 @@
 [ShareGPT_Vicuna](https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered)<br />
 [ChatLogs](https://chatlogs.net/)<br />
 [Alpaca-CoT](https://github.com/PhoebusSi/alpaca-CoT)<br />
+[LaMini-LM](https://github.com/mbzuai-nlp/LaMini-LM)<br />
 
 ### Non-commercial Data
 [GPT-3 based Alpaca Cleaned](https://github.com/gururise/AlpacaDataCleaned)<br />
@@ -158,3 +159,42 @@
 [OpenChatKitPreview](https://api.together.xyz/open-chat?preview=1)<br />
 [langchain](https://python.langchain.com/en/latest/)<br />
 [langchain+pinecone](https://www.youtube.com/watch?v=nMniwlGyX-c)<br />
+
+### Q/A docs
+[HUMATA](https://www.humata.ai/)<br />
+[OSSCHat](https://osschat.io/)<br />
+[NeuralSearchCohere](https://txt.cohere.com/embedding-archives-wikipedia/)<br />
+[ue5](https://github.com/bublint/ue5-llama-lora)<br />
+
+### AutoGPT type projects
+[AgentGPT](https://github.com/reworkd/AgentGPT)<br />
+[Self-DEBUG](https://arxiv.org/abs/2304.05128)<br />
+[BabyAGI](https://github.com/yoheinakajima/babyagi/)<br />
+[AutoPR](https://github.com/irgolic/AutoPR)<br />
+
+### Cloud fine-tune
+[AWS](https://docs.aws.amazon.com/sagemaker/latest/dg/jumpstart-fine-tune.html)<br />
+[AWS2](https://aws.amazon.com/blogs/machine-learning/training-large-language-models-on-amazon-sagemaker-best-practices/)<br />
+
+### Chatbots:
+[GPT4ALL Chat](https://github.com/nomic-ai/gpt4all-chat)<br />
+[GLT4ALL](https://github.com/nomic-ai/gpt4all)<br />
+[OASSST](https://open-assistant.io/chat)<br />
+[FastChat](https://github.com/lm-sys/FastChat)<br />
+[Dolly](https://huggingface.co/spaces/HuggingFaceH4/databricks-dolly)<br />
+[HF Instructions](https://huggingface.co/spaces/HuggingFaceH4/instruction-model-outputs-filtered)<br />
+[DeepSpeed Chat](https://github.com/microsoft/DeepSpeedExamples/tree/master/applications/DeepSpeed-Chat)<br />
+[LoraChat](https://github.com/bupticybee/FastLoRAChat)<br />
+[Tabby](https://github.com/TabbyML/tabby)<br />
+[TalkToModel](https://github.com/dylan-slack/TalkToModel)<br />
+
+### LangChain related
+[Gradio Tools](https://github.com/freddyaboulton/gradio-tools)<br />
+[LLM Agents](https://blog.langchain.dev/gradio-llm-agents/)<br />
+[Meta Prompt](https://github.com/mbchang/meta-prompt)<br />
+
+### Summaries
+[LLMs](https://github.com/Mooler0410/LLMsPracticalGuide)<br />
+
+### Deployment
+[MLC-LLM](https://github.com/mlc-ai/mlc-llm)<br />
