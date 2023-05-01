@@ -4,7 +4,7 @@ import sys
 import os
 import traceback
 import typing
-from utils import set_seed, clear_torch_cache, save_generate_output
+from utils import set_seed, clear_torch_cache, save_generate_output, NullContext
 
 SEED = 1236
 set_seed(SEED)
@@ -131,6 +131,8 @@ def main(
     api_open = bool(int(os.getenv('API_OPEN', api_open)))
     allow_api = bool(int(os.getenv('ALLOW_API', allow_api)))
 
+    n_gpus = torch.cuda.device_count()
+
     # get defaults
     model_lower = base_model.lower()
     if not gradio:
@@ -203,9 +205,10 @@ def main(
                                                                  used_lora_weights)
         eval_filename = os.path.join(scoring_path, eval_filename)
 
-        # FIXME: Noticed below with causes cuda:x cuda:y mismatches,
-        # replacing with if True: avoided that for multi-GPU for some reason
-        with torch.device("cuda"):
+        # torch.device("cuda") leads to cuda:x cuda:y mismatches for multi-GPU consistently
+        context_class = NullContext() if n_gpus > 1 else torch.device("cuda")
+
+        with context_class:
             # ensure was set right above before examples generated
             assert not stream_output, "stream_output=True does not make sense with example loop"
             import time
@@ -311,7 +314,6 @@ def main(
     if gradio:
         # imported here so don't require gradio to run generate
         from gradio_runner import go_gradio
-        n_gpus = torch.cuda.device_count()
 
         # get default model
         all_kwargs = locals().copy()
