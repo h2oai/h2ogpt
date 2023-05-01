@@ -1242,14 +1242,14 @@ def test_grade():
 
 
 @pytest.mark.parametrize(
-    "fixup_personality, only_personality",
+    "fixup_personality, only_personality, deberta_grading",
     [
-        [False, False],
-        [True, True],
-        [True, False],
+        [False, False, False],
+        [True, True, False],
+        [True, False, True],
     ]
 )
-def test_add_open_assistant(fixup_personality, only_personality, save_json=True):
+def test_add_open_assistant(fixup_personality, only_personality, deberta_grading, save_json=True):
     """
     Flatten tree structure into one row per path from root to leaf
     Also turn into human_bot prompting format:
@@ -1365,8 +1365,34 @@ def test_add_open_assistant(fixup_personality, only_personality, save_json=True)
     np.random.seed(123)
     np.random.shuffle(all_rows)
     print(len(all_rows))
+    if deberta_grading:
+        df = pd.DataFrame(all_rows)
+        df = df.rename(columns={'input': 'text'})
+        df = add_deberta_grade(df)
+        df = df.rename(columns={'text': 'input'})
+        min_grade = 0.2
+        max_grade = np.inf
+        before_rows = df.shape[0]
+        df = df[df['grade_deberta'] >= min_grade]
+        df = df[df['grade_deberta'] <= max_grade]
+        after_rows = df.shape[0]
+        print("Dropped %d rows out of %d due to deberta grade" % (before_rows - after_rows, before_rows))
+        print("After DeBERTa grade")
+        print(df.describe())
+        all_rows = []
+        for i in range(df.shape[0]):
+            all_rows.append(
+                dict(
+                    input=df['input'].iloc[i],
+                    source=df['source'].iloc[i],
+                    prompt_type=df['prompt_type'].iloc[i],
+                )
+            )
     if save_json:
-        data_file = data_file + ("_h2ogpt" if fixup_personality else "") + ("_only" if only_personality else "")
+        data_file = data_file + \
+                    ("_h2ogpt" if fixup_personality else "") + \
+                    ("_only" if only_personality else "") + \
+                    ("_graded" if deberta_grading else "")
         with open(data_file.lower().replace("/", "_") + ".json", "w") as f:
             f.write(json.dumps(all_rows, indent=2))
     return all_rows
@@ -1383,6 +1409,7 @@ def test_finalize_to_json():
         fixup_personality=True,  # False was original version, but it's better to personalize, so now using True
         only_personality=False,
         save_json=True,
+        deberta_grading=True,
     )
     df = pd.concat([df, pd.DataFrame(open_assistant)], axis=0)
 
