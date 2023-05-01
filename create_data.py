@@ -1581,6 +1581,7 @@ def test_check_unhelpful():
                   "As an artificial intelligence I don't have the capability",
                   "As an artificial intelligence I can't",
                   "As an artificial intelligence I cannot",
+                  "I am sorry but I do not understand",
                   ]
     data = json.load(open(file, 'rt'))
     bads = {}
