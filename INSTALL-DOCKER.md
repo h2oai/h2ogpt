@@ -9,6 +9,7 @@ distribution=$(. /etc/os-release;echo $ID$VERSION_ID) \
         sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
         sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
 sudo apt-get update && sudo apt-get install -y nvidia-container-toolkit-base
+sudo apt install nvidia-container-runtime
 sudo nvidia-ctk runtime configure --runtime=docker
 sudo systemctl restart docker
 ```
