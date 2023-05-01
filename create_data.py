@@ -1370,14 +1370,16 @@ def test_add_open_assistant(fixup_personality, only_personality, deberta_grading
         df = df.rename(columns={'input': 'text'})
         df = add_deberta_grade(df)
         df = df.rename(columns={'text': 'input'})
-        min_grade = 0.2
-        max_grade = np.inf
-        before_rows = df.shape[0]
-        df = df[df['grade_deberta'] >= min_grade]
-        df = df[df['grade_deberta'] <= max_grade]
-        after_rows = df.shape[0]
-        print("Dropped %d rows out of %d due to deberta grade" % (before_rows - after_rows, before_rows))
-        print("After DeBERTa grade")
+        drop = False
+        if drop:
+            min_grade = 0.2
+            max_grade = np.inf
+            before_rows = df.shape[0]
+            df = df[df['grade_deberta'] >= min_grade]
+            df = df[df['grade_deberta'] <= max_grade]
+            after_rows = df.shape[0]
+            print("Dropped %d rows out of %d due to deberta grade" % (before_rows - after_rows, before_rows))
+            print("After DeBERTa grade")
         print(df.describe())
         all_rows = []
         for i in range(df.shape[0]):
@@ -1386,6 +1388,7 @@ def test_add_open_assistant(fixup_personality, only_personality, deberta_grading
                     input=df['input'].iloc[i],
                     source=df['source'].iloc[i],
                     prompt_type=df['prompt_type'].iloc[i],
+                    grade_deberta=df['grade_deberta'].iloc[i],
                 )
             )
     if save_json:
