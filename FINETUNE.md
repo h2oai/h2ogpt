@@ -2,6 +2,47 @@
 
 Make sure you have followed the [native installation instructions](INSTALL.md).
 
+### Dataset format
+
+In general, LLMs take plain text (ordered list of tokens) as input and generate plain text as output.
+The input format doesn't change whether the model is in pretraining or fine-tuning mode, but the text itself can change slightly.
+
+For example, for pretraining this text is perfectly usable:
+```text
+and suddenly all the players raised their hands and shouted
+```
+as the model will learn to say `suddenly` after `and` and it will learn to say `players` after `and suddenly all the` etc., as 
+part of the overall language training on hundreds of billions of tokens. Imagine that this is not a very efficient way to learn a language, but it works.
+
+For fine-tuning, when we only present a small set of high-quality data to the model, the creation of good input/output pairs is the 'label' work one has to do.
+
+For example, for fine-tuning, one could create such a dataset entry:
+```text
+Instruction: Summarize.
+Input: This is a very very very long paragraph saying nothing much.
+Summary: Nothing was said.
+```
+This text is better suited to teach the model to summarize. During inference, one would present the model with the following text and it would provide the summary as the continuation of the input:
+```text
+Instruction: Summarize.
+Input: TEXT TO SUMMARIZE
+Summary:
+```
+
+For a chatbot, one could fine-tune the model like this:
+```text
+<human>: Hi, who are you?
+<bot>: I'm h2oGPT.
+<human>: Who trained you?
+<bot>: I was trained by H2O.ai, the visionary leader in democratizing AI.
+```
+
+and during inference, we would present the following to the LLM, for it to respond as the `<bot>`:
+```text
+<human>: USER INPUT FROM CHAT APPLICATION
+<bot>:
+```
+
 ### Create instruct dataset
 
 Below are some of our scripts to help with assembling and cleaning instruct-type datasets that are
@@ -17,7 +58,8 @@ pytest -s create_data.py::test_chop_by_lengths                  # ~ 2 minutes, 2
 pytest -s create_data.py::test_grade                            # ~ 3 hours, keeps only high quality data
 pytest -s create_data.py::test_finalize_to_json
 ```
-This will take several hours and produce a file called `h2ogpt-oig-instruct-cleaned.json` (XX MB) with XXk human <-> bot interactions.
+This will take several hours and produce a file called [h2ogpt-oig-instruct-cleaned.json](https://huggingface.co/datasets/h2oai/h2ogpt-oig-oasst1-instruct-cleaned-v2) (575 MB) with 350k human <-> bot interactions.
+
 Note: This dataset is cleaned up, but might still contain undesired words and concepts.
 
 ### Perform fine-tuning on high-quality instruct data
