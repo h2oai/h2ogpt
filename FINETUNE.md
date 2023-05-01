@@ -14,7 +14,7 @@ and suddenly all the players raised their hands and shouted
 as the model will learn to say `suddenly` after `and` and it will learn to say `players` after `and suddenly all the` etc., as 
 part of the overall language training on hundreds of billions of tokens. Imagine that this is not a very efficient way to learn a language, but it works.
 
-For fine-tuning, when we only present a small set of high-quality data to the model, the creation of good input/output pairs is the 'label' work one has to do.
+For fine-tuning, when we only present a small set of high-quality data to the model, the creation of good input/output pairs is the 'labeling' work one has to do.
 
 For example, for fine-tuning, one could create such a dataset entry:
 ```text
