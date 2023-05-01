@@ -1574,15 +1574,36 @@ def test_check_unhelpful():
                   ]
     unhelpful += ["As a large language model",
                   "cannot provide any information",
+                  "As an artificial intelligence I do not have the capability",
+                  "As an artificial intelligence I don't have the capability",
+                  "As an artificial intelligence I can't",
+                  "As an artificial intelligence I cannot",
                   ]
     file = '/home/jon/Downloads/openassistant_oasst1_h2ogpt_graded.json'
     data = json.load(open(file, 'rt'))
     bads = {}
+    string_all = str(data)
     for sub in unhelpful:
-        string_all = str(data)
         bads[sub] = string_all.count(sub)
     bads = {k: v for k, v in bads.items() if v > 0}
     import pprint
     pp = pprint.PrettyPrinter(indent=4)
     pp.pprint(bads)
-    assert len(bads) == 0, bads
+
+    # check just bot
+    import re
+    convs = [[x.strip() for x in re.split(r'%s|%s' % (human, bot), y['input']) if x.strip()] for y in data]
+    humans = [[x for i, x in enumerate(y) if i % 2 == 0] for y in convs]
+    bots = [[x for i, x in enumerate(y) if i % 2 == 1] for y in convs]
+
+    bads_bots = {}
+    string_all = str(bots)
+    for sub in unhelpful:
+        bads_bots[sub] = string_all.count(sub)
+    bads_bots = {k: v for k, v in bads_bots.items() if v > 0}
+    import pprint
+    pp = pprint.PrettyPrinter(indent=4)
+    pp.pprint(bads_bots)
+
+    # assert len(bads) == 0, bads
+    assert len(bads_bots) == 0, bads_bots
