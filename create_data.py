@@ -1412,7 +1412,7 @@ def test_finalize_to_json():
         fixup_personality=True,  # False was original version, but it's better to personalize, so now using True
         only_personality=False,
         save_json=True,
-        deberta_grading=True,
+        deberta_grading=False,
     )
     df = pd.concat([df, pd.DataFrame(open_assistant)], axis=0)
 

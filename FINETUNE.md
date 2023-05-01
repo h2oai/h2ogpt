@@ -58,7 +58,7 @@ pytest -s create_data.py::test_chop_by_lengths                  # ~ 2 minutes, 2
 pytest -s create_data.py::test_grade                            # ~ 3 hours, keeps only high quality data
 pytest -s create_data.py::test_finalize_to_json
 ```
-This will take several hours and produce a file called [h2ogpt-oig-instruct-cleaned.json](https://huggingface.co/datasets/h2oai/h2ogpt-oig-oasst1-instruct-cleaned-v2) (575 MB) with 350k human <-> bot interactions.
+This will take several hours and produce a file called [h2ogpt-oig-oasst1-instruct-cleaned-v2.json](https://huggingface.co/datasets/h2oai/h2ogpt-oig-oasst1-instruct-cleaned-v2) (575 MB) with 350k human <-> bot interactions.
 
 Note: This dataset is cleaned up, but might still contain undesired words and concepts.
 
