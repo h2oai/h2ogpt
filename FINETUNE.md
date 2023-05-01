@@ -20,13 +20,13 @@ For example, for fine-tuning, one could create such a dataset entry:
 ```text
 Instruction: Summarize.
 Input: This is a very very very long paragraph saying nothing much.
-Summary: Nothing was said.
+Output: Nothing was said.
 ```
 This text is better suited to teach the model to summarize. During inference, one would present the model with the following text and it would provide the summary as the continuation of the input:
 ```text
 Instruction: Summarize.
 Input: TEXT TO SUMMARIZE
-Summary:
+Output:
 ```
 
 For a chatbot, one could fine-tune the model like this:
