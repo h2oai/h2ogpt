@@ -1520,6 +1520,9 @@ def test_check_stats_data():
 
 
 def test_check_unhelpful():
+    file = '/home/jon/Downloads/openassistant_oasst1_h2ogpt_graded.json'
+    # file = 'h2ogpt-oig-oasst1-instruct-cleaned-v2.json'
+
     # base versions
     unhelpful = ["I'm sorry, I didn't quite understand your question, could you please rephrase it?",
                  "I'm sorry, but I don't understand your question. Could you please rephrase it?",
@@ -1579,7 +1582,6 @@ def test_check_unhelpful():
                   "As an artificial intelligence I can't",
                   "As an artificial intelligence I cannot",
                   ]
-    file = '/home/jon/Downloads/openassistant_oasst1_h2ogpt_graded.json'
     data = json.load(open(file, 'rt'))
     bads = {}
     string_all = str(data)
@@ -1589,6 +1591,9 @@ def test_check_unhelpful():
     import pprint
     pp = pprint.PrettyPrinter(indent=4)
     pp.pprint(bads)
+
+    total_bads = sum(list(bads.values()))
+    print('total_bads: %s' % total_bads, flush=True)
 
     # check just bot
     import re
@@ -1604,6 +1609,9 @@ def test_check_unhelpful():
     import pprint
     pp = pprint.PrettyPrinter(indent=4)
     pp.pprint(bads_bots)
+
+    total_bads_bots = sum(list(bads_bots.values()))
+    print('total_bads_bots: %s' % total_bads_bots, flush=True)
 
     # assert len(bads) == 0, bads
     assert len(bads_bots) == 0, bads_bots
