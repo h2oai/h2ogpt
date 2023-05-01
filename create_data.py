@@ -1572,6 +1572,9 @@ def test_check_unhelpful():
                   "You need to provide more context",
                   "provide more context",
                   ]
+    unhelpful += ["As a large language model",
+                  "cannot provide any information",
+                  ]
     file = '/home/jon/Downloads/openassistant_oasst1_h2ogpt_graded.json'
     data = json.load(open(file, 'rt'))
     bads = {}
