@@ -4,6 +4,7 @@ import pathlib
 import random
 import shutil
 import subprocess
+import threading
 import time
 import traceback
 import zipfile
@@ -220,3 +221,22 @@ def copy_code(run_id):
         shutil.copy(me_full, new_me)
     else:
         shutil.copy(me_full, new_me)
+
+
+class NullContext(threading.local):
+    """No-op context manager, executes block without doing any additional processing.
+
+    Used as a stand-in if a particular block of code is only sometimes
+    used with a normal context manager:
+    """
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        self.finally_act()
+
+    def finally_act(self):
+        pass

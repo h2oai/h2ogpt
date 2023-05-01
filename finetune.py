@@ -869,7 +869,7 @@ def generate_prompt(data_point, prompt_type, chat, reduced):
     assert prompt_type in prompt_types, "Bad prompt type: %s" % prompt_type
     promptA, promptB, PreInstruct, PreInput, PreResponse, terminate_response = get_prompt(prompt_type, chat, context, reduced)
 
-    prompt = context
+    prompt = context if not reduced else ''
 
     if input and promptA:
         prompt += f"""{promptA}"""

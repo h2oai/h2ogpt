@@ -25,10 +25,16 @@ def go_gradio(**kwargs):
     if 'mbart-' in kwargs['model_lower']:
         instruction_label_nochat = "Text to translate"
     else:
-        instruction_label_nochat = "Instruction"
-    instruction_label = "You (Shift-Enter or push Submit to send message)"
+        instruction_label_nochat = "Instruction (Shift-Enter or push Submit to send message," \
+                                   " use Enter for multiple input lines)"
+    if kwargs['input_lines'] > 1:
+        instruction_label = "You (Shift-Enter or push Submit to send message, use Enter for multiple input lines)"
+    else:
+        instruction_label = "You (Enter or push Submit to send message, shift-enter for more lines)"
 
     title = 'h2oGPT'
+    if 'h2ogpt-research' in kwargs['base_model']:
+        title += " [Research demonstration]"
     if kwargs['verbose']:
         description = f"""Model {kwargs['base_model']} Instruct dataset.
                       For more information, visit our GitHub pages: [h2oGPT](https://github.com/h2oai/h2ogpt) and [H2O LLM Studio](https://github.com/h2oai/h2o-llmstudio).
@@ -43,6 +49,8 @@ def go_gradio(**kwargs):
         if kwargs['load_8bit']:
             description += """<i><li> Model is loaded in 8-bit and has other restrictions on this host. UX can be worse than non-hosted version.</i></li>"""
         description += """<i><li>Conversations may be used to improve h2oGPT.  Do not share sensitive information.</i></li>"""
+        if 'h2ogpt-research' in kwargs['base_model']:
+            description += """<i><li>Research demonstration only, not used for commercial purposes.</i></li>"""
         description += """<i><li>By using h2oGPT, you accept our [Terms of Service](https://github.com/h2oai/h2ogpt/blob/main/tos.md).</i></li></ul></p>"""
 
     if kwargs['verbose']:
@@ -148,7 +156,8 @@ def go_gradio(**kwargs):
                     with col_nochat:  # FIXME: for model comparison, and check rest
                         text_output_nochat = gr.Textbox(lines=5, label=output_label0)
                         instruction_nochat = gr.Textbox(
-                            lines=4, label=instruction_label_nochat,
+                            lines=kwargs['input_lines'],
+                            label=instruction_label_nochat,
                             placeholder=kwargs['placeholder_instruction'],
                         )
                         iinput_nochat = gr.Textbox(lines=4, label="Input context for Instruction",
@@ -171,7 +180,8 @@ def go_gradio(**kwargs):
                         with gr.Row():
                             with gr.Column(scale=50):
                                 instruction = gr.Textbox(
-                                    lines=4, label=instruction_label,
+                                    lines=kwargs['input_lines'],
+                                    label=instruction_label,
                                     placeholder=kwargs['placeholder_instruction'],
                                 )
                             with gr.Row():
@@ -264,7 +274,7 @@ def go_gradio(**kwargs):
                                                 visible=not is_public)
                             context = gr.Textbox(lines=3, label="System Pre-Context",
                                                  info="Directly pre-appended without prompt processing",
-                                                 visible=not is_public and not kwargs['chat'])
+                                                 visible=not is_public)
                             chat = gr.components.Checkbox(label="Chat mode", value=kwargs['chat'],
                                                           visible=not is_public)
 
@@ -852,7 +862,7 @@ def go_gradio(**kwargs):
 
 input_args_list = ['model_state']
 inputs_kwargs_list = ['debug', 'save_dir', 'hard_stop_list', 'sanitize_bot_response', 'model_state0', 'is_low_mem',
-                      'raise_generate_gpu_exceptions']
+                      'raise_generate_gpu_exceptions', 'chat_context']
 
 
 def get_inputs_list(inputs_dict, model_lower):
