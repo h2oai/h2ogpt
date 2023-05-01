@@ -274,7 +274,7 @@ def go_gradio(**kwargs):
                                                 visible=not is_public)
                             context = gr.Textbox(lines=3, label="System Pre-Context",
                                                  info="Directly pre-appended without prompt processing",
-                                                 visible=not is_public and not kwargs['chat'])
+                                                 visible=not is_public)
                             chat = gr.components.Checkbox(label="Chat mode", value=kwargs['chat'],
                                                           visible=not is_public)
 
@@ -862,7 +862,7 @@ def go_gradio(**kwargs):
 
 input_args_list = ['model_state']
 inputs_kwargs_list = ['debug', 'save_dir', 'hard_stop_list', 'sanitize_bot_response', 'model_state0', 'is_low_mem',
-                      'raise_generate_gpu_exceptions']
+                      'raise_generate_gpu_exceptions', 'chat_context']
 
 
 def get_inputs_list(inputs_dict, model_lower):
