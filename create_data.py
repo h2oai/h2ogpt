@@ -1517,3 +1517,66 @@ def test_check_stats_data():
     plt.title("token_count with cutoff=%s avg: %s median: %s" % (cutoff_len, token_avg, token_median))
     plt.savefig('token_hist_%s.png' % cutoff_len)
     plt.close()
+
+
+def test_check_unhelpful():
+    # base versions
+    unhelpful = ["I'm sorry, I didn't quite understand your question, could you please rephrase it?",
+                 "I'm sorry, but I don't understand your question. Could you please rephrase it?",
+                 "I'm sorry, I didn't quite understand your question",
+                 "I do not understand your question. Can you please try to make it clearer?",
+                 "I'm sorry, but as an AI language model",
+                 "I apologize, but I cannot rephrase text that I cannot understand. Your post is difficult to read and follow.",
+                 "I apologize, but I am not h2oGPT. I am a language model developed by H2O.ai. How may I help you?",
+                 "Sorry, but I am not an actual Linux shell, nor am I capable of emulating one. I am an open source chat assistant and would be glad t",
+                 "I apologize, but I cannot perform the task you have requested.",
+                 "I'm sorry, I cannot perform this task as I am an AI language model and do not have access",
+                 "I'm sorry, I'm not sure what you're asking for here.",
+                 "I'm not sure what you are asking",
+                 "You need to provide more context",
+                 ]
+    # reduced versions, with redundant parts, just to give context for where they came from
+    unhelpful += ["sorry, I didn't quite understand your question",
+                  "I didn't quite understand your question",
+                  "I didn't understand your question",
+                  "I did not understand your question",
+                  "I did not understand the question",
+                  "could you please rephrase"
+                  "could you rephrase"
+                  "I do not understand your question.",
+                  "I do not understand the question.",
+                  "I do not understand that question.",
+                  "Can you please try to make it clearer",
+                  "Can you try to make it clearer",
+                  "sorry, but as an AI language model",
+                  "as an AI language model",
+                  "I apologize, but I cannot",
+                  "I cannot rephrase text",
+                  "I cannot understand. Your post is difficult to read and follow."
+                  "Your post is difficult to read and follow."
+                  "I apologize, but I am",
+                  "Sorry, but I am not ",
+                  "nor am I capable",
+                  "I am not capable of",
+                  "I apologize, but I cannot perform the task you have requested",
+                  "I cannot perform the task",
+                  "I cannot complete the task",
+                  "I'm sorry",
+                  "I am sorry",
+                  "do not have access",
+                  "not sure what you're asking for",
+                  "not sure what you are asking for",
+                  "not sure what is being asked",
+                  "I'm not sure what you are asking",
+                  "not sure what you are asking",
+                  "You need to provide more context",
+                  "provide more context",
+                  ]
+    file = '/home/jon/Downloads/openassistant_oasst1_h2ogpt_graded.json'
+    data = json.load(open(file, 'rt'))
+    bads = []
+    for sub in unhelpful:
+        if sub in str(data):
+            bads.append(sub)
+    print("bad subs: %s" % bads, flush=True)
+    assert len(bads) == 0, bads
