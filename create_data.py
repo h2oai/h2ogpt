@@ -1370,14 +1370,16 @@ def test_add_open_assistant(fixup_personality, only_personality, deberta_grading
         df = df.rename(columns={'input': 'text'})
         df = add_deberta_grade(df)
         df = df.rename(columns={'text': 'input'})
-        min_grade = 0.2
-        max_grade = np.inf
-        before_rows = df.shape[0]
-        df = df[df['grade_deberta'] >= min_grade]
-        df = df[df['grade_deberta'] <= max_grade]
-        after_rows = df.shape[0]
-        print("Dropped %d rows out of %d due to deberta grade" % (before_rows - after_rows, before_rows))
-        print("After DeBERTa grade")
+        drop = False
+        if drop:
+            min_grade = 0.2
+            max_grade = np.inf
+            before_rows = df.shape[0]
+            df = df[df['grade_deberta'] >= min_grade]
+            df = df[df['grade_deberta'] <= max_grade]
+            after_rows = df.shape[0]
+            print("Dropped %d rows out of %d due to deberta grade" % (before_rows - after_rows, before_rows))
+            print("After DeBERTa grade")
         print(df.describe())
         all_rows = []
         for i in range(df.shape[0]):
@@ -1386,6 +1388,7 @@ def test_add_open_assistant(fixup_personality, only_personality, deberta_grading
                     input=df['input'].iloc[i],
                     source=df['source'].iloc[i],
                     prompt_type=df['prompt_type'].iloc[i],
+                    grade_deberta=df['grade_deberta'].iloc[i],
                 )
             )
     if save_json:
@@ -1544,3 +1547,103 @@ def test_check_stats_data():
     plt.title("token_count with cutoff=%s avg: %s median: %s" % (cutoff_len, token_avg, token_median))
     plt.savefig('token_hist_%s.png' % cutoff_len)
     plt.close()
+
+
+def test_check_unhelpful():
+    file = '/home/jon/Downloads/openassistant_oasst1_h2ogpt_graded.json'
+    # file = 'h2ogpt-oig-oasst1-instruct-cleaned-v2.json'
+
+    # base versions
+    unhelpful = ["I'm sorry, I didn't quite understand your question, could you please rephrase it?",
+                 "I'm sorry, but I don't understand your question. Could you please rephrase it?",
+                 "I'm sorry, I didn't quite understand your question",
+                 "I do not understand your question. Can you please try to make it clearer?",
+                 "I'm sorry, but as an AI language model",
+                 "I apologize, but I cannot rephrase text that I cannot understand. Your post is difficult to read and follow.",
+                 "I apologize, but I am not h2oGPT. I am a language model developed by H2O.ai. How may I help you?",
+                 "Sorry, but I am not an actual Linux shell, nor am I capable of emulating one. I am an open source chat assistant and would be glad t",
+                 "I apologize, but I cannot perform the task you have requested.",
+                 "I'm sorry, I cannot perform this task as I am an AI language model and do not have access",
+                 "I'm sorry, I'm not sure what you're asking for here.",
+                 "I'm not sure what you are asking",
+                 "You need to provide more context",
+                 ]
+    # reduced versions, with redundant parts, just to give context for where they came from
+    unhelpful += ["sorry, I didn't quite understand your question",
+                  "I didn't quite understand your question",
+                  "I didn't understand your question",
+                  "I did not understand your question",
+                  "I did not understand the question",
+                  "could you please rephrase"
+                  "could you rephrase"
+                  "I do not understand your question.",
+                  "I do not understand the question.",
+                  "I do not understand that question.",
+                  "Can you please try to make it clearer",
+                  "Can you try to make it clearer",
+                  "sorry, but as an AI language model",
+                  "as an AI language model",
+                  "I apologize, but I cannot",
+                  "I cannot rephrase text",
+                  "I cannot understand. Your post is difficult to read and follow."
+                  "Your post is difficult to read and follow."
+                  "I apologize, but I am",
+                  "Sorry, but I am not ",
+                  "nor am I capable",
+                  "I am not capable of",
+                  "I apologize, but I cannot perform the task you have requested",
+                  "I cannot perform the task",
+                  "I cannot complete the task",
+                  "I'm sorry",
+                  "I am sorry",
+                  "do not have access",
+                  "not sure what you're asking for",
+                  "not sure what you are asking for",
+                  "not sure what is being asked",
+                  "I'm not sure what you are asking",
+                  "not sure what you are asking",
+                  "You need to provide more context",
+                  "provide more context",
+                  ]
+    unhelpful += ["As a large language model",
+                  "cannot provide any information",
+                  "As an artificial intelligence I do not have the capability",
+                  "As an artificial intelligence I don't have the capability",
+                  "As an artificial intelligence I can't",
+                  "As an artificial intelligence I cannot",
+                  "I am sorry but I do not understand",
+                  "Can you please explain",
+                  ]
+    data = json.load(open(file, 'rt'))
+    bads = {}
+    string_all = str(data)
+    for sub in unhelpful:
+        bads[sub] = string_all.count(sub)
+    bads = {k: v for k, v in bads.items() if v > 0}
+    import pprint
+    pp = pprint.PrettyPrinter(indent=4)
+    pp.pprint(bads)
+
+    total_bads = sum(list(bads.values()))
+    print('total_bads: %s' % total_bads, flush=True)
+
+    # check just bot
+    import re
+    convs = [[x.strip() for x in re.split(r'%s|%s' % (human, bot), y['input']) if x.strip()] for y in data]
+    humans = [[x for i, x in enumerate(y) if i % 2 == 0] for y in convs]
+    bots = [[x for i, x in enumerate(y) if i % 2 == 1] for y in convs]
+
+    bads_bots = {}
+    string_all = str(bots)
+    for sub in unhelpful:
+        bads_bots[sub] = string_all.count(sub)
+    bads_bots = {k: v for k, v in bads_bots.items() if v > 0}
+    import pprint
+    pp = pprint.PrettyPrinter(indent=4)
+    pp.pprint(bads_bots)
+
+    total_bads_bots = sum(list(bads_bots.values()))
+    print('total_bads_bots: %s' % total_bads_bots, flush=True)
+
+    # assert len(bads) == 0, bads
+    assert len(bads_bots) == 0, bads_bots
