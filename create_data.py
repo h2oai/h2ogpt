@@ -1574,9 +1574,12 @@ def test_check_unhelpful():
                   ]
     file = '/home/jon/Downloads/openassistant_oasst1_h2ogpt_graded.json'
     data = json.load(open(file, 'rt'))
-    bads = []
+    bads = {}
     for sub in unhelpful:
-        if sub in str(data):
-            bads.append(sub)
-    print("bad subs: %s" % bads, flush=True)
+        string_all = str(data)
+        bads[sub] = string_all.count(sub)
+    bads = {k: v for k, v in bads.items() if v > 0}
+    import pprint
+    pp = pprint.PrettyPrinter(indent=4)
+    pp.pprint(bads)
     assert len(bads) == 0, bads
