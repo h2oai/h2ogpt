@@ -110,6 +110,12 @@ python3 ${WORKSPACE}/tools/gpt/identity_test.py
 ```
 
 And now the end-to-end test:
+
+We first have to fix a bug in the inputs for postprocessing:
+```bash
+sed -i -e 's@prepare_tensor("RESPONSE_INPUT_LENGTHS", output2, FLAGS.protocol)@prepare_tensor("sequence_length", output1, FLAGS.protocol)@' ${WORKSPACE}/tools/gpt/end_to_end_test.py
+```
+
 ```bash
 python3 ${WORKSPACE}/tools/gpt/end_to_end_test.py
 ```
