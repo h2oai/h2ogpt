@@ -33,6 +33,8 @@ def go_gradio(**kwargs):
         instruction_label = "You (Enter or push Submit to send message, shift-enter for more lines)"
 
     title = 'h2oGPT'
+    if 'h2ogpt-research' in kwargs['base_model']:
+        title += " [Research demonstration]"
     if kwargs['verbose']:
         description = f"""Model {kwargs['base_model']} Instruct dataset.
                       For more information, visit our GitHub pages: [h2oGPT](https://github.com/h2oai/h2ogpt) and [H2O LLM Studio](https://github.com/h2oai/h2o-llmstudio).
@@ -47,6 +49,8 @@ def go_gradio(**kwargs):
         if kwargs['load_8bit']:
             description += """<i><li> Model is loaded in 8-bit and has other restrictions on this host. UX can be worse than non-hosted version.</i></li>"""
         description += """<i><li>Conversations may be used to improve h2oGPT.  Do not share sensitive information.</i></li>"""
+        if 'h2ogpt-research' in kwargs['base_model']:
+            description += """<i><li>Research demonstration only, not used for commercial purposes.</i></li>"""
         description += """<i><li>By using h2oGPT, you accept our [Terms of Service](https://github.com/h2oai/h2ogpt/blob/main/tos.md).</i></li></ul></p>"""
 
     if kwargs['verbose']:
