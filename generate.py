@@ -835,18 +835,21 @@ def evaluate(
             thread = Thread(target=target)
             thread.start()
             outputs = ""
+            clean_outputs = ""
             for new_text in streamer:
                 outputs += new_text
-                yield prompter.get_response(outputs, prompt=inputs_decoded,
-                                            sanitize_bot_response=sanitize_bot_response)
-            decoded_output = outputs
+                clean_outputs = prompter.get_response(outputs, prompt=inputs_decoded,
+                                                      sanitize_bot_response=sanitize_bot_response)
+                yield clean_outputs
+            decoded_output = clean_outputs
         else:
             outputs = model.generate(**gen_kwargs)
             outputs = [decoder(s) for s in outputs.sequences]
-            yield prompter.get_response(outputs, prompt=inputs_decoded,
-                                        sanitize_bot_response=sanitize_bot_response)
+            clean_outputs = prompter.get_response(outputs, prompt=inputs_decoded,
+                                                  sanitize_bot_response=sanitize_bot_response)
+            yield clean_outputs
             if outputs and len(outputs) >= 1:
-                decoded_output = prompt + outputs[0]
+                decoded_output = prompt + clean_outputs
         if save_dir and decoded_output:
             save_generate_output(output=decoded_output, base_model=base_model, save_dir=save_dir)
 
