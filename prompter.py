@@ -71,7 +71,7 @@ class Prompter(object):
                             output = output.split(self.pre_response)[1]
                             allow_terminate = True
                         else:
-                            print("Failure of parsing: %s" % output, flush=True)
+                            print("Failure of parsing or not enough output yet: %s" % output, flush=True)
                             allow_terminate = False
                 else:
                     allow_terminate = True
