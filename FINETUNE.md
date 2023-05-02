@@ -2,6 +2,13 @@
 
 Make sure you have followed the [native installation instructions](INSTALL.md).
 
+
+### Fine-tuning vs Pre-training
+
+- Pre-training (typically on TBs of data) gives the LLM the ability to master one or many languages. Pre-training usually takes weeks or months on dozens of hundreds of GPUs. The most common concern is underfitting and cost.
+- Fine-tuning (typically on MBs or GBs of data) makes a model more familiar with a specific style of prompting, which generally leads to improved outcomes for this one specific case. The most common concern is overfitting. Fine-tuning usually takes hours or days on a few GPUs.
+
+
 ### Dataset format
 
 In general, LLMs take plain text (ordered list of tokens) as input and generate plain text as output.
@@ -60,13 +67,12 @@ and during inference, one would present the following to the LLM, for it to resp
 <bot>:
 ```
 
-For fine-tuning, if the average length of inputs is less than the context length, one can provide a `cutoff_len` of less than the context length, to truncate inputs to this amount of tokens. For most instruction-type datasets, a cutoff length of 512 seems reasonable, and provides nice memory and time savings.
-
 ### Context length
 
 Also note that the total length of the text (i.e., input and output) the LLM can handle is limited by the so-called *context length*. For our current models, the context length is 2048 tokens. Longer context lengths are computationally more expensive due to the interactions between all tokens in the sequence.
 A context length of 2048 means that for an input of e.g. 1900 tokens, the model will be able to create no more than 148 new tokens as part of the output.
 
+For fine-tuning, if the average length of inputs is less than the context length, one can provide a `cutoff_len` of less than the context length, to truncate inputs to this amount of tokens. For most instruction-type datasets, a cutoff length of 512 seems reasonable, and provides nice memory and time savings.
 
 ### Create instruct dataset
 
