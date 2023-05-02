@@ -835,7 +835,6 @@ def evaluate(
             thread = Thread(target=target)
             thread.start()
             outputs = ""
-            clean_outputs = ""
             for new_text in streamer:
                 outputs += new_text
                 yield prompter.get_response(outputs, prompt=inputs_decoded,
