@@ -829,9 +829,10 @@ def evaluate(
             gen_kwargs.update(dict(streamer=streamer))
             if debug:
                 KThread.show_threads()
+            target_func = generate_with_exceptions
             if concurrency_count == 1:
                 # otherwise can't do this
-                KThread.kill_threads('generate_with_exceptions')
+                KThread.kill_threads(target_func.__name__)
             target = wrapped_partial(generate_with_exceptions, model.generate, prompt, inputs_decoded,
                                      raise_generate_gpu_exceptions, **gen_kwargs)
             thread = KThread(target=target)
