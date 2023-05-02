@@ -102,7 +102,8 @@ def main(
     is_low_mem = is_hf  # assumes run on 24GB consumer GPU
     admin_pass = os.getenv("ADMIN_PASS")
     # will sometimes appear in UI or sometimes actual generation, but maybe better than empty result
-    raise_generate_gpu_exceptions = True
+    # but becomes unrecoverable sometimes if raise, so just be silent for now
+    raise_generate_gpu_exceptions = not is_public
 
     # allow set token directly
     use_auth_token = os.environ.get("HUGGINGFACE_API_TOKEN", use_auth_token)
@@ -868,7 +869,8 @@ def generate_with_exceptions(func, prompt, inputs_decoded, raise_generate_gpu_ex
         if 'Expected all tensors to be on the same device' in str(e) or \
                 'expected scalar type Half but found Float' in str(e) or \
                 'probability tensor contains either' in str(e) or \
-                'cublasLt ran into an error!' in str(e):
+                'cublasLt ran into an error!' in str(e) or \
+                'mat1 and mat2 shapes cannot be multiplied' in str(e):
             print(
                 "GPU Error: prompt: %s inputs_decoded: %s exception: %s" % (prompt, inputs_decoded, str(e)),
                 flush=True)
