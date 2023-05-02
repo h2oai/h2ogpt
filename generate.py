@@ -865,7 +865,6 @@ def evaluate(
                 outputs = ""
                 for new_text in streamer:
                     outputs += new_text
-                    print('.', end='', flush=True)
                     yield prompter.get_response(outputs, prompt=inputs_decoded,
                                                 sanitize_bot_response=sanitize_bot_response)
                 decoded_output = outputs
