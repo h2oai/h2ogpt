@@ -366,8 +366,8 @@ def go_gradio(**kwargs):
 
         # Get flagged data
         zip_data1 = functools.partial(zip_data, root_dirs=['flagged_data_points', kwargs['save_dir']])
-        zip_btn.click(zip_data1, inputs=None, outputs=[file_output, zip_text])
-        s3up_btn.click(s3up, inputs=zip_text, outputs=s3up_text)
+        zip_btn.click(zip_data1, inputs=None, outputs=[file_output, zip_text], queue=False)
+        s3up_btn.click(s3up, inputs=zip_text, outputs=s3up_text, queue=False)
 
         def check_admin_pass(x):
             return gr.update(visible=x == admin_pass)
@@ -809,7 +809,8 @@ def go_gradio(**kwargs):
 
         add_model_event = add_model_button.click(fn=dropdown_model_list,
                                                  inputs=[model_options_state, new_model],
-                                                 outputs=[model_choice, model_choice2, new_model, model_options_state])
+                                                 outputs=[model_choice, model_choice2, new_model, model_options_state],
+                                                 queue=False)
 
         def dropdown_lora_list(list0, x, model_used1, lora_used1, model_used2, lora_used2):
             new_state = [list0[0] + [x]]
@@ -824,11 +825,12 @@ def go_gradio(**kwargs):
         add_lora_event = add_lora_button.click(fn=dropdown_lora_list,
                                                inputs=[lora_options_state, new_lora, model_used, lora_used, model_used2,
                                                        lora_used2],
-                                               outputs=[lora_choice, lora_choice2, new_lora, lora_options_state])
+                                               outputs=[lora_choice, lora_choice2, new_lora, lora_options_state],
+                                               queue=False)
 
-        go_btn.click(lambda: gr.update(visible=False), None, go_btn, api_name="go" if allow_api else None) \
-            .then(lambda: gr.update(visible=True), None, normal_block) \
-            .then(**load_model_args).then(**prompt_update_args)
+        go_btn.click(lambda: gr.update(visible=False), None, go_btn, api_name="go" if allow_api else None, queue=False) \
+            .then(lambda: gr.update(visible=True), None, normal_block, queue=False) \
+            .then(**load_model_args, queue=False).then(**prompt_update_args, queue=False)
 
         def compare_textbox_fun(x):
             return gr.Textbox.update(visible=x)
@@ -850,16 +852,16 @@ def go_gradio(**kwargs):
         callback.setup(inputs_list + [text_output, text_output2], "flagged_data_points")
         flag_btn.click(lambda *args: callback.flag(args), inputs_list + [text_output, text_output2], None,
                        preprocess=False,
-                       api_name='flag' if allow_api else None)
+                       api_name='flag' if allow_api else None, queue=False)
         flag_btn_nochat.click(lambda *args: callback.flag(args), inputs_list + [text_output_nochat], None,
                               preprocess=False,
-                              api_name='flag_nochat' if allow_api else None)
+                              api_name='flag_nochat' if allow_api else None, queue=False)
 
         def get_system_info():
             return gr.Textbox.update(value=system_info_print())
 
         system_event = system_btn.click(get_system_info, outputs=system_text,
-                                        api_name='system_info' if allow_api else None)
+                                        api_name='system_info' if allow_api else None, queue=False)
 
         # don't pass text_output, don't want to clear output, just stop it
         # FIXME: have to click once to stop output and second time to stop GPUs going
