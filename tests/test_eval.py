@@ -43,12 +43,18 @@ def run_eval1():
     assert actual1 == expected1
     actual2 = {k: v for k, v in zip(columns, result_list) if k in key_separate}
 
-    expected2 = {'response': """The spinal ligaments are the strongest and most important of all the ligaments in the human body. They provide stability and support to the spine, keeping it aligned and preventing it from twisting or bending abnormally. The ligaments are composed of tough fibers that are attached to the vertebrae and help to prevent excessive motion or stress on the spinal cord and nerves. Spinal ligaments can be damaged or stretched due to trauma or repetitive strain, leading to pain and discomfort in the back and neck.
+    import torch
+    if torch.cuda.is_available():
+        expected2 = {'response': """The spinal ligaments are the strongest and most important of all the ligaments in the human body. They provide stability and support to the spine, keeping it aligned and preventing it from twisting or bending abnormally. The ligaments are composed of tough fibers that are attached to the vertebrae and help to prevent excessive motion or stress on the spinal cord and nerves. Spinal ligaments can be damaged or stretched due to trauma or repetitive strain, leading to pain and discomfort in the back and neck.
 
 Spinal ligaments are named according to their location along the spine. The anterior longitudinal ligament (ALL) is located anteriorly, while the posterior longitudinal ligament (PLL) is located posteriorly. The interspinous ligament (ISL) and supraspinous ligament (SSL) are located between adjacent vertebrae. The intertransverse ligament (ITL) is located between the transverse processes of the vertebrae. The ligamentum flavum (LF) is located between the laminae of the vertebrae.
 
 Spinal ligaments play an important role in maintaining the alignment of the spine and protecting the spinal cord and nerves. Spinal ligaments can be stretched or torn during activities such as lifting heavy objects, playing sports, or participating in strenuous exercise programs""",
-                 'score': 0.7533428072929382}
+                     'score': 0.7533428072929382}
+    else:
+        expected2 = {
+            'response': 'The ligaments that connect the vertebrae to the spinal column are called the “spinal ligaments.” They include the following:\n\nInterspinous Ligament: This ligament connects the spinous processes of adjacent vertebrae. It helps to maintain the spacing between the vertebrae and prevents them from slipping forward.\n\nTransverse Ligament: This ligament connects the laminae of adjacent vertebrae. It helps to stabilize the motion of the vertebrae.',
+            'score': 0.77}
 
     import numpy as np
     assert np.isclose(actual2['score'], expected2['score'], rtol=0.05), "Score is not as expected: %s %s" % (actual2['score'], expected2['score'])
