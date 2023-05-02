@@ -833,7 +833,7 @@ def evaluate(
         # else hit bitsandbytes lack of thread safety:
         # https://github.com/h2oai/h2ogpt/issues/104
         # but only makes sense if concurrency_count == 1
-        context_class = NullContext if concurrency_count > 1 else filelock.FileLock
+        context_class = NullContext #if concurrency_count > 1 else filelock.FileLock
         print('Pre-Generate: %s' % str(datetime.now()), flush=True)
         decoded_output = None
         with context_class("generate.lock"):
