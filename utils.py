@@ -244,56 +244,6 @@ class NullContext(threading.local):
         pass
 
 
-class KThread(threading.Thread):
-    """Thread with a kill method."""
-
-    def __init__(self, *args, **keywords):
-        threading.Thread.__init__(self, *args, **keywords)
-        self.killed = False
-
-    def start(self):
-        """Start the thread."""
-        self.__run_backup = self.run
-        self.run = self.__run  # Force the Thread to install our trace.
-        threading.Thread.start(self)
-
-    def __run(self):
-        """install trace."""
-        sys.settrace(self.globaltrace)
-        self.__run_backup()
-        self.run = self.__run_backup
-
-    def globaltrace(self, frame, why, arg):
-        if why == 'call':
-            return self.localtrace
-        else:
-            return None
-
-    def localtrace(self, frame, why, arg):
-        if self.killed:
-            if why == 'line':
-                raise SystemExit()
-        return self.localtrace
-
-    def kill(self):
-        self.killed = True
-
-    @staticmethod
-    def show_threads():
-        for thread in threading.enumerate():
-            print(thread.name, flush=True)
-
-    @staticmethod
-    def kill_threads(name, debug=False):
-        for thread in threading.enumerate():
-            if name in thread.name:
-                if debug:
-                    print("Trying to kill %s %s" % (thread.ident, thread), flush=True)
-                thread.kill()
-            if debug:
-                print(thread, flush=True)
-
-
 def wrapped_partial(func, *args, **kwargs):
     """
     Give partial properties of normal function, like __name__ attribute etc.

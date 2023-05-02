@@ -3,8 +3,9 @@ import sys
 import os
 import traceback
 import typing
+from threading import Thread
 
-from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, KThread, wrapped_partial
+from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial
 
 SEED = 1236
 set_seed(SEED)
@@ -828,15 +829,10 @@ def evaluate(
             skip_prompt = False
             streamer = TextIteratorStreamer(tokenizer, skip_prompt=skip_prompt)
             gen_kwargs.update(dict(streamer=streamer))
-            if debug:
-                KThread.show_threads()
             target_func = generate_with_exceptions
-            if concurrency_count == 1:
-                # otherwise can't do this
-                KThread.kill_threads(target_func.__name__, debug=debug)
             target = wrapped_partial(generate_with_exceptions, model.generate, prompt, inputs_decoded,
                                      raise_generate_gpu_exceptions, **gen_kwargs)
-            thread = KThread(target=target)
+            thread = Thread(target=target)
             thread.start()
             outputs = ""
             for new_text in streamer:
