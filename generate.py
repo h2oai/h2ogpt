@@ -240,7 +240,8 @@ def main(
                 fun = partial(evaluate, model_state, debug=debug, save_dir=save_dir, is_low_mem=is_low_mem,
                               raise_generate_gpu_exceptions=raise_generate_gpu_exceptions,
                               chat_context=chat_context,
-                              concurrency_count=concurrency_count)
+                              concurrency_count=concurrency_count,
+                              lora_weights=lora_weights)
             else:
                 assert eval_sharegpt_prompts_only > 0
 
@@ -655,6 +656,7 @@ def evaluate(
         is_low_mem=None,
         raise_generate_gpu_exceptions=None,
         chat_context=None,
+        lora_weights=None,
 ):
     # ensure passed these
     assert concurrency_count is not None
@@ -829,55 +831,57 @@ def evaluate(
                                     )
 
     with torch.no_grad():
-        # protection for gradio not keeping track of closed users,
-        # else hit bitsandbytes lack of thread safety:
-        # https://github.com/h2oai/h2ogpt/issues/104
-        # but only makes sense if concurrency_count == 1
-        context_class = NullContext #if concurrency_count > 1 else filelock.FileLock
-        print('Pre-Generate: %s' % str(datetime.now()), flush=True)
-        decoded_output = None
-        with context_class("generate.lock"):
-            print('Generate: %s' % str(datetime.now()), flush=True)
-            # decoded tokenized prompt can deviate from prompt due to special characters
-            inputs_decoded = decoder(input_ids[0])
-            inputs_decoded_raw = decoder_raw(input_ids[0])
-            if inputs_decoded == prompt:
-                # normal
-                pass
-            elif inputs_decoded.lstrip() == prompt.lstrip():
-                # sometimes extra space in front, make prompt same for prompt removal
-                prompt = inputs_decoded
-            elif inputs_decoded_raw == prompt:
-                # some models specify special tokens that are part of normal prompt, so can't skip them
-                inputs_decoded_raw = inputs_decoded
-                decoder = decoder_raw
-            else:
-                print("WARNING: Special characters in prompt", flush=True)
-            if stream_output:
-                skip_prompt = False
-                streamer = TextIteratorStreamer(tokenizer, skip_prompt=skip_prompt)
-                gen_kwargs.update(dict(streamer=streamer))
-                target_func = generate_with_exceptions
-                target = wrapped_partial(generate_with_exceptions, model.generate, prompt, inputs_decoded,
-                                         raise_generate_gpu_exceptions, **gen_kwargs)
-                thread = Thread(target=target)
-                thread.start()
-                outputs = ""
-                for new_text in streamer:
-                    outputs += new_text
+        context_class_cast = NullContext if device == 'cpu' or lora_weights else torch.autocast
+        with context_class_cast(device):
+            # protection for gradio not keeping track of closed users,
+            # else hit bitsandbytes lack of thread safety:
+            # https://github.com/h2oai/h2ogpt/issues/104
+            # but only makes sense if concurrency_count == 1
+            context_class = NullContext #if concurrency_count > 1 else filelock.FileLock
+            print('Pre-Generate: %s' % str(datetime.now()), flush=True)
+            decoded_output = None
+            with context_class("generate.lock"):
+                print('Generate: %s' % str(datetime.now()), flush=True)
+                # decoded tokenized prompt can deviate from prompt due to special characters
+                inputs_decoded = decoder(input_ids[0])
+                inputs_decoded_raw = decoder_raw(input_ids[0])
+                if inputs_decoded == prompt:
+                    # normal
+                    pass
+                elif inputs_decoded.lstrip() == prompt.lstrip():
+                    # sometimes extra space in front, make prompt same for prompt removal
+                    prompt = inputs_decoded
+                elif inputs_decoded_raw == prompt:
+                    # some models specify special tokens that are part of normal prompt, so can't skip them
+                    inputs_decoded_raw = inputs_decoded
+                    decoder = decoder_raw
+                else:
+                    print("WARNING: Special characters in prompt", flush=True)
+                if stream_output:
+                    skip_prompt = False
+                    streamer = TextIteratorStreamer(tokenizer, skip_prompt=skip_prompt)
+                    gen_kwargs.update(dict(streamer=streamer))
+                    target_func = generate_with_exceptions
+                    target = wrapped_partial(generate_with_exceptions, model.generate, prompt, inputs_decoded,
+                                             raise_generate_gpu_exceptions, **gen_kwargs)
+                    thread = Thread(target=target)
+                    thread.start()
+                    outputs = ""
+                    for new_text in streamer:
+                        outputs += new_text
+                        yield prompter.get_response(outputs, prompt=inputs_decoded,
+                                                    sanitize_bot_response=sanitize_bot_response)
+                    decoded_output = outputs
+                else:
+                    outputs = model.generate(**gen_kwargs)
+                    outputs = [decoder(s) for s in outputs.sequences]
                     yield prompter.get_response(outputs, prompt=inputs_decoded,
                                                 sanitize_bot_response=sanitize_bot_response)
-                decoded_output = outputs
-            else:
-                outputs = model.generate(**gen_kwargs)
-                outputs = [decoder(s) for s in outputs.sequences]
-                yield prompter.get_response(outputs, prompt=inputs_decoded,
-                                            sanitize_bot_response=sanitize_bot_response)
-                if outputs and len(outputs) >= 1:
-                    decoded_output = prompt + outputs[0]
-            if save_dir and decoded_output:
-                save_generate_output(output=decoded_output, base_model=base_model, save_dir=save_dir)
-        print('Post-Generate: %s decoded_output: %s' % (str(datetime.now()), len(decoded_output) if decoded_output else -1), flush=True)
+                    if outputs and len(outputs) >= 1:
+                        decoded_output = prompt + outputs[0]
+                if save_dir and decoded_output:
+                    save_generate_output(output=decoded_output, base_model=base_model, save_dir=save_dir)
+            print('Post-Generate: %s decoded_output: %s' % (str(datetime.now()), len(decoded_output) if decoded_output else -1), flush=True)
 
 
 def generate_with_exceptions(func, prompt, inputs_decoded, raise_generate_gpu_exceptions, **kwargs):

@@ -889,7 +889,7 @@ def go_gradio(**kwargs):
 
 input_args_list = ['model_state']
 inputs_kwargs_list = ['debug', 'save_dir', 'hard_stop_list', 'sanitize_bot_response', 'model_state0', 'is_low_mem',
-                      'raise_generate_gpu_exceptions', 'chat_context', 'concurrency_count']
+                      'raise_generate_gpu_exceptions', 'chat_context', 'concurrency_count', 'lora_weights']
 
 
 def get_inputs_list(inputs_dict, model_lower):
