@@ -3,6 +3,16 @@ def test_eval1():
     call_subprocess_onetask(run_eval1)
 
 
+def test_eval1_cpu():
+    from tests.utils import call_subprocess_onetask
+    import os
+    cvd = os.getenv('CUDA_VISIBLE_DEVICES')
+    os.environ['CUDA_VISIBLE_DEVICES'] = ''
+    call_subprocess_onetask(run_eval1)
+    if cvd:
+        os.environ['CUDA_VISIBLE_DEVICES'] = cvd
+
+
 def run_eval1():
     import pandas as pd
     from generate import eval_func_param_names, eval_extra_columns

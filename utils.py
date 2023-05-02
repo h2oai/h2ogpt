@@ -46,7 +46,7 @@ def flatten_list(lis):
 
 def clear_torch_cache():
     import torch
-    if torch.cuda.is_available:
+    if torch.cuda.is_available():
         torch.cuda.empty_cache()
         torch.cuda.ipc_collect()
         gc.collect()

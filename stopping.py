@@ -9,11 +9,11 @@ from transformers import StoppingCriteria
 
 class StoppingCriteriaSub(StoppingCriteria):
 
-    def __init__(self, stops=[], encounters=[]):
+    def __init__(self, stops=[], encounters=[], device="cuda"):
         super().__init__()
         assert len(stops) % len(encounters) == 0, "Number of stops and encounters must match"
         self.encounters = encounters
-        self.stops = [stop.to("cuda") for stop in stops]
+        self.stops = [stop.to(device) for stop in stops]
         self.num_stops = [0] * len(stops)
 
     def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor, **kwargs) -> bool:

@@ -6,6 +6,7 @@ import typing
 from threading import Thread
 
 import filelock
+import psutil
 
 from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial
 
@@ -135,7 +136,19 @@ def main(
     api_open = bool(int(os.getenv('API_OPEN', api_open)))
     allow_api = bool(int(os.getenv('ALLOW_API', allow_api)))
 
-    n_gpus = torch.cuda.device_count()
+    n_gpus = torch.cuda.device_count() if torch.cuda.is_available else 0
+    if n_gpus == 0:
+        gpu_id = None
+        load_8bit = False
+        load_half = False
+        infer_devices = False
+        torch.backends.cudnn.benchmark = True
+        torch.backends.cudnn.enabled = False
+        torch.set_default_dtype(torch.float32)
+        if psutil.virtual_memory().available < 94*1024**3:
+            # 12B uses ~94GB
+            # 6.9B uses ~47GB
+            base_model = 'h2oai/h2ogpt-oig-oasst1-512-6.9b'
 
     # get defaults
     model_lower = base_model.lower()
@@ -210,7 +223,7 @@ def main(
         eval_filename = os.path.join(scoring_path, eval_filename)
 
         # torch.device("cuda") leads to cuda:x cuda:y mismatches for multi-GPU consistently
-        context_class = NullContext() if n_gpus > 1 else torch.device("cuda")
+        context_class = NullContext() if n_gpus > 1 or n_gpus == 0 else torch.device("cuda")
 
         with context_class:
             # ensure was set right above before examples generated
@@ -340,7 +353,7 @@ def get_device():
     if torch.cuda.is_available():
         device = "cuda"
     else:
-        raise RuntimeError("only cuda supported")
+        device = "cpu"
 
     return device
 
@@ -381,16 +394,21 @@ def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward
         device_map.update(device_map_model)
     print('device_map: %s' % device_map, flush=True)
 
-    if gpu_id >= 0:
-        # FIXME: If really distributes model, tend to get things like: ValueError: gpt_neox.embed_in.weight doesn't have any device set.
-        # So avoid for now, just put on first GPU, unless score_model, put on last
-        n_gpus = torch.cuda.device_count()
-        if reward_type:
-            device_map = {'': n_gpus - 1}
-        else:
-            device_map = {'': min(n_gpus - 1, gpu_id)}
-    if gpu_id == -1:
-        device_map = {'': 'cuda'}
+    n_gpus = torch.cuda.device_count() if torch.cuda.is_available else 0
+
+    if n_gpus > 0:
+        if gpu_id >= 0:
+            # FIXME: If really distributes model, tend to get things like: ValueError: gpt_neox.embed_in.weight doesn't have any device set.
+            # So avoid for now, just put on first GPU, unless score_model, put on last
+            if reward_type:
+                device_map = {'': n_gpus - 1}
+            else:
+                device_map = {'': min(n_gpus - 1, gpu_id)}
+        if gpu_id == -1:
+            device_map = {'': 'cuda'}
+    else:
+        device_map = {'': 'cpu'}
+        model_kwargs['load_in_8bit'] = False
 
     load_in_8bit = model_kwargs.get('load_in_8bit', False)
     model_kwargs['device_map'] = device_map
@@ -483,24 +501,24 @@ def get_model(
         model = model_loader(tokenizer,
                              model=base_model,
                              device=0 if device == "cuda" else -1,
-                             torch_dtype=torch.float16)
+                             torch_dtype=torch.float16 if device == 'cuda' else torch.float32)
     else:
-        assert device == "cuda", "Unsupported device %s" % device
+        assert device in ["cuda", "cpu"], "Unsupported device %s" % device
         model_kwargs = dict(local_files_only=local_files_only,
-                            torch_dtype=torch.float16,
+                            torch_dtype=torch.float16 if device == 'cuda' else torch.float32,
                             resume_download=resume_download,
                             use_auth_token=use_auth_token)
         if 'mbart-' not in base_model.lower():
             model_kwargs.update(dict(load_in_8bit=load_8bit,
-                                     device_map={"": 0} if load_8bit else "auto",
+                                     device_map={"": 0} if load_8bit and device == 'cuda' else "auto",
                                      ))
         if 'OpenAssistant/reward-model'.lower() in base_model.lower():
             # could put on other GPUs
-            model_kwargs['device_map'] = {"": 0}
+            model_kwargs['device_map'] = {"": 0} if device == 'cuda' else {"": 'cpu'}
             model_kwargs.pop('torch_dtype', None)
 
         if not lora_weights:
-            with torch.device("cuda"):
+            with torch.device(device):
                 if infer_devices:
                     model = get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward_type,
                                                gpu_id=gpu_id, use_auth_token=use_auth_token)
@@ -521,14 +539,14 @@ def get_model(
             model = PeftModel.from_pretrained(
                 model,
                 lora_weights,
-                torch_dtype=torch.float16,
+                torch_dtype=torch.float16 if device == 'cuda' else torch.float32,
                 local_files_only=local_files_only,
                 resume_download=resume_download,
                 use_auth_token=use_auth_token,
-                device_map={"": 0},  # seems to be required
+                device_map={"": 0} if device == 'cuda' else {"": 'cpu'},  # seems to be required
             )
         else:
-            with torch.device("cuda"):
+            with torch.device(device):
                 model = model_loader.from_pretrained(
                     base_model,
                     **model_kwargs
@@ -536,7 +554,7 @@ def get_model(
                 model = PeftModel.from_pretrained(
                     model,
                     lora_weights,
-                    torch_dtype=torch.float16,
+                    torch_dtype=torch.float16 if device == 'cuda' else torch.float32,
                     local_files_only=local_files_only,
                     resume_download=resume_download,
                     use_auth_token=use_auth_token,
@@ -751,7 +769,7 @@ def evaluate(
         # handle fake \n added
         stop_words_ids = [x[1:] if y[0] == '\n' else x for x, y in zip(stop_words_ids, stop_words)]
         # build stopper
-        stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(stops=stop_words_ids, encounters=encounters)])
+        stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(stops=stop_words_ids, encounters=encounters, device=device)])
     else:
         stopping_criteria = StoppingCriteriaList()
 
