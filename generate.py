@@ -824,8 +824,8 @@ def evaluate(
             decoder = decoder_raw
         else:
             print("WARNING: Special characters in prompt", flush=True)
+        decoded_output = None
         if stream_output:
-            #skip_prompt = prompt_type != 'plain'
             skip_prompt = False
             streamer = TextIteratorStreamer(tokenizer, skip_prompt=skip_prompt)
             gen_kwargs.update(dict(streamer=streamer))
@@ -839,13 +839,15 @@ def evaluate(
                 outputs += new_text
                 yield prompter.get_response(outputs, prompt=inputs_decoded,
                                             sanitize_bot_response=sanitize_bot_response)
+            decoded_output = outputs
         else:
             outputs = model.generate(**gen_kwargs)
             outputs = [decoder(s) for s in outputs.sequences]
             yield prompter.get_response(outputs, prompt=inputs_decoded,
                                         sanitize_bot_response=sanitize_bot_response)
-        if save_dir and outputs and len(outputs) >= 1:
-            decoded_output = prompt + outputs[0]
+            if outputs and len(outputs) >= 1:
+                decoded_output = prompt + outputs[0]
+        if save_dir and decoded_output:
             save_generate_output(output=decoded_output, base_model=base_model, save_dir=save_dir)
 
 
