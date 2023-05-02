@@ -284,13 +284,14 @@ class KThread(threading.Thread):
             print(thread.name, flush=True)
 
     @staticmethod
-    def kill_threads(name):
+    def kill_threads(name, debug=False):
         for thread in threading.enumerate():
             if name in thread.name:
-                print(thread)
-                print("Trying to kill %s" % thread.ident)
+                if debug:
+                    print("Trying to kill %s %s" % (thread.ident, thread), flush=True)
                 thread.kill()
-            print(thread)
+            if debug:
+                print(thread, flush=True)
 
 
 def wrapped_partial(func, *args, **kwargs):
