@@ -4,7 +4,8 @@ import os
 import sys
 
 from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, get_dark_js
-from utils import get_githash, flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print
+from utils import get_githash, flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
+    ping
 from finetune import prompt_type_to_model_name, prompt_types_strings, generate_prompt, inv_prompt_type_to_model_lower
 from generate import get_model, languages_covered, evaluate, eval_func_param_names, score_qa
 
@@ -872,6 +873,8 @@ def go_gradio(**kwargs):
 
     scheduler = BackgroundScheduler()
     scheduler.add_job(func=clear_torch_cache, trigger="interval", seconds=20)
+    if is_public:
+        scheduler.add_job(func=ping, trigger="interval", seconds=60)
     scheduler.start()
 
     demo.launch(share=kwargs['share'], server_name="0.0.0.0", show_error=True,

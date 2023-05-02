@@ -52,6 +52,10 @@ def clear_torch_cache():
         gc.collect()
 
 
+def ping():
+    print('Ping: %s' % str(datetime.now()), flush=True)
+
+
 def get_torch_allocated():
     import torch
     return torch.cuda.memory_allocated()
