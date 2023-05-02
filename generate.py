@@ -1,12 +1,10 @@
 import functools
-import inspect
 import sys
 import os
 import traceback
 import typing
-from threading import Thread
 
-from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, KThread
+from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, KThread, wrapped_partial
 
 SEED = 1236
 set_seed(SEED)
@@ -833,9 +831,9 @@ def evaluate(
                 KThread.show_threads()
             if concurrency_count == 1:
                 # otherwise can't do this
-                KThread.kill_threads()
-            target = functools.partial(generate_with_exceptions, model.generate, prompt, inputs_decoded,
-                                       raise_generate_gpu_exceptions, **gen_kwargs)
+                KThread.kill_threads('generate_with_exceptions')
+            target = wrapped_partial(generate_with_exceptions, model.generate, prompt, inputs_decoded,
+                                     raise_generate_gpu_exceptions, **gen_kwargs)
             thread = KThread(target=target)
             thread.start()
             outputs = ""

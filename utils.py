@@ -1,3 +1,4 @@
+import functools
 import os
 import gc
 import pathlib
@@ -283,10 +284,23 @@ class KThread(threading.Thread):
             print(thread.name, flush=True)
 
     @staticmethod
-    def kill_threads():
+    def kill_threads(name):
         for thread in threading.enumerate():
-            if 'generate' in thread.name:
+            if name in thread.name:
                 print(thread)
                 print("Trying to kill %s" % thread.ident)
                 thread.kill()
             print(thread)
+
+
+def wrapped_partial(func, *args, **kwargs):
+    """
+    Give partial properties of normal function, like __name__ attribute etc.
+    :param func:
+    :param args:
+    :param kwargs:
+    :return:
+    """
+    partial_func = functools.partial(func, *args, **kwargs)
+    functools.update_wrapper(partial_func, func)
+    return partial_func
