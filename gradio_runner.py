@@ -246,7 +246,7 @@ def go_gradio(**kwargs):
                                 value=kwargs['top_k'], label="Top k",
                                 info='Num. tokens to sample from'
                             )
-                            max_beams = 8 if not is_low_mem else 2
+                            max_beams = 8 if not is_low_mem else 1
                             num_beams = gr.Slider(minimum=1, maximum=max_beams, step=1,
                                                   value=min(max_beams, kwargs['num_beams']), label="Beams",
                                                   info="Number of searches for optimal overall probability.  "
@@ -865,7 +865,7 @@ def go_gradio(**kwargs):
         # FIXME: have to click once to stop output and second time to stop GPUs going
         stop_btn.click(lambda: None, None, None,
                        cancels=[submit_event_nochat, submit_event, submit_event2, submit_event3],
-                       queue=False, api_name='stop' if allow_api else None).then(clear_torch_cache)
+                       queue=False, api_name='stop' if allow_api else None).then(clear_torch_cache, queue=False)
         demo.load(None, None, None, _js=get_dark_js() if kwargs['h2ocolors'] else None)
 
     demo.queue(concurrency_count=kwargs['concurrency_count'], api_open=kwargs['api_open'])
