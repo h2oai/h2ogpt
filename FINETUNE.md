@@ -64,7 +64,7 @@ For fine-tuning, if the average length of inputs is less than the context length
 
 ### Context length
 
-Also note that the total length of the text the LLM can handle is limited by the so-called *context length*. For our current models, the context length is 2048 tokens. Longer context lenghts are computationally more expensive due to the interactions between all tokens in the sequence.
+Also note that the total length of the text (i.e., input and output) the LLM can handle is limited by the so-called *context length*. For our current models, the context length is 2048 tokens. Longer context lengths are computationally more expensive due to the interactions between all tokens in the sequence.
 A context length of 2048 means that for an input of e.g. 1900 tokens, the model will be able to create no more than 148 new tokens as part of the output.
 
 
