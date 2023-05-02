@@ -11,20 +11,20 @@ echo "Space name: $spacename"
 
 h2ogpt_hash=`git rev-parse HEAD`
 
-ln -sr generate.py h2o-logo.svg LICENSE stopping.py prompter.py finetune.py utils.py client_test.py requirements.txt spaces/chatbot/
+ln -sr generate.py gradio_runner.py gradio_themes.py h2o-logo.svg LICENSE stopping.py prompter.py finetune.py utils.py client_test.py requirements.txt spaces/chatbot/
 cd ..
 
 git clone https://huggingface.co/spaces/h2oai/"${spacename}"
 cd "${spacename}"
 git pull --rebase
-rm -rf app.py h2o-logo.svg LICENSE stopping.py prompter.py finetune.py utils.py client_test.py requirements.txt
+rm -rf app.py gradio_runner.py h2o-logo.svg LICENSE stopping.py prompter.py finetune.py utils.py client_test.py requirements.txt
 cd ../h2ogpt/spaces/chatbot/
-cp generate.py h2o-logo.svg LICENSE stopping.py prompter.py finetune.py utils.py client_test.py requirements.txt ../../../"${spacename}"/
+cp generate.py gradio_runner.py gradio_themes.py h2o-logo.svg LICENSE stopping.py prompter.py finetune.py utils.py client_test.py requirements.txt ../../../"${spacename}"/
 cd ../../../"${spacename}"/
 
 mv generate.py app.py
 
-git add app.py h2o-logo.svg LICENSE stopping.py prompter.py finetune.py utils.py client_test.py requirements.txt
+git add app.py gradio_runner.py gradio_themes.py h2o-logo.svg LICENSE stopping.py prompter.py finetune.py utils.py client_test.py requirements.txt
 git commit -m "Update with h2oGPT hash ${h2ogpt_hash}"
 # ensure write token used and login with git control: huggingface-cli login --token <HUGGINGFACE_API_TOKEN> --add-to-git-credential
 git push
