@@ -375,8 +375,8 @@ def go_gradio(**kwargs):
         def close_admin(x):
             return gr.update(visible=not (x == admin_pass))
 
-        admin_btn.click(check_admin_pass, inputs=admin_pass_textbox, outputs=system_row) \
-            .then(close_admin, inputs=admin_pass_textbox, outputs=admin_row)
+        admin_btn.click(check_admin_pass, inputs=admin_pass_textbox, outputs=system_row, queue=False) \
+            .then(close_admin, inputs=admin_pass_textbox, outputs=admin_row, queue=False)
 
         # Get inputs to evaluate()
         all_kwargs = kwargs.copy()
