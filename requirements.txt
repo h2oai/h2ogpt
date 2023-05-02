@@ -49,3 +49,8 @@ pypandoc==1.11
 openpyxl==3.1.2
 lm_dataformat==0.0.20
 bioc==2.0
+
+# quantization
+safetensors==0.3.1
+texttable==1.6.7
+toml==0.10.2
