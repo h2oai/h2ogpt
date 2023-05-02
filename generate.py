@@ -4,7 +4,7 @@ import os
 import traceback
 import typing
 from threading import Thread
-
+from datetime import datetime
 import filelock
 import psutil
 
@@ -834,7 +834,10 @@ def evaluate(
         # https://github.com/h2oai/h2ogpt/issues/104
         # but only makes sense if concurrency_count == 1
         context_class = NullContext if concurrency_count > 1 else filelock.FileLock
+        print('Pre-Generate: %s' % str(datetime.now()), flush=True)
+        decoded_output = None
         with context_class("generate.lock"):
+            print('Generate: %s' % str(datetime.now()), flush=True)
             # decoded tokenized prompt can deviate from prompt due to special characters
             inputs_decoded = decoder(input_ids[0])
             inputs_decoded_raw = decoder_raw(input_ids[0])
@@ -850,7 +853,6 @@ def evaluate(
                 decoder = decoder_raw
             else:
                 print("WARNING: Special characters in prompt", flush=True)
-            decoded_output = None
             if stream_output:
                 skip_prompt = False
                 streamer = TextIteratorStreamer(tokenizer, skip_prompt=skip_prompt)
@@ -875,6 +877,7 @@ def evaluate(
                     decoded_output = prompt + outputs[0]
             if save_dir and decoded_output:
                 save_generate_output(output=decoded_output, base_model=base_model, save_dir=save_dir)
+        print('Post-Generate: %s decoded_output: %s' % (str(datetime.now()), len(decoded_output) if decoded_output else -1), flush=True)
 
 
 def generate_with_exceptions(func, prompt, inputs_decoded, raise_generate_gpu_exceptions, **kwargs):
