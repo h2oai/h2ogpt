@@ -114,7 +114,7 @@ def main(
 
     if is_public:
         input_lines = 1  # ensure set, for ease of use
-        temperature = 0.3
+        temperature = 0.2
         top_p = 0.85
         top_k = 70
         do_sample = True
@@ -1017,7 +1017,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         num_return_sequences = min(num_beams, num_return_sequences or 1)
         do_sample = False if do_sample is None else do_sample
     else:
-        temperature = 0.3 if temperature is None else temperature
+        temperature = 0.2 if temperature is None else temperature
         top_p = 0.85 if top_p is None else top_p
         top_k = 70 if top_k is None else top_k
         if chat:
