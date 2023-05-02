@@ -829,13 +829,14 @@ def evaluate(
             skip_prompt = False
             streamer = TextIteratorStreamer(tokenizer, skip_prompt=skip_prompt)
             gen_kwargs.update(dict(streamer=streamer))
-            import threading
             if debug:
                 KThread.show_threads()
             if concurrency_count == 1:
                 # otherwise can't do this
                 KThread.kill_threads()
-            thread = KThread(target=model.generate, kwargs=gen_kwargs)
+            target = functools.partial(generate_with_exceptions, model.generate, prompt, inputs_decoded,
+                                       raise_generate_gpu_exceptions, **gen_kwargs)
+            thread = KThread(target=target)
             thread.start()
             outputs = ""
             for new_text in streamer:
@@ -850,6 +851,36 @@ def evaluate(
         if save_dir and outputs and len(outputs) >= 1:
             decoded_output = prompt + outputs[0]
             save_generate_output(output=decoded_output, base_model=base_model, save_dir=save_dir)
+
+
+def generate_with_exceptions(func, prompt, inputs_decoded, raise_generate_gpu_exceptions, **kwargs):
+    try:
+        func(**kwargs)
+    except torch.cuda.OutOfMemoryError as e:
+        print("GPU OOM 2: prompt: %s inputs_decoded: %s exception: %s" % (prompt, inputs_decoded, str(e)),
+              flush=True)
+        if kwargs['input_ids'] is not None:
+            kwargs['input_ids'].cpu()
+        kwargs['input_ids'] = None
+        traceback.print_exc()
+        clear_torch_cache()
+        return
+    except (Exception, RuntimeError) as e:
+        if 'Expected all tensors to be on the same device' in str(e) or \
+                'expected scalar type Half but found Float' in str(e) or \
+                'probability tensor contains either' in str(e) or \
+                'cublasLt ran into an error!' in str(e):
+            print(
+                "GPU Error: prompt: %s inputs_decoded: %s exception: %s" % (prompt, inputs_decoded, str(e)),
+                flush=True)
+            traceback.print_exc()
+            clear_torch_cache()
+            if raise_generate_gpu_exceptions:
+                raise
+            return
+        else:
+            clear_torch_cache()
+            raise
 
 
 def get_generate_params(model_lower, chat,
