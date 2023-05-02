@@ -1,9 +1,11 @@
+import functools
 import os
 import gc
 import pathlib
 import random
 import shutil
 import subprocess
+import sys
 import threading
 import time
 import traceback
@@ -240,3 +242,65 @@ class NullContext(threading.local):
 
     def finally_act(self):
         pass
+
+
+class KThread(threading.Thread):
+    """Thread with a kill method."""
+
+    def __init__(self, *args, **keywords):
+        threading.Thread.__init__(self, *args, **keywords)
+        self.killed = False
+
+    def start(self):
+        """Start the thread."""
+        self.__run_backup = self.run
+        self.run = self.__run  # Force the Thread to install our trace.
+        threading.Thread.start(self)
+
+    def __run(self):
+        """install trace."""
+        sys.settrace(self.globaltrace)
+        self.__run_backup()
+        self.run = self.__run_backup
+
+    def globaltrace(self, frame, why, arg):
+        if why == 'call':
+            return self.localtrace
+        else:
+            return None
+
+    def localtrace(self, frame, why, arg):
+        if self.killed:
+            if why == 'line':
+                raise SystemExit()
+        return self.localtrace
+
+    def kill(self):
+        self.killed = True
+
+    @staticmethod
+    def show_threads():
+        for thread in threading.enumerate():
+            print(thread.name, flush=True)
+
+    @staticmethod
+    def kill_threads(name):
+        for thread in threading.enumerate():
+            if name in thread.name:
+                print(thread)
+                print("Trying to kill %s" % thread.ident)
+                thread.kill()
+            print(thread)
+
+
+def wrapped_partial(func, *args, **kwargs):
+    """
+    Give partial properties of normal function, like __name__ attribute etc.
+    :param func:
+    :param args:
+    :param kwargs:
+    :return:
+    """
+    partial_func = functools.partial(func, *args, **kwargs)
+    functools.update_wrapper(partial_func, func)
+    return partial_func

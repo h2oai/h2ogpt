@@ -1,10 +1,10 @@
 import functools
-import inspect
 import sys
 import os
 import traceback
 import typing
-from utils import set_seed, clear_torch_cache, save_generate_output, NullContext
+
+from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, KThread, wrapped_partial
 
 SEED = 1236
 set_seed(SEED)
@@ -17,13 +17,13 @@ import pandas as pd
 import fire
 import torch
 from peft import PeftModel
-from transformers import GenerationConfig, StoppingCriteriaList, AutoModel
+from transformers import GenerationConfig, StoppingCriteriaList, AutoModel, TextIteratorStreamer
 from accelerate import init_empty_weights, infer_auto_device_map
 
 from prompter import Prompter
 
 from finetune import get_loaders, example_data_points, generate_prompt, human, bot, inv_prompt_type_to_model_lower
-from stopping import CallbackToGenerator, Stream, StoppingCriteriaSub
+from stopping import StoppingCriteriaSub
 
 eval_extra_columns = ['prompt', 'response', 'score']
 
@@ -102,7 +102,8 @@ def main(
     is_low_mem = is_hf  # assumes run on 24GB consumer GPU
     admin_pass = os.getenv("ADMIN_PASS")
     # will sometimes appear in UI or sometimes actual generation, but maybe better than empty result
-    raise_generate_gpu_exceptions = True
+    # but becomes unrecoverable sometimes if raise, so just be silent for now
+    raise_generate_gpu_exceptions = not is_public
 
     # allow set token directly
     use_auth_token = os.environ.get("HUGGINGFACE_API_TOKEN", use_auth_token)
@@ -222,7 +223,8 @@ def main(
                 model_state = [model, tokenizer, device, base_model]
                 fun = partial(evaluate, model_state, debug=debug, save_dir=save_dir, is_low_mem=is_low_mem,
                               raise_generate_gpu_exceptions=raise_generate_gpu_exceptions,
-                              chat_context=chat_context)
+                              chat_context=chat_context,
+                              concurrency_count=concurrency_count)
             else:
                 assert eval_sharegpt_prompts_only > 0
 
@@ -624,6 +626,7 @@ def evaluate(
         src_lang=None,
         tgt_lang=None,
         debug=False,
+        concurrency_count=None,
         save_dir=None,
         hard_stop_list=None,
         sanitize_bot_response=True,
@@ -633,6 +636,7 @@ def evaluate(
         chat_context=None,
 ):
     # ensure passed these
+    assert concurrency_count is not None
     assert is_low_mem is not None
     assert raise_generate_gpu_exceptions is not None
     assert chat_context is not None
@@ -820,67 +824,64 @@ def evaluate(
         else:
             print("WARNING: Special characters in prompt", flush=True)
         if stream_output:
-            def generate(callback=None, **kwargs):
-                # re-order stopping so Stream first and get out all chunks before stop for other reasons
-                stopping_criteria0 = kwargs.get('stopping_criteria', StoppingCriteriaList()).copy()
-                kwargs['stopping_criteria'] = StoppingCriteriaList()
-                kwargs['stopping_criteria'].append(Stream(func=callback))
-                for stopping_criteria1 in stopping_criteria0:
-                    kwargs['stopping_criteria'].append(stopping_criteria1)
-
-                try:
-                    model.generate(**kwargs)
-                except torch.cuda.OutOfMemoryError as e:
-                    print("GPU OOM 2: prompt: %s inputs_decoded: %s exception: %s" % (prompt, inputs_decoded, str(e)),
-                          flush=True)
-                    if kwargs['input_ids'] is not None:
-                        kwargs['input_ids'].cpu()
-                    kwargs['input_ids'] = None
-                    traceback.print_exc()
-                    clear_torch_cache()
-                    return
-                except (Exception, RuntimeError) as e:
-                    if 'Expected all tensors to be on the same device' in str(e) or \
-                            'expected scalar type Half but found Float' in str(e) or \
-                            'probability tensor contains either' in str(e) or \
-                            'cublasLt ran into an error!' in str(e):
-                        print(
-                            "GPU Error: prompt: %s inputs_decoded: %s exception: %s" % (prompt, inputs_decoded, str(e)),
-                            flush=True)
-                        traceback.print_exc()
-                        clear_torch_cache()
-                        if raise_generate_gpu_exceptions:
-                            raise
-                        return
-                    else:
-                        clear_torch_cache()
-                        raise
-
-            decoded_output = None
-            for output in CallbackToGenerator(generate, callback=None, **gen_kwargs):
-                decoded_output = decoder(output)
-                if output[-1] in [tokenizer.eos_token_id]:
-                    if debug:
-                        print("HIT EOS", flush=True)
-                    break
-                if any(ele in decoded_output for ele in hard_stop_list):
-                    raise StopIteration
-                yield prompter.get_response(decoded_output, prompt=inputs_decoded,
-                                            sanitize_bot_response=sanitize_bot_response)
-            if save_dir and decoded_output:
-                save_generate_output(output=decoded_output, base_model=base_model, save_dir=save_dir)
-        else:
-            try:
-                outputs = model.generate(**gen_kwargs)
-                outputs = [decoder(s) for s in outputs.sequences]
+            #skip_prompt = prompt_type != 'plain'
+            skip_prompt = False
+            streamer = TextIteratorStreamer(tokenizer, skip_prompt=skip_prompt)
+            gen_kwargs.update(dict(streamer=streamer))
+            if debug:
+                KThread.show_threads()
+            target_func = generate_with_exceptions
+            if concurrency_count == 1:
+                # otherwise can't do this
+                KThread.kill_threads(target_func.__name__)
+            target = wrapped_partial(generate_with_exceptions, model.generate, prompt, inputs_decoded,
+                                     raise_generate_gpu_exceptions, **gen_kwargs)
+            thread = KThread(target=target)
+            thread.start()
+            outputs = ""
+            for new_text in streamer:
+                outputs += new_text
                 yield prompter.get_response(outputs, prompt=inputs_decoded,
                                             sanitize_bot_response=sanitize_bot_response)
-                if save_dir and outputs and len(outputs) >= 1:
-                    decoded_output = prompt + outputs[0]
-                    save_generate_output(output=decoded_output, base_model=base_model, save_dir=save_dir)
-            except BaseException:
-                clear_torch_cache()
+        else:
+            outputs = model.generate(**gen_kwargs)
+            outputs = [decoder(s) for s in outputs.sequences]
+            yield prompter.get_response(outputs, prompt=inputs_decoded,
+                                        sanitize_bot_response=sanitize_bot_response)
+        if save_dir and outputs and len(outputs) >= 1:
+            decoded_output = prompt + outputs[0]
+            save_generate_output(output=decoded_output, base_model=base_model, save_dir=save_dir)
+
+
+def generate_with_exceptions(func, prompt, inputs_decoded, raise_generate_gpu_exceptions, **kwargs):
+    try:
+        func(**kwargs)
+    except torch.cuda.OutOfMemoryError as e:
+        print("GPU OOM 2: prompt: %s inputs_decoded: %s exception: %s" % (prompt, inputs_decoded, str(e)),
+              flush=True)
+        if kwargs['input_ids'] is not None:
+            kwargs['input_ids'].cpu()
+        kwargs['input_ids'] = None
+        traceback.print_exc()
+        clear_torch_cache()
+        return
+    except (Exception, RuntimeError) as e:
+        if 'Expected all tensors to be on the same device' in str(e) or \
+                'expected scalar type Half but found Float' in str(e) or \
+                'probability tensor contains either' in str(e) or \
+                'cublasLt ran into an error!' in str(e) or \
+                'mat1 and mat2 shapes cannot be multiplied' in str(e):
+            print(
+                "GPU Error: prompt: %s inputs_decoded: %s exception: %s" % (prompt, inputs_decoded, str(e)),
+                flush=True)
+            traceback.print_exc()
+            clear_torch_cache()
+            if raise_generate_gpu_exceptions:
                 raise
+            return
+        else:
+            clear_torch_cache()
+            raise
 
 
 def get_generate_params(model_lower, chat,
