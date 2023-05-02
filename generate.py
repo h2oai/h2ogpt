@@ -6,7 +6,7 @@ import traceback
 import typing
 from threading import Thread
 
-from utils import set_seed, clear_torch_cache, save_generate_output, NullContext
+from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, KThread
 
 SEED = 1236
 set_seed(SEED)
@@ -224,7 +224,8 @@ def main(
                 model_state = [model, tokenizer, device, base_model]
                 fun = partial(evaluate, model_state, debug=debug, save_dir=save_dir, is_low_mem=is_low_mem,
                               raise_generate_gpu_exceptions=raise_generate_gpu_exceptions,
-                              chat_context=chat_context)
+                              chat_context=chat_context,
+                              concurrency_count=concurrency_count)
             else:
                 assert eval_sharegpt_prompts_only > 0
 
@@ -626,6 +627,7 @@ def evaluate(
         src_lang=None,
         tgt_lang=None,
         debug=False,
+        concurrency_count=None,
         save_dir=None,
         hard_stop_list=None,
         sanitize_bot_response=True,
@@ -635,6 +637,7 @@ def evaluate(
         chat_context=None,
 ):
     # ensure passed these
+    assert concurrency_count is not None
     assert is_low_mem is not None
     assert raise_generate_gpu_exceptions is not None
     assert chat_context is not None
@@ -826,7 +829,13 @@ def evaluate(
             skip_prompt = False
             streamer = TextIteratorStreamer(tokenizer, skip_prompt=skip_prompt)
             gen_kwargs.update(dict(streamer=streamer))
-            thread = Thread(target=model.generate, kwargs=gen_kwargs)
+            import threading
+            if debug:
+                KThread.show_threads()
+            if concurrency_count == 1:
+                # otherwise can't do this
+                KThread.kill_threads()
+            thread = KThread(target=model.generate, kwargs=gen_kwargs)
             thread.start()
             outputs = ""
             for new_text in streamer:
