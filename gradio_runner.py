@@ -401,6 +401,7 @@ def go_gradio(**kwargs):
             None,
             _js=get_dark_js(),
             api_name="dark" if allow_api else None,
+            queue=False,
         )
 
         # Control chat and non-chat blocks, which can be independently used by chat checkbox swap
