@@ -48,16 +48,8 @@ def go_gradio(**kwargs):
                       Hash: {get_githash()}
                       """
     else:
-        description = "For more information, visit our GitHub pages: [h2oGPT](https://github.com/h2oai/h2ogpt) and [H2O LLM Studio](https://github.com/h2oai/h2o-llmstudio).<br>"
-    if is_public:
-        description += "If this host is busy, try [gpt.h2o.ai 20B](https://gpt.h2o.ai) and [HF Spaces1 12B](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot) and [HF Spaces2 12B](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot2)<br>"
-        description += """<p><b> DISCLAIMERS: </b><ul><i><li>The model was trained on The Pile and other data, which may contain objectionable content.  Use at own risk.</i></li>"""
-        if kwargs['load_8bit']:
-            description += """<i><li> Model is loaded in 8-bit and has other restrictions on this host. UX can be worse than non-hosted version.</i></li>"""
-        description += """<i><li>Conversations may be used to improve h2oGPT.  Do not share sensitive information.</i></li>"""
-        if 'h2ogpt-research' in kwargs['base_model']:
-            description += """<i><li>Research demonstration only, not used for commercial purposes.</i></li>"""
-        description += """<i><li>By using h2oGPT, you accept our [Terms of Service](https://github.com/h2oai/h2ogpt/blob/main/tos.md).</i></li></ul></p>"""
+        description = "For more information, visit our GitHub pages: [h2oGPT](https://github.com/h2oai/h2ogpt) and [H2O LLM Studio](https://github.com/h2oai/h2o-llmstudio)<br>"
+    description += """<p>By using h2oGPT, you accept our [Terms of Service](https://github.com/h2oai/h2ogpt/blob/main/tos.md)</p>"""
 
     if kwargs['verbose']:
         task_info_md = f"""
@@ -371,6 +363,16 @@ def go_gradio(**kwargs):
                             with gr.Row():
                                 s3up_btn = gr.Button("S3UP")
                                 s3up_text = gr.Textbox(label='S3UP result', interactive=False)
+                with gr.TabItem("Disclaimers"):
+                    description = ""
+                    description += """<p><b> DISCLAIMERS: </b><ul><i><li>The model was trained on The Pile and other data, which may contain objectionable content.  Use at own risk.</i></li>"""
+                    if kwargs['load_8bit']:
+                        description += """<i><li> Model is loaded in 8-bit and has other restrictions on this host. UX can be worse than non-hosted version.</i></li>"""
+                    description += """<i><li>Conversations may be used to improve h2oGPT.  Do not share sensitive information.</i></li>"""
+                    if 'h2ogpt-research' in kwargs['base_model']:
+                        description += """<i><li>Research demonstration only, not used for commercial purposes.</i></li>"""
+                    description += """<i><li>By using h2oGPT, you accept our <a href="https://github.com/h2oai/h2ogpt/blob/main/tos.md">Terms of Service</a></i></li></ul></p>"""
+                    gr.Markdown(value=description, show_label=False, interactive=False)
 
         # Get flagged data
         zip_data1 = functools.partial(zip_data, root_dirs=['flagged_data_points', kwargs['save_dir']])
