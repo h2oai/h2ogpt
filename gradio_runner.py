@@ -246,7 +246,9 @@ def go_gradio(**kwargs):
                                 value=kwargs['top_k'], label="Top k",
                                 info='Num. tokens to sample from'
                             )
-                            max_beams = 8 if not is_low_mem else 1
+                            # FIXME: https://github.com/h2oai/h2ogpt/issues/106
+                            # max_beams = 8 if not (is_low_mem or is_public) else 1
+                            max_beams = 1
                             num_beams = gr.Slider(minimum=1, maximum=max_beams, step=1,
                                                   value=min(max_beams, kwargs['num_beams']), label="Beams",
                                                   info="Number of searches for optimal overall probability.  "
@@ -262,7 +264,9 @@ def go_gradio(**kwargs):
                             )
                             early_stopping = gr.Checkbox(label="EarlyStopping", info="Stop early in beam search",
                                                          value=kwargs['early_stopping'])
-                            max_max_time = 60 * 5 if not is_low_mem else 60
+                            max_max_time = 60 * 5 if not is_public else 60 * 2
+                            if is_hf:
+                                max_max_time = min(max_max_time, 60 * 1)
                             max_time = gr.Slider(minimum=0, maximum=max_max_time, step=1,
                                                  value=min(max_max_time, kwargs['max_time']), label="Max. time",
                                                  info="Max. time to search optimal output.")
