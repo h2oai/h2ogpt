@@ -65,7 +65,7 @@ def load_quant(model, checkpoint, wbits, groupsize=-1, fused_mlp=True, eval=True
         quant.autotune_warmup_linear(model, transpose=not (eval))
         if eval and fused_mlp:
             quant.autotune_warmup_fused(model)
-    model.seqlen = 2048
+    model.seqlen = model.config.max_position_embeddings
     print('Done.')
 
     return model

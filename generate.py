@@ -521,7 +521,7 @@ def get_model(
 
         if not lora_weights:
             if quant_model:
-                model = load_quant(model=base_model, checkpoint=quant_model, wbits=4)
+                model = load_quant(model=base_model, checkpoint=quant_model, wbits=4, groupsize=128)
                 model.to(device)
             else:
                 with torch.device(device):
