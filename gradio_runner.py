@@ -403,6 +403,7 @@ def go_gradio(**kwargs):
         dark_mode_btn = gr.Button("Dark Mode", variant="primary").style(
             size="sm",
         )
+        # FIXME: Could add exceptions for non-chat but still streaming
         exception_text = gr.Textbox(value="", visible=kwargs['chat'], label='Chat Exceptions', interactive=False)
         dark_mode_btn.click(
             None,
@@ -884,11 +885,11 @@ def go_gradio(**kwargs):
 
         # don't pass text_output, don't want to clear output, just stop it
         # cancel only stops outer generation, not inner generation or non-generation
-        # FIXME: have to click once to stop output and second time to stop GPUs going
         stop_btn.click(lambda: None, None, None,
                        cancels=[submit_event1d, submit_event1f,
                                 submit_event2d, submit_event2f,
-                                submit_event3d, submit_event3f],
+                                submit_event3d, submit_event3f,
+                                submit_event_nochat],
                        queue=False, api_name='stop' if allow_api else None).then(clear_torch_cache, queue=False)
         demo.load(None, None, None, _js=get_dark_js() if kwargs['h2ocolors'] else None)
 
