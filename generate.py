@@ -927,9 +927,10 @@ class H2OTextIteratorStreamer(TextIteratorStreamer):
     def __next__(self):
         while True:
             try:
-                value = self.stop_signal
+                value = self.stop_signal  # value looks unused in pycharm, not true
                 if self.do_stop:
                     print("hit stop", flush=True)
+                    # could raise or break, maybe best to raise and make parent see if any exception in thread
                     raise StopIteration()
                     #break
                 value = self.text_queue.get(block=self.block, timeout=self.timeout)
