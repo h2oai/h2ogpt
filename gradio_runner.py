@@ -1,3 +1,4 @@
+import copy
 import functools
 import inspect
 import os
@@ -524,6 +525,10 @@ def go_gradio(**kwargs):
             if sanitize_user_prompt:
                 from better_profanity import profanity
                 user_message1 = profanity.censor(user_message1)
+            if user_message1 in ['']:
+                # e.g. when user just hits enter in textbox,
+                # else will have <human>: <bot>: on single line, which seems to be "ok" for LLM but not usual
+                user_message1 = '\n'
 
             history = args_list[-1]
             if undo and history:
@@ -551,7 +556,7 @@ def go_gradio(**kwargs):
             :param retry:
             :return:
             """
-            args_list = list(args).copy()
+            args_list = copy.deepcopy(list(args))
             history = args_list[-1]  # model_state is -2
             if retry and history:
                 history.pop()
@@ -561,7 +566,7 @@ def go_gradio(**kwargs):
                 yield history, ''
                 return
             # ensure output will be unique to models
-            history = history.copy()
+            history = copy.deepcopy(history)
             instruction1 = history[-1][0]
             context1 = ''
             if kwargs['chat_history'] > 0:
@@ -656,67 +661,61 @@ def go_gradio(**kwargs):
             return gr.Textbox.update(value='')
 
         if kwargs['auto_score']:
-            # in case 2nd model, consume instruction first, so can clear quickly
-            # bot doesn't consume instruction itself, just history from user, so why works
-            submit_event = instruction.submit(**user_args, queue=queue,
-                                              api_name='instruction' if allow_api else None) \
-                .then(**user_args2, api_name='instruction2' if allow_api else None) \
-                .then(clear_instruct, None, instruction) \
-                .then(clear_instruct, None, iinput) \
-                .then(**bot_args, api_name='instruction_bot' if allow_api else None, queue=queue) \
-                .then(**score_args, api_name='instruction_bot_score' if allow_api else None, queue=queue) \
-                .then(**bot_args2, api_name='instruction_bot2' if allow_api else None, queue=queue) \
-                .then(**score_args2, api_name='instruction_bot_score2' if allow_api else None, queue=queue) \
-                .then(clear_torch_cache)
-            submit_event2 = submit.click(**user_args, api_name='submit' if allow_api else None) \
-                .then(**user_args2, api_name='submit2' if allow_api else None) \
-                .then(clear_instruct, None, instruction) \
-                .then(clear_instruct, None, iinput) \
-                .then(**bot_args, api_name='submit_bot' if allow_api else None, queue=queue) \
-                .then(**score_args, api_name='submit_bot_score' if allow_api else None, queue=queue) \
-                .then(**bot_args2, api_name='submit_bot2' if allow_api else None, queue=queue) \
-                .then(**score_args2, api_name='submit_bot_score2' if allow_api else None, queue=queue) \
-                .then(clear_torch_cache)
-            submit_event3 = retry.click(**user_args, api_name='retry' if allow_api else None) \
-                .then(**user_args2, api_name='retry2' if allow_api else None) \
-                .then(clear_instruct, None, instruction) \
-                .then(clear_instruct, None, iinput) \
-                .then(**retry_bot_args, api_name='retry_bot' if allow_api else None, queue=queue) \
-                .then(**score_args, api_name='retry_bot_score' if allow_api else None, queue=queue) \
-                .then(**retry_bot_args2, api_name='retry_bot2' if allow_api else None, queue=queue) \
-                .then(**score_args2, api_name='retry_bot_score2' if allow_api else None, queue=queue) \
-                .then(clear_torch_cache)
-            submit_event4 = undo.click(**undo_user_args, api_name='undo' if allow_api else None) \
-                .then(**undo_user_args2, api_name='undo2' if allow_api else None) \
-                .then(clear_instruct, None, instruction) \
-                .then(clear_instruct, None, iinput) \
-                .then(**score_args, api_name='undo_score' if allow_api else None) \
-                .then(**score_args2, api_name='undo_score2' if allow_api else None)
+            score_args_submit = score_args
+            score_args2_submit = score_args2
         else:
-            submit_event = instruction.submit(**user_args,
-                                              api_name='instruction' if allow_api else None) \
-                .then(**user_args2, api_name='instruction2' if allow_api else None) \
-                .then(clear_instruct, None, instruction) \
-                .then(clear_instruct, None, iinput) \
-                .then(**bot_args, api_name='instruction_bot' if allow_api else None, queue=queue) \
-                .then(**bot_args2, api_name='instruction_bot2' if allow_api else None, queue=queue) \
-                .then(clear_torch_cache)
-            submit_event2 = submit.click(**user_args, api_name='submit' if allow_api else None) \
-                .then(**user_args2, api_name='submit2' if allow_api else None) \
-                .then(clear_instruct, None, instruction) \
-                .then(clear_instruct, None, iinput) \
-                .then(**bot_args, api_name='submit_bot' if allow_api else None, queue=queue) \
-                .then(**bot_args2, api_name='submit_bot2' if allow_api else None, queue=queue) \
-                .then(clear_torch_cache)
-            submit_event3 = retry.click(**user_args, api_name='retry' if allow_api else None) \
-                .then(**user_args2, api_name='retry2' if allow_api else None) \
-                .then(clear_instruct, None, instruction) \
-                .then(clear_instruct, None, iinput) \
-                .then(**retry_bot_args, api_name='retry_bot' if allow_api else None, queue=queue) \
-                .then(**retry_bot_args2, api_name='retry_bot2' if allow_api else None, queue=queue) \
-                .then(clear_torch_cache)
-            submit_event4 = undo.click(**undo_user_args, api_name='undo' if allow_api else None) \
-                .then(**undo_user_args2, api_name='undo2' if allow_api else None)
+            score_args_submit = dict(fn=lambda: None, inputs=None, outputs=None)
+            score_args2_submit = dict(fn=lambda: None, inputs=None, outputs=None)
+
+        # in case 2nd model, consume instruction first, so can clear quickly
+        # bot doesn't consume instruction itself, just history from user, so why works
+        submit_event1a = instruction.submit(**user_args, queue=queue,
+                                            api_name='instruction' if allow_api else None)
+        submit_event1b = submit_event1a.then(**user_args2, api_name='instruction2' if allow_api else None)
+        submit_event1c = submit_event1b.then(clear_instruct, None, instruction) \
+            .then(clear_instruct, None, iinput)
+        submit_event1d = submit_event1c.then(**bot_args, api_name='instruction_bot' if allow_api else None,
+                                             queue=queue)
+        submit_event1e = submit_event1d.then(**score_args_submit, api_name='instruction_bot_score' if allow_api else None,
+                                             queue=queue)
+        submit_event1f = submit_event1e.then(**bot_args2, api_name='instruction_bot2' if allow_api else None,
+                                             queue=queue)
+        submit_event1g = submit_event1f.then(**score_args2_submit,
+                                             api_name='instruction_bot_score2' if allow_api else None, queue=queue)
+        submit_event1h = submit_event1g.then(clear_torch_cache)
+
+        submit_event2a = submit.click(**user_args, api_name='submit' if allow_api else None)
+        submit_event2b = submit_event2a.then(**user_args2, api_name='submit2' if allow_api else None)
+        submit_event2c = submit_event2b.then(clear_instruct, None, instruction) \
+            .then(clear_instruct, None, iinput)
+        submit_event2d = submit_event2c.then(**bot_args, api_name='submit_bot' if allow_api else None, queue=queue)
+        submit_event2e = submit_event2d.then(**score_args_submit, api_name='submit_bot_score' if allow_api else None,
+                                             queue=queue)
+        submit_event2f = submit_event2e.then(**bot_args2, api_name='submit_bot2' if allow_api else None, queue=queue)
+        submit_event2g = submit_event2f.then(**score_args2_submit, api_name='submit_bot_score2' if allow_api else None,
+                                             queue=queue)
+        submit_event2h = submit_event2g.then(clear_torch_cache)
+
+        submit_event3a = retry.click(**user_args, api_name='retry' if allow_api else None)
+        submit_event3b = submit_event3a.then(**user_args2, api_name='retry2' if allow_api else None)
+        submit_event3c = submit_event3b.then(clear_instruct, None, instruction) \
+            .then(clear_instruct, None, iinput)
+        submit_event3d = submit_event3c.then(**retry_bot_args, api_name='retry_bot' if allow_api else None,
+                                             queue=queue)
+        submit_event3e = submit_event3d.then(**score_args_submit, api_name='retry_bot_score' if allow_api else None,
+                                             queue=queue)
+        submit_event3f = submit_event3e.then(**retry_bot_args2, api_name='retry_bot2' if allow_api else None,
+                                             queue=queue)
+        submit_event3g = submit_event3f.then(**score_args2_submit, api_name='retry_bot_score2' if allow_api else None,
+                                             queue=queue)
+        submit_event3h = submit_event3g.then(clear_torch_cache)
+
+        submit_event4 = undo.click(**undo_user_args, api_name='undo' if allow_api else None) \
+            .then(**undo_user_args2, api_name='undo2' if allow_api else None) \
+            .then(clear_instruct, None, instruction) \
+            .then(clear_instruct, None, iinput) \
+            .then(**score_args_submit, api_name='undo_score' if allow_api else None) \
+            .then(**score_args2_submit, api_name='undo_score2' if allow_api else None)
 
         # does both models
         clear.click(lambda: None, None, text_output, queue=False, api_name='clear' if allow_api else None) \
@@ -884,9 +883,12 @@ def go_gradio(**kwargs):
                                         api_name='system_info' if allow_api else None, queue=False)
 
         # don't pass text_output, don't want to clear output, just stop it
+        # cancel only stops outer generation, not inner generation or non-generation
         # FIXME: have to click once to stop output and second time to stop GPUs going
         stop_btn.click(lambda: None, None, None,
-                       cancels=[submit_event_nochat, submit_event, submit_event2, submit_event3],
+                       cancels=[submit_event1d, submit_event1f,
+                                submit_event2d, submit_event2f,
+                                submit_event3d, submit_event3f],
                        queue=False, api_name='stop' if allow_api else None).then(clear_torch_cache, queue=False)
         demo.load(None, None, None, _js=get_dark_js() if kwargs['h2ocolors'] else None)
 
