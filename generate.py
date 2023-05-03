@@ -36,11 +36,11 @@ eval_extra_columns = ['prompt', 'response', 'score']
 def main(
         load_8bit: bool = False,
         load_half: bool = True,
-        infer_devices: bool = True,  # really if to "control" devices now
+        infer_devices: bool = True,
         base_model: str = '',
         tokenizer_base_model: str = '',
         lora_weights: str = "",
-        gpu_id: int = 0,  # if infer_devices = True and gpu_id != -1
+        gpu_id: int = 0,
 
         prompt_type: Union[int, str] = None,
         # input to generation
@@ -61,7 +61,7 @@ def main(
         share: bool = True,
         local_files_only: bool = False,
         resume_download: bool = True,
-        use_auth_token: Union[str, bool] = False,  # True requires CLI did huggingface-cli login before running
+        use_auth_token: Union[str, bool] = False,
 
         src_lang: str = "English",
         tgt_lang: str = "Russian",
@@ -69,20 +69,18 @@ def main(
         gradio: bool = True,
         gradio_avoid_processing_markdown: bool = False,
         chat: bool = True,
-        chat_history: int = 4096,  # character length of chat context/history
-        chat_context: bool = False,  # use default context if human_bot
+        chat_history: int = 4096,
+        chat_context: bool = False,
         stream_output: bool = True,
         show_examples: bool = None,
         verbose: bool = False,
         h2ocolors: bool = True,
         height: int = 400,
         show_lora: bool = True,
-        # set to True to load --base_model after client logs in,
-        # to be able to free GPU memory when model is swapped
         login_mode_if_model0: bool = False,
         block_gradio_exit: bool = True,
         concurrency_count: int = 1,
-        api_open: bool = False,  # don't let API skip queue
+        api_open: bool = False,
         allow_api: bool = True,
         input_lines: int = 1,
 
@@ -98,9 +96,64 @@ def main(
         eval_sharegpt_prompts_only: int = 0,
         eval_sharegpt_prompts_only_seed: int = 1234,
         eval_sharegpt_as_output: bool = False,
-
-        hard_stop_list: typing.List[str] = [],
 ):
+    """
+
+    :param load_8bit: load model in 8-bit using bitsandbytes
+    :param load_half: load model in float16
+    :param infer_devices: whether to control devices with gpu_id.  If False, then spread across GPUs
+    :param base_model: model HF-type name
+    :param tokenizer_base_model: tokenizer HF-type name
+    :param lora_weights: LORA weights path/HF link
+    :param gpu_id: if infer_devices, then use gpu_id for cuda device ID, or auto mode if gpu_id != -1
+    :param prompt_type: type of prompt, usually matched to fine-tuned model or plain for foundational model
+    :param temperature: generation temperature
+    :param top_p: generation top_p
+    :param top_k: generation top_k
+    :param num_beams: generatino number of beams
+    :param repetition_penalty: generation repetition penalty
+    :param num_return_sequences: generation number of sequences (1 forced for chat)
+    :param do_sample: generation sample
+    :param max_new_tokens: generation max new tokens
+    :param min_new_tokens: generation min tokens
+    :param early_stopping: generation early stopping
+    :param max_time: maximum time to allow for generation
+    :param debug: enable debug mode
+    :param save_dir: directory chat data is saved to
+    :param share: whether to share the gradio app with sharable URL
+    :param local_files_only: whether to only use local files instead of doing to HF for models
+    :param resume_download: whether to resume downloads from HF for models
+    :param use_auth_token: whether to use HF auth token (requires CLI did huggingface-cli login before)
+    :param src_lang: source languages to include if doing translation (None = all)
+    :param tgt_lang: target languages to include if doing translation (None = all)
+    :param gradio: whether to enable gradio, or to enable benchmark mode
+    :param gradio_avoid_processing_markdown:
+    :param chat: whether to enable chat mode with chat history
+    :param chat_history: maximum character length of chat context/history
+    :param chat_context: whether to use extra helpful context if human_bot
+    :param stream_output: whether to stream output from generate
+    :param show_examples: whether to show clickable examples in gradio
+    :param verbose: whether to show verbose prints
+    :param h2ocolors: whether to use H2O.ai theme
+    :param height: height of chat window
+    :param show_lora: whether to show LORA options in UI (expert so can be hard to understand)
+    :param login_mode_if_model0: set to True to load --base_model after client logs in, to be able to free GPU memory when model is swapped
+    :param block_gradio_exit: whether to block gradio exit (used for testing)
+    :param concurrency_count: gradio concurrency count (1 is optimal for LLMs)
+    :param api_open: If False, don't let API calls skip gradio queue
+    :param allow_api: whether to allow API calls at all to gradio server
+    :param input_lines: how many input lines to show for chat box (>1 forces shift-enter for submit, else enter is submit)
+    :param sanitize_user_prompt: whether to remove profanity from user input
+    :param sanitize_bot_response: whether to remove profanity and repeat lines from bot output
+    :param extra_model_options: extra models to show in list in gradio
+    :param extra_lora_options: extra LORAA to show in list in gradio
+    :param score_model: which model to score responses (None means no scoring)
+    :param auto_score: whether to automatically score responses
+    :param eval_sharegpt_prompts_only: for no gradio benchmark, if using ShareGPT prompts for eval
+    :param eval_sharegpt_prompts_only_seed: for no gradio benchmark, if seed for ShareGPT sampling
+    :param eval_sharegpt_as_output: for no gradio benchmark, whether to test ShareGPT output itself
+    :return:
+    """
     is_hf = bool(os.getenv("HUGGINGFACE_SPACES"))
     is_gpth2oai = bool(os.getenv("GPT_H2O_AI"))
     is_public = is_hf or is_gpth2oai  # multi-user case with fixed model and disclaimer
@@ -652,7 +705,6 @@ def evaluate(
         debug=False,
         concurrency_count=None,
         save_dir=None,
-        hard_stop_list=None,
         sanitize_bot_response=True,
         model_state0=None,
         is_low_mem=None,
@@ -713,10 +765,6 @@ def evaluate(
     data_point = dict(context=context, instruction=instruction, input=iinput)
     prompter = Prompter(prompt_type, debug=debug, chat=chat, stream_output=stream_output)
     prompt = prompter.generate_prompt(data_point)
-
-    if hard_stop_list is None:
-        # acts like undo on user entry and bot response
-        hard_stop_list = []
 
     if isinstance(tokenizer, str):
         # pipeline
