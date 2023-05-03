@@ -110,7 +110,7 @@ def main(
     :param temperature: generation temperature
     :param top_p: generation top_p
     :param top_k: generation top_k
-    :param num_beams: generatino number of beams
+    :param num_beams: generation number of beams
     :param repetition_penalty: generation repetition penalty
     :param num_return_sequences: generation number of sequences (1 forced for chat)
     :param do_sample: generation sample
@@ -146,7 +146,7 @@ def main(
     :param sanitize_user_prompt: whether to remove profanity from user input
     :param sanitize_bot_response: whether to remove profanity and repeat lines from bot output
     :param extra_model_options: extra models to show in list in gradio
-    :param extra_lora_options: extra LORAA to show in list in gradio
+    :param extra_lora_options: extra LORA to show in list in gradio
     :param score_model: which model to score responses (None means no scoring)
     :param auto_score: whether to automatically score responses
     :param eval_sharegpt_prompts_only: for no gradio benchmark, if using ShareGPT prompts for eval
