@@ -402,6 +402,7 @@ def go_gradio(**kwargs):
         dark_mode_btn = gr.Button("Dark Mode", variant="primary").style(
             size="sm",
         )
+        exception_text = gr.Textbox(value="", visible=kwargs['chat'], label='Chat Exceptions', interactive=False)
         dark_mode_btn.click(
             None,
             None,
@@ -423,7 +424,8 @@ def go_gradio(**kwargs):
 
         chat.select(col_nochat_fun, chat, col_nochat, api_name="chat_checkbox" if allow_api else None) \
             .then(col_chat_fun, chat, col_chat) \
-            .then(context_fun, chat, context)
+            .then(context_fun, chat, context) \
+            .then(col_chat_fun, chat, exception_text)
 
         # examples after submit or any other buttons for chat or no chat
         if kwargs['examples'] is not None and kwargs['show_examples']:
@@ -555,6 +557,8 @@ def go_gradio(**kwargs):
                 history.pop()
             if not history:
                 print("No history", flush=True)
+                history = [['', None]]
+                yield history, ''
                 return
             # ensure output will be unique to models
             history = history.copy()
@@ -579,6 +583,8 @@ def go_gradio(**kwargs):
             args_list[2] = context1[-kwargs['chat_history']:]
             model_state1 = args_list[-2]
             if model_state1[0] is None or model_state1[0] == no_model_str:
+                history = [['', None]]
+                yield history, ''
                 return
             args_list = args_list[:-2]
             fun1 = partial(evaluate,
@@ -588,19 +594,25 @@ def go_gradio(**kwargs):
                 for output in fun1(*tuple(args_list)):
                     bot_message = output
                     history[-1][1] = bot_message
-                    yield history
+                    yield history, ''
             except StopIteration:
-                yield history
+                yield history, ''
             except RuntimeError as e:
                 if "generator raised StopIteration" in str(e):
                     # assume last entry was bad, undo
                     history.pop()
-                    yield history
-                raise
+                    yield history, ''
+                else:
+                    if history and len(history) > 0 and len(history[0]) > 1 and history[-1][1] is None:
+                        history[-1][1] = ''
+                    yield history, str(e)
+                    raise
             except Exception as e:
                 # put error into user input
-                history[-1][0] = "Exception: %s" % str(e)
-                yield history
+                ex = "Exception: %s" % str(e)
+                if history and len(history) > 0 and len(history[0]) > 1 and history[-1][1] is None:
+                    history[-1][1] = ''
+                yield history, ex
                 raise
             return
 
@@ -611,11 +623,11 @@ def go_gradio(**kwargs):
                          )
         bot_args = dict(fn=bot,
                         inputs=inputs_list + [model_state] + [text_output],
-                        outputs=text_output,
+                        outputs=[text_output, exception_text],
                         )
         retry_bot_args = dict(fn=functools.partial(bot, retry=True),
                               inputs=inputs_list + [model_state] + [text_output],
-                              outputs=text_output,
+                              outputs=[text_output, exception_text],
                               )
         undo_user_args = dict(fn=functools.partial(user, undo=True),
                               inputs=inputs_list + [text_output],
@@ -629,11 +641,11 @@ def go_gradio(**kwargs):
                           )
         bot_args2 = dict(fn=bot,
                          inputs=inputs_list + [model_state2] + [text_output2],
-                         outputs=text_output2,
+                         outputs=[text_output2, exception_text],
                          )
         retry_bot_args2 = dict(fn=functools.partial(bot, retry=True),
                                inputs=inputs_list + [model_state2] + [text_output2],
-                               outputs=text_output2,
+                               outputs=[text_output2, exception_text],
                                )
         undo_user_args2 = dict(fn=functools.partial(user, undo=True),
                                inputs=inputs_list + [text_output2],
