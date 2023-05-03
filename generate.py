@@ -224,9 +224,10 @@ def main(
         eval_filename = os.path.join(scoring_path, eval_filename)
 
         # torch.device("cuda") leads to cuda:x cuda:y mismatches for multi-GPU consistently
-        context_class = NullContext() if n_gpus > 1 or n_gpus == 0 else torch.device("cuda")
+        device = 'cpu' if n_gpus == 0 else 'cuda'
+        context_class = NullContext if n_gpus > 1 or n_gpus == 0 else torch.device
 
-        with context_class:
+        with context_class(device):
             # ensure was set right above before examples generated
             assert not stream_output, "stream_output=True does not make sense with example loop"
             import time
@@ -290,7 +291,7 @@ def main(
                                             truncation=True,
                                             max_length=cutoff_len)
                         try:
-                            score = torch.sigmoid(smodel(**inputs).logits[0]).cpu().detach().numpy()[0]
+                            score = torch.sigmoid(smodel(**inputs).logits[0].float()).cpu().detach().numpy()[0]
                         except torch.cuda.OutOfMemoryError as e:
                             print("GPU OOM 1: question: %s answer: %s exception: %s" % (prompt, res, str(e)), flush=True)
                             traceback.print_exc()
