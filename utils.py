@@ -259,3 +259,37 @@ def wrapped_partial(func, *args, **kwargs):
     partial_func = functools.partial(func, *args, **kwargs)
     functools.update_wrapper(partial_func, func)
     return partial_func
+
+
+class ThreadException(Exception):
+    pass
+
+
+class EThread(threading.Thread):
+    # Function that raises the custom exception
+    def __init__(self, group=None, target=None, name=None,
+                 args=(), kwargs=None, *, daemon=None, bucket=None):
+        self.bucket = bucket
+        self.streamer = kwargs.get('streamer')
+        self.exc = None
+        super().__init__(group=group, target=target, name=name, args=args, kwargs=kwargs, daemon=daemon)
+
+    def run(self):
+        # Variable that stores the exception, if raised by someFunction
+        try:
+            super().run()
+        except BaseException as e:
+            print("thread exception: %s" % str(sys.exc_info()))
+            self.bucket.put(sys.exc_info())
+            self.exc = e
+            if self.streamer:
+                print("make stop: %s" % str(sys.exc_info()), flush=True)
+                self.streamer.do_stop = True
+
+    def join(self, timeout=None):
+        threading.Thread.join(self)
+        # Since join() returns in caller thread
+        # we re-raise the caught exception
+        # if any was caught
+        if self.exc:
+            raise self.exc

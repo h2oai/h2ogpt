@@ -1,14 +1,15 @@
 import functools
+import queue
 import sys
 import os
+import time
 import traceback
 import typing
-from threading import Thread
 from datetime import datetime
 import filelock
 import psutil
 
-from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial
+from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial, EThread
 
 SEED = 1236
 set_seed(SEED)
@@ -107,7 +108,7 @@ def main(
     admin_pass = os.getenv("ADMIN_PASS")
     # will sometimes appear in UI or sometimes actual generation, but maybe better than empty result
     # but becomes unrecoverable sometimes if raise, so just be silent for now
-    raise_generate_gpu_exceptions = not is_public
+    raise_generate_gpu_exceptions = True
 
     # allow set token directly
     use_auth_token = os.environ.get("HUGGINGFACE_API_TOKEN", use_auth_token)
@@ -223,9 +224,10 @@ def main(
         eval_filename = os.path.join(scoring_path, eval_filename)
 
         # torch.device("cuda") leads to cuda:x cuda:y mismatches for multi-GPU consistently
-        context_class = NullContext() if n_gpus > 1 or n_gpus == 0 else torch.device("cuda")
+        device = 'cpu' if n_gpus == 0 else 'cuda'
+        context_class = NullContext if n_gpus > 1 or n_gpus == 0 else torch.device
 
-        with context_class:
+        with context_class(device):
             # ensure was set right above before examples generated
             assert not stream_output, "stream_output=True does not make sense with example loop"
             import time
@@ -289,7 +291,7 @@ def main(
                                             truncation=True,
                                             max_length=cutoff_len)
                         try:
-                            score = torch.sigmoid(smodel(**inputs).logits[0]).cpu().detach().numpy()[0]
+                            score = torch.sigmoid(smodel(**inputs).logits[0].float()).cpu().detach().numpy()[0]
                         except torch.cuda.OutOfMemoryError as e:
                             print("GPU OOM 1: question: %s answer: %s exception: %s" % (prompt, res, str(e)), flush=True)
                             traceback.print_exc()
@@ -859,18 +861,34 @@ def evaluate(
                     print("WARNING: Special characters in prompt", flush=True)
                 if stream_output:
                     skip_prompt = False
-                    streamer = TextIteratorStreamer(tokenizer, skip_prompt=skip_prompt)
+                    streamer = H2OTextIteratorStreamer(tokenizer, skip_prompt=skip_prompt, block=False)
                     gen_kwargs.update(dict(streamer=streamer))
                     target_func = generate_with_exceptions
                     target = wrapped_partial(generate_with_exceptions, model.generate, prompt, inputs_decoded,
                                              raise_generate_gpu_exceptions, **gen_kwargs)
-                    thread = Thread(target=target)
+                    bucket = queue.Queue()
+                    thread = EThread(target=target, kwargs=dict(streamer=streamer), bucket=bucket)
                     thread.start()
                     outputs = ""
-                    for new_text in streamer:
-                        outputs += new_text
-                        yield prompter.get_response(outputs, prompt=inputs_decoded,
-                                                    sanitize_bot_response=sanitize_bot_response)
+                    try:
+                        for new_text in streamer:
+                            if bucket.qsize() > 0 or thread.exc:
+                                thread.join()
+                            outputs += new_text
+                            yield prompter.get_response(outputs, prompt=inputs_decoded,
+                                                        sanitize_bot_response=sanitize_bot_response)
+                    except BaseException:
+                        # if any exception, raise that exception if was from thread, first
+                        if thread.exc:
+                            raise thread.exc
+                        raise
+                    finally:
+                        # in case no exception and didn't join with thread yet, then join
+                        if not thread.exc:
+                            thread.join()
+                    # in case raise StopIteration or broke queue loop in streamer, but still have exception
+                    if thread.exc:
+                        raise thread.exc
                     decoded_output = outputs
                 else:
                     outputs = model.generate(**gen_kwargs)
@@ -882,6 +900,48 @@ def evaluate(
                 if save_dir and decoded_output:
                     save_generate_output(output=decoded_output, base_model=base_model, save_dir=save_dir)
             print('Post-Generate: %s decoded_output: %s' % (str(datetime.now()), len(decoded_output) if decoded_output else -1), flush=True)
+
+
+class H2OTextIteratorStreamer(TextIteratorStreamer):
+    """
+    normally, timeout required for now to handle exceptions, else get()
+    but with H2O version of TextIteratorStreamer, loop over block to handle
+    """
+    def __init__(self, tokenizer, skip_prompt: bool = False, timeout: typing.Optional[float] = None,
+                 block=True, **decode_kwargs):
+        super().__init__(tokenizer, skip_prompt, **decode_kwargs)
+        self.text_queue = queue.Queue()
+        self.stop_signal = None
+        self.do_stop = False
+        self.timeout = timeout
+        self.block = block
+
+    def on_finalized_text(self, text: str, stream_end: bool = False):
+        """Put the new text in the queue. If the stream is ending, also put a stop signal in the queue."""
+        self.text_queue.put(text, timeout=self.timeout)
+        if stream_end:
+            self.text_queue.put(self.stop_signal, timeout=self.timeout)
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        while True:
+            try:
+                value = self.stop_signal  # value looks unused in pycharm, not true
+                if self.do_stop:
+                    print("hit stop", flush=True)
+                    # could raise or break, maybe best to raise and make parent see if any exception in thread
+                    raise StopIteration()
+                    #break
+                value = self.text_queue.get(block=self.block, timeout=self.timeout)
+                break
+            except queue.Empty:
+                time.sleep(0.01)
+        if value == self.stop_signal:
+            raise StopIteration()
+        else:
+            return value
 
 
 def generate_with_exceptions(func, prompt, inputs_decoded, raise_generate_gpu_exceptions, **kwargs):
@@ -912,7 +972,8 @@ def generate_with_exceptions(func, prompt, inputs_decoded, raise_generate_gpu_ex
             return
         else:
             clear_torch_cache()
-            raise
+            if raise_generate_gpu_exceptions:
+                raise
 
 
 def get_generate_params(model_lower, chat,
