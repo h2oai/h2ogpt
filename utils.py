@@ -96,6 +96,8 @@ def system_info():
     for k, v in gpu_memory_frac_dict.items():
         system[f'GPU_M/%s' % k] = v
 
+    system['hash'] = get_githash()
+
     return system
 
 
