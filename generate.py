@@ -660,6 +660,7 @@ def get_score_model(**kwargs):
         score_all_kwargs['lora_weights'] = ''
         score_all_kwargs['llama_type'] = False
         score_all_kwargs['compile'] = False
+        score_all_kwargs['quant_model'] = ''
         smodel, stokenizer, sdevice = get_model(**score_all_kwargs)
     else:
         smodel, stokenizer, sdevice = None, None, None
