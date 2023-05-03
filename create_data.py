@@ -1550,13 +1550,32 @@ def test_check_stats_data():
 
 
 def test_check_unhelpful():
-    file = '/home/jon/Downloads/openassistant_oasst1_h2ogpt_graded.json'
+    # file = '/home/jon/Downloads/openassistant_oasst1_h2ogpt_graded.json'
+    file = '/home/jon/Downloads/openassistant_oasst1_h2ogpt_grades.json'
     # file = 'h2ogpt-oig-oasst1-instruct-cleaned-v2.json'
 
     # base versions
     unhelpful = ["I'm sorry, I didn't quite understand your question, could you please rephrase it?",
                  "I'm sorry, but I don't understand your question. Could you please rephrase it?",
-                 "I'm sorry, I didn't quite understand your question",
+                 "I'm sorry, I don't quite understand your question",
+                 "I'm sorry, I don't know",
+                 "I'm sorry, but I don't know",
+                 "I don't know anything",
+                 "I do not know",
+                 "I don't know",
+                 "I don't know how",
+                 "I do not know how",
+                 "Can you please explain what you mean",
+                 "please explain what you mean",
+                 "please explain",
+                 "I'm sorry, but I don't know how to tell a story. Can you please explain what you mean by",
+                 "I'm sorry but I don't understand what you mean",
+                 "I don't understand",
+                 "I don't have the ability",
+                 "I do not have the ability",
+                 "I do not have",
+                 "I am a language model,",
+                 "I am a large language model,",
                  "I do not understand your question. Can you please try to make it clearer?",
                  "I'm sorry, but as an AI language model",
                  "I apologize, but I cannot rephrase text that I cannot understand. Your post is difficult to read and follow.",
@@ -1618,7 +1637,27 @@ def test_check_unhelpful():
                   "etc. etc.",
                   "etc etc",
                   ]
-    data = json.load(open(file, 'rt'))
+    #data = json.load(open(file, 'rt'))
+    df = pd.read_json(file)
+
+    use_reward_score_threshold = False
+    use_bleu_threshold = False
+    use_sentence_sim = True
+
+    from sacrebleu.metrics import BLEU
+    bleu = BLEU()
+    from nltk.translate.bleu_score import sentence_bleu
+
+    def get_bleu(actual, expected_list):
+        #return bleu.sentence_score(actual, expected_list).score
+        return sentence_bleu(expected_list, actual)
+
+    threshold = 0.0
+    if use_reward_score_threshold:
+        df = df[df['grade_deberta'] > threshold]
+
+    # back to as if original json load
+    data = df.to_dict(orient='records')
     bads = {}
     string_all = str(data)
     for sub in unhelpful:
@@ -1637,6 +1676,23 @@ def test_check_unhelpful():
     humans = [[x for i, x in enumerate(y) if i % 2 == 0] for y in convs]
     bots = [[x for i, x in enumerate(y) if i % 2 == 1] for y in convs]
 
+    # FIXME: apply back to json etc., just see for now
+    bleu_threshold = 0.9
+    if use_bleu_threshold:
+        bots = [[x for x in y if get_bleu(x, unhelpful) < bleu_threshold] for y in tqdm(bots)]
+
+    cosine_sim_threshold = 0.8
+    if use_sentence_sim:
+        # pip install sentence_transformers-2.2.2
+        from sentence_transformers import SentenceTransformer
+        # sent_model = 'bert-base-nli-mean-tokens'
+        #sent_model = 'nli-distilroberta-base-v2'
+        sent_model = 'all-MiniLM-L6-v2'
+        model = SentenceTransformer(sent_model)
+        sentence_embeddings = model.encode(unhelpful)
+        from sklearn.metrics.pairwise import cosine_similarity
+        bots = [x for x in tqdm(bots) if np.max(cosine_similarity(model.encode(x), sentence_embeddings)) < cosine_sim_threshold]
+
     bads_bots = {}
     string_all = str(bots)
     for sub in unhelpful:
@@ -1647,7 +1703,7 @@ def test_check_unhelpful():
     pp.pprint(bads_bots)
 
     total_bads_bots = sum(list(bads_bots.values()))
-    print('total_bads_bots: %s' % total_bads_bots, flush=True)
+    print('threshold: %g use_bleu_threshold: %g total_bads_bots: %s total_bots: %s total_humans: %s' % (threshold, use_bleu_threshold, total_bads_bots, len(bots), len(humans)), flush=True)
 
     # assert len(bads) == 0, bads
     assert len(bads_bots) == 0, bads_bots
