@@ -1267,7 +1267,9 @@ def score_qa(smodel, stokenizer, max_length_tokenize, question, answer, cutoff_l
 
 
 if __name__ == "__main__":
-    print("""
+    """
+    Examples:
+
     WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun --nproc_per_node=4 --master_port=1234 generate.py --base_model='EleutherAI/gpt-j-6B' --lora_weights=lora-alpaca_6B
     python generate.py --base_model='EleutherAI/gpt-j-6B' --lora_weights='lora-alpaca_6B'
     python generate.py --base_model='EleutherAI/gpt-neox-20b' --lora_weights='lora-alpaca_20B'
@@ -1293,6 +1295,5 @@ if __name__ == "__main__":
     python generate.py --base_model=decapoda-research/llama-65b-hf --load_8bit=False --infer_devices=False --prompt_type='human_bot'
 
     python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6.9b
-
-    """, flush=True)
+    """
     fire.Fire(main)
