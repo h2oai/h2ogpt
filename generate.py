@@ -1,9 +1,10 @@
 import functools
+import queue
 import sys
 import os
+import time
 import traceback
 import typing
-from threading import Thread
 from datetime import datetime
 import psutil
 
@@ -35,12 +36,12 @@ eval_extra_columns = ['prompt', 'response', 'score']
 def main(
         load_8bit: bool = False,
         load_half: bool = True,
-        infer_devices: bool = True,  # really if to "control" devices now
+        infer_devices: bool = True,
         base_model: str = '',
         quant_model: str = '',
         tokenizer_base_model: str = '',
         lora_weights: str = "",
-        gpu_id: int = 0,  # if infer_devices = True and gpu_id != -1
+        gpu_id: int = 0,
 
         prompt_type: Union[int, str] = None,
         # input to generation
@@ -61,7 +62,7 @@ def main(
         share: bool = True,
         local_files_only: bool = False,
         resume_download: bool = True,
-        use_auth_token: Union[str, bool] = False,  # True requires CLI did huggingface-cli login before running
+        use_auth_token: Union[str, bool] = False,
 
         src_lang: str = "English",
         tgt_lang: str = "Russian",
@@ -69,20 +70,18 @@ def main(
         gradio: bool = True,
         gradio_avoid_processing_markdown: bool = False,
         chat: bool = True,
-        chat_history: int = 4096,  # character length of chat context/history
-        chat_context: bool = False,  # use default context if human_bot
+        chat_history: int = 4096,
+        chat_context: bool = False,
         stream_output: bool = True,
         show_examples: bool = None,
         verbose: bool = False,
         h2ocolors: bool = True,
         height: int = 400,
         show_lora: bool = True,
-        # set to True to load --base_model after client logs in,
-        # to be able to free GPU memory when model is swapped
         login_mode_if_model0: bool = False,
         block_gradio_exit: bool = True,
         concurrency_count: int = 1,
-        api_open: bool = False,  # don't let API skip queue
+        api_open: bool = False,
         allow_api: bool = True,
         input_lines: int = 1,
 
@@ -98,9 +97,64 @@ def main(
         eval_sharegpt_prompts_only: int = 0,
         eval_sharegpt_prompts_only_seed: int = 1234,
         eval_sharegpt_as_output: bool = False,
-
-        hard_stop_list: typing.List[str] = [],
 ):
+    """
+
+    :param load_8bit: load model in 8-bit using bitsandbytes
+    :param load_half: load model in float16
+    :param infer_devices: whether to control devices with gpu_id.  If False, then spread across GPUs
+    :param base_model: model HF-type name
+    :param tokenizer_base_model: tokenizer HF-type name
+    :param lora_weights: LORA weights path/HF link
+    :param gpu_id: if infer_devices, then use gpu_id for cuda device ID, or auto mode if gpu_id != -1
+    :param prompt_type: type of prompt, usually matched to fine-tuned model or plain for foundational model
+    :param temperature: generation temperature
+    :param top_p: generation top_p
+    :param top_k: generation top_k
+    :param num_beams: generation number of beams
+    :param repetition_penalty: generation repetition penalty
+    :param num_return_sequences: generation number of sequences (1 forced for chat)
+    :param do_sample: generation sample
+    :param max_new_tokens: generation max new tokens
+    :param min_new_tokens: generation min tokens
+    :param early_stopping: generation early stopping
+    :param max_time: maximum time to allow for generation
+    :param debug: enable debug mode
+    :param save_dir: directory chat data is saved to
+    :param share: whether to share the gradio app with sharable URL
+    :param local_files_only: whether to only use local files instead of doing to HF for models
+    :param resume_download: whether to resume downloads from HF for models
+    :param use_auth_token: whether to use HF auth token (requires CLI did huggingface-cli login before)
+    :param src_lang: source languages to include if doing translation (None = all)
+    :param tgt_lang: target languages to include if doing translation (None = all)
+    :param gradio: whether to enable gradio, or to enable benchmark mode
+    :param gradio_avoid_processing_markdown:
+    :param chat: whether to enable chat mode with chat history
+    :param chat_history: maximum character length of chat context/history
+    :param chat_context: whether to use extra helpful context if human_bot
+    :param stream_output: whether to stream output from generate
+    :param show_examples: whether to show clickable examples in gradio
+    :param verbose: whether to show verbose prints
+    :param h2ocolors: whether to use H2O.ai theme
+    :param height: height of chat window
+    :param show_lora: whether to show LORA options in UI (expert so can be hard to understand)
+    :param login_mode_if_model0: set to True to load --base_model after client logs in, to be able to free GPU memory when model is swapped
+    :param block_gradio_exit: whether to block gradio exit (used for testing)
+    :param concurrency_count: gradio concurrency count (1 is optimal for LLMs)
+    :param api_open: If False, don't let API calls skip gradio queue
+    :param allow_api: whether to allow API calls at all to gradio server
+    :param input_lines: how many input lines to show for chat box (>1 forces shift-enter for submit, else enter is submit)
+    :param sanitize_user_prompt: whether to remove profanity from user input
+    :param sanitize_bot_response: whether to remove profanity and repeat lines from bot output
+    :param extra_model_options: extra models to show in list in gradio
+    :param extra_lora_options: extra LORA to show in list in gradio
+    :param score_model: which model to score responses (None means no scoring)
+    :param auto_score: whether to automatically score responses
+    :param eval_sharegpt_prompts_only: for no gradio benchmark, if using ShareGPT prompts for eval
+    :param eval_sharegpt_prompts_only_seed: for no gradio benchmark, if seed for ShareGPT sampling
+    :param eval_sharegpt_as_output: for no gradio benchmark, whether to test ShareGPT output itself
+    :return:
+    """
     is_hf = bool(os.getenv("HUGGINGFACE_SPACES"))
     is_gpth2oai = bool(os.getenv("GPT_H2O_AI"))
     is_public = is_hf or is_gpth2oai  # multi-user case with fixed model and disclaimer
@@ -108,7 +162,7 @@ def main(
     admin_pass = os.getenv("ADMIN_PASS")
     # will sometimes appear in UI or sometimes actual generation, but maybe better than empty result
     # but becomes unrecoverable sometimes if raise, so just be silent for now
-    raise_generate_gpu_exceptions = not is_public
+    raise_generate_gpu_exceptions = True
 
     # allow set token directly
     use_auth_token = os.environ.get("HUGGINGFACE_API_TOKEN", use_auth_token)
@@ -224,9 +278,10 @@ def main(
         eval_filename = os.path.join(scoring_path, eval_filename)
 
         # torch.device("cuda") leads to cuda:x cuda:y mismatches for multi-GPU consistently
-        context_class = NullContext() if n_gpus > 1 or n_gpus == 0 else torch.device("cuda")
+        device = 'cpu' if n_gpus == 0 else 'cuda'
+        context_class = NullContext if n_gpus > 1 or n_gpus == 0 else torch.device
 
-        with context_class:
+        with context_class(device):
             # ensure was set right above before examples generated
             assert not stream_output, "stream_output=True does not make sense with example loop"
             import time
@@ -241,7 +296,8 @@ def main(
                 fun = partial(evaluate, model_state, debug=debug, save_dir=save_dir, is_low_mem=is_low_mem,
                               raise_generate_gpu_exceptions=raise_generate_gpu_exceptions,
                               chat_context=chat_context,
-                              concurrency_count=concurrency_count)
+                              concurrency_count=concurrency_count,
+                              lora_weights=lora_weights)
             else:
                 assert eval_sharegpt_prompts_only > 0
 
@@ -289,7 +345,7 @@ def main(
                                             truncation=True,
                                             max_length=cutoff_len)
                         try:
-                            score = torch.sigmoid(smodel(**inputs).logits[0]).cpu().detach().numpy()[0]
+                            score = torch.sigmoid(smodel(**inputs).logits[0].float()).cpu().detach().numpy()[0]
                         except torch.cuda.OutOfMemoryError as e:
                             print("GPU OOM 1: question: %s answer: %s exception: %s" % (prompt, res, str(e)), flush=True)
                             traceback.print_exc()
@@ -655,12 +711,12 @@ def evaluate(
         debug=False,
         concurrency_count=None,
         save_dir=None,
-        hard_stop_list=None,
         sanitize_bot_response=True,
         model_state0=None,
         is_low_mem=None,
         raise_generate_gpu_exceptions=None,
         chat_context=None,
+        lora_weights=None,
 ):
     # ensure passed these
     assert concurrency_count is not None
@@ -715,10 +771,6 @@ def evaluate(
     data_point = dict(context=context, instruction=instruction, input=iinput)
     prompter = Prompter(prompt_type, debug=debug, chat=chat, stream_output=stream_output)
     prompt = prompter.generate_prompt(data_point)
-
-    if hard_stop_list is None:
-        # acts like undo on user entry and bot response
-        hard_stop_list = []
 
     if isinstance(tokenizer, str):
         # pipeline
@@ -835,55 +887,115 @@ def evaluate(
                                     )
 
     with torch.no_grad():
-        # protection for gradio not keeping track of closed users,
-        # else hit bitsandbytes lack of thread safety:
-        # https://github.com/h2oai/h2ogpt/issues/104
-        # but only makes sense if concurrency_count == 1
-        context_class = NullContext #if concurrency_count > 1 else filelock.FileLock
-        print('Pre-Generate: %s' % str(datetime.now()), flush=True)
-        decoded_output = None
-        with context_class("generate.lock"):
-            print('Generate: %s' % str(datetime.now()), flush=True)
-            # decoded tokenized prompt can deviate from prompt due to special characters
-            inputs_decoded = decoder(input_ids[0])
-            inputs_decoded_raw = decoder_raw(input_ids[0])
-            if inputs_decoded == prompt:
-                # normal
-                pass
-            elif inputs_decoded.lstrip() == prompt.lstrip():
-                # sometimes extra space in front, make prompt same for prompt removal
-                prompt = inputs_decoded
-            elif inputs_decoded_raw == prompt:
-                # some models specify special tokens that are part of normal prompt, so can't skip them
-                inputs_decoded_raw = inputs_decoded
-                decoder = decoder_raw
-            else:
-                print("WARNING: Special characters in prompt", flush=True)
-            if stream_output:
-                skip_prompt = False
-                streamer = TextIteratorStreamer(tokenizer, skip_prompt=skip_prompt)
-                gen_kwargs.update(dict(streamer=streamer))
-                target_func = generate_with_exceptions
-                target = wrapped_partial(generate_with_exceptions, model.generate, prompt, inputs_decoded,
-                                         raise_generate_gpu_exceptions, **gen_kwargs)
-                thread = Thread(target=target)
-                thread.start()
-                outputs = ""
-                for new_text in streamer:
-                    outputs += new_text
+        context_class_cast = NullContext if device == 'cpu' or lora_weights else torch.autocast
+        with context_class_cast(device):
+            # protection for gradio not keeping track of closed users,
+            # else hit bitsandbytes lack of thread safety:
+            # https://github.com/h2oai/h2ogpt/issues/104
+            # but only makes sense if concurrency_count == 1
+            context_class = NullContext #if concurrency_count > 1 else filelock.FileLock
+            print('Pre-Generate: %s' % str(datetime.now()), flush=True)
+            decoded_output = None
+            with context_class("generate.lock"):
+                print('Generate: %s' % str(datetime.now()), flush=True)
+                # decoded tokenized prompt can deviate from prompt due to special characters
+                inputs_decoded = decoder(input_ids[0])
+                inputs_decoded_raw = decoder_raw(input_ids[0])
+                if inputs_decoded == prompt:
+                    # normal
+                    pass
+                elif inputs_decoded.lstrip() == prompt.lstrip():
+                    # sometimes extra space in front, make prompt same for prompt removal
+                    prompt = inputs_decoded
+                elif inputs_decoded_raw == prompt:
+                    # some models specify special tokens that are part of normal prompt, so can't skip them
+                    inputs_decoded_raw = inputs_decoded
+                    decoder = decoder_raw
+                else:
+                    print("WARNING: Special characters in prompt", flush=True)
+                if stream_output:
+                    skip_prompt = False
+                    streamer = H2OTextIteratorStreamer(tokenizer, skip_prompt=skip_prompt, block=False)
+                    gen_kwargs.update(dict(streamer=streamer))
+                    target_func = generate_with_exceptions
+                    target = wrapped_partial(generate_with_exceptions, model.generate, prompt, inputs_decoded,
+                                             raise_generate_gpu_exceptions, **gen_kwargs)
+                    bucket = queue.Queue()
+                    thread = EThread(target=target, kwargs=dict(streamer=streamer), bucket=bucket)
+                    thread.start()
+                    outputs = ""
+                    try:
+                        for new_text in streamer:
+                            if bucket.qsize() > 0 or thread.exc:
+                                thread.join()
+                            outputs += new_text
+                            yield prompter.get_response(outputs, prompt=inputs_decoded,
+                                                        sanitize_bot_response=sanitize_bot_response)
+                    except BaseException:
+                        # if any exception, raise that exception if was from thread, first
+                        if thread.exc:
+                            raise thread.exc
+                        raise
+                    finally:
+                        # in case no exception and didn't join with thread yet, then join
+                        if not thread.exc:
+                            thread.join()
+                    # in case raise StopIteration or broke queue loop in streamer, but still have exception
+                    if thread.exc:
+                        raise thread.exc
+                    decoded_output = outputs
+                else:
+                    outputs = model.generate(**gen_kwargs)
+                    outputs = [decoder(s) for s in outputs.sequences]
                     yield prompter.get_response(outputs, prompt=inputs_decoded,
                                                 sanitize_bot_response=sanitize_bot_response)
-                decoded_output = outputs
-            else:
-                outputs = model.generate(**gen_kwargs)
-                outputs = [decoder(s) for s in outputs.sequences]
-                yield prompter.get_response(outputs, prompt=inputs_decoded,
-                                            sanitize_bot_response=sanitize_bot_response)
-                if outputs and len(outputs) >= 1:
-                    decoded_output = prompt + outputs[0]
-            if save_dir and decoded_output:
-                save_generate_output(output=decoded_output, base_model=base_model, save_dir=save_dir)
-        print('Post-Generate: %s decoded_output: %s' % (str(datetime.now()), len(decoded_output) if decoded_output else -1), flush=True)
+                    if outputs and len(outputs) >= 1:
+                        decoded_output = prompt + outputs[0]
+                if save_dir and decoded_output:
+                    save_generate_output(output=decoded_output, base_model=base_model, save_dir=save_dir)
+            print('Post-Generate: %s decoded_output: %s' % (str(datetime.now()), len(decoded_output) if decoded_output else -1), flush=True)
+
+
+class H2OTextIteratorStreamer(TextIteratorStreamer):
+    """
+    normally, timeout required for now to handle exceptions, else get()
+    but with H2O version of TextIteratorStreamer, loop over block to handle
+    """
+    def __init__(self, tokenizer, skip_prompt: bool = False, timeout: typing.Optional[float] = None,
+                 block=True, **decode_kwargs):
+        super().__init__(tokenizer, skip_prompt, **decode_kwargs)
+        self.text_queue = queue.Queue()
+        self.stop_signal = None
+        self.do_stop = False
+        self.timeout = timeout
+        self.block = block
+
+    def on_finalized_text(self, text: str, stream_end: bool = False):
+        """Put the new text in the queue. If the stream is ending, also put a stop signal in the queue."""
+        self.text_queue.put(text, timeout=self.timeout)
+        if stream_end:
+            self.text_queue.put(self.stop_signal, timeout=self.timeout)
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        while True:
+            try:
+                value = self.stop_signal  # value looks unused in pycharm, not true
+                if self.do_stop:
+                    print("hit stop", flush=True)
+                    # could raise or break, maybe best to raise and make parent see if any exception in thread
+                    raise StopIteration()
+                    #break
+                value = self.text_queue.get(block=self.block, timeout=self.timeout)
+                break
+            except queue.Empty:
+                time.sleep(0.01)
+        if value == self.stop_signal:
+            raise StopIteration()
+        else:
+            return value
 
 
 def generate_with_exceptions(func, prompt, inputs_decoded, raise_generate_gpu_exceptions, **kwargs):
@@ -914,7 +1026,8 @@ def generate_with_exceptions(func, prompt, inputs_decoded, raise_generate_gpu_ex
             return
         else:
             clear_torch_cache()
-            raise
+            if raise_generate_gpu_exceptions:
+                raise
 
 
 def get_generate_params(model_lower, chat,
@@ -1160,7 +1273,9 @@ def score_qa(smodel, stokenizer, max_length_tokenize, question, answer, cutoff_l
 
 
 if __name__ == "__main__":
-    print("""
+    """
+    Examples:
+
     WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun --nproc_per_node=4 --master_port=1234 generate.py --base_model='EleutherAI/gpt-j-6B' --lora_weights=lora-alpaca_6B
     python generate.py --base_model='EleutherAI/gpt-j-6B' --lora_weights='lora-alpaca_6B'
     python generate.py --base_model='EleutherAI/gpt-neox-20b' --lora_weights='lora-alpaca_20B'
@@ -1186,6 +1301,5 @@ if __name__ == "__main__":
     python generate.py --base_model=decapoda-research/llama-65b-hf --load_8bit=False --infer_devices=False --prompt_type='human_bot'
 
     python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6.9b
-
-    """, flush=True)
+    """
     fire.Fire(main)

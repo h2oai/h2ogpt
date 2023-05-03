@@ -1,3 +1,4 @@
+import copy
 import functools
 import inspect
 import os
@@ -47,16 +48,8 @@ def go_gradio(**kwargs):
                       Hash: {get_githash()}
                       """
     else:
-        description = "For more information, visit our GitHub pages: [h2oGPT](https://github.com/h2oai/h2ogpt) and [H2O LLM Studio](https://github.com/h2oai/h2o-llmstudio).<br>"
-    if is_public:
-        description += "If this host is busy, try [gpt.h2o.ai 20B](https://gpt.h2o.ai) and [HF Spaces1 12B](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot) and [HF Spaces2 12B](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot2)<br>"
-        description += """<p><b> DISCLAIMERS: </b><ul><i><li>The model was trained on The Pile and other data, which may contain objectionable content.  Use at own risk.</i></li>"""
-        if kwargs['load_8bit']:
-            description += """<i><li> Model is loaded in 8-bit and has other restrictions on this host. UX can be worse than non-hosted version.</i></li>"""
-        description += """<i><li>Conversations may be used to improve h2oGPT.  Do not share sensitive information.</i></li>"""
-        if 'h2ogpt-research' in kwargs['base_model']:
-            description += """<i><li>Research demonstration only, not used for commercial purposes.</i></li>"""
-        description += """<i><li>By using h2oGPT, you accept our [Terms of Service](https://github.com/h2oai/h2ogpt/blob/main/tos.md).</i></li></ul></p>"""
+        description = "For more information, visit our GitHub pages: [h2oGPT](https://github.com/h2oai/h2ogpt) and [H2O LLM Studio](https://github.com/h2oai/h2o-llmstudio)<br>"
+    description += """<p>By using h2oGPT, you accept our [Terms of Service](https://github.com/h2oai/h2ogpt/blob/main/tos.md)</p>"""
 
     if kwargs['verbose']:
         task_info_md = f"""
@@ -246,7 +239,11 @@ def go_gradio(**kwargs):
                                 value=kwargs['top_k'], label="Top k",
                                 info='Num. tokens to sample from'
                             )
-                            max_beams = 8 if not is_low_mem else 1
+                            # FIXME: https://github.com/h2oai/h2ogpt/issues/106
+                            if os.getenv('TESTINGFAIL'):
+                                 max_beams = 8 if not (is_low_mem or is_public) else 1
+                            else:
+                                max_beams = 1
                             num_beams = gr.Slider(minimum=1, maximum=max_beams, step=1,
                                                   value=min(max_beams, kwargs['num_beams']), label="Beams",
                                                   info="Number of searches for optimal overall probability.  "
@@ -262,7 +259,9 @@ def go_gradio(**kwargs):
                             )
                             early_stopping = gr.Checkbox(label="EarlyStopping", info="Stop early in beam search",
                                                          value=kwargs['early_stopping'])
-                            max_max_time = 60 * 5 if not is_low_mem else 60
+                            max_max_time = 60 * 5 if not is_public else 60 * 2
+                            if is_hf:
+                                max_max_time = min(max_max_time, 60 * 1)
                             max_time = gr.Slider(minimum=0, maximum=max_max_time, step=1,
                                                  value=min(max_max_time, kwargs['max_time']), label="Max. time",
                                                  info="Max. time to search optimal output.")
@@ -309,9 +308,10 @@ def go_gradio(**kwargs):
                                     model_gpu = gr.Dropdown(n_gpus_list,
                                                             label="GPU ID 2 [-1 = all GPUs, if Choose is enabled]",
                                                             value=kwargs['gpu_id'])
-                                    model_used = gr.Textbox(label="Current Model", value=kwargs['base_model'])
+                                    model_used = gr.Textbox(label="Current Model", value=kwargs['base_model'],
+                                                            interactive=False)
                                     lora_used = gr.Textbox(label="Current LORA", value=kwargs['lora_weights'],
-                                                           visible=kwargs['show_lora'])
+                                                           visible=kwargs['show_lora'], interactive=False)
                             with gr.Row():
                                 with gr.Column(scale=50):
                                     new_model = gr.Textbox(label="New Model HF name/path")
@@ -354,15 +354,25 @@ def go_gradio(**kwargs):
                         with gr.Column():
                             with gr.Row():
                                 system_btn = gr.Button(value='Get System Info')
-                                system_text = gr.Textbox(label='System Info')
+                                system_text = gr.Textbox(label='System Info', interactive=False)
 
                             with gr.Row():
                                 zip_btn = gr.Button("Zip")
-                                zip_text = gr.Textbox(label="Zip file name")
+                                zip_text = gr.Textbox(label="Zip file name", interactive=False)
                                 file_output = gr.File()
                             with gr.Row():
                                 s3up_btn = gr.Button("S3UP")
-                                s3up_text = gr.Textbox(label='S3UP result')
+                                s3up_text = gr.Textbox(label='S3UP result', interactive=False)
+                with gr.TabItem("Disclaimers"):
+                    description = ""
+                    description += """<p><b> DISCLAIMERS: </b><ul><i><li>The model was trained on The Pile and other data, which may contain objectionable content.  Use at own risk.</i></li>"""
+                    if kwargs['load_8bit']:
+                        description += """<i><li> Model is loaded in 8-bit and has other restrictions on this host. UX can be worse than non-hosted version.</i></li>"""
+                    description += """<i><li>Conversations may be used to improve h2oGPT.  Do not share sensitive information.</i></li>"""
+                    if 'h2ogpt-research' in kwargs['base_model']:
+                        description += """<i><li>Research demonstration only, not used for commercial purposes.</i></li>"""
+                    description += """<i><li>By using h2oGPT, you accept our <a href="https://github.com/h2oai/h2ogpt/blob/main/tos.md">Terms of Service</a></i></li></ul></p>"""
+                    gr.Markdown(value=description, show_label=False, interactive=False)
 
         # Get flagged data
         zip_data1 = functools.partial(zip_data, root_dirs=['flagged_data_points', kwargs['save_dir']])
@@ -395,12 +405,15 @@ def go_gradio(**kwargs):
         dark_mode_btn = gr.Button("Dark Mode", variant="primary").style(
             size="sm",
         )
+        # FIXME: Could add exceptions for non-chat but still streaming
+        exception_text = gr.Textbox(value="", visible=kwargs['chat'], label='Chat Exceptions', interactive=False)
         dark_mode_btn.click(
             None,
             None,
             None,
             _js=get_dark_js(),
             api_name="dark" if allow_api else None,
+            queue=False,
         )
 
         # Control chat and non-chat blocks, which can be independently used by chat checkbox swap
@@ -415,7 +428,8 @@ def go_gradio(**kwargs):
 
         chat.select(col_nochat_fun, chat, col_nochat, api_name="chat_checkbox" if allow_api else None) \
             .then(col_chat_fun, chat, col_chat) \
-            .then(context_fun, chat, context)
+            .then(context_fun, chat, context) \
+            .then(col_chat_fun, chat, exception_text)
 
         # examples after submit or any other buttons for chat or no chat
         if kwargs['examples'] is not None and kwargs['show_examples']:
@@ -514,6 +528,10 @@ def go_gradio(**kwargs):
             if sanitize_user_prompt:
                 from better_profanity import profanity
                 user_message1 = profanity.censor(user_message1)
+            if user_message1 in ['']:
+                # e.g. when user just hits enter in textbox,
+                # else will have <human>: <bot>: on single line, which seems to be "ok" for LLM but not usual
+                user_message1 = '\n'
 
             history = args_list[-1]
             if undo and history:
@@ -541,15 +559,17 @@ def go_gradio(**kwargs):
             :param retry:
             :return:
             """
-            args_list = list(args).copy()
+            args_list = copy.deepcopy(list(args))
             history = args_list[-1]  # model_state is -2
             if retry and history:
                 history.pop()
             if not history:
                 print("No history", flush=True)
+                history = [['', None]]
+                yield history, ''
                 return
             # ensure output will be unique to models
-            history = history.copy()
+            history = copy.deepcopy(history)
             instruction1 = history[-1][0]
             context1 = ''
             if kwargs['chat_history'] > 0:
@@ -571,6 +591,8 @@ def go_gradio(**kwargs):
             args_list[2] = context1[-kwargs['chat_history']:]
             model_state1 = args_list[-2]
             if model_state1[0] is None or model_state1[0] == no_model_str:
+                history = [['', None]]
+                yield history, ''
                 return
             args_list = args_list[:-2]
             fun1 = partial(evaluate,
@@ -580,19 +602,25 @@ def go_gradio(**kwargs):
                 for output in fun1(*tuple(args_list)):
                     bot_message = output
                     history[-1][1] = bot_message
-                    yield history
+                    yield history, ''
             except StopIteration:
-                yield history
+                yield history, ''
             except RuntimeError as e:
                 if "generator raised StopIteration" in str(e):
                     # assume last entry was bad, undo
                     history.pop()
-                    yield history
-                raise
+                    yield history, ''
+                else:
+                    if history and len(history) > 0 and len(history[0]) > 1 and history[-1][1] is None:
+                        history[-1][1] = ''
+                    yield history, str(e)
+                    raise
             except Exception as e:
                 # put error into user input
-                history[-1][0] = "Exception: %s" % str(e)
-                yield history
+                ex = "Exception: %s" % str(e)
+                if history and len(history) > 0 and len(history[0]) > 1 and history[-1][1] is None:
+                    history[-1][1] = ''
+                yield history, ex
                 raise
             return
 
@@ -603,11 +631,11 @@ def go_gradio(**kwargs):
                          )
         bot_args = dict(fn=bot,
                         inputs=inputs_list + [model_state] + [text_output],
-                        outputs=text_output,
+                        outputs=[text_output, exception_text],
                         )
         retry_bot_args = dict(fn=functools.partial(bot, retry=True),
                               inputs=inputs_list + [model_state] + [text_output],
-                              outputs=text_output,
+                              outputs=[text_output, exception_text],
                               )
         undo_user_args = dict(fn=functools.partial(user, undo=True),
                               inputs=inputs_list + [text_output],
@@ -621,11 +649,11 @@ def go_gradio(**kwargs):
                           )
         bot_args2 = dict(fn=bot,
                          inputs=inputs_list + [model_state2] + [text_output2],
-                         outputs=text_output2,
+                         outputs=[text_output2, exception_text],
                          )
         retry_bot_args2 = dict(fn=functools.partial(bot, retry=True),
                                inputs=inputs_list + [model_state2] + [text_output2],
-                               outputs=text_output2,
+                               outputs=[text_output2, exception_text],
                                )
         undo_user_args2 = dict(fn=functools.partial(user, undo=True),
                                inputs=inputs_list + [text_output2],
@@ -636,67 +664,61 @@ def go_gradio(**kwargs):
             return gr.Textbox.update(value='')
 
         if kwargs['auto_score']:
-            # in case 2nd model, consume instruction first, so can clear quickly
-            # bot doesn't consume instruction itself, just history from user, so why works
-            submit_event = instruction.submit(**user_args, queue=queue,
-                                              api_name='instruction' if allow_api else None) \
-                .then(**user_args2, api_name='instruction2' if allow_api else None) \
-                .then(clear_instruct, None, instruction) \
-                .then(clear_instruct, None, iinput) \
-                .then(**bot_args, api_name='instruction_bot' if allow_api else None, queue=queue) \
-                .then(**score_args, api_name='instruction_bot_score' if allow_api else None, queue=queue) \
-                .then(**bot_args2, api_name='instruction_bot2' if allow_api else None, queue=queue) \
-                .then(**score_args2, api_name='instruction_bot_score2' if allow_api else None, queue=queue) \
-                .then(clear_torch_cache)
-            submit_event2 = submit.click(**user_args, api_name='submit' if allow_api else None) \
-                .then(**user_args2, api_name='submit2' if allow_api else None) \
-                .then(clear_instruct, None, instruction) \
-                .then(clear_instruct, None, iinput) \
-                .then(**bot_args, api_name='submit_bot' if allow_api else None, queue=queue) \
-                .then(**score_args, api_name='submit_bot_score' if allow_api else None, queue=queue) \
-                .then(**bot_args2, api_name='submit_bot2' if allow_api else None, queue=queue) \
-                .then(**score_args2, api_name='submit_bot_score2' if allow_api else None, queue=queue) \
-                .then(clear_torch_cache)
-            submit_event3 = retry.click(**user_args, api_name='retry' if allow_api else None) \
-                .then(**user_args2, api_name='retry2' if allow_api else None) \
-                .then(clear_instruct, None, instruction) \
-                .then(clear_instruct, None, iinput) \
-                .then(**retry_bot_args, api_name='retry_bot' if allow_api else None, queue=queue) \
-                .then(**score_args, api_name='retry_bot_score' if allow_api else None, queue=queue) \
-                .then(**retry_bot_args2, api_name='retry_bot2' if allow_api else None, queue=queue) \
-                .then(**score_args2, api_name='retry_bot_score2' if allow_api else None, queue=queue) \
-                .then(clear_torch_cache)
-            submit_event4 = undo.click(**undo_user_args, api_name='undo' if allow_api else None) \
-                .then(**undo_user_args2, api_name='undo2' if allow_api else None) \
-                .then(clear_instruct, None, instruction) \
-                .then(clear_instruct, None, iinput) \
-                .then(**score_args, api_name='undo_score' if allow_api else None) \
-                .then(**score_args2, api_name='undo_score2' if allow_api else None)
+            score_args_submit = score_args
+            score_args2_submit = score_args2
         else:
-            submit_event = instruction.submit(**user_args,
-                                              api_name='instruction' if allow_api else None) \
-                .then(**user_args2, api_name='instruction2' if allow_api else None) \
-                .then(clear_instruct, None, instruction) \
-                .then(clear_instruct, None, iinput) \
-                .then(**bot_args, api_name='instruction_bot' if allow_api else None, queue=queue) \
-                .then(**bot_args2, api_name='instruction_bot2' if allow_api else None, queue=queue) \
-                .then(clear_torch_cache)
-            submit_event2 = submit.click(**user_args, api_name='submit' if allow_api else None) \
-                .then(**user_args2, api_name='submit2' if allow_api else None) \
-                .then(clear_instruct, None, instruction) \
-                .then(clear_instruct, None, iinput) \
-                .then(**bot_args, api_name='submit_bot' if allow_api else None, queue=queue) \
-                .then(**bot_args2, api_name='submit_bot2' if allow_api else None, queue=queue) \
-                .then(clear_torch_cache)
-            submit_event3 = retry.click(**user_args, api_name='retry' if allow_api else None) \
-                .then(**user_args2, api_name='retry2' if allow_api else None) \
-                .then(clear_instruct, None, instruction) \
-                .then(clear_instruct, None, iinput) \
-                .then(**retry_bot_args, api_name='retry_bot' if allow_api else None, queue=queue) \
-                .then(**retry_bot_args2, api_name='retry_bot2' if allow_api else None, queue=queue) \
-                .then(clear_torch_cache)
-            submit_event4 = undo.click(**undo_user_args, api_name='undo' if allow_api else None) \
-                .then(**undo_user_args2, api_name='undo2' if allow_api else None)
+            score_args_submit = dict(fn=lambda: None, inputs=None, outputs=None)
+            score_args2_submit = dict(fn=lambda: None, inputs=None, outputs=None)
+
+        # in case 2nd model, consume instruction first, so can clear quickly
+        # bot doesn't consume instruction itself, just history from user, so why works
+        submit_event1a = instruction.submit(**user_args, queue=queue,
+                                            api_name='instruction' if allow_api else None)
+        submit_event1b = submit_event1a.then(**user_args2, api_name='instruction2' if allow_api else None)
+        submit_event1c = submit_event1b.then(clear_instruct, None, instruction) \
+            .then(clear_instruct, None, iinput)
+        submit_event1d = submit_event1c.then(**bot_args, api_name='instruction_bot' if allow_api else None,
+                                             queue=queue)
+        submit_event1e = submit_event1d.then(**score_args_submit, api_name='instruction_bot_score' if allow_api else None,
+                                             queue=queue)
+        submit_event1f = submit_event1e.then(**bot_args2, api_name='instruction_bot2' if allow_api else None,
+                                             queue=queue)
+        submit_event1g = submit_event1f.then(**score_args2_submit,
+                                             api_name='instruction_bot_score2' if allow_api else None, queue=queue)
+        submit_event1h = submit_event1g.then(clear_torch_cache)
+
+        submit_event2a = submit.click(**user_args, api_name='submit' if allow_api else None)
+        submit_event2b = submit_event2a.then(**user_args2, api_name='submit2' if allow_api else None)
+        submit_event2c = submit_event2b.then(clear_instruct, None, instruction) \
+            .then(clear_instruct, None, iinput)
+        submit_event2d = submit_event2c.then(**bot_args, api_name='submit_bot' if allow_api else None, queue=queue)
+        submit_event2e = submit_event2d.then(**score_args_submit, api_name='submit_bot_score' if allow_api else None,
+                                             queue=queue)
+        submit_event2f = submit_event2e.then(**bot_args2, api_name='submit_bot2' if allow_api else None, queue=queue)
+        submit_event2g = submit_event2f.then(**score_args2_submit, api_name='submit_bot_score2' if allow_api else None,
+                                             queue=queue)
+        submit_event2h = submit_event2g.then(clear_torch_cache)
+
+        submit_event3a = retry.click(**user_args, api_name='retry' if allow_api else None)
+        submit_event3b = submit_event3a.then(**user_args2, api_name='retry2' if allow_api else None)
+        submit_event3c = submit_event3b.then(clear_instruct, None, instruction) \
+            .then(clear_instruct, None, iinput)
+        submit_event3d = submit_event3c.then(**retry_bot_args, api_name='retry_bot' if allow_api else None,
+                                             queue=queue)
+        submit_event3e = submit_event3d.then(**score_args_submit, api_name='retry_bot_score' if allow_api else None,
+                                             queue=queue)
+        submit_event3f = submit_event3e.then(**retry_bot_args2, api_name='retry_bot2' if allow_api else None,
+                                             queue=queue)
+        submit_event3g = submit_event3f.then(**score_args2_submit, api_name='retry_bot_score2' if allow_api else None,
+                                             queue=queue)
+        submit_event3h = submit_event3g.then(clear_torch_cache)
+
+        submit_event4 = undo.click(**undo_user_args, api_name='undo' if allow_api else None) \
+            .then(**undo_user_args2, api_name='undo2' if allow_api else None) \
+            .then(clear_instruct, None, instruction) \
+            .then(clear_instruct, None, iinput) \
+            .then(**score_args_submit, api_name='undo_score' if allow_api else None) \
+            .then(**score_args2_submit, api_name='undo_score2' if allow_api else None)
 
         # does both models
         clear.click(lambda: None, None, text_output, queue=False, api_name='clear' if allow_api else None) \
@@ -864,9 +886,12 @@ def go_gradio(**kwargs):
                                         api_name='system_info' if allow_api else None, queue=False)
 
         # don't pass text_output, don't want to clear output, just stop it
-        # FIXME: have to click once to stop output and second time to stop GPUs going
+        # cancel only stops outer generation, not inner generation or non-generation
         stop_btn.click(lambda: None, None, None,
-                       cancels=[submit_event_nochat, submit_event, submit_event2, submit_event3],
+                       cancels=[submit_event1d, submit_event1f,
+                                submit_event2d, submit_event2f,
+                                submit_event3d, submit_event3f,
+                                submit_event_nochat],
                        queue=False, api_name='stop' if allow_api else None).then(clear_torch_cache, queue=False)
         demo.load(None, None, None, _js=get_dark_js() if kwargs['h2ocolors'] else None)
 
@@ -887,8 +912,8 @@ def go_gradio(**kwargs):
 
 
 input_args_list = ['model_state']
-inputs_kwargs_list = ['debug', 'save_dir', 'hard_stop_list', 'sanitize_bot_response', 'model_state0', 'is_low_mem',
-                      'raise_generate_gpu_exceptions', 'chat_context', 'concurrency_count']
+inputs_kwargs_list = ['debug', 'save_dir', 'sanitize_bot_response', 'model_state0', 'is_low_mem',
+                      'raise_generate_gpu_exceptions', 'chat_context', 'concurrency_count', 'lora_weights']
 
 
 def get_inputs_list(inputs_dict, model_lower):
