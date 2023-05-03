@@ -313,9 +313,10 @@ def go_gradio(**kwargs):
                                     model_gpu = gr.Dropdown(n_gpus_list,
                                                             label="GPU ID 2 [-1 = all GPUs, if Choose is enabled]",
                                                             value=kwargs['gpu_id'])
-                                    model_used = gr.Textbox(label="Current Model", value=kwargs['base_model'])
+                                    model_used = gr.Textbox(label="Current Model", value=kwargs['base_model'],
+                                                            interactive=False)
                                     lora_used = gr.Textbox(label="Current LORA", value=kwargs['lora_weights'],
-                                                           visible=kwargs['show_lora'])
+                                                           visible=kwargs['show_lora'], interactive=False)
                             with gr.Row():
                                 with gr.Column(scale=50):
                                     new_model = gr.Textbox(label="New Model HF name/path")
@@ -358,15 +359,15 @@ def go_gradio(**kwargs):
                         with gr.Column():
                             with gr.Row():
                                 system_btn = gr.Button(value='Get System Info')
-                                system_text = gr.Textbox(label='System Info')
+                                system_text = gr.Textbox(label='System Info', interactive=False)
 
                             with gr.Row():
                                 zip_btn = gr.Button("Zip")
-                                zip_text = gr.Textbox(label="Zip file name")
+                                zip_text = gr.Textbox(label="Zip file name", interactive=False)
                                 file_output = gr.File()
                             with gr.Row():
                                 s3up_btn = gr.Button("S3UP")
-                                s3up_text = gr.Textbox(label='S3UP result')
+                                s3up_text = gr.Textbox(label='S3UP result', interactive=False)
 
         # Get flagged data
         zip_data1 = functools.partial(zip_data, root_dirs=['flagged_data_points', kwargs['save_dir']])
