@@ -247,8 +247,10 @@ def go_gradio(**kwargs):
                                 info='Num. tokens to sample from'
                             )
                             # FIXME: https://github.com/h2oai/h2ogpt/issues/106
-                            # max_beams = 8 if not (is_low_mem or is_public) else 1
-                            max_beams = 1
+                            if os.getenv('TESTINGFAIL'):
+                                 max_beams = 8 if not (is_low_mem or is_public) else 1
+                            else:
+                                max_beams = 1
                             num_beams = gr.Slider(minimum=1, maximum=max_beams, step=1,
                                                   value=min(max_beams, kwargs['num_beams']), label="Beams",
                                                   info="Number of searches for optimal overall probability.  "
