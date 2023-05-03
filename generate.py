@@ -577,7 +577,12 @@ def get_model(
 
         if not lora_weights:
             if quant_model:
-                model = load_quant(model=base_model, checkpoint=quant_model, wbits=4, groupsize=128)
+                wbits = 8 if "8bit" in quant_model else 4 if "4bit" in quant_model else None
+                assert wbits, "must have '4bit' or '8bit' in quant_model name."
+                model = load_quant(model=base_model,
+                                   checkpoint=quant_model,
+                                   wbits=wbits,
+                                   groupsize=128)
                 model.to(device)
             else:
                 with torch.device(device):
