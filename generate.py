@@ -9,7 +9,7 @@ from datetime import datetime
 import psutil
 
 from quantize.inference import load_quant
-from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial
+from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial, EThread
 
 SEED = 1236
 set_seed(SEED)
