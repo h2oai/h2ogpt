@@ -43,7 +43,7 @@ cd h2ogpt
 pip install -r requirements.txt
 python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6.9b
 ```
-and then use browser at http://0.0.0.0:7860 or the public live URL printed by the server.
+and then use browser at http://0.0.0.0:7860 or the public live URL printed by the server (can disable public URL by passing `--share=False`).
 
 For help installing a Python 3.10 environment or CUDA toolkit or installing flash attention support, see the [installation instructions](INSTALL.md)
 
