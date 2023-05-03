@@ -5,9 +5,9 @@ import traceback
 import typing
 from threading import Thread
 from datetime import datetime
-import filelock
 import psutil
 
+from quantize.inference import load_quant
 from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial
 
 SEED = 1236
@@ -37,6 +37,7 @@ def main(
         load_half: bool = True,
         infer_devices: bool = True,  # really if to "control" devices now
         base_model: str = '',
+        quant_model: str = '',
         tokenizer_base_model: str = '',
         lora_weights: str = "",
         gpu_id: int = 0,  # if infer_devices = True and gpu_id != -1
@@ -431,6 +432,7 @@ def get_model(
         load_half: bool = True,
         infer_devices: bool = True,
         base_model: str = '',
+        quant_model: str = '',
         tokenizer_base_model: str = '',
         lora_weights: str = "",
         gpu_id: int = 0,
@@ -518,19 +520,23 @@ def get_model(
             model_kwargs.pop('torch_dtype', None)
 
         if not lora_weights:
-            with torch.device(device):
-                if infer_devices:
-                    model = get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward_type,
-                                               gpu_id=gpu_id, use_auth_token=use_auth_token)
-                else:
-                    if load_half and not load_8bit:
-                        model = model_loader.from_pretrained(
-                            base_model,
-                            **model_kwargs).half()
+            if quant_model:
+                model = load_quant(model=base_model, checkpoint=quant_model, wbits=4)
+                model.to(device)
+            else:
+                with torch.device(device):
+                    if infer_devices:
+                        model = get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward_type,
+                                                   gpu_id=gpu_id, use_auth_token=use_auth_token)
                     else:
-                        model = model_loader.from_pretrained(
-                            base_model,
-                            **model_kwargs)
+                        if load_half and not load_8bit:
+                            model = model_loader.from_pretrained(
+                                base_model,
+                                **model_kwargs).half()
+                        else:
+                            model = model_loader.from_pretrained(
+                                base_model,
+                                **model_kwargs)
         elif load_8bit:
             model = model_loader.from_pretrained(
                 base_model,
