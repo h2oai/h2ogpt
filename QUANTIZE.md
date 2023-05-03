@@ -4,9 +4,9 @@ First, make sure to install all [dependencies](../INSTALL.md).
 
 Select the model to quantize:
 ```bash
-MODEL=h2ogpt-oig-oasst1-512-6.9b
-#MODEL=h2ogpt-oasst1-512-12b
-#MODEL=h2ogpt-oasst1-512-20b
+export MODEL=h2ogpt-oig-oasst1-512-6.9b
+#export MODEL=h2ogpt-oasst1-512-12b
+#export MODEL=h2ogpt-oasst1-512-20b
 ```
 
 Run the conversion:
