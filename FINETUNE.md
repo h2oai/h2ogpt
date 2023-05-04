@@ -11,26 +11,7 @@ Make sure you have followed the [native installation instructions](INSTALL.md).
 
 ### Dataset format
 
-In general, LLMs take plain text (ordered list of tokens) as input and generate plain text as output.
-Here are some example tokens (from a total of ~50k), each is assigned a number:
-```text
-"osed": 1700,
-"ised": 1701,
-"================": 1702,
-"ED": 1703,
-"sec": 1704,
-"Ġcome": 1705,
-"34": 1706,
-"ĠThere": 1707,
-"Ġlight": 1708,
-"Ġassoci": 1709,
-"gram": 1710,
-"Ġold": 1711,
-"Ġ{#": 1712,
-```
-The model is trained with these specific numbers, so the tokenizer must be kept the same for training and inference/generation.
-The input format doesn't change whether the model is in pretraining, fine-tuning or inference mode, but the text itself can change slightly for better results, and that's called prompt engineering.
-
+In general, LLMs take plain text (ordered list of tokens, explained in the [FAQ](FAQ.md)) as input and generate plain text as output.
 For example, for pretraining this text is perfectly usable:
 ```text
 and suddenly all the players raised their hands and shouted
@@ -46,7 +27,7 @@ Instruction: Summarize.
 Input: This is a very very very long paragraph saying nothing much.
 Output: Nothing was said.
 ```
-This text is better suited to teach the model to summarize. During inference, one would present the model with the following text and it would provide the summary as the continuation of the input:
+This text is better suited to teach the model to summarize. During inference, one would present the model with the following text and it would provide the summary as the continuation of the input, since it is already familiar with this prompting technique:
 ```text
 Instruction: Summarize.
 Input: TEXT TO SUMMARIZE

@@ -14,14 +14,14 @@ these prompt parts are concatenated together into one string. The magic is in th
 
 For training a summarization task, we concatenate these 3 parts together:
 
-- Instruction = ''
-- Input = `'## Main Text\n\n'` + <INPUT>
-- Response = `'\n\n## Summary\n\n'` + <OUTPUT>
+- Instruction = `<INSTRUCTION>`
+- Input = `'## Main Text\n\n'` + `<INPUT>`
+- Response = `'\n\n## Summary\n\n'` + `<OUTPUT>`
 
-For each training record, we take <INPUT> and <OUTPUT> from the summarization dataset (typically two fields/columns), place them into the appropriate position, and turn that record into
+For each training record, we take `<INPUT>` and `<OUTPUT>` from the summarization dataset (typically two fields/columns), place them into the appropriate position, and turn that record into
 one long string that the model can be trained with: `'## Main Text\n\nLarge Language Models are Useful.\n\n## Summary\n\nLLMs rock.'`
 
-At inference time, we will take the <INPUT> only and stop right after `'\n\n## Summary\n\n'` and the model will generate the summary
+At inference time, we will take the `<INPUT>` only and stop right after `'\n\n## Summary\n\n'` and the model will generate the summary
 as the continuation of the prompt.
 
 
@@ -29,9 +29,9 @@ as the continuation of the prompt.
 
 For a conversational chatbot use case, we use the following 3 parts:
 
-- Instruction = <INSTRUCTION>
-- Input = `'<human>: '` + <INPUT>
-- Response = `'<bot>: '` + <OUTPUT>
+- Instruction = `<INSTRUCTION>`
+- Input = `'<human>: '` + `<INPUT>`
+- Response = `'<bot>: '` + `<OUTPUT>`
 
 And a training string could look like this: `'<human>: hi, how are you?<bot>: Hi, I am doing great. How can I help you?'`.
 At inference time, the model input would be like this: `'<human>: Tell me a joke about snow flakes.<bot>: '`, and the model would generate the bot part.
@@ -40,7 +40,7 @@ At inference time, the model input would be like this: `'<human>: Tell me a joke
 ### How to prepare data?
 
 Training data (in `JSON` format) must contain at least one column that maps to `instruction`, `input` or `output`.
-Their content will be placed into the <INSTRUCTION>, <INPUT> and <OUTPUT> placeholders mentioned above.
+Their content will be placed into the `<INSTRUCTION>`, `<INPUT>` and `<OUTPUT>` placeholders mentioned above.
 The chosen `prompt_type` will fill in the strings in between to form the actual input into the model.
 Any missing columns will lead to empty strings. Optional `--data_col_dict={'A': 'input', 'B': 'output'}` argument can
 be used to map different column names into the required ones.
@@ -82,7 +82,28 @@ Note that the total length of the text (i.e., input and output) the LLM can hand
 A context length of 2048 means that for an input of e.g. 1900 tokens, the model will be able to create no more than 148 new tokens as part of the output.
 
 For fine-tuning, if the average length of inputs is less than the context length, one can provide a `cutoff_len` of less than the context length, to truncate inputs to this amount of tokens. For most instruction-type datasets, a cutoff length of 512 seems reasonable, and provides nice memory and time savings.
+For example, the `h2oai/h2ogpt-oasst1-512-20b` model was trained with a cutoff length of 512.
 
+### Tokens
+
+Here are some example tokens (from a total of ~50k), each is assigned a number:
+```text
+"osed": 1700,
+"ised": 1701,
+"================": 1702,
+"ED": 1703,
+"sec": 1704,
+"Ġcome": 1705,
+"34": 1706,
+"ĠThere": 1707,
+"Ġlight": 1708,
+"Ġassoci": 1709,
+"gram": 1710,
+"Ġold": 1711,
+"Ġ{#": 1712,
+```
+The model is trained with these specific numbers, so the tokenizer must be kept the same for training and inference/generation.
+The input format doesn't change whether the model is in pretraining, fine-tuning or inference mode, but the text itself can change slightly for better results, and that's called prompt engineering.
 
 ### Why does h2oGPT say it was trained by OpenAI or Open Assistant?
 
