@@ -1,7 +1,10 @@
+import glob
 import os
 import pathlib
 import subprocess
 import tempfile
+from abc import ABC
+from typing import Optional, List, Mapping, Any
 
 import pandas as pd
 import requests
@@ -13,12 +16,14 @@ from langchain.vectorstores import FAISS
 from langchain.chains.question_answering import load_qa_chain
 from langchain.chains import ConversationalRetrievalChain
 from langchain.docstore.document import Document
+from langchain.llms.base import LLM
 
 # https://python.langchain.com/en/latest/modules/models/llms/examples/llm_caching.html
-#from langchain.cache import InMemoryCache
-#langchain.llm_cache = InMemoryCache()
+# from langchain.cache import InMemoryCache
+# langchain.llm_cache = InMemoryCache()
 try:
     from langchain.cache import SQLiteCache
+
     langchain.llm_cache = SQLiteCache(database_path=".langchain.db")
     print("Caching", flush=True)
 except Exception as e:
@@ -26,7 +31,6 @@ except Exception as e:
 
 
 def get_db(path=None, pdf_filename=None, split_method='chunk', use_openai=False):
-
     # get chunks of data to handle model context
     chunks = get_chunks(path=path, pdf_filename=pdf_filename, split_method=split_method)
 
@@ -138,7 +142,7 @@ def get_llm(use_openai=False):
     else:
         from transformers import AutoTokenizer, AutoModelForCausalLM
 
-        #model_name = "cerebras/Cerebras-GPT-2.7B"
+        # model_name = "cerebras/Cerebras-GPT-2.7B"
         # model_name = "cerebras/Cerebras-GPT-13B"
         model_name = "cerebras/Cerebras-GPT-6.7B"
         tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -248,6 +252,33 @@ def get_device_dtype():
     return device, torch_dtype, context_class
 
 
+class H2OChatBotLLM(LLM, ABC):
+    # FIXME: WIP, use gradio_client not requests
+    @property
+    def _llm_type(self) -> str:
+        return "custom"
+
+    def _call(self, prompt: str, stop: Optional[List[str]] = None) -> str:
+        response = requests.post(
+            "http://0.0.0.0:7860/prompt",
+            json={
+                "prompt": prompt,
+                "temperature": 0,
+                "max_new_tokens": 256,
+                "stop": stop + ["Observation:"]
+            }
+        )
+        response.raise_for_status()
+        return response.json()["response"]
+
+    @property
+    def _identifying_params(self) -> Mapping[str, Any]:
+        """Get the identifying parameters."""
+        return {
+
+        }
+
+
 def show_counts(chunks, count_tokens):
     # Quick data visualization to ensure chunking was successful
 
@@ -303,8 +334,8 @@ def get_github_docs(repo_owner, repo_name):
         )
         git_sha = (
             subprocess.check_output("git rev-parse HEAD", shell=True, cwd=d)
-            .decode("utf-8")
-            .strip()
+                .decode("utf-8")
+                .strip()
         )
         repo_path = pathlib.Path(d)
         markdown_files = list(repo_path.glob("*/*.md")) + list(
@@ -315,6 +346,14 @@ def get_github_docs(repo_owner, repo_name):
                 relative_path = markdown_file.relative_to(repo_path)
                 github_url = f"https://github.com/{repo_owner}/{repo_name}/blob/{git_sha}/{relative_path}"
                 yield Document(page_content=f.read(), metadata={"source": github_url})
+
+
+def get_rst_docs(path):
+    md_files = glob.glob(os.path.join(path, "./**/*.md"), recursive=True)
+    rst_files = glob.glob(os.path.join(path, "./**/*.rst"), recursive=True)
+    for file in md_files + rst_files:
+        with open(file, "r") as f:
+            yield Document(page_content=f.read(), metadata={"source": file})
 
 
 def test_qa_wiki_openai():
@@ -341,38 +380,48 @@ def run_qa_wiki(use_openai=False, first_para=True, text_limit=None, chain_type='
 
 
 def test_qa_wiki_db_openai():
-    return run_qa_db(use_openai=True, text_limit=None)
+    return run_qa_db(use_openai=True, text_limit=None, wiki=True)
 
 
 def test_qa_wiki_db_hf():
     # if don't chunk, still need to limit
     # but this case can handle at least more documents, by picking top k
     # FIXME: but spitting out garbage answer right now, all fragmented, or just 1-word answer
-    return run_qa_db(use_openai=False, text_limit=256)
+    return run_qa_db(use_openai=False, text_limit=256, wiki=True)
 
 
 def test_qa_wiki_db_chunk_hf():
-    return run_qa_db(use_openai=False, text_limit=256, chunk=True, chunk_size=256)
+    return run_qa_db(use_openai=False, text_limit=256, chunk=True, chunk_size=256, wiki=True)
 
 
 def test_qa_wiki_db_chunk_openai():
     # don't need 256, just seeing how compares to hf
-    return run_qa_db(use_openai=True, text_limit=256, chunk=True, chunk_size=256)
+    return run_qa_db(use_openai=True, text_limit=256, chunk=True, chunk_size=256, wiki=True)
 
 
 def test_qa_github_db_chunk_openai():
     # don't need 256, just seeing how compares to hf
     query = "what is a software defined asset"
-    return run_qa_db(query=query, use_openai=True, text_limit=256, chunk=True, chunk_size=256, wiki=False)
+    return run_qa_db(query=query, use_openai=True, text_limit=256, chunk=True, chunk_size=256, github=True)
 
 
-def run_qa_db(query=None, use_openai=False, first_para=True, text_limit=None, k=4, chunk=False, chunk_size=1024, wiki=True):
+def test_qa_daidocs_db_chunk_openai():
+    query = "Which config.toml enables pytorch for NLP?"
+    return run_qa_db(query=query, use_openai=True, text_limit=256, chunk=True, chunk_size=256, wiki=False, dai_rst=True)
+
+
+def run_qa_db(query=None, use_openai=False, first_para=True, text_limit=None, k=4, chunk=False, chunk_size=1024,
+              wiki=False, github=False, dai_rst=False):
     # see https://dagster.io/blog/chatgpt-langchain
     if wiki:
         sources = get_wiki_sources(first_para=first_para, text_limit=text_limit)
+    elif github:
+        #sources = get_github_docs("dagster-io", "dagster")
+        sources = get_github_docs("h2oai", "h2ogpt")
+    elif dai_rst:
+        sources = get_rst_docs("/home/jon/h2oai.superclean/docs/")
     else:
-        # github
-        sources = get_github_docs("dagster-io", "dagster")
+        raise RuntimeError("No input data set")
 
     if chunk:
         # allows handling full docs if passed first_para=False
@@ -394,12 +443,12 @@ def run_qa_db(query=None, use_openai=False, first_para=True, text_limit=None, k=
     docs = db.similarity_search(query, k=k)
 
     answer = chain(
-            {
-                "input_documents": docs,
-                "question": query,
-            },
-            return_only_outputs=True,
-        )["output_text"]
+        {
+            "input_documents": docs,
+            "question": query,
+        },
+        return_only_outputs=True,
+    )["output_text"]
     print(answer)
 
 
