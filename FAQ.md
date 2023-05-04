@@ -47,7 +47,11 @@ answer and similar answers. In other words, they "contaminated" the training dat
 Most of the knowledge of the model is from pre-training on the billions of tokens, the fine-tuning only turns that language
 model into a chatbot by returning short answers for short questions, or in other words, pre-training creates language
 understanding and some knowledge, while fine-tuning injects style. Certain simple personality traits can be modified by fine-tuning however, and we are working on giving h2oGPT proper personality: https://github.com/h2oai/h2ogpt/issues/73
-Update: We continued fine-tuning with the [h2oai/h2oai/openassistant_oasst1_h2ogpt](https://huggingface.co/datasets/h2oai/openassistant_oasst1_h2ogpt) dataset, which includes some personalization, and the effects are noticeable.
+
+#### Update
+We continued fine-tuning with the [h2oai/h2oai/openassistant_oasst1_h2ogpt](https://huggingface.co/datasets/h2oai/openassistant_oasst1_h2ogpt) dataset, which includes some personalization, and the effects are noticeable.
+
+![image_480](https://user-images.githubusercontent.com/6147661/236146853-31ac322a-7191-43a6-a50a-649e9912d55a.png)
 
 ### Is h2oGPT multi-lingual?
 
