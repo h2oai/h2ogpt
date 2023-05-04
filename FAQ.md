@@ -76,6 +76,14 @@ Below are examples of training records in `JSON` format.
 }
 ```
 
+### Context length
+
+Note that the total length of the text (i.e., input and output) the LLM can handle is limited by the so-called *context length*. For our current models, the context length is 2048 tokens. Longer context lengths are computationally more expensive due to the interactions between all tokens in the sequence.
+A context length of 2048 means that for an input of e.g. 1900 tokens, the model will be able to create no more than 148 new tokens as part of the output.
+
+For fine-tuning, if the average length of inputs is less than the context length, one can provide a `cutoff_len` of less than the context length, to truncate inputs to this amount of tokens. For most instruction-type datasets, a cutoff length of 512 seems reasonable, and provides nice memory and time savings.
+
+
 ### Why does h2oGPT say it was trained by OpenAI or Open Assistant?
 
 ![](https://user-images.githubusercontent.com/6147661/233486736-812d7b95-8c2f-438e-be76-ec4845c28a33.png)
