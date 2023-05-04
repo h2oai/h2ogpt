@@ -59,16 +59,17 @@ def get_db(pdf_filename, split_method='chunk', use_openai=False):
     if use_openai:
         assert os.getenv("OPENAI_API_KEY") is not None, "Set ENV OPENAI_API_KEY"
         from langchain.embeddings import OpenAIEmbeddings
-        embeddings = OpenAIEmbeddings()
+        embedding = OpenAIEmbeddings()
     else:
         from langchain.embeddings import HuggingFaceEmbeddings
 
         model_name = "sentence-transformers/all-mpnet-base-v2"
-        model_kwargs = {'device': 'cpu'}
-        embeddings = HuggingFaceEmbeddings(model_name=model_name, model_kwargs=model_kwargs)
+        device, torch_dtype, context_class = get_device_dtype()
+        model_kwargs = {'device': device}
+        embedding = HuggingFaceEmbeddings(model_name=model_name, model_kwargs=model_kwargs)
 
     # Create vector database
-    db = FAISS.from_documents(chunks, embeddings)
+    db = FAISS.from_documents(chunks, embedding)
 
     return db
 
@@ -90,14 +91,7 @@ def get_context(db, query="Who created transformers?", chat_history='', use_open
         #model_name = "cerebras/Cerebras-GPT-2.7B"
         model_name = "cerebras/Cerebras-GPT-13B"
         tokenizer = AutoTokenizer.from_pretrained(model_name)
-
-        # torch.device("cuda") leads to cuda:x cuda:y mismatches for multi-GPU consistently
-        import torch
-        n_gpus = torch.cuda.device_count() if torch.cuda.is_available else 0
-        device = 'cpu' if n_gpus == 0 else 'cuda'
-        # from utils import NullContext
-        # context_class = NullContext if n_gpus > 1 or n_gpus == 0 else torch.device
-        context_class = torch.device
+        device, torch_dtype, context_class = get_device_dtype()
 
         with context_class(device):
             load_8bit = False
@@ -106,7 +100,8 @@ def get_context(db, query="Who created transformers?", chat_history='', use_open
             device_map = {"": 0} if device == 'cuda' else "auto"
             model = AutoModelForCausalLM.from_pretrained(model_name,
                                                          device_map=device_map,
-                                                         torch_dtype=torch.float16 if device == 'cuda' else torch.float32)
+                                                         torch_dtype=torch_dtype,
+                                                         load_in_8bit=load_8bit)
             from transformers import pipeline
             from langchain.llms import HuggingFacePipeline
             pipe = pipeline(
@@ -155,12 +150,24 @@ def get_context(db, query="Who created transformers?", chat_history='', use_open
 
     chain.run(input_documents=docs, question=query)
 
-    # Create conversation chain that uses our vectordb as retriver, this also allows for chat history management
+    # Create conversation chain that uses our vectordb as retriever, this also allows for chat history management
     qa = ConversationalRetrievalChain.from_llm(llm, db.as_retriever())
 
     result = qa({"question": query, "chat_history": chat_history})
 
     return result['answer']
+
+
+def get_device_dtype():
+    # torch.device("cuda") leads to cuda:x cuda:y mismatches for multi-GPU consistently
+    import torch
+    n_gpus = torch.cuda.device_count() if torch.cuda.is_available else 0
+    device = 'cpu' if n_gpus == 0 else 'cuda'
+    # from utils import NullContext
+    # context_class = NullContext if n_gpus > 1 or n_gpus == 0 else context_class
+    context_class = torch.device
+    torch_dtype = torch.float16 if device == 'cuda' else torch.float32
+    return device, torch_dtype, context_class
 
 
 def show_counts(chunks, count_tokens):
@@ -190,7 +197,12 @@ def test_demo_hf():
 
 def run_demo(use_openai=False):
     # quick test
-    pdf_filename = '/home/jon/Downloads/1706.03762.pdf'
+    pdf_filename = '1706.03762.pdf'
+    if not os.path.isfile(pdf_filename):
+        if os.path.isfile('1706.03762'):
+            os.remove('1706.03762')
+        os.system("wget --user-agent TryToStopMeFromUsingWgetNow https://arxiv.org/pdf/1706.03762")
+        os.rename('1706.03762', '1706.03762.pdf')
     db = get_db(pdf_filename, split_method='chunk', use_openai=use_openai)
     answer = get_context(db, query="Who created transformers?", chat_history='', use_openai=use_openai)
     print(answer)
