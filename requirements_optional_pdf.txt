@@ -1,0 +1,17 @@
+# optional for chat with PDF
+langchain==0.0.150
+pypdf==3.8.1
+tiktoken==0.3.3
+textract==1.6.5
+# choose:
+#faiss-cpu
+faiss-gpu==1.7.2
+
+# for HF embeddings
+sentence_transformers==2.2.2
+# for OpenAI embeddings (requires key)
+openai==0.27.6
+
+# to check licenses
+# Run: pip-licenses|grep -v 'BSD\|Apache\|MIT'
+pip-licenses==4.3.0
