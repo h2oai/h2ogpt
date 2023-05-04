@@ -65,6 +65,7 @@ def get_db(path=None, pdf_filename=None, split_method='chunk', use_openai=False)
 
         #model_name = "sentence-transformers/all-mpnet-base-v2"  # poor
         model_name = "sentence-transformers/all-MiniLM-L6-v2"  # good, gets authors
+        #model_name = "sentence-transformers/all-MiniLM-L12-v2"  # 12 layers  FAILS
         # model_name = "sentence-transformers/paraphrase-MiniLM-L6-v2"
         #model_name = 'cerebras/Cerebras-GPT-2.7B' # OOM
         # model_name = 'microsoft/deberta-v3-base'  # microsoft/mdeberta-v3-base for multilinguial
