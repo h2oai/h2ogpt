@@ -28,6 +28,7 @@ class PromptType(Enum):
     instruct_vicuna = 7
     instruct_with_end = 8
     human_bot_orig = 9
+    prompt_answer = 10
 
 
 prompt_type_to_model_name = {
@@ -46,6 +47,11 @@ prompt_type_to_model_name = {
         'philschmid/flan-t5-base-samsum',
         'gpt2',
         'distilgpt2',
+    ],
+    'prompt_answer': [
+        'h2oai/h2ogpt-gm-oasst1-en-1024-20b',
+        'h2oai/h2ogpt-gm-oasst1-en-1024-12b',
+        'h2oai/h2ogpt-gm-oasst1-multilang-1024-20b',
     ],
     'instruct': [],
     'instruct_with_end': ['databricks/dolly-v2-12b'],
@@ -68,6 +74,8 @@ inv_prompt_type_to_model_lower = {v.strip().lower(): k for k, l in prompt_type_t
 
 human = '<human>:'
 bot = "<bot>:"
+prompt_tokens = "<|prompt|>"
+answer_tokens = "<|answer|>"
 
 prompt_types_strings = []
 for p in PromptType:
@@ -852,6 +860,14 @@ Current Time: {}
 ### Assistant:
 """
         terminate_response = ['### Human:']  # but only allow terminate after prompt is found correctly, else can't terminate
+    elif prompt_type in [10, "10", "prompt_answer"]:
+        preprompt = ''
+        start = prompt_tokens
+        promptB = promptA = '%s%s' % (preprompt, start)
+        PreInstruct = ""
+        PreInput = None
+        PreResponse = answer_tokens
+        terminate_response = [start, PreResponse]
     else:
         raise RuntimeError("No such prompt_type=%s" % prompt_type)
 
