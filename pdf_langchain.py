@@ -1,13 +1,13 @@
 import os
 import pandas as pd
-from langchain.document_loaders import PyPDFLoader
+from langchain.document_loaders import PyPDFLoader, ReadTheDocsLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores import FAISS
 from langchain.chains.question_answering import load_qa_chain
 from langchain.chains import ConversationalRetrievalChain
 
 
-def get_db(pdf_filename, split_method='chunk', use_openai=False):
+def get_db(path=None, pdf_filename=None, split_method='chunk', use_openai=False):
     if split_method == 'page':
         # Simple method - Split by pages
         loader = PyPDFLoader(pdf_filename)
@@ -89,7 +89,8 @@ def get_context(db, query="Who created transformers?", chat_history='', use_open
         from transformers import AutoTokenizer, AutoModelForCausalLM
 
         #model_name = "cerebras/Cerebras-GPT-2.7B"
-        model_name = "cerebras/Cerebras-GPT-13B"
+        #model_name = "cerebras/Cerebras-GPT-13B"
+        model_name = "cerebras/Cerebras-GPT-6.7B"
         tokenizer = AutoTokenizer.from_pretrained(model_name)
         device, torch_dtype, context_class = get_device_dtype()
 
@@ -153,6 +154,7 @@ def get_context(db, query="Who created transformers?", chat_history='', use_open
     # Create conversation chain that uses our vectordb as retriever, this also allows for chat history management
     qa = ConversationalRetrievalChain.from_llm(llm, db.as_retriever())
 
+    # [x.page_content for x in docs if 'Illia' in x.page_content]
     result = qa({"question": query, "chat_history": chat_history})
 
     return result['answer']
@@ -203,7 +205,7 @@ def run_demo(use_openai=False):
             os.remove('1706.03762')
         os.system("wget --user-agent TryToStopMeFromUsingWgetNow https://arxiv.org/pdf/1706.03762")
         os.rename('1706.03762', '1706.03762.pdf')
-    db = get_db(pdf_filename, split_method='chunk', use_openai=use_openai)
+    db = get_db(pdf_filename=pdf_filename, split_method='chunk', use_openai=use_openai)
     answer = get_context(db, query="Who created transformers?", chat_history='', use_openai=use_openai)
     print(answer)
 
