@@ -32,8 +32,8 @@ For a conversational chatbot usecase, we use the following 3 parts:
 - Input = `'<human>: '` + <HUMAN_INPUT>
 - Response = `'<bot>: '` + <CHATBOT_REPLY>
 
-And a training string could look like this: `'<human>: hi, how are you? <bot>: Hi, I am doing great. How can I help you?'`
-At inference time, the model input would be like this: `'<human>: hi, how are you? <bot>: '`, and the model would generate the bot part.
+And a training string could look like this: `'<human>: hi, how are you?<bot>: Hi, I am doing great. How can I help you?'`.
+At inference time, the model input would be like this: `'<human>: Tell me a joke about snow flakes.<bot>: '`, and the model would generate the bot part.
 
 ### Why does h2oGPT say it was trained by OpenAI or Open Assistant?
 
