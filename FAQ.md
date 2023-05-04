@@ -1,3 +1,40 @@
+### What are the different prompt types? How does prompt engineering work for h2oGPT?
+
+In general, all LLMs use strings as inputs for training/fine-tuning and generation/inference.
+To manage a variety of possible language task types, we divide any such string into 3 parts:
+
+- Instruction
+- Input
+- Response
+
+Each of these 3 parts can be empty or non-empty strings such as titles or newlines. In the end all
+these prompt parts are concatenated together into one string. The magic is in the content of those sub-strings. This is called **prompt engineering**.
+
+#### Summarization
+
+For training a summarization task, we concatenate these 3 parts together:
+- Instruction = `'## Main Text\n\n'`
+- Input = <LONG_TEXT>
+- Response = `'\n\n## Summary\n\n'` + <SHORT_TEXT>
+
+For each training record, when take <LONG_TEXT> and <SHORT_TEXT> from the summarization dataset, place them into the appropriate position, and turn that record into
+one long string that the model can be trained with: `'## Main Text\n\nLarge Language Models are Useful.\n\n## Summary\n\nLLMs rock.'`
+
+At inference time, we will take the <LONG_TEXT> only and stop right after `'\n\n## Summary\n\n'` and the model will generate the summary
+as the continuation of the prompt.
+
+
+#### ChatBot
+
+For a conversational chatbot usecase, we use the following 3 parts:
+
+- Instruction = `''`
+- Input = `'<human>: '` + <HUMAN_INPUT>
+- Response = `'<bot>: '` + <CHATBOT_REPLY>
+
+And a training string could look like this: `'<human>: hi, how are you? <bot>: Hi, I am doing great. How can I help you?'`
+At inference time, the model input would be like this: `'<human>: hi, how are you? <bot>: '`, and the model would generate the bot part.
+
 ### Why does h2oGPT say it was trained by OpenAI or Open Assistant?
 
 ![](https://user-images.githubusercontent.com/6147661/233486736-812d7b95-8c2f-438e-be76-ec4845c28a33.png)
