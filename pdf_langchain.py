@@ -405,6 +405,13 @@ def test_qa_github_db_chunk_openai():
     return run_qa_db(query=query, use_openai=True, text_limit=256, chunk=True, chunk_size=256, github=True)
 
 
+def test_qa_daidocs_db_chunk_hf():
+    # FIXME: doesn't work well with non-instruct-tuned Cerebras
+    query = "Which config.toml enables pytorch for NLP?"
+    return run_qa_db(query=query, use_openai=False, text_limit=256, chunk=True, chunk_size=256, wiki=False,
+                     dai_rst=True)
+
+
 def test_qa_daidocs_db_chunk_openai():
     query = "Which config.toml enables pytorch for NLP?"
     return run_qa_db(query=query, use_openai=True, text_limit=256, chunk=True, chunk_size=256, wiki=False, dai_rst=True)
@@ -416,7 +423,7 @@ def run_qa_db(query=None, use_openai=False, first_para=True, text_limit=None, k=
     if wiki:
         sources = get_wiki_sources(first_para=first_para, text_limit=text_limit)
     elif github:
-        #sources = get_github_docs("dagster-io", "dagster")
+        # sources = get_github_docs("dagster-io", "dagster")
         sources = get_github_docs("h2oai", "h2ogpt")
     elif dai_rst:
         sources = get_rst_docs("/home/jon/h2oai.superclean/docs/")
