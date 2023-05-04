@@ -63,10 +63,25 @@ def get_db(path=None, pdf_filename=None, split_method='chunk', use_openai=False)
     else:
         from langchain.embeddings import HuggingFaceEmbeddings
 
-        model_name = "sentence-transformers/all-mpnet-base-v2"
+        #model_name = "sentence-transformers/all-mpnet-base-v2"  # poor
+        model_name = "sentence-transformers/all-MiniLM-L6-v2"  # good, gets authors
+        # model_name = "sentence-transformers/paraphrase-MiniLM-L6-v2"
+        #model_name = 'cerebras/Cerebras-GPT-2.7B' # OOM
+        # model_name = 'microsoft/deberta-v3-base'  # microsoft/mdeberta-v3-base for multilinguial
+        load_8bit = False
         device, torch_dtype, context_class = get_device_dtype()
-        model_kwargs = {'device': device}
+        model_kwargs = dict(device=device)#, torch_dtype=torch_dtype, load_in_8bit=load_8bit)
         embedding = HuggingFaceEmbeddings(model_name=model_name, model_kwargs=model_kwargs)
+
+        # for some models need to fix tokenizer
+        if model_name in ['cerebras/Cerebras-GPT-2.7B']:
+            embedding.client.tokenizer.pad_token = embedding.client.tokenizer.eos_token
+
+        # also see:
+        # https://www.sbert.net/docs/pretrained-models/msmarco-v3.html
+        # https://www.sbert.net/examples/applications/semantic-search/README.html
+        # https://towardsdatascience.com/bert-for-measuring-text-similarity-eec91c6bf9e1
+        # https://discuss.huggingface.co/t/get-word-embeddings-from-transformer-model/6929/2
 
     # Create vector database
     db = FAISS.from_documents(chunks, embedding)
