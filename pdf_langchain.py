@@ -139,12 +139,14 @@ def get_llm(use_openai=False):
     if use_openai:
         from langchain.llms import OpenAI
         llm = OpenAI(temperature=0)
+        model_name = 'openai'
     else:
         from transformers import AutoTokenizer, AutoModelForCausalLM
 
         # model_name = "cerebras/Cerebras-GPT-2.7B"
         # model_name = "cerebras/Cerebras-GPT-13B"
-        model_name = "cerebras/Cerebras-GPT-6.7B"
+        # model_name = "cerebras/Cerebras-GPT-6.7B"
+        model_name = 'h2oai/h2ogpt-oasst1-512-12b'
         tokenizer = AutoTokenizer.from_pretrained(model_name)
         device, torch_dtype, context_class = get_device_dtype()
 
@@ -164,7 +166,38 @@ def get_llm(use_openai=False):
                 max_new_tokens=100, early_stopping=True, no_repeat_ngram_size=2
             )
             llm = HuggingFacePipeline(pipeline=pipe)
-    return llm
+    return llm, model_name
+
+
+def get_llm_prompt(model_name):
+    from langchain import PromptTemplate
+
+    if 'h2ogpt' in model_name:
+        template = """<human>: {question}
+<bot>: """
+    else:
+        template = """
+                {question}
+                """
+
+    prompt = PromptTemplate(
+        input_variables=["question"],
+        template=template,
+    )
+    return prompt
+
+
+def get_llm_chain(llm, model_name):
+    from langchain import LLMChain
+
+    prompt = get_llm_prompt(model_name)
+
+    chain = LLMChain(
+        llm=llm,
+        verbose=True,
+        prompt=prompt
+    )
+    return chain
 
 
 def get_answer_from_db(db, query, sources=False, chat_history='', use_openai=False, k=4, chat=True):
@@ -173,7 +206,7 @@ def get_answer_from_db(db, query, sources=False, chat_history='', use_openai=Fal
     # print(docs[0])
 
     # get LLM
-    llm = get_llm(use_openai=use_openai)
+    llm, model_name = get_llm(use_openai=use_openai)
 
     # Create QA chain to integrate similarity search with user queries (answer query from knowledge base)
     if use_openai:
@@ -182,23 +215,8 @@ def get_answer_from_db(db, query, sources=False, chat_history='', use_openai=Fal
         else:
             chain = load_qa_chain(llm, chain_type="stuff")
     else:
-        from langchain import PromptTemplate
-        from langchain import LLMChain
-
-        template = """
-        {question}
-        """
-
-        prompt = PromptTemplate(
-            input_variables=["question"],
-            template=template,
-        )
-
-        chain = LLMChain(
-            llm=llm,
-            verbose=True,
-            prompt=prompt
-        )
+        # make custom llm prompt aware
+        chain = get_llm_chain(llm, model_name)
         # WIP OPTIONAL
         if False:
             from langchain import SerpAPIWrapper
@@ -371,7 +389,7 @@ def test_qa_wiki_map_reduce_hf():
 
 def run_qa_wiki(use_openai=False, first_para=True, text_limit=None, chain_type='stuff'):
     sources = get_wiki_sources(first_para=first_para, text_limit=text_limit)
-    llm = get_llm(use_openai=use_openai)
+    llm, model_name = get_llm(use_openai=use_openai)
     chain = load_qa_with_sources_chain(llm, chain_type=chain_type)
 
     question = "What are the main differences between Linux and Windows?"
@@ -426,9 +444,11 @@ def run_qa_db(query=None, use_openai=False, first_para=True, text_limit=None, k=
         # sources = get_github_docs("dagster-io", "dagster")
         sources = get_github_docs("h2oai", "h2ogpt")
     elif dai_rst:
-        sources = get_rst_docs("/home/jon/h2oai.superclean/docs/")
+        home = os.path.expanduser('~')
+        sources = get_rst_docs(os.path.join(home, "h2oai.superclean/docs/"))
     else:
         raise RuntimeError("No input data set")
+    assert sources, "No sources"
 
     if chunk:
         # allows handling full docs if passed first_para=False
@@ -440,7 +460,9 @@ def run_qa_db(query=None, use_openai=False, first_para=True, text_limit=None, k=
                 source_chunks.append(Document(page_content=chunky, metadata=source.metadata))
         sources = source_chunks
 
-    llm = get_llm(use_openai=use_openai)
+    llm, model_name = get_llm(use_openai=use_openai)
+    #llm = get_llm_chain(llm, model_name)
+    #prompt = get_llm_prompt(model_name)
     embedding = get_embedding(use_openai)
     db = FAISS.from_documents(sources, embedding)
     chain = load_qa_with_sources_chain(llm)
