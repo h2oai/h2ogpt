@@ -286,7 +286,12 @@ def train(
             )
 
     from peft import LoraConfig, get_peft_model, set_peft_model_state_dict, utils
-    lora_mappings = utils.TRANSFORMERS_MODELS_TO_LORA_TARGET_MODULES_MAPPING.copy()
+    try:
+        from peft import utils
+        lora_mappings = utils.TRANSFORMERS_MODELS_TO_LORA_TARGET_MODULES_MAPPING.copy()
+    except AttributeError:
+        from peft import mapping
+        lora_mappings = mapping.TRANSFORMERS_MODELS_TO_LORA_TARGET_MODULES_MAPPING.copy()
     lora_mappings['distilgpt2'] = ["c_attn"]
 
     if lora_weights:
