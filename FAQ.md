@@ -13,27 +13,68 @@ these prompt parts are concatenated together into one string. The magic is in th
 #### Summarization
 
 For training a summarization task, we concatenate these 3 parts together:
-- Instruction = `'## Main Text\n\n'`
-- Input = <LONG_TEXT>
-- Response = `'\n\n## Summary\n\n'` + <SHORT_TEXT>
 
-For each training record, when take <LONG_TEXT> and <SHORT_TEXT> from the summarization dataset, place them into the appropriate position, and turn that record into
+- Instruction = ''
+- Input = `'## Main Text\n\n'` + <INPUT>
+- Response = `'\n\n## Summary\n\n'` + <OUTPUT>
+
+For each training record, we take <INPUT> and <OUTPUT> from the summarization dataset (typically two fields/columns), place them into the appropriate position, and turn that record into
 one long string that the model can be trained with: `'## Main Text\n\nLarge Language Models are Useful.\n\n## Summary\n\nLLMs rock.'`
 
-At inference time, we will take the <LONG_TEXT> only and stop right after `'\n\n## Summary\n\n'` and the model will generate the summary
+At inference time, we will take the <INPUT> only and stop right after `'\n\n## Summary\n\n'` and the model will generate the summary
 as the continuation of the prompt.
 
 
 #### ChatBot
 
-For a conversational chatbot usecase, we use the following 3 parts:
+For a conversational chatbot use case, we use the following 3 parts:
 
-- Instruction = `''`
-- Input = `'<human>: '` + <HUMAN_INPUT>
-- Response = `'<bot>: '` + <CHATBOT_REPLY>
+- Instruction = <INSTRUCTION>
+- Input = `'<human>: '` + <INPUT>
+- Response = `'<bot>: '` + <OUTPUT>
 
 And a training string could look like this: `'<human>: hi, how are you?<bot>: Hi, I am doing great. How can I help you?'`.
 At inference time, the model input would be like this: `'<human>: Tell me a joke about snow flakes.<bot>: '`, and the model would generate the bot part.
+
+
+### How to prepare data?
+
+Training data (in `JSON` format) must contain at least one column that maps to `instruction`, `input` or `output`.
+Their content will be placed into the <INSTRUCTION>, <INPUT> and <OUTPUT> placeholders mentioned above.
+The chosen `prompt_type` will fill in the strings in between to form the actual input into the model.
+Any missing columns will lead to empty strings. Optional `--data_col_dict={'A': 'input', 'B': 'output'}` argument can
+be used to map different column names into the required ones.
+
+#### Examples
+
+Below are examples of training records in `JSON` format.
+
+- `human_bot` prompt type
+```json
+{
+  "input": "Who are you?",
+  "output": "My name is h2oGPT.",
+  "prompt_type": "human_bot"
+}
+```
+
+- `plain` version of `human_bot`, useful for longer conversations
+```json
+{
+  "input": "<human>: Who are you?\n<bot>: My name is h2oGPT.\n<human>: Can you write a poem about horses?\n<bot>: Yes, of course. Here it goes...",
+  "prompt_type": "plain"
+}
+```
+
+- `summarize` prompt type
+```json
+{
+  "instruction": "",
+  "input": "Long long long text.",
+  "output": "text.",
+  "prompt_type": "summarize"
+}
+```
 
 ### Why does h2oGPT say it was trained by OpenAI or Open Assistant?
 
