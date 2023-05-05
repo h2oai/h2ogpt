@@ -1640,6 +1640,7 @@ def test_check_unhelpful():
                   " ;-)",
                   " lol ",
                   "Thanks so much!!!",
+                  "Thank You :)!!!",
                   "Please try not to repeat",
                   "I am an AI language model",
                   "I'm a AI assistant that",
