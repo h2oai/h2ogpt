@@ -62,6 +62,7 @@ def main(
         local_files_only: bool = False,
         resume_download: bool = True,
         use_auth_token: Union[str, bool] = False,
+        trust_remote_code: Union[str, bool] = True,
 
         src_lang: str = "English",
         tgt_lang: str = "Russian",
@@ -124,6 +125,7 @@ def main(
     :param local_files_only: whether to only use local files instead of doing to HF for models
     :param resume_download: whether to resume downloads from HF for models
     :param use_auth_token: whether to use HF auth token (requires CLI did huggingface-cli login before)
+    :param trust_remote_code: whether to use trust any code needed for HF model
     :param src_lang: source languages to include if doing translation (None = all)
     :param tgt_lang: target languages to include if doing translation (None = all)
     :param gradio: whether to enable gradio, or to enable benchmark mode
@@ -416,7 +418,11 @@ def get_device():
 
 def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward_type,
                        gpu_id=0,
-                       use_auth_token=False):
+                       use_auth_token=False,
+                       trust_remote_code=True,
+                       triton_attn=False,
+                       long_sequence=True,
+                       ):
     """
     Ensure model gets on correct device
     :param base_model:
@@ -426,29 +432,44 @@ def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward
     :param reward_type:
     :param gpu_id:
     :param use_auth_token:
+    :param trust_remote_code:
+    :param triton_attn:
+    :param long_sequence:
     :return:
     """
     with init_empty_weights():
         from transformers import AutoConfig
-        config = AutoConfig.from_pretrained(base_model, use_auth_token=use_auth_token)
-        model = AutoModel.from_config(
-            config,
-        )
+        config = AutoConfig.from_pretrained(base_model, use_auth_token=use_auth_token,
+                                            trust_remote_code=trust_remote_code)
+        if triton_attn and 'mpt-' in base_model.lower():
+            config.attn_config['attn_impl'] = 'triton'
+        if long_sequence and 'mpt-' in base_model.lower():
+            config.update({"max_seq_len": 83968})
+        if issubclass(config.__class__, tuple(AutoModel._model_mapping.keys())):
+            model = AutoModel.from_config(
+                config,
+            )
+        else:
+            # can't infer
+            model = None
 
-    # NOTE: Can specify max_memory={0: max_mem, 1: max_mem}, to shard model
-    # NOTE: Some models require avoiding sharding some layers,
-    # then would pass no_split_module_classes and give list of those layers.
-    device_map = infer_auto_device_map(
-        model,
-        dtype=torch.float16 if load_half else torch.float32,
-    )
-    if hasattr(model, 'model'):
-        device_map_model = infer_auto_device_map(
-            model.model,
+    if model is not None:
+        # NOTE: Can specify max_memory={0: max_mem, 1: max_mem}, to shard model
+        # NOTE: Some models require avoiding sharding some layers,
+        # then would pass no_split_module_classes and give list of those layers.
+        device_map = infer_auto_device_map(
+            model,
             dtype=torch.float16 if load_half else torch.float32,
         )
-        device_map.update(device_map_model)
-    print('device_map: %s' % device_map, flush=True)
+        if hasattr(model, 'model'):
+            device_map_model = infer_auto_device_map(
+                model.model,
+                dtype=torch.float16 if load_half else torch.float32,
+            )
+            device_map.update(device_map_model)
+        print('device_map: %s' % device_map, flush=True)
+    else:
+        device_map = "auto"
 
     n_gpus = torch.cuda.device_count() if torch.cuda.is_available else 0
 
@@ -472,11 +493,13 @@ def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward
     if load_in_8bit or not load_half:
         model = model_loader.from_pretrained(
             base_model,
+            config=config,
             **model_kwargs,
         )
     else:
         model = model_loader.from_pretrained(
             base_model,
+            config=config,
             **model_kwargs,
         ).half()
     return model
@@ -495,6 +518,7 @@ def get_model(
         local_files_only: bool = False,
         resume_download: bool = True,
         use_auth_token: Union[str, bool] = False,
+        trust_remote_code: bool = True,
         compile: bool = True,
         **kwargs,
 ):
@@ -513,6 +537,7 @@ def get_model(
     :param local_files_only: use local files instead of from HF
     :param resume_download: resume downloads from HF
     :param use_auth_token: assumes user did on CLI `huggingface-cli login` to access private repo
+    :param trust_remote_code: trust code needed by model
     :param compile: whether to compile torch model
     :param kwargs:
     :return:
@@ -531,7 +556,8 @@ def get_model(
     )
 
     from transformers import AutoConfig
-    config = AutoConfig.from_pretrained(base_model, use_auth_token=use_auth_token)
+    config = AutoConfig.from_pretrained(base_model, use_auth_token=use_auth_token,
+                                        trust_remote_code=trust_remote_code)
     llama_type_from_config = 'llama' in str(config).lower()
     llama_type_from_name = "llama" in base_model.lower()
     llama_type = llama_type_from_config or llama_type_from_name
@@ -548,6 +574,7 @@ def get_model(
                                                      local_files_only=local_files_only,
                                                      resume_download=resume_download,
                                                      use_auth_token=use_auth_token,
+                                                     trust_remote_code=trust_remote_code,
                                                      )
     else:
         tokenizer = tokenizer_loader
@@ -563,13 +590,18 @@ def get_model(
         model_kwargs = dict(local_files_only=local_files_only,
                             torch_dtype=torch.float16 if device == 'cuda' else torch.float32,
                             resume_download=resume_download,
-                            use_auth_token=use_auth_token)
-        if 'mbart-' not in base_model.lower():
+                            use_auth_token=use_auth_token,
+                            trust_remote_code=trust_remote_code,
+                            )
+        if 'mbart-' not in base_model.lower() and 'mpt-' not in base_model.lower():
             model_kwargs.update(dict(load_in_8bit=load_8bit,
                                      device_map={"": 0} if load_8bit and device == 'cuda' else "auto",
                                      ))
+        if 'mpt-' in base_model.lower() and gpu_id >= 0:
+            model_kwargs.update(dict(device_map={"": gpu_id} if device == 'cuda' else "cpu"))
+
         if 'OpenAssistant/reward-model'.lower() in base_model.lower():
-            # could put on other GPUs
+            # FIXME: could put on other GPUs
             model_kwargs['device_map'] = {"": 0} if device == 'cuda' else {"": 'cpu'}
             model_kwargs.pop('torch_dtype', None)
 
@@ -577,7 +609,10 @@ def get_model(
             with torch.device(device):
                 if infer_devices:
                     model = get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward_type,
-                                               gpu_id=gpu_id, use_auth_token=use_auth_token)
+                                               gpu_id=gpu_id,
+                                               use_auth_token=use_auth_token,
+                                               trust_remote_code=trust_remote_code,
+                                               )
                 else:
                     if load_half and not load_8bit:
                         model = model_loader.from_pretrained(
@@ -599,6 +634,7 @@ def get_model(
                 local_files_only=local_files_only,
                 resume_download=resume_download,
                 use_auth_token=use_auth_token,
+                trust_remote_code=trust_remote_code,
                 device_map={"": 0} if device == 'cuda' else {"": 'cpu'},  # seems to be required
             )
         else:
@@ -614,6 +650,7 @@ def get_model(
                     local_files_only=local_files_only,
                     resume_download=resume_download,
                     use_auth_token=use_auth_token,
+                    trust_remote_code=trust_remote_code,
                     device_map="auto",
                 )
                 if load_half:
@@ -1104,7 +1141,8 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
             placeholder_instruction = "Give detailed answer for whether Einstein or Newton is smarter."
         placeholder_input = ""
         if model_lower:
-            prompt_type = prompt_type or 'human_bot'
+            # default is plain, because might relly upon trust_remote_code to handle prompting
+            prompt_type = prompt_type or 'plain'
         else:
             prompt_type = ''
         examples += [[summarize_example1, 'Summarize' if prompt_type not in ['plain', 'instruct_simple'] else '', "",
@@ -1133,9 +1171,9 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         num_return_sequences = min(num_beams, num_return_sequences or 1)
         do_sample = False if do_sample is None else do_sample
     else:
-        temperature = 0.2 if temperature is None else temperature
-        top_p = 0.85 if top_p is None else top_p
-        top_k = 70 if top_k is None else top_k
+        temperature = 0.1 if temperature is None else temperature
+        top_p = 0.75 if top_p is None else top_p
+        top_k = 40 if top_k is None else top_k
         if chat:
             num_beams = num_beams or 1
         else:
@@ -1143,7 +1181,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         max_new_tokens = max_new_tokens or 256
         repetition_penalty = repetition_penalty or 1.07
         num_return_sequences = min(num_beams, num_return_sequences or 1)
-        do_sample = True if do_sample is None else do_sample
+        do_sample = False if do_sample is None else do_sample
     # doesn't include chat, instruction_nochat, iinput_nochat, added later
     params_list = ["", stream_output, prompt_type, temperature, top_p, top_k, num_beams, max_new_tokens, min_new_tokens,
                    early_stopping, max_time, repetition_penalty, num_return_sequences, do_sample]
