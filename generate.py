@@ -7,8 +7,8 @@ import traceback
 import typing
 from datetime import datetime
 import psutil
+from auto_gptq import AutoGPTQForCausalLM
 
-from quantize.inference import load_quant
 from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial, EThread
 
 SEED = 1236
@@ -577,13 +577,7 @@ def get_model(
 
         if not lora_weights:
             if quant_model:
-                wbits = 8 if "8bit" in quant_model else 4 if "4bit" in quant_model else None
-                assert wbits, "must have '4bit' or '8bit' in quant_model name."
-                model = load_quant(model=base_model,
-                                   checkpoint=quant_model,
-                                   wbits=wbits,
-                                   groupsize=128)
-                model.to(device)
+                model = AutoGPTQForCausalLM.from_quantized(quant_model, use_triton=False, device=device)
             else:
                 with torch.device(device):
                     if infer_devices:
