@@ -62,6 +62,7 @@ def main(
         local_files_only: bool = False,
         resume_download: bool = True,
         use_auth_token: Union[str, bool] = False,
+        trust_remote_code: Union[str, bool] = True,
 
         src_lang: str = "English",
         tgt_lang: str = "Russian",
@@ -124,6 +125,7 @@ def main(
     :param local_files_only: whether to only use local files instead of doing to HF for models
     :param resume_download: whether to resume downloads from HF for models
     :param use_auth_token: whether to use HF auth token (requires CLI did huggingface-cli login before)
+    :param trust_remote_code: whether to use trust any code needed for HF model
     :param src_lang: source languages to include if doing translation (None = all)
     :param tgt_lang: target languages to include if doing translation (None = all)
     :param gradio: whether to enable gradio, or to enable benchmark mode
@@ -416,7 +418,8 @@ def get_device():
 
 def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward_type,
                        gpu_id=0,
-                       use_auth_token=False):
+                       use_auth_token=False,
+                       trust_remote_code=True):
     """
     Ensure model gets on correct device
     :param base_model:
@@ -426,11 +429,12 @@ def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward
     :param reward_type:
     :param gpu_id:
     :param use_auth_token:
+    :param trust_remote_code:
     :return:
     """
     with init_empty_weights():
         from transformers import AutoConfig
-        config = AutoConfig.from_pretrained(base_model, use_auth_token=use_auth_token)
+        config = AutoConfig.from_pretrained(base_model, use_auth_token=use_auth_token, trust_remote=trust_remote_code)
         model = AutoModel.from_config(
             config,
         )
@@ -495,6 +499,7 @@ def get_model(
         local_files_only: bool = False,
         resume_download: bool = True,
         use_auth_token: Union[str, bool] = False,
+        trust_remote_code: bool = True,
         compile: bool = True,
         **kwargs,
 ):
@@ -513,6 +518,7 @@ def get_model(
     :param local_files_only: use local files instead of from HF
     :param resume_download: resume downloads from HF
     :param use_auth_token: assumes user did on CLI `huggingface-cli login` to access private repo
+    :param trust_remote_code: trust code needed by model
     :param compile: whether to compile torch model
     :param kwargs:
     :return:
@@ -531,7 +537,8 @@ def get_model(
     )
 
     from transformers import AutoConfig
-    config = AutoConfig.from_pretrained(base_model, use_auth_token=use_auth_token)
+    config = AutoConfig.from_pretrained(base_model, use_auth_token=use_auth_token,
+                                        trust_remote_code=trust_remote_code)
     llama_type_from_config = 'llama' in str(config).lower()
     llama_type_from_name = "llama" in base_model.lower()
     llama_type = llama_type_from_config or llama_type_from_name
@@ -548,6 +555,7 @@ def get_model(
                                                      local_files_only=local_files_only,
                                                      resume_download=resume_download,
                                                      use_auth_token=use_auth_token,
+                                                     trust_remote_code=trust_remote_code,
                                                      )
     else:
         tokenizer = tokenizer_loader
@@ -563,7 +571,9 @@ def get_model(
         model_kwargs = dict(local_files_only=local_files_only,
                             torch_dtype=torch.float16 if device == 'cuda' else torch.float32,
                             resume_download=resume_download,
-                            use_auth_token=use_auth_token)
+                            use_auth_token=use_auth_token,
+                            trust_remote_code=trust_remote_code,
+                            )
         if 'mbart-' not in base_model.lower():
             model_kwargs.update(dict(load_in_8bit=load_8bit,
                                      device_map={"": 0} if load_8bit and device == 'cuda' else "auto",
@@ -577,7 +587,10 @@ def get_model(
             with torch.device(device):
                 if infer_devices:
                     model = get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward_type,
-                                               gpu_id=gpu_id, use_auth_token=use_auth_token)
+                                               gpu_id=gpu_id,
+                                               use_auth_token=use_auth_token,
+                                               trust_remote_code=trust_remote_code,
+                                               )
                 else:
                     if load_half and not load_8bit:
                         model = model_loader.from_pretrained(
@@ -599,6 +612,7 @@ def get_model(
                 local_files_only=local_files_only,
                 resume_download=resume_download,
                 use_auth_token=use_auth_token,
+                trust_remote_code=trust_remote_code,
                 device_map={"": 0} if device == 'cuda' else {"": 'cpu'},  # seems to be required
             )
         else:
@@ -614,6 +628,7 @@ def get_model(
                     local_files_only=local_files_only,
                     resume_download=resume_download,
                     use_auth_token=use_auth_token,
+                    trust_remote_code=trust_remote_code,
                     device_map="auto",
                 )
                 if load_half:
