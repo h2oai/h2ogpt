@@ -1171,9 +1171,9 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         num_return_sequences = min(num_beams, num_return_sequences or 1)
         do_sample = False if do_sample is None else do_sample
     else:
-        temperature = 0.2 if temperature is None else temperature
-        top_p = 0.85 if top_p is None else top_p
-        top_k = 70 if top_k is None else top_k
+        temperature = 0.1 if temperature is None else temperature
+        top_p = 0.75 if top_p is None else top_p
+        top_k = 40 if top_k is None else top_k
         if chat:
             num_beams = num_beams or 1
         else:
@@ -1181,7 +1181,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         max_new_tokens = max_new_tokens or 256
         repetition_penalty = repetition_penalty or 1.07
         num_return_sequences = min(num_beams, num_return_sequences or 1)
-        do_sample = True if do_sample is None else do_sample
+        do_sample = False if do_sample is None else do_sample
     # doesn't include chat, instruction_nochat, iinput_nochat, added later
     params_list = ["", stream_output, prompt_type, temperature, top_p, top_k, num_beams, max_new_tokens, min_new_tokens,
                    early_stopping, max_time, repetition_penalty, num_return_sequences, do_sample]
