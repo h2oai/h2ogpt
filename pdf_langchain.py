@@ -8,9 +8,8 @@ from typing import Optional, List, Mapping, Any
 
 import pandas as pd
 import requests
-import langchain
 from langchain.chains.qa_with_sources import load_qa_with_sources_chain
-from langchain.document_loaders import PyPDFLoader, ReadTheDocsLoader
+from langchain.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter, CharacterTextSplitter
 from langchain.vectorstores import FAISS
 from langchain.chains.question_answering import load_qa_chain
@@ -22,6 +21,8 @@ from langchain.llms.base import LLM
 # from langchain.cache import InMemoryCache
 # langchain.llm_cache = InMemoryCache()
 try:
+    raise ValueError("Disabled, too greedy even if change model etc.")
+    import langchain
     from langchain.cache import SQLiteCache
 
     langchain.llm_cache = SQLiteCache(database_path=".langchain.db")
@@ -30,12 +31,12 @@ except Exception as e:
     print("NO caching: %s" % str(e), flush=True)
 
 
-def get_db(path=None, pdf_filename=None, split_method='chunk', use_openai=False):
+def get_db(path=None, pdf_filename=None, split_method='chunk', use_openai_embedding=False):
     # get chunks of data to handle model context
     chunks = get_chunks(path=path, pdf_filename=pdf_filename, split_method=split_method)
 
     # get embedding model
-    embedding = get_embedding(use_openai)
+    embedding = get_embedding(use_openai_embedding)
 
     # Create vector database
     db = FAISS.from_documents(chunks, embedding)
@@ -93,9 +94,9 @@ def get_chunks(path=None, pdf_filename=None, split_method='chunk'):
     return chunks
 
 
-def get_embedding(use_openai):
+def get_embedding(use_openai_embedding):
     # Get embedding model
-    if use_openai:
+    if use_openai_embedding:
         assert os.getenv("OPENAI_API_KEY") is not None, "Set ENV OPENAI_API_KEY"
         from langchain.embeddings import OpenAIEmbeddings
         embedding = OpenAIEmbeddings()
@@ -135,18 +136,20 @@ def get_answer_from_sources(chain, sources, question):
     )["output_text"]
 
 
-def get_llm(use_openai=False):
-    if use_openai:
+def get_llm(use_openai_model=False):
+    if use_openai_model:
         from langchain.llms import OpenAI
         llm = OpenAI(temperature=0)
         model_name = 'openai'
     else:
         from transformers import AutoTokenizer, AutoModelForCausalLM
 
-        # model_name = "cerebras/Cerebras-GPT-2.7B"
+        #model_name = "cerebras/Cerebras-GPT-2.7B"
         # model_name = "cerebras/Cerebras-GPT-13B"
         # model_name = "cerebras/Cerebras-GPT-6.7B"
         model_name = 'h2oai/h2ogpt-oasst1-512-12b'
+        #model_name = 'h2oai/h2ogpt-oig-oasst1-512-6.9b'
+        #model_name = 'h2oai/h2ogpt-oasst1-512-20b'
         tokenizer = AutoTokenizer.from_pretrained(model_name)
         device, torch_dtype, context_class = get_device_dtype()
 
@@ -159,12 +162,21 @@ def get_llm(use_openai=False):
                                                          device_map=device_map,
                                                          torch_dtype=torch_dtype,
                                                          load_in_8bit=load_8bit)
-            from transformers import pipeline
+            if 'h2ogpt' in model_name:
+                from h2oai_pipeline import H2OTextGenerationPipeline
+                pipe = H2OTextGenerationPipeline(model=model, tokenizer=tokenizer, max_new_tokens=256, return_full_text=True)
+                #pipe.task = "text-generation"
+                # below makes it listen only to our prompt removal, not built in prompt removal that is less general and not specific for our model
+                pipe.task = "text2text-generation"
+            else:
+                # only for non-instruct tuned cases when ok with just normal next token prediction
+                from transformers import pipeline
+                pipe = pipeline(
+                    "text-generation", model=model, tokenizer=tokenizer,
+                    max_new_tokens=256, early_stopping=False,
+                )
+
             from langchain.llms import HuggingFacePipeline
-            pipe = pipeline(
-                "text-generation", model=model, tokenizer=tokenizer,
-                max_new_tokens=100, early_stopping=True, no_repeat_ngram_size=2
-            )
             llm = HuggingFacePipeline(pipeline=pipe)
     return llm, model_name
 
@@ -200,16 +212,16 @@ def get_llm_chain(llm, model_name):
     return chain
 
 
-def get_answer_from_db(db, query, sources=False, chat_history='', use_openai=False, k=4, chat=True):
+def get_answer_from_db(db, query, sources=False, chat_history='', use_openai_model=False, k=4, chat=True):
     # Check similarity search is working
     # docs = db.similarity_search(query, k=k)
     # print(docs[0])
 
     # get LLM
-    llm, model_name = get_llm(use_openai=use_openai)
+    llm, model_name = get_llm(use_openai_model=use_openai_model)
 
     # Create QA chain to integrate similarity search with user queries (answer query from knowledge base)
-    if use_openai:
+    if use_openai_model:
         if sources:
             chain = load_qa_with_sources_chain(llm, chain_type="stuff")
         else:
@@ -375,21 +387,21 @@ def get_rst_docs(path):
 
 
 def test_qa_wiki_openai():
-    return run_qa_wiki(use_openai=True)
+    return run_qa_wiki(use_openai_model=True)
 
 
 def test_qa_wiki_stuff_hf():
     # NOTE: total context length makes things fail when n_sources * text_limit >~ 2048
-    return run_qa_wiki(use_openai=False, text_limit=256, chain_type='stuff')
+    return run_qa_wiki(use_openai_model=False, text_limit=256, chain_type='stuff')
 
 
 def test_qa_wiki_map_reduce_hf():
-    return run_qa_wiki(use_openai=False, text_limit=None, chain_type='map_reduce')
+    return run_qa_wiki(use_openai_model=False, text_limit=None, chain_type='map_reduce')
 
 
-def run_qa_wiki(use_openai=False, first_para=True, text_limit=None, chain_type='stuff'):
+def run_qa_wiki(use_openai_model=False, first_para=True, text_limit=None, chain_type='stuff'):
     sources = get_wiki_sources(first_para=first_para, text_limit=text_limit)
-    llm, model_name = get_llm(use_openai=use_openai)
+    llm, model_name = get_llm(use_openai_model=use_openai_model)
     chain = load_qa_with_sources_chain(llm, chain_type=chain_type)
 
     question = "What are the main differences between Linux and Windows?"
@@ -398,44 +410,50 @@ def run_qa_wiki(use_openai=False, first_para=True, text_limit=None, chain_type='
 
 
 def test_qa_wiki_db_openai():
-    return run_qa_db(use_openai=True, text_limit=None, wiki=True)
+    return run_qa_db(use_openai_model=True, use_openai_embedding=True, text_limit=None, wiki=True)
 
 
 def test_qa_wiki_db_hf():
     # if don't chunk, still need to limit
     # but this case can handle at least more documents, by picking top k
     # FIXME: but spitting out garbage answer right now, all fragmented, or just 1-word answer
-    return run_qa_db(use_openai=False, text_limit=256, wiki=True)
+    return run_qa_db(use_openai_model=False, use_openai_embedding=False, text_limit=256, wiki=True)
 
 
 def test_qa_wiki_db_chunk_hf():
-    return run_qa_db(use_openai=False, text_limit=256, chunk=True, chunk_size=256, wiki=True)
+    return run_qa_db(use_openai_model=False, use_openai_embedding=False, text_limit=256, chunk=True, chunk_size=256, wiki=True)
 
 
 def test_qa_wiki_db_chunk_openai():
     # don't need 256, just seeing how compares to hf
-    return run_qa_db(use_openai=True, text_limit=256, chunk=True, chunk_size=256, wiki=True)
+    return run_qa_db(use_openai_model=True, use_openai_embedding=True, text_limit=256, chunk=True, chunk_size=256, wiki=True)
 
 
 def test_qa_github_db_chunk_openai():
     # don't need 256, just seeing how compares to hf
     query = "what is a software defined asset"
-    return run_qa_db(query=query, use_openai=True, text_limit=256, chunk=True, chunk_size=256, github=True)
+    return run_qa_db(query=query, use_openai_model=True, use_openai_embedding=True, text_limit=256, chunk=True, chunk_size=256, github=True)
 
 
 def test_qa_daidocs_db_chunk_hf():
     # FIXME: doesn't work well with non-instruct-tuned Cerebras
     query = "Which config.toml enables pytorch for NLP?"
-    return run_qa_db(query=query, use_openai=False, text_limit=256, chunk=True, chunk_size=256, wiki=False,
+    return run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=None, chunk=True, chunk_size=128, wiki=False,
                      dai_rst=True)
 
 
 def test_qa_daidocs_db_chunk_openai():
     query = "Which config.toml enables pytorch for NLP?"
-    return run_qa_db(query=query, use_openai=True, text_limit=256, chunk=True, chunk_size=256, wiki=False, dai_rst=True)
+    return run_qa_db(query=query, use_openai_model=True, use_openai_embedding=True, text_limit=256, chunk=True, chunk_size=256, wiki=False, dai_rst=True)
 
 
-def run_qa_db(query=None, use_openai=False, first_para=True, text_limit=None, k=4, chunk=False, chunk_size=1024,
+def test_qa_daidocs_db_chunk_openaiembedding_hfmodel():
+    query = "Which config.toml enables pytorch for NLP?"
+    return run_qa_db(query=query, use_openai_model=False, use_openai_embedding=True, text_limit=None, chunk=True, chunk_size=128, wiki=False, dai_rst=True)
+
+
+def run_qa_db(query=None, use_openai_model=False, use_openai_embedding=False,
+              first_para=True, text_limit=None, k=4, chunk=False, chunk_size=1024,
               wiki=False, github=False, dai_rst=False):
     # see https://dagster.io/blog/chatgpt-langchain
     if wiki:
@@ -460,10 +478,10 @@ def run_qa_db(query=None, use_openai=False, first_para=True, text_limit=None, k=
                 source_chunks.append(Document(page_content=chunky, metadata=source.metadata))
         sources = source_chunks
 
-    llm, model_name = get_llm(use_openai=use_openai)
+    llm, model_name = get_llm(use_openai_model=use_openai_model)
     #llm = get_llm_chain(llm, model_name)
     #prompt = get_llm_prompt(model_name)
-    embedding = get_embedding(use_openai)
+    embedding = get_embedding(use_openai_embedding)
     db = FAISS.from_documents(sources, embedding)
     chain = load_qa_with_sources_chain(llm)
 
@@ -482,14 +500,14 @@ def run_qa_db(query=None, use_openai=False, first_para=True, text_limit=None, k=
 
 
 def test_demo_openai():
-    return run_demo(use_openai=True)
+    return run_demo(use_openai_model=True, use_openai_embedding=True)
 
 
 def test_demo_hf():
-    return run_demo(use_openai=False)
+    return run_demo(use_openai_model=False, use_openai_embedding=False)
 
 
-def run_demo(use_openai=False):
+def run_demo(use_openai_model=False, use_openai_embedding=False):
     # quick test
     pdf_filename = '1706.03762.pdf'
     if not os.path.isfile(pdf_filename):
@@ -497,9 +515,9 @@ def run_demo(use_openai=False):
             os.remove('1706.03762')
         os.system("wget --user-agent TryToStopMeFromUsingWgetNow https://arxiv.org/pdf/1706.03762")
         os.rename('1706.03762', '1706.03762.pdf')
-    db = get_db(pdf_filename=pdf_filename, split_method='chunk', use_openai=use_openai)
+    db = get_db(pdf_filename=pdf_filename, split_method='chunk', use_openai_embedding=use_openai_embedding)
     query = "Who created transformers?"
-    answer = get_answer_from_db(db, query, chat_history='', use_openai=use_openai, k=4)
+    answer = get_answer_from_db(db, query, chat_history='', use_openai_model=use_openai_model, k=4)
     print(answer)
 
 
