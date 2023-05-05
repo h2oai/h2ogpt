@@ -79,6 +79,7 @@ human = '<human>:'
 bot = "<bot>:"
 prompt_tokens = "<|prompt|>"
 answer_tokens = "<|answer|>"
+endoftext = "<|endoftext|>"
 
 prompt_types_strings = []
 for p in PromptType:
@@ -871,7 +872,7 @@ Current Time: {}
     elif prompt_type in [10, "10", "prompt_answer"]:
         preprompt = ''
         start = prompt_tokens
-        promptB = promptA = '%s%s' % (preprompt, start)
+        promptB = promptA = '%s%s%s' % (preprompt, endoftext, start)
         PreInstruct = ""
         PreInput = None
         PreResponse = answer_tokens
