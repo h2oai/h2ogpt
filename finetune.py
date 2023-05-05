@@ -746,10 +746,10 @@ def generate_and_tokenize_prompt(data_point, prompt_type=None, train_on_inputs=F
     assert prompt_type is not None
     assert cutoff_len is not None
     assert tokenizer is not None
-    full_prompt, _, _ = generate_prompt(data_point, prompt_type, False, False)
+    full_prompt, _, _, _ = generate_prompt(data_point, prompt_type, False, False)
     tokenized_full_prompt = tokenize(full_prompt, tokenizer, cutoff_len, add_eos_token=add_eos_token)
     if not train_on_inputs:
-        user_prompt, _, _ = generate_prompt({**data_point, "output": ""}, prompt_type, False, False)
+        user_prompt, _, _, _ = generate_prompt({**data_point, "output": ""}, prompt_type, False, False)
         tokenized_user_prompt = tokenize(user_prompt, tokenizer, cutoff_len, add_eos_token=add_eos_token)
         user_prompt_len = len(tokenized_user_prompt["input_ids"])
         if add_eos_token:
@@ -768,9 +768,11 @@ def get_prompt(prompt_type, chat, context, reduced):
     if prompt_type in [-1, "-1", "plain"]:
         promptA = promptB = PreInstruct = PreInput = PreResponse = ''
         terminate_response = []
+        chat_sep = ''
     elif prompt_type == 'simple_instruct':
         promptA = promptB = PreInstruct = PreInput = PreResponse = None
         terminate_response = []
+        chat_sep = '\n'
     elif prompt_type in [0, "0", "instruct"] or prompt_type in [7, "7", "instruct_with_end"]:
         promptA = 'Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.\n' if not (chat and reduced) else ''
         promptB = 'Below is an instruction that describes a task. Write a response that appropriately completes the request.\n' if not (chat and reduced) else ''
@@ -790,6 +792,7 @@ def get_prompt(prompt_type, chat, context, reduced):
             terminate_response = ['### End']
         else:
             terminate_response = None
+        chat_sep = '\n'
     elif prompt_type in [1, "1", "quality"]:
         promptA = 'Write a detailed high-quality, accurate, fair, Response with about 100 words by following the Instruction as applied on the Input.\n' if not (chat and reduced) else ''
         promptB = 'Write a detailed high-quality, accurate, fair, Response with about 100 words by following the Instruction.\n' if not (chat and reduced) else ''
@@ -806,6 +809,7 @@ def get_prompt(prompt_type, chat, context, reduced):
 ### Response:
 """
         terminate_response = None
+        chat_sep = '\n'
     elif prompt_type in [2, "2", "human_bot", 9, "9", "human_bot_orig"]:
         if reduced or context or prompt_type in [2, "2", "human_bot"]:
             preprompt = ''
@@ -835,6 +839,7 @@ Current Time: {}
             PreResponse = bot
 
         terminate_response = [start, PreResponse]
+        chat_sep = '\n'
     elif prompt_type in [3, "3", "dai_faq"]:
         promptA = ''
         promptB = 'Answer the following Driverless AI question.\n'
@@ -849,11 +854,13 @@ Current Time: {}
 ### Driverless AI documentation answer:
 """
         terminate_response = ['\n\n']
+        chat_sep = terminate_response
     elif prompt_type in [5, "5", "summarize"]:
         promptA = promptB = PreInput = ''
         PreInstruct = '## Main Text\n\n'
         PreResponse = '\n\n## Summary\n\n'
         terminate_response = None
+        chat_sep = '\n'
     elif prompt_type in [6, "6", "instruct_vicuna"]:
         promptA = promptB = "A chat between a curious human and an artificial intelligence assistant. " \
             "The assistant gives helpful, detailed, and polite answers to the human's questions." if not (chat and reduced) else ''
@@ -868,6 +875,7 @@ Current Time: {}
 ### Assistant:
 """
         terminate_response = ['### Human:']  # but only allow terminate after prompt is found correctly, else can't terminate
+        chat_sep = '\n'
     elif prompt_type in [10, "10", "prompt_answer"]:
         preprompt = ''
         start = prompt_tokens
@@ -875,11 +883,13 @@ Current Time: {}
         PreInstruct = ""
         PreInput = None
         PreResponse = answer_tokens
-        terminate_response = [start, PreResponse]
+        eos = '<|endoftext|>'  # neox eos
+        terminate_response = [start, PreResponse, eos]
+        chat_sep = eos
     else:
         raise RuntimeError("No such prompt_type=%s" % prompt_type)
 
-    return promptA, promptB, PreInstruct, PreInput, PreResponse, terminate_response
+    return promptA, promptB, PreInstruct, PreInput, PreResponse, terminate_response, chat_sep
 
 
 def generate_prompt(data_point, prompt_type, chat, reduced):
@@ -891,7 +901,8 @@ def generate_prompt(data_point, prompt_type, chat, reduced):
     output = data_point.get('output')
     prompt_type = data_point.get('prompt_type', prompt_type)
     assert prompt_type in prompt_types, "Bad prompt type: %s" % prompt_type
-    promptA, promptB, PreInstruct, PreInput, PreResponse, terminate_response = get_prompt(prompt_type, chat, context, reduced)
+    promptA, promptB, PreInstruct, PreInput, PreResponse, \
+    terminate_response, chat_sep = get_prompt(prompt_type, chat, context, reduced)
 
     prompt = context if not reduced else ''
 
@@ -943,7 +954,7 @@ def generate_prompt(data_point, prompt_type, chat, reduced):
     if output:
         prompt += f"""{output}"""
 
-    return prompt, pre_response, terminate_response
+    return prompt, pre_response, terminate_response, chat_sep
 
 
 def inject_newline(prompt_type, prompt):
