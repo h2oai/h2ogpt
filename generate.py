@@ -419,7 +419,10 @@ def get_device():
 def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward_type,
                        gpu_id=0,
                        use_auth_token=False,
-                       trust_remote_code=True):
+                       trust_remote_code=True,
+                       triton_attn=False,
+                       long_sequence=True,
+                       ):
     """
     Ensure model gets on correct device
     :param base_model:
@@ -430,29 +433,43 @@ def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward
     :param gpu_id:
     :param use_auth_token:
     :param trust_remote_code:
+    :param triton_attn:
+    :param long_sequence:
     :return:
     """
     with init_empty_weights():
         from transformers import AutoConfig
-        config = AutoConfig.from_pretrained(base_model, use_auth_token=use_auth_token, trust_remote=trust_remote_code)
-        model = AutoModel.from_config(
-            config,
-        )
+        config = AutoConfig.from_pretrained(base_model, use_auth_token=use_auth_token,
+                                            trust_remote_code=trust_remote_code)
+        if triton_attn and 'mpt-' in base_model.lower():
+            config.attn_config['attn_impl'] = 'triton'
+        if long_sequence and 'mpt-' in base_model.lower():
+            config.update({"max_seq_len": 83968})
+        if issubclass(config.__class__, tuple(AutoModel._model_mapping.keys())):
+            model = AutoModel.from_config(
+                config,
+            )
+        else:
+            # can't infer
+            model = None
 
-    # NOTE: Can specify max_memory={0: max_mem, 1: max_mem}, to shard model
-    # NOTE: Some models require avoiding sharding some layers,
-    # then would pass no_split_module_classes and give list of those layers.
-    device_map = infer_auto_device_map(
-        model,
-        dtype=torch.float16 if load_half else torch.float32,
-    )
-    if hasattr(model, 'model'):
-        device_map_model = infer_auto_device_map(
-            model.model,
+    if model is not None:
+        # NOTE: Can specify max_memory={0: max_mem, 1: max_mem}, to shard model
+        # NOTE: Some models require avoiding sharding some layers,
+        # then would pass no_split_module_classes and give list of those layers.
+        device_map = infer_auto_device_map(
+            model,
             dtype=torch.float16 if load_half else torch.float32,
         )
-        device_map.update(device_map_model)
-    print('device_map: %s' % device_map, flush=True)
+        if hasattr(model, 'model'):
+            device_map_model = infer_auto_device_map(
+                model.model,
+                dtype=torch.float16 if load_half else torch.float32,
+            )
+            device_map.update(device_map_model)
+        print('device_map: %s' % device_map, flush=True)
+    else:
+        device_map = "auto"
 
     n_gpus = torch.cuda.device_count() if torch.cuda.is_available else 0
 
@@ -476,11 +493,13 @@ def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward
     if load_in_8bit or not load_half:
         model = model_loader.from_pretrained(
             base_model,
+            config=config,
             **model_kwargs,
         )
     else:
         model = model_loader.from_pretrained(
             base_model,
+            config=config,
             **model_kwargs,
         ).half()
     return model
@@ -574,12 +593,15 @@ def get_model(
                             use_auth_token=use_auth_token,
                             trust_remote_code=trust_remote_code,
                             )
-        if 'mbart-' not in base_model.lower():
+        if 'mbart-' not in base_model.lower() and 'mpt-' not in base_model.lower():
             model_kwargs.update(dict(load_in_8bit=load_8bit,
                                      device_map={"": 0} if load_8bit and device == 'cuda' else "auto",
                                      ))
+        if 'mpt-' in base_model.lower() and gpu_id >= 0:
+            model_kwargs.update(dict(device_map={"": gpu_id} if device == 'cuda' else "cpu"))
+
         if 'OpenAssistant/reward-model'.lower() in base_model.lower():
-            # could put on other GPUs
+            # FIXME: could put on other GPUs
             model_kwargs['device_map'] = {"": 0} if device == 'cuda' else {"": 'cpu'}
             model_kwargs.pop('torch_dtype', None)
 
