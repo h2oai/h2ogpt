@@ -26,7 +26,7 @@ class Prompter(object):
         if isinstance(outputs, str):
             outputs = [outputs]
         if self.debug:
-            print("output: ", '\n\n'.join(outputs), flush=True)
+            print("output:\n", '\n\n'.join(outputs), flush=True)
         if prompt is not None:
             self.prompt = prompt
 
@@ -104,5 +104,5 @@ class Prompter(object):
         # join all outputs, only one extra new line between outputs
         output = '\n'.join(outputs)
         if self.debug:
-            print("outputclean: ", '\n\n'.join(outputs), flush=True)
+            print("outputclean:\n", '\n\n'.join(outputs), flush=True)
         return output
