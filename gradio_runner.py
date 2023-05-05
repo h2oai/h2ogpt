@@ -5,6 +5,7 @@ import os
 import sys
 
 from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, get_dark_js
+from prompter import Prompter
 from utils import get_githash, flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping
 from finetune import prompt_type_to_model_name, prompt_types_strings, generate_prompt, inv_prompt_type_to_model_lower
@@ -517,9 +518,12 @@ def go_gradio(**kwargs):
             :return:
             """
             args_list = list(args)
-            user_message = args_list[0]
-            input1 = args_list[1]
-            context1 = args_list[2]
+            user_message = args_list[eval_func_param_names.index('instruction')]  # chat only
+            input1 = args_list[eval_func_param_names.index('iinput')]  # chat only
+            context1 = args_list[eval_func_param_names.index('context')]
+            prompt_type1 = args_list[eval_func_param_names.index('prompt_type')]
+            chat1 = args_list[eval_func_param_names.index('chat')]
+            stream_output1 = args_list[eval_func_param_names.index('stream_output')]
             if input1 and not user_message.endswith(':'):
                 user_message1 = user_message + ":" + input1
             elif input1:
@@ -529,6 +533,8 @@ def go_gradio(**kwargs):
             if sanitize_user_prompt:
                 from better_profanity import profanity
                 user_message1 = profanity.censor(user_message1)
+            # FIXME: WIP to use desired seperator when user enters nothing
+            prompter = Prompter(prompt_type1, debug=kwargs['debug'], chat=chat1, stream_output=stream_output1)
             if user_message1 in ['']:
                 # e.g. when user just hits enter in textbox,
                 # else will have <human>: <bot>: on single line, which seems to be "ok" for LLM but not usual
@@ -581,12 +587,18 @@ def go_gradio(**kwargs):
                 context1 = ''
                 for histi in range(len(history) - 1):
                     data_point = dict(instruction=history[histi][0], input='', output=history[histi][1])
-                    context1 += generate_prompt(data_point, prompt_type1, chat1, reduced=True)[0].replace(
-                        '<br>', '\n')
-                    if not context1.endswith('\n'):
-                        context1 += '\n'
-                if context1 and not context1.endswith('\n'):
-                    context1 += '\n'  # ensure if terminates abruptly, then human continues on next line
+                    prompt, pre_response, terminate_response, chat_sep = generate_prompt(data_point, prompt_type1,
+                                                                                         chat1, reduced=True)
+                    # md -> back to text, maybe not super improtant if model trained enough
+                    prompt = prompt.replace('<br>', chat_sep)
+                    context1 += prompt
+                    if not context1.endswith(chat_sep):
+                        context1 += chat_sep
+
+                _, pre_response, terminate_response, chat_sep = generate_prompt({}, prompt_type1, chat1,
+                                                                                reduced=True)
+                if context1 and not context1.endswith(chat_sep):
+                    context1 += chat_sep  # ensure if terminates abruptly, then human continues on next line
             args_list[0] = instruction1  # override original instruction with history from user
             # only include desired chat history
             args_list[2] = context1[-kwargs['chat_history']:]

@@ -6,7 +6,8 @@ class Prompter(object):
                  allowed_repeat_line_length=10):
         self.prompt_type = prompt_type
         data_point = dict(instruction='', input='', output='')
-        _, self.pre_response, self.terminate_response = generate_prompt(data_point, prompt_type, chat, False)
+        _, self.pre_response, self.terminate_response, self.chat_sep = \
+            generate_prompt(data_point, prompt_type, chat, False)
         self.debug = debug
         self.chat = chat
         self.stream_output = stream_output
@@ -15,7 +16,7 @@ class Prompter(object):
 
     def generate_prompt(self, data_point):
         reduced = False
-        prompt, _, _ = generate_prompt(data_point, self.prompt_type, self.chat, reduced)
+        prompt, _, _, _ = generate_prompt(data_point, self.prompt_type, self.chat, reduced)
         if self.debug:
             print("prompt: ", prompt, flush=True)
         self.prompt = prompt
@@ -30,7 +31,7 @@ class Prompter(object):
             self.prompt = prompt
 
         def clean_response(response):
-            meaningless_words = ['<pad>', '</s>', '<|endoftext|>', '”\n']
+            meaningless_words = ['<pad>', '</s>', '<|endoftext|>']
             for word in meaningless_words:
                 response = response.replace(word, "")
             if sanitize_bot_response:
