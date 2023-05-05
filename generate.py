@@ -1141,7 +1141,8 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
             placeholder_instruction = "Give detailed answer for whether Einstein or Newton is smarter."
         placeholder_input = ""
         if model_lower:
-            prompt_type = prompt_type or 'human_bot'
+            # default is plain, because might relly upon trust_remote_code to handle prompting
+            prompt_type = prompt_type or 'plain'
         else:
             prompt_type = ''
         examples += [[summarize_example1, 'Summarize' if prompt_type not in ['plain', 'instruct_simple'] else '', "",
