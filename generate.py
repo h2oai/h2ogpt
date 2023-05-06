@@ -9,7 +9,7 @@ from datetime import datetime
 import filelock
 import psutil
 
-from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial, EThread
+from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial, EThread, get_githash
 
 SEED = 1236
 set_seed(SEED)
@@ -230,6 +230,11 @@ def main(
                             repetition_penalty, num_return_sequences,
                             do_sample,
                             )
+
+    locals_dict = locals()
+    locals_print = '\n'.join(['%s: %s' % (k, v) for k, v in locals_dict.items()])
+    print(f"Generating model with params:\n{locals_print}", flush=True)
+    print("Command: %s\nHash: %s" % (str(' '.join(sys.argv)), get_githash()), flush=True)
 
     if not gradio:
         if eval_sharegpt_prompts_only > 0:
