@@ -34,7 +34,7 @@ Also check out [H2O LLM Studio](https://github.com/h2oai/h2o-llmstudio) for our 
 - Integration of code and resulting LLMs with downstream applications and low/no-code platforms
 - Complement h2oGPT chatbot with search and other APIs
 - High-performance distributed training of larger models on trillion tokens
-- Improve code completion, reasoning, mathematics, factual correctness, hallucinations and avoid repetitions
+- Enhance the model's code completion, reasoning, and mathematical capabilities, ensure factual correctness, minimize hallucinations, and avoid repetitive output
 
 ### Chat with h2oGPT
 
@@ -52,7 +52,7 @@ You can also use [Docker](INSTALL-DOCKER.md#containerized-installation-for-infer
 
 #### Larger models require more GPU memory
 
-Depending on available GPU memory, you can load differently sized models. For multiple GPUs, automatic sharding can be enabled with `--infer_devices=False`, but that is disabled by default since cuda:x cuda:y mismatches can occur.
+Depending on available GPU memory, you can load differently sized models. For multiple GPUs, automatic sharding can be enabled with `--infer_devices=False`, but this is disabled by default since cuda:x cuda:y mismatches can occur.
 
 For GPUs with at least 24GB of memory, we recommend:
 ```bash
@@ -62,15 +62,15 @@ For GPUs with at least 48GB of memory, we recommend:
 ```bash
 python generate.py --base_model=h2oai/h2ogpt-oasst1-512-20b
 ```
-The number `512` in the model names indicate the cutoff lengths (in tokens) used for fine-tuning. Shorter values generally result in faster training and more focus on the last part of the provided input text (consisting of prompt and answer).
+The number `512` in the model names indicates the cutoff lengths (in tokens) used for fine-tuning. Shorter values generally result in faster training and more focus on the last part of the provided input text (consisting of prompt and answer).
 
 More information about the models can be found on [H2O.ai's Hugging Face page](https://huggingface.co/h2oai/).
 
 ### Development
 
-- Follow the [installation instructions](INSTALL.md) to create a development environment for training and generation.
-- Follow the [fine-tuning instructions](FINETUNE.md) to fine-tune any LLM models on your data.
-- Follow the [Docker instructions](INSTALL-DOCKER.md) to create a container for deployment.
+- To create a development environment for training and generation, follow the [installation instructions](INSTALL.md).
+- To fine-tune any LLM models on your data, follow the [fine-tuning instructions](FINETUNE.md).
+- To create a container for deployment, follow the [Docker instructions](INSTALL-DOCKER.md).
 
 ### Help
 
