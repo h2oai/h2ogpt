@@ -443,8 +443,11 @@ def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward
                                             trust_remote_code=trust_remote_code)
         if triton_attn and 'mpt-' in base_model.lower():
             config.attn_config['attn_impl'] = 'triton'
-        if long_sequence and 'mpt-' in base_model.lower():
-            config.update({"max_seq_len": 83968})
+        if long_sequence:
+            if 'mpt-7b-storywriter' in base_model.lower():
+                config.update({"max_seq_len": 83968})
+            if 'mosaicml/mpt-7b-chat' in base_model.lower():
+                config.update({"max_seq_len": 4096})
         if issubclass(config.__class__, tuple(AutoModel._model_mapping.keys())):
             model = AutoModel.from_config(
                 config,
