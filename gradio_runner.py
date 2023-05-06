@@ -391,6 +391,7 @@ def go_gradio(**kwargs):
             .then(close_admin, inputs=admin_pass_textbox, outputs=admin_row, queue=False)
 
         # Get inputs to evaluate()
+        # don't deepcopy, can contain model itself
         all_kwargs = kwargs.copy()
         all_kwargs.update(locals())
         inputs_list = get_inputs_list(all_kwargs, kwargs['model_lower'])
@@ -566,6 +567,7 @@ def go_gradio(**kwargs):
             :param retry:
             :return:
             """
+            # don't deepcopy, can contain model itself
             args_list = list(args).copy()
             history = args_list[-1]  # model_state is -2
             if retry and history:
@@ -780,6 +782,7 @@ def go_gradio(**kwargs):
                 lora_weights = no_lora_str
                 return [None, None, None, model_name], model_name, lora_weights, prompt_type_old
 
+            # don't deepcopy, can contain model itself
             all_kwargs1 = all_kwargs.copy()
             all_kwargs1['base_model'] = model_name.strip()
             all_kwargs1['load_8bit'] = load_8bit
