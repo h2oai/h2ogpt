@@ -566,7 +566,7 @@ def go_gradio(**kwargs):
             :param retry:
             :return:
             """
-            args_list = copy.deepcopy(list(args))
+            args_list = list(args).copy()
             history = args_list[-1]  # model_state is -2
             if retry and history:
                 history.pop()
