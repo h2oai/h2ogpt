@@ -170,15 +170,22 @@ def main(
 
     if is_public:
         input_lines = 1  # ensure set, for ease of use
-        temperature = 0.2
-        top_p = 0.85
-        top_k = 70
-        do_sample = True
-        if is_low_mem:
-            base_model = 'h2oai/h2ogpt-oasst1-512-12b'
-            load_8bit = True
+        temperature = 0.2 if temperature is None else temperature
+        top_p = 0.85 if top_p is None else top_p
+        top_k = 70 if top_k is None else top_k
+        if is_hf:
+            do_sample = True if do_sample is None else do_sample
         else:
-            base_model = 'h2oai/h2ogpt-oasst1-512-20b'
+            # by default don't sample, too chatty
+            do_sample = False if do_sample is None else do_sample
+
+        if is_low_mem:
+            if not base_model:
+                base_model = 'h2oai/h2ogpt-oasst1-512-12b'
+                # don't set load_8bit if passed base_model, doesn't always work so can't just override
+                load_8bit = True
+        else:
+            base_model = 'h2oai/h2ogpt-oasst1-512-20b' if not base_model else base_model
     if is_low_mem:
         load_8bit = True
     if is_hf:
