@@ -16,14 +16,14 @@ class StoppingCriteriaSub(StoppingCriteria):
             if torch.all((stop == input_ids[0][-len(stop):])).item():
                 self.num_stops[stopi] += 1
                 if self.num_stops[stopi] >= self.encounters[stopi % len(self.encounters)]:
-                    # print("Stopped", flush=True)
+                    print("Stopped", flush=True)
                     return True
         # print("Tokens: %s" % input_ids[0].cpu().numpy(), flush=True)
         # print("Stop Tokens: %s" % [x.cpu().numpy() for x in self.stops], flush=True)
         return False
 
 
-def get_stopping(prompt_type, human, bot, tokenizer, device):
+def get_stopping(prompt_type, tokenizer, device, human='<human>:', bot="<bot>:"):
     if prompt_type in ['human_bot', 'instruct_vicuna', 'instruct_with_end']:
         if prompt_type == 'human_bot':
             # encounters = [prompt.count(human) + 1, prompt.count(bot) + 1]

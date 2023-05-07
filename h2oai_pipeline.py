@@ -33,6 +33,6 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
         return records
 
     def _forward(self, model_inputs, **generate_kwargs):
-        stopping_criteria = get_stopping(prompt_type, human, bot, self.tokenizer, self.device)
+        stopping_criteria = get_stopping(prompt_type, self.tokenizer, self.device, human=human, bot=bot)
         generate_kwargs['stopping_criteria'] = stopping_criteria
         return super()._forward(model_inputs, **generate_kwargs)

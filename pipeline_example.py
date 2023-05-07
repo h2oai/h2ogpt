@@ -17,7 +17,7 @@ model = AutoModelForCausalLM.from_pretrained("h2oai/h2ogpt-oasst1-512-12b", torc
 generate_text = H2OTextGenerationPipeline(model=model, tokenizer=tokenizer)
 
 # generate
-outputs = generate_text("Why is drinking water so healthy?", return_full_text=True, max_new_tokens=1000)
+outputs = generate_text("Why is drinking water so healthy?", return_full_text=True, max_new_tokens=400)
 
 for output in outputs:
     print(tr.fill(output['generated_text'], width=40))
