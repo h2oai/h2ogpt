@@ -27,7 +27,7 @@ from accelerate import init_empty_weights, infer_auto_device_map
 
 from prompter import Prompter
 
-from finetune import get_loaders, example_data_points, generate_prompt, human, bot, inv_prompt_type_to_model_lower
+from finetune import get_loaders, example_data_points, generate_prompt, inv_prompt_type_to_model_lower
 from stopping import StoppingCriteriaSub
 
 eval_extra_columns = ['prompt', 'response', 'score']
@@ -835,6 +835,8 @@ def evaluate(
         # override, ignore user change
         num_return_sequences = 1
     if prompt_type in ['human_bot', 'instruct_vicuna', 'instruct_with_end']:
+        human = '<human>:'
+        bot = "<bot>:"
         if prompt_type == 'human_bot':
             # encounters = [prompt.count(human) + 1, prompt.count(bot) + 1]
             # stopping only starts once output is beyond prompt
@@ -955,7 +957,10 @@ def evaluate(
                     prompt = inputs_decoded
                 elif inputs_decoded_raw == prompt:
                     # some models specify special tokens that are part of normal prompt, so can't skip them
-                    inputs_decoded_raw = inputs_decoded
+                    inputs_decoded = prompt = inputs_decoded_raw
+                    decoder = decoder_raw
+                elif inputs_decoded_raw.replace("<unk> ", "").replace("<unk>", "").replace('\n', ' ').replace(' ', '') == prompt.replace('\n', ' ').replace(' ', ''):
+                    inputs_decoded = prompt = inputs_decoded_raw
                     decoder = decoder_raw
                 else:
                     print("WARNING: Special characters in prompt", flush=True)
@@ -1098,6 +1103,7 @@ def get_generate_params(model_lower, chat,
 
     if not prompt_type and model_lower in inv_prompt_type_to_model_lower:
         prompt_type = inv_prompt_type_to_model_lower[model_lower]
+        print("Auto-selecting prompt_type=%s for %s" % (prompt_type, model_lower), flush=True)
 
     # examples at first don't include chat, instruction_nochat, iinput_nochat, added at end
     if show_examples is None:
