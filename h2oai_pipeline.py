@@ -1,6 +1,9 @@
 from transformers import TextGenerationPipeline
 from transformers.pipelines.text_generation import ReturnType
 
+from stopping import get_stopping
+
+prompt_type = "human_bot"
 human = "<human>:"
 bot = "<bot>:"
 
@@ -28,3 +31,8 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
         for rec in records:
             rec['generated_text'] = rec['generated_text'].split(bot)[1].strip().split(human)[0].strip()
         return records
+
+    def _forward(self, model_inputs, **generate_kwargs):
+        stopping_criteria = get_stopping(prompt_type, human, bot, self.tokenizer, self.device)
+        generate_kwargs['stopping_criteria'] = stopping_criteria
+        return super()._forward(model_inputs, **generate_kwargs)
