@@ -211,7 +211,7 @@ def main(
         if psutil.virtual_memory().available < 94*1024**3:
             # 12B uses ~94GB
             # 6.9B uses ~47GB
-            base_model = 'h2oai/h2ogpt-oig-oasst1-512-6.9b'
+            base_model = 'h2oai/h2ogpt-oig-oasst1-512-6.9b' if not base_model else base_model
 
     # get defaults
     model_lower = base_model.lower()
