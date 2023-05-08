@@ -1357,9 +1357,9 @@ def test_add_open_assistant(fixup_personality, only_personality, deberta_grading
                         conv2['message_id'] = None
         conversations = [c for c in conversations if c['message_id']]
         if only_personality:
-            all_rows.extend([dict(input=c['text'], prompt_type='plain', source=data_file) for c in conversations if 'h2oGPT' in c['text']])
+            all_rows.extend([dict(input=c['text'] + "<human>:", prompt_type='plain', source=data_file) for c in conversations if 'h2oGPT' in c['text']])
         else:
-            all_rows.extend([dict(input=c['text'], prompt_type='plain', source=data_file) for c in conversations if "What is H2O.ai" not in c['text']])
+            all_rows.extend([dict(input=c['text'] + "<human>:", prompt_type='plain', source=data_file) for c in conversations if "What is H2O.ai" not in c['text']])
     personality = create_personality_data()
     all_rows.extend(personality * 10)
     np.random.seed(123)
@@ -1466,28 +1466,28 @@ def create_personality_data():
     ]
     help = [
         "",
-        "How can I help you?",
-        "How may I assist you?",
-        "Nice to meet you.",
+        " How can I help you?",
+        " How may I assist you?",
+        " Nice to meet you.",
     ]
     import itertools
     rows = []
     for pair in itertools.product(questions, answers, help):
         rows.append(
-            dict(input=f"<human>: {pair[0]} <bot>: {pair[1]} {pair[2]}", prompt_type='plain', source="H2O.ai")
+            dict(input=f"<human>: {pair[0]}<bot>: {pair[1]}{pair[2]}<human>:", prompt_type='plain', source="H2O.ai")
         )
     for row in [
-        "<human>: What is H2O.ai? <bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.",
-        "<human>: What is h2o.ai? <bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.",
-        "<human>: What is H2O? <bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.",
-        "<human>: Who is h2o.ai? <bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.",
-        "<human>: who is h2o.ai? <bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.",
-        "<human>: who is h2o? <bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.",
-        "<human>: What is H2O.ai? <bot>: H2O.ai is the visionary leader in democratizing AI.",
-        "<human>: Who is H2O.ai? <bot>: H2O.ai is the visionary leader in democratizing AI.",
-        "<human>: Who is H2O? <bot>: H2O.ai is the visionary leader in democratizing AI.",
-        "<human>: Who is h2o? <bot>: H2O.ai is the visionary leader in democratizing AI.",
-        "<human>: who is h2o? <bot>: H2O.ai is the visionary leader in democratizing AI.",
+        "<human>: What is H2O.ai?<bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.<human>:",
+        "<human>: What is h2o.ai?<bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.<human>:",
+        "<human>: What is H2O?<bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.<human>:",
+        "<human>: Who is h2o.ai?<bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.<human>:",
+        "<human>: who is h2o.ai?<bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.<human>:",
+        "<human>: who is h2o?<bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.<human>:",
+        "<human>: What is H2O.ai?<bot>: H2O.ai is the visionary leader in democratizing AI.<human>:",
+        "<human>: Who is H2O.ai?<bot>: H2O.ai is the visionary leader in democratizing AI.<human>:",
+        "<human>: Who is H2O?<bot>: H2O.ai is the visionary leader in democratizing AI.<human>:",
+        "<human>: Who is h2o?<bot>: H2O.ai is the visionary leader in democratizing AI.<human>:",
+        "<human>: who is h2o?<bot>: H2O.ai is the visionary leader in democratizing AI.<human>:",
     ]:
         rows.append(dict(input=row, prompt_type='plain', source='H2O.ai'))
     print(len(rows))
@@ -1721,3 +1721,20 @@ def test_check_unhelpful():
 
     # assert len(bads) == 0, bads
     assert len(bads_bots) == 0, bads_bots
+
+
+def test_fortune2000_personalized():
+    row_list = []
+    import glob
+    for file in glob.glob("wikitext/*.txt"):
+        with open(file, "r") as f:
+            blob = f.read()
+        N = 512 * 4
+        row_list.extend([{'input': s, 'prompt_type': 'plain', 'source': "%s" % os.path.basename(file)}
+                         for s in get_sentences(blob, N)])
+    personality = create_personality_data()
+    row_list.extend(personality * 10)
+    np.random.seed(123)
+    np.random.shuffle(row_list)
+    with open("fortune2000_personalized.json", "w") as ff:
+        ff.write(json.dumps(row_list, indent=2))
