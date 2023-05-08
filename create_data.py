@@ -1112,7 +1112,7 @@ def add_deberta_grade(df):
 
 
 def test_chop_by_lengths():
-    file = "h2oGPT.cleaned.human_bot.parquet"
+    file = "h2oGPT.cleaned.human_bot.shorter.parquet"
     df = pd.read_parquet(file).reset_index(drop=True)
     df = count_human_bot_lengths(df)
     df['rand'] = np.random.rand(df.shape[0])
@@ -1132,7 +1132,7 @@ def test_chop_by_lengths():
     after_rows = df.shape[0]
     print("Chopped off %d out of %d rows due to length" % (before_rows - after_rows, before_rows))
     print(df.describe())
-    df.to_parquet('h2oGPT.cleaned.chopped.human_bot.parquet', index=False)
+    df.to_parquet('h2oGPT.cleaned.chopped.human_bot.shorter.parquet', index=False)
 
 
 def count_human_bot_lengths(df, human=None, bot=None):
@@ -1188,8 +1188,8 @@ def count_human_bot_lengths(df, human=None, bot=None):
 def test_grade():
     df = None
 
-    file = "h2oGPT.cleaned.chopped.human_bot.parquet"
-    output_file = "h2oGPT.cleaned.graded1.human_bot.parquet"
+    file = "h2oGPT.cleaned.chopped.human_bot.shorter.parquet"
+    output_file = "h2oGPT.cleaned.graded1.human_bot.shorter.parquet"
     if not os.path.exists(output_file):
         if df is None:
             df = pd.read_parquet(file).reset_index(drop=True)
@@ -1203,7 +1203,7 @@ def test_grade():
         df.to_parquet(output_file, index=False)
 
     file = output_file
-    output_file = "h2oGPT.cleaned.graded2.human_bot.parquet"
+    output_file = "h2oGPT.cleaned.graded2.human_bot.shorter.parquet"
     if not os.path.exists(output_file):
         # slower than alt-profanity, do last, but do before deberta grading, since that's slower
         if df is None:
@@ -1218,7 +1218,7 @@ def test_grade():
         df.to_parquet(output_file, index=False)
 
     file = output_file
-    output_file = 'h2oGPT.cleaned.graded3.human_bot.parquet'
+    output_file = 'h2oGPT.cleaned.graded3.human_bot.shorter.parquet'
     if not os.path.exists(output_file):
         if df is None:
             df = pd.read_parquet(file).reset_index(drop=True)
@@ -1235,7 +1235,7 @@ def test_grade():
         df.to_parquet(output_file, index=False)
 
     file = output_file
-    output_file = 'h2oGPT.cleaned.graded.human_bot.parquet'
+    output_file = 'h2oGPT.cleaned.graded.human_bot.shorter.parquet'
     if df is None:
         df = pd.read_parquet(file).reset_index(drop=True)
     df.to_parquet(output_file, index=False)
@@ -1404,7 +1404,7 @@ def test_add_open_assistant(fixup_personality, only_personality, deberta_grading
 
 
 def test_finalize_to_json():
-    df = pd.read_parquet('h2oGPT.cleaned.graded.human_bot.parquet')
+    df = pd.read_parquet('h2oGPT.cleaned.graded.human_bot.shorter.parquet')
     df = df.rename(columns={'text': 'input'})
 
     print("Number of high-quality human_bot interactions: %s" % df.shape[0], flush=True)
@@ -1414,7 +1414,7 @@ def test_finalize_to_json():
         fixup_personality=True,  # False was original version, but it's better to personalize, so now using True
         only_personality=False,
         save_json=True,
-        deberta_grading=False,
+        deberta_grading=True,
     )
     df = pd.concat([df, pd.DataFrame(open_assistant)], axis=0)
 
@@ -1445,7 +1445,7 @@ def test_finalize_to_json():
     np.random.shuffle(row_list)
     unhelpful = get_unhelpful_list()
     row_list = [x for x in row_list if not any(u in x['input'] for u in unhelpful)]
-    with open('h2ogpt-oig-oasst1-instruct-cleaned-v2.json', "w") as f:
+    with open('h2ogpt-oig-oasst1-instruct-cleaned-v3.json', "w") as f:
         f.write(json.dumps(row_list, indent=2))
 
 
