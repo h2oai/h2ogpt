@@ -1223,7 +1223,7 @@ def test_grade():
         if df is None:
             df = pd.read_parquet(file).reset_index(drop=True)
         df = add_deberta_grade(df)
-        min_grade = 0.2
+        min_grade = 0.3
         max_grade = np.inf
         before_rows = df.shape[0]
         df = df[df['grade_deberta'] >= min_grade]
@@ -1360,6 +1360,8 @@ def test_add_open_assistant(fixup_personality, only_personality, deberta_grading
             all_rows.extend([dict(input=c['text'] + "\n<human>:", prompt_type='plain', source=data_file) for c in conversations if 'h2oGPT' in c['text']])
         else:
             all_rows.extend([dict(input=c['text'] + "\n<human>:", prompt_type='plain', source=data_file) for c in conversations if "What is H2O.ai" not in c['text']])
+    unhelpful = get_unhelpful_list()
+    all_rows = [x for x in all_rows if not any(u in x['input'] for u in unhelpful)]
     personality = create_personality_data()
     all_rows.extend(personality * 10)
     np.random.seed(123)
@@ -1370,9 +1372,9 @@ def test_add_open_assistant(fixup_personality, only_personality, deberta_grading
         df = df.rename(columns={'input': 'text'})
         df = add_deberta_grade(df)
         df = df.rename(columns={'text': 'input'})
-        drop = False
+        drop = True
         if drop:
-            min_grade = 0.2
+            min_grade = 0.3
             max_grade = np.inf
             before_rows = df.shape[0]
             df = df[df['grade_deberta'] >= min_grade]
@@ -1441,6 +1443,8 @@ def test_finalize_to_json():
         )
     np.random.seed(1234)
     np.random.shuffle(row_list)
+    unhelpful = get_unhelpful_list()
+    row_list = [x for x in row_list if not any(u in x['input'] for u in unhelpful)]
     with open('h2ogpt-oig-oasst1-instruct-cleaned-v2.json', "w") as f:
         f.write(json.dumps(row_list, indent=2))
 
@@ -1474,7 +1478,7 @@ def create_personality_data():
     rows = []
     for pair in itertools.product(questions, answers, help):
         rows.append(
-            dict(input=f"<human>: {pair[0]}<bot>: {pair[1]}{pair[2]}\n<human>:", prompt_type='plain', source="H2O.ai")
+            dict(input=f"<human>: {pair[0]}\n<bot>: {pair[1]}{pair[2]}\n<human>:", prompt_type='plain', source="H2O.ai")
         )
     for row in [
         "<human>: What is H2O.ai?\n<bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.\n<human>:",
@@ -1549,11 +1553,7 @@ def test_check_stats_data():
     plt.close()
 
 
-def test_check_unhelpful():
-    # file = '/home/jon/Downloads/openassistant_oasst1_h2ogpt_graded.json'
-    file = '/home/jon/Downloads/openassistant_oasst1_h2ogpt_grades.json'
-    # file = 'h2ogpt-oig-oasst1-instruct-cleaned-v2.json'
-
+def get_unhelpful_list():
     # base versions
     unhelpful = ["I'm sorry, I didn't quite understand your question, could you please rephrase it?",
                  "I'm sorry, but I don't understand your question. Could you please rephrase it?",
@@ -1651,6 +1651,15 @@ def test_check_unhelpful():
                   "etc. etc.",
                   "etc etc",
                   ]
+    return unhelpful
+
+
+def test_check_unhelpful():
+    # file = '/home/jon/Downloads/openassistant_oasst1_h2ogpt_graded.json'
+    file = '/home/jon/Downloads/openassistant_oasst1_h2ogpt_grades.json'
+    # file = 'h2ogpt-oig-oasst1-instruct-cleaned-v2.json'
+
+    unhelpful = get_unhelpful_list()
     #data = json.load(open(file, 'rt'))
     df = pd.read_json(file)
 
