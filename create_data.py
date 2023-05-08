@@ -255,15 +255,15 @@ def test_config_to_json():
                 [
                     {
                         'prompt_type': 'plain',
-                        'instruction': f"<human>: What does {k} do?<bot>: {k.replace('_', ' ')} config.toml:  {comment or title}<human>:".replace("\n", ""),
+                        'instruction': f"<human>: What does {k} do?\n<bot>: {k.replace('_', ' ')} config.toml:  {comment or title}\n<human>:".replace("\n", ""),
                     },
                     {
                         'prompt_type': 'plain',
-                        'instruction': f"<human>: Explain {k}.<bot>: {k.replace('_', ' ')} config.toml:  {comment or title}<human>:".replace("\n", ""),
+                        'instruction': f"<human>: Explain {k}.\n<bot>: {k.replace('_', ' ')} config.toml:  {comment or title}\n<human>:".replace("\n", ""),
                     },
                     {
                         'prompt_type': 'plain',
-                        'instruction': f"<human>: How can I do this: {title}.<bot>: Set the {k.replace('_', ' ')} config.toml<human>:".replace("\n", ""),
+                        'instruction': f"<human>: How can I do this: {title}.\n<bot>: Set the {k.replace('_', ' ')} config.toml\n<human>:".replace("\n", ""),
                     } if title and comment else None,
                     {
                         'prompt_type': 'human_bot',
@@ -1246,7 +1246,7 @@ def test_grade():
     [
         [False, False, False],
         [True, True, False],
-        [True, False, True],
+        [True, False, False],
     ]
 )
 def test_add_open_assistant(fixup_personality, only_personality, deberta_grading, save_json=True):
@@ -1357,9 +1357,9 @@ def test_add_open_assistant(fixup_personality, only_personality, deberta_grading
                         conv2['message_id'] = None
         conversations = [c for c in conversations if c['message_id']]
         if only_personality:
-            all_rows.extend([dict(input=c['text'] + "<human>:", prompt_type='plain', source=data_file) for c in conversations if 'h2oGPT' in c['text']])
+            all_rows.extend([dict(input=c['text'] + "\n<human>:", prompt_type='plain', source=data_file) for c in conversations if 'h2oGPT' in c['text']])
         else:
-            all_rows.extend([dict(input=c['text'] + "<human>:", prompt_type='plain', source=data_file) for c in conversations if "What is H2O.ai" not in c['text']])
+            all_rows.extend([dict(input=c['text'] + "\n<human>:", prompt_type='plain', source=data_file) for c in conversations if "What is H2O.ai" not in c['text']])
     personality = create_personality_data()
     all_rows.extend(personality * 10)
     np.random.seed(123)
@@ -1474,20 +1474,20 @@ def create_personality_data():
     rows = []
     for pair in itertools.product(questions, answers, help):
         rows.append(
-            dict(input=f"<human>: {pair[0]}<bot>: {pair[1]}{pair[2]}<human>:", prompt_type='plain', source="H2O.ai")
+            dict(input=f"<human>: {pair[0]}<bot>: {pair[1]}{pair[2]}\n<human>:", prompt_type='plain', source="H2O.ai")
         )
     for row in [
-        "<human>: What is H2O.ai?<bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.<human>:",
-        "<human>: What is h2o.ai?<bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.<human>:",
-        "<human>: What is H2O?<bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.<human>:",
-        "<human>: Who is h2o.ai?<bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.<human>:",
-        "<human>: who is h2o.ai?<bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.<human>:",
-        "<human>: who is h2o?<bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.<human>:",
-        "<human>: What is H2O.ai?<bot>: H2O.ai is the visionary leader in democratizing AI.<human>:",
-        "<human>: Who is H2O.ai?<bot>: H2O.ai is the visionary leader in democratizing AI.<human>:",
-        "<human>: Who is H2O?<bot>: H2O.ai is the visionary leader in democratizing AI.<human>:",
-        "<human>: Who is h2o?<bot>: H2O.ai is the visionary leader in democratizing AI.<human>:",
-        "<human>: who is h2o?<bot>: H2O.ai is the visionary leader in democratizing AI.<human>:",
+        "<human>: What is H2O.ai?\n<bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.\n<human>:",
+        "<human>: What is h2o.ai?\n<bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.\n<human>:",
+        "<human>: What is H2O?\n<bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.\n<human>:",
+        "<human>: Who is h2o.ai?\n<bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.\n<human>:",
+        "<human>: who is h2o.ai?\n<bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.\n<human>:",
+        "<human>: who is h2o?\n<bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.\n<human>:",
+        "<human>: What is H2O.ai?\n<bot>: H2O.ai is the visionary leader in democratizing AI.\n<human>:",
+        "<human>: Who is H2O.ai?\n<bot>: H2O.ai is the visionary leader in democratizing AI.\n<human>:",
+        "<human>: Who is H2O?\n<bot>: H2O.ai is the visionary leader in democratizing AI.\n<human>:",
+        "<human>: Who is h2o?\n<bot>: H2O.ai is the visionary leader in democratizing AI.\n<human>:",
+        "<human>: who is h2o?\n<bot>: H2O.ai is the visionary leader in democratizing AI.\n<human>:",
     ]:
         rows.append(dict(input=row, prompt_type='plain', source='H2O.ai'))
     print(len(rows))
