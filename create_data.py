@@ -1070,7 +1070,7 @@ def add_deberta_grade(df):
     )
     start = 0
     batch_size = 64 * 16
-    micro_batch = orig_micro_batch = 4
+    micro_batch = orig_micro_batch = 16
     end = 0
     import socket
     checkpoint = "grades.%s.pkl" % socket.gethostname()
