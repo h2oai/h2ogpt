@@ -902,7 +902,8 @@ def test_assemble_and_detox():
         # chop up into human/bot interactions of no more than 10kB per row
         text_list = df[['text']].values.ravel().tolist()
         new_text = []
-        max_len = 2048   # approx 512 tokens ~ 2kB
+        max_len = 2048  # uber cutoff
+        MAX_LEN = 2048//2 - 30  # max len per question/answer
         for text in tqdm(text_list):
             human_starts = [m.start() for m in re.finditer('<human>: ', text)]
             if len(human_starts) == 1:
@@ -911,11 +912,13 @@ def test_assemble_and_detox():
             for i in range(len(human_starts) - 1):
                 interaction = text[human_starts[i]: human_starts[i+1]][:max_len]
                 blurb += interaction
-                if len(blurb) >= max_len:
-                    new_text.append(blurb[:2*max_len])
+                if len(blurb) >= MAX_LEN:
+                    blurb = get_sentences(blurb, length=MAX_LEN)[0]
+                    new_text.append(blurb + "\n<human>:")
                     blurb = ''
             if blurb:
-                new_text.append(blurb[:2*max_len] + "\n<human>:")
+                blurb = get_sentences(blurb, length=MAX_LEN)[0]
+                new_text.append(blurb + "\n<human>:")
 
         if len(new_text) > len(text_list):
             print("Added %d new rows (before: %d)" % (len(new_text) - df.shape[0], df.shape[0]))
