@@ -902,7 +902,7 @@ def test_assemble_and_detox():
         # chop up into human/bot interactions of no more than 10kB per row
         text_list = df[['text']].values.ravel().tolist()
         new_text = []
-        max_len = 10000   # approx 2k tokens
+        max_len = 2048   # approx 512 tokens ~ 2kB
         for text in tqdm(text_list):
             human_starts = [m.start() for m in re.finditer('<human>: ', text)]
             if len(human_starts) == 1:
@@ -915,7 +915,7 @@ def test_assemble_and_detox():
                     new_text.append(blurb[:2*max_len])
                     blurb = ''
             if blurb:
-                new_text.append(blurb[:2*max_len])
+                new_text.append(blurb[:2*max_len] + "\n<human>:")
 
         if len(new_text) > len(text_list):
             print("Added %d new rows (before: %d)" % (len(new_text) - df.shape[0], df.shape[0]))
@@ -932,10 +932,10 @@ def test_assemble_and_detox():
         print("Dropped %d rows out of %d due to alt-profanity-check" % (before_rows - after_rows, before_rows))
         df_list.append(df)
         print("Done processing %s -> %s rows" % (data, df.shape[0]), flush=True)
-        print("So far have %d rows" % sum([len(x) for x  in df_list]))
+        print("So far have %d rows" % sum([len(x) for x in df_list]))
     df_final = pd.concat(df_list)
     df_final = df_final.sample(frac=1, random_state=1234).reset_index(drop=True)
-    df_final.to_parquet('h2oGPT.cleaned.human_bot.parquet', index=False)
+    df_final.to_parquet('h2oGPT.cleaned.human_bot.shorter.parquet', index=False)
 
 
 def test_basic_cleaning():
