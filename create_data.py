@@ -1247,6 +1247,7 @@ def test_grade():
         [False, False, False],
         [True, True, False],
         [True, False, False],
+        [True, False, True],
     ]
 )
 def test_add_open_assistant(fixup_personality, only_personality, deberta_grading, save_json=True):
