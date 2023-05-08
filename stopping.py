@@ -16,8 +16,8 @@ class StoppingCriteriaSub(StoppingCriteria):
             if torch.all((stop == input_ids[0][-len(stop):])).item():
                 self.num_stops[stopi] += 1
                 if self.num_stops[stopi] >= self.encounters[stopi % len(self.encounters)]:
-                    print("Stopped", flush=True)
-                    # return True
+                    # print("Stopped", flush=True)
+                    return True
         # print("Tokens: %s" % input_ids[0].cpu().numpy(), flush=True)
         # print("Stop Tokens: %s" % [x.cpu().numpy() for x in self.stops], flush=True)
         return False

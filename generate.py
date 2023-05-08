@@ -211,7 +211,7 @@ def main(
         if psutil.virtual_memory().available < 94*1024**3:
             # 12B uses ~94GB
             # 6.9B uses ~47GB
-            base_model = 'h2oai/h2ogpt-oig-oasst1-512-6.9b'
+            base_model = 'h2oai/h2ogpt-oig-oasst1-512-6.9b' if not base_model else base_model
 
     # get defaults
     model_lower = base_model.lower()
@@ -881,13 +881,17 @@ def evaluate(
     else:
         gen_kwargs.update(dict(pad_token_id=tokenizer.eos_token_id))
 
+    decoder_kwargs = dict(skip_special_tokens=True,
+                          clean_up_tokenization_spaces=True)
+
     decoder = functools.partial(tokenizer.decode,
-                                skip_special_tokens=True,
-                                clean_up_tokenization_spaces=True,
+                                **decoder_kwargs
                                 )
+    decoder_raw_kwargs = dict(skip_special_tokens=False,
+                          clean_up_tokenization_spaces=True)
+
     decoder_raw = functools.partial(tokenizer.decode,
-                                    skip_special_tokens=False,
-                                    clean_up_tokenization_spaces=True,
+                                    **decoder_raw_kwargs
                                     )
 
     with torch.no_grad():
@@ -915,14 +919,16 @@ def evaluate(
                     # some models specify special tokens that are part of normal prompt, so can't skip them
                     inputs_decoded = prompt = inputs_decoded_raw
                     decoder = decoder_raw
+                    decoder_kwargs = decoder_raw_kwargs
                 elif inputs_decoded_raw.replace("<unk> ", "").replace("<unk>", "").replace('\n', ' ').replace(' ', '') == prompt.replace('\n', ' ').replace(' ', ''):
                     inputs_decoded = prompt = inputs_decoded_raw
                     decoder = decoder_raw
+                    decoder_kwargs = decoder_raw_kwargs
                 else:
                     print("WARNING: Special characters in prompt", flush=True)
                 if stream_output:
                     skip_prompt = False
-                    streamer = H2OTextIteratorStreamer(tokenizer, skip_prompt=skip_prompt, block=False)
+                    streamer = H2OTextIteratorStreamer(tokenizer, skip_prompt=skip_prompt, block=False, **decoder_kwargs)
                     gen_kwargs.update(dict(streamer=streamer))
                     target_func = generate_with_exceptions
                     target = wrapped_partial(generate_with_exceptions, model.generate, prompt, inputs_decoded,
