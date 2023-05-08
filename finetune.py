@@ -838,7 +838,7 @@ Current Time: {}
             PreResponse = bot
 
         terminate_response = [start, PreResponse]
-        chat_sep = '<human>:\n'
+        chat_sep = '\n'
     elif prompt_type in [3, "3", "dai_faq"]:
         promptA = ''
         promptB = 'Answer the following Driverless AI question.\n'
