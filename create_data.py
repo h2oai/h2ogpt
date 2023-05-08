@@ -1726,6 +1726,8 @@ def test_check_unhelpful():
 def test_fortune2000_personalized():
     row_list = []
     import glob
+    if not os.path.isdir("wikitext"):
+        raise RuntimeError("download https://github.com/h2oai/h2ogpt/files/11423008/wikitext.zip and unzip")
     for file in glob.glob("wikitext/*.txt"):
         with open(file, "r") as f:
             blob = f.read()
