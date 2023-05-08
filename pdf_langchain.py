@@ -9,13 +9,18 @@ from typing import Optional, List, Mapping, Any
 import pandas as pd
 import requests
 from langchain.chains.qa_with_sources import load_qa_with_sources_chain
-from langchain.document_loaders import PyPDFLoader
+from langchain.document_loaders import PyPDFLoader, TextLoader, DirectoryLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter, CharacterTextSplitter
 from langchain.vectorstores import FAISS
 from langchain.chains.question_answering import load_qa_chain
-from langchain.chains import ConversationalRetrievalChain
+from langchain.chains import ConversationalRetrievalChain, RetrievalQA
 from langchain.docstore.document import Document
 from langchain.llms.base import LLM
+
+# FIXME:
+#from langchain.vectorstores import Milvus
+
+from langchain.vectorstores import Chroma
 
 # https://python.langchain.com/en/latest/modules/models/llms/examples/llm_caching.html
 # from langchain.cache import InMemoryCache
@@ -31,7 +36,7 @@ except Exception as e:
     print("NO caching: %s" % str(e), flush=True)
 
 
-def get_db(path=None, pdf_filename=None, split_method='chunk', use_openai_embedding=False):
+def get_db(path=None, pdf_filename=None, split_method='chunk', use_openai_embedding=False, db_type='faiss', persist_directory="db_dir"):
     # get chunks of data to handle model context
     chunks = get_chunks(path=path, pdf_filename=pdf_filename, split_method=split_method)
 
@@ -39,7 +44,15 @@ def get_db(path=None, pdf_filename=None, split_method='chunk', use_openai_embedd
     embedding = get_embedding(use_openai_embedding)
 
     # Create vector database
-    db = FAISS.from_documents(chunks, embedding)
+    if db_type == 'faiss':
+        db = FAISS.from_documents(chunks, embedding)
+    elif db_type == 'chroma':
+        os.makedirs(persist_directory, exist_ok=True)
+        db = Chroma.from_documents(documents=chunks, embedding=embedding, persist_directory=persist_directory)
+        db.persist()
+        db = Chroma(persist_directory=persist_directory, embedding_function=embedding)
+    else:
+        raise RuntimeError("No such db_type=%s" % db_type)
 
     return db
 
@@ -154,7 +167,7 @@ def get_llm(use_openai_model=False):
         device, torch_dtype, context_class = get_device_dtype()
 
         with context_class(device):
-            load_8bit = False
+            load_8bit = True
             # FIXME: for now not to spread across hetero GPUs
             # device_map={"": 0} if load_8bit and device == 'cuda' else "auto"
             device_map = {"": 0} if device == 'cuda' else "auto"
@@ -212,7 +225,7 @@ def get_llm_chain(llm, model_name):
     return chain
 
 
-def get_answer_from_db(db, query, sources=False, chat_history='', use_openai_model=False, k=4, chat=True):
+def get_answer_from_db(db, query, sources=False, chat_history='', use_openai_model=False, k=4, chat=True, use_chain_ret=False):
     # Check similarity search is working
     # docs = db.similarity_search(query, k=k)
     # print(docs[0])
@@ -258,6 +271,15 @@ def get_answer_from_db(db, query, sources=False, chat_history='', use_openai_mod
         # [x.page_content for x in docs if 'Illia' in x.page_content]
         result = qa({"question": query, "chat_history": chat_history})
         answer = result['answer']
+    elif use_chain_ret:
+        qa_chain = RetrievalQA.from_chain_type(llm=llm, chain_type='stuff', retriever=db.as_retriever(),
+                                               return_source_documents=True)
+        llm_response = qa_chain(query)
+        answer = llm_response['result']
+        answer += "Sources\n"
+        for source in llm_response["source_documents"]:
+            if 'source' in source.metadata:
+                answer += source.metadata['source']
     else:
         answer = chain(
             {
@@ -507,7 +529,7 @@ def test_demo_hf():
     return run_demo(use_openai_model=False, use_openai_embedding=False)
 
 
-def run_demo(use_openai_model=False, use_openai_embedding=False):
+def run_demo(use_openai_model=False, use_openai_embedding=False, chat=True, use_chain_ret=False):
     # quick test
     pdf_filename = '1706.03762.pdf'
     if not os.path.isfile(pdf_filename):
@@ -517,8 +539,13 @@ def run_demo(use_openai_model=False, use_openai_embedding=False):
         os.rename('1706.03762', '1706.03762.pdf')
     db = get_db(pdf_filename=pdf_filename, split_method='chunk', use_openai_embedding=use_openai_embedding)
     query = "Who created transformers?"
-    answer = get_answer_from_db(db, query, chat_history='', use_openai_model=use_openai_model, k=4)
+    answer = get_answer_from_db(db, query, chat_history='', use_openai_model=use_openai_model, k=4, chat=chat, use_chain_ret=use_chain_ret)
     print(answer)
+
+
+def test_demo2_hf():
+    return run_demo(use_openai_model=False, use_openai_embedding=False, chat=False, use_chain_ret=True)
+
 
 
 if __name__ == '__main__':

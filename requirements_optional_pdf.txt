@@ -12,6 +12,11 @@ sentence_transformers==2.2.2
 # for OpenAI embeddings (requires key)
 openai==0.27.6
 
+# local vector db
+chromadb==0.3.22
+# server vector db
+#pymilvus==2.2.8
+
 # to check licenses
 # Run: pip-licenses|grep -v 'BSD\|Apache\|MIT'
 pip-licenses==4.3.0
