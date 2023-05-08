@@ -118,7 +118,7 @@ def get_sentences(blob, length):
         else:
             my_sentences.append(my_string)
             my_string = ""
-    return my_sentences
+    return my_sentences or [my_string]
 
 
 def test_scrape_dai_docs_all_pandoc():
