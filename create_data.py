@@ -255,15 +255,15 @@ def test_config_to_json():
                 [
                     {
                         'prompt_type': 'plain',
-                        'instruction': f"<human>: What does {k} do? <bot>: {k.replace('_', ' ')} config.toml:  {comment or title}".replace("\n", ""),
+                        'instruction': f"<human>: What does {k} do?<bot>: {k.replace('_', ' ')} config.toml:  {comment or title}<human>:".replace("\n", ""),
                     },
                     {
                         'prompt_type': 'plain',
-                        'instruction': f"<human>: Explain {k}. <bot>: {k.replace('_', ' ')} config.toml:  {comment or title}".replace("\n", ""),
+                        'instruction': f"<human>: Explain {k}.<bot>: {k.replace('_', ' ')} config.toml:  {comment or title}<human>:".replace("\n", ""),
                     },
                     {
                         'prompt_type': 'plain',
-                        'instruction': f"<human>: How can I do this: {title}. <bot>: Set the {k.replace('_', ' ')} config.toml".replace("\n", ""),
+                        'instruction': f"<human>: How can I do this: {title}.<bot>: Set the {k.replace('_', ' ')} config.toml<human>:".replace("\n", ""),
                     } if title and comment else None,
                     {
                         'prompt_type': 'human_bot',
@@ -1253,7 +1253,7 @@ def test_add_open_assistant(fixup_personality, only_personality, deberta_grading
     """
     Flatten tree structure into one row per path from root to leaf
     Also turn into human_bot prompting format:
-        <human>: question <bot>: answer <human>: question2 <bot>: answer2 Etc.
+        <human>: question<bot>: answer <human>: question2<bot>: answer2 Etc.
     Also saves a .json locally as side-effect
     returns list of dicts, containing intput, prompt_type and source
     """
