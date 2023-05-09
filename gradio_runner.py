@@ -921,7 +921,8 @@ def go_gradio(**kwargs):
     scheduler.start()
 
     demo.launch(share=kwargs['share'], server_name="0.0.0.0", show_error=True,
-                favicon_path=favicon_path, prevent_thread_lock=True)  # , enable_queue=True)
+                favicon_path=favicon_path, prevent_thread_lock=True,
+                auth=kwargs['auth'])
     print("Started GUI", flush=True)
     if kwargs['block_gradio_exit']:
         demo.block_thread()
