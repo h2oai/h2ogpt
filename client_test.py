@@ -77,9 +77,9 @@ def get_args(prompt, prompt_type, chat=False):
                          instruction_nochat=prompt if not chat else '',
                          iinput_nochat='',  # only for chat=False
                          )
-    #if chat:
-    #    # add chatbot output on end.  Assumes serialize=False
-    #    kwargs.update(dict(chatbot=''))
+    if chat:
+        # add chatbot output on end.  Assumes serialize=False
+        kwargs.update(dict(chatbot=[['', None]]))
 
     return kwargs, list(kwargs.values())
 
