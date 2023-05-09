@@ -590,8 +590,8 @@ def train(
         tokenizer=tokenizer,
         train_dataset=train_data,
         eval_dataset=valid_data,
-        # NOTE: CausalLM is not supporting Seq2SeqTrainingArguments arguments, but not incompatible
-        args=transformers.Seq2SeqTrainingArguments(
+        # FIXME: might need Seq2SeqTrainingArguments for some models
+        args=transformers.TrainingArguments(
             per_device_train_batch_size=micro_batch_size,
             per_device_eval_batch_size=1,
             eval_accumulation_steps=10,
