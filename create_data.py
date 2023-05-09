@@ -1751,10 +1751,14 @@ def test_fortune2000_personalized():
         row_list.extend([{'input': s, 'prompt_type': 'plain', 'source': "%s" % os.path.basename(file)}
                          for s in get_sentences(blob, N)])
     personality = create_personality_data()
-    row_list.extend(personality * 10)
+    import copy
+    for i in range(10):
+        row_list.extend(copy.deepcopy(personality))
     np.random.seed(123)
     np.random.shuffle(row_list)
     for i in range(len(row_list)):
         row_list[i]['id'] = i
+    for i in range(len(row_list)):
+        assert row_list[i]['id'] == i
     with open("fortune2000_personalized.json", "w") as ff:
         ff.write(json.dumps(row_list, indent=2))
