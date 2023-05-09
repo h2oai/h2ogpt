@@ -86,7 +86,7 @@ from datasets import load_dataset
         (
                 "h2ogpt-fortune2000-personalized",
                 """
-- [Fortune 2000 companies from Wikipedia](https://github.com/h2oai/h2ogpt/blob/53342bfa412222aeabd2d97163a9a94755c1664d/create_data.py#L1742)
+- [Fortune 2000 companies from Wikipedia](https://github.com/h2oai/h2ogpt/blob/b1ea74c0088884ebff97f1ccddbfb3f393e29e44/create_data.py#L1743)
 """
         ),
     ],
