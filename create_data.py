@@ -1452,6 +1452,7 @@ def test_finalize_to_json():
     row_list = [x for x in row_list if not any(u in x['input'] for u in unhelpful)]
     for i in range(len(row_list)):
         row_list[i]['id'] = i
+        row_list[i]['input'] = row_list[i]['input'].replace(" <bot>:", "\n<bot>:")
     with open('h2ogpt-oig-oasst1-instruct-cleaned-v3.json', "w") as f:
         f.write(json.dumps(row_list, indent=2))
 
