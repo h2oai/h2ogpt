@@ -6,6 +6,7 @@ import tempfile
 from abc import ABC
 from typing import Optional, List, Mapping, Any
 
+import numpy as np
 import pandas as pd
 import requests
 from langchain.chains.qa_with_sources import load_qa_with_sources_chain
@@ -472,6 +473,19 @@ def test_qa_daidocs_db_chunk_hf():
                      dai_rst=True)
 
 
+def test_qa_daidocs_db_chunk_hf_chroma():
+    # FIXME: doesn't work well with non-instruct-tuned Cerebras
+    query = "Which config.toml enables pytorch for NLP?"
+    # chunk_size is chars for each of k=4 chunks
+    return run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=None, chunk=True,
+                     chunk_size=128, # *4
+                     wiki=False,
+                     dai_rst=True,
+                     #db_type='chroma',
+                     db_type='faiss',
+                     )
+
+
 def test_qa_daidocs_db_chunk_openai():
     query = "Which config.toml enables pytorch for NLP?"
     return run_qa_db(query=query, use_openai_model=True, use_openai_embedding=True, text_limit=256, chunk=True,
@@ -488,7 +502,8 @@ def run_qa_db(query=None, use_openai_model=False, use_openai_embedding=False,
               first_para=True, text_limit=None, k=4, chunk=False, chunk_size=1024,
               wiki=False, github=False, dai_rst=False,
               pdf_filename=None, split_method='chunk',
-              texts_folder=None):
+              texts_folder=None,
+              db_type='faiss'):
     # see https://dagster.io/blog/chatgpt-langchain
     if wiki:
         sources = get_wiki_sources(first_para=first_para, text_limit=text_limit)
@@ -511,28 +526,35 @@ def run_qa_db(query=None, use_openai_model=False, use_openai_embedding=False,
     if chunk:
         # allows handling full docs if passed first_para=False
         # NLTK and SPACY can be used instead
-        if True:
+        if False:
             text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=0)
+            # doesn't preserve source
             sources = text_splitter.split_documents(sources)
         else:
             source_chunks = []
             # Below for known separator
-            # splitter = CharacterTextSplitter(separator=" ", chunk_size=chunk_size, chunk_overlap=0)
+            #splitter = CharacterTextSplitter(separator=" ", chunk_size=chunk_size, chunk_overlap=0)
+            splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=0)
             for source in sources:
+                # print(source.metadata['source'], flush=True)
                 for chunky in splitter.split_text(source.page_content):
                     source_chunks.append(Document(page_content=chunky, metadata=source.metadata))
             sources = source_chunks
 
     llm, model_name = get_llm(use_openai_model=use_openai_model)
-    # llm = get_llm_chain(llm, model_name)
-    # prompt = get_llm_prompt(model_name)
-    embedding = get_embedding(use_openai_embedding)
-    db = FAISS.from_documents(sources, embedding)
+    db = get_db(sources, use_openai_embedding=use_openai_embedding, db_type=db_type)
     chain = load_qa_with_sources_chain(llm)
 
     if query is None:
         query = "What are the main differences between Linux and Windows?"
-    docs = db.similarity_search(query, k=k)
+    # https://github.com/hwchase17/langchain/issues/1946
+    k_db = 1000 if db_type == 'chroma' else k  # k=100 works ok too for
+
+    docs_with_score = db.similarity_search_with_score(query, k=k_db)[:k]
+    docs = [x[0] for x in docs_with_score]
+    scores = [x[1] for x in docs_with_score]
+    print("Distance: min: %s max: %s mean: %s median: %s" %
+          (scores[0], scores[-1], np.mean(scores), np.median(scores)), flush=True)
 
     answer = chain(
         {
