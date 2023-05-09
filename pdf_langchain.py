@@ -588,6 +588,7 @@ def run_qa_db(query=None, use_openai_model=False, use_openai_embedding=False,
         },
     )
 
+    print("query: %s" % query, flush=True)
     print("answer: %s" % answer['output_text'], flush=True)
     answer_sources = [x.metadata['source'] for x in answer['input_documents']]
     print("sources: %s" % answer_sources, flush=True)
