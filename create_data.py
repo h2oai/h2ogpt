@@ -113,8 +113,11 @@ def get_sentences(blob, length):
     my_sentences = []
     my_string = ""
     for sentence in sentences:
-        if len(my_string) < length:
-            my_string += " " + sentence
+        if len(my_string) + len(sentence) <= length:
+            if my_string:
+                my_string += " " + sentence
+            else:
+                my_string = sentence
         else:
             my_sentences.append(my_string)
             my_string = ""
