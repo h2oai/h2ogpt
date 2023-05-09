@@ -18,7 +18,7 @@ from langchain.docstore.document import Document
 from langchain.llms.base import LLM
 
 # FIXME:
-#from langchain.vectorstores import Milvus
+# from langchain.vectorstores import Milvus
 
 from langchain.vectorstores import Chroma
 
@@ -154,12 +154,12 @@ def get_llm(use_openai_model=False):
     else:
         from transformers import AutoTokenizer, AutoModelForCausalLM
 
-        #model_name = "cerebras/Cerebras-GPT-2.7B"
+        # model_name = "cerebras/Cerebras-GPT-2.7B"
         # model_name = "cerebras/Cerebras-GPT-13B"
         # model_name = "cerebras/Cerebras-GPT-6.7B"
         model_name = 'h2oai/h2ogpt-oasst1-512-12b'
-        #model_name = 'h2oai/h2ogpt-oig-oasst1-512-6.9b'
-        #model_name = 'h2oai/h2ogpt-oasst1-512-20b'
+        # model_name = 'h2oai/h2ogpt-oig-oasst1-512-6.9b'
+        # model_name = 'h2oai/h2ogpt-oasst1-512-20b'
         tokenizer = AutoTokenizer.from_pretrained(model_name)
         device, torch_dtype, context_class = get_device_dtype()
 
@@ -174,8 +174,9 @@ def get_llm(use_openai_model=False):
                                                          load_in_8bit=load_8bit)
             if 'h2ogpt' in model_name:
                 from h2oai_pipeline import H2OTextGenerationPipeline
-                pipe = H2OTextGenerationPipeline(model=model, tokenizer=tokenizer, max_new_tokens=256, return_full_text=True)
-                #pipe.task = "text-generation"
+                pipe = H2OTextGenerationPipeline(model=model, tokenizer=tokenizer, max_new_tokens=256,
+                                                 return_full_text=True)
+                # pipe.task = "text-generation"
                 # below makes it listen only to our prompt removal, not built in prompt removal that is less general and not specific for our model
                 pipe.task = "text2text-generation"
             else:
@@ -222,7 +223,8 @@ def get_llm_chain(llm, model_name):
     return chain
 
 
-def get_answer_from_db(db, query, sources=False, chat_history='', use_openai_model=False, k=4, chat=True, use_chain_ret=False):
+def get_answer_from_db(db, query, sources=False, chat_history='', use_openai_model=False, k=4, chat=True,
+                       use_chain_ret=False):
     # Check similarity search is working
     # docs = db.similarity_search(query, k=k)
     # print(docs[0])
@@ -273,10 +275,15 @@ def get_answer_from_db(db, query, sources=False, chat_history='', use_openai_mod
                                                return_source_documents=True)
         llm_response = qa_chain(query)
         answer = llm_response['result']
-        answer += "Sources\n"
+        sources = ''
         for source in llm_response["source_documents"]:
             if 'source' in source.metadata:
-                answer += source.metadata['source']
+                sources += source.metadata['source']
+        if sources:
+            sources = "\nSources\n" + sources
+        else:
+            sources = "\n No Sources\n"
+        answer += sources
     else:
         answer = chain(
             {
@@ -440,35 +447,41 @@ def test_qa_wiki_db_hf():
 
 
 def test_qa_wiki_db_chunk_hf():
-    return run_qa_db(use_openai_model=False, use_openai_embedding=False, text_limit=256, chunk=True, chunk_size=256, wiki=True)
+    return run_qa_db(use_openai_model=False, use_openai_embedding=False, text_limit=256, chunk=True, chunk_size=256,
+                     wiki=True)
 
 
 def test_qa_wiki_db_chunk_openai():
     # don't need 256, just seeing how compares to hf
-    return run_qa_db(use_openai_model=True, use_openai_embedding=True, text_limit=256, chunk=True, chunk_size=256, wiki=True)
+    return run_qa_db(use_openai_model=True, use_openai_embedding=True, text_limit=256, chunk=True, chunk_size=256,
+                     wiki=True)
 
 
 def test_qa_github_db_chunk_openai():
     # don't need 256, just seeing how compares to hf
     query = "what is a software defined asset"
-    return run_qa_db(query=query, use_openai_model=True, use_openai_embedding=True, text_limit=256, chunk=True, chunk_size=256, github=True)
+    return run_qa_db(query=query, use_openai_model=True, use_openai_embedding=True, text_limit=256, chunk=True,
+                     chunk_size=256, github=True)
 
 
 def test_qa_daidocs_db_chunk_hf():
     # FIXME: doesn't work well with non-instruct-tuned Cerebras
     query = "Which config.toml enables pytorch for NLP?"
-    return run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=None, chunk=True, chunk_size=128, wiki=False,
+    return run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=None, chunk=True,
+                     chunk_size=128, wiki=False,
                      dai_rst=True)
 
 
 def test_qa_daidocs_db_chunk_openai():
     query = "Which config.toml enables pytorch for NLP?"
-    return run_qa_db(query=query, use_openai_model=True, use_openai_embedding=True, text_limit=256, chunk=True, chunk_size=256, wiki=False, dai_rst=True)
+    return run_qa_db(query=query, use_openai_model=True, use_openai_embedding=True, text_limit=256, chunk=True,
+                     chunk_size=256, wiki=False, dai_rst=True)
 
 
 def test_qa_daidocs_db_chunk_openaiembedding_hfmodel():
     query = "Which config.toml enables pytorch for NLP?"
-    return run_qa_db(query=query, use_openai_model=False, use_openai_embedding=True, text_limit=None, chunk=True, chunk_size=128, wiki=False, dai_rst=True)
+    return run_qa_db(query=query, use_openai_model=False, use_openai_embedding=True, text_limit=None, chunk=True,
+                     chunk_size=128, wiki=False, dai_rst=True)
 
 
 def run_qa_db(query=None, use_openai_model=False, use_openai_embedding=False,
@@ -488,6 +501,7 @@ def run_qa_db(query=None, use_openai_model=False, use_openai_embedding=False,
     elif pdf_filename:
         sources = pdf_to_sources(pdf_filename=pdf_filename, split_method=split_method)
     elif texts_folder:
+        # FIXME: Can be any loader types
         loader = DirectoryLoader(texts_folder, glob="./*.txt", loader_cls=TextLoader)
         sources = loader.load()
     else:
@@ -510,8 +524,8 @@ def run_qa_db(query=None, use_openai_model=False, use_openai_embedding=False,
             sources = source_chunks
 
     llm, model_name = get_llm(use_openai_model=use_openai_model)
-    #llm = get_llm_chain(llm, model_name)
-    #prompt = get_llm_prompt(model_name)
+    # llm = get_llm_chain(llm, model_name)
+    # prompt = get_llm_prompt(model_name)
     embedding = get_embedding(use_openai_embedding)
     db = FAISS.from_documents(sources, embedding)
     chain = load_qa_with_sources_chain(llm)
@@ -538,7 +552,7 @@ def test_demo_hf():
     return run_demo(use_openai_model=False, use_openai_embedding=False)
 
 
-def run_demo(use_openai_model=False, use_openai_embedding=False, chat=True, use_chain_ret=False):
+def run_demo(use_openai_model=False, use_openai_embedding=False, chat=True, use_chain_ret=False, db_type='faiss'):
     # quick test
     pdf_filename = '1706.03762.pdf'
     if not os.path.isfile(pdf_filename):
@@ -547,7 +561,7 @@ def run_demo(use_openai_model=False, use_openai_embedding=False, chat=True, use_
         os.system("wget --user-agent TryToStopMeFromUsingWgetNow https://arxiv.org/pdf/1706.03762")
         os.rename('1706.03762', '1706.03762.pdf')
     sources = pdf_to_sources(pdf_filename=pdf_filename, split_method='chunk')
-    db = get_db(sources, use_openai_embedding=use_openai_embedding)
+    db = get_db(sources, use_openai_embedding=use_openai_embedding, db_type=db_type)
     query = "Who created transformers?"
     answer = get_answer_from_db(db, query, chat_history='', use_openai_model=use_openai_model, k=4,
                                 chat=chat, use_chain_ret=use_chain_ret)
@@ -555,8 +569,8 @@ def run_demo(use_openai_model=False, use_openai_embedding=False, chat=True, use_
 
 
 def test_demo2_hf():
-    return run_demo(use_openai_model=False, use_openai_embedding=False, chat=False, use_chain_ret=True)
-
+    return run_demo(use_openai_model=False, use_openai_embedding=False, chat=False, use_chain_ret=True,
+                    db_type='chroma')
 
 
 if __name__ == '__main__':
