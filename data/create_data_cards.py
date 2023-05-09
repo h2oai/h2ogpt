@@ -60,10 +60,33 @@ from datasets import load_dataset
 """
         ),
         (
+                "h2ogpt-oig-oasst1-instruct-cleaned-v3",
+                """
+- [Original LAION OIG Dataset](https://github.com/LAION-AI/Open-Instruction-Generalist)
+- [LAION OIG data detoxed and filtered down by scripts in h2oGPT repository](https://github.com/h2oai/h2ogpt/blob/main/FINETUNE.md#high-quality-oig-based-instruct-data)
+
+- [Original Open Assistant data in tree structure](https://huggingface.co/datasets/OpenAssistant/oasst1)
+- [This flattened dataset created by script in h2oGPT repository](https://github.com/h2oai/h2ogpt/blob/f140a61dc017c6311bc8df37eaa79d31934b44df/create_data.py#L1415)
+"""
+        ),
+        (
                 "openassistant_oasst1_h2ogpt",
                 """
 - [Original Open Assistant data in tree structure](https://huggingface.co/datasets/OpenAssistant/oasst1)
 - [This flattened dataset created by script in h2oGPT repository](https://github.com/h2oai/h2ogpt/blob/83857fcf7d3b712aad5db32207e6db0ab0f780f9/create_data.py#L1252)
+"""
+        ),
+        (
+                "openassistant_oasst1_h2ogpt_graded",
+                """
+- [Original Open Assistant data in tree structure](https://huggingface.co/datasets/OpenAssistant/oasst1)
+- [This flattened dataset created by script in h2oGPT repository](https://github.com/h2oai/h2ogpt/blob/d1f8ce975a46056d41135d126dd33de8499aa26e/create_data.py#L1259)
+"""
+        ),
+        (
+                "fortune2000_personalized",
+                """
+- [Fortune 2000 companies from Wikipedia](https://github.com/h2oai/h2ogpt/blob/f140a61dc017c6311bc8df37eaa79d31934b44df/create_data.py#L1742)
 """
         ),
     ],
