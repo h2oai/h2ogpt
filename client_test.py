@@ -44,7 +44,7 @@ import os
 os.environ['HF_HUB_DISABLE_TELEMETRY'] = '1'
 
 
-def get_client(serialize=False):
+def get_client(serialize=True):
     from gradio_client import Client
 
     client = Client(os.getenv('HOST', "http://localhost:7860"), serialize=serialize)
@@ -77,19 +77,22 @@ def get_args(prompt, prompt_type, chat=False):
                          instruction_nochat=prompt if not chat else '',
                          iinput_nochat='',  # only for chat=False
                          )
+    #if chat:
+    #    # add chatbot output on end.  Assumes serialize=False
+    #    kwargs.update(dict(chatbot=''))
 
     return kwargs, list(kwargs.values())
 
 
 def test_client_basic():
-    return run_client_basic(prompt='Who are you?', prompt_type='human_bot')
+    return run_client_nochat(prompt='Who are you?', prompt_type='human_bot')
 
 
-def run_client_basic(prompt, prompt_type, chat=False):
-    kwargs, args = get_args(prompt, prompt_type, chat=chat)
+def run_client_nochat(prompt, prompt_type):
+    kwargs, args = get_args(prompt, prompt_type, chat=False)
 
     api_name = '/submit_nochat'
-    client = get_client()
+    client = get_client(serialize=True)
     res = client.predict(
         *tuple(args),
         api_name=api_name,
@@ -104,11 +107,11 @@ def test_client_chat():
     return run_client_chat(prompt='Who are you?', prompt_type='human_bot')
 
 
-def run_client_chat(prompt, prompt_type, chat=True):
-    kwargs, args = get_args(prompt, prompt_type, chat=chat)
+def run_client_chat(prompt, prompt_type):
+    kwargs, args = get_args(prompt, prompt_type, chat=True)
 
     api_name = '/instruction'
-    client = get_client()
+    client = get_client(serialize=False)
     if not kwargs['stream_output']:
         for res in client.predict(
                 *tuple(args),
