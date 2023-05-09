@@ -1414,12 +1414,8 @@ def test_finalize_to_json():
     print("Number of high-quality human_bot interactions: %s" % df.shape[0], flush=True)
 
     print("Adding open assistant data")
-    open_assistant = test_add_open_assistant(
-        fixup_personality=True,  # False was original version, but it's better to personalize, so now using True
-        only_personality=False,
-        save_json=True,
-        deberta_grading=True,
-    )
+    with open("openassistant_oasst1_h2ogpt_graded.json") as f:
+        open_assistant = json.loads(f.read())
     df = pd.concat([df, pd.DataFrame(open_assistant)], axis=0)
 
     def final_clean(df):
