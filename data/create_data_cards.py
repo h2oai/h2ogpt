@@ -84,16 +84,16 @@ from datasets import load_dataset
 """
         ),
         (
-                "fortune2000_personalized",
+                "h2ogpt-fortune2000-personalized",
                 """
-- [Fortune 2000 companies from Wikipedia](https://github.com/h2oai/h2ogpt/blob/f140a61dc017c6311bc8df37eaa79d31934b44df/create_data.py#L1742)
+- [Fortune 2000 companies from Wikipedia](https://github.com/h2oai/h2ogpt/blob/53342bfa412222aeabd2d97163a9a94755c1664d/create_data.py#L1742)
 """
         ),
     ],
 )
 def test_create_data_cards(dataset_name, link_to_source):
-    # if dataset_name != "h2ogpt-oig-oasst1-instruct-cleaned-v3":
-    #     return
+    if dataset_name != "h2ogpt-fortune2000-personalized":
+        return
     #
     assert os.path.exists("README-template.md"), "must be running this test from the data dir."
     shutil.rmtree(dataset_name, ignore_errors=True)
