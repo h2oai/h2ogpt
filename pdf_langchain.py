@@ -497,16 +497,25 @@ def test_qa_daidocs_db_chunk_hf():
                      dai_rst=True)
 
 
-def test_qa_daidocs_db_chunk_hf_chroma():
-    # FIXME: doesn't work well with non-instruct-tuned Cerebras
+def test_qa_daidocs_db_chunk_hf_faiss():
     query = "Which config.toml enables pytorch for NLP?"
     # chunk_size is chars for each of k=4 chunks
     return run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=None, chunk=True,
-                     chunk_size=128, # *4
+                     chunk_size=128*1,  # characters, and if k=4, then 4*4*128 = 2048 chars ~ 512 tokens
                      wiki=False,
                      dai_rst=True,
-                     #db_type='chroma',
                      db_type='faiss',
+                     )
+
+
+def test_qa_daidocs_db_chunk_hf_chroma():
+    query = "Which config.toml enables pytorch for NLP?"
+    # chunk_size is chars for each of k=4 chunks
+    return run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=None, chunk=True,
+                     chunk_size=128*1,  # characters, and if k=4, then 4*4*128 = 2048 chars ~ 512 tokens
+                     wiki=False,
+                     dai_rst=True,
+                     db_type='chroma',
                      )
 
 
