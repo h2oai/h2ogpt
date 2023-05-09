@@ -1751,5 +1751,7 @@ def test_fortune2000_personalized():
     row_list.extend(personality * 10)
     np.random.seed(123)
     np.random.shuffle(row_list)
+    for i in range(len(row_list)):
+        row_list[i]['id'] = i
     with open("fortune2000_personalized.json", "w") as ff:
         ff.write(json.dumps(row_list, indent=2))
