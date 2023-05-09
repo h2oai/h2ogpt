@@ -36,19 +36,16 @@ except Exception as e:
     print("NO caching: %s" % str(e), flush=True)
 
 
-def get_db(path=None, pdf_filename=None, split_method='chunk', use_openai_embedding=False, db_type='faiss', persist_directory="db_dir"):
-    # get chunks of data to handle model context
-    chunks = get_chunks(path=path, pdf_filename=pdf_filename, split_method=split_method)
-
+def get_db(sources, use_openai_embedding=False, db_type='faiss', persist_directory="db_dir"):
     # get embedding model
     embedding = get_embedding(use_openai_embedding)
 
     # Create vector database
     if db_type == 'faiss':
-        db = FAISS.from_documents(chunks, embedding)
+        db = FAISS.from_documents(sources, embedding)
     elif db_type == 'chroma':
         os.makedirs(persist_directory, exist_ok=True)
-        db = Chroma.from_documents(documents=chunks, embedding=embedding, persist_directory=persist_directory)
+        db = Chroma.from_documents(documents=sources, embedding=embedding, persist_directory=persist_directory)
         db.persist()
         db = Chroma(persist_directory=persist_directory, embedding_function=embedding)
     else:
@@ -57,7 +54,7 @@ def get_db(path=None, pdf_filename=None, split_method='chunk', use_openai_embedd
     return db
 
 
-def get_chunks(path=None, pdf_filename=None, split_method='chunk'):
+def pdf_to_sources(pdf_filename=None, split_method='chunk'):
     if split_method == 'page':
         # Simple method - Split by pages
         loader = PyPDFLoader(pdf_filename)
@@ -476,7 +473,9 @@ def test_qa_daidocs_db_chunk_openaiembedding_hfmodel():
 
 def run_qa_db(query=None, use_openai_model=False, use_openai_embedding=False,
               first_para=True, text_limit=None, k=4, chunk=False, chunk_size=1024,
-              wiki=False, github=False, dai_rst=False):
+              wiki=False, github=False, dai_rst=False,
+              pdf_filename=None, split_method='chunk',
+              texts_folder=None):
     # see https://dagster.io/blog/chatgpt-langchain
     if wiki:
         sources = get_wiki_sources(first_para=first_para, text_limit=text_limit)
@@ -486,19 +485,29 @@ def run_qa_db(query=None, use_openai_model=False, use_openai_embedding=False,
     elif dai_rst:
         home = os.path.expanduser('~')
         sources = get_rst_docs(os.path.join(home, "h2oai.superclean/docs/"))
+    elif pdf_filename:
+        sources = pdf_to_sources(pdf_filename=pdf_filename, split_method=split_method)
+    elif texts_folder:
+        loader = DirectoryLoader(texts_folder, glob="./*.txt", loader_cls=TextLoader)
+        sources = loader.load()
     else:
         raise RuntimeError("No input data set")
     assert sources, "No sources"
 
     if chunk:
         # allows handling full docs if passed first_para=False
-        source_chunks = []
         # NLTK and SPACY can be used instead
-        splitter = CharacterTextSplitter(separator=" ", chunk_size=chunk_size, chunk_overlap=0)
-        for source in sources:
-            for chunky in splitter.split_text(source.page_content):
-                source_chunks.append(Document(page_content=chunky, metadata=source.metadata))
-        sources = source_chunks
+        if True:
+            text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=0)
+            sources = text_splitter.split_documents(sources)
+        else:
+            source_chunks = []
+            # Below for known separator
+            # splitter = CharacterTextSplitter(separator=" ", chunk_size=chunk_size, chunk_overlap=0)
+            for source in sources:
+                for chunky in splitter.split_text(source.page_content):
+                    source_chunks.append(Document(page_content=chunky, metadata=source.metadata))
+            sources = source_chunks
 
     llm, model_name = get_llm(use_openai_model=use_openai_model)
     #llm = get_llm_chain(llm, model_name)
@@ -537,9 +546,11 @@ def run_demo(use_openai_model=False, use_openai_embedding=False, chat=True, use_
             os.remove('1706.03762')
         os.system("wget --user-agent TryToStopMeFromUsingWgetNow https://arxiv.org/pdf/1706.03762")
         os.rename('1706.03762', '1706.03762.pdf')
-    db = get_db(pdf_filename=pdf_filename, split_method='chunk', use_openai_embedding=use_openai_embedding)
+    sources = pdf_to_sources(pdf_filename=pdf_filename, split_method='chunk')
+    db = get_db(sources, use_openai_embedding=use_openai_embedding)
     query = "Who created transformers?"
-    answer = get_answer_from_db(db, query, chat_history='', use_openai_model=use_openai_model, k=4, chat=chat, use_chain_ret=use_chain_ret)
+    answer = get_answer_from_db(db, query, chat_history='', use_openai_model=use_openai_model, k=4,
+                                chat=chat, use_chain_ret=use_chain_ret)
     print(answer)
 
 
