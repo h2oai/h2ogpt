@@ -84,6 +84,7 @@ def main(
         api_open: bool = False,
         allow_api: bool = True,
         input_lines: int = 1,
+        auth: typing.List[typing.Tuple[str, str]] = None,
 
         sanitize_user_prompt: bool = True,
         sanitize_bot_response: bool = True,
@@ -145,6 +146,8 @@ def main(
     :param api_open: If False, don't let API calls skip gradio queue
     :param allow_api: whether to allow API calls at all to gradio server
     :param input_lines: how many input lines to show for chat box (>1 forces shift-enter for submit, else enter is submit)
+    :param auth: gradio auth for launcher in form [(user1, pass1), (user2, pass2), ...]
+                 e.g. --auth=[('jon','password')] with no spaces
     :param sanitize_user_prompt: whether to remove profanity from user input
     :param sanitize_bot_response: whether to remove profanity and repeat lines from bot output
     :param extra_model_options: extra models to show in list in gradio
