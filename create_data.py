@@ -1750,7 +1750,7 @@ def test_fortune2000_personalized():
             blob = f.read()
         N = 512 * 4
         row_list.extend([{'input': s, 'prompt_type': 'plain', 'source': "%s" % os.path.basename(file)}
-                         for s in get_sentences(blob, N)])
+                         for s in get_sentences(blob, N) if s])
     personality = create_personality_data()
     import copy
     for i in range(10):
