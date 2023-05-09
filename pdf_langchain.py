@@ -405,6 +405,30 @@ def get_github_docs(repo_owner, repo_name):
                 yield Document(page_content=f.read(), metadata={"source": github_url})
 
 
+def get_dai_docs():
+    import pickle
+
+    dai_store = 'dai_docs.pickle'
+    if not os.path.isfile(dai_store):
+        from create_data import setup_dai_docs
+        dst = setup_dai_docs()
+
+        import glob
+        files = list(glob.glob(os.path.join(dst, '*rst'), recursive=True))
+
+        basedir = os.path.abspath(os.getcwd())
+        from create_data import rst_to_outputs
+        new_outputs = rst_to_outputs(files)
+        os.chdir(basedir)
+
+        pickle.dump(new_outputs, open(dai_store, 'wb'))
+    else:
+        new_outputs = pickle.load(open(dai_store, 'rb'))
+
+    for line, file in new_outputs:
+        yield Document(page_content=line, metadata={"source": file})
+
+
 def get_rst_docs(path):
     md_files = glob.glob(os.path.join(path, "./**/*.md"), recursive=True)
     rst_files = glob.glob(os.path.join(path, "./**/*.rst"), recursive=True)
@@ -511,8 +535,9 @@ def run_qa_db(query=None, use_openai_model=False, use_openai_embedding=False,
         # sources = get_github_docs("dagster-io", "dagster")
         sources = get_github_docs("h2oai", "h2ogpt")
     elif dai_rst:
-        home = os.path.expanduser('~')
-        sources = get_rst_docs(os.path.join(home, "h2oai.superclean/docs/"))
+        #home = os.path.expanduser('~')
+        #sources = get_rst_docs(os.path.join(home, "h2oai.superclean/docs/"))
+        sources = get_dai_docs()
     elif pdf_filename:
         sources = pdf_to_sources(pdf_filename=pdf_filename, split_method=split_method)
     elif texts_folder:
@@ -561,9 +586,11 @@ def run_qa_db(query=None, use_openai_model=False, use_openai_embedding=False,
             "input_documents": docs,
             "question": query,
         },
-        return_only_outputs=True,
-    )["output_text"]
-    print(answer)
+    )
+
+    print("answer: %s" % answer['output_text'], flush=True)
+    answer_sources = [x.metadata['source'] for x in answer['input_documents']]
+    print("sources: %s" % answer_sources, flush=True)
 
 
 def test_demo_openai():
