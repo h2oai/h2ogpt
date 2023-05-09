@@ -22,13 +22,13 @@ import pandas as pd
 import fire
 import torch
 from peft import PeftModel
-from transformers import GenerationConfig, StoppingCriteriaList, AutoModel, TextIteratorStreamer
+from transformers import GenerationConfig, AutoModel, TextIteratorStreamer
 from accelerate import init_empty_weights, infer_auto_device_map
 
 from prompter import Prompter
 
-from finetune import get_loaders, example_data_points, generate_prompt, human, bot, inv_prompt_type_to_model_lower
-from stopping import StoppingCriteriaSub
+from finetune import get_loaders, example_data_points, generate_prompt, inv_prompt_type_to_model_lower
+from stopping import get_stopping
 
 eval_extra_columns = ['prompt', 'response', 'score']
 
@@ -84,6 +84,7 @@ def main(
         api_open: bool = False,
         allow_api: bool = True,
         input_lines: int = 1,
+        auth: typing.List[typing.Tuple[str, str]] = None,
 
         sanitize_user_prompt: bool = True,
         sanitize_bot_response: bool = True,
@@ -145,6 +146,8 @@ def main(
     :param api_open: If False, don't let API calls skip gradio queue
     :param allow_api: whether to allow API calls at all to gradio server
     :param input_lines: how many input lines to show for chat box (>1 forces shift-enter for submit, else enter is submit)
+    :param auth: gradio auth for launcher in form [(user1, pass1), (user2, pass2), ...]
+                 e.g. --auth=[('jon','password')] with no spaces
     :param sanitize_user_prompt: whether to remove profanity from user input
     :param sanitize_bot_response: whether to remove profanity and repeat lines from bot output
     :param extra_model_options: extra models to show in list in gradio
@@ -170,15 +173,22 @@ def main(
 
     if is_public:
         input_lines = 1  # ensure set, for ease of use
-        temperature = 0.2
-        top_p = 0.85
-        top_k = 70
-        do_sample = True
-        if is_low_mem:
-            base_model = 'h2oai/h2ogpt-oasst1-512-12b'
-            load_8bit = True
+        temperature = 0.2 if temperature is None else temperature
+        top_p = 0.85 if top_p is None else top_p
+        top_k = 70 if top_k is None else top_k
+        if is_hf:
+            do_sample = True if do_sample is None else do_sample
         else:
-            base_model = 'h2oai/h2ogpt-oasst1-512-20b'
+            # by default don't sample, too chatty
+            do_sample = False if do_sample is None else do_sample
+
+        if is_low_mem:
+            if not base_model:
+                base_model = 'h2oai/h2ogpt-oasst1-512-12b'
+                # don't set load_8bit if passed base_model, doesn't always work so can't just override
+                load_8bit = True
+        else:
+            base_model = 'h2oai/h2ogpt-oasst1-512-20b' if not base_model else base_model
     if is_low_mem:
         load_8bit = True
     if is_hf:
@@ -204,7 +214,7 @@ def main(
         if psutil.virtual_memory().available < 94*1024**3:
             # 12B uses ~94GB
             # 6.9B uses ~47GB
-            base_model = 'h2oai/h2ogpt-oig-oasst1-512-6.9b'
+            base_model = 'h2oai/h2ogpt-oig-oasst1-512-6.9b' if not base_model else base_model
 
     # get defaults
     model_lower = base_model.lower()
@@ -827,49 +837,7 @@ def evaluate(
     if chat:
         # override, ignore user change
         num_return_sequences = 1
-    if prompt_type in ['human_bot', 'instruct_vicuna', 'instruct_with_end']:
-        if prompt_type == 'human_bot':
-            # encounters = [prompt.count(human) + 1, prompt.count(bot) + 1]
-            # stopping only starts once output is beyond prompt
-            # 1 human is enough to trigger, but need 2 bots, because very first view back will be bot we added
-            stop_words = [human, bot, '\n' + human, '\n' + bot]
-            encounters = [1, 2]
-        elif prompt_type == 'instruct_vicuna':
-            # even below is not enough, generic strings and many ways to encode
-            stop_words = [
-                '### Human:',
-                """
-### Human:""",
-                """
-### Human:
-""",
-                '### Assistant:',
-                """
-### Assistant:""",
-                """
-### Assistant:
-""",
-            ]
-            encounters = [1, 2]
-        else:
-            # some instruct prompts have this as end, doesn't hurt to stop on it since not common otherwise
-            stop_words = ['### End']
-            encounters = [1]
-        stop_words_ids = [
-            tokenizer(stop_word, return_tensors='pt')['input_ids'].squeeze() for stop_word in stop_words]
-        # handle single token case
-        stop_words_ids = [x if len(x.shape) > 0 else torch.tensor([x]) for x in stop_words_ids]
-        stop_words_ids = [x for x in stop_words_ids if x.shape[0] > 0]
-        # avoid padding in front of tokens
-        if tokenizer.pad_token:
-            stop_words_ids = [x[1:] if x[0] == tokenizer.pad_token_id and len(x) > 1 else x for x in stop_words_ids]
-        # handle fake \n added
-        stop_words_ids = [x[1:] if y[0] == '\n' else x for x, y in zip(stop_words_ids, stop_words)]
-        # build stopper
-        stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(stops=stop_words_ids, encounters=encounters, device=device)])
-    else:
-        stopping_criteria = StoppingCriteriaList()
-
+    stopping_criteria = get_stopping(prompt_type, tokenizer, device)
     # help to avoid errors like:
     # RuntimeError: The size of tensor a (2048) must match the size of tensor b (2049) at non-singleton dimension 3
     # RuntimeError: expected scalar type Half but found Float
@@ -916,13 +884,17 @@ def evaluate(
     else:
         gen_kwargs.update(dict(pad_token_id=tokenizer.eos_token_id))
 
+    decoder_kwargs = dict(skip_special_tokens=True,
+                          clean_up_tokenization_spaces=True)
+
     decoder = functools.partial(tokenizer.decode,
-                                skip_special_tokens=True,
-                                clean_up_tokenization_spaces=True,
+                                **decoder_kwargs
                                 )
+    decoder_raw_kwargs = dict(skip_special_tokens=False,
+                          clean_up_tokenization_spaces=True)
+
     decoder_raw = functools.partial(tokenizer.decode,
-                                    skip_special_tokens=False,
-                                    clean_up_tokenization_spaces=True,
+                                    **decoder_raw_kwargs
                                     )
 
     with torch.no_grad():
@@ -948,13 +920,18 @@ def evaluate(
                     prompt = inputs_decoded
                 elif inputs_decoded_raw == prompt:
                     # some models specify special tokens that are part of normal prompt, so can't skip them
-                    inputs_decoded_raw = inputs_decoded
+                    inputs_decoded = prompt = inputs_decoded_raw
                     decoder = decoder_raw
+                    decoder_kwargs = decoder_raw_kwargs
+                elif inputs_decoded_raw.replace("<unk> ", "").replace("<unk>", "").replace('\n', ' ').replace(' ', '') == prompt.replace('\n', ' ').replace(' ', ''):
+                    inputs_decoded = prompt = inputs_decoded_raw
+                    decoder = decoder_raw
+                    decoder_kwargs = decoder_raw_kwargs
                 else:
                     print("WARNING: Special characters in prompt", flush=True)
                 if stream_output:
                     skip_prompt = False
-                    streamer = H2OTextIteratorStreamer(tokenizer, skip_prompt=skip_prompt, block=False)
+                    streamer = H2OTextIteratorStreamer(tokenizer, skip_prompt=skip_prompt, block=False, **decoder_kwargs)
                     gen_kwargs.update(dict(streamer=streamer))
                     target_func = generate_with_exceptions
                     target = wrapped_partial(generate_with_exceptions, model.generate, prompt, inputs_decoded,
@@ -1091,6 +1068,7 @@ def get_generate_params(model_lower, chat,
 
     if not prompt_type and model_lower in inv_prompt_type_to_model_lower:
         prompt_type = inv_prompt_type_to_model_lower[model_lower]
+        print("Auto-selecting prompt_type=%s for %s" % (prompt_type, model_lower), flush=True)
 
     # examples at first don't include chat, instruction_nochat, iinput_nochat, added at end
     if show_examples is None:

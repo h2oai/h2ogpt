@@ -29,6 +29,7 @@ class PromptType(Enum):
     instruct_with_end = 8
     human_bot_orig = 9
     prompt_answer = 10
+    open_assistant = 11
 
 
 prompt_type_to_model_name = {
@@ -70,15 +71,11 @@ prompt_type_to_model_name = {
     'simple_instruct': ['t5-small', 't5-large', 'google/flan-t5', 'google/flan-t5-xxl', 'google/flan-ul2'],
     'instruct_vicuna': ['AlekseyKorshuk/vicuna-7b'],
     'human_bot_orig': ['togethercomputer/GPT-NeoXT-Chat-Base-20B'],
+    "open_assistant": ['OpenAssistant/oasst-sft-7-llama-30b-xor', 'oasst-sft-7-llama-30b'],
 }
 
 inv_prompt_type_to_model_name = {v.strip(): k for k, l in prompt_type_to_model_name.items() for v in l}
 inv_prompt_type_to_model_lower = {v.strip().lower(): k for k, l in prompt_type_to_model_name.items() for v in l}
-
-human = '<human>:'
-bot = "<bot>:"
-prompt_tokens = "<|prompt|>"
-answer_tokens = "<|answer|>"
 
 prompt_types_strings = []
 for p in PromptType:
@@ -593,8 +590,8 @@ def train(
         tokenizer=tokenizer,
         train_dataset=train_data,
         eval_dataset=valid_data,
-        # NOTE: CausalLM is not supporting Seq2SeqTrainingArguments arguments, but not incompatible
-        args=transformers.Seq2SeqTrainingArguments(
+        # FIXME: might need Seq2SeqTrainingArguments for some models
+        args=transformers.TrainingArguments(
             per_device_train_batch_size=micro_batch_size,
             per_device_eval_batch_size=1,
             eval_accumulation_steps=10,
@@ -811,6 +808,8 @@ def get_prompt(prompt_type, chat, context, reduced):
         terminate_response = None
         chat_sep = '\n'
     elif prompt_type in [2, "2", "human_bot", 9, "9", "human_bot_orig"]:
+        human = '<human>:'
+        bot = "<bot>:"
         if reduced or context or prompt_type in [2, "2", "human_bot"]:
             preprompt = ''
         else:
@@ -878,6 +877,8 @@ Current Time: {}
         chat_sep = '\n'
     elif prompt_type in [10, "10", "prompt_answer"]:
         preprompt = ''
+        prompt_tokens = "<|prompt|>"
+        answer_tokens = "<|answer|>"
         start = prompt_tokens
         promptB = promptA = '%s%s' % (preprompt, start)
         PreInstruct = ""
@@ -885,6 +886,20 @@ Current Time: {}
         PreResponse = answer_tokens
         eos = '<|endoftext|>'  # neox eos
         terminate_response = [start, PreResponse, eos]
+        chat_sep = eos
+    elif prompt_type in [11, "11", "open_assistant"]:
+        # From added_tokens.json
+        preprompt = ''
+        prompt_tokens = "<|prompter|>"
+        answer_tokens = "<|assistant|>"
+        start = prompt_tokens
+        promptB = promptA = '%s%s' % (preprompt, start)
+        PreInstruct = ""
+        PreInput = None
+        PreResponse = answer_tokens
+        pend = "<|prefix_end|>"
+        eos = "</s>"
+        terminate_response = [start, PreResponse, pend, eos]
         chat_sep = eos
     else:
         raise RuntimeError("No such prompt_type=%s" % prompt_type)

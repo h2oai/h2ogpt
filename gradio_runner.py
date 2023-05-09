@@ -50,7 +50,7 @@ def go_gradio(**kwargs):
                       """
     else:
         description = "For more information, visit our GitHub pages: [h2oGPT](https://github.com/h2oai/h2ogpt) and [H2O LLM Studio](https://github.com/h2oai/h2o-llmstudio)<br>"
-    description += "If this host is busy, try [gpt.h2o.ai 20B](https://gpt.h2o.ai) and [HF Spaces1 12B](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot) and [HF Spaces2 12B](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot2)<br>"
+    description += "If this host is busy, try [gpt.h2o.ai 20B](https://gpt.h2o.ai) and [30B](http://gpu.hopto.org) and [HF Spaces1 12B](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot) and [HF Spaces2 12B](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot2)<br>"
     description += """<p>By using h2oGPT, you accept our [Terms of Service](https://github.com/h2oai/h2ogpt/blob/main/tos.md)</p>"""
 
     if kwargs['verbose']:
@@ -921,7 +921,8 @@ def go_gradio(**kwargs):
     scheduler.start()
 
     demo.launch(share=kwargs['share'], server_name="0.0.0.0", show_error=True,
-                favicon_path=favicon_path, prevent_thread_lock=True)  # , enable_queue=True)
+                favicon_path=favicon_path, prevent_thread_lock=True,
+                auth=kwargs['auth'])
     print("Started GUI", flush=True)
     if kwargs['block_gradio_exit']:
         demo.block_thread()

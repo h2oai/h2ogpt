@@ -1,18 +1,18 @@
 ### What are the different prompt types? How does prompt engineering work for h2oGPT?
 
 In general, all LLMs use strings as inputs for training/fine-tuning and generation/inference.
-To manage a variety of possible language task types, we divide any such string into 3 parts:
+To manage a variety of possible language task types, we divide any such string into three parts:
 
 - Instruction
 - Input
 - Response
 
-Each of these 3 parts can be empty or non-empty strings such as titles or newlines. In the end all
-these prompt parts are concatenated together into one string. The magic is in the content of those sub-strings. This is called **prompt engineering**.
+Each of these three parts can be empty or non-empty strings, such as titles or newlines. In the end, all
+these prompt parts are concatenated into one string. The magic is in the content of those sub-strings. This is called **prompt engineering**.
 
 #### Summarization
 
-For training a summarization task, we concatenate these 3 parts together:
+For training a summarization task, we concatenate these three parts together:
 
 - Instruction = `<INSTRUCTION>`
 - Input = `'## Main Text\n\n'` + `<INPUT>`
@@ -79,14 +79,14 @@ Below are examples of training records in `JSON` format.
 ### Context length
 
 Note that the total length of the text (i.e., input and output) the LLM can handle is limited by the so-called *context length*. For our current models, the context length is 2048 tokens. Longer context lengths are computationally more expensive due to the interactions between all tokens in the sequence.
-A context length of 2048 means that for an input of e.g. 1900 tokens, the model will be able to create no more than 148 new tokens as part of the output.
+A context length of 2048 means that for an input of, for example, 1900 tokens, the model will be able to create no more than 148 new tokens as part of the output.
 
-For fine-tuning, if the average length of inputs is less than the context length, one can provide a `cutoff_len` of less than the context length, to truncate inputs to this amount of tokens. For most instruction-type datasets, a cutoff length of 512 seems reasonable, and provides nice memory and time savings.
+For fine-tuning, if the average length of inputs is less than the context length, one can provide a `cutoff_len` of less than the context length to truncate inputs to this amount of tokens. For most instruction-type datasets, a cutoff length of 512 seems reasonable and provides nice memory and time savings.
 For example, the `h2oai/h2ogpt-oasst1-512-20b` model was trained with a cutoff length of 512.
 
 ### Tokens
 
-Here are some example tokens (from a total of ~50k), each is assigned a number:
+Here are some example tokens (from a total of ~50k), each of which is assigned a number:
 ```text
 "osed": 1700,
 "ised": 1701,
@@ -112,7 +112,7 @@ The input format doesn't change whether the model is in pretraining, fine-tuning
 As explained on the [model card](https://huggingface.co/h2oai/h2ogpt-oasst1-512-20b) h2oGPT is a fine-tuned version
 of [GPT-NeoX-20b](https://huggingface.co/EleutherAI/gpt-neox-20b), which was trained on the [Pile](https://pile.eleuther.ai/)
 and on the [h2oai/openassistant_oasst1](https://huggingface.co/datasets/h2oai/openassistant_oasst1).
-These datasets contain training data created by OpenAI (from the GPT-2 days) and by Open Assistant which injected the above
+These datasets contain training data created by OpenAI (from the GPT-2 days) and by Open Assistant, which injected the above
 answer and similar answers. In other words, they "contaminated" the training data with their desired outputs for the model (i.e., personality).
 Most of the knowledge of the model is from pre-training on the billions of tokens, the fine-tuning only turns that language
 model into a chatbot by returning short answers for short questions, or in other words, pre-training creates language
@@ -125,7 +125,7 @@ We continued fine-tuning with the [h2oai/h2oai/openassistant_oasst1_h2ogpt](http
 
 ### Is h2oGPT multi-lingual?
 
-Yes. Try it on your on preferred language.
+Yes. Try it in your preferred language.
 
 
 ### Throttle GPUs in case of reset/reboot
