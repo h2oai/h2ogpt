@@ -1501,7 +1501,7 @@ def create_personality_data():
 
 
 def test_check_stats_data():
-    filename = 'h2ogpt-oig-oasst1-instruct-cleaned-v2.json'
+    filename = 'h2ogpt-oig-oasst1-instruct-cleaned-v3.json'
     df = pd.read_json(filename)
 
     # get word stats
@@ -1519,8 +1519,8 @@ def test_check_stats_data():
     from finetune import get_loaders, get_tokenizer, generate_and_tokenize_prompt
     from functools import partial
 
-    llama_type = True
-    tokenizer_base_model = base_model = 'decapoda-research/llama-7b-hf'
+    llama_type = False
+    tokenizer_base_model = base_model = 'h2oai/h2ogpt-oasst1-512-20b'
     model_loader, tokenizer_loader = get_loaders(llama_type=llama_type, model_name=base_model, reward_type=False)
     local_files_only = False
     resume_download = True
@@ -1528,7 +1528,7 @@ def test_check_stats_data():
     tokenizer = get_tokenizer(tokenizer_loader, tokenizer_base_model, local_files_only, resume_download, use_auth_token)
     prompt_type = 'plain'  # trained with data already in human bot form
     train_on_inputs = True
-    add_eos_token = True
+    add_eos_token = False
     cutoff_len = 512  # can choose 2048
     generate_and_tokenize_prompt_fun = partial(generate_and_tokenize_prompt, prompt_type=prompt_type,
                                                train_on_inputs=train_on_inputs, add_eos_token=add_eos_token,
