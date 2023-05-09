@@ -1402,6 +1402,8 @@ def test_add_open_assistant(fixup_personality, only_personality, deberta_grading
                     ("_h2ogpt" if fixup_personality else "") + \
                     ("_only" if only_personality else "") + \
                     ("_graded" if deberta_grading else "")
+        for i in range(len(all_rows)):
+            all_rows[i]['id'] = i
         with open(data_file.lower().replace("/", "_") + ".json", "w") as f:
             f.write(json.dumps(all_rows, indent=2))
     return all_rows
@@ -1445,6 +1447,8 @@ def test_finalize_to_json():
     np.random.shuffle(row_list)
     unhelpful = get_unhelpful_list()
     row_list = [x for x in row_list if not any(u in x['input'] for u in unhelpful)]
+    for i in range(len(row_list)):
+        row_list[i]['id'] = i
     with open('h2ogpt-oig-oasst1-instruct-cleaned-v3.json', "w") as f:
         f.write(json.dumps(row_list, indent=2))
 
