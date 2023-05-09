@@ -17,6 +17,7 @@ from langchain.chains.question_answering import load_qa_chain
 from langchain.chains import ConversationalRetrievalChain, RetrievalQA
 from langchain.docstore.document import Document
 from langchain.llms.base import LLM
+from langchain import PromptTemplate
 
 # FIXME:
 # from langchain.vectorstores import Milvus
@@ -194,8 +195,6 @@ def get_llm(use_openai_model=False):
 
 
 def get_llm_prompt(model_name):
-    from langchain import PromptTemplate
-
     if 'h2ogpt' in model_name:
         template = """<human>: {question}
 <bot>: """
@@ -577,7 +576,25 @@ def run_qa_db(query=None, use_openai_model=False, use_openai_embedding=False,
 
     llm, model_name = get_llm(use_openai_model=use_openai_model)
     db = get_db(sources, use_openai_embedding=use_openai_embedding, db_type=db_type)
-    chain = load_qa_with_sources_chain(llm)
+    if not use_openai_model and 'h2ogpt' in model_name:
+        # instruct-like, rather than few-shot prompt_type='plain' as default
+        # but then sources confuse the model with how inserted among rest of text, so avoid
+        prefix = "The following text contains Content from chunks of text extracted from source documentation.  Please give a natural language concise answer to any question using the Content text fragments information provided."
+        template = """%s
+=========
+{context}
+=========
+{question}""" % prefix
+
+        prompt = PromptTemplate(
+            #input_variables=["summaries", "question"],
+            input_variables=["context", "question"],
+            template=template,
+        )
+        #chain = load_qa_with_sources_chain(llm, prompt=prompt)
+        chain = load_qa_chain(llm, prompt=prompt)
+    else:
+        chain = load_qa_with_sources_chain(llm)
 
     if query is None:
         query = "What are the main differences between Linux and Windows?"
@@ -601,6 +618,7 @@ def run_qa_db(query=None, use_openai_model=False, use_openai_embedding=False,
     print("answer: %s" % answer['output_text'], flush=True)
     answer_sources = [x.metadata['source'] for x in answer['input_documents']]
     print("sources: %s" % answer_sources, flush=True)
+    print("sorted sources: %s" % sorted(set(answer_sources)), flush=True)
 
 
 def test_demo_openai():
