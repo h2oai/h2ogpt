@@ -206,6 +206,9 @@ def go_gradio(**kwargs):
                                     score_text2 = gr.Textbox("Response Score2: NA", show_label=False, visible=False)
                             retry = gr.Button("Regenerate")
                             undo = gr.Button("Undo")
+                        langchain_mode = gr.Dropdown(['None', 'wiki', 'github h2oGPT', 'DriverlessAI docs'],
+                                                     value='None',
+                                                     label="Langchain Mode", visible=kwargs['langchain_enabled'])
                 with gr.TabItem("Input/Output"):
                     with gr.Row():
                         if 'mbart-' in kwargs['model_lower']:

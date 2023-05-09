@@ -98,6 +98,8 @@ def main(
         eval_sharegpt_prompts_only: int = 0,
         eval_sharegpt_prompts_only_seed: int = 1234,
         eval_sharegpt_as_output: bool = False,
+
+        langchain_enabled: bool = False,
 ):
     """
 
@@ -157,6 +159,7 @@ def main(
     :param eval_sharegpt_prompts_only: for no gradio benchmark, if using ShareGPT prompts for eval
     :param eval_sharegpt_prompts_only_seed: for no gradio benchmark, if seed for ShareGPT sampling
     :param eval_sharegpt_as_output: for no gradio benchmark, whether to test ShareGPT output itself
+    :param langchain_enabled: whether to enable langchain mode for (currently) specific task choice
     :return:
     """
     is_hf = bool(os.getenv("HUGGINGFACE_SPACES"))
@@ -223,6 +226,9 @@ def main(
         stream_output = False
         # else prompt removal can mess up output
         chat = False
+    if langchain_enabled:
+        # streaming not supported yet
+        stream_output = False
 
     placeholder_instruction, placeholder_input, \
     stream_output, show_examples, \
@@ -729,6 +735,7 @@ eval_func_param_names = ['instruction',
                          'chat',
                          'instruction_nochat',
                          'iinput_nochat',
+                         'langchain_mode',
                          ]
 
 
@@ -754,6 +761,7 @@ def evaluate(
         chat,
         instruction_nochat,
         iinput_nochat,
+        langchain_mode,
         # END NOTE: Examples must have same order of parameters
         src_lang=None,
         tgt_lang=None,
@@ -816,6 +824,25 @@ def evaluate(
     if not context:
         # get hidden context if have one
         context = get_context(chat_context, prompt_type)
+
+    if langchain_mode != 'None':
+        query = instruction if not iinput else "%s\n%s" % (instruction, iinput)
+        from pdf_langchain import run_qa_db
+        chunk_size = 128*1  # FIXME
+        wiki = langchain_mode == 'wiki'
+        github = langchain_mode == 'github h2oGPT'
+        dai_rst = langchain_mode == 'DriverlessAI docs'
+        db_type = 'faiss'  # FIXME
+        pdf_filename = None  # FIXME, upload via gradio
+        yield run_qa_db(query=query,
+                        use_openai_model=False, use_openai_embedding=False,
+                        first_para=True, text_limit=None, k=4, chunk=False, chunk_size=chunk_size,
+                        wiki=wiki, github=github, dai_rst=dai_rst,
+                        pdf_filename=None, split_method='chunk',
+                        texts_folder=None,
+                        db_type=db_type,
+                        model_name=base_model, model=model, tokenizer=tokenizer)
+        return
 
     data_point = dict(context=context, instruction=instruction, input=iinput)
     prompter = Prompter(prompt_type, debug=debug, chat=chat, stream_output=stream_output)

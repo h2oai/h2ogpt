@@ -148,7 +148,7 @@ def get_answer_from_sources(chain, sources, question):
     )["output_text"]
 
 
-def get_llm(use_openai_model=False):
+def get_llm(use_openai_model=False, model_name=None, model=None, tokenizer=None):
     if use_openai_model:
         from langchain.llms import OpenAI
         llm = OpenAI(temperature=0)
@@ -156,41 +156,44 @@ def get_llm(use_openai_model=False):
     else:
         from transformers import AutoTokenizer, AutoModelForCausalLM
 
-        # model_name = "cerebras/Cerebras-GPT-2.7B"
-        # model_name = "cerebras/Cerebras-GPT-13B"
-        # model_name = "cerebras/Cerebras-GPT-6.7B"
-        model_name = 'h2oai/h2ogpt-oasst1-512-12b'
-        # model_name = 'h2oai/h2ogpt-oig-oasst1-512-6.9b'
-        # model_name = 'h2oai/h2ogpt-oasst1-512-20b'
-        tokenizer = AutoTokenizer.from_pretrained(model_name)
-        device, torch_dtype, context_class = get_device_dtype()
+        if model is None:
+            assert model_name is None
+            assert tokenizer is None
+            # model_name = "cerebras/Cerebras-GPT-2.7B"
+            # model_name = "cerebras/Cerebras-GPT-13B"
+            # model_name = "cerebras/Cerebras-GPT-6.7B"
+            model_name = 'h2oai/h2ogpt-oasst1-512-12b'
+            # model_name = 'h2oai/h2ogpt-oig-oasst1-512-6.9b'
+            # model_name = 'h2oai/h2ogpt-oasst1-512-20b'
+            tokenizer = AutoTokenizer.from_pretrained(model_name)
+            device, torch_dtype, context_class = get_device_dtype()
 
-        with context_class(device):
-            load_8bit = True
-            # FIXME: for now not to spread across hetero GPUs
-            # device_map={"": 0} if load_8bit and device == 'cuda' else "auto"
-            device_map = {"": 0} if device == 'cuda' else "auto"
-            model = AutoModelForCausalLM.from_pretrained(model_name,
-                                                         device_map=device_map,
-                                                         torch_dtype=torch_dtype,
-                                                         load_in_8bit=load_8bit)
-            if 'h2ogpt' in model_name:
-                from h2oai_pipeline import H2OTextGenerationPipeline
-                pipe = H2OTextGenerationPipeline(model=model, tokenizer=tokenizer, max_new_tokens=256,
-                                                 return_full_text=True)
-                # pipe.task = "text-generation"
-                # below makes it listen only to our prompt removal, not built in prompt removal that is less general and not specific for our model
-                pipe.task = "text2text-generation"
-            else:
-                # only for non-instruct tuned cases when ok with just normal next token prediction
-                from transformers import pipeline
-                pipe = pipeline(
-                    "text-generation", model=model, tokenizer=tokenizer,
-                    max_new_tokens=256, early_stopping=False,
-                )
+            with context_class(device):
+                load_8bit = True
+                # FIXME: for now not to spread across hetero GPUs
+                # device_map={"": 0} if load_8bit and device == 'cuda' else "auto"
+                device_map = {"": 0} if device == 'cuda' else "auto"
+                model = AutoModelForCausalLM.from_pretrained(model_name,
+                                                             device_map=device_map,
+                                                             torch_dtype=torch_dtype,
+                                                             load_in_8bit=load_8bit)
+        if 'h2ogpt' in model_name:
+            from h2oai_pipeline import H2OTextGenerationPipeline
+            pipe = H2OTextGenerationPipeline(model=model, tokenizer=tokenizer, max_new_tokens=256,
+                                             return_full_text=True)
+            # pipe.task = "text-generation"
+            # below makes it listen only to our prompt removal, not built in prompt removal that is less general and not specific for our model
+            pipe.task = "text2text-generation"
+        else:
+            # only for non-instruct tuned cases when ok with just normal next token prediction
+            from transformers import pipeline
+            pipe = pipeline(
+                "text-generation", model=model, tokenizer=tokenizer,
+                max_new_tokens=256, early_stopping=False,
+            )
 
-            from langchain.llms import HuggingFacePipeline
-            llm = HuggingFacePipeline(pipeline=pipe)
+        from langchain.llms import HuggingFacePipeline
+        llm = HuggingFacePipeline(pipeline=pipe)
     return llm, model_name
 
 
@@ -530,12 +533,36 @@ def test_qa_daidocs_db_chunk_openaiembedding_hfmodel():
                      chunk_size=128, wiki=False, dai_rst=True)
 
 
-def run_qa_db(query=None, use_openai_model=False, use_openai_embedding=False,
+def run_qa_db(query=None,
+              use_openai_model=False, use_openai_embedding=False,
               first_para=True, text_limit=None, k=4, chunk=False, chunk_size=1024,
               wiki=False, github=False, dai_rst=False,
               pdf_filename=None, split_method='chunk',
               texts_folder=None,
-              db_type='faiss'):
+              db_type='faiss',
+              model_name=None, model=None, tokenizer=None):
+    """
+
+    :param query:
+    :param use_openai_model:
+    :param use_openai_embedding:
+    :param first_para:
+    :param text_limit:
+    :param k:
+    :param chunk:
+    :param chunk_size:
+    :param wiki: bool if using wiki
+    :param github: bool if using github
+    :param dai_rst: bool if using dai RST files
+    :param pdf_filename: PDF filename
+    :param split_method: split method for PDF inputs
+    :param texts_folder:
+    :param db_type: 'faiss' for in-memory db or 'chroma' for persistent db
+    :param model_name: model name, used to switch behaviors
+    :param model: pre-initialized model, else will make new one
+    :param tokenizer: pre-initialized tokenizer, else will make new one.  Required not None if model is not None
+    :return:
+    """
     # see https://dagster.io/blog/chatgpt-langchain
     if wiki:
         sources = get_wiki_sources(first_para=first_para, text_limit=text_limit)
@@ -574,7 +601,7 @@ def run_qa_db(query=None, use_openai_model=False, use_openai_embedding=False,
                     source_chunks.append(Document(page_content=chunky, metadata=source.metadata))
             sources = source_chunks
 
-    llm, model_name = get_llm(use_openai_model=use_openai_model)
+    llm, model_name = get_llm(use_openai_model=use_openai_model, model_name=model_name, model=model, tokenizer=tokenizer)
     db = get_db(sources, use_openai_embedding=use_openai_embedding, db_type=db_type)
     if not use_openai_model and 'h2ogpt' in model_name:
         # instruct-like, rather than few-shot prompt_type='plain' as default
@@ -616,9 +643,10 @@ def run_qa_db(query=None, use_openai_model=False, use_openai_embedding=False,
 
     print("query: %s" % query, flush=True)
     print("answer: %s" % answer['output_text'], flush=True)
-    answer_sources = [x.metadata['source'] for x in answer['input_documents']]
-    print("sources: %s" % answer_sources, flush=True)
-    print("sorted sources: %s" % sorted(set(answer_sources)), flush=True)
+    #answer_sources = [x.metadata['source'] for x in answer['input_documents']]
+    #print("sources: %s" % answer_sources, flush=True)
+    #print("sorted sources: %s" % sorted(set(answer_sources)), flush=True)
+    return answer['output_text']
 
 
 def test_demo_openai():
