@@ -550,12 +550,13 @@ def test_qa_daidocs_db_chunk_openaiembedding_hfmodel():
 def run_qa_db(query=None,
               use_openai_model=False, use_openai_embedding=False,
               first_para=True, text_limit=None, k=4, chunk=False, chunk_size=1024,
-              wiki=False, github=False, dai_rst=False,
+              wiki=False, github=False, dai_rst=False, all=None,
               pdf_filename=None, split_method='chunk',
               texts_folder=None,
               db_type='faiss',
               model_name=None, model=None, tokenizer=None,
-              answer_with_sources=True):
+              answer_with_sources=True,
+              cut_distanct=1.3):
     """
 
     :param query:
@@ -580,43 +581,47 @@ def run_qa_db(query=None,
     :return:
     """
     # see https://dagster.io/blog/chatgpt-langchain
+    sources = []
     dst = None
-    if wiki:
-        sources = get_wiki_sources(first_para=first_para, text_limit=text_limit)
-    elif github:
+    if wiki or all:
+        sources1 = get_wiki_sources(first_para=first_para, text_limit=text_limit)
+        if chunk:
+            sources1 = chunk_sources(sources1, chunk_size=chunk_size)
+        sources.extend(sources1)
+    if github or all:
         # sources = get_github_docs("dagster-io", "dagster")
-        sources = get_github_docs("h2oai", "h2ogpt")
-    elif dai_rst:
+        sources1 = get_github_docs("h2oai", "h2ogpt")
+        # FIXME: always chunk for now
+        sources1 = chunk_sources(sources1, chunk_size=chunk_size)
+        sources.extend(sources1)
+    if dai_rst or all:
         #home = os.path.expanduser('~')
         #sources = get_rst_docs(os.path.join(home, "h2oai.superclean/docs/"))
-        sources, dst = get_dai_docs()
-    elif pdf_filename:
-        sources = pdf_to_sources(pdf_filename=pdf_filename, split_method=split_method)
-    elif texts_folder:
+        sources1, dst = get_dai_docs()
+        if chunk:
+            sources1 = chunk_sources(sources1, chunk_size=chunk_size)
+        sources.extend(sources1)
+    if pdf_filename:
+        sources1 = pdf_to_sources(pdf_filename=pdf_filename, split_method=split_method)
+        if chunk:
+            sources1 = chunk_sources(sources1, chunk_size=chunk_size)
+        sources.extend(sources1)
+    if False and (texts_folder or all):
         # FIXME: Can be any loader types
         loader = DirectoryLoader(texts_folder, glob="./*.txt", loader_cls=TextLoader)
-        sources = loader.load()
-    else:
-        raise RuntimeError("No input data set")
+        sources1 = loader.load()
+        if chunk:
+            sources1 = chunk_sources(sources1, chunk_size=chunk_size)
+        sources.extend(sources1)
+    if False and all:
+        #from langchain.document_loaders import UnstructuredURLLoader
+        #loader = UnstructuredURLLoader(urls=urls)
+        urls = ["https://www.birdsongsf.com/who-we-are/"]
+        from langchain.document_loaders import PlaywrightURLLoader
+        loader = PlaywrightURLLoader(urls=urls, remove_selectors=["header", "footer"])
+        sources1 = loader.load()
+        sources.extend(sources1)
     assert sources, "No sources"
-
-    if chunk:
-        # allows handling full docs if passed first_para=False
-        # NLTK and SPACY can be used instead
-        if False:
-            text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=0)
-            # doesn't preserve source
-            sources = text_splitter.split_documents(sources)
-        else:
-            source_chunks = []
-            # Below for known separator
-            #splitter = CharacterTextSplitter(separator=" ", chunk_size=chunk_size, chunk_overlap=0)
-            splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=0)
-            for source in sources:
-                # print(source.metadata['source'], flush=True)
-                for chunky in splitter.split_text(source.page_content):
-                    source_chunks.append(Document(page_content=chunky, metadata=source.metadata))
-            sources = source_chunks
 
     llm, model_name = get_llm(use_openai_model=use_openai_model, model_name=model_name, model=model, tokenizer=tokenizer)
     db = get_db(sources, use_openai_embedding=use_openai_embedding, db_type=db_type)
@@ -646,8 +651,12 @@ def run_qa_db(query=None,
     k_db = 1000 if db_type == 'chroma' else k  # k=100 works ok too for
 
     docs_with_score = db.similarity_search_with_score(query, k=k_db)[:k]
-    docs = [x[0] for x in docs_with_score]
-    scores = [x[1] for x in docs_with_score]
+
+    # cut off so no high distance docs/sources considered
+    docs = [x[0] for x in docs_with_score if x[1] < cut_distanct]
+    scores = [x[1] for x in docs_with_score if x[1] < cut_distanct]
+    if not docs:
+        return None
     print("Distance: min: %s max: %s mean: %s median: %s" %
           (scores[0], scores[-1], np.mean(scores), np.median(scores)), flush=True)
 
@@ -660,12 +669,10 @@ def run_qa_db(query=None,
 
     print("query: %s" % query, flush=True)
     print("answer: %s" % answer['output_text'], flush=True)
-    if dst:
-        # link
-        ##answer_sources = ["""<a href="file:///%s/%s/%s" target="_blank"  rel="noopener noreferrer">%s</a>""" % (os.getcwd(), dst, x.metadata['source'], x.metadata['source']) for x in answer['input_documents']]
-        answer_sources = ["""<a href="file/%s" target="_blank"  rel="noopener noreferrer">%s</a>""" % (x.metadata['source'], x.metadata['source']) for x in answer['input_documents']]
-    else:
-        answer_sources = [x.metadata['source'] for x in answer['input_documents']]
+    # link
+    answer_sources = [get_url(x) for x in answer['input_documents']]
+#    else:
+#        answer_sources = [x.metadata['source'] for x in answer['input_documents']]
     #print("sources: %s" % answer_sources, flush=True)
     #print("sorted sources: %s" % sorted(set(answer_sources)), flush=True)
     if answer_with_sources:
@@ -674,6 +681,30 @@ def run_qa_db(query=None,
     else:
         ret = answer['output_text']
     return ret
+
+
+def get_url(x):
+    return """<a href="file/%s" target="_blank"  rel="noopener noreferrer">%s</a>""" % (x.metadata['source'], x.metadata['source'])
+
+
+def chunk_sources(sources, chunk_size=1024):
+    # allows handling full docs if passed first_para=False
+    # NLTK and SPACY can be used instead
+    if False:
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=0)
+        # doesn't preserve source
+        sources = text_splitter.split_documents(sources)
+    else:
+        source_chunks = []
+        # Below for known separator
+        #splitter = CharacterTextSplitter(separator=" ", chunk_size=chunk_size, chunk_overlap=0)
+        splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=0)
+        for source in sources:
+            # print(source.metadata['source'], flush=True)
+            for chunky in splitter.split_text(source.page_content):
+                source_chunks.append(Document(page_content=chunky, metadata=source.metadata))
+        sources = source_chunks
+    return sources
 
 
 def test_demo_openai():

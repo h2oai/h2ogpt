@@ -831,26 +831,25 @@ def evaluate(
         #chunk = True  # chunking with small chunk_size hurts accuracy esp. if k small
         chunk = False  # chunking with small chunk_size hurts accuracy esp. if k small
         chunk_size = 128*1  # FIXME
-        wiki = langchain_mode == 'wiki'
-        github = langchain_mode == 'github h2oGPT'
-        dai_rst = langchain_mode == 'DriverlessAI docs'
+        wiki = langchain_mode in ['wiki', 'All']
+        github = langchain_mode in ['github h2oGPT', 'All']
+        dai_rst = langchain_mode in ['DriverlessAI docs', 'All']
+        urls = langchain_mode in ['All']
+        all = langchain_mode in ['All']
         db_type = 'faiss'  # FIXME
         pdf_filename = None  # FIXME, upload via gradio
 
-        # temporary work-arounds
-        if github:
-            # else too long
-            chunk = True
-
-        yield run_qa_db(query=query,
+        ret = run_qa_db(query=query,
                         use_openai_model=False, use_openai_embedding=False,
                         first_para=True, text_limit=None, k=4, chunk=chunk, chunk_size=chunk_size,
-                        wiki=wiki, github=github, dai_rst=dai_rst,
+                        wiki=wiki, github=github, dai_rst=dai_rst, all=all,
                         pdf_filename=None, split_method='chunk',
                         texts_folder=None,
                         db_type=db_type,
                         model_name=base_model, model=model, tokenizer=tokenizer)
-        return
+        if ret:
+            yield ret
+            return
 
     data_point = dict(context=context, instruction=instruction, input=iinput)
     prompter = Prompter(prompt_type, debug=debug, chat=chat, stream_output=stream_output)
