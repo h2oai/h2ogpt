@@ -377,10 +377,12 @@ def get_wiki_data(title, first_paragraph_only, text_limit=None, take_head=True):
 
 def get_wiki_sources(first_para=True, text_limit=None):
     return [
+        get_wiki_data("Barclays", first_para, text_limit=text_limit),
+        get_wiki_data("Birdsong_(restaurant)", first_para, text_limit=text_limit),
         get_wiki_data("Unix", first_para, text_limit=text_limit),
         get_wiki_data("Microsoft_Windows", first_para, text_limit=text_limit),
         get_wiki_data("Linux", first_para, text_limit=text_limit),
-        get_wiki_data("Seinfeld", first_para, text_limit=text_limit),
+        #get_wiki_data("Seinfeld", first_para, text_limit=text_limit),
     ]
 
 
@@ -411,9 +413,10 @@ def get_dai_docs():
     import pickle
 
     dai_store = 'dai_docs.pickle'
+    dst = "working_dir_docs"
     if not os.path.isfile(dai_store):
         from create_data import setup_dai_docs
-        dst = setup_dai_docs()
+        dst = setup_dai_docs(dst=dst)
 
         import glob
         files = list(glob.glob(os.path.join(dst, '*rst'), recursive=True))
@@ -427,8 +430,19 @@ def get_dai_docs():
     else:
         new_outputs = pickle.load(open(dai_store, 'rb'))
 
+    sources = []
     for line, file in new_outputs:
-        yield Document(page_content=line, metadata={"source": file})
+        # gradio requires any linked file to be with app.py
+        sym_src = os.path.abspath(os.path.join(dst, file))
+        sym_dst = os.path.abspath(os.path.join(os.getcwd(), file))
+        if os.path.lexists(sym_dst):
+            os.remove(sym_dst)
+        os.symlink(sym_src, sym_dst)
+        itm = Document(page_content=line, metadata={"source": file})
+        # NOTE: yield has issues when going into db, loses metadata
+        #yield itm
+        sources.append(itm)
+    return sources, dst
 
 
 def get_rst_docs(path):
@@ -540,7 +554,8 @@ def run_qa_db(query=None,
               pdf_filename=None, split_method='chunk',
               texts_folder=None,
               db_type='faiss',
-              model_name=None, model=None, tokenizer=None):
+              model_name=None, model=None, tokenizer=None,
+              answer_with_sources=True):
     """
 
     :param query:
@@ -561,9 +576,11 @@ def run_qa_db(query=None,
     :param model_name: model name, used to switch behaviors
     :param model: pre-initialized model, else will make new one
     :param tokenizer: pre-initialized tokenizer, else will make new one.  Required not None if model is not None
+    :param answer_with_sources
     :return:
     """
     # see https://dagster.io/blog/chatgpt-langchain
+    dst = None
     if wiki:
         sources = get_wiki_sources(first_para=first_para, text_limit=text_limit)
     elif github:
@@ -572,7 +589,7 @@ def run_qa_db(query=None,
     elif dai_rst:
         #home = os.path.expanduser('~')
         #sources = get_rst_docs(os.path.join(home, "h2oai.superclean/docs/"))
-        sources = get_dai_docs()
+        sources, dst = get_dai_docs()
     elif pdf_filename:
         sources = pdf_to_sources(pdf_filename=pdf_filename, split_method=split_method)
     elif texts_folder:
@@ -643,10 +660,20 @@ def run_qa_db(query=None,
 
     print("query: %s" % query, flush=True)
     print("answer: %s" % answer['output_text'], flush=True)
-    #answer_sources = [x.metadata['source'] for x in answer['input_documents']]
+    if dst:
+        # link
+        ##answer_sources = ["""<a href="file:///%s/%s/%s" target="_blank"  rel="noopener noreferrer">%s</a>""" % (os.getcwd(), dst, x.metadata['source'], x.metadata['source']) for x in answer['input_documents']]
+        answer_sources = ["""<a href="file/%s" target="_blank"  rel="noopener noreferrer">%s</a>""" % (x.metadata['source'], x.metadata['source']) for x in answer['input_documents']]
+    else:
+        answer_sources = [x.metadata['source'] for x in answer['input_documents']]
     #print("sources: %s" % answer_sources, flush=True)
     #print("sorted sources: %s" % sorted(set(answer_sources)), flush=True)
-    return answer['output_text']
+    if answer_with_sources:
+        sorted_sources = sorted(set(answer_sources))
+        ret = answer['output_text'] + "<br>Sources:<br>" + "<br>".join(sorted_sources)
+    else:
+        ret = answer['output_text']
+    return ret
 
 
 def test_demo_openai():
