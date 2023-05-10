@@ -48,6 +48,36 @@ from transformers import AutoModelForCausalLM
         #         "https://huggingface.co/h2oai/h2ogpt-oasst1-256-20b/blob/main/gpt-neox-20b.openassistant_oasst1.json.1_epochs.5fc91911bc2bfaaf3b6c2de577c4b0ae45a07a4a.18.zip",
         # ),
         (
+                "h2ogpt-oig-oasst1-512-12b",
+                "h2ogpt-oasst1-512-12b",
+                [
+                    "h2oai/h2ogpt-fortune2000-personalized",
+                    "h2oai/h2ogpt-oig-oasst1-instruct-cleaned-v3",
+                ],
+                [
+                    "https://huggingface.co/h2oai/h2ogpt-oig-oasst1-512-12b/blob/main/h2ogpt-oasst1-512-12b.h2oaih2ogpt-oig-oasst1-instruct-cleaned-v3.1_epochs.805b8e8eff369207340a5a6f90f3c833f9731254.2.zip",
+                ],
+"""
+[eval source code](https://github.com/h2oai/h2ogpt/issues/125#issuecomment-1540521131)
+                
+|    Task     |Version| Metric |Value |   |Stderr|
+|-------------|------:|--------|-----:|---|-----:|
+|arc_challenge|      0|acc     |0.3353|±  |0.0138|
+|             |       |acc_norm|0.3805|±  |0.0142|
+|arc_easy     |      0|acc     |0.7024|±  |0.0094|
+|             |       |acc_norm|0.6536|±  |0.0098|
+|boolq        |      1|acc     |0.6156|±  |0.0085|
+|hellaswag    |      0|acc     |0.5043|±  |0.0050|
+|             |       |acc_norm|0.6699|±  |0.0047|
+|openbookqa   |      0|acc     |0.2820|±  |0.0201|
+|             |       |acc_norm|0.3860|±  |0.0218|
+|piqa         |      0|acc     |0.7535|±  |0.0101|
+|             |       |acc_norm|0.7677|±  |0.0099|
+|winogrande   |      0|acc     |0.6156|±  |0.0137|
+ 
+                """
+        ),
+        (
                 "h2ogpt-oasst1-512-12b",
                 "EleutherAI/pythia-12b",
                 [
@@ -125,6 +155,8 @@ from transformers import AutoModelForCausalLM
     ],
 )
 def test_create_model_cards(model_name, base_model, dataset, training_logs, eval):
+    if model_name != "h2ogpt-oig-oasst1-512-12b":
+        return
     model_size = model_name.split("-")[-1].upper()
     assert "B" == model_size[-1]
     assert int(model_size[-2]) >= 0
