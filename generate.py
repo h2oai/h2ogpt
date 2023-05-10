@@ -9,7 +9,9 @@ from datetime import datetime
 import filelock
 import psutil
 
-from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial, EThread, get_githash
+from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial, EThread, get_githash, import_matplotlib
+
+import_matplotlib()
 
 SEED = 1236
 set_seed(SEED)
@@ -226,9 +228,6 @@ def main(
         stream_output = False
         # else prompt removal can mess up output
         chat = False
-    if langchain_enabled:
-        # streaming not supported yet
-        stream_output = False
 
     placeholder_instruction, placeholder_input, \
     stream_output, show_examples, \
@@ -330,8 +329,6 @@ def main(
                 fun = get_response
             t0 = time.time()
             score_dump = []
-
-            import matplotlib.pyplot as plt
 
             for exi, ex in enumerate(examples):
                 instruction = ex[eval_func_param_names.index('instruction_nochat')]
@@ -825,6 +822,10 @@ def evaluate(
         # get hidden context if have one
         context = get_context(chat_context, prompt_type)
 
+    prompter = Prompter(prompt_type, debug=debug, chat=chat, stream_output=stream_output)
+    data_point = dict(context=context, instruction=instruction, input=iinput)
+    prompt = prompter.generate_prompt(data_point)
+
     if langchain_mode != 'None':
         query = instruction if not iinput else "%s\n%s" % (instruction, iinput)
         from pdf_langchain import run_qa_db
@@ -840,22 +841,26 @@ def evaluate(
         db_type = 'faiss'  # FIXME
         pdf_filename = None  # FIXME, upload via gradio
         texts_folder = "./txts/"
+        sanitize_bot_response = True
 
-        ret = run_qa_db(query=query,
-                        use_openai_model=False, use_openai_embedding=False,
-                        first_para=first_para, text_limit=None, k=4, chunk=chunk, chunk_size=chunk_size,
-                        wiki=wiki, github=github, dai_rst=dai_rst, all=all,
-                        pdf_filename=None, split_method='chunk',
-                        texts_folder=texts_folder,
-                        db_type=db_type,
-                        model_name=base_model, model=model, tokenizer=tokenizer)
-        if ret:
-            yield ret
-            return
-
-    data_point = dict(context=context, instruction=instruction, input=iinput)
-    prompter = Prompter(prompt_type, debug=debug, chat=chat, stream_output=stream_output)
-    prompt = prompter.generate_prompt(data_point)
+        outr = ""
+        for r in run_qa_db(query=query,
+                           use_openai_model=False, use_openai_embedding=False,
+                           first_para=first_para, text_limit=None, k=4, chunk=chunk, chunk_size=chunk_size,
+                           wiki=wiki, github=github, dai_rst=dai_rst, all=all,
+                           pdf_filename=None, split_method='chunk',
+                           texts_folder=texts_folder,
+                           db_type=db_type,
+                           model_name=base_model, model=model, tokenizer=tokenizer,
+                           stream_output=stream_output, prompter=prompter,
+                           sanitize_bot_response=sanitize_bot_response,
+                           do_yield=True):
+            outr += r
+            yield r
+        if save_dir:
+            save_generate_output(output=outr, base_model=base_model, save_dir=save_dir)
+            print('Post-Generate Langchain: %s decoded_output: %s' % (str(datetime.now()), len(outr) if outr else -1), flush=True)
+        return
 
     if isinstance(tokenizer, str):
         # pipeline
@@ -969,11 +974,12 @@ def evaluate(
                     skip_prompt = False
                     streamer = H2OTextIteratorStreamer(tokenizer, skip_prompt=skip_prompt, block=False, **decoder_kwargs)
                     gen_kwargs.update(dict(streamer=streamer))
-                    target_func = generate_with_exceptions
-                    target = wrapped_partial(generate_with_exceptions, model.generate, prompt, inputs_decoded,
-                                             raise_generate_gpu_exceptions, **gen_kwargs)
+                    target = wrapped_partial(generate_with_exceptions, model.generate,
+                                             prompt=prompt, inputs_decoded=inputs_decoded,
+                                             raise_generate_gpu_exceptions=raise_generate_gpu_exceptions,
+                                             **gen_kwargs)
                     bucket = queue.Queue()
-                    thread = EThread(target=target, kwargs=dict(streamer=streamer), bucket=bucket)
+                    thread = EThread(target=target, streamer=streamer, bucket=bucket)
                     thread.start()
                     outputs = ""
                     try:
@@ -1050,15 +1056,16 @@ class H2OTextIteratorStreamer(TextIteratorStreamer):
             return value
 
 
-def generate_with_exceptions(func, prompt, inputs_decoded, raise_generate_gpu_exceptions, **kwargs):
+def generate_with_exceptions(func, *args, prompt='', inputs_decoded='', raise_generate_gpu_exceptions=True, **kwargs):
     try:
-        func(**kwargs)
+        func(*args, **kwargs)
     except torch.cuda.OutOfMemoryError as e:
         print("GPU OOM 2: prompt: %s inputs_decoded: %s exception: %s" % (prompt, inputs_decoded, str(e)),
               flush=True)
-        if kwargs['input_ids'] is not None:
-            kwargs['input_ids'].cpu()
-        kwargs['input_ids'] = None
+        if 'input_ids' in kwargs:
+            if kwargs['input_ids'] is not None:
+                kwargs['input_ids'].cpu()
+            kwargs['input_ids'] = None
         traceback.print_exc()
         clear_torch_cache()
         return

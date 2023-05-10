@@ -1,4 +1,4 @@
-from finetune import generate_prompt
+from finetune import generate_prompt, get_prompt
 
 
 class Prompter(object):
@@ -13,6 +13,12 @@ class Prompter(object):
         self.stream_output = stream_output
         self.repeat_penalty = repeat_penalty
         self.allowed_repeat_line_length = allowed_repeat_line_length
+        self.prompt = None
+        context = ""  # not for chat context
+        reduced = False  # not for chat context
+        self.promptA, self.promptB, self.PreInstruct, self.PreInput, self.PreResponse, \
+        self.terminate_response, self.chat_sep, self.humanstr, self.botstr = \
+            get_prompt(prompt_type, chat, context, reduced)
 
     def generate_prompt(self, data_point):
         reduced = False
@@ -55,6 +61,14 @@ class Prompter(object):
         for oi, output in enumerate(outputs):
             if self.prompt_type in [0, '0', 'plain']:
                 output = clean_response(output)
+            elif prompt is None:
+                # then use most basic parsing like pipeline
+                if self.botstr in output:
+                    output = clean_response(output.split(self.botstr)[1].strip().split(self.humanstr)[0].strip())
+                else:
+                    #output = clean_response(output.strip())
+                    # assume just not printed yet
+                    output = ""
             else:
                 # find first instance of prereponse
                 # prompt sometimes has odd characters, that mutate length,

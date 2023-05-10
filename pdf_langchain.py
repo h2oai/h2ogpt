@@ -6,6 +6,10 @@ import tempfile
 from abc import ABC
 from typing import Optional, List, Mapping, Any
 
+from utils import wrapped_partial, EThread, import_matplotlib
+
+import_matplotlib()
+
 import numpy as np
 import pandas as pd
 import requests
@@ -27,6 +31,7 @@ from langchain.vectorstores import Chroma
 # https://python.langchain.com/en/latest/modules/models/llms/examples/llm_caching.html
 # from langchain.cache import InMemoryCache
 # langchain.llm_cache = InMemoryCache()
+
 try:
     raise ValueError("Disabled, too greedy even if change model etc.")
     import langchain
@@ -148,11 +153,12 @@ def get_answer_from_sources(chain, sources, question):
     )["output_text"]
 
 
-def get_llm(use_openai_model=False, model_name=None, model=None, tokenizer=None):
+def get_llm(use_openai_model=False, model_name=None, model=None, tokenizer=None, stream_output=False):
     if use_openai_model:
         from langchain.llms import OpenAI
         llm = OpenAI(temperature=0)
         model_name = 'openai'
+        streamer = None
     else:
         from transformers import AutoTokenizer, AutoModelForCausalLM
 
@@ -177,24 +183,31 @@ def get_llm(use_openai_model=False, model_name=None, model=None, tokenizer=None)
                                                              device_map=device_map,
                                                              torch_dtype=torch_dtype,
                                                              load_in_8bit=load_8bit)
+
+        gen_kwargs = dict(max_new_tokens=256, return_full_text=True, early_stopping=False)
+        if stream_output:
+            skip_prompt = False
+            from generate import H2OTextIteratorStreamer
+            decoder_kwargs = {}
+            streamer = H2OTextIteratorStreamer(tokenizer, skip_prompt=skip_prompt, block=False, **decoder_kwargs)
+            gen_kwargs.update(dict(streamer=streamer))
+        else:
+            streamer = None
+
         if 'h2ogpt' in model_name:
             from h2oai_pipeline import H2OTextGenerationPipeline
-            pipe = H2OTextGenerationPipeline(model=model, tokenizer=tokenizer, max_new_tokens=256,
-                                             return_full_text=True)
+            pipe = H2OTextGenerationPipeline(model=model, tokenizer=tokenizer, **gen_kwargs)
             # pipe.task = "text-generation"
             # below makes it listen only to our prompt removal, not built in prompt removal that is less general and not specific for our model
             pipe.task = "text2text-generation"
         else:
             # only for non-instruct tuned cases when ok with just normal next token prediction
             from transformers import pipeline
-            pipe = pipeline(
-                "text-generation", model=model, tokenizer=tokenizer,
-                max_new_tokens=256, early_stopping=False,
-            )
+            pipe = pipeline("text-generation", model=model, tokenizer=tokenizer, **gen_kwargs)
 
         from langchain.llms import HuggingFacePipeline
         llm = HuggingFacePipeline(pipeline=pipe)
-    return llm, model_name
+    return llm, model_name, streamer
 
 
 def get_llm_prompt(model_name):
@@ -233,7 +246,7 @@ def get_answer_from_db(db, query, sources=False, chat_history='', use_openai_mod
     # print(docs[0])
 
     # get LLM
-    llm, model_name = get_llm(use_openai_model=use_openai_model)
+    llm, model_name, streamer = get_llm(use_openai_model=use_openai_model)
 
     # Create QA chain to integrate similarity search with user queries (answer query from knowledge base)
     if use_openai_model:
@@ -468,7 +481,7 @@ def test_qa_wiki_map_reduce_hf():
 
 def run_qa_wiki(use_openai_model=False, first_para=True, text_limit=None, chain_type='stuff'):
     sources = get_wiki_sources(first_para=first_para, text_limit=text_limit)
-    llm, model_name = get_llm(use_openai_model=use_openai_model)
+    llm, model_name, streamer = get_llm(use_openai_model=use_openai_model)
     chain = load_qa_with_sources_chain(llm, chain_type=chain_type)
 
     question = "What are the main differences between Linux and Windows?"
@@ -555,8 +568,12 @@ def run_qa_db(query=None,
               texts_folder=None,
               db_type='faiss',
               model_name=None, model=None, tokenizer=None,
+              stream_output=False,
+              prompter=None,
               answer_with_sources=True,
-              cut_distanct=1.3):
+              cut_distanct=1.3,
+              sanitize_bot_response=True,
+              do_yield=False):
     """
 
     :param query:
@@ -622,7 +639,9 @@ def run_qa_db(query=None,
         sources.extend(sources1)
     assert sources, "No sources"
 
-    llm, model_name = get_llm(use_openai_model=use_openai_model, model_name=model_name, model=model, tokenizer=tokenizer)
+    llm, model_name, streamer = get_llm(use_openai_model=use_openai_model, model_name=model_name, model=model,
+                                        tokenizer=tokenizer, stream_output=stream_output)
+
     db = get_db(sources, use_openai_embedding=use_openai_embedding, db_type=db_type)
     if not use_openai_model and 'h2ogpt' in model_name:
         # instruct-like, rather than few-shot prompt_type='plain' as default
@@ -660,27 +679,72 @@ def run_qa_db(query=None,
     print("Distance: min: %s max: %s mean: %s median: %s" %
           (scores[0], scores[-1], np.mean(scores), np.median(scores)), flush=True)
 
-    answer = chain(
-        {
-            "input_documents": docs,
-            "question": query,
-        },
-    )
-
-    print("query: %s" % query, flush=True)
-    print("answer: %s" % answer['output_text'], flush=True)
-    # link
-    answer_sources = [get_url(x) for x in answer['input_documents']]
-#    else:
-#        answer_sources = [x.metadata['source'] for x in answer['input_documents']]
-    #print("sources: %s" % answer_sources, flush=True)
-    #print("sorted sources: %s" % sorted(set(answer_sources)), flush=True)
-    if answer_with_sources:
-        sorted_sources = sorted(set(answer_sources))
-        ret = answer['output_text'] + "<br>Sources:<br>" + "<br>".join(sorted_sources)
+    chain_kwargs = dict(input_documents=docs, question=query)
+    if stream_output:
+        answer = None
+        assert streamer is not None
+        from generate import generate_with_exceptions
+        #target = wrapped_partial(generate_with_exceptions, chain, chain_kwargs)
+        target = wrapped_partial(chain, chain_kwargs)
+        import queue
+        bucket = queue.Queue()
+        thread = EThread(target=target, streamer=streamer, bucket=bucket)
+        thread.start()
+        outputs = ""
+        prompt = None  # FIXME
+        try:
+            for new_text in streamer:
+                # print("new_text: %s" % new_text, flush=True)
+                if bucket.qsize() > 0 or thread.exc:
+                    thread.join()
+                outputs += new_text
+                if prompter:# and False:  # FIXME: pipeline can already use prompter
+                    output1 = prompter.get_response(outputs, prompt=prompt,
+                                                    sanitize_bot_response=sanitize_bot_response)
+                    yield output1
+                else:
+                    yield outputs
+        except BaseException:
+            # if any exception, raise that exception if was from thread, first
+            if thread.exc:
+                raise thread.exc
+            raise
+        finally:
+            # in case no exception and didn't join with thread yet, then join
+            if not thread.exc:
+                answer = thread.join()
+        # in case raise StopIteration or broke queue loop in streamer, but still have exception
+        if thread.exc:
+            raise thread.exc
+        # FIXME: answer is not string outputs from streamer.  How to get actual final output?
+        #answer = outputs
     else:
-        ret = answer['output_text']
-    return ret
+        answer = chain(chain_kwargs)
+
+    if answer is not None:
+        print("query: %s" % query, flush=True)
+        print("answer: %s" % answer['output_text'], flush=True)
+        # link
+        answer_sources = [get_url(x) for x in answer['input_documents']]
+    #    else:
+    #        answer_sources = [x.metadata['source'] for x in answer['input_documents']]
+        #print("sources: %s" % answer_sources, flush=True)
+        #print("sorted sources: %s" % sorted(set(answer_sources)), flush=True)
+
+        sorted_sources = sorted(set(answer_sources))
+        sorted_sources_urls = "<br>Sources:<br>" + "<br>".join(sorted_sources)
+
+        if answer_with_sources:
+            ret = answer['output_text'] + sorted_sources_urls
+        else:
+            ret = answer['output_text']
+
+        if stream_output or do_yield:
+            # just yield more, not all
+            yield ret
+            return
+        else:
+            return ret
 
 
 def get_url(x):

@@ -766,10 +766,14 @@ def get_prompt(prompt_type, chat, context, reduced):
         promptA = promptB = PreInstruct = PreInput = PreResponse = ''
         terminate_response = []
         chat_sep = ''
+        humanstr = ''
+        botstr = ''
     elif prompt_type == 'simple_instruct':
         promptA = promptB = PreInstruct = PreInput = PreResponse = None
         terminate_response = []
         chat_sep = '\n'
+        humanstr = ''
+        botstr = ''
     elif prompt_type in [0, "0", "instruct"] or prompt_type in [7, "7", "instruct_with_end"]:
         promptA = 'Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.\n' if not (chat and reduced) else ''
         promptB = 'Below is an instruction that describes a task. Write a response that appropriately completes the request.\n' if not (chat and reduced) else ''
@@ -790,6 +794,8 @@ def get_prompt(prompt_type, chat, context, reduced):
         else:
             terminate_response = None
         chat_sep = '\n'
+        humanstr = PreInstruct
+        botstr = PreResponse
     elif prompt_type in [1, "1", "quality"]:
         promptA = 'Write a detailed high-quality, accurate, fair, Response with about 100 words by following the Instruction as applied on the Input.\n' if not (chat and reduced) else ''
         promptB = 'Write a detailed high-quality, accurate, fair, Response with about 100 words by following the Instruction.\n' if not (chat and reduced) else ''
@@ -807,6 +813,8 @@ def get_prompt(prompt_type, chat, context, reduced):
 """
         terminate_response = None
         chat_sep = '\n'
+        humanstr = PreInstruct  # first thing human says
+        botstr = PreResponse  # first thing bot says
     elif prompt_type in [2, "2", "human_bot", 9, "9", "human_bot_orig"]:
         human = '<human>:'
         bot = "<bot>:"
@@ -839,6 +847,8 @@ Current Time: {}
 
         terminate_response = [start, PreResponse]
         chat_sep = '\n'
+        humanstr = human  # tag before human talks
+        botstr = bot  # tag before bot talks
     elif prompt_type in [3, "3", "dai_faq"]:
         promptA = ''
         promptB = 'Answer the following Driverless AI question.\n'
@@ -854,12 +864,16 @@ Current Time: {}
 """
         terminate_response = ['\n\n']
         chat_sep = terminate_response
+        humanstr = PreInstruct
+        botstr = PreResponse
     elif prompt_type in [5, "5", "summarize"]:
         promptA = promptB = PreInput = ''
         PreInstruct = '## Main Text\n\n'
         PreResponse = '\n\n## Summary\n\n'
         terminate_response = None
         chat_sep = '\n'
+        humanstr = PreInstruct
+        botstr = PreResponse
     elif prompt_type in [6, "6", "instruct_vicuna"]:
         promptA = promptB = "A chat between a curious human and an artificial intelligence assistant. " \
             "The assistant gives helpful, detailed, and polite answers to the human's questions." if not (chat and reduced) else ''
@@ -875,6 +889,8 @@ Current Time: {}
 """
         terminate_response = ['### Human:']  # but only allow terminate after prompt is found correctly, else can't terminate
         chat_sep = '\n'
+        humanstr = PreInstruct
+        botstr = PreResponse
     elif prompt_type in [10, "10", "prompt_answer"]:
         preprompt = ''
         prompt_tokens = "<|prompt|>"
@@ -887,6 +903,8 @@ Current Time: {}
         eos = '<|endoftext|>'  # neox eos
         terminate_response = [start, PreResponse, eos]
         chat_sep = eos
+        humanstr = prompt_tokens
+        botstr = answer_tokens
     elif prompt_type in [11, "11", "open_assistant"]:
         # From added_tokens.json
         preprompt = ''
@@ -901,10 +919,12 @@ Current Time: {}
         eos = "</s>"
         terminate_response = [start, PreResponse, pend, eos]
         chat_sep = eos
+        humanstr = prompt_tokens
+        botstr = answer_tokens
     else:
         raise RuntimeError("No such prompt_type=%s" % prompt_type)
 
-    return promptA, promptB, PreInstruct, PreInput, PreResponse, terminate_response, chat_sep
+    return promptA, promptB, PreInstruct, PreInput, PreResponse, terminate_response, chat_sep, humanstr, botstr
 
 
 def generate_prompt(data_point, prompt_type, chat, reduced):
@@ -917,7 +937,7 @@ def generate_prompt(data_point, prompt_type, chat, reduced):
     prompt_type = data_point.get('prompt_type', prompt_type)
     assert prompt_type in prompt_types, "Bad prompt type: %s" % prompt_type
     promptA, promptB, PreInstruct, PreInput, PreResponse, \
-    terminate_response, chat_sep = get_prompt(prompt_type, chat, context, reduced)
+    terminate_response, chat_sep, humanstr, botstr = get_prompt(prompt_type, chat, context, reduced)
 
     prompt = context if not reduced else ''
 
