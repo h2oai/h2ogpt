@@ -606,7 +606,7 @@ def run_qa_db(query=None,
         if chunk:
             sources1 = chunk_sources(sources1, chunk_size=chunk_size)
         sources.extend(sources1)
-    if False and (texts_folder or all):
+    if texts_folder or all:
         # FIXME: Can be any loader types
         loader = DirectoryLoader(texts_folder, glob="./*.txt", loader_cls=TextLoader)
         sources1 = loader.load()

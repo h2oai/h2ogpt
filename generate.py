@@ -838,13 +838,14 @@ def evaluate(
         all = langchain_mode in ['All']
         db_type = 'faiss'  # FIXME
         pdf_filename = None  # FIXME, upload via gradio
+        texts_folder = "./txts/"
 
         ret = run_qa_db(query=query,
                         use_openai_model=False, use_openai_embedding=False,
                         first_para=True, text_limit=None, k=4, chunk=chunk, chunk_size=chunk_size,
                         wiki=wiki, github=github, dai_rst=dai_rst, all=all,
                         pdf_filename=None, split_method='chunk',
-                        texts_folder=None,
+                        texts_folder=texts_folder,
                         db_type=db_type,
                         model_name=base_model, model=model, tokenizer=tokenizer)
         if ret:
