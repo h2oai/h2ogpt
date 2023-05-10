@@ -828,10 +828,11 @@ def evaluate(
     if langchain_mode != 'None':
         query = instruction if not iinput else "%s\n%s" % (instruction, iinput)
         from pdf_langchain import run_qa_db
-        #chunk = True  # chunking with small chunk_size hurts accuracy esp. if k small
-        chunk = False  # chunking with small chunk_size hurts accuracy esp. if k small
-        chunk_size = 128*1  # FIXME
+        chunk = True  # chunking with small chunk_size hurts accuracy esp. if k small
+        #chunk = False  # chunking with small chunk_size hurts accuracy esp. if k small
+        chunk_size = 128*4  # FIXME
         wiki = langchain_mode in ['wiki', 'All']
+        first_para = False
         github = langchain_mode in ['github h2oGPT', 'All']
         dai_rst = langchain_mode in ['DriverlessAI docs', 'All']
         urls = langchain_mode in ['All']
@@ -842,7 +843,7 @@ def evaluate(
 
         ret = run_qa_db(query=query,
                         use_openai_model=False, use_openai_embedding=False,
-                        first_para=True, text_limit=None, k=4, chunk=chunk, chunk_size=chunk_size,
+                        first_para=first_para, text_limit=None, k=4, chunk=chunk, chunk_size=chunk_size,
                         wiki=wiki, github=github, dai_rst=dai_rst, all=all,
                         pdf_filename=None, split_method='chunk',
                         texts_folder=texts_folder,

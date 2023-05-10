@@ -356,10 +356,10 @@ def show_counts(chunks, count_tokens):
 
 
 def get_wiki_data(title, first_paragraph_only, text_limit=None, take_head=True):
+    filename = 'wiki_%s_%s_%s_%s.data' % (first_paragraph_only, title, text_limit, take_head)
     url = f"https://en.wikipedia.org/w/api.php?format=json&action=query&prop=extracts&explaintext=1&titles={title}"
     if first_paragraph_only:
         url += "&exintro=1"
-    filename = 'wiki_%s.data' % title
     import json
     if not os.path.isfile(filename):
         data = requests.get(url).json()
@@ -367,7 +367,7 @@ def get_wiki_data(title, first_paragraph_only, text_limit=None, take_head=True):
     else:
         data = json.load(open(filename, "rt"))
     page_content = list(data["query"]["pages"].values())[0]["extract"]
-    if take_head is not None:
+    if take_head is not None and text_limit is not None:
         page_content = page_content[:text_limit] if take_head else page_content[:-text_limit]
     return Document(
         page_content=page_content,
@@ -582,7 +582,6 @@ def run_qa_db(query=None,
     """
     # see https://dagster.io/blog/chatgpt-langchain
     sources = []
-    dst = None
     if wiki or all:
         sources1 = get_wiki_sources(first_para=first_para, text_limit=text_limit)
         if chunk:
@@ -598,7 +597,7 @@ def run_qa_db(query=None,
         #home = os.path.expanduser('~')
         #sources = get_rst_docs(os.path.join(home, "h2oai.superclean/docs/"))
         sources1, dst = get_dai_docs()
-        if chunk:
+        if chunk and False:  # FIXME: DAI docs are already chunked well, should only chunk more if over limit
             sources1 = chunk_sources(sources1, chunk_size=chunk_size)
         sources.extend(sources1)
     if pdf_filename:
