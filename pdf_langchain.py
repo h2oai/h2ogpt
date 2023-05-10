@@ -629,10 +629,11 @@ def run_qa_db(query=None,
         # instruct-like, rather than few-shot prompt_type='plain' as default
         # but then sources confuse the model with how inserted among rest of text, so avoid
         prefix = "The following text contains Content from chunks of text extracted from source documentation.  Please give a natural language concise answer to any question using the Content text fragments information provided."
+        prefix = ""
         template = """%s
-=========
+==
 {context}
-=========
+==
 {question}""" % prefix
 
         prompt = PromptTemplate(
