@@ -74,20 +74,6 @@ More information about the models can be found on [H2O.ai's Hugging Face page](h
 - To fine-tune any LLM models on your data, follow the [fine-tuning instructions](FINETUNE.md).
 - To create a container for deployment, follow the [Docker instructions](INSTALL-DOCKER.md).
 
-6. Add Flash Attention
-
-```bash
-git clone https://github.com/h2oai/flash-attention.git
-cd flash-attention
-python setup.py install
-cd csrc/layer_norm
-pip install .
-cd ../rotary
-pip install .
-cd ../fused_dense_lib
-pip install .
-cd ../..
-```
 ### Help
 
 [FAQs](FAQ.md)
