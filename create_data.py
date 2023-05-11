@@ -115,6 +115,8 @@ def get_sentences(blob, length):
     :param length:
     :return:
     """
+    import nltk
+    nltk.download('punkt')
     from nltk.tokenize import sent_tokenize
     sentences = sent_tokenize(blob)
     my_sentences = []
