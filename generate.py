@@ -105,7 +105,7 @@ def main(
         eval_sharegpt_as_output: bool = False,
 
         langchain_mode: str = 'Disabled',
-        load_db_if_exists: bool = False,
+        load_db_if_exists: bool = True,
 ):
     """
 
@@ -166,6 +166,7 @@ def main(
     :param eval_sharegpt_prompts_only_seed: for no gradio benchmark, if seed for ShareGPT sampling
     :param eval_sharegpt_as_output: for no gradio benchmark, whether to test ShareGPT output itself
     :param langchain_mode: Data source to include
+    :param load_db_if_exists: Whether to load chroma db if exists or re-generate db
     :return:
     """
     is_hf = bool(os.getenv("HUGGINGFACE_SPACES"))
@@ -790,7 +791,7 @@ def evaluate(
         raise_generate_gpu_exceptions=None,
         chat_context=None,
         lora_weights=None,
-        load_db_if_exists=False,
+        load_db_if_exists=True,
 ):
     # ensure passed these
     assert concurrency_count is not None
