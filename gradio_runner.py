@@ -9,7 +9,8 @@ from prompter import Prompter
 from utils import get_githash, flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping
 from finetune import prompt_type_to_model_name, prompt_types_strings, generate_prompt, inv_prompt_type_to_model_lower
-from generate import get_model, languages_covered, evaluate, eval_func_param_names, score_qa, langchain_modes
+from generate import get_model, languages_covered, evaluate, eval_func_param_names, score_qa, langchain_modes, \
+    inputs_kwargs_list
 
 import gradio as gr
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -932,8 +933,6 @@ def go_gradio(**kwargs):
 
 
 input_args_list = ['model_state']
-inputs_kwargs_list = ['debug', 'save_dir', 'sanitize_bot_response', 'model_state0', 'is_low_mem',
-                      'raise_generate_gpu_exceptions', 'chat_context', 'concurrency_count', 'lora_weights']
 
 
 def get_inputs_list(inputs_dict, model_lower):

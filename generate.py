@@ -105,6 +105,7 @@ def main(
         eval_sharegpt_as_output: bool = False,
 
         langchain_mode: str = 'Disabled',
+        load_db_if_exists: bool = False,
 ):
     """
 
@@ -325,6 +326,7 @@ def main(
             if not eval_sharegpt_as_output:
                 model, tokenizer, device = get_model(**locals())
                 model_state = [model, tokenizer, device, base_model]
+                kwargs_evaluate = {k: v for k, v in locals().items() if k in inputs_kwargs_list}
                 fun = partial(evaluate, model_state, debug=debug, save_dir=save_dir, is_low_mem=is_low_mem,
                               raise_generate_gpu_exceptions=raise_generate_gpu_exceptions,
                               chat_context=chat_context,
@@ -747,6 +749,11 @@ eval_func_param_names = ['instruction',
                          ]
 
 
+inputs_kwargs_list = ['debug', 'save_dir', 'sanitize_bot_response', 'model_state0', 'is_low_mem',
+                      'raise_generate_gpu_exceptions', 'chat_context', 'concurrency_count', 'lora_weights',
+                      'load_db_if_exists']
+
+
 def evaluate(
         model_state,
         # START NOTE: Examples must have same order of parameters
@@ -782,6 +789,7 @@ def evaluate(
         raise_generate_gpu_exceptions=None,
         chat_context=None,
         lora_weights=None,
+        load_db_if_exists=False,
 ):
     # ensure passed these
     assert concurrency_count is not None
@@ -850,7 +858,8 @@ def evaluate(
         dai_rst = langchain_mode in ['DriverlessAI docs', 'All', "'All'"]
         urls = langchain_mode in ['All', "'All'"]
         all = langchain_mode in ['All', "'All'"]
-        db_type = 'faiss'  # FIXME
+        #db_type = 'faiss'  # FIXME
+        db_type = 'chroma'  # FIXME
         pdf_filename = None  # FIXME, upload via gradio
         texts_folder = "./txts/"
         sanitize_bot_response = True
@@ -866,7 +875,7 @@ def evaluate(
                            model_name=base_model, model=model, tokenizer=tokenizer,
                            stream_output=stream_output, prompter=prompter,
                            sanitize_bot_response=sanitize_bot_response,
-                           do_yield=True):
+                           do_yield=True, load_db_if_exists=load_db_if_exists):
             outr += r
             yield r
         if save_dir:

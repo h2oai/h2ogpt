@@ -397,7 +397,7 @@ def get_wiki_sources(first_para=True, text_limit=None):
         get_wiki_data("Unix", first_para, text_limit=text_limit),
         get_wiki_data("Microsoft_Windows", first_para, text_limit=text_limit),
         get_wiki_data("Linux", first_para, text_limit=text_limit),
-        #get_wiki_data("Seinfeld", first_para, text_limit=text_limit),
+        # get_wiki_data("Seinfeld", first_para, text_limit=text_limit),
     ]
 
 
@@ -410,8 +410,8 @@ def get_github_docs(repo_owner, repo_name):
         )
         git_sha = (
             subprocess.check_output("git rev-parse HEAD", shell=True, cwd=d)
-                .decode("utf-8")
-                .strip()
+            .decode("utf-8")
+            .strip()
         )
         repo_path = pathlib.Path(d)
         markdown_files = list(repo_path.glob("*/*.md")) + list(
@@ -455,7 +455,7 @@ def get_dai_docs(from_hf=False):
         os.symlink(sym_src, sym_dst)
         itm = Document(page_content=line, metadata={"source": file})
         # NOTE: yield has issues when going into db, loses metadata
-        #yield itm
+        # yield itm
         sources.append(itm)
     return sources, dst
 
@@ -532,7 +532,7 @@ def test_qa_daidocs_db_chunk_hf_faiss():
     query = "Which config.toml enables pytorch for NLP?"
     # chunk_size is chars for each of k=4 chunks
     return run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=None, chunk=True,
-                     chunk_size=128*1,  # characters, and if k=4, then 4*4*128 = 2048 chars ~ 512 tokens
+                     chunk_size=128 * 1,  # characters, and if k=4, then 4*4*128 = 2048 chars ~ 512 tokens
                      wiki=False,
                      dai_rst=True,
                      db_type='faiss',
@@ -543,7 +543,7 @@ def test_qa_daidocs_db_chunk_hf_chroma():
     query = "Which config.toml enables pytorch for NLP?"
     # chunk_size is chars for each of k=4 chunks
     return run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=None, chunk=True,
-                     chunk_size=128*1,  # characters, and if k=4, then 4*4*128 = 2048 chars ~ 512 tokens
+                     chunk_size=128 * 1,  # characters, and if k=4, then 4*4*128 = 2048 chars ~ 512 tokens
                      wiki=False,
                      dai_rst=True,
                      db_type='chroma',
@@ -592,7 +592,9 @@ def run_qa_db(query=None,
               cut_distanct=1.1,
               sanitize_bot_response=True,
               do_yield=False,
-              show_rank=False):
+              show_rank=False,
+              load_db_if_exists=False,
+              persist_directory_base='db_dir'):
     """
 
     :param query:
@@ -616,52 +618,63 @@ def run_qa_db(query=None,
     :param answer_with_sources
     :return:
     """
-    # see https://dagster.io/blog/chatgpt-langchain
-    sources = []
-    if wiki or all:
-        sources1 = get_wiki_sources(first_para=first_para, text_limit=text_limit)
-        if chunk:
+    persist_directory = persist_directory_base + str(wiki) + str(first_para) + str(text_limit) + str(github) + str(
+        dai_rst) + str(all) + str(chunk) + str(chunk_size)
+    if load_db_if_exists and db_type == 'chroma' and os.path.isdir(persist_directory) and os.path.isdir(
+            os.path.join(persist_directory, 'index')):
+        print("Loading db", flush=True)
+        embedding = get_embedding(use_openai_embedding)
+        db = Chroma(persist_directory=persist_directory, embedding_function=embedding)
+    else:
+        print("Generating sources", flush=True)
+        # see https://dagster.io/blog/chatgpt-langchain
+        sources = []
+        if wiki or all:
+            sources1 = get_wiki_sources(first_para=first_para, text_limit=text_limit)
+            if chunk:
+                sources1 = chunk_sources(sources1, chunk_size=chunk_size)
+            sources.extend(sources1)
+        if github or all:
+            # sources = get_github_docs("dagster-io", "dagster")
+            sources1 = get_github_docs("h2oai", "h2ogpt")
+            # FIXME: always chunk for now
             sources1 = chunk_sources(sources1, chunk_size=chunk_size)
-        sources.extend(sources1)
-    if github or all:
-        # sources = get_github_docs("dagster-io", "dagster")
-        sources1 = get_github_docs("h2oai", "h2ogpt")
-        # FIXME: always chunk for now
-        sources1 = chunk_sources(sources1, chunk_size=chunk_size)
-        sources.extend(sources1)
-    if dai_rst or all:
-        #home = os.path.expanduser('~')
-        #sources = get_rst_docs(os.path.join(home, "h2oai.superclean/docs/"))
-        sources1, dst = get_dai_docs(from_hf=True)
-        if chunk and False:  # FIXME: DAI docs are already chunked well, should only chunk more if over limit
-            sources1 = chunk_sources(sources1, chunk_size=chunk_size)
-        sources.extend(sources1)
-    if pdf_filename:
-        sources1 = pdf_to_sources(pdf_filename=pdf_filename, split_method=split_method)
-        if chunk:
-            sources1 = chunk_sources(sources1, chunk_size=chunk_size)
-        sources.extend(sources1)
-    if texts_folder or all:
-        # FIXME: Can be any loader types
-        loader = DirectoryLoader(texts_folder, glob="./*.txt", loader_cls=TextLoader)
-        sources1 = loader.load()
-        if chunk:
-            sources1 = chunk_sources(sources1, chunk_size=chunk_size)
-        sources.extend(sources1)
-    if False and all:
-        #from langchain.document_loaders import UnstructuredURLLoader
-        #loader = UnstructuredURLLoader(urls=urls)
-        urls = ["https://www.birdsongsf.com/who-we-are/"]
-        from langchain.document_loaders import PlaywrightURLLoader
-        loader = PlaywrightURLLoader(urls=urls, remove_selectors=["header", "footer"])
-        sources1 = loader.load()
-        sources.extend(sources1)
-    assert sources, "No sources"
+            sources.extend(sources1)
+        if dai_rst or all:
+            # home = os.path.expanduser('~')
+            # sources = get_rst_docs(os.path.join(home, "h2oai.superclean/docs/"))
+            sources1, dst = get_dai_docs(from_hf=True)
+            if chunk and False:  # FIXME: DAI docs are already chunked well, should only chunk more if over limit
+                sources1 = chunk_sources(sources1, chunk_size=chunk_size)
+            sources.extend(sources1)
+        if pdf_filename:
+            sources1 = pdf_to_sources(pdf_filename=pdf_filename, split_method=split_method)
+            if chunk:
+                sources1 = chunk_sources(sources1, chunk_size=chunk_size)
+            sources.extend(sources1)
+        if texts_folder or all:
+            # FIXME: Can be any loader types
+            loader = DirectoryLoader(texts_folder, glob="./*.txt", loader_cls=TextLoader)
+            sources1 = loader.load()
+            if chunk:
+                sources1 = chunk_sources(sources1, chunk_size=chunk_size)
+            sources.extend(sources1)
+        if False and all:
+            # from langchain.document_loaders import UnstructuredURLLoader
+            # loader = UnstructuredURLLoader(urls=urls)
+            urls = ["https://www.birdsongsf.com/who-we-are/"]
+            from langchain.document_loaders import PlaywrightURLLoader
+            loader = PlaywrightURLLoader(urls=urls, remove_selectors=["header", "footer"])
+            sources1 = loader.load()
+            sources.extend(sources1)
+        assert sources, "No sources"
+        print("Generating db", flush=True)
+        db = get_db(sources, use_openai_embedding=use_openai_embedding, db_type=db_type,
+                    persist_directory=persist_directory)
 
     llm, model_name, streamer = get_llm(use_openai_model=use_openai_model, model_name=model_name, model=model,
                                         tokenizer=tokenizer, stream_output=stream_output)
 
-    db = get_db(sources, use_openai_embedding=use_openai_embedding, db_type=db_type)
     if not use_openai_model and 'h2ogpt' in model_name:
         # instruct-like, rather than few-shot prompt_type='plain' as default
         # but then sources confuse the model with how inserted among rest of text, so avoid
@@ -674,11 +687,11 @@ def run_qa_db(query=None,
 {question}""" % prefix
 
         prompt = PromptTemplate(
-            #input_variables=["summaries", "question"],
+            # input_variables=["summaries", "question"],
             input_variables=["context", "question"],
             template=template,
         )
-        #chain = load_qa_with_sources_chain(llm, prompt=prompt)
+        # chain = load_qa_with_sources_chain(llm, prompt=prompt)
         chain = load_qa_chain(llm, prompt=prompt)
     else:
         chain = load_qa_with_sources_chain(llm)
@@ -702,7 +715,7 @@ def run_qa_db(query=None,
     if os.path.isfile(common_words_file):
         df = pd.read_csv("data/NGSL_1.2_stats.csv.zip")
         import string
-        reduced_query = query.translate(str.maketrans(string.punctuation, ' '*len(string.punctuation))).strip()
+        reduced_query = query.translate(str.maketrans(string.punctuation, ' ' * len(string.punctuation))).strip()
         reduced_query_words = reduced_query.split(' ')
         set_common = set(df['Lemma'].values.tolist())
         num_common = len([x.lower() in set_common for x in reduced_query_words])
@@ -715,7 +728,7 @@ def run_qa_db(query=None,
         answer = None
         assert streamer is not None
         from generate import generate_with_exceptions
-        #target = wrapped_partial(generate_with_exceptions, chain, chain_kwargs)
+        # target = wrapped_partial(generate_with_exceptions, chain, chain_kwargs)
         target = wrapped_partial(chain, chain_kwargs)
         import queue
         bucket = queue.Queue()
@@ -729,7 +742,7 @@ def run_qa_db(query=None,
                 if bucket.qsize() > 0 or thread.exc:
                     thread.join()
                 outputs += new_text
-                if prompter:# and False:  # FIXME: pipeline can already use prompter
+                if prompter:  # and False:  # FIXME: pipeline can already use prompter
                     output1 = prompter.get_response(outputs, prompt=prompt,
                                                     sanitize_bot_response=sanitize_bot_response)
                     yield output1
@@ -748,7 +761,7 @@ def run_qa_db(query=None,
         if thread.exc:
             raise thread.exc
         # FIXME: answer is not string outputs from streamer.  How to get actual final output?
-        #answer = outputs
+        # answer = outputs
     else:
         answer = chain(chain_kwargs)
 
@@ -756,7 +769,8 @@ def run_qa_db(query=None,
         print("query: %s" % query, flush=True)
         print("answer: %s" % answer['output_text'], flush=True)
         # link
-        answer_sources = [(max(0.0, 1.5 - score)/1.5, get_url(doc)) for score, doc in zip(scores, answer['input_documents'])]
+        answer_sources = [(max(0.0, 1.5 - score) / 1.5, get_url(doc)) for score, doc in
+                          zip(scores, answer['input_documents'])]
         answer_sources_dict = defaultdict(list)
         [answer_sources_dict[url].append(score) for score, url in answer_sources]
         answers_dict = {}
@@ -765,8 +779,8 @@ def run_qa_db(query=None,
         answer_sources = [(score, url) for url, score in answers_dict.items()]
         answer_sources.sort(key=lambda x: x[0], reverse=True)
         if show_rank:
-            #answer_sources = ['%d | %s' % (1 + rank, url) for rank, (score, url) in enumerate(answer_sources)]
-            #sorted_sources_urls = "Sources [Rank | Link]:<br>" + "<br>".join(answer_sources)
+            # answer_sources = ['%d | %s' % (1 + rank, url) for rank, (score, url) in enumerate(answer_sources)]
+            # sorted_sources_urls = "Sources [Rank | Link]:<br>" + "<br>".join(answer_sources)
             answer_sources = ['%s' % url for rank, (score, url) in enumerate(answer_sources)]
             sorted_sources_urls = "Ranked Sources:<br>" + "<br>".join(answer_sources)
         else:
@@ -790,7 +804,8 @@ def run_qa_db(query=None,
 
 
 def get_url(x):
-    return """<a href="file/%s" target="_blank"  rel="noopener noreferrer">%s</a>""" % (x.metadata['source'], x.metadata['source'])
+    return """<a href="file/%s" target="_blank"  rel="noopener noreferrer">%s</a>""" % (
+        x.metadata['source'], x.metadata['source'])
 
 
 def chunk_sources(sources, chunk_size=1024):
@@ -803,7 +818,7 @@ def chunk_sources(sources, chunk_size=1024):
     else:
         source_chunks = []
         # Below for known separator
-        #splitter = CharacterTextSplitter(separator=" ", chunk_size=chunk_size, chunk_overlap=0)
+        # splitter = CharacterTextSplitter(separator=" ", chunk_size=chunk_size, chunk_overlap=0)
         splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=0)
         for source in sources:
             # print(source.metadata['source'], flush=True)
