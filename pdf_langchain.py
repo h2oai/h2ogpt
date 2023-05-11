@@ -4,6 +4,7 @@ import pathlib
 import subprocess
 import tempfile
 from abc import ABC
+from collections import defaultdict
 from typing import Optional, List, Mapping, Any
 
 from utils import wrapped_partial, EThread, import_matplotlib
@@ -590,7 +591,8 @@ def run_qa_db(query=None,
               answer_with_sources=True,
               cut_distanct=1.3,
               sanitize_bot_response=True,
-              do_yield=False):
+              do_yield=False,
+              show_rank=True):
     """
 
     :param query:
@@ -742,14 +744,25 @@ def run_qa_db(query=None,
         print("query: %s" % query, flush=True)
         print("answer: %s" % answer['output_text'], flush=True)
         # link
-        answer_sources = [get_url(x) for x in answer['input_documents']]
-    #    else:
-    #        answer_sources = [x.metadata['source'] for x in answer['input_documents']]
-        #print("sources: %s" % answer_sources, flush=True)
-        #print("sorted sources: %s" % sorted(set(answer_sources)), flush=True)
+        answer_sources = [(max(0.0, 1.5 - score)/1.5, get_url(doc)) for score, doc in zip(scores, answer['input_documents'])]
+        answer_sources_dict = defaultdict(list)
+        [answer_sources_dict[url].append(score) for score, url in answer_sources]
+        answers_dict = {}
+        for url, scores_url in answer_sources_dict.items():
+            answers_dict[url] = np.max(scores_url)
+        answer_sources = [(score, url) for url, score in answers_dict.items()]
+        answer_sources.sort(key=lambda x: x[0], reverse=True)
+        if show_rank:
+            #answer_sources = ['%d | %s' % (1 + rank, url) for rank, (score, url) in enumerate(answer_sources)]
+            #sorted_sources_urls = "Sources [Rank | Link]:<br>" + "<br>".join(answer_sources)
+            answer_sources = ['%s' % url for rank, (score, url) in enumerate(answer_sources)]
+            sorted_sources_urls = "Ranked Sources:<br>" + "<br>".join(answer_sources)
+        else:
+            answer_sources = ['%.2g | %s' % (score, url) for score, url in answer_sources]
+            sorted_sources_urls = "Sources [Score | Link]:<br>" + "<br>".join(answer_sources)
 
-        sorted_sources = sorted(set(answer_sources))
-        sorted_sources_urls = "Sources:<br>" + "<br>".join(sorted_sources)
+        if not answer['output_text'].endswith('\n'):
+            answer['output_text'] += '\n'
 
         if answer_with_sources:
             ret = answer['output_text'] + '\n' + sorted_sources_urls
