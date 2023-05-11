@@ -291,41 +291,6 @@ def train(
         lora_mappings = mapping.TRANSFORMERS_MODELS_TO_LORA_TARGET_MODULES_MAPPING.copy()
     lora_mappings['distilgpt2'] = ["c_attn"]
 
-    if not llama_type and flash_attn:
-        log("Enabling Flash attention")
-        # from flash_attn.models.gpt import GPTLMHeadModel
-        # from flash_attn.models.gpt_neox import gpt_neox_config_to_gpt2_config
-        # from flash_attn.models.gptj import gptj_config_to_gpt2_config
-        #
-        # if "gpt-j" in base_model.lower():
-        #     config = gptj_config_to_gpt2_config(model.config)
-        # else:
-        #     assert any([x in base_model.lower() for x in ["pythia", "h2ogpt", "gpt-neox"]])
-        #     config = gpt_neox_config_to_gpt2_config(model.config)
-        # config.use_flash_attn = True
-        # config.fused_bias_fc = True
-        # config.activation_function = 'gelu_fast'  # GPT-NeoX-20B uses "gelu_fast"
-        # config.fused_mlp = True  # GPT-NeoX-20B uses "gelu_fast"
-        # config.fused_dropout_add_ln = True
-        # config.residual_in_fp32 = True
-        # lora_target_modules = ['Wqkv']
-        # # model = GPTLMHeadModel.from_pretrained(base_model, config, device='cuda', dtype=torch.float16)
-        #
-        # model = GPTLMHeadModel(config, base_model, device='cuda', dtype=torch.float16)
-        # # Load state_dict in cpu because we already initialized the model in GPU, and we don't
-        # # want extra stuff taking up more GPU memory
-        # state_dict = state_dict_from_pretrained(
-        #     base_model, device='cpu', dtype=torch.float16
-        # )
-        # if base_model.startswith('EleutherAI/gpt-j-'):
-        #     state_dict = remap_state_dict_hf_gptj(state_dict, config)
-        #     strict = False  # We have rotary_emb.inf_freq buffers not in the GPT-J checkpoint
-        # else:
-        #     state_dict = remap_state_dict_hf_gpt_neox(state_dict, config)
-        # if world_size > 1:
-        #     state_dict = shard_state_dict_tp(state_dict, config, world_size, rank)
-        # model.load_state_dict(state_dict, strict=True)
-
     if lora_weights:
 
         from peft import PeftModel
