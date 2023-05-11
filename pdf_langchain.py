@@ -17,7 +17,7 @@ import numpy as np
 import pandas as pd
 import requests
 from langchain.chains.qa_with_sources import load_qa_with_sources_chain
-from langchain.document_loaders import PyPDFLoader, TextLoader, DirectoryLoader
+from langchain.document_loaders import PyPDFLoader, TextLoader, DirectoryLoader, JSONLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter, CharacterTextSplitter
 from langchain.vectorstores import FAISS
 from langchain.chains.question_answering import load_qa_chain
@@ -596,7 +596,9 @@ def run_qa_db(query=None,
               do_yield=False,
               show_rank=False,
               load_db_if_exists=False,
-              persist_directory_base='db_dir'):
+              persist_directory_base='db_dir',
+              limit_wiki_full=5000000,
+              min_views=1000):
     """
 
     :param query:
@@ -620,7 +622,8 @@ def run_qa_db(query=None,
     :param answer_with_sources
     :return:
     """
-    persist_directory = persist_directory_base + str(wiki) + str(wiki_full) + str(first_para) + str(text_limit) + str(github) + str(
+
+    persist_directory = persist_directory_base + str(wiki) + str(wiki_full) + str(limit_wiki_full) + str(first_para) + str(text_limit) + str(github) + str(
         dai_rst) + str(all) + str(chunk) + str(chunk_size)
     if load_db_if_exists and db_type == 'chroma' and os.path.isdir(persist_directory) and os.path.isdir(
             os.path.join(persist_directory, 'index')):
@@ -634,9 +637,13 @@ def run_qa_db(query=None,
         if wiki_full or all:
             from datasets import load_dataset
             lang = 'en'
-            data = load_dataset(f"Cohere/wikipedia-22-12", lang, split='train', streaming=True)
+            data = load_dataset(f"Cohere/wikipedia-22-12", lang, split='train')
+            data = data.filter(lambda x: x['views'] > min_views, num_proc=max(1, os.cpu_count() // 2))
             sources1 = []
-            for row in tqdm(data, total=35167920):
+            total = min(limit_wiki_full, 35167920, data.num_rows)
+            for rowi, row in enumerate(tqdm(data, total=total)):
+                if rowi == limit_wiki_full:
+                    break
                 sources1.append(Document(page_content=row['text'],
                                          metadata={"source": row['url']}))
             sources.extend(sources1)
@@ -815,8 +822,12 @@ def run_qa_db(query=None,
 
 
 def get_url(x):
-    return """<a href="file/%s" target="_blank"  rel="noopener noreferrer">%s</a>""" % (
-        x.metadata['source'], x.metadata['source'])
+    if x.metadata['source'].startswith('http://') or x.metadata['source'].startswith('https://'):
+        return """<a href="%s" target="_blank"  rel="noopener noreferrer">%s</a>""" % (
+            x.metadata['source'], x.metadata['source'])
+    else:
+        return """<a href="file/%s" target="_blank"  rel="noopener noreferrer">%s</a>""" % (
+            x.metadata['source'], x.metadata['source'])
 
 
 def chunk_sources(sources, chunk_size=1024):

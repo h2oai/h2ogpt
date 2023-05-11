@@ -1,5 +1,5 @@
 # optional for chat with PDF
-langchain==0.0.150
+langchain==0.0.165
 pypdf==3.8.1
 tiktoken==0.3.3
 # avoid textract, requires old six
@@ -23,6 +23,8 @@ chromadb==0.3.22
 #unstructured==0.6.4
 #pdf2image==1.16.3
 #pytesseract==0.3.10
+
+jq==1.4.1
 
 # to check licenses
 # Run: pip-licenses|grep -v 'BSD\|Apache\|MIT'
