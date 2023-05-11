@@ -45,7 +45,8 @@ pytest-xdist==3.2.1
 nltk==3.8.1
 textstat==0.7.3
 pandoc==2.3
-pypandoc==1.11
+#pypandoc==1.11
+pypandoc_binary==1.11
 openpyxl==3.1.2
 lm_dataformat==0.0.20
 bioc==2.0
