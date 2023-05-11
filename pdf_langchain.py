@@ -74,6 +74,7 @@ def pdf_to_sources(pdf_filename=None, split_method='chunk'):
         # Advanced method - Split by chunk
 
         # Step 1: Convert PDF to text
+        raise RuntimeError("textract requires old six, avoid")
         import textract
         doc = textract.process(pdf_filename)
 

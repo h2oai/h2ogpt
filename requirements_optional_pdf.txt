@@ -2,7 +2,8 @@
 langchain==0.0.150
 pypdf==3.8.1
 tiktoken==0.3.3
-textract==1.6.5
+# avoid textract, requires old six
+#textract==1.6.5
 # choose:
 #faiss-cpu
 faiss-gpu==1.7.2
