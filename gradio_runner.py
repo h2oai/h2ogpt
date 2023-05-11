@@ -207,8 +207,8 @@ def go_gradio(**kwargs):
                             retry = gr.Button("Regenerate")
                             undo = gr.Button("Undo")
                         langchain_mode = gr.Dropdown(['All', 'None', 'wiki', 'github h2oGPT', 'DriverlessAI docs'],
-                                                     value='All' if kwargs['langchain_enabled'] else 'None',
-                                                     label="Data Source", visible=kwargs['langchain_enabled'])
+                                                     value=kwargs['langchain_mode'],
+                                                     label="Data Source", visible=kwargs['langchain_mode'] != 'Disabled')
                 with gr.TabItem("Input/Output"):
                     with gr.Row():
                         if 'mbart-' in kwargs['model_lower']:

@@ -1,3 +1,10 @@
+"""
+Dataset creation tools.
+
+Keep to-level imports clean of non-trivial imports for specific tools,
+because this file is imported for various purposes
+"""
+
 import ast
 import concurrent.futures
 import contextlib

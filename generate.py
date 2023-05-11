@@ -12,6 +12,7 @@ import psutil
 from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial, EThread, get_githash, import_matplotlib
 
 import_matplotlib()
+from matplotlib import pyplot as plt
 
 SEED = 1236
 set_seed(SEED)
@@ -101,7 +102,7 @@ def main(
         eval_sharegpt_prompts_only_seed: int = 1234,
         eval_sharegpt_as_output: bool = False,
 
-        langchain_enabled: bool = False,
+        langchain_mode: str = 'Disabled',
 ):
     """
 
@@ -161,7 +162,7 @@ def main(
     :param eval_sharegpt_prompts_only: for no gradio benchmark, if using ShareGPT prompts for eval
     :param eval_sharegpt_prompts_only_seed: for no gradio benchmark, if seed for ShareGPT sampling
     :param eval_sharegpt_as_output: for no gradio benchmark, whether to test ShareGPT output itself
-    :param langchain_enabled: whether to enable langchain mode for (currently) specific task choice
+    :param langchain_mode: Data source to include
     :return:
     """
     is_hf = bool(os.getenv("HUGGINGFACE_SPACES"))
@@ -826,7 +827,7 @@ def evaluate(
     data_point = dict(context=context, instruction=instruction, input=iinput)
     prompt = prompter.generate_prompt(data_point)
 
-    if langchain_mode != 'None':
+    if langchain_mode not in [False, 'Disabled', 'None']:
         query = instruction if not iinput else "%s\n%s" % (instruction, iinput)
         from pdf_langchain import run_qa_db
         chunk = True  # chunking with small chunk_size hurts accuracy esp. if k small
@@ -1257,7 +1258,7 @@ y = np.random.randint(0, 1, 100)
 
     # move to correct position
     for example in examples:
-        example += [chat, '', '']
+        example += [chat, '', '', 'Disabled']
         # adjust examples if non-chat mode
         if not chat:
             example[eval_func_param_names.index('instruction_nochat')] = example[
