@@ -1,7 +1,8 @@
 import torch
 import pytest
+from flash_attn.models.gptj import gptj_config_to_gpt2_config
 
-from transformers import GPTNeoXConfig
+from transformers import GPTNeoXConfig, GPTJConfig
 from transformers.models.gpt_neox.modeling_gpt_neox import GPTNeoXForCausalLM
 
 from flash_attn.models.gpt import GPTLMHeadModel
@@ -29,8 +30,9 @@ def test_gptj_state_dict(model_name):
 @pytest.mark.parametrize(
     'model_name',
     [
-        # "EleutherAI/gpt-neox-20b",
-        'togethercomputer/GPT-NeoXT-Chat-Base-20B',
+        "EleutherAI/gpt-neox-20b",
+        # "h2oai/h2ogpt-oig-oasst1-512-6.9b",
+        # "h2oai/h2ogpt-oasst1-512-12b",
     ]
 )
 def test_gpt_neox_optimized(model_name):
@@ -41,6 +43,7 @@ def test_gpt_neox_optimized(model_name):
     dtype = torch.float16
     device = 'cuda'
     config = gpt_neox_config_to_gpt2_config(GPTNeoXConfig.from_pretrained(model_name))
+    # config = gptj_config_to_gpt2_config(GPTJConfig.from_pretrained(model_name))
     config.use_flash_attn = True
     config.fused_bias_fc = True
     config.fused_mlp = True  # GPT-NeoX-20B uses "gelu_fast"
