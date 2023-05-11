@@ -589,7 +589,7 @@ def run_qa_db(query=None,
               stream_output=False,
               prompter=None,
               answer_with_sources=True,
-              cut_distanct=1.3,
+              cut_distanct=1.1,
               sanitize_bot_response=True,
               do_yield=False,
               show_rank=False):
@@ -697,6 +697,18 @@ def run_qa_db(query=None,
         return None
     print("Distance: min: %s max: %s mean: %s median: %s" %
           (scores[0], scores[-1], np.mean(scores), np.median(scores)), flush=True)
+
+    common_words_file = "data/NGSL_1.2_stats.csv.zip"
+    if os.path.isfile(common_words_file):
+        df = pd.read_csv("data/NGSL_1.2_stats.csv.zip")
+        import string
+        reduced_query = query.translate(str.maketrans(string.punctuation, ' '*len(string.punctuation))).strip()
+        reduced_query_words = reduced_query.split(' ')
+        set_common = set(df['Lemma'].values.tolist())
+        num_common = len([x.lower() in set_common for x in reduced_query_words])
+        frac_common = num_common / len(reduced_query)
+        # FIXME: report to user bad query that uses too many common words
+        print("frac_common: %s" % frac_common, flush=True)
 
     chain_kwargs = dict(input_documents=docs, question=query)
     if stream_output:
