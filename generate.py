@@ -872,7 +872,8 @@ def evaluate(
         if save_dir:
             save_generate_output(output=outr, base_model=base_model, save_dir=save_dir)
             print('Post-Generate Langchain: %s decoded_output: %s' % (str(datetime.now()), len(outr) if outr else -1), flush=True)
-        return
+        if outr:
+            return
 
     if isinstance(tokenizer, str):
         # pipeline
