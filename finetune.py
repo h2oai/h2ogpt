@@ -154,7 +154,7 @@ def train(
         lora_dropout: float = 0.05,
         lora_target_modules: List[str] = None,
         llama_type: bool = None,
-        flash_attn: bool = False,
+        llama_flash_attn: bool = False,
 
         # llm hyperparams
         train_on_inputs: bool = True,  # if False, masks out inputs in loss
@@ -175,7 +175,7 @@ def train(
         add_eos_token: bool = False,
 ):
 
-    if flash_attn:
+    if llama_flash_attn:
         # Need to call this before importing transformers.
         from llama_flash_attn_monkey_patch import replace_llama_attn_with_flash_attn
         replace_llama_attn_with_flash_attn()
@@ -211,7 +211,7 @@ def train(
         tokenizer_base_model = base_model
     if llama_type is None:
         llama_type = "llama" in base_model.lower()
-    if flash_attn:
+    if llama_flash_attn:
         import pkg_resources
         try:
             pkg_resources.get_distribution('flash_attn')
@@ -635,7 +635,7 @@ def train(
     if torch.__version__ >= "2" and sys.platform != "win32":
         model = torch.compile(model)
         # WIP (not generally replacing layers until pytorch 2.1)
-        if not flash_attn:
+        if not llama_flash_attn:
             torch.backends.cuda.enable_flash_sdp(True)
 
     if gpus > 1 and not ddp:
