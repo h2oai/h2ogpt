@@ -7,6 +7,8 @@ from abc import ABC
 from collections import defaultdict
 from typing import Optional, List, Mapping, Any
 
+from tqdm import tqdm
+
 from utils import wrapped_partial, EThread, import_matplotlib
 
 import_matplotlib()
@@ -581,7 +583,7 @@ def prep_langchain():
 def run_qa_db(query=None,
               use_openai_model=False, use_openai_embedding=False,
               first_para=True, text_limit=None, k=4, chunk=False, chunk_size=1024,
-              wiki=False, github=False, dai_rst=False, all=None,
+              wiki=False, github=False, dai_rst=False, wiki_full=True, all=None,
               pdf_filename=None, split_method='chunk',
               texts_folder=None,
               db_type='faiss',
@@ -618,7 +620,7 @@ def run_qa_db(query=None,
     :param answer_with_sources
     :return:
     """
-    persist_directory = persist_directory_base + str(wiki) + str(first_para) + str(text_limit) + str(github) + str(
+    persist_directory = persist_directory_base + str(wiki) + str(wiki_full) + str(first_para) + str(text_limit) + str(github) + str(
         dai_rst) + str(all) + str(chunk) + str(chunk_size)
     if load_db_if_exists and db_type == 'chroma' and os.path.isdir(persist_directory) and os.path.isdir(
             os.path.join(persist_directory, 'index')):
@@ -629,6 +631,15 @@ def run_qa_db(query=None,
         print("Generating sources", flush=True)
         # see https://dagster.io/blog/chatgpt-langchain
         sources = []
+        if wiki_full or all:
+            from datasets import load_dataset
+            lang = 'en'
+            data = load_dataset(f"Cohere/wikipedia-22-12", lang, split='train', streaming=True)
+            sources1 = []
+            for row in tqdm(data, total=35167920):
+                sources1.append(Document(page_content=row['text'],
+                                         metadata={"source": row['url']}))
+            sources.extend(sources1)
         if wiki or all:
             sources1 = get_wiki_sources(first_para=first_para, text_limit=text_limit)
             if chunk:

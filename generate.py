@@ -35,7 +35,7 @@ from stopping import get_stopping
 
 eval_extra_columns = ['prompt', 'response', 'score']
 
-langchain_modes = ['All', 'None', 'wiki', 'github h2oGPT', 'DriverlessAI docs']
+langchain_modes = ['All', 'None', 'wiki', 'wiki_full', 'github h2oGPT', 'DriverlessAI docs']
 
 
 def main(
@@ -855,6 +855,7 @@ def evaluate(
         #chunk = False  # chunking with small chunk_size hurts accuracy esp. if k small
         chunk_size = 128*4  # FIXME
         wiki = langchain_mode in ['wiki', 'All', "'All'"]
+        wiki_full = langchain_mode in ['wiki_full', 'All', "'All'"]
         first_para = False
         github = langchain_mode in ['github h2oGPT', 'All', "'All'"]
         dai_rst = langchain_mode in ['DriverlessAI docs', 'All', "'All'"]
@@ -870,7 +871,7 @@ def evaluate(
         for r in run_qa_db(query=query,
                            use_openai_model=False, use_openai_embedding=False,
                            first_para=first_para, text_limit=None, k=4, chunk=chunk, chunk_size=chunk_size,
-                           wiki=wiki, github=github, dai_rst=dai_rst, all=all,
+                           wiki=wiki, wiki_full=wiki_full, github=github, dai_rst=dai_rst, all=all,
                            pdf_filename=None, split_method='chunk',
                            texts_folder=texts_folder,
                            db_type=db_type,
