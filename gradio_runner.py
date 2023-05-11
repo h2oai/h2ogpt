@@ -9,7 +9,7 @@ from prompter import Prompter
 from utils import get_githash, flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping
 from finetune import prompt_type_to_model_name, prompt_types_strings, generate_prompt, inv_prompt_type_to_model_lower
-from generate import get_model, languages_covered, evaluate, eval_func_param_names, score_qa
+from generate import get_model, languages_covered, evaluate, eval_func_param_names, score_qa, langchain_modes
 
 import gradio as gr
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -206,7 +206,7 @@ def go_gradio(**kwargs):
                                     score_text2 = gr.Textbox("Response Score2: NA", show_label=False, visible=False)
                             retry = gr.Button("Regenerate")
                             undo = gr.Button("Undo")
-                        langchain_mode = gr.Dropdown(['All', 'None', 'wiki', 'github h2oGPT', 'DriverlessAI docs'],
+                        langchain_mode = gr.Dropdown(langchain_modes,
                                                      value=kwargs['langchain_mode'],
                                                      label="Data Source", visible=kwargs['langchain_mode'] != 'Disabled')
                 with gr.TabItem("Input/Output"):

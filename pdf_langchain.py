@@ -422,14 +422,14 @@ def get_github_docs(repo_owner, repo_name):
                 yield Document(page_content=f.read(), metadata={"source": github_url})
 
 
-def get_dai_docs():
+def get_dai_docs(from_hf=False):
     import pickle
 
     dai_store = 'dai_docs.pickle'
     dst = "working_dir_docs"
     if not os.path.isfile(dai_store):
         from create_data import setup_dai_docs
-        dst = setup_dai_docs(dst=dst)
+        dst = setup_dai_docs(dst=dst, from_hf=from_hf)
 
         import glob
         files = list(glob.glob(os.path.join(dst, '*rst'), recursive=True))
@@ -560,6 +560,22 @@ def test_qa_daidocs_db_chunk_openaiembedding_hfmodel():
                      chunk_size=128, wiki=False, dai_rst=True)
 
 
+def prep_langchain():
+    """
+    do prep first time, involving downloads
+    # FIXME: Add github caching then add here
+    # FIXME: Once go FAISS->Chroma, can avoid this prep step
+    :return:
+    """
+
+    # FIXME: Could also just use dai_docs.pickle directly and upload that
+    get_dai_docs(from_hf=True)
+
+    text_limit = None
+    for first_para in [True, False]:
+        get_wiki_sources(first_para=first_para, text_limit=text_limit)
+
+
 def run_qa_db(query=None,
               use_openai_model=False, use_openai_embedding=False,
               first_para=True, text_limit=None, k=4, chunk=False, chunk_size=1024,
@@ -613,7 +629,7 @@ def run_qa_db(query=None,
     if dai_rst or all:
         #home = os.path.expanduser('~')
         #sources = get_rst_docs(os.path.join(home, "h2oai.superclean/docs/"))
-        sources1, dst = get_dai_docs()
+        sources1, dst = get_dai_docs(from_hf=True)
         if chunk and False:  # FIXME: DAI docs are already chunked well, should only chunk more if over limit
             sources1 = chunk_sources(sources1, chunk_size=chunk_size)
         sources.extend(sources1)
@@ -732,10 +748,10 @@ def run_qa_db(query=None,
         #print("sorted sources: %s" % sorted(set(answer_sources)), flush=True)
 
         sorted_sources = sorted(set(answer_sources))
-        sorted_sources_urls = "<br>Sources:<br>" + "<br>".join(sorted_sources)
+        sorted_sources_urls = "Sources:<br>" + "<br>".join(sorted_sources)
 
         if answer_with_sources:
-            ret = answer['output_text'] + sorted_sources_urls
+            ret = answer['output_text'] + '\n' + sorted_sources_urls
         else:
             ret = answer['output_text']
 

@@ -35,6 +35,8 @@ from stopping import get_stopping
 
 eval_extra_columns = ['prompt', 'response', 'score']
 
+langchain_modes = ['All', 'None', 'wiki', 'github h2oGPT', 'DriverlessAI docs']
+
 
 def main(
         load_8bit: bool = False,
@@ -176,6 +178,10 @@ def main(
 
     # allow set token directly
     use_auth_token = os.environ.get("HUGGINGFACE_API_TOKEN", use_auth_token)
+    # allow enabling langchain via ENV
+    langchain_mode = os.environ.get("LANGCHAIN_MODE", langchain_mode)
+
+    assert langchain_mode in langchain_modes, "Invalid langchain_mode %s" % langchain_mode
 
     if is_public:
         input_lines = 1  # ensure set, for ease of use
@@ -251,6 +257,10 @@ def main(
     locals_print = '\n'.join(['%s: %s' % (k, v) for k, v in locals_dict.items()])
     print(f"Generating model with params:\n{locals_print}", flush=True)
     print("Command: %s\nHash: %s" % (str(' '.join(sys.argv)), get_githash()), flush=True)
+
+    if langchain_mode != "Disabled":
+        from pdf_langchain import prep_langchain
+        prep_langchain()
 
     if not gradio:
         if eval_sharegpt_prompts_only > 0:
@@ -827,18 +837,19 @@ def evaluate(
     data_point = dict(context=context, instruction=instruction, input=iinput)
     prompt = prompter.generate_prompt(data_point)
 
+    assert langchain_mode in langchain_modes, "Invalid langchain_mode %s" % langchain_mode
     if langchain_mode not in [False, 'Disabled', 'None']:
         query = instruction if not iinput else "%s\n%s" % (instruction, iinput)
         from pdf_langchain import run_qa_db
         chunk = True  # chunking with small chunk_size hurts accuracy esp. if k small
         #chunk = False  # chunking with small chunk_size hurts accuracy esp. if k small
         chunk_size = 128*4  # FIXME
-        wiki = langchain_mode in ['wiki', 'All']
+        wiki = langchain_mode in ['wiki', 'All', "'All'"]
         first_para = False
-        github = langchain_mode in ['github h2oGPT', 'All']
-        dai_rst = langchain_mode in ['DriverlessAI docs', 'All']
-        urls = langchain_mode in ['All']
-        all = langchain_mode in ['All']
+        github = langchain_mode in ['github h2oGPT', 'All', "'All'"]
+        dai_rst = langchain_mode in ['DriverlessAI docs', 'All', "'All'"]
+        urls = langchain_mode in ['All', "'All'"]
+        all = langchain_mode in ['All', "'All'"]
         db_type = 'faiss'  # FIXME
         pdf_filename = None  # FIXME, upload via gradio
         texts_folder = "./txts/"

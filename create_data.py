@@ -131,10 +131,23 @@ def get_sentences(blob, length):
     return my_sentences or [my_string]
 
 
-def setup_dai_docs(path=None, dst="working_dir_docs"):
+def setup_dai_docs(path=None, dst="working_dir_docs", from_hf=False):
+
+    home = os.path.expanduser('~')
+
+    if from_hf:
+        # assumes
+        from huggingface_hub import hf_hub_download
+        # True for case when locally already logged in with correct token, so don't have to set key
+        token = os.getenv('HUGGINGFACE_API_TOKEN', True)
+        path_to_zip_file = hf_hub_download('h2oai/dai_docs', 'dai_docs.zip', token=token, repo_type='dataset')
+        path = 'h2oai'
+        import zipfile
+        with zipfile.ZipFile(path_to_zip_file, 'r') as zip_ref:
+            zip_ref.extractall(path)
+        path = os.path.join(path, 'docs/**/*')
 
     if path is None:
-        home = os.path.expanduser('~')
         if os.path.isdir(os.path.join(home, 'h2oai')):
             path = os.path.join(home, "h2oai/docs/**/*")
         else:
