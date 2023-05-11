@@ -181,6 +181,7 @@ def main(
     use_auth_token = os.environ.get("HUGGINGFACE_API_TOKEN", use_auth_token)
     # allow enabling langchain via ENV
     langchain_mode = os.environ.get("LANGCHAIN_MODE", langchain_mode)
+    height = os.environ.get("HEIGHT", height)
 
     assert langchain_mode in langchain_modes, "Invalid langchain_mode %s" % langchain_mode
 
