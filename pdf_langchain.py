@@ -592,7 +592,7 @@ def run_qa_db(query=None,
               cut_distanct=1.3,
               sanitize_bot_response=True,
               do_yield=False,
-              show_rank=True):
+              show_rank=False):
     """
 
     :param query:
