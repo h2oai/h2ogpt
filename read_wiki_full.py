@@ -82,21 +82,46 @@ def get_documents_by_search_term(search_term):
     return documents
 
 
-def get_all_documents():
+from joblib import parallel_backend
+
+
+def get_one_chunk(wiki_filename, start_byte, end_byte):
+    data_length = end_byte - start_byte
+    with open(wiki_filename, 'rb') as wiki_file:
+        wiki_file.seek(start_byte)
+        data = bz2.BZ2Decompressor().decompress(wiki_file.read(data_length))
+
+    loader = MWDumpDirectLoader(data.decode())
+    documents1 = loader.load()
+    return documents1
+
+
+from joblib import Parallel, delayed
+
+
+def get_all_documents(small_test=False):
     print("DO get all wiki docs", flush=True)
     index_filename, wiki_filename = get_wiki_filenames()
     start_bytes = get_start_bytes(index_filename)
-    documents = []
-    for si, start_byte in tqdm(enumerate(start_bytes)):
-        if si == 0:
-            continue
-        data_length = start_byte - start_bytes[si - 1]
-        with open(wiki_filename, 'rb') as wiki_file:
-            wiki_file.seek(start_byte)
-            data = bz2.BZ2Decompressor().decompress(wiki_file.read(data_length))
+    end_bytes = start_bytes[1:]
+    start_bytes = start_bytes[:-1]
 
-        loader = MWDumpDirectLoader(data.decode())
-        documents1 = loader.load()
+    if small_test:
+        start_bytes = start_bytes[:2]
+        end_bytes = end_bytes[:2]
+        n_jobs = 1
+    else:
+        n_jobs = os.cpu_count() // 4
+
+    documents = Parallel(n_jobs=n_jobs, verbose=10)(
+        delayed(get_one_chunk)(wiki_filename, start_byte, end_byte) for start_byte, end_byte in
+        zip(start_bytes, end_bytes))
+
+    from functools import reduce
+    from operator import concat
+    documents = reduce(concat, documents)
+    assert isinstance(documents, list)
+
     print("DONE get all wiki docs", flush=True)
     return documents
 
@@ -105,7 +130,17 @@ def test_by_search_term():
     search_term = 'Apollo'
     assert len(get_documents_by_search_term(search_term)) == 100
 
+    search_term = 'Abstract (law)'
+    assert len(get_documents_by_search_term(search_term)) == 100
+
+    search_term = 'Artificial languages'
+    assert len(get_documents_by_search_term(search_term)) == 100
+
 
 def test_start_bytes():
     index_filename, wiki_filename = get_wiki_filenames()
     assert len(get_start_bytes(index_filename)) == 227850
+
+
+def test_get_all_documents():
+    assert len(get_all_documents()) == 100 * 227850

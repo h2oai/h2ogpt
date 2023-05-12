@@ -572,17 +572,16 @@ def prep_langchain(persist_directory, load_db_if_exists, db_type, use_openai_emb
     :return:
     """
 
-    # FIXME: Could also just use dai_docs.pickle directly and upload that
-    get_dai_docs(from_hf=True)
-
-    text_limit = None
-    for first_para in [True, False]:
-        get_wiki_sources(first_para=first_para, text_limit=text_limit)
-
     if os.path.isdir(persist_directory):
         db = get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_embedding)
     else:
         db = None
+        # FIXME: Could also just use dai_docs.pickle directly and upload that
+        get_dai_docs(from_hf=True)
+
+        text_limit = None
+        for first_para in [True, False]:
+            get_wiki_sources(first_para=first_para, text_limit=text_limit)
 
     return db
 
