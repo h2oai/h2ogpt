@@ -1351,4 +1351,5 @@ def test_score_eval(base_model):
         eval_sharegpt_prompts_only=500,
         eval_sharegpt_as_output=False,
         num_beams=2,
+        infer_devices=False,
     )
