@@ -30,6 +30,7 @@ class PromptType(Enum):
     human_bot_orig = 9
     prompt_answer = 10
     open_assistant = 11
+    wizard_lm = 12
 
 
 prompt_type_to_model_name = {
@@ -76,6 +77,7 @@ prompt_type_to_model_name = {
     'instruct_vicuna': ['AlekseyKorshuk/vicuna-7b'],
     'human_bot_orig': ['togethercomputer/GPT-NeoXT-Chat-Base-20B'],
     "open_assistant": ['OpenAssistant/oasst-sft-7-llama-30b-xor', 'oasst-sft-7-llama-30b'],
+    "wizard_lm": ['ehartford/WizardLM-7B-Uncensored', 'ehartford/WizardLM-13B-Uncensored'],
 }
 
 inv_prompt_type_to_model_name = {v.strip(): k for k, l in prompt_type_to_model_name.items() for v in l}
@@ -902,6 +904,17 @@ Current Time: {}
         pend = "<|prefix_end|>"
         eos = "</s>"
         terminate_response = [start, PreResponse, pend, eos]
+        chat_sep = eos
+    elif prompt_type in [12, "12", "wizard_lm"]:
+        # https://github.com/ehartford/WizardLM/blob/main/src/train_freeform.py
+        preprompt = ''
+        start = ''
+        promptB = promptA = '%s%s' % (preprompt, start)
+        PreInstruct = ""
+        PreInput = None
+        PreResponse = "\n\n### Response"
+        eos = "</s>"
+        terminate_response = [PreResponse, eos]
         chat_sep = eos
     else:
         raise RuntimeError("No such prompt_type=%s" % prompt_type)

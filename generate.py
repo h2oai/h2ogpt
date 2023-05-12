@@ -1333,6 +1333,8 @@ import pytest
         "h2oai/h2ogpt-gm-oasst1-en-1024-20b",
         "databricks/dolly-v2-12b",
         "h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b-preview-300bt-v2",
+        "ehartford/WizardLM-7B-Uncensored",
+        "ehartford/WizardLM-13B-Uncensored",
     ]
 )
 def test_score_eval(base_model):
