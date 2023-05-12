@@ -1335,6 +1335,11 @@ import pytest
         "h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b-preview-300bt-v2",
         "ehartford/WizardLM-7B-Uncensored",
         "ehartford/WizardLM-13B-Uncensored",
+        "AlekseyKorshuk/vicuna-7b",
+        "TheBloke/stable-vicuna-13B-HF",
+        "decapoda-research/llama-7b-hf",
+        "decapoda-research/llama-13b-hf",
+        "decapoda-research/llama-30b-hf",
     ]
 )
 def test_score_eval(base_model):
