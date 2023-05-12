@@ -669,22 +669,27 @@ def run_qa_db(query=None,
         embedding = get_embedding(use_openai_embedding)
         db = Chroma(persist_directory=persist_directory, embedding_function=embedding)
     elif not db:
-        print("Generating sources", flush=True)
-        # see https://dagster.io/blog/chatgpt-langchain
         sources = []
-        if wiki_full or all:
-            from datasets import load_dataset
-            lang = 'en'
-            data = load_dataset(f"Cohere/wikipedia-22-12", lang, split='train')
-            data = data.filter(lambda x: x['views'] > min_views, num_proc=max(1, os.cpu_count() // 2))
-            sources1 = []
-            total = min(limit_wiki_full, 35167920, data.num_rows)
-            for rowi, row in enumerate(tqdm(data, total=total)):
-                if rowi == limit_wiki_full:
-                    break
-                sources1.append(Document(page_content=row['text'],
-                                         metadata={"source": row['url']}))
-            sources.extend(sources1)
+        print("Generating sources", flush=True)
+        new_wiki = True
+        if not new_wiki:
+            # old incomplete wiki
+            # see https://dagster.io/blog/chatgpt-langchain
+            if wiki_full or all:
+                from datasets import load_dataset
+                lang = 'en'
+                data = load_dataset(f"Cohere/wikipedia-22-12", lang, split='train')
+                data = data.filter(lambda x: x['views'] > min_views, num_proc=max(1, os.cpu_count() // 2))
+                sources1 = []
+                total = min(limit_wiki_full, 35167920, data.num_rows)
+                for rowi, row in enumerate(tqdm(data, total=total)):
+                    if rowi == limit_wiki_full:
+                        break
+                    sources1.append(Document(page_content=row['text'],
+                                             metadata={"source": row['url']}))
+        else:
+            from read_wiki_full import get_all_documents
+            sources.extend(get_all_documents())
         if wiki or all:
             sources1 = get_wiki_sources(first_para=first_para, text_limit=text_limit)
             if chunk:
