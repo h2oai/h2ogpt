@@ -564,7 +564,7 @@ def test_qa_daidocs_db_chunk_openaiembedding_hfmodel():
                      chunk_size=128, wiki=False, dai_rst=True)
 
 
-def prep_langchain():
+def prep_langchain(persist_directory, load_db_if_exists, db_type, use_openai_embedding):
     """
     do prep first time, involving downloads
     # FIXME: Add github caching then add here
@@ -578,6 +578,43 @@ def prep_langchain():
     text_limit = None
     for first_para in [True, False]:
         get_wiki_sources(first_para=first_para, text_limit=text_limit)
+
+    if os.path.isdir(persist_directory):
+        db = get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_embedding)
+    else:
+        db = None
+
+    return db
+
+
+def get_db_kwargs(langchain_mode):
+    return dict(chunk=True,  # chunking with small chunk_size hurts accuracy esp. if k small
+                 # chunk = False  # chunking with small chunk_size hurts accuracy esp. if k small
+                 chunk_size=128 * 4,  # FIXME
+                 wiki=langchain_mode in ['wiki', 'All', "'All'"],
+                 wiki_full=langchain_mode in ['wiki_full', 'All', "'All'"],
+                 first_para=False,
+                 text_limit=None,
+                 github=langchain_mode in ['github h2oGPT', 'All', "'All'"],
+                 dai_rst=langchain_mode in ['DriverlessAI docs', 'All', "'All'"],
+                 urls=langchain_mode in ['All', "'All'"],
+                 all=langchain_mode in ['All', "'All'"],
+                 # db_type = 'faiss',  # FIXME
+                 db_type='chroma',  # FIXME
+                 pdf_filename=None,  # FIXME, upload via gradio
+                 texts_folder="./txts/",
+                 sanitize_bot_response=True)
+
+
+def get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_embedding):
+    if load_db_if_exists and db_type == 'chroma' and os.path.isdir(persist_directory) and os.path.isdir(
+            os.path.join(persist_directory, 'index')):
+        print("DO Loading db", flush=True)
+        embedding = get_embedding(use_openai_embedding)
+        db = Chroma(persist_directory=persist_directory, embedding_function=embedding)
+        print("DONE Loading db", flush=True)
+        return db
+    return None
 
 
 def run_qa_db(query=None,
@@ -598,7 +635,8 @@ def run_qa_db(query=None,
               load_db_if_exists=False,
               persist_directory_base='db_dir',
               limit_wiki_full=5000000,
-              min_views=1000):
+              min_views=1000,
+              db=None):
     """
 
     :param query:
@@ -625,12 +663,12 @@ def run_qa_db(query=None,
 
     persist_directory = persist_directory_base + str(wiki) + str(wiki_full) + str(limit_wiki_full) + str(first_para) + str(text_limit) + str(github) + str(
         dai_rst) + str(all) + str(chunk) + str(chunk_size)
-    if load_db_if_exists and db_type == 'chroma' and os.path.isdir(persist_directory) and os.path.isdir(
+    if not db and load_db_if_exists and db_type == 'chroma' and os.path.isdir(persist_directory) and os.path.isdir(
             os.path.join(persist_directory, 'index')):
         print("Loading db", flush=True)
         embedding = get_embedding(use_openai_embedding)
         db = Chroma(persist_directory=persist_directory, embedding_function=embedding)
-    else:
+    elif not db:
         print("Generating sources", flush=True)
         # see https://dagster.io/blog/chatgpt-langchain
         sources = []

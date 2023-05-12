@@ -26,6 +26,7 @@ def go_gradio(**kwargs):
     model_state0 = kwargs['model_state0']
     score_model_state0 = kwargs['score_model_state0']
     queue = True
+    db = kwargs['db']
 
     # easy update of kwargs needed for evaluate() etc.
     kwargs.update(locals())

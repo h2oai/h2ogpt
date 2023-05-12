@@ -35,7 +35,7 @@ from stopping import get_stopping
 
 eval_extra_columns = ['prompt', 'response', 'score']
 
-langchain_modes = ['All', 'None', 'wiki', 'wiki_full', 'github h2oGPT', 'DriverlessAI docs']
+langchain_modes = ['Disabled', 'All', 'None', 'wiki', 'wiki_full', 'github h2oGPT', 'DriverlessAI docs']
 
 
 def main(
@@ -263,7 +263,12 @@ def main(
 
     if langchain_mode != "Disabled":
         from pdf_langchain import prep_langchain
-        prep_langchain()
+        db_type = 'chroma'  # if loading, has to have been persisted
+        use_openai_embedding = False  # assume not using OpenAI then
+        persist_directory = 'db_dir'  # single place, no special names for each case
+        db = prep_langchain(persist_directory, load_db_if_exists, db_type, use_openai_embedding)
+    else:
+        db = None
 
     if not gradio:
         if eval_sharegpt_prompts_only > 0:
@@ -753,7 +758,7 @@ eval_func_param_names = ['instruction',
 
 inputs_kwargs_list = ['debug', 'save_dir', 'sanitize_bot_response', 'model_state0', 'is_low_mem',
                       'raise_generate_gpu_exceptions', 'chat_context', 'concurrency_count', 'lora_weights',
-                      'load_db_if_exists']
+                      'load_db_if_exists', 'db']
 
 
 def evaluate(
@@ -850,35 +855,16 @@ def evaluate(
     assert langchain_mode in langchain_modes, "Invalid langchain_mode %s" % langchain_mode
     if langchain_mode not in [False, 'Disabled', 'None']:
         query = instruction if not iinput else "%s\n%s" % (instruction, iinput)
-        from pdf_langchain import run_qa_db
-        chunk = True  # chunking with small chunk_size hurts accuracy esp. if k small
-        #chunk = False  # chunking with small chunk_size hurts accuracy esp. if k small
-        chunk_size = 128*4  # FIXME
-        wiki = langchain_mode in ['wiki', 'All', "'All'"]
-        wiki_full = langchain_mode in ['wiki_full', 'All', "'All'"]
-        first_para = False
-        github = langchain_mode in ['github h2oGPT', 'All', "'All'"]
-        dai_rst = langchain_mode in ['DriverlessAI docs', 'All', "'All'"]
-        urls = langchain_mode in ['All', "'All'"]
-        all = langchain_mode in ['All', "'All'"]
-        #db_type = 'faiss'  # FIXME
-        db_type = 'chroma'  # FIXME
-        pdf_filename = None  # FIXME, upload via gradio
-        texts_folder = "./txts/"
-        sanitize_bot_response = True
-
+        from pdf_langchain import run_qa_db, get_db_kwargs
+        langchain_kwargs = get_db_kwargs(langchain_mode)
         outr = ""
         for r in run_qa_db(query=query,
-                           use_openai_model=False, use_openai_embedding=False,
-                           first_para=first_para, text_limit=None, k=4, chunk=chunk, chunk_size=chunk_size,
-                           wiki=wiki, wiki_full=wiki_full, github=github, dai_rst=dai_rst, all=all,
-                           pdf_filename=None, split_method='chunk',
-                           texts_folder=texts_folder,
-                           db_type=db_type,
                            model_name=base_model, model=model, tokenizer=tokenizer,
                            stream_output=stream_output, prompter=prompter,
                            sanitize_bot_response=sanitize_bot_response,
-                           do_yield=True, load_db_if_exists=load_db_if_exists):
+                           do_yield=True,
+                           load_db_if_exists=load_db_if_exists,
+                           **langchain_kwargs):
             outr += r
             yield r
         if save_dir:
