@@ -797,6 +797,7 @@ def evaluate(
         chat_context=None,
         lora_weights=None,
         load_db_if_exists=True,
+        db=None,
 ):
     # ensure passed these
     assert concurrency_count is not None
@@ -861,9 +862,9 @@ def evaluate(
         for r in run_qa_db(query=query,
                            model_name=base_model, model=model, tokenizer=tokenizer,
                            stream_output=stream_output, prompter=prompter,
-                           sanitize_bot_response=sanitize_bot_response,
                            do_yield=True,
                            load_db_if_exists=load_db_if_exists,
+                           db=db,
                            **langchain_kwargs):
             outr += r
             yield r

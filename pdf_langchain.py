@@ -597,7 +597,7 @@ def get_db_kwargs(langchain_mode):
                  text_limit=None,
                  github=langchain_mode in ['github h2oGPT', 'All', "'All'"],
                  dai_rst=langchain_mode in ['DriverlessAI docs', 'All', "'All'"],
-                 urls=langchain_mode in ['All', "'All'"],
+                 urls=False and langchain_mode in ['All', "'All'"],
                  all=langchain_mode in ['All', "'All'"],
                  # db_type = 'faiss',  # FIXME
                  db_type='chroma',  # FIXME
@@ -620,7 +620,7 @@ def get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_em
 def run_qa_db(query=None,
               use_openai_model=False, use_openai_embedding=False,
               first_para=True, text_limit=None, k=4, chunk=False, chunk_size=1024,
-              wiki=False, github=False, dai_rst=False, wiki_full=True, all=None,
+              wiki=False, github=False, dai_rst=False, urls=False, wiki_full=True, all=None,
               pdf_filename=None, split_method='chunk',
               texts_folder=None,
               db_type='faiss',
@@ -720,7 +720,7 @@ def run_qa_db(query=None,
             if chunk:
                 sources1 = chunk_sources(sources1, chunk_size=chunk_size)
             sources.extend(sources1)
-        if False and all:
+        if urls and all:
             # from langchain.document_loaders import UnstructuredURLLoader
             # loader = UnstructuredURLLoader(urls=urls)
             urls = ["https://www.birdsongsf.com/who-we-are/"]
