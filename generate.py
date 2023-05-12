@@ -9,7 +9,8 @@ from datetime import datetime
 import filelock
 import psutil
 
-from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial, EThread, get_githash, import_matplotlib
+from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial, EThread, get_githash, \
+    import_matplotlib
 
 import_matplotlib()
 from matplotlib import pyplot as plt
@@ -35,7 +36,7 @@ from stopping import get_stopping
 
 eval_extra_columns = ['prompt', 'response', 'score']
 
-langchain_modes = ['Disabled', 'All', 'None', 'wiki', 'wiki_full', 'github h2oGPT', 'DriverlessAI docs']
+langchain_modes = ['Disabled', 'ChatLLM', 'LLM', 'All', 'wiki', 'wiki_full', 'github h2oGPT', 'DriverlessAI docs']
 
 
 def main(
@@ -75,7 +76,6 @@ def main(
         gradio: bool = True,
         gradio_avoid_processing_markdown: bool = False,
         chat: bool = True,
-        chat_history: int = 4096,
         chat_context: bool = False,
         stream_output: bool = True,
         show_examples: bool = None,
@@ -106,6 +106,7 @@ def main(
 
         langchain_mode: str = 'Disabled',
         load_db_if_exists: bool = True,
+        keep_sources_in_context: bool = False,
 ):
     """
 
@@ -140,7 +141,6 @@ def main(
     :param gradio: whether to enable gradio, or to enable benchmark mode
     :param gradio_avoid_processing_markdown:
     :param chat: whether to enable chat mode with chat history
-    :param chat_history: maximum character length of chat context/history
     :param chat_context: whether to use extra helpful context if human_bot
     :param stream_output: whether to stream output from generate
     :param show_examples: whether to show clickable examples in gradio
@@ -167,6 +167,7 @@ def main(
     :param eval_sharegpt_as_output: for no gradio benchmark, whether to test ShareGPT output itself
     :param langchain_mode: Data source to include
     :param load_db_if_exists: Whether to load chroma db if exists or re-generate db
+    :param keep_sources_in_context: Whether to keep url sources in context, not helpful usually
     :return:
     """
     is_hf = bool(os.getenv("HUGGINGFACE_SPACES"))
@@ -226,7 +227,7 @@ def main(
         torch.backends.cudnn.benchmark = True
         torch.backends.cudnn.enabled = False
         torch.set_default_dtype(torch.float32)
-        if psutil.virtual_memory().available < 94*1024**3:
+        if psutil.virtual_memory().available < 94 * 1024 ** 3:
             # 12B uses ~94GB
             # 6.9B uses ~47GB
             base_model = 'h2oai/h2ogpt-oig-oasst1-512-6.9b' if not base_model else base_model
@@ -266,7 +267,7 @@ def main(
         db_type = 'chroma'  # if loading, has to have been persisted
         use_openai_embedding = False  # assume not using OpenAI then
         persist_directory = 'db_dir'  # single place, no special names for each case
-        db = prep_langchain(persist_directory, load_db_if_exists, db_type, use_openai_embedding)
+        db = prep_langchain(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode)
     else:
         db = None
 
@@ -386,7 +387,8 @@ def main(
                         try:
                             score = torch.sigmoid(smodel(**inputs).logits[0].float()).cpu().detach().numpy()[0]
                         except torch.cuda.OutOfMemoryError as e:
-                            print("GPU OOM 1: question: %s answer: %s exception: %s" % (prompt, res, str(e)), flush=True)
+                            print("GPU OOM 1: question: %s answer: %s exception: %s" % (prompt, res, str(e)),
+                                  flush=True)
                             traceback.print_exc()
                             score = 0.0
                             clear_torch_cache()
@@ -755,7 +757,6 @@ eval_func_param_names = ['instruction',
                          'langchain_mode',
                          ]
 
-
 inputs_kwargs_list = ['debug', 'save_dir', 'sanitize_bot_response', 'model_state0', 'is_low_mem',
                       'raise_generate_gpu_exceptions', 'chat_context', 'concurrency_count', 'lora_weights',
                       'load_db_if_exists', 'db']
@@ -854,7 +855,7 @@ def evaluate(
     prompt = prompter.generate_prompt(data_point)
 
     assert langchain_mode in langchain_modes, "Invalid langchain_mode %s" % langchain_mode
-    if langchain_mode not in [False, 'Disabled', 'None']:
+    if langchain_mode not in [False, 'Disabled', 'ChatLLM']:
         query = instruction if not iinput else "%s\n%s" % (instruction, iinput)
         from pdf_langchain import run_qa_db, get_db_kwargs
         langchain_kwargs = get_db_kwargs(langchain_mode)
@@ -870,7 +871,8 @@ def evaluate(
             yield r
         if save_dir:
             save_generate_output(output=outr, base_model=base_model, save_dir=save_dir)
-            print('Post-Generate Langchain: %s decoded_output: %s' % (str(datetime.now()), len(outr) if outr else -1), flush=True)
+            print('Post-Generate Langchain: %s decoded_output: %s' % (str(datetime.now()), len(outr) if outr else -1),
+                  flush=True)
         if outr:
             return
 
@@ -891,18 +893,14 @@ def evaluate(
         # override, ignore user change
         num_return_sequences = 1
     stopping_criteria = get_stopping(prompt_type, tokenizer, device)
-    # help to avoid errors like:
-    # RuntimeError: The size of tensor a (2048) must match the size of tensor b (2049) at non-singleton dimension 3
-    # RuntimeError: expected scalar type Half but found Float
-    # with - 256
-    max_length_tokenize = 768 - 256 if is_low_mem else 2048 - 256
-    cutoff_len = max_length_tokenize * 4  # if reaches limit, then can't generate new tokens
-    output_smallest = 30 * 4
-    prompt = prompt[-cutoff_len - output_smallest:]
+    _, _, max_length_tokenize, max_prompt_length = get_cutoffs(is_low_mem)
+    prompt = prompt[-max_prompt_length:]
     inputs = tokenizer(prompt,
                        return_tensors="pt",
                        truncation=True,
                        max_length=max_length_tokenize)
+    if inputs['input_ids'].shape[1] >= max_length_tokenize - 1:
+        print("Cutting off input: %s %s" % (inputs['input_ids'].shape[1], max_length_tokenize), flush=True)
     if debug and len(inputs["input_ids"]) > 0:
         print('input_ids length', len(inputs["input_ids"][0]), flush=True)
     input_ids = inputs["input_ids"].to(device)
@@ -944,7 +942,7 @@ def evaluate(
                                 **decoder_kwargs
                                 )
     decoder_raw_kwargs = dict(skip_special_tokens=False,
-                          clean_up_tokenization_spaces=True)
+                              clean_up_tokenization_spaces=True)
 
     decoder_raw = functools.partial(tokenizer.decode,
                                     **decoder_raw_kwargs
@@ -957,7 +955,7 @@ def evaluate(
             # else hit bitsandbytes lack of thread safety:
             # https://github.com/h2oai/h2ogpt/issues/104
             # but only makes sense if concurrency_count == 1
-            context_class = NullContext #if concurrency_count > 1 else filelock.FileLock
+            context_class = NullContext  # if concurrency_count > 1 else filelock.FileLock
             print('Pre-Generate: %s' % str(datetime.now()), flush=True)
             decoded_output = None
             with context_class("generate.lock"):
@@ -976,7 +974,9 @@ def evaluate(
                     inputs_decoded = prompt = inputs_decoded_raw
                     decoder = decoder_raw
                     decoder_kwargs = decoder_raw_kwargs
-                elif inputs_decoded_raw.replace("<unk> ", "").replace("<unk>", "").replace('\n', ' ').replace(' ', '') == prompt.replace('\n', ' ').replace(' ', ''):
+                elif inputs_decoded_raw.replace("<unk> ", "").replace("<unk>", "").replace('\n', ' ').replace(' ',
+                                                                                                              '') == prompt.replace(
+                        '\n', ' ').replace(' ', ''):
                     inputs_decoded = prompt = inputs_decoded_raw
                     decoder = decoder_raw
                     decoder_kwargs = decoder_raw_kwargs
@@ -984,7 +984,8 @@ def evaluate(
                     print("WARNING: Special characters in prompt", flush=True)
                 if stream_output:
                     skip_prompt = False
-                    streamer = H2OTextIteratorStreamer(tokenizer, skip_prompt=skip_prompt, block=False, **decoder_kwargs)
+                    streamer = H2OTextIteratorStreamer(tokenizer, skip_prompt=skip_prompt, block=False,
+                                                       **decoder_kwargs)
                     gen_kwargs.update(dict(streamer=streamer))
                     target = wrapped_partial(generate_with_exceptions, model.generate,
                                              prompt=prompt, inputs_decoded=inputs_decoded,
@@ -1023,7 +1024,25 @@ def evaluate(
                         decoded_output = prompt + outputs[0]
                 if save_dir and decoded_output:
                     save_generate_output(output=decoded_output, base_model=base_model, save_dir=save_dir)
-            print('Post-Generate: %s decoded_output: %s' % (str(datetime.now()), len(decoded_output) if decoded_output else -1), flush=True)
+            print('Post-Generate: %s decoded_output: %s' % (
+            str(datetime.now()), len(decoded_output) if decoded_output else -1), flush=True)
+
+
+def get_cutoffs(is_low_mem, for_context=False):
+    # help to avoid errors like:
+    # RuntimeError: The size of tensor a (2048) must match the size of tensor b (2049) at non-singleton dimension 3
+    # RuntimeError: expected scalar type Half but found Float
+    # with - 256
+    max_length_tokenize = 768 - 256 if is_low_mem else 2048 - 256
+    cutoff_len = max_length_tokenize * 4  # if reaches limit, then can't generate new tokens
+    output_smallest = 30 * 4
+    max_prompt_length = cutoff_len - output_smallest
+
+    if for_context:
+        # then lower even more to avoid later chop, since just estimate tokens in context bot
+        max_prompt_length = max(64, int(max_prompt_length * 0.8))
+
+    return cutoff_len, output_smallest, max_length_tokenize, max_prompt_length
 
 
 class H2OTextIteratorStreamer(TextIteratorStreamer):
@@ -1031,6 +1050,7 @@ class H2OTextIteratorStreamer(TextIteratorStreamer):
     normally, timeout required for now to handle exceptions, else get()
     but with H2O version of TextIteratorStreamer, loop over block to handle
     """
+
     def __init__(self, tokenizer, skip_prompt: bool = False, timeout: typing.Optional[float] = None,
                  block=True, **decode_kwargs):
         super().__init__(tokenizer, skip_prompt, **decode_kwargs)
@@ -1057,7 +1077,7 @@ class H2OTextIteratorStreamer(TextIteratorStreamer):
                     print("hit stop", flush=True)
                     # could raise or break, maybe best to raise and make parent see if any exception in thread
                     raise StopIteration()
-                    #break
+                    # break
                 value = self.text_queue.get(block=self.block, timeout=self.timeout)
                 break
             except queue.Empty:

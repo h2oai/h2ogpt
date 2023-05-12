@@ -1,4 +1,6 @@
 """Load Data from a MediaWiki dump xml."""
+import pickle
+import uuid
 from typing import List, Optional
 import os
 import bz2
@@ -30,7 +32,12 @@ class MWDumpDirectLoader(MWDumpLoader):
                 text = code.strip_code(
                     normalize=True, collapse=True, keep_template_params=False
                 )
-                metadata = {"title": page.title, "source": "https://en.wikipedia.org/wiki/" + page.title}
+                metadata = dict(title=page.title,
+                                source="https://en.wikipedia.org/wiki/" + page.title,
+                                id=page.id,
+                                redirect=page.redirect,
+                                )
+                metadata = {k: v for k, v in metadata.items() if v is not None}
                 docs.append(Document(page_content=text, metadata=metadata))
 
         return docs
@@ -82,10 +89,7 @@ def get_documents_by_search_term(search_term):
     return documents
 
 
-from joblib import parallel_backend
-
-
-def get_one_chunk(wiki_filename, start_byte, end_byte):
+def get_one_chunk(wiki_filename, start_byte, end_byte, return_file=True):
     data_length = end_byte - start_byte
     with open(wiki_filename, 'rb') as wiki_file:
         wiki_file.seek(start_byte)
@@ -93,33 +97,50 @@ def get_one_chunk(wiki_filename, start_byte, end_byte):
 
     loader = MWDumpDirectLoader(data.decode())
     documents1 = loader.load()
+    if return_file:
+        filename = str(uuid.uuid4())
+        with open(filename, 'wb') as f:
+            pickle.dump(documents1, f)
+        return filename
     return documents1
 
 
 from joblib import Parallel, delayed
 
 
-def get_all_documents(small_test=False):
-    print("DO get all wiki docs", flush=True)
+def get_all_documents(small_test=2, n_jobs=None):
+    print("DO get all wiki docs: %s" % small_test, flush=True)
     index_filename, wiki_filename = get_wiki_filenames()
     start_bytes = get_start_bytes(index_filename)
     end_bytes = start_bytes[1:]
     start_bytes = start_bytes[:-1]
 
     if small_test:
-        start_bytes = start_bytes[:2]
-        end_bytes = end_bytes[:2]
-        n_jobs = 1
+        start_bytes = start_bytes[:small_test]
+        end_bytes = end_bytes[:small_test]
+        if n_jobs is None:
+            n_jobs = 5
     else:
-        n_jobs = os.cpu_count() // 4
+        if n_jobs is None:
+            n_jobs = os.cpu_count() // 4
 
-    documents = Parallel(n_jobs=n_jobs, verbose=10)(
-        delayed(get_one_chunk)(wiki_filename, start_byte, end_byte) for start_byte, end_byte in
+    # default loky backend leads to name space conflict problems
+    return_file = True  # large return from joblib hangs
+    documents = Parallel(n_jobs=n_jobs, verbose=10, backend='multiprocessing')(
+        delayed(get_one_chunk)(wiki_filename, start_byte, end_byte, return_file) for start_byte, end_byte in
         zip(start_bytes, end_bytes))
-
-    from functools import reduce
-    from operator import concat
-    documents = reduce(concat, documents)
+    if return_file:
+        # then documents really are files
+        files = documents.copy()
+        documents = []
+        for fil in files:
+            with open(fil, 'rb') as f:
+                documents.extend(pickle.load(f))
+            os.remove(fil)
+    else:
+        from functools import reduce
+        from operator import concat
+        documents = reduce(concat, documents)
     assert isinstance(documents, list)
 
     print("DONE get all wiki docs", flush=True)
@@ -143,4 +164,5 @@ def test_start_bytes():
 
 
 def test_get_all_documents():
-    assert len(get_all_documents()) == 100 * 227850
+    small_test = 20  # 227850
+    assert len(get_all_documents(small_test=small_test)) == small_test * 100

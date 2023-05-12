@@ -1,4 +1,5 @@
 import glob
+import inspect
 import os
 import pathlib
 import subprocess
@@ -564,7 +565,7 @@ def test_qa_daidocs_db_chunk_openaiembedding_hfmodel():
                      chunk_size=128, wiki=False, dai_rst=True)
 
 
-def prep_langchain(persist_directory, load_db_if_exists, db_type, use_openai_embedding):
+def prep_langchain(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode):
     """
     do prep first time, involving downloads
     # FIXME: Add github caching then add here
@@ -583,26 +584,30 @@ def prep_langchain(persist_directory, load_db_if_exists, db_type, use_openai_emb
         for first_para in [True, False]:
             get_wiki_sources(first_para=first_para, text_limit=text_limit)
 
+        langchain_kwargs = get_db_kwargs(langchain_mode)
+        langchain_kwargs.update(locals())
+        db = make_db(**langchain_kwargs)
+
     return db
 
 
 def get_db_kwargs(langchain_mode):
     return dict(chunk=True,  # chunking with small chunk_size hurts accuracy esp. if k small
-                 # chunk = False  # chunking with small chunk_size hurts accuracy esp. if k small
-                 chunk_size=128 * 4,  # FIXME
-                 wiki=langchain_mode in ['wiki', 'All', "'All'"],
-                 wiki_full=langchain_mode in ['wiki_full', 'All', "'All'"],
-                 first_para=False,
-                 text_limit=None,
-                 github=langchain_mode in ['github h2oGPT', 'All', "'All'"],
-                 dai_rst=langchain_mode in ['DriverlessAI docs', 'All', "'All'"],
-                 urls=False and langchain_mode in ['All', "'All'"],
-                 all=langchain_mode in ['All', "'All'"],
-                 # db_type = 'faiss',  # FIXME
-                 db_type='chroma',  # FIXME
-                 pdf_filename=None,  # FIXME, upload via gradio
-                 texts_folder="./txts/",
-                 sanitize_bot_response=True)
+                # chunk = False  # chunking with small chunk_size hurts accuracy esp. if k small
+                chunk_size=128 * 4,  # FIXME
+                wiki=langchain_mode in ['wiki', 'All', "'All'"],
+                wiki_full=langchain_mode in ['wiki_full', 'All', "'All'"],
+                first_para=False,
+                text_limit=None,
+                github=langchain_mode in ['github h2oGPT', 'All', "'All'"],
+                dai_rst=langchain_mode in ['DriverlessAI docs', 'All', "'All'"],
+                urls=False and langchain_mode in ['All', "'All'"],
+                all=langchain_mode in ['All', "'All'"],
+                # db_type = 'faiss',  # FIXME
+                db_type='chroma',  # FIXME
+                pdf_filename=None,  # FIXME, upload via gradio
+                texts_folder="./txts/",
+                sanitize_bot_response=True)
 
 
 def get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_embedding):
@@ -614,6 +619,111 @@ def get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_em
         print("DONE Loading db", flush=True)
         return db
     return None
+
+
+def make_db(**langchain_kwargs):
+    func_names = list(inspect.signature(_make_db).parameters)
+    missing_kwargs = [x for x in func_names if x not in langchain_kwargs]
+    defaults_db = {k: v.default for k, v in dict(inspect.signature(run_qa_db).parameters).items()}
+    for k in missing_kwargs:
+        if k in defaults_db:
+            langchain_kwargs[k] = defaults_db[k]
+    # final check for missing
+    missing_kwargs = [x for x in func_names if x not in langchain_kwargs]
+    assert not missing_kwargs, "Missing kwargs: %s" % missing_kwargs
+    # only keep actual used
+    langchain_kwargs = {k: v for k, v in langchain_kwargs.items() if k in func_names}
+    return _make_db(**langchain_kwargs)
+
+
+def _make_db(use_openai_embedding=False,
+            first_para=True, text_limit=None, chunk=False, chunk_size=1024,
+            wiki=False, github=False, dai_rst=False, urls=False, wiki_full=True, all=None,
+            pdf_filename=None, split_method='chunk',
+            texts_folder=None,
+            db_type='faiss',
+            load_db_if_exists=False,
+            persist_directory_base='db_dir',
+            limit_wiki_full=5000000,
+            min_views=1000,
+            db=None):
+    persist_directory = persist_directory_base + str(wiki) + str(wiki_full) + str(limit_wiki_full) + str(
+        first_para) + str(text_limit) + str(github) + str(
+        dai_rst) + str(all) + str(chunk) + str(chunk_size)
+    if not db and load_db_if_exists and db_type == 'chroma' and os.path.isdir(persist_directory) and os.path.isdir(
+            os.path.join(persist_directory, 'index')):
+        print("Loading db", flush=True)
+        embedding = get_embedding(use_openai_embedding)
+        db = Chroma(persist_directory=persist_directory, embedding_function=embedding)
+    elif not db:
+        sources = []
+        print("Generating sources", flush=True)
+        new_wiki = True
+        if not new_wiki:
+            # old incomplete wiki
+            # see https://dagster.io/blog/chatgpt-langchain
+            if wiki_full or all:
+                from datasets import load_dataset
+                lang = 'en'
+                data = load_dataset(f"Cohere/wikipedia-22-12", lang, split='train')
+                data = data.filter(lambda x: x['views'] > min_views, num_proc=max(1, os.cpu_count() // 2))
+                sources1 = []
+                total = min(limit_wiki_full, 35167920, data.num_rows)
+                for rowi, row in enumerate(tqdm(data, total=total)):
+                    if rowi == limit_wiki_full:
+                        break
+                    sources1.append(Document(page_content=row['text'],
+                                             metadata={"source": row['url']}))
+        else:
+            from read_wiki_full import get_all_documents
+            sources.extend(get_all_documents(small_test=1000, n_jobs=os.cpu_count() // 4))
+        if wiki or all:
+            sources1 = get_wiki_sources(first_para=first_para, text_limit=text_limit)
+            if chunk:
+                sources1 = chunk_sources(sources1, chunk_size=chunk_size)
+            sources.extend(sources1)
+        if github or all:
+            # sources = get_github_docs("dagster-io", "dagster")
+            sources1 = get_github_docs("h2oai", "h2ogpt")
+            # FIXME: always chunk for now
+            sources1 = chunk_sources(sources1, chunk_size=chunk_size)
+            sources.extend(sources1)
+        if dai_rst or all:
+            # home = os.path.expanduser('~')
+            # sources = get_rst_docs(os.path.join(home, "h2oai.superclean/docs/"))
+            sources1, dst = get_dai_docs(from_hf=True)
+            if chunk and False:  # FIXME: DAI docs are already chunked well, should only chunk more if over limit
+                sources1 = chunk_sources(sources1, chunk_size=chunk_size)
+            sources.extend(sources1)
+        if pdf_filename:
+            sources1 = pdf_to_sources(pdf_filename=pdf_filename, split_method=split_method)
+            if chunk:
+                sources1 = chunk_sources(sources1, chunk_size=chunk_size)
+            sources.extend(sources1)
+        if texts_folder or all:
+            # FIXME: Can be any loader types
+            loader = DirectoryLoader(texts_folder, glob="./*.txt", loader_cls=TextLoader)
+            sources1 = loader.load()
+            if chunk:
+                sources1 = chunk_sources(sources1, chunk_size=chunk_size)
+            sources.extend(sources1)
+        if urls and all:
+            # from langchain.document_loaders import UnstructuredURLLoader
+            # loader = UnstructuredURLLoader(urls=urls)
+            urls = ["https://www.birdsongsf.com/who-we-are/"]
+            from langchain.document_loaders import PlaywrightURLLoader
+            loader = PlaywrightURLLoader(urls=urls, remove_selectors=["header", "footer"])
+            sources1 = loader.load()
+            sources.extend(sources1)
+        assert sources, "No sources"
+        print("Generating db", flush=True)
+        db = get_db(sources, use_openai_embedding=use_openai_embedding, db_type=db_type,
+                    persist_directory=persist_directory)
+    return db
+
+
+source_prefix = "Sources [Score | Link]:"
+source_postfix = "End Sources<p>"
 
 
 def run_qa_db(query=None,
@@ -660,78 +770,7 @@ def run_qa_db(query=None,
     :return:
     """
 
-    persist_directory = persist_directory_base + str(wiki) + str(wiki_full) + str(limit_wiki_full) + str(first_para) + str(text_limit) + str(github) + str(
-        dai_rst) + str(all) + str(chunk) + str(chunk_size)
-    if not db and load_db_if_exists and db_type == 'chroma' and os.path.isdir(persist_directory) and os.path.isdir(
-            os.path.join(persist_directory, 'index')):
-        print("Loading db", flush=True)
-        embedding = get_embedding(use_openai_embedding)
-        db = Chroma(persist_directory=persist_directory, embedding_function=embedding)
-    elif not db:
-        sources = []
-        print("Generating sources", flush=True)
-        new_wiki = True
-        if not new_wiki:
-            # old incomplete wiki
-            # see https://dagster.io/blog/chatgpt-langchain
-            if wiki_full or all:
-                from datasets import load_dataset
-                lang = 'en'
-                data = load_dataset(f"Cohere/wikipedia-22-12", lang, split='train')
-                data = data.filter(lambda x: x['views'] > min_views, num_proc=max(1, os.cpu_count() // 2))
-                sources1 = []
-                total = min(limit_wiki_full, 35167920, data.num_rows)
-                for rowi, row in enumerate(tqdm(data, total=total)):
-                    if rowi == limit_wiki_full:
-                        break
-                    sources1.append(Document(page_content=row['text'],
-                                             metadata={"source": row['url']}))
-        else:
-            from read_wiki_full import get_all_documents
-            sources.extend(get_all_documents())
-        if wiki or all:
-            sources1 = get_wiki_sources(first_para=first_para, text_limit=text_limit)
-            if chunk:
-                sources1 = chunk_sources(sources1, chunk_size=chunk_size)
-            sources.extend(sources1)
-        if github or all:
-            # sources = get_github_docs("dagster-io", "dagster")
-            sources1 = get_github_docs("h2oai", "h2ogpt")
-            # FIXME: always chunk for now
-            sources1 = chunk_sources(sources1, chunk_size=chunk_size)
-            sources.extend(sources1)
-        if dai_rst or all:
-            # home = os.path.expanduser('~')
-            # sources = get_rst_docs(os.path.join(home, "h2oai.superclean/docs/"))
-            sources1, dst = get_dai_docs(from_hf=True)
-            if chunk and False:  # FIXME: DAI docs are already chunked well, should only chunk more if over limit
-                sources1 = chunk_sources(sources1, chunk_size=chunk_size)
-            sources.extend(sources1)
-        if pdf_filename:
-            sources1 = pdf_to_sources(pdf_filename=pdf_filename, split_method=split_method)
-            if chunk:
-                sources1 = chunk_sources(sources1, chunk_size=chunk_size)
-            sources.extend(sources1)
-        if texts_folder or all:
-            # FIXME: Can be any loader types
-            loader = DirectoryLoader(texts_folder, glob="./*.txt", loader_cls=TextLoader)
-            sources1 = loader.load()
-            if chunk:
-                sources1 = chunk_sources(sources1, chunk_size=chunk_size)
-            sources.extend(sources1)
-        if urls and all:
-            # from langchain.document_loaders import UnstructuredURLLoader
-            # loader = UnstructuredURLLoader(urls=urls)
-            urls = ["https://www.birdsongsf.com/who-we-are/"]
-            from langchain.document_loaders import PlaywrightURLLoader
-            loader = PlaywrightURLLoader(urls=urls, remove_selectors=["header", "footer"])
-            sources1 = loader.load()
-            sources.extend(sources1)
-        assert sources, "No sources"
-        print("Generating db", flush=True)
-        db = get_db(sources, use_openai_embedding=use_openai_embedding, db_type=db_type,
-                    persist_directory=persist_directory)
-
+    db = make_db(**locals())
     llm, model_name, streamer = get_llm(use_openai_model=use_openai_model, model_name=model_name, model=model,
                                         tokenizer=tokenizer, stream_output=stream_output)
 
@@ -844,8 +883,9 @@ def run_qa_db(query=None,
             answer_sources = ['%s' % url for rank, (score, url) in enumerate(answer_sources)]
             sorted_sources_urls = "Ranked Sources:<br>" + "<br>".join(answer_sources)
         else:
-            answer_sources = ['%.2g | %s' % (score, url) for score, url in answer_sources]
-            sorted_sources_urls = "Sources [Score | Link]:<br>" + "<br>".join(answer_sources)
+            answer_sources = ['<li>%.2g | %s</li>' % (score, url) for score, url in answer_sources]
+            sorted_sources_urls = f"{source_prefix}<p><ul>" + "<p>".join(answer_sources)
+            sorted_sources_urls += f"</ul></p>{source_postfix}"
 
         if not answer['output_text'].endswith('\n'):
             answer['output_text'] += '\n'

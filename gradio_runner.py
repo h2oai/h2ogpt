@@ -10,7 +10,7 @@ from utils import get_githash, flatten_list, zip_data, s3up, clear_torch_cache, 
     ping
 from finetune import prompt_type_to_model_name, prompt_types_strings, generate_prompt, inv_prompt_type_to_model_lower
 from generate import get_model, languages_covered, evaluate, eval_func_param_names, score_qa, langchain_modes, \
-    inputs_kwargs_list
+    inputs_kwargs_list, get_cutoffs
 
 import gradio as gr
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -208,9 +208,9 @@ def go_gradio(**kwargs):
                                     score_text2 = gr.Textbox("Response Score2: NA", show_label=False, visible=False)
                             retry = gr.Button("Regenerate")
                             undo = gr.Button("Undo")
-                        langchain_mode = gr.Dropdown(langchain_modes,
-                                                     value=kwargs['langchain_mode'],
-                                                     label="Data Source", visible=kwargs['langchain_mode'] != 'Disabled')
+                        langchain_mode = gr.Radio([x for x in langchain_modes if x != 'Disabled'],
+                                                  value=kwargs['langchain_mode'],
+                                                  label="Data Source", visible=kwargs['langchain_mode'] != 'Disabled')
                 with gr.TabItem("Input/Output"):
                     with gr.Row():
                         if 'mbart-' in kwargs['model_lower']:
@@ -574,47 +574,62 @@ def go_gradio(**kwargs):
             """
             # don't deepcopy, can contain model itself
             args_list = list(args).copy()
-            history = args_list[-1]  # model_state is -2
+            model_state1 = args_list[-3]
+            history = args_list[-2]
+            langchain_mode = args_list[-1]
+            args_list = args_list[:-3]  # only keep rest needed for evaluate()
             if retry and history:
                 history.pop()
+                if not args_list[eval_func_param_names.index('do_sample')]:
+                    # if was not sampling, no point in retry unless change to sample
+                    args_list[eval_func_param_names.index('do_sample')] = True
             if not history:
                 print("No history", flush=True)
                 history = [['', None]]
                 yield history, ''
                 return
             # ensure output will be unique to models
+            _, _, _, max_prompt_length = get_cutoffs(is_low_mem, for_context=True)
             history = copy.deepcopy(history)
             instruction1 = history[-1][0]
             context1 = ''
-            if kwargs['chat_history'] > 0:
+            if max_prompt_length is not None and langchain_mode not in ['LLM']:
                 prompt_type_arg_id = eval_func_param_names.index('prompt_type')
                 prompt_type1 = args_list[prompt_type_arg_id]
                 chat_arg_id = eval_func_param_names.index('chat')
                 chat1 = args_list[chat_arg_id]
                 context1 = ''
-                for histi in range(len(history) - 1):
+                # - 1 below because current instruction already in history from user()
+                for histi in range(0, len(history) - 1):
                     data_point = dict(instruction=history[histi][0], input='', output=history[histi][1])
                     prompt, pre_response, terminate_response, chat_sep = generate_prompt(data_point, prompt_type1,
                                                                                          chat1, reduced=True)
-                    # md -> back to text, maybe not super improtant if model trained enough
+                    # md -> back to text, maybe not super imprortant if model trained enough
+                    if not kwargs['keep_sources_in_context']:
+                        from pdf_langchain import source_prefix, source_postfix
+                        import re
+                        prompt = re.sub(f'{re.escape(source_prefix)}.*?{re.escape(source_postfix)}', '', prompt, flags=re.DOTALL)
+                        if prompt.endswith('\n<p>'):
+                            prompt = prompt[:-4]
                     prompt = prompt.replace('<br>', chat_sep)
-                    context1 += prompt
-                    if not context1.endswith(chat_sep):
-                        context1 += chat_sep
+                    if not prompt.endswith(chat_sep):
+                        prompt += chat_sep
+                    # most recent first, add older if can
+                    # only include desired chat history
+                    if len(prompt + context1) > max_prompt_length:
+                        break
+                    context1 = prompt + context1
 
                 _, pre_response, terminate_response, chat_sep = generate_prompt({}, prompt_type1, chat1,
                                                                                 reduced=True)
                 if context1 and not context1.endswith(chat_sep):
                     context1 += chat_sep  # ensure if terminates abruptly, then human continues on next line
             args_list[0] = instruction1  # override original instruction with history from user
-            # only include desired chat history
-            args_list[2] = context1[-kwargs['chat_history']:]
-            model_state1 = args_list[-2]
+            args_list[2] = context1
             if model_state1[0] is None or model_state1[0] == no_model_str:
                 history = [['', None]]
                 yield history, ''
                 return
-            args_list = args_list[:-2]
             fun1 = partial(evaluate,
                            model_state1,
                            **kwargs_evaluate)
@@ -650,11 +665,11 @@ def go_gradio(**kwargs):
                          outputs=text_output,
                          )
         bot_args = dict(fn=bot,
-                        inputs=inputs_list + [model_state] + [text_output],
+                        inputs=inputs_list + [model_state] + [text_output] + [langchain_mode],
                         outputs=[text_output, exception_text],
                         )
         retry_bot_args = dict(fn=functools.partial(bot, retry=True),
-                              inputs=inputs_list + [model_state] + [text_output],
+                              inputs=inputs_list + [model_state] + [text_output] + [langchain_mode],
                               outputs=[text_output, exception_text],
                               )
         undo_user_args = dict(fn=functools.partial(user, undo=True),
@@ -668,11 +683,11 @@ def go_gradio(**kwargs):
                           outputs=text_output2,
                           )
         bot_args2 = dict(fn=bot,
-                         inputs=inputs_list + [model_state2] + [text_output2],
+                         inputs=inputs_list + [model_state2] + [text_output2] + [langchain_mode],
                          outputs=[text_output2, exception_text],
                          )
         retry_bot_args2 = dict(fn=functools.partial(bot, retry=True),
-                               inputs=inputs_list + [model_state2] + [text_output2],
+                               inputs=inputs_list + [model_state2] + [text_output2] + [langchain_mode],
                                outputs=[text_output2, exception_text],
                                )
         undo_user_args2 = dict(fn=functools.partial(user, undo=True),
