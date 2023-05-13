@@ -61,10 +61,10 @@ class MWDumpDirectLoader(MWDumpLoader):
                     if num_words > self.title_words_limit:
                         print("Skipped %s" % page.title, flush=True)
                         continue
-                    if self.views is not None:
-                        print("Kept %s views: %s" % (page.title, self.views[page.title]), flush=True)
-                    else:
-                        print("Kept %s" % page.title, flush=True)
+                if self.views is not None:
+                    print("Kept %s views: %s" % (page.title, self.views[page.title]), flush=True)
+                else:
+                    print("Kept %s" % page.title, flush=True)
 
                 code = mwparserfromhell.parse(revision.text)
                 text = code.strip_code(
