@@ -1,26 +1,46 @@
 """Load Data from a MediaWiki dump xml."""
+import ast
 import glob
 import pickle
 import uuid
-from collections import defaultdict
 from typing import List, Optional
 import os
 import bz2
-
+import csv
+import numpy as np
 import pandas as pd
+from matplotlib import pyplot as plt
+
 from langchain.docstore.document import Document
 from langchain.document_loaders import MWDumpLoader
-import csv
 
-from tqdm import tqdm
+
+def unescape(x):
+    try:
+        x = ast.literal_eval(x)
+    except:
+        try:
+            x = x.encode('ascii', 'ignore').decode('unicode_escape')
+        except:
+            pass
+    return x
 
 
 class MWDumpDirectLoader(MWDumpLoader):
-    def __init__(self, data: str, encoding: Optional[str] = "utf8", title_words_limit=None):
+    def __init__(self, data: str, encoding: Optional[str] = "utf8",
+                 title_words_limit=None, use_views=True):
         """Initialize with file path."""
         self.data = data
         self.encoding = encoding
         self.title_words_limit = title_words_limit
+        if use_views:
+            self.views = pd.read_csv('wiki_page_views_more_1000month.csv')
+            self.views.index = self.views['title']
+            self.views = self.views['views']
+            self.views = self.views.to_dict()
+            self.views = {unescape(k): v for k, v in self.views.items()}
+        else:
+            self.views = None
 
     def load(self) -> List[Document]:
         """Load from file path."""
@@ -32,13 +52,19 @@ class MWDumpDirectLoader(MWDumpLoader):
         docs = []
 
         for page in dump.pages:
+            if self.views is not None and page.title not in self.views:
+                print("Skipped %s low views" % page.title, flush=True)
+                continue
             for revision in page:
                 if self.title_words_limit is not None:
                     num_words = len(' '.join(page.title.split('_')).split(' '))
                     if num_words > self.title_words_limit:
                         print("Skipped %s" % page.title, flush=True)
                         continue
-                    print("Kept %s" % page.title, flush=True)
+                    if self.views is not None:
+                        print("Kept %s views: %s" % (page.title, self.views[page.title]), flush=True)
+                    else:
+                        print("Kept %s" % page.title, flush=True)
 
                 code = mwparserfromhell.parse(revision.text)
                 text = code.strip_code(
@@ -48,6 +74,7 @@ class MWDumpDirectLoader(MWDumpLoader):
                                 source="https://en.wikipedia.org/wiki/" + page.title,
                                 id=page.id,
                                 redirect=page.redirect,
+                                views=self.views[page.title] if self.views is not None else -1,
                                 )
                 metadata = {k: v for k, v in metadata.items() if v is not None}
                 docs.append(Document(page_content=text, metadata=metadata))
@@ -101,13 +128,13 @@ def get_documents_by_search_term(search_term):
     return documents
 
 
-def get_one_chunk(wiki_filename, start_byte, end_byte, return_file=True, title_words_limit=None):
+def get_one_chunk(wiki_filename, start_byte, end_byte, return_file=True, title_words_limit=None, use_views=True):
     data_length = end_byte - start_byte
     with open(wiki_filename, 'rb') as wiki_file:
         wiki_file.seek(start_byte)
         data = bz2.BZ2Decompressor().decompress(wiki_file.read(data_length))
 
-    loader = MWDumpDirectLoader(data.decode(), title_words_limit=title_words_limit)
+    loader = MWDumpDirectLoader(data.decode(), title_words_limit=title_words_limit, use_views=use_views)
     documents1 = loader.load()
     if return_file:
         base_tmp = "temp_wiki"
@@ -123,7 +150,7 @@ def get_one_chunk(wiki_filename, start_byte, end_byte, return_file=True, title_w
 from joblib import Parallel, delayed
 
 
-def get_all_documents(small_test=2, n_jobs=None):
+def get_all_documents(small_test=2, n_jobs=None, use_views=True):
     print("DO get all wiki docs: %s" % small_test, flush=True)
     index_filename, wiki_filename = get_wiki_filenames()
     start_bytes = get_start_bytes(index_filename)
@@ -142,7 +169,7 @@ def get_all_documents(small_test=2, n_jobs=None):
     # default loky backend leads to name space conflict problems
     return_file = True  # large return from joblib hangs
     documents = Parallel(n_jobs=n_jobs, verbose=10, backend='multiprocessing')(
-        delayed(get_one_chunk)(wiki_filename, start_byte, end_byte, return_file) for start_byte, end_byte in
+        delayed(get_one_chunk)(wiki_filename, start_byte, end_byte, return_file=return_file, use_views=use_views) for start_byte, end_byte in
         zip(start_bytes, end_bytes))
     if return_file:
         # then documents really are files
@@ -180,7 +207,11 @@ def test_start_bytes():
 
 def test_get_all_documents():
     small_test = 20  # 227850
-    assert len(get_all_documents(small_test=small_test)) == small_test * 100
+    n_jobs = os.cpu_count() // 4
+
+    assert len(get_all_documents(small_test=small_test, n_jobs=n_jobs, use_views=False)) == small_test * 100
+
+    assert len(get_all_documents(small_test=small_test, n_jobs=n_jobs, use_views=True)) == 429
 
 
 def get_one_pageviews(fil):
@@ -220,3 +251,27 @@ def test_agg_pageviews():
     df = df.groupby('title')['views'].sum().reset_index()
     df.to_csv("wiki_page_views.csv", index=True)
 
+
+def test_reduce_pageview():
+    filename = "wiki_page_views.csv"
+    df = pd.read_csv(filename)
+    df = df[df['views'] < 1e7]
+    #
+    plt.hist(df['views'], bins=100, log=True)
+    views_avg = np.mean(df['views'])
+    views_median = np.median(df['views'])
+    plt.title("Views avg: %s median: %s" % (views_avg, views_median))
+    plt.savefig(filename.replace('.csv', '.png'))
+    plt.close()
+    #
+    views_limit = 1000
+    df = df[df['views'] > views_limit]
+    filename = "wiki_page_views_more_1000month.csv"
+    df.to_csv(filename, index=True)
+    #
+    plt.hist(df['views'], bins=100, log=True)
+    views_avg = np.mean(df['views'])
+    views_median = np.median(df['views'])
+    plt.title("Views avg: %s median: %s" % (views_avg, views_median))
+    plt.savefig(filename.replace('.csv', '.png'))
+    plt.close()
