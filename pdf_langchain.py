@@ -47,7 +47,7 @@ except Exception as e:
     print("NO caching: %s" % str(e), flush=True)
 
 
-def get_db(sources, use_openai_embedding=False, db_type='faiss', persist_directory="db_dir"):
+def get_db(sources, use_openai_embedding=False, db_type='faiss', persist_directory="db_dir", langchain_mode='notset'):
     # get embedding model
     embedding = get_embedding(use_openai_embedding)
 
@@ -56,7 +56,7 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss', persist_directo
         db = FAISS.from_documents(sources, embedding)
     elif db_type == 'chroma':
         os.makedirs(persist_directory, exist_ok=True)
-        db = Chroma.from_documents(documents=sources, embedding=embedding, persist_directory=persist_directory)
+        db = Chroma.from_documents(documents=sources, embedding=embedding, persist_directory=persist_directory, collection_name=langchain_mode)
         db.persist()
         db = Chroma(persist_directory=persist_directory, embedding_function=embedding)
     else:
@@ -607,7 +607,8 @@ def get_db_kwargs(langchain_mode):
                 db_type='chroma',  # FIXME
                 pdf_filename=None,  # FIXME, upload via gradio
                 texts_folder="./txts/",
-                sanitize_bot_response=True)
+                sanitize_bot_response=True,
+                langchain_mode=langchain_mode)
 
 
 def get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_embedding):
@@ -638,6 +639,7 @@ def make_db(**langchain_kwargs):
 
 def _make_db(use_openai_embedding=False,
             first_para=True, text_limit=None, chunk=False, chunk_size=1024,
+            langchain_mode=None,
             wiki=False, github=False, dai_rst=False, urls=False, wiki_full=True, all=None,
             pdf_filename=None, split_method='chunk',
             texts_folder=None,
@@ -647,9 +649,10 @@ def _make_db(use_openai_embedding=False,
             limit_wiki_full=5000000,
             min_views=1000,
             db=None):
-    persist_directory = persist_directory_base + str(wiki) + str(wiki_full) + str(limit_wiki_full) + str(
-        first_para) + str(text_limit) + str(github) + str(
-        dai_rst) + str(all) + str(chunk) + str(chunk_size)
+    persist_directory = persist_directory_base + str(langchain_mode) + \
+                        str(wiki) + str(wiki_full) + str(limit_wiki_full) + \
+                        str(first_para) + str(text_limit) + str(github) + \
+                        str(dai_rst) + str(all) + str(chunk) + str(chunk_size)
     if not db and load_db_if_exists and db_type == 'chroma' and os.path.isdir(persist_directory) and os.path.isdir(
             os.path.join(persist_directory, 'index')):
         print("Loading db", flush=True)
@@ -718,7 +721,7 @@ def _make_db(use_openai_embedding=False,
         assert sources, "No sources"
         print("Generating db", flush=True)
         db = get_db(sources, use_openai_embedding=use_openai_embedding, db_type=db_type,
-                    persist_directory=persist_directory)
+                    persist_directory=persist_directory, langchain_mode=langchain_mode)
     return db
 
 
