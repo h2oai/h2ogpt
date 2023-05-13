@@ -1343,6 +1343,7 @@ import pytest
         "decapoda-research/llama-7b-hf",
         "decapoda-research/llama-13b-hf",
         "decapoda-research/llama-30b-hf",
+        "junelee/wizard-vicuna-13b",
     ]
 )
 def test_score_eval(base_model):
