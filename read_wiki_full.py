@@ -12,10 +12,11 @@ from tqdm import tqdm
 
 
 class MWDumpDirectLoader(MWDumpLoader):
-    def __init__(self, data: str, encoding: Optional[str] = "utf8"):
+    def __init__(self, data: str, encoding: Optional[str] = "utf8", title_words_limit=None):
         """Initialize with file path."""
         self.data = data
         self.encoding = encoding
+        self.title_words_limit = title_words_limit
 
     def load(self) -> List[Document]:
         """Load from file path."""
@@ -28,6 +29,13 @@ class MWDumpDirectLoader(MWDumpLoader):
 
         for page in dump.pages:
             for revision in page:
+                if self.title_words_limit is not None:
+                    num_words = len(' '.join(page.title.split('_')).split(' '))
+                    if num_words > self.title_words_limit:
+                        print("Skipped %s" % page.title, flush=True)
+                        continue
+                    print("Kept %s" % page.title, flush=True)
+
                 code = mwparserfromhell.parse(revision.text)
                 text = code.strip_code(
                     normalize=True, collapse=True, keep_template_params=False
@@ -89,16 +97,19 @@ def get_documents_by_search_term(search_term):
     return documents
 
 
-def get_one_chunk(wiki_filename, start_byte, end_byte, return_file=True):
+def get_one_chunk(wiki_filename, start_byte, end_byte, return_file=True, title_words_limit=None):
     data_length = end_byte - start_byte
     with open(wiki_filename, 'rb') as wiki_file:
         wiki_file.seek(start_byte)
         data = bz2.BZ2Decompressor().decompress(wiki_file.read(data_length))
 
-    loader = MWDumpDirectLoader(data.decode())
+    loader = MWDumpDirectLoader(data.decode(), title_words_limit=title_words_limit)
     documents1 = loader.load()
     if return_file:
-        filename = str(uuid.uuid4())
+        base_tmp = "temp_wiki"
+        if not os.path.isdir(base_tmp):
+            os.makedirs(base_tmp, exist_ok=True)
+        filename = os.path.join(base_tmp, str(uuid.uuid4()) + ".tmp.pickle")
         with open(filename, 'wb') as f:
             pickle.dump(documents1, f)
         return filename

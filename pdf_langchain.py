@@ -679,7 +679,8 @@ def _make_db(use_openai_embedding=False,
                                              metadata={"source": row['url']}))
         else:
             from read_wiki_full import get_all_documents
-            sources.extend(get_all_documents(small_test=1000, n_jobs=os.cpu_count() // 4))
+            small_test = None
+            sources.extend(get_all_documents(small_test=small_test, n_jobs=os.cpu_count() // 4))
         if wiki or all:
             sources1 = get_wiki_sources(first_para=first_para, text_limit=text_limit)
             if chunk:
