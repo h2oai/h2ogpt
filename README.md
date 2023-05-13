@@ -5,10 +5,10 @@ Our goal is to make the world's best open source GPT!
 ### Try h2oGPT now 
 
 Live hosted instances:
-- [![img-small.png](img-small.png) h2oGPT 20B](https://gpt.h2o.ai/)
+- [![img-small.png](img-small.png) h2oGPT 12B](https://gpt.h2o.ai/)
 - [🤗 h2oGPT 12B #1](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot)
 - [🤗 h2oGPT 12B #2](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot2)
-- [![img-small.png](img-small.png) h2oGPT (research) 30B](http://gpu.hopto.org)
+- [![img-small.png](img-small.png) h2oGPT (research) 30B](http://gpt2.h2o.ai)
 
 For questions, discussing, or just hanging out, come and join our <a href="https://discord.gg/WKhYMWcVbq"><b>Discord</b></a>!
 
