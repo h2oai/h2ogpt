@@ -1,9 +1,13 @@
 """Load Data from a MediaWiki dump xml."""
+import glob
 import pickle
 import uuid
+from collections import defaultdict
 from typing import List, Optional
 import os
 import bz2
+
+import pandas as pd
 from langchain.docstore.document import Document
 from langchain.document_loaders import MWDumpLoader
 import csv
@@ -177,3 +181,42 @@ def test_start_bytes():
 def test_get_all_documents():
     small_test = 20  # 227850
     assert len(get_all_documents(small_test=small_test)) == small_test * 100
+
+
+def get_one_pageviews(fil):
+    df1 = pd.read_csv(fil, sep=' ', header=None, names=['region', 'title', 'views', 'foo'], quoting=csv.QUOTE_NONE)
+    df1.index = df1['title']
+    df1 = df1[df1['region'] == 'en']
+    df1 = df1.drop('region', axis=1)
+    df1 = df1.drop('foo', axis=1)
+    df1 = df1.drop('title', axis=1)  # already index
+
+    base_tmp = "temp_wiki_pageviews"
+    if not os.path.isdir(base_tmp):
+        os.makedirs(base_tmp, exist_ok=True)
+    filename = os.path.join(base_tmp, str(uuid.uuid4()) + ".tmp.csv")
+    df1.to_csv(filename, index=True)
+    return filename
+
+
+def test_agg_pageviews():
+    gen_files = False
+    if gen_files:
+        path = '/data/jon/h2o-llm/wiki_pageviews/dumps.wikimedia.org/other/pageviews/2023/2023-04'
+        files = glob.glob(os.path.join(path, 'pageviews*.gz'))
+        # files = files[:2]  # test
+        n_jobs = os.cpu_count() // 2
+        csv_files = Parallel(n_jobs=n_jobs, verbose=10, backend='multiprocessing')(delayed(get_one_pageviews)(fil) for fil in files)
+    else:
+        # to continue without redoing above
+        csv_files = glob.glob('/data/jon/h2o-llm/temp_wiki_pageviews/*.csv')
+
+    df_list = []
+    for csv_file in csv_files:
+        print(csv_file)
+        df1 = pd.read_csv(csv_file)
+        df_list.append(df1)
+    df = pd.concat(df_list, axis=0)
+    df = df.groupby('title')['views'].sum().reset_index()
+    df.to_csv("wiki_page_views.csv", index=True)
+
