@@ -181,7 +181,7 @@ def main(
            WARNING: wiki_full requires extra data processing via read_wiki_full.py and requires really good workstation to generate db, unless already present.
     :param user_path: user path to glob from to generate db for vector search, for 'UserData' langchain mode
     :param visible_langchain_modes: dbs to generate at launch to be ready for LLM
-           Can be up to ['All', 'wiki', 'wiki_full', 'UserData', 'github h2oGPT', 'DriverlessAI docs']
+           Can be up to ['All', 'wiki', 'wiki_full', 'UserData', 'MyData', 'github h2oGPT', 'DriverlessAI docs']
            But wiki_full is expensive and requires preparation
            To allow scratch space only live in session, add 'MyData' to list
            Default: If only want to consume local files, e.g. prepared by make_db.py, only include ['UserData']
