@@ -56,7 +56,7 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss', persist_directo
         db = FAISS.from_documents(sources, embedding)
     elif db_type == 'chroma':
         os.makedirs(persist_directory, exist_ok=True)
-        db = Chroma.from_documents(documents=sources, embedding=embedding, persist_directory=persist_directory, collection_name=langchain_mode)
+        db = Chroma.from_documents(documents=sources, embedding=embedding, persist_directory=persist_directory, collection_name=langchain_mode, anonymized_telemetry=False)
         db.persist()
         db = Chroma(persist_directory=persist_directory, embedding_function=embedding)
     else:
@@ -387,9 +387,10 @@ def get_wiki_data(title, first_paragraph_only, text_limit=None, take_head=True):
     page_content = list(data["query"]["pages"].values())[0]["extract"]
     if take_head is not None and text_limit is not None:
         page_content = page_content[:text_limit] if take_head else page_content[:-text_limit]
+    title_url = str(title).replace(' ', '_')
     return Document(
         page_content=page_content,
-        metadata={"source": f"https://en.wikipedia.org/wiki/{title}"},
+        metadata={"source": f"https://en.wikipedia.org/wiki/{title_url}"},
     )
 
 
@@ -649,12 +650,6 @@ def _make_db(use_openai_embedding=False,
             limit_wiki_full=5000000,
             min_views=1000,
             db=None):
-    # below just for testing
-    #persist_directory = persist_directory_base + str(langchain_mode) + \
-    #                    str(wiki) + str(wiki_full) + str(limit_wiki_full) + \
-    #                    str(first_para) + str(text_limit) + str(github) + \
-    #                    str(dai_rst) + str(all) + str(chunk) + str(chunk_size)
-    # simple place
     persist_directory = 'db_dir_%s' % langchain_mode  # single place, no special names for each case
     if not db and load_db_if_exists and db_type == 'chroma' and os.path.isdir(persist_directory) and os.path.isdir(
             os.path.join(persist_directory, 'index')):

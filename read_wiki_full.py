@@ -31,13 +31,16 @@ def get_views():
     views.index = views['title']
     views = views['views']
     views = views.to_dict()
-    views = {unescape(k): v for k, v in views.items()}
+    views = {str(unescape(str(k))): v for k, v in views.items()}
+    views2 = {k.replace('_', ' '): v for k, v in views.items()}
+    # views has _ but pages has " "
+    views.update(views2)
     return views
 
 
 class MWDumpDirectLoader(MWDumpLoader):
     def __init__(self, data: str, encoding: Optional[str] = "utf8",
-                 title_words_limit=None, use_views=True, verbose=False):
+                 title_words_limit=None, use_views=True, verbose=True):
         """Initialize with file path."""
         self.data = data
         self.encoding = encoding
@@ -81,8 +84,9 @@ class MWDumpDirectLoader(MWDumpLoader):
                 text = code.strip_code(
                     normalize=True, collapse=True, keep_template_params=False
                 )
+                title_url = str(page.title).replace(' ', '_')
                 metadata = dict(title=page.title,
-                                source="https://en.wikipedia.org/wiki/" + page.title,
+                                source="https://en.wikipedia.org/wiki/" + title_url,
                                 id=page.id,
                                 redirect=page.redirect,
                                 views=self.views[page.title] if self.views is not None else -1,
