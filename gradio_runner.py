@@ -8,10 +8,11 @@ import uuid
 import filelock
 
 from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, get_dark_js
-from prompter import Prompter
+from prompter import Prompter, \
+    prompt_type_to_model_name, prompt_types_strings, inv_prompt_type_to_model_lower
 from utils import get_githash, flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping
-from finetune import prompt_type_to_model_name, prompt_types_strings, generate_prompt, inv_prompt_type_to_model_lower
+from finetune import generate_prompt
 from generate import get_model, languages_covered, evaluate, eval_func_param_names, score_qa, langchain_modes, \
     inputs_kwargs_list, get_cutoffs, scratch_base_dir
 
@@ -250,8 +251,10 @@ def go_gradio(**kwargs):
                                                                 file_count="multiple",
                                                                 )
                             with gr.Column():
-                                add_to_shared_db_btn = gr.Button("Add Upload to Shared UserData DB", visible=allow_upload_to_user_data)
-                                add_to_my_db_btn = gr.Button("Add Upload to Scratch MyData DB", visible=allow_upload_to_my_data)
+                                add_to_shared_db_btn = gr.Button("Add Upload to Shared UserData DB",
+                                                                 visible=allow_upload_to_user_data)
+                                add_to_my_db_btn = gr.Button("Add Upload to Scratch MyData DB",
+                                                             visible=allow_upload_to_my_data)
 
                 with gr.TabItem("Input/Output"):
                     with gr.Row():

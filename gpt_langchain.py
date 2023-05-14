@@ -92,6 +92,7 @@ def get_answer_from_sources(chain, sources, question):
 def get_llm(use_openai_model=False, model_name=None, model=None,
             tokenizer=None, stream_output=False,
             max_new_tokens=256,
+            prompt_type=None,
             ):
     if use_openai_model:
         from langchain.llms import OpenAI
@@ -131,7 +132,7 @@ def get_llm(use_openai_model=False, model_name=None, model=None,
         else:
             streamer = None
 
-        if 'h2ogpt' in model_name:
+        if 'h2ogpt' in model_name or prompt_type == 'human_bot':
             from h2oai_pipeline import H2OTextGenerationPipeline
             pipe = H2OTextGenerationPipeline(model=model, tokenizer=tokenizer, **gen_kwargs)
             # pipe.task = "text-generation"
@@ -350,16 +351,16 @@ def test_qa_wiki_openai():
 
 def test_qa_wiki_stuff_hf():
     # NOTE: total context length makes things fail when n_sources * text_limit >~ 2048
-    return run_qa_wiki(use_openai_model=False, text_limit=256, chain_type='stuff')
+    return run_qa_wiki(use_openai_model=False, text_limit=256, chain_type='stuff', prompt_type='human_bot')
 
 
 def test_qa_wiki_map_reduce_hf():
-    return run_qa_wiki(use_openai_model=False, text_limit=None, chain_type='map_reduce')
+    return run_qa_wiki(use_openai_model=False, text_limit=None, chain_type='map_reduce', prompt_type='human_bot')
 
 
-def run_qa_wiki(use_openai_model=False, first_para=True, text_limit=None, chain_type='stuff'):
+def run_qa_wiki(use_openai_model=False, first_para=True, text_limit=None, chain_type='stuff', prompt_type=None):
     sources = get_wiki_sources(first_para=first_para, text_limit=text_limit)
-    llm, model_name, streamer = get_llm(use_openai_model=use_openai_model)
+    llm, model_name, streamer = get_llm(use_openai_model=use_openai_model, prompt_type=prompt_type)
     chain = load_qa_with_sources_chain(llm, chain_type=chain_type)
 
     question = "What are the main differences between Linux and Windows?"
@@ -627,7 +628,8 @@ def run_qa_db(query=None,
     llm, model_name, streamer = get_llm(use_openai_model=use_openai_model, model_name=model_name,
                                         model=model, tokenizer=tokenizer,
                                         stream_output=stream_output,
-                                        max_new_tokens=max_new_tokens)
+                                        max_new_tokens=max_new_tokens,
+                                        prompt_type=prompter.prompt_type if prompter is not None else None)
 
     if not use_openai_model and 'h2ogpt' in model_name:
         # instruct-like, rather than few-shot prompt_type='plain' as default

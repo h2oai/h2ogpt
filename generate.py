@@ -32,9 +32,8 @@ from peft import PeftModel
 from transformers import GenerationConfig, AutoModel, TextIteratorStreamer
 from accelerate import init_empty_weights, infer_auto_device_map
 
-from prompter import Prompter
-
-from finetune import get_loaders, example_data_points, generate_prompt, inv_prompt_type_to_model_lower
+from prompter import Prompter, inv_prompt_type_to_model_lower, generate_prompt
+from finetune import get_loaders, example_data_points
 from stopping import get_stopping
 
 eval_extra_columns = ['prompt', 'response', 'score']

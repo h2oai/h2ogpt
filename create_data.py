@@ -62,7 +62,7 @@ def test_scrape_dai_docs():
     file = os.path.join(home, 'h2oai/docs/faq.rst')
     qa_pairs = parse_rst_file(file)
     prompt_type = 'human_bot'
-    from finetune import prompt_types
+    from prompter import prompt_types
     assert prompt_type in prompt_types
     save_thing = [{"instruction": k, "output": v, 'prompt_type': prompt_type} for k, v in qa_pairs.items()]
     output_file = "dai_faq.json"
@@ -569,7 +569,7 @@ def test_show_prompts():
              ['dai_docs.train_cleaned.json'] * 1 + \
              ['dai_faq.json'] * 1
     file_points = [json.load(open(fil, 'rt')) for fil in files]
-    from finetune import generate_prompt
+    from prompter import generate_prompt
     for data_points in file_points:
         for data_point in data_points:
             print(generate_prompt(data_point, 'plain', False, False)[0])
