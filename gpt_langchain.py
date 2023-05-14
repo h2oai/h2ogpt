@@ -47,9 +47,9 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss', persist_directo
 
 def add_to_db(db, sources, db_type='faiss'):
     if db_type == 'faiss':
-        db = db.add_documents(sources)
+        db.add_documents(sources)
     elif db_type == 'chroma':
-        db = db.add_documents(documents=sources)
+        db.add_documents(documents=sources)
         db.persist()
     else:
         raise RuntimeError("No such db_type=%s" % db_type)

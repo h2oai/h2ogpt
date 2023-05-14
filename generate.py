@@ -37,7 +37,7 @@ from stopping import get_stopping
 
 eval_extra_columns = ['prompt', 'response', 'score']
 
-langchain_modes = ['Disabled', 'ChatLLM', 'LLM', 'All', 'wiki', 'wiki_full', 'UserData', 'github h2oGPT',
+langchain_modes = ['Disabled', 'ChatLLM', 'LLM', 'All', 'wiki', 'wiki_full', 'UserData', 'MyData', 'github h2oGPT',
                    'DriverlessAI docs']
 
 
@@ -107,12 +107,14 @@ def main(
         eval_sharegpt_as_output: bool = False,
 
         langchain_mode: str = 'Disabled',
-        visible_langchain_modes: list = ['UserData'],
+        visible_langchain_modes: list = ['UserData', 'MyData'],
         user_path: str = None,
         load_db_if_exists: bool = True,
         keep_sources_in_context: bool = False,
         db_type: str = 'chroma',
         use_openai_embedding: bool = False,
+        allow_upload_to_user_data: bool = True,
+        allow_upload_to_my_data: bool = True,
 ):
     """
 
@@ -177,11 +179,14 @@ def main(
     :param visible_langchain_modes: dbs to generate at launch to be ready for LLM
            Can be up to ['All', 'wiki', 'wiki_full', 'UserData', 'github h2oGPT', 'DriverlessAI docs']
            But wiki_full is expensive and requires preparation
+           To allow scratch space only live in session, add 'MyData' to list
            Default: If only want to consume local files, e.g. prepared by make_db.py, only include ['UserData']
     :param load_db_if_exists: Whether to load chroma db if exists or re-generate db
     :param keep_sources_in_context: Whether to keep url sources in context, not helpful usually
     :param db_type: 'faiss' for in-memory or 'chroma' for persisted on disk
     :param use_openai_embedding: Whether to use OpenAI embeddings for vector db
+    :param allow_upload_to_user_data: Whether to allow file uploads to update shared vector db
+    :param allow_upload_to_my_data: Whether to allow file uploads to update scratch vector db
     :return:
     """
     is_hf = bool(os.getenv("HUGGINGFACE_SPACES"))
@@ -195,6 +200,8 @@ def main(
 
     # allow set token directly
     use_auth_token = os.environ.get("HUGGINGFACE_API_TOKEN", use_auth_token)
+    allow_upload_to_user_data = bool(os.environ.get("allow_upload_to_user_data", allow_upload_to_user_data))
+    allow_upload_to_my_data = bool(os.environ.get("allow_upload_to_my_data", allow_upload_to_my_data))
     # allow enabling langchain via ENV
     langchain_mode = os.environ.get("LANGCHAIN_MODE", langchain_mode)
     height = os.environ.get("HEIGHT", height)
@@ -205,6 +212,7 @@ def main(
     assert langchain_mode in langchain_modes, "Invalid langchain_mode %s" % langchain_mode
 
     if is_public:
+        allow_upload_to_user_data = False
         input_lines = 1  # ensure set, for ease of use
         temperature = 0.2 if temperature is None else temperature
         top_p = 0.85 if top_p is None else top_p
@@ -786,6 +794,7 @@ inputs_kwargs_list = ['debug', 'save_dir', 'sanitize_bot_response', 'model_state
 
 def evaluate(
         model_state,
+        my_db_state,
         # START NOTE: Examples must have same order of parameters
         instruction,
         iinput,
