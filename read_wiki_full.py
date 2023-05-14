@@ -27,7 +27,8 @@ def unescape(x):
 
 
 def get_views():
-    views = pd.read_csv('wiki_page_views_more_1000month.csv')
+    #views = pd.read_csv('wiki_page_views_more_1000month.csv')
+    views = pd.read_csv('wiki_page_views_more_5000month.csv')
     views.index = views['title']
     views = views['views']
     views = views.to_dict()
@@ -286,9 +287,9 @@ def test_reduce_pageview():
     plt.savefig(filename.replace('.csv', '.png'))
     plt.close()
     #
-    views_limit = 1000
+    views_limit = 5000
     df = df[df['views'] > views_limit]
-    filename = "wiki_page_views_more_1000month.csv"
+    filename = "wiki_page_views_more_5000month.csv"
     df.to_csv(filename, index=True)
     #
     plt.hist(df['views'], bins=100, log=True)
