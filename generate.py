@@ -181,10 +181,11 @@ def main(
            WARNING: wiki_full requires extra data processing via read_wiki_full.py and requires really good workstation to generate db, unless already present.
     :param user_path: user path to glob from to generate db for vector search, for 'UserData' langchain mode
     :param visible_langchain_modes: dbs to generate at launch to be ready for LLM
-           Can be up to ['All', 'wiki', 'wiki_full', 'UserData', 'MyData', 'github h2oGPT', 'DriverlessAI docs']
+           Can be up to ['wiki', 'wiki_full', 'UserData', 'MyData', 'github h2oGPT', 'DriverlessAI docs']
            But wiki_full is expensive and requires preparation
            To allow scratch space only live in session, add 'MyData' to list
            Default: If only want to consume local files, e.g. prepared by make_db.py, only include ['UserData']
+           FIXME: Avoid 'All' for now, not implemented
     :param load_db_if_exists: Whether to load chroma db if exists or re-generate db
     :param keep_sources_in_context: Whether to keep url sources in context, not helpful usually
     :param db_type: 'faiss' for in-memory or 'chroma' for persisted on disk
@@ -303,6 +304,9 @@ def main(
                     if os.path.isdir(gpath1):
                         print("Removing old MyData: %s" % gpath1, flush=True)
                         shutil.rmtree(gpath1)
+                continue
+            if langchain_mode1 in ['All']:
+                # FIXME: All should be avoided until scans over each db, shouldn't be separate db
                 continue
             persist_directory1 = 'db_dir_%s' % langchain_mode1  # single place, no special names for each case
             db = prep_langchain(persist_directory1, load_db_if_exists, db_type, use_openai_embedding, langchain_mode1, user_path)

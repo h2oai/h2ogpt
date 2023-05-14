@@ -448,8 +448,10 @@ def prep_langchain(persist_directory, load_db_if_exists, db_type, use_openai_emb
     assert langchain_mode not in ['MyData'], "Should not prep scratch data"
 
     if os.path.isdir(persist_directory):
+        print("Prep: persist_directory=%s exists, using" % persist_directory, flush=True)
         db = get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode)
     else:
+        print("Prep: persist_directory=%s does not exist, regenerating" % persist_directory, flush=True)
         db = None
         if langchain_mode in ['All', 'DriverlessAI docs']:
             # FIXME: Could also just use dai_docs.pickle directly and upload that
