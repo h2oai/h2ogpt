@@ -26,19 +26,27 @@ def unescape(x):
     return x
 
 
+def get_views():
+    views = pd.read_csv('wiki_page_views_more_1000month.csv')
+    views.index = views['title']
+    views = views['views']
+    views = views.to_dict()
+    views = {unescape(k): v for k, v in views.items()}
+    return views
+
+
 class MWDumpDirectLoader(MWDumpLoader):
     def __init__(self, data: str, encoding: Optional[str] = "utf8",
-                 title_words_limit=None, use_views=True):
+                 title_words_limit=None, use_views=True, verbose=False):
         """Initialize with file path."""
         self.data = data
         self.encoding = encoding
         self.title_words_limit = title_words_limit
+        self.verbose = verbose
         if use_views:
-            self.views = pd.read_csv('wiki_page_views_more_1000month.csv')
-            self.views.index = self.views['title']
-            self.views = self.views['views']
-            self.views = self.views.to_dict()
-            self.views = {unescape(k): v for k, v in self.views.items()}
+            #self.views = get_views()
+            # faster to use global shared values
+            self.views = global_views
         else:
             self.views = None
 
@@ -53,18 +61,21 @@ class MWDumpDirectLoader(MWDumpLoader):
 
         for page in dump.pages:
             if self.views is not None and page.title not in self.views:
-                print("Skipped %s low views" % page.title, flush=True)
+                if self.verbose:
+                    print("Skipped %s low views" % page.title, flush=True)
                 continue
             for revision in page:
                 if self.title_words_limit is not None:
                     num_words = len(' '.join(page.title.split('_')).split(' '))
                     if num_words > self.title_words_limit:
-                        print("Skipped %s" % page.title, flush=True)
+                        if self.verbose:
+                            print("Skipped %s" % page.title, flush=True)
                         continue
-                if self.views is not None:
-                    print("Kept %s views: %s" % (page.title, self.views[page.title]), flush=True)
-                else:
-                    print("Kept %s" % page.title, flush=True)
+                if self.verbose:
+                    if self.views is not None:
+                        print("Kept %s views: %s" % (page.title, self.views[page.title]), flush=True)
+                    else:
+                        print("Kept %s" % page.title, flush=True)
 
                 code = mwparserfromhell.parse(revision.text)
                 text = code.strip_code(
@@ -128,13 +139,16 @@ def get_documents_by_search_term(search_term):
     return documents
 
 
-def get_one_chunk(wiki_filename, start_byte, end_byte, return_file=True, title_words_limit=None, use_views=True):
+def get_one_chunk(wiki_filename, start_byte, end_byte, return_file=True,
+                  title_words_limit=None,
+                  use_views=True):
     data_length = end_byte - start_byte
     with open(wiki_filename, 'rb') as wiki_file:
         wiki_file.seek(start_byte)
         data = bz2.BZ2Decompressor().decompress(wiki_file.read(data_length))
 
-    loader = MWDumpDirectLoader(data.decode(), title_words_limit=title_words_limit, use_views=use_views)
+    loader = MWDumpDirectLoader(data.decode(), title_words_limit=title_words_limit,
+             use_views=use_views)
     documents1 = loader.load()
     if return_file:
         base_tmp = "temp_wiki"
@@ -148,6 +162,9 @@ def get_one_chunk(wiki_filename, start_byte, end_byte, return_file=True, title_w
 
 
 from joblib import Parallel, delayed
+
+
+global_views = get_views()
 
 
 def get_all_documents(small_test=2, n_jobs=None, use_views=True):
@@ -169,7 +186,8 @@ def get_all_documents(small_test=2, n_jobs=None, use_views=True):
     # default loky backend leads to name space conflict problems
     return_file = True  # large return from joblib hangs
     documents = Parallel(n_jobs=n_jobs, verbose=10, backend='multiprocessing')(
-        delayed(get_one_chunk)(wiki_filename, start_byte, end_byte, return_file=return_file, use_views=use_views) for start_byte, end_byte in
+        delayed(get_one_chunk)(wiki_filename, start_byte, end_byte,
+                               return_file=return_file, use_views=use_views) for start_byte, end_byte in
         zip(start_bytes, end_bytes))
     if return_file:
         # then documents really are files

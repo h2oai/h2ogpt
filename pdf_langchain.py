@@ -574,7 +574,7 @@ def prep_langchain(persist_directory, load_db_if_exists, db_type, use_openai_emb
     """
 
     if os.path.isdir(persist_directory):
-        db = get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_embedding)
+        db = get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode)
     else:
         db = None
         # FIXME: Could also just use dai_docs.pickle directly and upload that
@@ -611,12 +611,12 @@ def get_db_kwargs(langchain_mode):
                 langchain_mode=langchain_mode)
 
 
-def get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_embedding):
+def get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode):
     if load_db_if_exists and db_type == 'chroma' and os.path.isdir(persist_directory) and os.path.isdir(
             os.path.join(persist_directory, 'index')):
         print("DO Loading db", flush=True)
         embedding = get_embedding(use_openai_embedding)
-        db = Chroma(persist_directory=persist_directory, embedding_function=embedding)
+        db = Chroma(persist_directory=persist_directory, embedding_function=embedding, collection_name=langchain_mode)
         print("DONE Loading db", flush=True)
         return db
     return None
@@ -649,10 +649,13 @@ def _make_db(use_openai_embedding=False,
             limit_wiki_full=5000000,
             min_views=1000,
             db=None):
-    persist_directory = persist_directory_base + str(langchain_mode) + \
-                        str(wiki) + str(wiki_full) + str(limit_wiki_full) + \
-                        str(first_para) + str(text_limit) + str(github) + \
-                        str(dai_rst) + str(all) + str(chunk) + str(chunk_size)
+    # below just for testing
+    #persist_directory = persist_directory_base + str(langchain_mode) + \
+    #                    str(wiki) + str(wiki_full) + str(limit_wiki_full) + \
+    #                    str(first_para) + str(text_limit) + str(github) + \
+    #                    str(dai_rst) + str(all) + str(chunk) + str(chunk_size)
+    # simple place
+    persist_directory = 'db_dir_%s' % langchain_mode  # single place, no special names for each case
     if not db and load_db_if_exists and db_type == 'chroma' and os.path.isdir(persist_directory) and os.path.isdir(
             os.path.join(persist_directory, 'index')):
         print("Loading db", flush=True)
@@ -680,7 +683,13 @@ def _make_db(use_openai_embedding=False,
         else:
             from read_wiki_full import get_all_documents
             small_test = None
-            sources.extend(get_all_documents(small_test=small_test, n_jobs=os.cpu_count() // 4))
+            print("Generating new wiki", flush=True)
+            sources1 = get_all_documents(small_test=small_test, n_jobs=os.cpu_count() // 2)
+            print("Got new wiki", flush=True)
+            if chunk:
+                sources1 = chunk_sources(sources1, chunk_size=chunk_size)
+                print("Chunked new wiki", flush=True)
+            sources.extend(sources1)
         if wiki or all:
             sources1 = get_wiki_sources(first_para=first_para, text_limit=text_limit)
             if chunk:
@@ -749,7 +758,8 @@ def run_qa_db(query=None,
               persist_directory_base='db_dir',
               limit_wiki_full=5000000,
               min_views=1000,
-              db=None):
+              db=None,
+              langchain_mode=None):
     """
 
     :param query:

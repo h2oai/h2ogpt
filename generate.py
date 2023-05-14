@@ -266,7 +266,7 @@ def main(
         from pdf_langchain import prep_langchain
         db_type = 'chroma'  # if loading, has to have been persisted
         use_openai_embedding = False  # assume not using OpenAI then
-        persist_directory = 'db_dir'  # single place, no special names for each case
+        persist_directory = 'db_dir_%s' % langchain_mode  # single place, no special names for each case
         db = prep_langchain(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode)
     else:
         db = None
