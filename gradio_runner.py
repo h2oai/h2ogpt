@@ -219,6 +219,18 @@ def go_gradio(**kwargs):
                                     score_text2 = gr.Textbox("Response Score2: NA", show_label=False, visible=False)
                             retry = gr.Button("Regenerate")
                             undo = gr.Button("Undo")
+                with gr.TabItem("Input/Output"):
+                    with gr.Row():
+                        if 'mbart-' in kwargs['model_lower']:
+                            src_lang = gr.Dropdown(list(languages_covered().keys()),
+                                                   value=kwargs['src_lang'],
+                                                   label="Input Language")
+                            tgt_lang = gr.Dropdown(list(languages_covered().keys()),
+                                                   value=kwargs['tgt_lang'],
+                                                   label="Output Language")
+                with gr.TabItem("Data Source"):
+                    data_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled')
+                    with data_row:
                         if is_hf:
                             # don't show 'wiki' since only usually useful for internal testing at moment
                             no_show_modes = ['Disabled', 'wiki']
@@ -256,15 +268,6 @@ def go_gradio(**kwargs):
                                 add_to_my_db_btn = gr.Button("Add Upload to Scratch MyData DB",
                                                              visible=allow_upload_to_my_data)
 
-                with gr.TabItem("Input/Output"):
-                    with gr.Row():
-                        if 'mbart-' in kwargs['model_lower']:
-                            src_lang = gr.Dropdown(list(languages_covered().keys()),
-                                                   value=kwargs['src_lang'],
-                                                   label="Input Language")
-                            tgt_lang = gr.Dropdown(list(languages_covered().keys()),
-                                                   value=kwargs['tgt_lang'],
-                                                   label="Output Language")
                 with gr.TabItem("Expert"):
                     with gr.Row():
                         with gr.Column():
