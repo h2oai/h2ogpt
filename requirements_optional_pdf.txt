@@ -26,9 +26,6 @@ chromadb==0.3.22
 
 jq==1.4.1
 
-# wiki dump xml reading
-mwcli-0.0.3
-
 # to check licenses
 # Run: pip-licenses|grep -v 'BSD\|Apache\|MIT'
 pip-licenses==4.3.0
