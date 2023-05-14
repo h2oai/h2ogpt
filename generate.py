@@ -921,7 +921,7 @@ def evaluate(
                            user_path=user_path,
                            max_new_tokens=max_new_tokens,
                            **langchain_kwargs):
-            outr += r
+            outr = r  # doesn't accumualte, new answer every yield, so only save that full answer
             yield r
         if save_dir:
             save_generate_output(output=outr, base_model=base_model, save_dir=save_dir)
