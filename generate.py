@@ -548,7 +548,6 @@ def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward
                 dtype=torch.float16 if load_half else torch.float32,
             )
             device_map.update(device_map_model)
-        print('device_map: %s' % device_map, flush=True)
     else:
         device_map = "auto"
 
@@ -567,6 +566,7 @@ def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward
     else:
         device_map = {'': 'cpu'}
         model_kwargs['load_in_8bit'] = False
+    print('device_map: %s' % device_map, flush=True)
 
     load_in_8bit = model_kwargs.get('load_in_8bit', False)
     model_kwargs['device_map'] = device_map
