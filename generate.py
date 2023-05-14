@@ -1,3 +1,4 @@
+import ast
 import functools
 import queue
 import sys
@@ -106,7 +107,7 @@ def main(
         eval_sharegpt_as_output: bool = False,
 
         langchain_mode: str = 'Disabled',
-        visible_langchain_modes: list = ['wiki', 'glob', 'github h2oGPT', 'DriverlessAI docs'],
+        visible_langchain_modes: list = ['glob'],
         load_db_if_exists: bool = True,
         keep_sources_in_context: bool = False,
 ):
@@ -172,6 +173,7 @@ def main(
     :param visible_langchain_modes: dbs to generate at launch to be ready for LLM
            Can be up to ['All', 'wiki', 'wiki_full', 'glob', 'github h2oGPT', 'DriverlessAI docs']
            But wiki_full is expensive and requires preparation
+           Default: If only want to consume local files, e.g. prepared by make_db.py, only include ['glob']
     :param load_db_if_exists: Whether to load chroma db if exists or re-generate db
     :param keep_sources_in_context: Whether to keep url sources in context, not helpful usually
     :return:
@@ -190,6 +192,7 @@ def main(
     # allow enabling langchain via ENV
     langchain_mode = os.environ.get("LANGCHAIN_MODE", langchain_mode)
     height = os.environ.get("HEIGHT", height)
+    visible_langchain_modes = ast.literal_eval(os.environ.get("visible_langchain_modes", str(visible_langchain_modes)))
 
     assert langchain_mode in langchain_modes, "Invalid langchain_mode %s" % langchain_mode
 
