@@ -108,6 +108,7 @@ def main(
 
         langchain_mode: str = 'Disabled',
         visible_langchain_modes: list = ['glob'],
+        glob_path : str = None,
         load_db_if_exists: bool = True,
         keep_sources_in_context: bool = False,
 ):
@@ -170,6 +171,7 @@ def main(
     :param eval_sharegpt_as_output: for no gradio benchmark, whether to test ShareGPT output itself
     :param langchain_mode: Data source to include.  Choose "glob" to only consume glob make by make_db.py.
            WARNING: wiki_full requires extra data processing via read_wiki_full.py and requires really good workstation to generate db, unless already present.
+    :param glob_path: path to glob from to generate db for vector search, for 'glob' langchain mode
     :param visible_langchain_modes: dbs to generate at launch to be ready for LLM
            Can be up to ['All', 'wiki', 'wiki_full', 'glob', 'github h2oGPT', 'DriverlessAI docs']
            But wiki_full is expensive and requires preparation
@@ -280,7 +282,7 @@ def main(
         dbs = {}
         for langchain_mode1 in visible_langchain_modes:
             persist_directory = 'db_dir_%s' % langchain_mode1  # single place, no special names for each case
-            db = prep_langchain(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode1)
+            db = prep_langchain(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode1, glob_path)
             dbs[langchain_mode1] = db
     else:
         dbs = {}
@@ -773,7 +775,7 @@ eval_func_param_names = ['instruction',
 
 inputs_kwargs_list = ['debug', 'save_dir', 'sanitize_bot_response', 'model_state0', 'is_low_mem',
                       'raise_generate_gpu_exceptions', 'chat_context', 'concurrency_count', 'lora_weights',
-                      'load_db_if_exists', 'dbs']
+                      'load_db_if_exists', 'dbs', 'glob_path']
 
 
 def evaluate(
@@ -813,6 +815,7 @@ def evaluate(
         lora_weights=None,
         load_db_if_exists=True,
         dbs=None,
+        glob_path=None,
 ):
     # ensure passed these
     assert concurrency_count is not None
@@ -880,6 +883,7 @@ def evaluate(
                            do_yield=True,
                            load_db_if_exists=load_db_if_exists,
                            db=dbs[langchain_mode],
+                           glob_path=glob_path,
                            max_new_tokens=max_new_tokens,
                            **langchain_kwargs):
             outr += r

@@ -421,7 +421,7 @@ def test_qa_daidocs_db_chunk_openaiembedding_hfmodel():
                      chunk_size=128, wiki=False, dai_rst=True)
 
 
-def prep_langchain(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode):
+def prep_langchain(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode, glob_path):
     """
     do prep first time, involving downloads
     # FIXME: Add github caching then add here
@@ -453,17 +453,10 @@ def get_db_kwargs(langchain_mode):
     return dict(chunk=True,  # chunking with small chunk_size hurts accuracy esp. if k small
                 # chunk = False  # chunking with small chunk_size hurts accuracy esp. if k small
                 chunk_size=128 * 4,  # FIXME
-                wiki=langchain_mode in ['wiki', 'All', "'All'"],
-                wiki_full=langchain_mode in ['wiki_full', 'All', "'All'"],
                 first_para=False,
                 text_limit=None,
-                github=langchain_mode in ['github h2oGPT', 'All', "'All'"],
-                dai_rst=langchain_mode in ['DriverlessAI docs', 'All', "'All'"],
-                urls=False and langchain_mode in ['All', "'All'"],
-                all=langchain_mode in ['All', "'All'"],
                 # db_type = 'faiss',
                 db_type='chroma',
-                glob_path=os.environ.get('GLOB_PATH') if langchain_mode in ['All', "'All'", 'glob'] else None,
                 sanitize_bot_response=True,
                 langchain_mode=langchain_mode)
 
@@ -496,9 +489,8 @@ def make_db(**langchain_kwargs):
 
 
 def _make_db(use_openai_embedding=False,
-             first_para=True, text_limit=None, chunk=False, chunk_size=1024,
+             first_para=False, text_limit=None, chunk=False, chunk_size=1024,
              langchain_mode=None,
-             wiki=False, github=False, dai_rst=False, urls=False, wiki_full=True, all=None,
              glob_path=None,
              db_type='faiss',
              load_db_if_exists=False,
@@ -513,7 +505,7 @@ def _make_db(use_openai_embedding=False,
     elif not db:
         sources = []
         print("Generating sources", flush=True)
-        if wiki_full or all:
+        if langchain_mode in ['wiki_full', 'All', "'All'"]:
             from read_wiki_full import get_all_documents
             small_test = None
             print("Generating new wiki", flush=True)
@@ -523,28 +515,28 @@ def _make_db(use_openai_embedding=False,
                 sources1 = chunk_sources(sources1, chunk_size=chunk_size)
                 print("Chunked new wiki", flush=True)
             sources.extend(sources1)
-        if wiki or all:
+        if langchain_mode in ['wiki', 'All', "'All'"]:
             sources1 = get_wiki_sources(first_para=first_para, text_limit=text_limit)
             if chunk:
                 sources1 = chunk_sources(sources1, chunk_size=chunk_size)
             sources.extend(sources1)
-        if github or all:
+        if langchain_mode in ['github h2oGPT', 'All', "'All'"]:
             # sources = get_github_docs("dagster-io", "dagster")
             sources1 = get_github_docs("h2oai", "h2ogpt")
             # FIXME: always chunk for now
             sources1 = chunk_sources(sources1, chunk_size=chunk_size)
             sources.extend(sources1)
-        if dai_rst or all:
+        if langchain_mode in ['DriverlessAI docs', 'All', "'All'"]:
             sources1 = get_dai_docs(from_hf=True)
             if chunk and False:  # FIXME: DAI docs are already chunked well, should only chunk more if over limit
                 sources1 = chunk_sources(sources1, chunk_size=chunk_size)
             sources.extend(sources1)
-        if glob_path:
+        if glob_path and langchain_mode in ['All', 'glob']:
             sources1 = path_to_docs(glob_path)
             if chunk:
                 sources1 = chunk_sources(sources1, chunk_size=chunk_size)
             sources.extend(sources1)
-        if urls and all:
+        if False and langchain_mode in ['All', "'All'"]:
             # from langchain.document_loaders import UnstructuredURLLoader
             # loader = UnstructuredURLLoader(urls=urls)
             urls = ["https://www.birdsongsf.com/who-we-are/"]
@@ -565,7 +557,7 @@ source_postfix = "End Sources<p>"
 
 def run_qa_db(query=None,
               use_openai_model=False, use_openai_embedding=False,
-              first_para=True, text_limit=None, k=4, chunk=False, chunk_size=1024,
+              first_para=False, text_limit=None, k=4, chunk=False, chunk_size=1024,
               wiki=False, github=False, dai_rst=False, urls=False, wiki_full=True, all=None,
               glob_path=None, split_method='chunk',
               db_type='faiss',

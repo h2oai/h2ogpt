@@ -215,7 +215,7 @@ def go_gradio(**kwargs):
                         else:
                             no_show_modes = ['Disabled']
                         allowed_modes = visible_langchain_modes.copy()
-                        allowed_modes += ['ChatLLM', 'LLM']
+                        allowed_modes += ['ChatLLM', 'LLM', 'All']
                         langchain_mode = gr.Radio([x for x in langchain_modes if x in allowed_modes and x not in no_show_modes],
                                                   value=kwargs['langchain_mode'],
                                                   label="Data Source", visible=kwargs['langchain_mode'] != 'Disabled')
