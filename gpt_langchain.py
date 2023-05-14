@@ -761,5 +761,16 @@ def chunk_sources(sources, chunk_size=1024):
     return source_chunks
 
 
+def get_db_from_hf():
+    from huggingface_hub import hf_hub_download
+    # True for case when locally already logged in with correct token, so don't have to set key
+    token = os.getenv('HUGGINGFACE_API_TOKEN', True)
+    path_to_zip_file = hf_hub_download('h2oai/dai_docs', 'db_dirs.zip', token=token, repo_type='dataset')
+    path = '.'
+    import zipfile
+    with zipfile.ZipFile(path_to_zip_file, 'r') as zip_ref:
+        zip_ref.extractall(path)
+
+
 if __name__ == '__main__':
     pass

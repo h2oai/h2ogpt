@@ -272,7 +272,9 @@ def main(
     print("Command: %s\nHash: %s" % (str(' '.join(sys.argv)), get_githash()), flush=True)
 
     if langchain_mode != "Disabled":
-        from gpt_langchain import prep_langchain
+        from gpt_langchain import prep_langchain, get_db_from_hf
+        if is_hf:
+            get_db_from_hf()
         db_type = 'chroma'  # if loading, has to have been persisted
         use_openai_embedding = False  # assume not using OpenAI then
         dbs = {}
