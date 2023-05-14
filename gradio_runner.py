@@ -3,6 +3,7 @@ import functools
 import inspect
 import os
 import sys
+import uuid
 
 import filelock
 
@@ -12,7 +13,7 @@ from utils import get_githash, flatten_list, zip_data, s3up, clear_torch_cache, 
     ping
 from finetune import prompt_type_to_model_name, prompt_types_strings, generate_prompt, inv_prompt_type_to_model_lower
 from generate import get_model, languages_covered, evaluate, eval_func_param_names, score_qa, langchain_modes, \
-    inputs_kwargs_list, get_cutoffs
+    inputs_kwargs_list, get_cutoffs, scratch_base_dir
 
 import gradio as gr
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -144,7 +145,7 @@ def go_gradio(**kwargs):
         model_state2 = gr.State([None, None, None, None])
         model_options_state = gr.State([model_options])
         lora_options_state = gr.State([lora_options])
-        my_db_state = gr.State([None])
+        my_db_state = gr.State([None, str(uuid.uuid4())])
         gr.Markdown(f"""
             {get_h2o_title(title) if kwargs['h2ocolors'] else get_simple_title(title)}
 
@@ -1035,20 +1036,22 @@ def update_user_db(file, db1, dbs=None, db_type=None, langchain_mode='UserData',
         file = file.name
     print("Adding %s" % file, flush=True)
     sources = file_to_doc(file)
-    persist_directory = 'db_dir_%s' % langchain_mode
     with filelock.FileLock("db_%s.lock" % langchain_mode.replace(' ', '_')):
         if langchain_mode == 'MyData':
             if db1[0] is not None:
                 # then add
                 add_to_db(db1[0], sources, db_type=db_type)
             else:
+                assert len(db1) == 2 and db1[1] is not None, "Bad MyData db"
                 # then create
+                persist_directory = os.path.join(scratch_base_dir, 'db_dir_%s_%s' % (langchain_mode, db1[1]))
                 db1[0] = get_db(sources, use_openai_embedding=use_openai_embedding,
                                 db_type=db_type,
                                 persist_directory=persist_directory,
                                 langchain_mode=langchain_mode)
             return db1
         else:
+            persist_directory = 'db_dir_%s' % langchain_mode
             if langchain_mode in dbs and dbs[langchain_mode] is not None:
                 # then add
                 add_to_db(dbs[langchain_mode], sources, db_type=db_type)

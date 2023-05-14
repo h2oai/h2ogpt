@@ -1,5 +1,6 @@
 import ast
 import functools
+import glob
 import queue
 import shutil
 import sys
@@ -40,6 +41,8 @@ eval_extra_columns = ['prompt', 'response', 'score']
 
 langchain_modes = ['Disabled', 'ChatLLM', 'LLM', 'All', 'wiki', 'wiki_full', 'UserData', 'MyData', 'github h2oGPT',
                    'DriverlessAI docs']
+
+scratch_base_dir = '/tmp/'
 
 
 def main(
@@ -296,10 +299,10 @@ def main(
         for langchain_mode1 in visible_langchain_modes:
             if langchain_mode1 in ['MyData']:
                 # don't use what is on disk, remove it instead
-                persist_directory1 = 'db_dir_%s' % langchain_mode1
-                if os.path.isdir(persist_directory1):
-                    print("Removing old MyData: %s" % persist_directory1, flush=True)
-                    shutil.rmtree(persist_directory1)
+                for gpath1 in glob.glob(os.path.join(scratch_base_dir, 'db_dir_%s*' % langchain_mode1)):
+                    if os.path.isdir(gpath1):
+                        print("Removing old MyData: %s" % gpath1, flush=True)
+                        shutil.rmtree(gpath1)
                 continue
             persist_directory1 = 'db_dir_%s' % langchain_mode1  # single place, no special names for each case
             db = prep_langchain(persist_directory1, load_db_if_exists, db_type, use_openai_embedding, langchain_mode1, user_path)

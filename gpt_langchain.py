@@ -445,6 +445,7 @@ def prep_langchain(persist_directory, load_db_if_exists, db_type, use_openai_emb
     # FIXME: Once go FAISS->Chroma, can avoid this prep step
     :return:
     """
+    assert langchain_mode not in ['MyData'], "Should not prep scratch data"
 
     if os.path.isdir(persist_directory):
         db = get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode)
@@ -515,11 +516,13 @@ def _make_db(use_openai_embedding=False,
     persist_directory = 'db_dir_%s' % langchain_mode  # single place, no special names for each case
     if not db and load_db_if_exists and db_type == 'chroma' and os.path.isdir(persist_directory) and os.path.isdir(
             os.path.join(persist_directory, 'index')):
+        assert langchain_mode not in ['MyData'], "Should not load MyData db this way"
         print("Loading db", flush=True)
         embedding = get_embedding(use_openai_embedding)
         db = Chroma(persist_directory=persist_directory, embedding_function=embedding,
                     collection_name=langchain_mode.replace(' ', '_'))
     elif not db:
+        assert langchain_mode not in ['MyData'], "Should not make MyData db this way"
         sources = []
         print("Generating sources", flush=True)
         if langchain_mode in ['wiki_full', 'All', "'All'"]:
@@ -589,7 +592,6 @@ def run_qa_db(query=None,
               do_yield=False,
               show_rank=False,
               load_db_if_exists=False,
-              persist_directory_base='db_dir',
               limit_wiki_full=5000000,
               min_views=1000,
               db=None,
