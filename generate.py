@@ -263,7 +263,7 @@ def main(
     print("Command: %s\nHash: %s" % (str(' '.join(sys.argv)), get_githash()), flush=True)
 
     if langchain_mode != "Disabled":
-        from pdf_langchain import prep_langchain
+        from gpt_langchain import prep_langchain
         db_type = 'chroma'  # if loading, has to have been persisted
         use_openai_embedding = False  # assume not using OpenAI then
         persist_directory = 'db_dir_%s' % langchain_mode  # single place, no special names for each case
@@ -857,7 +857,7 @@ def evaluate(
     assert langchain_mode in langchain_modes, "Invalid langchain_mode %s" % langchain_mode
     if langchain_mode not in [False, 'Disabled', 'ChatLLM']:
         query = instruction if not iinput else "%s\n%s" % (instruction, iinput)
-        from pdf_langchain import run_qa_db, get_db_kwargs
+        from gpt_langchain import run_qa_db, get_db_kwargs
         langchain_kwargs = get_db_kwargs(langchain_mode)
         outr = ""
         for r in run_qa_db(query=query,

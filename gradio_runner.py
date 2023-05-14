@@ -576,7 +576,7 @@ def go_gradio(**kwargs):
             args_list = list(args).copy()
             model_state1 = args_list[-3]
             history = args_list[-2]
-            langchain_mode = args_list[-1]
+            langchain_mode1 = args_list[-1]
             args_list = args_list[:-3]  # only keep rest needed for evaluate()
             if retry and history:
                 history.pop()
@@ -593,7 +593,7 @@ def go_gradio(**kwargs):
             history = copy.deepcopy(history)
             instruction1 = history[-1][0]
             context1 = ''
-            if max_prompt_length is not None and langchain_mode not in ['LLM']:
+            if max_prompt_length is not None and langchain_mode1 not in ['LLM']:
                 prompt_type_arg_id = eval_func_param_names.index('prompt_type')
                 prompt_type1 = args_list[prompt_type_arg_id]
                 chat_arg_id = eval_func_param_names.index('chat')
@@ -604,9 +604,9 @@ def go_gradio(**kwargs):
                     data_point = dict(instruction=history[histi][0], input='', output=history[histi][1])
                     prompt, pre_response, terminate_response, chat_sep = generate_prompt(data_point, prompt_type1,
                                                                                          chat1, reduced=True)
-                    # md -> back to text, maybe not super imprortant if model trained enough
+                    # md -> back to text, maybe not super important if model trained enough
                     if not kwargs['keep_sources_in_context']:
-                        from pdf_langchain import source_prefix, source_postfix
+                        from gpt_langchain import source_prefix, source_postfix
                         import re
                         prompt = re.sub(f'{re.escape(source_prefix)}.*?{re.escape(source_postfix)}', '', prompt, flags=re.DOTALL)
                         if prompt.endswith('\n<p>'):
