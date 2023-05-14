@@ -250,8 +250,8 @@ def go_gradio(**kwargs):
                                                                 file_count="multiple",
                                                                 )
                             with gr.Column():
-                                add_to_shared_db_btn = gr.Button("Add to Shared UserData DB", visible=allow_upload_to_user_data)
-                                add_to_my_db_btn = gr.Button("Add to Scratch MyData DB", visible=allow_upload_to_my_data)
+                                add_to_shared_db_btn = gr.Button("Add Upload to Shared UserData DB", visible=allow_upload_to_user_data)
+                                add_to_my_db_btn = gr.Button("Add Upload to Scratch MyData DB", visible=allow_upload_to_my_data)
 
                 with gr.TabItem("Input/Output"):
                     with gr.Row():
@@ -436,7 +436,12 @@ def go_gradio(**kwargs):
 
         update_user_db_func_my = functools.partial(update_user_db, dbs=dbs, db_type=db_type, langchain_mode='MyData',
                                                    use_openai_embedding=use_openai_embedding)
-        add_to_my_db_btn.click(update_user_db_func_my, inputs=[fileup_output, my_db_state], outputs=my_db_state)
+
+        def clear_file_list():
+            return None
+
+        add_to_my_db_btn.click(update_user_db_func_my, inputs=[fileup_output, my_db_state], outputs=my_db_state) \
+            .then(clear_file_list, outputs=fileup_output)
 
         def check_admin_pass(x):
             return gr.update(visible=x == admin_pass)
