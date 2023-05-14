@@ -45,6 +45,18 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss', persist_directo
     return db
 
 
+def add_to_db(db, sources, db_type='faiss'):
+    if db_type == 'faiss':
+        db = db.add_documents(sources)
+    elif db_type == 'chroma':
+        db = db.add_documents(documents=sources)
+        db.persist()
+    else:
+        raise RuntimeError("No such db_type=%s" % db_type)
+
+    return db
+
+
 def get_embedding(use_openai_embedding):
     # Get embedding model
     if use_openai_embedding:
@@ -598,6 +610,7 @@ def run_qa_db(query=None,
     :return:
     """
 
+    # FIXME: For All just go over all dbs instead of a separate db for All
     db = make_db(**locals())
     llm, model_name, streamer = get_llm(use_openai_model=use_openai_model, model_name=model_name,
                                         model=model, tokenizer=tokenizer,

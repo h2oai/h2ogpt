@@ -27,6 +27,7 @@ def go_gradio(**kwargs):
     score_model_state0 = kwargs['score_model_state0']
     queue = True
     dbs = kwargs['dbs']
+    db_type = kwargs['db_type']
     visible_langchain_modes = kwargs['visible_langchain_modes']
 
     # easy update of kwargs needed for evaluate() etc.
@@ -215,10 +216,22 @@ def go_gradio(**kwargs):
                         else:
                             no_show_modes = ['Disabled']
                         allowed_modes = visible_langchain_modes.copy()
-                        allowed_modes += ['ChatLLM', 'LLM', 'All']
+                        allowed_modes = [x for x in allowed_modes if x in dbs]
+                        allowed_modes += ['ChatLLM', 'LLM']
                         langchain_mode = gr.Radio([x for x in langchain_modes if x in allowed_modes and x not in no_show_modes],
                                                   value=kwargs['langchain_mode'],
-                                                  label="Data Source", visible=kwargs['langchain_mode'] != 'Disabled')
+                                                  label="Data Source",
+                                                  visible=kwargs['langchain_mode'] != 'Disabled')
+
+                        def upload_file(files):
+                            file_paths = [file.name for file in files]
+                            return file_paths
+
+                        file_output = gr.File()
+                        upload_button = gr.UploadButton("Upload a File",
+                                                        file_types=["pdf", "txt", "csv", "toml", "py", "rst", "md"],
+                                                        file_count="multiple",
+                                                        visible=kwargs['langchain_mode'] != 'Disabled')
                 with gr.TabItem("Input/Output"):
                     with gr.Row():
                         if 'mbart-' in kwargs['model_lower']:
@@ -393,6 +406,10 @@ def go_gradio(**kwargs):
         zip_data1 = functools.partial(zip_data, root_dirs=['flagged_data_points', kwargs['save_dir']])
         zip_btn.click(zip_data1, inputs=None, outputs=[file_output, zip_text], queue=False)
         s3up_btn.click(s3up, inputs=zip_text, outputs=s3up_text, queue=False)
+
+        update_user_db_func = functools.partial(update_user_db, db=dbs['UserData'], db_type=db_type)
+        upload_button.upload(upload_file, upload_button, file_output) \
+            .then(update_user_db, file_output)
 
         def check_admin_pass(x):
             return gr.update(visible=x == admin_pass)
@@ -978,3 +995,11 @@ def get_inputs_list(inputs_dict, model_lower):
             continue
         inputs_list.append(inputs_dict[k])
     return inputs_list
+
+
+def update_user_db(file, db=None, db_type=None):
+    assert db is not None, "db was None"
+    assert db_type in ['faiss', 'chroma'], "db_type %s not supported" % db_type
+    from gpt_langchain import add_to_db, file_to_doc
+    sources = file_to_doc(file)
+    add_to_db(db, sources, db_type=db_type)

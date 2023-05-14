@@ -111,6 +111,8 @@ def main(
         user_path: str = None,
         load_db_if_exists: bool = True,
         keep_sources_in_context: bool = False,
+        db_type: str = 'chroma',
+        use_openai_embedding: bool = False,
 ):
     """
 
@@ -178,6 +180,8 @@ def main(
            Default: If only want to consume local files, e.g. prepared by make_db.py, only include ['UserData']
     :param load_db_if_exists: Whether to load chroma db if exists or re-generate db
     :param keep_sources_in_context: Whether to keep url sources in context, not helpful usually
+    :param db_type: 'faiss' for in-memory or 'chroma' for persisted on disk
+    :param use_openai_embedding: Whether to use OpenAI embeddings for vector db
     :return:
     """
     is_hf = bool(os.getenv("HUGGINGFACE_SPACES"))
@@ -277,8 +281,6 @@ def main(
         from gpt_langchain import prep_langchain, get_db_from_hf
         if is_hf:
             get_db_from_hf()
-        db_type = 'chroma'  # if loading, has to have been persisted
-        use_openai_embedding = False  # assume not using OpenAI then
         dbs = {}
         for langchain_mode1 in visible_langchain_modes:
             persist_directory = 'db_dir_%s' % langchain_mode1  # single place, no special names for each case
