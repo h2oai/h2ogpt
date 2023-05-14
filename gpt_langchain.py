@@ -3,6 +3,7 @@ import inspect
 import os
 import pathlib
 import subprocess
+import sys
 import tempfile
 import traceback
 from collections import defaultdict
@@ -648,6 +649,9 @@ def run_qa_db(query=None,
     if query is None:
         query = "What are the main differences between Linux and Windows?"
     # https://github.com/hwchase17/langchain/issues/1946
+    # FIXME: Seems to way to get size of chroma db to limit k to avoid
+    # Chroma collection MyData contains fewer than 4 elements.
+    # type logger error
     k_db = 1000 if db_type == 'chroma' else k  # k=100 works ok too for
 
     docs_with_score = db.similarity_search_with_score(query, k=k_db)[:k]
