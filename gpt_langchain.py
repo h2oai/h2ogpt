@@ -4,10 +4,7 @@ import os
 import pathlib
 import subprocess
 import tempfile
-from abc import ABC
 from collections import defaultdict
-from typing import Optional, List, Mapping, Any
-
 from tqdm import tqdm
 
 from utils import wrapped_partial, EThread, import_matplotlib
@@ -18,33 +15,13 @@ import numpy as np
 import pandas as pd
 import requests
 from langchain.chains.qa_with_sources import load_qa_with_sources_chain
-from langchain.document_loaders import PyPDFLoader, TextLoader, DirectoryLoader, JSONLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter, CharacterTextSplitter
+from langchain.document_loaders import PyPDFLoader, TextLoader, PDFMinerLoader, CSVLoader, PythonLoader, TomlLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores import FAISS
 from langchain.chains.question_answering import load_qa_chain
-from langchain.chains import ConversationalRetrievalChain, RetrievalQA
 from langchain.docstore.document import Document
-from langchain.llms.base import LLM
 from langchain import PromptTemplate
-
-# FIXME:
-# from langchain.vectorstores import Milvus
-
 from langchain.vectorstores import Chroma
-
-# https://python.langchain.com/en/latest/modules/models/llms/examples/llm_caching.html
-# from langchain.cache import InMemoryCache
-# langchain.llm_cache = InMemoryCache()
-
-try:
-    raise ValueError("Disabled, too greedy even if change model etc.")
-    import langchain
-    from langchain.cache import SQLiteCache
-
-    langchain.llm_cache = SQLiteCache(database_path=".langchain.db")
-    print("Caching", flush=True)
-except Exception as e:
-    print("NO caching: %s" % str(e), flush=True)
 
 
 def get_db(sources, use_openai_embedding=False, db_type='faiss', persist_directory="db_dir", langchain_mode='notset'):
@@ -56,64 +33,14 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss', persist_directo
         db = FAISS.from_documents(sources, embedding)
     elif db_type == 'chroma':
         os.makedirs(persist_directory, exist_ok=True)
-        db = Chroma.from_documents(documents=sources, embedding=embedding, persist_directory=persist_directory, collection_name=langchain_mode, anonymized_telemetry=False)
+        db = Chroma.from_documents(documents=sources, embedding=embedding, persist_directory=persist_directory,
+                                   collection_name=langchain_mode, anonymized_telemetry=False)
         db.persist()
         db = Chroma(persist_directory=persist_directory, embedding_function=embedding)
     else:
         raise RuntimeError("No such db_type=%s" % db_type)
 
     return db
-
-
-def pdf_to_sources(pdf_filename=None, split_method='chunk'):
-    if split_method == 'page':
-        # Simple method - Split by pages
-        loader = PyPDFLoader(pdf_filename)
-        pages = loader.load_and_split()
-        print(pages[0])
-
-        # SKIP TO STEP 2 IF YOU'RE USING THIS METHOD
-        chunks = pages
-    elif split_method == 'chunk':
-        # Advanced method - Split by chunk
-
-        # Step 1: Convert PDF to text
-        raise RuntimeError("textract requires old six, avoid")
-        import textract
-        doc = textract.process(pdf_filename)
-
-        # Step 2: Save to .txt and reopen (helps prevent issues)
-        txt_filename = pdf_filename.replace('.pdf', '.txt')
-        with open(txt_filename, 'w') as f:
-            f.write(doc.decode('utf-8'))
-
-        with open(txt_filename, 'r') as f:
-            text = f.read()
-
-        # Step 3: Create function to count tokens
-        from transformers import GPT2TokenizerFast
-        tokenizer = GPT2TokenizerFast.from_pretrained("gpt2")
-
-        def count_tokens(textin: str) -> int:
-            return len(tokenizer.encode(textin))
-
-        # Step 4: Split text into chunks
-        text_splitter = RecursiveCharacterTextSplitter(
-            # Set a really small chunk size, just to show.
-            chunk_size=512,
-            chunk_overlap=24,
-            length_function=count_tokens,
-        )
-
-        chunks = text_splitter.create_documents([text])
-
-        # show_counts(chunks, count_tokens)
-    else:
-        raise RuntimeError("No such split_method=%s" % split_method)
-
-    # Result is many LangChain 'Documents' around 500 tokens or less (Recursive splitter sometimes allows more tokens to retain context)
-    type(chunks[0])
-    return chunks
 
 
 def get_embedding(use_openai_embedding):
@@ -125,26 +52,10 @@ def get_embedding(use_openai_embedding):
     else:
         from langchain.embeddings import HuggingFaceEmbeddings
 
-        # model_name = "sentence-transformers/all-mpnet-base-v2"  # poor
         model_name = "sentence-transformers/all-MiniLM-L6-v2"  # good, gets authors
-        # model_name = "sentence-transformers/all-MiniLM-L12-v2"  # 12 layers FAILS OOM I think
-        # model_name = "sentence-transformers/paraphrase-MiniLM-L6-v2"
-        # model_name = 'cerebras/Cerebras-GPT-2.7B' # OOM
-        # model_name = 'microsoft/deberta-v3-base'  # microsoft/mdeberta-v3-base for multilinguial
-        load_8bit = False
         device, torch_dtype, context_class = get_device_dtype()
-        model_kwargs = dict(device=device)  # , torch_dtype=torch_dtype, load_in_8bit=load_8bit)
+        model_kwargs = dict(device=device)
         embedding = HuggingFaceEmbeddings(model_name=model_name, model_kwargs=model_kwargs)
-
-        # for some models need to fix tokenizer
-        if model_name in ['cerebras/Cerebras-GPT-2.7B']:
-            embedding.client.tokenizer.pad_token = embedding.client.tokenizer.eos_token
-
-        # also see:
-        # https://www.sbert.net/docs/pretrained-models/msmarco-v3.html
-        # https://www.sbert.net/examples/applications/semantic-search/README.html
-        # https://towardsdatascience.com/bert-for-measuring-text-similarity-eec91c6bf9e1
-        # https://discuss.huggingface.co/t/get-word-embeddings-from-transformer-model/6929/2
     return embedding
 
 
@@ -158,7 +69,10 @@ def get_answer_from_sources(chain, sources, question):
     )["output_text"]
 
 
-def get_llm(use_openai_model=False, model_name=None, model=None, tokenizer=None, stream_output=False):
+def get_llm(use_openai_model=False, model_name=None, model=None,
+            tokenizer=None, stream_output=False,
+            max_new_tokens=256,
+            ):
     if use_openai_model:
         from langchain.llms import OpenAI
         llm = OpenAI(temperature=0)
@@ -168,11 +82,9 @@ def get_llm(use_openai_model=False, model_name=None, model=None, tokenizer=None,
         from transformers import AutoTokenizer, AutoModelForCausalLM
 
         if model is None:
+            # only used if didn't pass model in
             assert model_name is None
             assert tokenizer is None
-            # model_name = "cerebras/Cerebras-GPT-2.7B"
-            # model_name = "cerebras/Cerebras-GPT-13B"
-            # model_name = "cerebras/Cerebras-GPT-6.7B"
             model_name = 'h2oai/h2ogpt-oasst1-512-12b'
             # model_name = 'h2oai/h2ogpt-oig-oasst1-512-6.9b'
             # model_name = 'h2oai/h2ogpt-oasst1-512-20b'
@@ -189,7 +101,7 @@ def get_llm(use_openai_model=False, model_name=None, model=None, tokenizer=None,
                                                              torch_dtype=torch_dtype,
                                                              load_in_8bit=load_8bit)
 
-        gen_kwargs = dict(max_new_tokens=256, return_full_text=True, early_stopping=False)
+        gen_kwargs = dict(max_new_tokens=max_new_tokens, return_full_text=True, early_stopping=False)
         if stream_output:
             skip_prompt = False
             from generate import H2OTextIteratorStreamer
@@ -244,79 +156,6 @@ def get_llm_chain(llm, model_name):
     return chain
 
 
-def get_answer_from_db(db, query, sources=False, chat_history='', use_openai_model=False, k=4, chat=True,
-                       use_chain_ret=False):
-    # Check similarity search is working
-    # docs = db.similarity_search(query, k=k)
-    # print(docs[0])
-
-    # get LLM
-    llm, model_name, streamer = get_llm(use_openai_model=use_openai_model)
-
-    # Create QA chain to integrate similarity search with user queries (answer query from knowledge base)
-    if use_openai_model:
-        if sources:
-            chain = load_qa_with_sources_chain(llm, chain_type="stuff")
-        else:
-            chain = load_qa_chain(llm, chain_type="stuff")
-    else:
-        # make custom llm prompt aware
-        chain = get_llm_chain(llm, model_name)
-        # WIP OPTIONAL
-        if False:
-            from langchain import SerpAPIWrapper
-            from langchain.agents import Tool
-            from langchain.agents import initialize_agent
-
-            serpapi = SerpAPIWrapper(serpapi_api_key='...')
-            tools = [
-                Tool(
-                    name="Search",
-                    func=serpapi.run,
-                    description="useful for when you need to get a weather forecast"
-                )
-            ]
-
-            agent = initialize_agent(tools, llm, agent="zero-shot-react-description", verbose=True)
-            res = agent.run(input="What is the weather forecast for Poznan, Poland")
-            print(res)
-
-    docs = db.similarity_search(query, k=k)
-
-    if chat:
-        chain.run(input_documents=docs, question=query)
-        # Create conversation chain that uses our vectordb as retriever, this also allows for chat history management
-        qa = ConversationalRetrievalChain.from_llm(llm, db.as_retriever())
-
-        # [x.page_content for x in docs if 'Illia' in x.page_content]
-        result = qa({"question": query, "chat_history": chat_history})
-        answer = result['answer']
-    elif use_chain_ret:
-        qa_chain = RetrievalQA.from_chain_type(llm=llm, chain_type='stuff', retriever=db.as_retriever(),
-                                               return_source_documents=True)
-        llm_response = qa_chain(query)
-        answer = llm_response['result']
-        sources = ''
-        for source in llm_response["source_documents"]:
-            if 'source' in source.metadata:
-                sources += source.metadata['source']
-        if sources:
-            sources = "\nSources\n" + sources
-        else:
-            sources = "\n No Sources\n"
-        answer += sources
-    else:
-        answer = chain(
-            {
-                "input_documents": docs,
-                "question": question,
-            },
-            return_only_outputs=True,
-        )["output_text"]
-
-    return answer
-
-
 def get_device_dtype():
     # torch.device("cuda") leads to cuda:x cuda:y mismatches for multi-GPU consistently
     import torch
@@ -329,51 +168,15 @@ def get_device_dtype():
     return device, torch_dtype, context_class
 
 
-class H2OChatBotLLM(LLM, ABC):
-    # FIXME: WIP, use gradio_client not requests
-    @property
-    def _llm_type(self) -> str:
-        return "custom"
-
-    def _call(self, prompt: str, stop: Optional[List[str]] = None) -> str:
-        response = requests.post(
-            "http://0.0.0.0:7860/prompt",
-            json={
-                "prompt": prompt,
-                "temperature": 0,
-                "max_new_tokens": 256,
-                "stop": stop + ["Observation:"]
-            }
-        )
-        response.raise_for_status()
-        return response.json()["response"]
-
-    @property
-    def _identifying_params(self) -> Mapping[str, Any]:
-        """Get the identifying parameters."""
-        return {
-
-        }
-
-
-def show_counts(chunks, count_tokens):
-    # Quick data visualization to ensure chunking was successful
-
-    # Create a list of token counts
-    token_counts = [count_tokens(chunk.page_content) for chunk in chunks]
-
-    # Create a DataFrame from the token counts
-    df = pd.DataFrame({'Token Count': token_counts})
-
-    # Create a histogram of the token count distribution
-    df.hist(bins=40, )
-
-    # Show the plot
-    import matplotlib.pyplot as plt
-    plt.show()
-
-
 def get_wiki_data(title, first_paragraph_only, text_limit=None, take_head=True):
+    """
+    Get wikipedia data from online
+    :param title:
+    :param first_paragraph_only:
+    :param text_limit:
+    :param take_head:
+    :return:
+    """
     filename = 'wiki_%s_%s_%s_%s.data' % (first_paragraph_only, title, text_limit, take_head)
     url = f"https://en.wikipedia.org/w/api.php?format=json&action=query&prop=extracts&explaintext=1&titles={title}"
     if first_paragraph_only:
@@ -395,17 +198,24 @@ def get_wiki_data(title, first_paragraph_only, text_limit=None, take_head=True):
 
 
 def get_wiki_sources(first_para=True, text_limit=None):
-    return [
-        get_wiki_data("Barclays", first_para, text_limit=text_limit),
-        get_wiki_data("Birdsong_(restaurant)", first_para, text_limit=text_limit),
-        get_wiki_data("Unix", first_para, text_limit=text_limit),
-        get_wiki_data("Microsoft_Windows", first_para, text_limit=text_limit),
-        get_wiki_data("Linux", first_para, text_limit=text_limit),
-        # get_wiki_data("Seinfeld", first_para, text_limit=text_limit),
-    ]
+    """
+    Get specific named sources from wikipedia
+    :param first_para:
+    :param text_limit:
+    :return:
+    """
+    default_wiki_sources = ['Unix', 'Microsoft_Windows', 'Linux']
+    wiki_sources = list(os.getenv('WIKI_SOURCES', default_wiki_sources))
+    return [get_wiki_data(x, first_para, text_limit=text_limit) for x in wiki_sources]
 
 
 def get_github_docs(repo_owner, repo_name):
+    """
+    Access github from specific repo
+    :param repo_owner:
+    :param repo_name:
+    :return:
+    """
     with tempfile.TemporaryDirectory() as d:
         subprocess.check_call(
             f"git clone --depth 1 https://github.com/{repo_owner}/{repo_name}.git .",
@@ -429,6 +239,11 @@ def get_github_docs(repo_owner, repo_name):
 
 
 def get_dai_docs(from_hf=False):
+    """
+    Consume DAI documentation
+    :param from_hf:
+    :return:
+    """
     import pickle
 
     dai_store = 'dai_docs.pickle'
@@ -461,15 +276,43 @@ def get_dai_docs(from_hf=False):
         # NOTE: yield has issues when going into db, loses metadata
         # yield itm
         sources.append(itm)
-    return sources, dst
+    return sources
 
 
-def get_rst_docs(path):
-    md_files = glob.glob(os.path.join(path, "./**/*.md"), recursive=True)
-    rst_files = glob.glob(os.path.join(path, "./**/*.rst"), recursive=True)
-    for file in md_files + rst_files:
+def file_to_doc(file):
+    if file.endswith('.txt'):
+        return TextLoader(file).load()
+    elif file.endswith('.md') or file.endswith('.rst'):
         with open(file, "r") as f:
-            yield Document(page_content=f.read(), metadata={"source": file})
+            return Document(page_content=f.read(), metadata={"source": file})
+    elif file.endswith('.pdf'):
+        return PDFMinerLoader(file).load()
+        # return PyPDFLoader(file).load_and_split()
+    elif file.endswith('.csv'):
+        return CSVLoader(file).load()
+    elif file.endswith('.py'):
+        return PythonLoader(file).load()
+    elif file.endswith('.toml'):
+        return TomlLoader(file).load()
+    else:
+        raise RuntimeError("No file handler for %s" % file)
+
+
+def path_to_docs(path):
+    globs = glob.glob(os.path.join(path, "./**/*.txt"), recursive=True) + \
+            glob.glob(os.path.join(path, "./**/*.md"), recursive=True) + \
+            glob.glob(os.path.join(path, "./**/*.rst"), recursive=True) + \
+            glob.glob(os.path.join(path, "./**/*.pdf"), recursive=True) + \
+            glob.glob(os.path.join(path, "./**/*.csv"), recursive=True) + \
+            glob.glob(os.path.join(path, "./**/*.py"), recursive=True) + \
+            glob.glob(os.path.join(path, "./**/*.toml"), recursive=True)
+    for file in globs:
+        res = file_to_doc(file)
+        if isinstance(res, list):
+            for x in res:
+                yield x
+        else:
+            yield res
 
 
 def test_qa_wiki_openai():
@@ -604,10 +447,9 @@ def get_db_kwargs(langchain_mode):
                 dai_rst=langchain_mode in ['DriverlessAI docs', 'All', "'All'"],
                 urls=False and langchain_mode in ['All', "'All'"],
                 all=langchain_mode in ['All', "'All'"],
-                # db_type = 'faiss',  # FIXME
-                db_type='chroma',  # FIXME
-                pdf_filename=None,  # FIXME, upload via gradio
-                texts_folder="./txts/",
+                # db_type = 'faiss',
+                db_type='chroma',
+                glob_path=os.environ.get('GLOB_PATH') if langchain_mode in ['All', "'All'", 'glob'] else None,
                 sanitize_bot_response=True,
                 langchain_mode=langchain_mode)
 
@@ -639,17 +481,16 @@ def make_db(**langchain_kwargs):
 
 
 def _make_db(use_openai_embedding=False,
-            first_para=True, text_limit=None, chunk=False, chunk_size=1024,
-            langchain_mode=None,
-            wiki=False, github=False, dai_rst=False, urls=False, wiki_full=True, all=None,
-            pdf_filename=None, split_method='chunk',
-            texts_folder=None,
-            db_type='faiss',
-            load_db_if_exists=False,
-            persist_directory_base='db_dir',
-            limit_wiki_full=5000000,
-            min_views=1000,
-            db=None):
+             first_para=True, text_limit=None, chunk=False, chunk_size=1024,
+             langchain_mode=None,
+             wiki=False, github=False, dai_rst=False, urls=False, wiki_full=True, all=None,
+             glob_path=None, split_method='chunk',
+             db_type='faiss',
+             load_db_if_exists=False,
+             persist_directory_base='db_dir',
+             limit_wiki_full=5000000,
+             min_views=1000,
+             db=None):
     persist_directory = 'db_dir_%s' % langchain_mode  # single place, no special names for each case
     if not db and load_db_if_exists and db_type == 'chroma' and os.path.isdir(persist_directory) and os.path.isdir(
             os.path.join(persist_directory, 'index')):
@@ -697,21 +538,12 @@ def _make_db(use_openai_embedding=False,
             sources1 = chunk_sources(sources1, chunk_size=chunk_size)
             sources.extend(sources1)
         if dai_rst or all:
-            # home = os.path.expanduser('~')
-            # sources = get_rst_docs(os.path.join(home, "h2oai.superclean/docs/"))
-            sources1, dst = get_dai_docs(from_hf=True)
+            sources1 = get_dai_docs(from_hf=True)
             if chunk and False:  # FIXME: DAI docs are already chunked well, should only chunk more if over limit
                 sources1 = chunk_sources(sources1, chunk_size=chunk_size)
             sources.extend(sources1)
-        if pdf_filename:
-            sources1 = pdf_to_sources(pdf_filename=pdf_filename, split_method=split_method)
-            if chunk:
-                sources1 = chunk_sources(sources1, chunk_size=chunk_size)
-            sources.extend(sources1)
-        if texts_folder or all:
-            # FIXME: Can be any loader types
-            loader = DirectoryLoader(texts_folder, glob="./*.txt", loader_cls=TextLoader)
-            sources1 = loader.load()
+        if glob_path:
+            sources1 = path_to_docs(glob_path)
             if chunk:
                 sources1 = chunk_sources(sources1, chunk_size=chunk_size)
             sources.extend(sources1)
@@ -738,8 +570,7 @@ def run_qa_db(query=None,
               use_openai_model=False, use_openai_embedding=False,
               first_para=True, text_limit=None, k=4, chunk=False, chunk_size=1024,
               wiki=False, github=False, dai_rst=False, urls=False, wiki_full=True, all=None,
-              pdf_filename=None, split_method='chunk',
-              texts_folder=None,
+              glob_path=None, split_method='chunk',
               db_type='faiss',
               model_name=None, model=None, tokenizer=None,
               stream_output=False,
@@ -754,6 +585,7 @@ def run_qa_db(query=None,
               limit_wiki_full=5000000,
               min_views=1000,
               db=None,
+              max_new_tokens=256,
               langchain_mode=None):
     """
 
@@ -768,9 +600,8 @@ def run_qa_db(query=None,
     :param wiki: bool if using wiki
     :param github: bool if using github
     :param dai_rst: bool if using dai RST files
-    :param pdf_filename: PDF filename
+    :param glob_path: path to glob recursively from
     :param split_method: split method for PDF inputs
-    :param texts_folder:
     :param db_type: 'faiss' for in-memory db or 'chroma' for persistent db
     :param model_name: model name, used to switch behaviors
     :param model: pre-initialized model, else will make new one
@@ -780,8 +611,10 @@ def run_qa_db(query=None,
     """
 
     db = make_db(**locals())
-    llm, model_name, streamer = get_llm(use_openai_model=use_openai_model, model_name=model_name, model=model,
-                                        tokenizer=tokenizer, stream_output=stream_output)
+    llm, model_name, streamer = get_llm(use_openai_model=use_openai_model, model_name=model_name,
+                                        model=model, tokenizer=tokenizer,
+                                        stream_output=stream_output,
+                                        max_new_tokens=max_new_tokens)
 
     if not use_openai_model and 'h2ogpt' in model_name:
         # instruct-like, rather than few-shot prompt_type='plain' as default
@@ -835,8 +668,6 @@ def run_qa_db(query=None,
     if stream_output:
         answer = None
         assert streamer is not None
-        from generate import generate_with_exceptions
-        # target = wrapped_partial(generate_with_exceptions, chain, chain_kwargs)
         target = wrapped_partial(chain, chain_kwargs)
         import queue
         bucket = queue.Queue()
@@ -922,53 +753,16 @@ def get_url(x):
 
 
 def chunk_sources(sources, chunk_size=1024):
-    # allows handling full docs if passed first_para=False
-    # NLTK and SPACY can be used instead
-    if False:
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=0)
-        # doesn't preserve source
-        sources = text_splitter.split_documents(sources)
-    else:
-        source_chunks = []
-        # Below for known separator
-        # splitter = CharacterTextSplitter(separator=" ", chunk_size=chunk_size, chunk_overlap=0)
-        splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=0)
-        for source in sources:
-            # print(source.metadata['source'], flush=True)
-            for chunky in splitter.split_text(source.page_content):
-                source_chunks.append(Document(page_content=chunky, metadata=source.metadata))
-        sources = source_chunks
-    return sources
-
-
-def test_demo_openai():
-    return run_demo(use_openai_model=True, use_openai_embedding=True)
-
-
-def test_demo_hf():
-    return run_demo(use_openai_model=False, use_openai_embedding=False)
-
-
-def run_demo(use_openai_model=False, use_openai_embedding=False, chat=True, use_chain_ret=False, db_type='faiss'):
-    # quick test
-    pdf_filename = '1706.03762.pdf'
-    if not os.path.isfile(pdf_filename):
-        if os.path.isfile('1706.03762'):
-            os.remove('1706.03762')
-        os.system("wget --user-agent TryToStopMeFromUsingWgetNow https://arxiv.org/pdf/1706.03762")
-        os.rename('1706.03762', '1706.03762.pdf')
-    sources = pdf_to_sources(pdf_filename=pdf_filename, split_method='chunk')
-    db = get_db(sources, use_openai_embedding=use_openai_embedding, db_type=db_type)
-    query = "Who created transformers?"
-    answer = get_answer_from_db(db, query, chat_history='', use_openai_model=use_openai_model, k=4,
-                                chat=chat, use_chain_ret=use_chain_ret)
-    print(answer)
-
-
-def test_demo2_hf():
-    return run_demo(use_openai_model=False, use_openai_embedding=False, chat=False, use_chain_ret=True,
-                    db_type='chroma')
+    source_chunks = []
+    # Below for known separator
+    # splitter = CharacterTextSplitter(separator=" ", chunk_size=chunk_size, chunk_overlap=0)
+    splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=0)
+    for source in sources:
+        # print(source.metadata['source'], flush=True)
+        for chunky in splitter.split_text(source.page_content):
+            source_chunks.append(Document(page_content=chunky, metadata=source.metadata))
+    return source_chunks
 
 
 if __name__ == '__main__':
-    test_demo_hf()
+    pass

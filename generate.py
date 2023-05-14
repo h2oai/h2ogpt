@@ -36,7 +36,7 @@ from stopping import get_stopping
 
 eval_extra_columns = ['prompt', 'response', 'score']
 
-langchain_modes = ['Disabled', 'ChatLLM', 'LLM', 'All', 'wiki', 'wiki_full', 'github h2oGPT', 'DriverlessAI docs']
+langchain_modes = ['Disabled', 'ChatLLM', 'LLM', 'All', 'wiki', 'wiki_full', 'glob', 'github h2oGPT', 'DriverlessAI docs']
 
 
 def main(
@@ -866,6 +866,7 @@ def evaluate(
                            do_yield=True,
                            load_db_if_exists=load_db_if_exists,
                            db=db,
+                           max_new_tokens=max_new_tokens,
                            **langchain_kwargs):
             outr += r
             yield r
