@@ -199,6 +199,8 @@ def main(
     langchain_mode = os.environ.get("LANGCHAIN_MODE", langchain_mode)
     height = os.environ.get("HEIGHT", height)
     visible_langchain_modes = ast.literal_eval(os.environ.get("visible_langchain_modes", str(visible_langchain_modes)))
+    if langchain_mode not in visible_langchain_modes and langchain_mode in langchain_modes:
+        visible_langchain_modes += [langchain_mode]
 
     assert langchain_mode in langchain_modes, "Invalid langchain_mode %s" % langchain_mode
 
@@ -286,6 +288,8 @@ def main(
             persist_directory = 'db_dir_%s' % langchain_mode1  # single place, no special names for each case
             db = prep_langchain(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode1, user_path)
             dbs[langchain_mode1] = db
+        # remove None db's so can just rely upon k in dbs for if hav db
+        dbs = {k: v for k, v in dbs.items() if v is not None}
     else:
         dbs = {}
 

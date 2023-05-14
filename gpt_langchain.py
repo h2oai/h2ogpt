@@ -547,7 +547,7 @@ def _make_db(use_openai_embedding=False,
             if chunk:
                 sources1 = chunk_sources(sources1, chunk_size=chunk_size)
             sources.extend(sources1)
-        if False and langchain_mode in ['All', "'All'"]:
+        if False and langchain_mode in ['urls', 'All', "'All'"]:
             # from langchain.document_loaders import UnstructuredURLLoader
             # loader = UnstructuredURLLoader(urls=urls)
             urls = ["https://www.birdsongsf.com/who-we-are/"]
@@ -555,7 +555,9 @@ def _make_db(use_openai_embedding=False,
             loader = PlaywrightURLLoader(urls=urls, remove_selectors=["header", "footer"])
             sources1 = loader.load()
             sources.extend(sources1)
-        assert sources, "No sources"
+        if not sources:
+            print("langchain_mode %s has no sources, not making db" % langchain_mode, flush=True)
+            return None
         print("Generating db", flush=True)
         db = get_db(sources, use_openai_embedding=use_openai_embedding, db_type=db_type,
                     persist_directory=persist_directory, langchain_mode=langchain_mode)
