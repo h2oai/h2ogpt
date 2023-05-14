@@ -4,6 +4,7 @@ import os
 import pathlib
 import subprocess
 import tempfile
+import traceback
 from collections import defaultdict
 from tqdm import tqdm
 
@@ -281,13 +282,13 @@ def get_dai_docs(from_hf=False):
 
 def file_to_doc(file):
     if file.endswith('.txt'):
-        return TextLoader(file).load()
+        return TextLoader(file, encoding="utf8").load()
     elif file.endswith('.md') or file.endswith('.rst'):
         with open(file, "r") as f:
             return Document(page_content=f.read(), metadata={"source": file})
     elif file.endswith('.pdf'):
-        return PDFMinerLoader(file).load()
-        # return PyPDFLoader(file).load_and_split()
+        # return PDFMinerLoader(file).load()  # fails with ypeError: expected str, bytes or os.PathLike object, not BufferedReader
+        return PyPDFLoader(file).load_and_split()
     elif file.endswith('.csv'):
         return CSVLoader(file).load()
     elif file.endswith('.py'):
@@ -298,7 +299,7 @@ def file_to_doc(file):
         raise RuntimeError("No file handler for %s" % file)
 
 
-def path_to_docs(path):
+def path_to_docs(path, verbose=False, fail_any_exception=False):
     globs = glob.glob(os.path.join(path, "./**/*.txt"), recursive=True) + \
             glob.glob(os.path.join(path, "./**/*.md"), recursive=True) + \
             glob.glob(os.path.join(path, "./**/*.rst"), recursive=True) + \
@@ -307,12 +308,21 @@ def path_to_docs(path):
             glob.glob(os.path.join(path, "./**/*.py"), recursive=True) + \
             glob.glob(os.path.join(path, "./**/*.toml"), recursive=True)
     for file in globs:
-        res = file_to_doc(file)
-        if isinstance(res, list):
-            for x in res:
-                yield x
-        else:
-            yield res
+        if verbose:
+            print("Ingesting file: %s" % file, flush=True)
+        res = None
+        try:
+            res = file_to_doc(file)
+        except BaseException:
+            print("Failed to ingest %s due to %s" % (file, traceback.format_exc()))
+            if fail_any_exception:
+                raise
+        if res:
+            if isinstance(res, list):
+                for x in res:
+                    yield x
+            else:
+                yield res
 
 
 def test_qa_wiki_openai():
@@ -500,23 +510,7 @@ def _make_db(use_openai_embedding=False,
     elif not db:
         sources = []
         print("Generating sources", flush=True)
-        new_wiki = True
-        if not new_wiki:
-            # old incomplete wiki
-            # see https://dagster.io/blog/chatgpt-langchain
-            if wiki_full or all:
-                from datasets import load_dataset
-                lang = 'en'
-                data = load_dataset(f"Cohere/wikipedia-22-12", lang, split='train')
-                data = data.filter(lambda x: x['views'] > min_views, num_proc=max(1, os.cpu_count() // 2))
-                sources1 = []
-                total = min(limit_wiki_full, 35167920, data.num_rows)
-                for rowi, row in enumerate(tqdm(data, total=total)):
-                    if rowi == limit_wiki_full:
-                        break
-                    sources1.append(Document(page_content=row['text'],
-                                             metadata={"source": row['url']}))
-        else:
+        if wiki_full or all:
             from read_wiki_full import get_all_documents
             small_test = None
             print("Generating new wiki", flush=True)
