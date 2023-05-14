@@ -6,7 +6,6 @@ import subprocess
 import tempfile
 import traceback
 from collections import defaultdict
-from tqdm import tqdm
 
 from utils import wrapped_partial, EThread, import_matplotlib
 
@@ -16,7 +15,7 @@ import numpy as np
 import pandas as pd
 import requests
 from langchain.chains.qa_with_sources import load_qa_with_sources_chain
-from langchain.document_loaders import PyPDFLoader, TextLoader, PDFMinerLoader, CSVLoader, PythonLoader, TomlLoader
+from langchain.document_loaders import PyPDFLoader, TextLoader, CSVLoader, PythonLoader, TomlLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores import FAISS
 from langchain.chains.question_answering import load_qa_chain
@@ -421,7 +420,7 @@ def test_qa_daidocs_db_chunk_openaiembedding_hfmodel():
                      chunk_size=128, wiki=False, dai_rst=True)
 
 
-def prep_langchain(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode, glob_path):
+def prep_langchain(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode, user_path):
     """
     do prep first time, involving downloads
     # FIXME: Add github caching then add here
@@ -491,7 +490,7 @@ def make_db(**langchain_kwargs):
 def _make_db(use_openai_embedding=False,
              first_para=False, text_limit=None, chunk=False, chunk_size=1024,
              langchain_mode=None,
-             glob_path=None,
+             user_path=None,
              db_type='faiss',
              load_db_if_exists=False,
              db=None):
@@ -531,8 +530,8 @@ def _make_db(use_openai_embedding=False,
             if chunk and False:  # FIXME: DAI docs are already chunked well, should only chunk more if over limit
                 sources1 = chunk_sources(sources1, chunk_size=chunk_size)
             sources.extend(sources1)
-        if glob_path and langchain_mode in ['All', 'glob']:
-            sources1 = path_to_docs(glob_path)
+        if user_path and langchain_mode in ['All', 'UserData']:
+            sources1 = path_to_docs(user_path)
             if chunk:
                 sources1 = chunk_sources(sources1, chunk_size=chunk_size)
             sources.extend(sources1)
@@ -559,7 +558,7 @@ def run_qa_db(query=None,
               use_openai_model=False, use_openai_embedding=False,
               first_para=False, text_limit=None, k=4, chunk=False, chunk_size=1024,
               wiki=False, github=False, dai_rst=False, urls=False, wiki_full=True, all=None,
-              glob_path=None, split_method='chunk',
+              user_path=None, split_method='chunk',
               db_type='faiss',
               model_name=None, model=None, tokenizer=None,
               stream_output=False,
@@ -589,7 +588,7 @@ def run_qa_db(query=None,
     :param wiki: bool if using wiki
     :param github: bool if using github
     :param dai_rst: bool if using dai RST files
-    :param glob_path: path to glob recursively from
+    :param user_path: user path to glob recursively from
     :param split_method: split method for PDF inputs
     :param db_type: 'faiss' for in-memory db or 'chroma' for persistent db
     :param model_name: model name, used to switch behaviors
