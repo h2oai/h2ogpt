@@ -1,6 +1,7 @@
 import ast
 import functools
 import queue
+import shutil
 import sys
 import os
 import time
@@ -293,8 +294,15 @@ def main(
             get_db_from_hf()
         dbs = {}
         for langchain_mode1 in visible_langchain_modes:
-            persist_directory = 'db_dir_%s' % langchain_mode1  # single place, no special names for each case
-            db = prep_langchain(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode1, user_path)
+            if langchain_mode1 in ['MyData']:
+                # don't use what is on disk, remove it instead
+                persist_directory1 = 'db_dir_%s' % langchain_mode1
+                if os.path.isdir(persist_directory1):
+                    print("Removing old MyData: %s" % persist_directory1, flush=True)
+                    shutil.rmtree(persist_directory1)
+                continue
+            persist_directory1 = 'db_dir_%s' % langchain_mode1  # single place, no special names for each case
+            db = prep_langchain(persist_directory1, load_db_if_exists, db_type, use_openai_embedding, langchain_mode1, user_path)
             dbs[langchain_mode1] = db
         # remove None db's so can just rely upon k in dbs for if hav db
         dbs = {k: v for k, v in dbs.items() if v is not None}
@@ -887,7 +895,13 @@ def evaluate(
     prompt = prompter.generate_prompt(data_point)
 
     assert langchain_mode in langchain_modes, "Invalid langchain_mode %s" % langchain_mode
-    if langchain_mode not in [False, 'Disabled', 'ChatLLM']:
+    if langchain_mode in ['MyData'] and my_db_state is not None:
+        db1 = my_db_state
+    elif langchain_mode in dbs:
+        db1 = dbs[langchain_mode]
+    else:
+        db1 = None
+    if langchain_mode not in [False, 'Disabled', 'ChatLLM', 'LLM'] and db1 is not None:
         query = instruction if not iinput else "%s\n%s" % (instruction, iinput)
         from gpt_langchain import run_qa_db, get_db_kwargs
         langchain_kwargs = get_db_kwargs(langchain_mode)
@@ -897,7 +911,7 @@ def evaluate(
                            stream_output=stream_output, prompter=prompter,
                            do_yield=True,
                            load_db_if_exists=load_db_if_exists,
-                           db=dbs[langchain_mode],
+                           db=db1,
                            user_path=user_path,
                            max_new_tokens=max_new_tokens,
                            **langchain_kwargs):

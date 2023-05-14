@@ -242,8 +242,8 @@ def go_gradio(**kwargs):
                         upload_row = gr.Row(visible=allow_upload)
                         with upload_row:
                             with gr.Column():
-                                file_output = gr.File()
-                                upload_button = gr.UploadButton("Upload a File",
+                                fileup_output = gr.File()
+                                upload_button = gr.UploadButton("Upload File for VectorDB",
                                                                 file_types=["pdf", "txt", "csv", "toml", "py", "rst",
                                                                             "md"],
                                                                 file_count="multiple",
@@ -427,15 +427,15 @@ def go_gradio(**kwargs):
         zip_btn.click(zip_data1, inputs=None, outputs=[file_output, zip_text], queue=False)
         s3up_btn.click(s3up, inputs=zip_text, outputs=s3up_text, queue=False)
 
-        upload_button.upload(upload_file, upload_button, file_output)
+        upload_button.upload(upload_file, upload_button, fileup_output)
 
         update_user_db_func = functools.partial(update_user_db, dbs=dbs, db_type=db_type, langchain_mode='UserData',
                                                 use_openai_embedding=use_openai_embedding)
-        add_to_shared_db_btn.click(update_user_db_func, inputs=[file_output, my_db_state])
+        add_to_shared_db_btn.click(update_user_db_func, inputs=[fileup_output, my_db_state])
 
         update_user_db_func_my = functools.partial(update_user_db, dbs=dbs, db_type=db_type, langchain_mode='MyData',
                                                    use_openai_embedding=use_openai_embedding)
-        add_to_my_db_btn.click(update_user_db_func_my, inputs=[file_output, my_db_state], outputs=my_db_state)
+        add_to_my_db_btn.click(update_user_db_func_my, inputs=[fileup_output, my_db_state], outputs=my_db_state)
 
         def check_admin_pass(x):
             return gr.update(visible=x == admin_pass)
@@ -1031,8 +1031,11 @@ def update_user_db(file, db1, dbs=None, db_type=None, langchain_mode='UserData',
     assert isinstance(dbs, dict), "Wrong type for dbs: %s" % str(type(dbs))
     assert db_type in ['faiss', 'chroma'], "db_type %s not supported" % db_type
     from gpt_langchain import add_to_db, file_to_doc, get_db
+    if hasattr(file, 'name'):
+        file = file.name
     print("Adding %s" % file, flush=True)
     sources = file_to_doc(file)
+    persist_directory = 'db_dir_%s' % langchain_mode
     with filelock.FileLock("db_%s.lock" % langchain_mode.replace(' ', '_')):
         if langchain_mode == 'MyData':
             if langchain_mode in db1 is not None:
@@ -1042,7 +1045,7 @@ def update_user_db(file, db1, dbs=None, db_type=None, langchain_mode='UserData',
                 # then create
                 db1 = get_db(sources, use_openai_embedding=use_openai_embedding,
                              db_type=db_type,
-                             persist_directory="db_dir",
+                             persist_directory=persist_directory,
                              langchain_mode=langchain_mode)
             return db1
         else:
@@ -1053,7 +1056,7 @@ def update_user_db(file, db1, dbs=None, db_type=None, langchain_mode='UserData',
                 # then create
                 db = get_db(sources, use_openai_embedding=use_openai_embedding,
                             db_type=db_type,
-                            persist_directory="db_dir",
+                            persist_directory=persist_directory,
                             langchain_mode=langchain_mode)
                 dbs[langchain_mode] = db
             return dbs[langchain_mode]

@@ -32,13 +32,18 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss', persist_directo
     if db_type == 'faiss':
         db = FAISS.from_documents(sources, embedding)
     elif db_type == 'chroma':
+        collection_name = langchain_mode.replace(' ', '_')
         os.makedirs(persist_directory, exist_ok=True)
-        db = Chroma.from_documents(documents=sources, embedding=embedding, persist_directory=persist_directory,
-                                   collection_name=langchain_mode.replace(' ', '_'),
+        db = Chroma.from_documents(documents=sources,
+                                   embedding=embedding,
+                                   persist_directory=persist_directory,
+                                   collection_name=collection_name,
                                    anonymized_telemetry=False)
         db.persist()
         # FIXME: below just proves can load persistent dir, regenerates its embedding files, so a bit wasteful
-        db = Chroma(persist_directory=persist_directory, embedding_function=embedding)
+        db = Chroma(embedding_function=embedding,
+                    persist_directory=persist_directory,
+                    collection_name=collection_name)
     else:
         raise RuntimeError("No such db_type=%s" % db_type)
 
