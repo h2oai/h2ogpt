@@ -48,6 +48,36 @@ from transformers import AutoModelForCausalLM
         #         "https://huggingface.co/h2oai/h2ogpt-oasst1-256-20b/blob/main/gpt-neox-20b.openassistant_oasst1.json.1_epochs.5fc91911bc2bfaaf3b6c2de577c4b0ae45a07a4a.18.zip",
         # ),
         (
+                "h2ogpt-oig-oasst1-512-12b",
+                "h2ogpt-oasst1-512-12b",
+                [
+                    "h2oai/h2ogpt-fortune2000-personalized",
+                    "h2oai/h2ogpt-oig-oasst1-instruct-cleaned-v3",
+                ],
+                [
+                    "https://huggingface.co/h2oai/h2ogpt-oig-oasst1-512-12b/blob/main/h2ogpt-oasst1-512-12b.h2oaih2ogpt-oig-oasst1-instruct-cleaned-v3.1_epochs.805b8e8eff369207340a5a6f90f3c833f9731254.2.zip",
+                ],
+"""
+[eval source code](https://github.com/h2oai/h2ogpt/issues/125#issuecomment-1540521131)
+                
+|    Task     |Version| Metric |Value |   |Stderr|
+|-------------|------:|--------|-----:|---|-----:|
+|arc_challenge|      0|acc     |0.3353|±  |0.0138|
+|             |       |acc_norm|0.3805|±  |0.0142|
+|arc_easy     |      0|acc     |0.7024|±  |0.0094|
+|             |       |acc_norm|0.6536|±  |0.0098|
+|boolq        |      1|acc     |0.6156|±  |0.0085|
+|hellaswag    |      0|acc     |0.5043|±  |0.0050|
+|             |       |acc_norm|0.6699|±  |0.0047|
+|openbookqa   |      0|acc     |0.2820|±  |0.0201|
+|             |       |acc_norm|0.3860|±  |0.0218|
+|piqa         |      0|acc     |0.7535|±  |0.0101|
+|             |       |acc_norm|0.7677|±  |0.0099|
+|winogrande   |      0|acc     |0.6156|±  |0.0137|
+ 
+                """
+        ),
+        (
                 "h2ogpt-oasst1-512-12b",
                 "EleutherAI/pythia-12b",
                 [
@@ -89,28 +119,31 @@ from transformers import AutoModelForCausalLM
                 [
                     "h2oai/h2ogpt-oig-oasst1-instruct-cleaned-v1",
                     "h2oai/openassistant_oasst1_h2ogpt",
+                    "h2oai/h2ogpt-fortune2000-personalized",
+                    "h2oai/h2ogpt-oig-oasst1-instruct-cleaned-v3",
                 ],
                 [
                     "https://huggingface.co/h2oai/h2ogpt-oig-oasst1-512-6.9b/blob/main/pythia-6.9b.h2ogpt-oig-oasst1-instruct-cleaned-v1.json.1_epochs.5fc91911bc2bfaaf3b6c2de577c4b0ae45a07a4a.7.zip",
                     "https://huggingface.co/h2oai/h2ogpt-oig-oasst1-512-6.9b/blob/main/h2ogpt-oig-oasst1-512-6.9b.h2oaiopenassistant_oasst1_h2ogpt.2_epochs.e35e2e06e0af2f7dceac2e16e3646c90ccce4ec0.1.zip",
+                    "https://huggingface.co/h2oai/h2ogpt-oig-oasst1-512-6.9b/blob/main/h2ogpt-oig-oasst1-512-6.9b.h2oaih2ogpt-oig-oasst1-instruct-cleaned-v3.1_epochs.e48f9debb0d2bd8d866fa5668bbbb51c317c553c.1.zip",
                 ],
 """
-[eval source code](https://github.com/h2oai/h2ogpt/issues/35#issuecomment-1520876120)
+[eval source code](https://github.com/h2oai/h2ogpt/issues/125#issue-1702311702)
 
 |    Task     |Version| Metric |Value |   |Stderr|
 |-------------|------:|--------|-----:|---|-----:|
-|boolq        |      1|acc     |0.6266|±  |0.0085|
-|arc_challenge|      0|acc     |0.3225|±  |0.0137|
-|             |       |acc_norm|0.3396|±  |0.0138|
-|openbookqa   |      0|acc     |0.2660|±  |0.0198|
-|             |       |acc_norm|0.3660|±  |0.0216|
-|arc_easy     |      0|acc     |0.6776|±  |0.0096|
-|             |       |acc_norm|0.6195|±  |0.0100|
-|hellaswag    |      0|acc     |0.4822|±  |0.0050|
-|             |       |acc_norm|0.6465|±  |0.0048|
-|winogrande   |      0|acc     |0.6219|±  |0.0136|
-|piqa         |      0|acc     |0.7530|±  |0.0101|
-|             |       |acc_norm|0.7606|±  |0.0100|
+|arc_easy     |      0|acc     |0.6591|±  |0.0097|
+|             |       |acc_norm|0.6178|±  |0.0100|
+|arc_challenge|      0|acc     |0.3174|±  |0.0136|
+|             |       |acc_norm|0.3558|±  |0.0140|
+|openbookqa   |      0|acc     |0.2540|±  |0.0195|
+|             |       |acc_norm|0.3580|±  |0.0215|
+|winogrande   |      0|acc     |0.6069|±  |0.0137|
+|piqa         |      0|acc     |0.7486|±  |0.0101|
+|             |       |acc_norm|0.7546|±  |0.0100|
+|hellaswag    |      0|acc     |0.4843|±  |0.0050|
+|             |       |acc_norm|0.6388|±  |0.0048|
+|boolq        |      1|acc     |0.6193|±  |0.0085|
 """
         ),
         # (
@@ -122,6 +155,8 @@ from transformers import AutoModelForCausalLM
     ],
 )
 def test_create_model_cards(model_name, base_model, dataset, training_logs, eval):
+    if model_name != "h2ogpt-oig-oasst1-512-12b":
+        return
     model_size = model_name.split("-")[-1].upper()
     assert "B" == model_size[-1]
     assert int(model_size[-2]) >= 0

@@ -64,7 +64,11 @@ class Prompter(object):
             elif prompt is None:
                 # then use most basic parsing like pipeline
                 if self.botstr in output:
-                    output = clean_response(output.split(self.botstr)[1].strip().split(self.humanstr)[0].strip())
+                    if self.humanstr:
+                        output = clean_response(output.split(self.botstr)[1].strip().split(self.humanstr)[0].strip())
+                    else:
+                        # i.e. use after bot but only up to next bot
+                        output = clean_response(output.split(self.botstr)[1].strip().split(self.botstr)[0].strip())
                 else:
                     #output = clean_response(output.strip())
                     # assume just not printed yet

@@ -30,6 +30,7 @@ class PromptType(Enum):
     human_bot_orig = 9
     prompt_answer = 10
     open_assistant = 11
+    wizard_lm = 12
 
 
 prompt_type_to_model_name = {
@@ -56,6 +57,8 @@ prompt_type_to_model_name = {
         'h2oai/h2ogpt-gm-oasst1-en-1024-20b',
         'h2oai/h2ogpt-gm-oasst1-en-1024-12b',
         'h2oai/h2ogpt-gm-oasst1-multilang-1024-20b',
+        'h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b-preview-300bt',
+        'h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b-preview-300bt-v2',
     ],
     'instruct': [],
     'instruct_with_end': ['databricks/dolly-v2-12b'],
@@ -63,15 +66,18 @@ prompt_type_to_model_name = {
     'human_bot': [
         'h2oai/h2ogpt-oasst1-512-12b',
         'h2oai/h2ogpt-oasst1-512-20b',
+        'h2oai/h2ogpt-oig-oasst1-512-20b',
+        'h2oai/h2ogpt-oig-oasst1-512-12b',
         'h2oai/h2ogpt-oig-oasst1-512-6.9b',
         'h2oai/h2ogpt-research-oasst1-512-30b',  # private
     ],
     'dai_faq': [],
     'summarize': [],
     'simple_instruct': ['t5-small', 't5-large', 'google/flan-t5', 'google/flan-t5-xxl', 'google/flan-ul2'],
-    'instruct_vicuna': ['AlekseyKorshuk/vicuna-7b'],
+    'instruct_vicuna': ['AlekseyKorshuk/vicuna-7b', 'TheBloke/stable-vicuna-13B-HF', 'junelee/wizard-vicuna-13b'],
     'human_bot_orig': ['togethercomputer/GPT-NeoXT-Chat-Base-20B'],
     "open_assistant": ['OpenAssistant/oasst-sft-7-llama-30b-xor', 'oasst-sft-7-llama-30b'],
+    "wizard_lm": ['ehartford/WizardLM-7B-Uncensored', 'ehartford/WizardLM-13B-Uncensored'],
 }
 
 inv_prompt_type_to_model_name = {v.strip(): k for k, l in prompt_type_to_model_name.items() for v in l}
@@ -222,8 +228,6 @@ def train(
             NOTE: for current pytorch 2.0, flash attention requires installing cuda 11.7 via https://developer.nvidia.com/cuda-11-7-0-download-archive?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=20.04&target_type=runfile_local and then when running, to avoid installing driver, docs, samples, just install toolkit.  Then when pip installing flash attention do:
 
             CUDA_HOME=/usr/local/cuda-11.7 pip install flash-attn""")
-        from llama_flash_attn_monkey_patch import replace_llama_attn_with_flash_attn
-        replace_llama_attn_with_flash_attn()
     assert (
         base_model
     ), "Please specify a --base_model, e.g. --base_model='decapoda-research/llama-7b-hf'"
@@ -921,6 +925,19 @@ Current Time: {}
         chat_sep = eos
         humanstr = prompt_tokens
         botstr = answer_tokens
+    elif prompt_type in [12, "12", "wizard_lm"]:
+        # https://github.com/ehartford/WizardLM/blob/main/src/train_freeform.py
+        preprompt = ''
+        start = ''
+        promptB = promptA = '%s%s' % (preprompt, start)
+        PreInstruct = ""
+        PreInput = None
+        PreResponse = "\n\n### Response"
+        eos = "</s>"
+        terminate_response = [PreResponse, eos]
+        chat_sep = eos
+        humanstr = promptA
+        botstr = PreResponse
     else:
         raise RuntimeError("No such prompt_type=%s" % prompt_type)
 
