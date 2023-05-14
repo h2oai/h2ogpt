@@ -895,8 +895,8 @@ def evaluate(
     prompt = prompter.generate_prompt(data_point)
 
     assert langchain_mode in langchain_modes, "Invalid langchain_mode %s" % langchain_mode
-    if langchain_mode in ['MyData'] and my_db_state is not None:
-        db1 = my_db_state
+    if langchain_mode in ['MyData'] and my_db_state is not None and len(my_db_state) > 0 and my_db_state[0] is not None:
+        db1 = my_db_state[0]
     elif langchain_mode in dbs:
         db1 = dbs[langchain_mode]
     else:

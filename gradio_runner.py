@@ -1038,15 +1038,15 @@ def update_user_db(file, db1, dbs=None, db_type=None, langchain_mode='UserData',
     persist_directory = 'db_dir_%s' % langchain_mode
     with filelock.FileLock("db_%s.lock" % langchain_mode.replace(' ', '_')):
         if langchain_mode == 'MyData':
-            if langchain_mode in db1 is not None:
+            if db1[0] is not None:
                 # then add
-                add_to_db(db1, sources, db_type=db_type)
+                add_to_db(db1[0], sources, db_type=db_type)
             else:
                 # then create
-                db1 = get_db(sources, use_openai_embedding=use_openai_embedding,
-                             db_type=db_type,
-                             persist_directory=persist_directory,
-                             langchain_mode=langchain_mode)
+                db1[0] = get_db(sources, use_openai_embedding=use_openai_embedding,
+                                db_type=db_type,
+                                persist_directory=persist_directory,
+                                langchain_mode=langchain_mode)
             return db1
         else:
             if langchain_mode in dbs and dbs[langchain_mode] is not None:
