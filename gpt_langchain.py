@@ -35,8 +35,10 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss', persist_directo
     elif db_type == 'chroma':
         os.makedirs(persist_directory, exist_ok=True)
         db = Chroma.from_documents(documents=sources, embedding=embedding, persist_directory=persist_directory,
-                                   collection_name=langchain_mode, anonymized_telemetry=False)
+                                   collection_name=langchain_mode.replace(' ', '_'),
+                                   anonymized_telemetry=False)
         db.persist()
+        # FIXME: below just proves can load persistent dir, regenerates its embedding files, so a bit wasteful
         db = Chroma(persist_directory=persist_directory, embedding_function=embedding)
     else:
         raise RuntimeError("No such db_type=%s" % db_type)
@@ -431,12 +433,14 @@ def prep_langchain(persist_directory, load_db_if_exists, db_type, use_openai_emb
         db = get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode)
     else:
         db = None
-        # FIXME: Could also just use dai_docs.pickle directly and upload that
-        get_dai_docs(from_hf=True)
+        if langchain_mode in ['All', 'DriverlessAI docs']:
+            # FIXME: Could also just use dai_docs.pickle directly and upload that
+            get_dai_docs(from_hf=True)
 
-        text_limit = None
-        for first_para in [True, False]:
-            get_wiki_sources(first_para=first_para, text_limit=text_limit)
+        if langchain_mode in ['All', 'wiki']:
+            text_limit = None
+            for first_para in [True, False]:
+                get_wiki_sources(first_para=first_para, text_limit=text_limit)
 
         langchain_kwargs = get_db_kwargs(langchain_mode)
         langchain_kwargs.update(locals())
@@ -469,7 +473,8 @@ def get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_em
             os.path.join(persist_directory, 'index')):
         print("DO Loading db", flush=True)
         embedding = get_embedding(use_openai_embedding)
-        db = Chroma(persist_directory=persist_directory, embedding_function=embedding, collection_name=langchain_mode)
+        db = Chroma(persist_directory=persist_directory, embedding_function=embedding,
+                    collection_name=langchain_mode.replace(' ', '_'))
         print("DONE Loading db", flush=True)
         return db
     return None
@@ -494,19 +499,17 @@ def _make_db(use_openai_embedding=False,
              first_para=True, text_limit=None, chunk=False, chunk_size=1024,
              langchain_mode=None,
              wiki=False, github=False, dai_rst=False, urls=False, wiki_full=True, all=None,
-             glob_path=None, split_method='chunk',
+             glob_path=None,
              db_type='faiss',
              load_db_if_exists=False,
-             persist_directory_base='db_dir',
-             limit_wiki_full=5000000,
-             min_views=1000,
              db=None):
     persist_directory = 'db_dir_%s' % langchain_mode  # single place, no special names for each case
     if not db and load_db_if_exists and db_type == 'chroma' and os.path.isdir(persist_directory) and os.path.isdir(
             os.path.join(persist_directory, 'index')):
         print("Loading db", flush=True)
         embedding = get_embedding(use_openai_embedding)
-        db = Chroma(persist_directory=persist_directory, embedding_function=embedding)
+        db = Chroma(persist_directory=persist_directory, embedding_function=embedding,
+                    collection_name=langchain_mode.replace(' ', '_'))
     elif not db:
         sources = []
         print("Generating sources", flush=True)

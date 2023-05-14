@@ -36,7 +36,8 @@ from stopping import get_stopping
 
 eval_extra_columns = ['prompt', 'response', 'score']
 
-langchain_modes = ['Disabled', 'ChatLLM', 'LLM', 'All', 'wiki', 'wiki_full', 'glob', 'github h2oGPT', 'DriverlessAI docs']
+langchain_modes = ['Disabled', 'ChatLLM', 'LLM', 'All', 'wiki', 'wiki_full', 'glob', 'github h2oGPT',
+                   'DriverlessAI docs']
 
 
 def main(
@@ -105,6 +106,7 @@ def main(
         eval_sharegpt_as_output: bool = False,
 
         langchain_mode: str = 'Disabled',
+        visible_langchain_modes: list = ['wiki', 'glob', 'github h2oGPT', 'DriverlessAI docs'],
         load_db_if_exists: bool = True,
         keep_sources_in_context: bool = False,
 ):
@@ -165,7 +167,11 @@ def main(
     :param eval_sharegpt_prompts_only: for no gradio benchmark, if using ShareGPT prompts for eval
     :param eval_sharegpt_prompts_only_seed: for no gradio benchmark, if seed for ShareGPT sampling
     :param eval_sharegpt_as_output: for no gradio benchmark, whether to test ShareGPT output itself
-    :param langchain_mode: Data source to include
+    :param langchain_mode: Data source to include.  Choose "glob" to only consume glob make by make_db.py.
+           WARNING: wiki_full requires extra data processing via read_wiki_full.py and requires really good workstation to generate db, unless already present.
+    :param visible_langchain_modes: dbs to generate at launch to be ready for LLM
+           Can be up to ['All', 'wiki', 'wiki_full', 'glob', 'github h2oGPT', 'DriverlessAI docs']
+           But wiki_full is expensive and requires preparation
     :param load_db_if_exists: Whether to load chroma db if exists or re-generate db
     :param keep_sources_in_context: Whether to keep url sources in context, not helpful usually
     :return:
@@ -241,14 +247,14 @@ def main(
         chat = False
 
     placeholder_instruction, placeholder_input, \
-    stream_output, show_examples, \
-    prompt_type, temperature, top_p, top_k, num_beams, \
-    max_new_tokens, min_new_tokens, early_stopping, max_time, \
-    repetition_penalty, num_return_sequences, \
-    do_sample, \
-    src_lang, tgt_lang, \
-    examples, \
-    task_info = \
+        stream_output, show_examples, \
+        prompt_type, temperature, top_p, top_k, num_beams, \
+        max_new_tokens, min_new_tokens, early_stopping, max_time, \
+        repetition_penalty, num_return_sequences, \
+        do_sample, \
+        src_lang, tgt_lang, \
+        examples, \
+        task_info = \
         get_generate_params(model_lower, chat,
                             stream_output, show_examples,
                             prompt_type, temperature, top_p, top_k, num_beams,
@@ -266,10 +272,13 @@ def main(
         from gpt_langchain import prep_langchain
         db_type = 'chroma'  # if loading, has to have been persisted
         use_openai_embedding = False  # assume not using OpenAI then
-        persist_directory = 'db_dir_%s' % langchain_mode  # single place, no special names for each case
-        db = prep_langchain(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode)
+        dbs = {}
+        for langchain_mode1 in visible_langchain_modes:
+            persist_directory = 'db_dir_%s' % langchain_mode1  # single place, no special names for each case
+            db = prep_langchain(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode1)
+            dbs[langchain_mode1] = db
     else:
-        db = None
+        dbs = {}
 
     if not gradio:
         if eval_sharegpt_prompts_only > 0:
@@ -759,7 +768,7 @@ eval_func_param_names = ['instruction',
 
 inputs_kwargs_list = ['debug', 'save_dir', 'sanitize_bot_response', 'model_state0', 'is_low_mem',
                       'raise_generate_gpu_exceptions', 'chat_context', 'concurrency_count', 'lora_weights',
-                      'load_db_if_exists', 'db']
+                      'load_db_if_exists', 'dbs']
 
 
 def evaluate(
@@ -798,7 +807,7 @@ def evaluate(
         chat_context=None,
         lora_weights=None,
         load_db_if_exists=True,
-        db=None,
+        dbs=None,
 ):
     # ensure passed these
     assert concurrency_count is not None
@@ -865,7 +874,7 @@ def evaluate(
                            stream_output=stream_output, prompter=prompter,
                            do_yield=True,
                            load_db_if_exists=load_db_if_exists,
-                           db=db,
+                           db=dbs[langchain_mode],
                            max_new_tokens=max_new_tokens,
                            **langchain_kwargs):
             outr += r
@@ -977,7 +986,7 @@ def evaluate(
                     decoder_kwargs = decoder_raw_kwargs
                 elif inputs_decoded_raw.replace("<unk> ", "").replace("<unk>", "").replace('\n', ' ').replace(' ',
                                                                                                               '') == prompt.replace(
-                        '\n', ' ').replace(' ', ''):
+                    '\n', ' ').replace(' ', ''):
                     inputs_decoded = prompt = inputs_decoded_raw
                     decoder = decoder_raw
                     decoder_kwargs = decoder_raw_kwargs
@@ -1026,7 +1035,7 @@ def evaluate(
                 if save_dir and decoded_output:
                     save_generate_output(output=decoded_output, base_model=base_model, save_dir=save_dir)
             print('Post-Generate: %s decoded_output: %s' % (
-            str(datetime.now()), len(decoded_output) if decoded_output else -1), flush=True)
+                str(datetime.now()), len(decoded_output) if decoded_output else -1), flush=True)
 
 
 def get_cutoffs(is_low_mem, for_context=False):
@@ -1301,14 +1310,14 @@ y = np.random.randint(0, 1, 100)
             example[eval_func_param_names.index('iinput')] = ''
 
     return placeholder_instruction, placeholder_input, \
-           stream_output, show_examples, \
-           prompt_type, temperature, top_p, top_k, num_beams, \
-           max_new_tokens, min_new_tokens, early_stopping, max_time, \
-           repetition_penalty, num_return_sequences, \
-           do_sample, \
-           src_lang, tgt_lang, \
-           examples, \
-           task_info
+        stream_output, show_examples, \
+        prompt_type, temperature, top_p, top_k, num_beams, \
+        max_new_tokens, min_new_tokens, early_stopping, max_time, \
+        repetition_penalty, num_return_sequences, \
+        do_sample, \
+        src_lang, tgt_lang, \
+        examples, \
+        task_info
 
 
 def languages_covered():

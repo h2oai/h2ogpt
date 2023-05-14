@@ -26,7 +26,8 @@ def go_gradio(**kwargs):
     model_state0 = kwargs['model_state0']
     score_model_state0 = kwargs['score_model_state0']
     queue = True
-    db = kwargs['db']
+    dbs = kwargs['dbs']
+    visible_langchain_modes = kwargs['visible_langchain_modes']
 
     # easy update of kwargs needed for evaluate() etc.
     kwargs.update(locals())
@@ -208,7 +209,14 @@ def go_gradio(**kwargs):
                                     score_text2 = gr.Textbox("Response Score2: NA", show_label=False, visible=False)
                             retry = gr.Button("Regenerate")
                             undo = gr.Button("Undo")
-                        langchain_mode = gr.Radio([x for x in langchain_modes if x != 'Disabled'],
+                        if is_hf:
+                            # don't show 'wiki' since only usually useful for internal testing at moment
+                            no_show_modes = ['Disabled', 'wiki']
+                        else:
+                            no_show_modes = ['Disabled']
+                        allowed_modes = visible_langchain_modes.copy()
+                        allowed_modes += ['ChatLLM', 'LLM']
+                        langchain_mode = gr.Radio([x for x in langchain_modes if x in allowed_modes and x not in no_show_modes],
                                                   value=kwargs['langchain_mode'],
                                                   label="Data Source", visible=kwargs['langchain_mode'] != 'Disabled')
                 with gr.TabItem("Input/Output"):
