@@ -65,11 +65,16 @@ Then point browser at http://0.0.0.0:7860 or the public live URL printed by the 
 
 For quickly using a private document collection for Q/A, place documents (PDFs, text, etc.) into a folder called `user_path` and run
 ```bash
-python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6.9b --langchain_mode=UserData
+pip install -r requirements_optional_pdf.txt
+python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6.9b --langchain_mode=UserData --user_path=user_path
 ```
-or to build the database out of the application do:
+Or to build the database out of the application do:
 ```python
 python make_db.py
+```
+then just run like:
+```bash
+python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6.9b --langchain_mode=UserData
 ```
 
 For help installing a Python 3.10 environment or CUDA toolkit or installing flash attention support, see the [installation instructions](INSTALL.md)
