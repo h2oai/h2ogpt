@@ -206,14 +206,15 @@ def main(
     use_auth_token = os.environ.get("HUGGINGFACE_API_TOKEN", use_auth_token)
     allow_upload_to_user_data = bool(os.environ.get("allow_upload_to_user_data", allow_upload_to_user_data))
     allow_upload_to_my_data = bool(os.environ.get("allow_upload_to_my_data", allow_upload_to_my_data))
-    # allow enabling langchain via ENV
-    langchain_mode = os.environ.get("LANGCHAIN_MODE", langchain_mode)
     height = os.environ.get("HEIGHT", height)
+
+    # allow enabling langchain via ENV
+    # FIRST PLACE where LangChain referenced, but no imports related to it
+    langchain_mode = os.environ.get("LANGCHAIN_MODE", langchain_mode)
+    assert langchain_mode in langchain_modes, "Invalid langchain_mode %s" % langchain_mode
     visible_langchain_modes = ast.literal_eval(os.environ.get("visible_langchain_modes", str(visible_langchain_modes)))
     if langchain_mode not in visible_langchain_modes and langchain_mode in langchain_modes:
         visible_langchain_modes += [langchain_mode]
-
-    assert langchain_mode in langchain_modes, "Invalid langchain_mode %s" % langchain_mode
 
     if is_public:
         allow_upload_to_user_data = False
@@ -292,6 +293,7 @@ def main(
     print("Command: %s\nHash: %s" % (str(' '.join(sys.argv)), get_githash()), flush=True)
 
     if langchain_mode != "Disabled":
+        # SECOND PLACE where LangChain referenced, but all imports are kept local so not required
         from gpt_langchain import prep_langchain, get_db_from_hf
         if is_hf:
             get_db_from_hf()
@@ -901,6 +903,7 @@ def evaluate(
     data_point = dict(context=context, instruction=instruction, input=iinput)
     prompt = prompter.generate_prompt(data_point)
 
+    # THIRD PLACE where LangChain referenced, but imports only occur if enabled and have db to use
     assert langchain_mode in langchain_modes, "Invalid langchain_mode %s" % langchain_mode
     if langchain_mode in ['MyData'] and my_db_state is not None and len(my_db_state) > 0 and my_db_state[0] is not None:
         db1 = my_db_state[0]
