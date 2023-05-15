@@ -209,3 +209,7 @@ templates/frontend/share.html
 ```bash
 HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python generate.py --base_model='h2oai/h2ogpt-oasst1-512-12b'
 ```
+
+### LangChain Usage:
+
+See [tests/test_langchain_simple.py](tests/test_langchain_simple.py)
