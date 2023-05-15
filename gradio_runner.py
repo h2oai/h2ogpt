@@ -253,20 +253,25 @@ def go_gradio(**kwargs):
                             file_paths = [file.name for file in files]
                             return file_paths
 
-                        upload_row = gr.Row(visible=allow_upload)
-                        with upload_row:
-                            with gr.Column():
-                                fileup_output = gr.File()
-                                upload_button = gr.UploadButton("Upload File for VectorDB",
-                                                                file_types=["pdf", "txt", "csv", "toml", "py", "rst",
-                                                                            "md"],
-                                                                file_count="multiple",
-                                                                )
-                            with gr.Column():
-                                add_to_shared_db_btn = gr.Button("Add Upload to Shared UserData DB",
-                                                                 visible=allow_upload_to_user_data)
-                                add_to_my_db_btn = gr.Button("Add Upload to Scratch MyData DB",
-                                                             visible=allow_upload_to_my_data)
+                    upload_row = gr.Row(visible=allow_upload)
+                    with upload_row:
+                        fileup_output = gr.File()
+                        with gr.Row():
+                            upload_button = gr.UploadButton("Upload File for VectorDB",
+                                                            file_types=["pdf", "txt", "csv", "toml", "py", "rst",
+                                                                        "md"],
+                                                            file_count="multiple",
+                                                            )
+                            add_to_shared_db_btn = gr.Button("Add Upload to Shared UserData DB",
+                                                             visible=allow_upload_to_user_data)
+                            add_to_my_db_btn = gr.Button("Add Upload to Scratch MyData DB",
+                                                         visible=allow_upload_to_my_data)
+                        github_textbox = gr.Textbox(label="Github URL")
+                        with gr.Row():
+                            github_shared_btn = gr.Button(value="Add Github to Shared UserData DB",
+                                                          visible=allow_upload_to_user_data)
+                            github_my_btn = gr.Button(value="Add Github to Scratch MyData DB",
+                                                      visible=allow_upload_to_my_data)
 
                 with gr.TabItem("Expert"):
                     with gr.Row():
