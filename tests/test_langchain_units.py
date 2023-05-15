@@ -1,8 +1,10 @@
 import os
+import tempfile
 
 import pytest
 from langchain.chains.qa_with_sources import load_qa_with_sources_chain
-from gpt_langchain import run_qa_db, get_wiki_sources, get_llm, get_answer_from_sources
+
+from gpt_langchain import run_qa_db, get_wiki_sources, get_llm, get_answer_from_sources, get_dai_pickle, get_db_from_hf
 
 have_openai_key = os.environ.get('OPENAI_API_KEY') is not None
 
@@ -17,7 +19,8 @@ def test_qa_wiki_stuff_hf():
     return run_qa_wiki(use_openai_model=False, text_limit=256, chain_type='stuff', prompt_type='human_bot')
 
 
-@pytest.mark.xfail(strict=False, reason="Too long context, improve prompt for map_reduce.  Until then hit: The size of tensor a (2048) must match the size of tensor b (2125) at non-singleton dimension 3")
+@pytest.mark.xfail(strict=False,
+                   reason="Too long context, improve prompt for map_reduce.  Until then hit: The size of tensor a (2048) must match the size of tensor b (2125) at non-singleton dimension 3")
 def test_qa_wiki_map_reduce_hf():
     return run_qa_wiki(use_openai_model=False, text_limit=None, chain_type='map_reduce', prompt_type='human_bot')
 
@@ -106,6 +109,28 @@ def test_qa_daidocs_db_chunk_openaiembedding_hfmodel():
     query = "Which config.toml enables pytorch for NLP?"
     return run_qa_db(query=query, use_openai_model=False, use_openai_embedding=True, text_limit=None, chunk=True,
                      chunk_size=128, wiki=False, dai_rst=True)
+
+
+def test_get_dai_pickle():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        get_dai_pickle(dest=tmpdirname)
+        assert os.path.isfile(os.path.join(tmpdirname, 'dai_docs.pickle'))
+
+
+def test_get_dai_db_dir():
+    # Note dir has space in some cases, while zip does not
+    for db_dir, dir_expected, license1 in \
+            [['db_dir_DriverlessAI_docs.zip', 'db_dir_DriverlessAI docs', 'CC-BY-NC license'],
+             ['db_dir_UserData.zip', 'db_dir_UserData', 'CC-BY license for ArXiv'],
+             ['db_dir_github_h2oGPT.zip', 'db_dir_github h2oGPT', 'ApacheV2 license'],
+             ['db_dir_wiki.zip', 'db_dir_wiki', 'CC-BY-SA Wikipedia license'],
+             # ['db_dir_wiki_full.zip', 'db_dir_wiki_full.zip', '23GB, 05/04/2023 CC-BY-SA Wiki license'],
+             ]:
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            path_to_zip_file = get_db_from_hf(dest=tmpdirname, db_dir=db_dir)
+            assert os.path.isfile(path_to_zip_file)
+            assert os.path.isdir(os.path.join(tmpdirname, dir_expected))
+            assert os.path.isdir(os.path.join(tmpdirname, dir_expected, 'index'))
 
 
 if __name__ == '__main__':

@@ -134,6 +134,13 @@ def get_sentences(blob, length):
 
 
 def setup_dai_docs(path=None, dst="working_dir_docs", from_hf=False):
+    """
+    Only supported if have access to source code or HF token for HF spaces and from_hf=True
+    :param path:
+    :param dst:
+    :param from_hf:
+    :return:
+    """
 
     home = os.path.expanduser('~')
 

@@ -177,7 +177,7 @@ tokenizer = AutoTokenizer.from_pretrained(model_name)
 tokenizer.save_pretrained(model_name)
 ```
 
-2) Download reward model, unless pass `--score_model='None'`
+2) Download reward model, unless pass `--score_model='None'` to `generate.py`
 ```python
 # and reward model
 reward_model = 'OpenAssistant/reward-model-deberta-v3-large-v2'

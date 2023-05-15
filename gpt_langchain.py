@@ -2,6 +2,7 @@ import glob
 import inspect
 import os
 import pathlib
+import shutil
 import subprocess
 import tempfile
 import traceback
@@ -258,13 +259,25 @@ def get_github_docs(repo_owner, repo_name):
                 yield Document(page_content=f.read(), metadata={"source": github_url})
 
 
-def get_dai_docs(from_hf=False):
+def get_dai_pickle(dest="."):
+    from huggingface_hub import hf_hub_download
+    # True for case when locally already logged in with correct token, so don't have to set key
+    token = os.getenv('HUGGINGFACE_API_TOKEN', True)
+    path_to_zip_file = hf_hub_download('h2oai/dai_docs', 'dai_docs.pickle', token=token, repo_type='dataset')
+    shutil.copy(path_to_zip_file, dest)
+
+
+def get_dai_docs(from_hf=False, get_pickle=True):
     """
-    Consume DAI documentation
-    :param from_hf:
+    Consume DAI documentation, or consume from public pickle
+    :param from_hf: get DAI docs from HF, then generate pickle for later use by LangChain
+    :param get_pickle: Avoid raw DAI docs, just get pickle directly from HF
     :return:
     """
     import pickle
+
+    if get_pickle:
+        get_dai_pickle()
 
     dai_store = 'dai_docs.pickle'
     dst = "working_dir_docs"
@@ -687,15 +700,15 @@ def chunk_sources(sources, chunk_size=1024):
     return source_chunks
 
 
-def get_db_from_hf():
+def get_db_from_hf(dest=".", db_dir='db_dir_DriverlessAI_docs.zip'):
     from huggingface_hub import hf_hub_download
     # True for case when locally already logged in with correct token, so don't have to set key
     token = os.getenv('HUGGINGFACE_API_TOKEN', True)
-    path_to_zip_file = hf_hub_download('h2oai/dai_docs', 'db_dirs.zip', token=token, repo_type='dataset')
-    path = '.'
+    path_to_zip_file = hf_hub_download('h2oai/db_dirs', db_dir, token=token, repo_type='dataset')
     import zipfile
     with zipfile.ZipFile(path_to_zip_file, 'r') as zip_ref:
-        zip_ref.extractall(path)
+        zip_ref.extractall(dest)
+    return path_to_zip_file
 
 
 if __name__ == '__main__':
