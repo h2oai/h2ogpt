@@ -65,11 +65,11 @@ Then point browser at http://0.0.0.0:7860 or the public live URL printed by the 
 
 For quickly using a private document collection for Q/A, place documents (PDFs, text, etc.) into a folder called `user_path` and run
 ```bash
-pip install -r requirements_optional_pdf.txt
+pip install -r requirements_optional_langchain.txt
 python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6.9b --langchain_mode=UserData --user_path=user_path
 ```
 Or to build the database out of the application do:
-```python
+```bash
 python make_db.py
 ```
 then just run like:

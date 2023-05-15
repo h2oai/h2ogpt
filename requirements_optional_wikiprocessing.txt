@@ -1,0 +1,4 @@
+# Only for converting full wiki into db, not required to use db for wiki_full
+mwxml==0.3.3
+mwparserfromhell==0.6.4
+
