@@ -61,4 +61,4 @@ jobs:
             --skip-unresolved \
             --remote-repo-url=h2ogpt/${{ github.ref_name }} \
             --org=h2o-gpt \
-            --project=H2O-GPT/h2ogpt/${{ github.ref_name }}/requirements.txt
+            --project-name=H2O-GPT/h2ogpt/${{ github.ref_name }}/requirements.txt
