@@ -266,12 +266,14 @@ def go_gradio(**kwargs):
                                                              visible=allow_upload_to_user_data)
                             add_to_my_db_btn = gr.Button("Add Upload to Scratch MyData DB",
                                                          visible=allow_upload_to_my_data)
-                        github_textbox = gr.Textbox(label="Github URL")
-                        with gr.Row():
-                            github_shared_btn = gr.Button(value="Add Github to Shared UserData DB",
-                                                          visible=allow_upload_to_user_data)
-                            github_my_btn = gr.Button(value="Add Github to Scratch MyData DB",
-                                                      visible=allow_upload_to_my_data)
+                        # WIP:
+                        if False:
+                            github_textbox = gr.Textbox(label="Github URL")
+                            with gr.Row():
+                                github_shared_btn = gr.Button(value="Add Github to Shared UserData DB",
+                                                              visible=allow_upload_to_user_data)
+                                github_my_btn = gr.Button(value="Add Github to Scratch MyData DB",
+                                                          visible=allow_upload_to_my_data)
 
                 with gr.TabItem("Expert"):
                     with gr.Row():
