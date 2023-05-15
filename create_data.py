@@ -1,3 +1,10 @@
+"""
+Dataset creation tools.
+
+Keep to-level imports clean of non-trivial imports for specific tools,
+because this file is imported for various purposes
+"""
+
 import ast
 import concurrent.futures
 import contextlib
@@ -55,7 +62,7 @@ def test_scrape_dai_docs():
     file = os.path.join(home, 'h2oai/docs/faq.rst')
     qa_pairs = parse_rst_file(file)
     prompt_type = 'human_bot'
-    from finetune import prompt_types
+    from prompter import prompt_types
     assert prompt_type in prompt_types
     save_thing = [{"instruction": k, "output": v, 'prompt_type': prompt_type} for k, v in qa_pairs.items()]
     output_file = "dai_faq.json"
@@ -108,6 +115,8 @@ def get_sentences(blob, length):
     :param length:
     :return:
     """
+    import nltk
+    nltk.download('punkt')
     from nltk.tokenize import sent_tokenize
     sentences = sent_tokenize(blob)
     my_sentences = []
@@ -124,21 +133,40 @@ def get_sentences(blob, length):
     return my_sentences or [my_string]
 
 
-def test_scrape_dai_docs_all_pandoc():
+def setup_dai_docs(path=None, dst="working_dir_docs", from_hf=False):
     """
-    pytest -s -v create_data.py::test_scrape_dai_docs_all_pandoc
+    Only supported if have access to source code or HF token for HF spaces and from_hf=True
+    :param path:
+    :param dst:
+    :param from_hf:
     :return:
     """
-    # account for sequence length (context window) including prompt and input and output
-    MAX_LEN = 2048//2 - 30
-    MIN_LENGTH = 30  # to avoid bare headers
 
     home = os.path.expanduser('~')
+
+    if from_hf:
+        # assumes
+        from huggingface_hub import hf_hub_download
+        # True for case when locally already logged in with correct token, so don't have to set key
+        token = os.getenv('HUGGINGFACE_API_TOKEN', True)
+        path_to_zip_file = hf_hub_download('h2oai/dai_docs', 'dai_docs.zip', token=token, repo_type='dataset')
+        path = 'h2oai'
+        import zipfile
+        with zipfile.ZipFile(path_to_zip_file, 'r') as zip_ref:
+            zip_ref.extractall(path)
+        path = os.path.join(path, 'docs/**/*')
+
+    if path is None:
+        if os.path.isdir(os.path.join(home, 'h2oai')):
+            path = os.path.join(home, "h2oai/docs/**/*")
+        else:
+            assert os.path.isdir(os.path.join(home, 'h2oai.superclean')), '%s does not exist' % path
+            path = os.path.join(home, "h2oai.superclean/docs/**/*")
     import glob
-    files = list(glob.glob(os.path.join(home, "h2oai/docs/**/*"), recursive=True))
+    files = list(glob.glob(path, recursive=True))
 
     # pandoc can't find include files
-    dst = "working_dir_docs"
+
     remove(dst)
     os.makedirs(dst)
 
@@ -147,18 +175,23 @@ def test_scrape_dai_docs_all_pandoc():
         if os.path.isfile(fil):
             shutil.copy(fil, dst)
 
-    files = list(glob.glob(os.path.join(dst, '*rst'), recursive=True))
     # hack for relative path
     scorers_dir = os.path.join(dst, 'scorers')
     makedirs(scorers_dir)
     for fil in glob.glob(os.path.join(dst, '*.frag')):
         shutil.copy(fil, scorers_dir)
 
+    return dst
+
+
+def rst_to_outputs(files, min_len=30, max_len=2048//2 - 30):
+    # account for sequence length (context window) including prompt and input and output
+
     # os.system('pandoc -f rst -t plain ./expert_settings/nlp_settings.rst')
     import pypandoc
-    outputs = []
     basedir = os.path.abspath(os.getcwd())
 
+    outputs = []
     for fil in files:
         os.chdir(basedir)
         os.chdir(os.path.dirname(fil))
@@ -183,17 +216,17 @@ def test_scrape_dai_docs_all_pandoc():
             input_list = input_rst.split('\n``')
             for input_subrst in input_list:
                 input_plain = pypandoc.convert_text(input_subrst, format='rst', to='plain')
-                plain_list.append(input_plain)
+                plain_list.append([input_plain, fil])
         except Exception as e:
             print("file exception: %s %s" % (fil, str(e)), flush=True)
 
         if not plain_list:
             # if failed to process as pieces of rst, then
             output = pypandoc.convert_file(fil, out_format, extra_args=extra_args, format='rst')
-            outputs = get_sentences(output, length=MAX_LEN)
-            for oi, output in enumerate(outputs):
+            outputs1 = get_sentences(output, length=max_len)
+            for oi, output in enumerate(outputs1):
                 output = output.replace('\n\n', '\n')
-                plain_list.append(output)
+                plain_list.append([output, fil])
         outputs.extend(plain_list)
 
     # report:
@@ -203,20 +236,39 @@ def test_scrape_dai_docs_all_pandoc():
     new_outputs = []
     num_truncated = 0
     num_orig = len(outputs)
-    for output in outputs:
-        if len(output) < MAX_LEN:
-            new_outputs.append(output)
+    for output, fil in outputs:
+        if len(output) < max_len:
+            new_outputs.append([output, fil])
             continue
-        outputs1 = get_sentences(output, length=MAX_LEN)
+        outputs1 = get_sentences(output, length=max_len)
         for oi, output1 in enumerate(outputs1):
             output1 = output1.replace('\n\n', '\n')
-            new_outputs.append(output1)
+            new_outputs.append([output1, fil])
         num_truncated += 1
     print('num_orig: %s num_truncated: %s' % (num_orig, num_truncated), flush=True)
 
+    new_outputs = [[k.strip(), fil] for k, fil in new_outputs if len(k.strip()) > min_len]
+
+    return new_outputs
+
+
+def test_scrape_dai_docs_all_pandoc():
+    """
+    pytest -s -v create_data.py::test_scrape_dai_docs_all_pandoc
+    :return:
+    """
+
+    dst = setup_dai_docs()
+
+    import glob
+    files = list(glob.glob(os.path.join(dst, '*rst'), recursive=True))
+
+    basedir = os.path.abspath(os.getcwd())
+    new_outputs = rst_to_outputs(files)
     os.chdir(basedir)
+
     remove(dst)
-    save_thing = [{"output": k.strip(), 'prompt_type': 'plain'} for k in new_outputs if len(k) > MIN_LENGTH]
+    save_thing = [{"output": k.strip(), 'prompt_type': 'plain'} for k in new_outputs]
     output_file = "dai_docs.train_cleaned.json"
     with open(output_file, "wt") as f:
         f.write(json.dumps(save_thing, indent=2))
@@ -524,7 +576,7 @@ def test_show_prompts():
              ['dai_docs.train_cleaned.json'] * 1 + \
              ['dai_faq.json'] * 1
     file_points = [json.load(open(fil, 'rt')) for fil in files]
-    from finetune import generate_prompt
+    from prompter import generate_prompt
     for data_points in file_points:
         for data_point in data_points:
             print(generate_prompt(data_point, 'plain', False, False)[0])

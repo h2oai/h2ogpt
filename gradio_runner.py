@@ -3,13 +3,18 @@ import functools
 import inspect
 import os
 import sys
+import uuid
+
+import filelock
 
 from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, get_dark_js
-from prompter import Prompter
+from prompter import Prompter, \
+    prompt_type_to_model_name, prompt_types_strings, inv_prompt_type_to_model_lower
 from utils import get_githash, flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping
-from finetune import prompt_type_to_model_name, prompt_types_strings, generate_prompt, inv_prompt_type_to_model_lower
-from generate import get_model, languages_covered, evaluate, eval_func_param_names, score_qa
+from finetune import generate_prompt
+from generate import get_model, languages_covered, evaluate, eval_func_param_names, score_qa, langchain_modes, \
+    inputs_kwargs_list, get_cutoffs, scratch_base_dir
 
 import gradio as gr
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -25,6 +30,13 @@ def go_gradio(**kwargs):
     model_state0 = kwargs['model_state0']
     score_model_state0 = kwargs['score_model_state0']
     queue = True
+    dbs = kwargs['dbs']
+    db_type = kwargs['db_type']
+    visible_langchain_modes = kwargs['visible_langchain_modes']
+    allow_upload_to_user_data = kwargs['allow_upload_to_user_data']
+    allow_upload_to_my_data = kwargs['allow_upload_to_my_data']
+    allow_upload = allow_upload_to_user_data or allow_upload_to_my_data
+    use_openai_embedding = kwargs['use_openai_embedding']
 
     # easy update of kwargs needed for evaluate() etc.
     kwargs.update(locals())
@@ -134,6 +146,7 @@ def go_gradio(**kwargs):
         model_state2 = gr.State([None, None, None, None])
         model_options_state = gr.State([model_options])
         lora_options_state = gr.State([lora_options])
+        my_db_state = gr.State([None, str(uuid.uuid4())])
         gr.Markdown(f"""
             {get_h2o_title(title) if kwargs['h2ocolors'] else get_simple_title(title)}
 
@@ -215,6 +228,53 @@ def go_gradio(**kwargs):
                             tgt_lang = gr.Dropdown(list(languages_covered().keys()),
                                                    value=kwargs['tgt_lang'],
                                                    label="Output Language")
+                with gr.TabItem("Data Source"):
+                    data_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled')
+                    with data_row:
+                        if is_hf:
+                            # don't show 'wiki' since only usually useful for internal testing at moment
+                            no_show_modes = ['Disabled', 'wiki']
+                        else:
+                            no_show_modes = ['Disabled']
+                        allowed_modes = visible_langchain_modes.copy()
+                        allowed_modes = [x for x in allowed_modes if x in dbs]
+                        allowed_modes += ['ChatLLM', 'LLM']
+                        if allow_upload_to_my_data and 'MyData' not in allowed_modes:
+                            allowed_modes += ['MyData']
+                        if allow_upload_to_user_data and 'UserData' not in allowed_modes:
+                            allowed_modes += ['UserData']
+                        langchain_mode = gr.Radio(
+                            [x for x in langchain_modes if x in allowed_modes and x not in no_show_modes],
+                            value=kwargs['langchain_mode'],
+                            label="Data Source",
+                            visible=kwargs['langchain_mode'] != 'Disabled')
+
+                        def upload_file(files):
+                            file_paths = [file.name for file in files]
+                            return file_paths
+
+                    upload_row = gr.Row(visible=allow_upload)
+                    with upload_row:
+                        fileup_output = gr.File()
+                        with gr.Row():
+                            upload_button = gr.UploadButton("Upload File for VectorDB",
+                                                            file_types=["pdf", "txt", "csv", "toml", "py", "rst",
+                                                                        "md"],
+                                                            file_count="multiple",
+                                                            )
+                            add_to_shared_db_btn = gr.Button("Add Upload to Shared UserData DB",
+                                                             visible=allow_upload_to_user_data)
+                            add_to_my_db_btn = gr.Button("Add Upload to Scratch MyData DB",
+                                                         visible=allow_upload_to_my_data)
+                        # WIP:
+                        if False:
+                            github_textbox = gr.Textbox(label="Github URL")
+                            with gr.Row():
+                                github_shared_btn = gr.Button(value="Add Github to Shared UserData DB",
+                                                              visible=allow_upload_to_user_data)
+                                github_my_btn = gr.Button(value="Add Github to Scratch MyData DB",
+                                                          visible=allow_upload_to_my_data)
+
                 with gr.TabItem("Expert"):
                     with gr.Row():
                         with gr.Column():
@@ -243,7 +303,7 @@ def go_gradio(**kwargs):
                             )
                             # FIXME: https://github.com/h2oai/h2ogpt/issues/106
                             if os.getenv('TESTINGFAIL'):
-                                 max_beams = 8 if not (is_low_mem or is_public) else 1
+                                max_beams = 8 if not (is_low_mem or is_public) else 1
                             else:
                                 max_beams = 1
                             num_beams = gr.Slider(minimum=1, maximum=max_beams, step=1,
@@ -380,6 +440,21 @@ def go_gradio(**kwargs):
         zip_data1 = functools.partial(zip_data, root_dirs=['flagged_data_points', kwargs['save_dir']])
         zip_btn.click(zip_data1, inputs=None, outputs=[file_output, zip_text], queue=False)
         s3up_btn.click(s3up, inputs=zip_text, outputs=s3up_text, queue=False)
+
+        upload_button.upload(upload_file, upload_button, fileup_output)
+
+        update_user_db_func = functools.partial(update_user_db, dbs=dbs, db_type=db_type, langchain_mode='UserData',
+                                                use_openai_embedding=use_openai_embedding)
+        add_to_shared_db_btn.click(update_user_db_func, inputs=[fileup_output, my_db_state])
+
+        update_user_db_func_my = functools.partial(update_user_db, dbs=dbs, db_type=db_type, langchain_mode='MyData',
+                                                   use_openai_embedding=use_openai_embedding)
+
+        def clear_file_list():
+            return None
+
+        add_to_my_db_btn.click(update_user_db_func_my, inputs=[fileup_output, my_db_state], outputs=my_db_state) \
+            .then(clear_file_list, outputs=fileup_output)
 
         def check_admin_pass(x):
             return gr.update(visible=x == admin_pass)
@@ -569,49 +644,66 @@ def go_gradio(**kwargs):
             """
             # don't deepcopy, can contain model itself
             args_list = list(args).copy()
-            history = args_list[-1]  # model_state is -2
+            model_state1 = args_list[-3]
+            my_db_state1 = args_list[-2]
+            history = args_list[-1]
+
+            args_list = args_list[:-3]  # only keep rest needed for evaluate()
+            langchain_mode1 = args_list[eval_func_param_names.index('langchain_mode')]
             if retry and history:
                 history.pop()
+                if not args_list[eval_func_param_names.index('do_sample')]:
+                    # if was not sampling, no point in retry unless change to sample
+                    args_list[eval_func_param_names.index('do_sample')] = True
             if not history:
                 print("No history", flush=True)
                 history = [['', None]]
                 yield history, ''
                 return
             # ensure output will be unique to models
+            _, _, _, max_prompt_length = get_cutoffs(is_low_mem, for_context=True)
             history = copy.deepcopy(history)
             instruction1 = history[-1][0]
             context1 = ''
-            if kwargs['chat_history'] > 0:
-                prompt_type_arg_id = eval_func_param_names.index('prompt_type')
-                prompt_type1 = args_list[prompt_type_arg_id]
-                chat_arg_id = eval_func_param_names.index('chat')
-                chat1 = args_list[chat_arg_id]
+            if max_prompt_length is not None and langchain_mode1 not in ['LLM']:
+                prompt_type1 = args_list[eval_func_param_names.index('prompt_type')]
+                chat1 = args_list[eval_func_param_names.index('chat')]
                 context1 = ''
-                for histi in range(len(history) - 1):
+                # - 1 below because current instruction already in history from user()
+                for histi in range(0, len(history) - 1):
                     data_point = dict(instruction=history[histi][0], input='', output=history[histi][1])
                     prompt, pre_response, terminate_response, chat_sep = generate_prompt(data_point, prompt_type1,
                                                                                          chat1, reduced=True)
-                    # md -> back to text, maybe not super improtant if model trained enough
+                    # md -> back to text, maybe not super important if model trained enough
+                    if not kwargs['keep_sources_in_context']:
+                        from gpt_langchain import source_prefix, source_postfix
+                        import re
+                        prompt = re.sub(f'{re.escape(source_prefix)}.*?{re.escape(source_postfix)}', '', prompt,
+                                        flags=re.DOTALL)
+                        if prompt.endswith('\n<p>'):
+                            prompt = prompt[:-4]
                     prompt = prompt.replace('<br>', chat_sep)
-                    context1 += prompt
-                    if not context1.endswith(chat_sep):
-                        context1 += chat_sep
+                    if not prompt.endswith(chat_sep):
+                        prompt += chat_sep
+                    # most recent first, add older if can
+                    # only include desired chat history
+                    if len(prompt + context1) > max_prompt_length:
+                        break
+                    context1 = prompt + context1
 
                 _, pre_response, terminate_response, chat_sep = generate_prompt({}, prompt_type1, chat1,
                                                                                 reduced=True)
                 if context1 and not context1.endswith(chat_sep):
                     context1 += chat_sep  # ensure if terminates abruptly, then human continues on next line
             args_list[0] = instruction1  # override original instruction with history from user
-            # only include desired chat history
-            args_list[2] = context1[-kwargs['chat_history']:]
-            model_state1 = args_list[-2]
+            args_list[2] = context1
             if model_state1[0] is None or model_state1[0] == no_model_str:
                 history = [['', None]]
                 yield history, ''
                 return
-            args_list = args_list[:-2]
             fun1 = partial(evaluate,
                            model_state1,
+                           my_db_state1,
                            **kwargs_evaluate)
             try:
                 for output in fun1(*tuple(args_list)):
@@ -645,11 +737,11 @@ def go_gradio(**kwargs):
                          outputs=text_output,
                          )
         bot_args = dict(fn=bot,
-                        inputs=inputs_list + [model_state] + [text_output],
+                        inputs=inputs_list + [model_state, my_db_state] + [text_output],
                         outputs=[text_output, exception_text],
                         )
         retry_bot_args = dict(fn=functools.partial(bot, retry=True),
-                              inputs=inputs_list + [model_state] + [text_output],
+                              inputs=inputs_list + [model_state, my_db_state] + [text_output],
                               outputs=[text_output, exception_text],
                               )
         undo_user_args = dict(fn=functools.partial(user, undo=True),
@@ -663,11 +755,11 @@ def go_gradio(**kwargs):
                           outputs=text_output2,
                           )
         bot_args2 = dict(fn=bot,
-                         inputs=inputs_list + [model_state2] + [text_output2],
+                         inputs=inputs_list + [model_state2, my_db_state] + [text_output2],
                          outputs=[text_output2, exception_text],
                          )
         retry_bot_args2 = dict(fn=functools.partial(bot, retry=True),
-                               inputs=inputs_list + [model_state2] + [text_output2],
+                               inputs=inputs_list + [model_state2, my_db_state] + [text_output2],
                                outputs=[text_output2, exception_text],
                                )
         undo_user_args2 = dict(fn=functools.partial(user, undo=True),
@@ -694,7 +786,8 @@ def go_gradio(**kwargs):
             .then(clear_instruct, None, iinput)
         submit_event1d = submit_event1c.then(**bot_args, api_name='instruction_bot' if allow_api else None,
                                              queue=queue)
-        submit_event1e = submit_event1d.then(**score_args_submit, api_name='instruction_bot_score' if allow_api else None,
+        submit_event1e = submit_event1d.then(**score_args_submit,
+                                             api_name='instruction_bot_score' if allow_api else None,
                                              queue=queue)
         submit_event1f = submit_event1e.then(**bot_args2, api_name='instruction_bot2' if allow_api else None,
                                              queue=queue)
@@ -740,7 +833,8 @@ def go_gradio(**kwargs):
             .then(lambda: None, None, text_output2, queue=False, api_name='clear2' if allow_api else None)
         # NOTE: clear of instruction/iinput for nochat has to come after score,
         # because score for nochat consumes actual textbox, while chat consumes chat history filled by user()
-        submit_event_nochat = submit_nochat.click(fun, inputs=[model_state] + inputs_list,
+        submit_event_nochat = submit_nochat.click(fun,
+                                                  inputs=[model_state, my_db_state] + inputs_list,
                                                   outputs=text_output_nochat,
                                                   queue=queue,
                                                   api_name='submit_nochat' if allow_api else None) \
@@ -842,8 +936,8 @@ def go_gradio(**kwargs):
             new_state = [list0[0] + [x]]
             new_options = [*new_state[0]]
             return gr.Dropdown.update(value=x, choices=new_options), \
-                   gr.Dropdown.update(value=x, choices=new_options), \
-                   '', new_state
+                gr.Dropdown.update(value=x, choices=new_options), \
+                '', new_state
 
         add_model_event = add_model_button.click(fn=dropdown_model_list,
                                                  inputs=[model_options_state, new_model],
@@ -857,8 +951,8 @@ def go_gradio(**kwargs):
             x1 = x if model_used1 == no_model_str else lora_used1
             x2 = x if model_used2 == no_model_str else lora_used2
             return gr.Dropdown.update(value=x1, choices=new_options), \
-                   gr.Dropdown.update(value=x2, choices=new_options), \
-                   '', new_state
+                gr.Dropdown.update(value=x2, choices=new_options), \
+                '', new_state
 
         add_lora_event = add_lora_button.click(fn=dropdown_lora_list,
                                                inputs=[lora_options_state, new_lora, model_used, lora_used, model_used2,
@@ -928,9 +1022,7 @@ def go_gradio(**kwargs):
         demo.block_thread()
 
 
-input_args_list = ['model_state']
-inputs_kwargs_list = ['debug', 'save_dir', 'sanitize_bot_response', 'model_state0', 'is_low_mem',
-                      'raise_generate_gpu_exceptions', 'chat_context', 'concurrency_count', 'lora_weights']
+input_args_list = ['model_state', 'my_db_state']
 
 
 def get_inputs_list(inputs_dict, model_lower):
@@ -946,9 +1038,46 @@ def get_inputs_list(inputs_dict, model_lower):
         if k == 'kwargs':
             continue
         if k in input_args_list + inputs_kwargs_list:
-            # these are added via partial, not taken as input
+            # these are added at use time for args or partial for kwargs, not taken as input
             continue
         if 'mbart-' not in model_lower and k in ['src_lang', 'tgt_lang']:
             continue
         inputs_list.append(inputs_dict[k])
     return inputs_list
+
+
+def update_user_db(file, db1, dbs=None, db_type=None, langchain_mode='UserData', use_openai_embedding=False):
+    assert isinstance(dbs, dict), "Wrong type for dbs: %s" % str(type(dbs))
+    assert db_type in ['faiss', 'chroma'], "db_type %s not supported" % db_type
+    from gpt_langchain import add_to_db, file_to_doc, get_db
+    if hasattr(file, 'name'):
+        file = file.name
+    print("Adding %s" % file, flush=True)
+    sources = file_to_doc(file)
+    with filelock.FileLock("db_%s.lock" % langchain_mode.replace(' ', '_')):
+        if langchain_mode == 'MyData':
+            if db1[0] is not None:
+                # then add
+                add_to_db(db1[0], sources, db_type=db_type)
+            else:
+                assert len(db1) == 2 and db1[1] is not None, "Bad MyData db"
+                # then create
+                persist_directory = os.path.join(scratch_base_dir, 'db_dir_%s_%s' % (langchain_mode, db1[1]))
+                db1[0] = get_db(sources, use_openai_embedding=use_openai_embedding,
+                                db_type=db_type,
+                                persist_directory=persist_directory,
+                                langchain_mode=langchain_mode)
+            return db1
+        else:
+            persist_directory = 'db_dir_%s' % langchain_mode
+            if langchain_mode in dbs and dbs[langchain_mode] is not None:
+                # then add
+                add_to_db(dbs[langchain_mode], sources, db_type=db_type)
+            else:
+                # then create
+                db = get_db(sources, use_openai_embedding=use_openai_embedding,
+                            db_type=db_type,
+                            persist_directory=persist_directory,
+                            langchain_mode=langchain_mode)
+                dbs[langchain_mode] = db
+            return dbs[langchain_mode]
