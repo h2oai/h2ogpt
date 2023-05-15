@@ -379,7 +379,8 @@ def main(
                 model, tokenizer, device = get_model(**locals())
                 model_state = [model, tokenizer, device, base_model]
                 kwargs_evaluate = {k: v for k, v in locals().items() if k in inputs_kwargs_list}
-                fun = partial(evaluate, model_state, debug=debug, save_dir=save_dir, is_low_mem=is_low_mem,
+                my_db_state = [None]
+                fun = partial(evaluate, model_state, my_db_state, debug=debug, save_dir=save_dir, is_low_mem=is_low_mem,
                               raise_generate_gpu_exceptions=raise_generate_gpu_exceptions,
                               chat_context=chat_context,
                               concurrency_count=concurrency_count,
@@ -903,7 +904,7 @@ def evaluate(
     assert langchain_mode in langchain_modes, "Invalid langchain_mode %s" % langchain_mode
     if langchain_mode in ['MyData'] and my_db_state is not None and len(my_db_state) > 0 and my_db_state[0] is not None:
         db1 = my_db_state[0]
-    elif langchain_mode in dbs:
+    elif dbs is not None and langchain_mode in dbs:
         db1 = dbs[langchain_mode]
     else:
         db1 = None
@@ -1352,6 +1353,7 @@ y = np.random.randint(0, 1, 100)
 
             example[eval_func_param_names.index('iinput_nochat')] = example[eval_func_param_names.index('iinput')]
             example[eval_func_param_names.index('iinput')] = ''
+        assert len(example) == len(eval_func_param_names), "Wrong example: %s %s" % (len(example), len(eval_func_param_names))
 
     return placeholder_instruction, placeholder_input, \
         stream_output, show_examples, \
