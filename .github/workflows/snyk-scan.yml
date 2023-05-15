@@ -8,11 +8,10 @@ on:
       - 'v[0-9]+.[0-9]+.[0-9]+'
     branches:
       - main
-      - devops/snyk-integration
 
 jobs:
   snyk_scan_test:
-    if: ${{ github.event_name == 'push' }} || ${{ github.event_name == 'workflow_dispatch' }}
+    if: ${{ github.event_name == 'pull_request' }} || ${{ github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@master
