@@ -353,7 +353,7 @@ def train(
         if os.path.exists(checkpoint_name):
             log(f"Restarting from {checkpoint_name}")
             adapters_weights = torch.load(checkpoint_name)
-            model = set_peft_model_state_dict(model, adapters_weights)
+            set_peft_model_state_dict(model, adapters_weights)
         else:
             log(f"Checkpoint {checkpoint_name} not found")
 
