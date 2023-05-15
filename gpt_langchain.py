@@ -3,7 +3,6 @@ import inspect
 import os
 import pathlib
 import subprocess
-import sys
 import tempfile
 import traceback
 from collections import defaultdict
@@ -343,100 +342,6 @@ def path_to_docs(path, verbose=False, fail_any_exception=False):
                     yield x
             else:
                 yield res
-
-
-def test_qa_wiki_openai():
-    return run_qa_wiki(use_openai_model=True)
-
-
-def test_qa_wiki_stuff_hf():
-    # NOTE: total context length makes things fail when n_sources * text_limit >~ 2048
-    return run_qa_wiki(use_openai_model=False, text_limit=256, chain_type='stuff', prompt_type='human_bot')
-
-
-def test_qa_wiki_map_reduce_hf():
-    return run_qa_wiki(use_openai_model=False, text_limit=None, chain_type='map_reduce', prompt_type='human_bot')
-
-
-def run_qa_wiki(use_openai_model=False, first_para=True, text_limit=None, chain_type='stuff', prompt_type=None):
-    sources = get_wiki_sources(first_para=first_para, text_limit=text_limit)
-    llm, model_name, streamer = get_llm(use_openai_model=use_openai_model, prompt_type=prompt_type)
-    chain = load_qa_with_sources_chain(llm, chain_type=chain_type)
-
-    question = "What are the main differences between Linux and Windows?"
-    answer = get_answer_from_sources(chain, sources, question)
-    print(answer)
-
-
-def test_qa_wiki_db_openai():
-    return run_qa_db(use_openai_model=True, use_openai_embedding=True, text_limit=None, wiki=True)
-
-
-def test_qa_wiki_db_hf():
-    # if don't chunk, still need to limit
-    # but this case can handle at least more documents, by picking top k
-    # FIXME: but spitting out garbage answer right now, all fragmented, or just 1-word answer
-    return run_qa_db(use_openai_model=False, use_openai_embedding=False, text_limit=256, wiki=True)
-
-
-def test_qa_wiki_db_chunk_hf():
-    return run_qa_db(use_openai_model=False, use_openai_embedding=False, text_limit=256, chunk=True, chunk_size=256,
-                     wiki=True)
-
-
-def test_qa_wiki_db_chunk_openai():
-    # don't need 256, just seeing how compares to hf
-    return run_qa_db(use_openai_model=True, use_openai_embedding=True, text_limit=256, chunk=True, chunk_size=256,
-                     wiki=True)
-
-
-def test_qa_github_db_chunk_openai():
-    # don't need 256, just seeing how compares to hf
-    query = "what is a software defined asset"
-    return run_qa_db(query=query, use_openai_model=True, use_openai_embedding=True, text_limit=256, chunk=True,
-                     chunk_size=256, github=True)
-
-
-def test_qa_daidocs_db_chunk_hf():
-    # FIXME: doesn't work well with non-instruct-tuned Cerebras
-    query = "Which config.toml enables pytorch for NLP?"
-    return run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=None, chunk=True,
-                     chunk_size=128, wiki=False,
-                     dai_rst=True)
-
-
-def test_qa_daidocs_db_chunk_hf_faiss():
-    query = "Which config.toml enables pytorch for NLP?"
-    # chunk_size is chars for each of k=4 chunks
-    return run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=None, chunk=True,
-                     chunk_size=128 * 1,  # characters, and if k=4, then 4*4*128 = 2048 chars ~ 512 tokens
-                     wiki=False,
-                     dai_rst=True,
-                     db_type='faiss',
-                     )
-
-
-def test_qa_daidocs_db_chunk_hf_chroma():
-    query = "Which config.toml enables pytorch for NLP?"
-    # chunk_size is chars for each of k=4 chunks
-    return run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=None, chunk=True,
-                     chunk_size=128 * 1,  # characters, and if k=4, then 4*4*128 = 2048 chars ~ 512 tokens
-                     wiki=False,
-                     dai_rst=True,
-                     db_type='chroma',
-                     )
-
-
-def test_qa_daidocs_db_chunk_openai():
-    query = "Which config.toml enables pytorch for NLP?"
-    return run_qa_db(query=query, use_openai_model=True, use_openai_embedding=True, text_limit=256, chunk=True,
-                     chunk_size=256, wiki=False, dai_rst=True)
-
-
-def test_qa_daidocs_db_chunk_openaiembedding_hfmodel():
-    query = "Which config.toml enables pytorch for NLP?"
-    return run_qa_db(query=query, use_openai_model=False, use_openai_embedding=True, text_limit=None, chunk=True,
-                     chunk_size=128, wiki=False, dai_rst=True)
 
 
 def prep_langchain(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode, user_path):
