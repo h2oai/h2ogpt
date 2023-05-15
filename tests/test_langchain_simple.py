@@ -39,3 +39,5 @@ def test_langchain_simple():
     chain_kwargs = dict(input_documents=docs, question=query)
     answer = chain(chain_kwargs)
     print(answer)
+    assert 'Einstein' in answer['output_text'] and "Newton" in answer['output_text']
+
