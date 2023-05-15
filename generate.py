@@ -916,6 +916,7 @@ def evaluate(
         from gpt_langchain import run_qa_db, get_db_kwargs
         langchain_kwargs = get_db_kwargs(langchain_mode)
         outr = ""
+        # use smaller cut_distanct for wiki_full since so many matches could be obtained, and often irrelevant unless close
         for r in run_qa_db(query=query,
                            model_name=base_model, model=model, tokenizer=tokenizer,
                            stream_output=stream_output, prompter=prompter,
@@ -924,6 +925,7 @@ def evaluate(
                            db=db1,
                            user_path=user_path,
                            max_new_tokens=max_new_tokens,
+                           cut_distanct=1.1 if langchain_mode in ['wiki_full'] else 1.8,
                            **langchain_kwargs):
             outr = r  # doesn't accumualte, new answer every yield, so only save that full answer
             yield r
