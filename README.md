@@ -77,6 +77,8 @@ then just run like:
 python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6.9b --langchain_mode=UserData
 ```
 
+Some [pre-generated databases](https://huggingface.co/datasets/h2oai/db_dirs) can be accessed on HF (or see [get_some_dbs_from_hf.py](gpt_langchain.py#L722)).
+
 For help installing a Python 3.10 environment or CUDA toolkit or installing flash attention support, see the [installation instructions](INSTALL.md)
 
 You can also use [Docker](INSTALL-DOCKER.md#containerized-installation-for-inference-on-linux-gpu-servers) for inference.
