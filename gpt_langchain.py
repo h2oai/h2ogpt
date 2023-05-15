@@ -711,5 +711,22 @@ def get_db_from_hf(dest=".", db_dir='db_dir_DriverlessAI_docs.zip'):
     return path_to_zip_file
 
 
+# Note dir has space in some cases, while zip does not
+db_zips = [['db_dir_DriverlessAI_docs.zip', 'db_dir_DriverlessAI docs', 'CC-BY-NC license'],
+           ['db_dir_UserData.zip', 'db_dir_UserData', 'CC-BY license for ArXiv'],
+           ['db_dir_github_h2oGPT.zip', 'db_dir_github h2oGPT', 'ApacheV2 license'],
+           ['db_dir_wiki.zip', 'db_dir_wiki', 'CC-BY-SA Wikipedia license'],
+           # ['db_dir_wiki_full.zip', 'db_dir_wiki_full.zip', '23GB, 05/04/2023 CC-BY-SA Wiki license'],
+           ]
+
+
+def get_some_dbs_from_hf(dest='.'):
+    for db_dir, dir_expected, license1 in db_zips:
+        path_to_zip_file = get_db_from_hf(dest=dest, db_dir=db_dir)
+        assert os.path.isfile(path_to_zip_file), "Missing zip in %s" % path_to_zip_file
+        assert os.path.isdir(os.path.join(dest, dir_expected)), "Missing path for %s" % dir_expected
+        assert os.path.isdir(os.path.join(dest, dir_expected, 'index')), "Missing index in %s" % dir_expected
+
+
 if __name__ == '__main__':
     pass

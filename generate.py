@@ -294,9 +294,9 @@ def main(
 
     if langchain_mode != "Disabled":
         # SECOND PLACE where LangChain referenced, but all imports are kept local so not required
-        from gpt_langchain import prep_langchain, get_db_from_hf
+        from gpt_langchain import prep_langchain, get_some_dbs_from_hf
         if is_hf:
-            get_db_from_hf()
+            get_some_dbs_from_hf()
         dbs = {}
         for langchain_mode1 in visible_langchain_modes:
             if langchain_mode1 in ['MyData']:

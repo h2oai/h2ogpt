@@ -4,7 +4,8 @@ import tempfile
 import pytest
 from langchain.chains.qa_with_sources import load_qa_with_sources_chain
 
-from gpt_langchain import run_qa_db, get_wiki_sources, get_llm, get_answer_from_sources, get_dai_pickle, get_db_from_hf
+from gpt_langchain import run_qa_db, get_wiki_sources, get_llm, get_answer_from_sources, get_dai_pickle, get_db_from_hf, \
+    db_zips, get_some_dbs_from_hf
 
 have_openai_key = os.environ.get('OPENAI_API_KEY') is not None
 
@@ -118,19 +119,8 @@ def test_get_dai_pickle():
 
 
 def test_get_dai_db_dir():
-    # Note dir has space in some cases, while zip does not
-    for db_dir, dir_expected, license1 in \
-            [['db_dir_DriverlessAI_docs.zip', 'db_dir_DriverlessAI docs', 'CC-BY-NC license'],
-             ['db_dir_UserData.zip', 'db_dir_UserData', 'CC-BY license for ArXiv'],
-             ['db_dir_github_h2oGPT.zip', 'db_dir_github h2oGPT', 'ApacheV2 license'],
-             ['db_dir_wiki.zip', 'db_dir_wiki', 'CC-BY-SA Wikipedia license'],
-             # ['db_dir_wiki_full.zip', 'db_dir_wiki_full.zip', '23GB, 05/04/2023 CC-BY-SA Wiki license'],
-             ]:
-        with tempfile.TemporaryDirectory() as tmpdirname:
-            path_to_zip_file = get_db_from_hf(dest=tmpdirname, db_dir=db_dir)
-            assert os.path.isfile(path_to_zip_file)
-            assert os.path.isdir(os.path.join(tmpdirname, dir_expected))
-            assert os.path.isdir(os.path.join(tmpdirname, dir_expected, 'index'))
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        get_some_dbs_from_hf(tmpdirname)
 
 
 if __name__ == '__main__':
