@@ -183,7 +183,9 @@ tokenizer.save_pretrained(model_name)
 reward_model = 'OpenAssistant/reward-model-deberta-v3-large-v2'
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 model = AutoModelForSequenceClassification.from_pretrained(reward_model)
+model.save_pretrained(reward_model)
 tokenizer = AutoTokenizer.from_pretrained(reward_model)
+tokenizer.save_pretrained(reward_model)
 ```
 
 3) Gradio uses Cloudfare scripts, download from Cloudfare:
