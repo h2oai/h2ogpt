@@ -4,8 +4,8 @@ import tempfile
 import pytest
 from langchain.chains.qa_with_sources import load_qa_with_sources_chain
 
-from gpt_langchain import run_qa_db, get_wiki_sources, get_llm, get_answer_from_sources, get_dai_pickle, get_db_from_hf, \
-    db_zips, get_some_dbs_from_hf
+from gpt_langchain import run_qa_db, get_wiki_sources, get_llm, get_answer_from_sources, get_dai_pickle, \
+    get_some_dbs_from_hf
 
 have_openai_key = os.environ.get('OPENAI_API_KEY') is not None
 
