@@ -12,24 +12,33 @@ Live hosted instances:
 
 For questions, discussing, or just hanging out, come and join our <a href="https://discord.gg/WKhYMWcVbq"><b>Discord</b></a>!
 
-https://user-images.githubusercontent.com/6147661/232924684-6c0e2dfb-2f24-4098-848a-c3e4396f29f6.mov
+### Apache V2 ChatBot with LangChain Integration
+
+- **LangChain** equipped Chatbot integration and streaming
+- **Persistent** database using Chroma or in-memory with FAISS
+- **Original** content url links and scores to rank content against query
+- **Private** offline database of any documents (pdf, text, csv, md, rst, toml, python)
+- **Upload** documents via chatbot into shared space or only allow scratch space
+- **Control** data sources and the context provided to LLM
+- **Efficient** use of context using instruct-tuned LLMs (no need for many examples)
+- **API** for client-server control
 
 <img src="langchain.png" alt="VectorDB" title="VectorDB via LangChain">
 
-### Current state
+https://user-images.githubusercontent.com/6147661/232924684-6c0e2dfb-2f24-4098-848a-c3e4396f29f6.mov
 
-- Open-source repository with **fully permissive, commercially usable code, data and models**
-- Code for preparing **large open-source datasets** as instruction datasets for fine-tuning of large language models (LLMs), including prompt engineering
-- Code for **fine-tuning large language models** (currently up to 20B parameters) on commodity hardware and enterprise GPU servers (single or multi node)
-- Code for enabling **LoRA (low-rank approximation) and 8-bit quantization** for memory-efficient fine-tuning and generation.
-- Code to **run a chatbot** on a GPU server, with shareable end-point with Python client API
-- Code to evaluate and compare the **performance** of fine-tuned LLMs
+### Apache V2 Data Preparation code, Training code, and Models
+
+- **Variety** of models (h2oGPT, WizardLM, Vicuna, OpenAssistant, etc.) supported
+- **Fully Commercially** Apache V2 code, data and models
+- **High-Quality** data cleaning of large open-source instruction datasets
+- **LORA** (low-rank approximation) efficient 8-bit and 16-bit fine-tuning and generation
+- **Large** (up to 65B parameters) models built on commodity or enterprise GPUs (single or multi node)
+- **Evaluate** performance using RLHF-based reward models
 
 All open-source datasets and models are posted on [🤗 H2O.ai's Hugging Face page](https://huggingface.co/h2oai/).
 
 Also check out [H2O LLM Studio](https://github.com/h2oai/h2o-llmstudio) for our no-code LLM fine-tuning framework!
-
-<a href="https://user-images.githubusercontent.com/1069138/233859311-32aa1f8c-4d68-47ac-8cd9-9313171ff9f9.png"><img width="50%" alt="home" src="https://user-images.githubusercontent.com/1069138/233859311-32aa1f8c-4d68-47ac-8cd9-9313171ff9f9.png"></a><a href="https://user-images.githubusercontent.com/1069138/233859315-e6928aa7-28d2-420b-8366-bc7323c368ca.png"><img width="50%" alt="logs" src="https://user-images.githubusercontent.com/1069138/233859315-e6928aa7-28d2-420b-8366-bc7323c368ca.png"></a>
 
 ### Roadmap items
 
@@ -38,7 +47,7 @@ Also check out [H2O LLM Studio](https://github.com/h2oai/h2o-llmstudio) for our 
 - High-performance distributed training of larger models on trillion tokens
 - Enhance the model's code completion, reasoning, and mathematical capabilities, ensure factual correctness, minimize hallucinations, and avoid repetitive output
 
-### Chat with h2oGPT
+### Getting Started
 
 ```bash
 git clone https://github.com/h2oai/h2ogpt.git
