@@ -72,7 +72,7 @@ def get_embedding(use_openai_embedding):
     else:
         from langchain.embeddings import HuggingFaceEmbeddings
 
-        model_name = "sentence-transformers/all-MiniLM-L6-v2"  # good, gets authors
+        model_name = "sentence-transformers/all-MiniLM-L6-v2"
         device, torch_dtype, context_class = get_device_dtype()
         model_kwargs = dict(device=device)
         embedding = HuggingFaceEmbeddings(model_name=model_name, model_kwargs=model_kwargs)
@@ -361,7 +361,6 @@ def prep_langchain(persist_directory, load_db_if_exists, db_type, use_openai_emb
     """
     do prep first time, involving downloads
     # FIXME: Add github caching then add here
-    # FIXME: Once go FAISS->Chroma, can avoid this prep step
     :return:
     """
     assert langchain_mode not in ['MyData'], "Should not prep scratch data"
