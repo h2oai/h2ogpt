@@ -1,2 +1,2 @@
-# optional
+# optional for LLaMa flash attention
 flash-attn==1.0.4

@@ -6,6 +6,8 @@ from typing import List, Union
 from enum import Enum
 import fire
 import numpy as np
+
+from prompter import generate_prompt, prompt_types
 from utils import get_githash, copy_code
 import torch
 
@@ -15,68 +17,6 @@ def log(*args, **kwargs):
         if 'flush' not in kwargs:
             kwargs['flush'] = True
         print(*args, **kwargs)
-
-
-class PromptType(Enum):
-    plain = 0
-    instruct = 1
-    quality = 2
-    human_bot = 3
-    dai_faq = 4
-    summarize = 5
-    simple_instruct = 6
-    instruct_vicuna = 7
-    instruct_with_end = 8
-    human_bot_orig = 9
-
-
-prompt_type_to_model_name = {
-    'plain': [
-        'EleutherAI/gpt-j-6B',
-        'EleutherAI/pythia-6.9b',
-        'EleutherAI/pythia-12b',
-        'EleutherAI/pythia-12b-deduped',
-        'EleutherAI/gpt-neox-20b',
-        'decapoda-research/llama-7b-hf',
-        'decapoda-research/llama-13b-hf',
-        'decapoda-research/llama-30b-hf',
-        'decapoda-research/llama-65b-hf',
-        'facebook/mbart-large-50-many-to-many-mmt',
-        'philschmid/bart-large-cnn-samsum',
-        'philschmid/flan-t5-base-samsum',
-        'gpt2',
-        'distilgpt2',
-    ],
-    'instruct': [],
-    'instruct_with_end': ['databricks/dolly-v2-12b'],
-    'quality': [],
-    'human_bot': [
-        'h2oai/h2ogpt-oasst1-512-12b',
-        'h2oai/h2ogpt-oasst1-512-20b',
-        'h2oai/h2ogpt-oig-oasst1-512-6.9b',
-        'h2oai/h2ogpt-research-oasst1-512-30b',  # private
-    ],
-    'dai_faq': [],
-    'summarize': [],
-    'simple_instruct': ['t5-small', 't5-large', 'google/flan-t5', 'google/flan-t5-xxl', 'google/flan-ul2'],
-    'instruct_vicuna': ['AlekseyKorshuk/vicuna-7b'],
-    'human_bot_orig': ['togethercomputer/GPT-NeoXT-Chat-Base-20B'],
-}
-
-inv_prompt_type_to_model_name = {v.strip(): k for k, l in prompt_type_to_model_name.items() for v in l}
-inv_prompt_type_to_model_lower = {v.strip().lower(): k for k, l in prompt_type_to_model_name.items() for v in l}
-
-human = '<human>:'
-bot = "<bot>:"
-
-prompt_types_strings = []
-for p in PromptType:
-    prompt_types_strings.extend([p.name])
-
-
-prompt_types = []
-for p in PromptType:
-    prompt_types.extend([p.name, p.value, str(p.value)])
 
 
 # supported by huggingface evaluate
@@ -214,8 +154,6 @@ def train(
             NOTE: for current pytorch 2.0, flash attention requires installing cuda 11.7 via https://developer.nvidia.com/cuda-11-7-0-download-archive?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=20.04&target_type=runfile_local and then when running, to avoid installing driver, docs, samples, just install toolkit.  Then when pip installing flash attention do:
 
             CUDA_HOME=/usr/local/cuda-11.7 pip install flash-attn""")
-        from llama_flash_attn_monkey_patch import replace_llama_attn_with_flash_attn
-        replace_llama_attn_with_flash_attn()
     assert (
         base_model
     ), "Please specify a --base_model, e.g. --base_model='decapoda-research/llama-7b-hf'"
@@ -277,8 +215,13 @@ def train(
                 layer_norm_names=["layer_norm", "layernorm"],  # keep all layer norms in higher precision
             )
 
-    from peft import LoraConfig, get_peft_model, set_peft_model_state_dict, utils
-    lora_mappings = utils.TRANSFORMERS_MODELS_TO_LORA_TARGET_MODULES_MAPPING.copy()
+    from peft import LoraConfig, get_peft_model, set_peft_model_state_dict
+    try:
+        from peft import utils
+        lora_mappings = utils.TRANSFORMERS_MODELS_TO_LORA_TARGET_MODULES_MAPPING.copy()
+    except AttributeError:
+        from peft import mapping
+        lora_mappings = mapping.TRANSFORMERS_MODELS_TO_LORA_TARGET_MODULES_MAPPING.copy()
     lora_mappings['distilgpt2'] = ["c_attn"]
 
     if lora_weights:
@@ -577,8 +520,8 @@ def train(
         tokenizer=tokenizer,
         train_dataset=train_data,
         eval_dataset=valid_data,
-        # NOTE: CausalLM is not supporting Seq2SeqTrainingArguments arguments, but not incompatible
-        args=transformers.Seq2SeqTrainingArguments(
+        # FIXME: might need Seq2SeqTrainingArguments for some models
+        args=transformers.TrainingArguments(
             per_device_train_batch_size=micro_batch_size,
             per_device_eval_batch_size=1,
             eval_accumulation_steps=10,
@@ -730,10 +673,10 @@ def generate_and_tokenize_prompt(data_point, prompt_type=None, train_on_inputs=F
     assert prompt_type is not None
     assert cutoff_len is not None
     assert tokenizer is not None
-    full_prompt, _, _ = generate_prompt(data_point, prompt_type, False, False)
+    full_prompt, _, _, _ = generate_prompt(data_point, prompt_type, False, False)
     tokenized_full_prompt = tokenize(full_prompt, tokenizer, cutoff_len, add_eos_token=add_eos_token)
     if not train_on_inputs:
-        user_prompt, _, _ = generate_prompt({**data_point, "output": ""}, prompt_type, False, False)
+        user_prompt, _, _, _ = generate_prompt({**data_point, "output": ""}, prompt_type, False, False)
         tokenized_user_prompt = tokenize(user_prompt, tokenizer, cutoff_len, add_eos_token=add_eos_token)
         user_prompt_len = len(tokenized_user_prompt["input_ids"])
         if add_eos_token:
@@ -746,187 +689,6 @@ def generate_and_tokenize_prompt(data_point, prompt_type=None, train_on_inputs=F
                                                                 user_prompt_len:
                                                                 ]  # could be sped up, probably
     return tokenized_full_prompt
-
-
-def get_prompt(prompt_type, chat, context, reduced):
-    if prompt_type in [-1, "-1", "plain"]:
-        promptA = promptB = PreInstruct = PreInput = PreResponse = ''
-        terminate_response = []
-    elif prompt_type == 'simple_instruct':
-        promptA = promptB = PreInstruct = PreInput = PreResponse = None
-        terminate_response = []
-    elif prompt_type in [0, "0", "instruct"] or prompt_type in [7, "7", "instruct_with_end"]:
-        promptA = 'Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.\n' if not (chat and reduced) else ''
-        promptB = 'Below is an instruction that describes a task. Write a response that appropriately completes the request.\n' if not (chat and reduced) else ''
-
-        PreInstruct = """
-### Instruction:
-"""
-
-        PreInput = """
-### Input:
-"""
-
-        PreResponse = """
-### Response:
-"""
-        if prompt_type in [7, "7", "instruct_with_end"]:
-            terminate_response = ['### End']
-        else:
-            terminate_response = None
-    elif prompt_type in [1, "1", "quality"]:
-        promptA = 'Write a detailed high-quality, accurate, fair, Response with about 100 words by following the Instruction as applied on the Input.\n' if not (chat and reduced) else ''
-        promptB = 'Write a detailed high-quality, accurate, fair, Response with about 100 words by following the Instruction.\n' if not (chat and reduced) else ''
-
-        PreInstruct = """
-### Instruction:
-"""
-
-        PreInput = """
-### Input:
-"""
-
-        PreResponse = """
-### Response:
-"""
-        terminate_response = None
-    elif prompt_type in [2, "2", "human_bot", 9, "9", "human_bot_orig"]:
-        if reduced or context or prompt_type in [2, "2", "human_bot"]:
-            preprompt = ''
-        else:
-            cur_date = time.strftime('%Y-%m-%d')
-            cur_time = time.strftime('%H:%M:%S %p %Z')
-
-            PRE_PROMPT = """\
-Current Date: {}
-Current Time: {}
-
-"""
-            preprompt = PRE_PROMPT.format(cur_date, cur_time)
-        start = human
-        promptB = promptA = '%s%s ' % (preprompt, start)
-
-        PreInstruct = ""
-
-        PreInput = None
-
-        if reduced:
-            # when making context, want it to appear as-if LLM generated, which starts with space after :
-            PreResponse = bot + ' '
-        else:
-            # normally LLM adds space after this, because was how trained.
-            # if add space here, non-unique tokenization will often make LLM produce wrong output
-            PreResponse = bot
-
-        terminate_response = [start, PreResponse]
-    elif prompt_type in [3, "3", "dai_faq"]:
-        promptA = ''
-        promptB = 'Answer the following Driverless AI question.\n'
-
-        PreInstruct = """
-### Driverless AI frequently asked question:
-"""
-
-        PreInput = None
-
-        PreResponse = """
-### Driverless AI documentation answer:
-"""
-        terminate_response = ['\n\n']
-    elif prompt_type in [5, "5", "summarize"]:
-        promptA = promptB = PreInput = ''
-        PreInstruct = '## Main Text\n\n'
-        PreResponse = '\n\n## Summary\n\n'
-        terminate_response = None
-    elif prompt_type in [6, "6", "instruct_vicuna"]:
-        promptA = promptB = "A chat between a curious human and an artificial intelligence assistant. " \
-            "The assistant gives helpful, detailed, and polite answers to the human's questions." if not (chat and reduced) else ''
-
-        PreInstruct = """
-### Human:
-"""
-
-        PreInput = None
-
-        PreResponse = """
-### Assistant:
-"""
-        terminate_response = ['### Human:']  # but only allow terminate after prompt is found correctly, else can't terminate
-    else:
-        raise RuntimeError("No such prompt_type=%s" % prompt_type)
-
-    return promptA, promptB, PreInstruct, PreInput, PreResponse, terminate_response
-
-
-def generate_prompt(data_point, prompt_type, chat, reduced):
-    context = data_point.get('context')
-    if context is None:
-        context = ''
-    instruction = data_point.get('instruction')
-    input = data_point.get('input')
-    output = data_point.get('output')
-    prompt_type = data_point.get('prompt_type', prompt_type)
-    assert prompt_type in prompt_types, "Bad prompt type: %s" % prompt_type
-    promptA, promptB, PreInstruct, PreInput, PreResponse, terminate_response = get_prompt(prompt_type, chat, context, reduced)
-
-    prompt = context if not reduced else ''
-
-    if input and promptA:
-        prompt += f"""{promptA}"""
-    elif promptB:
-        prompt += f"""{promptB}"""
-
-    if instruction and PreInstruct is not None and input and PreInput is not None:
-        prompt += f"""{PreInstruct}{instruction}{PreInput}{input}"""
-        prompt = inject_newline(prompt_type, prompt)
-    elif instruction and input and PreInstruct is None and PreInput is not None:
-        prompt += f"""{PreInput}{instruction}
-{input}"""
-        prompt = inject_newline(prompt_type, prompt)
-    elif input and instruction and PreInput is None and PreInstruct is not None:
-        prompt += f"""{PreInstruct}{instruction}
-{input}"""
-        prompt = inject_newline(prompt_type, prompt)
-    elif instruction and PreInstruct is not None:
-        prompt += f"""{PreInstruct}{instruction}"""
-        prompt = inject_newline(prompt_type, prompt)
-    elif input and PreInput is not None:
-        prompt += f"""{PreInput}{input}"""
-        prompt = inject_newline(prompt_type, prompt)
-    elif input and instruction and PreInput is not None:
-        prompt += f"""{PreInput}{instruction}{input}"""
-        prompt = inject_newline(prompt_type, prompt)
-    elif input and instruction and PreInstruct is not None:
-        prompt += f"""{PreInstruct}{instruction}{input}"""
-        prompt = inject_newline(prompt_type, prompt)
-    elif input and instruction:
-        # i.e. for simple_instruct
-        prompt += f"""{instruction}: {input}"""
-        prompt = inject_newline(prompt_type, prompt)
-    elif input:
-        prompt += f"""{input}"""
-        prompt = inject_newline(prompt_type, prompt)
-    elif instruction:
-        prompt += f"""{instruction}"""
-        prompt = inject_newline(prompt_type, prompt)
-
-    if PreResponse is not None:
-        prompt += f"""{PreResponse}"""
-        pre_response = PreResponse  # Don't use strip
-    else:
-        pre_response = ''
-
-    if output:
-        prompt += f"""{output}"""
-
-    return prompt, pre_response, terminate_response
-
-
-def inject_newline(prompt_type, prompt):
-    if prompt_type not in [-1, '-1', 'plain', 'simple_instruct']:
-        # only add new line if structured prompt, while 'plain' is just generation of next tokens from input
-        prompt += '\n'
-    return prompt
 
 
 example_data_point0 = dict(instruction="Summarize",

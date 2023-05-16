@@ -1,3 +1,10 @@
+"""
+Dataset creation tools.
+
+Keep to-level imports clean of non-trivial imports for specific tools,
+because this file is imported for various purposes
+"""
+
 import ast
 import concurrent.futures
 import contextlib
@@ -55,7 +62,7 @@ def test_scrape_dai_docs():
     file = os.path.join(home, 'h2oai/docs/faq.rst')
     qa_pairs = parse_rst_file(file)
     prompt_type = 'human_bot'
-    from finetune import prompt_types
+    from prompter import prompt_types
     assert prompt_type in prompt_types
     save_thing = [{"instruction": k, "output": v, 'prompt_type': prompt_type} for k, v in qa_pairs.items()]
     output_file = "dai_faq.json"
@@ -108,34 +115,58 @@ def get_sentences(blob, length):
     :param length:
     :return:
     """
+    import nltk
+    nltk.download('punkt')
     from nltk.tokenize import sent_tokenize
     sentences = sent_tokenize(blob)
     my_sentences = []
     my_string = ""
     for sentence in sentences:
-        if len(my_string) < length:
-            my_string += " " + sentence
+        if len(my_string) + len(sentence) <= length:
+            if my_string:
+                my_string += " " + sentence
+            else:
+                my_string = sentence
         else:
             my_sentences.append(my_string)
             my_string = ""
-    return my_sentences
+    return my_sentences or [my_string]
 
 
-def test_scrape_dai_docs_all_pandoc():
+def setup_dai_docs(path=None, dst="working_dir_docs", from_hf=False):
     """
-    pytest -s -v create_data.py::test_scrape_dai_docs_all_pandoc
+    Only supported if have access to source code or HF token for HF spaces and from_hf=True
+    :param path:
+    :param dst:
+    :param from_hf:
     :return:
     """
-    # account for sequence length (context window) including prompt and input and output
-    MAX_LEN = 2048//2 - 30
-    MIN_LENGTH = 30  # to avoid bare headers
 
     home = os.path.expanduser('~')
+
+    if from_hf:
+        # assumes
+        from huggingface_hub import hf_hub_download
+        # True for case when locally already logged in with correct token, so don't have to set key
+        token = os.getenv('HUGGINGFACE_API_TOKEN', True)
+        path_to_zip_file = hf_hub_download('h2oai/dai_docs', 'dai_docs.zip', token=token, repo_type='dataset')
+        path = 'h2oai'
+        import zipfile
+        with zipfile.ZipFile(path_to_zip_file, 'r') as zip_ref:
+            zip_ref.extractall(path)
+        path = os.path.join(path, 'docs/**/*')
+
+    if path is None:
+        if os.path.isdir(os.path.join(home, 'h2oai')):
+            path = os.path.join(home, "h2oai/docs/**/*")
+        else:
+            assert os.path.isdir(os.path.join(home, 'h2oai.superclean')), '%s does not exist' % path
+            path = os.path.join(home, "h2oai.superclean/docs/**/*")
     import glob
-    files = list(glob.glob(os.path.join(home, "h2oai/docs/**/*"), recursive=True))
+    files = list(glob.glob(path, recursive=True))
 
     # pandoc can't find include files
-    dst = "working_dir_docs"
+
     remove(dst)
     os.makedirs(dst)
 
@@ -144,18 +175,23 @@ def test_scrape_dai_docs_all_pandoc():
         if os.path.isfile(fil):
             shutil.copy(fil, dst)
 
-    files = list(glob.glob(os.path.join(dst, '*rst'), recursive=True))
     # hack for relative path
     scorers_dir = os.path.join(dst, 'scorers')
     makedirs(scorers_dir)
     for fil in glob.glob(os.path.join(dst, '*.frag')):
         shutil.copy(fil, scorers_dir)
 
+    return dst
+
+
+def rst_to_outputs(files, min_len=30, max_len=2048//2 - 30):
+    # account for sequence length (context window) including prompt and input and output
+
     # os.system('pandoc -f rst -t plain ./expert_settings/nlp_settings.rst')
     import pypandoc
-    outputs = []
     basedir = os.path.abspath(os.getcwd())
 
+    outputs = []
     for fil in files:
         os.chdir(basedir)
         os.chdir(os.path.dirname(fil))
@@ -180,17 +216,17 @@ def test_scrape_dai_docs_all_pandoc():
             input_list = input_rst.split('\n``')
             for input_subrst in input_list:
                 input_plain = pypandoc.convert_text(input_subrst, format='rst', to='plain')
-                plain_list.append(input_plain)
+                plain_list.append([input_plain, fil])
         except Exception as e:
             print("file exception: %s %s" % (fil, str(e)), flush=True)
 
         if not plain_list:
             # if failed to process as pieces of rst, then
             output = pypandoc.convert_file(fil, out_format, extra_args=extra_args, format='rst')
-            outputs = get_sentences(output, length=MAX_LEN)
-            for oi, output in enumerate(outputs):
+            outputs1 = get_sentences(output, length=max_len)
+            for oi, output in enumerate(outputs1):
                 output = output.replace('\n\n', '\n')
-                plain_list.append(output)
+                plain_list.append([output, fil])
         outputs.extend(plain_list)
 
     # report:
@@ -200,20 +236,39 @@ def test_scrape_dai_docs_all_pandoc():
     new_outputs = []
     num_truncated = 0
     num_orig = len(outputs)
-    for output in outputs:
-        if len(output) < MAX_LEN:
-            new_outputs.append(output)
+    for output, fil in outputs:
+        if len(output) < max_len:
+            new_outputs.append([output, fil])
             continue
-        outputs1 = get_sentences(output, length=MAX_LEN)
+        outputs1 = get_sentences(output, length=max_len)
         for oi, output1 in enumerate(outputs1):
             output1 = output1.replace('\n\n', '\n')
-            new_outputs.append(output1)
+            new_outputs.append([output1, fil])
         num_truncated += 1
     print('num_orig: %s num_truncated: %s' % (num_orig, num_truncated), flush=True)
 
+    new_outputs = [[k.strip(), fil] for k, fil in new_outputs if len(k.strip()) > min_len]
+
+    return new_outputs
+
+
+def test_scrape_dai_docs_all_pandoc():
+    """
+    pytest -s -v create_data.py::test_scrape_dai_docs_all_pandoc
+    :return:
+    """
+
+    dst = setup_dai_docs()
+
+    import glob
+    files = list(glob.glob(os.path.join(dst, '*rst'), recursive=True))
+
+    basedir = os.path.abspath(os.getcwd())
+    new_outputs = rst_to_outputs(files)
     os.chdir(basedir)
+
     remove(dst)
-    save_thing = [{"output": k.strip(), 'prompt_type': 'plain'} for k in new_outputs if len(k) > MIN_LENGTH]
+    save_thing = [{"output": k.strip(), 'prompt_type': 'plain'} for k in new_outputs]
     output_file = "dai_docs.train_cleaned.json"
     with open(output_file, "wt") as f:
         f.write(json.dumps(save_thing, indent=2))
@@ -255,15 +310,15 @@ def test_config_to_json():
                 [
                     {
                         'prompt_type': 'plain',
-                        'instruction': f"<human>: What does {k} do? <bot>: {k.replace('_', ' ')} config.toml:  {comment or title}".replace("\n", ""),
+                        'instruction': f"<human>: What does {k} do?\n<bot>: {k.replace('_', ' ')} config.toml:  {comment or title}\n<human>:".replace("\n", ""),
                     },
                     {
                         'prompt_type': 'plain',
-                        'instruction': f"<human>: Explain {k}. <bot>: {k.replace('_', ' ')} config.toml:  {comment or title}".replace("\n", ""),
+                        'instruction': f"<human>: Explain {k}.\n<bot>: {k.replace('_', ' ')} config.toml:  {comment or title}\n<human>:".replace("\n", ""),
                     },
                     {
                         'prompt_type': 'plain',
-                        'instruction': f"<human>: How can I do this: {title}. <bot>: Set the {k.replace('_', ' ')} config.toml".replace("\n", ""),
+                        'instruction': f"<human>: How can I do this: {title}.\n<bot>: Set the {k.replace('_', ' ')} config.toml\n<human>:".replace("\n", ""),
                     } if title and comment else None,
                     {
                         'prompt_type': 'human_bot',
@@ -521,7 +576,7 @@ def test_show_prompts():
              ['dai_docs.train_cleaned.json'] * 1 + \
              ['dai_faq.json'] * 1
     file_points = [json.load(open(fil, 'rt')) for fil in files]
-    from finetune import generate_prompt
+    from prompter import generate_prompt
     for data_points in file_points:
         for data_point in data_points:
             print(generate_prompt(data_point, 'plain', False, False)[0])
@@ -902,7 +957,8 @@ def test_assemble_and_detox():
         # chop up into human/bot interactions of no more than 10kB per row
         text_list = df[['text']].values.ravel().tolist()
         new_text = []
-        max_len = 10000   # approx 2k tokens
+        max_len = 2048  # uber cutoff
+        MAX_LEN = 2048//2 - 30  # max len per question/answer
         for text in tqdm(text_list):
             human_starts = [m.start() for m in re.finditer('<human>: ', text)]
             if len(human_starts) == 1:
@@ -911,11 +967,13 @@ def test_assemble_and_detox():
             for i in range(len(human_starts) - 1):
                 interaction = text[human_starts[i]: human_starts[i+1]][:max_len]
                 blurb += interaction
-                if len(blurb) >= max_len:
-                    new_text.append(blurb[:2*max_len])
+                if len(blurb) >= MAX_LEN:
+                    blurb = get_sentences(blurb, length=MAX_LEN)[0]
+                    new_text.append(blurb + "\n<human>:")
                     blurb = ''
             if blurb:
-                new_text.append(blurb[:2*max_len])
+                blurb = get_sentences(blurb, length=MAX_LEN)[0]
+                new_text.append(blurb + "\n<human>:")
 
         if len(new_text) > len(text_list):
             print("Added %d new rows (before: %d)" % (len(new_text) - df.shape[0], df.shape[0]))
@@ -932,10 +990,10 @@ def test_assemble_and_detox():
         print("Dropped %d rows out of %d due to alt-profanity-check" % (before_rows - after_rows, before_rows))
         df_list.append(df)
         print("Done processing %s -> %s rows" % (data, df.shape[0]), flush=True)
-        print("So far have %d rows" % sum([len(x) for x  in df_list]))
+        print("So far have %d rows" % sum([len(x) for x in df_list]))
     df_final = pd.concat(df_list)
     df_final = df_final.sample(frac=1, random_state=1234).reset_index(drop=True)
-    df_final.to_parquet('h2oGPT.cleaned.human_bot.parquet', index=False)
+    df_final.to_parquet('h2oGPT.cleaned.human_bot.shorter.parquet', index=False)
 
 
 def test_basic_cleaning():
@@ -1070,7 +1128,7 @@ def add_deberta_grade(df):
     )
     start = 0
     batch_size = 64 * 16
-    micro_batch = orig_micro_batch = 4
+    micro_batch = orig_micro_batch = 16
     end = 0
     import socket
     checkpoint = "grades.%s.pkl" % socket.gethostname()
@@ -1112,7 +1170,7 @@ def add_deberta_grade(df):
 
 
 def test_chop_by_lengths():
-    file = "h2oGPT.cleaned.human_bot.parquet"
+    file = "h2oGPT.cleaned.human_bot.shorter.parquet"
     df = pd.read_parquet(file).reset_index(drop=True)
     df = count_human_bot_lengths(df)
     df['rand'] = np.random.rand(df.shape[0])
@@ -1132,7 +1190,7 @@ def test_chop_by_lengths():
     after_rows = df.shape[0]
     print("Chopped off %d out of %d rows due to length" % (before_rows - after_rows, before_rows))
     print(df.describe())
-    df.to_parquet('h2oGPT.cleaned.chopped.human_bot.parquet', index=False)
+    df.to_parquet('h2oGPT.cleaned.chopped.human_bot.shorter.parquet', index=False)
 
 
 def count_human_bot_lengths(df, human=None, bot=None):
@@ -1188,8 +1246,8 @@ def count_human_bot_lengths(df, human=None, bot=None):
 def test_grade():
     df = None
 
-    file = "h2oGPT.cleaned.chopped.human_bot.parquet"
-    output_file = "h2oGPT.cleaned.graded1.human_bot.parquet"
+    file = "h2oGPT.cleaned.chopped.human_bot.shorter.parquet"
+    output_file = "h2oGPT.cleaned.graded1.human_bot.shorter.parquet"
     if not os.path.exists(output_file):
         if df is None:
             df = pd.read_parquet(file).reset_index(drop=True)
@@ -1203,7 +1261,7 @@ def test_grade():
         df.to_parquet(output_file, index=False)
 
     file = output_file
-    output_file = "h2oGPT.cleaned.graded2.human_bot.parquet"
+    output_file = "h2oGPT.cleaned.graded2.human_bot.shorter.parquet"
     if not os.path.exists(output_file):
         # slower than alt-profanity, do last, but do before deberta grading, since that's slower
         if df is None:
@@ -1218,12 +1276,12 @@ def test_grade():
         df.to_parquet(output_file, index=False)
 
     file = output_file
-    output_file = 'h2oGPT.cleaned.graded3.human_bot.parquet'
+    output_file = 'h2oGPT.cleaned.graded3.human_bot.shorter.parquet'
     if not os.path.exists(output_file):
         if df is None:
             df = pd.read_parquet(file).reset_index(drop=True)
         df = add_deberta_grade(df)
-        min_grade = 0.2
+        min_grade = 0.3
         max_grade = np.inf
         before_rows = df.shape[0]
         df = df[df['grade_deberta'] >= min_grade]
@@ -1235,7 +1293,7 @@ def test_grade():
         df.to_parquet(output_file, index=False)
 
     file = output_file
-    output_file = 'h2oGPT.cleaned.graded.human_bot.parquet'
+    output_file = 'h2oGPT.cleaned.graded.human_bot.shorter.parquet'
     if df is None:
         df = pd.read_parquet(file).reset_index(drop=True)
     df.to_parquet(output_file, index=False)
@@ -1246,6 +1304,7 @@ def test_grade():
     [
         [False, False, False],
         [True, True, False],
+        [True, False, False],
         [True, False, True],
     ]
 )
@@ -1253,7 +1312,7 @@ def test_add_open_assistant(fixup_personality, only_personality, deberta_grading
     """
     Flatten tree structure into one row per path from root to leaf
     Also turn into human_bot prompting format:
-        <human>: question <bot>: answer <human>: question2 <bot>: answer2 Etc.
+        <human>: question\n<bot>: answer <human>: question2\n<bot>: answer2 Etc.
     Also saves a .json locally as side-effect
     returns list of dicts, containing intput, prompt_type and source
     """
@@ -1357,9 +1416,11 @@ def test_add_open_assistant(fixup_personality, only_personality, deberta_grading
                         conv2['message_id'] = None
         conversations = [c for c in conversations if c['message_id']]
         if only_personality:
-            all_rows.extend([dict(input=c['text'], prompt_type='plain', source=data_file) for c in conversations if 'h2oGPT' in c['text']])
+            all_rows.extend([dict(input=c['text'] + "\n<human>:", prompt_type='plain', source=data_file) for c in conversations if 'h2oGPT' in c['text']])
         else:
-            all_rows.extend([dict(input=c['text'], prompt_type='plain', source=data_file) for c in conversations if "What is H2O.ai" not in c['text']])
+            all_rows.extend([dict(input=c['text'] + "\n<human>:", prompt_type='plain', source=data_file) for c in conversations if "What is H2O.ai" not in c['text']])
+    unhelpful = get_unhelpful_list()
+    all_rows = [x for x in all_rows if not any(u in x['input'] for u in unhelpful)]
     personality = create_personality_data()
     all_rows.extend(personality * 10)
     np.random.seed(123)
@@ -1370,9 +1431,9 @@ def test_add_open_assistant(fixup_personality, only_personality, deberta_grading
         df = df.rename(columns={'input': 'text'})
         df = add_deberta_grade(df)
         df = df.rename(columns={'text': 'input'})
-        drop = False
+        drop = True
         if drop:
-            min_grade = 0.2
+            min_grade = 0.3
             max_grade = np.inf
             before_rows = df.shape[0]
             df = df[df['grade_deberta'] >= min_grade]
@@ -1396,24 +1457,22 @@ def test_add_open_assistant(fixup_personality, only_personality, deberta_grading
                     ("_h2ogpt" if fixup_personality else "") + \
                     ("_only" if only_personality else "") + \
                     ("_graded" if deberta_grading else "")
+        for i in range(len(all_rows)):
+            all_rows[i]['id'] = i
         with open(data_file.lower().replace("/", "_") + ".json", "w") as f:
             f.write(json.dumps(all_rows, indent=2))
     return all_rows
 
 
 def test_finalize_to_json():
-    df = pd.read_parquet('h2oGPT.cleaned.graded.human_bot.parquet')
+    df = pd.read_parquet('h2oGPT.cleaned.graded.human_bot.shorter.parquet')
     df = df.rename(columns={'text': 'input'})
 
     print("Number of high-quality human_bot interactions: %s" % df.shape[0], flush=True)
 
     print("Adding open assistant data")
-    open_assistant = test_add_open_assistant(
-        fixup_personality=True,  # False was original version, but it's better to personalize, so now using True
-        only_personality=False,
-        save_json=True,
-        deberta_grading=False,
-    )
+    with open("openassistant_oasst1_h2ogpt_graded.json") as f:
+        open_assistant = json.loads(f.read())
     df = pd.concat([df, pd.DataFrame(open_assistant)], axis=0)
 
     def final_clean(df):
@@ -1441,7 +1500,12 @@ def test_finalize_to_json():
         )
     np.random.seed(1234)
     np.random.shuffle(row_list)
-    with open('h2ogpt-oig-oasst1-instruct-cleaned-v2.json', "w") as f:
+    unhelpful = get_unhelpful_list()
+    row_list = [x for x in row_list if not any(u in x['input'] for u in unhelpful)]
+    for i in range(len(row_list)):
+        row_list[i]['id'] = i
+        row_list[i]['input'] = row_list[i]['input'].replace(" <bot>:", "\n<bot>:")
+    with open('h2ogpt-oig-oasst1-instruct-cleaned-v3.json', "w") as f:
         f.write(json.dumps(row_list, indent=2))
 
 
@@ -1466,28 +1530,28 @@ def create_personality_data():
     ]
     help = [
         "",
-        "How can I help you?",
-        "How may I assist you?",
-        "Nice to meet you.",
+        " How can I help you?",
+        " How may I assist you?",
+        " Nice to meet you.",
     ]
     import itertools
     rows = []
     for pair in itertools.product(questions, answers, help):
         rows.append(
-            dict(input=f"<human>: {pair[0]} <bot>: {pair[1]} {pair[2]}", prompt_type='plain', source="H2O.ai")
+            dict(input=f"<human>: {pair[0]}\n<bot>: {pair[1]}{pair[2]}\n<human>:", prompt_type='plain', source="H2O.ai")
         )
     for row in [
-        "<human>: What is H2O.ai? <bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.",
-        "<human>: What is h2o.ai? <bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.",
-        "<human>: What is H2O? <bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.",
-        "<human>: Who is h2o.ai? <bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.",
-        "<human>: who is h2o.ai? <bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.",
-        "<human>: who is h2o? <bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.",
-        "<human>: What is H2O.ai? <bot>: H2O.ai is the visionary leader in democratizing AI.",
-        "<human>: Who is H2O.ai? <bot>: H2O.ai is the visionary leader in democratizing AI.",
-        "<human>: Who is H2O? <bot>: H2O.ai is the visionary leader in democratizing AI.",
-        "<human>: Who is h2o? <bot>: H2O.ai is the visionary leader in democratizing AI.",
-        "<human>: who is h2o? <bot>: H2O.ai is the visionary leader in democratizing AI.",
+        "<human>: What is H2O.ai?\n<bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.\n<human>:",
+        "<human>: What is h2o.ai?\n<bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.\n<human>:",
+        "<human>: What is H2O?\n<bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.\n<human>:",
+        "<human>: Who is h2o.ai?\n<bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.\n<human>:",
+        "<human>: who is h2o.ai?\n<bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.\n<human>:",
+        "<human>: who is h2o?\n<bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.\n<human>:",
+        "<human>: What is H2O.ai?\n<bot>: H2O.ai is the visionary leader in democratizing AI.\n<human>:",
+        "<human>: Who is H2O.ai?\n<bot>: H2O.ai is the visionary leader in democratizing AI.\n<human>:",
+        "<human>: Who is H2O?\n<bot>: H2O.ai is the visionary leader in democratizing AI.\n<human>:",
+        "<human>: Who is h2o?\n<bot>: H2O.ai is the visionary leader in democratizing AI.\n<human>:",
+        "<human>: who is h2o?\n<bot>: H2O.ai is the visionary leader in democratizing AI.\n<human>:",
     ]:
         rows.append(dict(input=row, prompt_type='plain', source='H2O.ai'))
     print(len(rows))
@@ -1497,7 +1561,7 @@ def create_personality_data():
 
 
 def test_check_stats_data():
-    filename = 'h2ogpt-oig-oasst1-instruct-cleaned-v2.json'
+    filename = 'h2ogpt-oig-oasst1-instruct-cleaned-v3.json'
     df = pd.read_json(filename)
 
     # get word stats
@@ -1515,8 +1579,8 @@ def test_check_stats_data():
     from finetune import get_loaders, get_tokenizer, generate_and_tokenize_prompt
     from functools import partial
 
-    llama_type = True
-    tokenizer_base_model = base_model = 'decapoda-research/llama-7b-hf'
+    llama_type = False
+    tokenizer_base_model = base_model = 'h2oai/h2ogpt-oasst1-512-20b'
     model_loader, tokenizer_loader = get_loaders(llama_type=llama_type, model_name=base_model, reward_type=False)
     local_files_only = False
     resume_download = True
@@ -1524,7 +1588,7 @@ def test_check_stats_data():
     tokenizer = get_tokenizer(tokenizer_loader, tokenizer_base_model, local_files_only, resume_download, use_auth_token)
     prompt_type = 'plain'  # trained with data already in human bot form
     train_on_inputs = True
-    add_eos_token = True
+    add_eos_token = False
     cutoff_len = 512  # can choose 2048
     generate_and_tokenize_prompt_fun = partial(generate_and_tokenize_prompt, prompt_type=prompt_type,
                                                train_on_inputs=train_on_inputs, add_eos_token=add_eos_token,
@@ -1549,14 +1613,29 @@ def test_check_stats_data():
     plt.close()
 
 
-def test_check_unhelpful():
-    file = '/home/jon/Downloads/openassistant_oasst1_h2ogpt_graded.json'
-    # file = 'h2ogpt-oig-oasst1-instruct-cleaned-v2.json'
-
+def get_unhelpful_list():
     # base versions
     unhelpful = ["I'm sorry, I didn't quite understand your question, could you please rephrase it?",
                  "I'm sorry, but I don't understand your question. Could you please rephrase it?",
-                 "I'm sorry, I didn't quite understand your question",
+                 "I'm sorry, I don't quite understand your question",
+                 "I'm sorry, I don't know",
+                 "I'm sorry, but I don't know",
+                 "I don't know anything",
+                 "I do not know",
+                 "I don't know",
+                 "I don't know how",
+                 "I do not know how",
+                 "Can you please explain what you mean",
+                 "please explain what you mean",
+                 "please explain",
+                 "I'm sorry, but I don't know how to tell a story. Can you please explain what you mean by",
+                 "I'm sorry but I don't understand what you mean",
+                 "I don't understand",
+                 "I don't have the ability",
+                 "I do not have the ability",
+                 "I do not have",
+                 "I am a language model,",
+                 "I am a large language model,",
                  "I do not understand your question. Can you please try to make it clearer?",
                  "I'm sorry, but as an AI language model",
                  "I apologize, but I cannot rephrase text that I cannot understand. Your post is difficult to read and follow.",
@@ -1613,12 +1692,55 @@ def test_check_unhelpful():
                   "As an artificial intelligence I cannot",
                   "I am sorry but I do not understand",
                   "Can you please explain",
+                  "(sorry couldn't resist)",
+                  "(sorry could not resist)",
+                  " :)",
+                  " ;)",
+                  " :-)",
+                  " ;-)",
+                  " lol ",
+                  "Thanks so much!!!",
+                  "Thank You :)!!!",
+                  "Please try not to repeat",
+                  "I am an AI language model",
+                  "I'm a AI assistant that",
+                  "I'm an AI assistant that",
+                  "I am an AI assistant that",
                   "etc.",
                   "etc.etc.",
                   "etc. etc.",
                   "etc etc",
                   ]
-    data = json.load(open(file, 'rt'))
+    return unhelpful
+
+
+def test_check_unhelpful():
+    # file = '/home/jon/Downloads/openassistant_oasst1_h2ogpt_graded.json'
+    file = '/home/jon/Downloads/openassistant_oasst1_h2ogpt_grades.json'
+    # file = 'h2ogpt-oig-oasst1-instruct-cleaned-v2.json'
+
+    unhelpful = get_unhelpful_list()
+    #data = json.load(open(file, 'rt'))
+    df = pd.read_json(file)
+
+    use_reward_score_threshold = False
+    use_bleu_threshold = False
+    use_sentence_sim = True
+
+    from sacrebleu.metrics import BLEU
+    bleu = BLEU()
+    from nltk.translate.bleu_score import sentence_bleu
+
+    def get_bleu(actual, expected_list):
+        #return bleu.sentence_score(actual, expected_list).score
+        return sentence_bleu(expected_list, actual)
+
+    threshold = 0.0
+    if use_reward_score_threshold:
+        df = df[df['grade_deberta'] > threshold]
+
+    # back to as if original json load
+    data = df.to_dict(orient='records')
     bads = {}
     string_all = str(data)
     for sub in unhelpful:
@@ -1637,6 +1759,23 @@ def test_check_unhelpful():
     humans = [[x for i, x in enumerate(y) if i % 2 == 0] for y in convs]
     bots = [[x for i, x in enumerate(y) if i % 2 == 1] for y in convs]
 
+    # FIXME: apply back to json etc., just see for now
+    bleu_threshold = 0.9
+    if use_bleu_threshold:
+        bots = [[x for x in y if get_bleu(x, unhelpful) < bleu_threshold] for y in tqdm(bots)]
+
+    cosine_sim_threshold = 0.8
+    if use_sentence_sim:
+        # pip install sentence_transformers-2.2.2
+        from sentence_transformers import SentenceTransformer
+        # sent_model = 'bert-base-nli-mean-tokens'
+        #sent_model = 'nli-distilroberta-base-v2'
+        sent_model = 'all-MiniLM-L6-v2'
+        model = SentenceTransformer(sent_model)
+        sentence_embeddings = model.encode(unhelpful)
+        from sklearn.metrics.pairwise import cosine_similarity
+        bots = [x for x in tqdm(bots) if np.max(cosine_similarity(model.encode(x), sentence_embeddings)) < cosine_sim_threshold]
+
     bads_bots = {}
     string_all = str(bots)
     for sub in unhelpful:
@@ -1647,7 +1786,32 @@ def test_check_unhelpful():
     pp.pprint(bads_bots)
 
     total_bads_bots = sum(list(bads_bots.values()))
-    print('total_bads_bots: %s' % total_bads_bots, flush=True)
+    print('threshold: %g use_bleu_threshold: %g total_bads_bots: %s total_bots: %s total_humans: %s' % (threshold, use_bleu_threshold, total_bads_bots, len(bots), len(humans)), flush=True)
 
     # assert len(bads) == 0, bads
     assert len(bads_bots) == 0, bads_bots
+
+
+def test_fortune2000_personalized():
+    row_list = []
+    import glob
+    if not os.path.isdir("wikitext"):
+        raise RuntimeError("download https://github.com/h2oai/h2ogpt/files/11423008/wikitext.zip and unzip")
+    for file in glob.glob("wikitext/*.txt"):
+        with open(file, "r") as f:
+            blob = f.read()
+        N = 512 * 4
+        row_list.extend([{'input': s, 'prompt_type': 'plain', 'source': "%s" % os.path.basename(file)}
+                         for s in get_sentences(blob, N) if s])
+    personality = create_personality_data()
+    import copy
+    for i in range(10):
+        row_list.extend(copy.deepcopy(personality))
+    np.random.seed(123)
+    np.random.shuffle(row_list)
+    for i in range(len(row_list)):
+        row_list[i]['id'] = i
+    for i in range(len(row_list)):
+        assert row_list[i]['id'] == i
+    with open("h2ogpt-fortune2000-personalized.json", "w") as ff:
+        ff.write(json.dumps(row_list, indent=2))

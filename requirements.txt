@@ -1,13 +1,13 @@
 # for generate (gradio server) and finetune
-datasets==2.11.0
+datasets==2.12.0
 sentencepiece==0.1.97
 accelerate==0.18.0
-gradio==3.27.0
-huggingface_hub==0.13.4
+gradio==3.29.0
+huggingface_hub==0.14.1
 appdirs==1.4.4
 fire==0.5.0
 docutils==0.19
-torch==2.0.0
+torch==2.0.1
 evaluate==0.4.0
 rouge_score==0.1.2
 sacrebleu==2.3.1
@@ -19,7 +19,7 @@ pandas==2.0.0
 matplotlib==3.7.1
 loralib==0.1.1
 bitsandbytes==0.38.1
-git+https://github.com/huggingface/peft.git@e8f66b8a425eced6c592089d40b8d33d82c2b2f0
+git+https://github.com/huggingface/peft.git@098962fa6515f2e4fe83a757f5995d3ffbb1c373
 transformers==4.28.1
 tokenizers==0.13.3
 APScheduler==3.10.1
@@ -35,7 +35,7 @@ tensorboard==2.12.1
 neptune==1.1.1
 
 # for gradio client
-gradio_client==0.1.3
+gradio_client==0.2.2
 beautifulsoup4==4.12.2
 markdown==3.4.1
 
@@ -45,7 +45,8 @@ pytest-xdist==3.2.1
 nltk==3.8.1
 textstat==0.7.3
 pandoc==2.3
-pypandoc==1.11
+#pypandoc==1.11
+pypandoc_binary==1.11
 openpyxl==3.1.2
 lm_dataformat==0.0.20
 bioc==2.0

@@ -53,13 +53,16 @@ def get_client():
 
 
 def test_client_basic():
+    return run_client_basic(instruction_nochat='Who are you?', prompt_type='human_bot')
+
+
+def run_client_basic(instruction_nochat, prompt_type):
     instruction = ''  # only for chat=True
     iinput = ''  # only for chat=True
     context = ''
     # streaming output is supported, loops over and outputs each generation in streaming mode
     # but leave stream_output=False for simple input/output mode
     stream_output = False
-    prompt_type = 'human_bot'
     temperature = 0.1
     top_p = 0.75
     top_k = 40
@@ -73,8 +76,8 @@ def test_client_basic():
     do_sample = True
     # only these 2 below used if pass chat=False
     chat = False
-    instruction_nochat = "Who are you?"
     iinput_nochat = ''
+    langchain_mode = 'Disabled'
 
     args = [instruction,
             iinput,
@@ -95,6 +98,7 @@ def test_client_basic():
             chat,
             instruction_nochat,
             iinput_nochat,
+            langchain_mode,
             ]
     api_name = '/submit_nochat'
     client = get_client()
@@ -112,6 +116,7 @@ from bs4 import BeautifulSoup  # pip install beautifulsoup4
 
 
 def md_to_text(md):
+    assert md is not None, "Markdown is None"
     html = markdown.markdown(md)
     soup = BeautifulSoup(html, features='html.parser')
     return soup.get_text()

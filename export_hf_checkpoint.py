@@ -7,9 +7,13 @@ from peft import PeftModel
 from transformers import PreTrainedModel
 from finetune import get_loaders
 
-BASE_MODEL = 'decapoda-research/llama-30b-hf'
-LORA_WEIGHTS = 'llama-30b-hf.h2oaiopenassistant_oasst1_h2ogpt.8.0_epochs.31eef248d53c9f39e51c60b8b030c1e3cafc34b0.llama30b_7'
-OUTPUT_NAME = "h2ogpt-research-oasst1-512-30b"
+BASE_MODEL = 'h2oai/h2ogpt-oasst1-512-12b'
+LORA_WEIGHTS = 'h2ogpt-oasst1-512-12b.h2oaih2ogpt-oig-oasst1-instruct-cleaned-v3.1_epochs.805b8e8eff369207340a5a6f90f3c833f9731254.2'
+OUTPUT_NAME = "h2ogpt-oig-oasst1-512-12b"
+BASE_MODEL = 'EleutherAI/pythia-12b-deduped'
+LORA_WEIGHTS = 'pythia-12b-deduped.h2oaiopenassistant_oasst1_h2ogpt_graded.3_epochs.2ccf687ea3f3f3775a501838e81c1a0066430455.4'
+OUTPUT_NAME = "h2ogpt-oasst1-512-12b"
+
 llama_type = "llama" in BASE_MODEL
 as_pytorch = False  # False -> HF
 

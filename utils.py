@@ -270,16 +270,18 @@ class ThreadException(Exception):
 class EThread(threading.Thread):
     # Function that raises the custom exception
     def __init__(self, group=None, target=None, name=None,
-                 args=(), kwargs=None, *, daemon=None, bucket=None):
+                 args=(), kwargs=None, *, daemon=None, streamer=None, bucket=None):
         self.bucket = bucket
-        self.streamer = kwargs.get('streamer')
+        self.streamer = streamer
         self.exc = None
+        self._return = None
         super().__init__(group=group, target=target, name=name, args=args, kwargs=kwargs, daemon=daemon)
 
     def run(self):
         # Variable that stores the exception, if raised by someFunction
         try:
-            super().run()
+            if self._target is not None:
+                self._return = self._target(*self._args, **self._kwargs)
         except BaseException as e:
             print("thread exception: %s" % str(sys.exc_info()))
             self.bucket.put(sys.exc_info())
@@ -287,6 +289,10 @@ class EThread(threading.Thread):
             if self.streamer:
                 print("make stop: %s" % str(sys.exc_info()), flush=True)
                 self.streamer.do_stop = True
+        finally:
+            # Avoid a refcycle if the thread is running a function with
+            # an argument that has a member that points to the thread.
+            del self._target, self._args, self._kwargs
 
     def join(self, timeout=None):
         threading.Thread.join(self)
@@ -295,3 +301,20 @@ class EThread(threading.Thread):
         # if any was caught
         if self.exc:
             raise self.exc
+        return self._return
+
+
+def import_matplotlib():
+    import matplotlib
+    matplotlib.use('agg')
+    # KEEP THESE HERE! START
+    import matplotlib.pyplot as plt
+    import pandas as pd
+    # to avoid dlopen deadlock in fork
+    import pandas.core.computation.expressions as pd_expressions
+    import pandas._libs.groupby as pd_libgroupby
+    import pandas._libs.reduction as pd_libreduction
+    import pandas.core.algorithms as pd_algorithms
+    import pandas.core.common as pd_com
+    import numpy as np
+    # KEEP THESE HERE! END
