@@ -5,7 +5,7 @@ Make sure you have followed the [native installation instructions](INSTALL.md).
 
 ### Fine-tuning vs Pre-training
 
-- Pre-training (typically on TBs of data) gives the LLM the ability to master one or many languages. Pre-training usually takes weeks or months on dozens of hundreds of GPUs. The most common concern is underfitting and cost.
+- Pre-training (typically on TBs of data) gives the LLM the ability to master one or many languages. Pre-training usually takes weeks or months on dozens or hundreds of GPUs. The most common concern is underfitting and cost.
 - Fine-tuning (typically on MBs or GBs of data) makes a model more familiar with a specific style of prompting, which generally leads to improved outcomes for this one specific case. The most common concern is overfitting. Fine-tuning usually takes hours or days on a few GPUs.
 
 
