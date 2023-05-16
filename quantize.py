@@ -1,5 +1,7 @@
 import os
 
+import torch
+from h2oai_pipeline import H2OTextGenerationPipeline
 from transformers import AutoTokenizer, TextGenerationPipeline
 from auto_gptq import AutoGPTQForCausalLM, BaseQuantizeConfig
 
@@ -38,15 +40,15 @@ def main():
         model.save_quantized(quantized_model_dir, use_safetensors=True)
 
     # load quantized model, currently only support cpu or single gpu
-    device = 'cuda:0'
-    model = AutoGPTQForCausalLM.from_quantized(quantized_model_dir, use_triton=False, device=device)
+    with torch.device(device='cuda:0'):
+        model = AutoGPTQForCausalLM.from_quantized(quantized_model_dir, use_triton=True)
 
-    # inference with model.generate
-    print(tokenizer.decode(model.generate(**tokenizer("the best thing to do is", return_tensors="pt").to_device(device))[0]))
+        # inference with model.generate
+        print(tokenizer.decode(model.generate(**tokenizer("the best thing to do is", return_tensors="pt"), max_new_tokens=100)[0]))
 
-    # or you can also use pipeline
-    pipeline = TextGenerationPipeline(model=model, tokenizer=tokenizer, device=device)
-    print(pipeline("the best thing to do is")[0]["generated_text"])
+        # or you can also use pipeline
+        pipeline = H2OTextGenerationPipeline(model=model, tokenizer=tokenizer)
+        print(pipeline("the best thing to do is")[0]["generated_text"])
 
 
 if __name__ == "__main__":

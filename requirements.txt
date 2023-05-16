@@ -52,4 +52,5 @@ lm_dataformat==0.0.20
 bioc==2.0
 
 # quantization
-auto-gptq[triton]==0.1.0
+#auto-gptq[triton]==0.1.0
+git+https://github.com/PanQiWei/AutoGPTQ.git@570867c109201ea78097280688e27d450d30a573

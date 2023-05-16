@@ -693,7 +693,7 @@ def get_model(
             model_kwargs.update(dict(device_map={"": gpu_id} if device == 'cuda' else "cpu"))
 
         if 'OpenAssistant/reward-model'.lower() in base_model.lower():
-            # could put on other GPUs
+            # FIXME: could put on other GPUs
             model_kwargs['device_map'] = {"": 0} if device == 'cuda' else {"": 'cpu'}
             model_kwargs.pop('torch_dtype', None)
 
