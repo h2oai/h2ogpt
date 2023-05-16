@@ -24,9 +24,8 @@ For questions, discussing, or just hanging out, come and join our <a href="https
 - **API** for client-server control
 
 <img src="langchain.png" alt="VectorDB" title="VectorDB via LangChain">
-https://www.youtube.com/watch?v=1JLi0ioz_XM
 
-https://user-images.githubusercontent.com/6147661/232924684-6c0e2dfb-2f24-4098-848a-c3e4396f29f6.mov
+<iframe width="1280" height="720" src="https://www.youtube.com/embed/1JLi0ioz_XM" title="Private GPT ChatBot from H2O.ai&#39;s h2oGPT" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
 
 ### Apache V2 Data Preparation code, Training code, and Models
 
@@ -36,6 +35,8 @@ https://user-images.githubusercontent.com/6147661/232924684-6c0e2dfb-2f24-4098-8
 - **LORA** (low-rank approximation) efficient 8-bit and 16-bit fine-tuning and generation
 - **Large** (up to 65B parameters) models built on commodity or enterprise GPUs (single or multi node)
 - **Evaluate** performance using RLHF-based reward models
+
+https://user-images.githubusercontent.com/6147661/232924684-6c0e2dfb-2f24-4098-848a-c3e4396f29f6.mov
 
 All open-source datasets and models are posted on [🤗 H2O.ai's Hugging Face page](https://huggingface.co/h2oai/).
 
