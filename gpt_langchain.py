@@ -25,9 +25,10 @@ from langchain import PromptTemplate
 from langchain.vectorstores import Chroma
 
 
-def get_db(sources, use_openai_embedding=False, db_type='faiss', persist_directory="db_dir", langchain_mode='notset'):
+def get_db(sources, use_openai_embedding=False, db_type='faiss', persist_directory="db_dir", langchain_mode='notset',
+           hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2"):
     # get embedding model
-    embedding = get_embedding(use_openai_embedding)
+    embedding = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model)
 
     # Create vector database
     if db_type == 'faiss':
@@ -63,7 +64,7 @@ def add_to_db(db, sources, db_type='faiss'):
     return db
 
 
-def get_embedding(use_openai_embedding):
+def get_embedding(use_openai_embedding, hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2"):
     # Get embedding model
     if use_openai_embedding:
         assert os.getenv("OPENAI_API_KEY") is not None, "Set ENV OPENAI_API_KEY"
@@ -72,10 +73,9 @@ def get_embedding(use_openai_embedding):
     else:
         from langchain.embeddings import HuggingFaceEmbeddings
 
-        model_name = "sentence-transformers/all-MiniLM-L6-v2"
         device, torch_dtype, context_class = get_device_dtype()
         model_kwargs = dict(device=device)
-        embedding = HuggingFaceEmbeddings(model_name=model_name, model_kwargs=model_kwargs)
+        embedding = HuggingFaceEmbeddings(model_name=hf_embedding_model, model_kwargs=model_kwargs)
     return embedding
 
 
@@ -357,7 +357,8 @@ def path_to_docs(path, verbose=False, fail_any_exception=False):
                 yield res
 
 
-def prep_langchain(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode, user_path):
+def prep_langchain(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode, user_path,
+                   hf_embedding_model):
     """
     do prep first time, involving downloads
     # FIXME: Add github caching then add here
@@ -367,7 +368,8 @@ def prep_langchain(persist_directory, load_db_if_exists, db_type, use_openai_emb
 
     if os.path.isdir(persist_directory):
         print("Prep: persist_directory=%s exists, using" % persist_directory, flush=True)
-        db = get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode)
+        db = get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
+                             hf_embedding_model)
     else:
         print("Prep: persist_directory=%s does not exist, regenerating" % persist_directory, flush=True)
         db = None
@@ -380,30 +382,18 @@ def prep_langchain(persist_directory, load_db_if_exists, db_type, use_openai_emb
             for first_para in [True, False]:
                 get_wiki_sources(first_para=first_para, text_limit=text_limit)
 
-        langchain_kwargs = get_db_kwargs(langchain_mode)
-        langchain_kwargs.update(locals())
+        langchain_kwargs = locals()
         db = make_db(**langchain_kwargs)
 
     return db
 
 
-def get_db_kwargs(langchain_mode):
-    return dict(chunk=True,  # chunking with small chunk_size hurts accuracy esp. if k small
-                # chunk = False  # chunking with small chunk_size hurts accuracy esp. if k small
-                chunk_size=128 * 4,  # FIXME
-                first_para=False,
-                text_limit=None,
-                # db_type = 'faiss',
-                db_type='chroma',
-                sanitize_bot_response=True,
-                langchain_mode=langchain_mode)
-
-
-def get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode):
+def get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
+                    hf_embedding_model):
     if load_db_if_exists and db_type == 'chroma' and os.path.isdir(persist_directory) and os.path.isdir(
             os.path.join(persist_directory, 'index')):
         print("DO Loading db", flush=True)
-        embedding = get_embedding(use_openai_embedding)
+        embedding = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model)
         db = Chroma(persist_directory=persist_directory, embedding_function=embedding,
                     collection_name=langchain_mode.replace(' ', '_'))
         print("DONE Loading db", flush=True)
@@ -427,6 +417,7 @@ def make_db(**langchain_kwargs):
 
 
 def _make_db(use_openai_embedding=False,
+             hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
              first_para=False, text_limit=None, chunk=False, chunk_size=1024,
              langchain_mode=None,
              user_path=None,
@@ -438,7 +429,7 @@ def _make_db(use_openai_embedding=False,
             os.path.join(persist_directory, 'index')):
         assert langchain_mode not in ['MyData'], "Should not load MyData db this way"
         print("Loading db", flush=True)
-        embedding = get_embedding(use_openai_embedding)
+        embedding = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model)
         db = Chroma(persist_directory=persist_directory, embedding_function=embedding,
                     collection_name=langchain_mode.replace(' ', '_'))
     elif not db:
@@ -489,7 +480,8 @@ def _make_db(use_openai_embedding=False,
             return None
         print("Generating db", flush=True)
         db = get_db(sources, use_openai_embedding=use_openai_embedding, db_type=db_type,
-                    persist_directory=persist_directory, langchain_mode=langchain_mode)
+                    persist_directory=persist_directory, langchain_mode=langchain_mode,
+                    hf_embedding_model=hf_embedding_model)
     return db
 
 
@@ -497,26 +489,37 @@ source_prefix = "Sources [Score | Link]:"
 source_postfix = "End Sources<p>"
 
 
-def run_qa_db(query=None,
-              use_openai_model=False, use_openai_embedding=False,
-              first_para=False, text_limit=None, k=4, chunk=False, chunk_size=1024,
-              wiki=False, github=False, dai_rst=False, urls=False, wiki_full=True, all=None,
-              user_path=None, split_method='chunk',
-              db_type='faiss',
-              model_name=None, model=None, tokenizer=None,
-              stream_output=False,
-              prompter=None,
-              answer_with_sources=True,
-              cut_distanct=1.1,
-              sanitize_bot_response=True,
-              do_yield=False,
-              show_rank=False,
-              load_db_if_exists=False,
-              limit_wiki_full=5000000,
-              min_views=1000,
-              db=None,
-              max_new_tokens=256,
-              langchain_mode=None):
+def run_qa_db(**kwargs):
+    func_names = list(inspect.signature(_run_qa_db).parameters)
+    # hard-coded defaults
+    kwargs['answer_with_sources'] = True
+    kwargs['sanitize_bot_response'] = True
+    kwargs['show_rank'] = False
+    missing_kwargs = [x for x in func_names if x not in kwargs]
+    assert not missing_kwargs, "Missing kwargs: %s" % missing_kwargs
+    # only keep actual used
+    kwargs = {k: v for k, v in kwargs.items() if k in func_names}
+    return _run_qa_db(**kwargs)
+
+
+def _run_qa_db(query=None,
+               use_openai_model=False, use_openai_embedding=False,
+               first_para=False, text_limit=None, k=4, chunk=False, chunk_size=1024,
+               user_path=None,
+               db_type='faiss',
+               model_name=None, model=None, tokenizer=None,
+               hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
+               stream_output=False,
+               prompter=None,
+               answer_with_sources=True,
+               cut_distanct=1.1,
+               sanitize_bot_response=True,
+               do_yield=False,
+               show_rank=False,
+               load_db_if_exists=False,
+               db=None,
+               max_new_tokens=256,
+               langchain_mode=None):
     """
 
     :param query:
@@ -531,7 +534,6 @@ def run_qa_db(query=None,
     :param github: bool if using github
     :param dai_rst: bool if using dai RST files
     :param user_path: user path to glob recursively from
-    :param split_method: split method for PDF inputs
     :param db_type: 'faiss' for in-memory db or 'chroma' for persistent db
     :param model_name: model name, used to switch behaviors
     :param model: pre-initialized model, else will make new one
@@ -712,11 +714,11 @@ def get_db_from_hf(dest=".", db_dir='db_dir_DriverlessAI_docs.zip'):
 
 # Note dir has space in some cases, while zip does not
 some_db_zips = [['db_dir_DriverlessAI_docs.zip', 'db_dir_DriverlessAI docs', 'CC-BY-NC license'],
-           ['db_dir_UserData.zip', 'db_dir_UserData', 'CC-BY license for ArXiv'],
-           ['db_dir_github_h2oGPT.zip', 'db_dir_github h2oGPT', 'ApacheV2 license'],
-           ['db_dir_wiki.zip', 'db_dir_wiki', 'CC-BY-SA Wikipedia license'],
-           # ['db_dir_wiki_full.zip', 'db_dir_wiki_full.zip', '23GB, 05/04/2023 CC-BY-SA Wiki license'],
-           ]
+                ['db_dir_UserData.zip', 'db_dir_UserData', 'CC-BY license for ArXiv'],
+                ['db_dir_github_h2oGPT.zip', 'db_dir_github h2oGPT', 'ApacheV2 license'],
+                ['db_dir_wiki.zip', 'db_dir_wiki', 'CC-BY-SA Wikipedia license'],
+                # ['db_dir_wiki_full.zip', 'db_dir_wiki_full.zip', '23GB, 05/04/2023 CC-BY-SA Wiki license'],
+                ]
 
 all_db_zips = some_db_zips + \
               [['db_dir_wiki_full.zip', 'db_dir_wiki_full.zip', '23GB, 05/04/2023 CC-BY-SA Wiki license'],

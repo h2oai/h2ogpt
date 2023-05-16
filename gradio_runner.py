@@ -37,6 +37,7 @@ def go_gradio(**kwargs):
     allow_upload_to_my_data = kwargs['allow_upload_to_my_data']
     allow_upload = allow_upload_to_user_data or allow_upload_to_my_data
     use_openai_embedding = kwargs['use_openai_embedding']
+    hf_embedding_model = kwargs['hf_embedding_model']
 
     # easy update of kwargs needed for evaluate() etc.
     kwargs.update(locals())
@@ -444,11 +445,15 @@ def go_gradio(**kwargs):
         upload_button.upload(upload_file, upload_button, fileup_output)
 
         update_user_db_func = functools.partial(update_user_db, dbs=dbs, db_type=db_type, langchain_mode='UserData',
-                                                use_openai_embedding=use_openai_embedding)
+                                                use_openai_embedding=use_openai_embedding,
+                                                hf_embedding_model=hf_embedding_model,
+                                                )
         add_to_shared_db_btn.click(update_user_db_func, inputs=[fileup_output, my_db_state])
 
         update_user_db_func_my = functools.partial(update_user_db, dbs=dbs, db_type=db_type, langchain_mode='MyData',
-                                                   use_openai_embedding=use_openai_embedding)
+                                                   use_openai_embedding=use_openai_embedding,
+                                                   hf_embedding_model=hf_embedding_model,
+                                                   )
 
         def clear_file_list():
             return None
@@ -1046,7 +1051,8 @@ def get_inputs_list(inputs_dict, model_lower):
     return inputs_list
 
 
-def update_user_db(file, db1, dbs=None, db_type=None, langchain_mode='UserData', use_openai_embedding=False):
+def update_user_db(file, db1, dbs=None, db_type=None, langchain_mode='UserData', use_openai_embedding=False,
+                   hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2"):
     assert isinstance(dbs, dict), "Wrong type for dbs: %s" % str(type(dbs))
     assert db_type in ['faiss', 'chroma'], "db_type %s not supported" % db_type
     from gpt_langchain import add_to_db, file_to_doc, get_db
@@ -1066,7 +1072,8 @@ def update_user_db(file, db1, dbs=None, db_type=None, langchain_mode='UserData',
                 db1[0] = get_db(sources, use_openai_embedding=use_openai_embedding,
                                 db_type=db_type,
                                 persist_directory=persist_directory,
-                                langchain_mode=langchain_mode)
+                                langchain_mode=langchain_mode,
+                                hf_embedding_model=hf_embedding_model)
             return db1
         else:
             persist_directory = 'db_dir_%s' % langchain_mode
@@ -1078,6 +1085,7 @@ def update_user_db(file, db1, dbs=None, db_type=None, langchain_mode='UserData',
                 db = get_db(sources, use_openai_embedding=use_openai_embedding,
                             db_type=db_type,
                             persist_directory=persist_directory,
-                            langchain_mode=langchain_mode)
+                            langchain_mode=langchain_mode,
+                            hf_embedding_model=hf_embedding_model)
                 dbs[langchain_mode] = db
             return dbs[langchain_mode]

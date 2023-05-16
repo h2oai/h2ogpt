@@ -76,12 +76,13 @@ To build the database first, then run generate after, do:
 python make_db.py
 python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6.9b --langchain_mode=UserData
 ```
-To use some example databases and run generate after, do:
+One can also add to the db using `make_db.py`.
+To use some example databases (will overwrite UserData make above unless change options) and run generate after, do:
 ```bash
 python make_db.py --download_some=True
 python generate.py --base_model=h2oai/h2ogpt-oasst1-512-12b --load_8bit=True --langchain_mode=UserData --visible_langchain_modes="['UserData', 'wiki', 'MyData', 'github h2oGPT', 'DriverlessAI docs']"
 ```
-which downloads example databases used by h2oGPT [generate.py](generate.py).  This obtains files from some [pre-generated databases](https://huggingface.co/datasets/h2oai/db_dirs).  A large Wikipedia database is also available.
+which downloads example databases.  This obtains files from some [pre-generated databases](https://huggingface.co/datasets/h2oai/db_dirs).  A large Wikipedia database is also available.
 
 For help installing a Python 3.10 environment or CUDA toolkit or installing flash attention support, see the [installation instructions](INSTALL.md)
 
