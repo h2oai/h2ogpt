@@ -1477,7 +1477,7 @@ def test_finalize_to_json():
 
     def final_clean(df):
         from better_profanity import profanity
-        profanity.load_censor_words_from_file("censor_words.txt")
+        profanity.load_censor_words_from_file("data/censor_words.txt")
         df['profanity'] = parallel_apply(
             df['input'],
             lambda x: profanity.contains_profanity(x),
