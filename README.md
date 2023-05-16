@@ -24,6 +24,7 @@ For questions, discussing, or just hanging out, come and join our <a href="https
 - **API** for client-server control
 
 <img src="langchain.png" alt="VectorDB" title="VectorDB via LangChain">
+https://www.youtube.com/watch?v=1JLi0ioz_XM
 
 https://user-images.githubusercontent.com/6147661/232924684-6c0e2dfb-2f24-4098-848a-c3e4396f29f6.mov
 
