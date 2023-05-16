@@ -4,8 +4,9 @@ import tempfile
 import pytest
 from langchain.chains.qa_with_sources import load_qa_with_sources_chain
 
-from gpt_langchain import run_qa_db, get_wiki_sources, get_llm, get_answer_from_sources, get_dai_pickle, \
-    get_some_dbs_from_hf
+from gpt_langchain import get_wiki_sources, get_llm, get_answer_from_sources, get_dai_pickle, \
+    get_some_dbs_from_hf, _run_qa_db
+from make_db import make_db_main
 
 have_openai_key = os.environ.get('OPENAI_API_KEY') is not None
 
@@ -38,78 +39,75 @@ def run_qa_wiki(use_openai_model=False, first_para=True, text_limit=None, chain_
 
 @pytest.mark.skipif(not have_openai_key, reason="requires OpenAI key to run")
 def test_qa_wiki_db_openai():
-    return run_qa_db(use_openai_model=True, use_openai_embedding=True, text_limit=None, wiki=True)
+    return _run_qa_db(use_openai_model=True, use_openai_embedding=True, text_limit=None, langchain_mode='wiki')
 
 
 def test_qa_wiki_db_hf():
     # if don't chunk, still need to limit
     # but this case can handle at least more documents, by picking top k
     # FIXME: but spitting out garbage answer right now, all fragmented, or just 1-word answer
-    return run_qa_db(use_openai_model=False, use_openai_embedding=False, text_limit=256, wiki=True)
+    return _run_qa_db(use_openai_model=False, use_openai_embedding=False, text_limit=256, langchain_mode='wiki')
 
 
 def test_qa_wiki_db_chunk_hf():
-    return run_qa_db(use_openai_model=False, use_openai_embedding=False, text_limit=256, chunk=True, chunk_size=256,
-                     wiki=True)
+    return _run_qa_db(use_openai_model=False, use_openai_embedding=False, text_limit=256, chunk=True, chunk_size=256,
+                      langchain_mode='wiki')
 
 
 @pytest.mark.skipif(not have_openai_key, reason="requires OpenAI key to run")
 def test_qa_wiki_db_chunk_openai():
     # don't need 256, just seeing how compares to hf
-    return run_qa_db(use_openai_model=True, use_openai_embedding=True, text_limit=256, chunk=True, chunk_size=256,
-                     wiki=True)
+    return _run_qa_db(use_openai_model=True, use_openai_embedding=True, text_limit=256, chunk=True, chunk_size=256,
+                      langchain_mode='wiki')
 
 
 @pytest.mark.skipif(not have_openai_key, reason="requires OpenAI key to run")
 def test_qa_github_db_chunk_openai():
     # don't need 256, just seeing how compares to hf
     query = "what is a software defined asset"
-    return run_qa_db(query=query, use_openai_model=True, use_openai_embedding=True, text_limit=256, chunk=True,
-                     chunk_size=256, github=True)
+    return _run_qa_db(query=query, use_openai_model=True, use_openai_embedding=True, text_limit=256, chunk=True,
+                      chunk_size=256, langchain_mode='github h2oGPT')
 
 
 def test_qa_daidocs_db_chunk_hf():
     # FIXME: doesn't work well with non-instruct-tuned Cerebras
     query = "Which config.toml enables pytorch for NLP?"
-    return run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=None, chunk=True,
-                     chunk_size=128, wiki=False,
-                     dai_rst=True)
+    return _run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=None, chunk=True,
+                      chunk_size=128, langchain_mode='DriverlessAI docs')
 
 
 def test_qa_daidocs_db_chunk_hf_faiss():
     query = "Which config.toml enables pytorch for NLP?"
     # chunk_size is chars for each of k=4 chunks
-    return run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=None, chunk=True,
-                     chunk_size=128 * 1,  # characters, and if k=4, then 4*4*128 = 2048 chars ~ 512 tokens
-                     wiki=False,
-                     dai_rst=True,
-                     db_type='faiss',
-                     )
+    return _run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=None, chunk=True,
+                      chunk_size=128 * 1,  # characters, and if k=4, then 4*4*128 = 2048 chars ~ 512 tokens
+                      langchain_mode='DriverlessAI docs',
+                      db_type='faiss',
+                      )
 
 
 def test_qa_daidocs_db_chunk_hf_chroma():
     query = "Which config.toml enables pytorch for NLP?"
     # chunk_size is chars for each of k=4 chunks
-    return run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=None, chunk=True,
-                     chunk_size=128 * 1,  # characters, and if k=4, then 4*4*128 = 2048 chars ~ 512 tokens
-                     wiki=False,
-                     dai_rst=True,
-                     db_type='chroma',
-                     )
+    return _run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=None, chunk=True,
+                      chunk_size=128 * 1,  # characters, and if k=4, then 4*4*128 = 2048 chars ~ 512 tokens
+                      langchain_mode='DriverlessAI docs',
+                      db_type='chroma',
+                      )
 
 
 @pytest.mark.skipif(not have_openai_key, reason="requires OpenAI key to run")
 def test_qa_daidocs_db_chunk_openai():
     query = "Which config.toml enables pytorch for NLP?"
-    return run_qa_db(query=query, use_openai_model=True, use_openai_embedding=True, text_limit=256, chunk=True,
-                     chunk_size=256, wiki=False, dai_rst=True)
+    return _run_qa_db(query=query, use_openai_model=True, use_openai_embedding=True, text_limit=256, chunk=True,
+                      chunk_size=256, langchain_mode='DriverlessAI docs')
 
 
 @pytest.mark.skipif(not have_openai_key, reason="requires OpenAI key to run")
 def test_qa_daidocs_db_chunk_openaiembedding_hfmodel():
     query = "Which config.toml enables pytorch for NLP?"
-    return run_qa_db(query=query, use_openai_model=False, use_openai_embedding=True, text_limit=None, chunk=True,
-                     chunk_size=128, wiki=False, dai_rst=True)
+    return _run_qa_db(query=query, use_openai_model=False, use_openai_embedding=True, text_limit=None, chunk=True,
+                      chunk_size=128, langchain_mode='DriverlessAI docs')
 
 
 def test_get_dai_pickle():
@@ -121,6 +119,39 @@ def test_get_dai_pickle():
 def test_get_dai_db_dir():
     with tempfile.TemporaryDirectory() as tmpdirname:
         get_some_dbs_from_hf(tmpdirname)
+
+
+def test_make_add_db():
+    with tempfile.TemporaryDirectory() as tmp_persistent_directory:
+        with tempfile.TemporaryDirectory() as tmp_user_path:
+            msg1 = "Hello World"
+            test_file1 = os.path.join(tmp_user_path, 'test.txt')
+            with open(test_file1, "wt") as f:
+                f.write(msg1)
+            db = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path)
+            assert db is not None
+            docs = db.similarity_search("World")
+            assert len(docs) == 1
+            assert docs[0].page_content == msg1
+            assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+
+        # now add using new source path, to original persisted
+        with tempfile.TemporaryDirectory() as tmp_user_path:
+            msg2 = "Jill ran up the hill"
+            test_file2 = os.path.join(tmp_user_path, 'test2.txt')
+            with open(test_file2, "wt") as f:
+                f.write(msg2)
+            db = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path, add_if_exists=True)
+            assert db is not None
+            docs = db.similarity_search("World")
+            assert len(docs) == 2
+            assert docs[0].page_content == msg1
+            assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+
+            docs = db.similarity_search("Jill")
+            assert len(docs) == 2
+            assert docs[0].page_content == msg2
+            assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file2)
 
 
 if __name__ == '__main__':

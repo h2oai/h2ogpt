@@ -1,6 +1,7 @@
 import ast
 import functools
 import glob
+import inspect
 import queue
 import shutil
 import sys
@@ -116,8 +117,13 @@ def main(
         keep_sources_in_context: bool = False,
         db_type: str = 'chroma',
         use_openai_embedding: bool = False,
+        use_openai_model: bool = False,
+        hf_embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2",
         allow_upload_to_user_data: bool = True,
         allow_upload_to_my_data: bool = True,
+        chunk: bool = True,
+        chunk_size: int = 512,
+        k: int = 4,
 ):
     """
 
@@ -189,8 +195,13 @@ def main(
     :param keep_sources_in_context: Whether to keep url sources in context, not helpful usually
     :param db_type: 'faiss' for in-memory or 'chroma' for persisted on disk
     :param use_openai_embedding: Whether to use OpenAI embeddings for vector db
+    :param use_openai_model: Whether to use OpenAI model for use with vector db
+    :param hf_embedding_model: Which HF embedding model to use for vector db
     :param allow_upload_to_user_data: Whether to allow file uploads to update shared vector db
     :param allow_upload_to_my_data: Whether to allow file uploads to update scratch vector db
+    :param chunk: Whether to chunk data (True unless know data is already optimally chunked)
+    :param chunk_size: Size of chunks, with typically top-4 passed to LLM, so neesd to be in context length
+    :param k: number of chunks to give LLM
     :return:
     """
     is_hf = bool(os.getenv("HUGGINGFACE_SPACES"))
@@ -310,7 +321,9 @@ def main(
                 # FIXME: All should be avoided until scans over each db, shouldn't be separate db
                 continue
             persist_directory1 = 'db_dir_%s' % langchain_mode1  # single place, no special names for each case
-            db = prep_langchain(persist_directory1, load_db_if_exists, db_type, use_openai_embedding, langchain_mode1, user_path)
+            db = prep_langchain(persist_directory1, load_db_if_exists, db_type, use_openai_embedding,
+                                langchain_mode1, user_path,
+                                hf_embedding_model)
             dbs[langchain_mode1] = db
         # remove None db's so can just rely upon k in dbs for if hav db
         dbs = {k: v for k, v in dbs.items() if v is not None}
@@ -382,11 +395,7 @@ def main(
                 model_state = [model, tokenizer, device, base_model]
                 kwargs_evaluate = {k: v for k, v in locals().items() if k in inputs_kwargs_list}
                 my_db_state = [None]
-                fun = partial(evaluate, model_state, my_db_state, debug=debug, save_dir=save_dir, is_low_mem=is_low_mem,
-                              raise_generate_gpu_exceptions=raise_generate_gpu_exceptions,
-                              chat_context=chat_context,
-                              concurrency_count=concurrency_count,
-                              lora_weights=lora_weights)
+                fun = partial(evaluate, model_state, my_db_state, **kwargs_evaluate)
             else:
                 assert eval_sharegpt_prompts_only > 0
 
@@ -804,10 +813,6 @@ eval_func_param_names = ['instruction',
                          'langchain_mode',
                          ]
 
-inputs_kwargs_list = ['debug', 'save_dir', 'sanitize_bot_response', 'model_state0', 'is_low_mem',
-                      'raise_generate_gpu_exceptions', 'chat_context', 'concurrency_count', 'lora_weights',
-                      'load_db_if_exists', 'dbs', 'user_path']
-
 
 def evaluate(
         model_state,
@@ -848,12 +853,26 @@ def evaluate(
         load_db_if_exists=True,
         dbs=None,
         user_path=None,
+        use_openai_embedding=None,
+        use_openai_model=None,
+        hf_embedding_model=None,
+        chunk=None,
+        chunk_size=None,
+        db_type=None,
+        k=None,
 ):
     # ensure passed these
     assert concurrency_count is not None
     assert is_low_mem is not None
     assert raise_generate_gpu_exceptions is not None
     assert chat_context is not None
+    assert use_openai_embedding is not None
+    assert use_openai_model is not None
+    assert hf_embedding_model is not None
+    assert chunk is not None
+    assert chunk_size is not None
+    assert db_type is not None
+    assert k is not None
 
     if debug:
         locals_dict = locals().copy()
@@ -913,10 +932,9 @@ def evaluate(
         db1 = None
     if langchain_mode not in [False, 'Disabled', 'ChatLLM', 'LLM'] and db1 is not None:
         query = instruction if not iinput else "%s\n%s" % (instruction, iinput)
-        from gpt_langchain import run_qa_db, get_db_kwargs
-        langchain_kwargs = get_db_kwargs(langchain_mode)
         outr = ""
         # use smaller cut_distanct for wiki_full since so many matches could be obtained, and often irrelevant unless close
+        from gpt_langchain import run_qa_db
         for r in run_qa_db(query=query,
                            model_name=base_model, model=model, tokenizer=tokenizer,
                            stream_output=stream_output, prompter=prompter,
@@ -926,7 +944,17 @@ def evaluate(
                            user_path=user_path,
                            max_new_tokens=max_new_tokens,
                            cut_distanct=1.1 if langchain_mode in ['wiki_full'] else 1.8,
-                           **langchain_kwargs):
+                           use_openai_embedding=use_openai_embedding,
+                           use_openai_model=use_openai_model,
+                           hf_embedding_model=hf_embedding_model,
+                           first_para=False,
+                           text_limit=None,
+                           chunk=chunk,
+                           chunk_size=chunk_size,
+                           langchain_mode=langchain_mode,
+                           db_type=db_type,
+                           k=k,
+                           ):
             outr = r  # doesn't accumualte, new answer every yield, so only save that full answer
             yield r
         if save_dir:
@@ -1086,6 +1114,11 @@ def evaluate(
                     save_generate_output(output=decoded_output, base_model=base_model, save_dir=save_dir)
             print('Post-Generate: %s decoded_output: %s' % (
                 str(datetime.now()), len(decoded_output) if decoded_output else -1), flush=True)
+
+
+inputs_list_names = list(inspect.signature(evaluate).parameters)
+state_names = ['model_state', 'my_db_state']
+inputs_kwargs_list = [x for x in inputs_list_names if x not in eval_func_param_names + state_names]
 
 
 def get_cutoffs(is_low_mem, for_context=False):
@@ -1358,7 +1391,8 @@ y = np.random.randint(0, 1, 100)
 
             example[eval_func_param_names.index('iinput_nochat')] = example[eval_func_param_names.index('iinput')]
             example[eval_func_param_names.index('iinput')] = ''
-        assert len(example) == len(eval_func_param_names), "Wrong example: %s %s" % (len(example), len(eval_func_param_names))
+        assert len(example) == len(eval_func_param_names), "Wrong example: %s %s" % (
+            len(example), len(eval_func_param_names))
 
     return placeholder_instruction, placeholder_input, \
         stream_output, show_examples, \
@@ -1458,8 +1492,8 @@ if __name__ == "__main__":
     """
     fire.Fire(main)
 
-
 import pytest
+
 
 @pytest.mark.parametrize(
     "base_model",

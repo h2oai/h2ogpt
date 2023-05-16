@@ -69,19 +69,7 @@ For quickly using a private document collection for Q/A, place documents (PDFs, 
 pip install -r requirements_optional_langchain.txt
 python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6.9b --langchain_mode=UserData --user_path=user_path
 ```
-Any other instruct-tuned base models can be used, including non-h2oGPT ones.
-
-To build the database first, then run generate after, do:
-```bash
-python make_db.py
-python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6.9b --langchain_mode=UserData
-```
-To use some example databases and run generate after, do:
-```bash
-python make_db.py --download_some=True
-python generate.py --base_model=h2oai/h2ogpt-oasst1-512-12b --load_8bit=True --langchain_mode=UserData --visible_langchain_modes="['UserData', 'wiki', 'MyData', 'github h2oGPT', 'DriverlessAI docs']"
-```
-which downloads example databases used by h2oGPT [generate.py](generate.py).  This obtains files from some [pre-generated databases](https://huggingface.co/datasets/h2oai/db_dirs).  A large Wikipedia database is also available.
+Any other instruct-tuned base models can be used, including non-h2oGPT ones.  For more ways to ingest on CLI and contro see [LangChain Readme](README_LangChain.md)
 
 For help installing a Python 3.10 environment or CUDA toolkit or installing flash attention support, see the [installation instructions](INSTALL.md)
 
