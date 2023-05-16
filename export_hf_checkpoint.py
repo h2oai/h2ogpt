@@ -170,7 +170,7 @@ else:
         for k, v in lora_model_sd.items()
         if "lora" not in k
     }
-    base_model.config.custom_pipeline = {
+    base_model.config.custom_pipelines = {
         "text-generation": {
           "impl": "h2oai_pipeline.H2OTextGenerationPipeline",
           "pt": "AutoModelForCausalLM"
