@@ -9,6 +9,7 @@ Live hosted instances:
 - [🤗 h2oGPT 12B #1](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot)
 - [🤗 h2oGPT 12B #2](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot2)
 - [![img-small.png](img-small.png) h2oGPT (research) 30B](http://gpt2.h2o.ai)
+- [![img-small.png](img-small.png) LangChain-enabled h2oGPT (temporary link) 12B](https://9b1c74d9de90a71538.gradio.live/)
 
 For questions, discussing, or just hanging out, come and join our <a href="https://discord.gg/WKhYMWcVbq"><b>Discord</b></a>!
 
