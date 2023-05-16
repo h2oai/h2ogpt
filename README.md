@@ -25,8 +25,6 @@ For questions, discussing, or just hanging out, come and join our <a href="https
 
 <img src="langchain.png" alt="VectorDB" title="VectorDB via LangChain">
 
-<iframe width="1280" height="720" src="https://www.youtube.com/embed/1JLi0ioz_XM" title="Private GPT ChatBot from H2O.ai&#39;s h2oGPT" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
-
 ### Apache V2 Data Preparation code, Training code, and Models
 
 - **Variety** of models (h2oGPT, WizardLM, Vicuna, OpenAssistant, etc.) supported
