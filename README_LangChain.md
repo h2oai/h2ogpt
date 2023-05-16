@@ -30,3 +30,8 @@ python make_db.py --add_if_exists=True
 python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6.9b --langchain_mode=UserData
 ```
 
+### FAQ
+
+Q Why does the source link not work?
+
+A For links to direct to the document and download to your local machine, the original source documents must still be present on the host system where the database was created, e.g. `user_path` for `UserData` by default.  If the database alone is copied somewhere else, that host won't have access to the documents.  URL links like Wikipedia will still work normally on any host.
