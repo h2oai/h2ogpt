@@ -19,7 +19,7 @@ For questions, discussing, or just hanging out, come and join our <a href="https
 - **LangChain** equipped Chatbot integration and streaming
 - **Persistent** database using Chroma or in-memory with FAISS
 - **Original** content url links and scores to rank content against query
-- **Private** offline database of any documents (PDF, text, csv, md, rst, Toml, Python)
+- **Private** offline database of any documents ([PDFs and more](README_LangChain.md))
 - **Upload** documents via chatbot into shared space or only allow scratch space
 - **Control** data sources and the context provided to LLM
 - **Efficient** use of context using instruct-tuned LLMs (no need for many examples)
