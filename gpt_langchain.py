@@ -164,35 +164,6 @@ def get_llm(use_openai_model=False, model_name=None, model=None,
     return llm, model_name, streamer
 
 
-def get_llm_prompt(model_name):
-    if 'h2ogpt' in model_name:
-        template = """<human>: {question}
-<bot>: """
-    else:
-        template = """
-                {question}
-                """
-
-    prompt = PromptTemplate(
-        input_variables=["question"],
-        template=template,
-    )
-    return prompt
-
-
-def get_llm_chain(llm, model_name):
-    from langchain import LLMChain
-
-    prompt = get_llm_prompt(model_name)
-
-    chain = LLMChain(
-        llm=llm,
-        verbose=True,
-        prompt=prompt
-    )
-    return chain
-
-
 def get_device_dtype():
     # torch.device("cuda") leads to cuda:x cuda:y mismatches for multi-GPU consistently
     import torch
@@ -615,6 +586,7 @@ def _run_qa_db(query=None,
                hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
                stream_output=False,
                prompter=None,
+               prompt_type=None,
                answer_with_sources=True,
                cut_distanct=1.1,
                sanitize_bot_response=True,
@@ -649,16 +621,18 @@ def _run_qa_db(query=None,
 
     # FIXME: For All just go over all dbs instead of a separate db for All
     db = make_db(**locals())
+    assert prompter is not None or prompt_type is not None
+    prompt_type = prompter.prompt_type if prompter is not None else prompt_type
     llm, model_name, streamer = get_llm(use_openai_model=use_openai_model, model_name=model_name,
                                         model=model, tokenizer=tokenizer,
                                         stream_output=stream_output,
                                         max_new_tokens=max_new_tokens,
-                                        prompt_type=prompter.prompt_type if prompter is not None else None)
+                                        prompt_type=prompt_type,
+                                        )
 
-    if not use_openai_model and 'h2ogpt' in model_name:
+    if not use_openai_model and prompt_type not in ['plain']:
         # instruct-like, rather than few-shot prompt_type='plain' as default
         # but then sources confuse the model with how inserted among rest of text, so avoid
-        prefix = "The following text contains Content from chunks of text extracted from source documentation.  Please give a natural language concise answer to any question using the Content text fragments information provided."
         prefix = ""
         template = """%s
 ==
@@ -671,7 +645,6 @@ def _run_qa_db(query=None,
             input_variables=["context", "question"],
             template=template,
         )
-        # chain = load_qa_with_sources_chain(llm, prompt=prompt)
         chain = load_qa_chain(llm, prompt=prompt)
     else:
         chain = load_qa_with_sources_chain(llm)

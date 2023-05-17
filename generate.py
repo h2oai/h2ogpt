@@ -941,7 +941,8 @@ def evaluate(
         from gpt_langchain import run_qa_db
         for r in run_qa_db(query=query,
                            model_name=base_model, model=model, tokenizer=tokenizer,
-                           stream_output=stream_output, prompter=prompter,
+                           stream_output=stream_output,
+                           prompter=prompter,
                            do_yield=True,
                            load_db_if_exists=load_db_if_exists,
                            db=db1,
@@ -958,6 +959,7 @@ def evaluate(
                            langchain_mode=langchain_mode,
                            db_type=db_type,
                            k=k,
+                           prompt_type=prompt_type,
                            n_jobs=n_jobs,
                            ):
             outr = r  # doesn't accumualte, new answer every yield, so only save that full answer
