@@ -484,7 +484,7 @@ def go_gradio(**kwargs):
         add_to_my_db_btn.click(update_user_db_func_my,
                                inputs=[fileup_output, my_db_state, add_to_shared_db_btn, add_to_my_db_btn],
                                outputs=[my_db_state, add_to_shared_db_btn, add_to_my_db_btn], queue=queue,
-                                   api_name='add_to_my' if allow_api else None) \
+                               api_name='add_to_my' if allow_api else None) \
             .then(clear_file_list, outputs=fileup_output, queue=queue) \
             .then(make_invisible, outputs=add_to_shared_db_btn, queue=queue)
 
