@@ -7,9 +7,9 @@ from gpt_langchain import path_to_docs, get_db, get_some_dbs_from_hf, all_db_zip
     get_embedding, add_to_db
 
 
-def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False, fail_any_exception=False):
+def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False, fail_any_exception=False, url=None):
     sources1 = path_to_docs(user_path, verbose=verbose, fail_any_exception=fail_any_exception, chunk=chunk,
-                            chunk_size=chunk_size)
+                            chunk_size=chunk_size, url=url)
     return sources1
 
 
@@ -17,6 +17,7 @@ def make_db_main(use_openai_embedding: bool = False,
                  hf_embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2",
                  persist_directory: str = 'db_dir_UserData',
                  user_path: str = 'user_path',
+                 url: str = None,
                  add_if_exists: bool = True,
                  collection_name: str = 'UserData',
                  verbose: bool = False,
@@ -49,7 +50,8 @@ def make_db_main(use_openai_embedding: bool = False,
     :param use_openai_embedding: Whether to use OpenAI embedding
     :param hf_embedding_model: HF embedding model to use
     :param persist_directory: where to persist db
-    :param user_path: where to pull documents from
+    :param user_path: where to pull documents from (None means url is not None.  If url is not None, this is ignored.)
+    :param url: url to generate documents from (None means user_path is not None)
     :param add_if_exists: Add to db if already exists
     :param collection_name: Collection name for new db if not adding
     :param verbose: whether to show verbose messages
@@ -86,9 +88,11 @@ def make_db_main(use_openai_embedding: bool = False,
 
     if verbose:
         print("Getting sources", flush=True)
-    assert os.path.isdir(user_path), "user_path=%s does not exist" % user_path
+    assert user_path is not None or url is not None, "Can't have both user_path and url as None"
+    if not url:
+        assert os.path.isdir(user_path), "user_path=%s does not exist" % user_path
     sources = glob_to_db(user_path, chunk=chunk, chunk_size=chunk_size, verbose=verbose,
-                         fail_any_exception=fail_any_exception)
+                         fail_any_exception=fail_any_exception, url=url)
     assert len(sources) > 0, "No sources found"
     if not os.path.isdir(persist_directory) or not add_if_exists:
         if os.path.isdir(persist_directory):
