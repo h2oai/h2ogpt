@@ -26,7 +26,7 @@ from langchain.chains.qa_with_sources import load_qa_with_sources_chain
 # , GCSDirectoryLoader, GCSFileLoader
 from langchain.document_loaders import PyPDFLoader, TextLoader, CSVLoader, PythonLoader, TomlLoader, \
     UnstructuredURLLoader, UnstructuredHTMLLoader, UnstructuredWordDocumentLoader, UnstructuredMarkdownLoader, \
-    EverNoteLoader, UnstructuredEmailLoader
+    EverNoteLoader, UnstructuredEmailLoader, UnstructuredODTLoader, UnstructuredPowerPointLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores import FAISS
 from langchain.chains.question_answering import load_qa_chain
@@ -301,7 +301,7 @@ def get_dai_docs(from_hf=False, get_pickle=True):
 
 file_types = ["pdf", "txt", "csv", "toml", "py", "rst",
               "md", "zip", "urls", "html", "docx",
-              "enex", "eml"]
+              "enex", "eml", "odt", "pptx"]
 
 
 def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, chunk=True, chunk_size=512,
@@ -322,6 +322,12 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
         doc1 = chunk_sources(docs1, chunk_size=chunk_size)
     elif file.endswith('.docx'):
         docs1 = UnstructuredWordDocumentLoader(file_path=file).load()
+        doc1 = chunk_sources(docs1, chunk_size=chunk_size)
+    elif file.endswith('.odt'):
+        docs1 = UnstructuredODTLoader(file_path=file).load()
+        doc1 = chunk_sources(docs1, chunk_size=chunk_size)
+    elif file.endswith('pptx'):
+        docs1 = UnstructuredPowerPointLoader(file_path=file).load()
         doc1 = chunk_sources(docs1, chunk_size=chunk_size)
     elif file.endswith('.txt'):
         doc1 = TextLoader(file, encoding="utf8").load()

@@ -290,5 +290,50 @@ FYIcenter.com Team"""
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
 
+def test_odt_add():
+    with tempfile.TemporaryDirectory() as tmp_persistent_directory:
+        with tempfile.TemporaryDirectory() as tmp_user_path:
+            url = 'https://github.com/owncloud/example-files/raw/master/Documents/Example.odt'
+            test_file1 = os.path.join(tmp_user_path, 'sample.odt')
+            download_simple(url, dest=test_file1)
+            db = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
+                              fail_any_exception=True)
+            assert db is not None
+            docs = db.similarity_search("What is ownCloud?")
+            assert len(docs) == 4
+            assert 'ownCloud' in docs[0].page_content
+            assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+
+
+def test_pptx_add():
+    with tempfile.TemporaryDirectory() as tmp_persistent_directory:
+        with tempfile.TemporaryDirectory() as tmp_user_path:
+            url = 'https://www.unm.edu/~unmvclib/powerpoint/pptexamples.ppt'
+            test_file1 = os.path.join(tmp_user_path, 'sample.pptx')
+            download_simple(url, dest=test_file1)
+            db = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
+                              fail_any_exception=True)
+            assert db is not None
+            docs = db.similarity_search("Suggestions")
+            assert len(docs) == 4
+            assert 'Presentation' in docs[0].page_content
+            assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+
+
+def test_simple_pptx_add():
+    with tempfile.TemporaryDirectory() as tmp_persistent_directory:
+        with tempfile.TemporaryDirectory() as tmp_user_path:
+            url = 'https://www.suu.edu/webservices/styleguide/example-files/example.pptx'
+            test_file1 = os.path.join(tmp_user_path, 'sample.pptx')
+            download_simple(url, dest=test_file1)
+            db = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
+                              fail_any_exception=True)
+            assert db is not None
+            docs = db.similarity_search("Example")
+            assert len(docs) == 1
+            assert 'Powerpoint' in docs[0].page_content
+            assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+
+
 if __name__ == '__main__':
     pass
