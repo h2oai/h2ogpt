@@ -59,10 +59,16 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss', persist_directo
     return db
 
 
-def add_to_db(db, sources, db_type='faiss'):
+def add_to_db(db, sources, db_type='faiss', avoid_dup=True):
     if db_type == 'faiss':
         db.add_documents(sources)
     elif db_type == 'chroma':
+        if avoid_dup:
+            collection = db.get()
+            metadata_sources = set([x['source'] for x in collection['metadatas']])
+            sources = [x for x in sources if x.metadata['source'] not in metadata_sources]
+        if len(sources) == 0:
+            return db
         db.add_documents(documents=sources)
         db.persist()
     else:
