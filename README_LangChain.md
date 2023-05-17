@@ -44,7 +44,7 @@ Open-source data types are supported, .msg is not supported due to GPL-3 require
    - `URL` : Any URL,
    - `Text` : Paste Text into UI.
 
-### Database creation
+## Database creation
 
 To use some example databases (will overwrite UserData make above unless change options) and run generate after, do:
 ```bash
@@ -65,7 +65,7 @@ python make_db.py --add_if_exists=True
 python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6.9b --langchain_mode=UserData
 ```
 
-### FAQ
+## FAQ
 
 Q Why does the source link not work?
 
