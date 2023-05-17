@@ -20,6 +20,19 @@ class PromptType(Enum):
     OPEN_ASSISTANT = "open_assistant"
 
 
+class LANGCHAIN_MODE(Enum):
+    DISABLED = "Disabled"
+    CHAT_LLM = "ChatLLM"
+    LLM = "LLM"
+    ALL = "All"
+    WIKI = "wiki"
+    WIKI_FULL = "wiki_full"
+    USER_DATA = "UserData"
+    MY_DATA = "MyData"
+    GITHUB_H2OGPT = "github h2oGPT"
+    H2O_DAI_DOCS = "DriverlessAI docs"
+
+
 class Client:
     def __init__(self, server_url: str, huggingface_token: Optional[str] = None):
         self._client = gradio_client.Client(
@@ -60,6 +73,7 @@ class TextCompletion:
         number_returns: int = 1,
         input: str = "",
         system_pre_context: str = "",
+        langchain_mode: LANGCHAIN_MODE = LANGCHAIN_MODE.DISABLED,
     ) -> str:
         """
         Creates a new text completion.
@@ -85,6 +99,7 @@ class TextCompletion:
         :param number_returns:
         :param input:
         :param system_pre_context:
+        :param langchain_mode:
         :return: response from the model
         """
         # Not exposed parameters.
@@ -112,6 +127,7 @@ class TextCompletion:
             chat_mode,
             prompt,
             input_context_for_instruction,
+            langchain_mode.value,
             api_name="/submit_nochat",
         )
 
@@ -133,6 +149,7 @@ class TextCompletion:
         number_returns: int = 1,
         input: str = "",
         system_pre_context: str = "",
+        langchain_mode: LANGCHAIN_MODE = LANGCHAIN_MODE.DISABLED,
     ) -> str:
         """
         Creates a new text completion.
@@ -158,6 +175,7 @@ class TextCompletion:
         :param number_returns:
         :param input:
         :param system_pre_context:
+        :param langchain_mode:
         :return: response from the model
         """
         # Not exposed parameters.
@@ -185,5 +203,6 @@ class TextCompletion:
             chat_mode,
             prompt,
             input_context_for_instruction,
+            langchain_mode.value,
             api_name="/submit_nochat",
         )
