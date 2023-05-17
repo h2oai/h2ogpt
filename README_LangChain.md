@@ -12,6 +12,10 @@ Live hosted instances:
 
 For questions, discussing, or just hanging out, come and join our <a href="https://discord.gg/WKhYMWcVbq"><b>Discord</b></a>!
 
+## Supported Datatypes
+
+Open-source data types are supported, .msg is not supported due to GPL-3 requirement.  Other meta types support other types inside them.  Special support for some behaviors is provided by the UI itself.
+
 ### Supported Native Datatypes
 
    - `.pdf`: Portable Document Format (PDF),

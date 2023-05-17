@@ -16,10 +16,10 @@ For questions, discussing, or just hanging out, come and join our <a href="https
 
 ### Apache V2 ChatBot with LangChain Integration
 
-- **LangChain** equipped Chatbot integration and streaming
+- [**LangChain**](README_LangChain.md) equipped Chatbot integration and streaming
 - **Persistent** database using Chroma or in-memory with FAISS
 - **Original** content url links and scores to rank content against query
-- **Private** offline database of any documents ([PDFs and more](README_LangChain.md))
+- **Private** offline database of any documents ([PDFs and more](README_LangChain.md#supported-datatypes))
 - **Upload** documents via chatbot into shared space or only allow scratch space
 - **Control** data sources and the context provided to LLM
 - **Efficient** use of context using instruct-tuned LLMs (no need for many examples)
