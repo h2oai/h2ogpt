@@ -15,7 +15,7 @@ def run_client1():
     res_dict = test_client_basic()
     assert res_dict['instruction_nochat'] == 'Who are you?'
     assert res_dict['iinput_nochat'] == ''
-    assert 'I am h2oGPT' in res_dict['response']
+    assert 'I am h2oGPT' in res_dict['response'] or "I'm h2oGPT" in res_dict['response']
 
 
 @pytest.mark.skip(reason="Local file required")

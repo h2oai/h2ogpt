@@ -163,3 +163,55 @@ In case you get peer to peer related errors on non-homogeneous GPU systems, set 
 ```
 export NCCL_P2P_LEVEL=LOC
 ```
+
+### Offline Mode:
+
+1) Download model and tokenizer of choice
+
+```python
+from transformers import AutoTokenizer, AutoModelForCausalLM
+model_name = 'h2oai/h2ogpt-oasst1-512-12b'
+model = AutoModelForCausalLM.from_pretrained(model_name)
+model.save_pretrained(model_name)
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+tokenizer.save_pretrained(model_name)
+```
+
+2) Download reward model, unless pass `--score_model='None'` to `generate.py`
+```python
+# and reward model
+reward_model = 'OpenAssistant/reward-model-deberta-v3-large-v2'
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
+model = AutoModelForSequenceClassification.from_pretrained(reward_model)
+model.save_pretrained(reward_model)
+tokenizer = AutoTokenizer.from_pretrained(reward_model)
+tokenizer.save_pretrained(reward_model)
+```
+
+3) Gradio uses Cloudfare scripts, download from Cloudfare:
+```
+iframeResizer.contentWindow.min.js
+index-8bb1e421.js
+``` 
+place them into python environment at:
+```
+site-packages/gradio/templates/cdn/assets
+site-packages/gradio/templates/frontend/assets
+```
+
+4) For jupyterhub dashboard,  modify `index-8bb1e421.js` to remove or hardcode port number into urls where `/port/7860` is located.  One may have to modify:
+```
+templates/cdn/index.html
+templates/frontend/index.html
+templates/frontend/share.html
+```
+ 
+5) Run generate with transformers in [Offline Mode](https://huggingface.co/docs/transformers/installation#offline-mode)
+
+```bash
+HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python generate.py --base_model='h2oai/h2ogpt-oasst1-512-12b'
+```
+
+### LangChain Usage:
+
+See [tests/test_langchain_simple.py](tests/test_langchain_simple.py)

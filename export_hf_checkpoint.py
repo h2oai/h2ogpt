@@ -10,6 +10,10 @@ from finetune import get_loaders
 BASE_MODEL = 'h2oai/h2ogpt-oasst1-512-12b'
 LORA_WEIGHTS = 'h2ogpt-oasst1-512-12b.h2oaih2ogpt-oig-oasst1-instruct-cleaned-v3.1_epochs.805b8e8eff369207340a5a6f90f3c833f9731254.2'
 OUTPUT_NAME = "h2ogpt-oig-oasst1-512-12b"
+BASE_MODEL = 'EleutherAI/pythia-12b-deduped'
+LORA_WEIGHTS = 'pythia-12b-deduped.h2oaiopenassistant_oasst1_h2ogpt_graded.3_epochs.2ccf687ea3f3f3775a501838e81c1a0066430455.4'
+OUTPUT_NAME = "h2ogpt-oasst1-512-12b"
+
 llama_type = "llama" in BASE_MODEL
 as_pytorch = False  # False -> HF
 
@@ -166,7 +170,7 @@ else:
         for k, v in lora_model_sd.items()
         if "lora" not in k
     }
-    base_model.config.custom_pipeline = {
+    base_model.config.custom_pipelines = {
         "text-generation": {
           "impl": "h2oai_pipeline.H2OTextGenerationPipeline",
           "pt": "AutoModelForCausalLM"

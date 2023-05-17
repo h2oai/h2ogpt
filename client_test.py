@@ -77,6 +77,7 @@ def run_client_basic(instruction_nochat, prompt_type):
     # only these 2 below used if pass chat=False
     chat = False
     iinput_nochat = ''
+    langchain_mode = 'Disabled'
 
     args = [instruction,
             iinput,
@@ -97,6 +98,7 @@ def run_client_basic(instruction_nochat, prompt_type):
             chat,
             instruction_nochat,
             iinput_nochat,
+            langchain_mode,
             ]
     api_name = '/submit_nochat'
     client = get_client()
@@ -114,6 +116,7 @@ from bs4 import BeautifulSoup  # pip install beautifulsoup4
 
 
 def md_to_text(md):
+    assert md is not None, "Markdown is None"
     html = markdown.markdown(md)
     soup = BeautifulSoup(html, features='html.parser')
     return soup.get_text()

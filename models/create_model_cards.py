@@ -81,30 +81,28 @@ from transformers import AutoModelForCausalLM
                 "h2ogpt-oasst1-512-12b",
                 "EleutherAI/pythia-12b",
                 [
-                    "h2oai/openassistant_oasst1",
-                    "h2oai/openassistant_oasst1_h2ogpt",
+                    "h2oai/openassistant_oasst1_h2ogpt_graded",
                 ],
                 [
-                    "https://huggingface.co/h2oai/h2ogpt-oasst1-512-12b/blob/main/pythia-12b.openassistant_oasst1.json.1_epochs.d45a9d34d34534e076cc6797614b322bd0efb11c.15.zip",
-                    "https://huggingface.co/h2oai/h2ogpt-oasst1-512-12b/blob/main/h2ogpt-oasst1-512-12b.h2oaiopenassistant_oasst1_h2ogpt.2_epochs.fcaae7ef70600de8c97c9b38cb3f0075467cdad1.2.zip",
+                    "https://huggingface.co/h2oai/h2ogpt-oasst1-512-12b/blob/main/pythia-12b-deduped.h2oaiopenassistant_oasst1_h2ogpt_graded.3_epochs.2ccf687ea3f3f3775a501838e81c1a0066430455.4.zip",
                 ],
 """
-[eval source code](https://github.com/h2oai/h2ogpt/issues/35#issuecomment-1521119301)
+[eval source code](https://github.com/h2oai/h2ogpt/issues/125#issuecomment-1548239108)
 
 |    Task     |Version| Metric |Value |   |Stderr|
 |-------------|------:|--------|-----:|---|-----:|
-|arc_easy     |      0|acc     |0.6932|±  |0.0095|
-|             |       |acc_norm|0.6225|±  |0.0099|
-|openbookqa   |      0|acc     |0.2900|±  |0.0203|
-|             |       |acc_norm|0.3740|±  |0.0217|
-|winogrande   |      0|acc     |0.6369|±  |0.0135|
-|hellaswag    |      0|acc     |0.5140|±  |0.0050|
-|             |       |acc_norm|0.6803|±  |0.0047|
-|piqa         |      0|acc     |0.7682|±  |0.0098|
-|             |       |acc_norm|0.7661|±  |0.0099|
-|boolq        |      1|acc     |0.6685|±  |0.0082|
 |arc_challenge|      0|acc     |0.3157|±  |0.0136|
 |             |       |acc_norm|0.3507|±  |0.0139|
+|arc_easy     |      0|acc     |0.6932|±  |0.0095|
+|             |       |acc_norm|0.6225|±  |0.0099|
+|boolq        |      1|acc     |0.6685|±  |0.0082|
+|hellaswag    |      0|acc     |0.5140|±  |0.0050|
+|             |       |acc_norm|0.6803|±  |0.0047|
+|openbookqa   |      0|acc     |0.2900|±  |0.0203|
+|             |       |acc_norm|0.3740|±  |0.0217|
+|piqa         |      0|acc     |0.7682|±  |0.0098|
+|             |       |acc_norm|0.7661|±  |0.0099|
+|winogrande   |      0|acc     |0.6369|±  |0.0135|
 """
         ),
         # (
@@ -155,7 +153,7 @@ from transformers import AutoModelForCausalLM
     ],
 )
 def test_create_model_cards(model_name, base_model, dataset, training_logs, eval):
-    if model_name != "h2ogpt-oig-oasst1-512-12b":
+    if model_name != "h2ogpt-oasst1-512-12b":
         return
     model_size = model_name.split("-")[-1].upper()
     assert "B" == model_size[-1]

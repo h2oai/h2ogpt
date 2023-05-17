@@ -1,6 +1,7 @@
 from __future__ import annotations
 from gradio.themes.soft import Soft
-from gradio.themes.utils import Color, colors, sizes
+from gradio.themes import Color
+from gradio.themes.utils import colors, sizes
 
 h2o_yellow = Color(
     name="yellow",
