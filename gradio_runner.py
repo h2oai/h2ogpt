@@ -250,23 +250,24 @@ def go_gradio(**kwargs):
                             label="Data Source",
                             visible=kwargs['langchain_mode'] != 'Disabled')
 
-                        def upload_file(files):
+                        def upload_file(files, x):
                             file_paths = [file.name for file in files]
-                            return file_paths
+                            return files, file_paths
 
                     upload_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and allow_upload)
                     with upload_row:
                         fileup_output = gr.File()
                         with gr.Row():
-                            upload_button = gr.UploadButton("Upload File for VectorDB",
-                                                            file_types=["pdf", "txt", "csv", "toml", "py", "rst",
-                                                                        "md", "zip"],
+                            file_types = ["pdf", "txt", "csv", "toml", "py", "rst", "md", "zip"]
+                            upload_button = gr.UploadButton("Upload %s" % file_types,
+                                                            file_types=file_types,
                                                             file_count="multiple",
                                                             )
+                            # add not visible until upload something
                             add_to_shared_db_btn = gr.Button("Add Upload to Shared UserData DB",
-                                                             visible=allow_upload_to_user_data)
+                                                             visible=allow_upload_to_user_data and False)
                             add_to_my_db_btn = gr.Button("Add Upload to Scratch MyData DB",
-                                                         visible=allow_upload_to_my_data)
+                                                         visible=allow_upload_to_my_data and False)
                         # WIP:
                         if False:
                             github_textbox = gr.Textbox(label="Github URL")
@@ -439,27 +440,52 @@ def go_gradio(**kwargs):
 
         # Get flagged data
         zip_data1 = functools.partial(zip_data, root_dirs=['flagged_data_points', kwargs['save_dir']])
-        zip_btn.click(zip_data1, inputs=None, outputs=[file_output, zip_text], queue=False)
-        s3up_btn.click(s3up, inputs=zip_text, outputs=s3up_text, queue=False)
+        zip_btn.click(zip_data1, inputs=None, outputs=[file_output, zip_text], queue=False,
+                      api_name='zip_data' if allow_api else None)
+        s3up_btn.click(s3up, inputs=zip_text, outputs=s3up_text, queue=False,
+                       api_name='s3up_data' if allow_api else None)
 
-        upload_button.upload(upload_file, upload_button, fileup_output)
+        def make_add_visible(x):
+            return gr.update(visible=x is not None)
+
+        def clear_file_list():
+            return None
+
+        def make_invisible():
+            return gr.update(visible=False)
+
+        # add itself to output to ensure shows working and can't click again
+        upload_button.upload(upload_file, inputs=[upload_button, fileup_output],
+                             outputs=[upload_button, fileup_output], queue=queue,
+                             api_name='upload_file' if allow_api else None) \
+            .then(make_add_visible, fileup_output, add_to_shared_db_btn, queue=queue) \
+            .then(make_add_visible, fileup_output, add_to_my_db_btn, queue=queue) \
+            .then(make_invisible, outputs=upload_button, queue=queue)
 
         update_user_db_func = functools.partial(update_user_db, dbs=dbs, db_type=db_type, langchain_mode='UserData',
                                                 use_openai_embedding=use_openai_embedding,
                                                 hf_embedding_model=hf_embedding_model,
                                                 )
-        add_to_shared_db_btn.click(update_user_db_func, inputs=[fileup_output, my_db_state])
+
+        # note for update_user_db_func output is ignored for db
+        add_to_shared_db_btn.click(update_user_db_func,
+                                   inputs=[fileup_output, my_db_state, add_to_shared_db_btn, add_to_my_db_btn],
+                                   outputs=[add_to_shared_db_btn, add_to_my_db_btn], queue=queue,
+                                   api_name='add_to_shared' if allow_api else None) \
+            .then(clear_file_list, outputs=fileup_output, queue=queue) \
+            .then(make_invisible, outputs=add_to_shared_db_btn, queue=queue)
 
         update_user_db_func_my = functools.partial(update_user_db, dbs=dbs, db_type=db_type, langchain_mode='MyData',
                                                    use_openai_embedding=use_openai_embedding,
                                                    hf_embedding_model=hf_embedding_model,
                                                    )
 
-        def clear_file_list():
-            return None
-
-        add_to_my_db_btn.click(update_user_db_func_my, inputs=[fileup_output, my_db_state], outputs=my_db_state) \
-            .then(clear_file_list, outputs=fileup_output)
+        add_to_my_db_btn.click(update_user_db_func_my,
+                               inputs=[fileup_output, my_db_state, add_to_shared_db_btn, add_to_my_db_btn],
+                               outputs=[my_db_state, add_to_shared_db_btn, add_to_my_db_btn], queue=queue,
+                                   api_name='add_to_my' if allow_api else None) \
+            .then(clear_file_list, outputs=fileup_output, queue=queue) \
+            .then(make_invisible, outputs=add_to_shared_db_btn, queue=queue)
 
         def check_admin_pass(x):
             return gr.update(visible=x == admin_pass)
@@ -1051,7 +1077,7 @@ def get_inputs_list(inputs_dict, model_lower):
     return inputs_list
 
 
-def update_user_db(file, db1, dbs=None, db_type=None, langchain_mode='UserData', use_openai_embedding=False,
+def update_user_db(file, db1, x, y, dbs=None, db_type=None, langchain_mode='UserData', use_openai_embedding=False,
                    hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2"):
     assert isinstance(dbs, dict), "Wrong type for dbs: %s" % str(type(dbs))
     assert db_type in ['faiss', 'chroma'], "db_type %s not supported" % db_type
@@ -1074,7 +1100,7 @@ def update_user_db(file, db1, dbs=None, db_type=None, langchain_mode='UserData',
                                 persist_directory=persist_directory,
                                 langchain_mode=langchain_mode,
                                 hf_embedding_model=hf_embedding_model)
-            return db1
+            return db1, x, y
         else:
             persist_directory = 'db_dir_%s' % langchain_mode
             if langchain_mode in dbs and dbs[langchain_mode] is not None:
@@ -1088,4 +1114,7 @@ def update_user_db(file, db1, dbs=None, db_type=None, langchain_mode='UserData',
                             langchain_mode=langchain_mode,
                             hf_embedding_model=hf_embedding_model)
                 dbs[langchain_mode] = db
-            return dbs[langchain_mode]
+            # NOTE we do not return db, because function call always same code path
+            # return dbs[langchain_mode], x, y
+            # db in this code path is updated in place
+            return x, y
