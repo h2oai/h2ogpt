@@ -311,6 +311,11 @@ file_types = ["pdf", "txt", "csv", "toml", "py", "rst",
 
 def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, chunk=True, chunk_size=512,
                 is_url=False, is_txt=False):
+    if file is None:
+        if fail_any_exception:
+            raise RuntimeError("Unexpected None file")
+        else:
+            return []
     if base_path is None and not is_txt and not is_url:
         # then assume want to persist but don't care which path used
         # can't be in base_path
