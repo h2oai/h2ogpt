@@ -260,7 +260,7 @@ def go_gradio(**kwargs):
                         with gr.Row():
                             upload_button = gr.UploadButton("Upload File for VectorDB",
                                                             file_types=["pdf", "txt", "csv", "toml", "py", "rst",
-                                                                        "md"],
+                                                                        "md", "zip"],
                                                             file_count="multiple",
                                                             )
                             add_to_shared_db_btn = gr.Button("Add Upload to Shared UserData DB",
@@ -1059,7 +1059,7 @@ def update_user_db(file, db1, dbs=None, db_type=None, langchain_mode='UserData',
     if hasattr(file, 'name'):
         file = file.name
     print("Adding %s" % file, flush=True)
-    sources = file_to_doc(file)
+    sources = file_to_doc(file, None)
     with filelock.FileLock("db_%s.lock" % langchain_mode.replace(' ', '_')):
         if langchain_mode == 'MyData':
             if db1[0] is not None:

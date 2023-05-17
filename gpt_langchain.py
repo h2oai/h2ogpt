@@ -2,13 +2,20 @@ import glob
 import inspect
 import os
 import pathlib
+import pickle
 import shutil
 import subprocess
 import tempfile
 import traceback
+import uuid
+import zipfile
 from collections import defaultdict
+from functools import reduce
+from operator import concat
 
-from utils import wrapped_partial, EThread, import_matplotlib
+from joblib import Parallel, delayed
+
+from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename
 
 import_matplotlib()
 
@@ -312,7 +319,15 @@ def get_dai_docs(from_hf=False, get_pickle=True):
     return sources
 
 
-def file_to_doc(file):
+def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False):
+    if base_path is None:
+        # then assume want to persist but don't care which path used
+        # can't be in base_path
+        dir_name = os.path.dirname(file)
+        base_name = os.path.basename(file)
+        # if from gradio, will have its own temp uuid too, but that's ok
+        base_name = sanitize_filename(base_name) + "_" + str(uuid.uuid4())
+        base_path = os.path.join(dir_name, base_name)
     if file.endswith('.txt'):
         return TextLoader(file, encoding="utf8").load()
     elif file.endswith('.md') or file.endswith('.rst'):
@@ -327,38 +342,71 @@ def file_to_doc(file):
         return PythonLoader(file).load()
     elif file.endswith('.toml'):
         return TomlLoader(file).load()
+    elif file.endswith('.zip'):
+        with zipfile.ZipFile(file, 'r') as zip_ref:
+            # don't put into temporary path, since want to keep references to docs inside zip
+            # so just extract in path where
+            zip_ref.extractall(base_path)
+            # recurse
+            return path_to_docs(base_path, verbose=verbose, fail_any_exception=fail_any_exception)
     else:
         raise RuntimeError("No file handler for %s" % file)
 
 
-def path_to_docs(path, verbose=False, fail_any_exception=False):
+def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True):
+    if verbose:
+        print("Ingesting file: %s" % file, flush=True)
+    res = None
+    try:
+        # don't pass base_path=path, would infinitely recurse
+        res = file_to_doc(file, base_path=None, verbose=verbose, fail_any_exception=fail_any_exception)
+    except BaseException:
+        print("Failed to ingest %s due to %s" % (file, traceback.format_exc()))
+        if fail_any_exception:
+            raise
+    if return_file:
+        base_tmp = "temp_path_to_doc1"
+        if not os.path.isdir(base_tmp):
+            os.makedirs(base_tmp, exist_ok=True)
+        filename = os.path.join(base_tmp, str(uuid.uuid4()) + ".tmp.pickle")
+        with open(filename, 'wb') as f:
+            pickle.dump(res, f)
+        return filename
+    return res
+
+
+def path_to_docs(path, verbose=False, fail_any_exception=False, n_jobs=-1, return_file=True):
     globs = glob.glob(os.path.join(path, "./**/*.txt"), recursive=True) + \
             glob.glob(os.path.join(path, "./**/*.md"), recursive=True) + \
             glob.glob(os.path.join(path, "./**/*.rst"), recursive=True) + \
             glob.glob(os.path.join(path, "./**/*.pdf"), recursive=True) + \
             glob.glob(os.path.join(path, "./**/*.csv"), recursive=True) + \
             glob.glob(os.path.join(path, "./**/*.py"), recursive=True) + \
-            glob.glob(os.path.join(path, "./**/*.toml"), recursive=True)
-    for file in globs:
-        if verbose:
-            print("Ingesting file: %s" % file, flush=True)
-        res = None
-        try:
-            res = file_to_doc(file)
-        except BaseException:
-            print("Failed to ingest %s due to %s" % (file, traceback.format_exc()))
-            if fail_any_exception:
-                raise
-        if res:
-            if isinstance(res, list):
-                for x in res:
-                    yield x
-            else:
-                yield res
+            glob.glob(os.path.join(path, "./**/*.toml"), recursive=True) + \
+            glob.glob(os.path.join(path, "./**/*.zip"), recursive=True)
+    # could use generator, but messes up metadata handling in recursive case
+    documents = Parallel(n_jobs=n_jobs, verbose=10 if verbose else 0, backend='multiprocessing')(
+        delayed(path_to_doc1)(file, verbose=verbose, fail_any_exception=fail_any_exception,
+                              return_file=True) for file in globs
+    )
+    if return_file:
+        # then documents really are files
+        files = documents.copy()
+        documents = []
+        for fil in files:
+            with open(fil, 'rb') as f:
+                documents.extend(pickle.load(f))
+            # remove temp pickle
+            os.remove(fil)
+    else:
+        from functools import reduce
+        from operator import concat
+        documents = reduce(concat, documents)
+    return documents
 
 
 def prep_langchain(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode, user_path,
-                   hf_embedding_model):
+                   hf_embedding_model, n_jobs=-1):
     """
     do prep first time, involving downloads
     # FIXME: Add github caching then add here
@@ -423,7 +471,8 @@ def _make_db(use_openai_embedding=False,
              user_path=None,
              db_type='faiss',
              load_db_if_exists=False,
-             db=None):
+             db=None,
+             n_jobs=-1):
     persist_directory = 'db_dir_%s' % langchain_mode  # single place, no special names for each case
     if not db and load_db_if_exists and db_type == 'chroma' and os.path.isdir(persist_directory) and os.path.isdir(
             os.path.join(persist_directory, 'index')):
@@ -463,7 +512,7 @@ def _make_db(use_openai_embedding=False,
                 sources1 = chunk_sources(sources1, chunk_size=chunk_size)
             sources.extend(sources1)
         if user_path and langchain_mode in ['All', 'UserData']:
-            sources1 = path_to_docs(user_path)
+            sources1 = path_to_docs(user_path, n_jobs=n_jobs)
             if chunk:
                 sources1 = chunk_sources(sources1, chunk_size=chunk_size)
             sources.extend(sources1)
@@ -519,7 +568,8 @@ def _run_qa_db(query=None,
                load_db_if_exists=False,
                db=None,
                max_new_tokens=256,
-               langchain_mode=None):
+               langchain_mode=None,
+               n_jobs=-1):
     """
 
     :param query:
