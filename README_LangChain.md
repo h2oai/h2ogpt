@@ -5,7 +5,10 @@ Our goal is to make it easy to have private offline document question-answer usi
 ### Try h2oGPT now, with LangChain on example databases 
 
 Live hosted instances:
-- [![img-small.png](img-small.png) LangChain-enabled h2oGPT (temporary link) 12B](https://9b1c74d9de90a71538.gradio.live/)
+- [![img-small.png](img-small.png) Latest LangChain-enabled h2oGPT (temporary link) 12B](https://f559f52f1375366f3c.gradio.live/)
+- [![img-small.png](img-small.png) LangChain-enabled h2oGPT (temporary link 1) 12B](https://9b1c74d9de90a71538.gradio.live/)
+- [![img-small.png](img-small.png) LangChain-enabled h2oGPT (temporary link 2) 12B](https://30999ff1f3ff7577e0.gradio.live/)
+- [![img-small.png](img-small.png) LangChain-enabled h2oGPT (temporary link 3) 12B](https://2855c4e61c677186aa.gradio.live/)
 
 For questions, discussing, or just hanging out, come and join our <a href="https://discord.gg/WKhYMWcVbq"><b>Discord</b></a>!
 
