@@ -23,8 +23,10 @@ import numpy as np
 import pandas as pd
 import requests
 from langchain.chains.qa_with_sources import load_qa_with_sources_chain
+# , GCSDirectoryLoader, GCSFileLoader
 from langchain.document_loaders import PyPDFLoader, TextLoader, CSVLoader, PythonLoader, TomlLoader, \
-    UnstructuredURLLoader
+    UnstructuredURLLoader, UnstructuredHTMLLoader, UnstructuredWordDocumentLoader, UnstructuredMarkdownLoader, \
+    EverNoteLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores import FAISS
 from langchain.chains.question_answering import load_qa_chain
@@ -339,9 +341,25 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
     if is_url:
         docs1 = UnstructuredURLLoader(urls=[file]).load()
         doc1 = chunk_sources(docs1, chunk_size=chunk_size)
+    elif file.endswith('.html'):
+        docs1 = UnstructuredHTMLLoader(file_path=file).load()
+        doc1 = chunk_sources(docs1, chunk_size=chunk_size)
+    elif file.endswith('.docx'):
+        docs1 = UnstructuredWordDocumentLoader(file_path=file).load()
+        doc1 = chunk_sources(docs1, chunk_size=chunk_size)
     elif file.endswith('.txt'):
         doc1 = TextLoader(file, encoding="utf8").load()
-    elif file.endswith('.md') or file.endswith('.rst'):
+        #
+    elif file.endswith('.md'):
+        docs1 = UnstructuredMarkdownLoader(file).load()
+        doc1 = chunk_sources(docs1, chunk_size=chunk_size)
+    elif file.endswith('.enex'):
+        doc1 = EverNoteLoader(file).load()
+    # elif file.endswith('.gcsdir'):
+    #    doc1 = GCSDirectoryLoader(project_name, bucket, prefix).load()
+    # elif file.endswith('.gcsfile'):
+    # doc1 = GCSFileLoader(project_name, bucket, blob).load()
+    elif file.endswith('.rst'):
         with open(file, "r") as f:
             doc1 = Document(page_content=f.read(), metadata={"source": file})
     elif file.endswith('.pdf'):
@@ -407,6 +425,7 @@ def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True
 def path_to_docs(path, verbose=False, fail_any_exception=False, n_jobs=-1, return_file=True, chunk=True,
                  chunk_size=512, url=None):
     if url is None:
+        # Below globs should match patterns in file_to_doc()
         globs = glob.glob(os.path.join(path, "./**/*.txt"), recursive=True) + \
                 glob.glob(os.path.join(path, "./**/*.md"), recursive=True) + \
                 glob.glob(os.path.join(path, "./**/*.rst"), recursive=True) + \
@@ -414,7 +433,10 @@ def path_to_docs(path, verbose=False, fail_any_exception=False, n_jobs=-1, retur
                 glob.glob(os.path.join(path, "./**/*.csv"), recursive=True) + \
                 glob.glob(os.path.join(path, "./**/*.py"), recursive=True) + \
                 glob.glob(os.path.join(path, "./**/*.toml"), recursive=True) + \
-                glob.glob(os.path.join(path, "./**/*.zip"), recursive=True)
+                glob.glob(os.path.join(path, "./**/*.zip"), recursive=True) + \
+                glob.glob(os.path.join(path, "./**/*.html"), recursive=True) + \
+                glob.glob(os.path.join(path, "./**/*.docx"), recursive=True) + \
+                glob.glob(os.path.join(path, "./**/*.enex"), recursive=True)
     else:
         globs = [url]
     # could use generator, but messes up metadata handling in recursive case
@@ -435,8 +457,6 @@ def path_to_docs(path, verbose=False, fail_any_exception=False, n_jobs=-1, retur
             # remove temp pickle
             os.remove(fil)
     else:
-        from functools import reduce
-        from operator import concat
         documents = reduce(concat, documents)
     return documents
 

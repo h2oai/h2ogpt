@@ -1,4 +1,5 @@
 import os
+import shutil
 import tempfile
 
 import pytest
@@ -7,7 +8,7 @@ from langchain.chains.qa_with_sources import load_qa_with_sources_chain
 from gpt_langchain import get_wiki_sources, get_llm, get_answer_from_sources, get_dai_pickle, \
     get_some_dbs_from_hf, _run_qa_db
 from make_db import make_db_main
-from utils import zip_data
+from utils import zip_data, download_simple
 
 have_openai_key = os.environ.get('OPENAI_API_KEY') is not None
 
@@ -129,7 +130,8 @@ def test_make_add_db():
             test_file1 = os.path.join(tmp_user_path, 'test.txt')
             with open(test_file1, "wt") as f:
                 f.write(msg1)
-            db = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path)
+            db = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
+                              fail_any_exception=True)
             assert db is not None
             docs = db.similarity_search("World")
             assert len(docs) == 1
@@ -142,7 +144,8 @@ def test_make_add_db():
             test_file2 = os.path.join(tmp_user_path, 'test2.txt')
             with open(test_file2, "wt") as f:
                 f.write(msg2)
-            db = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path, add_if_exists=True)
+            db = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path, add_if_exists=True,
+                              fail_any_exception=True)
             assert db is not None
             docs = db.similarity_search("World")
             assert len(docs) == 2
@@ -164,7 +167,8 @@ def test_zip_add():
                 f.write(msg1)
             zip_file = './tmpdata/data.zip'
             zip_data(tmp_user_path, zip_file=zip_file, fail_any_exception=True)
-            db = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path)
+            db = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
+                              fail_any_exception=True)
             assert db is not None
             docs = db.similarity_search("World")
             assert len(docs) == 1
@@ -180,6 +184,68 @@ def test_url_add():
         docs = db.similarity_search("list founding team of h2o.ai")
         assert len(docs) == 4
         assert 'Sri Ambati' in docs[0].page_content
+
+
+def test_html_add():
+    with tempfile.TemporaryDirectory() as tmp_persistent_directory:
+        with tempfile.TemporaryDirectory() as tmp_user_path:
+            html_content = """
+<!DOCTYPE html>
+<html>
+<body>
+
+<h1>Yugu is a wonderful place</h1>
+
+<p>Animals love to run in the world of Yugu.  They play all day long in the alien sun.</p>
+
+</body>
+</html>
+"""
+            test_file1 = os.path.join(tmp_user_path, 'test.html')
+            with open(test_file1, "wt") as f:
+                f.write(html_content)
+            db = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
+                              fail_any_exception=True)
+            assert db is not None
+            docs = db.similarity_search("Yugu")
+            assert len(docs) == 1
+            assert 'Yugu' in docs[0].page_content
+            assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+
+
+def test_docx_add():
+    with tempfile.TemporaryDirectory() as tmp_persistent_directory:
+        with tempfile.TemporaryDirectory() as tmp_user_path:
+            url = 'https://calibre-ebook.com/downloads/demos/demo.docx'
+            test_file1 = os.path.join(tmp_user_path, 'demo.docx')
+            download_simple(url, dest=test_file1)
+            db = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
+                              fail_any_exception=True)
+            assert db is not None
+            docs = db.similarity_search("What is calibre DOCX plugin do?")
+            assert len(docs) == 4
+            assert 'calibre' in docs[0].page_content
+            assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+
+
+def test_md_add():
+    with tempfile.TemporaryDirectory() as tmp_persistent_directory:
+        with tempfile.TemporaryDirectory() as tmp_user_path:
+            test_file1 = 'README.md'
+            if not os.path.isfile(test_file1):
+                # see if ran from tests directory
+                test_file1 = '../README.md'
+                if os.path.isfile(test_file1):
+                    test_file1 = os.path.abspath(test_file1)
+            shutil.copy(test_file1, tmp_user_path)
+            test_file1 = os.path.join(tmp_user_path, test_file1)
+            db = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
+                              fail_any_exception=True)
+            assert db is not None
+            docs = db.similarity_search("What is h2oGPT?")
+            assert len(docs) == 4
+            assert 'git clone' in docs[0].page_content
+            assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
 
 if __name__ == '__main__':
