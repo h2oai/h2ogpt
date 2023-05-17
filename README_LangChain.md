@@ -32,7 +32,7 @@ Open-source data types are supported, .msg is not supported due to GPL-3 require
    - `.eml`: Email,
    - `.epub`: EPub,
    - `.odt`: Open Document Text,
-   - `.pptx` : PowerPoint Document.
+   - `.pptx` : PowerPoint Document,
    - `.ppt` : PowerPoint Document.
 
 ### Supported Meta Datatypes
