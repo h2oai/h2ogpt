@@ -1,4 +1,6 @@
+import contextlib
 import functools
+import hashlib
 import os
 import gc
 import pathlib
@@ -12,6 +14,7 @@ import traceback
 import zipfile
 from datetime import datetime
 import filelock
+import requests, uuid
 import numpy as np
 import pandas as pd
 
@@ -111,21 +114,26 @@ def system_info_print():
         return "Error: %s" % str(e)
 
 
-def zip_data(root_dirs=None, zip_file=None, base_dir='./'):
+def zip_data(root_dirs=None, zip_file=None, base_dir='./', fail_any_exception=False):
     try:
         return _zip_data(zip_file=zip_file, base_dir=base_dir, root_dirs=root_dirs)
     except Exception as e:
         traceback.print_exc()
         print('Exception in zipping: %s' % str(e))
+        if not fail_any_exception:
+            raise
 
 
 def _zip_data(root_dirs=None, zip_file=None, base_dir='./'):
+    if isinstance(root_dirs, str):
+        root_dirs = [root_dirs]
     if zip_file is None:
         datetime_str = str(datetime.now()).replace(" ", "_").replace(":", "_")
         host_name = os.getenv('HF_HOSTNAME', 'emptyhost')
         zip_file = "data_%s_%s.zip" % (datetime_str, host_name)
     assert root_dirs is not None
-
+    if not os.path.isdir(os.path.dirname(zip_file)):
+        os.makedirs(os.path.dirname(zip_file), exist_ok=True)
     with zipfile.ZipFile(zip_file, "w") as expt_zip:
         for root_dir in root_dirs:
             if root_dir is None:
@@ -237,6 +245,7 @@ class NullContext(threading.local):
     Used as a stand-in if a particular block of code is only sometimes
     used with a normal context manager:
     """
+
     def __init__(self, *args, **kwargs):
         pass
 
@@ -270,16 +279,18 @@ class ThreadException(Exception):
 class EThread(threading.Thread):
     # Function that raises the custom exception
     def __init__(self, group=None, target=None, name=None,
-                 args=(), kwargs=None, *, daemon=None, bucket=None):
+                 args=(), kwargs=None, *, daemon=None, streamer=None, bucket=None):
         self.bucket = bucket
-        self.streamer = kwargs.get('streamer')
+        self.streamer = streamer
         self.exc = None
+        self._return = None
         super().__init__(group=group, target=target, name=name, args=args, kwargs=kwargs, daemon=daemon)
 
     def run(self):
         # Variable that stores the exception, if raised by someFunction
         try:
-            super().run()
+            if self._target is not None:
+                self._return = self._target(*self._args, **self._kwargs)
         except BaseException as e:
             print("thread exception: %s" % str(sys.exc_info()))
             self.bucket.put(sys.exc_info())
@@ -287,6 +298,10 @@ class EThread(threading.Thread):
             if self.streamer:
                 print("make stop: %s" % str(sys.exc_info()), flush=True)
                 self.streamer.do_stop = True
+        finally:
+            # Avoid a refcycle if the thread is running a function with
+            # an argument that has a member that points to the thread.
+            del self._target, self._args, self._kwargs
 
     def join(self, timeout=None):
         threading.Thread.join(self)
@@ -295,3 +310,160 @@ class EThread(threading.Thread):
         # if any was caught
         if self.exc:
             raise self.exc
+        return self._return
+
+
+def import_matplotlib():
+    import matplotlib
+    matplotlib.use('agg')
+    # KEEP THESE HERE! START
+    import matplotlib.pyplot as plt
+    import pandas as pd
+    # to avoid dlopen deadlock in fork
+    import pandas.core.computation.expressions as pd_expressions
+    import pandas._libs.groupby as pd_libgroupby
+    import pandas._libs.reduction as pd_libreduction
+    import pandas.core.algorithms as pd_algorithms
+    import pandas.core.common as pd_com
+    import numpy as np
+    # KEEP THESE HERE! END
+
+
+def get_sha(value):
+    return hashlib.md5(str(value).encode('utf-8')).hexdigest()
+
+
+def sanitize_filename(name):
+    """
+    Sanitize file *base* names.
+    :param name: name to sanitize
+    :return:
+    """
+    bad_chars = ['[', ']', ',', '/', '\\', '\\w', '\\s', '-', '+', '\"', '\'', '>', '<', ' ', '=', ')', '(', ':', '^']
+    for char in bad_chars:
+        name = name.replace(char, "_")
+
+    length = len(name)
+    file_length_limit = 250  # bit smaller than 256 for safety
+    sha_length = 32
+    real_length_limit = file_length_limit - (sha_length + 2)
+    if length > file_length_limit:
+        sha = get_sha(name)
+        half_real_length_limit = max(1, int(real_length_limit / 2))
+        name = name[0:half_real_length_limit] + "_" + sha + "_" + name[length - half_real_length_limit:length]
+
+    return name
+
+
+def shutil_rmtree_simple(*args, **kwargs):
+    path = args[0]
+    assert not os.path.samefile(path, "./tmp"), "Should not be trying to remove entire data directory: %s" % str(path)
+    # print("Removing path %s" % args[0])  # for debugging
+    return shutil.rmtree(*args, **kwargs)
+
+
+def remove_simple(path: str):
+    try:
+        if path is not None and os.path.exists(path):
+            if os.path.isdir(path):
+                shutil_rmtree_simple(path, ignore_errors=True)
+            else:
+                with contextlib.suppress(FileNotFoundError):
+                    os.remove(path)
+    except:
+        pass
+
+
+def makedirs(path, exist_ok=True):
+    """
+    Avoid some inefficiency in os.makedirs()
+    :param path:
+    :param exist_ok:
+    :return:
+    """
+    if os.path.isdir(path) and os.path.exists(path):
+        assert exist_ok, "Path already exists"
+        return path
+    os.makedirs(path, exist_ok=exist_ok)
+
+
+def atomic_move_simple(src, dst):
+    try:
+        shutil.move(src, dst)
+    except (shutil.Error, FileExistsError):
+        pass
+    remove_simple(src)
+
+
+def download_simple(url, dest=None, print_func=None):
+    if print_func is not None:
+        print_func("BEGIN get url %s" % str(url))
+    if url.startswith("file://"):
+        from requests_file import FileAdapter
+        s = requests.Session()
+        s.mount('file://', FileAdapter())
+        url_data = s.get(url, stream=True)
+    else:
+        url_data = requests.get(url, stream=True)
+    if dest is None:
+        dest = os.path.basename(url)
+    if url_data.status_code != requests.codes.ok:
+        msg = "Cannot get url %s, code: %s, reason: %s" % (
+            str(url),
+            str(url_data.status_code),
+            str(url_data.reason),
+        )
+        raise requests.exceptions.RequestException(msg)
+    url_data.raw.decode_content = True
+    makedirs(os.path.dirname(dest), exist_ok=True)
+    uuid_tmp = str(uuid.uuid4())[:6]
+    dest_tmp = dest + "_dl_" + uuid_tmp + ".tmp"
+    with open(dest_tmp, "wb") as f:
+        shutil.copyfileobj(url_data.raw, f)
+    atomic_move_simple(dest_tmp, dest)
+    if print_func is not None:
+        print_func("END get url %s" % str(url))
+
+
+def download(url, dest=None, dest_path=None):
+    if dest_path is not None:
+        dest = os.path.join(dest_path, os.path.basename(url))
+        if os.path.isfile(dest):
+            print("already downloaded %s -> %s" % (url, dest))
+            return dest
+    elif dest is not None:
+        if os.path.exists(dest):
+            print("already downloaded %s -> %s" % (url, dest))
+            return dest
+    else:
+        uuid_tmp = "dl2_" + str(uuid.uuid4())[:6]
+        dest = uuid_tmp + os.path.basename(url)
+
+    print("downloading %s to %s" % (url, dest))
+
+    if url.startswith("file://"):
+        from requests_file import FileAdapter
+        s = requests.Session()
+        s.mount('file://', FileAdapter())
+        url_data = s.get(url, stream=True)
+    else:
+        url_data = requests.get(url, stream=True)
+
+    if url_data.status_code != requests.codes.ok:
+        msg = "Cannot get url %s, code: %s, reason: %s" % (
+            str(url), str(url_data.status_code), str(url_data.reason))
+        raise requests.exceptions.RequestException(msg)
+    url_data.raw.decode_content = True
+    dirname = os.path.dirname(dest)
+    if dirname != "" and not os.path.isdir(dirname):
+        makedirs(os.path.dirname(dest), exist_ok=True)
+    uuid_tmp = "dl3_" + str(uuid.uuid4())[:6]
+    dest_tmp = dest + "_" + uuid_tmp + ".tmp"
+    with open(dest_tmp, 'wb') as f:
+        shutil.copyfileobj(url_data.raw, f)
+    try:
+        shutil.move(dest_tmp, dest)
+    except FileExistsError:
+        pass
+    remove_simple(dest_tmp)
+    return dest

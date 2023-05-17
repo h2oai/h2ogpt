@@ -1,13 +1,13 @@
 # for generate (gradio server) and finetune
-datasets==2.11.0
+datasets==2.12.0
 sentencepiece==0.1.97
 accelerate==0.18.0
-gradio==3.29.0
-huggingface_hub==0.13.4
+gradio==3.31.0
+huggingface_hub==0.14.1
 appdirs==1.4.4
 fire==0.5.0
 docutils==0.19
-torch==2.0.0
+torch==2.0.1
 evaluate==0.4.0
 rouge_score==0.1.2
 sacrebleu==2.3.1
@@ -35,7 +35,7 @@ tensorboard==2.12.1
 neptune==1.1.1
 
 # for gradio client
-gradio_client==0.2.2
+gradio_client==0.2.5
 beautifulsoup4==4.12.2
 markdown==3.4.1
 
@@ -45,7 +45,8 @@ pytest-xdist==3.2.1
 nltk==3.8.1
 textstat==0.7.3
 pandoc==2.3
-pypandoc==1.11
+#pypandoc==1.11
+pypandoc_binary==1.11
 openpyxl==3.1.2
 lm_dataformat==0.0.20
 bioc==2.0

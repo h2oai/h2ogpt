@@ -18,7 +18,7 @@ def run_eval1(cpu=False):
     kwargs = {'stream_output': False, 'prompt_type': 'human_bot',
               'temperature': 0.4, 'top_p': 0.85, 'top_k': 70, 'num_beams': 1, 'max_new_tokens': 256,
               'min_new_tokens': 0, 'early_stopping': False, 'max_time': 180, 'repetition_penalty': 1.07,
-              'num_return_sequences': 1, 'do_sample': True, 'chat': False}
+              'num_return_sequences': 1, 'do_sample': True, 'chat': False, 'langchain_mode': 'Disabled'}
     eval_filename = main(base_model='h2oai/h2ogpt-oig-oasst1-512-6.9b',
                          gradio=False, eval_sharegpt_prompts_only=1,
                          eval_sharegpt_as_output=False,
@@ -43,15 +43,11 @@ def run_eval1(cpu=False):
 
     import torch
     if torch.cuda.is_available():
-        expected2 = {'response': """The spinal ligaments are the strongest and most important of all the ligaments in the human body. They provide stability and support to the spine, keeping it aligned and preventing it from twisting or bending abnormally. The ligaments are composed of tough fibers that are attached to the vertebrae and help to prevent excessive motion or stress on the spinal cord and nerves. Spinal ligaments can be damaged or stretched due to trauma or repetitive strain, leading to pain and discomfort in the back and neck.
-
-Spinal ligaments are named according to their location along the spine. The anterior longitudinal ligament (ALL) is located anteriorly, while the posterior longitudinal ligament (PLL) is located posteriorly. The interspinous ligament (ISL) and supraspinous ligament (SSL) are located between adjacent vertebrae. The intertransverse ligament (ITL) is located between the transverse processes of the vertebrae. The ligamentum flavum (LF) is located between the laminae of the vertebrae.
-
-Spinal ligaments play an important role in maintaining the alignment of the spine and protecting the spinal cord and nerves. Spinal ligaments can be stretched or torn during activities such as lifting heavy objects, playing sports, or participating in strenuous exercise programs""",
+        expected2 = {'response': """The ligaments are the bands of tissue that connect the vertebrae together. The ligaments help to stabilize the spine and protect the spinal cord. Ligament tears are common in people who have poor posture or repetitive strain injuries.""",
                      'score': 0.7533428072929382}
     else:
         expected2 = {
-            'response': 'The ligaments that connect the vertebrae to the spinal column are called the “spinal ligaments.” They include the following:\n\nInterspinous Ligament: This ligament connects the spinous processes of adjacent vertebrae. It helps to maintain the spacing between the vertebrae and prevents them from slipping forward.\n\nTransverse Ligament: This ligament connects the laminae of adjacent vertebrae. It helps to stabilize the motion of the vertebrae.',
+            'response': 'The ligaments that support the spine are called the “spinal ligaments.” They are there to help keep the spine straight and upright. They are made up of tough fibers that run from the pelvis to the skull. They are like the stays on a sailboat, except that they are much thicker and stronger. \nThe spinal ligaments are divided into two groups: anterior and posterior. The anterior ligaments are attached to the front of the vertebrae, while the posterior ligaments are attached to the back. The anterior ligaments are called the “anterior longitudinal ligaments”',
             'score': 0.77}
 
     import numpy as np

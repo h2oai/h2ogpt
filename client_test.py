@@ -76,6 +76,7 @@ def get_args(prompt, prompt_type, chat=False):
                          chat=chat,
                          instruction_nochat=prompt if not chat else '',
                          iinput_nochat='',  # only for chat=False
+                         langchain_mode='Disabled',
                          )
     if chat:
         # add chatbot output on end.  Assumes serialize=False
@@ -110,16 +111,16 @@ def test_client_chat():
 def run_client_chat(prompt, prompt_type):
     kwargs, args = get_args(prompt, prompt_type, chat=True)
 
-    api_name = '/instruction'
     client = get_client(serialize=False)
     if not kwargs['stream_output']:
-        for res in client.predict(
-                *tuple(args),
-                api_name=api_name,
-        ):
-            print(res)
+        res = client.predict(*tuple(args), api_name='/instruction')
+        args[-1] += [res[-1]]
         res = client.predict(*tuple(args), api_name='/instruction_bot')
-        print(md_to_text(res))
+        res_dict = kwargs
+        res_dict['prompt'] = prompt
+        res_dict['response'] = res[0][-1][1]
+        print(md_to_text(res_dict['response']))
+        return res_dict
     else:
         print("streaming instruction_bot", flush=True)
         job = client.submit(*tuple(args), api_name='/instruction_bot')
@@ -137,6 +138,7 @@ from bs4 import BeautifulSoup  # pip install beautifulsoup4
 
 
 def md_to_text(md):
+    assert md is not None, "Markdown is None"
     html = markdown.markdown(md)
     soup = BeautifulSoup(html, features='html.parser')
     return soup.get_text()
