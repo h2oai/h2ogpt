@@ -10,12 +10,13 @@ import traceback
 import uuid
 import zipfile
 from collections import defaultdict
+from datetime import datetime
 from functools import reduce
 from operator import concat
 
 from joblib import Parallel, delayed
 
-from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename
+from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs
 
 import_matplotlib()
 
@@ -309,8 +310,8 @@ file_types = ["pdf", "txt", "csv", "toml", "py", "rst",
 
 
 def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, chunk=True, chunk_size=512,
-                is_url=False):
-    if base_path is None:
+                is_url=False, is_txt=False):
+    if base_path is None and not is_txt and not is_url:
         # then assume want to persist but don't care which path used
         # can't be in base_path
         dir_name = os.path.dirname(file)
@@ -321,6 +322,14 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
     if is_url:
         docs1 = UnstructuredURLLoader(urls=[file]).load()
         doc1 = chunk_sources(docs1, chunk_size=chunk_size)
+    elif is_txt:
+        base_path = "user_paste"
+        source_file = os.path.join(base_path, "_%s" % str(uuid.uuid4()))
+        makedirs(os.path.dirname(source_file), exist_ok=True)
+        with open(source_file, "wt") as f:
+            f.write(file)
+        metadata = {"source": source_file, "date": str(datetime.now())}
+        doc1 = Document(page_content=file, metadata=metadata)
     elif file.endswith('.html'):
         docs1 = UnstructuredHTMLLoader(file_path=file).load()
         doc1 = chunk_sources(docs1, chunk_size=chunk_size)
