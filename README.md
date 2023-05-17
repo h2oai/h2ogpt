@@ -51,7 +51,6 @@ Also check out [H2O LLM Studio](https://github.com/h2oai/h2o-llmstudio) for our 
 
 ### ChatBot and LangChain Roadmap items
 
-- Support URLs including within chat itself
 - Ability to save chats and start new chats
 - Add other tools like search
 

@@ -2,7 +2,7 @@
 # grep -v '#\|peft' requirements.txt > req_constraints.txt ; pip install -r requirements_optional_langchain.txt -c req_constraints.txt
 
 # optional for chat with PDF
-langchain==0.0.168
+langchain==0.0.171
 pypdf==3.8.1
 tiktoken==0.3.3
 # avoid textract, requires old six
@@ -17,7 +17,7 @@ sentence_transformers==2.2.2
 openai==0.27.6
 
 # local vector db
-chromadb==0.3.22
+chromadb==0.3.23
 # server vector db
 #pymilvus==2.2.8
 
