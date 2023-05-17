@@ -23,7 +23,8 @@ import numpy as np
 import pandas as pd
 import requests
 from langchain.chains.qa_with_sources import load_qa_with_sources_chain
-from langchain.document_loaders import PyPDFLoader, TextLoader, CSVLoader, PythonLoader, TomlLoader
+from langchain.document_loaders import PyPDFLoader, TextLoader, CSVLoader, PythonLoader, TomlLoader, \
+    UnstructuredURLLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores import FAISS
 from langchain.chains.question_answering import load_qa_chain
@@ -325,7 +326,8 @@ def get_dai_docs(from_hf=False, get_pickle=True):
     return sources
 
 
-def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, chunk=True, chunk_size=512):
+def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, chunk=True, chunk_size=512,
+                is_url=False):
     if base_path is None:
         # then assume want to persist but don't care which path used
         # can't be in base_path
@@ -334,7 +336,10 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
         # if from gradio, will have its own temp uuid too, but that's ok
         base_name = sanitize_filename(base_name) + "_" + str(uuid.uuid4())
         base_path = os.path.join(dir_name, base_name)
-    if file.endswith('.txt'):
+    if is_url:
+        docs1 = UnstructuredURLLoader(urls=[file]).load()
+        doc1 = chunk_sources(docs1, chunk_size=chunk_size)
+    elif file.endswith('.txt'):
         doc1 = TextLoader(file, encoding="utf8").load()
     elif file.endswith('.md') or file.endswith('.rst'):
         with open(file, "r") as f:
@@ -347,6 +352,10 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
         doc1 = PythonLoader(file).load()
     elif file.endswith('.toml'):
         doc1 = TomlLoader(file).load()
+    elif file.endswith('.urls'):
+        with open(file, "r") as f:
+            docs1 = UnstructuredURLLoader(urls=f.readlines()).load()
+            doc1 = chunk_sources(docs1, chunk_size=chunk_size)
     elif file.endswith('.zip'):
         with zipfile.ZipFile(file, 'r') as zip_ref:
             # don't put into temporary path, since want to keep references to docs inside zip
@@ -368,14 +377,18 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
     return docs
 
 
-def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True, chunk=True, chunk_size=512):
+def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True, chunk=True, chunk_size=512,
+                 is_url=False):
     if verbose:
-        print("Ingesting file: %s" % file, flush=True)
+        if is_url:
+            print("Ingesting URL: %s" % file, flush=True)
+        else:
+            print("Ingesting file: %s" % file, flush=True)
     res = None
     try:
         # don't pass base_path=path, would infinitely recurse
         res = file_to_doc(file, base_path=None, verbose=verbose, fail_any_exception=fail_any_exception,
-                          chunk=chunk, chunk_size=chunk_size)
+                          chunk=chunk, chunk_size=chunk_size, is_url=is_url)
     except BaseException:
         print("Failed to ingest %s due to %s" % (file, traceback.format_exc()))
         if fail_any_exception:
@@ -392,20 +405,24 @@ def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True
 
 
 def path_to_docs(path, verbose=False, fail_any_exception=False, n_jobs=-1, return_file=True, chunk=True,
-                 chunk_size=512):
-    globs = glob.glob(os.path.join(path, "./**/*.txt"), recursive=True) + \
-            glob.glob(os.path.join(path, "./**/*.md"), recursive=True) + \
-            glob.glob(os.path.join(path, "./**/*.rst"), recursive=True) + \
-            glob.glob(os.path.join(path, "./**/*.pdf"), recursive=True) + \
-            glob.glob(os.path.join(path, "./**/*.csv"), recursive=True) + \
-            glob.glob(os.path.join(path, "./**/*.py"), recursive=True) + \
-            glob.glob(os.path.join(path, "./**/*.toml"), recursive=True) + \
-            glob.glob(os.path.join(path, "./**/*.zip"), recursive=True)
+                 chunk_size=512, url=None):
+    if url is None:
+        globs = glob.glob(os.path.join(path, "./**/*.txt"), recursive=True) + \
+                glob.glob(os.path.join(path, "./**/*.md"), recursive=True) + \
+                glob.glob(os.path.join(path, "./**/*.rst"), recursive=True) + \
+                glob.glob(os.path.join(path, "./**/*.pdf"), recursive=True) + \
+                glob.glob(os.path.join(path, "./**/*.csv"), recursive=True) + \
+                glob.glob(os.path.join(path, "./**/*.py"), recursive=True) + \
+                glob.glob(os.path.join(path, "./**/*.toml"), recursive=True) + \
+                glob.glob(os.path.join(path, "./**/*.zip"), recursive=True)
+    else:
+        globs = [url]
     # could use generator, but messes up metadata handling in recursive case
     documents = Parallel(n_jobs=n_jobs, verbose=10 if verbose else 0, backend='multiprocessing')(
         delayed(path_to_doc1)(file, verbose=verbose, fail_any_exception=fail_any_exception,
                               return_file=True,
                               chunk=chunk, chunk_size=chunk_size,
+                              is_url=url is not None,
                               ) for file in globs
     )
     if return_file:
@@ -459,11 +476,11 @@ def get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_em
                     hf_embedding_model):
     if load_db_if_exists and db_type == 'chroma' and os.path.isdir(persist_directory) and os.path.isdir(
             os.path.join(persist_directory, 'index')):
-        print("DO Loading db", flush=True)
+        print("DO Loading db: %s" % langchain_mode, flush=True)
         embedding = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model)
         db = Chroma(persist_directory=persist_directory, embedding_function=embedding,
                     collection_name=langchain_mode.replace(' ', '_'))
-        print("DONE Loading db", flush=True)
+        print("DONE Loading db: %s" % langchain_mode, flush=True)
         return db
     return None
 

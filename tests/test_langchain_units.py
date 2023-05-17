@@ -172,5 +172,15 @@ def test_zip_add():
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
 
+def test_url_add():
+    with tempfile.TemporaryDirectory() as tmp_persistent_directory:
+        url = 'https://h2o.ai/company/team/leadership-team/'
+        db = make_db_main(persist_directory=tmp_persistent_directory, url=url, fail_any_exception=True)
+        assert db is not None
+        docs = db.similarity_search("list founding team of h2o.ai")
+        assert len(docs) == 4
+        assert 'Sri Ambati' in docs[0].page_content
+
+
 if __name__ == '__main__':
     pass
