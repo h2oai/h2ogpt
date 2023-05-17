@@ -254,7 +254,7 @@ def go_gradio(**kwargs):
                             file_paths = [file.name for file in files]
                             return file_paths
 
-                    upload_row = gr.Row(visible=allow_upload)
+                    upload_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and allow_upload)
                     with upload_row:
                         fileup_output = gr.File()
                         with gr.Row():
