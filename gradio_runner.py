@@ -259,7 +259,7 @@ def go_gradio(**kwargs):
                     with upload_row:
                         fileup_output = gr.File()
                         with gr.Row():
-                            file_types = ["pdf", "txt", "csv", "toml", "py", "rst", "md", "zip", "urls"]
+                            file_types = ["pdf", "txt", "csv", "toml", "py", "rst", "md", "zip", "urls", "html", "docx"]
                             upload_button = gr.UploadButton("Upload %s" % file_types,
                                                             file_types=file_types,
                                                             file_count="multiple",
