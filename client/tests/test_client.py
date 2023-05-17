@@ -10,7 +10,7 @@ def create_client(server_url: str = "") -> Client:
     return Client(server_url)
 
 
-def test_answer():
+def test_text_completion():
     client = create_client()
     r = client.text_completion.create("Hello world")
     assert r
@@ -18,7 +18,7 @@ def test_answer():
 
 
 @pytest.mark.asyncio
-async def test_answer_async():
+async def test_text_completion_async():
     client = create_client()
     r = await client.text_completion.create_async("Hello world")
     assert r
