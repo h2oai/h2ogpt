@@ -26,7 +26,7 @@ from langchain.chains.qa_with_sources import load_qa_with_sources_chain
 # , GCSDirectoryLoader, GCSFileLoader
 from langchain.document_loaders import PyPDFLoader, TextLoader, CSVLoader, PythonLoader, TomlLoader, \
     UnstructuredURLLoader, UnstructuredHTMLLoader, UnstructuredWordDocumentLoader, UnstructuredMarkdownLoader, \
-    EverNoteLoader
+    EverNoteLoader, UnstructuredEmailLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores import FAISS
 from langchain.chains.question_answering import load_qa_chain
@@ -299,6 +299,11 @@ def get_dai_docs(from_hf=False, get_pickle=True):
     return sources
 
 
+file_types = ["pdf", "txt", "csv", "toml", "py", "rst",
+              "md", "zip", "urls", "html", "docx",
+              "enex", "eml"]
+
+
 def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, chunk=True, chunk_size=512,
                 is_url=False):
     if base_path is None:
@@ -320,12 +325,23 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
         doc1 = chunk_sources(docs1, chunk_size=chunk_size)
     elif file.endswith('.txt'):
         doc1 = TextLoader(file, encoding="utf8").load()
-        #
     elif file.endswith('.md'):
         docs1 = UnstructuredMarkdownLoader(file).load()
         doc1 = chunk_sources(docs1, chunk_size=chunk_size)
     elif file.endswith('.enex'):
         doc1 = EverNoteLoader(file).load()
+    elif file.endswith('.eml'):
+        try:
+            docs1 = UnstructuredEmailLoader(file).load()
+            doc1 = chunk_sources(docs1, chunk_size=chunk_size)
+        except ValueError as e:
+            if 'text/html content not found in email' in str(e):
+                # e.g. plain/text dict key exists, but not
+                #doc1 = TextLoader(file, encoding="utf8").load()
+                docs1 = UnstructuredEmailLoader(file, content_source="text/plain").load()
+                doc1 = chunk_sources(docs1, chunk_size=chunk_size)
+            else:
+                raise
     # elif file.endswith('.gcsdir'):
     #    doc1 = GCSDirectoryLoader(project_name, bucket, prefix).load()
     # elif file.endswith('.gcsfile'):
@@ -397,17 +413,8 @@ def path_to_docs(path, verbose=False, fail_any_exception=False, n_jobs=-1, retur
                  chunk_size=512, url=None):
     if url is None:
         # Below globs should match patterns in file_to_doc()
-        globs = glob.glob(os.path.join(path, "./**/*.txt"), recursive=True) + \
-                glob.glob(os.path.join(path, "./**/*.md"), recursive=True) + \
-                glob.glob(os.path.join(path, "./**/*.rst"), recursive=True) + \
-                glob.glob(os.path.join(path, "./**/*.pdf"), recursive=True) + \
-                glob.glob(os.path.join(path, "./**/*.csv"), recursive=True) + \
-                glob.glob(os.path.join(path, "./**/*.py"), recursive=True) + \
-                glob.glob(os.path.join(path, "./**/*.toml"), recursive=True) + \
-                glob.glob(os.path.join(path, "./**/*.zip"), recursive=True) + \
-                glob.glob(os.path.join(path, "./**/*.html"), recursive=True) + \
-                glob.glob(os.path.join(path, "./**/*.docx"), recursive=True) + \
-                glob.glob(os.path.join(path, "./**/*.enex"), recursive=True)
+        globs = []
+        [globs.extend(glob.glob(os.path.join(path, "./**/*.%s" % ftype), recursive=True)) for ftype in file_types]
     else:
         globs = [url]
     # could use generator, but messes up metadata handling in recursive case

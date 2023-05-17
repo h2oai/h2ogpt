@@ -7,7 +7,6 @@ import uuid
 
 import filelock
 
-from gpt_langchain import chunk_sources
 from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, get_dark_js
 from prompter import Prompter, \
     prompt_type_to_model_name, prompt_types_strings, inv_prompt_type_to_model_lower
@@ -259,8 +258,7 @@ def go_gradio(**kwargs):
                     with upload_row:
                         fileup_output = gr.File()
                         with gr.Row():
-                            file_types = ["pdf", "txt", "csv", "toml", "py", "rst",
-                                          "md", "zip", "urls", "html", "docx", "enex"]
+                            from gpt_langchain import file_types
                             upload_button = gr.UploadButton("Upload %s" % file_types,
                                                             file_types=file_types,
                                                             file_count="multiple",

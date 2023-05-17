@@ -248,5 +248,47 @@ def test_md_add():
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
 
+def test_eml_add():
+    with tempfile.TemporaryDirectory() as tmp_persistent_directory:
+        with tempfile.TemporaryDirectory() as tmp_user_path:
+            url = 'https://raw.githubusercontent.com/FlexConfirmMail/Thunderbird/master/sample.eml'
+            test_file1 = os.path.join(tmp_user_path, 'sample.eml')
+            download_simple(url, dest=test_file1)
+            db = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
+                              fail_any_exception=True)
+            assert db is not None
+            docs = db.similarity_search("What is subject?")
+            assert len(docs) == 1
+            assert 'testtest' in docs[0].page_content
+            assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+
+
+def test_simple_eml_add():
+    with tempfile.TemporaryDirectory() as tmp_persistent_directory:
+        with tempfile.TemporaryDirectory() as tmp_user_path:
+            html_content = """
+Date: Sun, 1 Apr 2012 14:25:25 -0600
+From: file@fyicenter.com
+Subject: Welcome
+To: someone@somewhere.com
+
+Dear Friend,
+
+Welcome to file.fyicenter.com!
+
+Sincerely,
+FYIcenter.com Team"""
+            test_file1 = os.path.join(tmp_user_path, 'test.eml')
+            with open(test_file1, "wt") as f:
+                f.write(html_content)
+            db = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
+                              fail_any_exception=True)
+            assert db is not None
+            docs = db.similarity_search("Subject")
+            assert len(docs) == 1
+            assert 'Welcome' in docs[0].page_content
+            assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+
+
 if __name__ == '__main__':
     pass
