@@ -124,6 +124,7 @@ def main(
         chunk: bool = True,
         chunk_size: int = 512,
         k: int = 4,
+        n_jobs: int = -1,
 ):
     """
 
@@ -202,6 +203,7 @@ def main(
     :param chunk: Whether to chunk data (True unless know data is already optimally chunked)
     :param chunk_size: Size of chunks, with typically top-4 passed to LLM, so neesd to be in context length
     :param k: number of chunks to give LLM
+    :param n_jobs: Number of processors to use when consuming documents (-1 = all, is default)
     :return:
     """
     is_hf = bool(os.getenv("HUGGINGFACE_SPACES"))
@@ -860,6 +862,7 @@ def evaluate(
         chunk_size=None,
         db_type=None,
         k=None,
+        n_jobs=None,
 ):
     # ensure passed these
     assert concurrency_count is not None
@@ -873,6 +876,7 @@ def evaluate(
     assert chunk_size is not None
     assert db_type is not None
     assert k is not None
+    assert n_jobs is not None
 
     if debug:
         locals_dict = locals().copy()
@@ -954,6 +958,7 @@ def evaluate(
                            langchain_mode=langchain_mode,
                            db_type=db_type,
                            k=k,
+                           n_jobs=n_jobs,
                            ):
             outr = r  # doesn't accumualte, new answer every yield, so only save that full answer
             yield r

@@ -7,6 +7,7 @@ from langchain.chains.qa_with_sources import load_qa_with_sources_chain
 from gpt_langchain import get_wiki_sources, get_llm, get_answer_from_sources, get_dai_pickle, \
     get_some_dbs_from_hf, _run_qa_db
 from make_db import make_db_main
+from utils import zip_data
 
 have_openai_key = os.environ.get('OPENAI_API_KEY') is not None
 
@@ -152,6 +153,23 @@ def test_make_add_db():
             assert len(docs) == 2
             assert docs[0].page_content == msg2
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file2)
+
+
+def test_zip_add():
+    with tempfile.TemporaryDirectory() as tmp_persistent_directory:
+        with tempfile.TemporaryDirectory() as tmp_user_path:
+            msg1 = "Hello World"
+            test_file1 = os.path.join(tmp_user_path, 'test.txt')
+            with open(test_file1, "wt") as f:
+                f.write(msg1)
+            zip_file = './tmpdata/data.zip'
+            zip_data(tmp_user_path, zip_file=zip_file, fail_any_exception=True)
+            db = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path)
+            assert db is not None
+            docs = db.similarity_search("World")
+            assert len(docs) == 1
+            assert docs[0].page_content == msg1
+            assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
 
 if __name__ == '__main__':

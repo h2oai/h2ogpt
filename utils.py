@@ -1,4 +1,5 @@
 import functools
+import hashlib
 import os
 import gc
 import pathlib
@@ -111,21 +112,26 @@ def system_info_print():
         return "Error: %s" % str(e)
 
 
-def zip_data(root_dirs=None, zip_file=None, base_dir='./'):
+def zip_data(root_dirs=None, zip_file=None, base_dir='./', fail_any_exception=False):
     try:
         return _zip_data(zip_file=zip_file, base_dir=base_dir, root_dirs=root_dirs)
     except Exception as e:
         traceback.print_exc()
         print('Exception in zipping: %s' % str(e))
+        if not fail_any_exception:
+            raise
 
 
 def _zip_data(root_dirs=None, zip_file=None, base_dir='./'):
+    if isinstance(root_dirs, str):
+        root_dirs = [root_dirs]
     if zip_file is None:
         datetime_str = str(datetime.now()).replace(" ", "_").replace(":", "_")
         host_name = os.getenv('HF_HOSTNAME', 'emptyhost')
         zip_file = "data_%s_%s.zip" % (datetime_str, host_name)
     assert root_dirs is not None
-
+    if not os.path.isdir(os.path.dirname(zip_file)):
+        os.makedirs(os.path.dirname(zip_file), exist_ok=True)
     with zipfile.ZipFile(zip_file, "w") as expt_zip:
         for root_dir in root_dirs:
             if root_dir is None:
@@ -318,3 +324,29 @@ def import_matplotlib():
     import pandas.core.common as pd_com
     import numpy as np
     # KEEP THESE HERE! END
+
+
+def get_sha(value):
+    return hashlib.md5(str(value).encode('utf-8')).hexdigest()
+
+
+def sanitize_filename(name):
+    """
+    Sanitize file *base* names.
+    :param name: name to sanitize
+    :return:
+    """
+    bad_chars = ['[', ']', ',', '/', '\\', '\\w', '\\s', '-', '+', '\"', '\'', '>', '<', ' ', '=', ')', '(', ':', '^']
+    for char in bad_chars:
+       name = name.replace(char, "_")
+
+    length = len(name)
+    file_length_limit = 250  # bit smaller than 256 for safety
+    sha_length = 32
+    real_length_limit = file_length_limit - (sha_length + 2)
+    if length > file_length_limit:
+        sha = get_sha(name)
+        half_real_length_limit = max(1, int(real_length_limit/2))
+        name = name[0:half_real_length_limit] + "_" + sha + "_" + name[length - half_real_length_limit:length]
+
+    return name
