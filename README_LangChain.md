@@ -27,11 +27,13 @@ Open-source data types are supported, .msg is not supported due to GPL-3 require
    - `.md`: Markdown,
    - `.html`: HTML File,
    - `.docx`: Word Document,
+   - `.doc`: Word Document,
    - `.enex`: EverNote,
    - `.eml`: Email,
    - `.epub`: EPub,
    - `.odt`: Open Document Text,
    - `.pptx` : PowerPoint Document.
+   - `.ppt` : PowerPoint Document.
 
 ### Supported Meta Datatypes
 

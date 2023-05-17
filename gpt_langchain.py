@@ -303,8 +303,8 @@ def get_dai_docs(from_hf=False, get_pickle=True):
 
 
 file_types = ["pdf", "txt", "csv", "toml", "py", "rst",
-              "md", "html", "docx",
-              "enex", "eml", "epub", "odt", "pptx",
+              "md", "html", "docx", "doc",
+              "enex", "eml", "epub", "odt", "pptx", "ppt",
               "zip", "urls"]
 # "msg",  GPL3
 
@@ -338,13 +338,13 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
     elif file.endswith('.html'):
         docs1 = UnstructuredHTMLLoader(file_path=file).load()
         doc1 = chunk_sources(docs1, chunk_size=chunk_size)
-    elif file.endswith('.docx'):
+    elif file.endswith('.docx') or file.endswith('.doc'):
         docs1 = UnstructuredWordDocumentLoader(file_path=file).load()
         doc1 = chunk_sources(docs1, chunk_size=chunk_size)
     elif file.endswith('.odt'):
         docs1 = UnstructuredODTLoader(file_path=file).load()
         doc1 = chunk_sources(docs1, chunk_size=chunk_size)
-    elif file.endswith('pptx'):
+    elif file.endswith('pptx') or file.endswith('ppt'):
         docs1 = UnstructuredPowerPointLoader(file_path=file).load()
         doc1 = chunk_sources(docs1, chunk_size=chunk_size)
     elif file.endswith('.txt'):
