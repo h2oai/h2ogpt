@@ -258,7 +258,11 @@ def go_gradio(**kwargs):
                     with upload_row:
                         fileup_output = gr.File()
                         with gr.Row():
-                            from gpt_langchain import file_types
+                            # import control
+                            if kwargs['langchain_mode'] != 'Disabled':
+                                from gpt_langchain import file_types
+                            else:
+                                file_types = []
                             upload_button = gr.UploadButton("Upload %s" % file_types,
                                                             file_types=file_types,
                                                             file_count="multiple",
@@ -1089,6 +1093,11 @@ def go_gradio(**kwargs):
     if is_public:
         scheduler.add_job(func=ping, trigger="interval", seconds=60)
     scheduler.start()
+
+    # import control
+    if kwargs['langchain_mode'] == 'Disabled' and os.environ.get("TEST_LANGCHAIN_IMPORT"):
+        assert 'gpt_langchain' not in sys.modules, "Dev bug, import of langchain when should not have"
+        assert 'langchain' not in sys.modules, "Dev bug, import of langchain when should not have"
 
     demo.launch(share=kwargs['share'], server_name="0.0.0.0", show_error=True,
                 favicon_path=favicon_path, prevent_thread_lock=True,

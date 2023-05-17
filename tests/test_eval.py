@@ -9,6 +9,11 @@ def test_eval1_cpu():
 
 
 def run_eval1(cpu=False):
+    import os, sys
+    os.environ['TEST_LANGCHAIN_IMPORT'] = "1"
+    sys.modules.pop('gpt_langchain', None)
+    sys.modules.pop('langchain', None)
+
     if cpu:
         import os
         os.environ['CUDA_VISIBLE_DEVICES'] = ''
