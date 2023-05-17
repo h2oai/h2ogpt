@@ -15,7 +15,8 @@ def run_client1():
     res_dict = test_client_basic()
     assert res_dict['prompt'] == 'Who are you?'
     assert res_dict['iinput'] == ''
-    assert 'I am h2oGPT' in res_dict['response'] or "I'm h2oGPT" in res_dict['response'] or 'I’m h2oGPT' in res_dict['response']
+    assert 'I am h2oGPT' in res_dict['response'] or "I'm h2oGPT" in res_dict['response'] or 'I’m h2oGPT' in res_dict[
+        'response']
 
 
 def test_client_chat_nostream():
@@ -32,7 +33,8 @@ def run_client_chat_nostream():
     res_dict = run_client_chat(prompt='Who are you?', prompt_type='human_bot')
     assert res_dict['prompt'] == 'Who are you?'
     assert res_dict['iinput'] == ''
-    assert 'I am h2oGPT' in res_dict['response'] or "I'm h2oGPT" in res_dict['response'] or 'I’m h2oGPT' in res_dict['response']
+    assert 'I am h2oGPT' in res_dict['response'] or "I'm h2oGPT" in res_dict['response'] or 'I’m h2oGPT' in res_dict[
+        'response']
 
 
 @pytest.mark.skip(reason="Local file required")
