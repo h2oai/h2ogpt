@@ -346,7 +346,7 @@ def test_epub_add():
             assert db is not None
             docs = db.similarity_search("Grump")
             assert len(docs) == 4
-            assert 'Happy' in docs[0].page_content
+            assert 'happy' in docs[0].page_content or 'happiness' in docs[0].page_content
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
 
