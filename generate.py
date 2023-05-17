@@ -331,6 +331,10 @@ def main(
         dbs = {k: v for k, v in dbs.items() if v is not None}
     else:
         dbs = {}
+        # import control
+        if os.environ.get("TEST_LANGCHAIN_IMPORT"):
+            assert 'gpt_langchain' not in sys.modules, "Dev bug, import of langchain when should not have"
+            assert 'langchain' not in sys.modules, "Dev bug, import of langchain when should not have"
 
     if not gradio:
         if eval_sharegpt_prompts_only > 0:

@@ -7,6 +7,11 @@ def test_client1():
 
 
 def run_client1():
+    import os, sys
+    os.environ['TEST_LANGCHAIN_IMPORT'] = "1"
+    sys.modules.pop('gpt_langchain', None)
+    sys.modules.pop('langchain', None)
+
     from generate import main
     main(base_model='h2oai/h2ogpt-oig-oasst1-512-6.9b', prompt_type='human_bot', chat=False,
          stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False)
@@ -27,6 +32,11 @@ def test_client_chat_nostream():
 
 
 def run_client_chat(prompt='Who are you?', stream_output=False, max_new_tokens=256):
+    import os, sys
+    os.environ['TEST_LANGCHAIN_IMPORT'] = "1"
+    sys.modules.pop('gpt_langchain', None)
+    sys.modules.pop('langchain', None)
+
     from generate import main
     main(base_model='h2oai/h2ogpt-oig-oasst1-512-6.9b', prompt_type='human_bot', chat=True,
          stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
@@ -60,6 +70,11 @@ def test_client_long():
 
 
 def run_client_long():
+    import os, sys
+    os.environ['TEST_LANGCHAIN_IMPORT'] = "1"
+    sys.modules.pop('gpt_langchain', None)
+    sys.modules.pop('langchain', None)
+
     from generate import main
     main(base_model='mosaicml/mpt-7b-storywriter', prompt_type='plain', chat=False,
          stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False)
@@ -68,5 +83,5 @@ def run_client_long():
         prompt = f.readlines()
 
     from client_test import run_client_nochat
-    res_dict = run_client_nochat(prompt=prompt, prompt_type='plain')
+    res_dict = run_client_nochat(prompt=prompt, prompt_type='plain', max_new_tokens=86000)
     print(res_dict['response'])
