@@ -10,12 +10,13 @@ import traceback
 import uuid
 import zipfile
 from collections import defaultdict
+from datetime import datetime
 from functools import reduce
 from operator import concat
 
 from joblib import Parallel, delayed
 
-from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename
+from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs
 
 import_matplotlib()
 
@@ -24,9 +25,11 @@ import pandas as pd
 import requests
 from langchain.chains.qa_with_sources import load_qa_with_sources_chain
 # , GCSDirectoryLoader, GCSFileLoader
+# , OutlookMessageLoader # GPL3
 from langchain.document_loaders import PyPDFLoader, TextLoader, CSVLoader, PythonLoader, TomlLoader, \
     UnstructuredURLLoader, UnstructuredHTMLLoader, UnstructuredWordDocumentLoader, UnstructuredMarkdownLoader, \
-    EverNoteLoader
+    EverNoteLoader, UnstructuredEmailLoader, UnstructuredODTLoader, UnstructuredPowerPointLoader, \
+    UnstructuredEPubLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores import FAISS
 from langchain.chains.question_answering import load_qa_chain
@@ -299,9 +302,16 @@ def get_dai_docs(from_hf=False, get_pickle=True):
     return sources
 
 
+file_types = ["pdf", "txt", "csv", "toml", "py", "rst",
+              "md", "html", "docx",
+              "enex", "eml", "epub", "odt", "pptx",
+              "zip", "urls"]
+# "msg",  GPL3
+
+
 def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, chunk=True, chunk_size=512,
-                is_url=False):
-    if base_path is None:
+                is_url=False, is_txt=False):
+    if base_path is None and not is_txt and not is_url:
         # then assume want to persist but don't care which path used
         # can't be in base_path
         dir_name = os.path.dirname(file)
@@ -312,20 +322,52 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
     if is_url:
         docs1 = UnstructuredURLLoader(urls=[file]).load()
         doc1 = chunk_sources(docs1, chunk_size=chunk_size)
+    elif is_txt:
+        base_path = "user_paste"
+        source_file = os.path.join(base_path, "_%s" % str(uuid.uuid4()))
+        makedirs(os.path.dirname(source_file), exist_ok=True)
+        with open(source_file, "wt") as f:
+            f.write(file)
+        metadata = {"source": source_file, "date": str(datetime.now())}
+        doc1 = Document(page_content=file, metadata=metadata)
     elif file.endswith('.html'):
         docs1 = UnstructuredHTMLLoader(file_path=file).load()
         doc1 = chunk_sources(docs1, chunk_size=chunk_size)
     elif file.endswith('.docx'):
         docs1 = UnstructuredWordDocumentLoader(file_path=file).load()
         doc1 = chunk_sources(docs1, chunk_size=chunk_size)
+    elif file.endswith('.odt'):
+        docs1 = UnstructuredODTLoader(file_path=file).load()
+        doc1 = chunk_sources(docs1, chunk_size=chunk_size)
+    elif file.endswith('pptx'):
+        docs1 = UnstructuredPowerPointLoader(file_path=file).load()
+        doc1 = chunk_sources(docs1, chunk_size=chunk_size)
     elif file.endswith('.txt'):
         doc1 = TextLoader(file, encoding="utf8").load()
-        #
     elif file.endswith('.md'):
         docs1 = UnstructuredMarkdownLoader(file).load()
         doc1 = chunk_sources(docs1, chunk_size=chunk_size)
     elif file.endswith('.enex'):
         doc1 = EverNoteLoader(file).load()
+    elif file.endswith('.epub'):
+        docs1 = UnstructuredEPubLoader(file).load()
+        doc1 = chunk_sources(docs1, chunk_size=chunk_size)
+    elif file.endswith('.msg'):
+        raise RuntimeError("Not supported, GPL3 license")
+        #docs1 = OutlookMessageLoader(file).load()
+        #docs1[0].metadata['source'] = file
+    elif file.endswith('.eml'):
+        try:
+            docs1 = UnstructuredEmailLoader(file).load()
+            doc1 = chunk_sources(docs1, chunk_size=chunk_size)
+        except ValueError as e:
+            if 'text/html content not found in email' in str(e):
+                # e.g. plain/text dict key exists, but not
+                # doc1 = TextLoader(file, encoding="utf8").load()
+                docs1 = UnstructuredEmailLoader(file, content_source="text/plain").load()
+                doc1 = chunk_sources(docs1, chunk_size=chunk_size)
+            else:
+                raise
     # elif file.endswith('.gcsdir'):
     #    doc1 = GCSDirectoryLoader(project_name, bucket, prefix).load()
     # elif file.endswith('.gcsfile'):
@@ -397,17 +439,8 @@ def path_to_docs(path, verbose=False, fail_any_exception=False, n_jobs=-1, retur
                  chunk_size=512, url=None):
     if url is None:
         # Below globs should match patterns in file_to_doc()
-        globs = glob.glob(os.path.join(path, "./**/*.txt"), recursive=True) + \
-                glob.glob(os.path.join(path, "./**/*.md"), recursive=True) + \
-                glob.glob(os.path.join(path, "./**/*.rst"), recursive=True) + \
-                glob.glob(os.path.join(path, "./**/*.pdf"), recursive=True) + \
-                glob.glob(os.path.join(path, "./**/*.csv"), recursive=True) + \
-                glob.glob(os.path.join(path, "./**/*.py"), recursive=True) + \
-                glob.glob(os.path.join(path, "./**/*.toml"), recursive=True) + \
-                glob.glob(os.path.join(path, "./**/*.zip"), recursive=True) + \
-                glob.glob(os.path.join(path, "./**/*.html"), recursive=True) + \
-                glob.glob(os.path.join(path, "./**/*.docx"), recursive=True) + \
-                glob.glob(os.path.join(path, "./**/*.enex"), recursive=True)
+        globs = []
+        [globs.extend(glob.glob(os.path.join(path, "./**/*.%s" % ftype), recursive=True)) for ftype in file_types]
     else:
         globs = [url]
     # could use generator, but messes up metadata handling in recursive case

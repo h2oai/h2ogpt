@@ -248,5 +248,125 @@ def test_md_add():
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
 
+def test_eml_add():
+    with tempfile.TemporaryDirectory() as tmp_persistent_directory:
+        with tempfile.TemporaryDirectory() as tmp_user_path:
+            url = 'https://raw.githubusercontent.com/FlexConfirmMail/Thunderbird/master/sample.eml'
+            test_file1 = os.path.join(tmp_user_path, 'sample.eml')
+            download_simple(url, dest=test_file1)
+            db = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
+                              fail_any_exception=True)
+            assert db is not None
+            docs = db.similarity_search("What is subject?")
+            assert len(docs) == 1
+            assert 'testtest' in docs[0].page_content
+            assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+
+
+def test_simple_eml_add():
+    with tempfile.TemporaryDirectory() as tmp_persistent_directory:
+        with tempfile.TemporaryDirectory() as tmp_user_path:
+            html_content = """
+Date: Sun, 1 Apr 2012 14:25:25 -0600
+From: file@fyicenter.com
+Subject: Welcome
+To: someone@somewhere.com
+
+Dear Friend,
+
+Welcome to file.fyicenter.com!
+
+Sincerely,
+FYIcenter.com Team"""
+            test_file1 = os.path.join(tmp_user_path, 'test.eml')
+            with open(test_file1, "wt") as f:
+                f.write(html_content)
+            db = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
+                              fail_any_exception=True)
+            assert db is not None
+            docs = db.similarity_search("Subject")
+            assert len(docs) == 1
+            assert 'Welcome' in docs[0].page_content
+            assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+
+
+def test_odt_add():
+    with tempfile.TemporaryDirectory() as tmp_persistent_directory:
+        with tempfile.TemporaryDirectory() as tmp_user_path:
+            url = 'https://github.com/owncloud/example-files/raw/master/Documents/Example.odt'
+            test_file1 = os.path.join(tmp_user_path, 'sample.odt')
+            download_simple(url, dest=test_file1)
+            db = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
+                              fail_any_exception=True)
+            assert db is not None
+            docs = db.similarity_search("What is ownCloud?")
+            assert len(docs) == 4
+            assert 'ownCloud' in docs[0].page_content
+            assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+
+
+def test_pptx_add():
+    with tempfile.TemporaryDirectory() as tmp_persistent_directory:
+        with tempfile.TemporaryDirectory() as tmp_user_path:
+            url = 'https://www.unm.edu/~unmvclib/powerpoint/pptexamples.ppt'
+            test_file1 = os.path.join(tmp_user_path, 'sample.pptx')
+            download_simple(url, dest=test_file1)
+            db = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
+                              fail_any_exception=True)
+            assert db is not None
+            docs = db.similarity_search("Suggestions")
+            assert len(docs) == 4
+            assert 'Presentation' in docs[0].page_content
+            assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+
+
+def test_simple_pptx_add():
+    with tempfile.TemporaryDirectory() as tmp_persistent_directory:
+        with tempfile.TemporaryDirectory() as tmp_user_path:
+            url = 'https://www.suu.edu/webservices/styleguide/example-files/example.pptx'
+            test_file1 = os.path.join(tmp_user_path, 'sample.pptx')
+            download_simple(url, dest=test_file1)
+            db = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
+                              fail_any_exception=True)
+            assert db is not None
+            docs = db.similarity_search("Example")
+            assert len(docs) == 1
+            assert 'Powerpoint' in docs[0].page_content
+            assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+
+
+def test_epub_add():
+    with tempfile.TemporaryDirectory() as tmp_persistent_directory:
+        with tempfile.TemporaryDirectory() as tmp_user_path:
+            url = 'https://contentserver.adobe.com/store/books/GeographyofBliss_oneChapter.epub'
+            test_file1 = os.path.join(tmp_user_path, 'sample.epub')
+            download_simple(url, dest=test_file1)
+            db = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
+                              fail_any_exception=True)
+            assert db is not None
+            docs = db.similarity_search("Grump")
+            assert len(docs) == 4
+            assert 'Happy' in docs[0].page_content
+            assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+
+
+@pytest.mark.skip(reason="Not supported, GPL3, and msg-extractor code fails too often")
+@pytest.mark.xfail(strict=False,
+                   reason="fails with AttributeError: 'Message' object has no attribute '_MSGFile__stringEncoding'. Did you mean: '_MSGFile__overrideEncoding'? even though can use online converter to .eml fine.")
+def test_msg_add():
+    with tempfile.TemporaryDirectory() as tmp_persistent_directory:
+        with tempfile.TemporaryDirectory() as tmp_user_path:
+            url = 'http://file.fyicenter.com/b/sample.msg'
+            test_file1 = os.path.join(tmp_user_path, 'sample.msg')
+            download_simple(url, dest=test_file1)
+            db = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
+                              fail_any_exception=True)
+            assert db is not None
+            docs = db.similarity_search("Grump")
+            assert len(docs) == 4
+            assert 'Happy' in docs[0].page_content
+            assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+
+
 if __name__ == '__main__':
     pass

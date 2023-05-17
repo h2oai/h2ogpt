@@ -7,7 +7,6 @@ import uuid
 
 import filelock
 
-from gpt_langchain import chunk_sources
 from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, get_dark_js
 from prompter import Prompter, \
     prompt_type_to_model_name, prompt_types_strings, inv_prompt_type_to_model_lower
@@ -259,8 +258,7 @@ def go_gradio(**kwargs):
                     with upload_row:
                         fileup_output = gr.File()
                         with gr.Row():
-                            file_types = ["pdf", "txt", "csv", "toml", "py", "rst",
-                                          "md", "zip", "urls", "html", "docx", "enex"]
+                            from gpt_langchain import file_types
                             upload_button = gr.UploadButton("Upload %s" % file_types,
                                                             file_types=file_types,
                                                             file_count="multiple",
@@ -276,6 +274,12 @@ def go_gradio(**kwargs):
                                                  visible=allow_upload_to_user_data)
                         url_my_btn = gr.Button(value='Upload data from URL to Scratch MyData DB',
                                                visible=allow_upload_to_my_data)
+                    with gr.Row():
+                        user_text_text = gr.Textbox(label='Paste Text', interactive=True)
+                        user_text_user_btn = gr.Button(value='Upload data from Text to Shared UserData DB',
+                                                       visible=allow_upload_to_user_data)
+                        user_text_my_btn = gr.Button(value='Upload data from Text to Scratch MyData DB',
+                                                     visible=allow_upload_to_my_data)
                     # WIP:
                     with gr.Row(visible=False):
                         github_textbox = gr.Textbox(label="Github URL")
@@ -484,7 +488,7 @@ def go_gradio(**kwargs):
             .then(clear_file_list, outputs=fileup_output, queue=queue) \
             .then(make_invisible, outputs=add_to_shared_db_btn, queue=queue)
 
-        def clear_url_text():
+        def clear_textbox():
             return gr.Textbox.update(value='')
 
         update_user_db_url_func = functools.partial(update_user_db_func, is_url=True)
@@ -492,7 +496,14 @@ def go_gradio(**kwargs):
                            inputs=[url_text, my_db_state, add_to_shared_db_btn, add_to_my_db_btn],
                            outputs=[add_to_shared_db_btn, add_to_my_db_btn], queue=queue,
                            api_name='add_url_to_shared' if allow_api else None) \
-            .then(clear_url_text, outputs=url_text, queue=queue)
+            .then(clear_textbox, outputs=url_text, queue=queue)
+
+        update_user_db_txt_func = functools.partial(update_user_db_func, is_txt=True)
+        user_text_user_btn.click(update_user_db_txt_func,
+                                 inputs=[user_text_text, my_db_state, add_to_shared_db_btn, add_to_my_db_btn],
+                                 outputs=[add_to_shared_db_btn, add_to_my_db_btn], queue=queue,
+                                 api_name='add_text_to_shared' if allow_api else None) \
+            .then(clear_textbox, outputs=user_text_text, queue=queue)
 
         # Add to MyData
         update_my_db_func = functools.partial(update_user_db, dbs=dbs, db_type=db_type, langchain_mode='MyData',
@@ -512,7 +523,14 @@ def go_gradio(**kwargs):
                          inputs=[url_text, my_db_state, add_to_shared_db_btn, add_to_my_db_btn],
                          outputs=[my_db_state, add_to_shared_db_btn, add_to_my_db_btn], queue=queue,
                          api_name='add_url_to_my' if allow_api else None) \
-            .then(clear_url_text, outputs=url_text, queue=queue)
+            .then(clear_textbox, outputs=url_text, queue=queue)
+
+        update_my_db_txt_func = functools.partial(update_my_db_func, is_txt=True)
+        user_text_my_btn.click(update_my_db_txt_func,
+                               inputs=[user_text_text, my_db_state, add_to_shared_db_btn, add_to_my_db_btn],
+                               outputs=[my_db_state, add_to_shared_db_btn, add_to_my_db_btn], queue=queue,
+                               api_name='add_txt_to_my' if allow_api else None) \
+            .then(clear_textbox, outputs=user_text_text, queue=queue)
 
         def check_admin_pass(x):
             return gr.update(visible=x == admin_pass)
@@ -1106,14 +1124,14 @@ def get_inputs_list(inputs_dict, model_lower):
 
 def update_user_db(file, db1, x, y, dbs=None, db_type=None, langchain_mode='UserData', use_openai_embedding=False,
                    hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
-                   chunk=True, chunk_size=512, is_url=False):
+                   chunk=True, chunk_size=512, is_url=False, is_txt=False):
     assert isinstance(dbs, dict), "Wrong type for dbs: %s" % str(type(dbs))
     assert db_type in ['faiss', 'chroma'], "db_type %s not supported" % db_type
     from gpt_langchain import add_to_db, file_to_doc, get_db
     if hasattr(file, 'name'):
         file = file.name
     print("Adding %s" % file, flush=True)
-    sources = file_to_doc(file, base_path=None, chunk=chunk, chunk_size=chunk_size, is_url=is_url)
+    sources = file_to_doc(file, base_path=None, chunk=chunk, chunk_size=chunk_size, is_url=is_url, is_txt=is_txt)
     with filelock.FileLock("db_%s.lock" % langchain_mode.replace(' ', '_')):
         if langchain_mode == 'MyData':
             if db1[0] is not None:

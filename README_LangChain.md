@@ -9,6 +9,34 @@ Live hosted instances:
 
 For questions, discussing, or just hanging out, come and join our <a href="https://discord.gg/WKhYMWcVbq"><b>Discord</b></a>!
 
+### Supported Native Datatypes
+
+   - `.pdf`: Portable Document Format (PDF),
+   - `.txt`: Text file (UTF-8),
+   - `.csv`: CSV,
+   - `.toml`: Toml,
+   - `.py`: Python,
+   - `.rst`: reStructuredText,
+   - `.md`: Markdown,
+   - `.html`: HTML File,
+   - `.docx`: Word Document,
+   - `.enex`: EverNote,
+   - `.eml`: Email,
+   - `.epub`: EPub,
+   - `.odt`: Open Document Text,
+   - `.pptx` : PowerPoint Document.
+
+### Supported Meta Datatypes
+
+   - `.zip` : Zip File containing any native datatype,
+   - `.urls` : Text file containing new-line separated URLs (to be consumed via download).
+
+### Supported Datatypes in UI
+
+   - `Files` : All Native and Meta DataTypes as file(s),
+   - `URL` : Any URL,
+   - `Text` : Paste Text into UI.
+
 ### Database creation
 
 To use some example databases (will overwrite UserData make above unless change options) and run generate after, do:
