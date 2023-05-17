@@ -7,6 +7,7 @@ import uuid
 
 import filelock
 
+from gpt_langchain import chunk_sources
 from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, get_dark_js
 from prompter import Prompter, \
     prompt_type_to_model_name, prompt_types_strings, inv_prompt_type_to_model_lower
@@ -1078,7 +1079,8 @@ def get_inputs_list(inputs_dict, model_lower):
 
 
 def update_user_db(file, db1, x, y, dbs=None, db_type=None, langchain_mode='UserData', use_openai_embedding=False,
-                   hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2"):
+                   hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
+                   chunk=True, chunk_size=512):
     assert isinstance(dbs, dict), "Wrong type for dbs: %s" % str(type(dbs))
     assert db_type in ['faiss', 'chroma'], "db_type %s not supported" % db_type
     from gpt_langchain import add_to_db, file_to_doc, get_db

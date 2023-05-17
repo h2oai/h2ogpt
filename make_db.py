@@ -3,14 +3,13 @@ import os
 import fire
 from langchain.vectorstores import Chroma
 
-from gpt_langchain import path_to_docs, chunk_sources, get_db, get_some_dbs_from_hf, all_db_zips, some_db_zips, \
+from gpt_langchain import path_to_docs, get_db, get_some_dbs_from_hf, all_db_zips, some_db_zips, \
     get_embedding, add_to_db
 
 
 def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False, fail_any_exception=False):
-    sources1 = path_to_docs(user_path, verbose=verbose, fail_any_exception=fail_any_exception)
-    if chunk:
-        sources1 = chunk_sources(sources1, chunk_size=chunk_size)
+    sources1 = path_to_docs(user_path, verbose=verbose, fail_any_exception=fail_any_exception, chunk=chunk,
+                            chunk_size=chunk_size)
     return sources1
 
 
