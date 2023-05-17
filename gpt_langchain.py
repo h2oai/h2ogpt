@@ -24,9 +24,11 @@ import pandas as pd
 import requests
 from langchain.chains.qa_with_sources import load_qa_with_sources_chain
 # , GCSDirectoryLoader, GCSFileLoader
+# , OutlookMessageLoader # GPL3
 from langchain.document_loaders import PyPDFLoader, TextLoader, CSVLoader, PythonLoader, TomlLoader, \
     UnstructuredURLLoader, UnstructuredHTMLLoader, UnstructuredWordDocumentLoader, UnstructuredMarkdownLoader, \
-    EverNoteLoader, UnstructuredEmailLoader, UnstructuredODTLoader, UnstructuredPowerPointLoader
+    EverNoteLoader, UnstructuredEmailLoader, UnstructuredODTLoader, UnstructuredPowerPointLoader, \
+    UnstructuredEPubLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores import FAISS
 from langchain.chains.question_answering import load_qa_chain
@@ -300,8 +302,10 @@ def get_dai_docs(from_hf=False, get_pickle=True):
 
 
 file_types = ["pdf", "txt", "csv", "toml", "py", "rst",
-              "md", "zip", "urls", "html", "docx",
-              "enex", "eml", "odt", "pptx"]
+              "md", "html", "docx",
+              "enex", "eml", "epub", "odt", "pptx",
+              "zip", "urls"]
+# "msg",  GPL3
 
 
 def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, chunk=True, chunk_size=512,
@@ -336,6 +340,13 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
         doc1 = chunk_sources(docs1, chunk_size=chunk_size)
     elif file.endswith('.enex'):
         doc1 = EverNoteLoader(file).load()
+    elif file.endswith('.epub'):
+        docs1 = UnstructuredEPubLoader(file).load()
+        doc1 = chunk_sources(docs1, chunk_size=chunk_size)
+    elif file.endswith('.msg'):
+        raise RuntimeError("Not supported, GPL3 license")
+        #docs1 = OutlookMessageLoader(file).load()
+        #docs1[0].metadata['source'] = file
     elif file.endswith('.eml'):
         try:
             docs1 = UnstructuredEmailLoader(file).load()
@@ -343,7 +354,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
         except ValueError as e:
             if 'text/html content not found in email' in str(e):
                 # e.g. plain/text dict key exists, but not
-                #doc1 = TextLoader(file, encoding="utf8").load()
+                # doc1 = TextLoader(file, encoding="utf8").load()
                 docs1 = UnstructuredEmailLoader(file, content_source="text/plain").load()
                 doc1 = chunk_sources(docs1, chunk_size=chunk_size)
             else:

@@ -335,5 +335,38 @@ def test_simple_pptx_add():
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
 
+def test_epub_add():
+    with tempfile.TemporaryDirectory() as tmp_persistent_directory:
+        with tempfile.TemporaryDirectory() as tmp_user_path:
+            url = 'https://contentserver.adobe.com/store/books/GeographyofBliss_oneChapter.epub'
+            test_file1 = os.path.join(tmp_user_path, 'sample.epub')
+            download_simple(url, dest=test_file1)
+            db = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
+                              fail_any_exception=True)
+            assert db is not None
+            docs = db.similarity_search("Grump")
+            assert len(docs) == 4
+            assert 'Happy' in docs[0].page_content
+            assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+
+
+@pytest.mark.skip(reason="Not supported, GPL3, and msg-extractor code fails too often")
+@pytest.mark.xfail(strict=False,
+                   reason="fails with AttributeError: 'Message' object has no attribute '_MSGFile__stringEncoding'. Did you mean: '_MSGFile__overrideEncoding'? even though can use online converter to .eml fine.")
+def test_msg_add():
+    with tempfile.TemporaryDirectory() as tmp_persistent_directory:
+        with tempfile.TemporaryDirectory() as tmp_user_path:
+            url = 'http://file.fyicenter.com/b/sample.msg'
+            test_file1 = os.path.join(tmp_user_path, 'sample.msg')
+            download_simple(url, dest=test_file1)
+            db = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
+                              fail_any_exception=True)
+            assert db is not None
+            docs = db.similarity_search("Grump")
+            assert len(docs) == 4
+            assert 'Happy' in docs[0].page_content
+            assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+
+
 if __name__ == '__main__':
     pass
