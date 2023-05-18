@@ -183,3 +183,4 @@ else:
         max_shard_size="5GB",
     )
     shutil.copyfile("h2oai_pipeline.py", os.path.join(OUTPUT_NAME, "h2oai_pipeline.py"))
+    shutil.copyfile("stopping.py", os.path.join(OUTPUT_NAME, "stopping.py"))
