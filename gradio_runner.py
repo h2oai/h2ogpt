@@ -38,6 +38,7 @@ def go_gradio(**kwargs):
     allow_upload = allow_upload_to_user_data or allow_upload_to_my_data
     use_openai_embedding = kwargs['use_openai_embedding']
     hf_embedding_model = kwargs['hf_embedding_model']
+    caption_loader = kwargs['caption_loader']
 
     # easy update of kwargs needed for evaluate() etc.
     kwargs.update(locals())
@@ -482,6 +483,7 @@ def go_gradio(**kwargs):
         update_user_db_func = functools.partial(update_user_db, dbs=dbs, db_type=db_type, langchain_mode='UserData',
                                                 use_openai_embedding=use_openai_embedding,
                                                 hf_embedding_model=hf_embedding_model,
+                                                caption_loader=caption_loader,
                                                 )
 
         # note for update_user_db_func output is ignored for db
@@ -513,6 +515,7 @@ def go_gradio(**kwargs):
         update_my_db_func = functools.partial(update_user_db, dbs=dbs, db_type=db_type, langchain_mode='MyData',
                                               use_openai_embedding=use_openai_embedding,
                                               hf_embedding_model=hf_embedding_model,
+                                              caption_loader=caption_loader,
                                               )
 
         add_to_my_db_btn.click(update_my_db_func,
@@ -1133,6 +1136,7 @@ def get_inputs_list(inputs_dict, model_lower):
 
 def update_user_db(file, db1, x, y, dbs=None, db_type=None, langchain_mode='UserData', use_openai_embedding=False,
                    hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
+                   caption_loader=None,
                    chunk=True, chunk_size=512, is_url=False, is_txt=False):
     assert isinstance(dbs, dict), "Wrong type for dbs: %s" % str(type(dbs))
     assert db_type in ['faiss', 'chroma'], "db_type %s not supported" % db_type
@@ -1140,7 +1144,8 @@ def update_user_db(file, db1, x, y, dbs=None, db_type=None, langchain_mode='User
     if hasattr(file, 'name'):
         file = file.name
     print("Adding %s" % file, flush=True)
-    sources = file_to_doc(file, base_path=None, chunk=chunk, chunk_size=chunk_size, is_url=is_url, is_txt=is_txt)
+    sources = file_to_doc(file, base_path=None, chunk=chunk, chunk_size=chunk_size, is_url=is_url, is_txt=is_txt,
+                          caption_loader=caption_loader)
     with filelock.FileLock("db_%s.lock" % langchain_mode.replace(' ', '_')):
         if langchain_mode == 'MyData':
             if db1[0] is not None:
