@@ -329,7 +329,8 @@ file_types = non_image_types + image_types
 
 
 def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, chunk=True, chunk_size=512,
-                is_url=False, is_txt=False, enable_captions=True, enable_ocr=False, caption_loader=None):
+                is_url=False, is_txt=False,
+                enable_captions=True, enable_ocr=False, caption_loader=None):
     if file is None:
         if fail_any_exception:
             raise RuntimeError("Unexpected None file")
@@ -455,17 +456,21 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
 
 
 def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True, chunk=True, chunk_size=512,
-                 is_url=False, enable_captions=True, enable_ocr=False, caption_loader=None):
+                 is_url=False, is_txt=False,
+                 enable_captions=True, enable_ocr=False, caption_loader=None):
     if verbose:
         if is_url:
             print("Ingesting URL: %s" % file, flush=True)
+        elif is_txt:
+            print("Ingesting Text: %s" % file, flush=True)
         else:
             print("Ingesting file: %s" % file, flush=True)
     res = None
     try:
         # don't pass base_path=path, would infinitely recurse
         res = file_to_doc(file, base_path=None, verbose=verbose, fail_any_exception=fail_any_exception,
-                          chunk=chunk, chunk_size=chunk_size, is_url=is_url,
+                          chunk=chunk, chunk_size=chunk_size,
+                          is_url=is_url, is_txt=is_txt,
                           enable_captions=enable_captions, enable_ocr=enable_ocr,
                           caption_loader=caption_loader)
     except BaseException:
@@ -483,36 +488,51 @@ def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True
     return res
 
 
-def path_to_docs(path, verbose=False, fail_any_exception=False, n_jobs=-1, return_file=True, chunk=True,
-                 chunk_size=512, url=None, enable_captions=True, enable_ocr=False, caption_loader=None):
+def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=-1,
+                 chunk=True, chunk_size=512,
+                 url=None, text=None,
+                 enable_captions=True, enable_ocr=False, caption_loader=None):
     globs_image_types = []
     globs_non_image_types = []
-    if url is None:
-        # Below globs should match patterns in file_to_doc()
-        [globs_image_types.extend(glob.glob(os.path.join(path, "./**/*.%s" % ftype), recursive=True)) for ftype in
-         image_types]
-        [globs_non_image_types.extend(glob.glob(os.path.join(path, "./**/*.%s" % ftype), recursive=True)) for ftype in
-         non_image_types]
-        globs = globs_non_image_types + globs_image_types
+    if isinstance(path_or_paths, str):
+        path = path_or_paths
+        if url is None:
+            # Below globs should match patterns in file_to_doc()
+            [globs_image_types.extend(glob.glob(os.path.join(path, "./**/*.%s" % ftype), recursive=True)) for ftype in
+             image_types]
+            [globs_non_image_types.extend(glob.glob(os.path.join(path, "./**/*.%s" % ftype), recursive=True)) for ftype in
+             non_image_types]
+            globs = globs_non_image_types + globs_image_types
+        else:
+            globs = [url]
     else:
-        globs = [url]
+        assert isinstance(path_or_paths, (list, tuple)), "Wrong type for path_or_paths: %s" % type(path_or_paths)
+        globs = path_or_paths
     # could use generator, but messes up metadata handling in recursive case
     if caption_loader and not isinstance(caption_loader, (bool, str)) and caption_loader.device != 'cpu':
         # to avoid deadlocks, presume was preloaded and so can't fork due to cuda context
         n_jobs = 1
     if 'tokenizers' in sys.modules:
         # to avoid deadlocks (FIXME: Not alaays complains, e.g. inside gradio uploading zip, already had tokenizer, no hang or complaint)
-        #n_jobs = 1
+        # n_jobs = 1
         pass
+
+    return_file = True  # local choice
+    is_url = url is not None
+    is_txt = text is not None
     kwargs = dict(verbose=verbose, fail_any_exception=fail_any_exception,
                   return_file=return_file,
                   chunk=chunk, chunk_size=chunk_size,
-                  is_url=url is not None,
+                  is_url=is_url,
+                  is_txt=is_txt,
                   enable_captions=enable_captions,
                   enable_ocr=enable_ocr,
                   caption_loader=caption_loader,
                   )
-    if n_jobs != 1:
+
+    if n_jobs != 1 and len(globs) > 1:
+        # avoid nesting, e.g. upload 1 zip and then inside many files
+        # harder to handle if upload many zips with many files, inner parallel one will be disabled by joblib
         documents = Parallel(n_jobs=n_jobs, verbose=10 if verbose else 0, backend='multiprocessing')(
             delayed(path_to_doc1)(file, **kwargs) for file in globs
         )

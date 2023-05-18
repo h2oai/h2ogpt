@@ -38,6 +38,8 @@ def go_gradio(**kwargs):
     allow_upload = allow_upload_to_user_data or allow_upload_to_my_data
     use_openai_embedding = kwargs['use_openai_embedding']
     hf_embedding_model = kwargs['hf_embedding_model']
+    enable_captions = kwargs['enable_captions']
+    enable_ocr = kwargs['enable_ocr']
     caption_loader = kwargs['caption_loader']
 
     # easy update of kwargs needed for evaluate() etc.
@@ -256,37 +258,39 @@ def go_gradio(**kwargs):
                             return files, file_paths
 
                     upload_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and allow_upload)
+                    # import control
+                    if kwargs['langchain_mode'] != 'Disabled':
+                        from gpt_langchain import file_types
+                    else:
+                        file_types = []
                     with upload_row:
-                        fileup_output = gr.File(label='Upload File (Drop-Drop or Select File(s)')
+                        fileup_output = gr.File(label='Upload File (Drop-Drop or Select File(s)',
+                                                file_types=file_types,
+                                                file_count="multiple")
                         with gr.Row():
-                            # import control
-                            if kwargs['langchain_mode'] != 'Disabled':
-                                from gpt_langchain import file_types
-                            else:
-                                file_types = []
                             upload_button = gr.UploadButton("Upload %s" % file_types,
                                                             file_types=file_types,
                                                             file_count="multiple",
                                                             visible=False,
                                                             )
                             # add not visible until upload something
-                            add_to_shared_db_btn = gr.Button("Add Upload to Shared UserData DB",
-                                                             visible=allow_upload_to_user_data)# and False)
-                            add_to_my_db_btn = gr.Button("Add Upload to Scratch MyData DB",
-                                                         visible=allow_upload_to_my_data)# and False)
+                            add_to_shared_db_btn = gr.Button("Add File(s) to Shared UserData DB",
+                                                             visible=allow_upload_to_user_data)  # and False)
+                            add_to_my_db_btn = gr.Button("Add File(s) to Scratch MyData DB",
+                                                         visible=allow_upload_to_my_data)  # and False)
                     url_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and allow_upload)
                     with url_row:
                         url_text = gr.Textbox(label='URL', interactive=True)
-                        url_user_btn = gr.Button(value='Upload data from URL to Shared UserData DB',
+                        url_user_btn = gr.Button(value='Add URL content to Shared UserData DB',
                                                  visible=allow_upload_to_user_data)
-                        url_my_btn = gr.Button(value='Upload data from URL to Scratch MyData DB',
+                        url_my_btn = gr.Button(value='Add URL content to Scratch MyData DB',
                                                visible=allow_upload_to_my_data)
                     text_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and allow_upload)
                     with text_row:
                         user_text_text = gr.Textbox(label='Paste Text', interactive=True)
-                        user_text_user_btn = gr.Button(value='Upload data from Text to Shared UserData DB',
+                        user_text_user_btn = gr.Button(value='Add Text to Shared UserData DB',
                                                        visible=allow_upload_to_user_data)
-                        user_text_my_btn = gr.Button(value='Upload data from Text to Scratch MyData DB',
+                        user_text_my_btn = gr.Button(value='Add Text to Scratch MyData DB',
                                                      visible=allow_upload_to_my_data)
                     # WIP:
                     with gr.Row(visible=False):
@@ -492,6 +496,8 @@ def go_gradio(**kwargs):
         update_user_db_func = functools.partial(update_user_db, dbs=dbs, db_type=db_type, langchain_mode='UserData',
                                                 use_openai_embedding=use_openai_embedding,
                                                 hf_embedding_model=hf_embedding_model,
+                                                enable_captions=enable_captions,
+                                                enable_ocr=enable_ocr,
                                                 caption_loader=caption_loader,
                                                 )
 
@@ -501,8 +507,9 @@ def go_gradio(**kwargs):
                                    outputs=[add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
                                    api_name='add_to_shared' if allow_api else None) \
             .then(clear_file_list, outputs=fileup_output, queue=queue)
-            #.then(make_invisible, outputs=add_to_shared_db_btn, queue=queue)
-            #.then(make_visible, outputs=upload_button, queue=queue)
+
+        # .then(make_invisible, outputs=add_to_shared_db_btn, queue=queue)
+        # .then(make_visible, outputs=upload_button, queue=queue)
 
         def clear_textbox():
             return gr.Textbox.update(value='')
@@ -525,6 +532,8 @@ def go_gradio(**kwargs):
         update_my_db_func = functools.partial(update_user_db, dbs=dbs, db_type=db_type, langchain_mode='MyData',
                                               use_openai_embedding=use_openai_embedding,
                                               hf_embedding_model=hf_embedding_model,
+                                              enable_captions=enable_captions,
+                                              enable_ocr=enable_ocr,
                                               caption_loader=caption_loader,
                                               )
 
@@ -533,8 +542,8 @@ def go_gradio(**kwargs):
                                outputs=[my_db_state, add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
                                api_name='add_to_my' if allow_api else None) \
             .then(clear_file_list, outputs=fileup_output, queue=queue)
-            #.then(make_invisible, outputs=add_to_shared_db_btn, queue=queue)
-            #.then(make_visible, outputs=upload_button, queue=queue)
+        # .then(make_invisible, outputs=add_to_shared_db_btn, queue=queue)
+        # .then(make_visible, outputs=upload_button, queue=queue)
 
         update_my_db_url_func = functools.partial(update_my_db_func, is_url=True)
         url_my_btn.click(update_my_db_url_func,
@@ -1148,15 +1157,30 @@ def get_inputs_list(inputs_dict, model_lower):
 def update_user_db(file, db1, x, y, dbs=None, db_type=None, langchain_mode='UserData', use_openai_embedding=False,
                    hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
                    caption_loader=None,
+                   enable_captions=True,
+                   enable_ocr=False,
+                   verbose=False,
                    chunk=True, chunk_size=512, is_url=False, is_txt=False):
     assert isinstance(dbs, dict), "Wrong type for dbs: %s" % str(type(dbs))
     assert db_type in ['faiss', 'chroma'], "db_type %s not supported" % db_type
-    from gpt_langchain import add_to_db, file_to_doc, get_db
+    from gpt_langchain import add_to_db, get_db, path_to_docs
+    # handle case of list of temp buffer
+    if isinstance(file, list) and len(file) > 0 and hasattr(file[0], 'name'):
+        file = [x.name for x in file]
+    # handle single file of temp buffer
     if hasattr(file, 'name'):
         file = file.name
-    print("Adding %s" % file, flush=True)
-    sources = file_to_doc(file, base_path=None, chunk=chunk, chunk_size=chunk_size, is_url=is_url, is_txt=is_txt,
-                          caption_loader=caption_loader)
+    if verbose:
+        print("Adding %s" % file, flush=True)
+    sources = path_to_docs(file if not is_url and not is_txt else None,
+                           verbose=verbose,  chunk=chunk, chunk_size=chunk_size,
+                           url=file if is_url else None,
+                           text=file if is_txt else None,
+                           enable_captions=enable_captions,
+                           enable_ocr=enable_ocr,
+                           caption_loader=caption_loader,
+                           )
+
     with filelock.FileLock("db_%s.lock" % langchain_mode.replace(' ', '_')):
         if langchain_mode == 'MyData':
             if db1[0] is not None:
