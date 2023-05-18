@@ -273,13 +273,15 @@ def go_gradio(**kwargs):
                                                              visible=allow_upload_to_user_data and False)
                             add_to_my_db_btn = gr.Button("Add Upload to Scratch MyData DB",
                                                          visible=allow_upload_to_my_data and False)
-                    with gr.Row():
+                    url_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and allow_upload)
+                    with url_row:
                         url_text = gr.Textbox(label='URL', interactive=True)
                         url_user_btn = gr.Button(value='Upload data from URL to Shared UserData DB',
                                                  visible=allow_upload_to_user_data)
                         url_my_btn = gr.Button(value='Upload data from URL to Scratch MyData DB',
                                                visible=allow_upload_to_my_data)
-                    with gr.Row():
+                    text_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and allow_upload)
+                    with text_row:
                         user_text_text = gr.Textbox(label='Paste Text', interactive=True)
                         user_text_user_btn = gr.Button(value='Upload data from Text to Shared UserData DB',
                                                        visible=allow_upload_to_user_data)
@@ -293,6 +295,9 @@ def go_gradio(**kwargs):
                                                           visible=allow_upload_to_user_data)
                             github_my_btn = gr.Button(value="Add Github to Scratch MyData DB",
                                                       visible=allow_upload_to_my_data)
+                    sources_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and allow_upload)
+                    with sources_row:
+                        sources_text = gr.Textbox(label='Sources Added', interactive=False)
 
                 with gr.TabItem("Expert"):
                     with gr.Row():
@@ -489,7 +494,7 @@ def go_gradio(**kwargs):
         # note for update_user_db_func output is ignored for db
         add_to_shared_db_btn.click(update_user_db_func,
                                    inputs=[fileup_output, my_db_state, add_to_shared_db_btn, add_to_my_db_btn],
-                                   outputs=[add_to_shared_db_btn, add_to_my_db_btn], queue=queue,
+                                   outputs=[add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
                                    api_name='add_to_shared' if allow_api else None) \
             .then(clear_file_list, outputs=fileup_output, queue=queue) \
             .then(make_invisible, outputs=add_to_shared_db_btn, queue=queue)
@@ -500,14 +505,14 @@ def go_gradio(**kwargs):
         update_user_db_url_func = functools.partial(update_user_db_func, is_url=True)
         url_user_btn.click(update_user_db_url_func,
                            inputs=[url_text, my_db_state, add_to_shared_db_btn, add_to_my_db_btn],
-                           outputs=[add_to_shared_db_btn, add_to_my_db_btn], queue=queue,
+                           outputs=[add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
                            api_name='add_url_to_shared' if allow_api else None) \
             .then(clear_textbox, outputs=url_text, queue=queue)
 
         update_user_db_txt_func = functools.partial(update_user_db_func, is_txt=True)
         user_text_user_btn.click(update_user_db_txt_func,
                                  inputs=[user_text_text, my_db_state, add_to_shared_db_btn, add_to_my_db_btn],
-                                 outputs=[add_to_shared_db_btn, add_to_my_db_btn], queue=queue,
+                                 outputs=[add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
                                  api_name='add_text_to_shared' if allow_api else None) \
             .then(clear_textbox, outputs=user_text_text, queue=queue)
 
@@ -520,7 +525,7 @@ def go_gradio(**kwargs):
 
         add_to_my_db_btn.click(update_my_db_func,
                                inputs=[fileup_output, my_db_state, add_to_shared_db_btn, add_to_my_db_btn],
-                               outputs=[my_db_state, add_to_shared_db_btn, add_to_my_db_btn], queue=queue,
+                               outputs=[my_db_state, add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
                                api_name='add_to_my' if allow_api else None) \
             .then(clear_file_list, outputs=fileup_output, queue=queue) \
             .then(make_invisible, outputs=add_to_shared_db_btn, queue=queue)
@@ -528,14 +533,14 @@ def go_gradio(**kwargs):
         update_my_db_url_func = functools.partial(update_my_db_func, is_url=True)
         url_my_btn.click(update_my_db_url_func,
                          inputs=[url_text, my_db_state, add_to_shared_db_btn, add_to_my_db_btn],
-                         outputs=[my_db_state, add_to_shared_db_btn, add_to_my_db_btn], queue=queue,
+                         outputs=[my_db_state, add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
                          api_name='add_url_to_my' if allow_api else None) \
             .then(clear_textbox, outputs=url_text, queue=queue)
 
         update_my_db_txt_func = functools.partial(update_my_db_func, is_txt=True)
         user_text_my_btn.click(update_my_db_txt_func,
                                inputs=[user_text_text, my_db_state, add_to_shared_db_btn, add_to_my_db_btn],
-                               outputs=[my_db_state, add_to_shared_db_btn, add_to_my_db_btn], queue=queue,
+                               outputs=[my_db_state, add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
                                api_name='add_txt_to_my' if allow_api else None) \
             .then(clear_textbox, outputs=user_text_text, queue=queue)
 
@@ -1160,7 +1165,8 @@ def update_user_db(file, db1, x, y, dbs=None, db_type=None, langchain_mode='User
                                 persist_directory=persist_directory,
                                 langchain_mode=langchain_mode,
                                 hf_embedding_model=hf_embedding_model)
-            return db1, x, y
+            source_files_added = sorted(set([x['source'] for x in db1[0].get()['metadatas']]))
+            return db1, x, y, source_files_added
         else:
             persist_directory = 'db_dir_%s' % langchain_mode
             if langchain_mode in dbs and dbs[langchain_mode] is not None:
@@ -1177,4 +1183,5 @@ def update_user_db(file, db1, x, y, dbs=None, db_type=None, langchain_mode='User
             # NOTE we do not return db, because function call always same code path
             # return dbs[langchain_mode], x, y
             # db in this code path is updated in place
-            return x, y
+            source_files_added = sorted(set([x['source'] for x in db1.get()['metadatas']]))
+            return x, y, source_files_added
