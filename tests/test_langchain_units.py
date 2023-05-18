@@ -12,21 +12,29 @@ from utils import zip_data, download_simple
 
 have_openai_key = os.environ.get('OPENAI_API_KEY') is not None
 
+# FIXME:
+os.environ['TOKENIZERS_PARALLELISM'] = 'false'
+
 
 @pytest.mark.skipif(not have_openai_key, reason="requires OpenAI key to run")
 def test_qa_wiki_openai():
-    return run_qa_wiki(use_openai_model=True)
+    return run_qa_wiki_fork(use_openai_model=True)
 
 
 def test_qa_wiki_stuff_hf():
     # NOTE: total context length makes things fail when n_sources * text_limit >~ 2048
-    return run_qa_wiki(use_openai_model=False, text_limit=256, chain_type='stuff', prompt_type='human_bot')
+    return run_qa_wiki_fork(use_openai_model=False, text_limit=256, chain_type='stuff', prompt_type='human_bot')
 
 
 @pytest.mark.xfail(strict=False,
                    reason="Too long context, improve prompt for map_reduce.  Until then hit: The size of tensor a (2048) must match the size of tensor b (2125) at non-singleton dimension 3")
 def test_qa_wiki_map_reduce_hf():
-    return run_qa_wiki(use_openai_model=False, text_limit=None, chain_type='map_reduce', prompt_type='human_bot')
+    return run_qa_wiki_fork(use_openai_model=False, text_limit=None, chain_type='map_reduce', prompt_type='human_bot')
+
+
+def run_qa_wiki_fork(*args, **kwargs):
+    from tests.utils import call_subprocess_onetask
+    return call_subprocess_onetask(run_qa_wiki, args=args, kwargs=kwargs)
 
 
 def run_qa_wiki(use_openai_model=False, first_para=True, text_limit=None, chain_type='stuff', prompt_type=None):
@@ -52,7 +60,8 @@ def test_qa_wiki_db_hf():
 
 
 def test_qa_wiki_db_chunk_hf():
-    return _run_qa_db(use_openai_model=False, use_openai_embedding=False, text_limit=256, chunk=True, chunk_size=256,
+    return _run_qa_db(use_openai_model=False, use_openai_embedding=False, text_limit=256, chunk=True,
+                      chunk_size=256,
                       langchain_mode='wiki')
 
 
@@ -235,10 +244,9 @@ def test_md_add():
             if not os.path.isfile(test_file1):
                 # see if ran from tests directory
                 test_file1 = '../README.md'
-                if os.path.isfile(test_file1):
-                    test_file1 = os.path.abspath(test_file1)
+                test_file1 = os.path.abspath(test_file1)
             shutil.copy(test_file1, tmp_user_path)
-            test_file1 = os.path.join(tmp_user_path, test_file1)
+            test_file1 = os.path.join(tmp_user_path, os.path.basename(test_file1))
             db = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
                               fail_any_exception=True)
             assert db is not None

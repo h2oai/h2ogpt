@@ -257,7 +257,7 @@ def go_gradio(**kwargs):
 
                     upload_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and allow_upload)
                     with upload_row:
-                        fileup_output = gr.File()
+                        fileup_output = gr.File(label='Upload File (Drop-Drop or Select File(s)')
                         with gr.Row():
                             # import control
                             if kwargs['langchain_mode'] != 'Disabled':
@@ -267,12 +267,13 @@ def go_gradio(**kwargs):
                             upload_button = gr.UploadButton("Upload %s" % file_types,
                                                             file_types=file_types,
                                                             file_count="multiple",
+                                                            visible=False,
                                                             )
                             # add not visible until upload something
                             add_to_shared_db_btn = gr.Button("Add Upload to Shared UserData DB",
-                                                             visible=allow_upload_to_user_data and False)
+                                                             visible=allow_upload_to_user_data)# and False)
                             add_to_my_db_btn = gr.Button("Add Upload to Scratch MyData DB",
-                                                         visible=allow_upload_to_my_data and False)
+                                                         visible=allow_upload_to_my_data)# and False)
                     url_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and allow_upload)
                     with url_row:
                         url_text = gr.Textbox(label='URL', interactive=True)
@@ -476,6 +477,9 @@ def go_gradio(**kwargs):
         def make_invisible():
             return gr.update(visible=False)
 
+        def make_visible():
+            return gr.update(visible=True)
+
         # add itself to output to ensure shows working and can't click again
         upload_button.upload(upload_file, inputs=[upload_button, fileup_output],
                              outputs=[upload_button, fileup_output], queue=queue,
@@ -496,8 +500,9 @@ def go_gradio(**kwargs):
                                    inputs=[fileup_output, my_db_state, add_to_shared_db_btn, add_to_my_db_btn],
                                    outputs=[add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
                                    api_name='add_to_shared' if allow_api else None) \
-            .then(clear_file_list, outputs=fileup_output, queue=queue) \
-            .then(make_invisible, outputs=add_to_shared_db_btn, queue=queue)
+            .then(clear_file_list, outputs=fileup_output, queue=queue)
+            #.then(make_invisible, outputs=add_to_shared_db_btn, queue=queue)
+            #.then(make_visible, outputs=upload_button, queue=queue)
 
         def clear_textbox():
             return gr.Textbox.update(value='')
@@ -527,8 +532,9 @@ def go_gradio(**kwargs):
                                inputs=[fileup_output, my_db_state, add_to_shared_db_btn, add_to_my_db_btn],
                                outputs=[my_db_state, add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
                                api_name='add_to_my' if allow_api else None) \
-            .then(clear_file_list, outputs=fileup_output, queue=queue) \
-            .then(make_invisible, outputs=add_to_shared_db_btn, queue=queue)
+            .then(clear_file_list, outputs=fileup_output, queue=queue)
+            #.then(make_invisible, outputs=add_to_shared_db_btn, queue=queue)
+            #.then(make_visible, outputs=upload_button, queue=queue)
 
         update_my_db_url_func = functools.partial(update_my_db_func, is_url=True)
         url_my_btn.click(update_my_db_url_func,

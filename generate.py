@@ -126,6 +126,7 @@ def main(
         k: int = 4,
         n_jobs: int = -1,
         enable_captions: bool = False,
+        pre_load_caption_model = False,
         caption_gpu: bool = True,
         support_ocr: bool = False,
 ):
@@ -208,6 +209,8 @@ def main(
     :param k: number of chunks to give LLM
     :param n_jobs: Number of processors to use when consuming documents (-1 = all, is default)
     :param enable_captions: Whether to support captions using BLIP for image files as documents, then preloads that model
+    :param pre_load_caption_model: Whether to preload caption model, or load after forking parallel doc loader
+           parallel loading disabled if preload and have images, to prevent deadlocking on cuda context
     :param caption_gpu: If support caption, then use GPU if exists
     :param support_ocr: Whether to support OCR on images
     :return:
@@ -513,10 +516,13 @@ def main(
         score_model_state0 = [smodel, stokenizer, sdevice, score_model]
 
         if enable_captions:
-            from image_captions import H2OImageCaptionLoader
-            caption_loader = H2OImageCaptionLoader(caption_gpu=caption_gpu)
+            if pre_load_caption_model:
+                from image_captions import H2OImageCaptionLoader
+                caption_loader = H2OImageCaptionLoader(caption_gpu=caption_gpu)
+            else:
+                caption_loader = 'gpu' if caption_gpu else 'cpu'
         else:
-            caption_loader = None
+            caption_loader = False
 
         go_gradio(**locals())
 

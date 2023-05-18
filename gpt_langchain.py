@@ -17,7 +17,7 @@ from operator import concat
 
 from joblib import Parallel, delayed
 
-from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_device, NullContext
+from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs
 
 import_matplotlib()
 
@@ -41,6 +41,8 @@ from langchain.vectorstores import Chroma
 
 def get_db(sources, use_openai_embedding=False, db_type='faiss', persist_directory="db_dir", langchain_mode='notset',
            hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2"):
+    if not sources:
+        return None
     # get embedding model
     embedding = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model)
 
@@ -57,9 +59,10 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss', persist_directo
                                    anonymized_telemetry=False)
         db.persist()
         # FIXME: below just proves can load persistent dir, regenerates its embedding files, so a bit wasteful
-        db = Chroma(embedding_function=embedding,
-                    persist_directory=persist_directory,
-                    collection_name=collection_name)
+        if False:
+            db = Chroma(embedding_function=embedding,
+                        persist_directory=persist_directory,
+                        collection_name=collection_name)
     else:
         raise RuntimeError("No such db_type=%s" % db_type)
 
@@ -67,6 +70,8 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss', persist_directo
 
 
 def add_to_db(db, sources, db_type='faiss', avoid_dup=True):
+    if not sources:
+        return db
     if db_type == 'faiss':
         db.add_documents(sources)
     elif db_type == 'chroma':
@@ -91,6 +96,7 @@ def get_embedding(use_openai_embedding, hf_embedding_model="sentence-transformer
         from langchain.embeddings import OpenAIEmbeddings
         embedding = OpenAIEmbeddings()
     else:
+        # to ensure can fork without deadlock
         from langchain.embeddings import HuggingFaceEmbeddings
 
         device, torch_dtype, context_class = get_device_dtype()
@@ -303,20 +309,23 @@ def get_dai_docs(from_hf=False, get_pickle=True):
     return sources
 
 
-file_types = ["pdf", "txt", "csv", "toml", "py", "rst",
-              "md", "html",
-              "enex", "eml", "epub", "odt", "pptx", "ppt",
-              "zip", "urls",
-              "png", "jpg", "jpeg"]
-# "msg",  GPL3
-
 import distutils.spawn
 
 have_tesseract = distutils.spawn.find_executable("tesseract")
 have_libreoffice = distutils.spawn.find_executable("libreoffice")
 
+image_types = ["png", "jpg", "jpeg"]
+non_image_types = ["pdf", "txt", "csv", "toml", "py", "rst",
+                   "md", "html",
+                   "enex", "eml", "epub", "odt", "pptx", "ppt",
+                   "zip", "urls",
+                   ]
+# "msg",  GPL3
+
 if have_libreoffice:
-    file_types.extend(["docx", "doc"])
+    non_image_types.extend(["docx", "doc"])
+
+file_types = non_image_types + image_types
 
 
 def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, chunk=True, chunk_size=512,
@@ -372,16 +381,21 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
         if have_tesseract and enable_ocr:
             # OCR, somewhat works, but not great
             docs1.extend(UnstructuredImageLoader(file).load())
-        if caption_loader is not None:
+        if enable_captions:
             # BLIP
-            caption_loader.set_image_paths([file])
-            docs1.extend(caption_loader.load())
-        elif enable_captions:
-            docs1.extend(ImageCaptionLoader([file]).load())
-        for doci in docs1:
-            doci.metadata['source'] = doci.metadata['image_path']
-        if docs1:
-            doc1 = chunk_sources(docs1, chunk_size=chunk_size)
+            if caption_loader is not None and not isinstance(caption_loader, (str, bool)):
+                # assumes didn't fork into this process with joblib, else can deadlock
+                caption_loader.set_image_paths([file])
+                docs1.extend(caption_loader.load())
+            else:
+                from image_captions import H2OImageCaptionLoader
+                caption_loader = H2OImageCaptionLoader(caption_gpu=caption_loader == 'gpu')
+                caption_loader.set_image_paths([file])
+                docs1.extend(caption_loader.load())
+            for doci in docs1:
+                doci.metadata['source'] = doci.metadata['image_path']
+            if docs1:
+                doc1 = chunk_sources(docs1, chunk_size=chunk_size)
     elif file.endswith('.msg'):
         raise RuntimeError("Not supported, GPL3 license")
         # docs1 = OutlookMessageLoader(file).load()
@@ -406,6 +420,8 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
         with open(file, "r") as f:
             doc1 = Document(page_content=f.read(), metadata={"source": file})
     elif file.endswith('.pdf'):
+        # Some PDFs return nothing or junk from PDFMinerLoader
+        # e.g. Beyond fine-tuning_ Classifying high resolution mammograms using function-preserving transformations _ Elsevier Enhanced Reader.pdf
         doc1 = PyPDFLoader(file).load_and_split()
     elif file.endswith('.csv'):
         doc1 = CSVLoader(file).load()
@@ -469,23 +485,39 @@ def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True
 
 def path_to_docs(path, verbose=False, fail_any_exception=False, n_jobs=-1, return_file=True, chunk=True,
                  chunk_size=512, url=None, enable_captions=True, enable_ocr=False, caption_loader=None):
+    globs_image_types = []
+    globs_non_image_types = []
     if url is None:
         # Below globs should match patterns in file_to_doc()
-        globs = []
-        [globs.extend(glob.glob(os.path.join(path, "./**/*.%s" % ftype), recursive=True)) for ftype in file_types]
+        [globs_image_types.extend(glob.glob(os.path.join(path, "./**/*.%s" % ftype), recursive=True)) for ftype in
+         image_types]
+        [globs_non_image_types.extend(glob.glob(os.path.join(path, "./**/*.%s" % ftype), recursive=True)) for ftype in
+         non_image_types]
+        globs = globs_non_image_types + globs_image_types
     else:
         globs = [url]
     # could use generator, but messes up metadata handling in recursive case
-    documents = Parallel(n_jobs=n_jobs, verbose=10 if verbose else 0, backend='multiprocessing')(
-        delayed(path_to_doc1)(file, verbose=verbose, fail_any_exception=fail_any_exception,
-                              return_file=True,
-                              chunk=chunk, chunk_size=chunk_size,
-                              is_url=url is not None,
-                              enable_captions=enable_captions,
-                              enable_ocr=enable_ocr,
-                              caption_loader=caption_loader,
-                              ) for file in globs
-    )
+    if caption_loader and not isinstance(caption_loader, (bool, str)) and caption_loader.device != 'cpu':
+        # to avoid deadlocks, presume was preloaded and so can't fork due to cuda context
+        n_jobs = 1
+    if 'tokenizers' in sys.modules:
+        # to avoid deadlocks (FIXME: Not alaays complains, e.g. inside gradio uploading zip, already had tokenizer, no hang or complaint)
+        #n_jobs = 1
+        pass
+    kwargs = dict(verbose=verbose, fail_any_exception=fail_any_exception,
+                  return_file=return_file,
+                  chunk=chunk, chunk_size=chunk_size,
+                  is_url=url is not None,
+                  enable_captions=enable_captions,
+                  enable_ocr=enable_ocr,
+                  caption_loader=caption_loader,
+                  )
+    if n_jobs != 1:
+        documents = Parallel(n_jobs=n_jobs, verbose=10 if verbose else 0, backend='multiprocessing')(
+            delayed(path_to_doc1)(file, **kwargs) for file in globs
+        )
+    else:
+        documents = [path_to_doc1(file, **kwargs) for file in globs]
     if return_file:
         # then documents really are files
         files = documents.copy()

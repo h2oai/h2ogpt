@@ -35,6 +35,7 @@ def make_db_main(use_openai_embedding: bool = False,
                  download_dest: str = "./",
                  n_jobs: int = -1,
                  enable_captions: bool = True,
+                 pre_load_caption_model: bool = False,
                  enable_ocr: bool = False,
                  caption_gpu: bool = True,
                  ):
@@ -73,6 +74,8 @@ def make_db_main(use_openai_embedding: bool = False,
     :param download_dest: Destination for downloads
     :param n_jobs: Number of cores to use for ingesting multiple files
     :param enable_captions: Whether to enable captions on images
+    :param pre_load_caption_model: Whether to preload caption model, or load after forking parallel doc loader
+           parallel loading disabled if preload and have images, to prevent deadlocking on cuda context
     :param enable_ocr: Whether to enable OCR on images
     :param caption_gpu: Caption images on GPU if present
     :return: None
@@ -99,12 +102,17 @@ def make_db_main(use_openai_embedding: bool = False,
             print("DONE", flush=True)
         return
 
-    if enable_captions:
+    if enable_captions and pre_load_caption_model:
         # preload, else can be too slow or if on GPU have cuda context issues
+        # Inside ingestion, this will disable parallel loading of multiple other kinds of docs
+        # However, if have many images, all those images will be handled more quickly by preloaded model on GPU
         from image_captions import H2OImageCaptionLoader
         caption_loader = H2OImageCaptionLoader(caption_gpu=caption_gpu)
     else:
-        caption_loader = None
+        if enable_captions:
+            caption_loader = 'gpu' if caption_gpu else 'cpu'
+        else:
+            caption_loader = False
 
     if verbose:
         print("Getting sources", flush=True)
