@@ -33,8 +33,12 @@ def test_qa_wiki_map_reduce_hf():
 
 
 def run_qa_wiki_fork(*args, **kwargs):
-    from tests.utils import call_subprocess_onetask
-    return call_subprocess_onetask(run_qa_wiki, args=args, kwargs=kwargs)
+    # disable fork to avoid
+    # RuntimeError: Cannot re-initialize CUDA in forked subprocess. To use CUDA with multiprocessing, you must use the 'spawn' start method
+    # because some other tests use cuda in parent
+    #from tests.utils import call_subprocess_onetask
+    #return call_subprocess_onetask(run_qa_wiki, args=args, kwargs=kwargs)
+    return run_qa_wiki(*args, **kwargs)
 
 
 def run_qa_wiki(use_openai_model=False, first_para=True, text_limit=None, chain_type='stuff', prompt_type=None):
