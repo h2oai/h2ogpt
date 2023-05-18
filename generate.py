@@ -961,7 +961,7 @@ def evaluate(
                            db=db1,
                            user_path=user_path,
                            max_new_tokens=max_new_tokens,
-                           cut_distanct=1.1 if langchain_mode in ['wiki_full'] else 1.8,
+                           cut_distanct=1.1 if langchain_mode in ['wiki_full'] else 1.64,  # FIXME, too arbitrary
                            use_openai_embedding=use_openai_embedding,
                            use_openai_model=use_openai_model,
                            hf_embedding_model=hf_embedding_model,
