@@ -368,5 +368,25 @@ def test_msg_add():
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
 
+def test_png_add():
+    with tempfile.TemporaryDirectory() as tmp_persistent_directory:
+        with tempfile.TemporaryDirectory() as tmp_user_path:
+            test_file1 = 'langchain.png'
+            if not os.path.isfile(test_file1):
+                # see if ran from tests directory
+                test_file1 = '../langchain.png'
+                assert os.path.isfile(test_file1)
+            test_file1 = os.path.abspath(test_file1)
+            shutil.copy(test_file1, tmp_user_path)
+            test_file1 = os.path.join(tmp_user_path, os.path.basename(test_file1))
+            db = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
+                              fail_any_exception=True, enable_ocr=False, caption_gpu=True)
+            assert db is not None
+            docs = db.similarity_search("What does CBA do?")
+            assert len(docs) == 1
+            assert 'an image of the screen with the' in docs[0].page_content
+            assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+
+
 if __name__ == '__main__':
     pass

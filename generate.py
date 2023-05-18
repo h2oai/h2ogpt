@@ -14,7 +14,7 @@ import filelock
 import psutil
 
 from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial, EThread, get_githash, \
-    import_matplotlib
+    import_matplotlib, get_device
 
 import_matplotlib()
 from matplotlib import pyplot as plt
@@ -507,15 +507,6 @@ def main(
         score_model_state0 = [smodel, stokenizer, sdevice, score_model]
 
         go_gradio(**locals())
-
-
-def get_device():
-    if torch.cuda.is_available():
-        device = "cuda"
-    else:
-        device = "cpu"
-
-    return device
 
 
 def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward_type,

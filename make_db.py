@@ -7,11 +7,12 @@ from gpt_langchain import path_to_docs, get_db, get_some_dbs_from_hf, all_db_zip
     get_embedding, add_to_db
 
 
-def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False, fail_any_exception=False, n_jobs=-1, url=None):
+def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False, fail_any_exception=False, n_jobs=-1, url=None,
+               enable_ocr=False, caption_gpu=True):
     sources1 = path_to_docs(user_path, verbose=verbose, fail_any_exception=fail_any_exception,
                             n_jobs=n_jobs,
                             chunk=chunk,
-                            chunk_size=chunk_size, url=url)
+                            chunk_size=chunk_size, url=url, enable_ocr=enable_ocr, caption_gpu=caption_gpu)
     return sources1
 
 
@@ -31,6 +32,8 @@ def make_db_main(use_openai_embedding: bool = False,
                  download_one: str = None,
                  download_dest: str = "./",
                  n_jobs: int = -1,
+                 enable_ocr: bool = False,
+                 caption_gpu: bool = True,
                  ):
     """
     # To make UserData db for generate.py, put pdfs, etc. into path user_path and run:
@@ -66,6 +69,8 @@ def make_db_main(use_openai_embedding: bool = False,
     :param download_one: whether to download one chosen example databases from h2o.ai HF
     :param download_dest: Destination for downloads
     :param n_jobs: Number of cores to use for ingesting multiple files
+    :param enable_ocr: Whether to enable OCR on images
+    :param caption_gpu: Caption images on GPU if present
     :return: None
     """
 
@@ -96,7 +101,8 @@ def make_db_main(use_openai_embedding: bool = False,
     if not url:
         assert os.path.isdir(user_path), "user_path=%s does not exist" % user_path
     sources = glob_to_db(user_path, chunk=chunk, chunk_size=chunk_size, verbose=verbose,
-                         fail_any_exception=fail_any_exception, n_jobs=n_jobs, url=url)
+                         fail_any_exception=fail_any_exception, n_jobs=n_jobs, url=url,
+                         enable_ocr=enable_ocr, caption_gpu=caption_gpu)
     assert len(sources) > 0, "No sources found"
     if not os.path.isdir(persist_directory) or not add_if_exists:
         if os.path.isdir(persist_directory):

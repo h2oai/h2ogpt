@@ -26,14 +26,34 @@ Open-source data types are supported, .msg is not supported due to GPL-3 require
    - `.rst`: reStructuredText,
    - `.md`: Markdown,
    - `.html`: HTML File,
-   - `.docx`: Word Document,
-   - `.doc`: Word Document,
+   - `.docx`: Word Document (optional),
+   - `.doc`: Word Document (optional),
    - `.enex`: EverNote,
    - `.eml`: Email,
    - `.epub`: EPub,
    - `.odt`: Open Document Text,
    - `.pptx` : PowerPoint Document,
-   - `.ppt` : PowerPoint Document.
+   - `.ppt` : PowerPoint Document,
+   - `.png` : PNG Image (optional),
+   - `.jpg` : JPEG Image (optional),
+   - `.jpeg` : JPEG Image (optional).
+
+To support image captioning, on Ubuntu run:
+```bash
+sudo apt-get install libmagic-dev poppler-utils tesseract-ocr
+```
+and ensure in `requirements_optional_langchain.txt` that `unstructured[local-inference]` and `pdf2image` are installed.  Otherwise, for no image support just `unstructured` is sufficient.
+
+OCR is disabled by default, but can be enabled if making database via `make_db.py`, and then on Ubuntu run:
+```bash
+sudo apt-get install tesseract-ocr
+```
+and ensure you pip install `pytesseract`.
+
+To support Microsoft Office docx and doc, on Ubuntu run:
+```bash
+sudo apt-get install libreoffice
+```
 
 ### Supported Meta Datatypes
 

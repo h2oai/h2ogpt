@@ -64,6 +64,16 @@ def get_torch_allocated():
     return torch.cuda.memory_allocated()
 
 
+def get_device():
+    import torch
+    if torch.cuda.is_available():
+        device = "cuda"
+    else:
+        device = "cpu"
+
+    return device
+
+
 def system_info():
     import psutil
 

@@ -5,6 +5,7 @@ import pathlib
 import pickle
 import shutil
 import subprocess
+import sys
 import tempfile
 import traceback
 import uuid
@@ -16,7 +17,7 @@ from operator import concat
 
 from joblib import Parallel, delayed
 
-from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs
+from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_device, NullContext
 
 import_matplotlib()
 
@@ -29,7 +30,7 @@ from langchain.chains.qa_with_sources import load_qa_with_sources_chain
 from langchain.document_loaders import PyPDFLoader, TextLoader, CSVLoader, PythonLoader, TomlLoader, \
     UnstructuredURLLoader, UnstructuredHTMLLoader, UnstructuredWordDocumentLoader, UnstructuredMarkdownLoader, \
     EverNoteLoader, UnstructuredEmailLoader, UnstructuredODTLoader, UnstructuredPowerPointLoader, \
-    UnstructuredEPubLoader
+    UnstructuredEPubLoader, UnstructuredImageLoader, ImageCaptionLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores import FAISS
 from langchain.chains.question_answering import load_qa_chain
@@ -303,14 +304,23 @@ def get_dai_docs(from_hf=False, get_pickle=True):
 
 
 file_types = ["pdf", "txt", "csv", "toml", "py", "rst",
-              "md", "html", "docx", "doc",
+              "md", "html",
               "enex", "eml", "epub", "odt", "pptx", "ppt",
-              "zip", "urls"]
+              "zip", "urls",
+              "png", "jpg", "jpeg"]
 # "msg",  GPL3
+
+import distutils.spawn
+
+have_tesseract = distutils.spawn.find_executable("tesseract")
+have_libreoffice = distutils.spawn.find_executable("libreoffice")
+
+if have_libreoffice:
+    file_types.extend(["docx", "doc"])
 
 
 def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, chunk=True, chunk_size=512,
-                is_url=False, is_txt=False):
+                is_url=False, is_txt=False, enable_ocr=False, caption_gpu=True):
     if file is None:
         if fail_any_exception:
             raise RuntimeError("Unexpected None file")
@@ -338,7 +348,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
     elif file.endswith('.html'):
         docs1 = UnstructuredHTMLLoader(file_path=file).load()
         doc1 = chunk_sources(docs1, chunk_size=chunk_size)
-    elif file.endswith('.docx') or file.endswith('.doc'):
+    elif (file.endswith('.docx') or file.endswith('.doc')) and have_libreoffice:
         docs1 = UnstructuredWordDocumentLoader(file_path=file).load()
         doc1 = chunk_sources(docs1, chunk_size=chunk_size)
     elif file.endswith('.odt'):
@@ -357,10 +367,34 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
     elif file.endswith('.epub'):
         docs1 = UnstructuredEPubLoader(file).load()
         doc1 = chunk_sources(docs1, chunk_size=chunk_size)
+    elif file.endswith('.jpeg') or file.endswith('.jpg') or file.endswith('.png'):
+        doc1 = []
+        if have_tesseract and enable_ocr:
+            # OCR, somewhat works, but not great
+            docs1 = UnstructuredImageLoader(file).load()
+            doc1.extend(chunk_sources(docs1, chunk_size=chunk_size))
+        # below uses BLIP
+        if 'torch' in sys.modules and get_device() == 'cuda' and caption_gpu:
+            import torch
+            n_gpus = torch.cuda.device_count() if torch.cuda.is_available else 0
+            if n_gpus > 0:
+                context_class = torch.device
+            else:
+                context_class = NullContext
+            device = 'cpu' if n_gpus == 0 else 'cuda'
+        else:
+            device = 'cpu'
+            context_class = NullContext
+        with context_class(device):
+            docs1 = ImageCaptionLoader([file]).load()
+        for doci in docs1:
+            doci.metadata['source'] = doci.metadata['image_path']
+        if docs1:
+            doc1.extend(chunk_sources(docs1, chunk_size=chunk_size))
     elif file.endswith('.msg'):
         raise RuntimeError("Not supported, GPL3 license")
-        #docs1 = OutlookMessageLoader(file).load()
-        #docs1[0].metadata['source'] = file
+        # docs1 = OutlookMessageLoader(file).load()
+        # docs1[0].metadata['source'] = file
     elif file.endswith('.eml'):
         try:
             docs1 = UnstructuredEmailLoader(file).load()
@@ -414,7 +448,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
 
 
 def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True, chunk=True, chunk_size=512,
-                 is_url=False):
+                 is_url=False, enable_ocr=False, caption_gpu=True):
     if verbose:
         if is_url:
             print("Ingesting URL: %s" % file, flush=True)
@@ -424,7 +458,8 @@ def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True
     try:
         # don't pass base_path=path, would infinitely recurse
         res = file_to_doc(file, base_path=None, verbose=verbose, fail_any_exception=fail_any_exception,
-                          chunk=chunk, chunk_size=chunk_size, is_url=is_url)
+                          chunk=chunk, chunk_size=chunk_size, is_url=is_url, enable_ocr=enable_ocr,
+                          caption_gpu=caption_gpu)
     except BaseException:
         print("Failed to ingest %s due to %s" % (file, traceback.format_exc()))
         if fail_any_exception:
@@ -441,7 +476,7 @@ def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True
 
 
 def path_to_docs(path, verbose=False, fail_any_exception=False, n_jobs=-1, return_file=True, chunk=True,
-                 chunk_size=512, url=None):
+                 chunk_size=512, url=None, enable_ocr=False, caption_gpu=True):
     if url is None:
         # Below globs should match patterns in file_to_doc()
         globs = []
@@ -454,6 +489,8 @@ def path_to_docs(path, verbose=False, fail_any_exception=False, n_jobs=-1, retur
                               return_file=True,
                               chunk=chunk, chunk_size=chunk_size,
                               is_url=url is not None,
+                              enable_ocr=enable_ocr,
+                              caption_gpu=caption_gpu,
                               ) for file in globs
     )
     if return_file:
