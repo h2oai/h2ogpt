@@ -336,6 +336,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
             raise RuntimeError("Unexpected None file")
         else:
             return []
+    doc1 = []  # in case no support, or disabled support
     if base_path is None and not is_txt and not is_url:
         # then assume want to persist but don't care which path used
         # can't be in base_path
@@ -501,13 +502,12 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
     elif isinstance(path_or_paths, str):
         # single file
         path = path_or_paths
-        if url is None:
-            # Below globs should match patterns in file_to_doc()
-            [globs_image_types.extend(glob.glob(os.path.join(path, "./**/*.%s" % ftype), recursive=True)) for ftype in
-             image_types]
-            [globs_non_image_types.extend(glob.glob(os.path.join(path, "./**/*.%s" % ftype), recursive=True)) for ftype in
-             non_image_types]
-            globs = globs_non_image_types + globs_image_types
+        # Below globs should match patterns in file_to_doc()
+        [globs_image_types.extend(glob.glob(os.path.join(path, "./**/*.%s" % ftype), recursive=True)) for ftype in
+         image_types]
+        [globs_non_image_types.extend(glob.glob(os.path.join(path, "./**/*.%s" % ftype), recursive=True)) for ftype in
+         non_image_types]
+        globs = globs_non_image_types + globs_image_types
     else:
         # list/tuple of files
         assert isinstance(path_or_paths, (list, tuple)), "Wrong type for path_or_paths: %s" % type(path_or_paths)

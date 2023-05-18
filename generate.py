@@ -125,8 +125,8 @@ def main(
         chunk_size: int = 512,
         k: int = 4,
         n_jobs: int = -1,
-        enable_captions: bool = False,
-        pre_load_caption_model = False,
+        enable_captions: bool = True,
+        pre_load_caption_model: bool = False,
         caption_gpu: bool = True,
         enable_ocr: bool = False,
 ):
