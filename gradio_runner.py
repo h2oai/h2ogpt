@@ -1195,7 +1195,7 @@ def update_user_db(file, db1, x, y, dbs=None, db_type=None, langchain_mode='User
                                 persist_directory=persist_directory,
                                 langchain_mode=langchain_mode,
                                 hf_embedding_model=hf_embedding_model)
-            source_files_added = sorted(set([x['source'] for x in db1[0].get()['metadatas']]))
+            source_files_added = '\n'.join(sorted(set([x['source'] for x in db1[0].get()['metadatas']])))
             return db1, x, y, source_files_added
         else:
             persist_directory = 'db_dir_%s' % langchain_mode
@@ -1213,5 +1213,5 @@ def update_user_db(file, db1, x, y, dbs=None, db_type=None, langchain_mode='User
             # NOTE we do not return db, because function call always same code path
             # return dbs[langchain_mode], x, y
             # db in this code path is updated in place
-            source_files_added = sorted(set([x['source'] for x in db1.get()['metadatas']]))
+            source_files_added = '\n'.join(sorted(set([x['source'] for x in db1.get()['metadatas']])))
             return x, y, source_files_added
