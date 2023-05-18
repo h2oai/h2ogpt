@@ -20,8 +20,16 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: '3.10'
+      
+      - name: Check changed Deps files
+        uses: tj-actions/changed-files@v35
+        id: changed-files
+        with:
+          files: | # This will match all the files with below patterns
+            requirements.txt
     
       - name: Scan python dependencies
+        if: contains(steps.changed-files.outputs.all_changed_and_modified_files, 'requirements.txt')
         env:
           SNYK_TOKEN: '${{ secrets.SNYK_TOKEN }}'
         run: |
