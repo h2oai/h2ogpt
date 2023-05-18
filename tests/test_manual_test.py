@@ -15,3 +15,24 @@ I hope that helps! Let me know if there’s anything else I could do for you tod
     unexpected_response2 = """I am an AI language model ..."""
 
     raise NotImplementedError("MANUAL TEST FOR NOW")
+
+
+def test_upload_one_file():
+    raise NotImplementedError("MANUAL TEST FOR NOW -- do and ask query of file")
+
+
+def test_upload_multiple_file():
+    raise NotImplementedError("MANUAL TEST FOR NOW -- do and ask query of files")
+
+
+def test_upload_url():
+    raise NotImplementedError("MANUAL TEST FOR NOW -- do and ask query of content of url")
+
+
+def test_upload_pasted_text():
+    raise NotImplementedError("MANUAL TEST FOR NOW -- do and see test code for what to try")
+
+    # Text: "Yufuu is a wonderful place and you should really visit because there is lots of sun."
+    # Choose MyData
+    # Ask: "Why should I visit Yufuu?"
+    # Expected: ~Text
