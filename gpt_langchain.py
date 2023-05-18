@@ -494,7 +494,12 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
                  enable_captions=True, enable_ocr=False, caption_loader=None):
     globs_image_types = []
     globs_non_image_types = []
-    if isinstance(path_or_paths, str):
+    if url:
+        globs = [url]
+    elif text:
+        globs = [text]
+    elif isinstance(path_or_paths, str):
+        # single file
         path = path_or_paths
         if url is None:
             # Below globs should match patterns in file_to_doc()
@@ -503,9 +508,8 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
             [globs_non_image_types.extend(glob.glob(os.path.join(path, "./**/*.%s" % ftype), recursive=True)) for ftype in
              non_image_types]
             globs = globs_non_image_types + globs_image_types
-        else:
-            globs = [url]
     else:
+        # list/tuple of files
         assert isinstance(path_or_paths, (list, tuple)), "Wrong type for path_or_paths: %s" % type(path_or_paths)
         globs = path_or_paths
     # could use generator, but messes up metadata handling in recursive case
