@@ -16,6 +16,7 @@ class PromptType(Enum):
     prompt_answer = 10
     open_assistant = 11
     wizard_lm = 12
+    wizard_mega = 13
 
 
 prompt_type_to_model_name = {
@@ -63,6 +64,7 @@ prompt_type_to_model_name = {
     'human_bot_orig': ['togethercomputer/GPT-NeoXT-Chat-Base-20B'],
     "open_assistant": ['OpenAssistant/oasst-sft-7-llama-30b-xor', 'oasst-sft-7-llama-30b'],
     "wizard_lm": ['ehartford/WizardLM-7B-Uncensored', 'ehartford/WizardLM-13B-Uncensored'],
+    "wizard_mega": ['openaccess-ai-collective/wizard-mega-13b'],
 }
 
 inv_prompt_type_to_model_name = {v.strip(): k for k, l in prompt_type_to_model_name.items() for v in l}
@@ -255,6 +257,21 @@ Current Time: {}
         terminate_response = [PreResponse, eos]
         chat_sep = eos
         humanstr = promptA
+        botstr = PreResponse
+    elif prompt_type in [13, "13", "wizard_mega"]:
+        preprompt = ''
+        start = ''
+        promptB = promptA = '%s%s' % (preprompt, start)
+        PreInstruct = """
+### Instruction:
+"""
+        PreInput = None
+        PreResponse = """
+### Assistant:
+"""
+        terminate_response = [PreResponse]
+        chat_sep = '\n'
+        humanstr = PreInstruct
         botstr = PreResponse
     else:
         raise RuntimeError("No such prompt_type=%s" % prompt_type)
