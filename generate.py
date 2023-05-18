@@ -128,7 +128,7 @@ def main(
         enable_captions: bool = False,
         pre_load_caption_model = False,
         caption_gpu: bool = True,
-        support_ocr: bool = False,
+        enable_ocr: bool = False,
 ):
     """
 
@@ -212,7 +212,7 @@ def main(
     :param pre_load_caption_model: Whether to preload caption model, or load after forking parallel doc loader
            parallel loading disabled if preload and have images, to prevent deadlocking on cuda context
     :param caption_gpu: If support caption, then use GPU if exists
-    :param support_ocr: Whether to support OCR on images
+    :param enable_ocr: Whether to support OCR on images
     :return:
     """
     is_hf = bool(os.getenv("HUGGINGFACE_SPACES"))
