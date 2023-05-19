@@ -99,3 +99,5 @@ For links to direct to the document and download to your local machine, the orig
 * [PrivateGPT](https://github.com/imartinez/privateGPT) but fully commercially viable by not using [GPT4All](https://github.com/nomic-ai/gpt4all) based upon [LLaMa](https://github.com/facebookresearch/llama) that used data from GPT3.5 (violation of ToS).
 
 * [Vault-AI](https://github.com/pashpashpash/vault-ai) but fully private by not using OpenAI and fully open-source by not using [pinecone](https://www.pinecone.io/).
+
+* [DB-GPT](https://github.com/csunny/DB-GPT) but fully commercially viable by not using [Vicuna](https://lmsys.org/blog/2023-03-30-vicuna/) (LLaMa based with GPT3.5 training data).
