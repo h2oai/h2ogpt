@@ -35,6 +35,7 @@ def go_gradio(**kwargs):
     visible_langchain_modes = kwargs['visible_langchain_modes']
     allow_upload_to_user_data = kwargs['allow_upload_to_user_data']
     allow_upload_to_my_data = kwargs['allow_upload_to_my_data']
+    enable_sources_list = kwargs['enable_sources_list']
     enable_url_upload = kwargs['enable_url_upload']
     enable_text_upload = kwargs['enable_text_upload']
     allow_upload = allow_upload_to_user_data or allow_upload_to_my_data
@@ -302,9 +303,13 @@ def go_gradio(**kwargs):
                                                           visible=allow_upload_to_user_data)
                             github_my_btn = gr.Button(value="Add Github to Scratch MyData DB",
                                                       visible=allow_upload_to_my_data)
-                    sources_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and allow_upload)
+                    sources_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and enable_sources_list)
                     with sources_row:
                         sources_text = gr.Textbox(label='Sources Added', interactive=False)
+                    sources_row2 = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and enable_sources_list)
+                    with sources_row2:
+                        get_sources_btn = gr.Button(value="Get Sources List for Selected DB")
+                        file_source = gr.File(interactive=False, label="Download File with list of Sources")
 
                 with gr.TabItem("Expert"):
                     with gr.Row():
@@ -452,7 +457,7 @@ def go_gradio(**kwargs):
                             with gr.Row():
                                 zip_btn = gr.Button("Zip")
                                 zip_text = gr.Textbox(label="Zip file name", interactive=False)
-                                file_output = gr.File()
+                                file_output = gr.File(interactive=False)
                             with gr.Row():
                                 s3up_btn = gr.Button("S3UP")
                                 s3up_text = gr.Textbox(label='S3UP result', interactive=False)
@@ -560,6 +565,10 @@ def go_gradio(**kwargs):
                                outputs=[my_db_state, add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
                                api_name='add_txt_to_my' if allow_api else None) \
             .then(clear_textbox, outputs=user_text_text, queue=queue)
+
+        get_sources1 = functools.partial(get_sources, dbs=dbs)
+        get_sources_btn.click(get_sources1, inputs=[my_db_state, langchain_mode], outputs=file_source, queue=queue,
+                              api_name='get_sources' if allow_api else None)
 
         def check_admin_pass(x):
             return gr.update(visible=x == admin_pass)
@@ -1154,6 +1163,24 @@ def get_inputs_list(inputs_dict, model_lower):
             continue
         inputs_list.append(inputs_dict[k])
     return inputs_list
+
+
+def get_sources(db1, langchain_mode, dbs=None):
+    if langchain_mode in ['ChatLLM', 'LLM']:
+        source_files_added = "NA"
+    elif langchain_mode == 'MyData' and len(db1) > 0 and db1[0] is not None:
+        db_get = db1[0].get()
+        source_files_added = '\n'.join(sorted(set([x['source'] for x in db_get['metadatas']])))
+    elif langchain_mode in dbs and dbs[langchain_mode] is not None:
+        db1 = dbs[langchain_mode]
+        db_get = db1.get()
+        source_files_added = '\n'.join(sorted(set([x['source'] for x in db_get['metadatas']])))
+    else:
+        source_files_added = "None"
+    sources_file = 'sources_%s_%s' % (langchain_mode, str(uuid.uuid4()))
+    with open(sources_file, "wt") as f:
+        f.write(source_files_added)
+    return sources_file
 
 
 def update_user_db(file, db1, x, y, dbs=None, db_type=None, langchain_mode='UserData', use_openai_embedding=False,
