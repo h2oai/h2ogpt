@@ -12,6 +12,16 @@ Live hosted instances:
 
 For questions, discussing, or just hanging out, come and join our <a href="https://discord.gg/WKhYMWcVbq"><b>Discord</b></a>!
 
+## Getting Started
+
+To get started quickly to upload from Chatbot any docs, urls, etc. do:
+```bash
+grep -v '#\|peft' requirements.txt > req_constraints.txt
+pip install -r requirements_optional_langchain.txt -c req_constraints.txt
+python generate.py --base_model=h2oai/h2ogpt-oasst1-512-12b --load_8bit=True --langchain_mode=MyData
+```
+See below for additional instructions to add support for some file types.
+
 ## Supported Datatypes
 
 Open-source data types are supported, .msg is not supported due to GPL-3 requirement.  Other meta types support other types inside them.  Special support for some behaviors is provided by the UI itself.
@@ -64,14 +74,16 @@ sudo apt-get install libreoffice
 ### Supported Datatypes in UI
 
    - `Files` : All Native and Meta DataTypes as file(s),
-   - `URL` : Any URL (i.e. `http://` or `https://`) or ArXiv name (e.g. `arXiv:1706.03762`),
+   - `URL` : Any URL (i.e. `http://` or `https://`),
+   - `ArXiv` : Any ArXiv name (e.g. `arXiv:1706.03762`),
    - `Text` : Paste Text into UI.
 
-To support ArXiv API, run:
+To support ArXiv API, do:
 ```bash
-pip install arxiv pymupdf
+grep -v '#\|peft' requirements.txt > req_constraints.txt
+pip install -r requirements_optional_langchain.gpllike.txt -c req_constraints.txt
 ```
-but this is GNU Affero General Public License (AGPL), requiring any source code be made available, which is not an issue directly for h2oGPT, but its like GPL and too strong a constraint for commercial use
+but pymupdf is AGPL, requiring any source code be made available, which is not an issue directly for h2oGPT, but it's like GPL and too strong a constraint for general commercial use.
 
 ## Database creation
 
