@@ -24,6 +24,7 @@ Open-source data types are supported, .msg is not supported due to GPL-3 require
    - `.toml`: Toml,
    - `.py`: Python,
    - `.rst`: reStructuredText,
+   - `.rtf`: Rich Text Format,
    - `.md`: Markdown,
    - `.html`: HTML File,
    - `.docx`: Word Document (optional),
