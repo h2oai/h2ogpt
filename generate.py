@@ -121,6 +121,8 @@ def main(
         hf_embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2",
         allow_upload_to_user_data: bool = True,
         allow_upload_to_my_data: bool = True,
+        enable_url_upload: bool = True,
+        enable_text_upload: bool = True,
         chunk: bool = True,
         chunk_size: int = 512,
         k: int = 4,
@@ -204,6 +206,8 @@ def main(
     :param hf_embedding_model: Which HF embedding model to use for vector db
     :param allow_upload_to_user_data: Whether to allow file uploads to update shared vector db
     :param allow_upload_to_my_data: Whether to allow file uploads to update scratch vector db
+    :param enable_url_upload: Whether to allow upload from URL
+    :param enable_text_upload: Whether to allow uplaod of text
     :param chunk: Whether to chunk data (True unless know data is already optimally chunked)
     :param chunk_size: Size of chunks, with typically top-4 passed to LLM, so neesd to be in context length
     :param k: number of chunks to give LLM

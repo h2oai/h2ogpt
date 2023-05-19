@@ -35,6 +35,8 @@ def go_gradio(**kwargs):
     visible_langchain_modes = kwargs['visible_langchain_modes']
     allow_upload_to_user_data = kwargs['allow_upload_to_user_data']
     allow_upload_to_my_data = kwargs['allow_upload_to_my_data']
+    enable_url_upload = kwargs['enable_url_upload']
+    enable_text_upload = kwargs['enable_text_upload']
     allow_upload = allow_upload_to_user_data or allow_upload_to_my_data
     use_openai_embedding = kwargs['use_openai_embedding']
     hf_embedding_model = kwargs['hf_embedding_model']
@@ -278,14 +280,14 @@ def go_gradio(**kwargs):
                                                              visible=allow_upload_to_user_data)  # and False)
                             add_to_my_db_btn = gr.Button("Add File(s) to Scratch MyData DB",
                                                          visible=allow_upload_to_my_data)  # and False)
-                    url_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and allow_upload)
+                    url_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and allow_upload and enable_url_upload)
                     with url_row:
                         url_text = gr.Textbox(label='URL', interactive=True)
                         url_user_btn = gr.Button(value='Add URL content to Shared UserData DB',
                                                  visible=allow_upload_to_user_data)
                         url_my_btn = gr.Button(value='Add URL content to Scratch MyData DB',
                                                visible=allow_upload_to_my_data)
-                    text_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and allow_upload)
+                    text_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and allow_upload and enable_text_upload)
                     with text_row:
                         user_text_text = gr.Textbox(label='Paste Text', interactive=True)
                         user_text_user_btn = gr.Button(value='Add Text to Shared UserData DB',
@@ -1195,7 +1197,8 @@ def update_user_db(file, db1, x, y, dbs=None, db_type=None, langchain_mode='User
                                 persist_directory=persist_directory,
                                 langchain_mode=langchain_mode,
                                 hf_embedding_model=hf_embedding_model)
-            source_files_added = '\n'.join(sorted(set([x['source'] for x in db1[0].get()['metadatas']])))
+            db_get = db1[0].get()
+            source_files_added = '\n'.join(sorted(set([x['source'] for x in db_get['metadatas']])))
             return db1, x, y, source_files_added
         else:
             persist_directory = 'db_dir_%s' % langchain_mode
@@ -1213,5 +1216,6 @@ def update_user_db(file, db1, x, y, dbs=None, db_type=None, langchain_mode='User
             # NOTE we do not return db, because function call always same code path
             # return dbs[langchain_mode], x, y
             # db in this code path is updated in place
-            source_files_added = '\n'.join(sorted(set([x['source'] for x in db1.get()['metadatas']])))
+            db_get = db1.get()
+            source_files_added = '\n'.join(sorted(set([x['source'] for x in db_get['metadatas']])))
             return x, y, source_files_added
