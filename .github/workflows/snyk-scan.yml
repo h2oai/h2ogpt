@@ -53,6 +53,11 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: '3.10'
+      
+      - name: Extract github branch/tag name
+        shell: bash
+        run: echo "ref=$(echo ${GITHUB_REF##*/})" >> $GITHUB_OUTPUT
+        id: extract_ref
         
       - name: Monitor python dependencies
         env:
@@ -66,6 +71,6 @@ jobs:
             --command=python3.10 \
             --package-manager=pip \
             --skip-unresolved \
-            --remote-repo-url=h2ogpt/${{ github.ref_name }} \
+            --remote-repo-url=h2ogpt/${{ steps.extract_ref.outputs.ref }} \
             --org=h2o-gpt \
-            --project-name=H2O-GPT/h2ogpt/${{ github.ref_name }}/requirements.txt
+            --project-name=H2O-GPT/h2ogpt/${{ steps.extract_ref.outputs.ref }}/requirements.txt
