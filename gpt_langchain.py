@@ -27,10 +27,12 @@ import requests
 from langchain.chains.qa_with_sources import load_qa_with_sources_chain
 # , GCSDirectoryLoader, GCSFileLoader
 # , OutlookMessageLoader # GPL3
+# ImageCaptionLoader, # use our own wrapper
+#  ReadTheDocsLoader,  # no special file, some path, so have to give as special option
 from langchain.document_loaders import PyPDFLoader, TextLoader, CSVLoader, PythonLoader, TomlLoader, \
     UnstructuredURLLoader, UnstructuredHTMLLoader, UnstructuredWordDocumentLoader, UnstructuredMarkdownLoader, \
     EverNoteLoader, UnstructuredEmailLoader, UnstructuredODTLoader, UnstructuredPowerPointLoader, \
-    UnstructuredEPubLoader, UnstructuredImageLoader, ImageCaptionLoader
+    UnstructuredEPubLoader, UnstructuredImageLoader, UnstructuredRTFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores import FAISS
 from langchain.chains.question_answering import load_qa_chain
@@ -315,7 +317,7 @@ have_tesseract = distutils.spawn.find_executable("tesseract")
 have_libreoffice = distutils.spawn.find_executable("libreoffice")
 
 image_types = ["png", "jpg", "jpeg"]
-non_image_types = ["pdf", "txt", "csv", "toml", "py", "rst",
+non_image_types = ["pdf", "txt", "csv", "toml", "py", "rst", "rtf",
                    "md", "html",
                    "enex", "eml", "epub", "odt", "pptx", "ppt",
                    "zip", "urls",
@@ -384,6 +386,10 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
     elif file.endswith('.txt'):
         doc1 = TextLoader(file, encoding="utf8").load()
         add_meta(doc1, file)
+    elif file.endswith('.rtf'):
+        docs1 = UnstructuredRTFLoader(file).load()
+        add_meta(docs1, file)
+        doc1 = chunk_sources(docs1, chunk_size=chunk_size)
     elif file.endswith('.md'):
         docs1 = UnstructuredMarkdownLoader(file).load()
         add_meta(docs1, file)
