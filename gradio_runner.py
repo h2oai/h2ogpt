@@ -154,7 +154,7 @@ def go_gradio(**kwargs):
         model_state2 = gr.State([None, None, None, None])
         model_options_state = gr.State([model_options])
         lora_options_state = gr.State([lora_options])
-        my_db_state = gr.State([None, str(uuid.uuid4())])
+        my_db_state = gr.State([None, None])
         gr.Markdown(f"""
             {get_h2o_title(title) if kwargs['h2ocolors'] else get_simple_title(title)}
 
@@ -1217,8 +1217,11 @@ def update_user_db(file, db1, x, y, dbs=None, db_type=None, langchain_mode='User
                 # then add
                 add_to_db(db1[0], sources, db_type=db_type)
             else:
-                assert len(db1) == 2 and db1[1] is not None, "Bad MyData db"
+                assert len(db1) == 2 and db1[1] is None, "Bad MyData db: %s" % db1
                 # then create
+                # assign fresh hash for this user session, so not shared
+                # if added has to original state and didn't change, then would be shared db for all users
+                db1[1] = str(uuid.uuid4())
                 persist_directory = os.path.join(scratch_base_dir, 'db_dir_%s_%s' % (langchain_mode, db1[1]))
                 db1[0] = get_db(sources, use_openai_embedding=use_openai_embedding,
                                 db_type=db_type,
