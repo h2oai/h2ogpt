@@ -89,6 +89,13 @@ python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6.9b --langchain_mod
 
 ## FAQ
 
-Q Why does the source link not work?
+#### Why does the source link not work?
 
-A For links to direct to the document and download to your local machine, the original source documents must still be present on the host system where the database was created, e.g. `user_path` for `UserData` by default.  If the database alone is copied somewhere else, that host won't have access to the documents.  URL links like Wikipedia will still work normally on any host.
+For links to direct to the document and download to your local machine, the original source documents must still be present on the host system where the database was created, e.g. `user_path` for `UserData` by default.  If the database alone is copied somewhere else, that host won't have access to the documents.  URL links like Wikipedia will still work normally on any host.
+
+
+#### What is h2oGPT's LangChain integration like?
+
+* [PrivateGPT](https://github.com/imartinez/privateGPT) but fully commercially viable by not using [GPT4All](https://github.com/nomic-ai/gpt4all) based upon [LLaMa](https://github.com/facebookresearch/llama) that used data from GPT3.5 (violation of ToS).
+
+* [Vault-AI](https://github.com/pashpashpash/vault-ai) but fully private by not using OpenAI and fully open-source by not using [pinecone](https://www.pinecone.io/).
