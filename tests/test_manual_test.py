@@ -36,3 +36,8 @@ def test_upload_pasted_text():
     # Choose MyData
     # Ask: "Why should I visit Yufuu?"
     # Expected: ~Text
+
+def test_no_db_dirs():
+    raise NotImplementedError("""MANUAL TEST FOR NOW -- Remove db_dirs, ensure can still start up and use in MyData Mode.
+    python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b --langchain_mode=MyData
+    """)

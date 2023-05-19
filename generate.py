@@ -297,6 +297,9 @@ def main(
         stream_output = False
         # else prompt removal can mess up output
         chat = False
+    # hard-coded defaults
+    first_para = False
+    text_limit = None
 
     placeholder_instruction, placeholder_input, \
         stream_output, show_examples, \
@@ -340,7 +343,8 @@ def main(
             persist_directory1 = 'db_dir_%s' % langchain_mode1  # single place, no special names for each case
             db = prep_langchain(persist_directory1, load_db_if_exists, db_type, use_openai_embedding,
                                 langchain_mode1, user_path,
-                                hf_embedding_model)
+                                hf_embedding_model,
+                                kwargs_make_db=locals())
             dbs[langchain_mode1] = db
         # remove None db's so can just rely upon k in dbs for if hav db
         dbs = {k: v for k, v in dbs.items() if v is not None}
@@ -882,6 +886,8 @@ def evaluate(
         db_type=None,
         k=None,
         n_jobs=None,
+        first_para=None,
+        text_limit=None,
 ):
     # ensure passed these
     assert concurrency_count is not None
@@ -896,6 +902,7 @@ def evaluate(
     assert db_type is not None
     assert k is not None
     assert n_jobs is not None
+    assert first_para is not None
 
     if debug:
         locals_dict = locals().copy()
@@ -971,8 +978,8 @@ def evaluate(
                            use_openai_embedding=use_openai_embedding,
                            use_openai_model=use_openai_model,
                            hf_embedding_model=hf_embedding_model,
-                           first_para=False,
-                           text_limit=None,
+                           first_para=first_para,
+                           text_limit=text_limit,
                            chunk=chunk,
                            chunk_size=chunk_size,
                            langchain_mode=langchain_mode,

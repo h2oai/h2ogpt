@@ -591,7 +591,7 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
 
 
 def prep_langchain(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode, user_path,
-                   hf_embedding_model, n_jobs=-1):
+                   hf_embedding_model, n_jobs=-1, kwargs_make_db={}):
     """
     do prep first time, involving downloads
     # FIXME: Add github caching then add here
@@ -611,11 +611,10 @@ def prep_langchain(persist_directory, load_db_if_exists, db_type, use_openai_emb
             get_dai_docs(from_hf=True)
 
         if langchain_mode in ['All', 'wiki']:
-            text_limit = None
-            for first_para in [True, False]:
-                get_wiki_sources(first_para=first_para, text_limit=text_limit)
+            get_wiki_sources(first_para=kwargs_make_db['first_para'], text_limit=kwargs_make_db['text_limit'])
 
-        langchain_kwargs = locals()
+        langchain_kwargs = kwargs_make_db.copy()
+        langchain_kwargs.update(locals())
         db = make_db(**langchain_kwargs)
 
     return db
