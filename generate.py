@@ -14,7 +14,7 @@ import filelock
 import psutil
 
 from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial, EThread, get_githash, \
-    import_matplotlib
+    import_matplotlib, get_device
 
 import_matplotlib()
 from matplotlib import pyplot as plt
@@ -121,10 +121,17 @@ def main(
         hf_embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2",
         allow_upload_to_user_data: bool = True,
         allow_upload_to_my_data: bool = True,
+        enable_url_upload: bool = True,
+        enable_text_upload: bool = True,
+        enable_sources_list: bool = True,
         chunk: bool = True,
         chunk_size: int = 512,
         k: int = 4,
         n_jobs: int = -1,
+        enable_captions: bool = True,
+        pre_load_caption_model: bool = False,
+        caption_gpu: bool = True,
+        enable_ocr: bool = False,
 ):
     """
 
@@ -200,10 +207,18 @@ def main(
     :param hf_embedding_model: Which HF embedding model to use for vector db
     :param allow_upload_to_user_data: Whether to allow file uploads to update shared vector db
     :param allow_upload_to_my_data: Whether to allow file uploads to update scratch vector db
+    :param enable_url_upload: Whether to allow upload from URL
+    :param enable_text_upload: Whether to allow uplaod of text
+    :param enable_sources_list: Whether to allow list (or download for non-shared db) of list of sources for chosen db
     :param chunk: Whether to chunk data (True unless know data is already optimally chunked)
     :param chunk_size: Size of chunks, with typically top-4 passed to LLM, so neesd to be in context length
     :param k: number of chunks to give LLM
     :param n_jobs: Number of processors to use when consuming documents (-1 = all, is default)
+    :param enable_captions: Whether to support captions using BLIP for image files as documents, then preloads that model
+    :param pre_load_caption_model: Whether to preload caption model, or load after forking parallel doc loader
+           parallel loading disabled if preload and have images, to prevent deadlocking on cuda context
+    :param caption_gpu: If support caption, then use GPU if exists
+    :param enable_ocr: Whether to support OCR on images
     :return:
     """
     is_hf = bool(os.getenv("HUGGINGFACE_SPACES"))
@@ -506,16 +521,16 @@ def main(
         smodel, stokenizer, sdevice = get_score_model(**all_kwargs)
         score_model_state0 = [smodel, stokenizer, sdevice, score_model]
 
+        if enable_captions:
+            if pre_load_caption_model:
+                from image_captions import H2OImageCaptionLoader
+                caption_loader = H2OImageCaptionLoader(caption_gpu=caption_gpu)
+            else:
+                caption_loader = 'gpu' if caption_gpu else 'cpu'
+        else:
+            caption_loader = False
+
         go_gradio(**locals())
-
-
-def get_device():
-    if torch.cuda.is_available():
-        device = "cuda"
-    else:
-        device = "cpu"
-
-    return device
 
 
 def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward_type,
@@ -952,7 +967,7 @@ def evaluate(
                            db=db1,
                            user_path=user_path,
                            max_new_tokens=max_new_tokens,
-                           cut_distanct=1.1 if langchain_mode in ['wiki_full'] else 1.8,
+                           cut_distanct=1.1 if langchain_mode in ['wiki_full'] else 1.64,  # FIXME, too arbitrary
                            use_openai_embedding=use_openai_embedding,
                            use_openai_model=use_openai_model,
                            hf_embedding_model=hf_embedding_model,
