@@ -284,7 +284,7 @@ def go_gradio(**kwargs):
                                                          visible=allow_upload_to_my_data)  # and False)
                     url_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and allow_upload and enable_url_upload)
                     with url_row:
-                        url_text = gr.Textbox(label='URL', interactive=True)
+                        url_text = gr.Textbox(label='URL (http/https) or ArXiv:', interactive=True)
                         url_user_btn = gr.Button(value='Add URL content to Shared UserData DB',
                                                  visible=allow_upload_to_user_data)
                         url_my_btn = gr.Button(value='Add URL content to Scratch MyData DB',

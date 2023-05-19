@@ -64,8 +64,14 @@ sudo apt-get install libreoffice
 ### Supported Datatypes in UI
 
    - `Files` : All Native and Meta DataTypes as file(s),
-   - `URL` : Any URL,
+   - `URL` : Any URL (i.e. `http://` or `https://`) or ArXiv name (e.g. `arXiv:1706.03762`),
    - `Text` : Paste Text into UI.
+
+To support ArXiv API, run:
+```bash
+pip install arxiv pymupdf
+```
+but this is GNU Affero General Public License (AGPL), requiring any source code be made available, which is not an issue directly for h2oGPT, but its like GPL and too strong a constraint for commercial use
 
 ## Database creation
 

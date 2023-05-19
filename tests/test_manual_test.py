@@ -26,7 +26,11 @@ def test_upload_multiple_file():
 
 
 def test_upload_url():
-    raise NotImplementedError("MANUAL TEST FOR NOW -- do and ask query of content of url")
+    raise NotImplementedError("MANUAL TEST FOR NOW -- put in URL box arxiv:1706.03762, ensure can go to source link")
+
+
+def test_upload_arxiv():
+    raise NotImplementedError("MANUAL TEST FOR NOW -- ")
 
 
 def test_upload_pasted_text():
