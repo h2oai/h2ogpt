@@ -477,3 +477,31 @@ def download(url, dest=None, dest_path=None):
         pass
     remove_simple(dest_tmp)
     return dest
+
+
+def get_url(x, from_str=False, short_name=False):
+    if not from_str:
+        source = x.metadata['source']
+    else:
+        source = x
+    if short_name:
+        source_name = get_short_name(source)
+    else:
+        source_name = source
+    if source.startswith('http://') or source.startswith('https://'):
+        return """<a href="%s" target="_blank"  rel="noopener noreferrer">%s</a>""" % (
+            source, source_name)
+    else:
+        return """<a href="file/%s" target="_blank"  rel="noopener noreferrer">%s</a>""" % (
+            source, source_name)
+
+
+def get_short_name(name, maxl=50):
+    if name is None:
+        return ''
+    length = len(name)
+    if length > maxl:
+        allow_length = maxl - 3
+        half_allowed = max(1, int(allow_length/2))
+        name = name[0:half_allowed] + "..." + name[length - half_allowed:length]
+    return name

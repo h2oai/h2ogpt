@@ -12,7 +12,7 @@ from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, 
 from prompter import Prompter, \
     prompt_type_to_model_name, prompt_types_strings, inv_prompt_type_to_model_lower
 from utils import get_githash, flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
-    ping
+    ping, get_short_name
 from finetune import generate_prompt
 from generate import get_model, languages_covered, evaluate, eval_func_param_names, score_qa, langchain_modes, \
     inputs_kwargs_list, get_cutoffs, scratch_base_dir
@@ -306,7 +306,7 @@ def go_gradio(**kwargs):
                                                       visible=allow_upload_to_my_data)
                     sources_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and enable_sources_list)
                     with sources_row:
-                        sources_text = gr.Textbox(label='Sources Added', interactive=False)
+                        sources_text = gr.HTML(label='Sources Added', interactive=False)
                     sources_row2 = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and enable_sources_list)
                     with sources_row2:
                         get_sources_btn = gr.Button(value="Get Sources List for Selected DB")
@@ -1251,9 +1251,24 @@ def get_source_files(db):
     metadatas = db.get()['metadatas']
     if metadatas:
         # below automatically de-dups
-        small_dict = {x['source']: x.get('head') for x in metadatas}
+        from gpt_langchain import get_url
+        small_dict = {get_url(x['source'], from_str=True, short_name=True): get_short_name(x.get('head')) for x in metadatas}
         df = pd.DataFrame(small_dict.items(), columns=['source', 'head'])
-        source_files_added = tabulate.tabulate(df, headers='keys', tablefmt='psql')
+        df.index = df.index + 1
+        df.index.name = 'index'
+        source_files_added = tabulate.tabulate(df, headers='keys', tablefmt='unsafehtml')
+        source_files_added = """\
+        <html>
+          <body>
+            <p>
+               Sources: <br>
+            </p>
+               <div style="overflow-y: auto;height:400px">
+               {0}
+               </div>
+          </body>
+        </html>
+        """.format(source_files_added)
     else:
         source_files_added = 'None'
     return source_files_added

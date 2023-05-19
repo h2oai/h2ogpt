@@ -17,7 +17,7 @@ from operator import concat
 
 from joblib import Parallel, delayed
 
-from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs
+from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url
 
 import_matplotlib()
 
@@ -338,7 +338,7 @@ def add_meta(docs1, file):
 def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, chunk=True, chunk_size=512,
                 is_url=False, is_txt=False,
                 enable_captions=True, enable_ocr=False, caption_loader=None,
-                headsize=40):
+                headsize=50):
     if file is None:
         if fail_any_exception:
             raise RuntimeError("Unexpected None file")
@@ -914,15 +914,6 @@ def _run_qa_db(query=None,
             return
         else:
             return ret
-
-
-def get_url(x):
-    if x.metadata['source'].startswith('http://') or x.metadata['source'].startswith('https://'):
-        return """<a href="%s" target="_blank"  rel="noopener noreferrer">%s</a>""" % (
-            x.metadata['source'], x.metadata['source'])
-    else:
-        return """<a href="file/%s" target="_blank"  rel="noopener noreferrer">%s</a>""" % (
-            x.metadata['source'], x.metadata['source'])
 
 
 def chunk_sources(sources, chunk_size=1024):
