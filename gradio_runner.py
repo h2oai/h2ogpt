@@ -261,7 +261,8 @@ def go_gradio(**kwargs):
                             file_paths = [file.name for file in files]
                             return files, file_paths
 
-                    upload_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and allow_upload)
+                    upload_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and allow_upload).style(
+                        equal_height=False)
                     # import control
                     if kwargs['langchain_mode'] != 'Disabled':
                         from gpt_langchain import file_types, have_arxiv
@@ -283,7 +284,9 @@ def go_gradio(**kwargs):
                                                              visible=allow_upload_to_user_data)  # and False)
                             add_to_my_db_btn = gr.Button("Add File(s) to Scratch MyData DB",
                                                          visible=allow_upload_to_my_data)  # and False)
-                    url_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and allow_upload and enable_url_upload)
+                    url_row = gr.Row(
+                        visible=kwargs['langchain_mode'] != 'Disabled' and allow_upload and enable_url_upload).style(
+                        equal_height=False)
                     with url_row:
                         url_label = 'URL (http/https) or ArXiv:' if have_arxiv else 'URL (http/https)'
                         url_text = gr.Textbox(label=url_label, interactive=True)
@@ -291,7 +294,9 @@ def go_gradio(**kwargs):
                                                  visible=allow_upload_to_user_data)
                         url_my_btn = gr.Button(value='Add URL content to Scratch MyData DB',
                                                visible=allow_upload_to_my_data)
-                    text_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and allow_upload and enable_text_upload)
+                    text_row = gr.Row(
+                        visible=kwargs['langchain_mode'] != 'Disabled' and allow_upload and enable_text_upload).style(
+                        equal_height=False)
                     with text_row:
                         user_text_text = gr.Textbox(label='Paste Text', interactive=True)
                         user_text_user_btn = gr.Button(value='Add Text to Shared UserData DB',
@@ -299,17 +304,19 @@ def go_gradio(**kwargs):
                         user_text_my_btn = gr.Button(value='Add Text to Scratch MyData DB',
                                                      visible=allow_upload_to_my_data)
                     # WIP:
-                    with gr.Row(visible=False):
+                    with gr.Row(visible=False).style(equal_height=False):
                         github_textbox = gr.Textbox(label="Github URL")
                         with gr.Row(visible=True):
                             github_shared_btn = gr.Button(value="Add Github to Shared UserData DB",
                                                           visible=allow_upload_to_user_data)
                             github_my_btn = gr.Button(value="Add Github to Scratch MyData DB",
                                                       visible=allow_upload_to_my_data)
-                    sources_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and enable_sources_list)
+                    sources_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and enable_sources_list).style(
+                        equal_height=False)
                     with sources_row:
                         sources_text = gr.HTML(label='Sources Added', interactive=False)
-                    sources_row2 = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and enable_sources_list)
+                    sources_row2 = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and enable_sources_list).style(
+                        equal_height=False)
                     with sources_row2:
                         get_sources_btn = gr.Button(value="Get Sources List for Selected DB")
                         file_source = gr.File(interactive=False, label="Download File with list of Sources")
@@ -1208,7 +1215,7 @@ def update_user_db(file, db1, x, y, dbs=None, db_type=None, langchain_mode='User
     if verbose:
         print("Adding %s" % file, flush=True)
     sources = path_to_docs(file if not is_url and not is_txt else None,
-                           verbose=verbose,  chunk=chunk, chunk_size=chunk_size,
+                           verbose=verbose, chunk=chunk, chunk_size=chunk_size,
                            url=file if is_url else None,
                            text=file if is_txt else None,
                            enable_captions=enable_captions,
@@ -1260,7 +1267,8 @@ def get_source_files(db):
     if metadatas:
         # below automatically de-dups
         from gpt_langchain import get_url
-        small_dict = {get_url(x['source'], from_str=True, short_name=True): get_short_name(x.get('head')) for x in metadatas}
+        small_dict = {get_url(x['source'], from_str=True, short_name=True): get_short_name(x.get('head')) for x in
+                      metadatas}
         df = pd.DataFrame(small_dict.items(), columns=['source', 'head'])
         df.index = df.index + 1
         df.index.name = 'index'
