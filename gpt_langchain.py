@@ -359,7 +359,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
         doc1 = chunk_sources(docs1, chunk_size=chunk_size)
     elif is_txt:
         base_path = "user_paste"
-        source_file = os.path.join(base_path, "_%s" % str(uuid.uuid4()))[:10]
+        source_file = os.path.join(base_path, "_%s" % str(uuid.uuid4())[:10])
         makedirs(os.path.dirname(source_file), exist_ok=True)
         with open(source_file, "wt") as f:
             f.write(file)
