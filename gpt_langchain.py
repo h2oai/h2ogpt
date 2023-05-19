@@ -32,7 +32,7 @@ from langchain.chains.qa_with_sources import load_qa_with_sources_chain
 from langchain.document_loaders import PyPDFLoader, TextLoader, CSVLoader, PythonLoader, TomlLoader, \
     UnstructuredURLLoader, UnstructuredHTMLLoader, UnstructuredWordDocumentLoader, UnstructuredMarkdownLoader, \
     EverNoteLoader, UnstructuredEmailLoader, UnstructuredODTLoader, UnstructuredPowerPointLoader, \
-    UnstructuredEPubLoader, UnstructuredImageLoader, UnstructuredRTFLoader
+    UnstructuredEPubLoader, UnstructuredImageLoader, UnstructuredRTFLoader, ArxivLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores import FAISS
 from langchain.chains.question_answering import load_qa_chain
@@ -316,6 +316,15 @@ import distutils.spawn
 have_tesseract = distutils.spawn.find_executable("tesseract")
 have_libreoffice = distutils.spawn.find_executable("libreoffice")
 
+import pkg_resources
+
+try:
+    assert pkg_resources.get_distribution('arxiv') is not None
+    assert pkg_resources.get_distribution('pymupdf') is not None
+    have_arxiv = True
+except (pkg_resources.DistributionNotFound, AssertionError):
+    have_arxiv = False
+
 image_types = ["png", "jpg", "jpeg"]
 non_image_types = ["pdf", "txt", "csv", "toml", "py", "rst", "rtf",
                    "md", "html",
@@ -356,8 +365,23 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
         base_name = sanitize_filename(base_name) + "_" + str(uuid.uuid4())[:10]
         base_path = os.path.join(dir_name, base_name)
     if is_url:
-        docs1 = UnstructuredURLLoader(urls=[file]).load()
-        [x.metadata.update(dict(input_type='url', date=str(datetime.now))) for x in docs1]
+        if file.lower().startswith('arxiv:'):
+            query = file.lower().split('arxiv:')
+            if len(query) == 2 and have_arxiv:
+                query = query[1]
+                docs1 = ArxivLoader(query=query, load_max_docs=20, load_all_available_meta=True).load()
+                # ensure string, sometimes None
+                [[x.metadata.update({k: str(v)}) for k, v in x.metadata.items()] for x in docs1]
+                query_url = f"https://arxiv.org/abs/{query}"
+                [x.metadata.update(
+                    dict(source=x.metadata.get('entry_id', query_url), query=query_url,
+                         input_type='arxiv', head=x.metadata.get('Title', ''), date=str(datetime.now))) for x in
+                 docs1]
+            else:
+                docs1 = []
+        else:
+            docs1 = UnstructuredURLLoader(urls=[file]).load()
+            [x.metadata.update(dict(input_type='url', date=str(datetime.now))) for x in docs1]
         doc1 = chunk_sources(docs1, chunk_size=chunk_size)
     elif is_txt:
         base_path = "user_paste"

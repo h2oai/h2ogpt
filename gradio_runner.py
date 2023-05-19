@@ -264,8 +264,9 @@ def go_gradio(**kwargs):
                     upload_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and allow_upload)
                     # import control
                     if kwargs['langchain_mode'] != 'Disabled':
-                        from gpt_langchain import file_types
+                        from gpt_langchain import file_types, have_arxiv
                     else:
+                        have_arxiv = False
                         file_types = []
                     with upload_row:
                         fileup_output = gr.File(label='Upload File (Drop-Drop or Select File(s)',
@@ -284,7 +285,8 @@ def go_gradio(**kwargs):
                                                          visible=allow_upload_to_my_data)  # and False)
                     url_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and allow_upload and enable_url_upload)
                     with url_row:
-                        url_text = gr.Textbox(label='URL', interactive=True)
+                        url_label = 'URL (http/https) or ArXiv:' if have_arxiv else 'URL (http/https)'
+                        url_text = gr.Textbox(label=url_label, interactive=True)
                         url_user_btn = gr.Button(value='Add URL content to Shared UserData DB',
                                                  visible=allow_upload_to_user_data)
                         url_my_btn = gr.Button(value='Add URL content to Scratch MyData DB',

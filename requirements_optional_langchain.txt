@@ -33,7 +33,6 @@ unstructured[local-inference]==0.6.6
 pdfminer.six==20221105
 urllib3==1.26.6
 requests_file==1.5.1
-# extract-msg==0.41.1  # GPL3
 
 #pdf2image==1.16.3
 #pytesseract==0.3.10
