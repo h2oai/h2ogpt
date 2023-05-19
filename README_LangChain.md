@@ -48,7 +48,7 @@ OCR is disabled by default, but can be enabled if making database via `make_db.p
 ```bash
 sudo apt-get install tesseract-ocr
 ```
-and ensure you pip install `pytesseract`.
+and ensure you `pip install pytesseract`.
 
 To support Microsoft Office docx and doc, on Ubuntu run:
 ```bash
