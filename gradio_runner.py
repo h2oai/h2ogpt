@@ -1169,6 +1169,9 @@ def get_inputs_list(inputs_dict, model_lower):
 def get_sources(db1, langchain_mode, dbs=None):
     if langchain_mode in ['ChatLLM', 'LLM']:
         source_files_added = "NA"
+    elif langchain_mode in ['wiki_full']:
+        source_files_added = "Not showing wiki_full, takes about 20 seconds and makes 4MB file." \
+                             "  Ask jon.mckinney@h2o.ai for file if required."
     elif langchain_mode == 'MyData' and len(db1) > 0 and db1[0] is not None:
         db_get = db1[0].get()
         source_files_added = '\n'.join(sorted(set([x['source'] for x in db_get['metadatas']])))
