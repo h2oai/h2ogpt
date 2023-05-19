@@ -4,8 +4,9 @@ import inspect
 import os
 import sys
 import uuid
-
 import filelock
+import pandas as pd
+import tabulate
 
 from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, get_dark_js
 from prompter import Prompter, \
@@ -1224,8 +1225,7 @@ def update_user_db(file, db1, x, y, dbs=None, db_type=None, langchain_mode='User
                                 persist_directory=persist_directory,
                                 langchain_mode=langchain_mode,
                                 hf_embedding_model=hf_embedding_model)
-            db_get = db1[0].get()
-            source_files_added = '\n'.join(sorted(set([x['source'] for x in db_get['metadatas']])))
+            source_files_added = get_source_files(db1[0])
             return db1, x, y, source_files_added
         else:
             persist_directory = 'db_dir_%s' % langchain_mode
@@ -1243,6 +1243,17 @@ def update_user_db(file, db1, x, y, dbs=None, db_type=None, langchain_mode='User
             # NOTE we do not return db, because function call always same code path
             # return dbs[langchain_mode], x, y
             # db in this code path is updated in place
-            db_get = db1.get()
-            source_files_added = '\n'.join(sorted(set([x['source'] for x in db_get['metadatas']])))
+            source_files_added = get_source_files(db1)
             return x, y, source_files_added
+
+
+def get_source_files(db):
+    metadatas = db.get()['metadatas']
+    if metadatas:
+        # below automatically de-dups
+        small_dict = {x['source']: x.get('head') for x in metadatas}
+        df = pd.DataFrame(small_dict.items(), columns=['source', 'head'])
+        source_files_added = tabulate.tabulate(df, headers='keys', tablefmt='psql')
+    else:
+        source_files_added = 'None'
+    return source_files_added

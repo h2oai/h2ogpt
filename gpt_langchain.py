@@ -328,9 +328,17 @@ if have_libreoffice:
 file_types = non_image_types + image_types
 
 
+def add_meta(docs1, file):
+    file_extension = pathlib.Path(file).suffix
+    if not isinstance(docs1, list):
+        docs1 = [docs1]
+    [x.metadata.update(dict(input_type=file_extension, date=str(datetime.now))) for x in docs1]
+
+
 def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, chunk=True, chunk_size=512,
                 is_url=False, is_txt=False,
-                enable_captions=True, enable_ocr=False, caption_loader=None):
+                enable_captions=True, enable_ocr=False, caption_loader=None,
+                headsize=40):
     if file is None:
         if fail_any_exception:
             raise RuntimeError("Unexpected None file")
@@ -343,57 +351,73 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
         dir_name = os.path.dirname(file)
         base_name = os.path.basename(file)
         # if from gradio, will have its own temp uuid too, but that's ok
-        base_name = sanitize_filename(base_name) + "_" + str(uuid.uuid4())
+        base_name = sanitize_filename(base_name) + "_" + str(uuid.uuid4())[:10]
         base_path = os.path.join(dir_name, base_name)
     if is_url:
         docs1 = UnstructuredURLLoader(urls=[file]).load()
+        [x.metadata.update(dict(input_type='url', date=str(datetime.now))) for x in docs1]
         doc1 = chunk_sources(docs1, chunk_size=chunk_size)
     elif is_txt:
         base_path = "user_paste"
-        source_file = os.path.join(base_path, "_%s" % str(uuid.uuid4()))
+        source_file = os.path.join(base_path, "_%s" % str(uuid.uuid4()))[:10]
         makedirs(os.path.dirname(source_file), exist_ok=True)
         with open(source_file, "wt") as f:
             f.write(file)
-        metadata = {"source": source_file, "date": str(datetime.now())}
+        metadata = dict(source=source_file, date=str(datetime.now()), input_type='pasted txt')
         doc1 = Document(page_content=file, metadata=metadata)
     elif file.endswith('.html'):
         docs1 = UnstructuredHTMLLoader(file_path=file).load()
+        add_meta(docs1, file)
         doc1 = chunk_sources(docs1, chunk_size=chunk_size)
     elif (file.endswith('.docx') or file.endswith('.doc')) and have_libreoffice:
         docs1 = UnstructuredWordDocumentLoader(file_path=file).load()
+        add_meta(docs1, file)
         doc1 = chunk_sources(docs1, chunk_size=chunk_size)
     elif file.endswith('.odt'):
         docs1 = UnstructuredODTLoader(file_path=file).load()
+        add_meta(docs1, file)
         doc1 = chunk_sources(docs1, chunk_size=chunk_size)
     elif file.endswith('pptx') or file.endswith('ppt'):
         docs1 = UnstructuredPowerPointLoader(file_path=file).load()
+        add_meta(docs1, file)
         doc1 = chunk_sources(docs1, chunk_size=chunk_size)
     elif file.endswith('.txt'):
         doc1 = TextLoader(file, encoding="utf8").load()
+        add_meta(doc1, file)
     elif file.endswith('.md'):
         docs1 = UnstructuredMarkdownLoader(file).load()
+        add_meta(docs1, file)
         doc1 = chunk_sources(docs1, chunk_size=chunk_size)
     elif file.endswith('.enex'):
         doc1 = EverNoteLoader(file).load()
+        add_meta(doc1, file)
     elif file.endswith('.epub'):
         docs1 = UnstructuredEPubLoader(file).load()
+        add_meta(docs1, file)
         doc1 = chunk_sources(docs1, chunk_size=chunk_size)
     elif file.endswith('.jpeg') or file.endswith('.jpg') or file.endswith('.png'):
         docs1 = []
         if have_tesseract and enable_ocr:
             # OCR, somewhat works, but not great
             docs1.extend(UnstructuredImageLoader(file).load())
+            add_meta(docs1, file)
         if enable_captions:
             # BLIP
             if caption_loader is not None and not isinstance(caption_loader, (str, bool)):
                 # assumes didn't fork into this process with joblib, else can deadlock
                 caption_loader.set_image_paths([file])
-                docs1.extend(caption_loader.load())
+                docs1c = caption_loader.load()
+                add_meta(docs1c, file)
+                [x.metadata.update(dict(head=x.page_content[:headsize].strip())) for x in docs1c]
+                docs1.extend(docs1c)
             else:
                 from image_captions import H2OImageCaptionLoader
                 caption_loader = H2OImageCaptionLoader(caption_gpu=caption_loader == 'gpu')
                 caption_loader.set_image_paths([file])
-                docs1.extend(caption_loader.load())
+                docs1c = caption_loader.load()
+                add_meta(docs1c, file)
+                [x.metadata.update(dict(head=x.page_content[:headsize].strip())) for x in docs1c]
+                docs1.extend(docs1c)
             for doci in docs1:
                 doci.metadata['source'] = doci.metadata['image_path']
             if docs1:
@@ -405,12 +429,14 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
     elif file.endswith('.eml'):
         try:
             docs1 = UnstructuredEmailLoader(file).load()
+            add_meta(docs1, file)
             doc1 = chunk_sources(docs1, chunk_size=chunk_size)
         except ValueError as e:
             if 'text/html content not found in email' in str(e):
                 # e.g. plain/text dict key exists, but not
                 # doc1 = TextLoader(file, encoding="utf8").load()
                 docs1 = UnstructuredEmailLoader(file, content_source="text/plain").load()
+                add_meta(docs1, file)
                 doc1 = chunk_sources(docs1, chunk_size=chunk_size)
             else:
                 raise
@@ -421,20 +447,26 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
     elif file.endswith('.rst'):
         with open(file, "r") as f:
             doc1 = Document(page_content=f.read(), metadata={"source": file})
+        add_meta(doc1, file)
     elif file.endswith('.pdf'):
         # Some PDFs return nothing or junk from PDFMinerLoader
         # e.g. Beyond fine-tuning_ Classifying high resolution mammograms using function-preserving transformations _ Elsevier Enhanced Reader.pdf
         doc1 = PyPDFLoader(file).load_and_split()
+        add_meta(doc1, file)
     elif file.endswith('.csv'):
         doc1 = CSVLoader(file).load()
+        add_meta(doc1, file)
     elif file.endswith('.py'):
         doc1 = PythonLoader(file).load()
+        add_meta(doc1, file)
     elif file.endswith('.toml'):
         doc1 = TomlLoader(file).load()
+        add_meta(doc1, file)
     elif file.endswith('.urls'):
         with open(file, "r") as f:
             docs1 = UnstructuredURLLoader(urls=f.readlines()).load()
-            doc1 = chunk_sources(docs1, chunk_size=chunk_size)
+        add_meta(docs1, file)
+        doc1 = chunk_sources(docs1, chunk_size=chunk_size)
     elif file.endswith('.zip'):
         with zipfile.ZipFile(file, 'r') as zip_ref:
             # don't put into temporary path, since want to keep references to docs inside zip
@@ -444,6 +476,8 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
             doc1 = path_to_docs(base_path, verbose=verbose, fail_any_exception=fail_any_exception)
     else:
         raise RuntimeError("No file handler for %s" % file)
+
+    # allow doc1 to be list or not.  If not list, did not chunk yet, so chunk now
     if not isinstance(doc1, list):
         if chunk:
             docs = chunk_sources([doc1], chunk_size=chunk_size)
