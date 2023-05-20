@@ -86,6 +86,9 @@ def go_gradio(**kwargs):
     """
     else:
         css_code = """footer {visibility: hidden}"""
+    css_code += """
+body.dark{#warning {background-color: #555555};}
+"""
 
     if kwargs['gradio_avoid_processing_markdown']:
         from gradio_client import utils as client_utils
@@ -270,9 +273,10 @@ def go_gradio(**kwargs):
                         have_arxiv = False
                         file_types = []
                     with upload_row:
-                        fileup_output = gr.File(label='Upload File (Drop-Drop or Select File(s)',
+                        fileup_output = gr.File(label=f'Upload {file_types}',
                                                 file_types=file_types,
-                                                file_count="multiple")
+                                                file_count="multiple",
+                                                elem_id="warning", elem_classes="feedback")
                         with gr.Row():
                             upload_button = gr.UploadButton("Upload %s" % file_types,
                                                             file_types=file_types,
@@ -280,29 +284,32 @@ def go_gradio(**kwargs):
                                                             visible=False,
                                                             )
                             # add not visible until upload something
-                            add_to_shared_db_btn = gr.Button("Add File(s) to Shared UserData DB",
-                                                             visible=allow_upload_to_user_data)  # and False)
-                            add_to_my_db_btn = gr.Button("Add File(s) to Scratch MyData DB",
-                                                         visible=allow_upload_to_my_data)  # and False)
+                            with gr.Column():
+                                add_to_shared_db_btn = gr.Button("Add File(s) to Shared UserData DB",
+                                                                 visible=allow_upload_to_user_data)  # and False)
+                                add_to_my_db_btn = gr.Button("Add File(s) to Scratch MyData DB",
+                                                             visible=allow_upload_to_my_data)  # and False)
                     url_row = gr.Row(
                         visible=kwargs['langchain_mode'] != 'Disabled' and allow_upload and enable_url_upload).style(
                         equal_height=False)
                     with url_row:
                         url_label = 'URL (http/https) or ArXiv:' if have_arxiv else 'URL (http/https)'
                         url_text = gr.Textbox(label=url_label, interactive=True)
-                        url_user_btn = gr.Button(value='Add URL content to Shared UserData DB',
-                                                 visible=allow_upload_to_user_data)
-                        url_my_btn = gr.Button(value='Add URL content to Scratch MyData DB',
-                                               visible=allow_upload_to_my_data)
+                        with gr.Column():
+                            url_user_btn = gr.Button(value='Add URL content to Shared UserData DB',
+                                                     visible=allow_upload_to_user_data)
+                            url_my_btn = gr.Button(value='Add URL content to Scratch MyData DB',
+                                                   visible=allow_upload_to_my_data)
                     text_row = gr.Row(
                         visible=kwargs['langchain_mode'] != 'Disabled' and allow_upload and enable_text_upload).style(
                         equal_height=False)
                     with text_row:
                         user_text_text = gr.Textbox(label='Paste Text', interactive=True)
-                        user_text_user_btn = gr.Button(value='Add Text to Shared UserData DB',
-                                                       visible=allow_upload_to_user_data)
-                        user_text_my_btn = gr.Button(value='Add Text to Scratch MyData DB',
-                                                     visible=allow_upload_to_my_data)
+                        with gr.Column():
+                            user_text_user_btn = gr.Button(value='Add Text to Shared UserData DB',
+                                                           visible=allow_upload_to_user_data)
+                            user_text_my_btn = gr.Button(value='Add Text to Scratch MyData DB',
+                                                         visible=allow_upload_to_my_data)
                     # WIP:
                     with gr.Row(visible=False).style(equal_height=False):
                         github_textbox = gr.Textbox(label="Github URL")
