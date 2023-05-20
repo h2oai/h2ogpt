@@ -273,12 +273,13 @@ body.dark{#warning {background-color: #555555};}
                         have_arxiv = False
                         file_types = []
                     with upload_row:
-                        fileup_output = gr.File(label=f'Upload {file_types}',
+                        file_types_str = '[' + ' '.join(file_types) + ']'
+                        fileup_output = gr.File(label=f'Upload {file_types_str}',
                                                 file_types=file_types,
                                                 file_count="multiple",
                                                 elem_id="warning", elem_classes="feedback")
                         with gr.Row():
-                            upload_button = gr.UploadButton("Upload %s" % file_types,
+                            upload_button = gr.UploadButton("Upload %s" % file_types_str,
                                                             file_types=file_types,
                                                             file_count="multiple",
                                                             visible=False,
