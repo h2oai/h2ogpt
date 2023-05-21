@@ -348,7 +348,9 @@ def add_meta(docs1, file):
 
 def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, chunk=True, chunk_size=512,
                 is_url=False, is_txt=False,
-                enable_captions=True, enable_ocr=False, caption_loader=None,
+                enable_captions=True,
+                captions_model=None,
+                enable_ocr=False, caption_loader=None,
                 headsize=50):
     if file is None:
         if fail_any_exception:
@@ -443,7 +445,9 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
                 docs1.extend(docs1c)
             else:
                 from image_captions import H2OImageCaptionLoader
-                caption_loader = H2OImageCaptionLoader(caption_gpu=caption_loader == 'gpu')
+                caption_loader = H2OImageCaptionLoader(caption_gpu=caption_loader == 'gpu',
+                                                       blip_model=captions_model,
+                                                       blip_processor=captions_model)
                 caption_loader.set_image_paths([file])
                 docs1c = caption_loader.load()
                 add_meta(docs1c, file)
@@ -523,7 +527,9 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
 
 def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True, chunk=True, chunk_size=512,
                  is_url=False, is_txt=False,
-                 enable_captions=True, enable_ocr=False, caption_loader=None):
+                 enable_captions=True,
+                 captions_model=None,
+                 enable_ocr=False, caption_loader=None):
     if verbose:
         if is_url:
             print("Ingesting URL: %s" % file, flush=True)
@@ -537,7 +543,9 @@ def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True
         res = file_to_doc(file, base_path=None, verbose=verbose, fail_any_exception=fail_any_exception,
                           chunk=chunk, chunk_size=chunk_size,
                           is_url=is_url, is_txt=is_txt,
-                          enable_captions=enable_captions, enable_ocr=enable_ocr,
+                          enable_captions=enable_captions,
+                          captions_model=captions_model,
+                          enable_ocr=enable_ocr,
                           caption_loader=caption_loader)
     except BaseException:
         print("Failed to ingest %s due to %s" % (file, traceback.format_exc()))
@@ -557,7 +565,9 @@ def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True
 def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=-1,
                  chunk=True, chunk_size=512,
                  url=None, text=None,
-                 enable_captions=True, enable_ocr=False, caption_loader=None):
+                 enable_captions=True,
+                 captions_model=None,
+                 enable_ocr=False, caption_loader=None):
     globs_image_types = []
     globs_non_image_types = []
     if url:
@@ -595,6 +605,7 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
                   is_url=is_url,
                   is_txt=is_txt,
                   enable_captions=enable_captions,
+                  captions_model=captions_model,
                   enable_ocr=enable_ocr,
                   caption_loader=caption_loader,
                   )

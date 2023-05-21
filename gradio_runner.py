@@ -43,6 +43,7 @@ def go_gradio(**kwargs):
     use_openai_embedding = kwargs['use_openai_embedding']
     hf_embedding_model = kwargs['hf_embedding_model']
     enable_captions = kwargs['enable_captions']
+    captions_model = kwargs['captions_model']
     enable_ocr = kwargs['enable_ocr']
     caption_loader = kwargs['caption_loader']
 
@@ -522,6 +523,7 @@ body.dark{#warning {background-color: #555555};}
                                                 use_openai_embedding=use_openai_embedding,
                                                 hf_embedding_model=hf_embedding_model,
                                                 enable_captions=enable_captions,
+                                                captions_model=captions_model,
                                                 enable_ocr=enable_ocr,
                                                 caption_loader=caption_loader,
                                                 )
@@ -558,6 +560,7 @@ body.dark{#warning {background-color: #555555};}
                                               use_openai_embedding=use_openai_embedding,
                                               hf_embedding_model=hf_embedding_model,
                                               enable_captions=enable_captions,
+                                              captions_model=captions_model,
                                               enable_ocr=enable_ocr,
                                               caption_loader=caption_loader,
                                               )
@@ -1208,6 +1211,7 @@ def update_user_db(file, db1, x, y, dbs=None, db_type=None, langchain_mode='User
                    hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
                    caption_loader=None,
                    enable_captions=True,
+                   captions_model="Salesforce/blip-image-captioning-base",
                    enable_ocr=False,
                    verbose=False,
                    chunk=True, chunk_size=512, is_url=False, is_txt=False):
@@ -1227,6 +1231,7 @@ def update_user_db(file, db1, x, y, dbs=None, db_type=None, langchain_mode='User
                            url=file if is_url else None,
                            text=file if is_txt else None,
                            enable_captions=enable_captions,
+                           captions_model=captions_model,
                            enable_ocr=enable_ocr,
                            caption_loader=caption_loader,
                            )

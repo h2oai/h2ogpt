@@ -29,6 +29,7 @@ chromadb==0.3.23
 unstructured[local-inference]==0.6.6
 #pdf2image==1.16.3
 #pytesseract==0.3.10
+pillow
 
 pdfminer.six==20221105
 urllib3==1.26.6
