@@ -15,6 +15,8 @@ import zipfile
 from datetime import datetime
 import filelock
 import requests, uuid
+from typing import Tuple, Callable, Dict
+from concurrent.futures import ProcessPoolExecutor
 import numpy as np
 import pandas as pd
 
@@ -502,7 +504,7 @@ def get_short_name(name, maxl=50):
     length = len(name)
     if length > maxl:
         allow_length = maxl - 3
-        half_allowed = max(1, int(allow_length/2))
+        half_allowed = max(1, int(allow_length / 2))
         name = name[0:half_allowed] + "..." + name[length - half_allowed:length]
     return name
 
@@ -592,3 +594,171 @@ def get_mem_gpus(raise_if_exception=True, ngpus=None):
             raise
 
     return totalmem_gpus1, usedmem_gpus1, freemem_gpus1
+
+
+class ForkContext(threading.local):
+    """
+        Set context for forking
+        Ensures state is returned once done
+    """
+
+    def __init__(self, args=None, kwargs=None, forkdata_capable=True):
+        """
+        :param args:
+        :param kwargs:
+        :param forkdata_capable: whether fork is forkdata capable and will use copy-on-write forking of args/kwargs
+        """
+        self.forkdata_capable = forkdata_capable
+        if self.forkdata_capable:
+            self.has_args = args is not None
+            self.has_kwargs = kwargs is not None
+            forkdatacontext.args = args
+            forkdatacontext.kwargs = kwargs
+        else:
+            self.has_args = False
+            self.has_kwargs = False
+
+    def __enter__(self):
+        try:
+            # flush all outputs so doesn't happen during fork -- don't print/log inside ForkContext contexts!
+            sys.stdout.flush()
+            sys.stderr.flush()
+        except BaseException as e:
+            # exit not called if exception, and don't want to leave forkdatacontext filled in that case
+            print("ForkContext failure on enter: %s" % str(e))
+            self.finally_act()
+            raise
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        self.finally_act()
+
+    def finally_act(self):
+        """
+            Done when exception hit or exit is reached in context
+            first reset forkdatacontext as crucial to have reset even if later 2 calls fail
+        :return: None
+        """
+        if self.forkdata_capable and (self.has_args or self.has_kwargs):
+            forkdatacontext._reset()
+
+
+class _ForkDataContext(threading.local):
+    def __init__(
+            self,
+            args=None,
+            kwargs=None,
+    ):
+        """
+        Global context for fork to carry data to subprocess instead of relying upon copy/pickle/serialization
+
+        :param args: args
+        :param kwargs: kwargs
+        """
+        assert isinstance(args, (tuple, type(None)))
+        assert isinstance(kwargs, (dict, type(None)))
+        self.__args = args
+        self.__kwargs = kwargs
+
+    @property
+    def args(self) -> Tuple:
+        """returns args"""
+        return self.__args
+
+    @args.setter
+    def args(self, args):
+        if self.__args is not None:
+            raise AttributeError(
+                "args cannot be overwritten: %s %s" % (str(self.__args), str(self.__kwargs))
+            )
+
+        self.__args = args
+
+    @property
+    def kwargs(self) -> Dict:
+        """returns kwargs"""
+        return self.__kwargs
+
+    @kwargs.setter
+    def kwargs(self, kwargs):
+        if self.__kwargs is not None:
+            raise AttributeError(
+                "kwargs cannot be overwritten: %s %s" % (str(self.__args), str(self.__kwargs))
+            )
+
+        self.__kwargs = kwargs
+
+    def _reset(self):
+        """Reset fork arg-kwarg context to default values"""
+        self.__args = None
+        self.__kwargs = None
+
+    def get_args_kwargs(self, func, args, kwargs) -> Tuple[Callable, Tuple, Dict]:
+        if self.__args:
+            args = self.__args[1:]
+            if not func:
+                assert len(self.__args) > 0, "if have no func, must have in args"
+                func = self.__args[0]  # should always be there
+        if self.__kwargs:
+            kwargs = self.__kwargs
+        try:
+            return func, args, kwargs
+        finally:
+            forkdatacontext._reset()
+
+    @staticmethod
+    def get_args_kwargs_for_traced_func(func, args, kwargs):
+        """
+        Return args/kwargs out of forkdatacontext when using copy-on-write way of passing args/kwargs
+        :param func: actual function ran by _traced_func, which itself is directly what mppool treats as function
+        :param args:
+        :param kwargs:
+        :return: func, args, kwargs from forkdatacontext if used, else originals
+        """
+        # first 3 lines are debug
+        func_was_None = func is None
+        args_was_None_or_empty = args is None or len(args) == 0
+        kwargs_was_None_or_empty = kwargs is None or len(kwargs) == 0
+
+        forkdatacontext_args_was_None = forkdatacontext.args is None
+        forkdatacontext_kwargs_was_None = forkdatacontext.kwargs is None
+        func, args, kwargs = forkdatacontext.get_args_kwargs(func, args, kwargs)
+        using_forkdatacontext = func_was_None and func is not None  # pulled func out of forkdatacontext.__args[0]
+        assert forkdatacontext.args is None, "forkdatacontext.args should be None after get_args_kwargs"
+        assert forkdatacontext.kwargs is None, "forkdatacontext.kwargs should be None after get_args_kwargs"
+
+        proc_type = kwargs.get('proc_type', 'SUBPROCESS')
+        if using_forkdatacontext:
+            assert proc_type == "SUBPROCESS" or proc_type == "SUBPROCESS"
+        if proc_type == "NORMAL":
+            assert forkdatacontext_args_was_None, "if no fork, expect forkdatacontext.args None entering _traced_func"
+            assert forkdatacontext_kwargs_was_None, "if no fork, expect forkdatacontext.kwargs None entering _traced_func"
+        assert func is not None, "function should not be None, indicates original args[0] was None or args was None"
+
+        return func, args, kwargs
+
+
+forkdatacontext = _ForkDataContext()
+
+
+def _traced_func(func, *args, **kwargs):
+    func, args, kwargs = forkdatacontext.get_args_kwargs_for_traced_func(func, args, kwargs)
+    return func(*args, **kwargs)
+
+
+def call_subprocess_onetask(func, args=None, kwargs=None):
+    if isinstance(args, list):
+        args = tuple(args)
+    if args is None:
+        args = ()
+    if kwargs is None:
+        kwargs = {}
+    args = list(args)
+    args = [func] + args
+    args = tuple(args)
+    with ForkContext(args=args, kwargs=kwargs):
+        args = (None,)
+        kwargs = {}
+        with ProcessPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(_traced_func, *args, **kwargs)
+            return future.result()

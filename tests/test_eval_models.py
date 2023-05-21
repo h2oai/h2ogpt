@@ -1,7 +1,7 @@
 import os
 import pytest
 
-from generate import main
+from tests.utils import wrap_test_forked
 
 
 @pytest.mark.skipif(not os.getenv('BENCHMARK'),
@@ -29,7 +29,9 @@ from generate import main
         "openaccess-ai-collective/wizard-mega-13b",
     ]
 )
+@wrap_test_forked
 def test_score_eval(base_model):
+    from generate import main
     main(
         base_model=base_model,
         chat=False,
