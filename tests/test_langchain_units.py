@@ -393,12 +393,17 @@ def test_png_add_gpu():
     return run_png_add(captions_model=None, caption_gpu=True)
 
 
+@pytest.mark.skipif(not have_gpus, reason="requires GPUs to run")
+def test_png_add_gpu_preload():
+    return run_png_add(captions_model=None, caption_gpu=True, pre_load_caption_model=True)
+
+
 @pytest.mark.skipif(not (have_gpus and mem_gpus[0] > 20*1024**3), reason="requires GPUs and enough memory to run")
 def test_png_add_gpu_blip2():
     return run_png_add(captions_model='Salesforce/blip2-flan-t5-xl', caption_gpu=True)
 
 
-def run_png_add(captions_model=None, caption_gpu=False):
+def run_png_add(captions_model=None, caption_gpu=False, pre_load_caption_model=False):
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
             test_file1 = 'data/pexels-evg-kowalievska-1170986_small.jpg'
@@ -411,6 +416,7 @@ def run_png_add(captions_model=None, caption_gpu=False):
             test_file1 = os.path.join(tmp_user_path, os.path.basename(test_file1))
             db = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
                               fail_any_exception=True, enable_ocr=False, caption_gpu=caption_gpu,
+                              pre_load_caption_model=pre_load_caption_model,
                               captions_model=captions_model)
             assert db is not None
             docs = db.similarity_search("cat")

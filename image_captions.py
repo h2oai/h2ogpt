@@ -123,6 +123,7 @@ class H2OImageCaptionLoader(ImageCaptionLoader):
                         self.processor = BlipProcessor.from_pretrained(self.blip_processor, device_map=device_map)
                         self.model = BlipForConditionalGeneration.from_pretrained(self.blip_model,
                                                                                   device_map=device_map)
+        return self
 
     def set_image_paths(self, path_images: Union[str, List[str]]):
         """

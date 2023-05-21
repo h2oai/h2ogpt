@@ -535,7 +535,7 @@ def main(
         if enable_captions:
             if pre_load_caption_model:
                 from image_captions import H2OImageCaptionLoader
-                caption_loader = H2OImageCaptionLoader(caption_gpu=caption_gpu)
+                caption_loader = H2OImageCaptionLoader(caption_gpu=caption_gpu).load_model()
             else:
                 caption_loader = 'gpu' if caption_gpu else 'cpu'
         else:

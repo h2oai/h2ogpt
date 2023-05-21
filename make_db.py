@@ -118,7 +118,7 @@ def make_db_main(use_openai_embedding: bool = False,
                                                blip_model=captions_model,
                                                blip_processor=captions_model,
                                                caption_gpu=caption_gpu,
-                                               )
+                                               ).load_model()
     else:
         if enable_captions:
             caption_loader = 'gpu' if caption_gpu else 'cpu'
