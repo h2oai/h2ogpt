@@ -726,10 +726,13 @@ def _make_db(use_openai_embedding=False,
             if chunk and False:  # FIXME: DAI docs are already chunked well, should only chunk more if over limit
                 sources1 = chunk_sources(sources1, chunk_size=chunk_size)
             sources.extend(sources1)
-        if user_path and langchain_mode in ['All', 'UserData']:
-            # chunk internally for speed over multiple docs
-            sources1 = path_to_docs(user_path, n_jobs=n_jobs, chunk=chunk, chunk_size=chunk_size)
-            sources.extend(sources1)
+        if langchain_mode in ['All', 'UserData']:
+            if user_path:
+                # chunk internally for speed over multiple docs
+                sources1 = path_to_docs(user_path, n_jobs=n_jobs, chunk=chunk, chunk_size=chunk_size)
+                sources.extend(sources1)
+            else:
+                print("Chose UserData but user_path is empty/None", flush=True)
         if False and langchain_mode in ['urls', 'All', "'All'"]:
             # from langchain.document_loaders import UnstructuredURLLoader
             # loader = UnstructuredURLLoader(urls=urls)
@@ -745,6 +748,7 @@ def _make_db(use_openai_embedding=False,
         db = get_db(sources, use_openai_embedding=use_openai_embedding, db_type=db_type,
                     persist_directory=persist_directory, langchain_mode=langchain_mode,
                     hf_embedding_model=hf_embedding_model)
+        print("Generated db", flush=True)
     return db
 
 
