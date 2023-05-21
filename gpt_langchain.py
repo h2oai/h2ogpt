@@ -17,7 +17,8 @@ from operator import concat
 
 from joblib import Parallel, delayed
 
-from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url
+from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
+    get_device
 
 import_matplotlib()
 
@@ -394,7 +395,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
             f.write(file)
         metadata = dict(source=source_file, date=str(datetime.now()), input_type='pasted txt')
         doc1 = Document(page_content=file, metadata=metadata)
-    elif file.endswith('.html'):
+    elif file.endswith('.html') or file.endswith('.mhtml'):
         docs1 = UnstructuredHTMLLoader(file_path=file).load()
         add_meta(docs1, file)
         doc1 = chunk_sources(docs1, chunk_size=chunk_size)
@@ -548,10 +549,15 @@ def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True
                           captions_model=captions_model,
                           enable_ocr=enable_ocr,
                           caption_loader=caption_loader)
-    except BaseException:
+    except BaseException as e:
         print("Failed to ingest %s due to %s" % (file, traceback.format_exc()))
         if fail_any_exception:
             raise
+        else:
+            exception_doc = Document(
+                page_content='',
+                metadata={"source": file, "exception": str(e), "traceback": traceback.format_exc()})
+            res = [exception_doc]
     if return_file:
         base_tmp = "temp_path_to_doc1"
         if not os.path.isdir(base_tmp):
@@ -590,14 +596,18 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
         # list/tuple of files
         assert isinstance(path_or_paths, (list, tuple)), "Wrong type for path_or_paths: %s" % type(path_or_paths)
         globs = path_or_paths
+        # reform out of allowed types
+        globs_image_types = flatten_list([[x for x in globs if x.endswith(y)] for y in image_types])
+        globs_non_image_types = flatten_list([[x for x in globs if x.endswith(y)] for y in non_image_types])
+        globs = globs_non_image_types + globs_image_types
     # could use generator, but messes up metadata handling in recursive case
-    if caption_loader and not isinstance(caption_loader, (bool, str)) and caption_loader.device != 'cpu':
+    if caption_loader and not isinstance(caption_loader, (bool, str)) and \
+            caption_loader.device != 'cpu' or \
+            get_device() == 'cuda':
         # to avoid deadlocks, presume was preloaded and so can't fork due to cuda context
-        n_jobs = 1
-    if 'tokenizers' in sys.modules:
-        # to avoid deadlocks (FIXME: Not alaays complains, e.g. inside gradio uploading zip, already had tokenizer, no hang or complaint)
-        # n_jobs = 1
-        pass
+        n_jobs_image = 1
+    else:
+        n_jobs_image = n_jobs
 
     return_file = True  # local choice
     is_url = url is not None
@@ -613,14 +623,28 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
                   enable_ocr=enable_ocr,
                   )
 
-    if n_jobs != 1 and len(globs) > 1:
+    if n_jobs != 1 and len(globs_non_image_types) > 1:
         # avoid nesting, e.g. upload 1 zip and then inside many files
         # harder to handle if upload many zips with many files, inner parallel one will be disabled by joblib
         documents = Parallel(n_jobs=n_jobs, verbose=10 if verbose else 0, backend='multiprocessing')(
-            delayed(path_to_doc1)(file, **kwargs) for file in globs
+            delayed(path_to_doc1)(file, **kwargs) for file in globs_non_image_types
         )
     else:
-        documents = [path_to_doc1(file, **kwargs) for file in globs]
+        documents = [path_to_doc1(file, **kwargs) for file in globs_non_image_types]
+
+    # do images separately since can't fork after cuda in parent, so can't be parallel
+    if n_jobs_image != 1 and len(globs_image_types) > 1:
+        # avoid nesting, e.g. upload 1 zip and then inside many files
+        # harder to handle if upload many zips with many files, inner parallel one will be disabled by joblib
+        image_documents = Parallel(n_jobs=n_jobs, verbose=10 if verbose else 0, backend='multiprocessing')(
+            delayed(path_to_doc1)(file, **kwargs) for file in globs_image_types
+        )
+    else:
+        image_documents = [path_to_doc1(file, **kwargs) for file in globs_image_types]
+
+    # add image docs in
+    documents += image_documents
+
     if return_file:
         # then documents really are files
         files = documents.copy()
@@ -812,9 +836,6 @@ def _run_qa_db(query=None,
     :param k:
     :param chunk:
     :param chunk_size:
-    :param wiki: bool if using wiki
-    :param github: bool if using github
-    :param dai_rst: bool if using dai RST files
     :param user_path: user path to glob recursively from
     :param db_type: 'faiss' for in-memory db or 'chroma' for persistent db
     :param model_name: model name, used to switch behaviors

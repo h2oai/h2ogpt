@@ -3,6 +3,7 @@ import functools
 import inspect
 import os
 import sys
+import traceback
 import uuid
 import filelock
 import pandas as pd
@@ -1211,6 +1212,7 @@ def update_user_db(file, db1, x, y, *args, dbs=None, langchain_mode='UserData', 
     try:
         return _update_user_db(file, db1, x, y, *args, dbs=dbs, langchain_mode=langchain_mode, **kwargs)
     except BaseException as e:
+        print(traceback.format_exc(), flush=True)
         # gradio has issues if except, so fail semi-gracefully, else would hang forever in processing textbox
         ex_str = "Exception: %s" % str(e)
         source_files_added = """\
@@ -1259,6 +1261,8 @@ def _update_user_db(file, db1, x, y, dbs=None, db_type=None, langchain_mode='Use
                            enable_ocr=enable_ocr,
                            caption_loader=caption_loader,
                            )
+    exceptions = [x for x in sources if x.metadata.get('exception')]
+    sources = [x for x in sources if 'exception' not in x.metadata]
 
     with filelock.FileLock("db_%s.lock" % langchain_mode.replace(' ', '_')):
         if langchain_mode == 'MyData':
@@ -1277,7 +1281,9 @@ def _update_user_db(file, db1, x, y, dbs=None, db_type=None, langchain_mode='Use
                                 persist_directory=persist_directory,
                                 langchain_mode=langchain_mode,
                                 hf_embedding_model=hf_embedding_model)
-            source_files_added = get_source_files(db1[0])
+                if db1[0] is None:
+                    db1[1] = None
+            source_files_added = get_source_files(db1[0], exceptions=exceptions)
             return db1, x, y, source_files_added
         else:
             persist_directory = 'db_dir_%s' % langchain_mode
@@ -1295,21 +1301,56 @@ def _update_user_db(file, db1, x, y, dbs=None, db_type=None, langchain_mode='Use
             # NOTE we do not return db, because function call always same code path
             # return dbs[langchain_mode], x, y
             # db in this code path is updated in place
-            source_files_added = get_source_files(db1)
+            source_files_added = get_source_files(db1, exceptions=exceptions)
             return x, y, source_files_added
 
 
-def get_source_files(db):
-    metadatas = db.get()['metadatas']
-    if metadatas:
-        # below automatically de-dups
-        from gpt_langchain import get_url
-        small_dict = {get_url(x['source'], from_str=True, short_name=True): get_short_name(x.get('head')) for x in
-                      metadatas}
-        df = pd.DataFrame(small_dict.items(), columns=['source', 'head'])
+def get_source_files(db, exceptions=None):
+    if exceptions is None:
+        exceptions = []
+
+    if db is not None:
+        metadatas = db.get()['metadatas']
+    else:
+        metadatas = []
+
+    # below automatically de-dups
+    from gpt_langchain import get_url
+    small_dict = {get_url(x['source'], from_str=True, short_name=True): get_short_name(x.get('head')) for x in
+                  metadatas}
+    # if small_dict is empty dict, that's ok
+    df = pd.DataFrame(small_dict.items(), columns=['source', 'head'])
+    df.index = df.index + 1
+    df.index.name = 'index'
+    source_files_added = tabulate.tabulate(df, headers='keys', tablefmt='unsafehtml')
+
+    if exceptions:
+        exception_metadatas = [x.metadata for x in exceptions]
+        small_dict = {get_url(x['source'], from_str=True, short_name=True): get_short_name(x.get('exception')) for x in
+                      exception_metadatas}
+        # if small_dict is empty dict, that's ok
+        df = pd.DataFrame(small_dict.items(), columns=['source', 'exception'])
         df.index = df.index + 1
         df.index.name = 'index'
-        source_files_added = tabulate.tabulate(df, headers='keys', tablefmt='unsafehtml')
+        exceptions_html = tabulate.tabulate(df, headers='keys', tablefmt='unsafehtml')
+    else:
+        exceptions_html = ''
+
+    if metadatas and exceptions:
+        source_files_added = """\
+        <html>
+          <body>
+            <p>
+               Sources: <br>
+            </p>
+               <div style="overflow-y: auto;height:400px">
+               {0}
+               {1}
+               </div>
+          </body>
+        </html>
+        """.format(source_files_added, exceptions_html)
+    elif metadatas:
         source_files_added = """\
         <html>
           <body>
@@ -1323,5 +1364,17 @@ def get_source_files(db):
         </html>
         """.format(source_files_added)
     else:
-        source_files_added = 'None'
+        source_files_added = """\
+        <html>
+          <body>
+            <p>
+               Exceptions: <br>
+            </p>
+               <div style="overflow-y: auto;height:400px">
+               {0}
+               </div>
+          </body>
+        </html>
+        """.format(exceptions_html)
+
     return source_files_added

@@ -137,6 +137,10 @@ def make_db_main(use_openai_embedding: bool = False,
                          caption_loader=caption_loader,
                          enable_ocr=enable_ocr,
                          )
+    exceptions = [x for x in sources if x.metadata.get('exception')]
+    print("Exceptions: %s" % exceptions, flush=True)
+    sources = [x for x in sources if 'exception' not in x.metadata]
+
     assert len(sources) > 0, "No sources found"
     if not os.path.isdir(persist_directory) or not add_if_exists:
         if os.path.isdir(persist_directory):
