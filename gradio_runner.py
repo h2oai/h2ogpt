@@ -86,9 +86,6 @@ def go_gradio(**kwargs):
     """
     else:
         css_code = """footer {visibility: hidden}"""
-    css_code += """
-body.dark{#warning {background-color: #555555};}
-"""
 
     if kwargs['gradio_avoid_processing_markdown']:
         from gradio_client import utils as client_utils
@@ -271,10 +268,10 @@ body.dark{#warning {background-color: #555555};}
                         from gpt_langchain import file_types, have_arxiv
                     else:
                         have_arxiv = False
-                        file_types = []
+                        file_types = ['pdf', 'txt', 'csv', 'toml', 'py', 'rst', 'rtf', 'md', 'html', 'enex', 'eml', 'epub', 'odt', 'pptx', 'ppt', 'zip', 'urls', 'docx', 'doc', 'png', 'jpg', 'jpeg']
                     with upload_row:
-                        file_types_str = '[' + ' '.join(file_types) + ']'
-                        fileup_output = gr.File(label=f'Upload {file_types_str}',
+                        file_types_str = ', '.join(file_types)
+                        fileup_output = gr.File(label=f'Supported file types: {file_types_str}',
                                                 file_types=file_types,
                                                 file_count="multiple",
                                                 elem_id="warning", elem_classes="feedback")
@@ -282,8 +279,7 @@ body.dark{#warning {background-color: #555555};}
                             upload_button = gr.UploadButton("Upload %s" % file_types_str,
                                                             file_types=file_types,
                                                             file_count="multiple",
-                                                            visible=False,
-                                                            )
+                                                            visible=False)
                             # add not visible until upload something
                             with gr.Column():
                                 add_to_shared_db_btn = gr.Button("Add File(s) to Shared UserData DB",
