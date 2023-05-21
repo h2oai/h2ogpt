@@ -505,3 +505,90 @@ def get_short_name(name, maxl=50):
         half_allowed = max(1, int(allow_length/2))
         name = name[0:half_allowed] + "..." + name[length - half_allowed:length]
     return name
+
+
+def cuda_vis_check(total_gpus):
+    """Helper function to count GPUs by environment variable
+    Stolen from Jon's h2o4gpu utils
+    """
+    cudavis = os.getenv("CUDA_VISIBLE_DEVICES")
+    which_gpus = []
+    if cudavis is not None:
+        # prune away white-space, non-numerics,
+        # except commas for simple checking
+        cudavis = "".join(cudavis.split())
+        import re
+        cudavis = re.sub("[^0-9,]", "", cudavis)
+
+        lencudavis = len(cudavis)
+        if lencudavis == 0:
+            total_gpus = 0
+        else:
+            total_gpus = min(
+                total_gpus,
+                os.getenv("CUDA_VISIBLE_DEVICES").count(",") + 1)
+            which_gpus = os.getenv("CUDA_VISIBLE_DEVICES").split(",")
+            which_gpus = [int(x) for x in which_gpus]
+    else:
+        which_gpus = list(range(0, total_gpus))
+
+    return total_gpus, which_gpus
+
+
+def get_ngpus_vis(raise_if_exception=True):
+    ngpus_vis1 = 0
+
+    shell = False
+    if shell:
+        cmd = "nvidia-smi -L 2> /dev/null"
+    else:
+        cmd = ["nvidia-smi", "-L"]
+
+    try:
+        timeout = 5 * 3
+        o = subprocess.check_output(cmd, shell=shell, timeout=timeout)
+        lines = o.decode("utf-8").splitlines()
+        ngpus_vis1 = 0
+        for line in lines:
+            if 'Failed to initialize NVML' not in line:
+                ngpus_vis1 += 1
+    except (FileNotFoundError, subprocess.CalledProcessError, OSError):
+        # GPU systems might not have nvidia-smi, so can't fail
+        pass
+    except subprocess.TimeoutExpired as e:
+        print('Failed get_ngpus_vis: %s' % str(e))
+        if raise_if_exception:
+            raise
+
+    ngpus_vis1, which_gpus = cuda_vis_check(ngpus_vis1)
+    return ngpus_vis1
+
+
+def get_mem_gpus(raise_if_exception=True, ngpus=None):
+    totalmem_gpus1 = 0
+    usedmem_gpus1 = 0
+    freemem_gpus1 = 0
+
+    if ngpus == 0:
+        return totalmem_gpus1, usedmem_gpus1, freemem_gpus1
+
+    try:
+        cmd = "nvidia-smi -q 2> /dev/null | grep -A 3 'FB Memory Usage'"
+        o = subprocess.check_output(cmd, shell=True, timeout=15)
+        lines = o.decode("utf-8").splitlines()
+        for line in lines:
+            if 'Total' in line:
+                totalmem_gpus1 += int(line.split()[2]) * 1024 ** 2
+            if 'Used' in line:
+                usedmem_gpus1 += int(line.split()[2]) * 1024 ** 2
+            if 'Free' in line:
+                freemem_gpus1 += int(line.split()[2]) * 1024 ** 2
+    except (FileNotFoundError, subprocess.CalledProcessError, OSError):
+        # GPU systems might not have nvidia-smi, so can't fail
+        pass
+    except subprocess.TimeoutExpired as e:
+        print('Failed get_mem_gpus: %s' % str(e))
+        if raise_if_exception:
+            raise
+
+    return totalmem_gpus1, usedmem_gpus1, freemem_gpus1

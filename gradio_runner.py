@@ -1207,7 +1207,31 @@ def get_sources(db1, langchain_mode, dbs=None):
     return sources_file
 
 
-def update_user_db(file, db1, x, y, dbs=None, db_type=None, langchain_mode='UserData', use_openai_embedding=False,
+def update_user_db(file, db1, x, y, *args, dbs=None, langchain_mode='UserData', **kwargs):
+    try:
+        return _update_user_db(file, db1, x, y, *args, dbs=dbs, langchain_mode=langchain_mode, **kwargs)
+    except BaseException as e:
+        # gradio has issues if except, so fail semi-gracefully, else would hang forever in processing textbox
+        ex_str = "Exception: %s" % str(e)
+        source_files_added = """\
+        <html>
+          <body>
+            <p>
+               Sources: <br>
+            </p>
+               <div style="overflow-y: auto;height:400px">
+               {0}
+               </div>
+          </body>
+        </html>
+        """.format(ex_str)
+        if langchain_mode == 'MyData':
+            return db1, x, y, source_files_added
+        else:
+            return x, y, source_files_added
+
+
+def _update_user_db(file, db1, x, y, dbs=None, db_type=None, langchain_mode='UserData', use_openai_embedding=False,
                    hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
                    caption_loader=None,
                    enable_captions=True,

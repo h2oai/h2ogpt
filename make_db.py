@@ -7,14 +7,20 @@ from gpt_langchain import path_to_docs, get_db, get_some_dbs_from_hf, all_db_zip
     get_embedding, add_to_db
 
 
-def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False, fail_any_exception=False, n_jobs=-1, url=None,
-               enable_captions=True, enable_ocr=False, caption_loader=None):
+def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False,
+               fail_any_exception=False, n_jobs=-1, url=None,
+               enable_captions=True, captions_model=None,
+               caption_loader=None,
+               enable_ocr=False):
     sources1 = path_to_docs(user_path, verbose=verbose, fail_any_exception=fail_any_exception,
                             n_jobs=n_jobs,
                             chunk=chunk,
                             chunk_size=chunk_size, url=url,
-                            enable_captions=enable_captions, enable_ocr=enable_ocr,
-                            caption_loader=caption_loader)
+                            enable_captions=enable_captions,
+                            captions_model=captions_model,
+                            caption_loader=caption_loader,
+                            enable_ocr=enable_ocr,
+                            )
     return sources1
 
 
@@ -35,9 +41,10 @@ def make_db_main(use_openai_embedding: bool = False,
                  download_dest: str = "./",
                  n_jobs: int = -1,
                  enable_captions: bool = True,
+                 captions_model: str = "Salesforce/blip-image-captioning-base",
                  pre_load_caption_model: bool = False,
-                 enable_ocr: bool = False,
                  caption_gpu: bool = True,
+                 enable_ocr: bool = False,
                  ):
     """
     # To make UserData db for generate.py, put pdfs, etc. into path user_path and run:
@@ -74,10 +81,10 @@ def make_db_main(use_openai_embedding: bool = False,
     :param download_dest: Destination for downloads
     :param n_jobs: Number of cores to use for ingesting multiple files
     :param enable_captions: Whether to enable captions on images
-    :param pre_load_caption_model: Whether to preload caption model, or load after forking parallel doc loader
-           parallel loading disabled if preload and have images, to prevent deadlocking on cuda context
-    :param enable_ocr: Whether to enable OCR on images
+    :param captions_model: See generate.py
+    :param pre_load_caption_model: See generate.py
     :param caption_gpu: Caption images on GPU if present
+    :param enable_ocr: Whether to enable OCR on images
     :return: None
     """
 
@@ -107,7 +114,11 @@ def make_db_main(use_openai_embedding: bool = False,
         # Inside ingestion, this will disable parallel loading of multiple other kinds of docs
         # However, if have many images, all those images will be handled more quickly by preloaded model on GPU
         from image_captions import H2OImageCaptionLoader
-        caption_loader = H2OImageCaptionLoader(caption_gpu=caption_gpu)
+        caption_loader = H2OImageCaptionLoader(None,
+                                               blip_model=captions_model,
+                                               blip_processor=captions_model,
+                                               caption_gpu=caption_gpu,
+                                               )
     else:
         if enable_captions:
             caption_loader = 'gpu' if caption_gpu else 'cpu'
@@ -122,8 +133,10 @@ def make_db_main(use_openai_embedding: bool = False,
     sources = glob_to_db(user_path, chunk=chunk, chunk_size=chunk_size, verbose=verbose,
                          fail_any_exception=fail_any_exception, n_jobs=n_jobs, url=url,
                          enable_captions=enable_captions,
+                         captions_model=captions_model,
+                         caption_loader=caption_loader,
                          enable_ocr=enable_ocr,
-                         caption_loader=caption_loader)
+                         )
     assert len(sources) > 0, "No sources found"
     if not os.path.isdir(persist_directory) or not add_if_exists:
         if os.path.isdir(persist_directory):

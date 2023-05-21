@@ -15,6 +15,14 @@ from langchain.document_loaders import ImageCaptionLoader
 
 from utils import get_device, NullContext
 
+import pkg_resources
+
+try:
+    assert pkg_resources.get_distribution('bitsandbytes') is not None
+    have_bitsandbytes = True
+except (pkg_resources.DistributionNotFound, AssertionError):
+    have_bitsandbytes = False
+
 
 class H2OImageCaptionLoader(ImageCaptionLoader):
     """Loader that loads the captions of an image"""
@@ -24,7 +32,8 @@ class H2OImageCaptionLoader(ImageCaptionLoader):
                  blip_model: str = None,
                  caption_gpu=True,
                  load_in_8bit=True,
-                 load_half=True,
+                 # True doesn't seem to work, even though https://huggingface.co/Salesforce/blip2-flan-t5-xxl#in-8-bit-precision-int8
+                 load_half=False,
                  min_new_tokens=20,
                  max_tokens=50):
         if blip_model is None or blip_model is None:
@@ -39,7 +48,7 @@ class H2OImageCaptionLoader(ImageCaptionLoader):
         self.caption_gpu = caption_gpu
         self.context_class = NullContext
         self.device = 'cpu'
-        self.load_in_8bit = load_in_8bit  # only for blip2
+        self.load_in_8bit = load_in_8bit and have_bitsandbytes  # only for blip2
         self.load_half = load_half
         self.gpu_id = 'auto'
         # default prompt
@@ -64,41 +73,56 @@ class H2OImageCaptionLoader(ImageCaptionLoader):
                 "`pip install transformers`."
             )
         self.set_context()
-        if self.gpu_id == 'auto':
-            device_map = 'auto'
-        else:
-            if self.device == 'cuda':
-                device_map = {"": self.gpu_id}
+        if self.caption_gpu:
+            if self.gpu_id == 'auto':
+                # blip2 has issues with multi-GPU.  Error says need to somehow set language model in device map
+                # device_map = 'auto'
+                device_map = {"": 0}
             else:
-                device_map = {"": 'cpu'}
-        with self.context_class(self.device):
-            if 'blip2' in self.blip_processor.lower():
-                from transformers import Blip2Processor, Blip2ForConditionalGeneration
-                if self.load_half and not self.load_in_8bit:
-                    self.processor = Blip2Processor.from_pretrained(self.blip_processor, device_map=device_map).half()
-                    self.model = Blip2ForConditionalGeneration.from_pretrained(self.blip_model,
-                                                                               device_map=device_map).half()
+                if self.device == 'cuda':
+                    device_map = {"": self.gpu_id}
                 else:
-                    self.processor = Blip2Processor.from_pretrained(self.blip_processor,
-                                                                    load_in_8bit=self.load_in_8bit,
-                                                                    device_map=device_map)
-                    self.model = Blip2ForConditionalGeneration.from_pretrained(self.blip_model,
-                                                                               load_in_8bit=self.load_in_8bit,
-                                                                               device_map=device_map)
-            else:
-                from transformers import BlipForConditionalGeneration, BlipProcessor
-                self.load_half = False  # not supported
-                if device_map == 'auto':
-                    # Blip doesn't support device_map='auto'
-                    if self.device == 'cuda':
-                        if self.gpu_id == 'auto':
-                            device_map = {"": 0}
+                    device_map = {"": 'cpu'}
+        else:
+            device_map = {"": 'cpu'}
+        import torch
+        with torch.no_grad():
+            with self.context_class(self.device):
+                context_class_cast = NullContext if self.device == 'cpu' else torch.autocast
+                with context_class_cast(self.device):
+                    if 'blip2' in self.blip_processor.lower():
+                        from transformers import Blip2Processor, Blip2ForConditionalGeneration
+                        if self.load_half and not self.load_in_8bit:
+                            self.processor = Blip2Processor.from_pretrained(self.blip_processor,
+                                                                            device_map=device_map).half()
+                            self.model = Blip2ForConditionalGeneration.from_pretrained(self.blip_model,
+                                                                                       device_map=device_map).half()
                         else:
-                            device_map = {"": self.gpu_id}
+                            self.processor = Blip2Processor.from_pretrained(self.blip_processor,
+                                                                            load_in_8bit=self.load_in_8bit,
+                                                                            device_map=device_map,
+                                                                            )
+                            self.model = Blip2ForConditionalGeneration.from_pretrained(self.blip_model,
+                                                                                       load_in_8bit=self.load_in_8bit,
+                                                                                       device_map=device_map)
                     else:
-                        device_map = {"": 'cpu'}
-                self.processor = BlipProcessor.from_pretrained(self.blip_processor, device_map=device_map)
-                self.model = BlipForConditionalGeneration.from_pretrained(self.blip_model, device_map=device_map)
+                        from transformers import BlipForConditionalGeneration, BlipProcessor
+                        self.load_half = False  # not supported
+                        if self.caption_gpu:
+                            if device_map == 'auto':
+                                # Blip doesn't support device_map='auto'
+                                if self.device == 'cuda':
+                                    if self.gpu_id == 'auto':
+                                        device_map = {"": 0}
+                                    else:
+                                        device_map = {"": self.gpu_id}
+                                else:
+                                    device_map = {"": 'cpu'}
+                        else:
+                            device_map = {"": 'cpu'}
+                        self.processor = BlipProcessor.from_pretrained(self.blip_processor, device_map=device_map)
+                        self.model = BlipForConditionalGeneration.from_pretrained(self.blip_model,
+                                                                                  device_map=device_map)
 
     def set_image_paths(self, path_images: Union[str, List[str]]):
         """
@@ -148,19 +172,23 @@ class H2OImageCaptionLoader(ImageCaptionLoader):
         except Exception:
             raise ValueError(f"Could not get image data for {path_image}")
 
-        with self.context_class(self.device):
-            if self.load_half:
-                inputs = processor(image, prompt, return_tensors="pt").half()
-            else:
-                inputs = processor(image, prompt, return_tensors="pt")
-            min_length = len(prompt)//4 + self.min_new_tokens
-            self.max_tokens = max(self.max_tokens, min_length)
-            output = model.generate(**inputs, min_length=min_length, max_length=self.max_tokens)
+        import torch
+        with torch.no_grad():
+            with self.context_class(self.device):
+                context_class_cast = NullContext if self.device == 'cpu' else torch.autocast
+                with context_class_cast(self.device):
+                    if self.load_half:
+                        inputs = processor(image, prompt, return_tensors="pt").half()
+                    else:
+                        inputs = processor(image, prompt, return_tensors="pt")
+                    min_length = len(prompt) // 4 + self.min_new_tokens
+                    self.max_tokens = max(self.max_tokens, min_length)
+                    output = model.generate(**inputs, min_length=min_length, max_length=self.max_tokens)
 
-            caption: str = processor.decode(output[0], skip_special_tokens=True)
-            prompti = caption.find(prompt)
-            if prompti >= 0:
-                caption = caption[prompti + len(prompt):]
-            metadata: dict = {"image_path": path_image}
+                    caption: str = processor.decode(output[0], skip_special_tokens=True)
+                    prompti = caption.find(prompt)
+                    if prompti >= 0:
+                        caption = caption[prompti + len(prompt):]
+                    metadata: dict = {"image_path": path_image}
 
         return caption, metadata

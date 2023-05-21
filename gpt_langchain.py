@@ -378,7 +378,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
                 [x.metadata.update(
                     dict(source=x.metadata.get('entry_id', query_url), query=query_url,
                          input_type='arxiv', head=x.metadata.get('Title', ''), date=str(datetime.now))) for x in
-                 docs1]
+                    docs1]
             else:
                 docs1 = []
         else:
@@ -567,7 +567,9 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
                  url=None, text=None,
                  enable_captions=True,
                  captions_model=None,
-                 enable_ocr=False, caption_loader=None):
+                 caption_loader=None,
+                 enable_ocr=False,
+                 ):
     globs_image_types = []
     globs_non_image_types = []
     if url:
@@ -606,8 +608,8 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
                   is_txt=is_txt,
                   enable_captions=enable_captions,
                   captions_model=captions_model,
-                  enable_ocr=enable_ocr,
                   caption_loader=caption_loader,
+                  enable_ocr=enable_ocr,
                   )
 
     if n_jobs != 1 and len(globs) > 1:

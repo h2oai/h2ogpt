@@ -129,7 +129,7 @@ def main(
         k: int = 4,
         n_jobs: int = -1,
         enable_captions: bool = True,
-        captions_model: int = "Salesforce/blip-image-captioning-base",
+        captions_model: str = "Salesforce/blip-image-captioning-base",
         pre_load_caption_model: bool = False,
         caption_gpu: bool = True,
         enable_ocr: bool = False,
@@ -223,6 +223,7 @@ def main(
            Note: opt-based blip2 are not permissive license due to opt and Meta license restrictions
     :param pre_load_caption_model: Whether to preload caption model, or load after forking parallel doc loader
            parallel loading disabled if preload and have images, to prevent deadlocking on cuda context
+           Recommended if using larger caption model
     :param caption_gpu: If support caption, then use GPU if exists
     :param enable_ocr: Whether to support OCR on images
     :return:

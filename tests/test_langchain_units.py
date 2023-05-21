@@ -8,9 +8,13 @@ from langchain.chains.qa_with_sources import load_qa_with_sources_chain
 from gpt_langchain import get_wiki_sources, get_llm, get_answer_from_sources, get_dai_pickle, \
     get_some_dbs_from_hf, _run_qa_db
 from make_db import make_db_main
-from utils import zip_data, download_simple
+from utils import zip_data, download_simple, get_ngpus_vis, get_mem_gpus
 
 have_openai_key = os.environ.get('OPENAI_API_KEY') is not None
+
+have_gpus = get_ngpus_vis() > 0
+
+mem_gpus = get_mem_gpus()
 
 # FIXME:
 os.environ['TOKENIZERS_PARALLELISM'] = 'false'
@@ -381,22 +385,37 @@ def test_msg_add():
 
 
 def test_png_add():
+    return run_png_add(captions_model=None, caption_gpu=False)
+
+
+@pytest.mark.skipif(not have_gpus, reason="requires GPUs to run")
+def test_png_add_gpu():
+    return run_png_add(captions_model=None, caption_gpu=True)
+
+
+@pytest.mark.skipif(not (have_gpus and mem_gpus[0] > 20*1024**3), reason="requires GPUs and enough memory to run")
+def test_png_add_gpu_blip2():
+    return run_png_add(captions_model='Salesforce/blip2-flan-t5-xl', caption_gpu=True)
+
+
+def run_png_add(captions_model=None, caption_gpu=False):
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
-            test_file1 = 'langchain.png'
+            test_file1 = 'data/pexels-evg-kowalievska-1170986_small.jpg'
             if not os.path.isfile(test_file1):
                 # see if ran from tests directory
-                test_file1 = '../langchain.png'
+                test_file1 = '../data/pexels-evg-kowalievska-1170986_small.jpg'
                 assert os.path.isfile(test_file1)
             test_file1 = os.path.abspath(test_file1)
             shutil.copy(test_file1, tmp_user_path)
             test_file1 = os.path.join(tmp_user_path, os.path.basename(test_file1))
             db = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
-                              fail_any_exception=True, enable_ocr=False, caption_gpu=True)
+                              fail_any_exception=True, enable_ocr=False, caption_gpu=caption_gpu,
+                              captions_model=captions_model)
             assert db is not None
-            docs = db.similarity_search("What does CBA do?")
+            docs = db.similarity_search("cat")
             assert len(docs) == 1
-            assert 'an image of the screen with the' in docs[0].page_content
+            assert 'a cat sitting on a window' in docs[0].page_content
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
 
