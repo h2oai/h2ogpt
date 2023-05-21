@@ -1,8 +1,12 @@
+import os
 import pytest
 
 from generate import main
 
 
+@pytest.mark.skipif(not os.getenv('BENCHMARK'),
+                    reason="Only valid on sufficiently large system and not normal part of testing."
+                           "  Instead used to get eval scores for all models.")
 @pytest.mark.parametrize(
     "base_model",
     [
