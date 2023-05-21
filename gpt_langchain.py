@@ -166,6 +166,7 @@ def get_llm(use_openai_model=False, model_name=None, model=None,
             # pipe.task = "text-generation"
             # below makes it listen only to our prompt removal, not built in prompt removal that is less general and not specific for our model
             pipe.task = "text2text-generation"
+            prompt_type = 'human_bot'
         else:
             # only for non-instruct tuned cases when ok with just normal next token prediction
             from transformers import pipeline
@@ -173,7 +174,7 @@ def get_llm(use_openai_model=False, model_name=None, model=None,
 
         from langchain.llms import HuggingFacePipeline
         llm = HuggingFacePipeline(pipeline=pipe)
-    return llm, model_name, streamer
+    return llm, model_name, streamer, prompt_type
 
 
 def get_device_dtype():
@@ -795,7 +796,6 @@ def _run_qa_db(query=None,
                answer_with_sources=True,
                cut_distanct=1.1,
                sanitize_bot_response=True,
-               do_yield=False,
                show_rank=False,
                load_db_if_exists=False,
                db=None,
@@ -826,14 +826,13 @@ def _run_qa_db(query=None,
 
     # FIXME: For All just go over all dbs instead of a separate db for All
     db = make_db(**locals())
-    assert prompter is not None or prompt_type is not None
     prompt_type = prompter.prompt_type if prompter is not None else prompt_type
-    llm, model_name, streamer = get_llm(use_openai_model=use_openai_model, model_name=model_name,
-                                        model=model, tokenizer=tokenizer,
-                                        stream_output=stream_output,
-                                        max_new_tokens=max_new_tokens,
-                                        prompt_type=prompt_type,
-                                        )
+    llm, model_name, streamer, prompt_type_out = get_llm(use_openai_model=use_openai_model, model_name=model_name,
+                                                         model=model, tokenizer=tokenizer,
+                                                         stream_output=stream_output,
+                                                         max_new_tokens=max_new_tokens,
+                                                         prompt_type=prompt_type,
+                                                         )
 
     if not use_openai_model and prompt_type not in ['plain']:
         # instruct-like, rather than few-shot prompt_type='plain' as default
@@ -955,12 +954,8 @@ def _run_qa_db(query=None,
         else:
             ret = answer['output_text']
 
-        if stream_output or do_yield:
-            # just yield more, not all
-            yield ret
-            return
-        else:
-            return ret
+        yield ret
+    return
 
 
 def chunk_sources(sources, chunk_size=1024):

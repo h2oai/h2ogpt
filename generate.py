@@ -976,7 +976,6 @@ def evaluate(
                            model_name=base_model, model=model, tokenizer=tokenizer,
                            stream_output=stream_output,
                            prompter=prompter,
-                           do_yield=True,
                            load_db_if_exists=load_db_if_exists,
                            db=db1,
                            user_path=user_path,

@@ -8,8 +8,7 @@ def test_eval1():
 
 @wrap_test_forked
 def test_eval1_cpu():
-    from tests.utils import call_subprocess_onetask
-    call_subprocess_onetask(run_eval1, kwargs=dict(cpu=True))
+    run_eval1(cpu=True)
 
 
 def run_eval1(cpu=False):

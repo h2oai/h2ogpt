@@ -49,7 +49,7 @@ def run_qa_wiki(use_openai_model=False, first_para=True, text_limit=None, chain_
     from langchain.chains.qa_with_sources import load_qa_with_sources_chain
 
     sources = get_wiki_sources(first_para=first_para, text_limit=text_limit)
-    llm, model_name, streamer = get_llm(use_openai_model=use_openai_model, prompt_type=prompt_type)
+    llm, model_name, streamer, prompt_type_out = get_llm(use_openai_model=use_openai_model, prompt_type=prompt_type)
     chain = load_qa_with_sources_chain(llm, chain_type=chain_type)
 
     question = "What are the main differences between Linux and Windows?"
@@ -58,11 +58,25 @@ def run_qa_wiki(use_openai_model=False, first_para=True, text_limit=None, chain_
     print(answer)
 
 
+def check_ret(ret):
+    """
+    check generator
+    :param ret:
+    :return:
+    """
+    rets = []
+    for ret1 in ret:
+        rets.append(ret1)
+        print(ret1)
+    assert rets
+
+
 @pytest.mark.skipif(not have_openai_key, reason="requires OpenAI key to run")
 @wrap_test_forked
 def test_qa_wiki_db_openai():
     from gpt_langchain import _run_qa_db
-    return _run_qa_db(use_openai_model=True, use_openai_embedding=True, text_limit=None, langchain_mode='wiki')
+    ret = _run_qa_db(use_openai_model=True, use_openai_embedding=True, text_limit=None, langchain_mode='wiki')
+    check_ret(ret)
 
 
 @wrap_test_forked
@@ -71,15 +85,17 @@ def test_qa_wiki_db_hf():
     # if don't chunk, still need to limit
     # but this case can handle at least more documents, by picking top k
     # FIXME: but spitting out garbage answer right now, all fragmented, or just 1-word answer
-    return _run_qa_db(use_openai_model=False, use_openai_embedding=False, text_limit=256, langchain_mode='wiki')
+    ret = _run_qa_db(use_openai_model=False, use_openai_embedding=False, text_limit=256, langchain_mode='wiki')
+    check_ret(ret)
 
 
 @wrap_test_forked
 def test_qa_wiki_db_chunk_hf():
     from gpt_langchain import _run_qa_db
-    return _run_qa_db(use_openai_model=False, use_openai_embedding=False, text_limit=256, chunk=True,
-                      chunk_size=256,
-                      langchain_mode='wiki')
+    ret = _run_qa_db(use_openai_model=False, use_openai_embedding=False, text_limit=256, chunk=True,
+                     chunk_size=256,
+                     langchain_mode='wiki')
+    check_ret(ret)
 
 
 @pytest.mark.skipif(not have_openai_key, reason="requires OpenAI key to run")
@@ -87,8 +103,9 @@ def test_qa_wiki_db_chunk_hf():
 def test_qa_wiki_db_chunk_openai():
     from gpt_langchain import _run_qa_db
     # don't need 256, just seeing how compares to hf
-    return _run_qa_db(use_openai_model=True, use_openai_embedding=True, text_limit=256, chunk=True, chunk_size=256,
-                      langchain_mode='wiki')
+    ret = _run_qa_db(use_openai_model=True, use_openai_embedding=True, text_limit=256, chunk=True, chunk_size=256,
+                     langchain_mode='wiki')
+    check_ret(ret)
 
 
 @pytest.mark.skipif(not have_openai_key, reason="requires OpenAI key to run")
@@ -97,8 +114,9 @@ def test_qa_github_db_chunk_openai():
     from gpt_langchain import _run_qa_db
     # don't need 256, just seeing how compares to hf
     query = "what is a software defined asset"
-    return _run_qa_db(query=query, use_openai_model=True, use_openai_embedding=True, text_limit=256, chunk=True,
-                      chunk_size=256, langchain_mode='github h2oGPT')
+    ret = _run_qa_db(query=query, use_openai_model=True, use_openai_embedding=True, text_limit=256, chunk=True,
+                     chunk_size=256, langchain_mode='github h2oGPT')
+    check_ret(ret)
 
 
 @wrap_test_forked
@@ -106,8 +124,9 @@ def test_qa_daidocs_db_chunk_hf():
     from gpt_langchain import _run_qa_db
     # FIXME: doesn't work well with non-instruct-tuned Cerebras
     query = "Which config.toml enables pytorch for NLP?"
-    return _run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=None, chunk=True,
-                      chunk_size=128, langchain_mode='DriverlessAI docs')
+    ret = _run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=None, chunk=True,
+                     chunk_size=128, langchain_mode='DriverlessAI docs')
+    check_ret(ret)
 
 
 @wrap_test_forked
@@ -115,11 +134,12 @@ def test_qa_daidocs_db_chunk_hf_faiss():
     from gpt_langchain import _run_qa_db
     query = "Which config.toml enables pytorch for NLP?"
     # chunk_size is chars for each of k=4 chunks
-    return _run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=None, chunk=True,
-                      chunk_size=128 * 1,  # characters, and if k=4, then 4*4*128 = 2048 chars ~ 512 tokens
-                      langchain_mode='DriverlessAI docs',
-                      db_type='faiss',
-                      )
+    ret = _run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=None, chunk=True,
+                     chunk_size=128 * 1,  # characters, and if k=4, then 4*4*128 = 2048 chars ~ 512 tokens
+                     langchain_mode='DriverlessAI docs',
+                     db_type='faiss',
+                     )
+    check_ret(ret)
 
 
 @wrap_test_forked
@@ -127,11 +147,12 @@ def test_qa_daidocs_db_chunk_hf_chroma():
     from gpt_langchain import _run_qa_db
     query = "Which config.toml enables pytorch for NLP?"
     # chunk_size is chars for each of k=4 chunks
-    return _run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=None, chunk=True,
-                      chunk_size=128 * 1,  # characters, and if k=4, then 4*4*128 = 2048 chars ~ 512 tokens
-                      langchain_mode='DriverlessAI docs',
-                      db_type='chroma',
-                      )
+    ret = _run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=None, chunk=True,
+                     chunk_size=128 * 1,  # characters, and if k=4, then 4*4*128 = 2048 chars ~ 512 tokens
+                     langchain_mode='DriverlessAI docs',
+                     db_type='chroma',
+                     )
+    check_ret(ret)
 
 
 @pytest.mark.skipif(not have_openai_key, reason="requires OpenAI key to run")
@@ -139,8 +160,9 @@ def test_qa_daidocs_db_chunk_hf_chroma():
 def test_qa_daidocs_db_chunk_openai():
     from gpt_langchain import _run_qa_db
     query = "Which config.toml enables pytorch for NLP?"
-    return _run_qa_db(query=query, use_openai_model=True, use_openai_embedding=True, text_limit=256, chunk=True,
-                      chunk_size=256, langchain_mode='DriverlessAI docs')
+    ret = _run_qa_db(query=query, use_openai_model=True, use_openai_embedding=True, text_limit=256, chunk=True,
+                     chunk_size=256, langchain_mode='DriverlessAI docs')
+    check_ret(ret)
 
 
 @pytest.mark.skipif(not have_openai_key, reason="requires OpenAI key to run")
@@ -148,8 +170,9 @@ def test_qa_daidocs_db_chunk_openai():
 def test_qa_daidocs_db_chunk_openaiembedding_hfmodel():
     from gpt_langchain import _run_qa_db
     query = "Which config.toml enables pytorch for NLP?"
-    return _run_qa_db(query=query, use_openai_model=False, use_openai_embedding=True, text_limit=None, chunk=True,
-                      chunk_size=128, langchain_mode='DriverlessAI docs')
+    ret = _run_qa_db(query=query, use_openai_model=False, use_openai_embedding=True, text_limit=None, chunk=True,
+                     chunk_size=128, langchain_mode='DriverlessAI docs')
+    check_ret(ret)
 
 
 @wrap_test_forked

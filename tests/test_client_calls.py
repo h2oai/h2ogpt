@@ -24,8 +24,7 @@ def test_client1():
 
 @wrap_test_forked
 def test_client_chat_nostream():
-    from tests.utils import call_subprocess_onetask
-    res_dict = call_subprocess_onetask(run_client_chat, kwargs=dict(stream_output=False))
+    res_dict = run_client_chat(stream_output=False)
     assert 'I am h2oGPT' in res_dict['response'] or "I'm h2oGPT" in res_dict['response'] or 'I’m h2oGPT' in res_dict[
         'response']
 
@@ -51,27 +50,19 @@ def run_client_chat(prompt='Who are you?', stream_output=False, max_new_tokens=2
 
 @wrap_test_forked
 def test_client_chat_stream():
-    from tests.utils import call_subprocess_onetask
-    call_subprocess_onetask(run_client_chat, kwargs=dict(stream_output=True))
+    run_client_chat(stream_output=True)
 
 
 @wrap_test_forked
 def test_client_chat_stream_long():
-    from tests.utils import call_subprocess_onetask
     prompt = 'Tell a very long story about cute birds for kids.'
-    res_dict = call_subprocess_onetask(run_client_chat,
-                                       kwargs=dict(prompt=prompt, stream_output=True, max_new_tokens=1024))
+    res_dict = run_client_chat(prompt=prompt, stream_output=True, max_new_tokens=1024)
     assert 'Once upon a time' in res_dict['response']
 
 
 @pytest.mark.skip(reason="Local file required")
 @wrap_test_forked
 def test_client_long():
-    from tests.utils import call_subprocess_onetask
-    call_subprocess_onetask(run_client_long)
-
-
-def run_client_long():
     import os, sys
     os.environ['TEST_LANGCHAIN_IMPORT'] = "1"
     sys.modules.pop('gpt_langchain', None)
