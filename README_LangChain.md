@@ -123,6 +123,8 @@ For links to direct to the document and download to your local machine, the orig
 
 * [ChatPDF](https://www.chatpdf.com/) but open-source and private and many more data types.
 
+* [ChatDoc](https://chatdoc.com/) but open-source and private. ChatDoc shows nice side-by-side view with doc on one side and chat in other.  Select specific doc or text in doc for question/summary.
+
 * [Perplexity](https://www.perplexity.ai/) but open-source and private, similar control over sources.
 
 * [Empler](https://www.empler.ai/) but open-source and private.  Empler has nice AI and content control, and focuses on use cases like marketing.
