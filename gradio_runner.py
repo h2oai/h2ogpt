@@ -187,7 +187,7 @@ body.dark{#warning {background-color: #555555};}
                             lines=kwargs['input_lines'],
                             label=instruction_label_nochat,
                             placeholder=kwargs['placeholder_instruction'],
-                        ).style(show_copy_button=True)
+                        )
                         iinput_nochat = gr.Textbox(lines=4, label="Input context for Instruction",
                                                    placeholder=kwargs['placeholder_input'])
                         submit_nochat = gr.Button("Submit")
@@ -216,7 +216,7 @@ body.dark{#warning {background-color: #555555};}
                                 submit = gr.Button(value='Submit').style(full_width=False, size='sm')
                                 stop_btn = gr.Button(value="Stop").style(full_width=False, size='sm')
                         with gr.Row():
-                            clear = gr.Button("New/Save Conversation")
+                            clear = gr.Button("Save, New Conversation")
                             flag_btn = gr.Button("Flag")
                             if not kwargs['auto_score']:  # FIXME: For checkbox model2
                                 with gr.Column(visible=kwargs['score_model']):
@@ -235,7 +235,7 @@ body.dark{#warning {background-color: #555555};}
                                     score_text2 = gr.Textbox("Response Score2: NA", show_label=False, visible=False)
                             retry = gr.Button("Regenerate")
                             undo = gr.Button("Undo")
-                with gr.TabItem("Input/Output"):
+                with gr.TabItem("Chat"):
                     with gr.Row():
                         if 'mbart-' in kwargs['model_lower']:
                             src_lang = gr.Dropdown(list(languages_covered().keys()),
@@ -253,7 +253,13 @@ body.dark{#warning {background-color: #555555};}
                     with chats_row:
                         export_chats_btn = gr.Button(value="Export Chats")
                         chats_file = gr.File(interactive=False, label="Download File")
-
+                    chats_row2 = gr.Row(visible=True).style(equal_height=False)
+                    with chats_row2:
+                        chatsup_output = gr.File(label="Upload Chat File(s)",
+                                                 file_types=['.json'],
+                                                 file_count='multiple',
+                                                 elem_id="warning", elem_classes="feedback")
+                        add_to_chats_btn = gr.Button("Add File(s) to Chats")
                 with gr.TabItem("Data Source"):
                     langchain_readme = get_url('https://github.com/h2oai/h2ogpt/blob/main/README_LangChain.md',
                                                from_str=True)
@@ -1074,6 +1080,32 @@ body.dark{#warning {background-color: #555555};}
 
         export_chats_btn.click(get_chats1, inputs=chat_state, outputs=chats_file, queue=False,
                                api_name='export_chats' if allow_api else None)
+
+        def add_chats_from_file(file, chat_state1, add_btn):
+            if isinstance(file, str):
+                files = [file]
+            else:
+                files = file
+            for file1 in files:
+                try:
+                    if hasattr(file1, 'name'):
+                        file1 = file1.name
+                    with open(file1, "rt") as f:
+                        new_chats = json.loads(f.read())
+                        for chat1_k, chat1_v in new_chats.items():
+                            # ignore chat1_k, regenerate and de-dup to avoid loss
+                            chat_state1 = save_chat(chat1_v, None, chat_state1)
+                except BaseException as e:
+                    print("Add chats exception: %s" % str(e), flush=True)
+            return chat_state1, add_btn
+
+        # note for update_user_db_func output is ignored for db
+        add_to_chats_btn.click(add_chats_from_file,
+                               inputs=[chatsup_output, chat_state, add_to_chats_btn],
+                               outputs=[chat_state, add_to_my_db_btn], queue=False,
+                               api_name='add_to_chats' if allow_api else None) \
+            .then(clear_file_list, outputs=chatsup_output, queue=False) \
+            .then(update_radio_chats, inputs=chat_state, outputs=radio_chats, queue=False)
 
         clear_chat_btn.click(lambda: None, None, text_output, queue=False, api_name='clear' if allow_api else None) \
             .then(lambda: None, None, text_output2, queue=False, api_name='clear2' if allow_api else None) \
