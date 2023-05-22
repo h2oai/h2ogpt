@@ -13,7 +13,7 @@ from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, 
 from prompter import Prompter, \
     prompt_type_to_model_name, prompt_types_strings, inv_prompt_type_to_model_lower
 from utils import get_githash, flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
-    ping, get_short_name
+    ping, get_short_name, get_url
 from finetune import generate_prompt
 from generate import get_model, languages_covered, evaluate, eval_func_param_names, score_qa, langchain_modes, \
     inputs_kwargs_list, get_cutoffs, scratch_base_dir
@@ -242,6 +242,16 @@ body.dark{#warning {background-color: #555555};}
                                                    value=kwargs['tgt_lang'],
                                                    label="Output Language")
                 with gr.TabItem("Data Source"):
+                    langchain_readme = get_url('https://github.com/h2oai/h2ogpt/blob/main/README_LangChain.md',
+                                               from_str=True)
+                    gr.HTML(value=f"""LangChain Support Disabled<p>
+                            Run:<p>
+                            <code>
+                            python generate.py --langchain_mode=MyData
+                            </code>
+                            <p>
+                            For more options see: {langchain_readme}""",
+                            visible=kwargs['langchain_mode'] == 'Disabled', interactive=False)
                     data_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled')
                     with data_row:
                         if is_hf:
