@@ -1,3 +1,7 @@
+from tests.utils import wrap_test_forked
+
+
+@wrap_test_forked
 def test_langchain_simple():
     import torch
     from transformers import AutoModelForCausalLM, AutoTokenizer

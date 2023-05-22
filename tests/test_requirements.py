@@ -4,7 +4,6 @@ import pkg_resources
 from pkg_resources import DistributionNotFound, VersionConflict
 
 
-
 def test_requirements():
     """Test that each required package is available."""
     packages_all = []

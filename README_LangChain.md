@@ -120,3 +120,67 @@ For links to direct to the document and download to your local machine, the orig
 * [Vault-AI](https://github.com/pashpashpash/vault-ai) but fully private and open-source by not using OpenAI or [pinecone](https://www.pinecone.io/).
 
 * [DB-GPT](https://github.com/csunny/DB-GPT) but fully commercially viable by not using [Vicuna](https://lmsys.org/blog/2023-03-30-vicuna/) (LLaMa based with GPT3.5 training data).
+
+* [ChatPDF](https://www.chatpdf.com/) but open-source and private and many more data types.
+
+* [ChatDoc](https://chatdoc.com/) but open-source and private. ChatDoc shows nice side-by-side view with doc on one side and chat in other.  Select specific doc or text in doc for question/summary.
+
+* [Perplexity](https://www.perplexity.ai/) but open-source and private, similar control over sources.
+
+* [Empler](https://www.empler.ai/) but open-source and private.  Empler has nice AI and content control, and focuses on use cases like marketing.
+
+* [Writesonic](https://writesonic.com/) but open-source and private.  Writesonic has better image/video control.
+
+* [HuggingChat](https://huggingface.co/chat/) Not for commercial use, uses LLaMa and GPT3.5 training data, so violates ToS.
+
+* [Bard](https://bard.google.com/) but open-source and private.  Bard has better automatic link and image use.
+
+* [ChatGPT](https://chat.openai.com/) but open-source and private.  ChatGPT code interpreter has better image, video, etc. handling.
+
+* [Bing](https://www.bing.com/) but open-source and private.  Bing has excellent search queries and handling of results.
+
+* [Bearly](https://bearly.ai/) but open-source and private.  Bearly focuses on creative content creation.
+
+* [Poe](https://poe.com/) but open-source and private.  Poe also has immediate info-wall requiring phone number.
+
+* [WiseOne](https://wiseone.io/) but open-source and private.  WiseOne is reading helper.
+
+* [Poet.ly or Aify](https://aify.co/) but open-source and private.  Poet.ly focuses on writing articles.
+
+* [PDFGPT.ai](https://pdfgpt.io/) but open-source and private.  Only PDF and on expensive side.
+
+* [BratGPT](https://bratgpt.com/) but open-source and private.  Focuses on uncensored chat.
+
+* [Halist](https://halist.ai/) but open-source and private.  Uses ChatGPT but does not store chats, but can already do that now with ChatGPT.
+
+* [UltimateGPT Toolkit](https://play.google.com/store/apps/details?id=com.neuralminds.ultimategptoolkit&ref=producthunt&pli=1) Android plugin for ChatGPT.
+
+* [Intellibar](https://intellibar.app/) ChatGPT on iPhone.
+
+* [GPTMana](https://play.google.com/store/apps/details?id=com.chatgpt.gptmana) Android Plugin.
+
+* [Genie](https://www.genieai.co/) but open-source and private.  Focuses on legal assistant.
+
+* [ResearchAI](https://research-ai.io/) but open-source and private.  Focuses on research helper with tools.
+
+* [ChatOn](https://apps.apple.com/us/app/chaton) but open-source and private.  ChatOn focuses on mobile, iPhone app.
+
+* [Ask](https://iask.ai/) but open-source and private.  Similar content control.
+
+* [Petey](https://apps.apple.com/us/app/petey-ai-assistant/id6446047813) but open-source and private.  Apple Watch.
+
+* [QuickGPT](https://www.quickgpt.io/) but open-source and private.  QuickGPT is ChatGPT for Whatsapp.
+
+* [Raitoai](https://www.raitoai.com/) but open-source and private.  Raito.ai focuses on helping writers.
+
+* [AIChat](https://deepai.org/chat) but open-source and private.  Heavy on ads, avoid.
+
+* [AnonChatGPT](https://anonchatgpt.com/) but open-source and private.  Anonymous use of ChatGPT, i.e. no account required.
+
+* [GPTPro](https://play.google.com/store/apps/details?id=com.dfmv.gptpro&hl=en_US&gl=US) but open-source and private.  GPTPro focuses on Android.
+
+* [Rio](https://www.oziku.tech/rio-openai-chatgpt-assistant) but open-source and private.  Browser-based assistant.
+
+* [CommanderGPT](https://www.commandergpt.app/) but open-source and private.  CommanderGPT focuses on MAC with a few tasks like image generation, translation, youtube query, etc.
+
+* [ThreeSigma](https://www.threesigma.ai/) but open-source and private.  Focuses on research tools, nice page linking.

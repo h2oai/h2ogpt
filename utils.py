@@ -15,6 +15,8 @@ import zipfile
 from datetime import datetime
 import filelock
 import requests, uuid
+from typing import Tuple, Callable, Dict
+from concurrent.futures import ProcessPoolExecutor
 import numpy as np
 import pandas as pd
 
@@ -502,6 +504,261 @@ def get_short_name(name, maxl=50):
     length = len(name)
     if length > maxl:
         allow_length = maxl - 3
-        half_allowed = max(1, int(allow_length/2))
+        half_allowed = max(1, int(allow_length / 2))
         name = name[0:half_allowed] + "..." + name[length - half_allowed:length]
     return name
+
+
+def cuda_vis_check(total_gpus):
+    """Helper function to count GPUs by environment variable
+    Stolen from Jon's h2o4gpu utils
+    """
+    cudavis = os.getenv("CUDA_VISIBLE_DEVICES")
+    which_gpus = []
+    if cudavis is not None:
+        # prune away white-space, non-numerics,
+        # except commas for simple checking
+        cudavis = "".join(cudavis.split())
+        import re
+        cudavis = re.sub("[^0-9,]", "", cudavis)
+
+        lencudavis = len(cudavis)
+        if lencudavis == 0:
+            total_gpus = 0
+        else:
+            total_gpus = min(
+                total_gpus,
+                os.getenv("CUDA_VISIBLE_DEVICES").count(",") + 1)
+            which_gpus = os.getenv("CUDA_VISIBLE_DEVICES").split(",")
+            which_gpus = [int(x) for x in which_gpus]
+    else:
+        which_gpus = list(range(0, total_gpus))
+
+    return total_gpus, which_gpus
+
+
+def get_ngpus_vis(raise_if_exception=True):
+    ngpus_vis1 = 0
+
+    shell = False
+    if shell:
+        cmd = "nvidia-smi -L 2> /dev/null"
+    else:
+        cmd = ["nvidia-smi", "-L"]
+
+    try:
+        timeout = 5 * 3
+        o = subprocess.check_output(cmd, shell=shell, timeout=timeout)
+        lines = o.decode("utf-8").splitlines()
+        ngpus_vis1 = 0
+        for line in lines:
+            if 'Failed to initialize NVML' not in line:
+                ngpus_vis1 += 1
+    except (FileNotFoundError, subprocess.CalledProcessError, OSError):
+        # GPU systems might not have nvidia-smi, so can't fail
+        pass
+    except subprocess.TimeoutExpired as e:
+        print('Failed get_ngpus_vis: %s' % str(e))
+        if raise_if_exception:
+            raise
+
+    ngpus_vis1, which_gpus = cuda_vis_check(ngpus_vis1)
+    return ngpus_vis1
+
+
+def get_mem_gpus(raise_if_exception=True, ngpus=None):
+    totalmem_gpus1 = 0
+    usedmem_gpus1 = 0
+    freemem_gpus1 = 0
+
+    if ngpus == 0:
+        return totalmem_gpus1, usedmem_gpus1, freemem_gpus1
+
+    try:
+        cmd = "nvidia-smi -q 2> /dev/null | grep -A 3 'FB Memory Usage'"
+        o = subprocess.check_output(cmd, shell=True, timeout=15)
+        lines = o.decode("utf-8").splitlines()
+        for line in lines:
+            if 'Total' in line:
+                totalmem_gpus1 += int(line.split()[2]) * 1024 ** 2
+            if 'Used' in line:
+                usedmem_gpus1 += int(line.split()[2]) * 1024 ** 2
+            if 'Free' in line:
+                freemem_gpus1 += int(line.split()[2]) * 1024 ** 2
+    except (FileNotFoundError, subprocess.CalledProcessError, OSError):
+        # GPU systems might not have nvidia-smi, so can't fail
+        pass
+    except subprocess.TimeoutExpired as e:
+        print('Failed get_mem_gpus: %s' % str(e))
+        if raise_if_exception:
+            raise
+
+    return totalmem_gpus1, usedmem_gpus1, freemem_gpus1
+
+
+class ForkContext(threading.local):
+    """
+        Set context for forking
+        Ensures state is returned once done
+    """
+
+    def __init__(self, args=None, kwargs=None, forkdata_capable=True):
+        """
+        :param args:
+        :param kwargs:
+        :param forkdata_capable: whether fork is forkdata capable and will use copy-on-write forking of args/kwargs
+        """
+        self.forkdata_capable = forkdata_capable
+        if self.forkdata_capable:
+            self.has_args = args is not None
+            self.has_kwargs = kwargs is not None
+            forkdatacontext.args = args
+            forkdatacontext.kwargs = kwargs
+        else:
+            self.has_args = False
+            self.has_kwargs = False
+
+    def __enter__(self):
+        try:
+            # flush all outputs so doesn't happen during fork -- don't print/log inside ForkContext contexts!
+            sys.stdout.flush()
+            sys.stderr.flush()
+        except BaseException as e:
+            # exit not called if exception, and don't want to leave forkdatacontext filled in that case
+            print("ForkContext failure on enter: %s" % str(e))
+            self.finally_act()
+            raise
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        self.finally_act()
+
+    def finally_act(self):
+        """
+            Done when exception hit or exit is reached in context
+            first reset forkdatacontext as crucial to have reset even if later 2 calls fail
+        :return: None
+        """
+        if self.forkdata_capable and (self.has_args or self.has_kwargs):
+            forkdatacontext._reset()
+
+
+class _ForkDataContext(threading.local):
+    def __init__(
+            self,
+            args=None,
+            kwargs=None,
+    ):
+        """
+        Global context for fork to carry data to subprocess instead of relying upon copy/pickle/serialization
+
+        :param args: args
+        :param kwargs: kwargs
+        """
+        assert isinstance(args, (tuple, type(None)))
+        assert isinstance(kwargs, (dict, type(None)))
+        self.__args = args
+        self.__kwargs = kwargs
+
+    @property
+    def args(self) -> Tuple:
+        """returns args"""
+        return self.__args
+
+    @args.setter
+    def args(self, args):
+        if self.__args is not None:
+            raise AttributeError(
+                "args cannot be overwritten: %s %s" % (str(self.__args), str(self.__kwargs))
+            )
+
+        self.__args = args
+
+    @property
+    def kwargs(self) -> Dict:
+        """returns kwargs"""
+        return self.__kwargs
+
+    @kwargs.setter
+    def kwargs(self, kwargs):
+        if self.__kwargs is not None:
+            raise AttributeError(
+                "kwargs cannot be overwritten: %s %s" % (str(self.__args), str(self.__kwargs))
+            )
+
+        self.__kwargs = kwargs
+
+    def _reset(self):
+        """Reset fork arg-kwarg context to default values"""
+        self.__args = None
+        self.__kwargs = None
+
+    def get_args_kwargs(self, func, args, kwargs) -> Tuple[Callable, Tuple, Dict]:
+        if self.__args:
+            args = self.__args[1:]
+            if not func:
+                assert len(self.__args) > 0, "if have no func, must have in args"
+                func = self.__args[0]  # should always be there
+        if self.__kwargs:
+            kwargs = self.__kwargs
+        try:
+            return func, args, kwargs
+        finally:
+            forkdatacontext._reset()
+
+    @staticmethod
+    def get_args_kwargs_for_traced_func(func, args, kwargs):
+        """
+        Return args/kwargs out of forkdatacontext when using copy-on-write way of passing args/kwargs
+        :param func: actual function ran by _traced_func, which itself is directly what mppool treats as function
+        :param args:
+        :param kwargs:
+        :return: func, args, kwargs from forkdatacontext if used, else originals
+        """
+        # first 3 lines are debug
+        func_was_None = func is None
+        args_was_None_or_empty = args is None or len(args) == 0
+        kwargs_was_None_or_empty = kwargs is None or len(kwargs) == 0
+
+        forkdatacontext_args_was_None = forkdatacontext.args is None
+        forkdatacontext_kwargs_was_None = forkdatacontext.kwargs is None
+        func, args, kwargs = forkdatacontext.get_args_kwargs(func, args, kwargs)
+        using_forkdatacontext = func_was_None and func is not None  # pulled func out of forkdatacontext.__args[0]
+        assert forkdatacontext.args is None, "forkdatacontext.args should be None after get_args_kwargs"
+        assert forkdatacontext.kwargs is None, "forkdatacontext.kwargs should be None after get_args_kwargs"
+
+        proc_type = kwargs.get('proc_type', 'SUBPROCESS')
+        if using_forkdatacontext:
+            assert proc_type == "SUBPROCESS" or proc_type == "SUBPROCESS"
+        if proc_type == "NORMAL":
+            assert forkdatacontext_args_was_None, "if no fork, expect forkdatacontext.args None entering _traced_func"
+            assert forkdatacontext_kwargs_was_None, "if no fork, expect forkdatacontext.kwargs None entering _traced_func"
+        assert func is not None, "function should not be None, indicates original args[0] was None or args was None"
+
+        return func, args, kwargs
+
+
+forkdatacontext = _ForkDataContext()
+
+
+def _traced_func(func, *args, **kwargs):
+    func, args, kwargs = forkdatacontext.get_args_kwargs_for_traced_func(func, args, kwargs)
+    return func(*args, **kwargs)
+
+
+def call_subprocess_onetask(func, args=None, kwargs=None):
+    if isinstance(args, list):
+        args = tuple(args)
+    if args is None:
+        args = ()
+    if kwargs is None:
+        kwargs = {}
+    args = list(args)
+    args = [func] + args
+    args = tuple(args)
+    with ForkContext(args=args, kwargs=kwargs):
+        args = (None,)
+        kwargs = {}
+        with ProcessPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(_traced_func, *args, **kwargs)
+            return future.result()
