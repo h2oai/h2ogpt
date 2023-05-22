@@ -17,7 +17,8 @@ from operator import concat
 
 from joblib import Parallel, delayed
 
-from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url
+from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
+    get_device
 
 import_matplotlib()
 
@@ -166,6 +167,7 @@ def get_llm(use_openai_model=False, model_name=None, model=None,
             # pipe.task = "text-generation"
             # below makes it listen only to our prompt removal, not built in prompt removal that is less general and not specific for our model
             pipe.task = "text2text-generation"
+            prompt_type = 'human_bot'
         else:
             # only for non-instruct tuned cases when ok with just normal next token prediction
             from transformers import pipeline
@@ -173,7 +175,7 @@ def get_llm(use_openai_model=False, model_name=None, model=None,
 
         from langchain.llms import HuggingFacePipeline
         llm = HuggingFacePipeline(pipeline=pipe)
-    return llm, model_name, streamer
+    return llm, model_name, streamer, prompt_type
 
 
 def get_device_dtype():
@@ -348,7 +350,9 @@ def add_meta(docs1, file):
 
 def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, chunk=True, chunk_size=512,
                 is_url=False, is_txt=False,
-                enable_captions=True, enable_ocr=False, caption_loader=None,
+                enable_captions=True,
+                captions_model=None,
+                enable_ocr=False, caption_loader=None,
                 headsize=50):
     if file is None:
         if fail_any_exception:
@@ -376,7 +380,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
                 [x.metadata.update(
                     dict(source=x.metadata.get('entry_id', query_url), query=query_url,
                          input_type='arxiv', head=x.metadata.get('Title', ''), date=str(datetime.now))) for x in
-                 docs1]
+                    docs1]
             else:
                 docs1 = []
         else:
@@ -391,7 +395,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
             f.write(file)
         metadata = dict(source=source_file, date=str(datetime.now()), input_type='pasted txt')
         doc1 = Document(page_content=file, metadata=metadata)
-    elif file.endswith('.html'):
+    elif file.endswith('.html') or file.endswith('.mhtml'):
         docs1 = UnstructuredHTMLLoader(file_path=file).load()
         add_meta(docs1, file)
         doc1 = chunk_sources(docs1, chunk_size=chunk_size)
@@ -443,7 +447,9 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
                 docs1.extend(docs1c)
             else:
                 from image_captions import H2OImageCaptionLoader
-                caption_loader = H2OImageCaptionLoader(caption_gpu=caption_loader == 'gpu')
+                caption_loader = H2OImageCaptionLoader(caption_gpu=caption_loader == 'gpu',
+                                                       blip_model=captions_model,
+                                                       blip_processor=captions_model)
                 caption_loader.set_image_paths([file])
                 docs1c = caption_loader.load()
                 add_meta(docs1c, file)
@@ -506,7 +512,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
             # recurse
             doc1 = path_to_docs(base_path, verbose=verbose, fail_any_exception=fail_any_exception)
     else:
-        raise RuntimeError("No file handler for %s" % file)
+        raise RuntimeError("No file handler for %s" % os.path.basename(file))
 
     # allow doc1 to be list or not.  If not list, did not chunk yet, so chunk now
     if not isinstance(doc1, list):
@@ -523,7 +529,9 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
 
 def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True, chunk=True, chunk_size=512,
                  is_url=False, is_txt=False,
-                 enable_captions=True, enable_ocr=False, caption_loader=None):
+                 enable_captions=True,
+                 captions_model=None,
+                 enable_ocr=False, caption_loader=None):
     if verbose:
         if is_url:
             print("Ingesting URL: %s" % file, flush=True)
@@ -537,12 +545,19 @@ def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True
         res = file_to_doc(file, base_path=None, verbose=verbose, fail_any_exception=fail_any_exception,
                           chunk=chunk, chunk_size=chunk_size,
                           is_url=is_url, is_txt=is_txt,
-                          enable_captions=enable_captions, enable_ocr=enable_ocr,
+                          enable_captions=enable_captions,
+                          captions_model=captions_model,
+                          enable_ocr=enable_ocr,
                           caption_loader=caption_loader)
-    except BaseException:
+    except BaseException as e:
         print("Failed to ingest %s due to %s" % (file, traceback.format_exc()))
         if fail_any_exception:
             raise
+        else:
+            exception_doc = Document(
+                page_content='',
+                metadata={"source": file, "exception": str(e), "traceback": traceback.format_exc()})
+            res = [exception_doc]
     if return_file:
         base_tmp = "temp_path_to_doc1"
         if not os.path.isdir(base_tmp):
@@ -557,34 +572,43 @@ def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True
 def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=-1,
                  chunk=True, chunk_size=512,
                  url=None, text=None,
-                 enable_captions=True, enable_ocr=False, caption_loader=None):
+                 enable_captions=True,
+                 captions_model=None,
+                 caption_loader=None,
+                 enable_ocr=False,
+                 ):
     globs_image_types = []
     globs_non_image_types = []
     if url:
-        globs = [url]
+        globs_non_image_types = [url]
     elif text:
-        globs = [text]
+        globs_non_image_types = [text]
     elif isinstance(path_or_paths, str):
-        # single file
+        # single path, only consume allowed files
         path = path_or_paths
         # Below globs should match patterns in file_to_doc()
-        [globs_image_types.extend(glob.glob(os.path.join(path, "./**/*.%s" % ftype), recursive=True)) for ftype in
-         image_types]
-        [globs_non_image_types.extend(glob.glob(os.path.join(path, "./**/*.%s" % ftype), recursive=True)) for ftype in
-         non_image_types]
-        globs = globs_non_image_types + globs_image_types
+        [globs_image_types.extend(glob.glob(os.path.join(path, "./**/*.%s" % ftype), recursive=True))
+         for ftype in image_types]
+        [globs_non_image_types.extend(glob.glob(os.path.join(path, "./**/*.%s" % ftype), recursive=True))
+         for ftype in non_image_types]
     else:
-        # list/tuple of files
+        # list/tuple of files (consume what can, and exception those that selected but cannot consume so user knows)
         assert isinstance(path_or_paths, (list, tuple)), "Wrong type for path_or_paths: %s" % type(path_or_paths)
-        globs = path_or_paths
+        # reform out of allowed types
+        globs_image_types.extend(flatten_list([[x for x in path_or_paths if x.endswith(y)] for y in image_types]))
+        # could do below:
+        # globs_non_image_types = flatten_list([[x for x in path_or_paths if x.endswith(y)] for y in non_image_types])
+        # But instead, allow fail so can collect unsupported too
+        set_globs_image_types = set(globs_image_types)
+        globs_non_image_types.extend([x for x in path_or_paths if x not in set_globs_image_types])
     # could use generator, but messes up metadata handling in recursive case
-    if caption_loader and not isinstance(caption_loader, (bool, str)) and caption_loader.device != 'cpu':
+    if caption_loader and not isinstance(caption_loader, (bool, str)) and \
+            caption_loader.device != 'cpu' or \
+            get_device() == 'cuda':
         # to avoid deadlocks, presume was preloaded and so can't fork due to cuda context
-        n_jobs = 1
-    if 'tokenizers' in sys.modules:
-        # to avoid deadlocks (FIXME: Not alaays complains, e.g. inside gradio uploading zip, already had tokenizer, no hang or complaint)
-        # n_jobs = 1
-        pass
+        n_jobs_image = 1
+    else:
+        n_jobs_image = n_jobs
 
     return_file = True  # local choice
     is_url = url is not None
@@ -595,18 +619,33 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
                   is_url=is_url,
                   is_txt=is_txt,
                   enable_captions=enable_captions,
-                  enable_ocr=enable_ocr,
+                  captions_model=captions_model,
                   caption_loader=caption_loader,
+                  enable_ocr=enable_ocr,
                   )
 
-    if n_jobs != 1 and len(globs) > 1:
+    if n_jobs != 1 and len(globs_non_image_types) > 1:
         # avoid nesting, e.g. upload 1 zip and then inside many files
         # harder to handle if upload many zips with many files, inner parallel one will be disabled by joblib
         documents = Parallel(n_jobs=n_jobs, verbose=10 if verbose else 0, backend='multiprocessing')(
-            delayed(path_to_doc1)(file, **kwargs) for file in globs
+            delayed(path_to_doc1)(file, **kwargs) for file in globs_non_image_types
         )
     else:
-        documents = [path_to_doc1(file, **kwargs) for file in globs]
+        documents = [path_to_doc1(file, **kwargs) for file in globs_non_image_types]
+
+    # do images separately since can't fork after cuda in parent, so can't be parallel
+    if n_jobs_image != 1 and len(globs_image_types) > 1:
+        # avoid nesting, e.g. upload 1 zip and then inside many files
+        # harder to handle if upload many zips with many files, inner parallel one will be disabled by joblib
+        image_documents = Parallel(n_jobs=n_jobs, verbose=10 if verbose else 0, backend='multiprocessing')(
+            delayed(path_to_doc1)(file, **kwargs) for file in globs_image_types
+        )
+    else:
+        image_documents = [path_to_doc1(file, **kwargs) for file in globs_image_types]
+
+    # add image docs in
+    documents += image_documents
+
     if return_file:
         # then documents really are files
         files = documents.copy()
@@ -782,7 +821,6 @@ def _run_qa_db(query=None,
                answer_with_sources=True,
                cut_distanct=1.1,
                sanitize_bot_response=True,
-               do_yield=False,
                show_rank=False,
                load_db_if_exists=False,
                db=None,
@@ -799,9 +837,6 @@ def _run_qa_db(query=None,
     :param k:
     :param chunk:
     :param chunk_size:
-    :param wiki: bool if using wiki
-    :param github: bool if using github
-    :param dai_rst: bool if using dai RST files
     :param user_path: user path to glob recursively from
     :param db_type: 'faiss' for in-memory db or 'chroma' for persistent db
     :param model_name: model name, used to switch behaviors
@@ -813,14 +848,13 @@ def _run_qa_db(query=None,
 
     # FIXME: For All just go over all dbs instead of a separate db for All
     db = make_db(**locals())
-    assert prompter is not None or prompt_type is not None
     prompt_type = prompter.prompt_type if prompter is not None else prompt_type
-    llm, model_name, streamer = get_llm(use_openai_model=use_openai_model, model_name=model_name,
-                                        model=model, tokenizer=tokenizer,
-                                        stream_output=stream_output,
-                                        max_new_tokens=max_new_tokens,
-                                        prompt_type=prompt_type,
-                                        )
+    llm, model_name, streamer, prompt_type_out = get_llm(use_openai_model=use_openai_model, model_name=model_name,
+                                                         model=model, tokenizer=tokenizer,
+                                                         stream_output=stream_output,
+                                                         max_new_tokens=max_new_tokens,
+                                                         prompt_type=prompt_type,
+                                                         )
 
     if not use_openai_model and prompt_type not in ['plain']:
         # instruct-like, rather than few-shot prompt_type='plain' as default
@@ -942,12 +976,8 @@ def _run_qa_db(query=None,
         else:
             ret = answer['output_text']
 
-        if stream_output or do_yield:
-            # just yield more, not all
-            yield ret
-            return
-        else:
-            return ret
+        yield ret
+    return
 
 
 def chunk_sources(sources, chunk_size=1024):

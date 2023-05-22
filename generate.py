@@ -129,6 +129,7 @@ def main(
         k: int = 4,
         n_jobs: int = -1,
         enable_captions: bool = True,
+        captions_model: str = "Salesforce/blip-image-captioning-base",
         pre_load_caption_model: bool = False,
         caption_gpu: bool = True,
         enable_ocr: bool = False,
@@ -215,8 +216,14 @@ def main(
     :param k: number of chunks to give LLM
     :param n_jobs: Number of processors to use when consuming documents (-1 = all, is default)
     :param enable_captions: Whether to support captions using BLIP for image files as documents, then preloads that model
+    :param captions_model: Which model to use for captions.
+           captions_model: int = "Salesforce/blip-image-captioning-base",  # continue capable
+           captions_model: str = "Salesforce/blip2-flan-t5-xl",   # question/answer capable, 16GB state
+           captions_model: int = "Salesforce/blip2-flan-t5-xxl",  # question/answer capable, 60GB state
+           Note: opt-based blip2 are not permissive license due to opt and Meta license restrictions
     :param pre_load_caption_model: Whether to preload caption model, or load after forking parallel doc loader
            parallel loading disabled if preload and have images, to prevent deadlocking on cuda context
+           Recommended if using larger caption model
     :param caption_gpu: If support caption, then use GPU if exists
     :param enable_ocr: Whether to support OCR on images
     :return:
@@ -528,7 +535,7 @@ def main(
         if enable_captions:
             if pre_load_caption_model:
                 from image_captions import H2OImageCaptionLoader
-                caption_loader = H2OImageCaptionLoader(caption_gpu=caption_gpu)
+                caption_loader = H2OImageCaptionLoader(caption_gpu=caption_gpu).load_model()
             else:
                 caption_loader = 'gpu' if caption_gpu else 'cpu'
         else:
@@ -969,7 +976,6 @@ def evaluate(
                            model_name=base_model, model=model, tokenizer=tokenizer,
                            stream_output=stream_output,
                            prompter=prompter,
-                           do_yield=True,
                            load_db_if_exists=load_db_if_exists,
                            db=db1,
                            user_path=user_path,
@@ -1524,40 +1530,3 @@ if __name__ == "__main__":
     python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6.9b
     """
     fire.Fire(main)
-
-import pytest
-
-
-@pytest.mark.parametrize(
-    "base_model",
-    [
-        "h2oai/h2ogpt-oig-oasst1-512-6.9b",
-        "h2oai/h2ogpt-oig-oasst1-512-12b",
-        "h2oai/h2ogpt-oig-oasst1-512-20b",
-        "h2oai/h2ogpt-oasst1-512-12b",
-        "h2oai/h2ogpt-oasst1-512-20b",
-        "h2oai/h2ogpt-gm-oasst1-en-1024-20b",
-        "databricks/dolly-v2-12b",
-        "h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b-preview-300bt-v2",
-        "ehartford/WizardLM-7B-Uncensored",
-        "ehartford/WizardLM-13B-Uncensored",
-        "AlekseyKorshuk/vicuna-7b",
-        "TheBloke/stable-vicuna-13B-HF",
-        "decapoda-research/llama-7b-hf",
-        "decapoda-research/llama-13b-hf",
-        "decapoda-research/llama-30b-hf",
-        "junelee/wizard-vicuna-13b",
-        "openaccess-ai-collective/wizard-mega-13b",
-    ]
-)
-def test_score_eval(base_model):
-    main(
-        base_model=base_model,
-        chat=False,
-        stream_output=False,
-        gradio=False,
-        eval_sharegpt_prompts_only=500,
-        eval_sharegpt_as_output=False,
-        num_beams=2,
-        infer_devices=False,
-    )

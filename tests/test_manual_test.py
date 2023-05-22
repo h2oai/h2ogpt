@@ -26,11 +26,11 @@ def test_upload_multiple_file():
 
 
 def test_upload_url():
-    raise NotImplementedError("MANUAL TEST FOR NOW -- put in URL box arxiv:1706.03762, ensure can go to source link")
+    raise NotImplementedError("MANUAL TEST FOR NOW -- put in URL box https://github.com/h2oai/h2ogpt/ (and ask what is h2ogpt?). Ensure can go to source links")
 
 
 def test_upload_arxiv():
-    raise NotImplementedError("MANUAL TEST FOR NOW -- ")
+    raise NotImplementedError("MANUAL TEST FOR NOW -- paste in arxiv:1706.03762 and ask who wrote attention paper. Ensure can go to source links")
 
 
 def test_upload_pasted_text():
@@ -41,7 +41,12 @@ def test_upload_pasted_text():
     # Ask: "Why should I visit Yufuu?"
     # Expected: ~Text
 
+
 def test_no_db_dirs():
     raise NotImplementedError("""MANUAL TEST FOR NOW -- Remove db_dirs, ensure can still start up and use in MyData Mode.
     python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b --langchain_mode=MyData
     """)
+
+
+def test_upload_unsupported_file():
+    raise NotImplementedError("""MANUAL TEST FOR NOW -- e.g. json, ensure error correct and reasonable, no cascades""")
