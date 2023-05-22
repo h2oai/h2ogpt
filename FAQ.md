@@ -215,3 +215,42 @@ HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python generate.py --base_model='h2
 ### LangChain Usage:
 
 See [tests/test_langchain_simple.py](tests/test_langchain_simple.py)
+
+
+### MAC OS (e.g. Macbook Pro without M1/M2 chip using MPS)
+
+* Install [Rust](https://www.geeksforgeeks.org/how-to-install-rust-in-macos/)
+```bash
+curl –proto ‘=https’ –tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+
+* Install [Miniconda](https://docs.conda.io/en/latest/miniconda.html#macos-installers)
+
+* Enter new shell and test: `rustc --version` and one should also see `(base)` in prompt
+
+* Create new env:
+```bash
+conda create -n h2ogpt -y
+conda activate h2ogpt
+conda install -y mamba -c conda-forge  # for speed
+mamba install python=3.10 -c conda-forge -y
+```
+Should see `(h2ogpt)` in shell prompt.
+
+* Test python:
+```bash
+python --version
+```
+should say 3.10.xx
+```bash
+python -c 'import os, sys ; print("hello world")'
+```
+should print `hello world`.
+
+* Clone and pip install as usual:
+```
+bash
+git clone https://github.com/h2oai/h2ogpt.git
+cd h2ogpt
+pip install -r requirements.txt
+```
