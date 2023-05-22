@@ -270,7 +270,7 @@ def go_gradio(**kwargs):
                         from gpt_langchain import file_types, have_arxiv
                     else:
                         have_arxiv = False
-                        file_types = ['pdf', 'txt', 'csv', 'toml', 'py', 'rst', 'rtf', 'md', 'html', 'enex', 'eml', 'epub', 'odt', 'pptx', 'ppt', 'zip', 'urls', 'docx', 'doc', 'png', 'jpg', 'jpeg']
+                        file_types = []
                     with upload_row:
                         file_types_str = ', '.join(file_types)
                         fileup_output = gr.File(label=f'Supported file types: {file_types_str}',
