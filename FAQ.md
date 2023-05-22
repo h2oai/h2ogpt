@@ -217,7 +217,7 @@ HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python generate.py --base_model='h2
 See [tests/test_langchain_simple.py](tests/test_langchain_simple.py)
 
 
-### MAC OS (e.g. Macbook Pro without M1/M2 chip using MPS)
+### MACOS without GPU (i.e. Macbook Pro without M1/M2 chip using MPS)
 
 * Install [Rust](https://www.geeksforgeeks.org/how-to-install-rust-in-macos/)
 ```bash
@@ -254,3 +254,21 @@ git clone https://github.com/h2oai/h2ogpt.git
 cd h2ogpt
 pip install -r requirements.txt
 ```
+
+* Edit requirements_optional_langchain.txt and switch to `faiss_cpu`.
+
+* Install langchain dependencies if want to use langchain:
+```bash
+pip install -r requirements_optional_langchain.txt
+```
+and fill `user_path` path with documents to be scanned recursively.
+
+* Run:
+```bash
+python generate.py --load_8bit=True --base_model=h2oai/h2ogpt-oig-oasst1-512-6.9b --langchain_mode=MyData --user_path=user_path
+```
+It will download the model, which takes about 15 minutes per 3 pytorch bin files if have 10MB/s download.
+One can choose any huggingface model, just pass the name after `--base_model=`, but a prompt_type is required if we don't already have support.
+E.g. for vicuna models, a typical prompt_type is used and we support that already automatically for specific models,
+but if you pass `--prompt_type=instruct_vicuna` with any other vicuna model, we'll use it assuming that is the correct prompt type.
+See models that are currently supported in this automatic way, and the same dictionary shows which prompt types are supported: [prompter](prompter.py).
