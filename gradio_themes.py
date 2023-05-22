@@ -75,6 +75,7 @@ class H2oTheme(Soft):
             body_background_fill_dark="*neutral_900",
             background_fill_primary_dark="*block_background_fill",
             block_radius="0 0 8px 8px",
+            checkbox_label_text_color_selected_dark='#000000',
         )
 
 
