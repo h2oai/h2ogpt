@@ -1234,13 +1234,13 @@ def update_user_db(file, db1, x, y, *args, dbs=None, langchain_mode='UserData', 
 
 
 def _update_user_db(file, db1, x, y, dbs=None, db_type=None, langchain_mode='UserData', use_openai_embedding=False,
-                   hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
-                   caption_loader=None,
-                   enable_captions=True,
-                   captions_model="Salesforce/blip-image-captioning-base",
-                   enable_ocr=False,
-                   verbose=False,
-                   chunk=True, chunk_size=512, is_url=False, is_txt=False):
+                    hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
+                    caption_loader=None,
+                    enable_captions=True,
+                    captions_model="Salesforce/blip-image-captioning-base",
+                    enable_ocr=False,
+                    verbose=False,
+                    chunk=True, chunk_size=512, is_url=False, is_txt=False):
     assert isinstance(dbs, dict), "Wrong type for dbs: %s" % str(type(dbs))
     assert db_type in ['faiss', 'chroma'], "db_type %s not supported" % db_type
     from gpt_langchain import add_to_db, get_db, path_to_docs
