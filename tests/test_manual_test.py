@@ -50,3 +50,7 @@ def test_no_db_dirs():
 
 def test_upload_unsupported_file():
     raise NotImplementedError("""MANUAL TEST FOR NOW -- e.g. json, ensure error correct and reasonable, no cascades""")
+
+
+def test_upload_to_UserData_and_MyData():
+    raise NotImplementedError("""MANUAL TEST FOR NOW Upload to each when enabled, ensure no failures""")

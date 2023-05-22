@@ -1311,7 +1311,7 @@ def _update_user_db(file, db1, x, y, dbs=None, db_type=None, langchain_mode='Use
             # NOTE we do not return db, because function call always same code path
             # return dbs[langchain_mode], x, y
             # db in this code path is updated in place
-            source_files_added = get_source_files(db1, exceptions=exceptions)
+            source_files_added = get_source_files(dbs[langchain_mode], exceptions=exceptions)
             return x, y, source_files_added
 
 
