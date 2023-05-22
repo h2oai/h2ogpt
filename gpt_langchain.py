@@ -595,12 +595,12 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
         # list/tuple of files (consume what can, and exception those that selected but cannot consume so user knows)
         assert isinstance(path_or_paths, (list, tuple)), "Wrong type for path_or_paths: %s" % type(path_or_paths)
         # reform out of allowed types
-        globs_image_types = flatten_list([[x for x in path_or_paths if x.endswith(y)] for y in image_types])
+        globs_image_types.extend(flatten_list([[x for x in path_or_paths if x.endswith(y)] for y in image_types]))
         # could do below:
         # globs_non_image_types = flatten_list([[x for x in path_or_paths if x.endswith(y)] for y in non_image_types])
         # But instead, allow fail so can collect unsupported too
         set_globs_image_types = set(globs_image_types)
-        globs_non_image_types = [x for x in path_or_paths if x not in set_globs_image_types]
+        globs_non_image_types.extend([x for x in path_or_paths if x not in set_globs_image_types])
     # could use generator, but messes up metadata handling in recursive case
     if caption_loader and not isinstance(caption_loader, (bool, str)) and \
             caption_loader.device != 'cpu' or \
