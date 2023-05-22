@@ -54,3 +54,7 @@ def test_upload_unsupported_file():
 
 def test_upload_to_UserData_and_MyData():
     raise NotImplementedError("""MANUAL TEST FOR NOW Upload to each when enabled, ensure no failures""")
+
+
+def test_chat_control():
+    raise NotImplementedError("""MANUAL TEST FOR NOW save chat, select chats, clear chat, export, import, etc.""")
