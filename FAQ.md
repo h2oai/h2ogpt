@@ -188,7 +188,15 @@ tokenizer = AutoTokenizer.from_pretrained(reward_model)
 tokenizer.save_pretrained(reward_model)
 ```
 
-3) Gradio uses Cloudfare scripts, download from Cloudfare:
+3) For LangChain support, download embedding model:
+```python
+hf_embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
+model_kwargs = 'cpu'
+from langchain.embeddings import HuggingFaceEmbeddings
+embedding = HuggingFaceEmbeddings(model_name=hf_embedding_model, model_kwargs=model_kwargs)
+```
+
+4) Gradio uses Cloudfare scripts, download from Cloudfare:
 ```
 iframeResizer.contentWindow.min.js
 index-8bb1e421.js
@@ -199,14 +207,14 @@ site-packages/gradio/templates/cdn/assets
 site-packages/gradio/templates/frontend/assets
 ```
 
-4) For jupyterhub dashboard,  modify `index-8bb1e421.js` to remove or hardcode port number into urls where `/port/7860` is located.  One may have to modify:
+5) For jupyterhub dashboard,  modify `index-8bb1e421.js` to remove or hardcode port number into urls where `/port/7860` is located.  One may have to modify:
 ```
 templates/cdn/index.html
 templates/frontend/index.html
 templates/frontend/share.html
 ```
  
-5) Run generate with transformers in [Offline Mode](https://huggingface.co/docs/transformers/installation#offline-mode)
+6) Run generate with transformers in [Offline Mode](https://huggingface.co/docs/transformers/installation#offline-mode)
 
 ```bash
 HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python generate.py --base_model='h2oai/h2ogpt-oasst1-512-12b'
