@@ -897,7 +897,7 @@ def _run_qa_db(query=None,
     # type logger error
     k_db = 1000 if db_type == 'chroma' else k  # k=100 works ok too for
 
-    if db:
+    if db and use_context:
         docs_with_score = db.similarity_search_with_score(query, k=k_db)[:k]
         # cut off so no high distance docs/sources considered
         docs = [x[0] for x in docs_with_score if x[1] < cut_distanct]
@@ -909,7 +909,7 @@ def _run_qa_db(query=None,
         docs = []
         scores = []
 
-    if not docs and model_name not in ['llama', 'gptj']:
+    if not docs and use_context:
         return None
 
     common_words_file = "data/NGSL_1.2_stats.csv.zip"
