@@ -1019,7 +1019,7 @@ def evaluate(
                            prompt_type=prompt_type,
                            n_jobs=n_jobs,
                            ):
-            outr = r  # doesn't accumualte, new answer every yield, so only save that full answer
+            outr = r  # doesn't accumulate, new answer every yield, so only save that full answer
             yield r
         if save_dir:
             save_generate_output(output=outr, base_model=base_model, save_dir=save_dir)
