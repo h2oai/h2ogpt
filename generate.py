@@ -1012,6 +1012,10 @@ def evaluate(
                            langchain_mode=langchain_mode,
                            db_type=db_type,
                            k=k,
+                           temperature=temperature,
+                           repetition_penalty=repetition_penalty,
+                           top_k=top_k,
+                           top_p=top_p,
                            prompt_type=prompt_type,
                            n_jobs=n_jobs,
                            ):

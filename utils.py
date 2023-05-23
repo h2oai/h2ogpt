@@ -58,7 +58,11 @@ def clear_torch_cache():
 
 
 def ping():
-    print('Ping: %s' % str(datetime.now()), flush=True)
+    try:
+        print('Ping: %s' % str(datetime.now()), flush=True)
+    except AttributeError:
+        # some programs wrap print and will fail with flush passed
+        pass
 
 
 def get_torch_allocated():

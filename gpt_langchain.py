@@ -121,6 +121,10 @@ def get_answer_from_sources(chain, sources, question):
 def get_llm(use_openai_model=False, model_name=None, model=None,
             tokenizer=None, stream_output=False,
             max_new_tokens=256,
+            temperature=0.1,
+            repetition_penalty=1.0,
+            top_k=40,
+            top_p=0.7,
             prompt_type=None,
             ):
     if use_openai_model:
@@ -130,7 +134,12 @@ def get_llm(use_openai_model=False, model_name=None, model=None,
         streamer = None
     elif model_name in ['gptj', 'llama']:
         from gpt4all_llm import get_llm_gpt4all
-        llm = get_llm_gpt4all(model_name, model=model, max_new_tokens=max_new_tokens)
+        llm = get_llm_gpt4all(model_name, model=model, max_new_tokens=max_new_tokens,
+                              temperature=temperature,
+                              repetition_penalty=repetition_penalty,
+                              top_k=top_k,
+                              top_p=top_p,
+                              )
         streamer = None
         prompt_type = 'plain'
     else:
@@ -832,6 +841,10 @@ def _run_qa_db(query=None,
                load_db_if_exists=False,
                db=None,
                max_new_tokens=256,
+               temperature=0.1,
+               repetition_penalty=1.0,
+               top_k=40,
+               top_p=0.7,
                langchain_mode=None,
                n_jobs=-1):
     """
@@ -860,6 +873,10 @@ def _run_qa_db(query=None,
                                                          model=model, tokenizer=tokenizer,
                                                          stream_output=stream_output,
                                                          max_new_tokens=max_new_tokens,
+                                                         temperature=temperature,
+                                                         repetition_penalty=repetition_penalty,
+                                                         top_k=top_k,
+                                                         top_p=top_p,
                                                          prompt_type=prompt_type,
                                                          )
 
