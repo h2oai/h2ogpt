@@ -65,6 +65,9 @@ def go_gradio(**kwargs):
     title = 'h2oGPT'
     if 'h2ogpt-research' in kwargs['base_model']:
         title += " [Research demonstration]"
+    more_info = """For more information, visit our GitHub pages: [h2oGPT](https://github.com/h2oai/h2ogpt) and [H2O-LLMStudio](https://github.com/h2oai/h2o-llmstudio)<br>"""
+    if is_public:
+        more_info += """<iframe src="https://ghbtns.com/github-btn.html?user=h2oai&repo=h2ogpt&type=star&count=true&size=small" frameborder="0" scrolling="0" width="150" height="20" title="GitHub"></iframe>"""
     if kwargs['verbose']:
         description = f"""Model {kwargs['base_model']} Instruct dataset.
                       For more information, visit our GitHub pages: [h2oGPT](https://github.com/h2oai/h2ogpt) and [H2O LLM Studio](https://github.com/h2oai/h2o-llmstudio).
@@ -72,9 +75,11 @@ def go_gradio(**kwargs):
                       Hash: {get_githash()}
                       """
     else:
-        description = "For more information, visit our GitHub pages: [h2oGPT](https://github.com/h2oai/h2ogpt) and [H2O LLM Studio](https://github.com/h2oai/h2o-llmstudio)<br>"
+        description = more_info
     description += "If this host is busy, try [12B](https://gpt.h2o.ai), [30B](http://gpt2.h2o.ai), [HF Spaces1 12B](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot) or [HF Spaces2 12B](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot2)<br>"
     description += """<p>By using h2oGPT, you accept our [Terms of Service](https://github.com/h2oai/h2ogpt/blob/main/tos.md)</p>"""
+    if is_hf:
+        description += '''<a href="https://huggingface.co/spaces/h2oai/h2ogpt-chatbot?duplicate=true"><img src="https://bit.ly/3gLdBN6" style="white-space: nowrap" alt="Duplicate Space"></a>'''
 
     if kwargs['verbose']:
         task_info_md = f"""
@@ -170,7 +175,7 @@ body.dark{#warning {background-color: #555555};}
             """)
         if is_hf:
             gr.HTML(
-                '''<center><a href="https://huggingface.co/spaces/h2oai/h2ogpt-chatbot?duplicate=true"><img src="https://bit.ly/3gLdBN6" alt="Duplicate Space"></a>Duplicate this Space to skip the queue and run in a private space</center>''')
+                )
 
         # go button visible if
         base_wanted = kwargs['base_model'] != no_model_str and kwargs['login_mode_if_model0']
