@@ -1,6 +1,6 @@
 ## h2oGPT
 
-Our goal is to make the world's best open source GPT! 100% private chat and document search, no data leaks, Apache 2.0.
+Our goal is to make the world's best open source GPT! 100% private chat and document Q/A, no data leaks, Apache 2.0.
 
 ### Try h2oGPT now 
 
