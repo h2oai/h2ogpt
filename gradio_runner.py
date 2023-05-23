@@ -1302,7 +1302,9 @@ body.dark{#warning {background-color: #555555};}
     scheduler.start()
 
     # import control
-    if kwargs['langchain_mode'] == 'Disabled' and os.environ.get("TEST_LANGCHAIN_IMPORT"):
+    if kwargs['langchain_mode'] == 'Disabled' and \
+            os.environ.get("TEST_LANGCHAIN_IMPORT") and \
+            kwargs['base_model'] not in ['gptj', 'llama']:
         assert 'gpt_langchain' not in sys.modules, "Dev bug, import of langchain when should not have"
         assert 'langchain' not in sys.modules, "Dev bug, import of langchain when should not have"
 

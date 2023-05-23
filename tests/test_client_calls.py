@@ -29,14 +29,21 @@ def test_client_chat_nostream():
         'response']
 
 
-def run_client_chat(prompt='Who are you?', stream_output=False, max_new_tokens=256):
+@wrap_test_forked
+def test_client_chat_nostream_gpt4all():
+    res_dict = run_client_chat(stream_output=False, base_model='gptj', prompt_type='plain')
+    assert 'I am a computer program designed to assist' in res_dict['response']
+
+
+def run_client_chat(prompt='Who are you?', stream_output=False, max_new_tokens=256,
+                    base_model='h2oai/h2ogpt-oig-oasst1-512-6.9b', prompt_type='human_bot'):
     import os, sys
     os.environ['TEST_LANGCHAIN_IMPORT'] = "1"
     sys.modules.pop('gpt_langchain', None)
     sys.modules.pop('langchain', None)
 
     from generate import main
-    main(base_model='h2oai/h2ogpt-oig-oasst1-512-6.9b', prompt_type='human_bot', chat=True,
+    main(base_model=base_model, prompt_type=prompt_type, chat=True,
          stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
          max_new_tokens=max_new_tokens)
 
