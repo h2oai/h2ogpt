@@ -1,6 +1,6 @@
-## h2oGPT - The world's best open source GPT
+## h2oGPT
 
-Our goal is to make the world's best open source GPT! 100% private chat and document search, no data leaks, Apache 2.0
+Our goal is to make the world's best open source GPT! 100% private chat and document search, no data leaks, Apache 2.0.
 
 ### Try h2oGPT now 
 
@@ -67,10 +67,12 @@ Also check out [H2O LLM Studio](https://github.com/h2oai/h2o-llmstudio) for our 
 
 ### ChatBot and LangChain Roadmap items
 
-- Ability to save chats and start new chats
 - Add other tools like search
+- Add agents for SQL and CSV question/answer
 
 ### Getting Started
+
+#### GPU (CUDA)
 
 ```bash
 git clone https://github.com/h2oai/h2ogpt.git
@@ -87,9 +89,12 @@ python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6.9b  --load_8bit=Tr
 ```
 Any other instruct-tuned base models can be used, including non-h2oGPT ones.  For more ways to ingest on CLI and contro see [LangChain Readme](README_LangChain.md)
 
-For help installing a Python 3.10 environment or CUDA toolkit or installing flash attention support, see the [installation instructions](INSTALL.md)
+#### CPU
 
-You can also use [Docker](INSTALL-DOCKER.md#containerized-installation-for-inference-on-linux-gpu-servers) for inference.
+Follow instructions here: [CPU](FAQ.md#CPU).  Then for LangChain support, put documents in `user_path` folder, and run:
+```bash
+python generate.py --base_model=gptj --score_model=None --langchain_mode='UserData' --user_path=user_path
+```
 
 #### Larger models require more GPU memory
 
@@ -103,7 +108,6 @@ For GPUs with at least 48GB of memory, we recommend:
 ```bash
 python generate.py --base_model=h2oai/h2ogpt-oasst1-512-20b --load_8bit=True
 ```
-The number `512` in the model names indicates the cutoff lengths (in tokens) used for fine-tuning. Shorter values generally result in faster training and more focus on the last part of the provided input text (consisting of prompt and answer).
 
 More information about the models can be found on [H2O.ai's Hugging Face page](https://huggingface.co/h2oai/).
 
@@ -114,6 +118,10 @@ More information about the models can be found on [H2O.ai's Hugging Face page](h
 - To create a container for deployment, follow the [Docker instructions](INSTALL-DOCKER.md).
 
 ### Help
+
+For help installing a Python 3.10 environment, CUDA toolkit, installing flash attention support, see the [installation instructions](INSTALL.md)
+
+You can also use [Docker](INSTALL-DOCKER.md#containerized-installation-for-inference-on-linux-gpu-servers) for inference.
 
 [FAQs](FAQ.md)
 

@@ -127,6 +127,9 @@ We continued fine-tuning with the [h2oai/h2oai/openassistant_oasst1_h2ogpt](http
 
 Yes. Try it in your preferred language.
 
+### What does 512 mean in model name?
+
+The number `512` in the model names indicates the cutoff lengths (in tokens) used for fine-tuning. Shorter values generally result in faster training and more focus on the last part of the provided input text (consisting of prompt and answer).
 
 ### Throttle GPUs in case of reset/reboot
 
