@@ -49,7 +49,6 @@ def get_model_tokenizer_gpt4all(base_model, **kwargs):
 
 def get_llm_gpt4all(model_name, model=None, max_new_tokens=256):
     env_gpt4all_file = ".env_gpt4all"
-    from dotenv import dotenv_values
     model_kwargs = dotenv_values(env_gpt4all_file)
     from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
     callbacks = [StreamingStdOutCallbackHandler()]
@@ -60,7 +59,6 @@ def get_llm_gpt4all(model_name, model=None, max_new_tokens=256):
         llm = LlamaCpp(model_path=model_path, n_ctx=model_n_ctx, callbacks=callbacks, verbose=False)
     else:
         model_path = model_kwargs.pop('model_path_gptj') if model is None else model
-        from gpt4all_llm import H2OGPT4All
         llm = H2OGPT4All(model=model_path, n_ctx=model_n_ctx, backend='gptj', callbacks=callbacks, verbose=False)
     return llm
 

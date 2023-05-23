@@ -291,9 +291,9 @@ pip install -r requirements_optional_gpt4all.txt -c req_constraints.txt
 See [GPT4All](https://github.com/nomic-ai/gpt4all) for details on installation instructions if any issues encountered.
 
 * Download [ggml-gpt4all-j-v1.3-groovy.bin](https://gpt4all.io/models/ggml-gpt4all-j-v1.3-groovy.bin)
-If you prefer a different GPT4All-J compatible model, can use that instead, and by default place into repo folder.
+If you prefer a different [GPT4All-J compatible model](https://gpt4all.io/index.html) (see Model Explorer), can use that instead. Download from the Model Explorer, and place into repo folder.
 
-* Fill `.env_gpt4all` with at least model path, if did not copy to repo folder:
+* Fill `.env_gpt4all` with at least model path, if did not copy to repo folder, change name of model to the one you have chosen from Model Explorer if was not the default.
 ```.env_gpt4all
 # model path and model_kwargs
 model_path_gptj=ggml-gpt4all-j-v1.3-groovy.bin
@@ -302,7 +302,7 @@ Run h2oGPT like:
 ```bash
 python generate.py --base_model=gptj
 ```
-
+See [llama.cpp](https://github.com/ggerganov/llama.cpp) for instructions on getting model for `--base_model=llama` case.
 
 #### C++ Compiler
 If you encounter an error while building a wheel during the `pip install` process, you may need to install a C++ compiler on your computer.
