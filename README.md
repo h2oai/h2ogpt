@@ -16,7 +16,7 @@ For questions, discussing, or just hanging out, come and join our <a href="https
 
 ### Apache V2 ChatBot with LangChain Integration
 
-- [**LangChain**](README_LangChain.md) equipped Chatbot integration and streaming
+- [**LangChain**](README_LangChain.md) equipped Chatbot integration and streaming responses
 - **Persistent** database using Chroma or in-memory with FAISS
 - **Original** content url links and scores to rank content against query
 - **Private** offline database of any documents ([PDFs and more](README_LangChain.md#supported-datatypes))
@@ -24,6 +24,7 @@ For questions, discussing, or just hanging out, come and join our <a href="https
 - **Control** data sources and the context provided to LLM
 - **Efficient** use of context using instruct-tuned LLMs (no need for many examples)
 - **API** for client-server control
+- **CPU and GPU** support from variety of HF models, and CPU support using GPT4ALL and LaMa cpp
 
 <img src="langchain.png" alt="VectorDB" title="VectorDB via LangChain">
 
