@@ -265,10 +265,17 @@ and fill `user_path` path with documents to be scanned recursively.
 
 * Run:
 ```bash
-python generate.py --load_8bit=True --base_model=h2oai/h2ogpt-oig-oasst1-512-6.9b --langchain_mode=MyData --user_path=user_path
+python generate.py --load_8bit=True --base_model=h2oai/h2ogpt-oig-oasst1-512-6.9b --langchain_mode=MyData --user_path=user_path --score_model=None
 ```
 It will download the model, which takes about 15 minutes per 3 pytorch bin files if have 10MB/s download.
 One can choose any huggingface model, just pass the name after `--base_model=`, but a prompt_type is required if we don't already have support.
 E.g. for vicuna models, a typical prompt_type is used and we support that already automatically for specific models,
 but if you pass `--prompt_type=instruct_vicuna` with any other vicuna model, we'll use it assuming that is the correct prompt type.
 See models that are currently supported in this automatic way, and the same dictionary shows which prompt types are supported: [prompter](prompter.py).
+
+* Potential Errors:
+```
+ValueError: The current `device_map` had weights offloaded to the disk. Please provide an `offload_folder` for them. Alternatively, make sure you have `safetensors` installed if the model you are using offers
+the weights in this format.
+```
+If you see this error, then you either have insufficient GPU memory or insufficient CPU memory.  E.g. for 6.9B model one needs minimum of 27GB free memory.
