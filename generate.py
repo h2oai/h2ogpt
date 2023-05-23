@@ -674,6 +674,11 @@ def get_model(
     :return:
     """
     print("Get %s model" % base_model, flush=True)
+    if base_model in ['llama', 'gptj']:
+        from gpt4all_llm import get_model_tokenizer_gpt4all
+        model, tokenizer, device = get_model_tokenizer_gpt4all(base_model)
+        return model, tokenizer, device
+
     if lora_weights is not None and lora_weights.strip():
         print("Get %s lora weights" % lora_weights, flush=True)
     device = get_device()
@@ -967,7 +972,7 @@ def evaluate(
         db1 = dbs[langchain_mode]
     else:
         db1 = None
-    if langchain_mode not in [False, 'Disabled', 'ChatLLM', 'LLM'] and db1 is not None:
+    if langchain_mode not in [False, 'Disabled', 'ChatLLM', 'LLM'] and db1 is not None or base_model in ['llama', 'gptj']:
         query = instruction if not iinput else "%s\n%s" % (instruction, iinput)
         outr = ""
         # use smaller cut_distanct for wiki_full since so many matches could be obtained, and often irrelevant unless close

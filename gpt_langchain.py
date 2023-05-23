@@ -128,6 +128,11 @@ def get_llm(use_openai_model=False, model_name=None, model=None,
         llm = OpenAI(temperature=0)
         model_name = 'openai'
         streamer = None
+    elif model_name in ['gptj', 'llama']:
+        from gpt4all_llm import get_llm_gpt4all
+        llm = get_llm_gpt4all(model_name, model=model, max_new_tokens=max_new_tokens)
+        streamer = None
+        prompt_type = 'plain'
     else:
         from transformers import AutoTokenizer, AutoModelForCausalLM
 
@@ -856,16 +861,24 @@ def _run_qa_db(query=None,
                                                          prompt_type=prompt_type,
                                                          )
 
-    if not use_openai_model and prompt_type not in ['plain']:
+    if model_name in ['llama', 'gptj']:
+        # FIXME: for now, streams to stdout/stderr currently
+        stream_output = False
+
+    if not use_openai_model and prompt_type not in ['plain'] or model_name in ['llama', 'gptj']:
         # instruct-like, rather than few-shot prompt_type='plain' as default
         # but then sources confuse the model with how inserted among rest of text, so avoid
         prefix = ""
-        template = """%s
+        if langchain_mode in ['Disabled', 'ChatLLM', 'LLM']:
+            use_context = False
+            template = """%s{context}{question}""" % prefix
+        else:
+            use_context = True
+            template = """%s
 ==
 {context}
 ==
 {question}""" % prefix
-
         prompt = PromptTemplate(
             # input_variables=["summaries", "question"],
             input_variables=["context", "question"],
@@ -874,6 +887,7 @@ def _run_qa_db(query=None,
         chain = load_qa_chain(llm, prompt=prompt)
     else:
         chain = load_qa_with_sources_chain(llm)
+        use_context = True
 
     if query is None:
         query = "What are the main differences between Linux and Windows?"
@@ -883,15 +897,20 @@ def _run_qa_db(query=None,
     # type logger error
     k_db = 1000 if db_type == 'chroma' else k  # k=100 works ok too for
 
-    docs_with_score = db.similarity_search_with_score(query, k=k_db)[:k]
+    if db:
+        docs_with_score = db.similarity_search_with_score(query, k=k_db)[:k]
+        # cut off so no high distance docs/sources considered
+        docs = [x[0] for x in docs_with_score if x[1] < cut_distanct]
+        scores = [x[1] for x in docs_with_score if x[1] < cut_distanct]
+        if len(scores) > 0:
+            print("Distance: min: %s max: %s mean: %s median: %s" %
+                  (scores[0], scores[-1], np.mean(scores), np.median(scores)), flush=True)
+    else:
+        docs = []
+        scores = []
 
-    # cut off so no high distance docs/sources considered
-    docs = [x[0] for x in docs_with_score if x[1] < cut_distanct]
-    scores = [x[1] for x in docs_with_score if x[1] < cut_distanct]
-    if not docs:
+    if not docs and model_name not in ['llama', 'gptj']:
         return None
-    print("Distance: min: %s max: %s mean: %s median: %s" %
-          (scores[0], scores[-1], np.mean(scores), np.median(scores)), flush=True)
 
     common_words_file = "data/NGSL_1.2_stats.csv.zip"
     if os.path.isfile(common_words_file):
@@ -905,7 +924,11 @@ def _run_qa_db(query=None,
         # FIXME: report to user bad query that uses too many common words
         print("frac_common: %s" % frac_common, flush=True)
 
-    chain_kwargs = dict(input_documents=docs, question=query)
+    if langchain_mode in ['Disabled', 'ChatLLM', 'LLM']:
+        chain_kwargs = dict(input_documents=[], question=query)
+    else:
+        chain_kwargs = dict(input_documents=docs, question=query)
+
     if stream_output:
         answer = None
         assert streamer is not None
@@ -945,7 +968,10 @@ def _run_qa_db(query=None,
     else:
         answer = chain(chain_kwargs)
 
-    if answer is not None:
+    if not use_context:
+        ret = answer['output_text']
+        yield ret
+    elif answer is not None:
         print("query: %s" % query, flush=True)
         print("answer: %s" % answer['output_text'], flush=True)
         # link

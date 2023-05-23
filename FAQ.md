@@ -279,3 +279,46 @@ ValueError: The current `device_map` had weights offloaded to the disk. Please p
 the weights in this format.
 ```
 If you see this error, then you either have insufficient GPU memory or insufficient CPU memory.  E.g. for 6.9B model one needs minimum of 27GB free memory.
+
+### GPT4ALL for CPU low-memory mode
+
+* Install LLaMa/GPT4All dependencies
+```bash
+pip install pip --upgrade -y
+make
+pip install -r requirements_optional_gpt4all.txt -c req_constraints.txt
+```
+See [GPT4All](https://github.com/nomic-ai/gpt4all) for details on installation instructions if any issues encountered.
+
+* Download [ggml-gpt4all-j-v1.3-groovy.bin](https://gpt4all.io/models/ggml-gpt4all-j-v1.3-groovy.bin)
+If you prefer a different GPT4All-J compatible model, can use that instead, and by default place into repo folder.
+
+* Fill `.env_gpt4all` with at least model path, if did not copy to repo folder:
+```.env_gpt4all
+# model path and model_kwargs
+model_path_gptj=ggml-gpt4all-j-v1.3-groovy.bin
+```
+Run h2oGPT like:
+```bash
+python generate.py --base_model=gptj
+```
+
+
+#### C++ Compiler
+If you encounter an error while building a wheel during the `pip install` process, you may need to install a C++ compiler on your computer.
+
+#### For Windows 10/11
+To install a C++ compiler on Windows 10/11, follow these steps:
+
+1. Install Visual Studio 2022.
+2. Make sure the following components are selected:
+   * Universal Windows Platform development
+   * C++ CMake tools for Windows
+3. Download the MinGW installer from the [MinGW website](https://sourceforge.net/projects/mingw/).
+4. Run the installer and select the `gcc` component.
+
+#### Mac Running Intel
+When running a Mac with Intel hardware (not M1), you may run into _clang: error: the clang compiler does not support '-march=native'_ during pip install.
+
+If so set your archflags during pip install. eg: _ARCHFLAGS="-arch x86_64" pip3 install -r requirements.txt_
+
