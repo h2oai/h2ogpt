@@ -106,5 +106,7 @@ class H2OGPT4All(gpt4all.GPT4All):
     ) -> str:
         # Roughly 4 chars per token if natural language
         prompt = prompt[-self.n_ctx*4:]
-        print("_call prompt: %s" % prompt, flush=True)
+        verbose = False
+        if verbose:
+            print("_call prompt: %s" % prompt, flush=True)
         return super()._call(prompt, stop=stop, run_manager=run_manager)
