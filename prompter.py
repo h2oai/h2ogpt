@@ -38,6 +38,8 @@ prompt_type_to_model_name = {
         'mosaicml/mpt-7b-storywriter',
         'mosaicml/mpt-7b-instruct',  # internal code handles instruct
         'mosaicml/mpt-7b-chat',  # NC, internal code handles instruct
+        'gptj',  # internally handles prompting
+        'llama',  # internally handles prompting
     ],
     'prompt_answer': [
         'h2oai/h2ogpt-gm-oasst1-en-1024-20b',
