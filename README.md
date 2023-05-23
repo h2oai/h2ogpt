@@ -24,7 +24,8 @@ For questions, discussing, or just hanging out, come and join our <a href="https
 - **Control** data sources and the context provided to LLM
 - **Efficient** use of context using instruct-tuned LLMs (no need for many examples)
 - **API** for client-server control
-- **CPU and GPU** support from variety of HF models, and CPU support using GPT4ALL and LaMa cpp
+- **CPU and GPU** support from variety of HF models, and CPU support using GPT4ALL and LLaMa cpp
+- **Linux, [MAC](FAQ.md#macos), and Windows** support
 
 <img src="langchain.png" alt="VectorDB" title="VectorDB via LangChain">
 

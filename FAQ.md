@@ -217,16 +217,36 @@ HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python generate.py --base_model='h2
 See [tests/test_langchain_simple.py](tests/test_langchain_simple.py)
 
 
-### MACOS without GPU (i.e. Macbook Pro without M1/M2 chip using MPS)
+### MACOS
 
 * Install [Rust](https://www.geeksforgeeks.org/how-to-install-rust-in-macos/)
 ```bash
 curl –proto ‘=https’ –tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
+Enter new shell and test: `rustc --version`
 
-* Install [Miniconda](https://docs.conda.io/en/latest/miniconda.html#macos-installers)
+* Mac Running Intel
+When running a Mac with Intel hardware (not M1), you may run into _clang: error: the clang compiler does not support '-march=native'_ during pip install.
+If so set your archflags during pip install. eg: _ARCHFLAGS="-arch x86_64" pip3 install -r requirements.txt_
 
-* Enter new shell and test: `rustc --version` and one should also see `(base)` in prompt
+### C++ Compiler
+If you encounter an error while building a wheel during the `pip install` process, you may need to install a C++ compiler on your computer.
+
+### For Windows 10/11
+To install a C++ compiler on Windows 10/11, follow these steps:
+
+1. Install Visual Studio 2022.
+2. Make sure the following components are selected:
+   * Universal Windows Platform development
+   * C++ CMake tools for Windows
+3. Download the MinGW installer from the [MinGW website](https://sourceforge.net/projects/mingw/).
+4. Run the installer and select the `gcc` component.
+
+###  ENV installation
+
+* Install, e.g. for MACOS: [Miniconda](https://docs.conda.io/en/latest/miniconda.html#macos-installers)
+
+* Enter new shell and should also see `(base)` in prompt
 
 * Create new env:
 ```bash
@@ -255,7 +275,7 @@ cd h2ogpt
 pip install -r requirements.txt
 ```
 
-* Edit requirements_optional_langchain.txt and switch to `faiss_cpu`.
+* For non-cuda support, edit requirements_optional_langchain.txt and switch to `faiss_cpu`.
 
 * Install langchain dependencies if want to use langchain:
 ```bash
@@ -280,7 +300,7 @@ the weights in this format.
 ```
 If you see this error, then you either have insufficient GPU memory or insufficient CPU memory.  E.g. for 6.9B model one needs minimum of 27GB free memory.
 
-### GPT4ALL for CPU low-memory mode
+### GPT4ALL for CPU Mode
 
 * Install LLaMa/GPT4All dependencies
 ```bash
@@ -303,22 +323,4 @@ Run h2oGPT like:
 python generate.py --base_model=gptj
 ```
 See [llama.cpp](https://github.com/ggerganov/llama.cpp) for instructions on getting model for `--base_model=llama` case.
-
-#### C++ Compiler
-If you encounter an error while building a wheel during the `pip install` process, you may need to install a C++ compiler on your computer.
-
-#### For Windows 10/11
-To install a C++ compiler on Windows 10/11, follow these steps:
-
-1. Install Visual Studio 2022.
-2. Make sure the following components are selected:
-   * Universal Windows Platform development
-   * C++ CMake tools for Windows
-3. Download the MinGW installer from the [MinGW website](https://sourceforge.net/projects/mingw/).
-4. Run the installer and select the `gcc` component.
-
-#### Mac Running Intel
-When running a Mac with Intel hardware (not M1), you may run into _clang: error: the clang compiler does not support '-march=native'_ during pip install.
-
-If so set your archflags during pip install. eg: _ARCHFLAGS="-arch x86_64" pip3 install -r requirements.txt_
 
