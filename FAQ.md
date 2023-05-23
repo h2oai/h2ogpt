@@ -347,3 +347,27 @@ python generate.py --base_model=gptj --score_model=None
 ### I get the error: `The model 'OptimizedModule' is not supported for . Supported models are ...`
 
 Ignore this warning.
+
+### What ENVs can I pass to control h2oGPT?
+
+   - `SAVE_DIR`: Local directory to save logs to,
+   - `ADMIN_PASS`: Password to acces system info, logs, or push to aws s3 bucket,
+   - `AWS_BUCKET`: AWS bucket name to push logs to when have admin access,
+   - `AWS_SERVER_PUBLIC_KEY`: AWS public key for pushing logs to when have admin access,
+   - `AWS_SERVER_SECRET_KEY`: AWS secret key for pushing logs to when have admin access,
+   - `HUGGINGFACE_API_TOKEN`: Read or write HF token for accessing private models,
+   - `LANGCHAIN_MODE`: LangChain mode, overrides CLI,
+   - `SCORE_MODEL`: HF model to use for scoring prompt-response pairs, `None` for no scoring of responses,
+   - `HEIGHT`: Height of Chat window,
+   - `allow_upload_to_user_data`: Whether to allow uploading to Shared UserData,
+   - `allow_upload_to_my_data`: Whether to allow uploading to Scratch MyData,
+   - `HEIGHT`: Height of Chat window,
+   - `HUGGINGFACE_SPACES`: Whether on public A10G 24GB HF spaces, sets some low-GPU-memory defaults for public access to avoid GPU memory abuse by model switching, etc.
+   - `HF_HOSTNAME`: Name of HF spaces for purpose of naming log files,
+   - `GPT_H2O_AI`: Whether on public 48GB+ GPU instance, sets some defaults for public access to avoid GPU memory abuse by model switching, etc.,
+   - `CONCURRENCY_COUNT`: Number of concurrency users to gradio server (1 is fastest since LLMs tend to consume all GPU cores, but 2-4 is best to avoid any single user waiting too long to get response)
+   - `API_OPEN`: Whether API access is visible,
+   - `ALLOW_API`: Whether to allow API access,
+   - `CUDA_VISIBLE_DEVICES`: Standard list of CUDA devices to make visible.
+
+These can be usful on HuggingFace spaces, where one sets secret tokens because CLI options cannot be used.
