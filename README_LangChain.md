@@ -127,6 +127,8 @@ For links to direct to the document and download to your local machine, the orig
 
 * [Perplexity](https://www.perplexity.ai/) but h2oGPT is open-source and private, similar control over sources.
 
+* [HayStack](https://github.com/deepset-ai/haystack) but h2oGPT is open-source and private.  Haystack is pivot to LLMs from NLP tasks, so well-developed documentation etc.  But mostly LangChain clone.
+
 * [Empler](https://www.empler.ai/) but h2oGPT is open-source and private.  Empler has nice AI and content control, and focuses on use cases like marketing.
 
 * [Writesonic](https://writesonic.com/) but h2oGPT is open-source and private.  Writesonic has better image/video control.

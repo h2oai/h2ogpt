@@ -1,6 +1,8 @@
 ## h2oGPT
 
-Our goal is to make the world's best open source GPT! 100% private chat and document Q/A, no data leaks, Apache 2.0.
+h2oGPT is a large language model (LLM) fine-tuning framework and chatbot UI with document(s) question-answer capabilities.  Documents help to **ground** LLMs against hallucinations by providing them context relevant to the instruction.  h2oGPT is fully permissive Apache V2 open-source project for 100% private and secure use of LLMs and document embeddings for document question-answer.
+
+Welcome!  Join us and make an issue or a PR, and contribute to making the best fine-tuned LLMs, chatbot UI, and document question-answer framework!
 
 ### Try h2oGPT now 
 
