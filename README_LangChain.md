@@ -115,43 +115,43 @@ For links to direct to the document and download to your local machine, the orig
 
 #### What is h2oGPT's LangChain integration like?
 
-* [PrivateGPT](https://github.com/imartinez/privateGPT) but fully commercially viable by not using [GPT4All](https://github.com/nomic-ai/gpt4all) based upon [LLaMa](https://github.com/facebookresearch/llama) and used data from GPT3.5 (violation of ToS).
+* [PrivateGPT](https://github.com/imartinez/privateGPT) but h2oGPT is fully commercially viable by not using [GPT4All](https://github.com/nomic-ai/gpt4all) based upon [LLaMa](https://github.com/facebookresearch/llama) and used data from GPT3.5 (violation of ToS).
 
-* [Vault-AI](https://github.com/pashpashpash/vault-ai) but fully private and open-source by not using OpenAI or [pinecone](https://www.pinecone.io/).
+* [Vault-AI](https://github.com/pashpashpash/vault-ai) but h2oGPT is fully private and open-source by not using OpenAI or [pinecone](https://www.pinecone.io/).
 
-* [DB-GPT](https://github.com/csunny/DB-GPT) but fully commercially viable by not using [Vicuna](https://lmsys.org/blog/2023-03-30-vicuna/) (LLaMa based with GPT3.5 training data).
+* [DB-GPT](https://github.com/csunny/DB-GPT) but h2oGPT is fully commercially viable by not using [Vicuna](https://lmsys.org/blog/2023-03-30-vicuna/) (LLaMa based with GPT3.5 training data).
 
-* [ChatPDF](https://www.chatpdf.com/) but open-source and private and many more data types.
+* [ChatPDF](https://www.chatpdf.com/) but h2oGPT is open-source and private and many more data types.
 
-* [ChatDoc](https://chatdoc.com/) but open-source and private. ChatDoc shows nice side-by-side view with doc on one side and chat in other.  Select specific doc or text in doc for question/summary.
+* [ChatDoc](https://chatdoc.com/) but h2oGPT is open-source and private. ChatDoc shows nice side-by-side view with doc on one side and chat in other.  Select specific doc or text in doc for question/summary.
 
-* [Perplexity](https://www.perplexity.ai/) but open-source and private, similar control over sources.
+* [Perplexity](https://www.perplexity.ai/) but h2oGPT is open-source and private, similar control over sources.
 
-* [Empler](https://www.empler.ai/) but open-source and private.  Empler has nice AI and content control, and focuses on use cases like marketing.
+* [Empler](https://www.empler.ai/) but h2oGPT is open-source and private.  Empler has nice AI and content control, and focuses on use cases like marketing.
 
-* [Writesonic](https://writesonic.com/) but open-source and private.  Writesonic has better image/video control.
+* [Writesonic](https://writesonic.com/) but h2oGPT is open-source and private.  Writesonic has better image/video control.
 
 * [HuggingChat](https://huggingface.co/chat/) Not for commercial use, uses LLaMa and GPT3.5 training data, so violates ToS.
 
-* [Bard](https://bard.google.com/) but open-source and private.  Bard has better automatic link and image use.
+* [Bard](https://bard.google.com/) but h2oGPT is open-source and private.  Bard has better automatic link and image use.
 
-* [ChatGPT](https://chat.openai.com/) but open-source and private.  ChatGPT code interpreter has better image, video, etc. handling.
+* [ChatGPT](https://chat.openai.com/) but h2oGPT is open-source and private.  ChatGPT code interpreter has better image, video, etc. handling.
 
-* [Bing](https://www.bing.com/) but open-source and private.  Bing has excellent search queries and handling of results.
+* [Bing](https://www.bing.com/) but h2oGPT is open-source and private.  Bing has excellent search queries and handling of results.
 
-* [Bearly](https://bearly.ai/) but open-source and private.  Bearly focuses on creative content creation.
+* [Bearly](https://bearly.ai/) but h2oGPT is open-source and private.  Bearly focuses on creative content creation.
 
-* [Poe](https://poe.com/) but open-source and private.  Poe also has immediate info-wall requiring phone number.
+* [Poe](https://poe.com/) but h2oGPT is open-source and private.  Poe also has immediate info-wall requiring phone number.
 
-* [WiseOne](https://wiseone.io/) but open-source and private.  WiseOne is reading helper.
+* [WiseOne](https://wiseone.io/) but h2oGPT is open-source and private.  WiseOne is reading helper.
 
-* [Poet.ly or Aify](https://aify.co/) but open-source and private.  Poet.ly focuses on writing articles.
+* [Poet.ly or Aify](https://aify.co/) but h2oGPT is open-source and private.  Poet.ly focuses on writing articles.
 
-* [PDFGPT.ai](https://pdfgpt.io/) but open-source and private.  Only PDF and on expensive side.
+* [PDFGPT.ai](https://pdfgpt.io/) but h2oGPT is open-source and private.  Only PDF and on expensive side.
 
-* [BratGPT](https://bratgpt.com/) but open-source and private.  Focuses on uncensored chat.
+* [BratGPT](https://bratgpt.com/) but h2oGPT is open-source and private.  Focuses on uncensored chat.
 
-* [Halist](https://halist.ai/) but open-source and private.  Uses ChatGPT but does not store chats, but can already do that now with ChatGPT.
+* [Halist](https://halist.ai/) but h2oGPT is open-source and private.  Uses ChatGPT but does not store chats, but can already do that now with ChatGPT.
 
 * [UltimateGPT Toolkit](https://play.google.com/store/apps/details?id=com.neuralminds.ultimategptoolkit&ref=producthunt&pli=1) Android plugin for ChatGPT.
 
@@ -159,28 +159,34 @@ For links to direct to the document and download to your local machine, the orig
 
 * [GPTMana](https://play.google.com/store/apps/details?id=com.chatgpt.gptmana) Android Plugin.
 
-* [Genie](https://www.genieai.co/) but open-source and private.  Focuses on legal assistant.
+* [Genie](https://www.genieai.co/) but h2oGPT is open-source and private.  Focuses on legal assistant.
 
-* [ResearchAI](https://research-ai.io/) but open-source and private.  Focuses on research helper with tools.
+* [ResearchAI](https://research-ai.io/) but h2oGPT is open-source and private.  Focuses on research helper with tools.
 
-* [ChatOn](https://apps.apple.com/us/app/chaton) but open-source and private.  ChatOn focuses on mobile, iPhone app.
+* [ChatOn](https://apps.apple.com/us/app/chaton) but h2oGPT is open-source and private.  ChatOn focuses on mobile, iPhone app.
 
-* [Ask](https://iask.ai/) but open-source and private.  Similar content control.
+* [Ask](https://iask.ai/) but h2oGPT is open-source and private.  Similar content control.
 
-* [Petey](https://apps.apple.com/us/app/petey-ai-assistant/id6446047813) but open-source and private.  Apple Watch.
+* [Petey](https://apps.apple.com/us/app/petey-ai-assistant/id6446047813) but h2oGPT is open-source and private.  Apple Watch.
 
-* [QuickGPT](https://www.quickgpt.io/) but open-source and private.  QuickGPT is ChatGPT for Whatsapp.
+* [QuickGPT](https://www.quickgpt.io/) but h2oGPT is open-source and private.  QuickGPT is ChatGPT for Whatsapp.
 
-* [Raitoai](https://www.raitoai.com/) but open-source and private.  Raito.ai focuses on helping writers.
+* [Raitoai](https://www.raitoai.com/) but h2oGPT is open-source and private.  Raito.ai focuses on helping writers.
 
-* [AIChat](https://deepai.org/chat) but open-source and private.  Heavy on ads, avoid.
+* [AIChat](https://deepai.org/chat) but h2oGPT is open-source and private.  Heavy on ads, avoid.
 
-* [AnonChatGPT](https://anonchatgpt.com/) but open-source and private.  Anonymous use of ChatGPT, i.e. no account required.
+* [AnonChatGPT](https://anonchatgpt.com/) but h2oGPT is open-source and private.  Anonymous use of ChatGPT, i.e. no account required.
 
-* [GPTPro](https://play.google.com/store/apps/details?id=com.dfmv.gptpro&hl=en_US&gl=US) but open-source and private.  GPTPro focuses on Android.
+* [GPTPro](https://play.google.com/store/apps/details?id=com.dfmv.gptpro&hl=en_US&gl=US) but h2oGPT is open-source and private.  GPTPro focuses on Android.
 
-* [Rio](https://www.oziku.tech/rio-openai-chatgpt-assistant) but open-source and private.  Browser-based assistant.
+* [Rio](https://www.oziku.tech/rio-openai-chatgpt-assistant) but h2oGPT is open-source and private.  Browser-based assistant.
 
-* [CommanderGPT](https://www.commandergpt.app/) but open-source and private.  CommanderGPT focuses on MAC with a few tasks like image generation, translation, youtube query, etc.
+* [CommanderGPT](https://www.commandergpt.app/) but h2oGPT is open-source and private.  CommanderGPT focuses on MAC with a few tasks like image generation, translation, youtube query, etc.
 
-* [ThreeSigma](https://www.threesigma.ai/) but open-source and private.  Focuses on research tools, nice page linking.
+* [ThreeSigma](https://www.threesigma.ai/) but h2oGPT is open-source and private.  Focuses on research tools, nice page linking.
+
+* [LocalAI](https://github.com/go-skynet/LocalAI) but h2oGPT has document question/answer.  LocalAI has audio transcription, image generation, and a variety of models.
+
+* [LocalLLaMa](https://github.com/jlonge4/local_llama) but h2oGPT has UI and GPU support. LocalLLaMa is command-line focused.  Like privateGPT.
+
+* [ChartGPT](https://www.chartgpt.dev/) Focus on drawing charts.
