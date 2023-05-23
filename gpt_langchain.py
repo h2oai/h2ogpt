@@ -584,7 +584,9 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
                  ):
     globs_image_types = []
     globs_non_image_types = []
-    if url:
+    if path_or_paths is None:
+        return []
+    elif url:
         globs_non_image_types = [url]
     elif text:
         globs_non_image_types = [text]
