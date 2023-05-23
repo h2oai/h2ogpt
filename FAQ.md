@@ -300,7 +300,14 @@ the weights in this format.
 ```
 If you see this error, then you either have insufficient GPU memory or insufficient CPU memory.  E.g. for 6.9B model one needs minimum of 27GB free memory.
 
-### GPT4ALL for CPU Mode
+### CPU
+
+* Install LangChain dependencies (currently required):
+```bash
+pip install pip --upgrade -y
+make
+pip install -r requirements_optional_langchain.txt -c req_constraints.txt
+```
 
 * Install LLaMa/GPT4All dependencies
 ```bash
@@ -318,9 +325,13 @@ If you prefer a different [GPT4All-J compatible model](https://gpt4all.io/index.
 # model path and model_kwargs
 model_path_gptj=ggml-gpt4all-j-v1.3-groovy.bin
 ```
-Run h2oGPT like:
-```bash
-python generate.py --base_model=gptj
-```
 See [llama.cpp](https://github.com/ggerganov/llama.cpp) for instructions on getting model for `--base_model=llama` case.
 
+For LangChain support using documents in `user_path` folder, run h2oGPT like:
+```bash
+python generate.py --base_model=gptj --score_model=None --langchain_mode='UserData' --user_path=user_path
+```
+For no langchain support, run as:
+```bash
+python generate.py --base_model=gptj --score_model=None
+```
