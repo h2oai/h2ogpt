@@ -24,7 +24,7 @@ For questions, discussing, or just hanging out, come and join our <a href="https
 
 GPU mode requires CUDA support via torch and transformers.  A 6.9B (or 12GB) model in 8-bit uses 7GB (or 13GB) of GPU memory.
 
-[CPU](FAQ.md#CPU) mode uses GPT4ALL and LLaMa.cpp, e.g. gpt4all-j, requiring about 14GB of ram in typical use.
+[CPU](FAQ.md#CPU) mode uses GPT4ALL and LLaMa.cpp, e.g. gpt4all-j, requiring about 14GB of system RAM in typical use.
 
 GPU and CPU mode tested on variety of NVIDIA GPUs in Ubuntu 18-22, but any modern Linux variant should work.  MACOS support tested on Macbook Pro running Monterey v12.3.1 using CPU mode.
 
