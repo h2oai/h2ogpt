@@ -1514,7 +1514,7 @@ def get_source_files(db, exceptions=None):
           </body>
         </html>
         """.format(source_files_added)
-    else:
+    elif exceptions_html:
         source_files_added = """\
         <html>
           <body>
@@ -1527,5 +1527,7 @@ def get_source_files(db, exceptions=None):
           </body>
         </html>
         """.format(exceptions_html)
+    else:
+        source_files_added = ""
 
     return source_files_added

@@ -188,7 +188,15 @@ tokenizer = AutoTokenizer.from_pretrained(reward_model)
 tokenizer.save_pretrained(reward_model)
 ```
 
-3) Gradio uses Cloudfare scripts, download from Cloudfare:
+3) For LangChain support, download embedding model:
+```python
+hf_embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
+model_kwargs = 'cpu'
+from langchain.embeddings import HuggingFaceEmbeddings
+embedding = HuggingFaceEmbeddings(model_name=hf_embedding_model, model_kwargs=model_kwargs)
+```
+
+4) Gradio uses Cloudfare scripts, download from Cloudfare:
 ```
 iframeResizer.contentWindow.min.js
 index-8bb1e421.js
@@ -199,14 +207,14 @@ site-packages/gradio/templates/cdn/assets
 site-packages/gradio/templates/frontend/assets
 ```
 
-4) For jupyterhub dashboard,  modify `index-8bb1e421.js` to remove or hardcode port number into urls where `/port/7860` is located.  One may have to modify:
+5) For jupyterhub dashboard,  modify `index-8bb1e421.js` to remove or hardcode port number into urls where `/port/7860` is located.  One may have to modify:
 ```
 templates/cdn/index.html
 templates/frontend/index.html
 templates/frontend/share.html
 ```
  
-5) Run generate with transformers in [Offline Mode](https://huggingface.co/docs/transformers/installation#offline-mode)
+6) Run generate with transformers in [Offline Mode](https://huggingface.co/docs/transformers/installation#offline-mode)
 
 ```bash
 HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python generate.py --base_model='h2oai/h2ogpt-oasst1-512-12b'
@@ -215,3 +223,127 @@ HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python generate.py --base_model='h2
 ### LangChain Usage:
 
 See [tests/test_langchain_simple.py](tests/test_langchain_simple.py)
+
+
+### MACOS
+
+* Install [Rust](https://www.geeksforgeeks.org/how-to-install-rust-in-macos/)
+```bash
+curl –proto ‘=https’ –tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+Enter new shell and test: `rustc --version`
+
+* Mac Running Intel
+When running a Mac with Intel hardware (not M1), you may run into _clang: error: the clang compiler does not support '-march=native'_ during pip install.
+If so set your archflags during pip install. eg: _ARCHFLAGS="-arch x86_64" pip3 install -r requirements.txt_
+
+### C++ Compiler
+If you encounter an error while building a wheel during the `pip install` process, you may need to install a C++ compiler on your computer.
+
+### For Windows 10/11
+To install a C++ compiler on Windows 10/11, follow these steps:
+
+1. Install Visual Studio 2022.
+2. Make sure the following components are selected:
+   * Universal Windows Platform development
+   * C++ CMake tools for Windows
+3. Download the MinGW installer from the [MinGW website](https://sourceforge.net/projects/mingw/).
+4. Run the installer and select the `gcc` component.
+
+###  ENV installation
+
+* Install, e.g. for MACOS: [Miniconda](https://docs.conda.io/en/latest/miniconda.html#macos-installers)
+
+* Enter new shell and should also see `(base)` in prompt
+
+* Create new env:
+```bash
+conda create -n h2ogpt -y
+conda activate h2ogpt
+conda install -y mamba -c conda-forge  # for speed
+mamba install python=3.10 -c conda-forge -y
+```
+Should see `(h2ogpt)` in shell prompt.
+
+* Test python:
+```bash
+python --version
+```
+should say 3.10.xx
+```bash
+python -c 'import os, sys ; print("hello world")'
+```
+should print `hello world`.
+
+* Clone and pip install as usual:
+```
+bash
+git clone https://github.com/h2oai/h2ogpt.git
+cd h2ogpt
+pip install -r requirements.txt
+```
+
+* For non-cuda support, edit requirements_optional_langchain.txt and switch to `faiss_cpu`.
+
+* Install langchain dependencies if want to use langchain:
+```bash
+pip install -r requirements_optional_langchain.txt
+```
+and fill `user_path` path with documents to be scanned recursively.
+
+* Run:
+```bash
+python generate.py --load_8bit=True --base_model=h2oai/h2ogpt-oig-oasst1-512-6.9b --langchain_mode=MyData --user_path=user_path --score_model=None
+```
+It will download the model, which takes about 15 minutes per 3 pytorch bin files if have 10MB/s download.
+One can choose any huggingface model, just pass the name after `--base_model=`, but a prompt_type is required if we don't already have support.
+E.g. for vicuna models, a typical prompt_type is used and we support that already automatically for specific models,
+but if you pass `--prompt_type=instruct_vicuna` with any other vicuna model, we'll use it assuming that is the correct prompt type.
+See models that are currently supported in this automatic way, and the same dictionary shows which prompt types are supported: [prompter](prompter.py).
+
+* Potential Errors:
+```
+ValueError: The current `device_map` had weights offloaded to the disk. Please provide an `offload_folder` for them. Alternatively, make sure you have `safetensors` installed if the model you are using offers
+the weights in this format.
+```
+If you see this error, then you either have insufficient GPU memory or insufficient CPU memory.  E.g. for 6.9B model one needs minimum of 27GB free memory.
+
+### CPU
+
+* Install LangChain dependencies (currently required):
+```bash
+pip install pip --upgrade -y
+make
+pip install -r requirements_optional_langchain.txt -c req_constraints.txt
+```
+
+* Install LLaMa/GPT4All dependencies
+```bash
+pip install pip --upgrade -y
+make
+pip install -r requirements_optional_gpt4all.txt -c req_constraints.txt
+```
+See [GPT4All](https://github.com/nomic-ai/gpt4all) for details on installation instructions if any issues encountered.
+
+* Download [ggml-gpt4all-j-v1.3-groovy.bin](https://gpt4all.io/models/ggml-gpt4all-j-v1.3-groovy.bin)
+If you prefer a different [GPT4All-J compatible model](https://gpt4all.io/index.html) (see Model Explorer), can use that instead. Download from the Model Explorer, and place into repo folder.
+
+* Fill `.env_gpt4all` with at least model path, if did not copy to repo folder, change name of model to the one you have chosen from Model Explorer if was not the default.
+```.env_gpt4all
+# model path and model_kwargs
+model_path_gptj=ggml-gpt4all-j-v1.3-groovy.bin
+```
+See [llama.cpp](https://github.com/ggerganov/llama.cpp) for instructions on getting model for `--base_model=llama` case.
+
+For LangChain support using documents in `user_path` folder, run h2oGPT like:
+```bash
+python generate.py --base_model=gptj --score_model=None --langchain_mode='UserData' --user_path=user_path
+```
+For no langchain support, run as:
+```bash
+python generate.py --base_model=gptj --score_model=None
+```
+
+### I get the error: `The model 'OptimizedModule' is not supported for . Supported models are ...`
+
+Ignore this warning.

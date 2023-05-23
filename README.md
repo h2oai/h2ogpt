@@ -14,9 +14,23 @@ Live hosted instances:
 
 For questions, discussing, or just hanging out, come and join our <a href="https://discord.gg/WKhYMWcVbq"><b>Discord</b></a>!
 
+### Supported OS and Hardware
+
+[![GitHub license](https://img.shields.io/github/license/NVIDIA/nvidia-docker?style=flat-square)](https://raw.githubusercontent.com/h2oai/h2ogpt/main/LICENSE)
+![Linux](https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black)
+![macOS](https://img.shields.io/badge/mac%20os-000000?style=for-the-badge&logo=macos&logoColor=F0F0F0)
+![Windows](https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white)
+![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)
+
+GPU mode requires CUDA support via torch and transformers.  A 6.9B (or 12GB) model in 8-bit uses 7GB (or 13GB) of GPU memory.
+
+[CPU](FAQ.md#CPU) mode uses GPT4ALL and LLaMa.cpp, e.g. gpt4all-j, requiring about 14GB of ram in typical use.
+
+GPU and CPU mode tested on variety of NVIDIA GPUs in Ubuntu 18-22, but any modern Linux variant should work.  MACOS support tested on Macbook Pro running Monterey v12.3.1 using CPU mode.
+
 ### Apache V2 ChatBot with LangChain Integration
 
-- [**LangChain**](README_LangChain.md) equipped Chatbot integration and streaming
+- [**LangChain**](README_LangChain.md) equipped Chatbot integration and streaming responses
 - **Persistent** database using Chroma or in-memory with FAISS
 - **Original** content url links and scores to rank content against query
 - **Private** offline database of any documents ([PDFs and more](README_LangChain.md#supported-datatypes))
@@ -24,6 +38,8 @@ For questions, discussing, or just hanging out, come and join our <a href="https
 - **Control** data sources and the context provided to LLM
 - **Efficient** use of context using instruct-tuned LLMs (no need for many examples)
 - **API** for client-server control
+- **CPU and GPU** support from variety of HF models, and CPU support using GPT4ALL and LLaMa cpp
+- **Linux, [MAC](FAQ.md#macos), and Windows** support
 
 <img src="langchain.png" alt="VectorDB" title="VectorDB via LangChain">
 
@@ -62,7 +78,7 @@ cd h2ogpt
 pip install -r requirements.txt
 python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6.9b
 ```
-Then point browser at http://0.0.0.0:7860 or the public live URL printed by the server (disable shared link with `--share=False`).
+Then point browser at http://0.0.0.0:7860 (linux) or http://localhost:7860 (windows/mac) or the public live URL printed by the server (disable shared link with `--share=False`).
 
 For quickly using a private document collection for Q/A, place documents (PDFs, text, etc.) into a folder called `user_path` and run
 ```bash
