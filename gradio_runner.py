@@ -1297,7 +1297,10 @@ body.dark{#warning {background-color: #555555};}
 
     scheduler = BackgroundScheduler()
     scheduler.add_job(func=clear_torch_cache, trigger="interval", seconds=20)
-    if is_public:
+    if is_public and \
+            kwargs['base_model'] not in ['gptj', 'llama']:
+        # FIXME: disable for gptj, langchain or gpt4all modify print itself
+        # FIXME: and any multi-threaded/async print will enter model output!
         scheduler.add_job(func=ping, trigger="interval", seconds=60)
     scheduler.start()
 
