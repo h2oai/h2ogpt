@@ -418,7 +418,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
         doc1 = chunk_sources(docs1, chunk_size=chunk_size)
     elif file.endswith('.txt'):
         # use UnstructuredFileLoader ?
-        doc1 = TextLoader(file, encoding="utf8").load()
+        doc1 = TextLoader(file, encoding="utf8", autodetect_encoding=True).load()
         add_meta(doc1, file)
     elif file.endswith('.rtf'):
         docs1 = UnstructuredRTFLoader(file).load()

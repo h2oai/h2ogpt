@@ -76,14 +76,14 @@ Also check out [H2O LLM Studio](https://github.com/h2oai/h2o-llmstudio) for our 
 git clone https://github.com/h2oai/h2ogpt.git
 cd h2ogpt
 pip install -r requirements.txt
-python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6.9b
+python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6.9b --load_8bit=True
 ```
 Then point browser at http://0.0.0.0:7860 (linux) or http://localhost:7860 (windows/mac) or the public live URL printed by the server (disable shared link with `--share=False`).
 
 For quickly using a private document collection for Q/A, place documents (PDFs, text, etc.) into a folder called `user_path` and run
 ```bash
 pip install -r requirements_optional_langchain.txt
-python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6.9b --langchain_mode=UserData --user_path=user_path
+python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6.9b  --load_8bit=True --langchain_mode=UserData --user_path=user_path
 ```
 Any other instruct-tuned base models can be used, including non-h2oGPT ones.  For more ways to ingest on CLI and contro see [LangChain Readme](README_LangChain.md)
 
@@ -97,11 +97,11 @@ Depending on available GPU memory, you can load differently sized models. For mu
 
 For GPUs with at least 24GB of memory, we recommend:
 ```bash
-python generate.py --base_model=h2oai/h2ogpt-oasst1-512-12b
+python generate.py --base_model=h2oai/h2ogpt-oasst1-512-12b --load_8bit=True
 ```
 For GPUs with at least 48GB of memory, we recommend:
 ```bash
-python generate.py --base_model=h2oai/h2ogpt-oasst1-512-20b
+python generate.py --base_model=h2oai/h2ogpt-oasst1-512-20b --load_8bit=True
 ```
 The number `512` in the model names indicates the cutoff lengths (in tokens) used for fine-tuning. Shorter values generally result in faster training and more focus on the last part of the provided input text (consisting of prompt and answer).
 

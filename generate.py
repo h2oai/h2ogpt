@@ -14,7 +14,7 @@ import filelock
 import psutil
 
 from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial, EThread, get_githash, \
-    import_matplotlib, get_device
+    import_matplotlib, get_device, makedirs
 
 import_matplotlib()
 from matplotlib import pyplot as plt
@@ -75,6 +75,7 @@ def main(
         resume_download: bool = True,
         use_auth_token: Union[str, bool] = False,
         trust_remote_code: Union[str, bool] = True,
+        offload_folder: str = "offline_folder",
 
         src_lang: str = "English",
         tgt_lang: str = "Russian",
@@ -162,6 +163,7 @@ def main(
     :param resume_download: whether to resume downloads from HF for models
     :param use_auth_token: whether to use HF auth token (requires CLI did huggingface-cli login before)
     :param trust_remote_code: whether to use trust any code needed for HF model
+    :param offload_folder: path for spilling model onto disk
     :param src_lang: source languages to include if doing translation (None = all)
     :param tgt_lang: target languages to include if doing translation (None = all)
     :param gradio: whether to enable gradio, or to enable benchmark mode
@@ -307,6 +309,9 @@ def main(
     # hard-coded defaults
     first_para = False
     text_limit = None
+
+    if offload_folder:
+        makedirs(offload_folder)
 
     placeholder_instruction, placeholder_input, \
         stream_output, show_examples, \
@@ -548,6 +553,7 @@ def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward
                        gpu_id=0,
                        use_auth_token=False,
                        trust_remote_code=True,
+                       offload_folder=None,
                        triton_attn=False,
                        long_sequence=True,
                        ):
@@ -561,6 +567,7 @@ def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward
     :param gpu_id:
     :param use_auth_token:
     :param trust_remote_code:
+    :param offload_folder:
     :param triton_attn:
     :param long_sequence:
     :return:
@@ -568,7 +575,8 @@ def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward
     with init_empty_weights():
         from transformers import AutoConfig
         config = AutoConfig.from_pretrained(base_model, use_auth_token=use_auth_token,
-                                            trust_remote_code=trust_remote_code)
+                                            trust_remote_code=trust_remote_code,
+                                            offload_folder=offload_folder)
         if triton_attn and 'mpt-' in base_model.lower():
             config.attn_config['attn_impl'] = 'triton'
         if long_sequence:
@@ -650,6 +658,7 @@ def get_model(
         resume_download: bool = True,
         use_auth_token: Union[str, bool] = False,
         trust_remote_code: bool = True,
+        offload_folder: str = None,
         compile: bool = True,
         **kwargs,
 ):
@@ -669,6 +678,7 @@ def get_model(
     :param resume_download: resume downloads from HF
     :param use_auth_token: assumes user did on CLI `huggingface-cli login` to access private repo
     :param trust_remote_code: trust code needed by model
+    :param offload_folder: offload folder
     :param compile: whether to compile torch model
     :param kwargs:
     :return:
@@ -693,7 +703,8 @@ def get_model(
 
     from transformers import AutoConfig
     config = AutoConfig.from_pretrained(base_model, use_auth_token=use_auth_token,
-                                        trust_remote_code=trust_remote_code)
+                                        trust_remote_code=trust_remote_code,
+                                        offload_folder=offload_folder)
     llama_type_from_config = 'llama' in str(config).lower()
     llama_type_from_name = "llama" in base_model.lower()
     llama_type = llama_type_from_config or llama_type_from_name
@@ -711,6 +722,7 @@ def get_model(
                                                      resume_download=resume_download,
                                                      use_auth_token=use_auth_token,
                                                      trust_remote_code=trust_remote_code,
+                                                     offload_folder=offload_folder,
                                                      )
     else:
         tokenizer = tokenizer_loader
@@ -728,6 +740,7 @@ def get_model(
                             resume_download=resume_download,
                             use_auth_token=use_auth_token,
                             trust_remote_code=trust_remote_code,
+                            offload_folder=offload_folder,
                             )
         if 'mbart-' not in base_model.lower() and 'mpt-' not in base_model.lower():
             model_kwargs.update(dict(load_in_8bit=load_8bit,
@@ -748,6 +761,7 @@ def get_model(
                                                gpu_id=gpu_id,
                                                use_auth_token=use_auth_token,
                                                trust_remote_code=trust_remote_code,
+                                               offload_folder=offload_folder,
                                                )
                 else:
                     if load_half and not load_8bit:
@@ -771,6 +785,7 @@ def get_model(
                 resume_download=resume_download,
                 use_auth_token=use_auth_token,
                 trust_remote_code=trust_remote_code,
+                offload_folder=offload_folder,
                 device_map={"": 0} if device == 'cuda' else {"": 'cpu'},  # seems to be required
             )
         else:
@@ -787,6 +802,7 @@ def get_model(
                     resume_download=resume_download,
                     use_auth_token=use_auth_token,
                     trust_remote_code=trust_remote_code,
+                    offload_folder=offload_folder,
                     device_map="auto",
                 )
                 if load_half:
