@@ -1,3 +1,3 @@
-pygpt4all==1.1.0
+gpt4all==0.2.3
 llama-cpp-python==0.1.54
 python-dotenv==1.0.0

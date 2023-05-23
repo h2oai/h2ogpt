@@ -33,12 +33,12 @@ def get_model_tokenizer_gpt4all(base_model, **kwargs):
             if 'model_path_llama' not in model_kwargs:
                 raise ValueError("No model_path_llama in %s" % env_gpt4all_file)
             model_path = model_kwargs.pop('model_path_llama')
-            from pygpt4all import GPT4All as GPT4AllModel
+            from gpt4all import GPT4All as GPT4AllModel
         elif base_model == "gptj":
             if 'model_path_gptj' not in model_kwargs:
                 raise ValueError("No model_path_gptj in %s" % env_gpt4all_file)
             model_path = model_kwargs.pop('model_path_gptj')
-            from pygpt4all import GPT4All_J as GPT4AllModel
+            from gpt4all import GPT4All as GPT4AllModel
         else:
             raise ValueError("No such base_model %s" % base_model)
         func_names = list(inspect.signature(GPT4AllModel).parameters)
@@ -72,29 +72,26 @@ class H2OGPT4All(gpt4all.GPT4All):
         """Validate that the python package exists in the environment."""
         try:
             if isinstance(values["model"], str):
-                backend = values["backend"]
-                if backend == "llama":
-                    from pygpt4all import GPT4All as GPT4AllModel
-                elif backend == "gptj":
-                    from pygpt4all import GPT4All_J as GPT4AllModel
-                else:
-                    raise ValueError(f"Incorrect gpt4all backend {cls.backend}")
+                from gpt4all import GPT4All as GPT4AllModel
 
-                model_kwargs = {
-                    k: v
-                    for k, v in values.items()
-                    if k in H2OGPT4All._model_param_names(backend)
-                }
+                full_path = values["model"]
+                model_path, delimiter, model_name = full_path.rpartition("/")
+                model_path += delimiter
+
                 values["client"] = GPT4AllModel(
-                    model_path=values["model"],
-                    **model_kwargs,
+                    model_name=model_name,
+                    model_path=model_path or None,
+                    model_type=values["backend"],
+                    allow_download=False,
                 )
             else:
                 values["client"] = values["model"]
+            values["backend"] = values["client"].model.model_type
+
         except ImportError:
             raise ValueError(
-                "Could not import pygpt4all python package. "
-                "Please install it with `pip install pygpt4all`."
+                "Could not import gpt4all python package. "
+                "Please install it with `pip install gpt4all`."
             )
         return values
 

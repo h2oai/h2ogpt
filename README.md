@@ -93,7 +93,7 @@ Any other instruct-tuned base models can be used, including non-h2oGPT ones.  Fo
 
 Follow instructions here: [CPU](FAQ.md#CPU).  Then for LangChain support, put documents in `user_path` folder, and run:
 ```bash
-python generate.py --base_model=gptj --score_model=None --langchain_mode='UserData' --user_path=user_path
+python generate.py --base_model=gptj --score_model=None --langchain_mode=UserData --user_path=user_path
 ```
 
 #### Larger models require more GPU memory

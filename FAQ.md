@@ -328,10 +328,9 @@ pip install -r requirements_optional_gpt4all.txt -c req_constraints.txt
 ```
 See [GPT4All](https://github.com/nomic-ai/gpt4all) for details on installation instructions if any issues encountered.
 
-* Download [ggml-gpt4all-j-v1.3-groovy.bin](https://gpt4all.io/models/ggml-gpt4all-j-v1.3-groovy.bin)
-If you prefer a different [GPT4All-J compatible model](https://gpt4all.io/index.html) (see Model Explorer), can use that instead. Download from the Model Explorer, and place into repo folder.
+* Choose model from GPT4All Model explorer [GPT4All-J compatible model](https://gpt4all.io/index.html). Do not need to download as with pygpt4all, new gpt4all package will download at runtime and put it into `.cache` like huggingface would.
 
-* Fill `.env_gpt4all` with at least model path, if did not copy to repo folder, change name of model to the one you have chosen from Model Explorer if was not the default.
+* Fill `.env_gpt4all` with at model name, if did not copy to repo folder, change name of model to the one you have chosen from Model Explorer if was not the default.
 ```.env_gpt4all
 # model path and model_kwargs
 model_path_gptj=ggml-gpt4all-j-v1.3-groovy.bin
