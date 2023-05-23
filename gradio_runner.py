@@ -13,10 +13,9 @@ import tabulate
 
 from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, get_dark_js
 from prompter import Prompter, \
-    prompt_type_to_model_name, prompt_types_strings, inv_prompt_type_to_model_lower
+    prompt_type_to_model_name, prompt_types_strings, inv_prompt_type_to_model_lower, generate_prompt
 from utils import get_githash, flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping, get_short_name, get_url, makedirs
-from finetune import generate_prompt
 from generate import get_model, languages_covered, evaluate, eval_func_param_names, score_qa, langchain_modes, \
     inputs_kwargs_list, get_cutoffs, scratch_base_dir
 

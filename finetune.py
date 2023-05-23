@@ -1,12 +1,11 @@
 import os
 import sys
-import time
 from functools import partial
 from typing import List, Union
-from enum import Enum
 import fire
 import numpy as np
 
+from loaders import get_loaders, get_tokenizer
 from prompter import generate_prompt, prompt_types
 from utils import get_githash, copy_code
 import torch
@@ -582,58 +581,6 @@ def train(
     log("\n If there's a warning about missing keys above, please disregard :)")
 
 
-def get_loaders(llama_type, model_name, reward_type):
-    # NOTE: Some models need specific new prompt_type
-    # E.g. t5_xxl_true_nli_mixture has input format: "premise: PREMISE_TEXT hypothesis: HYPOTHESIS_TEXT".)
-    if llama_type:
-        from transformers import LlamaForCausalLM, LlamaTokenizer
-        model_loader = LlamaForCausalLM
-        tokenizer_loader = LlamaTokenizer
-    elif 'distilgpt2' in model_name.lower():
-        from transformers import AutoModelForCausalLM, AutoTokenizer
-        return AutoModelForCausalLM, AutoTokenizer
-    elif 'gpt2' in model_name.lower():
-        from transformers import GPT2LMHeadModel, GPT2Tokenizer
-        return GPT2LMHeadModel, GPT2Tokenizer
-    elif 'mbart-' in model_name.lower():
-        from transformers import MBartForConditionalGeneration, MBart50TokenizerFast
-        return MBartForConditionalGeneration, MBart50TokenizerFast
-    elif 't5' == model_name.lower() or \
-         't5-' in model_name.lower() or \
-         'flan-' in model_name.lower():
-        from transformers import AutoTokenizer, T5ForConditionalGeneration
-        return T5ForConditionalGeneration, AutoTokenizer
-    elif 'bigbird' in model_name:
-        from transformers import BigBirdPegasusForConditionalGeneration, AutoTokenizer
-        return BigBirdPegasusForConditionalGeneration, AutoTokenizer
-    elif 'bart-large-cnn-samsum' in model_name or 'flan-t5-base-samsum' in model_name:
-        from transformers import pipeline
-        return pipeline, "summarization"
-    elif reward_type or 'OpenAssistant/reward-model'.lower() in model_name.lower():
-        from transformers import AutoModelForSequenceClassification, AutoTokenizer
-        return AutoModelForSequenceClassification, AutoTokenizer
-    else:
-        from transformers import AutoTokenizer, AutoModelForCausalLM
-        model_loader = AutoModelForCausalLM
-        tokenizer_loader = AutoTokenizer
-    return model_loader, tokenizer_loader
-
-
-def get_tokenizer(tokenizer_loader, tokenizer_base_model, local_files_only, resume_download, use_auth_token):
-    tokenizer = tokenizer_loader.from_pretrained(tokenizer_base_model,
-                                                 local_files_only=local_files_only,
-                                                 resume_download=resume_download,
-                                                 use_auth_token=use_auth_token)
-
-    tokenizer.pad_token_id = 0  # different from the eos token
-    # when generating, we will use the logits of right-most token to predict the next token
-    # so the padding should be on the left,
-    # e.g. see: https://huggingface.co/transformers/v4.11.3/model_doc/t5.html#inference
-    tokenizer.padding_side = "left"  # Allow batched inference
-
-    return tokenizer
-
-
 def tokenize(prompt, tokenizer, cutoff_len, add_eos_token=False):
     # there's probably a way to do this with the tokenizer settings
     # but again, gotta move fast
@@ -689,24 +636,6 @@ def generate_and_tokenize_prompt(data_point, prompt_type=None, train_on_inputs=F
                                                                 user_prompt_len:
                                                                 ]  # could be sped up, probably
     return tokenized_full_prompt
-
-
-example_data_point0 = dict(instruction="Summarize",
-                           input="Ducks eat seeds by the lake, then swim in the lake where fish eat small animals.",
-                           output="Ducks eat and swim at the lake.")
-
-example_data_point1 = dict(instruction="Who is smarter, Einstein or Newton?",
-                           output="Einstein.")
-
-example_data_point2 = dict(input="Who is smarter, Einstein or Newton?",
-                           output="Einstein.")
-
-example_data_points = [example_data_point0, example_data_point1, example_data_point2]
-
-
-def test_train_prompt(prompt_type='instruct', data_point=0):
-    example_data_point = example_data_points[data_point]
-    return generate_prompt(example_data_point, prompt_type, False, False)
 
 
 def test_debug():

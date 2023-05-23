@@ -5,7 +5,7 @@ import shutil
 import torch
 from peft import PeftModel
 from transformers import PreTrainedModel
-from finetune import get_loaders
+from loaders import get_loaders
 
 BASE_MODEL = 'h2oai/h2ogpt-oasst1-512-12b'
 LORA_WEIGHTS = 'h2ogpt-oasst1-512-12b.h2oaih2ogpt-oig-oasst1-instruct-cleaned-v3.1_epochs.805b8e8eff369207340a5a6f90f3c833f9731254.2'
