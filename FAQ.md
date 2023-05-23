@@ -343,3 +343,7 @@ For no langchain support, run as:
 ```bash
 python generate.py --base_model=gptj --score_model=None
 ```
+
+### I get the error: `The model 'OptimizedModule' is not supported for . Supported models are ...`
+
+Ignore this warning.
