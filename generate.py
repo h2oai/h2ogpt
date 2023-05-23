@@ -13,6 +13,7 @@ from datetime import datetime
 import filelock
 import psutil
 
+from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs
 
@@ -33,8 +34,7 @@ from peft import PeftModel
 from transformers import GenerationConfig, AutoModel, TextIteratorStreamer
 from accelerate import init_empty_weights, infer_auto_device_map
 
-from prompter import Prompter, inv_prompt_type_to_model_lower, generate_prompt
-from finetune import get_loaders, example_data_points
+from prompter import Prompter, inv_prompt_type_to_model_lower
 from stopping import get_stopping
 
 eval_extra_columns = ['prompt', 'response', 'score']
@@ -1484,12 +1484,6 @@ def get_context(chat_context, prompt_type):
     else:
         context0 = ''
     return context0
-
-
-def test_test_prompt(prompt_type='instruct', data_point=0):
-    example_data_point = example_data_points[data_point]
-    example_data_point.pop('output', None)
-    return generate_prompt(example_data_point, prompt_type, False, False)
 
 
 def score_qa(smodel, stokenizer, max_length_tokenize, question, answer, cutoff_len):

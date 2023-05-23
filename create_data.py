@@ -1576,7 +1576,8 @@ def test_check_stats_data():
     plt.close()
 
     # get tokenize stats for random sample of 1000 rows
-    from finetune import get_loaders, get_tokenizer, generate_and_tokenize_prompt
+    from finetune import generate_and_tokenize_prompt
+    from loaders import get_loaders, get_tokenizer
     from functools import partial
 
     llama_type = False
