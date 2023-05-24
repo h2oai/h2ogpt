@@ -846,7 +846,7 @@ def _run_qa_db(query=None,
                top_k=40,
                top_p=0.7,
                langchain_mode=None,
-               document_choice='All',
+               document_choice=['All'],
                n_jobs=-1):
     """
 
@@ -918,6 +918,9 @@ def _run_qa_db(query=None,
     k_db = 1000 if db_type == 'chroma' else k  # k=100 works ok too for
 
     if db and use_context:
+        if isinstance(document_choice, str):
+            # support string as well
+            document_choice = [document_choice]
         if not isinstance(db, Chroma) or len(document_choice) <= 1 and document_choice[0].lower() == 'all':
             # treat empty list as All for now, not 'None'
             filter_kwargs = {}

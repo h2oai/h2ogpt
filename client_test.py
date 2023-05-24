@@ -80,7 +80,7 @@ def get_args(prompt, prompt_type, chat=False, stream_output=False, max_new_token
                          instruction_nochat=prompt if not chat else '',
                          iinput_nochat='',  # only for chat=False
                          langchain_mode='Disabled',
-                         document_choice='All',
+                         document_choice=['All'],
                          )
     if chat:
         # add chatbot output on end.  Assumes serialize=False
