@@ -358,10 +358,6 @@ body.dark{#warning {background-color: #555555};}
                                                           visible=allow_upload_to_user_data)
                             github_my_btn = gr.Button(value="Add Github to Scratch MyData DB",
                                                       visible=allow_upload_to_my_data)
-                    sources_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and enable_sources_list).style(
-                        equal_height=False)
-                    with sources_row:
-                        sources_text = gr.HTML(label='Sources Added', interactive=False)
                     sources_row2 = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and enable_sources_list).style(
                         equal_height=False)
                     with sources_row2:
@@ -369,6 +365,10 @@ body.dark{#warning {background-color: #555555};}
                             get_sources_btn = gr.Button(value="Get Collection Sources [for Download or Subset Doc(s)]")
                             show_sources_btn = gr.Button(value="Show Collection Sources List with HTML Links")
                         file_source = gr.File(interactive=False, label="Download File with list of Sources")
+                    sources_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and enable_sources_list).style(
+                        equal_height=False)
+                    with sources_row:
+                        sources_text = gr.HTML(label='Sources Added', interactive=False)
 
                 with gr.TabItem("Expert"):
                     with gr.Row():
