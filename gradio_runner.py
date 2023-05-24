@@ -221,7 +221,7 @@ body.dark{#warning {background-color: #555555};}
                                 submit = gr.Button(value='Submit').style(full_width=False, size='sm')
                                 stop_btn = gr.Button(value="Stop").style(full_width=False, size='sm')
                         with gr.Row():
-                            clear = gr.Button("Save and Start New Chat")
+                            clear = gr.Button("Save Chat / New Chat")
                             flag_btn = gr.Button("Flag")
                             if not kwargs['auto_score']:  # FIXME: For checkbox model2
                                 with gr.Column(visible=kwargs['score_model']):
