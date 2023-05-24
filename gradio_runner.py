@@ -333,7 +333,10 @@ body.dark{#warning {background-color: #555555};}
                                 add_to_shared_db_btn = gr.Button("Add File(s) to UserData",
                                                                  visible=allow_upload_to_user_data, elem_id='small_btn')
                                 add_to_my_db_btn = gr.Button("Add File(s) to Scratch MyData",
-                                                             visible=allow_upload_to_my_data, elem_id='small_btn')
+                                                             visible=allow_upload_to_my_data,
+                                                             elem_id='small_btn' if allow_upload_to_user_data else None,
+                                                             ).style(
+                                    size='sm' if not allow_upload_to_user_data else None)
                         with gr.Column(
                                 visible=kwargs['langchain_mode'] != 'Disabled' and allow_upload and enable_url_upload):
                             url_label = 'URL (http/https) or ArXiv:' if have_arxiv else 'URL (http/https)'
@@ -342,15 +345,21 @@ body.dark{#warning {background-color: #555555};}
                                 url_user_btn = gr.Button(value='Add URL content to Shared UserData',
                                                          visible=allow_upload_to_user_data, elem_id='small_btn')
                                 url_my_btn = gr.Button(value='Add URL content to Scratch MyData',
-                                                       visible=allow_upload_to_my_data, elem_id='small_btn')
+                                                       visible=allow_upload_to_my_data,
+                                                       elem_id='small_btn' if allow_upload_to_user_data else None,
+                                                       ).style(size='sm' if not allow_upload_to_user_data else None)
                         with gr.Column(
                                 visible=kwargs['langchain_mode'] != 'Disabled' and allow_upload and enable_text_upload):
                             user_text_text = gr.Textbox(label='Paste Text [Shift-Enter more lines]', interactive=True)
                             with gr.Row():
                                 user_text_user_btn = gr.Button(value='Add Text to Shared UserData',
-                                                               visible=allow_upload_to_user_data, elem_id='small_btn')
+                                                               visible=allow_upload_to_user_data,
+                                                               elem_id='small_btn')
                                 user_text_my_btn = gr.Button(value='Add Text to Scratch MyData',
-                                                             visible=allow_upload_to_my_data, elem_id='small_btn')
+                                                             visible=allow_upload_to_my_data,
+                                                             elem_id='small_btn' if allow_upload_to_user_data else None,
+                                                             ).style(
+                                    size='sm' if not allow_upload_to_user_data else None)
                         with gr.Column(visible=False):
                             # WIP:
                             with gr.Row(visible=False).style(equal_height=False):
@@ -365,7 +374,8 @@ body.dark{#warning {background-color: #555555};}
                         equal_height=False)
                     with sources_row3:
                         with gr.Column(scale=1):
-                            file_source = gr.File(interactive=False, label="Download File with list of Sources")
+                            file_source = gr.File(interactive=False,
+                                                  label="Download File with Sources [click get to make file]")
                         with gr.Column(scale=2):
                             pass
                     sources_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and enable_sources_list).style(
