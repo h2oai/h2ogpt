@@ -221,7 +221,7 @@ body.dark{#warning {background-color: #555555};}
                                 submit = gr.Button(value='Submit').style(full_width=False, size='sm')
                                 stop_btn = gr.Button(value="Stop").style(full_width=False, size='sm')
                         with gr.Row():
-                            clear = gr.Button("Save, New Conversation")
+                            clear = gr.Button("Save and Start New Chat")
                             flag_btn = gr.Button("Flag")
                             if not kwargs['auto_score']:  # FIXME: For checkbox model2
                                 with gr.Column(visible=kwargs['score_model']):
@@ -252,19 +252,16 @@ body.dark{#warning {background-color: #555555};}
                     radio_chats = gr.Radio(value=None, label="Saved Chats", visible=True, interactive=True,
                                            type='value')
                     with gr.Row():
-                        remove_chat_btn = gr.Button(value="Remove Selected Chat", visible=True)
                         clear_chat_btn = gr.Button(value="Clear Chat", visible=True)
-                    chats_row = gr.Row(visible=True).style(equal_height=False)
-                    with chats_row:
-                        export_chats_btn = gr.Button(value="Export Chats")
-                        chats_file = gr.File(interactive=False, label="Download File")
-                    chats_row2 = gr.Row(visible=True).style(equal_height=False)
-                    with chats_row2:
+                        export_chats_btn = gr.Button(value="Export Chats to Download")
+                        remove_chat_btn = gr.Button(value="Remove Selected Chat", visible=True)
+                        add_to_chats_btn = gr.Button("Import Chats from Upload")
+                    with gr.Row():
+                        chats_file = gr.File(interactive=False, label="Download Exported Chats")
                         chatsup_output = gr.File(label="Upload Chat File(s)",
                                                  file_types=['.json'],
                                                  file_count='multiple',
                                                  elem_id="warning", elem_classes="feedback")
-                        add_to_chats_btn = gr.Button("Add File(s) to Chats")
                 with gr.TabItem("Data Source"):
                     langchain_readme = get_url('https://github.com/h2oai/h2ogpt/blob/main/README_LangChain.md',
                                                from_str=True)
@@ -295,7 +292,8 @@ body.dark{#warning {background-color: #555555};}
                             value=kwargs['langchain_mode'],
                             label="Data Collection Source",
                             visible=kwargs['langchain_mode'] != 'Disabled')
-                        document_choice = gr.Dropdown(docs_state.value, label="Choose Subset of Doc(s) in Collection [click get sources to update]",
+                        document_choice = gr.Dropdown(docs_state.value,
+                                                      label="Choose Subset of Doc(s) in Collection [click get sources to update]",
                                                       value=docs_state.value[0],
                                                       interactive=True,
                                                       multiselect=True,
