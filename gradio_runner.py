@@ -848,13 +848,19 @@ body.dark{#warning {background-color: #555555};}
                     args_list[eval_func_param_names.index('do_sample')] = True
             if not history:
                 print("No history", flush=True)
-                history = [['', None]]
+                history = []
                 yield history, ''
                 return
             # ensure output will be unique to models
             _, _, _, max_prompt_length = get_cutoffs(is_low_mem, for_context=True)
             history = copy.deepcopy(history)
             instruction1 = history[-1][0]
+            if not instruction1:
+                # reject empty query, can sometimes go nuts
+                history = []
+                yield history, ''
+                return
+
             context1 = ''
             if max_prompt_length is not None and langchain_mode1 not in ['LLM']:
                 prompt_type1 = args_list[eval_func_param_names.index('prompt_type')]
@@ -889,7 +895,7 @@ body.dark{#warning {background-color: #555555};}
             args_list[0] = instruction1  # override original instruction with history from user
             args_list[2] = context1
             if model_state1[0] is None or model_state1[0] == no_model_str:
-                history = [['', None]]
+                history = []
                 yield history, ''
                 return
             fun1 = partial(evaluate,
