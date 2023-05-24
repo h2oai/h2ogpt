@@ -167,6 +167,7 @@ body.dark{#warning {background-color: #555555};}
         lora_options_state = gr.State([lora_options])
         my_db_state = gr.State([None, None])
         chat_state = gr.State({})
+        docs_state = gr.State(['All'])
         gr.Markdown(f"""
             {get_h2o_title(title) if kwargs['h2ocolors'] else get_simple_title(title)}
 
@@ -292,8 +293,13 @@ body.dark{#warning {background-color: #555555};}
                         langchain_mode = gr.Radio(
                             [x for x in langchain_modes if x in allowed_modes and x not in no_show_modes],
                             value=kwargs['langchain_mode'],
-                            label="Data Source",
+                            label="Data Collection Source",
                             visible=kwargs['langchain_mode'] != 'Disabled')
+                        document_choice = gr.Dropdown(docs_state.value, label="Choose Subset of Doc(s) in Collection",
+                                                      value=docs_state.value[0],
+                                                      interactive=True,
+                                                      multiselect=True,
+                                                      )
 
                         def upload_file(files, x):
                             file_paths = [file.name for file in files]
@@ -361,7 +367,9 @@ body.dark{#warning {background-color: #555555};}
                     sources_row2 = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and enable_sources_list).style(
                         equal_height=False)
                     with sources_row2:
-                        get_sources_btn = gr.Button(value="Get Sources List for Selected DB")
+                        with gr.Column():
+                            get_sources_btn = gr.Button(value="Get Collection Sources [for Download or Subset Doc(s)]")
+                            show_sources_btn = gr.Button(value="Show Collection Sources List with HTML Links")
                         file_source = gr.File(interactive=False, label="Download File with list of Sources")
 
                 with gr.TabItem("Expert"):
@@ -623,8 +631,23 @@ body.dark{#warning {background-color: #555555};}
             .then(clear_textbox, outputs=user_text_text, queue=queue)
 
         get_sources1 = functools.partial(get_sources, dbs=dbs)
-        get_sources_btn.click(get_sources1, inputs=[my_db_state, langchain_mode], outputs=file_source, queue=queue,
-                              api_name='get_sources' if allow_api else None)
+
+        # if change collection source, must clear doc selections from it to avoid inconsistency
+        def clear_doc_choice():
+            return gr.Dropdown.update(choices=['All'], value=['All'])
+
+        langchain_mode.change(clear_doc_choice, inputs=None, outputs=document_choice)
+
+        def update_dropdown(x):
+            return gr.Dropdown.update(choices=x, value='All')
+
+        show_sources1 = functools.partial(get_source_files_given_langchain_mode, dbs=dbs)
+        get_sources_btn.click(get_sources1, inputs=[my_db_state, langchain_mode], outputs=[file_source, docs_state],
+                              queue=queue,
+                              api_name='get_sources' if allow_api else None) \
+            .then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
+        # show button, else only show when add.  Could add to above get_sources for download/dropdown, but bit much maybe
+        show_sources_btn.click(fn=show_sources1, inputs=[my_db_state, langchain_mode], outputs=sources_text)
 
         def check_admin_pass(x):
             return gr.update(visible=x == admin_pass)
@@ -1350,22 +1373,29 @@ def get_inputs_list(inputs_dict, model_lower):
 def get_sources(db1, langchain_mode, dbs=None):
     if langchain_mode in ['ChatLLM', 'LLM']:
         source_files_added = "NA"
+        source_list = []
     elif langchain_mode in ['wiki_full']:
         source_files_added = "Not showing wiki_full, takes about 20 seconds and makes 4MB file." \
                              "  Ask jon.mckinney@h2o.ai for file if required."
+        source_list = []
     elif langchain_mode == 'MyData' and len(db1) > 0 and db1[0] is not None:
         db_get = db1[0].get()
-        source_files_added = '\n'.join(sorted(set([x['source'] for x in db_get['metadatas']])))
+        source_list = sorted(set([x['source'] for x in db_get['metadatas']]))
+        source_files_added = '\n'.join(source_list)
     elif langchain_mode in dbs and dbs[langchain_mode] is not None:
         db1 = dbs[langchain_mode]
         db_get = db1.get()
-        source_files_added = '\n'.join(sorted(set([x['source'] for x in db_get['metadatas']])))
+        source_list = sorted(set([x['source'] for x in db_get['metadatas']]))
+        source_files_added = '\n'.join(source_list)
     else:
+        source_list = []
         source_files_added = "None"
     sources_file = 'sources_%s_%s' % (langchain_mode, str(uuid.uuid4()))
     with open(sources_file, "wt") as f:
         f.write(source_files_added)
-    return sources_file
+    source_list = ['All'] + source_list
+    #return sources_file, gr.Dropdown.update(choices=source_list, value=None)
+    return sources_file, source_list
 
 
 def update_user_db(file, db1, x, y, *args, dbs=None, langchain_mode='UserData', **kwargs):
@@ -1463,6 +1493,17 @@ def _update_user_db(file, db1, x, y, dbs=None, db_type=None, langchain_mode='Use
             # db in this code path is updated in place
             source_files_added = get_source_files(dbs[langchain_mode], exceptions=exceptions)
             return x, y, source_files_added
+
+
+def get_source_files_given_langchain_mode(db1, langchain_mode='UserData', dbs=None):
+    with filelock.FileLock("db_%s.lock" % langchain_mode.replace(' ', '_')):
+        if langchain_mode == 'MyData' and len(db1) > 0 and db1[0] is not None:
+            db = db1[0]
+        elif langchain_mode in dbs and dbs[langchain_mode] is not None:
+            db = dbs[langchain_mode]
+        else:
+            db = None
+    return get_source_files(db, exceptions=None)
 
 
 def get_source_files(db, exceptions=None):

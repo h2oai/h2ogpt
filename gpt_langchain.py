@@ -846,6 +846,7 @@ def _run_qa_db(query=None,
                top_k=40,
                top_p=0.7,
                langchain_mode=None,
+               document_choice='All',
                n_jobs=-1):
     """
 
@@ -917,7 +918,20 @@ def _run_qa_db(query=None,
     k_db = 1000 if db_type == 'chroma' else k  # k=100 works ok too for
 
     if db and use_context:
-        docs_with_score = db.similarity_search_with_score(query, k=k_db)[:k]
+        if not isinstance(db, Chroma) or len(document_choice) <= 1 and document_choice[0].lower() == 'all':
+            # treat empty list as All for now, not 'None'
+            filter_kwargs = {}
+        else:
+            if len(document_choice) >= 2:
+                or_filter = [{"source": {"$eq": x}} for x in document_choice]
+                filter_kwargs = dict(filter={"$or": or_filter})
+            else:
+                one_filter = [{"source": {"$eq": x}} for x in document_choice][0]
+                filter_kwargs = dict(filter=one_filter)
+            if len(document_choice) == 1 and document_choice[0].lower() == 'none':
+                k_db = 1
+                k = 0
+        docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:k]
         # cut off so no high distance docs/sources considered
         docs = [x[0] for x in docs_with_score if x[1] < cut_distanct]
         scores = [x[1] for x in docs_with_score if x[1] < cut_distanct]

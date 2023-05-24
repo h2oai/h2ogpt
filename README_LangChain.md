@@ -90,7 +90,7 @@ but pymupdf is AGPL, requiring any source code be made available, which is not a
 To use some example databases (will overwrite UserData make above unless change options) and run generate after, do:
 ```bash
 python make_db.py --download_some=True
-python generate.py --base_model=h2oai/h2ogpt-oasst1-512-12b --load_8bit=True --langchain_mode=UserData --visible_langchain_modes="['UserData', 'wiki', 'MyData', 'github h2oGPT', 'DriverlessAI docs']"
+python generate.py --base_model=h2oai/h2ogpt-oasst1-512-12b --load_8bit=True --langchain_mode=UserData --visible_langchain_modes="['UserData', 'wiki', 'MyData', 'github h2oGPT', 'DriverlessAI docs', 'Selected docs']"
 ```
 which downloads example databases.  This obtains files from some [pre-generated databases](https://huggingface.co/datasets/h2oai/db_dirs).  A large Wikipedia database is also available.
 
