@@ -148,7 +148,7 @@ def _zip_data(root_dirs=None, zip_file=None, base_dir='./'):
         host_name = os.getenv('HF_HOSTNAME', 'emptyhost')
         zip_file = "data_%s_%s.zip" % (datetime_str, host_name)
     assert root_dirs is not None
-    if not os.path.isdir(os.path.dirname(zip_file)):
+    if not os.path.isdir(os.path.dirname(zip_file)) and os.path.dirname(zip_file):
         os.makedirs(os.path.dirname(zip_file), exist_ok=True)
     with zipfile.ZipFile(zip_file, "w") as expt_zip:
         for root_dir in root_dirs:
