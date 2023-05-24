@@ -953,7 +953,7 @@ def _run_qa_db(query=None,
         reduced_query_words = reduced_query.split(' ')
         set_common = set(df['Lemma'].values.tolist())
         num_common = len([x.lower() in set_common for x in reduced_query_words])
-        frac_common = num_common / len(reduced_query)
+        frac_common = num_common / len(reduced_query) if reduced_query else 0
         # FIXME: report to user bad query that uses too many common words
         print("frac_common: %s" % frac_common, flush=True)
 
