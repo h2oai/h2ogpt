@@ -295,7 +295,7 @@ body.dark{#warning {background-color: #555555};}
                             value=kwargs['langchain_mode'],
                             label="Data Collection Source",
                             visible=kwargs['langchain_mode'] != 'Disabled')
-                        document_choice = gr.Dropdown(docs_state.value, label="Choose Subset of Doc(s) in Collection",
+                        document_choice = gr.Dropdown(docs_state.value, label="Choose Subset of Doc(s) in Collection [click get sources to update]",
                                                       value=docs_state.value[0],
                                                       interactive=True,
                                                       multiselect=True,
