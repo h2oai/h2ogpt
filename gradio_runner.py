@@ -844,6 +844,11 @@ body.dark{#warning {background-color: #555555};}
             my_db_state1 = args_list[-2]
             history = args_list[-1]
 
+            if model_state1[0] is None or model_state1[0] == no_model_str:
+                history = []
+                yield history, ''
+                return
+
             args_list = args_list[:-3]  # only keep rest needed for evaluate()
             langchain_mode1 = args_list[eval_func_param_names.index('langchain_mode')]
             if retry and history:
@@ -899,10 +904,6 @@ body.dark{#warning {background-color: #555555};}
                     context1 += chat_sep  # ensure if terminates abruptly, then human continues on next line
             args_list[0] = instruction1  # override original instruction with history from user
             args_list[2] = context1
-            if model_state1[0] is None or model_state1[0] == no_model_str:
-                history = []
-                yield history, ''
-                return
             fun1 = partial(evaluate,
                            model_state1,
                            my_db_state1,
