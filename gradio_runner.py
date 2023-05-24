@@ -258,10 +258,10 @@ body.dark{#warning {background-color: #555555};}
                     radio_chats = gr.Radio(value=None, label="Saved Chats", visible=True, interactive=True,
                                            type='value')
                     with gr.Row():
-                        clear_chat_btn = gr.Button(value="Clear Chat", visible=True)
-                        export_chats_btn = gr.Button(value="Export Chats to Download")
-                        remove_chat_btn = gr.Button(value="Remove Selected Chat", visible=True)
-                        add_to_chats_btn = gr.Button("Import Chats from Upload")
+                        clear_chat_btn = gr.Button(value="Clear Chat", visible=True).style(size='sm')
+                        export_chats_btn = gr.Button(value="Export Chats to Download").style(size='sm')
+                        remove_chat_btn = gr.Button(value="Remove Selected Chat", visible=True).style(size='sm')
+                        add_to_chats_btn = gr.Button("Import Chats from Upload").style(size='sm')
                     with gr.Row():
                         chats_file = gr.File(interactive=False, label="Download Exported Chats")
                         chatsup_output = gr.File(label="Upload Chat File(s)",
@@ -302,7 +302,7 @@ body.dark{#warning {background-color: #555555};}
                     with data_row2:
                         with gr.Column(scale=50):
                             document_choice = gr.Dropdown(docs_state.value,
-                                                          label="Choose Subset of Doc(s) in Collection [click get to update]",
+                                                          label="Choose Subset of Doc(s) in Collection [click get sources to update]",
                                                           value=docs_state.value[0],
                                                           interactive=True,
                                                           multiselect=True,
@@ -375,7 +375,7 @@ body.dark{#warning {background-color: #555555};}
                     with sources_row3:
                         with gr.Column(scale=1):
                             file_source = gr.File(interactive=False,
-                                                  label="Download File with Sources [click get to make file]")
+                                                  label="Download File w/Sources [click get sources to make file]")
                         with gr.Column(scale=2):
                             pass
                     sources_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and enable_sources_list).style(
