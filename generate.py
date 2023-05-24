@@ -40,7 +40,7 @@ from stopping import get_stopping
 eval_extra_columns = ['prompt', 'response', 'score']
 
 langchain_modes = ['Disabled', 'ChatLLM', 'LLM', 'All', 'wiki', 'wiki_full', 'UserData', 'MyData', 'github h2oGPT',
-                   'DriverlessAI docs', 'Selected docs']
+                   'DriverlessAI docs']
 
 scratch_base_dir = '/tmp/'
 
@@ -112,7 +112,7 @@ def main(
         eval_sharegpt_as_output: bool = False,
 
         langchain_mode: str = 'Disabled',
-        visible_langchain_modes: list = ['UserData', 'MyData', 'Selected docs'],
+        visible_langchain_modes: list = ['UserData', 'MyData'],
         user_path: str = None,
         load_db_if_exists: bool = True,
         keep_sources_in_context: bool = False,
