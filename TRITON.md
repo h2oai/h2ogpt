@@ -26,7 +26,7 @@ We convert the h2oGPT model from [HF to FT format](https://github.com/NVIDIA/Fas
 
 ####  Fetch model from Hugging Face
 ```bash
-export MODEL=h2ogpt-oig-oasst1-512-6.9b
+export MODEL=h2ogpt-oig-oasst1-512-6_9b
 if [ ! -d ${MODEL} ]; then
     git lfs clone https://huggingface.co/h2oai/${MODEL}
 fi

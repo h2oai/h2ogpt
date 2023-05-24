@@ -80,14 +80,14 @@ Also check out [H2O LLM Studio](https://github.com/h2oai/h2o-llmstudio) for our 
 git clone https://github.com/h2oai/h2ogpt.git
 cd h2ogpt
 pip install -r requirements.txt
-python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6.9b --load_8bit=True
+python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b --load_8bit=True
 ```
 Then point browser at http://0.0.0.0:7860 (linux) or http://localhost:7860 (windows/mac) or the public live URL printed by the server (disable shared link with `--share=False`).
 
 For quickly using a private document collection for Q/A, place documents (PDFs, text, etc.) into a folder called `user_path` and run
 ```bash
 pip install -r requirements_optional_langchain.txt
-python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6.9b  --load_8bit=True --langchain_mode=UserData --user_path=user_path
+python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b  --load_8bit=True --langchain_mode=UserData --user_path=user_path
 ```
 Any other instruct-tuned base models can be used, including non-h2oGPT ones.  For more ways to ingest on CLI and control see [LangChain Readme](README_LangChain.md)
 

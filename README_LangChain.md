@@ -97,13 +97,13 @@ which downloads example databases.  This obtains files from some [pre-generated 
 To build the database first outside chatbot, then run generate after, do:
 ```bash
 python make_db.py
-python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6.9b --langchain_mode=UserData
+python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b --langchain_mode=UserData
 ```
 
 To add data to the existing database, then run generate after, do:
 ```bash
 python make_db.py --add_if_exists=True
-python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6.9b --langchain_mode=UserData
+python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b --langchain_mode=UserData
 ```
 
 ## FAQ

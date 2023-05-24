@@ -296,7 +296,7 @@ and fill `user_path` path with documents to be scanned recursively.
 
 * Run:
 ```bash
-python generate.py --load_8bit=True --base_model=h2oai/h2ogpt-oig-oasst1-512-6.9b --langchain_mode=MyData --user_path=user_path --score_model=None
+python generate.py --load_8bit=True --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b --langchain_mode=MyData --user_path=user_path --score_model=None
 ```
 It will download the model, which takes about 15 minutes per 3 pytorch bin files if have 10MB/s download.
 One can choose any huggingface model, just pass the name after `--base_model=`, but a prompt_type is required if we don't already have support.
