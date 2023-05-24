@@ -10,7 +10,7 @@ from tests.utils import wrap_test_forked
 @pytest.mark.parametrize(
     "base_model",
     [
-        "h2oai/h2ogpt-oig-oasst1-512-6.9b",
+        "h2oai/h2ogpt-oig-oasst1-512-6_9b",
         "h2oai/h2ogpt-oig-oasst1-512-12b",
         "h2oai/h2ogpt-oig-oasst1-512-20b",
         "h2oai/h2ogpt-oasst1-512-12b",

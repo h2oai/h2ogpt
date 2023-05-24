@@ -3,7 +3,7 @@ Client test.
 
 Run server:
 
-python generate.py  --base_model=h2oai/h2ogpt-oig-oasst1-512-6.9b
+python generate.py  --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b
 
 NOTE: For private models, add --use-auth_token=True
 
