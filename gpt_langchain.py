@@ -16,9 +16,10 @@ from functools import reduce
 from operator import concat
 
 from joblib import Parallel, delayed
+from tqdm import tqdm
 
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
-    get_device
+    get_device, ProgressParallel
 
 import_matplotlib()
 
@@ -643,21 +644,21 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
     if n_jobs != 1 and len(globs_non_image_types) > 1:
         # avoid nesting, e.g. upload 1 zip and then inside many files
         # harder to handle if upload many zips with many files, inner parallel one will be disabled by joblib
-        documents = Parallel(n_jobs=n_jobs, verbose=10 if verbose else 0, backend='multiprocessing')(
+        documents = ProgressParallel(n_jobs=n_jobs, verbose=10 if verbose else 0, backend='multiprocessing')(
             delayed(path_to_doc1)(file, **kwargs) for file in globs_non_image_types
         )
     else:
-        documents = [path_to_doc1(file, **kwargs) for file in globs_non_image_types]
+        documents = [path_to_doc1(file, **kwargs) for file in tqdm(globs_non_image_types)]
 
     # do images separately since can't fork after cuda in parent, so can't be parallel
     if n_jobs_image != 1 and len(globs_image_types) > 1:
         # avoid nesting, e.g. upload 1 zip and then inside many files
         # harder to handle if upload many zips with many files, inner parallel one will be disabled by joblib
-        image_documents = Parallel(n_jobs=n_jobs, verbose=10 if verbose else 0, backend='multiprocessing')(
+        image_documents = ProgressParallel(n_jobs=n_jobs, verbose=10 if verbose else 0, backend='multiprocessing')(
             delayed(path_to_doc1)(file, **kwargs) for file in globs_image_types
         )
     else:
-        image_documents = [path_to_doc1(file, **kwargs) for file in globs_image_types]
+        image_documents = [path_to_doc1(file, **kwargs) for file in tqdm(globs_image_types)]
 
     # add image docs in
     documents += image_documents

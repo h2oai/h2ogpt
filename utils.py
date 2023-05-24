@@ -16,6 +16,8 @@ from datetime import datetime
 import filelock
 import requests, uuid
 from typing import Tuple, Callable, Dict
+from tqdm.auto import tqdm
+from joblib import Parallel
 from concurrent.futures import ProcessPoolExecutor
 import numpy as np
 import pandas as pd
@@ -766,3 +768,20 @@ def call_subprocess_onetask(func, args=None, kwargs=None):
         with ProcessPoolExecutor(max_workers=1) as executor:
             future = executor.submit(_traced_func, *args, **kwargs)
             return future.result()
+
+
+class ProgressParallel(Parallel):
+    def __init__(self, use_tqdm=True, total=None, *args, **kwargs):
+        self._use_tqdm = use_tqdm
+        self._total = total
+        super().__init__(*args, **kwargs)
+
+    def __call__(self, *args, **kwargs):
+        with tqdm(disable=not self._use_tqdm, total=self._total) as self._pbar:
+            return Parallel.__call__(self, *args, **kwargs)
+
+    def print_progress(self):
+        if self._total is None:
+            self._pbar.total = self.n_dispatched_tasks
+        self._pbar.n = self.n_completed_tasks
+        self._pbar.refresh()
