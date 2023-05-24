@@ -89,7 +89,7 @@ For quickly using a private document collection for Q/A, place documents (PDFs, 
 pip install -r requirements_optional_langchain.txt
 python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6.9b  --load_8bit=True --langchain_mode=UserData --user_path=user_path
 ```
-Any other instruct-tuned base models can be used, including non-h2oGPT ones.  For more ways to ingest on CLI and contro see [LangChain Readme](README_LangChain.md)
+Any other instruct-tuned base models can be used, including non-h2oGPT ones.  For more ways to ingest on CLI and control see [LangChain Readme](README_LangChain.md)
 
 #### CPU
 
