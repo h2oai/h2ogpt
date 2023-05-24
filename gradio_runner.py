@@ -1510,7 +1510,10 @@ def _update_user_db(file, db1, x, y, dbs=None, db_type=None, langchain_mode='Use
 
 def get_source_files_given_langchain_mode(db1, langchain_mode='UserData', dbs=None):
     with filelock.FileLock("db_%s.lock" % langchain_mode.replace(' ', '_')):
-        if langchain_mode == 'MyData' and len(db1) > 0 and db1[0] is not None:
+        if langchain_mode in ['wiki_full']:
+            # NOTE: avoid showing full wiki.  Takes about 30 seconds over about 90k entries, but not useful for now
+            db = None
+        elif langchain_mode == 'MyData' and len(db1) > 0 and db1[0] is not None:
             db = db1[0]
         elif langchain_mode in dbs and dbs[langchain_mode] is not None:
             db = dbs[langchain_mode]
