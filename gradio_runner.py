@@ -167,6 +167,7 @@ body.dark{#warning {background-color: #555555};}
         lora_options_state = gr.State([lora_options])
         my_db_state = gr.State([None, None])
         chat_state = gr.State({})
+        docs_state = gr.State(['All'])
         gr.Markdown(f"""
             {get_h2o_title(title) if kwargs['h2ocolors'] else get_simple_title(title)}
 
@@ -220,7 +221,7 @@ body.dark{#warning {background-color: #555555};}
                                 submit = gr.Button(value='Submit').style(full_width=False, size='sm')
                                 stop_btn = gr.Button(value="Stop").style(full_width=False, size='sm')
                         with gr.Row():
-                            clear = gr.Button("Save, New Conversation")
+                            clear = gr.Button("Save Chat / New Chat")
                             flag_btn = gr.Button("Flag")
                             if not kwargs['auto_score']:  # FIXME: For checkbox model2
                                 with gr.Column(visible=kwargs['score_model']):
@@ -251,19 +252,16 @@ body.dark{#warning {background-color: #555555};}
                     radio_chats = gr.Radio(value=None, label="Saved Chats", visible=True, interactive=True,
                                            type='value')
                     with gr.Row():
-                        remove_chat_btn = gr.Button(value="Remove Selected Chat", visible=True)
                         clear_chat_btn = gr.Button(value="Clear Chat", visible=True)
-                    chats_row = gr.Row(visible=True).style(equal_height=False)
-                    with chats_row:
-                        export_chats_btn = gr.Button(value="Export Chats")
-                        chats_file = gr.File(interactive=False, label="Download File")
-                    chats_row2 = gr.Row(visible=True).style(equal_height=False)
-                    with chats_row2:
+                        export_chats_btn = gr.Button(value="Export Chats to Download")
+                        remove_chat_btn = gr.Button(value="Remove Selected Chat", visible=True)
+                        add_to_chats_btn = gr.Button("Import Chats from Upload")
+                    with gr.Row():
+                        chats_file = gr.File(interactive=False, label="Download Exported Chats")
                         chatsup_output = gr.File(label="Upload Chat File(s)",
                                                  file_types=['.json'],
                                                  file_count='multiple',
                                                  elem_id="warning", elem_classes="feedback")
-                        add_to_chats_btn = gr.Button("Add File(s) to Chats")
                 with gr.TabItem("Data Source"):
                     langchain_readme = get_url('https://github.com/h2oai/h2ogpt/blob/main/README_LangChain.md',
                                                from_str=True)
@@ -292,8 +290,14 @@ body.dark{#warning {background-color: #555555};}
                         langchain_mode = gr.Radio(
                             [x for x in langchain_modes if x in allowed_modes and x not in no_show_modes],
                             value=kwargs['langchain_mode'],
-                            label="Data Source",
+                            label="Data Collection Source",
                             visible=kwargs['langchain_mode'] != 'Disabled')
+                        document_choice = gr.Dropdown(docs_state.value,
+                                                      label="Choose Subset of Doc(s) in Collection [click get sources to update]",
+                                                      value=docs_state.value[0],
+                                                      interactive=True,
+                                                      multiselect=True,
+                                                      )
 
                         def upload_file(files, x):
                             file_paths = [file.name for file in files]
@@ -354,15 +358,17 @@ body.dark{#warning {background-color: #555555};}
                                                           visible=allow_upload_to_user_data)
                             github_my_btn = gr.Button(value="Add Github to Scratch MyData DB",
                                                       visible=allow_upload_to_my_data)
+                    sources_row2 = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and enable_sources_list).style(
+                        equal_height=False)
+                    with sources_row2:
+                        with gr.Column():
+                            get_sources_btn = gr.Button(value="Get Collection Sources [for Download or Subset Doc(s)]")
+                            show_sources_btn = gr.Button(value="Show Collection Sources List with HTML Links")
+                        file_source = gr.File(interactive=False, label="Download File with list of Sources")
                     sources_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and enable_sources_list).style(
                         equal_height=False)
                     with sources_row:
                         sources_text = gr.HTML(label='Sources Added', interactive=False)
-                    sources_row2 = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and enable_sources_list).style(
-                        equal_height=False)
-                    with sources_row2:
-                        get_sources_btn = gr.Button(value="Get Sources List for Selected DB")
-                        file_source = gr.File(interactive=False, label="Download File with list of Sources")
 
                 with gr.TabItem("Expert"):
                     with gr.Row():
@@ -623,8 +629,23 @@ body.dark{#warning {background-color: #555555};}
             .then(clear_textbox, outputs=user_text_text, queue=queue)
 
         get_sources1 = functools.partial(get_sources, dbs=dbs)
-        get_sources_btn.click(get_sources1, inputs=[my_db_state, langchain_mode], outputs=file_source, queue=queue,
-                              api_name='get_sources' if allow_api else None)
+
+        # if change collection source, must clear doc selections from it to avoid inconsistency
+        def clear_doc_choice():
+            return gr.Dropdown.update(choices=['All'], value=['All'])
+
+        langchain_mode.change(clear_doc_choice, inputs=None, outputs=document_choice)
+
+        def update_dropdown(x):
+            return gr.Dropdown.update(choices=x, value='All')
+
+        show_sources1 = functools.partial(get_source_files_given_langchain_mode, dbs=dbs)
+        get_sources_btn.click(get_sources1, inputs=[my_db_state, langchain_mode], outputs=[file_source, docs_state],
+                              queue=queue,
+                              api_name='get_sources' if allow_api else None) \
+            .then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
+        # show button, else only show when add.  Could add to above get_sources for download/dropdown, but bit much maybe
+        show_sources_btn.click(fn=show_sources1, inputs=[my_db_state, langchain_mode], outputs=sources_text)
 
         def check_admin_pass(x):
             return gr.update(visible=x == admin_pass)
@@ -827,13 +848,19 @@ body.dark{#warning {background-color: #555555};}
                     args_list[eval_func_param_names.index('do_sample')] = True
             if not history:
                 print("No history", flush=True)
-                history = [['', None]]
+                history = []
                 yield history, ''
                 return
             # ensure output will be unique to models
             _, _, _, max_prompt_length = get_cutoffs(is_low_mem, for_context=True)
             history = copy.deepcopy(history)
             instruction1 = history[-1][0]
+            if not instruction1:
+                # reject empty query, can sometimes go nuts
+                history = []
+                yield history, ''
+                return
+
             context1 = ''
             if max_prompt_length is not None and langchain_mode1 not in ['LLM']:
                 prompt_type1 = args_list[eval_func_param_names.index('prompt_type')]
@@ -868,7 +895,7 @@ body.dark{#warning {background-color: #555555};}
             args_list[0] = instruction1  # override original instruction with history from user
             args_list[2] = context1
             if model_state1[0] is None or model_state1[0] == no_model_str:
-                history = [['', None]]
+                history = []
                 yield history, ''
                 return
             fun1 = partial(evaluate,
@@ -1086,10 +1113,14 @@ body.dark{#warning {background-color: #555555};}
                                api_name='export_chats' if allow_api else None)
 
         def add_chats_from_file(file, chat_state1, add_btn):
+            if not file:
+                return chat_state1, add_btn
             if isinstance(file, str):
                 files = [file]
             else:
                 files = file
+            if not files:
+                return chat_state1, add_btn
             for file1 in files:
                 try:
                     if hasattr(file1, 'name'):
@@ -1350,22 +1381,29 @@ def get_inputs_list(inputs_dict, model_lower):
 def get_sources(db1, langchain_mode, dbs=None):
     if langchain_mode in ['ChatLLM', 'LLM']:
         source_files_added = "NA"
+        source_list = []
     elif langchain_mode in ['wiki_full']:
         source_files_added = "Not showing wiki_full, takes about 20 seconds and makes 4MB file." \
                              "  Ask jon.mckinney@h2o.ai for file if required."
+        source_list = []
     elif langchain_mode == 'MyData' and len(db1) > 0 and db1[0] is not None:
         db_get = db1[0].get()
-        source_files_added = '\n'.join(sorted(set([x['source'] for x in db_get['metadatas']])))
+        source_list = sorted(set([x['source'] for x in db_get['metadatas']]))
+        source_files_added = '\n'.join(source_list)
     elif langchain_mode in dbs and dbs[langchain_mode] is not None:
         db1 = dbs[langchain_mode]
         db_get = db1.get()
-        source_files_added = '\n'.join(sorted(set([x['source'] for x in db_get['metadatas']])))
+        source_list = sorted(set([x['source'] for x in db_get['metadatas']]))
+        source_files_added = '\n'.join(source_list)
     else:
+        source_list = []
         source_files_added = "None"
     sources_file = 'sources_%s_%s' % (langchain_mode, str(uuid.uuid4()))
     with open(sources_file, "wt") as f:
         f.write(source_files_added)
-    return sources_file
+    source_list = ['All'] + source_list
+    #return sources_file, gr.Dropdown.update(choices=source_list, value=None)
+    return sources_file, source_list
 
 
 def update_user_db(file, db1, x, y, *args, dbs=None, langchain_mode='UserData', **kwargs):
@@ -1463,6 +1501,17 @@ def _update_user_db(file, db1, x, y, dbs=None, db_type=None, langchain_mode='Use
             # db in this code path is updated in place
             source_files_added = get_source_files(dbs[langchain_mode], exceptions=exceptions)
             return x, y, source_files_added
+
+
+def get_source_files_given_langchain_mode(db1, langchain_mode='UserData', dbs=None):
+    with filelock.FileLock("db_%s.lock" % langchain_mode.replace(' ', '_')):
+        if langchain_mode == 'MyData' and len(db1) > 0 and db1[0] is not None:
+            db = db1[0]
+        elif langchain_mode in dbs and dbs[langchain_mode] is not None:
+            db = dbs[langchain_mode]
+        else:
+            db = None
+    return get_source_files(db, exceptions=None)
 
 
 def get_source_files(db, exceptions=None):

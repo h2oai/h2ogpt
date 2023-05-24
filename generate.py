@@ -864,6 +864,7 @@ eval_func_param_names = ['instruction',
                          'instruction_nochat',
                          'iinput_nochat',
                          'langchain_mode',
+                         'document_choice',
                          ]
 
 
@@ -891,6 +892,7 @@ def evaluate(
         instruction_nochat,
         iinput_nochat,
         langchain_mode,
+        document_choice,
         # END NOTE: Examples must have same order of parameters
         src_lang=None,
         tgt_lang=None,
@@ -1010,6 +1012,7 @@ def evaluate(
                            chunk=chunk,
                            chunk_size=chunk_size,
                            langchain_mode=langchain_mode,
+                           document_choice=document_choice,
                            db_type=db_type,
                            k=k,
                            temperature=temperature,
@@ -1446,7 +1449,7 @@ y = np.random.randint(0, 1, 100)
 
     # move to correct position
     for example in examples:
-        example += [chat, '', '', 'Disabled']
+        example += [chat, '', '', 'Disabled', ['All']]
         # adjust examples if non-chat mode
         if not chat:
             example[eval_func_param_names.index('instruction_nochat')] = example[

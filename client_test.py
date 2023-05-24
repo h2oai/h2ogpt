@@ -39,6 +39,7 @@ Loaded as API: https://gpt.h2o.ai ✔
 import time
 import os
 import markdown  # pip install markdown
+import pytest
 from bs4 import BeautifulSoup  # pip install beautifulsoup4
 
 debug = False
@@ -79,6 +80,7 @@ def get_args(prompt, prompt_type, chat=False, stream_output=False, max_new_token
                          instruction_nochat=prompt if not chat else '',
                          iinput_nochat='',  # only for chat=False
                          langchain_mode='Disabled',
+                         document_choice=['All'],
                          )
     if chat:
         # add chatbot output on end.  Assumes serialize=False
@@ -87,6 +89,7 @@ def get_args(prompt, prompt_type, chat=False, stream_output=False, max_new_token
     return kwargs, list(kwargs.values())
 
 
+@pytest.mark.skip(reason="For manual use against some server, no server launched")
 def test_client_basic():
     return run_client_nochat(prompt='Who are you?', prompt_type='human_bot', max_new_tokens=50)
 
@@ -106,6 +109,7 @@ def run_client_nochat(prompt, prompt_type, max_new_tokens):
     return res_dict
 
 
+@pytest.mark.skip(reason="For manual use against some server, no server launched")
 def test_client_chat():
     return run_client_chat(prompt='Who are you?', prompt_type='human_bot', stream_output=False, max_new_tokens=50)
 
