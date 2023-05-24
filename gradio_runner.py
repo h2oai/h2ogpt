@@ -1113,10 +1113,14 @@ body.dark{#warning {background-color: #555555};}
                                api_name='export_chats' if allow_api else None)
 
         def add_chats_from_file(file, chat_state1, add_btn):
+            if not file:
+                return chat_state1, add_btn
             if isinstance(file, str):
                 files = [file]
             else:
                 files = file
+            if not files:
+                return chat_state1, add_btn
             for file1 in files:
                 try:
                     if hasattr(file1, 'name'):
