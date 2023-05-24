@@ -150,7 +150,7 @@ def get_llm(use_openai_model=False, model_name=None, model=None,
             assert model_name is None
             assert tokenizer is None
             model_name = 'h2oai/h2ogpt-oasst1-512-12b'
-            # model_name = 'h2oai/h2ogpt-oig-oasst1-512-6.9b'
+            # model_name = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
             # model_name = 'h2oai/h2ogpt-oasst1-512-20b'
             tokenizer = AutoTokenizer.from_pretrained(model_name)
             device, torch_dtype, context_class = get_device_dtype()

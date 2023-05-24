@@ -11,7 +11,7 @@ def test_client1():
     sys.modules.pop('langchain', None)
 
     from generate import main
-    main(base_model='h2oai/h2ogpt-oig-oasst1-512-6.9b', prompt_type='human_bot', chat=False,
+    main(base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b', prompt_type='human_bot', chat=False,
          stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False)
 
     from client_test import test_client_basic
@@ -36,7 +36,7 @@ def test_client_chat_nostream_gpt4all():
 
 
 def run_client_chat(prompt='Who are you?', stream_output=False, max_new_tokens=256,
-                    base_model='h2oai/h2ogpt-oig-oasst1-512-6.9b', prompt_type='human_bot'):
+                    base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b', prompt_type='human_bot'):
     import os, sys
     os.environ['TEST_LANGCHAIN_IMPORT'] = "1"
     sys.modules.pop('gpt_langchain', None)

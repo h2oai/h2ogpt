@@ -52,7 +52,7 @@ def make_db_main(use_openai_embedding: bool = False,
 
     # once db is made, can use in generate.py like:
 
-    python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6.9b --langchain_mode=UserData
+    python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b --langchain_mode=UserData
 
     or zip-up the db_dir_UserData and share:
 

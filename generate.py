@@ -297,7 +297,7 @@ def main(
         if psutil.virtual_memory().available < 94 * 1024 ** 3:
             # 12B uses ~94GB
             # 6.9B uses ~47GB
-            base_model = 'h2oai/h2ogpt-oig-oasst1-512-6.9b' if not base_model else base_model
+            base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b' if not base_model else base_model
 
     # get defaults
     model_lower = base_model.lower()
@@ -1549,6 +1549,6 @@ if __name__ == "__main__":
     can also pass --prompt_type='human_bot' and model can somewhat handle instructions without being instruct tuned
     python generate.py --base_model=decapoda-research/llama-65b-hf --load_8bit=False --infer_devices=False --prompt_type='human_bot'
 
-    python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6.9b
+    python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b
     """
     fire.Fire(main)

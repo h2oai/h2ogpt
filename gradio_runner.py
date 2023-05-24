@@ -96,7 +96,13 @@ def go_gradio(**kwargs):
         css_code = """footer {visibility: hidden}"""
     css_code += """
 body.dark{#warning {background-color: #555555};}
-"""
+#small_btn {
+    margin: 0.6em 0em 0.55em 0;
+    max-width: 20em;
+    min-width: 5em !important;
+    height: 5em;
+    font-size: 14px !important
+}"""
 
     if kwargs['gradio_avoid_processing_markdown']:
         from gradio_client import utils as client_utils
@@ -176,7 +182,7 @@ body.dark{#warning {background-color: #555555};}
             """)
         if is_hf:
             gr.HTML(
-                )
+            )
 
         # go button visible if
         base_wanted = kwargs['base_model'] != no_model_str and kwargs['login_mode_if_model0']
@@ -273,8 +279,8 @@ body.dark{#warning {background-color: #555555};}
                             <p>
                             For more options see: {langchain_readme}""",
                             visible=kwargs['langchain_mode'] == 'Disabled', interactive=False)
-                    data_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled')
-                    with data_row:
+                    data_row1 = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled')
+                    with data_row1:
                         if is_hf:
                             # don't show 'wiki' since only usually useful for internal testing at moment
                             no_show_modes = ['Disabled', 'wiki']
@@ -290,81 +296,88 @@ body.dark{#warning {background-color: #555555};}
                         langchain_mode = gr.Radio(
                             [x for x in langchain_modes if x in allowed_modes and x not in no_show_modes],
                             value=kwargs['langchain_mode'],
-                            label="Data Collection Source",
+                            label="Data Collection of Sources",
                             visible=kwargs['langchain_mode'] != 'Disabled')
-                        document_choice = gr.Dropdown(docs_state.value,
-                                                      label="Choose Subset of Doc(s) in Collection [click get sources to update]",
-                                                      value=docs_state.value[0],
-                                                      interactive=True,
-                                                      multiselect=True,
-                                                      )
+                    data_row2 = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled')
+                    with data_row2:
+                        with gr.Column(scale=50):
+                            document_choice = gr.Dropdown(docs_state.value,
+                                                          label="Choose Subset of Doc(s) in Collection [click get to update]",
+                                                          value=docs_state.value[0],
+                                                          interactive=True,
+                                                          multiselect=True,
+                                                          )
+                        with gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and enable_sources_list):
+                            get_sources_btn = gr.Button(value="Get Sources",
+                                                        ).style(full_width=False, size='sm')
+                            show_sources_btn = gr.Button(value="Show Sources",
+                                                         ).style(full_width=False, size='sm')
 
-                        def upload_file(files, x):
-                            file_paths = [file.name for file in files]
-                            return files, file_paths
-
-                    upload_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and allow_upload).style(
-                        equal_height=False)
                     # import control
                     if kwargs['langchain_mode'] != 'Disabled':
                         from gpt_langchain import file_types, have_arxiv
                     else:
                         have_arxiv = False
                         file_types = []
+
+                    upload_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and allow_upload).style(
+                        equal_height=False)
                     with upload_row:
-                        file_types_str = '[' + ' '.join(file_types) + ']'
-                        fileup_output = gr.File(label=f'Upload {file_types_str}',
-                                                file_types=file_types,
-                                                file_count="multiple",
-                                                elem_id="warning", elem_classes="feedback")
-                        with gr.Row():
-                            upload_button = gr.UploadButton("Upload %s" % file_types_str,
-                                                            file_types=file_types,
-                                                            file_count="multiple",
-                                                            visible=False,
-                                                            )
-                            # add not visible until upload something
-                            with gr.Column():
-                                add_to_shared_db_btn = gr.Button("Add File(s) to Shared UserData DB",
-                                                                 visible=allow_upload_to_user_data)  # and False)
-                                add_to_my_db_btn = gr.Button("Add File(s) to Scratch MyData DB",
-                                                             visible=allow_upload_to_my_data)  # and False)
-                    url_row = gr.Row(
-                        visible=kwargs['langchain_mode'] != 'Disabled' and allow_upload and enable_url_upload).style(
-                        equal_height=False)
-                    with url_row:
-                        url_label = 'URL (http/https) or ArXiv:' if have_arxiv else 'URL (http/https)'
-                        url_text = gr.Textbox(label=url_label, interactive=True)
                         with gr.Column():
-                            url_user_btn = gr.Button(value='Add URL content to Shared UserData DB',
-                                                     visible=allow_upload_to_user_data)
-                            url_my_btn = gr.Button(value='Add URL content to Scratch MyData DB',
-                                                   visible=allow_upload_to_my_data)
-                    text_row = gr.Row(
-                        visible=kwargs['langchain_mode'] != 'Disabled' and allow_upload and enable_text_upload).style(
+                            file_types_str = '[' + ' '.join(file_types) + ']'
+                            fileup_output = gr.File(label=f'Upload {file_types_str}',
+                                                    file_types=file_types,
+                                                    file_count="multiple",
+                                                    elem_id="warning", elem_classes="feedback")
+                            with gr.Row():
+                                add_to_shared_db_btn = gr.Button("Add File(s) to UserData",
+                                                                 visible=allow_upload_to_user_data, elem_id='small_btn')
+                                add_to_my_db_btn = gr.Button("Add File(s) to Scratch MyData",
+                                                             visible=allow_upload_to_my_data,
+                                                             elem_id='small_btn' if allow_upload_to_user_data else None,
+                                                             ).style(
+                                    size='sm' if not allow_upload_to_user_data else None)
+                        with gr.Column(
+                                visible=kwargs['langchain_mode'] != 'Disabled' and allow_upload and enable_url_upload):
+                            url_label = 'URL (http/https) or ArXiv:' if have_arxiv else 'URL (http/https)'
+                            url_text = gr.Textbox(label=url_label, interactive=True)
+                            with gr.Row():
+                                url_user_btn = gr.Button(value='Add URL content to Shared UserData',
+                                                         visible=allow_upload_to_user_data, elem_id='small_btn')
+                                url_my_btn = gr.Button(value='Add URL content to Scratch MyData',
+                                                       visible=allow_upload_to_my_data,
+                                                       elem_id='small_btn' if allow_upload_to_user_data else None,
+                                                       ).style(size='sm' if not allow_upload_to_user_data else None)
+                        with gr.Column(
+                                visible=kwargs['langchain_mode'] != 'Disabled' and allow_upload and enable_text_upload):
+                            user_text_text = gr.Textbox(label='Paste Text [Shift-Enter more lines]', interactive=True)
+                            with gr.Row():
+                                user_text_user_btn = gr.Button(value='Add Text to Shared UserData',
+                                                               visible=allow_upload_to_user_data,
+                                                               elem_id='small_btn')
+                                user_text_my_btn = gr.Button(value='Add Text to Scratch MyData',
+                                                             visible=allow_upload_to_my_data,
+                                                             elem_id='small_btn' if allow_upload_to_user_data else None,
+                                                             ).style(
+                                    size='sm' if not allow_upload_to_user_data else None)
+                        with gr.Column(visible=False):
+                            # WIP:
+                            with gr.Row(visible=False).style(equal_height=False):
+                                github_textbox = gr.Textbox(label="Github URL")
+                                with gr.Row(visible=True):
+                                    github_shared_btn = gr.Button(value="Add Github to Shared UserData",
+                                                                  visible=allow_upload_to_user_data,
+                                                                  elem_id='small_btn')
+                                    github_my_btn = gr.Button(value="Add Github to Scratch MyData",
+                                                              visible=allow_upload_to_my_data, elem_id='small_btn')
+                    sources_row3 = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and enable_sources_list).style(
                         equal_height=False)
-                    with text_row:
-                        user_text_text = gr.Textbox(label='Paste Text', interactive=True)
-                        with gr.Column():
-                            user_text_user_btn = gr.Button(value='Add Text to Shared UserData DB',
-                                                           visible=allow_upload_to_user_data)
-                            user_text_my_btn = gr.Button(value='Add Text to Scratch MyData DB',
-                                                         visible=allow_upload_to_my_data)
-                    # WIP:
-                    with gr.Row(visible=False).style(equal_height=False):
-                        github_textbox = gr.Textbox(label="Github URL")
-                        with gr.Row(visible=True):
-                            github_shared_btn = gr.Button(value="Add Github to Shared UserData DB",
-                                                          visible=allow_upload_to_user_data)
-                            github_my_btn = gr.Button(value="Add Github to Scratch MyData DB",
-                                                      visible=allow_upload_to_my_data)
-                    sources_row2 = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and enable_sources_list).style(
-                        equal_height=False)
-                    with sources_row2:
-                        with gr.Column():
-                            get_sources_btn = gr.Button(value="Get Collection Sources [for Download or Subset Doc(s)]")
-                            show_sources_btn = gr.Button(value="Show Collection Sources List with HTML Links")
-                        file_source = gr.File(interactive=False, label="Download File with list of Sources")
+                    with sources_row3:
+                        with gr.Column(scale=1):
+                            file_source = gr.File(interactive=False,
+                                                  label="Download File with Sources [click get to make file]")
+                        with gr.Column(scale=2):
+                            pass
                     sources_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and enable_sources_list).style(
                         equal_height=False)
                     with sources_row:
@@ -550,14 +563,6 @@ body.dark{#warning {background-color: #555555};}
 
         def make_visible():
             return gr.update(visible=True)
-
-        # add itself to output to ensure shows working and can't click again
-        upload_button.upload(upload_file, inputs=[upload_button, fileup_output],
-                             outputs=[upload_button, fileup_output], queue=queue,
-                             api_name='upload_file' if allow_api else None) \
-            .then(make_add_visible, fileup_output, add_to_shared_db_btn, queue=queue) \
-            .then(make_add_visible, fileup_output, add_to_my_db_btn, queue=queue) \
-            .then(make_invisible, outputs=upload_button, queue=queue)
 
         # Add to UserData
         update_user_db_func = functools.partial(update_user_db, dbs=dbs, db_type=db_type, langchain_mode='UserData',
@@ -1402,7 +1407,6 @@ def get_sources(db1, langchain_mode, dbs=None):
     with open(sources_file, "wt") as f:
         f.write(source_files_added)
     source_list = ['All'] + source_list
-    #return sources_file, gr.Dropdown.update(choices=source_list, value=None)
     return sources_file, source_list
 
 
