@@ -847,11 +847,10 @@ def pop_unused_model_kwargs(model_kwargs):
     :param model_kwargs:
     :return:
     """
-    if 'load_in_8bit' in model_kwargs and not model_kwargs['load_in_8bit']:
-        model_kwargs.pop('load_in_8bit')
-    if 'load_in_4bit' in model_kwargs and not model_kwargs['load_in_4bit']:
-        # no point passing in False, is default, and helps avoid needing to update requirements for new deps
-        model_kwargs.pop('load_in_4bit')
+    check_list = ['load_in_8bit', 'load_in_4bit']
+    for k in check_list:
+        if k in model_kwargs and not model_kwargs[k]:
+            model_kwargs.pop(k)
 
 
 def get_score_model(**kwargs):
