@@ -3,6 +3,7 @@ import inspect
 import os
 import pathlib
 import pickle
+import queue
 import shutil
 import subprocess
 import sys
@@ -867,9 +868,8 @@ def _run_qa_db(query=None,
     :param answer_with_sources
     :return:
     """
+    assert query is not None
 
-    # FIXME: For All just go over all dbs instead of a separate db for All
-    db = make_db(**locals())
     prompt_type = prompter.prompt_type if prompter is not None else prompt_type
     llm, model_name, streamer, prompt_type_out = get_llm(use_openai_model=use_openai_model, model_name=model_name,
                                                          model=model, tokenizer=tokenizer,
@@ -886,93 +886,24 @@ def _run_qa_db(query=None,
         # FIXME: for now, streams to stdout/stderr currently
         stream_output = False
 
-    if not use_openai_model and prompt_type not in ['plain'] or model_name in ['llama', 'gptj']:
-        # instruct-like, rather than few-shot prompt_type='plain' as default
-        # but then sources confuse the model with how inserted among rest of text, so avoid
-        prefix = ""
-        if langchain_mode in ['Disabled', 'ChatLLM', 'LLM']:
-            use_context = False
-            template = """%s{context}{question}""" % prefix
-        else:
-            use_context = True
-            template = """%s
-==
-{context}
-==
-{question}""" % prefix
-        prompt = PromptTemplate(
-            # input_variables=["summaries", "question"],
-            input_variables=["context", "question"],
-            template=template,
-        )
-        chain = load_qa_chain(llm, prompt=prompt)
-    else:
-        chain = load_qa_with_sources_chain(llm)
-        use_context = True
+    use_context = False
+    scores = []
+    chain = None
 
-    if query is None:
-        query = "What are the main differences between Linux and Windows?"
-    # https://github.com/hwchase17/langchain/issues/1946
-    # FIXME: Seems to way to get size of chroma db to limit k to avoid
-    # Chroma collection MyData contains fewer than 4 elements.
-    # type logger error
-    k_db = 1000 if db_type == 'chroma' else k  # k=100 works ok too for
-
-    if db and use_context:
-        if isinstance(document_choice, str):
-            # support string as well
-            document_choice = [document_choice]
-        if not isinstance(db, Chroma) or len(document_choice) <= 1 and document_choice[0].lower() == 'all':
-            # treat empty list as All for now, not 'None'
-            filter_kwargs = {}
-        else:
-            if len(document_choice) >= 2:
-                or_filter = [{"source": {"$eq": x}} for x in document_choice]
-                filter_kwargs = dict(filter={"$or": or_filter})
-            else:
-                one_filter = [{"source": {"$eq": x}} for x in document_choice][0]
-                filter_kwargs = dict(filter=one_filter)
-            if len(document_choice) == 1 and document_choice[0].lower() == 'none':
-                k_db = 1
-                k = 0
-        docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:k]
-        # cut off so no high distance docs/sources considered
-        docs = [x[0] for x in docs_with_score if x[1] < cut_distanct]
-        scores = [x[1] for x in docs_with_score if x[1] < cut_distanct]
-        if len(scores) > 0:
-            print("Distance: min: %s max: %s mean: %s median: %s" %
-                  (scores[0], scores[-1], np.mean(scores), np.median(scores)), flush=True)
-    else:
-        docs = []
-        scores = []
-
-    if not docs and use_context:
-        return None
-
-    common_words_file = "data/NGSL_1.2_stats.csv.zip"
-    if os.path.isfile(common_words_file):
-        df = pd.read_csv("data/NGSL_1.2_stats.csv.zip")
-        import string
-        reduced_query = query.translate(str.maketrans(string.punctuation, ' ' * len(string.punctuation))).strip()
-        reduced_query_words = reduced_query.split(' ')
-        set_common = set(df['Lemma'].values.tolist())
-        num_common = len([x.lower() in set_common for x in reduced_query_words])
-        frac_common = num_common / len(reduced_query) if reduced_query else 0
-        # FIXME: report to user bad query that uses too many common words
-        print("frac_common: %s" % frac_common, flush=True)
-
-    if langchain_mode in ['Disabled', 'ChatLLM', 'LLM']:
-        chain_kwargs = dict(input_documents=[], question=query)
-    else:
-        chain_kwargs = dict(input_documents=docs, question=query)
+    func_names = list(inspect.signature(get_similarity_chain).parameters)
+    sim_kwargs = {k: v for k, v in locals().items() if k in func_names}
+    missing_kwargs = [x for x in func_names if x not in sim_kwargs]
+    assert not missing_kwargs, "Missing: %s" % missing_kwargs
+    chain, scores, use_context = get_similarity_chain(**sim_kwargs)
+    if chain is None:
+        return
 
     if stream_output:
         answer = None
         assert streamer is not None
-        target = wrapped_partial(chain, chain_kwargs)
         import queue
         bucket = queue.Queue()
-        thread = EThread(target=target, streamer=streamer, bucket=bucket)
+        thread = EThread(target=chain, streamer=streamer, bucket=bucket)
         thread.start()
         outputs = ""
         prompt = None  # FIXME
@@ -1003,44 +934,158 @@ def _run_qa_db(query=None,
         # FIXME: answer is not string outputs from streamer.  How to get actual final output?
         # answer = outputs
     else:
-        answer = chain(chain_kwargs)
+        answer = chain()
 
     if not use_context:
         ret = answer['output_text']
         yield ret
     elif answer is not None:
-        print("query: %s" % query, flush=True)
-        print("answer: %s" % answer['output_text'], flush=True)
-        # link
-        answer_sources = [(max(0.0, 1.5 - score) / 1.5, get_url(doc)) for score, doc in
-                          zip(scores, answer['input_documents'])]
-        answer_sources_dict = defaultdict(list)
-        [answer_sources_dict[url].append(score) for score, url in answer_sources]
-        answers_dict = {}
-        for url, scores_url in answer_sources_dict.items():
-            answers_dict[url] = np.max(scores_url)
-        answer_sources = [(score, url) for url, score in answers_dict.items()]
-        answer_sources.sort(key=lambda x: x[0], reverse=True)
-        if show_rank:
-            # answer_sources = ['%d | %s' % (1 + rank, url) for rank, (score, url) in enumerate(answer_sources)]
-            # sorted_sources_urls = "Sources [Rank | Link]:<br>" + "<br>".join(answer_sources)
-            answer_sources = ['%s' % url for rank, (score, url) in enumerate(answer_sources)]
-            sorted_sources_urls = "Ranked Sources:<br>" + "<br>".join(answer_sources)
-        else:
-            answer_sources = ['<li>%.2g | %s</li>' % (score, url) for score, url in answer_sources]
-            sorted_sources_urls = f"{source_prefix}<p><ul>" + "<p>".join(answer_sources)
-            sorted_sources_urls += f"</ul></p>{source_postfix}"
-
-        if not answer['output_text'].endswith('\n'):
-            answer['output_text'] += '\n'
-
-        if answer_with_sources:
-            ret = answer['output_text'] + '\n' + sorted_sources_urls
-        else:
-            ret = answer['output_text']
-
+        ret = get_sources_answer(query, answer, scores, show_rank, answer_with_sources)
         yield ret
     return
+
+
+def get_similarity_chain(query=None,
+                         use_openai_model=False, use_openai_embedding=False,
+                         first_para=False, text_limit=None, k=4, chunk=False, chunk_size=1024,
+                         user_path=None,
+                         db_type='faiss',
+                         model_name=None,
+                         hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
+                         prompt_type=None,
+                         cut_distanct=1.1,
+                         load_db_if_exists=False,
+                         db=None,
+                         langchain_mode=None,
+                         document_choice=['All'],
+                         n_jobs=-1,
+                         # beyond run_db_query:
+                         llm=None,
+                         ):
+    if not use_openai_model and prompt_type not in ['plain'] or model_name in ['llama', 'gptj']:
+        # instruct-like, rather than few-shot prompt_type='plain' as default
+        # but then sources confuse the model with how inserted among rest of text, so avoid
+        prefix = ""
+        if langchain_mode in ['Disabled', 'ChatLLM', 'LLM']:
+            use_context = False
+            template = """%s{context}{question}""" % prefix
+        else:
+            use_context = True
+            template = """%s
+==
+{context}
+==
+{question}""" % prefix
+        prompt = PromptTemplate(
+            # input_variables=["summaries", "question"],
+            input_variables=["context", "question"],
+            template=template,
+        )
+        chain = load_qa_chain(llm, prompt=prompt)
+    else:
+        chain = load_qa_with_sources_chain(llm)
+        use_context = True
+
+    # https://github.com/hwchase17/langchain/issues/1946
+    # FIXME: Seems to way to get size of chroma db to limit k to avoid
+    # Chroma collection MyData contains fewer than 4 elements.
+    # type logger error
+    k_db = 1000 if db_type == 'chroma' else k  # k=100 works ok too for
+
+    # FIXME: For All just go over all dbs instead of a separate db for All
+    db = make_db(use_openai_embedding=use_openai_embedding,
+                 hf_embedding_model=hf_embedding_model,
+                 first_para=first_para, text_limit=text_limit, chunk=chunk, chunk_size=chunk_size,
+                 langchain_mode=langchain_mode,
+                 user_path=user_path,
+                 db_type=db_type,
+                 load_db_if_exists=load_db_if_exists,
+                 db=db,
+                 n_jobs=n_jobs)
+
+    if db and use_context:
+        if isinstance(document_choice, str):
+            # support string as well
+            document_choice = [document_choice]
+        if not isinstance(db, Chroma) or len(document_choice) <= 1 and document_choice[0].lower() == 'all':
+            # treat empty list as All for now, not 'None'
+            filter_kwargs = {}
+        else:
+            if len(document_choice) >= 2:
+                or_filter = [{"source": {"$eq": x}} for x in document_choice]
+                filter_kwargs = dict(filter={"$or": or_filter})
+            else:
+                one_filter = [{"source": {"$eq": x}} for x in document_choice][0]
+                filter_kwargs = dict(filter=one_filter)
+            if len(document_choice) == 1 and document_choice[0].lower() == 'none':
+                k_db = 1
+                k = 0
+        docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:k]
+        # cut off so no high distance docs/sources considered
+        docs = [x[0] for x in docs_with_score if x[1] < cut_distanct]
+        scores = [x[1] for x in docs_with_score if x[1] < cut_distanct]
+        if len(scores) > 0:
+            print("Distance: min: %s max: %s mean: %s median: %s" %
+                  (scores[0], scores[-1], np.mean(scores), np.median(scores)), flush=True)
+    else:
+        docs = []
+        scores = []
+
+    if not docs and use_context:
+        return None, [], False
+
+    common_words_file = "data/NGSL_1.2_stats.csv.zip"
+    if os.path.isfile(common_words_file):
+        df = pd.read_csv("data/NGSL_1.2_stats.csv.zip")
+        import string
+        reduced_query = query.translate(str.maketrans(string.punctuation, ' ' * len(string.punctuation))).strip()
+        reduced_query_words = reduced_query.split(' ')
+        set_common = set(df['Lemma'].values.tolist())
+        num_common = len([x.lower() in set_common for x in reduced_query_words])
+        frac_common = num_common / len(reduced_query) if reduced_query else 0
+        # FIXME: report to user bad query that uses too many common words
+        print("frac_common: %s" % frac_common, flush=True)
+
+    if langchain_mode in ['Disabled', 'ChatLLM', 'LLM']:
+        chain_kwargs = dict(input_documents=[], question=query)
+    else:
+        chain_kwargs = dict(input_documents=docs, question=query)
+
+    target = wrapped_partial(chain, chain_kwargs)
+    return target, scores, use_context
+
+
+def get_sources_answer(query, answer, scores, show_rank, answer_with_sources):
+    print("query: %s" % query, flush=True)
+    print("answer: %s" % answer['output_text'], flush=True)
+    # link
+    answer_sources = [(max(0.0, 1.5 - score) / 1.5, get_url(doc)) for score, doc in
+                      zip(scores, answer['input_documents'])]
+    answer_sources_dict = defaultdict(list)
+    [answer_sources_dict[url].append(score) for score, url in answer_sources]
+    answers_dict = {}
+    for url, scores_url in answer_sources_dict.items():
+        answers_dict[url] = np.max(scores_url)
+    answer_sources = [(score, url) for url, score in answers_dict.items()]
+    answer_sources.sort(key=lambda x: x[0], reverse=True)
+    if show_rank:
+        # answer_sources = ['%d | %s' % (1 + rank, url) for rank, (score, url) in enumerate(answer_sources)]
+        # sorted_sources_urls = "Sources [Rank | Link]:<br>" + "<br>".join(answer_sources)
+        answer_sources = ['%s' % url for rank, (score, url) in enumerate(answer_sources)]
+        sorted_sources_urls = "Ranked Sources:<br>" + "<br>".join(answer_sources)
+    else:
+        answer_sources = ['<li>%.2g | %s</li>' % (score, url) for score, url in answer_sources]
+        sorted_sources_urls = f"{source_prefix}<p><ul>" + "<p>".join(answer_sources)
+        sorted_sources_urls += f"</ul></p>{source_postfix}"
+
+    if not answer['output_text'].endswith('\n'):
+        answer['output_text'] += '\n'
+
+    if answer_with_sources:
+        ret = answer['output_text'] + '\n' + sorted_sources_urls
+    else:
+        ret = answer['output_text']
+    return ret
 
 
 def chunk_sources(sources, chunk_size=1024):
