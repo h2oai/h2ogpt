@@ -635,6 +635,7 @@ def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward
     load_in_8bit = model_kwargs.get('load_in_8bit', False)
     load_in_4bit = model_kwargs.get('load_in_4bit', False)
     model_kwargs['device_map'] = device_map
+    pop_unused_model_kwargs(model_kwargs)
 
     if load_in_8bit or load_in_4bit or not load_half:
         model = model_loader.from_pretrained(
@@ -764,6 +765,7 @@ def get_model(
             # FIXME: could put on other GPUs
             model_kwargs['device_map'] = {"": 0} if device == 'cuda' else {"": 'cpu'}
             model_kwargs.pop('torch_dtype', None)
+        pop_unused_model_kwargs(model_kwargs)
 
         if not lora_weights:
             with torch.device(device):
@@ -836,6 +838,20 @@ def get_model(
             model = torch.compile(model)
 
     return model, tokenizer, device
+
+
+def pop_unused_model_kwargs(model_kwargs):
+    """
+    in-place pop unused kwargs that are not dependency-upgrade friendly
+    no point passing in False, is default, and helps avoid needing to update requirements for new deps
+    :param model_kwargs:
+    :return:
+    """
+    if 'load_in_8bit' in model_kwargs and not model_kwargs['load_in_8bit']:
+        model_kwargs.pop('load_in_8bit')
+    if 'load_in_4bit' in model_kwargs and not model_kwargs['load_in_4bit']:
+        # no point passing in False, is default, and helps avoid needing to update requirements for new deps
+        model_kwargs.pop('load_in_4bit')
 
 
 def get_score_model(**kwargs):
