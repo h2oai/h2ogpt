@@ -65,7 +65,8 @@ def train(
         micro_batch_size: int = 4,
         gradient_checkpointing=False,  # unnecessary with gradient accumulation enabled
         fp16=True,
-        train_8bit=True,
+        train_8bit=False,
+        train_4bit=False,
 
         # general training hyperparams
         num_epochs: float = 1,
@@ -185,6 +186,7 @@ def train(
     model = model_loader.from_pretrained(
         base_model,
         load_in_8bit=train_8bit,
+        load_in_4bit=train_4bit,
         device_map=device_map,
         torch_dtype=torch.float16,
         max_memory=max_memory,
@@ -200,19 +202,12 @@ def train(
 
     tokenizer = get_tokenizer(tokenizer_loader, tokenizer_base_model, local_files_only, resume_download, use_auth_token)
 
-    if train_8bit:
+    if train_8bit or train_4bit:
         from peft import (
-            prepare_model_for_int8_training,
+            prepare_model_for_kbit_training,
         )
 
-        if "gpt-neox" not in base_model or True:
-            model = prepare_model_for_int8_training(model)
-        else:
-            model = prepare_model_for_int8_training(
-                model,
-                output_embedding_layer_name="embed_out",  # keep output logits in float32
-                layer_norm_names=["layer_norm", "layernorm"],  # keep all layer norms in higher precision
-            )
+        model = prepare_model_for_kbit_training(model)
 
     from peft import LoraConfig, get_peft_model, set_peft_model_state_dict
     try:

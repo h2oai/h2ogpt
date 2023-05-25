@@ -47,6 +47,7 @@ scratch_base_dir = '/tmp/'
 
 def main(
         load_8bit: bool = False,
+        load_4bit: bool = False,
         load_half: bool = True,
         infer_devices: bool = True,
         base_model: str = '',
@@ -270,10 +271,12 @@ def main(
                 base_model = 'h2oai/h2ogpt-oasst1-512-12b'
                 # don't set load_8bit if passed base_model, doesn't always work so can't just override
                 load_8bit = True
+                load_4bit = False  # FIXME - consider using 4-bit instead of 8-bit
         else:
             base_model = 'h2oai/h2ogpt-oasst1-512-20b' if not base_model else base_model
     if is_low_mem:
         load_8bit = True
+        load_4bit = False  # FIXME - consider using 4-bit instead of 8-bit
     if is_hf:
         # must override share if in spaces
         share = False
@@ -289,6 +292,7 @@ def main(
     if n_gpus == 0:
         gpu_id = None
         load_8bit = False
+        load_4bit = False
         load_half = False
         infer_devices = False
         torch.backends.cudnn.benchmark = True
@@ -624,12 +628,14 @@ def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward
     else:
         device_map = {'': 'cpu'}
         model_kwargs['load_in_8bit'] = False
+        model_kwargs['load_in_4bit'] = False
     print('device_map: %s' % device_map, flush=True)
 
     load_in_8bit = model_kwargs.get('load_in_8bit', False)
+    load_in_4bit = model_kwargs.get('load_in_4bit', False)
     model_kwargs['device_map'] = device_map
 
-    if load_in_8bit or not load_half:
+    if load_in_8bit or load_in_4bit or not load_half:
         model = model_loader.from_pretrained(
             base_model,
             config=config,
@@ -646,6 +652,7 @@ def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward
 
 def get_model(
         load_8bit: bool = False,
+        load_4bit: bool = False,
         load_half: bool = True,
         infer_devices: bool = True,
         base_model: str = '',
@@ -665,6 +672,7 @@ def get_model(
     """
 
     :param load_8bit: load model in 8-bit, not supported by all models
+    :param load_4bit: load model in 4-bit, not supported by all models
     :param load_half: load model in 16-bit
     :param infer_devices: Use torch infer of optimal placement of layers on devices (for non-lora case)
            For non-LORA case, False will spread shards across multiple GPUs, but this can lead to cuda:x cuda:y mismatches
@@ -696,6 +704,7 @@ def get_model(
     if 'gpt2' in base_model.lower():
         # RuntimeError: where expected condition to be a boolean tensor, but got a tensor with dtype Half
         load_8bit = False
+        load_4bit = False
 
     assert base_model.strip(), (
         "Please choose a base model with --base_model (CLI) or in Models Tab (gradio)"
@@ -744,7 +753,8 @@ def get_model(
                             )
         if 'mbart-' not in base_model.lower() and 'mpt-' not in base_model.lower():
             model_kwargs.update(dict(load_in_8bit=load_8bit,
-                                     device_map={"": 0} if load_8bit and device == 'cuda' else "auto",
+                                     load_in_4bit=load_4bit,
+                                     device_map={"": 0} if (load_8bit or load_4bit) and device == 'cuda' else "auto",
                                      ))
         if 'mpt-' in base_model.lower() and gpu_id >= 0:
             model_kwargs.update(dict(device_map={"": gpu_id} if device == 'cuda' else "cpu"))
@@ -764,7 +774,7 @@ def get_model(
                                                offload_folder=offload_folder,
                                                )
                 else:
-                    if load_half and not load_8bit:
+                    if load_half and not (load_8bit or load_4bit):
                         model = model_loader.from_pretrained(
                             base_model,
                             **model_kwargs).half()
@@ -772,7 +782,7 @@ def get_model(
                         model = model_loader.from_pretrained(
                             base_model,
                             **model_kwargs)
-        elif load_8bit:
+        elif load_8bit or load_4bit:
             model = model_loader.from_pretrained(
                 base_model,
                 **model_kwargs
@@ -832,6 +842,7 @@ def get_score_model(**kwargs):
     if kwargs.get('score_model') is not None and kwargs.get('score_model').strip():
         score_all_kwargs = kwargs.copy()
         score_all_kwargs['load_8bit'] = False
+        score_all_kwargs['load_4bit'] = False
         score_all_kwargs['load_half'] = False
         score_all_kwargs['base_model'] = kwargs.get('score_model').strip()
         score_all_kwargs['tokenizer_base_model'] = ''
