@@ -26,7 +26,7 @@ For questions, discussing, or just hanging out, come and join our <a href="https
 ![Windows](https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white)
 ![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)
 
-GPU mode requires CUDA support via torch and transformers.  A 6.9B (or 12GB) model in 8-bit uses 7GB (or 13GB) of GPU memory.
+GPU mode requires CUDA support via torch and transformers.  A 6.9B (or 12GB) model in 8-bit uses 7GB (or 13GB) of GPU memory. 4-bit precision can further reduce memory requirements.
 
 [CPU](FAQ.md#CPU) mode uses GPT4ALL and LLaMa.cpp, e.g. gpt4all-j, requiring about 14GB of system RAM in typical use.
 
@@ -52,7 +52,7 @@ GPU and CPU mode tested on variety of NVIDIA GPUs in Ubuntu 18-22, but any moder
 - **Variety** of models (h2oGPT, WizardLM, Vicuna, OpenAssistant, etc.) supported
 - **Fully Commercially** Apache V2 code, data and models
 - **High-Quality** data cleaning of large open-source instruction datasets
-- **LORA** (low-rank approximation) efficient 8-bit and 16-bit fine-tuning and generation
+- **LORA** (low-rank approximation) efficient 4-bit, 8-bit and 16-bit fine-tuning and generation
 - **Large** (up to 65B parameters) models built on commodity or enterprise GPUs (single or multi node)
 - **Evaluate** performance using RLHF-based reward models
 
@@ -82,14 +82,14 @@ Also check out [H2O LLM Studio](https://github.com/h2oai/h2o-llmstudio) for our 
 git clone https://github.com/h2oai/h2ogpt.git
 cd h2ogpt
 pip install -r requirements.txt
-python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b --load_8bit=True
+python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b --load_4bit=True
 ```
 Then point browser at http://0.0.0.0:7860 (linux) or http://localhost:7860 (windows/mac) or the public live URL printed by the server (disable shared link with `--share=False`).
 
 For quickly using a private document collection for Q/A, place documents (PDFs, text, etc.) into a folder called `user_path` and run
 ```bash
 pip install -r requirements_optional_langchain.txt
-python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b  --load_8bit=True --langchain_mode=UserData --user_path=user_path
+python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b  --load_4bit=True --langchain_mode=UserData --user_path=user_path
 ```
 Any other instruct-tuned base models can be used, including non-h2oGPT ones.  For more ways to ingest on CLI and control see [LangChain Readme](README_LangChain.md)
 
@@ -108,10 +108,15 @@ For GPUs with at least 24GB of memory, we recommend:
 ```bash
 python generate.py --base_model=h2oai/h2ogpt-oasst1-512-12b --load_8bit=True
 ```
+or
+```bash
+python generate.py --base_model=h2oai/h2ogpt-oasst1-512-20b --load_4bit=True
+```
 For GPUs with at least 48GB of memory, we recommend:
 ```bash
 python generate.py --base_model=h2oai/h2ogpt-oasst1-512-20b --load_8bit=True
 ```
+etc.
 
 More information about the models can be found on [H2O.ai's Hugging Face page](https://huggingface.co/h2oai/).
 
