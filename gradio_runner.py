@@ -821,7 +821,7 @@ body.dark{#warning {background-color: #555555};}
                 # else will have <human>: <bot>: on single line, which seems to be "ok" for LLM but not usual
                 user_message1 = '\n'
             # ensure good visually, else markdown ignores multiple \n
-            user_message1 = user_message1.replace('\n\n', '<br><br>')
+            user_message1 = user_message1.replace('\n', '<br>')
 
             history = args_list[-1]
             if undo and history:
@@ -926,7 +926,7 @@ body.dark{#warning {background-color: #555555};}
             try:
                 for output in fun1(*tuple(args_list)):
                     # ensure good visually, else markdown ignores multiple \n
-                    bot_message = output.replace('\n\n', '<br><br>')
+                    bot_message = output.replace('\n', '<br>')
                     history[-1][1] = bot_message
                     yield history, ''
             except StopIteration:
