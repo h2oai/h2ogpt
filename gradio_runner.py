@@ -811,6 +811,8 @@ body.dark{#warning {background-color: #555555};}
                 # e.g. when user just hits enter in textbox,
                 # else will have <human>: <bot>: on single line, which seems to be "ok" for LLM but not usual
                 user_message1 = '\n'
+            # ensure good visually, else markdown ignores multiple \n
+            user_message1 = user_message1.replace('\n\n', '<br><br>')
 
             history = args_list[-1]
             if undo and history:
@@ -910,7 +912,8 @@ body.dark{#warning {background-color: #555555};}
                            **kwargs_evaluate)
             try:
                 for output in fun1(*tuple(args_list)):
-                    bot_message = output
+                    # ensure good visually, else markdown ignores multiple \n
+                    bot_message = output.replace('\n\n', '<br><br>')
                     history[-1][1] = bot_message
                     yield history, ''
             except StopIteration:
