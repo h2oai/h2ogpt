@@ -72,8 +72,9 @@ pipeline {
                                                     sh "make PYTHON_ENV=${PYTHON_ENV} PYTEST_TEST_NAME=_${test_name} IS_PR_BUILD=${isPrBranch()} BUILD_NUMBER=${env.BUILD_ID} BUILD_BASE_NAME=${env.JOB_BASE_NAME} ${ALL_TESTS[test_name].test_target}"
                                                 }
                                             }
-                                            archiveArtifacts allowEmptyArchive: true, artifacts: "${test_name}/${test_name}_report.xml"
                                         } finally {
+                                            sh "mv ${test_name}/test_report.xml ${test_name}/${test_name}_report.xml"
+                                            archiveArtifacts allowEmptyArchive: true, artifacts: "${test_name}/${test_name}_report.xml"
                                             junit testResults: "${test_name}/${test_name}_report.xml", keepLongStdio: true, allowEmptyResults: true
                                         }
                                     }
