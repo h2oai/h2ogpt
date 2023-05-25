@@ -896,7 +896,7 @@ def _run_qa_db(query=None,
     assert not missing_kwargs, "Missing: %s" % missing_kwargs
     docs, chain, scores, use_context = get_similarity_chain(**sim_kwargs)
     if document_choice[0] == 'Only':
-        formatted_doc_chunks = '\n\n'.join([x.metadata['source'] + '\n\n' + x.page_content for x in docs])
+        formatted_doc_chunks = '\n\n'.join([get_url(x) + '\n\n' + x.page_content for x in docs])
         yield formatted_doc_chunks
         return
     if chain is None:
