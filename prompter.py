@@ -26,6 +26,7 @@ prompt_type_to_model_name = {
         'EleutherAI/pythia-12b',
         'EleutherAI/pythia-12b-deduped',
         'EleutherAI/gpt-neox-20b',
+        'openlm-research/open_llama_7b_700bt_preview',
         'decapoda-research/llama-7b-hf',
         'decapoda-research/llama-13b-hf',
         'decapoda-research/llama-30b-hf',
