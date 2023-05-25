@@ -894,7 +894,11 @@ def _run_qa_db(query=None,
     sim_kwargs = {k: v for k, v in locals().items() if k in func_names}
     missing_kwargs = [x for x in func_names if x not in sim_kwargs]
     assert not missing_kwargs, "Missing: %s" % missing_kwargs
-    chain, scores, use_context = get_similarity_chain(**sim_kwargs)
+    docs, chain, scores, use_context = get_similarity_chain(**sim_kwargs)
+    if document_choice[0] == 'Only':
+        formatted_doc_chunks = '\n\n'.join([x.metadata['source'] + '\n\n' + x.page_content for x in docs])
+        yield formatted_doc_chunks
+        return
     if chain is None:
         return
 
@@ -1007,8 +1011,11 @@ def get_similarity_chain(query=None,
         if isinstance(document_choice, str):
             # support string as well
             document_choice = [document_choice]
-        if not isinstance(db, Chroma) or len(document_choice) <= 1 and document_choice[0].lower() == 'all':
+        if not isinstance(db, Chroma) or len(document_choice) <= 1 and document_choice[0] == 'All':
             # treat empty list as All for now, not 'None'
+            filter_kwargs = {}
+        elif document_choice[0] == 'Only':
+            # Only means All docs, but only will return sources, not LLM response
             filter_kwargs = {}
         else:
             if len(document_choice) >= 2:
@@ -1017,7 +1024,7 @@ def get_similarity_chain(query=None,
             else:
                 one_filter = [{"source": {"$eq": x}} for x in document_choice][0]
                 filter_kwargs = dict(filter=one_filter)
-            if len(document_choice) == 1 and document_choice[0].lower() == 'none':
+            if len(document_choice) == 1 and document_choice[0] == 'None':
                 k_db = 1
                 k = 0
         docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:k]
@@ -1032,7 +1039,10 @@ def get_similarity_chain(query=None,
         scores = []
 
     if not docs and use_context:
-        return None, [], False
+        return docs, None, [], False
+
+    if document_choice[0] == 'Only':
+        return docs, None, [], False
 
     common_words_file = "data/NGSL_1.2_stats.csv.zip"
     if os.path.isfile(common_words_file):
@@ -1052,7 +1062,7 @@ def get_similarity_chain(query=None,
         chain_kwargs = dict(input_documents=docs, question=query)
 
     target = wrapped_partial(chain, chain_kwargs)
-    return target, scores, use_context
+    return docs, target, scores, use_context
 
 
 def get_sources_answer(query, answer, scores, show_rank, answer_with_sources):

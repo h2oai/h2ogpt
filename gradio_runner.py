@@ -173,7 +173,8 @@ body.dark{#warning {background-color: #555555};}
         lora_options_state = gr.State([lora_options])
         my_db_state = gr.State([None, None])
         chat_state = gr.State({})
-        docs_state = gr.State(['All'])
+        docs_state0 = ['All', 'Only', 'None']
+        docs_state = gr.State(docs_state0)  # first is chosen as default
         gr.Markdown(f"""
             {get_h2o_title(title) if kwargs['h2ocolors'] else get_simple_title(title)}
 
@@ -633,16 +634,16 @@ body.dark{#warning {background-color: #555555};}
                                api_name='add_txt_to_my' if allow_api else None) \
             .then(clear_textbox, outputs=user_text_text, queue=queue)
 
-        get_sources1 = functools.partial(get_sources, dbs=dbs)
+        get_sources1 = functools.partial(get_sources, dbs=dbs, docs_state0=docs_state0)
 
         # if change collection source, must clear doc selections from it to avoid inconsistency
         def clear_doc_choice():
-            return gr.Dropdown.update(choices=['All'], value=['All'])
+            return gr.Dropdown.update(choices=docs_state0, value=[docs_state0[0]])
 
         langchain_mode.change(clear_doc_choice, inputs=None, outputs=document_choice)
 
         def update_dropdown(x):
-            return gr.Dropdown.update(choices=x, value='All')
+            return gr.Dropdown.update(choices=x, value=[docs_state0[0]])
 
         show_sources1 = functools.partial(get_source_files_given_langchain_mode, dbs=dbs)
         get_sources_btn.click(get_sources1, inputs=[my_db_state, langchain_mode], outputs=[file_source, docs_state],
@@ -1384,7 +1385,7 @@ def get_inputs_list(inputs_dict, model_lower):
     return inputs_list
 
 
-def get_sources(db1, langchain_mode, dbs=None):
+def get_sources(db1, langchain_mode, dbs=None, docs_state0=None):
     if langchain_mode in ['ChatLLM', 'LLM']:
         source_files_added = "NA"
         source_list = []
@@ -1407,7 +1408,7 @@ def get_sources(db1, langchain_mode, dbs=None):
     sources_file = 'sources_%s_%s' % (langchain_mode, str(uuid.uuid4()))
     with open(sources_file, "wt") as f:
         f.write(source_files_added)
-    source_list = ['All'] + source_list
+    source_list = docs_state0 + source_list
     return sources_file, source_list
 
 
