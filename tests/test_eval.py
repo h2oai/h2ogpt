@@ -1,17 +1,16 @@
+import pytest
+
 from tests.utils import wrap_test_forked
 
 
 @wrap_test_forked
-def test_eval1():
-    run_eval1()
+@pytest.mark.parametrize("bits", [4, 8, 16, 32])
+@pytest.mark.parametrize("cpu", [True, False])
+def test_eval1(cpu, bits):
+    run_eval1(cpu=cpu, bits=bits)
 
 
-@wrap_test_forked
-def test_eval1_cpu():
-    run_eval1(cpu=True)
-
-
-def run_eval1(cpu=False):
+def run_eval1(cpu=False, bits=None):
     import os, sys
     os.environ['TEST_LANGCHAIN_IMPORT'] = "1"
     sys.modules.pop('gpt_langchain', None)
@@ -27,6 +26,22 @@ def run_eval1(cpu=False):
               'temperature': 0.4, 'top_p': 0.85, 'top_k': 70, 'num_beams': 1, 'max_new_tokens': 256,
               'min_new_tokens': 0, 'early_stopping': False, 'max_time': 180, 'repetition_penalty': 1.07,
               'num_return_sequences': 1, 'do_sample': True, 'chat': False, 'langchain_mode': 'Disabled'}
+    if bits == 4:
+        kwargs['load_half'] = False
+        kwargs['load_4bit'] = True
+        kwargs['load_8bit'] = False
+    elif bits == 8:
+        kwargs['load_half'] = False
+        kwargs['load_4bit'] = False
+        kwargs['load_8bit'] = True
+    elif bits == 16:
+        kwargs['load_half'] = True
+        kwargs['load_4bit'] = False
+        kwargs['load_8bit'] = False
+    elif bits == 32:
+        kwargs['load_half'] = False
+        kwargs['load_4bit'] = False
+        kwargs['load_8bit'] = False
     eval_filename = main(base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b',
                          gradio=False, eval_sharegpt_prompts_only=1,
                          eval_sharegpt_as_output=False,
