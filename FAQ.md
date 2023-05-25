@@ -346,6 +346,17 @@ For no langchain support, run as:
 python generate.py --base_model=gptj --score_model=None
 ```
 
+### CPU with no AVX2
+
+For GPT4All based models, require AVX2, unless one recompiles that project on your system.  Until then, use llama.cpp models instead,
+e.g. by compiling the llama model on your system by following the [instructions](https://github.com/ggerganov/llama.cpp#description),
+then adding an entry in the .env file like:
+```.env_gpt4all
+# model path and model_kwargs
+model_path_llama=./models/7B/ggml-model-q4_0.bin
+```
+or wherever you placed the model.
+
 ### I get the error: `The model 'OptimizedModule' is not supported for . Supported models are ...`
 
 Ignore this warning.
