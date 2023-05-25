@@ -71,8 +71,8 @@ Note: This dataset is cleaned up, but might still contain undesired words and co
 
 ### Perform fine-tuning on high-quality instruct data
 
-Fine-tune on a single node with NVIDIA GPUs A6000/A6000Ada/A100/H100, needs 48GB of GPU memory per GPU for default settings.
-For GPUs with 24GB of memory, need to set `--micro_batch_size=1`, `--batch_size=$NGPUS` and `--cutoff_len=256` below, or use `h2oai/h2ogpt-oasst1-512-12b`
+Fine-tune on a single node with NVIDIA GPUs A6000/A6000Ada/A100/H100, needs 48GB of GPU memory per GPU for default settings (fast 16-bit training).
+For larger models or GPUs with less memory, need to set a combination of `--train_4bit=True` (or `--train_8bit=True`) and `--micro_batch_size=1`, `--batch_size=$NGPUS` and `--cutoff_len=256` below, or use smaller models like `h2oai/h2ogpt-oasst1-512-12b`.
 ```
 export NGPUS=`nvidia-smi -L | wc -l`
 torchrun --nproc_per_node=$NGPUS finetune.py --base_model=h2oai/h2ogpt-oasst1-512-20b --data_path=h2oai/h2ogpt-oig-oasst1-instruct-cleaned-v2 --output_dir=h2ogpt_lora_weights
@@ -82,7 +82,7 @@ This will download the model, load the data, and generate an output directory `h
 
 ### Start your own fine-tuned chat bot
 
-Start a chatbot, also requires 48GB GPU. Likely run out of memory on 24GB GPUs, but can work with lower values for `--chat_history`.
+Start a chatbot, also requires 48GB GPU. Use `--load_4bit=True` instead for 24GB GPUs.
 ```
 torchrun generate.py --load_8bit=True --base_model=h2oai/h2ogpt-oasst1-512-20b --lora_weights=h2ogpt_lora_weights --prompt_type=human_bot
 ```
