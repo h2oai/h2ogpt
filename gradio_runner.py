@@ -173,7 +173,8 @@ body.dark{#warning {background-color: #555555};}
         lora_options_state = gr.State([lora_options])
         my_db_state = gr.State([None, None])
         chat_state = gr.State({})
-        docs_state = gr.State(['All'])
+        docs_state0 = ['All', 'Only', 'None']
+        docs_state = gr.State(docs_state0)  # first is chosen as default
         gr.Markdown(f"""
             {get_h2o_title(title) if kwargs['h2ocolors'] else get_simple_title(title)}
 
@@ -450,6 +451,14 @@ body.dark{#warning {background-color: #555555};}
                                                  visible=not is_public)
                             chat = gr.components.Checkbox(label="Chat mode", value=kwargs['chat'],
                                                           visible=not is_public)
+                            count_chat_tokens_btn = gr.Button(value="Count Chat Tokens", visible=not is_public)
+                            chat_token_count = gr.Textbox(label="Chat Token Count", value=None,
+                                                          visible=not is_public, interactive=False)
+                            top_k_docs = gr.Slider(minimum=0, maximum=20, step=1,
+                                                   value=kwargs['top_k_docs'],
+                                                   label="Number of document chunks",
+                                                   info="For LangChain",
+                                                   visible=not is_public)
 
                 with gr.TabItem("Models"):
                     load_msg = "Load-Unload Model/LORA" if not is_public \
@@ -633,16 +642,16 @@ body.dark{#warning {background-color: #555555};}
                                api_name='add_txt_to_my' if allow_api else None) \
             .then(clear_textbox, outputs=user_text_text, queue=queue)
 
-        get_sources1 = functools.partial(get_sources, dbs=dbs)
+        get_sources1 = functools.partial(get_sources, dbs=dbs, docs_state0=docs_state0)
 
         # if change collection source, must clear doc selections from it to avoid inconsistency
         def clear_doc_choice():
-            return gr.Dropdown.update(choices=['All'], value=['All'])
+            return gr.Dropdown.update(choices=docs_state0, value=[docs_state0[0]])
 
         langchain_mode.change(clear_doc_choice, inputs=None, outputs=document_choice)
 
         def update_dropdown(x):
-            return gr.Dropdown.update(choices=x, value='All')
+            return gr.Dropdown.update(choices=x, value=[docs_state0[0]])
 
         show_sources1 = functools.partial(get_source_files_given_langchain_mode, dbs=dbs)
         get_sources_btn.click(get_sources1, inputs=[my_db_state, langchain_mode], outputs=[file_source, docs_state],
@@ -812,7 +821,7 @@ body.dark{#warning {background-color: #555555};}
                 # else will have <human>: <bot>: on single line, which seems to be "ok" for LLM but not usual
                 user_message1 = '\n'
             # ensure good visually, else markdown ignores multiple \n
-            user_message1 = user_message1.replace('\n\n', '<br><br>')
+            user_message1 = user_message1.replace('\n', '<br>')
 
             history = args_list[-1]
             if undo and history:
@@ -831,6 +840,42 @@ body.dark{#warning {background-color: #555555};}
             else:
                 # FIXME: compare, same history for now
                 return history + [[user_message1, None]]
+
+        def history_to_context(history, langchain_mode1, prompt_type1, chat1):
+            # ensure output will be unique to models
+            _, _, _, max_prompt_length = get_cutoffs(is_low_mem, for_context=True)
+            history = copy.deepcopy(history)
+
+            context1 = ''
+            if max_prompt_length is not None and langchain_mode1 not in ['LLM']:
+                context1 = ''
+                # - 1 below because current instruction already in history from user()
+                for histi in range(0, len(history) - 1):
+                    data_point = dict(instruction=history[histi][0], input='', output=history[histi][1])
+                    prompt, pre_response, terminate_response, chat_sep = generate_prompt(data_point, prompt_type1,
+                                                                                         chat1, reduced=True)
+                    # md -> back to text, maybe not super important if model trained enough
+                    if not kwargs['keep_sources_in_context']:
+                        from gpt_langchain import source_prefix, source_postfix
+                        import re
+                        prompt = re.sub(f'{re.escape(source_prefix)}.*?{re.escape(source_postfix)}', '', prompt,
+                                        flags=re.DOTALL)
+                        if prompt.endswith('\n<p>'):
+                            prompt = prompt[:-4]
+                    prompt = prompt.replace('<br>', chat_sep)
+                    if not prompt.endswith(chat_sep):
+                        prompt += chat_sep
+                    # most recent first, add older if can
+                    # only include desired chat history
+                    if len(prompt + context1) > max_prompt_length:
+                        break
+                    context1 = prompt + context1
+
+                _, pre_response, terminate_response, chat_sep = generate_prompt({}, prompt_type1, chat1,
+                                                                                reduced=True)
+                if context1 and not context1.endswith(chat_sep):
+                    context1 += chat_sep  # ensure if terminates abruptly, then human continues on next line
+            return context1
 
         def bot(*args, retry=False):
             """
@@ -863,47 +908,15 @@ body.dark{#warning {background-color: #555555};}
                 history = []
                 yield history, ''
                 return
-            # ensure output will be unique to models
-            _, _, _, max_prompt_length = get_cutoffs(is_low_mem, for_context=True)
-            history = copy.deepcopy(history)
             instruction1 = history[-1][0]
             if not instruction1:
                 # reject empty query, can sometimes go nuts
                 history = []
                 yield history, ''
                 return
-
-            context1 = ''
-            if max_prompt_length is not None and langchain_mode1 not in ['LLM']:
-                prompt_type1 = args_list[eval_func_param_names.index('prompt_type')]
-                chat1 = args_list[eval_func_param_names.index('chat')]
-                context1 = ''
-                # - 1 below because current instruction already in history from user()
-                for histi in range(0, len(history) - 1):
-                    data_point = dict(instruction=history[histi][0], input='', output=history[histi][1])
-                    prompt, pre_response, terminate_response, chat_sep = generate_prompt(data_point, prompt_type1,
-                                                                                         chat1, reduced=True)
-                    # md -> back to text, maybe not super important if model trained enough
-                    if not kwargs['keep_sources_in_context']:
-                        from gpt_langchain import source_prefix, source_postfix
-                        import re
-                        prompt = re.sub(f'{re.escape(source_prefix)}.*?{re.escape(source_postfix)}', '', prompt,
-                                        flags=re.DOTALL)
-                        if prompt.endswith('\n<p>'):
-                            prompt = prompt[:-4]
-                    prompt = prompt.replace('<br>', chat_sep)
-                    if not prompt.endswith(chat_sep):
-                        prompt += chat_sep
-                    # most recent first, add older if can
-                    # only include desired chat history
-                    if len(prompt + context1) > max_prompt_length:
-                        break
-                    context1 = prompt + context1
-
-                _, pre_response, terminate_response, chat_sep = generate_prompt({}, prompt_type1, chat1,
-                                                                                reduced=True)
-                if context1 and not context1.endswith(chat_sep):
-                    context1 += chat_sep  # ensure if terminates abruptly, then human continues on next line
+            prompt_type1 = args_list[eval_func_param_names.index('prompt_type')]
+            chat1 = args_list[eval_func_param_names.index('chat')]
+            context1 = history_to_context(history, langchain_mode1, prompt_type1, chat1)
             args_list[0] = instruction1  # override original instruction with history from user
             args_list[2] = context1
             fun1 = partial(evaluate,
@@ -913,7 +926,7 @@ body.dark{#warning {background-color: #555555};}
             try:
                 for output in fun1(*tuple(args_list)):
                     # ensure good visually, else markdown ignores multiple \n
-                    bot_message = output.replace('\n\n', '<br><br>')
+                    bot_message = output.replace('\n', '<br>')
                     history[-1][1] = bot_message
                     yield history, ''
             except StopIteration:
@@ -1334,6 +1347,27 @@ body.dark{#warning {background-color: #555555};}
                                 submit_event3d, submit_event3f,
                                 submit_event_nochat],
                        queue=False, api_name='stop' if allow_api else None).then(clear_torch_cache, queue=False)
+
+        def count_chat_tokens(model_state1, chat1, prompt_type1):
+            if model_state1 and not isinstance(model_state1[1], str):
+                tokenizer = model_state1[1]
+            elif model_state0 and not isinstance(model_state0[1], str):
+                tokenizer = model_state0[1]
+            else:
+                tokenizer = None
+            if tokenizer is not None:
+                langchain_mode1 = 'ChatLLM'
+                # fake user message to mimic bot()
+                chat1 = copy.deepcopy(chat1)
+                chat1 = chat1 + [['user_message1', None]]
+                context1 = history_to_context(chat1, langchain_mode1, prompt_type1, chat1)
+                return str(tokenizer(context1, return_tensors="pt")['input_ids'].shape[1])
+            else:
+                return "N/A"
+
+        count_chat_tokens_btn.click(fn=count_chat_tokens, inputs=[model_state, text_output, prompt_type],
+                                    outputs=chat_token_count)
+
         demo.load(None, None, None, _js=get_dark_js() if kwargs['h2ocolors'] else None)
 
     demo.queue(concurrency_count=kwargs['concurrency_count'], api_open=kwargs['api_open'])
@@ -1387,7 +1421,7 @@ def get_inputs_list(inputs_dict, model_lower):
     return inputs_list
 
 
-def get_sources(db1, langchain_mode, dbs=None):
+def get_sources(db1, langchain_mode, dbs=None, docs_state0=None):
     if langchain_mode in ['ChatLLM', 'LLM']:
         source_files_added = "NA"
         source_list = []
@@ -1410,7 +1444,7 @@ def get_sources(db1, langchain_mode, dbs=None):
     sources_file = 'sources_%s_%s' % (langchain_mode, str(uuid.uuid4()))
     with open(sources_file, "wt") as f:
         f.write(source_files_added)
-    source_list = ['All'] + source_list
+    source_list = docs_state0 + source_list
     return sources_file, source_list
 
 

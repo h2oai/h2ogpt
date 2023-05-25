@@ -58,3 +58,7 @@ def test_upload_to_UserData_and_MyData():
 
 def test_chat_control():
     raise NotImplementedError("""MANUAL TEST FOR NOW save chat, select chats, clear chat, export, import, etc.""")
+
+
+def test_subset_only():
+    raise NotImplementedError("""MANUAL TEST FOR NOW UserData, Select Only for subset, then put in whisper.  Ensure get back only chunks of data with url links to data sources.""")

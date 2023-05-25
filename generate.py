@@ -127,7 +127,7 @@ def main(
         enable_sources_list: bool = True,
         chunk: bool = True,
         chunk_size: int = 512,
-        k: int = 4,
+        top_k_docs: int = 4,
         n_jobs: int = -1,
         enable_captions: bool = True,
         captions_model: str = "Salesforce/blip-image-captioning-base",
@@ -215,7 +215,7 @@ def main(
     :param enable_sources_list: Whether to allow list (or download for non-shared db) of list of sources for chosen db
     :param chunk: Whether to chunk data (True unless know data is already optimally chunked)
     :param chunk_size: Size of chunks, with typically top-4 passed to LLM, so neesd to be in context length
-    :param k: number of chunks to give LLM
+    :param top_k_docs: number of chunks to give LLM
     :param n_jobs: Number of processors to use when consuming documents (-1 = all, is default)
     :param enable_captions: Whether to support captions using BLIP for image files as documents, then preloads that model
     :param captions_model: Which model to use for captions.
@@ -328,6 +328,7 @@ def main(
                             max_new_tokens, min_new_tokens, early_stopping, max_time,
                             repetition_penalty, num_return_sequences,
                             do_sample,
+                            top_k_docs,
                             )
 
     locals_dict = locals()
@@ -864,6 +865,7 @@ eval_func_param_names = ['instruction',
                          'instruction_nochat',
                          'iinput_nochat',
                          'langchain_mode',
+                         'top_k_docs',
                          'document_choice',
                          ]
 
@@ -892,6 +894,7 @@ def evaluate(
         instruction_nochat,
         iinput_nochat,
         langchain_mode,
+        top_k_docs,
         document_choice,
         # END NOTE: Examples must have same order of parameters
         src_lang=None,
@@ -914,7 +917,6 @@ def evaluate(
         chunk=None,
         chunk_size=None,
         db_type=None,
-        k=None,
         n_jobs=None,
         first_para=None,
         text_limit=None,
@@ -930,7 +932,7 @@ def evaluate(
     assert chunk is not None
     assert chunk_size is not None
     assert db_type is not None
-    assert k is not None
+    assert top_k_docs is not None and isinstance(top_k_docs, int)
     assert n_jobs is not None
     assert first_para is not None
 
@@ -1014,7 +1016,7 @@ def evaluate(
                            langchain_mode=langchain_mode,
                            document_choice=document_choice,
                            db_type=db_type,
-                           k=k,
+                           k=top_k_docs,
                            temperature=temperature,
                            repetition_penalty=repetition_penalty,
                            top_k=top_k,
@@ -1286,7 +1288,7 @@ def get_generate_params(model_lower, chat,
                         prompt_type, temperature, top_p, top_k, num_beams,
                         max_new_tokens, min_new_tokens, early_stopping, max_time,
                         repetition_penalty, num_return_sequences,
-                        do_sample):
+                        do_sample, k):
     use_defaults = False
     use_default_examples = True
     examples = []
@@ -1449,7 +1451,7 @@ y = np.random.randint(0, 1, 100)
 
     # move to correct position
     for example in examples:
-        example += [chat, '', '', 'Disabled', ['All']]
+        example += [chat, '', '', 'Disabled', k, ['All']]
         # adjust examples if non-chat mode
         if not chat:
             example[eval_func_param_names.index('instruction_nochat')] = example[
