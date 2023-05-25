@@ -4,6 +4,8 @@ h2oGPT is a large language model (LLM) fine-tuning framework and chatbot UI with
 
 Welcome!  Join us and make an issue or a PR, and contribute to making the best fine-tuned LLMs, chatbot UI, and document question-answer framework!
 
+Turn ★ into ⭐ (top-right corner) if you like the project!
+
 ### Try h2oGPT now 
 
 Live hosted instances:
