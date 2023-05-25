@@ -75,7 +75,9 @@ def check_ret(ret):
 @wrap_test_forked
 def test_qa_wiki_db_openai():
     from gpt_langchain import _run_qa_db
-    ret = _run_qa_db(use_openai_model=True, use_openai_embedding=True, text_limit=None, langchain_mode='wiki')
+    query = "What are the main differences between Linux and Windows?"
+    ret = _run_qa_db(query=query, use_openai_model=True, use_openai_embedding=True, text_limit=None,
+                     langchain_mode='wiki')
     check_ret(ret)
 
 
@@ -85,14 +87,17 @@ def test_qa_wiki_db_hf():
     # if don't chunk, still need to limit
     # but this case can handle at least more documents, by picking top k
     # FIXME: but spitting out garbage answer right now, all fragmented, or just 1-word answer
-    ret = _run_qa_db(use_openai_model=False, use_openai_embedding=False, text_limit=256, langchain_mode='wiki')
+    query = "What are the main differences between Linux and Windows?"
+    ret = _run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=256,
+                     langchain_mode='wiki')
     check_ret(ret)
 
 
 @wrap_test_forked
 def test_qa_wiki_db_chunk_hf():
     from gpt_langchain import _run_qa_db
-    ret = _run_qa_db(use_openai_model=False, use_openai_embedding=False, text_limit=256, chunk=True,
+    query = "What are the main differences between Linux and Windows?"
+    ret = _run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=256, chunk=True,
                      chunk_size=256,
                      langchain_mode='wiki')
     check_ret(ret)
@@ -103,7 +108,9 @@ def test_qa_wiki_db_chunk_hf():
 def test_qa_wiki_db_chunk_openai():
     from gpt_langchain import _run_qa_db
     # don't need 256, just seeing how compares to hf
-    ret = _run_qa_db(use_openai_model=True, use_openai_embedding=True, text_limit=256, chunk=True, chunk_size=256,
+    query = "What are the main differences between Linux and Windows?"
+    ret = _run_qa_db(query=query, use_openai_model=True, use_openai_embedding=True, text_limit=256, chunk=True,
+                     chunk_size=256,
                      langchain_mode='wiki')
     check_ret(ret)
 
