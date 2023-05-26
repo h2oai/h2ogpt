@@ -17,8 +17,6 @@ pandas==2.0.0
 matplotlib==3.7.1
 loralib==0.1.1
 bitsandbytes==0.39.0
-git+https://github.com/huggingface/accelerate.git
-git+https://github.com/huggingface/transformers.git
 tokenizers==0.13.3
 APScheduler==3.10.1
 
