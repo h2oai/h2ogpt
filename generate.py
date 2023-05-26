@@ -139,6 +139,7 @@ def main(
     """
 
     :param load_8bit: load model in 8-bit using bitsandbytes
+    :param load_4bit: load model in 4-bit using bitsandbytes
     :param load_half: load model in float16
     :param infer_devices: whether to control devices with gpu_id.  If False, then spread across GPUs
     :param base_model: model HF-type name
@@ -1018,7 +1019,8 @@ def evaluate(
         db1 = dbs[langchain_mode]
     else:
         db1 = None
-    if langchain_mode not in [False, 'Disabled', 'ChatLLM', 'LLM'] and db1 is not None or base_model in ['llama', 'gptj']:
+    if langchain_mode not in [False, 'Disabled', 'ChatLLM', 'LLM'] and db1 is not None or base_model in ['llama',
+                                                                                                         'gptj']:
         query = instruction if not iinput else "%s\n%s" % (instruction, iinput)
         outr = ""
         # use smaller cut_distanct for wiki_full since so many matches could be obtained, and often irrelevant unless close
