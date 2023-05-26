@@ -311,40 +311,23 @@ the weights in this format.
 ```
 If you see this error, then you either have insufficient GPU memory or insufficient CPU memory.  E.g. for 6.9B model one needs minimum of 27GB free memory.
 
-### CPU
+### Larger models require more GPU memory
 
-* Install LangChain dependencies (currently required):
+Depending on available GPU memory, you can load differently sized models. For multiple GPUs, automatic sharding can be enabled with `--infer_devices=False`, but this is disabled by default since cuda:x cuda:y mismatches can occur.
+
+For GPUs with at least 24GB of memory, we recommend:
 ```bash
-pip install pip --upgrade -y
-make
-pip install -r requirements_optional_langchain.txt -c req_constraints.txt
+python generate.py --base_model=h2oai/h2ogpt-oasst1-512-12b --load_8bit=True
 ```
-
-* Install LLaMa/GPT4All dependencies
+or
 ```bash
-pip install pip --upgrade -y
-make
-pip install -r requirements_optional_gpt4all.txt -c req_constraints.txt
+python generate.py --base_model=h2oai/h2ogpt-oasst1-512-20b --load_8bit=True
 ```
-See [GPT4All](https://github.com/nomic-ai/gpt4all) for details on installation instructions if any issues encountered.
-
-* Choose model from GPT4All Model explorer [GPT4All-J compatible model](https://gpt4all.io/index.html). Do not need to download as with pygpt4all, new gpt4all package will download at runtime and put it into `.cache` like huggingface would.
-
-* Fill `.env_gpt4all` with at model name, if did not copy to repo folder, change name of model to the one you have chosen from Model Explorer if was not the default.
-```.env_gpt4all
-# model path and model_kwargs
-model_path_gptj=ggml-gpt4all-j-v1.3-groovy.bin
-```
-See [llama.cpp](https://github.com/ggerganov/llama.cpp) for instructions on getting model for `--base_model=llama` case.
-
-For LangChain support using documents in `user_path` folder, run h2oGPT like:
+For GPUs with at least 48GB of memory, we recommend:
 ```bash
-python generate.py --base_model=gptj --score_model=None --langchain_mode='UserData' --user_path=user_path
+python generate.py --base_model=h2oai/h2ogpt-oasst1-512-20b --load_8bit=True
 ```
-For no langchain support, run as:
-```bash
-python generate.py --base_model=gptj --score_model=None
-```
+etc.
 
 ### CPU with no AVX2
 
