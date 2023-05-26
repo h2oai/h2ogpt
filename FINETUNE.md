@@ -69,6 +69,13 @@ This will take several hours and produce a file called [h2ogpt-oig-oasst1-instru
 
 Note: This dataset is cleaned up, but might still contain undesired words and concepts.
 
+### Install training specific dependencies
+
+```bash
+make req_constraints.txt  # only required if potentially out of sync with requirements.txt
+pip install -r requirements_optional_training.txt -c req_constraints.txt
+```
+
 ### Perform fine-tuning on high-quality instruct data
 
 Fine-tune on a single node with NVIDIA GPUs A6000/A6000Ada/A100/H100, needs 48GB of GPU memory per GPU for default settings (fast 16-bit training).

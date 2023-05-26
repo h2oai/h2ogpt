@@ -107,7 +107,10 @@ sudo systemctl status nvidia-fabricmanager
 tensorboard --logdir=runs/
 ```
 
-### To use flash attention with LLaMa, need cuda 11.7 so flash attention module compiles against torch
+### Flash Attention
+
+To use flash attention with LLaMa, need cuda 11.7 so flash attention module compiles against torch.
+
 E.g. for Ubuntu, one goes to [cuda toolkit](https://developer.nvidia.com/cuda-11-7-0-download-archive?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=20.04&target_type=runfile_local), then:
 ```bash
 wget https://developer.download.nvidia.com/compute/cuda/11.7.0/local_installers/cuda_11.7.0_515.43.04_linux.run
