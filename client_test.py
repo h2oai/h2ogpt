@@ -56,7 +56,7 @@ def get_client(serialize=True):
     return client
 
 
-def get_args(prompt, prompt_type, chat=False, stream_output=False, max_new_tokens=50):
+def get_args(prompt, prompt_type, chat=False, stream_output=False, max_new_tokens=50, langchain_mode='Disabled'):
     from collections import OrderedDict
     kwargs = OrderedDict(instruction=prompt if chat else '',  # only for chat=True
                          iinput='',  # only for chat=True
@@ -79,13 +79,13 @@ def get_args(prompt, prompt_type, chat=False, stream_output=False, max_new_token
                          chat=chat,
                          instruction_nochat=prompt if not chat else '',
                          iinput_nochat='',  # only for chat=False
-                         langchain_mode='Disabled',
+                         langchain_mode=langchain_mode,
                          top_k_docs=4,
                          document_choice=['All'],
                          )
     if chat:
         # add chatbot output on end.  Assumes serialize=False
-        kwargs.update(dict(chatbot=[['', None]]))
+        kwargs.update(dict(chatbot=[]))
 
     return kwargs, list(kwargs.values())
 
@@ -112,11 +112,13 @@ def run_client_nochat(prompt, prompt_type, max_new_tokens):
 
 @pytest.mark.skip(reason="For manual use against some server, no server launched")
 def test_client_chat():
-    return run_client_chat(prompt='Who are you?', prompt_type='human_bot', stream_output=False, max_new_tokens=50)
+    return run_client_chat(prompt='Who are you?', prompt_type='human_bot', stream_output=False, max_new_tokens=50,
+                           langchain_mode='Disabled')
 
 
-def run_client_chat(prompt, prompt_type, stream_output, max_new_tokens):
-    kwargs, args = get_args(prompt, prompt_type, chat=True, stream_output=stream_output, max_new_tokens=max_new_tokens)
+def run_client_chat(prompt, prompt_type, stream_output, max_new_tokens, langchain_mode):
+    kwargs, args = get_args(prompt, prompt_type, chat=True, stream_output=stream_output,
+                            max_new_tokens=max_new_tokens, langchain_mode=langchain_mode)
 
     client = get_client(serialize=False)
 
@@ -141,7 +143,7 @@ def run_client_chat(prompt, prompt_type, stream_output, max_new_tokens):
                 res1 = md_to_text(res1)
                 print(res1)
             time.sleep(0.1)
-        print(job.outputs())
+        print('job.outputs: %s' % str(job.outputs()))
         res_dict['response'] = res1
         return res_dict
 
