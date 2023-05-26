@@ -1,15 +1,11 @@
-import inspect
 import os
 import traceback
-from typing import Union
-
 import numpy as np
 import pandas as pd
 import torch
 from matplotlib import pyplot as plt
 
-from generate import eval_func_param_names, eval_extra_columns, get_context, get_score_model, get_model, \
-    inputs_kwargs_list, evaluate
+from generate import eval_func_param_names, eval_extra_columns, get_context, get_score_model, get_model, evaluate
 from prompter import Prompter
 from utils import clear_torch_cache, NullContext, get_kwargs
 
@@ -27,7 +23,7 @@ def run_eval(  # for local function:
         src_lang=None, tgt_lang=None, concurrency_count=None, save_dir=None, sanitize_bot_response=None,
         model_state0=None, raise_generate_gpu_exceptions=None, load_db_if_exists=None, dbs=None, user_path=None,
         use_openai_embedding=None, use_openai_model=None, hf_embedding_model=None, chunk=None, chunk_size=None,
-        db_type=None, n_jobs=None, first_para=None, text_limit=None,
+        db_type=None, n_jobs=None, first_para=None, text_limit=None, verbose=None, cli=None,
 ):
     if eval_sharegpt_prompts_only > 0:
         # override default examples with shareGPT ones for human-level eval purposes only
@@ -122,7 +118,8 @@ def run_eval(  # for local function:
             # fun yields as generator, so have to iterate over it
             # Also means likely do NOT want --stream_output=True, else would show all generations
             gener = fun(*tuple(ex), exi=exi) if eval_sharegpt_as_output else fun(*tuple(ex))
-            for res in gener:
+            for res_fun in gener:
+                res, extra = res_fun
                 print(res)
                 if smodel:
                     score_with_prompt = False

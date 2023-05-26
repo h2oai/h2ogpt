@@ -367,3 +367,30 @@ Ignore this warning.
    - `CUDA_VISIBLE_DEVICES`: Standard list of CUDA devices to make visible.
 
 These can be usful on HuggingFace spaces, where one sets secret tokens because CLI options cannot be used.
+
+### GPT4All not producing output.
+
+Please contact GPT4All team.  Even a basic test can give empty result.
+```python
+>>> from gpt4all import GPT4All as GPT4AllModel
+>>> m = GPT4AllModel('ggml-gpt4all-j-v1.3-groovy.bin')
+Found model file.
+gptj_model_load: loading model from '/home/jon/.cache/gpt4all/ggml-gpt4all-j-v1.3-groovy.bin' - please wait ...
+gptj_model_load: n_vocab = 50400
+gptj_model_load: n_ctx   = 2048
+gptj_model_load: n_embd  = 4096
+gptj_model_load: n_head  = 16
+gptj_model_load: n_layer = 28
+gptj_model_load: n_rot   = 64
+gptj_model_load: f16     = 2
+gptj_model_load: ggml ctx size = 5401.45 MB
+gptj_model_load: kv self size  =  896.00 MB
+gptj_model_load: ................................... done
+gptj_model_load: model size =  3609.38 MB / num tensors = 285
+>>> m.generate('Was Avogadro a  professor at the University of Turin?')
+
+''
+>>>
+```
+Also, the model tends to not do well when input has new lines, spaces or `<br>` work better.
+This does not seem to be an issue with h2oGPT.

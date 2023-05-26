@@ -18,15 +18,12 @@ from utils import set_seed, clear_torch_cache, save_generate_output, NullContext
     import_matplotlib, get_device, makedirs, get_kwargs
 
 import_matplotlib()
-from matplotlib import pyplot as plt
 
 SEED = 1236
 set_seed(SEED)
 
 os.environ['HF_HUB_DISABLE_TELEMETRY'] = '1'
 from typing import Union
-import numpy as np
-import pandas as pd
 
 import fire
 import torch
@@ -82,6 +79,8 @@ def main(
         src_lang: str = "English",
         tgt_lang: str = "Russian",
 
+        cli: bool = False,
+        cli_loop: bool = True,
         gradio: bool = True,
         gradio_avoid_processing_markdown: bool = False,
         chat: bool = True,
@@ -115,6 +114,7 @@ def main(
 
         langchain_mode: str = 'Disabled',
         visible_langchain_modes: list = ['UserData', 'MyData'],
+        document_choice: list = ['All'],
         user_path: str = None,
         load_db_if_exists: bool = True,
         keep_sources_in_context: bool = False,
@@ -170,6 +170,8 @@ def main(
     :param offload_folder: path for spilling model onto disk
     :param src_lang: source languages to include if doing translation (None = all)
     :param tgt_lang: target languages to include if doing translation (None = all)
+    :param cli: whether to use CLI (non-gradio) interface.
+    :param cli_loop: whether to loop for CLI (False usually only for testing)
     :param gradio: whether to enable gradio, or to enable benchmark mode
     :param gradio_avoid_processing_markdown:
     :param chat: whether to enable chat mode with chat history
@@ -206,6 +208,7 @@ def main(
            To allow scratch space only live in session, add 'MyData' to list
            Default: If only want to consume local files, e.g. prepared by make_db.py, only include ['UserData']
            FIXME: Avoid 'All' for now, not implemented
+    :param document_choice: Default document choice when taking subset of collection
     :param load_db_if_exists: Whether to load chroma db if exists or re-generate db
     :param keep_sources_in_context: Whether to keep url sources in context, not helpful usually
     :param db_type: 'faiss' for in-memory or 'chroma' for persisted on disk
@@ -285,7 +288,7 @@ def main(
         share = False
     save_dir = os.getenv('SAVE_DIR', save_dir)
     score_model = os.getenv('SCORE_MODEL', score_model)
-    if score_model == 'None':
+    if score_model == 'None' or score_model is None:
         score_model = ''
     concurrency_count = int(os.getenv('CONCURRENCY_COUNT', concurrency_count))
     api_open = bool(int(os.getenv('API_OPEN', api_open)))
@@ -336,12 +339,14 @@ def main(
                             repetition_penalty, num_return_sequences,
                             do_sample,
                             top_k_docs,
+                            verbose,
                             )
 
     locals_dict = locals()
     locals_print = '\n'.join(['%s: %s' % (k, v) for k, v in locals_dict.items()])
-    print(f"Generating model with params:\n{locals_print}", flush=True)
-    print("Command: %s\nHash: %s" % (str(' '.join(sys.argv)), get_githash()), flush=True)
+    if verbose:
+        print(f"Generating model with params:\n{locals_print}", flush=True)
+        print("Command: %s\nHash: %s" % (str(' '.join(sys.argv)), get_githash()), flush=True)
 
     if langchain_mode != "Disabled":
         # SECOND PLACE where LangChain referenced, but all imports are kept local so not required
@@ -375,26 +380,30 @@ def main(
             assert 'gpt_langchain' not in sys.modules, "Dev bug, import of langchain when should not have"
             assert 'langchain' not in sys.modules, "Dev bug, import of langchain when should not have"
 
-    if not gradio:
+    if cli:
+        from cli import run_cli
+        return run_cli(**get_kwargs(run_cli, exclude_names=['model_state0'], **locals()))
+    elif not gradio:
         from eval import run_eval
-        eval_filename = run_eval(**get_kwargs(run_eval, exclude_names=['model_state0'], **locals()))
-        return eval_filename
-
-    if gradio:
+        return run_eval(**get_kwargs(run_eval, exclude_names=['model_state0'], **locals()))
+    elif gradio:
         # imported here so don't require gradio to run generate
         from gradio_runner import go_gradio
 
         # get default model
         all_kwargs = locals().copy()
         if all_kwargs.get('base_model') and not all_kwargs['login_mode_if_model0']:
-            model0, tokenizer0, device = get_model(reward_type=False, **get_kwargs(get_model, exclude_names=['reward_type'], **all_kwargs))
+            model0, tokenizer0, device = get_model(reward_type=False,
+                                                   **get_kwargs(get_model, exclude_names=['reward_type'], **all_kwargs))
         else:
             # if empty model, then don't load anything, just get gradio up
             model0, tokenizer0, device = None, None, None
         model_state0 = [model0, tokenizer0, device, all_kwargs['base_model']]
 
         # get score model
-        smodel, stokenizer, sdevice = get_score_model(reward_type=True, **get_kwargs(get_score_model, exclude_names=['reward_type'], **all_kwargs))
+        smodel, stokenizer, sdevice = get_score_model(reward_type=True,
+                                                      **get_kwargs(get_score_model, exclude_names=['reward_type'],
+                                                                   **all_kwargs))
         score_model_state0 = [smodel, stokenizer, sdevice, score_model]
 
         if enable_captions:
@@ -525,6 +534,8 @@ def get_model(
         trust_remote_code: bool = True,
         offload_folder: str = None,
         compile_model: bool = True,
+
+        verbose: bool = False,
 ):
     """
 
@@ -545,16 +556,19 @@ def get_model(
     :param trust_remote_code: trust code needed by model
     :param offload_folder: offload folder
     :param compile_model: whether to compile torch model
+    :param verbose:
     :return:
     """
-    print("Get %s model" % base_model, flush=True)
+    if verbose:
+        print("Get %s model" % base_model, flush=True)
     if base_model in ['llama', 'gptj']:
         from gpt4all_llm import get_model_tokenizer_gpt4all
         model, tokenizer, device = get_model_tokenizer_gpt4all(base_model)
         return model, tokenizer, device
 
     if lora_weights is not None and lora_weights.strip():
-        print("Get %s lora weights" % lora_weights, flush=True)
+        if verbose:
+            print("Get %s lora weights" % lora_weights, flush=True)
     device = get_device()
 
     if 'gpt2' in base_model.lower():
@@ -574,8 +588,9 @@ def get_model(
     llama_type_from_name = "llama" in base_model.lower()
     llama_type = llama_type_from_config or llama_type_from_name
     if llama_type:
-        print("Detected as llama type from"
-              " config (%s) or name (%s)" % (llama_type_from_config, llama_type_from_name), flush=True)
+        if verbose:
+            print("Detected as llama type from"
+                  " config (%s) or name (%s)" % (llama_type_from_config, llama_type_from_name), flush=True)
 
     model_loader, tokenizer_loader = get_loaders(llama_type=llama_type, model_name=base_model, reward_type=reward_type)
     if not tokenizer_base_model:
@@ -724,6 +739,8 @@ def get_score_model(score_model: str = None,
                     trust_remote_code: bool = True,
                     offload_folder: str = None,
                     compile_model: bool = True,
+
+                    verbose: bool = False,
                     ):
     if score_model is not None and score_model.strip():
         load_8bit = False
@@ -815,6 +832,8 @@ def evaluate(
         n_jobs=None,
         first_para=None,
         text_limit=None,
+        verbose=False,
+        cli=False,
 ):
     # ensure passed these
     assert concurrency_count is not None
@@ -919,13 +938,17 @@ def evaluate(
                            top_p=top_p,
                            prompt_type=prompt_type,
                            n_jobs=n_jobs,
+                           verbose=verbose,
+                           cli=cli,
                            ):
-            outr = r  # doesn't accumulate, new answer every yield, so only save that full answer
+            outr, extra = r  # doesn't accumulate, new answer every yield, so only save that full answer
             yield r
         if save_dir:
             save_generate_output(output=outr, base_model=base_model, save_dir=save_dir)
-            print('Post-Generate Langchain: %s decoded_output: %s' % (str(datetime.now()), len(outr) if outr else -1),
-                  flush=True)
+            if verbose:
+                print(
+                    'Post-Generate Langchain: %s decoded_output: %s' % (str(datetime.now()), len(outr) if outr else -1),
+                    flush=True)
         if outr or base_model in ['llama', 'gptj']:
             # if got no response (e.g. not showing sources and got no sources,
             # so nothing to give to LLM), then slip through and ask LLM
@@ -939,7 +962,7 @@ def evaluate(
         else:
             raise RuntimeError("No such task type %s" % tokenizer)
         # NOTE: uses max_length only
-        yield model(prompt, max_length=max_new_tokens)[0][key]
+        yield model(prompt, max_length=max_new_tokens)[0][key], ''
 
     if 'mbart-' in base_model.lower():
         assert src_lang is not None
@@ -1057,7 +1080,7 @@ def evaluate(
                                 thread.join()
                             outputs += new_text
                             yield prompter.get_response(outputs, prompt=inputs_decoded,
-                                                        sanitize_bot_response=sanitize_bot_response)
+                                                        sanitize_bot_response=sanitize_bot_response), ''
                     except BaseException:
                         # if any exception, raise that exception if was from thread, first
                         if thread.exc:
@@ -1075,7 +1098,7 @@ def evaluate(
                     outputs = model.generate(**gen_kwargs)
                     outputs = [decoder(s) for s in outputs.sequences]
                     yield prompter.get_response(outputs, prompt=inputs_decoded,
-                                                sanitize_bot_response=sanitize_bot_response)
+                                                sanitize_bot_response=sanitize_bot_response), ''
                     if outputs and len(outputs) >= 1:
                         decoded_output = prompt + outputs[0]
                 if save_dir and decoded_output:
@@ -1187,7 +1210,7 @@ def get_generate_params(model_lower, chat,
                         prompt_type, temperature, top_p, top_k, num_beams,
                         max_new_tokens, min_new_tokens, early_stopping, max_time,
                         repetition_penalty, num_return_sequences,
-                        do_sample, k):
+                        do_sample, k, verbose):
     use_defaults = False
     use_default_examples = True
     examples = []
@@ -1204,7 +1227,8 @@ def get_generate_params(model_lower, chat,
 
     if not prompt_type and model_lower in inv_prompt_type_to_model_lower:
         prompt_type = inv_prompt_type_to_model_lower[model_lower]
-        print("Auto-selecting prompt_type=%s for %s" % (prompt_type, model_lower), flush=True)
+        if verbose:
+            print("Auto-selecting prompt_type=%s for %s" % (prompt_type, model_lower), flush=True)
 
     # examples at first don't include chat, instruction_nochat, iinput_nochat, added at end
     if show_examples is None:

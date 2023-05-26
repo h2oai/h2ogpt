@@ -1,6 +1,6 @@
 import pytest
 
-from tests.utils import wrap_test_forked
+from tests.utils import wrap_test_forked, make_user_path_test
 
 
 @wrap_test_forked
@@ -67,19 +67,7 @@ def test_client_chat_stream():
 
 @wrap_test_forked
 def test_client_chat_stream_langchain():
-    import os
-    import shutil
-
-    user_path = 'user_path_test'
-    if os.path.isdir(user_path):
-        shutil.rmtree(user_path)
-    os.makedirs(user_path)
-    db_dir = "db_dir_UserData"
-    if os.path.isdir(db_dir):
-        shutil.rmtree(db_dir)
-    shutil.copy('data/pexels-evg-kowalievska-1170986_small.jpg', user_path)
-    shutil.copy('README.md', user_path)
-    shutil.copy('FAQ.md', user_path)
+    user_path = make_user_path_test()
     prompt = "What is h2oGPT?"
     res_dict = run_client_chat(prompt=prompt, stream_output=True, langchain_mode="UserData", user_path=user_path,
                                visible_langchain_modes=['UserData', 'MyData'])

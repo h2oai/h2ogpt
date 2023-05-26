@@ -1,5 +1,6 @@
 import inspect
 import os
+import sys
 from typing import Dict, Any, Optional, List
 from langchain.callbacks.manager import CallbackManagerForLLMRun
 from pydantic import root_validator
@@ -47,6 +48,19 @@ def get_model_tokenizer_gpt4all(base_model, **kwargs):
     return model, FakeTokenizer(), 'cpu'
 
 
+from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
+
+
+class H2OStreamingStdOutCallbackHandler(StreamingStdOutCallbackHandler):
+
+    def on_llm_new_token(self, token: str, **kwargs: Any) -> None:
+        """Run on new LLM token. Only available when streaming is enabled."""
+        # streaming to std already occurs without this
+        # sys.stdout.write(token)
+        # sys.stdout.flush()
+        pass
+
+
 def get_llm_gpt4all(model_name, model=None,
                     max_new_tokens=256,
                     temperature=0.1,
@@ -55,8 +69,7 @@ def get_llm_gpt4all(model_name, model=None,
                     top_p=0.7):
     env_gpt4all_file = ".env_gpt4all"
     model_kwargs = dotenv_values(env_gpt4all_file)
-    from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
-    callbacks = [StreamingStdOutCallbackHandler()]
+    callbacks = [H2OStreamingStdOutCallbackHandler()]
     n_ctx = model_kwargs.pop('n_ctx', 1024)
     default_params = {'context_erase': 0.5, 'n_batch': 1, 'n_ctx': n_ctx, 'n_predict': max_new_tokens,
                       'repeat_last_n': 64 if repetition_penalty != 1.0 else 0, 'repeat_penalty': repetition_penalty,
