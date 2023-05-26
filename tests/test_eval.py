@@ -67,8 +67,15 @@ def run_eval1(cpu=False, bits=None):
 
     import torch
     if torch.cuda.is_available():
-        expected2 = {'response': """The ligaments are the bands of tissue that connect the vertebrae together. The ligaments help to stabilize the spine and protect the spinal cord. Ligament tears are common in people who have poor posture or repetitive strain injuries.""",
-                     'score': 0.7533428072929382}
+        if bits == 4:
+            expected2 = {'response': """The ligaments that hold the spine together are called “the spinal ligaments.” They are strong but flexible, and they help keep the spine held upright.""",
+                         'score': 0.7533428072929382}
+        elif bits == 8:
+            expected2 = {'response': """The spinal ligaments are like the webbing on a tree branch. They are there to help hold the spine together and keep it straight. If you pull on the spinal ligaments, they will give. If you push on them, they will give. They are there to help keep the spine straight. If you twist your spine, the ligaments will give. If you turn your spine sideways, the ligaments will give. If you have a bad posture, the ligaments will give. If you have a bad habit, the ligaments will give. If you do something stupid, the ligaments will give. If you are lucky, they won’t give. If you are unlucky, they will give.""",
+                         'score': 0.7533428072929382}
+        else:
+            expected2 = {'response': """The ligaments are the bands of tissue that connect the vertebrae together. The ligaments help to stabilize the spine and protect the spinal cord. Ligament tears are common in people who have poor posture or repetitive strain injuries.""",
+                         'score': 0.7533428072929382}
     else:
         expected2 = {
             'response': 'The ligaments that support the spine are called the “spinal ligaments.” They are there to help keep the spine straight and upright. They are made up of tough fibers that run from the pelvis to the skull. They are like the stays on a sailboat, except that they are much thicker and stronger. \nThe spinal ligaments are divided into two groups: anterior and posterior. The anterior ligaments are attached to the front of the vertebrae, while the posterior ligaments are attached to the back. The anterior ligaments are called the “anterior longitudinal ligaments”',
