@@ -1,1 +1,4 @@
 xformers==0.0.20
+git+https://github.com/huggingface/accelerate.git
+git+https://github.com/huggingface/peft.git
+git+https://github.com/huggingface/transformers.git
