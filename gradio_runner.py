@@ -422,6 +422,7 @@ body.dark{#warning {background-color: #555555};}
                                                   value=min(max_beams, kwargs['num_beams']), label="Beams",
                                                   info="Number of searches for optimal overall probability.  "
                                                        "Uses more GPU memory/compute")
+                            # FIXME: 2048 should be tokenizer.model_max_length, but may not even have model yet
                             max_max_new_tokens = 2048 if not is_low_mem else kwargs['max_new_tokens']
                             max_new_tokens = gr.Slider(
                                 minimum=1, maximum=max_max_new_tokens, step=1,
@@ -846,6 +847,7 @@ body.dark{#warning {background-color: #555555};}
 
         def history_to_context(history, langchain_mode1, prompt_type1, chat1):
             # ensure output will be unique to models
+            # FIXME: hard-coded 2048 implicitly passed:
             _, _, _, max_prompt_length = get_cutoffs(is_low_mem, for_context=True)
             history = copy.deepcopy(history)
 

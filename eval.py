@@ -135,7 +135,7 @@ def run_eval(  # for local function:
                         if not (chat_context and prompt_type == 'human_bot'):
                             assert context in [None, ''], context  # should be no context
                         prompt = instruction
-                    cutoff_len = 768 if is_low_mem else 2048
+                    cutoff_len = 768 if is_low_mem else tokenizer.model_max_length
                     inputs = stokenizer(prompt, res,
                                         return_tensors="pt",
                                         truncation=True,

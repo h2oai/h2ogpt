@@ -18,7 +18,7 @@ prompt = """{human} {instruction}
 
 class H2OTextGenerationPipeline(TextGenerationPipeline):
     def __init__(self, *args, use_prompter=False, debug=False, chat=False, stream_output=False,
-                 sanitize_bot_response=True, **kwargs):
+                 sanitize_bot_response=True, max_input_tokens=2048 - 256, **kwargs):
         super().__init__(*args, **kwargs)
         self.use_prompter = use_prompter
         self.prompt_text = None
@@ -28,10 +28,14 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
         else:
             self.prompter = None
         self.sanitize_bot_response = sanitize_bot_response
+        self.max_input_tokens = max_input_tokens  # not for generate, so ok that not kwargs
 
     def preprocess(self, prompt_text, prefix="", handle_long_generation=None, **generate_kwargs):
         prompt_text = prompt.format(instruction=prompt_text)
         self.prompt_text = prompt_text
+        if handle_long_generation is None:
+            # forces truncation of inputs to avoid critical failure
+            handle_long_generation = 'hole'
         return super().preprocess(prompt_text, prefix=prefix, handle_long_generation=handle_long_generation,
                                   **generate_kwargs)
 
@@ -51,7 +55,7 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
     def _forward(self, model_inputs, **generate_kwargs):
         stopping_criteria = get_stopping(prompt_type, self.tokenizer, self.device, human=human, bot=bot)
         generate_kwargs['stopping_criteria'] = stopping_criteria
-        #return super()._forward(model_inputs, **generate_kwargs)
+        # return super()._forward(model_inputs, **generate_kwargs)
         return self.__forward(model_inputs, **generate_kwargs)
 
     # FIXME: Copy-paste of original _forward, but removed copy.deepcopy()
@@ -70,19 +74,19 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
 
         ## If there is a prefix, we may need to adjust the generation length. Do so without permanently modifying
         ## generate_kwargs, as some of the parameterization may come from the initialization of the pipeline.
-        #generate_kwargs = copy.deepcopy(generate_kwargs)
+        # generate_kwargs = copy.deepcopy(generate_kwargs)
         prefix_length = generate_kwargs.pop("prefix_length", 0)
         if prefix_length > 0:
             has_max_new_tokens = "max_new_tokens" in generate_kwargs or (
-                "generation_config" in generate_kwargs
-                and generate_kwargs["generation_config"].max_new_tokens is not None
+                    "generation_config" in generate_kwargs
+                    and generate_kwargs["generation_config"].max_new_tokens is not None
             )
             if not has_max_new_tokens:
                 generate_kwargs["max_length"] = generate_kwargs.get("max_length") or self.model.config.max_length
                 generate_kwargs["max_length"] += prefix_length
             has_min_new_tokens = "min_new_tokens" in generate_kwargs or (
-                "generation_config" in generate_kwargs
-                and generate_kwargs["generation_config"].min_new_tokens is not None
+                    "generation_config" in generate_kwargs
+                    and generate_kwargs["generation_config"].min_new_tokens is not None
             )
             if not has_min_new_tokens and "min_length" in generate_kwargs:
                 generate_kwargs["min_length"] += prefix_length
@@ -96,7 +100,8 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
             from transformers import is_tf_available
             if is_tf_available():
                 import tensorflow as tf
-                generated_sequence = tf.reshape(generated_sequence, (in_b, out_b // in_b, *generated_sequence.shape[1:]))
+                generated_sequence = tf.reshape(generated_sequence,
+                                                (in_b, out_b // in_b, *generated_sequence.shape[1:]))
             else:
                 raise ValueError("TF not avaialble.")
         return {"generated_sequence": generated_sequence, "input_ids": input_ids, "prompt_text": prompt_text}

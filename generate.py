@@ -706,6 +706,13 @@ def get_model(
         if torch.__version__ >= "2" and sys.platform != "win32" and compile_model:
             model = torch.compile(model)
 
+    if hasattr(config, 'max_position_embeddings') and isinstance(config.max_position_embeddings, int):
+        # help automatically limit inputs to generate
+        tokenizer.model_max_length = \
+            config.max_position_embeddings
+    else:
+        tokenizer.model_max_length = 2048
+
     return model, tokenizer, device
 
 
@@ -972,7 +979,7 @@ def evaluate(
         # override, ignore user change
         num_return_sequences = 1
     stopping_criteria = get_stopping(prompt_type, tokenizer, device)
-    _, _, max_length_tokenize, max_prompt_length = get_cutoffs(is_low_mem)
+    _, _, max_length_tokenize, max_prompt_length = get_cutoffs(is_low_mem, model_max_length=tokenizer.model_max_length)
     prompt = prompt[-max_prompt_length:]
     inputs = tokenizer(prompt,
                        return_tensors="pt",
@@ -983,6 +990,10 @@ def evaluate(
     if debug and len(inputs["input_ids"]) > 0:
         print('input_ids length', len(inputs["input_ids"][0]), flush=True)
     input_ids = inputs["input_ids"].to(device)
+    # CRITICAL LIMIT else will fail
+    max_max_tokens = tokenizer.model_max_length
+    max_input_tokens = max_max_tokens - max_new_tokens
+    input_ids = input_ids[:, -max_input_tokens:]
     generation_config = GenerationConfig(
         temperature=float(temperature),
         top_p=float(top_p),
@@ -1116,12 +1127,12 @@ state_names = ['model_state', 'my_db_state']
 inputs_kwargs_list = [x for x in inputs_list_names if x not in eval_func_param_names + state_names]
 
 
-def get_cutoffs(is_low_mem, for_context=False):
+def get_cutoffs(is_low_mem, for_context=False, model_max_length=2048):
     # help to avoid errors like:
     # RuntimeError: The size of tensor a (2048) must match the size of tensor b (2049) at non-singleton dimension 3
     # RuntimeError: expected scalar type Half but found Float
     # with - 256
-    max_length_tokenize = 768 - 256 if is_low_mem else 2048 - 256
+    max_length_tokenize = 768 - 256 if is_low_mem else model_max_length - 256
     cutoff_len = max_length_tokenize * 4  # if reaches limit, then can't generate new tokens
     output_smallest = 30 * 4
     max_prompt_length = cutoff_len - output_smallest

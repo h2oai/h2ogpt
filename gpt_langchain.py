@@ -167,7 +167,11 @@ def get_llm(use_openai_model=False, model_name=None, model=None,
                                                              torch_dtype=torch_dtype,
                                                              load_in_8bit=load_8bit)
 
-        gen_kwargs = dict(max_new_tokens=max_new_tokens, return_full_text=True, early_stopping=False)
+        max_max_tokens = tokenizer.model_max_length
+        gen_kwargs = dict(max_new_tokens=max_new_tokens,  # for generate
+                          max_input_tokens=max_max_tokens - max_new_tokens,  # for h2o pipeline wrapper
+                          max_length=max_max_tokens,
+                          return_full_text=True, early_stopping=False)
         if stream_output:
             skip_prompt = False
             from generate import H2OTextIteratorStreamer
