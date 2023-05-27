@@ -115,7 +115,18 @@ For links to direct to the document and download to your local machine, the orig
 
 #### What is h2oGPT's LangChain integration like?
 
-* [PrivateGPT](https://github.com/imartinez/privateGPT) but h2oGPT is fully commercially viable by not using [GPT4All](https://github.com/nomic-ai/gpt4all) based upon [LLaMa](https://github.com/facebookresearch/llama) and used data from GPT3.5 (violation of ToS).
+* [PrivateGPT](https://github.com/imartinez/privateGPT) .  By comparison, h2oGPT has:
+  * UI with chats export, import, selection, regeneration, and undo
+  * UI and document Q/A, upload, download, and list
+  * Choose which specific collection
+  * Choose to get response regarding all documents or specific selected document(s) out of a collection
+  * Choose to chat with LLM, get one-off LLM response to a query, or talk to a collection
+  * GPU support from any hugging face model for highest performance
+  * Upload a many types of docs, from PDFs to images (caption or OCR), URLs, ArXiv queries, or just plain text inputs
+  * Server-Client API through gradio client
+  * RLHF score evaluation for every response
+  * UI with side-by-side model comparisons against two models at a time with independent chat streams
+  * Fine-tuning framework with QLORA 4-bit, 8-bit, 16-bit GPU fine-tuning or CPU fine-tuning
 
 * [Vault-AI](https://github.com/pashpashpash/vault-ai) but h2oGPT is fully private and open-source by not using OpenAI or [pinecone](https://www.pinecone.io/).
 
