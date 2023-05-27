@@ -429,7 +429,9 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
         doc1 = chunk_sources(docs1, chunk_size=chunk_size)
     elif file.endswith('.txt'):
         # use UnstructuredFileLoader ?
-        doc1 = TextLoader(file, encoding="utf8", autodetect_encoding=True).load()
+        docs1 = TextLoader(file, encoding="utf8", autodetect_encoding=True).load()
+        # makes just one, but big one
+        doc1 = chunk_sources(docs1, chunk_size=chunk_size)
         add_meta(doc1, file)
     elif file.endswith('.rtf'):
         docs1 = UnstructuredRTFLoader(file).load()
@@ -531,7 +533,8 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
         raise RuntimeError("No file handler for %s" % os.path.basename(file))
 
     # allow doc1 to be list or not.  If not list, did not chunk yet, so chunk now
-    if not isinstance(doc1, list):
+    # if list of length one, don't trust and chunk it
+    if not isinstance(doc1, list) or isinstance(doc1, list) and len(doc1) == 1:
         if chunk:
             docs = chunk_sources([doc1], chunk_size=chunk_size)
         else:
