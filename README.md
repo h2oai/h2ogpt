@@ -99,6 +99,13 @@ python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b  --load_8bit=Tr
 ```
 For more ways to ingest on CLI and control see [LangChain Readme](README_LangChain.md).
 
+For 4-bit support, the latest dev versions of transformers, accelerate, and peft are required, which can be installed by running:
+```bash
+pip uninstall peft transformers accelerate -y
+pip install -r requirements_optional_4bit.txt
+```
+where uninstall is required in case, e.g., peft was installed from github previously.
+
 Any other instruct-tuned base models can be used, including non-h2oGPT ones.  [Larger models require more GPU memory](FAQ.md#larger-models-require-more-gpu-memory).
 
 #### CPU

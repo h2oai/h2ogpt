@@ -1,5 +1,1 @@
 xformers==0.0.20
-# dev required for now for 4-bit training
-git+https://github.com/huggingface/accelerate.git@0226f750257b3bf2cadc4f189f9eef0c764a0467
-git+https://github.com/huggingface/peft.git@3714aa2fff158fdfa637b2b65952580801d890b2
-git+https://github.com/huggingface/transformers.git@f67dac97bdc63874f2288546b3fa87e69d2ea1c8
