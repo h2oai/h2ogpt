@@ -1,3 +1,5 @@
+import pytest
+
 from tests.utils import wrap_test_forked
 
 
@@ -13,6 +15,8 @@ def test_cli(monkeypatch):
     assert "The Earth is a planet in our solar system that orbits around the Sun." in all_generations[0]
 
 
+@pytest.mark.xfail(strict=False, reason="GPT4All produces no output if input has new lines etc."
+                                        "  See FAQ.md, outside h2oGPT same thing even for single line inputs.")
 @wrap_test_forked
 def test_cli_langchain(monkeypatch):
     from tests.utils import make_user_path_test
