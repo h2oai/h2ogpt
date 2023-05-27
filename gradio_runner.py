@@ -1087,11 +1087,11 @@ body.dark{#warning {background-color: #555555};}
                 if len(stepy) != 2:
                     # something off
                     return False
-                questionx = stepx[0].replace('<p>', '').replace('</p>', '')
-                answerx = stepx[1].replace('<p>', '').replace('</p>', '')
+                questionx = stepx[0].replace('<p>', '').replace('</p>', '') if stepx[0] is not None else None
+                answerx = stepx[1].replace('<p>', '').replace('</p>', '') if stepx[1] is not None else None
 
-                questiony = stepy[0].replace('<p>', '').replace('</p>', '')
-                answery = stepy[1].replace('<p>', '').replace('</p>', '')
+                questiony = stepy[0].replace('<p>', '').replace('</p>', '') if stepy[0] is not None else None
+                answery = stepy[1].replace('<p>', '').replace('</p>', '') if stepy[1] is not None else None
 
                 if questionx != questiony or answerx != answery:
                     return False
