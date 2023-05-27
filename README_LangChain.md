@@ -22,6 +22,13 @@ python generate.py --base_model=h2oai/h2ogpt-oasst1-512-12b --load_8bit=True --l
 ```
 See below for additional instructions to add support for some file types.
 
+To support GPU FAISS database, run:
+```bash
+grep -v '#\|peft' requirements.txt > req_constraints.txt
+pip install -r requirements_optional_faiss.txt -c req_constraints.txt
+```
+or if you have no GPUs, you can still use FAISS but comment-out the faiss-gpu line and uncomment the faiss-cpu line.
+
 ## Supported Datatypes
 
 Open-source data types are supported, .msg is not supported due to GPL-3 requirement.  Other meta types support other types inside them.  Special support for some behaviors is provided by the UI itself.
