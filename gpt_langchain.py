@@ -442,8 +442,9 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
         add_meta(docs1, file)
         doc1 = chunk_sources(docs1, chunk_size=chunk_size)
     elif file.endswith('.enex'):
-        doc1 = EverNoteLoader(file).load()
+        docs1 = EverNoteLoader(file).load()
         add_meta(doc1, file)
+        doc1 = chunk_sources(docs1, chunk_size=chunk_size)
     elif file.endswith('.epub'):
         docs1 = UnstructuredEPubLoader(file).load()
         add_meta(docs1, file)
@@ -534,11 +535,16 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
 
     # allow doc1 to be list or not.  If not list, did not chunk yet, so chunk now
     # if list of length one, don't trust and chunk it
-    if not isinstance(doc1, list) or isinstance(doc1, list) and len(doc1) == 1:
+    if not isinstance(doc1, list):
         if chunk:
             docs = chunk_sources([doc1], chunk_size=chunk_size)
         else:
             docs = [doc1]
+    elif isinstance(doc1, list) and len(doc1) == 1:
+        if chunk:
+            docs = chunk_sources(doc1, chunk_size=chunk_size)
+        else:
+            docs = doc1
     else:
         docs = doc1
 
