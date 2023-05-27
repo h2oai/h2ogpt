@@ -1,6 +1,7 @@
 import contextlib
 import functools
 import hashlib
+import inspect
 import os
 import gc
 import pathlib
@@ -785,3 +786,17 @@ class ProgressParallel(Parallel):
             self._pbar.total = self.n_dispatched_tasks
         self._pbar.n = self.n_completed_tasks
         self._pbar.refresh()
+
+
+def get_kwargs(func, exclude_names=None, **kwargs):
+    func_names = list(inspect.signature(func).parameters)
+    missing_kwargs = [x for x in func_names if x not in kwargs]
+    if exclude_names:
+        for k in exclude_names:
+            if k in missing_kwargs:
+                missing_kwargs.remove(k)
+            if k in func_names:
+                func_names.remove(k)
+    assert not missing_kwargs, "Missing %s" % missing_kwargs
+    kwargs = {k: v for k, v in kwargs.items() if k in func_names}
+    return kwargs

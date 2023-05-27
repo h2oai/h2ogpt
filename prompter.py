@@ -48,6 +48,7 @@ prompt_type_to_model_name = {
         'h2oai/h2ogpt-gm-oasst1-multilang-1024-20b',
         'h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b-preview-300bt',
         'h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b-preview-300bt-v2',
+        'h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b-preview-700bt',
     ],
     'instruct': [],
     'instruct_with_end': ['databricks/dolly-v2-12b'],

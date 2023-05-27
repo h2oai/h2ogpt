@@ -15,7 +15,7 @@ from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, 
 from prompter import Prompter, \
     prompt_type_to_model_name, prompt_types_strings, inv_prompt_type_to_model_lower, generate_prompt
 from utils import get_githash, flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
-    ping, get_short_name, get_url, makedirs
+    ping, get_short_name, get_url, makedirs, get_kwargs
 from generate import get_model, languages_covered, evaluate, eval_func_param_names, score_qa, langchain_modes, \
     inputs_kwargs_list, get_cutoffs, scratch_base_dir
 
@@ -32,7 +32,6 @@ def go_gradio(**kwargs):
     admin_pass = kwargs['admin_pass']
     model_state0 = kwargs['model_state0']
     score_model_state0 = kwargs['score_model_state0']
-    queue = True
     dbs = kwargs['dbs']
     db_type = kwargs['db_type']
     visible_langchain_modes = kwargs['visible_langchain_modes']
@@ -41,7 +40,6 @@ def go_gradio(**kwargs):
     enable_sources_list = kwargs['enable_sources_list']
     enable_url_upload = kwargs['enable_url_upload']
     enable_text_upload = kwargs['enable_text_upload']
-    allow_upload = allow_upload_to_user_data or allow_upload_to_my_data
     use_openai_embedding = kwargs['use_openai_embedding']
     hf_embedding_model = kwargs['hf_embedding_model']
     enable_captions = kwargs['enable_captions']
@@ -50,6 +48,8 @@ def go_gradio(**kwargs):
     caption_loader = kwargs['caption_loader']
 
     # easy update of kwargs needed for evaluate() etc.
+    queue = True
+    allow_upload = allow_upload_to_user_data or allow_upload_to_my_data
     kwargs.update(locals())
 
     if 'mbart-' in kwargs['model_lower']:
@@ -173,7 +173,10 @@ body.dark{#warning {background-color: #555555};}
         lora_options_state = gr.State([lora_options])
         my_db_state = gr.State([None, None])
         chat_state = gr.State({})
-        docs_state0 = ['All', 'Only', 'None']
+        # make user default first and default choice, dedup
+        docs_state00 = kwargs['document_choice'] + ['All', 'Only', 'None']
+        docs_state0 = []
+        [docs_state0.append(x) for x in docs_state00 if x not in docs_state0]
         docs_state = gr.State(docs_state0)  # first is chosen as default
         gr.Markdown(f"""
             {get_h2o_title(title) if kwargs['h2ocolors'] else get_simple_title(title)}
@@ -924,7 +927,8 @@ body.dark{#warning {background-color: #555555};}
                            my_db_state1,
                            **kwargs_evaluate)
             try:
-                for output in fun1(*tuple(args_list)):
+                for output_fun in fun1(*tuple(args_list)):
+                    output, extra = output_fun
                     # ensure good visually, else markdown ignores multiple \n
                     bot_message = output.replace('\n', '<br>')
                     history[-1][1] = bot_message
@@ -1237,7 +1241,7 @@ body.dark{#warning {background-color: #555555};}
                 lora_weights = ''
 
             all_kwargs1['lora_weights'] = lora_weights.strip()
-            model1, tokenizer1, device1 = get_model(**all_kwargs1)
+            model1, tokenizer1, device1 = get_model(**get_kwargs(get_model, all_kwargs1))
             clear_torch_cache()
 
             if kwargs['debug']:
