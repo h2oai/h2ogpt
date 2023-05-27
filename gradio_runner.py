@@ -173,7 +173,10 @@ body.dark{#warning {background-color: #555555};}
         lora_options_state = gr.State([lora_options])
         my_db_state = gr.State([None, None])
         chat_state = gr.State({})
-        docs_state0 = ['All', 'Only', 'None']
+        # make user default first and default choice, dedup
+        docs_state00 = kwargs['document_choice'] + ['All', 'Only', 'None']
+        docs_state0 = []
+        [docs_state0.append(x) for x in docs_state00 if x not in docs_state0]
         docs_state = gr.State(docs_state0)  # first is chosen as default
         gr.Markdown(f"""
             {get_h2o_title(title) if kwargs['h2ocolors'] else get_simple_title(title)}
@@ -924,7 +927,8 @@ body.dark{#warning {background-color: #555555};}
                            my_db_state1,
                            **kwargs_evaluate)
             try:
-                for output in fun1(*tuple(args_list)):
+                for output_fun in fun1(*tuple(args_list)):
+                    output, extra = output_fun
                     # ensure good visually, else markdown ignores multiple \n
                     bot_message = output.replace('\n', '<br>')
                     history[-1][1] = bot_message

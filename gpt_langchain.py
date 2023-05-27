@@ -744,7 +744,8 @@ def _make_db(use_openai_embedding=False,
              db_type='faiss',
              load_db_if_exists=False,
              db=None,
-             n_jobs=-1):
+             n_jobs=-1,
+             verbose=False):
     persist_directory = 'db_dir_%s' % langchain_mode  # single place, no special names for each case
     if not db and load_db_if_exists and db_type == 'chroma' and os.path.isdir(persist_directory) and os.path.isdir(
             os.path.join(persist_directory, 'index')):
@@ -756,7 +757,8 @@ def _make_db(use_openai_embedding=False,
     elif not db:
         assert langchain_mode not in ['MyData'], "Should not make MyData db this way"
         sources = []
-        print("Generating sources", flush=True)
+        if verbose:
+            print("Generating sources", flush=True)
         if langchain_mode in ['wiki_full', 'All', "'All'"]:
             from read_wiki_full import get_all_documents
             small_test = None
@@ -799,13 +801,16 @@ def _make_db(use_openai_embedding=False,
             sources1 = loader.load()
             sources.extend(sources1)
         if not sources:
-            print("langchain_mode %s has no sources, not making db" % langchain_mode, flush=True)
+            if verbose:
+                print("langchain_mode %s has no sources, not making db" % langchain_mode, flush=True)
             return None
-        print("Generating db", flush=True)
+        if verbose:
+            print("Generating db", flush=True)
         db = get_db(sources, use_openai_embedding=use_openai_embedding, db_type=db_type,
                     persist_directory=persist_directory, langchain_mode=langchain_mode,
                     hf_embedding_model=hf_embedding_model)
-        print("Generated db", flush=True)
+        if verbose:
+            print("Generated db", flush=True)
     return db
 
 
@@ -849,7 +854,9 @@ def _run_qa_db(query=None,
                top_p=0.7,
                langchain_mode=None,
                document_choice=['All'],
-               n_jobs=-1):
+               n_jobs=-1,
+               verbose=False,
+               cli=False):
     """
 
     :param query:
@@ -897,7 +904,7 @@ def _run_qa_db(query=None,
     docs, chain, scores, use_context = get_similarity_chain(**sim_kwargs)
     if document_choice[0] == 'Only':
         formatted_doc_chunks = '\n\n'.join([get_url(x) + '\n\n' + x.page_content for x in docs])
-        yield formatted_doc_chunks
+        yield formatted_doc_chunks, ''
         return
     if chain is None:
         return
@@ -920,9 +927,9 @@ def _run_qa_db(query=None,
                 if prompter:  # and False:  # FIXME: pipeline can already use prompter
                     output1 = prompter.get_response(outputs, prompt=prompt,
                                                     sanitize_bot_response=sanitize_bot_response)
-                    yield output1
+                    yield output1, ''
                 else:
-                    yield outputs
+                    yield outputs, ''
         except BaseException:
             # if any exception, raise that exception if was from thread, first
             if thread.exc:
@@ -942,10 +949,11 @@ def _run_qa_db(query=None,
 
     if not use_context:
         ret = answer['output_text']
-        yield ret
+        extra = ''
+        yield ret, extra
     elif answer is not None:
-        ret = get_sources_answer(query, answer, scores, show_rank, answer_with_sources)
-        yield ret
+        ret, extra = get_sources_answer(query, answer, scores, show_rank, answer_with_sources)
+        yield ret, extra
     return
 
 
@@ -965,6 +973,7 @@ def get_similarity_chain(query=None,
                          n_jobs=-1,
                          # beyond run_db_query:
                          llm=None,
+                         verbose=False,
                          ):
     if not use_openai_model and prompt_type not in ['plain'] or model_name in ['llama', 'gptj']:
         # instruct-like, rather than few-shot prompt_type='plain' as default
@@ -1005,7 +1014,8 @@ def get_similarity_chain(query=None,
                  db_type=db_type,
                  load_db_if_exists=load_db_if_exists,
                  db=db,
-                 n_jobs=n_jobs)
+                 n_jobs=n_jobs,
+                 verbose=verbose)
 
     if db and use_context:
         if isinstance(document_choice, str):
@@ -1054,7 +1064,8 @@ def get_similarity_chain(query=None,
         num_common = len([x.lower() in set_common for x in reduced_query_words])
         frac_common = num_common / len(reduced_query) if reduced_query else 0
         # FIXME: report to user bad query that uses too many common words
-        print("frac_common: %s" % frac_common, flush=True)
+        if verbose:
+            print("frac_common: %s" % frac_common, flush=True)
 
     if langchain_mode in ['Disabled', 'ChatLLM', 'LLM']:
         chain_kwargs = dict(input_documents=[], question=query)
@@ -1092,10 +1103,11 @@ def get_sources_answer(query, answer, scores, show_rank, answer_with_sources):
         answer['output_text'] += '\n'
 
     if answer_with_sources:
-        ret = answer['output_text'] + '\n' + sorted_sources_urls
+        extra = '\n' + sorted_sources_urls
     else:
-        ret = answer['output_text']
-    return ret
+        extra = ''
+    ret = answer['output_text'] + extra
+    return ret, extra
 
 
 def chunk_sources(sources, chunk_size=1024):
