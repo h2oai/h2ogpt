@@ -58,7 +58,7 @@ def get_stopping(prompt_type, tokenizer, device, human='<human>:', bot="<bot>:")
         stop_words_ids = [x if len(x.shape) > 0 else torch.tensor([x]) for x in stop_words_ids]
         stop_words_ids = [x for x in stop_words_ids if x.shape[0] > 0]
         # avoid padding in front of tokens
-        if tokenizer.pad_token:
+        if tokenizer._pad_token:  # use hidden variable to avoid annoying properly logger bug
             stop_words_ids = [x[1:] if x[0] == tokenizer.pad_token_id and len(x) > 1 else x for x in stop_words_ids]
         # handle fake \n added
         stop_words_ids = [x[1:] if y[0] == '\n' else x for x, y in zip(stop_words_ids, stop_words)]
