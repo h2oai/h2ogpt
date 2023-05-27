@@ -117,11 +117,14 @@ def test_client_chat():
 
 
 def run_client_chat(prompt, prompt_type, stream_output, max_new_tokens, langchain_mode):
-    kwargs, args = get_args(prompt, prompt_type, chat=True, stream_output=stream_output,
-                            max_new_tokens=max_new_tokens, langchain_mode=langchain_mode)
-
     client = get_client(serialize=False)
 
+    kwargs, args = get_args(prompt, prompt_type, chat=True, stream_output=stream_output,
+                            max_new_tokens=max_new_tokens, langchain_mode=langchain_mode)
+    return run_client(client, prompt, args, kwargs)
+
+
+def run_client(client, prompt, args, kwargs, do_md_to_text=True, verbose=False):
     res = client.predict(*tuple(args), api_name='/instruction')
     args[-1] += [res[-1]]
 
@@ -130,8 +133,8 @@ def run_client_chat(prompt, prompt_type, stream_output, max_new_tokens, langchai
     if not kwargs['stream_output']:
         res = client.predict(*tuple(args), api_name='/instruction_bot')
         res_dict['response'] = res[0][-1][1]
-        print(md_to_text(res_dict['response']))
-        return res_dict
+        print(md_to_text(res_dict['response'], do_md_to_text=do_md_to_text))
+        return res_dict, client
     else:
         job = client.submit(*tuple(args), api_name='/instruction_bot')
         res1 = ''
@@ -140,15 +143,24 @@ def run_client_chat(prompt, prompt_type, stream_output, max_new_tokens, langchai
             if outputs_list:
                 res = job.communicator.job.outputs[-1]
                 res1 = res[0][-1][-1]
-                res1 = md_to_text(res1)
+                res1 = md_to_text(res1, do_md_to_text=do_md_to_text)
                 print(res1)
             time.sleep(0.1)
-        print('job.outputs: %s' % str(job.outputs()))
-        res_dict['response'] = res1
-        return res_dict
+        full_outputs = job.outputs()
+        if verbose:
+            print('job.outputs: %s' % str(full_outputs))
+        # ensure get ending to avoid race
+        # -1 means last response if streaming
+        # 0 means get text_output, ignore exception_text
+        # 0 means get list within text_output that looks like [[prompt], [answer]]
+        # 1 means get bot answer, so will have last bot answer
+        res_dict['response'] = md_to_text(full_outputs[-1][0][0][1], do_md_to_text=do_md_to_text)
+        return res_dict, client
 
 
-def md_to_text(md):
+def md_to_text(md, do_md_to_text=True):
+    if not do_md_to_text:
+        return md
     assert md is not None, "Markdown is None"
     html = markdown.markdown(md)
     soup = BeautifulSoup(html, features='html.parser')

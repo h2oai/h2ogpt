@@ -118,6 +118,7 @@ For links to direct to the document and download to your local machine, the orig
 * [PrivateGPT](https://github.com/imartinez/privateGPT) .  By comparison, h2oGPT has:
   * UI with chats export, import, selection, regeneration, and undo
   * UI and document Q/A, upload, download, and list
+  * Parallel ingest of documents, using GPUs if present for vector embeddings, with progress bar in stdout
   * Choose which specific collection
   * Choose to get response regarding all documents or specific selected document(s) out of a collection
   * Choose to chat with LLM, get one-off LLM response to a query, or talk to a collection

@@ -174,7 +174,7 @@ body.dark{#warning {background-color: #555555};}
         my_db_state = gr.State([None, None])
         chat_state = gr.State({})
         # make user default first and default choice, dedup
-        docs_state00 = [kwargs['document_choice'], 'All', 'Only', 'None']
+        docs_state00 = kwargs['document_choice'] + ['All', 'Only', 'None']
         docs_state0 = []
         [docs_state0.append(x) for x in docs_state00 if x not in docs_state0]
         docs_state = gr.State(docs_state0)  # first is chosen as default
