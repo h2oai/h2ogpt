@@ -156,7 +156,7 @@ If so, set your archflags during pip install. eg: `ARCHFLAGS="-arch x86_64" pip3
 
 If you encounter an error while building a wheel during the `pip install` process, you may need to install a C++ compiler on your computer.
 
-#### For Windows 10/11
+### For Windows 10/11
 
 All instructions are same as for GPU or CPU installation, except also need C++ compiler by doing:
 
