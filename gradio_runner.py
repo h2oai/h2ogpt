@@ -469,7 +469,7 @@ body.dark{#warning {background-color: #555555};}
                         else "LOAD-UNLOAD DISABLED FOR HOSTED DEMO"
                     load_msg2 = "Load-Unload Model/LORA 2" if not is_public \
                         else "LOAD-UNLOAD DISABLED FOR HOSTED DEMO 2"
-                    compare_checkbox = gr.components.Checkbox(label="Compare Mode",
+                    compare_checkbox = gr.components.Checkbox(label="Compare Mode [Note: Model unloading only works if did not run with --base_model, else model stays in memory]",
                                                               value=False, visible=not is_public)
                     with gr.Row():
                         n_gpus_list = [str(x) for x in list(range(-1, n_gpus))]
@@ -495,13 +495,6 @@ body.dark{#warning {background-color: #555555};}
                                                             interactive=False)
                                     lora_used = gr.Textbox(label="Current LORA", value=kwargs['lora_weights'],
                                                            visible=kwargs['show_lora'], interactive=False)
-                            with gr.Row():
-                                with gr.Column(scale=50):
-                                    new_model = gr.Textbox(label="New Model HF name/path")
-                                    new_lora = gr.Textbox(label="New LORA HF name/path", visible=kwargs['show_lora'])
-                                with gr.Column(scale=1):
-                                    add_model_button = gr.Button("Add new model name")
-                                    add_lora_button = gr.Button("Add new LORA name", visible=kwargs['show_lora'])
                         col_model2 = gr.Column(visible=False)
                         with col_model2:
                             with gr.Row():
@@ -527,6 +520,15 @@ body.dark{#warning {background-color: #555555};}
                                     model_used2 = gr.Textbox(label="Current Model 2", value=no_model_str)
                                     lora_used2 = gr.Textbox(label="Current LORA 2", value=no_lora_str,
                                                             visible=kwargs['show_lora'])
+                    with gr.Row():
+                        with gr.Column(scale=50):
+                            new_model = gr.Textbox(label="New Model HF name/path")
+                        with gr.Row():
+                            add_model_button = gr.Button("Add new model name").style(full_width=False, size='sm')
+                        with gr.Column(scale=50):
+                            new_lora = gr.Textbox(label="New LORA HF name/path", visible=kwargs['show_lora'])
+                        with gr.Row():
+                            add_lora_button = gr.Button("Add new LORA name", visible=kwargs['show_lora']).style(full_width=False, size='sm')
                 with gr.TabItem("System"):
                     admin_row = gr.Row()
                     with admin_row:
