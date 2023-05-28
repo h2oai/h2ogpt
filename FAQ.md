@@ -295,7 +295,7 @@ python convert.py models/7B/
 # test by running the inference
 ./main -m ./models/7B/ggml-model-q4_0.bin -n 128
 ```
-then adding an entry in the .env file like
+then adding an entry in the .env file like (assumes version 3 quantization)
 ```.env_gpt4all
 # model path and model_kwargs
 model_path_llama=./models/7B/ggml-model-q4_0.bin
@@ -310,7 +310,7 @@ then run h2oGPT like:
 python generate.py --base_model='llama' --langchain_mode=UserData --user_path=user_path
 ```
 
-### is this really a GGML file?
+### is this really a GGML file? Or Using version 2 quantization files from GPT4All that are LLaMa based
 
 If hit error:
 ```text
@@ -320,14 +320,15 @@ error loading model: unknown (magic, version) combination: 67676a74, 00000003; i
 llama_init_from_file: failed to load model
 LLAMA ERROR: failed to load model from ./models/7B/ggml-model-q4_0.bin
 ```
-then note that llama.cpp upgraded to version 3, and we use llama-cpp-python version that supports only that latest version 3.  GPT4All does not support version 3 yet.  If you want to support older version 2 llama quantized models, then
-
-If hit:
-then try:
+then note that llama.cpp upgraded to version 3, and we use llama-cpp-python version that supports only that latest version 3.  GPT4All does not support version 3 yet.  If you want to support older version 2 llama quantized models, then do:
 ```bash
-ip install --force-reinstall --ignore-installed --no-cache-dir llama-cpp-python==0.1.48
+pip install --force-reinstall --ignore-installed --no-cache-dir llama-cpp-python==0.1.48
 ```
-to go back to the prior version
+to go back to the prior version.  Or specify the model using GPT4All as `--base_model='gpt4all_llama` and ensure entry exists like:
+```.env_gpt4all
+model_path_gpt4all_llama=./models/7B/ggml-model-q4_0.bin
+```
+assuming that file is from version 2 quantization.
 
 ### I get the error: `The model 'OptimizedModule' is not supported for . Supported models are ...`
 

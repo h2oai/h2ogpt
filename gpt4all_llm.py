@@ -20,19 +20,6 @@ class FakeTokenizer:
         return self.encode(x, *args, **kwargs)
 
 
-def get_model_name(model_path):
-    if os.path.isfile(model_path) or os.path.isdir(model_path):
-        if '/' in model_path:
-            model_name = os.path.basename(model_path)
-            model_path = os.path.dirname(model_path)
-        else:
-            model_name = model_path
-            model_path = './'
-    else:
-        model_name = model_path
-    return model_name, model_path
-
-
 def get_model_tokenizer_gpt4all(base_model, **kwargs):
     # defaults (some of these are generation parameters, so need to be passed in at generation time)
     model_kwargs = dict(n_ctx=kwargs.get('max_new_tokens', 256),
@@ -50,12 +37,20 @@ def get_model_tokenizer_gpt4all(base_model, **kwargs):
         # FIXME: GPT4All version of llama doesn't handle new quantization, so use llama_cpp_python
         from llama_cpp import Llama
         model = Llama(model_path=model_path)
-    elif base_model in ["gptj", "gpt4all_llama"]:
-        if 'model_path_gpt4all_llama' not in model_kwargs:
-            raise ValueError("No model_path_gpt4all_llama in %s" % env_gpt4all_file)
-        model_path = model_kwargs.pop('model_path_gpt4all_llama')
-        model_name, model_path = get_model_name(model_path)
-        model_type = 'gptj' if base_model == "gptj" else 'llama'
+    elif base_model in "gpt4all_llama":
+        if 'model_name_gpt4all_llama' not in model_kwargs and 'model_path_gpt4all_llama' not in model_kwargs:
+            raise ValueError("No model_name_gpt4all_llama or model_path_gpt4all_llama in %s" % env_gpt4all_file)
+        model_path = model_kwargs.pop('model_path_gpt4all_llama', './')
+        model_name = model_kwargs.pop('model_name_gpt4all_llama', os.path.basename(model_path))
+        model_type = 'llama'
+        from gpt4all import GPT4All as GPT4AllModel
+        model = GPT4AllModel(model_name=model_name, model_path=model_path, model_type=model_type)
+    elif base_model in "gptj":
+        if 'model_name_gptj' not in model_kwargs and 'model_path_gptj' not in model_kwargs:
+            raise ValueError("No model_name_gpt4j or model_path_gpt4j in %s" % env_gpt4all_file)
+        model_path = model_kwargs.pop('model_path_gptj', './')
+        model_name = model_kwargs.pop('model_name_gptj')
+        model_type = 'gptj'
         from gpt4all import GPT4All as GPT4AllModel
         model = GPT4AllModel(model_name=model_name, model_path=model_path, model_type=model_type)
     else:
