@@ -708,8 +708,7 @@ def get_model(
 
     if hasattr(config, 'max_position_embeddings') and isinstance(config.max_position_embeddings, int):
         # help automatically limit inputs to generate
-        tokenizer.model_max_length = \
-            config.max_position_embeddings
+        tokenizer.model_max_length = config.max_position_embeddings
     else:
         tokenizer.model_max_length = 2048
 
