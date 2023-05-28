@@ -4,7 +4,7 @@ import tempfile
 
 import pytest
 from tests.utils import wrap_test_forked
-from utils import zip_data, download_simple, get_ngpus_vis, get_mem_gpus
+from utils import zip_data, download_simple, get_ngpus_vis, get_mem_gpus, have_faiss
 
 have_openai_key = os.environ.get('OPENAI_API_KEY') is not None
 
@@ -136,6 +136,7 @@ def test_qa_daidocs_db_chunk_hf():
     check_ret(ret)
 
 
+@pytest.mark.skipif(not have_faiss, reason="requires FAISS")
 @wrap_test_forked
 def test_qa_daidocs_db_chunk_hf_faiss():
     from gpt_langchain import _run_qa_db

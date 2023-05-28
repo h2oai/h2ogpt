@@ -800,3 +800,23 @@ def get_kwargs(func, exclude_names=None, **kwargs):
     assert not missing_kwargs, "Missing %s" % missing_kwargs
     kwargs = {k: v for k, v in kwargs.items() if k in func_names}
     return kwargs
+
+
+import pkg_resources
+have_faiss = False
+
+try:
+    assert pkg_resources.get_distribution('faiss') is not None
+    have_faiss = True
+except (pkg_resources.DistributionNotFound, AssertionError):
+    pass
+try:
+    assert pkg_resources.get_distribution('faiss_gpu') is not None
+    have_faiss = True
+except (pkg_resources.DistributionNotFound, AssertionError):
+    pass
+try:
+    assert pkg_resources.get_distribution('faiss_cpu') is not None
+    have_faiss = True
+except (pkg_resources.DistributionNotFound, AssertionError):
+    pass

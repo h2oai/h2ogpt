@@ -37,7 +37,6 @@ from langchain.document_loaders import PyPDFLoader, TextLoader, CSVLoader, Pytho
     EverNoteLoader, UnstructuredEmailLoader, UnstructuredODTLoader, UnstructuredPowerPointLoader, \
     UnstructuredEPubLoader, UnstructuredImageLoader, UnstructuredRTFLoader, ArxivLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.vectorstores import FAISS
 from langchain.chains.question_answering import load_qa_chain
 from langchain.docstore.document import Document
 from langchain import PromptTemplate
@@ -53,6 +52,7 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss', persist_directo
 
     # Create vector database
     if db_type == 'faiss':
+        from langchain.vectorstores import FAISS
         db = FAISS.from_documents(sources, embedding)
     elif db_type == 'chroma':
         collection_name = langchain_mode.replace(' ', '_')
