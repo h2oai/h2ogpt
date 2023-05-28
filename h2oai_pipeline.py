@@ -8,8 +8,22 @@ from prompter import Prompter
 class H2OTextGenerationPipeline(TextGenerationPipeline):
     def __init__(self, *args, debug=False, chat=False, stream_output=False,
                  sanitize_bot_response=True,
-                 use_prompter=False, prompter=None, prompt_type=None,
+                 use_prompter=True, prompter=None, prompt_type=None,
                  max_input_tokens=2048 - 256, **kwargs):
+        """
+        HF-like pipeline, but handle instruction prompting and stopping (for some models)
+        :param args:
+        :param debug:
+        :param chat:
+        :param stream_output:
+        :param sanitize_bot_response:
+        :param use_prompter: Whether to use prompter.  If pass prompt_type, will make prompter
+        :param prompter: prompter, can pass if have already
+        :param prompt_type: prompt_type, e.g. human_bot.  See prompt_type to model mapping in from prompter.py.
+                            If use_prompter, then will make prompter and use it.
+        :param max_input_tokens:
+        :param kwargs:
+        """
         super().__init__(*args, **kwargs)
         self.prompt_text = None
         self.use_prompter = use_prompter
@@ -22,14 +36,19 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
                 self.prompter = Prompter(self.prompt_type, debug=debug, chat=chat, stream_output=stream_output)
             self.human = self.prompter.humanstr
             self.bot = self.prompter.botstr
+            self.can_stop = True
         else:
             self.prompter = None
+            self.human = None
+            self.bot = None
+            self.can_stop = False
         self.sanitize_bot_response = sanitize_bot_response
         self.max_input_tokens = max_input_tokens  # not for generate, so ok that not kwargs
 
     def preprocess(self, prompt_text, prefix="", handle_long_generation=None, **generate_kwargs):
         data_point = dict(context='', instruction=prompt_text, input='')
-        prompt_text = self.prompter.generate_prompt(data_point)
+        if self.prompter is not None:
+            prompt_text = self.prompter.generate_prompt(data_point)
         self.prompt_text = prompt_text
         if handle_long_generation is None:
             # forces truncation of inputs to avoid critical failure
@@ -45,14 +64,18 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
                 outputs = rec['generated_text']
                 outputs = self.prompter.get_response(outputs, prompt=self.prompt_text,
                                                      sanitize_bot_response=self.sanitize_bot_response)
-            else:
+            elif self.bot and self.human:
                 outputs = rec['generated_text'].split(self.bot)[1].strip().split(self.human)[0].strip()
+            else:
+                outputs = rec['generated_text']
             rec['generated_text'] = outputs
         return records
 
     def _forward(self, model_inputs, **generate_kwargs):
-        stopping_criteria = get_stopping(self.prompt_type, self.tokenizer, self.device, human=self.human, bot=self.bot)
-        generate_kwargs['stopping_criteria'] = stopping_criteria
+        if self.can_stop:
+            stopping_criteria = get_stopping(self.prompt_type, self.tokenizer, self.device, human=self.human,
+                                             bot=self.bot)
+            generate_kwargs['stopping_criteria'] = stopping_criteria
         # return super()._forward(model_inputs, **generate_kwargs)
         return self.__forward(model_inputs, **generate_kwargs)
 

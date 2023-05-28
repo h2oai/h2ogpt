@@ -153,6 +153,7 @@ def get_llm(use_openai_model=False, model_name=None, model=None,
             # only used if didn't pass model in
             assert model_name is None
             assert tokenizer is None
+            prompt_type = 'human_bot'
             model_name = 'h2oai/h2ogpt-oasst1-512-12b'
             # model_name = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
             # model_name = 'h2oai/h2ogpt-oasst1-512-20b'
@@ -894,10 +895,11 @@ def _run_qa_db(query=None,
     :return:
     """
     assert query is not None
-
-    assert prompter is not None
-    prompt_type = prompter.prompt_type
-    assert prompt_type is not None
+    assert prompter is not None or prompt_type is not None or model is None  # if model is None, then will generate
+    if prompter is not None:
+        prompt_type = prompter.prompt_type
+    if model is not None:
+        assert prompt_type is not None
     llm, model_name, streamer, prompt_type_out = get_llm(use_openai_model=use_openai_model, model_name=model_name,
                                                          model=model, tokenizer=tokenizer,
                                                          stream_output=stream_output,
