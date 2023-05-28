@@ -104,7 +104,7 @@ For 4-bit support, the latest dev versions of transformers, accelerate, and peft
 pip uninstall peft transformers accelerate -y
 pip install -r requirements_optional_4bit.txt
 ```
-where uninstall is required in case, e.g., peft was installed from github previously.
+where uninstall is required in case, e.g., peft was installed from GitHub previously.  Then when running generate pass `--load_4bit=True`.
 
 Any other instruct-tuned base models can be used, including non-h2oGPT ones.  [Larger models require more GPU memory](FAQ.md#larger-models-require-more-gpu-memory).
 
@@ -142,6 +142,30 @@ For no langchain support (still uses LangChain package as model wrapper), run as
 ```bash
 python generate.py --base_model=gptj --score_model=None
 ```
+
+### MACOS
+
+All instructions are same as for GPU or CPU installation, except first install [Rust](https://www.geeksforgeeks.org/how-to-install-rust-in-macos/):
+```bash
+curl –proto ‘=https’ –tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+Enter new shell and test: `rustc --version`
+
+When running a Mac with Intel hardware (not M1), you may run into `_clang: error: the clang compiler does not support '-march=native'_` during pip install.
+If so, set your archflags during pip install. eg: `ARCHFLAGS="-arch x86_64" pip3 install -r requirements.txt`
+
+If you encounter an error while building a wheel during the `pip install` process, you may need to install a C++ compiler on your computer.
+
+#### For Windows 10/11
+
+All instructions are same as for GPU or CPU installation, except also need C++ compiler by doing:
+
+1. Install Visual Studio 2022.
+2. Make sure the following components are selected:
+   * Universal Windows Platform development
+   * C++ CMake tools for Windows
+3. Download the MinGW installer from the [MinGW website](https://sourceforge.net/projects/mingw/).
+4. Run the installer and select the `gcc` component.
 
 ### CLI chat
 
