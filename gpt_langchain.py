@@ -128,12 +128,14 @@ def get_llm(use_openai_model=False, model_name=None, model=None,
             top_k=40,
             top_p=0.7,
             prompt_type=None,
+            prompter=None,
             ):
     if use_openai_model:
         from langchain.llms import OpenAI
         llm = OpenAI(temperature=0)
         model_name = 'openai'
         streamer = None
+        prompt_type = 'plain'
     elif model_name in ['gptj', 'llama']:
         from gpt4all_llm import get_llm_gpt4all
         llm = get_llm_gpt4all(model_name, model=model, max_new_tokens=max_new_tokens,
@@ -151,6 +153,7 @@ def get_llm(use_openai_model=False, model_name=None, model=None,
             # only used if didn't pass model in
             assert model_name is None
             assert tokenizer is None
+            prompt_type = 'human_bot'
             model_name = 'h2oai/h2ogpt-oasst1-512-12b'
             # model_name = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
             # model_name = 'h2oai/h2ogpt-oasst1-512-20b'
@@ -169,7 +172,9 @@ def get_llm(use_openai_model=False, model_name=None, model=None,
 
         max_max_tokens = tokenizer.model_max_length
         gen_kwargs = dict(max_new_tokens=max_new_tokens,
-                          return_full_text=True, early_stopping=False)
+                          return_full_text=True,
+                          early_stopping=False,
+                          handle_long_generation='hole')
 
         if stream_output:
             skip_prompt = False
@@ -180,18 +185,19 @@ def get_llm(use_openai_model=False, model_name=None, model=None,
         else:
             streamer = None
 
-        if 'h2ogpt' in model_name or prompt_type == 'human_bot':
-            from h2oai_pipeline import H2OTextGenerationPipeline
-            gen_kwargs.update(dict(max_input_tokens=max_max_tokens - max_new_tokens))
-            pipe = H2OTextGenerationPipeline(model=model, tokenizer=tokenizer, **gen_kwargs)
-            # pipe.task = "text-generation"
-            # below makes it listen only to our prompt removal, not built in prompt removal that is less general and not specific for our model
-            pipe.task = "text2text-generation"
-            prompt_type = 'human_bot'
-        else:
-            # only for non-instruct tuned cases when ok with just normal next token prediction
-            from transformers import pipeline
-            pipe = pipeline("text-generation", model=model, tokenizer=tokenizer, **gen_kwargs)
+        from h2oai_pipeline import H2OTextGenerationPipeline
+        pipe = H2OTextGenerationPipeline(model=model, use_prompter=True,
+                                         prompter=prompter,
+                                         prompt_type=prompt_type,
+                                         sanitize_bot_response=True,
+                                         chat=False, stream_output=stream_output,
+                                         tokenizer=tokenizer,
+                                         max_input_tokens=max_max_tokens - max_new_tokens,
+                                         **gen_kwargs)
+        # pipe.task = "text-generation"
+        # below makes it listen only to our prompt removal,
+        # not built in prompt removal that is less general and not specific for our model
+        pipe.task = "text2text-generation"
 
         from langchain.llms import HuggingFacePipeline
         llm = HuggingFacePipeline(pipeline=pipe)
@@ -889,8 +895,11 @@ def _run_qa_db(query=None,
     :return:
     """
     assert query is not None
-
-    prompt_type = prompter.prompt_type if prompter is not None else prompt_type
+    assert prompter is not None or prompt_type is not None or model is None  # if model is None, then will generate
+    if prompter is not None:
+        prompt_type = prompter.prompt_type
+    if model is not None:
+        assert prompt_type is not None
     llm, model_name, streamer, prompt_type_out = get_llm(use_openai_model=use_openai_model, model_name=model_name,
                                                          model=model, tokenizer=tokenizer,
                                                          stream_output=stream_output,
@@ -900,6 +909,7 @@ def _run_qa_db(query=None,
                                                          top_k=top_k,
                                                          top_p=top_p,
                                                          prompt_type=prompt_type,
+                                                         prompter=prompter,
                                                          )
 
     if model_name in ['llama', 'gptj']:

@@ -8,15 +8,17 @@ def test_langchain_simple():
     from h2oai_pipeline import H2OTextGenerationPipeline
 
     model_name = 'h2oai/h2ogpt-oasst1-512-12b'
+    prompt_type = 'human_bot'  # prompt_type required for stopping support and correct handling of instruction prompting
     load_in_8bit = True
     n_gpus = torch.cuda.device_count() if torch.cuda.is_available else 0
     device = 'cpu' if n_gpus == 0 else 'cuda'
     device_map = {"": 0} if device == 'cuda' else "auto"
     tokenizer = AutoTokenizer.from_pretrained(model_name, padding_side="left")
-    model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.bfloat16, device_map=device_map, load_in_8bit=load_in_8bit)
+    model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.bfloat16, device_map=device_map,
+                                                 load_in_8bit=load_in_8bit)
 
     gen_kwargs = dict(max_new_tokens=512, return_full_text=True, early_stopping=False)
-    pipe = H2OTextGenerationPipeline(model=model, tokenizer=tokenizer, **gen_kwargs)
+    pipe = H2OTextGenerationPipeline(model=model, tokenizer=tokenizer, prompt_type=prompt_type, **gen_kwargs)
     # below makes it listen only to our prompt removal, not built in prompt removal that is less general and not specific for our model
     pipe.task = "text2text-generation"
 
@@ -44,4 +46,3 @@ def test_langchain_simple():
     answer = chain(chain_kwargs)
     print(answer)
     assert 'Einstein' in answer['output_text'] and "Newton" in answer['output_text']
-
