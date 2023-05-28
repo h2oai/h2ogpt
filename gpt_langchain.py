@@ -727,6 +727,10 @@ def prep_langchain(persist_directory, load_db_if_exists, db_type, use_openai_emb
     return db
 
 
+import posthog
+posthog.disabled = True
+
+
 def get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
                     hf_embedding_model):
     if load_db_if_exists and db_type == 'chroma' and os.path.isdir(persist_directory) and os.path.isdir(
