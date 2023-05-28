@@ -104,7 +104,7 @@ For 4-bit support, the latest dev versions of transformers, accelerate, and peft
 pip uninstall peft transformers accelerate -y
 pip install -r requirements_optional_4bit.txt
 ```
-where uninstall is required in case, e.g., peft was installed from GitHub previously.  Then when running generate pass `--load_4bit=True`.
+where uninstall is required in case, e.g., peft was installed from GitHub previously.  Then when running generate pass `--load_4bit=True`, which is only supported for certain [architectures](https://github.com/huggingface/peft#models-support-matrix) like GPT-NeoX-20B, GPT-J, LLaMa, etc.
 
 Any other instruct-tuned base models can be used, including non-h2oGPT ones.  [Larger models require more GPU memory](FAQ.md#larger-models-require-more-gpu-memory).
 
