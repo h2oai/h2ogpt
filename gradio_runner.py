@@ -9,7 +9,20 @@ import traceback
 import uuid
 import filelock
 import pandas as pd
+import requests
 import tabulate
+
+# This is a hack to prevent Gradio from phoning home when it gets imported
+os.environ['GRADIO_ANALYTICS_ENABLED'] = 'False'
+def my_get(url, **kwargs):
+    print('Gradio HTTP request redirected to localhost :)', flush=True)
+    kwargs.setdefault('allow_redirects', True)
+    return requests.api.request('get', 'http://127.0.0.1/', **kwargs)
+
+original_get = requests.get
+requests.get = my_get
+import gradio as gr
+requests.get = original_get
 
 from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, get_dark_js
 from prompter import Prompter, \
@@ -19,7 +32,6 @@ from utils import get_githash, flatten_list, zip_data, s3up, clear_torch_cache, 
 from generate import get_model, languages_covered, evaluate, eval_func_param_names, score_qa, langchain_modes, \
     inputs_kwargs_list, get_cutoffs, scratch_base_dir
 
-import gradio as gr
 from apscheduler.schedulers.background import BackgroundScheduler
 
 
@@ -95,6 +107,7 @@ def go_gradio(**kwargs):
     else:
         css_code = """footer {visibility: hidden}"""
     css_code += """
+@import url('https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;600&display=swap');
 body.dark{#warning {background-color: #555555};}
 #small_btn {
     margin: 0.6em 0em 0.55em 0;
@@ -131,7 +144,19 @@ body.dark{#warning {background-color: #555555};}
 
         Chatbot._postprocess_chat_messages = _postprocess_chat_messages
 
-    theme = H2oTheme() if kwargs['h2ocolors'] else SoftTheme()
+    if kwargs['gradio_offline_level'] >= 0:
+        # avoid GoogleFont that pulls from internet
+        if kwargs['gradio_offline_level'] == 1:
+            # front end would still have to download fonts or have cached it at some point
+            base_font = 'Source Sans Pro'
+        else:
+            base_font = 'Helvetica'
+        theme_kwargs = dict(font=(base_font, 'ui-sans-serif', 'system-ui', 'sans-serif'),
+                            font_mono=('IBM Plex Mono', 'ui-monospace', 'Consolas', 'monospace'))
+    else:
+        theme_kwargs = dict()
+
+    theme = H2oTheme(**theme_kwargs) if kwargs['h2ocolors'] else SoftTheme(**theme_kwargs)
     demo = gr.Blocks(theme=theme, css=css_code, title="h2oGPT", analytics_enabled=False)
     callback = gr.CSVLogger()
 

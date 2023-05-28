@@ -9,9 +9,14 @@ import os
 import time
 import traceback
 import typing
+import warnings
 from datetime import datetime
 import filelock
 import psutil
+
+os.environ['HF_HUB_DISABLE_TELEMETRY'] = '1'
+os.environ['BITSANDBYTES_NOWELCOME'] = '1'
+warnings.filterwarnings('ignore', category=UserWarning, message='TypedStorage is deprecated')
 
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial, EThread, get_githash, \
@@ -22,7 +27,6 @@ import_matplotlib()
 SEED = 1236
 set_seed(SEED)
 
-os.environ['HF_HUB_DISABLE_TELEMETRY'] = '1'
 from typing import Union
 
 import fire
@@ -83,6 +87,7 @@ def main(
         cli_loop: bool = True,
         gradio: bool = True,
         gradio_avoid_processing_markdown: bool = False,
+        gradio_offline_level: int = 0,
         chat: bool = True,
         chat_context: bool = False,
         stream_output: bool = True,
@@ -174,6 +179,12 @@ def main(
     :param cli_loop: whether to loop for CLI (False usually only for testing)
     :param gradio: whether to enable gradio, or to enable benchmark mode
     :param gradio_avoid_processing_markdown:
+    :param gradio_offline_level: > 0, then change fonts so full offline
+           == 1 means backend won't need internet for fonts, but front-end UI might if font not cached
+           == 2 means backend and frontend don't need internet to download any fonts.
+           Note: Some things always disabled include HF telemetry, gradio telemetry, chromadb posthog that involve uploading.
+           This option further disables google fonts for downloading, which is less intrusive than uploading,
+           but still required in air-gapped case.  The fonts don't look as nice as google fonts, but ensure full offline behavior.
     :param chat: whether to enable chat mode with chat history
     :param chat_context: whether to use extra helpful context if human_bot
     :param stream_output: whether to stream output from generate

@@ -178,6 +178,8 @@ See models that are currently supported in this automatic way, and the same dict
 
 Note, when running `generate.py` and asking your first question, it will download the model(s), which for the 6.9B model takes about 15 minutes per 3 pytorch bin files if have 10MB/s download.
 
+If all data has been put into `~/.cache` by HF transformers, then these following steps (those related to downloading HF models) are not required.
+
 1) Download model and tokenizer of choice
 
 ```python
@@ -208,29 +210,20 @@ from langchain.embeddings import HuggingFaceEmbeddings
 embedding = HuggingFaceEmbeddings(model_name=hf_embedding_model, model_kwargs=model_kwargs)
 ```
 
-4) Gradio uses Cloudfare scripts, download from Cloudfare:
-```
-iframeResizer.contentWindow.min.js
-index-8bb1e421.js
-``` 
-place them into python environment at:
-```
-site-packages/gradio/templates/cdn/assets
-site-packages/gradio/templates/frontend/assets
-```
-
-5) For jupyterhub dashboard,  modify `index-8bb1e421.js` to remove or hardcode port number into urls where `/port/7860` is located.  One may have to modify:
-```
-templates/cdn/index.html
-templates/frontend/index.html
-templates/frontend/share.html
-```
- 
-6) Run generate with transformers in [Offline Mode](https://huggingface.co/docs/transformers/installation#offline-mode)
+4) Run generate with transformers in [Offline Mode](https://huggingface.co/docs/transformers/installation#offline-mode)
 
 ```bash
-HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python generate.py --base_model='h2oai/h2ogpt-oasst1-512-12b'
+HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python generate.py --base_model='h2oai/h2ogpt-oasst1-512-12b' --gradio_offline_level=2
 ```
+
+Some code is always disabled that involves uploads out of user control: Huggingface telemetry, gradio telemetry, chromadb posthog.
+
+The additional option `--gradio_offline_level=2` changes fonts to avoid download of google fonts. This option disables google fonts for downloading, which is less intrusive than uploading, but still required in air-gapped case.  The fonts don't look as nice as google fonts, but ensure full offline behavior.
+
+If the front-end can still access internet, but just backend should not, then one can use `--gradio_offline_level=1` for slightly better-looking fonts.
+
+Note that gradio attempts to download [iframeResizer.contentWindow.min.js](https://cdnjs.cloudflare.com/ajax/libs/iframe-resizer/4.3.1/iframeResizer.contentWindow.min.js),
+but nothing prevents gradio from working without this.  So a simple firewall block is sufficient.  For more details, see: https://github.com/AUTOMATIC1111/stable-diffusion-webui/pull/10324.
 
 ### Isolated LangChain Usage:
 
