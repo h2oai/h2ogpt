@@ -90,7 +90,7 @@ cd h2ogpt
 pip install -r requirements.txt
 python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b --load_8bit=True
 ```
-Then point browser at http://0.0.0.0:7860 (linux) or http://localhost:7860 (windows/mac) or the public live URL printed by the server (disable shared link with `--share=False`).  For 8-bit support, older GPUs may require older bitsandbytes installed as `pip install bitsandbytes==0.38.1`.
+Then point browser at http://0.0.0.0:7860 (linux) or http://localhost:7860 (windows/mac) or the public live URL printed by the server (disable shared link with `--share=False`).  For 4-bit 8-bit support, older GPUs may require older bitsandbytes installed as `pip uninstall bitsandbytes -y ; pip install bitsandbytes==0.38.1`.
 
 For quickly using a private document collection for Q/A, place documents (PDFs, text, etc.) into a folder called `user_path` and run
 ```bash
@@ -167,7 +167,7 @@ All instructions are same as for GPU or CPU installation, except also need C++ c
 3. Download the MinGW installer from the [MinGW website](https://sourceforge.net/projects/mingw/).
 4. Run the installer and select the `gcc` component.
 
-For GPU support of 8-bit, run:
+For GPU support of 4-bit and 8-bit, run:
 ```bash
 pip install https://github.com/jllllll/bitsandbytes-windows-webui/blob/main/bitsandbytes-0.39.0-py3-none-any.whl
 ```
