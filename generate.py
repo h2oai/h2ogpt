@@ -758,7 +758,8 @@ def get_score_model(score_model: str = None,
         lora_weights = ''
         llama_type = False
         compile_model = False
-        smodel, stokenizer, sdevice = get_model(**get_kwargs(get_model, **locals()))
+        smodel, stokenizer, sdevice = get_model(reward_type=True,
+                                                **get_kwargs(get_model, exclude_names=['reward_type'], **locals()))
     else:
         smodel, stokenizer, sdevice = None, None, None
     return smodel, stokenizer, sdevice

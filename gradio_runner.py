@@ -1243,7 +1243,8 @@ body.dark{#warning {background-color: #555555};}
                 lora_weights = ''
 
             all_kwargs1['lora_weights'] = lora_weights.strip()
-            model1, tokenizer1, device1 = get_model(**get_kwargs(get_model, all_kwargs1))
+            model1, tokenizer1, device1 = get_model(reward_type=False,
+                                                    **get_kwargs(get_model, exclude_names=['reward_type'], **all_kwargs1))
             clear_torch_cache()
 
             if kwargs['debug']:
