@@ -14,7 +14,7 @@ sentence_transformers==2.2.2
 openai==0.27.6
 
 # local vector db
-chromadb==0.3.23
+chromadb==0.3.25
 # server vector db
 #pymilvus==2.2.8
 
