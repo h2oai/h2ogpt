@@ -143,7 +143,7 @@ For no langchain support (still uses LangChain package as model wrapper), run as
 python generate.py --base_model=gptj --score_model=None
 ```
 
-### MACOS
+#### MACOS
 
 All instructions are same as for GPU or CPU installation, except first install [Rust](https://www.geeksforgeeks.org/how-to-install-rust-in-macos/):
 ```bash
@@ -156,7 +156,7 @@ If so, set your archflags during pip install. eg: `ARCHFLAGS="-arch x86_64" pip3
 
 If you encounter an error while building a wheel during the `pip install` process, you may need to install a C++ compiler on your computer.
 
-### Windows 10/11
+#### Windows 10/11
 
 All instructions are same as for GPU or CPU installation, except also need C++ compiler by doing:
 
@@ -167,7 +167,7 @@ All instructions are same as for GPU or CPU installation, except also need C++ c
 3. Download the MinGW installer from the [MinGW website](https://sourceforge.net/projects/mingw/).
 4. Run the installer and select the `gcc` component.
 
-### CLI chat
+#### CLI chat
 
 The CLI can be used instead of gradio by running for some base model, e.g.:
 ```bash
