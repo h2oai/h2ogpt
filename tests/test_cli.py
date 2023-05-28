@@ -40,6 +40,28 @@ def test_cli_langchain(monkeypatch):
 
 
 @wrap_test_forked
+def test_cli_langchain_llamacpp(monkeypatch):
+    from tests.utils import make_user_path_test
+    user_path = make_user_path_test()
+
+    query = "What is the cat doing?"
+    monkeypatch.setattr('builtins.input', lambda _: query)
+
+    from generate import main
+    all_generations = main(base_model='llama', cli=True, cli_loop=False, score_model='None',
+                           langchain_mode='UserData',
+                           user_path=user_path,
+                           visible_langchain_modes=['UserData', 'MyData'],
+                           document_choice=['All'],
+                           verbose=True)
+
+    print(all_generations)
+    assert len(all_generations) == 1
+    assert "pexels-evg-kowalievska-1170986_small.jpg" in all_generations[0]
+    assert "What is the cat thinking about?" in all_generations[0]
+
+
+@wrap_test_forked
 def test_cli_h2ogpt(monkeypatch):
     query = "What is the Earth?"
     monkeypatch.setattr('builtins.input', lambda _: query)
