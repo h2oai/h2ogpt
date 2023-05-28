@@ -19,6 +19,7 @@ from operator import concat
 from joblib import Parallel, delayed
 from tqdm import tqdm
 
+from prompter import non_hf_types
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
     get_device, ProgressParallel
 
@@ -136,7 +137,7 @@ def get_llm(use_openai_model=False, model_name=None, model=None,
         model_name = 'openai'
         streamer = None
         prompt_type = 'plain'
-    elif model_name in ['gptj', 'llama']:
+    elif model_name in non_hf_types:
         from gpt4all_llm import get_llm_gpt4all
         llm = get_llm_gpt4all(model_name, model=model, max_new_tokens=max_new_tokens,
                               temperature=temperature,
@@ -916,7 +917,7 @@ def _run_qa_db(query=None,
                                                          prompter=prompter,
                                                          )
 
-    if model_name in ['llama', 'gptj']:
+    if model_name in non_hf_types:
         # FIXME: for now, streams to stdout/stderr currently
         stream_output = False
 
@@ -1002,7 +1003,7 @@ def get_similarity_chain(query=None,
                          llm=None,
                          verbose=False,
                          ):
-    if not use_openai_model and prompt_type not in ['plain'] or model_name in ['llama', 'gptj']:
+    if not use_openai_model and prompt_type not in ['plain'] or model_name in non_hf_types:
         # instruct-like, rather than few-shot prompt_type='plain' as default
         # but then sources confuse the model with how inserted among rest of text, so avoid
         prefix = ""

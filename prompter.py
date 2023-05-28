@@ -2,6 +2,9 @@ import time
 from enum import Enum
 
 
+non_hf_types = ['gpt4all_llama', 'llama', 'gptj']
+
+
 class PromptType(Enum):
     plain = 0
     instruct = 1

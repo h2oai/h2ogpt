@@ -40,6 +40,12 @@ def test_client_chat_nostream_gpt4all():
 
 
 @wrap_test_forked
+def test_client_chat_nostream_gpt4all_llama():
+    res_dict, client = run_client_chat_with_server(stream_output=False, base_model='gpt4all_llama', prompt_type='plain')
+    assert 'What do you want? Why are you here?' in res_dict['response']
+
+
+@wrap_test_forked
 def test_client_chat_nostream_llama7b():
     from huggingface_hub import hf_hub_download
 

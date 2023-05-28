@@ -35,7 +35,7 @@ from peft import PeftModel
 from transformers import GenerationConfig, AutoModel, TextIteratorStreamer
 from accelerate import init_empty_weights, infer_auto_device_map
 
-from prompter import Prompter, inv_prompt_type_to_model_lower
+from prompter import Prompter, inv_prompt_type_to_model_lower, non_hf_types
 from stopping import get_stopping
 
 eval_extra_columns = ['prompt', 'response', 'score']
@@ -572,7 +572,7 @@ def get_model(
     """
     if verbose:
         print("Get %s model" % base_model, flush=True)
-    if base_model in ['llama', 'gptj']:
+    if base_model in non_hf_types:
         from gpt4all_llm import get_model_tokenizer_gpt4all
         model, tokenizer, device = get_model_tokenizer_gpt4all(base_model)
         return model, tokenizer, device
@@ -924,8 +924,7 @@ def evaluate(
         db1 = dbs[langchain_mode]
     else:
         db1 = None
-    if langchain_mode not in [False, 'Disabled', 'ChatLLM', 'LLM'] and db1 is not None or base_model in ['llama',
-                                                                                                         'gptj']:
+    if langchain_mode not in [False, 'Disabled', 'ChatLLM', 'LLM'] and db1 is not None or base_model in non_hf_types:
         query = instruction if not iinput else "%s\n%s" % (instruction, iinput)
         outr = ""
         # use smaller cut_distanct for wiki_full since so many matches could be obtained, and often irrelevant unless close
@@ -967,7 +966,7 @@ def evaluate(
                 print(
                     'Post-Generate Langchain: %s decoded_output: %s' % (str(datetime.now()), len(outr) if outr else -1),
                     flush=True)
-        if outr or base_model in ['llama', 'gptj']:
+        if outr or base_model in non_hf_types:
             # if got no response (e.g. not showing sources and got no sources,
             # so nothing to give to LLM), then slip through and ask LLM
             # Or if llama/gptj, then just return since they had no response and can't go down below code path

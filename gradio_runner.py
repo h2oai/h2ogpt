@@ -26,7 +26,7 @@ requests.get = original_get
 
 from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, get_dark_js
 from prompter import Prompter, \
-    prompt_type_to_model_name, prompt_types_strings, inv_prompt_type_to_model_lower, generate_prompt
+    prompt_type_to_model_name, prompt_types_strings, inv_prompt_type_to_model_lower, generate_prompt, non_hf_types
 from utils import get_githash, flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping, get_short_name, get_url, makedirs, get_kwargs
 from generate import get_model, languages_covered, evaluate, eval_func_param_names, score_qa, langchain_modes, \
@@ -1410,7 +1410,7 @@ body.dark{#warning {background-color: #555555};}
     scheduler = BackgroundScheduler()
     scheduler.add_job(func=clear_torch_cache, trigger="interval", seconds=20)
     if is_public and \
-            kwargs['base_model'] not in ['gptj', 'llama']:
+            kwargs['base_model'] not in non_hf_types:
         # FIXME: disable for gptj, langchain or gpt4all modify print itself
         # FIXME: and any multi-threaded/async print will enter model output!
         scheduler.add_job(func=ping, trigger="interval", seconds=60)
@@ -1419,7 +1419,7 @@ body.dark{#warning {background-color: #555555};}
     # import control
     if kwargs['langchain_mode'] == 'Disabled' and \
             os.environ.get("TEST_LANGCHAIN_IMPORT") and \
-            kwargs['base_model'] not in ['gptj', 'llama']:
+            kwargs['base_model'] not in non_hf_types:
         assert 'gpt_langchain' not in sys.modules, "Dev bug, import of langchain when should not have"
         assert 'langchain' not in sys.modules, "Dev bug, import of langchain when should not have"
 
