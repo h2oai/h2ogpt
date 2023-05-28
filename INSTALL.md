@@ -14,7 +14,7 @@ conda create -n h2ogpt -y
 conda activate h2ogpt
 conda install mamba -n base -c conda-forge
 conda install python=3.10 -y
-conda update -n base -c defaults conda
+conda update -n base -c defaults conda -y 
 ```
 Enter new shell and should also see `(base)` in prompt.  Then, create new env:
 ```bash

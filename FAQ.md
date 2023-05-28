@@ -256,16 +256,78 @@ python generate.py --base_model=h2oai/h2ogpt-oasst1-512-20b --load_8bit=True
 ```
 etc.
 
-### CPU with no AVX2
+### CPU with no AVX2 or using LLaMa.cpp
 
 For GPT4All based models, require AVX2, unless one recompiles that project on your system.  Until then, use llama.cpp models instead,
-e.g. by compiling the llama model on your system by following the [instructions](https://github.com/ggerganov/llama.cpp#description),
-then adding an entry in the .env file like:
+e.g. by compiling the llama model on your system by following the [instructions](https://github.com/ggerganov/llama.cpp#build) and [llama-cpp-python](https://github.com/abetlen/llama-cpp-python), e.g. for Linux:
+```bash
+git clone https://github.com/ggerganov/llama.cpp
+cd llama.cpp
+make clean
+make LLAMA_OPENBLAS=1
+```
+on CPU, or for GPU:
+```bash
+git clone https://github.com/ggerganov/llama.cpp
+cd llama.cpp
+make clean
+make LLAMA_CUBLAS=1
+```
+etc. following different [scenarios](https://github.com/ggerganov/llama.cpp#build).
+
+Then:
+```bash
+# obtain the original LLaMA model weights and place them in ./models, i.e. models should contain:
+# 65B 30B 13B 7B tokenizer_checklist.chk tokenizer.model
+
+# install Python dependencies
+conda create -n llamacpp -y
+conda activate llamacpp
+conda install python=3.10 -y
+pip install -r requirements.txt
+
+# convert the 7B model to ggml FP16 format
+python convert.py models/7B/
+
+# quantize the model to 4-bits (using q4_0 method)
+./quantize ./models/7B/ggml-model-f16.bin ./models/7B/ggml-model-q4_0.bin q4_0
+
+# test by running the inference
+./main -m ./models/7B/ggml-model-q4_0.bin -n 128
+```
+then adding an entry in the .env file like
 ```.env_gpt4all
 # model path and model_kwargs
 model_path_llama=./models/7B/ggml-model-q4_0.bin
 ```
-or wherever you placed the model.
+or wherever you placed the model with the path pointing to wherever the files are located (e.g. link from h2oGPT repo to llama.cpp repo folder), e.g.
+```bash
+cd ~/h2ogpt/
+ln -s ~/llama.cpp/models/* .
+```
+then run h2oGPT like:
+```bash
+python generate.py --base_model='llama' --langchain_mode=UserData --user_path=user_path
+```
+
+### is this really a GGML file?
+
+If hit error:
+```text
+Found model file.
+llama.cpp: loading model from ./models/7B/ggml-model-q4_0.bin
+error loading model: unknown (magic, version) combination: 67676a74, 00000003; is this really a GGML file?
+llama_init_from_file: failed to load model
+LLAMA ERROR: failed to load model from ./models/7B/ggml-model-q4_0.bin
+```
+then note that llama.cpp upgraded to version 3, and we use llama-cpp-python version that supports only that latest version 3.  GPT4All does not support version 3 yet.  If you want to support older version 2 llama quantized models, then
+
+If hit:
+then try:
+```bash
+ip install --force-reinstall --ignore-installed --no-cache-dir llama-cpp-python==0.1.48
+```
+to go back to the prior version
 
 ### I get the error: `The model 'OptimizedModule' is not supported for . Supported models are ...`
 

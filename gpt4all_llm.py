@@ -20,6 +20,19 @@ class FakeTokenizer:
         return self.encode(x, *args, **kwargs)
 
 
+def get_model_name(model_path):
+    if os.path.isfile(model_path) or os.path.isdir(model_path):
+        if '/' in model_path:
+            model_name = os.path.basename(model_path)
+            model_path = os.path.dirname(model_path)
+        else:
+            model_name = model_path
+            model_path = './'
+    else:
+        model_name = model_path
+    return model_name, model_path
+
+
 def get_model_tokenizer_gpt4all(base_model, **kwargs):
     # defaults (some of these are generation parameters, so need to be passed in at generation time)
     model_kwargs = dict(n_ctx=kwargs.get('max_new_tokens', 256),
@@ -34,17 +47,19 @@ def get_model_tokenizer_gpt4all(base_model, **kwargs):
         if 'model_path_llama' not in model_kwargs:
             raise ValueError("No model_path_llama in %s" % env_gpt4all_file)
         model_path = model_kwargs.pop('model_path_llama')
+        # FIXME: GPT4All version of llama doesn't handle new quantization, so use llama_cpp_python
+        from llama_cpp import Llama
+        model = Llama(model_path=model_path)
+    elif base_model in ["gptj", "gpt4all_llama"]:
+        if 'model_path_gpt4all_llama' not in model_kwargs:
+            raise ValueError("No model_path_gpt4all_llama in %s" % env_gpt4all_file)
+        model_path = model_kwargs.pop('model_path_gpt4all_llama')
+        model_name, model_path = get_model_name(model_path)
+        model_type = 'gptj' if base_model == "gptj" else 'llama'
         from gpt4all import GPT4All as GPT4AllModel
-    elif base_model == "gptj":
-        if 'model_path_gptj' not in model_kwargs:
-            raise ValueError("No model_path_gptj in %s" % env_gpt4all_file)
-        model_path = model_kwargs.pop('model_path_gptj')
-        from gpt4all import GPT4All as GPT4AllModel
+        model = GPT4AllModel(model_name=model_name, model_path=model_path, model_type=model_type)
     else:
         raise ValueError("No such base_model %s" % base_model)
-    func_names = list(inspect.signature(GPT4AllModel).parameters)
-    model_kwargs = {k: v for k, v in model_kwargs.items() if k in func_names}
-    model = GPT4AllModel(model_path, **model_kwargs)
     return model, FakeTokenizer(), 'cpu'
 
 
@@ -74,10 +89,9 @@ def get_llm_gpt4all(model_name, model=None,
     default_params = {'context_erase': 0.5, 'n_batch': 1, 'n_ctx': n_ctx, 'n_predict': max_new_tokens,
                       'repeat_last_n': 64 if repetition_penalty != 1.0 else 0, 'repeat_penalty': repetition_penalty,
                       'temp': temperature, 'top_k': top_k, 'top_p': top_p}
-    if model_name == 'llama':
-        from langchain.llms import LlamaCpp
+    if model_name in ['llama', 'gpt4all_llama']:
         model_path = model_kwargs.pop('model_path_llama') if model is None else model
-        llm = LlamaCpp(model_path=model_path, n_ctx=n_ctx, callbacks=callbacks, verbose=False)
+        llm = H2OLlamaCpp(model_path=model_path, n_ctx=n_ctx, callbacks=callbacks, verbose=False)
     else:
         model_path = model_kwargs.pop('model_path_gptj') if model is None else model
         llm = H2OGPT4All(model=model_path, backend='gptj', callbacks=callbacks,
@@ -116,6 +130,71 @@ class H2OGPT4All(gpt4all.GPT4All):
                 "Could not import gpt4all python package. "
                 "Please install it with `pip install gpt4all`."
             )
+        return values
+
+    def _call(
+            self,
+            prompt: str,
+            stop: Optional[List[str]] = None,
+            run_manager: Optional[CallbackManagerForLLMRun] = None,
+    ) -> str:
+        # Roughly 4 chars per token if natural language
+        prompt = prompt[-self.n_ctx * 4:]
+        verbose = False
+        if verbose:
+            print("_call prompt: %s" % prompt, flush=True)
+        return super()._call(prompt, stop=stop, run_manager=run_manager)
+
+
+from langchain.llms import LlamaCpp
+
+
+class H2OLlamaCpp(LlamaCpp):
+    model_path: Any
+    """Path to the pre-trained GPT4All model file."""
+
+    @root_validator()
+    def validate_environment(cls, values: Dict) -> Dict:
+        """Validate that llama-cpp-python library is installed."""
+        if isinstance(values["model_path"], str):
+            model_path = values["model_path"]
+            model_param_names = [
+                "lora_path",
+                "lora_base",
+                "n_ctx",
+                "n_parts",
+                "seed",
+                "f16_kv",
+                "logits_all",
+                "vocab_only",
+                "use_mlock",
+                "n_threads",
+                "n_batch",
+                "use_mmap",
+                "last_n_tokens_size",
+            ]
+            model_params = {k: values[k] for k in model_param_names}
+            # For backwards compatibility, only include if non-null.
+            if values["n_gpu_layers"] is not None:
+                model_params["n_gpu_layers"] = values["n_gpu_layers"]
+
+            try:
+                from llama_cpp import Llama
+
+                values["client"] = Llama(model_path, **model_params)
+            except ImportError:
+                raise ModuleNotFoundError(
+                    "Could not import llama-cpp-python library. "
+                    "Please install the llama-cpp-python library to "
+                    "use this embedding model: pip install llama-cpp-python"
+                )
+            except Exception as e:
+                raise ValueError(
+                    f"Could not load Llama model from path: {model_path}. "
+                    f"Received error {e}"
+                )
+        else:
+            values["client"] = values["model_path"]
         return values
 
     def _call(
