@@ -40,19 +40,17 @@ def get_model_tokenizer_gpt4all(base_model, **kwargs):
     elif base_model in "gpt4all_llama":
         if 'model_name_gpt4all_llama' not in model_kwargs and 'model_path_gpt4all_llama' not in model_kwargs:
             raise ValueError("No model_name_gpt4all_llama or model_path_gpt4all_llama in %s" % env_gpt4all_file)
-        model_path = model_kwargs.pop('model_path_gpt4all_llama', './')
-        model_name = model_kwargs.pop('model_name_gpt4all_llama', os.path.basename(model_path))
+        model_name = model_kwargs.pop('model_name_gpt4all_llama')
         model_type = 'llama'
         from gpt4all import GPT4All as GPT4AllModel
-        model = GPT4AllModel(model_name=model_name, model_path=model_path, model_type=model_type)
+        model = GPT4AllModel(model_name=model_name, model_type=model_type)
     elif base_model in "gptj":
         if 'model_name_gptj' not in model_kwargs and 'model_path_gptj' not in model_kwargs:
             raise ValueError("No model_name_gpt4j or model_path_gpt4j in %s" % env_gpt4all_file)
-        model_path = model_kwargs.pop('model_path_gptj', './')
         model_name = model_kwargs.pop('model_name_gptj')
         model_type = 'gptj'
         from gpt4all import GPT4All as GPT4AllModel
-        model = GPT4AllModel(model_name=model_name, model_path=model_path, model_type=model_type)
+        model = GPT4AllModel(model_name=model_name, model_type=model_type)
     else:
         raise ValueError("No such base_model %s" % base_model)
     return model, FakeTokenizer(), 'cpu'
