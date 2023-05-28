@@ -168,10 +168,9 @@ def get_llm(use_openai_model=False, model_name=None, model=None,
                                                              load_in_8bit=load_8bit)
 
         max_max_tokens = tokenizer.model_max_length
-        gen_kwargs = dict(max_new_tokens=max_new_tokens,  # for generate
-                          max_input_tokens=max_max_tokens - max_new_tokens,  # for h2o pipeline wrapper
-                          max_length=max_max_tokens,
+        gen_kwargs = dict(max_new_tokens=max_new_tokens,
                           return_full_text=True, early_stopping=False)
+
         if stream_output:
             skip_prompt = False
             from generate import H2OTextIteratorStreamer
@@ -183,6 +182,7 @@ def get_llm(use_openai_model=False, model_name=None, model=None,
 
         if 'h2ogpt' in model_name or prompt_type == 'human_bot':
             from h2oai_pipeline import H2OTextGenerationPipeline
+            gen_kwargs.update(dict(max_input_tokens=max_max_tokens - max_new_tokens))
             pipe = H2OTextGenerationPipeline(model=model, tokenizer=tokenizer, **gen_kwargs)
             # pipe.task = "text-generation"
             # below makes it listen only to our prompt removal, not built in prompt removal that is less general and not specific for our model
