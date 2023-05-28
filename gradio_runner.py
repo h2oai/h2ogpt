@@ -465,11 +465,11 @@ body.dark{#warning {background-color: #555555};}
                                                    visible=not is_public)
 
                 with gr.TabItem("Models"):
-                    load_msg = "Load-Unload Model/LORA" if not is_public \
+                    load_msg = "Load-Unload Model/LORA [unload works if did not use --base_model]" if not is_public \
                         else "LOAD-UNLOAD DISABLED FOR HOSTED DEMO"
-                    load_msg2 = "Load-Unload Model/LORA 2" if not is_public \
+                    load_msg2 = "Load-Unload Model/LORA 2 [unload works if did not use --base_model]" if not is_public \
                         else "LOAD-UNLOAD DISABLED FOR HOSTED DEMO 2"
-                    compare_checkbox = gr.components.Checkbox(label="Compare Mode [Note: Model unloading only works if did not run with --base_model, else model stays in memory]",
+                    compare_checkbox = gr.components.Checkbox(label="Compare Mode",
                                                               value=False, visible=not is_public)
                     with gr.Row():
                         n_gpus_list = [str(x) for x in list(range(-1, n_gpus))]
@@ -481,7 +481,7 @@ body.dark{#warning {background-color: #555555};}
                                     lora_choice = gr.Dropdown(lora_options_state.value[0], label="Choose LORA",
                                                               value=kwargs['lora_weights'], visible=kwargs['show_lora'])
                                 with gr.Column(scale=1):
-                                    load_model_button = gr.Button(load_msg)
+                                    load_model_button = gr.Button(load_msg).style(full_width=False, size='sm')
                                     model_load8bit_checkbox = gr.components.Checkbox(
                                         label="Load 8-bit [requires support]",
                                         value=kwargs['load_8bit'])
@@ -505,7 +505,7 @@ body.dark{#warning {background-color: #555555};}
                                                                value=no_lora_str,
                                                                visible=kwargs['show_lora'])
                                 with gr.Column(scale=1):
-                                    load_model_button2 = gr.Button(load_msg2)
+                                    load_model_button2 = gr.Button(load_msg2).style(full_width=False, size='sm')
                                     model_load8bit_checkbox2 = gr.components.Checkbox(
                                         label="Load 8-bit 2 [requires support]",
                                         value=kwargs['load_8bit'])

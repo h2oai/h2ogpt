@@ -143,8 +143,8 @@ def main(
     :param load_4bit: load model in 4-bit using bitsandbytes
     :param load_half: load model in float16
     :param infer_devices: whether to control devices with gpu_id.  If False, then spread across GPUs
-    :param base_model: model HF-type name
-    :param tokenizer_base_model: tokenizer HF-type name
+    :param base_model: model HF-type name.  If use --base_model to preload model, cannot unload in gradio in models tab
+    :param tokenizer_base_model: tokenizer HF-type name.  Usually not required, inferred from base_model.
     :param lora_weights: LORA weights path/HF link
     :param gpu_id: if infer_devices, then use gpu_id for cuda device ID, or auto mode if gpu_id != -1
     :param compile_model Whether to compile the model
@@ -577,7 +577,7 @@ def get_model(
         load_4bit = False
 
     assert base_model.strip(), (
-        "Please choose a base model with --base_model (CLI) or in Models Tab (gradio)"
+        "Please choose a base model with --base_model (CLI) or load one from Models Tab (gradio)"
     )
 
     from transformers import AutoConfig
@@ -863,7 +863,7 @@ def evaluate(
         locals_dict.pop('model_state0', None)
         print(locals_dict)
 
-    no_model_msg = "Please choose a base model with --base_model (CLI) or in Models Tab (gradio).\nThen start New Conversation"
+    no_model_msg = "Please choose a base model with --base_model (CLI) or load in Models Tab (gradio).\nThen start New Conversation"
 
     if model_state0 is None:
         # e.g. for no gradio case, set dummy value, else should be set
