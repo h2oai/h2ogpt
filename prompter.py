@@ -60,7 +60,7 @@ prompt_type_to_model_name = {
         'h2oai/h2ogpt-oig-oasst1-512-6_9b',
         'h2oai/h2ogpt-oig-oasst1-256-6.9b',  # legacy
         'h2oai/h2ogpt-oig-oasst1-512-6.9b',  # legacy
-        'h2oai/h2ogpt-research-oasst1-512-30b',  # private
+        'h2oai/h2ogpt-research-oasst1-512-30b',
     ],
     'dai_faq': [],
     'summarize': [],
