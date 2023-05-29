@@ -142,6 +142,8 @@ For no langchain support (still uses LangChain package as model wrapper), run as
 ```bash
 python generate.py --base_model=gptj --score_model=None
 ```
+However, `gpjt` model often gives [no output](FAQ.md#gpt4all-not-producing-output), even outside h2oGPT, so we recommend using a [llama.cpp](FAQ.md#cpu-with-no-avx2-or-using-llamacpp) based model,
+although such models perform much worse than standard non-quantized models.
 
 #### MACOS
 
