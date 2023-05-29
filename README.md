@@ -166,7 +166,7 @@ All instructions are same as for GPU or CPU installation, except also need C++ c
 2. Make sure the following components are selected:
    * Universal Windows Platform development
    * C++ CMake tools for Windows
-3. Download the MinGW installer from the [MinGW website](https://sourceforge.net/projects/mingw/).
+3. Download the MinGW installer from the [MinGW website](https://sourceforge.net/projects/mingw/), i.e. `mingw32-gcc-g++`.
 4. Run the installer and select the `gcc` component.
 
 For GPU support of 4-bit and 8-bit, run:
