@@ -422,45 +422,45 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
             f.write(file)
         metadata = dict(source=source_file, date=str(datetime.now()), input_type='pasted txt')
         doc1 = Document(page_content=file, metadata=metadata)
-    elif file.endswith('.html') or file.endswith('.mhtml'):
+    elif file.lower().endswith('.html') or file.lower().endswith('.mhtml'):
         docs1 = UnstructuredHTMLLoader(file_path=file).load()
         add_meta(docs1, file)
         doc1 = chunk_sources(docs1, chunk_size=chunk_size)
-    elif (file.endswith('.docx') or file.endswith('.doc')) and have_libreoffice:
+    elif (file.lower().endswith('.docx') or file.lower().endswith('.doc')) and have_libreoffice:
         docs1 = UnstructuredWordDocumentLoader(file_path=file).load()
         add_meta(docs1, file)
         doc1 = chunk_sources(docs1, chunk_size=chunk_size)
-    elif file.endswith('.odt'):
+    elif file.lower().endswith('.odt'):
         docs1 = UnstructuredODTLoader(file_path=file).load()
         add_meta(docs1, file)
         doc1 = chunk_sources(docs1, chunk_size=chunk_size)
-    elif file.endswith('pptx') or file.endswith('ppt'):
+    elif file.lower().endswith('pptx') or file.lower().endswith('ppt'):
         docs1 = UnstructuredPowerPointLoader(file_path=file).load()
         add_meta(docs1, file)
         doc1 = chunk_sources(docs1, chunk_size=chunk_size)
-    elif file.endswith('.txt'):
+    elif file.lower().endswith('.txt'):
         # use UnstructuredFileLoader ?
         docs1 = TextLoader(file, encoding="utf8", autodetect_encoding=True).load()
         # makes just one, but big one
         doc1 = chunk_sources(docs1, chunk_size=chunk_size)
         add_meta(doc1, file)
-    elif file.endswith('.rtf'):
+    elif file.lower().endswith('.rtf'):
         docs1 = UnstructuredRTFLoader(file).load()
         add_meta(docs1, file)
         doc1 = chunk_sources(docs1, chunk_size=chunk_size)
-    elif file.endswith('.md'):
+    elif file.lower().endswith('.md'):
         docs1 = UnstructuredMarkdownLoader(file).load()
         add_meta(docs1, file)
         doc1 = chunk_sources(docs1, chunk_size=chunk_size)
-    elif file.endswith('.enex'):
+    elif file.lower().endswith('.enex'):
         docs1 = EverNoteLoader(file).load()
         add_meta(doc1, file)
         doc1 = chunk_sources(docs1, chunk_size=chunk_size)
-    elif file.endswith('.epub'):
+    elif file.lower().endswith('.epub'):
         docs1 = UnstructuredEPubLoader(file).load()
         add_meta(docs1, file)
         doc1 = chunk_sources(docs1, chunk_size=chunk_size)
-    elif file.endswith('.jpeg') or file.endswith('.jpg') or file.endswith('.png'):
+    elif file.lower().endswith('.jpeg') or file.lower().endswith('.jpg') or file.lower().endswith('.png'):
         docs1 = []
         if have_tesseract and enable_ocr:
             # OCR, somewhat works, but not great
@@ -489,11 +489,11 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
                 doci.metadata['source'] = doci.metadata['image_path']
             if docs1:
                 doc1 = chunk_sources(docs1, chunk_size=chunk_size)
-    elif file.endswith('.msg'):
+    elif file.lower().endswith('.msg'):
         raise RuntimeError("Not supported, GPL3 license")
         # docs1 = OutlookMessageLoader(file).load()
         # docs1[0].metadata['source'] = file
-    elif file.endswith('.eml'):
+    elif file.lower().endswith('.eml'):
         try:
             docs1 = UnstructuredEmailLoader(file).load()
             add_meta(docs1, file)
@@ -507,34 +507,34 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
                 doc1 = chunk_sources(docs1, chunk_size=chunk_size)
             else:
                 raise
-    # elif file.endswith('.gcsdir'):
+    # elif file.lower().endswith('.gcsdir'):
     #    doc1 = GCSDirectoryLoader(project_name, bucket, prefix).load()
-    # elif file.endswith('.gcsfile'):
+    # elif file.lower().endswith('.gcsfile'):
     # doc1 = GCSFileLoader(project_name, bucket, blob).load()
-    elif file.endswith('.rst'):
+    elif file.lower().endswith('.rst'):
         with open(file, "r") as f:
             doc1 = Document(page_content=f.read(), metadata={"source": file})
         add_meta(doc1, file)
-    elif file.endswith('.pdf'):
+    elif file.lower().endswith('.pdf'):
         # Some PDFs return nothing or junk from PDFMinerLoader
         # e.g. Beyond fine-tuning_ Classifying high resolution mammograms using function-preserving transformations _ Elsevier Enhanced Reader.pdf
         doc1 = PyPDFLoader(file).load_and_split()
         add_meta(doc1, file)
-    elif file.endswith('.csv'):
+    elif file.lower().endswith('.csv'):
         doc1 = CSVLoader(file).load()
         add_meta(doc1, file)
-    elif file.endswith('.py'):
+    elif file.lower().endswith('.py'):
         doc1 = PythonLoader(file).load()
         add_meta(doc1, file)
-    elif file.endswith('.toml'):
+    elif file.lower().endswith('.toml'):
         doc1 = TomlLoader(file).load()
         add_meta(doc1, file)
-    elif file.endswith('.urls'):
+    elif file.lower().endswith('.urls'):
         with open(file, "r") as f:
             docs1 = UnstructuredURLLoader(urls=f.readlines()).load()
         add_meta(docs1, file)
         doc1 = chunk_sources(docs1, chunk_size=chunk_size)
-    elif file.endswith('.zip'):
+    elif file.lower().endswith('.zip'):
         with zipfile.ZipFile(file, 'r') as zip_ref:
             # don't put into temporary path, since want to keep references to docs inside zip
             # so just extract in path where
