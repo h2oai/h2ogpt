@@ -85,7 +85,7 @@ def get_llm_gpt4all(model_name, model=None,
     n_ctx = model_kwargs.pop('n_ctx', 2048 - max_new_tokens)
     default_params = {'context_erase': 0.5, 'n_batch': 1, 'n_ctx': n_ctx, 'n_predict': max_new_tokens,
                       'repeat_last_n': 64 if repetition_penalty != 1.0 else 0, 'repeat_penalty': repetition_penalty,
-                      'temp': temperature, 'top_k': top_k, 'top_p': top_p}
+                      'temp': temperature, 'top_k': top_k, 'top_p': top_p, 'use_mlock': True}
     if model_name == 'llama':
         model_path = model_kwargs.pop('model_path_llama') if model is None else model
         llm = H2OLlamaCpp(model_path=model_path, n_ctx=n_ctx, callbacks=callbacks, verbose=False)
