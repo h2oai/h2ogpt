@@ -730,6 +730,26 @@ def prep_langchain(persist_directory, load_db_if_exists, db_type, use_openai_emb
 
 import posthog
 posthog.disabled = True
+class FakeConsumer(object):
+    def __init__(self,*args, **kwargs):
+        pass
+    def run(self):
+        pass
+
+    def pause(self):
+        pass
+
+    def upload(self):
+        pass
+
+    def next(self):
+        pass
+
+    def request(self, batch):
+        pass
+
+
+posthog.Consumer = FakeConsumer
 
 
 def get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
@@ -738,8 +758,13 @@ def get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_em
             os.path.join(persist_directory, 'index')):
         print("DO Loading db: %s" % langchain_mode, flush=True)
         embedding = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model)
+        from chromadb.config import Settings
+        client_settings = Settings(anonymized_telemetry=False,
+                                   chroma_db_impl="duckdb+parquet",
+                                   persist_directory=persist_directory,)
         db = Chroma(persist_directory=persist_directory, embedding_function=embedding,
-                    collection_name=langchain_mode.replace(' ', '_'))
+                    collection_name=langchain_mode.replace(' ', '_'),
+                    client_settings=client_settings)
         print("DONE Loading db: %s" % langchain_mode, flush=True)
         return db
     return None
@@ -934,7 +959,8 @@ def _run_qa_db(query=None,
         formatted_doc_chunks = '\n\n'.join([get_url(x) + '\n\n' + x.page_content for x in docs])
         yield formatted_doc_chunks, ''
         return
-    if chain is None:
+    if chain is None and model_name not in non_hf_types:
+        # can only return if HF type
         return
 
     if stream_output:
@@ -1003,28 +1029,13 @@ def get_similarity_chain(query=None,
                          llm=None,
                          verbose=False,
                          ):
+    # determine whether use of context out of docs is planned
     if not use_openai_model and prompt_type not in ['plain'] or model_name in non_hf_types:
-        # instruct-like, rather than few-shot prompt_type='plain' as default
-        # but then sources confuse the model with how inserted among rest of text, so avoid
-        prefix = ""
         if langchain_mode in ['Disabled', 'ChatLLM', 'LLM']:
             use_context = False
-            template = """%s{context}{question}""" % prefix
         else:
             use_context = True
-            template = """%s
-==
-{context}
-==
-{question}""" % prefix
-        prompt = PromptTemplate(
-            # input_variables=["summaries", "question"],
-            input_variables=["context", "question"],
-            template=template,
-        )
-        chain = load_qa_chain(llm, prompt=prompt)
     else:
-        chain = load_qa_with_sources_chain(llm)
         use_context = True
 
     # https://github.com/hwchase17/langchain/issues/1946
@@ -1076,10 +1087,12 @@ def get_similarity_chain(query=None,
         docs = []
         scores = []
 
-    if not docs and use_context:
+    if not docs and use_context and model_name not in non_hf_types:
+        # if HF type and have no docs, can bail out
         return docs, None, [], False
 
     if document_choice[0] == 'Only':
+        # no LLM use
         return docs, None, [], False
 
     common_words_file = "data/NGSL_1.2_stats.csv.zip"
@@ -1095,7 +1108,32 @@ def get_similarity_chain(query=None,
         if verbose:
             print("frac_common: %s" % frac_common, flush=True)
 
-    if langchain_mode in ['Disabled', 'ChatLLM', 'LLM']:
+    if len(docs) == 0:
+        # avoid context == in prompt then
+        use_context = False
+
+    if not use_openai_model and prompt_type not in ['plain'] or model_name in non_hf_types:
+        # instruct-like, rather than few-shot prompt_type='plain' as default
+        # but then sources confuse the model with how inserted among rest of text, so avoid
+        prefix = ""
+        if langchain_mode in ['Disabled', 'ChatLLM', 'LLM'] or not use_context:
+            template = """%s{context}{question}""" % prefix
+        else:
+            template = """%s
+==
+{context}
+==
+{question}""" % prefix
+        prompt = PromptTemplate(
+            # input_variables=["summaries", "question"],
+            input_variables=["context", "question"],
+            template=template,
+        )
+        chain = load_qa_chain(llm, prompt=prompt)
+    else:
+        chain = load_qa_with_sources_chain(llm)
+
+    if not use_context:
         chain_kwargs = dict(input_documents=[], question=query)
     else:
         chain_kwargs = dict(input_documents=docs, question=query)
@@ -1107,6 +1145,12 @@ def get_similarity_chain(query=None,
 def get_sources_answer(query, answer, scores, show_rank, answer_with_sources):
     print("query: %s" % query, flush=True)
     print("answer: %s" % answer['output_text'], flush=True)
+
+    if len(answer['input_documents']) == 0:
+        extra = ''
+        ret = answer['output_text'] + extra
+        return ret, extra
+
     # link
     answer_sources = [(max(0.0, 1.5 - score) / 1.5, get_url(doc)) for score, doc in
                       zip(scores, answer['input_documents'])]
