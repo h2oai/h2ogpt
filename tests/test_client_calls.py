@@ -1,6 +1,10 @@
+import os
+import shutil
+
 import pytest
 
 from tests.utils import wrap_test_forked, make_user_path_test
+from utils import makedirs
 
 
 @wrap_test_forked
@@ -33,6 +37,32 @@ def test_client_chat_nostream():
 def test_client_chat_nostream_gpt4all():
     res_dict, client = run_client_chat_with_server(stream_output=False, base_model='gptj', prompt_type='plain')
     assert 'I am a computer program designed to assist' in res_dict['response']
+
+
+@wrap_test_forked
+def test_client_chat_nostream_gpt4all_llama():
+    res_dict, client = run_client_chat_with_server(stream_output=False, base_model='gpt4all_llama', prompt_type='plain')
+    assert 'What do you want? Why are you here?' in res_dict['response']
+
+
+@wrap_test_forked
+def test_client_chat_nostream_llama7b():
+    from huggingface_hub import hf_hub_download
+
+    file = 'ggml-model-q4_0_7b.bin'
+    dest = 'models/7B/'
+    makedirs(dest, exist_ok=True)
+    full_path = os.path.join(dest, file)
+
+    if not os.path.isfile(full_path):
+        # True for case when locally already logged in with correct token, so don't have to set key
+        token = os.getenv('HUGGINGFACE_API_TOKEN', True)
+        out_path = hf_hub_download('h2oai/ggml', file, token=token, repo_type='model')
+        # out_path will look like '/home/jon/.cache/huggingface/hub/models--h2oai--ggml/snapshots/57e79c71bb0cee07e3e3ffdea507105cd669fa96/ggml-model-q4_0_7b.bin'
+        shutil.copy(out_path, dest)
+
+    res_dict, client = run_client_chat_with_server(stream_output=False, base_model='llama', prompt_type='plain')
+    assert 'Why do you want to know?' in res_dict['response']
 
 
 def run_client_chat_with_server(prompt='Who are you?', stream_output=False, max_new_tokens=256,

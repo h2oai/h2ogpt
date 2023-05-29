@@ -2,6 +2,7 @@ import copy
 import torch
 
 from generate import eval_func_param_names, get_score_model, get_model, evaluate
+from prompter import non_hf_types
 from utils import clear_torch_cache, NullContext, get_kwargs
 
 
@@ -72,7 +73,7 @@ def run_cli(  # for local function:
             outr = ''
             res_old = ''
             for res, extra in gener:
-                if base_model not in ['gptj', 'llama']:
+                if base_model not in non_hf_types:
                     if not stream_output:
                         print(res)
                     else:
