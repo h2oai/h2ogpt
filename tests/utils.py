@@ -1,6 +1,8 @@
+import os
+import shutil
 from functools import wraps, partial
 
-from utils import call_subprocess_onetask
+from utils import call_subprocess_onetask, makedirs
 
 
 def wrap_test_forked(func):
@@ -32,3 +34,28 @@ def make_user_path_test():
     shutil.copy('README.md', user_path)
     shutil.copy('FAQ.md', user_path)
     return user_path
+
+
+def get_llama(llama_type=2):
+    from huggingface_hub import hf_hub_download
+
+    # default should match .env_gpt4all
+    if llama_type == 1:
+        file = 'ggml-model-q4_0_7b.bin'
+        dest = 'models/7B/'
+    elif llama_type == 2:
+        file = 'WizardLM-7B-uncensored.ggmlv3.q8_0.bin'
+        dest = './'
+    else:
+        raise ValueError("unknown llama_type=%s" % llama_type)
+
+    makedirs(dest, exist_ok=True)
+    full_path = os.path.join(dest, file)
+
+    if not os.path.isfile(full_path):
+        # True for case when locally already logged in with correct token, so don't have to set key
+        token = os.getenv('HUGGINGFACE_API_TOKEN', True)
+        out_path = hf_hub_download('h2oai/ggml', file, token=token, repo_type='model')
+        # out_path will look like '/home/jon/.cache/huggingface/hub/models--h2oai--ggml/snapshots/57e79c71bb0cee07e3e3ffdea507105cd669fa96/ggml-model-q4_0_7b.bin'
+        shutil.copy(out_path, dest)
+    return

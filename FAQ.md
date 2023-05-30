@@ -258,8 +258,13 @@ etc.
 
 ### CPU with no AVX2 or using LLaMa.cpp
 
-For GPT4All based models, require AVX2, unless one recompiles that project on your system.  Until then, use llama.cpp models instead,
-e.g. by compiling the llama model on your system by following the [instructions](https://github.com/ggerganov/llama.cpp#build) and [llama-cpp-python](https://github.com/abetlen/llama-cpp-python), e.g. for Linux:
+For GPT4All based models, require AVX2, unless one recompiles that project on your system.  Until then, use llama.cpp models instead.
+
+So we recommend downloading models from [TheBloke](https://huggingface.co/TheBloke) that are version 3 quantized ggml files to work with latest llama.cpp.  See main [README.md](README.md#cpu).
+
+The below example is for base LLaMa model, not instruct-tuned, so is not recommended for chatting.  It just gives an example of how to quantize if you are an expert.
+
+Compile the llama model on your system by following the [instructions](https://github.com/ggerganov/llama.cpp#build) and [llama-cpp-python](https://github.com/abetlen/llama-cpp-python), e.g. for Linux:
 ```bash
 git clone https://github.com/ggerganov/llama.cpp
 cd llama.cpp
@@ -295,7 +300,7 @@ python convert.py models/7B/
 # test by running the inference
 ./main -m ./models/7B/ggml-model-q4_0.bin -n 128
 ```
-then adding an entry in the .env file like (assumes version 3 quantization)
+then adding an entry in the `.env_gpt4all` file like (assumes version 3 quantization)
 ```.env_gpt4all
 # model path and model_kwargs
 model_path_llama=./models/7B/ggml-model-q4_0.bin

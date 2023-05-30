@@ -1,6 +1,8 @@
 import torch
 from transformers import StoppingCriteria, StoppingCriteriaList
 
+from prompter import PromptType
+
 
 class StoppingCriteriaSub(StoppingCriteria):
 
@@ -24,14 +26,14 @@ class StoppingCriteriaSub(StoppingCriteria):
 
 
 def get_stopping(prompt_type, tokenizer, device, human='<human>:', bot="<bot>:"):
-    if prompt_type in ['human_bot', 'instruct_vicuna', 'instruct_with_end']:
-        if prompt_type == 'human_bot':
+    if prompt_type in [PromptType.human_bot.name, PromptType.instruct_vicuna.name, PromptType.instruct_with_end.name]:
+        if prompt_type == PromptType.human_bot.name:
             # encounters = [prompt.count(human) + 1, prompt.count(bot) + 1]
             # stopping only starts once output is beyond prompt
             # 1 human is enough to trigger, but need 2 bots, because very first view back will be bot we added
             stop_words = [human, bot, '\n' + human, '\n' + bot]
             encounters = [1, 2]
-        elif prompt_type == 'instruct_vicuna':
+        elif prompt_type == PromptType.instruct_vicuna.name:
             # even below is not enough, generic strings and many ways to encode
             stop_words = [
                 '### Human:',
