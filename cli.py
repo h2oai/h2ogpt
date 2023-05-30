@@ -84,7 +84,10 @@ def run_cli(  # for local function:
                     outr = res  # don't accumulate
                 else:
                     outr += res  # just is one thing
-                    if extra:
+                    if base_model in ['llama']:
+                        # full thing, no streaming until fixed
+                        print(outr, flush=True)
+                    elif extra:
                         # show sources at end after model itself had streamed to std rest of response
                         print(extra, flush=True)
             all_generations.append(outr + '\n')
