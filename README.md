@@ -78,7 +78,7 @@ Also check out [H2O LLM Studio](https://github.com/h2oai/h2o-llmstudio) for our 
 
 ### Getting Started
 
-For help installing a Python 3.10 environment, see [Install Python 3.10 Environment](INSTALL.md#install-python-environment)
+First one needs a Python 3.10 environment.  For help installing a Python 3.10 environment, see [Install Python 3.10 Environment](INSTALL.md#install-python-environment)
 
 #### GPU (CUDA)
 
@@ -90,7 +90,17 @@ cd h2ogpt
 pip install -r requirements.txt
 python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b --load_8bit=True
 ```
-Then point browser at http://0.0.0.0:7860 (linux) or http://localhost:7860 (windows/mac) or the public live URL printed by the server (disable shared link with `--share=False`).  For 4-bit or 8-bit support, older GPUs may require older bitsandbytes installed as `pip uninstall bitsandbytes -y ; pip install bitsandbytes==0.38.1`.
+Then point browser at http://0.0.0.0:7860 (linux) or http://localhost:7860 (windows/mac) or the public live URL printed by the server (disable shared link with `--share=False`).  For 4-bit or 8-bit support, older GPUs may require older bitsandbytes installed as `pip uninstall bitsandbytes -y ; pip install bitsandbytes==0.38.1`.  For production uses, we recommend at least the 12B model, ran as:
+```
+python generate.py --base_model=h2oai/h2ogpt-oasst1-512-12b --load_8bit=True --debug=True
+```
+and one can use `--h2ocolors=False` to get soft blue-gray colors instead of H2O.ai colors.
+
+Note if you download the model yourself and point `--base_model` to that location, you'll need to specify the prompt_type as well by running:
+```
+python generate.py --base_model=<user path> --load_8bit=True --prompt_type=human_bot
+```
+for some user path `<user path>`.
 
 For quickly using a private document collection for Q/A, place documents (PDFs, text, etc.) into a folder called `user_path` and run
 ```bash
@@ -112,7 +122,7 @@ Any other instruct-tuned base models can be used, including non-h2oGPT ones.  [L
 
 CPU support is obtained after installing two optional requirements.txt files.  GPU support is also present if one has GPUs.
 
-1) Install base, langchain, and GPT4All dependencies:
+1) Install base, langchain, and GPT4All, and python LLaMa dependencies:
 ```bash
 git clone https://github.com/h2oai/h2ogpt.git
 cd h2ogpt
@@ -125,25 +135,27 @@ One can run `make req_constraints.txt` to ensure that the constraints file is co
 
 2. Change `.env_gpt4all` model name if desired.
 ```.env_gpt4all
-# model path and model_kwargs
+model_path_llama=WizardLM-7B-uncensored.ggmlv3.q8_0.bin
 model_path_gptj=ggml-gpt4all-j-v1.3-groovy.bin
+model_name_gpt4all_llama=ggml-wizardLM-7B.q4_2.bin
 ```
-You can choose a different model than our default choice by going to GPT4All Model explorer [GPT4All-J compatible model](https://gpt4all.io/index.html). Do not need to download, the gp4all package will download at runtime and put it into `.cache` like huggingface would.
-See [llama.cpp](https://github.com/ggerganov/llama.cpp) for instructions on getting model for `--base_model=llama` case.
+For `gptj` and `gpt4all_llama`, you can choose a different model than our default choice by going to GPT4All Model explorer [GPT4All-J compatible model](https://gpt4all.io/index.html). One does not need to download manually, the gp4all package will download at runtime and put it into `.cache` like huggingface would.  However, `gpjt` model often gives [no output](FAQ.md#gpt4all-not-producing-output), even outside h2oGPT.
+
+So, for chatting, a better instruct fine-tuned LLaMa-based model for llama.cpp can be downloaded from [TheBloke](https://huggingface.co/TheBloke).  For example, [13B Vicuna Quantized](https://huggingface.co/TheBloke/wizardLM-13B-1.0-GGML) or [7B WizardLM Quantized](https://huggingface.co/TheBloke/WizardLM-7B-uncensored-GGML).  TheBloke has a variety of model types, quantization bit, and memory consumption.  Choose what is best for your system's specs.  However, be aware that LLaMa-based models are not [commercially viable](FAQ.md#commercial-viability).
+
+For 7B case, download [WizardLM-7B-uncensored.ggmlv3.q8_0.bin](https://huggingface.co/TheBloke/WizardLM-7B-uncensored-GGML/blob/main/WizardLM-7B-uncensored.ggmlv3.q8_0.bin) into local path.  Then one sets `model_path_llama` in `.env_gpt4all`, which is currently the default.
 
 3. Run generate.py
 
 For LangChain support using documents in `user_path` folder, run h2oGPT like:
 ```bash
-python generate.py --base_model=gptj --score_model=None --langchain_mode='UserData' --user_path=user_path
+python generate.py --base_model='llama' --prompt_type=wizard2 --score_model=None --langchain_mode='UserData' --user_path=user_path
 ```
 See [LangChain Readme](README_LangChain.md) for more details.
 For no langchain support (still uses LangChain package as model wrapper), run as:
 ```bash
-python generate.py --base_model=gptj --score_model=None
+python generate.py --base_model='llama' --prompt_type=wizard2 --score_model=None
 ```
-However, `gpjt` model often gives [no output](FAQ.md#gpt4all-not-producing-output), even outside h2oGPT, so we recommend using a [llama.cpp](FAQ.md#cpu-with-no-avx2-or-using-llamacpp) based model,
-although such models perform much worse than standard non-quantized models.
 
 #### MACOS
 

@@ -1,7 +1,6 @@
 import time
 from enum import Enum
 
-
 non_hf_types = ['gpt4all_llama', 'llama', 'gptj']
 
 
@@ -20,6 +19,10 @@ class PromptType(Enum):
     open_assistant = 11
     wizard_lm = 12
     wizard_mega = 13
+    instruct_vicuna2 = 14
+    instruct_vicuna3 = 15
+    wizard2 = 16
+    wizard3 = 17
 
 
 prompt_type_to_model_name = {
@@ -43,7 +46,8 @@ prompt_type_to_model_name = {
         'mosaicml/mpt-7b-instruct',  # internal code handles instruct
         'mosaicml/mpt-7b-chat',  # NC, internal code handles instruct
         'gptj',  # internally handles prompting
-        'llama',  # internally handles prompting
+        'llama',  # plain, or need to choose prompt_type for given TheBloke model
+        'gpt4all_llama',  # internally handles prompting
     ],
     'prompt_answer': [
         'h2oai/h2ogpt-gm-oasst1-en-1024-20b',
@@ -88,7 +92,8 @@ for p in PromptType:
 
 
 def get_prompt(prompt_type, chat, context, reduced):
-    if prompt_type in [-1, "-1", "plain"]:
+    if prompt_type in [PromptType.plain.value, str(PromptType.plain.value),
+                       PromptType.plain.name]:
         promptA = promptB = PreInstruct = PreInput = PreResponse = ''
         terminate_response = []
         chat_sep = ''
@@ -100,11 +105,14 @@ def get_prompt(prompt_type, chat, context, reduced):
         chat_sep = '\n'
         humanstr = ''
         botstr = ''
-    elif prompt_type in [0, "0", "instruct"] or prompt_type in [7, "7", "instruct_with_end"]:
+    elif prompt_type in [PromptType.instruct.value, str(PromptType.instruct.value),
+                         PromptType.instruct.name] + [PromptType.instruct_with_end.value,
+                                                      str(PromptType.instruct_with_end.value),
+                                                      PromptType.instruct_with_end.name]:
         promptA = 'Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.\n' if not (
-                    chat and reduced) else ''
+                chat and reduced) else ''
         promptB = 'Below is an instruction that describes a task. Write a response that appropriately completes the request.\n' if not (
-                    chat and reduced) else ''
+                chat and reduced) else ''
 
         PreInstruct = """
 ### Instruction:
@@ -117,18 +125,20 @@ def get_prompt(prompt_type, chat, context, reduced):
         PreResponse = """
 ### Response:
 """
-        if prompt_type in [7, "7", "instruct_with_end"]:
+        if prompt_type in [PromptType.instruct_with_end.value, str(PromptType.instruct_with_end.value),
+                           PromptType.instruct_with_end.name]:
             terminate_response = ['### End']
         else:
             terminate_response = None
         chat_sep = '\n'
         humanstr = PreInstruct
         botstr = PreResponse
-    elif prompt_type in [1, "1", "quality"]:
+    elif prompt_type in [PromptType.quality.value, str(PromptType.quality.value),
+                         PromptType.quality.name]:
         promptA = 'Write a detailed high-quality, accurate, fair, Response with about 100 words by following the Instruction as applied on the Input.\n' if not (
-                    chat and reduced) else ''
+                chat and reduced) else ''
         promptB = 'Write a detailed high-quality, accurate, fair, Response with about 100 words by following the Instruction.\n' if not (
-                    chat and reduced) else ''
+                chat and reduced) else ''
 
         PreInstruct = """
 ### Instruction:
@@ -145,10 +155,14 @@ def get_prompt(prompt_type, chat, context, reduced):
         chat_sep = '\n'
         humanstr = PreInstruct  # first thing human says
         botstr = PreResponse  # first thing bot says
-    elif prompt_type in [2, "2", "human_bot", 9, "9", "human_bot_orig"]:
+    elif prompt_type in [PromptType.human_bot.value, str(PromptType.human_bot.value),
+                         PromptType.human_bot.name] + [PromptType.human_bot_orig.value,
+                                                       str(PromptType.human_bot_orig.value),
+                                                       PromptType.human_bot_orig.name]:
         human = '<human>:'
         bot = "<bot>:"
-        if reduced or context or prompt_type in [2, "2", "human_bot"]:
+        if reduced or context or prompt_type in [PromptType.human_bot.value, str(PromptType.human_bot.value),
+                                                 PromptType.human_bot.name]:
             preprompt = ''
         else:
             cur_date = time.strftime('%Y-%m-%d')
@@ -179,7 +193,8 @@ Current Time: {}
         chat_sep = '\n'
         humanstr = human  # tag before human talks
         botstr = bot  # tag before bot talks
-    elif prompt_type in [3, "3", "dai_faq"]:
+    elif prompt_type in [PromptType.dai_faq.value, str(PromptType.dai_faq.value),
+                         PromptType.dai_faq.name]:
         promptA = ''
         promptB = 'Answer the following Driverless AI question.\n'
 
@@ -196,7 +211,8 @@ Current Time: {}
         chat_sep = terminate_response
         humanstr = PreInstruct
         botstr = PreResponse
-    elif prompt_type in [5, "5", "summarize"]:
+    elif prompt_type in [PromptType.summarize.value, str(PromptType.summarize.value),
+                         PromptType.summarize.name]:
         promptA = promptB = PreInput = ''
         PreInstruct = '## Main Text\n\n'
         PreResponse = '\n\n## Summary\n\n'
@@ -204,10 +220,11 @@ Current Time: {}
         chat_sep = '\n'
         humanstr = PreInstruct
         botstr = PreResponse
-    elif prompt_type in [6, "6", "instruct_vicuna"]:
+    elif prompt_type in [PromptType.instruct_vicuna.value, str(PromptType.instruct_vicuna.value),
+                         PromptType.instruct_vicuna.name]:
         promptA = promptB = "A chat between a curious human and an artificial intelligence assistant. " \
                             "The assistant gives helpful, detailed, and polite answers to the human's questions." if not (
-                    chat and reduced) else ''
+                chat and reduced) else ''
 
         PreInstruct = """
 ### Human:
@@ -223,7 +240,8 @@ Current Time: {}
         chat_sep = '\n'
         humanstr = PreInstruct
         botstr = PreResponse
-    elif prompt_type in [10, "10", "prompt_answer"]:
+    elif prompt_type in [PromptType.prompt_answer.value, str(PromptType.prompt_answer.value),
+                         PromptType.prompt_answer.name]:
         preprompt = ''
         prompt_tokens = "<|prompt|>"
         answer_tokens = "<|answer|>"
@@ -237,7 +255,8 @@ Current Time: {}
         chat_sep = eos
         humanstr = prompt_tokens
         botstr = answer_tokens
-    elif prompt_type in [11, "11", "open_assistant"]:
+    elif prompt_type in [PromptType.open_assistant.value, str(PromptType.open_assistant.value),
+                         PromptType.open_assistant.name]:
         # From added_tokens.json
         preprompt = ''
         prompt_tokens = "<|prompter|>"
@@ -253,7 +272,8 @@ Current Time: {}
         chat_sep = eos
         humanstr = prompt_tokens
         botstr = answer_tokens
-    elif prompt_type in [12, "12", "wizard_lm"]:
+    elif prompt_type in [PromptType.wizard_lm.value, str(PromptType.wizard_lm.value),
+                         PromptType.wizard_lm.name]:
         # https://github.com/ehartford/WizardLM/blob/main/src/train_freeform.py
         preprompt = ''
         start = ''
@@ -266,7 +286,8 @@ Current Time: {}
         chat_sep = eos
         humanstr = promptA
         botstr = PreResponse
-    elif prompt_type in [13, "13", "wizard_mega"]:
+    elif prompt_type in [PromptType.wizard_mega.value, str(PromptType.wizard_mega.value),
+                         PromptType.wizard_mega.name]:
         preprompt = ''
         start = ''
         promptB = promptA = '%s%s' % (preprompt, start)
@@ -281,6 +302,75 @@ Current Time: {}
         chat_sep = '\n'
         humanstr = PreInstruct
         botstr = PreResponse
+    elif prompt_type in [PromptType.instruct_vicuna2.value, str(PromptType.instruct_vicuna2.value),
+                         PromptType.instruct_vicuna2.name]:
+        promptA = promptB = "" if not (
+                chat and reduced) else ''
+
+        PreInstruct = """
+HUMAN:
+"""
+
+        PreInput = None
+
+        PreResponse = """
+ASSISTANT:
+"""
+        terminate_response = [
+            'HUMAN:']  # but only allow terminate after prompt is found correctly, else can't terminate
+        chat_sep = '\n'
+        humanstr = PreInstruct
+        botstr = PreResponse
+    elif prompt_type in [PromptType.instruct_vicuna3.value, str(PromptType.instruct_vicuna3.value),
+                         PromptType.instruct_vicuna3.name]:
+        promptA = promptB = "" if not (
+                chat and reduced) else ''
+
+        PreInstruct = """
+### User:
+"""
+
+        PreInput = None
+
+        PreResponse = """
+### Assistant:
+"""
+        terminate_response = [
+            '### User:']  # but only allow terminate after prompt is found correctly, else can't terminate
+        chat_sep = '\n'
+        humanstr = PreInstruct
+        botstr = PreResponse
+    elif prompt_type in [PromptType.wizard2.value, str(PromptType.wizard2.value),
+                         PromptType.wizard2.name]:
+        # https://huggingface.co/TheBloke/WizardLM-7B-uncensored-GGML
+        preprompt = """Below is an instruction that describes a task. Write a response that appropriately completes the request."""
+        start = ''
+        promptB = promptA = '%s%s' % (preprompt, start)
+        PreInstruct = """
+### Instruction:
+"""
+        PreInput = None
+        PreResponse = """
+### Response:
+"""
+        terminate_response = [PreResponse]
+        chat_sep = '\n'
+        humanstr = PreInstruct
+        botstr = PreResponse
+    elif prompt_type in [PromptType.wizard3.value, str(PromptType.wizard3.value),
+                         PromptType.wizard3.name]:
+        # https://huggingface.co/TheBloke/wizardLM-13B-1.0-GGML
+        preprompt = """A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions."""
+        start = ''
+        promptB = promptA = '%s%s' % (preprompt, start)
+        PreInstruct = """USER: """
+        PreInput = None
+        PreResponse = """ASSISTANT: """
+        terminate_response = [PreResponse]
+        chat_sep = '\n'
+        humanstr = PreInstruct
+        botstr = PreResponse
+
     else:
         raise RuntimeError("No such prompt_type=%s" % prompt_type)
 
@@ -417,7 +507,7 @@ class Prompter(object):
         multi_output = len(outputs) > 1
 
         for oi, output in enumerate(outputs):
-            if self.prompt_type in [0, '0', 'plain']:
+            if self.prompt_type in [PromptType.plain.value, str(PromptType.plain.value), PromptType.plain.name]:
                 output = clean_response(output)
             elif prompt is None:
                 # then use most basic parsing like pipeline
