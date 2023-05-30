@@ -36,6 +36,7 @@ Loaded as API: https://gpt.h2o.ai ✔
 {'instruction_nochat': 'Who are you?', 'iinput_nochat': '', 'response': 'I am h2oGPT, a chatbot created by LAION.'}
 
 """
+import ast
 import time
 import os
 import markdown  # pip install markdown
@@ -105,7 +106,8 @@ def run_client_nochat(prompt, prompt_type, max_new_tokens):
         api_name=api_name,
     )
     res_dict = dict(prompt=kwargs['instruction_nochat'], iinput=kwargs['iinput_nochat'],
-                    response=md_to_text(res))
+                    response=md_to_text(ast.literal_eval(res)['response']),
+                    sources=ast.literal_eval(res)['sources'])
     print(res_dict)
     return res_dict
 

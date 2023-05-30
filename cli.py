@@ -72,7 +72,9 @@ def run_cli(  # for local function:
             gener = fun(*tuple(eval_vars))
             outr = ''
             res_old = ''
-            for res, extra in gener:
+            for gen_output in gener:
+                res = gen_output['response']
+                extra = gen_output['sources']
                 if base_model not in non_hf_types:
                     if not stream_output:
                         print(res)
