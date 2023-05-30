@@ -41,7 +41,7 @@ def test_cli_langchain(monkeypatch):
 
 @wrap_test_forked
 def test_cli_langchain_llamacpp(monkeypatch):
-    get_llama()
+    prompt_type = get_llama()
 
     from tests.utils import make_user_path_test
     user_path = make_user_path_test()
@@ -52,6 +52,7 @@ def test_cli_langchain_llamacpp(monkeypatch):
     from generate import main
     all_generations = main(base_model='llama', cli=True, cli_loop=False, score_model='None',
                            langchain_mode='UserData',
+                           prompt_type=prompt_type,
                            user_path=user_path,
                            visible_langchain_modes=['UserData', 'MyData'],
                            document_choice=['All'],

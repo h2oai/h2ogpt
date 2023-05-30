@@ -47,9 +47,9 @@ def test_client_chat_nostream_gpt4all_llama():
 
 @wrap_test_forked
 def test_client_chat_nostream_llama7b():
-    get_llama()
-    res_dict, client = run_client_chat_with_server(stream_output=False, base_model='llama', prompt_type='plain')
-    assert 'What do you do?' in res_dict['response']
+    prompt_type = get_llama()
+    res_dict, client = run_client_chat_with_server(stream_output=False, base_model='llama', prompt_type=prompt_type)
+    assert 'I’m a software engineer' in res_dict['response']
 
 
 def run_client_chat_with_server(prompt='Who are you?', stream_output=False, max_new_tokens=256,

@@ -43,9 +43,11 @@ def get_llama(llama_type=2):
     if llama_type == 1:
         file = 'ggml-model-q4_0_7b.bin'
         dest = 'models/7B/'
+        prompt_type = 'plain'
     elif llama_type == 2:
         file = 'WizardLM-7B-uncensored.ggmlv3.q8_0.bin'
         dest = './'
+        prompt_type = 'wizard2'
     else:
         raise ValueError("unknown llama_type=%s" % llama_type)
 
@@ -58,4 +60,4 @@ def get_llama(llama_type=2):
         out_path = hf_hub_download('h2oai/ggml', file, token=token, repo_type='model')
         # out_path will look like '/home/jon/.cache/huggingface/hub/models--h2oai--ggml/snapshots/57e79c71bb0cee07e3e3ffdea507105cd669fa96/ggml-model-q4_0_7b.bin'
         shutil.copy(out_path, dest)
-    return
+    return prompt_type
