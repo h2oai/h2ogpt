@@ -65,6 +65,27 @@ def test_cli_langchain_llamacpp(monkeypatch):
 
 
 @wrap_test_forked
+def test_cli_llamacpp(monkeypatch):
+    prompt_type = get_llama()
+
+    query = "Who are you?"
+    monkeypatch.setattr('builtins.input', lambda _: query)
+
+    from generate import main
+    all_generations = main(base_model='llama', cli=True, cli_loop=False, score_model='None',
+                           langchain_mode='Disabled',
+                           prompt_type=prompt_type,
+                           user_path=None,
+                           visible_langchain_modes=[],
+                           document_choice=['All'],
+                           verbose=True)
+
+    print(all_generations)
+    assert len(all_generations) == 1
+    assert "I'm a software engineer with a passion for building scalable" in all_generations[0]
+
+
+@wrap_test_forked
 def test_cli_h2ogpt(monkeypatch):
     query = "What is the Earth?"
     monkeypatch.setattr('builtins.input', lambda _: query)
