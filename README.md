@@ -139,12 +139,7 @@ For `gptj` and `gpt4all_llama`, you can choose a different model than our defaul
 
 So, for chatting, a better instruct fine-tuned LLaMa-based model for llama.cpp can be downloaded from [TheBloke](https://huggingface.co/TheBloke).  For example, [13B Vicuna Quantized](https://huggingface.co/TheBloke/wizardLM-13B-1.0-GGML) or [7B WizardLM Quantized](https://huggingface.co/TheBloke/WizardLM-7B-uncensored-GGML).  TheBloke has a variety of model types, quantization bit, and memory consumption.  Choose what is best for your system's specs.
 
-Then one sets `model_path_llama` in the `.env_gpt4all` file and runs, for `WizardLM-7B-uncensored.ggmlv3.q8_0.bin`:
-```bash
-python generate.py --base_model='llama' --prompt_type=wizard2 --langchain_mode=UserData --user_path=user_path
-```
-This is recommended way to run, because currently some GPT-J models have issues with [no output](FAQ.md#gpt4all-not-producing-output).
-See [llama.cpp](https://github.com/ggerganov/llama.cpp) for instructions on quantizing your own models for `--base_model=llama` case, but for non-expert users we recommend downloading only from TheBloke.
+So, for 7B case, download [WizardLM-7B-uncensored.ggmlv3.q8_0.bin](https://huggingface.co/TheBloke/WizardLM-7B-uncensored-GGML/blob/main/WizardLM-7B-uncensored.ggmlv3.q8_0.bin) into local path.  Then one sets `model_path_llama` in `.env_gpt4all`, which is currently the default.
 
 3. Run generate.py
 
