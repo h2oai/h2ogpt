@@ -141,7 +141,7 @@ model_name_gpt4all_llama=ggml-wizardLM-7B.q4_2.bin
 ```
 For `gptj` and `gpt4all_llama`, you can choose a different model than our default choice by going to GPT4All Model explorer [GPT4All-J compatible model](https://gpt4all.io/index.html). One does not need to download manually, the gp4all package will download at runtime and put it into `.cache` like huggingface would.  However, `gpjt` model often gives [no output](FAQ.md#gpt4all-not-producing-output), even outside h2oGPT.
 
-So, for chatting, a better instruct fine-tuned LLaMa-based model for llama.cpp can be downloaded from [TheBloke](https://huggingface.co/TheBloke).  For example, [13B Vicuna Quantized](https://huggingface.co/TheBloke/wizardLM-13B-1.0-GGML) or [7B WizardLM Quantized](https://huggingface.co/TheBloke/WizardLM-7B-uncensored-GGML).  TheBloke has a variety of model types, quantization bit, and memory consumption.  Choose what is best for your system's specs.  However, be aware that LLaMa-based models are not [commercially viable](FAQ.md#commercial-viability).
+So, for chatting, a better instruct fine-tuned LLaMa-based model for llama.cpp can be downloaded from [TheBloke](https://huggingface.co/TheBloke).  For example, [13B WizardLM Quantized](https://huggingface.co/TheBloke/wizardLM-13B-1.0-GGML) or [7B WizardLM Quantized](https://huggingface.co/TheBloke/WizardLM-7B-uncensored-GGML).  TheBloke has a variety of model types, quantization bit, and memory consumption.  Choose what is best for your system's specs.  However, be aware that LLaMa-based models are not [commercially viable](FAQ.md#commercial-viability).
 
 For 7B case, download [WizardLM-7B-uncensored.ggmlv3.q8_0.bin](https://huggingface.co/TheBloke/WizardLM-7B-uncensored-GGML/blob/main/WizardLM-7B-uncensored.ggmlv3.q8_0.bin) into local path.  Then one sets `model_path_llama` in `.env_gpt4all`, which is currently the default.
 
@@ -216,6 +216,24 @@ or
 python generate.py --base_model='llama' --prompt_type=wizard2 --cli=True
 ```
 No streaming is currently supported for llama in CLI chat, but that will be fixed soon.
+
+#### Gradio UI
+
+`generate.py` by default runs a gradio server with a [UI (click for help with UI)](FAQ.md#explain-things-in-ui).  Key benefits of the UI include:
+* Save, export, import chat histories and undo or regenerate last query-response pair
+* Upload and control documents of various kinds for document Q/A
+* Choose which specific collection to query, or just chat with LLM
+* Choose specific documents out of collection for asking questions
+* Side-by-side 2-model comparison view
+* RLHF response score evaluation for every query-response
+
+See how we compare to other tools like PrivateGPT, see our comparisons at [h2oGPT's LangChain Integration FAQ](README_LangChain.md#what-is-h2ogpts-langchain-integration-like).
+
+We disable background uploads by disabling telemetry for huggingface, gradio, and chroma, and one can additionally avoid downloads (of fonts) by running `generate.py` with `--gradio_offline_level=2`.  See [Offline Documentation](FAQ.md#offline-mode) for details.
+
+#### Client API
+
+`generate.py` by default runs a gradio server, which also gives access to client API using gradio client.  See example [test code](client_test.py) or other tests in our [tests](https://github.com/h2oai/h2ogpt/blob/main/tests/test_client_calls.py).  Any element in [gradio_runner.py](gradio_runner.py) with `api_name` defined can be accessed via the gradio client.
 
 ### Development
 
