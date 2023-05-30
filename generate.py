@@ -134,7 +134,7 @@ def main(
         enable_sources_list: bool = True,
         chunk: bool = True,
         chunk_size: int = 512,
-        top_k_docs: int = 4,
+        top_k_docs: int = 3,  # FIXME: Can go back to 4 once https://github.com/h2oai/h2ogpt/issues/192 fixed
         n_jobs: int = -1,
         enable_captions: bool = True,
         captions_model: str = "Salesforce/blip-image-captioning-base",
