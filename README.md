@@ -157,6 +157,8 @@ For no langchain support (still uses LangChain package as model wrapper), run as
 python generate.py --base_model='llama' --prompt_type=wizard2 --score_model=None
 ```
 
+No streaming is currently supported for these CPU models in UI, but that will be fixed soon.
+
 #### MACOS
 
 All instructions are same as for GPU or CPU installation, except first install [Rust](https://www.geeksforgeeks.org/how-to-install-rust-in-macos/):
@@ -209,6 +211,11 @@ which will build the database first time.  One can also use any other models, li
 ```bash
 python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b --cli=True
 ```
+or
+```
+python generate.py --base_model='llama' --prompt_type=wizard2 --cli=True
+```
+No streaming is currently supported for llama in CLI chat, but that will be fixed soon.
 
 ### Development
 
