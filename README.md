@@ -137,9 +137,9 @@ model_name_gpt4all_llama=ggml-wizardLM-7B.q4_2.bin
 ```
 For `gptj` and `gpt4all_llama`, you can choose a different model than our default choice by going to GPT4All Model explorer [GPT4All-J compatible model](https://gpt4all.io/index.html). One does not need to download manually, the gp4all package will download at runtime and put it into `.cache` like huggingface would.  However, `gpjt` model often gives [no output](FAQ.md#gpt4all-not-producing-output), even outside h2oGPT.
 
-So, for chatting, a better instruct fine-tuned LLaMa-based model for llama.cpp can be downloaded from [TheBloke](https://huggingface.co/TheBloke).  For example, [13B Vicuna Quantized](https://huggingface.co/TheBloke/wizardLM-13B-1.0-GGML) or [7B WizardLM Quantized](https://huggingface.co/TheBloke/WizardLM-7B-uncensored-GGML).  TheBloke has a variety of model types, quantization bit, and memory consumption.  Choose what is best for your system's specs.
+So, for chatting, a better instruct fine-tuned LLaMa-based model for llama.cpp can be downloaded from [TheBloke](https://huggingface.co/TheBloke).  For example, [13B Vicuna Quantized](https://huggingface.co/TheBloke/wizardLM-13B-1.0-GGML) or [7B WizardLM Quantized](https://huggingface.co/TheBloke/WizardLM-7B-uncensored-GGML).  TheBloke has a variety of model types, quantization bit, and memory consumption.  Choose what is best for your system's specs.  However, be aware that LLaMa-based models are not [commercially viable](FAQ.md#commercial-viability).
 
-So, for 7B case, download [WizardLM-7B-uncensored.ggmlv3.q8_0.bin](https://huggingface.co/TheBloke/WizardLM-7B-uncensored-GGML/blob/main/WizardLM-7B-uncensored.ggmlv3.q8_0.bin) into local path.  Then one sets `model_path_llama` in `.env_gpt4all`, which is currently the default.
+For 7B case, download [WizardLM-7B-uncensored.ggmlv3.q8_0.bin](https://huggingface.co/TheBloke/WizardLM-7B-uncensored-GGML/blob/main/WizardLM-7B-uncensored.ggmlv3.q8_0.bin) into local path.  Then one sets `model_path_llama` in `.env_gpt4all`, which is currently the default.
 
 3. Run generate.py
 
