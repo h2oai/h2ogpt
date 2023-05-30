@@ -394,3 +394,120 @@ We post models and license and data origin details on our huggingface page: http
 Data used to fine-tune are provided on the huggingface pages for each model.  Data for foundational models are provided on their huggingface pages.  Any models trained on GPT3.5 data like ShareGPT, Vicuna, Alpaca, etc. are not commercially viable due to ToS violations w.r.t. building competitive models.  Any research-based h2oGPT models based upon Meta's weights for LLaMa are not commercially viable.
 
 Overall, we have done a significant amount of due diligence regarding data and model licenses to carefully select only fully permissive data and models for our models we license as Apache V2.  Outside our models, some "open-source" models like Vicuna, Koala, WizardLM, etc. are based upon Meta's weights for LLaMa, which is not commercially usable due to ToS violations w.r.t. non-competitive clauses well as research-only clauses.  Such models tend to also use data from GPT3.5 (ChatGPT), which is also not commercially usable due to ToS violations w.r.t. non-competitive clauses.  E.g. Alpaca data, ShareGPT data, WizardLM data, etc. all fall under that category. All open-source foundational models consume data from the internet, including the Pile or C4 (web crawl) that may contain objectionable material.  Future licenses w.r.t. new web crawls may change, but it is our understanding that existing data crawls would not be affected by any new licenses.  However, some web crawl data may contain pirated books.
+
+### Explain things in UI
+
+All the buttons are also accessible via gradio client API.
+
+#### All Tabs
+
+| Button               | Purpose                                                                                             |
+----------------------|-----------------------------------------------------------------------------------------------------|
+| Save Chat / New Chat | Save the chat into "Saved Chats" and clear the chat history                                         |
+| Flag                 | Tell owner of app (you if you ran locally) something is odd by logging chat history to disk         |
+| Regenerate           | Re-run the query with (potentially) new settings or re-sample if sampling is enabled                |
+| Undo                 | Remove last query-reponse pair                                                                      |
+| Submit               | Same as hitting enter (in chat mode) so submit question or imperitive                               |
+| Stop                 | Stop generation, although LLM may continue in background until completed even if chat view stopped  |
+| Dark Mode            | Enable/Disable Dark Mode                                                                            |
+| Chat Exceptions      | Any exceptions during chatting go here, due to gradio bug that does not handle them well            |
+
+#### Chat Tab
+
+| Button                   | Purpose                                                                                      |
+---------------------------|----------------------------------------------------------------------------------------------|
+| Saved Chats              | When saved, will show radio button for selectable restoring of that specific chat history    |
+| Clear Chat               | Clear current (not saved) chat history without saving                                        |
+| Export Chats to Download | Export chats as file for downloading in Download Exported Chats box                          |
+| Remove Selected Chats    | Remove the saved chat that is currently selected (if any)                                    |
+| Import Chats from Upload | After selecting Upload Chat Files box and selecting files or drag-n-drop, import those files |
+
+#### Data Source Tab
+
+##### Data Collection of Sources
+Defaults to value set by `--langchain_mode=` and visible items set by `--visible_langchain_modes`.
+* LLM: Single query-response, no chat context or docs used
+* ChatLLM: Chat context used (if any) but no docs used
+* UserData: Shared and persistent. Writable if `--allow_upload_to_user_data=True`. Rebuilt from path `--user_path` if set.
+* MyData: Private and non-persistent.  Writable if `--allow_upload_to_my_data=True`
+* ... Other collections can be added via code, but not currently addable from UI
+
+To Chat with your docs, choose, e.g. UserData.  To avoid including docs, and just chat with LLM, choose ChatLLM.
+
+##### Choose Subset of Doc(s) in Collection (click to get sources to update)
+* All: Choose to include all docs in chosen collection when chatting
+* Only: Ignore the LLM, just return sources the vector database similarity search
+* None: Similar to choosing ChatLLM instead of the chosen collection
+* ... Or choose one or more documents to chat with (then do not select All, Only, or None)
+
+| Button                       | Purpose                                                                                              |
+------------------------------|------------------------------------------------------------------------------------------------------|
+| Get Sources                  | For chosen collection, get all sources and place list into drop-down for choosing subset             |
+| Show Sources                 | For chosen collection, get and show (in HTML with links to source docs if present) at bottom of page |
+| Upload Box                   | Drag-n-drop or select from user's system one or more files                                           |
+| Add File(s) to UserData      | After using Upload box and seeing files listed there, add those files to UserData collection         |
+| Add File(s) to MyData        | After using Upload box and seeing files listed there, add those files to MyData collection           |
+| Download File w/Sources      | After clicking Get Sources, downloadable file will appear here that lists all sources in text file   |
+| URL                          | Enter text URL link or arxiv:<paper id> to download text content of web page or download             |
+| Add URL Content to UserData  | After entering text into URL box, download into UserData collection                                  |
+| Add URL Content to MyData    | After entering text into URL box, download into MyData collection                                    |
+| Paste Text                   | Enter raw text for adding to collection                                                              |
+| Add Text Content to UserData | After entering text Text box, add into UserData collection                                           |
+| Add Text Content to MyData   | After entering text Text box, add into MyData collection                                             |
+
+#### Expert Tab
+
+Control various LLM options.
+
+* Stream output: Whether to stream output.  Not currently supported for GPT4All/llama.cpp models except via CLI.
+* Prompt Type: Prompt format to use, see prompter.py for list of models we automatically choose prompt type for
+* Sample: Whether to enable sampling (required for use of temperature, top_p, top_k, beams)
+  * Temperature, top_p, top_k: See [HF](https://huggingface.co/docs/transformers/main_classes/text_generation#transformers.GenerationConfig)
+  * Beams: Number of beams for beam search.  Currently disabled for HF version of streaming to work.
+* Max output length: Maximum number of new tokens in LLM response
+* Min output length: Minimum number of new tokens in LLM response
+* Early stopping: When doing beam search, whether to stop early
+* Max. Time: Maximum number of seconds to run LLM
+* Repetition Penalty: See [HF](https://huggingface.co/docs/transformers/main_classes/text_generation#transformers.GenerationConfig)
+* Number Returns: Only relevant for non-chat case to see multiple drafts if sampling
+* Input: Additional input to LLM, in order of prompt, new line, then input
+* System Pre-Context: Additional input to LLM, without any prompt format, pre-appended before prompt or input.
+* Chat Mode: Whether to use chat mode or simple single query-response format
+  * Count Chat Tokens: Button, to count all tokens in chat, useful for issues regarding long context
+  * Chat Token Count: number of tokens after clicking count button
+* Number of document chunks: How many chunks of data to pass to LLM when doing chat with docs
+
+
+#### Models Tab
+
+To unload a model, use "Choose Model" and select "[None/Remove]".
+
+**Important**: Unloading only works properly if did not pre-load model with `--base_model` and only selected model and clicked load.
+
+Note: Compare Mode uses memory for both models, and currently streaming is done for each instead of simultaneously.
+
+* Compare Mode: Select to have 2 models in same window for simultaneous comparison of two LLMs.
+* Choose Model: Drop-down to select model.
+* Choose LORA: Drop-down to select LORA.  Only applicable if trained chosen base model using PEFT LORA
+  * Load-Unload Model/LORA: Button to load model (and LORA if selected)
+  * Load 8-bit: For some [HF models](https://github.com/huggingface/peft#causal-language-modeling), whether to use bitsandbytes and 8-bit mode.
+* Choose Devices: Whether to use GPU ID and place LLM on that GPU, or if not selected try to place LLM on all devices.
+  * GPU ID: GPU ID to load LLM onto
+* Current Model: Which model is currently loaded
+* Current LORA: Which LORA is currently loaded
+* New Model HF name/path: Enter text, e.g. HF model name like h2oai/h2ogpt-oig-oasst1-512-6_9b, or local path to model
+  * Add new model name: Click to add the new model to list in "Choose Model"
+* New LORA name/path
+  * Add new LORA name: Click to add the new LORA to list in "Choose LORA"
+
+#### System Tab
+
+Requires admin password if in public mode (i.e. env HUGGINGFACE_SPACES=1 or GPT_H2O_AI=1)
+
+* Get System Info: Show GPU memory usage, etc. in System Info text box.
+* Zip: Zip logs and show file name in Zip file name box.  Can download in Zip file to Download box.
+* S3UP: If bucket, public, and private keys set up via ENV, then can push button to send logs to S3.  Show result in S3UP result text box.
+
+#### Disclaimers
+
+Disclaimers and ToS link to show to protect creator of app.
