@@ -46,7 +46,7 @@ prompt_type_to_model_name = {
         'mosaicml/mpt-7b-instruct',  # internal code handles instruct
         'mosaicml/mpt-7b-chat',  # NC, internal code handles instruct
         'gptj',  # internally handles prompting
-        'llama',  # internally handles prompting
+        'llama',  # plain, or need to choose prompt_type for given TheBloke model
         'gpt4all_llama',  # internally handles prompting
     ],
     'prompt_answer': [
