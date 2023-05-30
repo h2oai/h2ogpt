@@ -58,7 +58,7 @@ def test_cli_langchain_llamacpp(monkeypatch):
     print(all_generations)
     assert len(all_generations) == 1
     assert "pexels-evg-kowalievska-1170986_small.jpg" in all_generations[0]
-    assert "What is the cat thinking about?" in all_generations[0]
+    assert "What is the cat doing?" in all_generations[0]
 
 
 @wrap_test_forked
