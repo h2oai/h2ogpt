@@ -23,7 +23,7 @@ HOST="https://h2oai-h2ogpt-chatbot.hf.space" python client_test.py
 Result:
 
 Loaded as API: https://h2oai-h2ogpt-chatbot.hf.space ✔
-{'instruction_nochat': 'Who are you?', 'iinput_nochat': '', 'response': 'I am h2oGPT, a large language model developed by LAION.'}
+{'instruction_nochat': 'Who are you?', 'iinput_nochat': '', 'response': 'I am h2oGPT, a large language model developed by LAION.', 'sources': ''}
 
 
 For demo:
@@ -33,9 +33,15 @@ HOST="https://gpt.h2o.ai" python client_test.py
 Result:
 
 Loaded as API: https://gpt.h2o.ai ✔
-{'instruction_nochat': 'Who are you?', 'iinput_nochat': '', 'response': 'I am h2oGPT, a chatbot created by LAION.'}
+{'instruction_nochat': 'Who are you?', 'iinput_nochat': '', 'response': 'I am h2oGPT, a chatbot created by LAION.', 'sources': ''}
+
+NOTE: Raw output from API for nochat case is a string of a python dict and will remain so if other entries are added to dict:
+
+{'response': "I'm h2oGPT, a large language model by H2O.ai, the visionary leader in democratizing AI.", 'sources': ''}
+
 
 """
+import ast
 import time
 import os
 import markdown  # pip install markdown
@@ -104,8 +110,10 @@ def run_client_nochat(prompt, prompt_type, max_new_tokens):
         *tuple(args),
         api_name=api_name,
     )
+    print("Raw client result: %s" % res, flush=True)
     res_dict = dict(prompt=kwargs['instruction_nochat'], iinput=kwargs['iinput_nochat'],
-                    response=md_to_text(res))
+                    response=md_to_text(ast.literal_eval(res)['response']),
+                    sources=ast.literal_eval(res)['sources'])
     print(res_dict)
     return res_dict
 

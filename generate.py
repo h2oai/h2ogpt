@@ -959,7 +959,7 @@ def evaluate(
                            cli=cli,
                            ):
             outr, extra = r  # doesn't accumulate, new answer every yield, so only save that full answer
-            yield r
+            yield dict(response=outr, sources=extra)
         if save_dir:
             save_generate_output(output=outr, base_model=base_model, save_dir=save_dir)
             if verbose:
@@ -979,7 +979,7 @@ def evaluate(
         else:
             raise RuntimeError("No such task type %s" % tokenizer)
         # NOTE: uses max_length only
-        yield model(prompt, max_length=max_new_tokens)[0][key], ''
+        yield dict(response=model(prompt, max_length=max_new_tokens)[0][key], sources='')
 
     if 'mbart-' in base_model.lower():
         assert src_lang is not None
@@ -1103,8 +1103,9 @@ def evaluate(
                             if bucket.qsize() > 0 or thread.exc:
                                 thread.join()
                             outputs += new_text
-                            yield prompter.get_response(outputs, prompt=inputs_decoded,
-                                                        sanitize_bot_response=sanitize_bot_response), ''
+                            yield dict(response=prompter.get_response(outputs, prompt=inputs_decoded,
+                                                                      sanitize_bot_response=sanitize_bot_response),
+                                       sources='')
                     except BaseException:
                         # if any exception, raise that exception if was from thread, first
                         if thread.exc:
@@ -1121,8 +1122,8 @@ def evaluate(
                 else:
                     outputs = model.generate(**gen_kwargs)
                     outputs = [decoder(s) for s in outputs.sequences]
-                    yield prompter.get_response(outputs, prompt=inputs_decoded,
-                                                sanitize_bot_response=sanitize_bot_response), ''
+                    yield dict(response=prompter.get_response(outputs, prompt=inputs_decoded,
+                                                              sanitize_bot_response=sanitize_bot_response), sources='')
                     if outputs and len(outputs) >= 1:
                         decoded_output = prompt + outputs[0]
                 if save_dir and decoded_output:

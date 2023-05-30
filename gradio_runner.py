@@ -957,7 +957,8 @@ body.dark{#warning {background-color: #555555};}
                            **kwargs_evaluate)
             try:
                 for output_fun in fun1(*tuple(args_list)):
-                    output, extra = output_fun
+                    output = output_fun['response']
+                    extra = output_fun['sources']  # FIXME: can show sources in separate text box etc.
                     # ensure good visually, else markdown ignores multiple \n
                     bot_message = output.replace('\n', '<br>')
                     history[-1][1] = bot_message

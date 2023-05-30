@@ -119,7 +119,8 @@ def run_eval(  # for local function:
             # Also means likely do NOT want --stream_output=True, else would show all generations
             gener = fun(*tuple(ex), exi=exi) if eval_sharegpt_as_output else fun(*tuple(ex))
             for res_fun in gener:
-                res, extra = res_fun
+                res = res_fun['response']
+                extra = res_fun['sources']
                 print(res)
                 if smodel:
                     score_with_prompt = False
