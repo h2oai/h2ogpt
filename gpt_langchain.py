@@ -130,6 +130,7 @@ def get_llm(use_openai_model=False, model_name=None, model=None,
             top_p=0.7,
             prompt_type=None,
             prompter=None,
+            verbose=False,
             ):
     if use_openai_model:
         from langchain.llms import OpenAI
@@ -144,6 +145,7 @@ def get_llm(use_openai_model=False, model_name=None, model=None,
                               repetition_penalty=repetition_penalty,
                               top_k=top_k,
                               top_p=top_p,
+                              verbose=verbose,
                               )
         streamer = None
         prompt_type = 'plain'
@@ -940,6 +942,7 @@ def _run_qa_db(query=None,
                                                          top_p=top_p,
                                                          prompt_type=prompt_type,
                                                          prompter=prompter,
+                                                         verbose=verbose,
                                                          )
 
     if model_name in non_hf_types:
