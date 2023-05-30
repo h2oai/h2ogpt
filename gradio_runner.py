@@ -514,7 +514,7 @@ body.dark{#warning {background-color: #555555};}
                                         label="Choose Devices [If not Checked, use all GPUs]",
                                         value=kwargs['infer_devices'])
                                     model_gpu = gr.Dropdown(n_gpus_list,
-                                                            label="GPU ID 2 [-1 = all GPUs, if Choose is enabled]",
+                                                            label="GPU ID [-1 = all GPUs, if Choose is enabled]",
                                                             value=kwargs['gpu_id'])
                                     model_used = gr.Textbox(label="Current Model", value=kwargs['base_model'],
                                                             interactive=False)
@@ -539,7 +539,7 @@ body.dark{#warning {background-color: #555555};}
                                         value=kwargs[
                                             'infer_devices'])
                                     model_gpu2 = gr.Dropdown(n_gpus_list,
-                                                             label="GPU ID [-1 = all GPUs, if choose is enabled]",
+                                                             label="GPU ID 2 [-1 = all GPUs, if choose is enabled]",
                                                              value=kwargs['gpu_id'])
                                     # no model/lora loaded ever in model2 by default
                                     model_used2 = gr.Textbox(label="Current Model 2", value=no_model_str)
@@ -570,7 +570,7 @@ body.dark{#warning {background-color: #555555};}
                             with gr.Row():
                                 zip_btn = gr.Button("Zip")
                                 zip_text = gr.Textbox(label="Zip file name", interactive=False)
-                                file_output = gr.File(interactive=False)
+                                file_output = gr.File(interactive=False, label="Zip file to Download")
                             with gr.Row():
                                 s3up_btn = gr.Button("S3UP")
                                 s3up_text = gr.Textbox(label='S3UP result', interactive=False)
