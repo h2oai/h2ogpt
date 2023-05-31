@@ -21,7 +21,7 @@ from tqdm import tqdm
 
 from prompter import non_hf_types
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
-    get_device, ProgressParallel
+    get_device, ProgressParallel, hash_file
 
 import_matplotlib()
 
@@ -75,17 +75,31 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss', persist_directo
     return db
 
 
-def add_to_db(db, sources, db_type='faiss', avoid_dup=True):
+def add_to_db(db, sources, db_type='faiss',
+              avoid_dup_by_file=True,
+              avoid_dup_by_content=True):
     if not sources:
         return db, 0
     if db_type == 'faiss':
         db.add_documents(sources)
         num_new_sources = len(sources)
     elif db_type == 'chroma':
-        if avoid_dup:
-            collection = db.get()
-            metadata_sources = set([x['source'] for x in collection['metadatas']])
-            sources = [x for x in sources if x.metadata['source'] not in metadata_sources]
+        collection = db.get()
+        metadata_files = set([x['source'] for x in collection['metadatas']])
+        if avoid_dup_by_file:
+            sources = [x for x in sources if x.metadata['source'] not in metadata_files]
+        if avoid_dup_by_content:
+            # look at hash, instead of page_content
+            # migration: If no hash previously, avoid updating,
+            #  since don't know if need to update and may be expensive to redo all unhashed files
+            metadata_sources = set([x['hashid'] for x in collection['metadatas'] if 'hashid' in x and x['hashid'] is not None])
+            # avoid sources with same hash
+            sources = [x for x in sources if x.metadata['hashid'] not in metadata_sources]
+            # delete existing files we are overridding
+            dup_metadata_files = set([x['source'] for x in sources if x in metadata_files])
+            print("Removing %s duplicate files from db because ingesting those as new documents" % len(dup_metadata_files), flush=True)
+            for dup_file in dup_metadata_files:
+                collection.delete(where=dup_file)
         if len(sources) == 0:
             return db, 0
         num_new_sources = len(sources)
@@ -380,9 +394,10 @@ file_types = non_image_types + image_types
 
 def add_meta(docs1, file):
     file_extension = pathlib.Path(file).suffix
+    hashid = hash_file(file)
     if not isinstance(docs1, list):
         docs1 = [docs1]
-    [x.metadata.update(dict(input_type=file_extension, date=str(datetime.now))) for x in docs1]
+    [x.metadata.update(dict(input_type=file_extension, date=str(datetime.now), hashid=hashid)) for x in docs1]
 
 
 def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, chunk=True, chunk_size=512,
@@ -497,6 +512,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
                 docs1.extend(docs1c)
             for doci in docs1:
                 doci.metadata['source'] = doci.metadata['image_path']
+                doci.metadata['hash'] = hash_file(doci.metadata['source'])
             if docs1:
                 doc1 = chunk_sources(docs1, chunk_size=chunk_size)
     elif file.lower().endswith('.msg'):
@@ -631,6 +647,7 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
                  captions_model=None,
                  caption_loader=None,
                  enable_ocr=False,
+                 skip_files=[],
                  ):
     globs_image_types = []
     globs_non_image_types = []
@@ -658,6 +675,12 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
         # But instead, allow fail so can collect unsupported too
         set_globs_image_types = set(globs_image_types)
         globs_non_image_types.extend([x for x in path_or_paths if x not in set_globs_image_types])
+
+    # filter out any files to skip (e.g. if already processed them)
+    set_skip_files = set(skip_files)
+    globs_image_types = [x for x in globs_image_types if x not in set_skip_files]
+    globs_non_image_types = [x for x in globs_non_image_types if x not in set_skip_files]
+
     # could use generator, but messes up metadata handling in recursive case
     if caption_loader and not isinstance(caption_loader, (bool, str)) and \
             caption_loader.device != 'cpu' or \
@@ -717,7 +740,8 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
     return documents
 
 
-def prep_langchain(persist_directory, load_db_if_exists, add_to_userdata_db_if_exists,
+def prep_langchain(persist_directory,
+                   load_db_if_exists, add_to_userdata_db_if_exists, add_new_files_to_userdata_db_if_exists,
                    db_type, use_openai_embedding, langchain_mode, user_path,
                    hf_embedding_model, n_jobs=-1, kwargs_make_db={}):
     """
@@ -729,13 +753,15 @@ def prep_langchain(persist_directory, load_db_if_exists, add_to_userdata_db_if_e
 
     db_dir_exists = os.path.isdir(persist_directory)
 
-    if db_dir_exists and not add_to_userdata_db_if_exists:
+    if db_dir_exists and not (add_to_userdata_db_if_exists or add_new_files_to_userdata_db_if_exists):
         print("Prep: persist_directory=%s exists, using" % persist_directory, flush=True)
         db = get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
                              hf_embedding_model)
     else:
         if db_dir_exists and add_to_userdata_db_if_exists:
-            print("Prep: persist_directory=%s exists, adding any new documents" % persist_directory, flush=True)
+            print("Prep: persist_directory=%s exists, adding any changed or new documents" % persist_directory, flush=True)
+        elif db_dir_exists and add_new_files_to_userdata_db_if_exists:
+            print("Prep: persist_directory=%s exists, adding any new files as documents" % persist_directory, flush=True)
         elif not db_dir_exists:
             print("Prep: persist_directory=%s does not exist, regenerating" % persist_directory, flush=True)
         db = None
@@ -817,7 +843,8 @@ def _make_db(use_openai_embedding=False,
              user_path=None,
              db_type='faiss',
              load_db_if_exists=True,
-             add_to_userdata_db_if_exists=True,
+             add_to_userdata_db_if_exists=False,
+             add_new_files_to_userdata_db_if_exists=True,
              db=None,
              n_jobs=-1,
              verbose=False):
@@ -835,11 +862,15 @@ def _make_db(use_openai_embedding=False,
                     collection_name=langchain_mode.replace(' ', '_'),
                     client_settings=client_settings)
     sources = []
-    if not db or add_to_userdata_db_if_exists and langchain_mode in ['UserData']:
+    if not db or \
+            (add_to_userdata_db_if_exists or add_new_files_to_userdata_db_if_exists) and \
+            langchain_mode in ['UserData']:
         assert langchain_mode not in ['MyData'], "Should not make MyData db this way"
         if verbose:
             if add_to_userdata_db_if_exists:
-                print("Checking if new sources, and generating them", flush=True)
+                print("Checking if changed or new sources, and generating them", flush=True)
+            elif add_new_files_to_userdata_db_if_exists:
+                print("Checking if new file sources, and generating them", flush=True)
             else:
                 print("Generating sources", flush=True)
         if langchain_mode in ['wiki_full', 'All', "'All'"]:
@@ -870,8 +901,19 @@ def _make_db(use_openai_embedding=False,
             sources.extend(sources1)
         if langchain_mode in ['All', 'UserData']:
             if user_path:
+                if add_new_files_to_userdata_db_if_exists and db is not None:
+                    existing_files = get_existing_files(db)
+                else:
+                    # pretend no existing files so won't filter
+                    existing_files = []
                 # chunk internally for speed over multiple docs
-                sources1 = path_to_docs(user_path, n_jobs=n_jobs, chunk=chunk, chunk_size=chunk_size)
+                sources1 = path_to_docs(user_path, n_jobs=n_jobs, chunk=chunk, chunk_size=chunk_size,
+                                        skip_files=existing_files)
+                new_metadata_sources = set([x.metadata['source'] for x in sources1])
+                if new_metadata_sources:
+                    print("Loaded %s new files as sources to add to UserData" % len(new_metadata_sources), flush=True)
+                    if verbose:
+                        print("Files added: %s" % '\n'.join(new_metadata_sources), flush=True)
                 sources.extend(sources1)
                 print("Loaded %s sources for potentially adding to UserData" % len(sources), flush=True)
             else:
@@ -899,12 +941,26 @@ def _make_db(use_openai_embedding=False,
                 print("Generated db", flush=True)
         else:
             print("Did not generate db since no sources", flush=True)
-    elif add_to_userdata_db_if_exists and langchain_mode in ['UserData']:
+    elif (add_to_userdata_db_if_exists or add_new_files_to_userdata_db_if_exists) and langchain_mode in ['UserData']:
         print("Existing db, potentially adding %s sources" % len(sources), flush=True)
-        db, num_new_sources = add_to_db(db, sources, db_type=db_type)
+        if add_to_userdata_db_if_exists:
+            avoid_dup_by_file = False
+            avoid_dup_by_content = True
+        else:
+            avoid_dup_by_file = True
+            avoid_dup_by_content = False
+        db, num_new_sources = add_to_db(db, sources, db_type=db_type,
+                                        avoid_dup_by_file=avoid_dup_by_file,
+                                        avoid_dup_by_content=avoid_dup_by_content)
         print("Existing db, added %s new sources" % num_new_sources, flush=True)
 
     return db
+
+
+def get_existing_files(db):
+    collection = db.get()
+    metadata_sources = set([x['source'] for x in collection['metadatas']])
+    return metadata_sources
 
 
 source_prefix = "Sources [Score | Link]:"
