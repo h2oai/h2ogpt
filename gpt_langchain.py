@@ -1009,7 +1009,7 @@ def _run_qa_db(query=None,
         extra = ''
         yield ret, extra
     elif answer is not None:
-        ret, extra = get_sources_answer(query, answer, scores, show_rank, answer_with_sources)
+        ret, extra = get_sources_answer(query, answer, scores, show_rank, answer_with_sources, verbose=verbose)
         yield ret, extra
     return
 
@@ -1087,7 +1087,7 @@ def get_similarity_chain(query=None,
         # cut off so no high distance docs/sources considered
         docs = [x[0] for x in docs_with_score if x[1] < cut_distanct]
         scores = [x[1] for x in docs_with_score if x[1] < cut_distanct]
-        if len(scores) > 0:
+        if len(scores) > 0 and verbose:
             print("Distance: min: %s max: %s mean: %s median: %s" %
                   (scores[0], scores[-1], np.mean(scores), np.median(scores)), flush=True)
     else:
@@ -1149,9 +1149,10 @@ def get_similarity_chain(query=None,
     return docs, target, scores, use_context
 
 
-def get_sources_answer(query, answer, scores, show_rank, answer_with_sources):
-    print("query: %s" % query, flush=True)
-    print("answer: %s" % answer['output_text'], flush=True)
+def get_sources_answer(query, answer, scores, show_rank, answer_with_sources, verbose=False):
+    if verbose:
+        print("query: %s" % query, flush=True)
+        print("answer: %s" % answer['output_text'], flush=True)
 
     if len(answer['input_documents']) == 0:
         extra = ''

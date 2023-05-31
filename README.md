@@ -213,11 +213,11 @@ python generate.py --base_model=gptj --cli=True --langchain_mode=UserData --user
 ```
 which will build the database first time.  One can also use any other models, like:
 ```bash
-python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b --cli=True
+python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b --cli=True --langchain_mode=UserData --user_path=user_path
 ```
 or for WizardLM:
 ```bash
-python generate.py --base_model='llama' --prompt_type=wizard2 --cli=True
+python generate.py --base_model='llama' --prompt_type=wizard2 --cli=True --langchain_mode=UserData --user_path=user_path
 ```
 No streaming is currently supported for llama in CLI chat, but that will be fixed soon.
 
