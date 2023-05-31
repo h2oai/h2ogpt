@@ -805,8 +805,8 @@ def _make_db(use_openai_embedding=False,
         embedding = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model)
         db = Chroma(persist_directory=persist_directory, embedding_function=embedding,
                     collection_name=langchain_mode.replace(' ', '_'))
-    elif not db:
-        assert langchain_mode not in ['MyData'], "Should not make MyData db this way"
+    elif not db and langchain_mode not in ['MyData']:
+        # Should not make MyData db this way, why avoided, only upload from UI
         sources = []
         if verbose:
             print("Generating sources", flush=True)
