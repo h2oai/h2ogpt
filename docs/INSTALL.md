@@ -134,5 +134,5 @@ Then No for symlink change, say continue (not abort), accept license, keep only 
 
 If cuda 11.7 is not your base installation, then when doing pip install -r requirements.txt do instead:
 ```bash
-CUDA_HOME=/usr/local/cuda-11.7 pip install -r requirements_optional_flashattention.txt
+CUDA_HOME=/usr/local/cuda-11.7 pip install -r reqs_optional/requirements_optional_flashattention.txt
 ```

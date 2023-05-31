@@ -1,5 +1,5 @@
-all: req_constraints.txt
+all: reqs_optional/req_constraints.txt
 
-.PHONY: req_constraints.txt
-req_constraints.txt:
-	grep -v '#\|peft\|transformers\|accelerate' requirements.txt > req_constraints.txt
+.PHONY: reqs_optional/req_constraints.txt
+reqs_optional/req_constraints.txt:
+	grep -v '#\|peft\|transformers\|accelerate' requirements.txt > $@

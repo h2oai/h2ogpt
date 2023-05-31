@@ -9,14 +9,14 @@ Turn ★ into ⭐ (top-right corner) if you like the project!
 ### Try h2oGPT now 
 
 Live hosted instances:
-- [![img-small.png](img-small.png) h2oGPT 12B](https://gpt.h2o.ai/)
+- [![img-small.png](docs/img-small.png) h2oGPT 12B](https://gpt.h2o.ai/)
 - [🤗 h2oGPT 12B #1](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot)
 - [🤗 h2oGPT 12B #2](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot2)
-- [![img-small.png](img-small.png) h2oGPT (research) 30B](http://gpt2.h2o.ai)
-- [![img-small.png](img-small.png) Latest LangChain-enabled h2oGPT (temporary link) 12B](https://b7d3d0f641ce517fb5.gradio.live/)
-- [![img-small.png](img-small.png) Latest LangChain-enabled h2oGPT (temporary link) 12B](https://e543f2006f237cb8dc.gradio.live)
-- [![img-small.png](img-small.png) Latest LangChain-enabled h2oGPT (temporary link) 12B](https://9ae2ee93116d6c21f2.gradio.live)
-- [![img-small.png](img-small.png) Latest LangChain-enabled h2oGPT (temporary link) 12B](https://9d2abc46e67a32b60c.gradio.live)
+- [![img-small.png](docs/img-small.png) h2oGPT (research) 30B](http://gpt2.h2o.ai)
+- [![img-small.png](docs/img-small.png) Latest LangChain-enabled h2oGPT (temporary link) 12B](https://b7d3d0f641ce517fb5.gradio.live/)
+- [![img-small.png](docs/img-small.png) Latest LangChain-enabled h2oGPT (temporary link) 12B](https://e543f2006f237cb8dc.gradio.live)
+- [![img-small.png](docs/img-small.png) Latest LangChain-enabled h2oGPT (temporary link) 12B](https://9ae2ee93116d6c21f2.gradio.live)
+- [![img-small.png](docs/img-small.png) Latest LangChain-enabled h2oGPT (temporary link) 12B](https://9d2abc46e67a32b60c.gradio.live)
 
 For questions, discussing, or just hanging out, come and join our <a href="https://discord.gg/WKhYMWcVbq"><b>Discord</b></a>!
 
@@ -28,31 +28,31 @@ For questions, discussing, or just hanging out, come and join our <a href="https
 ![Windows](https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white)
 ![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)
 
-GPU mode requires CUDA support via torch and transformers.  A 6.9B (or 12GB) model in 8-bit uses 7GB (or 13GB) of GPU memory. 8-bit or 4-bit precision can further reduce memory requirements.
+**GPU** mode requires CUDA support via torch and transformers.  A 6.9B (or 12GB) model in 8-bit uses 7GB (or 13GB) of GPU memory. 8-bit or 4-bit precision can further reduce memory requirements.
 
-[CPU](FAQ.md#CPU) mode uses GPT4ALL and LLaMa.cpp, e.g. gpt4all-j, requiring about 14GB of system RAM in typical use.
+**CPU** mode uses GPT4ALL and LLaMa.cpp, e.g. gpt4all-j, requiring about 14GB of system RAM in typical use.
 
 GPU and CPU mode tested on variety of NVIDIA GPUs in Ubuntu 18-22, but any modern Linux variant should work.  MACOS support tested on Macbook Pro running Monterey v12.3.1 using CPU mode.
 
 ### Apache V2 ChatBot with LangChain Integration
 
-- [**LangChain**](README_LangChain.md) equipped Chatbot integration and streaming responses
+- [**LangChain**](docs/README_LangChain.md) equipped Chatbot integration and streaming responses
 - **Persistent** database using Chroma or in-memory with FAISS
 - **Original** content url links and scores to rank content against query
-- **Private** offline database of any documents ([PDFs and more](README_LangChain.md#supported-datatypes))
+- **Private** offline database of any documents ([PDFs and more](docs/README_LangChain.md#supported-datatypes))
 - **Upload** documents via chatbot into shared space or only allow scratch space
 - **Control** data sources and the context provided to LLM
 - **Efficient** use of context using instruct-tuned LLMs (no need for many examples)
 - **API** for client-server control
 - **CPU and GPU** support from variety of HF models, and CPU support using GPT4ALL and LLaMa cpp
-- **Linux, [MAC](FAQ.md#macos), and Windows** support
+- **Linux, MAC, and Windows** support
 
 Light mode with soft colors talking to cat image:
 
-![Talk to Cat](ui_talk_to_images.png)
+![Talk to Cat](docs/ui_talk_to_images.png)
 
 Dark mode with H2O.ai colors:
-<img src="langchain.png" alt="VectorDB" title="VectorDB via LangChain">
+<img src="docs/langchain.png" alt="VectorDB" title="VectorDB via LangChain">
 
 ### Apache V2 Data Preparation code, Training code, and Models
 
@@ -83,11 +83,11 @@ Also check out [H2O LLM Studio](https://github.com/h2oai/h2o-llmstudio) for our 
 
 ### Getting Started
 
-First one needs a Python 3.10 environment.  For help installing a Python 3.10 environment, see [Install Python 3.10 Environment](INSTALL.md#install-python-environment)
+First one needs a Python 3.10 environment.  For help installing a Python 3.10 environment, see [Install Python 3.10 Environment](docs/INSTALL.md#install-python-environment)
 
 #### GPU (CUDA)
 
-For help installing cuda toolkit, see [CUDA Toolkit](INSTALL.md#install-cuda-121-install-cuda-coolkit)
+For help installing cuda toolkit, see [CUDA Toolkit](docs/INSTALL.md#installing-cuda-toolkit)
 
 ```bash
 git clone https://github.com/h2oai/h2ogpt.git
@@ -109,54 +109,53 @@ for some user path `<user path>`.
 
 For quickly using a private document collection for Q/A, place documents (PDFs, text, etc.) into a folder called `user_path` and run
 ```bash
-pip install -r requirements_optional_langchain.txt
+pip install -r reqs_optional/requirements_optional_langchain.txt
 python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b  --load_8bit=True --langchain_mode=UserData --user_path=user_path
 ```
-For more ways to ingest on CLI and control see [LangChain Readme](README_LangChain.md).
+For more ways to ingest on CLI and control see [LangChain Readme](docs/README_LangChain.md).
 
 For 4-bit support, the latest dev versions of transformers, accelerate, and peft are required, which can be installed by running:
 ```bash
 pip uninstall peft transformers accelerate -y
-pip install -r requirements_optional_4bit.txt
+pip install -r reqs_optional/requirements_optional_4bit.txt
 ```
 where uninstall is required in case, e.g., peft was installed from GitHub previously.  Then when running generate pass `--load_4bit=True`, which is only supported for certain [architectures](https://github.com/huggingface/peft#models-support-matrix) like GPT-NeoX-20B, GPT-J, LLaMa, etc.
 
-Any other instruct-tuned base models can be used, including non-h2oGPT ones.  [Larger models require more GPU memory](FAQ.md#larger-models-require-more-gpu-memory).
+Any other instruct-tuned base models can be used, including non-h2oGPT ones.  [Larger models require more GPU memory](docs/FAQ.md#larger-models-require-more-gpu-memory).
 
 #### CPU
 
 CPU support is obtained after installing two optional requirements.txt files.  GPU support is also present if one has GPUs.
 
-1) Install base, langchain, and GPT4All, and python LLaMa dependencies:
+* Install base, langchain, and GPT4All, and python LLaMa dependencies:
 ```bash
 git clone https://github.com/h2oai/h2ogpt.git
 cd h2ogpt
-pip install -r requirements.txt -c req_constraints.txt
-pip install -r requirements_optional_langchain.txt -c req_constraints.txt
-pip install -r requirements_optional_gpt4all.txt -c req_constraints.txt
+pip install -r requirements.txt
+pip install -r reqs_optional/requirements_optional_langchain.txt
+pip install -r reqs_optional/requirements_optional_gpt4all.txt
 ```
 See [GPT4All](https://github.com/nomic-ai/gpt4all) for details on installation instructions if any issues encountered.
-One can run `make req_constraints.txt` to ensure that the constraints file is consistent with `requirements.txt`.
 
-2. Change `.env_gpt4all` model name if desired.
+* Change `.env_gpt4all` model name if desired.
 ```.env_gpt4all
 model_path_llama=WizardLM-7B-uncensored.ggmlv3.q8_0.bin
 model_path_gptj=ggml-gpt4all-j-v1.3-groovy.bin
 model_name_gpt4all_llama=ggml-wizardLM-7B.q4_2.bin
 ```
-For `gptj` and `gpt4all_llama`, you can choose a different model than our default choice by going to GPT4All Model explorer [GPT4All-J compatible model](https://gpt4all.io/index.html). One does not need to download manually, the gp4all package will download at runtime and put it into `.cache` like huggingface would.  However, `gpjt` model often gives [no output](FAQ.md#gpt4all-not-producing-output), even outside h2oGPT.
+For `gptj` and `gpt4all_llama`, you can choose a different model than our default choice by going to GPT4All Model explorer [GPT4All-J compatible model](https://gpt4all.io/index.html). One does not need to download manually, the gp4all package will download at runtime and put it into `.cache` like huggingface would.  However, `gpjt` model often gives [no output](docs/FAQ.md#gpt4all-not-producing-output), even outside h2oGPT.
 
-So, for chatting, a better instruct fine-tuned LLaMa-based model for llama.cpp can be downloaded from [TheBloke](https://huggingface.co/TheBloke).  For example, [13B WizardLM Quantized](https://huggingface.co/TheBloke/wizardLM-13B-1.0-GGML) or [7B WizardLM Quantized](https://huggingface.co/TheBloke/WizardLM-7B-uncensored-GGML).  TheBloke has a variety of model types, quantization bit, and memory consumption.  Choose what is best for your system's specs.  However, be aware that LLaMa-based models are not [commercially viable](FAQ.md#commercial-viability).
+So, for chatting, a better instruct fine-tuned LLaMa-based model for llama.cpp can be downloaded from [TheBloke](https://huggingface.co/TheBloke).  For example, [13B WizardLM Quantized](https://huggingface.co/TheBloke/wizardLM-13B-1.0-GGML) or [7B WizardLM Quantized](https://huggingface.co/TheBloke/WizardLM-7B-uncensored-GGML).  TheBloke has a variety of model types, quantization bit, and memory consumption.  Choose what is best for your system's specs.  However, be aware that LLaMa-based models are not [commercially viable](docs/FAQ.md#commercial-viability).
 
 For 7B case, download [WizardLM-7B-uncensored.ggmlv3.q8_0.bin](https://huggingface.co/TheBloke/WizardLM-7B-uncensored-GGML/blob/main/WizardLM-7B-uncensored.ggmlv3.q8_0.bin) into local path.  Then one sets `model_path_llama` in `.env_gpt4all`, which is currently the default.
 
-3. Run generate.py
+* Run generate.py
 
 For LangChain support using documents in `user_path` folder, run h2oGPT like:
 ```bash
 python generate.py --base_model='llama' --prompt_type=wizard2 --score_model=None --langchain_mode='UserData' --user_path=user_path
 ```
-See [LangChain Readme](README_LangChain.md) for more details.
+See [LangChain Readme](docs/README_LangChain.md) for more details.
 For no langchain support (still uses LangChain package as model wrapper), run as:
 ```bash
 python generate.py --base_model='llama' --prompt_type=wizard2 --score_model=None
@@ -216,7 +215,7 @@ which will build the database first time.  One can also use any other models, li
 ```bash
 python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b --cli=True
 ```
-or
+or for WizardLM:
 ```bash
 python generate.py --base_model='llama' --prompt_type=wizard2 --cli=True
 ```
@@ -224,7 +223,7 @@ No streaming is currently supported for llama in CLI chat, but that will be fixe
 
 #### Gradio UI
 
-`generate.py` by default runs a gradio server with a [UI (click for help with UI)](FAQ.md#explain-things-in-ui).  Key benefits of the UI include:
+`generate.py` by default runs a gradio server with a [UI (click for help with UI)](docs/FAQ.md#explain-things-in-ui).  Key benefits of the UI include:
 * Save, export, import chat histories and undo or regenerate last query-response pair
 * Upload and control documents of various kinds for document Q/A
 * Choose which specific collection to query, or just chat with LLM
@@ -232,13 +231,9 @@ No streaming is currently supported for llama in CLI chat, but that will be fixe
 * Side-by-side 2-model comparison view
 * RLHF response score evaluation for every query-response
 
-See how we compare to other tools like PrivateGPT, see our comparisons at [h2oGPT's LangChain Integration FAQ](README_LangChain.md#what-is-h2ogpts-langchain-integration-like).
+See how we compare to other tools like PrivateGPT, see our comparisons at [h2oGPT's LangChain Integration FAQ](docs/README_LangChain.md#what-is-h2ogpts-langchain-integration-like).
 
-We disable background uploads by disabling telemetry for huggingface, gradio, and chroma, and one can additionally avoid downloads (of fonts) by running `generate.py` with `--gradio_offline_level=2`.  See [Offline Documentation](FAQ.md#offline-mode) for details.
-
-Here is an example of talking to an image "document" that was captioned, shown here in soft colors (`--h2ocolors=False`) and not in dark mode:
-
-![img.png](ui_talk_to_images.png)
+We disable background uploads by disabling telemetry for huggingface, gradio, and chroma, and one can additionally avoid downloads (of fonts) by running `generate.py` with `--gradio_offline_level=2`.  See [Offline Documentation](docs/FAQ.md#offline-mode) for details.
 
 #### Client API
 
@@ -246,21 +241,21 @@ Here is an example of talking to an image "document" that was captioned, shown h
 
 ### Development
 
-- To create a development environment for training and generation, follow the [installation instructions](INSTALL.md).
-- To fine-tune any LLM models on your data, follow the [fine-tuning instructions](FINETUNE.md).
-- To create a container for deployment, follow the [Docker instructions](INSTALL-DOCKER.md).
+- To create a development environment for training and generation, follow the [installation instructions](docs/INSTALL.md).
+- To fine-tune any LLM models on your data, follow the [fine-tuning instructions](docs/FINETUNE.md).
+- To create a container for deployment, follow the [Docker instructions](docs/INSTALL-DOCKER.md).
 
 ### Help
 
-For help installing flash attention support, see [Flash Attention](INSTALL.md#flash-attention)
+For help installing flash attention support, see [Flash Attention](docs/INSTALL.md#flash-attention)
 
-You can also use [Docker](INSTALL-DOCKER.md#containerized-installation-for-inference-on-linux-gpu-servers) for inference.
+You can also use [Docker](docs/INSTALL-DOCKER.md#containerized-installation-for-inference-on-linux-gpu-servers) for inference.
 
-[FAQs](FAQ.md)
+[FAQs](docs/FAQ.md)
 
 ### More links, context, competitors, models, datasets
 
-[Links](LINKS.md)
+[Links](docs/LINKS.md)
 
 ### Acknowledgements
 
@@ -292,6 +287,7 @@ Many of our customers are creating models and deploying them enterprise-wide and
 We are proud to have over 25 (of the world's 280) [Kaggle Grandmasters](https://h2o.ai/company/team/kaggle-grandmasters/) call H2O home, including three Kaggle Grandmasters who have made it to world #1.
 
 ### Disclaimer
+
 
 Please read this disclaimer carefully before using the large language model provided in this repository. Your use of the model signifies your agreement to the following terms and conditions.
 

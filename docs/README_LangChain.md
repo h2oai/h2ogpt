@@ -16,16 +16,14 @@ For questions, discussing, or just hanging out, come and join our <a href="https
 
 To get started quickly to upload from Chatbot any docs, urls, etc. do:
 ```bash
-grep -v '#\|peft' requirements.txt > req_constraints.txt
-pip install -r requirements_optional_langchain.txt -c req_constraints.txt
+pip install -r reqs_optional/requirements_optional_langchain.txt
 python generate.py --base_model=h2oai/h2ogpt-oasst1-512-12b --load_8bit=True --langchain_mode=MyData
 ```
 See below for additional instructions to add support for some file types.
 
 To support GPU FAISS database, run:
 ```bash
-grep -v '#\|peft' requirements.txt > req_constraints.txt
-pip install -r requirements_optional_faiss.txt -c req_constraints.txt
+pip install -r reqs_optional/requirements_optional_faiss.txt
 ```
 or if you have no GPUs, you can still use FAISS but comment-out the faiss-gpu line and uncomment the faiss-cpu line.
 
@@ -87,8 +85,7 @@ sudo apt-get install libreoffice
 
 To support ArXiv API, do:
 ```bash
-grep -v '#\|peft' requirements.txt > req_constraints.txt
-pip install -r requirements_optional_langchain.gpllike.txt -c req_constraints.txt
+pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt
 ```
 but pymupdf is AGPL, requiring any source code be made available, which is not an issue directly for h2oGPT, but it's like GPL and too strong a constraint for general commercial use.
 
@@ -113,7 +110,7 @@ python make_db.py --add_if_exists=True
 python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b --langchain_mode=UserData
 ```
 
-## FAQ
+## Document Question-Answer FAQ
 
 #### Why does the source link not work?
 
