@@ -136,6 +136,8 @@ For links to direct to the document and download to your local machine, the orig
   * UI with side-by-side model comparisons against two models at a time with independent chat streams
   * Fine-tuning framework with QLORA 4-bit, 8-bit, 16-bit GPU fine-tuning or CPU fine-tuning
 
+* [localGPT](https://github.com/PromtEngineer/localGPT) .  By comparison, h2oGPT has similar benefits as compared to privateGPT.  Both h2oGPT and localGPT can use GPUs for LLMs and embeddings, including latest Vicuna or WizardLM models.
+
 * [Vault-AI](https://github.com/pashpashpash/vault-ai) but h2oGPT is fully private and open-source by not using OpenAI or [pinecone](https://www.pinecone.io/).
 
 * [DB-GPT](https://github.com/csunny/DB-GPT) but h2oGPT is fully commercially viable by not using [Vicuna](https://lmsys.org/blog/2023-03-30-vicuna/) (LLaMa based with GPT3.5 training data).
