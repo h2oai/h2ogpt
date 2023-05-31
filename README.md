@@ -52,7 +52,7 @@ Light mode with soft colors talking to cat image:
 ![Talk to Cat](docs/ui_talk_to_images.png)
 
 Dark mode with H2O.ai colors:
-<img src="langchain.png" alt="VectorDB" title="VectorDB via LangChain">
+<img src="docs/langchain.png" alt="VectorDB" title="VectorDB via LangChain">
 
 ### Apache V2 Data Preparation code, Training code, and Models
 
