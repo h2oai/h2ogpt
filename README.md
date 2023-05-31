@@ -216,7 +216,7 @@ which will build the database first time.  One can also use any other models, li
 ```bash
 python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b --cli=True
 ```
-or
+or for WizardLM:
 ```bash
 python generate.py --base_model='llama' --prompt_type=wizard2 --cli=True
 ```
