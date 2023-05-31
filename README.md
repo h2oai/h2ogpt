@@ -109,7 +109,7 @@ for some user path `<user path>`.
 
 For quickly using a private document collection for Q/A, place documents (PDFs, text, etc.) into a folder called `user_path` and run
 ```bash
-pip install -r requirements_optional_langchain.txt
+pip install -r reqs_optional/requirements_optional_langchain.txt
 python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b  --load_8bit=True --langchain_mode=UserData --user_path=user_path
 ```
 For more ways to ingest on CLI and control see [LangChain Readme](docs/README_LangChain.md).
@@ -117,7 +117,7 @@ For more ways to ingest on CLI and control see [LangChain Readme](docs/README_La
 For 4-bit support, the latest dev versions of transformers, accelerate, and peft are required, which can be installed by running:
 ```bash
 pip uninstall peft transformers accelerate -y
-pip install -r requirements_optional_4bit.txt
+pip install -r reqs_optional/requirements_optional_4bit.txt
 ```
 where uninstall is required in case, e.g., peft was installed from GitHub previously.  Then when running generate pass `--load_4bit=True`, which is only supported for certain [architectures](https://github.com/huggingface/peft#models-support-matrix) like GPT-NeoX-20B, GPT-J, LLaMa, etc.
 
@@ -131,9 +131,9 @@ CPU support is obtained after installing two optional requirements.txt files.  G
 ```bash
 git clone https://github.com/h2oai/h2ogpt.git
 cd h2ogpt
-pip install -r requirements.txt -c req_constraints.txt
-pip install -r requirements_optional_langchain.txt -c req_constraints.txt
-pip install -r requirements_optional_gpt4all.txt -c req_constraints.txt
+pip install -r requirements.txt
+pip install -r reqs_optional/requirements_optional_langchain.txt
+pip install -r reqs_optional/requirements_optional_gpt4all.txt
 ```
 See [GPT4All](https://github.com/nomic-ai/gpt4all) for details on installation instructions if any issues encountered.
 One can run `make req_constraints.txt` to ensure that the constraints file is consistent with `requirements.txt`.
