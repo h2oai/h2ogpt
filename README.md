@@ -47,6 +47,11 @@ GPU and CPU mode tested on variety of NVIDIA GPUs in Ubuntu 18-22, but any moder
 - **CPU and GPU** support from variety of HF models, and CPU support using GPT4ALL and LLaMa cpp
 - **Linux, [MAC](FAQ.md#macos), and Windows** support
 
+Light mode with soft colors talking to cat image:
+
+![Talk to Cat](ui_talk_to_images.png)
+
+Dark mode with h2o colors:
 <img src="langchain.png" alt="VectorDB" title="VectorDB via LangChain">
 
 ### Apache V2 Data Preparation code, Training code, and Models
@@ -230,6 +235,10 @@ No streaming is currently supported for llama in CLI chat, but that will be fixe
 See how we compare to other tools like PrivateGPT, see our comparisons at [h2oGPT's LangChain Integration FAQ](README_LangChain.md#what-is-h2ogpts-langchain-integration-like).
 
 We disable background uploads by disabling telemetry for huggingface, gradio, and chroma, and one can additionally avoid downloads (of fonts) by running `generate.py` with `--gradio_offline_level=2`.  See [Offline Documentation](FAQ.md#offline-mode) for details.
+
+Here is an example of talking to an image "document" that was captioned, shown here in soft colors (`--h2ocolors=False`) and not in dark mode:
+
+![img.png](ui_talk_to_images.png)
 
 #### Client API
 
