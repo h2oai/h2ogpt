@@ -32,7 +32,7 @@ def make_user_path_test():
         shutil.rmtree(db_dir)
     shutil.copy('data/pexels-evg-kowalievska-1170986_small.jpg', user_path)
     shutil.copy('README.md', user_path)
-    shutil.copy('FAQ.md', user_path)
+    shutil.copy('docs/FAQ.md', user_path)
     return user_path
 
 

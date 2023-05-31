@@ -127,7 +127,7 @@ Any other instruct-tuned base models can be used, including non-h2oGPT ones.  [L
 
 CPU support is obtained after installing two optional requirements.txt files.  GPU support is also present if one has GPUs.
 
-1) Install base, langchain, and GPT4All, and python LLaMa dependencies:
+* Install base, langchain, and GPT4All, and python LLaMa dependencies:
 ```bash
 git clone https://github.com/h2oai/h2ogpt.git
 cd h2ogpt
@@ -138,7 +138,7 @@ pip install -r requirements_optional_gpt4all.txt -c req_constraints.txt
 See [GPT4All](https://github.com/nomic-ai/gpt4all) for details on installation instructions if any issues encountered.
 One can run `make req_constraints.txt` to ensure that the constraints file is consistent with `requirements.txt`.
 
-2) Change `.env_gpt4all` model name if desired.
+* Change `.env_gpt4all` model name if desired.
 ```.env_gpt4all
 model_path_llama=WizardLM-7B-uncensored.ggmlv3.q8_0.bin
 model_path_gptj=ggml-gpt4all-j-v1.3-groovy.bin
@@ -150,7 +150,7 @@ So, for chatting, a better instruct fine-tuned LLaMa-based model for llama.cpp c
 
 For 7B case, download [WizardLM-7B-uncensored.ggmlv3.q8_0.bin](https://huggingface.co/TheBloke/WizardLM-7B-uncensored-GGML/blob/main/WizardLM-7B-uncensored.ggmlv3.q8_0.bin) into local path.  Then one sets `model_path_llama` in `.env_gpt4all`, which is currently the default.
 
-3) Run generate.py
+* Run generate.py
 
 For LangChain support using documents in `user_path` folder, run h2oGPT like:
 ```bash
@@ -288,6 +288,7 @@ Many of our customers are creating models and deploying them enterprise-wide and
 We are proud to have over 25 (of the world's 280) [Kaggle Grandmasters](https://h2o.ai/company/team/kaggle-grandmasters/) call H2O home, including three Kaggle Grandmasters who have made it to world #1.
 
 ### Disclaimer
+
 
 Please read this disclaimer carefully before using the large language model provided in this repository. Your use of the model signifies your agreement to the following terms and conditions.
 

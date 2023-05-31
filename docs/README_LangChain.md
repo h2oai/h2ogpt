@@ -113,7 +113,7 @@ python make_db.py --add_if_exists=True
 python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b --langchain_mode=UserData
 ```
 
-## FAQ
+## Document Question-Answer FAQ
 
 #### Why does the source link not work?
 
