@@ -958,7 +958,7 @@ def _run_qa_db(query=None,
     missing_kwargs = [x for x in func_names if x not in sim_kwargs]
     assert not missing_kwargs, "Missing: %s" % missing_kwargs
     docs, chain, scores, use_context = get_similarity_chain(**sim_kwargs)
-    if document_choice[0] == 'Only':
+    if len(document_choice) > 0 and document_choice[0] == 'Only':
         formatted_doc_chunks = '\n\n'.join([get_url(x) + '\n\n' + x.page_content for x in docs])
         yield formatted_doc_chunks, ''
         return
@@ -1063,19 +1063,23 @@ def get_similarity_chain(query=None,
         if isinstance(document_choice, str):
             # support string as well
             document_choice = [document_choice]
-        if not isinstance(db, Chroma) or len(document_choice) <= 1 and document_choice[0] == 'All':
+        if not isinstance(db, Chroma) or \
+                len(document_choice) == 0 or \
+                len(document_choice) <= 1 and document_choice[0] == 'All':
             # treat empty list as All for now, not 'None'
             filter_kwargs = {}
-        elif document_choice[0] == 'Only':
+        elif len(document_choice) > 0 and document_choice[0] == 'Only':
             # Only means All docs, but only will return sources, not LLM response
             filter_kwargs = {}
         else:
             if len(document_choice) >= 2:
                 or_filter = [{"source": {"$eq": x}} for x in document_choice]
                 filter_kwargs = dict(filter={"$or": or_filter})
-            else:
+            elif len(document_choice) > 0:
                 one_filter = [{"source": {"$eq": x}} for x in document_choice][0]
                 filter_kwargs = dict(filter=one_filter)
+            else:
+                filter_kwargs = {}
             if len(document_choice) == 1 and document_choice[0] == 'None':
                 k_db = 1
                 k = 0
@@ -1094,7 +1098,7 @@ def get_similarity_chain(query=None,
         # if HF type and have no docs, can bail out
         return docs, None, [], False
 
-    if document_choice[0] == 'Only':
+    if len(document_choice) > 0 and document_choice[0] == 'Only':
         # no LLM use
         return docs, None, [], False
 
