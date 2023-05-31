@@ -11,8 +11,9 @@ echo "Space name: $spacename"
 
 h2ogpt_hash=`git rev-parse HEAD`
 
-ln -sr generate.py gradio_runner.py gradio_themes.py h2o-logo.svg LICENSE stopping.py prompter.py finetune.py utils.py client_test.py gpt_langchain.py create_data.py h2oai_pipeline.py gpt4all_llm.py loaders.py requirements.txt requirements_optional_langchain.txt requirements_optional_gpt4all.txt spaces/chatbot/
-cd ..
+cd src/h2ogpt
+ln -sr generate.py gradio_runner.py gradio_themes.py h2o-logo.svg LICENSE stopping.py prompter.py finetune.py utils.py client_test.py gpt_langchain.py create_data.py h2oai_pipeline.py gpt4all_llm.py loaders.py requirements.txt requirements_optional_langchain.txt requirements_optional_gpt4all.txt ../../spaces/chatbot/
+cd ../../../
 
 git clone https://huggingface.co/spaces/h2oai/"${spacename}"
 cd "${spacename}"

@@ -34,7 +34,7 @@ python -c 'import os, sys ; print("hello world")'
 should print `hello world`.  Then clone:
 ```bash
 git clone https://github.com/h2oai/h2ogpt.git
-cd h2ogpt
+cd h2ogpt/src/h2ogpt
 ```
 Then go back to [README](README.md) for package installation and use of `generate.py`.
 

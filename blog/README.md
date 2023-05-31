@@ -54,7 +54,7 @@ https://user-images.githubusercontent.com/6147661/232924684-6c0e2dfb-2f24-4098-8
 To start using our LLM as a developer, follow the steps below:
 
 1. Clone the repository: `git clone https://github.com/h2oai/h2ogpt.git`
-2. Change to the repository directory: `cd h2ogpt`
+2. Change to the repository directory: `cd h2ogpt/src/h2ogpt`
 3. Install the requirements: `pip install -r requirements.txt`
 4. Run the chatbot: `python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-256-6_9b`
 5. Open your browser at `http://0.0.0.0:7860` or the public live URL printed by the server.
