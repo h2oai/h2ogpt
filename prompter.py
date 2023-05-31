@@ -280,7 +280,7 @@ Current Time: {}
         promptB = promptA = '%s%s' % (preprompt, start)
         PreInstruct = ""
         PreInput = None
-        PreResponse = "\n\n### Response"
+        PreResponse = "\n\n### Response\n"
         eos = "</s>"
         terminate_response = [PreResponse, eos]
         chat_sep = eos
