@@ -93,8 +93,8 @@ def main(
         stream_output: bool = True,
         show_examples: bool = None,
         verbose: bool = False,
-        h2ocolors: bool = True,
-        height: int = 400,
+        h2ocolors: bool = False,
+        height: int = 600,
         show_lora: bool = True,
         login_mode_if_model0: bool = False,
         block_gradio_exit: bool = True,
@@ -122,6 +122,7 @@ def main(
         document_choice: list = ['All'],
         user_path: str = None,
         load_db_if_exists: bool = True,
+        add_to_userdata_db_if_exists: bool = False,
         keep_sources_in_context: bool = False,
         db_type: str = 'chroma',
         use_openai_embedding: bool = False,
@@ -221,6 +222,9 @@ def main(
            FIXME: Avoid 'All' for now, not implemented
     :param document_choice: Default document choice when taking subset of collection
     :param load_db_if_exists: Whether to load chroma db if exists or re-generate db
+    :param add_to_userdata_db_if_exists: Whether to load existing UserData db if exists, and add any new user_path sources.
+           This requires re-loading all documents, so is not done by default.
+           At least embedding is not redone for duplicate sources.
     :param keep_sources_in_context: Whether to keep url sources in context, not helpful usually
     :param db_type: 'faiss' for in-memory or 'chroma' for persisted on disk
     :param use_openai_embedding: Whether to use OpenAI embeddings for vector db
@@ -377,7 +381,8 @@ def main(
                 # FIXME: All should be avoided until scans over each db, shouldn't be separate db
                 continue
             persist_directory1 = 'db_dir_%s' % langchain_mode1  # single place, no special names for each case
-            db = prep_langchain(persist_directory1, load_db_if_exists, db_type, use_openai_embedding,
+            db = prep_langchain(persist_directory1, load_db_if_exists, add_to_userdata_db_if_exists,
+                                db_type, use_openai_embedding,
                                 langchain_mode1, user_path,
                                 hf_embedding_model,
                                 kwargs_make_db=locals())

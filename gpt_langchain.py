@@ -77,22 +77,24 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss', persist_directo
 
 def add_to_db(db, sources, db_type='faiss', avoid_dup=True):
     if not sources:
-        return db
+        return db, 0
     if db_type == 'faiss':
         db.add_documents(sources)
+        num_new_sources = len(sources)
     elif db_type == 'chroma':
         if avoid_dup:
             collection = db.get()
             metadata_sources = set([x['source'] for x in collection['metadatas']])
             sources = [x for x in sources if x.metadata['source'] not in metadata_sources]
         if len(sources) == 0:
-            return db
+            return db, 0
+        num_new_sources = len(sources)
         db.add_documents(documents=sources)
         db.persist()
     else:
         raise RuntimeError("No such db_type=%s" % db_type)
 
-    return db
+    return db, num_new_sources
 
 
 def get_embedding(use_openai_embedding, hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2"):
@@ -356,6 +358,12 @@ try:
 except (pkg_resources.DistributionNotFound, AssertionError):
     have_arxiv = False
 
+try:
+    assert pkg_resources.get_distribution('pymupdf') is not None
+    have_pymupdf = True
+except (pkg_resources.DistributionNotFound, AssertionError):
+    have_pymupdf = False
+
 image_types = ["png", "jpg", "jpeg"]
 non_image_types = ["pdf", "txt", "csv", "toml", "py", "rst", "rtf",
                    "md", "html",
@@ -518,9 +526,18 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
             doc1 = Document(page_content=f.read(), metadata={"source": file})
         add_meta(doc1, file)
     elif file.lower().endswith('.pdf'):
+        env_gpt4all_file = ".env_gpt4all"
+        from dotenv import dotenv_values
+        env_kwargs = dotenv_values(env_gpt4all_file)
+        pdf_class_name = env_kwargs.get('PDF_CLASS_NAME', 'PyMuPDFParser')
+        if have_pymupdf and pdf_class_name == 'PyMuPDFParser':
+            # GPL, only use if installed
+            from langchain.document_loaders import PyMuPDFLoader
+            doc1 = PyMuPDFLoader(file).load_and_split()
+        else:
+            # open-source fallback
+            doc1 = PyPDFLoader(file).load_and_split()
         # Some PDFs return nothing or junk from PDFMinerLoader
-        # e.g. Beyond fine-tuning_ Classifying high resolution mammograms using function-preserving transformations _ Elsevier Enhanced Reader.pdf
-        doc1 = PyPDFLoader(file).load_and_split()
         add_meta(doc1, file)
     elif file.lower().endswith('.csv'):
         doc1 = CSVLoader(file).load()
@@ -700,7 +717,8 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
     return documents
 
 
-def prep_langchain(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode, user_path,
+def prep_langchain(persist_directory, load_db_if_exists, add_to_userdata_db_if_exists,
+                   db_type, use_openai_embedding, langchain_mode, user_path,
                    hf_embedding_model, n_jobs=-1, kwargs_make_db={}):
     """
     do prep first time, involving downloads
@@ -709,12 +727,17 @@ def prep_langchain(persist_directory, load_db_if_exists, db_type, use_openai_emb
     """
     assert langchain_mode not in ['MyData'], "Should not prep scratch data"
 
-    if os.path.isdir(persist_directory):
+    db_dir_exists = os.path.isdir(persist_directory)
+
+    if db_dir_exists and not add_to_userdata_db_if_exists:
         print("Prep: persist_directory=%s exists, using" % persist_directory, flush=True)
         db = get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
                              hf_embedding_model)
     else:
-        print("Prep: persist_directory=%s does not exist, regenerating" % persist_directory, flush=True)
+        if db_dir_exists and add_to_userdata_db_if_exists:
+            print("Prep: persist_directory=%s exists, adding any new documents" % persist_directory, flush=True)
+        elif not db_dir_exists:
+            print("Prep: persist_directory=%s does not exist, regenerating" % persist_directory, flush=True)
         db = None
         if langchain_mode in ['All', 'DriverlessAI docs']:
             # FIXME: Could also just use dai_docs.pickle directly and upload that
@@ -763,7 +786,7 @@ def get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_em
         from chromadb.config import Settings
         client_settings = Settings(anonymized_telemetry=False,
                                    chroma_db_impl="duckdb+parquet",
-                                   persist_directory=persist_directory,)
+                                   persist_directory=persist_directory)
         db = Chroma(persist_directory=persist_directory, embedding_function=embedding,
                     collection_name=langchain_mode.replace(' ', '_'),
                     client_settings=client_settings)
@@ -793,7 +816,8 @@ def _make_db(use_openai_embedding=False,
              langchain_mode=None,
              user_path=None,
              db_type='faiss',
-             load_db_if_exists=False,
+             load_db_if_exists=True,
+             add_to_userdata_db_if_exists=True,
              db=None,
              n_jobs=-1,
              verbose=False):
@@ -801,15 +825,23 @@ def _make_db(use_openai_embedding=False,
     if not db and load_db_if_exists and db_type == 'chroma' and os.path.isdir(persist_directory) and os.path.isdir(
             os.path.join(persist_directory, 'index')):
         assert langchain_mode not in ['MyData'], "Should not load MyData db this way"
-        print("Loading db", flush=True)
+        print("Loading existing db", flush=True)
         embedding = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model)
+        from chromadb.config import Settings
+        client_settings = Settings(anonymized_telemetry=False,
+                                   chroma_db_impl="duckdb+parquet",
+                                   persist_directory=persist_directory)
         db = Chroma(persist_directory=persist_directory, embedding_function=embedding,
-                    collection_name=langchain_mode.replace(' ', '_'))
-    elif not db:
+                    collection_name=langchain_mode.replace(' ', '_'),
+                    client_settings=client_settings)
+    sources = []
+    if not db or add_to_userdata_db_if_exists and langchain_mode in ['UserData']:
         assert langchain_mode not in ['MyData'], "Should not make MyData db this way"
-        sources = []
         if verbose:
-            print("Generating sources", flush=True)
+            if add_to_userdata_db_if_exists:
+                print("Checking if new sources, and generating them", flush=True)
+            else:
+                print("Generating sources", flush=True)
         if langchain_mode in ['wiki_full', 'All', "'All'"]:
             from read_wiki_full import get_all_documents
             small_test = None
@@ -841,6 +873,7 @@ def _make_db(use_openai_embedding=False,
                 # chunk internally for speed over multiple docs
                 sources1 = path_to_docs(user_path, n_jobs=n_jobs, chunk=chunk, chunk_size=chunk_size)
                 sources.extend(sources1)
+                print("Loaded %s sources for potentially adding to UserData" % len(sources), flush=True)
             else:
                 print("Chose UserData but user_path is empty/None", flush=True)
         if False and langchain_mode in ['urls', 'All', "'All'"]:
@@ -857,11 +890,20 @@ def _make_db(use_openai_embedding=False,
             return None
         if verbose:
             print("Generating db", flush=True)
-        db = get_db(sources, use_openai_embedding=use_openai_embedding, db_type=db_type,
-                    persist_directory=persist_directory, langchain_mode=langchain_mode,
-                    hf_embedding_model=hf_embedding_model)
-        if verbose:
-            print("Generated db", flush=True)
+    if not db:
+        if sources:
+            db = get_db(sources, use_openai_embedding=use_openai_embedding, db_type=db_type,
+                        persist_directory=persist_directory, langchain_mode=langchain_mode,
+                        hf_embedding_model=hf_embedding_model)
+            if verbose:
+                print("Generated db", flush=True)
+        else:
+            print("Did not generate db since no sources", flush=True)
+    elif add_to_userdata_db_if_exists and langchain_mode in ['UserData']:
+        print("Existing db, potentially adding %s sources" % len(sources), flush=True)
+        db, num_new_sources = add_to_db(db, sources, db_type=db_type)
+        print("Existing db, added %s new sources" % num_new_sources, flush=True)
+
     return db
 
 

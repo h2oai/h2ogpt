@@ -69,7 +69,7 @@ def make_db_main(use_openai_embedding: bool = False,
     :param persist_directory: where to persist db
     :param user_path: where to pull documents from (None means url is not None.  If url is not None, this is ignored.)
     :param url: url to generate documents from (None means user_path is not None)
-    :param add_if_exists: Add to db if already exists
+    :param add_if_exists: Add to db if already exists, but will not add duplicate sources
     :param collection_name: Collection name for new db if not adding
     :param verbose: whether to show verbose messages
     :param chunk: whether to chunk data

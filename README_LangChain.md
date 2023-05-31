@@ -92,6 +92,8 @@ pip install -r requirements_optional_langchain.gpllike.txt -c req_constraints.tx
 ```
 but pymupdf is AGPL, requiring any source code be made available, which is not an issue directly for h2oGPT, but it's like GPL and too strong a constraint for general commercial use.
 
+When pymupdf is installed, we will use `PyMuPDFLoader` by default to parse PDFs since better than `PyPDFLoader` and much better than `PDFMinerLoader`.  This can be overridden by setting `PDF_CLASS_NAME=PyPDFLoader` in `.env_gpt4all`.
+
 ## Database creation
 
 To use some example databases (will overwrite UserData make above unless change options) and run generate after, do:
@@ -112,6 +114,12 @@ To add data to the existing database, then run generate after, do:
 python make_db.py --add_if_exists=True
 python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b --langchain_mode=UserData
 ```
+
+By default, `generate.py` will load an existing UserData database and ignore any documents added to user_path.  To add more docs to UserData from generate alone, run:
+```bash
+python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b --langchain_mode=UserData --user_path=user_path --add_to_userdata_db_if_exists=True
+```
+which will go through all documents to see if anything changed or new docs are added to the `user_path`, but only new documents will be embedded.
 
 ## FAQ
 
