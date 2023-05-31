@@ -72,7 +72,6 @@ Note: This dataset is cleaned up, but might still contain undesired words and co
 ### Install training specific dependencies
 
 ```bash
-make req_constraints.txt  # only required if potentially out of sync with requirements.txt
 pip install -r reqs_optional/requirements_optional_training.txt
 ```
 

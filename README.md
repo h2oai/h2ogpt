@@ -136,7 +136,6 @@ pip install -r reqs_optional/requirements_optional_langchain.txt
 pip install -r reqs_optional/requirements_optional_gpt4all.txt
 ```
 See [GPT4All](https://github.com/nomic-ai/gpt4all) for details on installation instructions if any issues encountered.
-One can run `make req_constraints.txt` to ensure that the constraints file is consistent with `requirements.txt`.
 
 * Change `.env_gpt4all` model name if desired.
 ```.env_gpt4all

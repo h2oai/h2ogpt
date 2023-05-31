@@ -89,7 +89,7 @@ def go_gradio(**kwargs):
     else:
         description = more_info
     description += "If this host is busy, try [12B](https://gpt.h2o.ai), [30B](http://gpt2.h2o.ai), [HF Spaces1 12B](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot) or [HF Spaces2 12B](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot2)<br>"
-    description += """<p>By using h2oGPT, you accept our [Terms of Service](https://github.com/h2oai/h2ogpt/blob/main/tos.md)</p>"""
+    description += """<p>By using h2oGPT, you accept our [Terms of Service](https://github.com/h2oai/h2ogpt/blob/main/docs/tos.md)</p>"""
     if is_hf:
         description += '''<a href="https://huggingface.co/spaces/h2oai/h2ogpt-chatbot?duplicate=true"><img src="https://bit.ly/3gLdBN6" style="white-space: nowrap" alt="Duplicate Space"></a>'''
 
@@ -298,7 +298,7 @@ body.dark{#warning {background-color: #555555};}
                                                  file_count='multiple',
                                                  elem_id="warning", elem_classes="feedback")
                 with gr.TabItem("Data Source"):
-                    langchain_readme = get_url('https://github.com/h2oai/h2ogpt/blob/main/README_LangChain.md',
+                    langchain_readme = get_url('https://github.com/h2oai/h2ogpt/blob/main/docs/README_LangChain.md',
                                                from_str=True)
                     gr.HTML(value=f"""LangChain Support Disabled<p>
                             Run:<p>
@@ -582,7 +582,7 @@ body.dark{#warning {background-color: #555555};}
                     description += """<i><li>Conversations may be used to improve h2oGPT.  Do not share sensitive information.</i></li>"""
                     if 'h2ogpt-research' in kwargs['base_model']:
                         description += """<i><li>Research demonstration only, not used for commercial purposes.</i></li>"""
-                    description += """<i><li>By using h2oGPT, you accept our <a href="https://github.com/h2oai/h2ogpt/blob/main/tos.md">Terms of Service</a></i></li></ul></p>"""
+                    description += """<i><li>By using h2oGPT, you accept our <a href="https://github.com/h2oai/h2ogpt/blob/main/docs/tos.md">Terms of Service</a></i></li></ul></p>"""
                     gr.Markdown(value=description, show_label=False, interactive=False)
 
         # Get flagged data
