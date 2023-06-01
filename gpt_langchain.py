@@ -86,12 +86,32 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss', persist_directo
 
     return db
 
+def _get_unique_sources_in_weaviate(db):
+    batch_size=100
+    id_source_list = []
+    result = db._client.data_object.get(class_name=db._index_name, limit=batch_size)
+
+    while result['objects']:
+        id_source_list += [(obj['id'], obj['properties']['source']) for obj in result['objects']]
+        last_id = id_source_list[-1][0]
+        result = db._client.data_object.get(class_name=db._index_name, limit=batch_size, after=last_id)
+
+    unique_sources = {source for _, source in id_source_list}
+    return unique_sources
 
 def add_to_db(db, sources, db_type='faiss', avoid_dup=True):
     if not sources:
         return db
     if db_type == 'faiss':
         db.add_documents(sources)
+    elif db_type == 'weaviate':
+        if avoid_dup:
+            unique_sources = _get_unique_sources_in_weaviate(db)
+            sources = [x for x in sources if x.metadata['source'] not in unique_sources]
+        if len(sources) == 0:
+            return db
+        db.add_documents(documents=sources)
+        
     elif db_type == 'chroma':
         if avoid_dup:
             collection = db.get()
