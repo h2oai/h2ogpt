@@ -165,6 +165,17 @@ python generate.py --base_model='llama' --prompt_type=wizard2 --score_model=None
 
 No streaming is currently supported for these CPU models in UI, but that will be fixed soon.
 
+When using `llama.cpp` based CPU models, for computers with low system RAM or slow CPUs, we recommend adding to `.env_gpt4all`:
+```.env_gpt4all
+use_mlock=False
+n_ctx=1024
+```
+where `use_mlock=True` is default to avoid slowness and `n_ctx=2048` is default for large context handling.  For computers with plenty of system RAM, we recommend adding to `.env_gpt4all`:
+```.env_gpt4all
+n_batch=1024
+```
+for faster handling.  One some systems this has no strong effect, but on others may increase speed quite a bit.
+
 #### MACOS
 
 First install [Rust](https://www.geeksforgeeks.org/how-to-install-rust-in-macos/):
