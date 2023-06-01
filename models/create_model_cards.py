@@ -186,6 +186,7 @@ def test_create_model_cards(model_name, base_model, dataset, training_logs, eval
         print("call 'huggingface_cli login' first and provide access token with write permission")
     model = AutoModelForCausalLM.from_pretrained("h2oai/%s" % model_name,
                                                  local_files_only=False,
+                                                 trust_remote_code=True,
                                                  torch_dtype=torch.float16,
                                                  device_map="auto")
     model_arch = str(model)
