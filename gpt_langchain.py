@@ -55,6 +55,18 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss', persist_directo
     if db_type == 'faiss':
         from langchain.vectorstores import FAISS
         db = FAISS.from_documents(sources, embedding)
+
+    elif db_type == 'weaviate':
+        import weaviate
+        from weaviate.embedded import EmbeddedOptions
+        from langchain.vectorstores import Weaviate
+
+        # TODO: add support for connecting via docker compose
+        client = weaviate.Client(
+            embedded_options=EmbeddedOptions()
+            )
+        db = Weaviate.from_documents(documents=sources, embedding=embedding, client=client, by_text=False)
+
     elif db_type == 'chroma':
         collection_name = langchain_mode.replace(' ', '_')
         os.makedirs(persist_directory, exist_ok=True)
