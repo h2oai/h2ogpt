@@ -110,6 +110,7 @@ for some user path `<user path>`.
 For quickly using a private document collection for Q/A, place documents (PDFs, text, etc.) into a folder called `user_path` and run
 ```bash
 pip install -r reqs_optional/requirements_optional_langchain.txt
+python -m nltk.downloader all  # for supporting unstructured package
 python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b  --load_8bit=True --langchain_mode=UserData --user_path=user_path
 ```
 For more ways to ingest on CLI and control see [LangChain Readme](docs/README_LangChain.md).
@@ -133,6 +134,7 @@ git clone https://github.com/h2oai/h2ogpt.git
 cd h2ogpt
 pip install -r requirements.txt  # only do if didn't already do for GPU support, since windows needs --extra-index-url line
 pip install -r reqs_optional/requirements_optional_langchain.txt
+python -m nltk.downloader all  # for supporting unstructured package
 pip install -r reqs_optional/requirements_optional_gpt4all.txt
 ```
 See [GPT4All](https://github.com/nomic-ai/gpt4all) for details on installation instructions if any issues encountered.
