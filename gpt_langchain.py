@@ -951,7 +951,7 @@ def _run_qa_db(query=None,
     :param chunk:
     :param chunk_size:
     :param user_path: user path to glob recursively from
-    :param db_type: 'faiss' for in-memory db or 'chroma' for persistent db
+    :param db_type: 'faiss' for in-memory db or 'chroma' or 'weaviate' for persistent db
     :param model_name: model name, used to switch behaviors
     :param model: pre-initialized model, else will make new one
     :param tokenizer: pre-initialized tokenizer, else will make new one.  Required not None if model is not None
