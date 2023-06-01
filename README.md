@@ -165,7 +165,7 @@ No streaming is currently supported for these CPU models in UI, but that will be
 
 #### MACOS
 
-All instructions are same as for GPU or CPU installation, except first install [Rust](https://www.geeksforgeeks.org/how-to-install-rust-in-macos/):
+First install [Rust](https://www.geeksforgeeks.org/how-to-install-rust-in-macos/):
 ```bash
 curl –proto ‘=https’ –tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
@@ -176,9 +176,11 @@ If so, set your archflags during pip install. eg: `ARCHFLAGS="-arch x86_64" pip3
 
 If you encounter an error while building a wheel during the `pip install` process, you may need to install a C++ compiler on your computer.
 
+Now go back to normal [CPU](README.md#cpu) installation.
+
 #### Windows 10/11
 
-All instructions are same as for GPU or CPU installation, except also need C++ compiler by doing:
+Follow these steps, which includes the above GPU or CPU install step at one point:
 
 1. Install Visual Studio 2022 (requires newer windows versions of 10/11) with following selected:
    * Windows 11 SDK
