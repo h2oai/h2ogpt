@@ -25,7 +25,7 @@ model_loader, tokenizer_loader = get_loaders(llama_type=llama_type, model_name=B
 
 tokenizer = tokenizer_loader.from_pretrained(
     BASE_MODEL,
-    local_files_only=True,
+    local_files_only=False,
     resume_download=True,
 )
 tokenizer.save_pretrained(OUTPUT_NAME)
