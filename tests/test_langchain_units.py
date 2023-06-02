@@ -162,6 +162,24 @@ def test_qa_daidocs_db_chunk_hf_chroma():
                      )
     check_ret(ret)
 
+@wrap_test_forked
+def test_qa_wiki_db_chunk_hf_weaviate():
+
+    from gpt4all_llm import get_model_tokenizer_gpt4all
+    model_name = 'llama'
+    model, tokenizer, device = get_model_tokenizer_gpt4all(model_name)
+
+    from gpt_langchain import _run_qa_db
+    query = "What are the main differences between Linux and Windows?"
+    # chunk_size is chars for each of k=4 chunks
+    ret = _run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=None, chunk=True,
+                     chunk_size=128 * 1,  # characters, and if k=4, then 4*4*128 = 2048 chars ~ 512 tokens
+                     langchain_mode='wiki',
+                     db_type='weaviate',
+                     prompt_type='wizard2',
+                     model_name=model_name, model=model, tokenizer=tokenizer,
+                     )
+    check_ret(ret)
 
 @pytest.mark.skipif(not have_openai_key, reason="requires OpenAI key to run")
 @wrap_test_forked

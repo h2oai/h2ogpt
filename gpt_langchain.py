@@ -55,6 +55,19 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss', persist_directo
     if db_type == 'faiss':
         from langchain.vectorstores import FAISS
         db = FAISS.from_documents(sources, embedding)
+
+    elif db_type == 'weaviate':
+        import weaviate
+        from weaviate.embedded import EmbeddedOptions
+        from langchain.vectorstores import Weaviate
+
+        # TODO: add support for connecting via docker compose
+        client = weaviate.Client(
+            embedded_options=EmbeddedOptions()
+            )
+        index_name = langchain_mode.replace(' ', '_').capitalize()
+        db = Weaviate.from_documents(documents=sources, embedding=embedding, client=client, by_text=False, index_name=index_name)
+
     elif db_type == 'chroma':
         collection_name = langchain_mode.replace(' ', '_')
         os.makedirs(persist_directory, exist_ok=True)
@@ -74,12 +87,32 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss', persist_directo
 
     return db
 
+def _get_unique_sources_in_weaviate(db):
+    batch_size=100
+    id_source_list = []
+    result = db._client.data_object.get(class_name=db._index_name, limit=batch_size)
+
+    while result['objects']:
+        id_source_list += [(obj['id'], obj['properties']['source']) for obj in result['objects']]
+        last_id = id_source_list[-1][0]
+        result = db._client.data_object.get(class_name=db._index_name, limit=batch_size, after=last_id)
+
+    unique_sources = {source for _, source in id_source_list}
+    return unique_sources
 
 def add_to_db(db, sources, db_type='faiss', avoid_dup=True):
     if not sources:
         return db
     if db_type == 'faiss':
         db.add_documents(sources)
+    elif db_type == 'weaviate':
+        if avoid_dup:
+            unique_sources = _get_unique_sources_in_weaviate(db)
+            sources = [x for x in sources if x.metadata['source'] not in unique_sources]
+        if len(sources) == 0:
+            return db
+        db.add_documents(documents=sources)
+        
     elif db_type == 'chroma':
         if avoid_dup:
             collection = db.get()
@@ -919,7 +952,7 @@ def _run_qa_db(query=None,
     :param chunk:
     :param chunk_size:
     :param user_path: user path to glob recursively from
-    :param db_type: 'faiss' for in-memory db or 'chroma' for persistent db
+    :param db_type: 'faiss' for in-memory db or 'chroma' or 'weaviate' for persistent db
     :param model_name: model name, used to switch behaviors
     :param model: pre-initialized model, else will make new one
     :param tokenizer: pre-initialized tokenizer, else will make new one.  Required not None if model is not None
