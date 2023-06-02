@@ -66,10 +66,10 @@ def main(
         repetition_penalty: float = None,
         num_return_sequences: int = None,
         do_sample: bool = None,
-        max_new_tokens: int = None,
+        max_new_tokens: int = 100,
         min_new_tokens: int = None,
         early_stopping: Union[bool, str] = None,
-        max_time: float = None,
+        max_time: float = 10,
 
         debug: bool = False,
         save_dir: str = None,
@@ -1319,9 +1319,6 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
             prompt_type = prompt_type or 'plain'
         else:
             prompt_type = ''
-        examples += [[summarize_example1, 'Summarize' if prompt_type not in ['plain', 'instruct_simple'] else '', "",
-                      stream_output, prompt_type or 'plain', 0.1, 0.75, 40, 4, 256, 0, False, max_time_defaults, 1.0, 1,
-                      False]]
         task_info = "No task"
         if prompt_type == 'instruct':
             task_info = "Answer question or follow imperative as instruction with optionally input."
@@ -1396,6 +1393,8 @@ y = np.random.randint(0, 1, 100)
 
 # fit random forest classifier with 20 estimators""", ''] + params_list,
         ]
+    # add summary example
+    examples += [[summarize_example1, 'Summarize' if prompt_type not in ['plain', 'instruct_simple'] else ''] + params_list]
 
     src_lang = "English"
     tgt_lang = "Russian"

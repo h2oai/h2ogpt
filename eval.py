@@ -1,3 +1,4 @@
+import inspect
 import os
 import traceback
 import numpy as np
@@ -5,7 +6,8 @@ import pandas as pd
 import torch
 from matplotlib import pyplot as plt
 
-from generate import eval_func_param_names, eval_extra_columns, get_context, get_score_model, get_model, evaluate
+from generate import eval_func_param_names, eval_extra_columns, get_context, get_score_model, get_model, evaluate, \
+    inputs_kwargs_list
 from prompter import Prompter
 from utils import clear_torch_cache, NullContext, get_kwargs
 
@@ -19,12 +21,51 @@ def run_eval(  # for local function:
         score_model=None, load_8bit=None, load_4bit=None, load_half=None, infer_devices=None, tokenizer_base_model=None,
         gpu_id=None, local_files_only=None, resume_download=None, use_auth_token=None,
         trust_remote_code=None, offload_folder=None, compile_model=None,
-        # for evaluate:
+        # for evaluate args beyond what's already above, or things that are always dynamic and locally created
+        temperature=None,
+        top_p=None,
+        top_k=None,
+        num_beams=None,
+        max_new_tokens=None,
+        min_new_tokens=None,
+        early_stopping=None,
+        max_time=None,
+        repetition_penalty=None,
+        num_return_sequences=None,
+        do_sample=None,
+        langchain_mode=None,
+        top_k_docs=None,
+        document_choice=None,
+        # for evaluate kwargs:
         src_lang=None, tgt_lang=None, concurrency_count=None, save_dir=None, sanitize_bot_response=None,
         model_state0=None, raise_generate_gpu_exceptions=None, load_db_if_exists=None, dbs=None, user_path=None,
         use_openai_embedding=None, use_openai_model=None, hf_embedding_model=None, chunk=None, chunk_size=None,
         db_type=None, n_jobs=None, first_para=None, text_limit=None, verbose=None, cli=None,
 ):
+    # ensure everything in evaluate is here
+    can_skip_because_locally_generated = [  # evaluate
+        'instruction',
+        'iinput',
+        'context',
+        'instruction_nochat',
+        'iinput_nochat',
+        # get_model:
+        'reward_type'
+    ]
+    for k in eval_func_param_names:
+        if k in can_skip_because_locally_generated:
+            continue
+        assert k in locals(), "Missing %s" % k
+    for k in inputs_kwargs_list:
+        if k in can_skip_because_locally_generated:
+            continue
+        assert k in locals(), "Missing %s" % k
+
+    for k in list(inspect.signature(get_model).parameters):
+        if k in can_skip_because_locally_generated:
+            continue
+        assert k in locals(), "Missing %s" % k
+
     if eval_prompts_only_num > 0:
         np.random.seed(eval_prompts_only_seed)
         example1 = examples[-1]  # pick reference example
@@ -121,6 +162,8 @@ def run_eval(  # for local function:
             fun = get_response
         t0 = time.time()
         score_dump = []
+        score_avg = 0
+        score_median = 0
 
         for exi, ex in enumerate(examples):
             instruction = ex[eval_func_param_names.index('instruction_nochat')]
@@ -133,6 +176,7 @@ def run_eval(  # for local function:
             print("-" * 105)
             # fun yields as generator, so have to iterate over it
             # Also means likely do NOT want --stream_output=True, else would show all generations
+            t1 = time.time()
             gener = fun(*tuple(ex), exi=exi) if eval_as_output else fun(*tuple(ex))
             for res_fun in gener:
                 res = res_fun['response']
@@ -177,7 +221,6 @@ def run_eval(  # for local function:
                             clear_torch_cache()
                         else:
                             raise
-                    print("SCORE %s: %s" % (exi, score), flush=True)
                     score_dump.append(ex + [prompt, res, score])
                     # dump every score in case abort
                     df_scores = pd.DataFrame(score_dump,
@@ -188,6 +231,7 @@ def run_eval(  # for local function:
                     plt.hist(df_scores['score'], bins=20)
                     score_avg = np.mean(df_scores['score'])
                     score_median = np.median(df_scores['score'])
+                    print("SCORE %s: %s  So far: AVG: %s MEDIAN: %s" % (exi, score, score_avg, score_median), flush=True)
                     plt.title("Score avg: %s median: %s" % (score_avg, score_median))
                     plt.savefig(eval_out_filename.replace('.parquet', '.png'))
                     plt.close()
@@ -195,7 +239,8 @@ def run_eval(  # for local function:
             print("END" + "=" * 102)
             print("")
             t2 = time.time()
-            print("Time taken so far: %.4f about %.4g per example" % (t2 - t0, (t2 - t0) / (1 + exi)))
+            print("Time taken for example: %s Time taken so far: %.4f about %.4g per example" % (t2 - t1, t2 - t0, (t2 - t0) / (1 + exi)))
         t1 = time.time()
         print("Total time taken: %.4f about %.4g per example" % (t1 - t0, (t1 - t0) / num_examples))
+        print("Score avg: %s median: %s" % (score_avg, score_median), flush=True)
     return eval_out_filename
