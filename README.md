@@ -6,7 +6,7 @@ Welcome!  Join us and make an issue or a PR, and contribute to making the best f
 
 Turn ★ into ⭐ (top-right corner) if you like the project!
 
-<!--  cat README.md | ./gh-md-toc  - -->
+<!--  cat README.md | ./gh-md-toc  -  But Help is heavily processed -->
 * [Try h2oGPT now](#try-h2ogpt-now)
 * [Supported OS and Hardware](#supported-os-and-hardware)
 * [Apache V2 ChatBot with LangChain Integration](#apache-v2-chatbot-with-langchain-integration)
@@ -22,7 +22,13 @@ Turn ★ into ⭐ (top-right corner) if you like the project!
    * [Client API](#client-api)
 * [Development](#development)
 * [Help](#help)
-* [More links, context, competitors, models, datasets](#more-links-context-competitors-models-datasets)
+   * [Installation](docs/INSTALL.md)
+   * [FAQ](docs/FAQ.md)
+   * [README for LangChain](docs/README_LangChain.md)
+   * [Useful Links](docs/LINKS.md)
+   * [Fine-Tuning](docs/FINETUNE.md)
+   * [Docker](docs/INSTALL-DOCKER.md)
+   * [Triton](docs/TRITON.md)
 * [Acknowledgements](#acknowledgements)
 * [Why H2O.ai?](#why-h2oai)
 * [Disclaimer](#disclaimer)
@@ -118,7 +124,7 @@ Then point browser at http://0.0.0.0:7860 (linux) or http://localhost:7860 (wind
 ```
 python generate.py --base_model=h2oai/h2ogpt-oasst1-512-12b --load_8bit=True
 ```
-and one can use `--h2ocolors=False` to get soft blue-gray colors instead of H2O.ai colors.
+and one can use `--h2ocolors=False` to get soft blue-gray colors instead of H2O.ai colors.  [Here](docs/FAQ.md#what-envs-can-i-pass-to-control-h2ogpt) is a list of environment variables that can control some things in `generate.py`.
 
 Note if you download the model yourself and point `--base_model` to that location, you'll need to specify the prompt_type as well by running:
 ```
@@ -314,15 +320,15 @@ We disable background uploads by disabling telemetry for huggingface, gradio, an
 
 ### Help
 
-For help installing flash attention support, see [Flash Attention](docs/INSTALL.md#flash-attention)
+- Flash attention support, see [Flash Attention](docs/INSTALL.md#flash-attention)
 
-You can also use [Docker](docs/INSTALL-DOCKER.md#containerized-installation-for-inference-on-linux-gpu-servers) for inference.
+- [Docker](docs/INSTALL-DOCKER.md#containerized-installation-for-inference-on-linux-gpu-servers) for inference.
 
-[FAQs](docs/FAQ.md)
+- [FAQs](docs/FAQ.md)
 
-### More links, context, competitors, models, datasets
+- [README for LangChain](docs/README_LangChain.md)
 
-[Links](docs/LINKS.md)
+- More [Links](docs/LINKS.md), context, competitors, models, datasets
 
 ### Acknowledgements
 
@@ -354,7 +360,6 @@ Many of our customers are creating models and deploying them enterprise-wide and
 We are proud to have over 25 (of the world's 280) [Kaggle Grandmasters](https://h2o.ai/company/team/kaggle-grandmasters/) call H2O home, including three Kaggle Grandmasters who have made it to world #1.
 
 ### Disclaimer
-
 
 Please read this disclaimer carefully before using the large language model provided in this repository. Your use of the model signifies your agreement to the following terms and conditions.
 
