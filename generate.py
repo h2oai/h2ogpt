@@ -14,6 +14,9 @@ from datetime import datetime
 import filelock
 import psutil
 
+if os.path.dirname(os.path.abspath(__file__)) not in sys.path:
+    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 os.environ['HF_HUB_DISABLE_TELEMETRY'] = '1'
 os.environ['BITSANDBYTES_NOWELCOME'] = '1'
 warnings.filterwarnings('ignore', category=UserWarning, message='TypedStorage is deprecated')
@@ -1473,7 +1476,7 @@ def score_qa(smodel, stokenizer, max_length_tokenize, question, answer, cutoff_l
     return score
 
 
-if __name__ == "__main__":
+def entrypoint_main():
     """
     Examples:
 
@@ -1504,3 +1507,7 @@ if __name__ == "__main__":
     python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b
     """
     fire.Fire(main)
+
+
+if __name__ == "__main__":
+    entrypoint_main()

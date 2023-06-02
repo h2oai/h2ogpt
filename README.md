@@ -316,21 +316,29 @@ We disable background uploads by disabling telemetry for huggingface, gradio, an
 
 #### Python Wheel
 
-The wheel adds all dependencies except specialized dependencies like 4-bit and flash-attention.  For GPU build do:
+The wheel adds all dependencies including optional dependencies like 4-bit and flash-attention. To build do:
 ```bash
-GPU=1 python setup.py sdist bdist_wheel
-pip install dist/h2ogpt-*-py3-none-any.whl --extra-index-url https://download.pytorch.org/whl/cu117
+python setup.py sdist bdist_wheel
+```
+To install all dependencies including GPU support do:
+```bash
+pip install dist/h2ogpt-*-py3-none-any.whl[ALL]
+pip install dist/h2ogpt-*-py3-none-any.whl[GPU]
 ```
 replace `*` with actual version built if more than one. Or for CPU mode do:
 ```bash
-GPU=0 python setup.py sdist bdist_wheel
-pip install dist/h2ogpt-*-py3-none-any.whl
+pip install dist/h2ogpt-*-py3-none-any.whl[ALL]
+pip install dist/h2ogpt-*-py3-none-any.whl[CPU]
 ```
-or copy the `whl` file and make fresh env with `python=3.10` and install it there.
+if need to install support for 4-bit training do:
+```bash
+pip install dist/h2ogpt-*-py3-none-any.whl[4BIT]
+```
+once `whl` file is installed, two new scripts will be added to the current environment: `h2ogpt_finetune`, and `h2ogpt_generate`.
 
 The wheel is not required to use h2oGPT locally from repo, but makes it portable with all required dependencies.
 
-See [setup.py](setup.py) for controlling other options via environment variables.
+See [setup.py](setup.py) for controlling other options via `extras_require`.
 
 ### Development
 
