@@ -65,7 +65,8 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss', persist_directo
         client = weaviate.Client(
             embedded_options=EmbeddedOptions()
             )
-        db = Weaviate.from_documents(documents=sources, embedding=embedding, client=client, by_text=False)
+        index_name = langchain_mode.replace(' ', '_').capitalize()
+        db = Weaviate.from_documents(documents=sources, embedding=embedding, client=client, by_text=False, index_name=index_name)
 
     elif db_type == 'chroma':
         collection_name = langchain_mode.replace(' ', '_')
