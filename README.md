@@ -20,6 +20,7 @@ Turn ★ into ⭐ (top-right corner) if you like the project!
    * [CLI chat](#cli-chat)
    * [Gradio UI](#gradio-ui)
    * [Client API](#client-api)
+   * [Python Wheel](#python-wheel)
 * [Development](#development)
 * [Help](#help)
    * [LangChain file types supported](docs/README_LangChain.md#supported-datatypes)
@@ -312,6 +313,24 @@ We disable background uploads by disabling telemetry for huggingface, gradio, an
 #### Client API
 
 `generate.py` by default runs a gradio server, which also gives access to client API using gradio client.  See example [test code](client_test.py) or other tests in our [tests](https://github.com/h2oai/h2ogpt/blob/main/tests/test_client_calls.py).  Any element in [gradio_runner.py](gradio_runner.py) with `api_name` defined can be accessed via the gradio client.
+
+#### Python Wheel
+
+The wheel adds all dependencies except specialized dependencies like 4-bit and flash-attention.  For GPU build do:
+```bash
+GPU=1 python setup.py sdist bdist_wheel
+pip install dist/h2ogpt-*-py3-none-any.whl --extra-index-url https://download.pytorch.org/whl/cu117
+```
+replace `*` with actual version built if more than one. Or for CPU mode do:
+```bash
+GPU=0 python setup.py sdist bdist_wheel
+pip install dist/h2ogpt-*-py3-none-any.whl
+```
+or copy the `whl` file and make fresh env with `python=3.10` and install it there.
+
+The wheel is not required to use h2oGPT locally from repo, but makes it portable with all required dependencies.
+
+See [setup.py](setup.py) for controlling other options via environment variables.
 
 ### Development
 
