@@ -17,6 +17,7 @@ os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 
 db_types = ['chroma', 'weaviate']
 
+
 @pytest.mark.skipif(not have_openai_key, reason="requires OpenAI key to run")
 @wrap_test_forked
 def test_qa_wiki_openai():
