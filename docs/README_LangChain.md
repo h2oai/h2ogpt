@@ -10,7 +10,10 @@ To support GPU FAISS database, run:
 ```bash
 pip install -r reqs_optional/requirements_optional_faiss.txt
 ```
-or if you have no GPUs, you can still use FAISS but comment-out the faiss-gpu line and uncomment the faiss-cpu line.
+or for CPU FAISS database, run:
+```bash
+pip install -r reqs_optional/requirements_optional_faiss_cpu.txt
+```
 
 ## Supported Datatypes
 
