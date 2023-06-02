@@ -66,10 +66,10 @@ def main(
         repetition_penalty: float = None,
         num_return_sequences: int = None,
         do_sample: bool = None,
-        max_new_tokens: int = 100,
+        max_new_tokens: int = None,
         min_new_tokens: int = None,
         early_stopping: Union[bool, str] = None,
-        max_time: float = 10,
+        max_time: float = None,
 
         debug: bool = False,
         save_dir: str = None,
