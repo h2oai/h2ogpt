@@ -23,6 +23,7 @@ def test_eval1(cpu, bits, base_model):
             raise
 
 
+@wrap_test_forked
 def test_eval_json():
     base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
     cpu = False
