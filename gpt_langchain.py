@@ -21,7 +21,7 @@ from tqdm import tqdm
 
 from prompter import non_hf_types
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
-    get_device, ProgressParallel
+    get_device, ProgressParallel, remove
 
 import_matplotlib()
 
@@ -45,11 +45,15 @@ from langchain.vectorstores import Chroma
 
 
 def get_db(sources, use_openai_embedding=False, db_type='faiss', persist_directory="db_dir", langchain_mode='notset',
+           collection_name=None,
            hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2"):
     if not sources:
         return None
     # get embedding model
     embedding = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model)
+    assert collection_name is not None or langchain_mode != 'notset'
+    if collection_name is None:
+        collection_name = langchain_mode.replace(' ', '_')
 
     # Create vector database
     if db_type == 'faiss':
@@ -64,12 +68,13 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss', persist_directo
         # TODO: add support for connecting via docker compose
         client = weaviate.Client(
             embedded_options=EmbeddedOptions()
-            )
-        index_name = langchain_mode.replace(' ', '_').capitalize()
-        db = Weaviate.from_documents(documents=sources, embedding=embedding, client=client, by_text=False, index_name=index_name)
+        )
+        index_name = collection_name.capitalize()
+        db = Weaviate.from_documents(documents=sources, embedding=embedding, client=client, by_text=False,
+                                     index_name=index_name)
 
     elif db_type == 'chroma':
-        collection_name = langchain_mode.replace(' ', '_')
+        assert persist_directory is not None
         os.makedirs(persist_directory, exist_ok=True)
         db = Chroma.from_documents(documents=sources,
                                    embedding=embedding,
@@ -77,18 +82,14 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss', persist_directo
                                    collection_name=collection_name,
                                    anonymized_telemetry=False)
         db.persist()
-        # FIXME: below just proves can load persistent dir, regenerates its embedding files, so a bit wasteful
-        if False:
-            db = Chroma(embedding_function=embedding,
-                        persist_directory=persist_directory,
-                        collection_name=collection_name)
     else:
         raise RuntimeError("No such db_type=%s" % db_type)
 
     return db
 
+
 def _get_unique_sources_in_weaviate(db):
-    batch_size=100
+    batch_size = 100
     id_source_list = []
     result = db._client.data_object.get(class_name=db._index_name, limit=batch_size)
 
@@ -99,6 +100,7 @@ def _get_unique_sources_in_weaviate(db):
 
     unique_sources = {source for _, source in id_source_list}
     return unique_sources
+
 
 def add_to_db(db, sources, db_type='faiss', avoid_dup=True):
     if not sources:
@@ -112,7 +114,7 @@ def add_to_db(db, sources, db_type='faiss', avoid_dup=True):
         if len(sources) == 0:
             return db
         db.add_documents(documents=sources)
-        
+
     elif db_type == 'chroma':
         if avoid_dup:
             collection = db.get()
@@ -124,6 +126,47 @@ def add_to_db(db, sources, db_type='faiss', avoid_dup=True):
         db.persist()
     else:
         raise RuntimeError("No such db_type=%s" % db_type)
+
+    return db
+
+
+def create_or_update_db(db_type, persist_directory, collection_name,
+                        sources, use_openai_embedding, add_if_exists, verbose, hf_embedding_model):
+    if db_type == 'weaviate':
+        import weaviate
+        from weaviate.embedded import EmbeddedOptions
+
+        # TODO: add support for connecting via docker compose
+        client = weaviate.Client(
+            embedded_options=EmbeddedOptions()
+        )
+        index_name = collection_name.replace(' ', '_').capitalize()
+        if client.schema.exists(index_name) and not add_if_exists:
+            client.schema.delete_class(index_name)
+            if verbose:
+                print("Removing %s" % index_name, flush=True)
+    elif db_type == 'chroma':
+        if not os.path.isdir(persist_directory) or not add_if_exists:
+            if os.path.isdir(persist_directory):
+                if verbose:
+                    print("Removing %s" % persist_directory, flush=True)
+                remove(persist_directory)
+            if verbose:
+                print("Generating db", flush=True)
+
+    if not add_if_exists:
+        if verbose:
+            print("Generating db", flush=True)
+    else:
+        if verbose:
+            print("Loading and updating db", flush=True)
+
+    db = get_db(sources,
+                use_openai_embedding=use_openai_embedding,
+                db_type=db_type,
+                persist_directory=persist_directory,
+                langchain_mode=collection_name,
+                hf_embedding_model=hf_embedding_model)
 
     return db
 
@@ -764,10 +807,14 @@ def prep_langchain(persist_directory, load_db_if_exists, db_type, use_openai_emb
 
 
 import posthog
+
 posthog.disabled = True
+
+
 class FakeConsumer(object):
-    def __init__(self,*args, **kwargs):
+    def __init__(self, *args, **kwargs):
         pass
+
     def run(self):
         pass
 
@@ -796,7 +843,7 @@ def get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_em
         from chromadb.config import Settings
         client_settings = Settings(anonymized_telemetry=False,
                                    chroma_db_impl="duckdb+parquet",
-                                   persist_directory=persist_directory,)
+                                   persist_directory=persist_directory, )
         db = Chroma(persist_directory=persist_directory, embedding_function=embedding,
                     collection_name=langchain_mode.replace(' ', '_'),
                     client_settings=client_settings)
