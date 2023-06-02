@@ -8,9 +8,10 @@ def pytest_itemcollected(item):
 
 
 def pytest_sessionstart(session):
-    if not os.getenv("IS_PR_BUILD", None):
+    if not os.getenv("BUILD_NUMBER", None):
         return
     try:
-        sys.path.append(os.path.dirname(importlib.util.find_spec("h2ogpt").origin))
+        for location in importlib.util.find_spec("h2ogpt").submodule_search_locations:
+            sys.path.append(location)
     except AttributeError:
         pass
