@@ -116,6 +116,7 @@
 [Prompt-Tuning](https://arxiv.org/abs/2104.08691)<br />
 [P-tuning v2](https://arxiv.org/abs/2110.07602)<br />
 [babyagi](https://github.com/yoheinakajima/babyagi/blob/main/babyagi.py#L97-L134)<br />
+[APE](https://www.promptingguide.ai/techniques/ape)<br />
 
 ### Validation
 [Bleu/Rouge/Meteor/Bert-Score](https://arize.com/blog-course/generative-ai-metrics-bleu-score/)<br />
@@ -188,13 +189,25 @@
 [Tabby](https://github.com/TabbyML/tabby)<br />
 [TalkToModel](https://github.com/dylan-slack/TalkToModel)<br />
 
-### LangChain related
+### LangChain or Agent related
 [Gradio Tools](https://github.com/freddyaboulton/gradio-tools)<br />
 [LLM Agents](https://blog.langchain.dev/gradio-llm-agents/)<br />
 [Meta Prompt](https://github.com/mbchang/meta-prompt)<br />
+[HF Agents](https://huggingface.co/docs/transformers/transformers_agents)
+[HF Agents Collab](https://colab.research.google.com/drive/1c7MHD-T1forUPGcC_jlwsIptOzpG3hSj)
+[Einstein GPT](https://www.salesforce.com/products/einstein/overview/?d=cta-body-promo-8)
+[SMOL-AI](https://github.com/smol-ai/developer)
+[Pandas-AI](https://github.com/gventuri/pandas-ai/)
 
 ### Summaries
 [LLMs](https://github.com/Mooler0410/LLMsPracticalGuide)<br />
 
 ### Deployment
 [MLC-LLM](https://github.com/mlc-ai/mlc-llm)<br />
+
+### Evaluations
+[LMSYS (check for latest glob)](https://lmsys.org/blog/2023-05-25-leaderboard/)<br />
+[LMSYS Chatbot Arena](https://chat.lmsys.org/?arena)<br />
+[LMSYS Add model](https://github.com/lm-sys/FastChat/blob/main/docs/arena.md#how-to-add-a-new-model)<br />
+[NLL](https://blog.gopenai.com/lmflow-benchmark-an-automatic-evaluation-framework-for-open-source-llms-ef5c6f142418)<br />
+[HackAPrompt](https://www.aicrowd.com/challenges/hackaprompt-2023/leaderboards)<br />

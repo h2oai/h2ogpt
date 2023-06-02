@@ -8,12 +8,6 @@ Download Miniconda, for [Linux](https://repo.anaconda.com/miniconda/Miniconda3-p
 ```bash
 bash ./Miniconda3-py310_23.1.0-1-Linux-x86_64.sh  # for linux x86-64
 # follow license agreement and add to bash if required
-source ~/.bashrc
-conda create -n h2ogpt -y
-conda activate h2ogpt
-conda install mamba -n base -c conda-forge -y
-conda install python=3.10 -y
-conda update -n base -c defaults conda -y
 ```
 Enter new shell and should also see `(base)` in prompt.  Then, create new env:
 ```bash
@@ -21,6 +15,7 @@ conda create -n h2ogpt -y
 conda activate h2ogpt
 conda install -y mamba -c conda-forge  # for speed
 mamba install python=3.10 -c conda-forge -y
+conda update -n base -c defaults conda -y
 ```
 You should see `(h2ogpt)` in shell prompt.  Test your python:
 ```bash
@@ -35,7 +30,7 @@ should print `hello world`.  Then clone:
 git clone https://github.com/h2oai/h2ogpt.git
 cd h2ogpt
 ```
-Then go back to [README](README.md) for package installation and use of `generate.py`.
+Then go back to [README](../README.md) for package installation and use of `generate.py`.
 
 ### Installing CUDA Toolkit
 

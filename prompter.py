@@ -68,6 +68,7 @@ prompt_type_to_model_name = {
         'h2oai/h2ogpt-oig-oasst1-256-6.9b',  # legacy
         'h2oai/h2ogpt-oig-oasst1-512-6.9b',  # legacy
         'h2oai/h2ogpt-research-oasst1-512-30b',
+        'h2oai/h2ogpt-oasst1-falcon-40b',
     ],
     'dai_faq': [],
     'summarize': [],

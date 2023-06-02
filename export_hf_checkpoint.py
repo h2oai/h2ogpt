@@ -14,6 +14,10 @@ BASE_MODEL = 'EleutherAI/pythia-12b-deduped'
 LORA_WEIGHTS = 'pythia-12b-deduped.h2oaiopenassistant_oasst1_h2ogpt_graded.3_epochs.2ccf687ea3f3f3775a501838e81c1a0066430455.4'
 OUTPUT_NAME = "h2ogpt-oasst1-512-12b"
 
+BASE_MODEL = 'tiiuae/falcon-40b'
+LORA_WEIGHTS = 'falcon-40b.h2oaiopenassistant_oasst1_h2ogpt_graded.3_epochs.2e023709e9a36283986d136e66cb94e0bd7e6452.8'
+OUTPUT_NAME = "h2ogpt-oasst1-40b"
+
 llama_type = "llama" in BASE_MODEL
 as_pytorch = False  # False -> HF
 
@@ -21,7 +25,7 @@ model_loader, tokenizer_loader = get_loaders(llama_type=llama_type, model_name=B
 
 tokenizer = tokenizer_loader.from_pretrained(
     BASE_MODEL,
-    local_files_only=True,
+    local_files_only=False,
     resume_download=True,
 )
 tokenizer.save_pretrained(OUTPUT_NAME)
@@ -29,6 +33,7 @@ tokenizer.save_pretrained(OUTPUT_NAME)
 base_model = model_loader.from_pretrained(
     BASE_MODEL,
     load_in_8bit=False,
+    trust_remote_code=True,
     torch_dtype=torch.float16,
     device_map={"": "cpu"},
 )
@@ -41,6 +46,8 @@ else:
     if any([x in BASE_MODEL.lower() for x in ["pythia", "h2ogpt", "gpt-neox"]]):
         layers = base_model.gpt_neox.base_model.layers
         first_weight = layers[0].attention.query_key_value.weight
+    elif any([x in BASE_MODEL.lower() for x in ["falcon"]]):
+        first_weight = base_model.transformer.h._modules['0'].self_attention.query_key_value.weight
     else:
         layers = base_model.transformer.base_model.h
         first_weight = layers[0].attn.q_proj.weight
@@ -68,10 +75,10 @@ else:
         for layer in lora_model.base_model.gpt_neox.base_model.layers:
             layer.attention.query_key_value.merge_weights = True
     else:
-        # lora_model.merge_and_unload()  # might work sometimes
-        for layer in lora_model.base_model.transformer.base_model.h:
-            layer.attn.q_proj.merge_weights = True
-            layer.attn.v_proj.merge_weights = True
+        lora_model.merge_and_unload()
+        # for layer in lora_model.base_model.transformer.base_model.h:
+        #     layer.attn.q_proj.merge_weights = True
+        #     layer.attn.v_proj.merge_weights = True
 
 lora_model.train(False)
 

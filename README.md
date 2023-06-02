@@ -6,13 +6,43 @@ Welcome!  Join us and make an issue or a PR, and contribute to making the best f
 
 Turn ★ into ⭐ (top-right corner) if you like the project!
 
+<!--  cat README.md | ./gh-md-toc  -  But Help is heavily processed -->
+* [Try h2oGPT now](#try-h2ogpt-now)
+* [Supported OS and Hardware](#supported-os-and-hardware)
+* [Apache V2 ChatBot with LangChain Integration](#apache-v2-chatbot-with-langchain-integration)
+* [Apache V2 Data Preparation code, Training code, and Models](#apache-v2-data-preparation-code-training-code-and-models)
+* [Roadmap](#roadmap)
+* [Getting Started](#getting-started)
+   * [GPU (CUDA)](#gpu-cuda)
+   * [CPU](#cpu)
+   * [MACOS](#macos)
+   * [Windows 10/11](#windows-1011)
+   * [CLI chat](#cli-chat)
+   * [Gradio UI](#gradio-ui)
+   * [Client API](#client-api)
+   * [Python Wheel](#python-wheel)
+* [Development](#development)
+* [Help](#help)
+   * [LangChain file types supported](docs/README_LangChain.md#supported-datatypes)
+   * [CLI Database control](docs/README_LangChain.md#database-creation)
+   * [Why h2oGPT for Doc Q&A](docs/README_LangChain.md#what-is-h2ogpts-langchain-integration-like)
+   * [FAQ](docs/FAQ.md)
+   * [Useful Links](docs/LINKS.md)
+   * [Fine-Tuning](docs/FINETUNE.md)
+   * [Docker](docs/INSTALL-DOCKER.md)
+   * [Triton](docs/TRITON.md)
+* [Acknowledgements](#acknowledgements)
+* [Why H2O.ai?](#why-h2oai)
+* [Disclaimer](#disclaimer)
+
+
 ### Try h2oGPT now 
 
 Live hosted instances:
 - [![img-small.png](docs/img-small.png) h2oGPT 12B](https://gpt.h2o.ai/)
 - [🤗 h2oGPT 12B #1](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot)
 - [🤗 h2oGPT 12B #2](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot2)
-- [![img-small.png](docs/img-small.png) h2oGPT (research) 30B](http://gpt2.h2o.ai)
+- [![img-small.png](docs/img-small.png) h2oGPT Falcon 40B](http://gpt2.h2o.ai)
 - [![img-small.png](docs/img-small.png) Latest LangChain-enabled h2oGPT (temporary link) 12B](https://b7d3d0f641ce517fb5.gradio.live/)
 - [![img-small.png](docs/img-small.png) Latest LangChain-enabled h2oGPT (temporary link) 12B](https://e543f2006f237cb8dc.gradio.live)
 - [![img-small.png](docs/img-small.png) Latest LangChain-enabled h2oGPT (temporary link) 12B](https://9ae2ee93116d6c21f2.gradio.live)
@@ -59,7 +89,7 @@ Dark mode with H2O.ai colors:
 - **Variety** of models (h2oGPT, WizardLM, Vicuna, OpenAssistant, etc.) supported
 - **Fully Commercially** Apache V2 code, data and models
 - **High-Quality** data cleaning of large open-source instruction datasets
-- **LORA** (low-rank approximation) efficient 4-bit, 8-bit and 16-bit fine-tuning and generation
+- **LoRA** and **QLoRA** (low-rank approximation) efficient 4-bit, 8-bit and 16-bit fine-tuning and generation
 - **Large** (up to 65B parameters) models built on commodity or enterprise GPUs (single or multi node)
 - **Evaluate** performance using RLHF-based reward models
 
@@ -69,15 +99,12 @@ All open-source datasets and models are posted on [🤗 H2O.ai's Hugging Face pa
 
 Also check out [H2O LLM Studio](https://github.com/h2oai/h2o-llmstudio) for our no-code LLM fine-tuning framework!
 
-### General Roadmap items
+### Roadmap
 
 - Integration of code and resulting LLMs with downstream applications and low/no-code platforms
 - Complement h2oGPT chatbot with search and other APIs
 - High-performance distributed training of larger models on trillion tokens
 - Enhance the model's code completion, reasoning, and mathematical capabilities, ensure factual correctness, minimize hallucinations, and avoid repetitive output
-
-### ChatBot and LangChain Roadmap items
-
 - Add other tools like search
 - Add agents for SQL and CSV question/answer
 
@@ -92,14 +119,14 @@ For help installing cuda toolkit, see [CUDA Toolkit](docs/INSTALL.md#installing-
 ```bash
 git clone https://github.com/h2oai/h2ogpt.git
 cd h2ogpt
-pip install -r requirements.txt --index-url https://download.pytorch.org/whl/cu117
+pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cu117
 python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b --load_8bit=True
 ```
 Then point browser at http://0.0.0.0:7860 (linux) or http://localhost:7860 (windows/mac) or the public live URL printed by the server (disable shared link with `--share=False`).  For 4-bit or 8-bit support, older GPUs may require older bitsandbytes installed as `pip uninstall bitsandbytes -y ; pip install bitsandbytes==0.38.1`.  For production uses, we recommend at least the 12B model, ran as:
 ```
 python generate.py --base_model=h2oai/h2ogpt-oasst1-512-12b --load_8bit=True
 ```
-and one can use `--h2ocolors=False` to get soft blue-gray colors instead of H2O.ai colors.
+and one can use `--h2ocolors=False` to get soft blue-gray colors instead of H2O.ai colors.  [Here](docs/FAQ.md#what-envs-can-i-pass-to-control-h2ogpt) is a list of environment variables that can control some things in `generate.py`.
 
 Note if you download the model yourself and point `--base_model` to that location, you'll need to specify the prompt_type as well by running:
 ```
@@ -110,6 +137,7 @@ for some user path `<user path>`.
 For quickly using a private document collection for Q/A, place documents (PDFs, text, etc.) into a folder called `user_path` and run
 ```bash
 pip install -r reqs_optional/requirements_optional_langchain.txt
+python -m nltk.downloader all  # for supporting unstructured package
 python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b  --load_8bit=True --langchain_mode=UserData --user_path=user_path
 ```
 For more ways to ingest on CLI and control see [LangChain Readme](docs/README_LangChain.md).
@@ -131,8 +159,9 @@ CPU support is obtained after installing two optional requirements.txt files.  T
 ```bash
 git clone https://github.com/h2oai/h2ogpt.git
 cd h2ogpt
-pip install -r requirements.txt  # only do if didn't already do for GPU support, since windows needs --index-url line
+pip install -r requirements.txt  # only do if didn't already do for GPU support, since windows needs --extra-index-url line
 pip install -r reqs_optional/requirements_optional_langchain.txt
+python -m nltk.downloader all  # for supporting unstructured package
 pip install -r reqs_optional/requirements_optional_gpt4all.txt
 ```
 See [GPT4All](https://github.com/nomic-ai/gpt4all) for details on installation instructions if any issues encountered.
@@ -163,9 +192,20 @@ python generate.py --base_model='llama' --prompt_type=wizard2 --score_model=None
 
 No streaming is currently supported for these CPU models in UI, but that will be fixed soon.
 
+When using `llama.cpp` based CPU models, for computers with low system RAM or slow CPUs, we recommend adding to `.env_gpt4all`:
+```.env_gpt4all
+use_mlock=False
+n_ctx=1024
+```
+where `use_mlock=True` is default to avoid slowness and `n_ctx=2048` is default for large context handling.  For computers with plenty of system RAM, we recommend adding to `.env_gpt4all`:
+```.env_gpt4all
+n_batch=1024
+```
+for faster handling.  One some systems this has no strong effect, but on others may increase speed quite a bit.
+
 #### MACOS
 
-All instructions are same as for GPU or CPU installation, except first install [Rust](https://www.geeksforgeeks.org/how-to-install-rust-in-macos/):
+First install [Rust](https://www.geeksforgeeks.org/how-to-install-rust-in-macos/):
 ```bash
 curl –proto ‘=https’ –tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
@@ -176,9 +216,11 @@ If so, set your archflags during pip install. eg: `ARCHFLAGS="-arch x86_64" pip3
 
 If you encounter an error while building a wheel during the `pip install` process, you may need to install a C++ compiler on your computer.
 
+Now go back to normal [CPU](README.md#cpu) installation.
+
 #### Windows 10/11
 
-All instructions are same as for GPU or CPU installation, except also need C++ compiler by doing:
+Follow these steps, which includes the above GPU or CPU install step at one point:
 
 1. Install Visual Studio 2022 (requires newer windows versions of 10/11) with following selected:
    * Windows 11 SDK
@@ -193,10 +235,10 @@ All instructions are same as for GPU or CPU installation, except also need C++ c
 5. Run: `set path=%path%;c:\MinGW\msys\1.0\bin\` to get C++ in path
 6. Download latest nvidia driver for windows
 7. Confirm can run nvidia-smi and see driver version
-8. Install cuda toolkit from conda: `conda install cudatoolkit` as required easily make bitsandbytes work
+8. Install cuda toolkit from conda: `conda install cudatoolkit -c conda-forge` as required easily make bitsandbytes work
 9. Run: `wsl --install`
 8. Now go back to normal [GPU](README.md#gpu-cuda) or [CPU](README.md#cpu) (most general) installation
-   * IMPORTANT: Run `pip install` with `--index-url https://download.pytorch.org/whl/cu117` as in GPU section
+   * IMPORTANT: Run `pip install` with `--extra-index-url https://download.pytorch.org/whl/cu117` as in GPU section
 9. Upgrade to windows GPU version of bitsandbytes if using GPU:
 
 For GPU support of 4-bit and 8-bit, run:
@@ -272,6 +314,24 @@ We disable background uploads by disabling telemetry for huggingface, gradio, an
 
 `generate.py` by default runs a gradio server, which also gives access to client API using gradio client.  See example [test code](client_test.py) or other tests in our [tests](https://github.com/h2oai/h2ogpt/blob/main/tests/test_client_calls.py).  Any element in [gradio_runner.py](gradio_runner.py) with `api_name` defined can be accessed via the gradio client.
 
+#### Python Wheel
+
+The wheel adds all dependencies except specialized dependencies like 4-bit and flash-attention.  For GPU build do:
+```bash
+GPU=1 python setup.py sdist bdist_wheel
+pip install dist/h2ogpt-*-py3-none-any.whl --extra-index-url https://download.pytorch.org/whl/cu117
+```
+replace `*` with actual version built if more than one. Or for CPU mode do:
+```bash
+GPU=0 python setup.py sdist bdist_wheel
+pip install dist/h2ogpt-*-py3-none-any.whl
+```
+or copy the `whl` file and make fresh env with `python=3.10` and install it there.
+
+The wheel is not required to use h2oGPT locally from repo, but makes it portable with all required dependencies.
+
+See [setup.py](setup.py) for controlling other options via environment variables.
+
 ### Development
 
 - To create a development environment for training and generation, follow the [installation instructions](docs/INSTALL.md).
@@ -280,15 +340,15 @@ We disable background uploads by disabling telemetry for huggingface, gradio, an
 
 ### Help
 
-For help installing flash attention support, see [Flash Attention](docs/INSTALL.md#flash-attention)
+- Flash attention support, see [Flash Attention](docs/INSTALL.md#flash-attention)
 
-You can also use [Docker](docs/INSTALL-DOCKER.md#containerized-installation-for-inference-on-linux-gpu-servers) for inference.
+- [Docker](docs/INSTALL-DOCKER.md#containerized-installation-for-inference-on-linux-gpu-servers) for inference.
 
-[FAQs](docs/FAQ.md)
+- [FAQs](docs/FAQ.md)
 
-### More links, context, competitors, models, datasets
+- [README for LangChain](docs/README_LangChain.md)
 
-[Links](docs/LINKS.md)
+- More [Links](docs/LINKS.md), context, competitors, models, datasets
 
 ### Acknowledgements
 
@@ -320,7 +380,6 @@ Many of our customers are creating models and deploying them enterprise-wide and
 We are proud to have over 25 (of the world's 280) [Kaggle Grandmasters](https://h2o.ai/company/team/kaggle-grandmasters/) call H2O home, including three Kaggle Grandmasters who have made it to world #1.
 
 ### Disclaimer
-
 
 Please read this disclaimer carefully before using the large language model provided in this repository. Your use of the model signifies your agreement to the following terms and conditions.
 

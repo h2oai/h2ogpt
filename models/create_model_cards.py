@@ -11,6 +11,20 @@ from transformers import AutoModelForCausalLM
     "model_name, base_model, dataset, training_logs, eval",
     [
         (
+                "h2ogpt-oasst1-falcon-40b",
+                "tiiuae/falcon-40b",
+                [
+                    "h2oai/openassistant_oasst1_h2ogpt_graded",
+                ],
+                [
+                    "https://huggingface.co/h2oai/h2ogpt-oasst1-falcon-40b/blob/main/falcon-40b.h2oaiopenassistant_oasst1_h2ogpt_graded.3_epochs.2e023709e9a36283986d136e66cb94e0bd7e6452.8.zip",
+                ],
+                """
+
+                TBD
+                """
+        ),
+        (
                 "h2ogpt-oasst1-512-20b",
                 "EleutherAI/gpt-neox-20b",
                 [
@@ -153,7 +167,7 @@ from transformers import AutoModelForCausalLM
     ],
 )
 def test_create_model_cards(model_name, base_model, dataset, training_logs, eval):
-    if model_name != "h2ogpt-oasst1-512-12b":
+    if model_name != "h2ogpt-oasst1-falcon-40b":
         return
     model_size = model_name.split("-")[-1].upper()
     assert "B" == model_size[-1]
@@ -172,6 +186,7 @@ def test_create_model_cards(model_name, base_model, dataset, training_logs, eval
         print("call 'huggingface_cli login' first and provide access token with write permission")
     model = AutoModelForCausalLM.from_pretrained("h2oai/%s" % model_name,
                                                  local_files_only=False,
+                                                 trust_remote_code=True,
                                                  torch_dtype=torch.float16,
                                                  device_map="auto")
     model_arch = str(model)

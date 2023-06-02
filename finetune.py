@@ -191,6 +191,7 @@ def train(
         torch_dtype=torch.float16,
         max_memory=max_memory,
         local_files_only=local_files_only,
+        trust_remote_code=True,
         resume_download=resume_download,
         use_auth_token=use_auth_token,
     )
