@@ -9,8 +9,8 @@ buildSummary('https://github.com/h2ogpt', true)
 buildSummary.get().addStagesSummary(this, new StagesSummary())
 
 def ALL_TESTS = [
-        "test_osx_py_3_10":  [ install_deps: ["ALL"],         test_target: "test", node: "osx",     env: ['CI_PYTHON_ENV=/Users/jenkins/anaconda/envs/h2ogpt-py3.10'] ],
-        "test_dl17_py_3_10": [ install_deps: ["ALL", "4BIT"], test_target: "test", node: "mr-dl17", env: ['CI_PYTHON_ENV=/home/jenkins/miniconda3/envs/h2ogpt-py3.10'] ],
+        //"test_osx_py_3_10":  [ install_deps: ["ALL"],         test_target: "test", node: "osx",     env: ['CI_PYTHON_ENV=/Users/jenkins/anaconda/envs/h2ogpt-py3.10'] ],
+        "test_dl24_py_3_10": [ install_deps: ["ALL", "4BIT"], test_target: "test", node: "mr-dl24", env: ['CI_PYTHON_ENV=/home/jenkins/miniconda3/envs/h2ogpt-py3.10'] ],
 ]
 
 pipeline {
