@@ -42,11 +42,25 @@ current_directory = os.path.dirname(os.path.abspath(__file__))
 with open(os.path.join(current_directory, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
+with open(os.path.join(current_directory, 'version.txt'), encoding='utf-8') as f:
+    version = f.read().strip()
+
 setuptools.setup(
     name='h2ogpt',
     packages=['h2ogpt'],
-    package_dir={'h2ogpt': './'},
-    version='0.1.0',
+    package_dir={
+        'h2ogpt': '',
+    },
+    package_data={
+        'h2ogpt': [
+            'data/**',
+            'docs/**',
+            'models/**',
+            'spaces/**',
+            'tests/**',
+        ],
+    },
+    version=version,
     license='https://opensource.org/license/apache-2-0/',
     description='',
     long_description=long_description,
