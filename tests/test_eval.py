@@ -16,7 +16,8 @@ def test_eval1(cpu, bits, base_model):
         if bits == 4 and """TypeError: GPTNeoXForCausalLM.__init__() got an unexpected keyword argument 'load_in_4bit'""" in str(e):
             # FIXME: when transformers/accelerate are in pypi with 4-bit update, can add to requirements and avoid this
             pass
-        raise
+        else:
+            raise
 
 
 def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b'):
