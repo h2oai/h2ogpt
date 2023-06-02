@@ -23,7 +23,7 @@ import pandas as pd
 import numpy as np
 from tqdm import tqdm
 
-from utils import flatten_list
+from utils import flatten_list, remove
 
 
 def parse_rst_file(filepath):
@@ -272,22 +272,6 @@ def test_scrape_dai_docs_all_pandoc():
     output_file = "dai_docs.train_cleaned.json"
     with open(output_file, "wt") as f:
         f.write(json.dumps(save_thing, indent=2))
-
-
-def remove(path: str):
-    try:
-        if path is not None and os.path.exists(path):
-            if os.path.isdir(path):
-                shutil_rmtree(path, ignore_errors=True)
-            else:
-                with contextlib.suppress(FileNotFoundError):
-                    os.remove(path)
-    except:
-        pass
-
-
-def shutil_rmtree(*args, **kwargs):
-    return shutil.rmtree(*args, **kwargs)
 
 
 def test_config_to_json():

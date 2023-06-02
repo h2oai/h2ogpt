@@ -113,9 +113,10 @@ def main(
         score_model: str = 'OpenAssistant/reward-model-deberta-v3-large-v2',
         auto_score: bool = True,
 
-        eval_sharegpt_prompts_only: int = 0,
-        eval_sharegpt_prompts_only_seed: int = 1234,
-        eval_sharegpt_as_output: bool = False,
+        eval_filename: str = None,
+        eval_prompts_only_num: int = 0,
+        eval_prompts_only_seed: int = 1234,
+        eval_as_output: bool = False,
 
         langchain_mode: str = 'Disabled',
         visible_langchain_modes: list = ['UserData', 'MyData'],
@@ -207,9 +208,10 @@ def main(
     :param extra_lora_options: extra LORA to show in list in gradio
     :param score_model: which model to score responses (None means no scoring)
     :param auto_score: whether to automatically score responses
-    :param eval_sharegpt_prompts_only: for no gradio benchmark, if using ShareGPT prompts for eval
-    :param eval_sharegpt_prompts_only_seed: for no gradio benchmark, if seed for ShareGPT sampling
-    :param eval_sharegpt_as_output: for no gradio benchmark, whether to test ShareGPT output itself
+    :param eval_filename: json file to use for evaluation, if None is sharegpt
+    :param eval_prompts_only_num: for no gradio benchmark, if using eval_filename prompts for eval instead of examples
+    :param eval_prompts_only_seed: for no gradio benchmark, seed for eval_filename sampling
+    :param eval_as_output: for no gradio benchmark, whether to test eval_filename output itself
     :param langchain_mode: Data source to include.  Choose "UserData" to only consume files from make_db.py.
            WARNING: wiki_full requires extra data processing via read_wiki_full.py and requires really good workstation to generate db, unless already present.
     :param user_path: user path to glob from to generate db for vector search, for 'UserData' langchain mode
