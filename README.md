@@ -42,7 +42,7 @@ Live hosted instances:
 - [![img-small.png](docs/img-small.png) h2oGPT 12B](https://gpt.h2o.ai/)
 - [🤗 h2oGPT 12B #1](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot)
 - [🤗 h2oGPT 12B #2](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot2)
-- [![img-small.png](docs/img-small.png) h2oGPT Falcon 40B](http://gpt2.h2o.ai)
+- [![img-small.png](docs/img-small.png) h2oGPT Falcon 40B](http://falcon.h2o.ai)
 - [![img-small.png](docs/img-small.png) Latest LangChain-enabled h2oGPT (temporary link) 12B](https://b7d3d0f641ce517fb5.gradio.live/)
 - [![img-small.png](docs/img-small.png) Latest LangChain-enabled h2oGPT (temporary link) 12B](https://e543f2006f237cb8dc.gradio.live)
 - [![img-small.png](docs/img-small.png) Latest LangChain-enabled h2oGPT (temporary link) 12B](https://9ae2ee93116d6c21f2.gradio.live)
