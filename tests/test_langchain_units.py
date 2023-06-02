@@ -15,6 +15,7 @@ mem_gpus = get_mem_gpus()
 # FIXME:
 os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 
+db_types = ['chroma', 'weaviate']
 
 @pytest.mark.skipif(not have_openai_key, reason="requires OpenAI key to run")
 @wrap_test_forked
@@ -162,9 +163,9 @@ def test_qa_daidocs_db_chunk_hf_chroma():
                      )
     check_ret(ret)
 
+
 @wrap_test_forked
 def test_qa_wiki_db_chunk_hf_weaviate():
-
     from gpt4all_llm import get_model_tokenizer_gpt4all
     model_name = 'llama'
     model, tokenizer, device = get_model_tokenizer_gpt4all(model_name)
@@ -180,6 +181,7 @@ def test_qa_wiki_db_chunk_hf_weaviate():
                      model_name=model_name, model=model, tokenizer=tokenizer,
                      )
     check_ret(ret)
+
 
 @pytest.mark.skipif(not have_openai_key, reason="requires OpenAI key to run")
 @wrap_test_forked
@@ -217,7 +219,8 @@ def test_get_dai_db_dir():
 
 
 @wrap_test_forked
-def test_make_add_db():
+@pytest.mark.parametrize("db_type", db_types)
+def test_make_add_db(db_type):
     from make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
@@ -226,7 +229,7 @@ def test_make_add_db():
             with open(test_file1, "wt") as f:
                 f.write(msg1)
             db = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
-                              fail_any_exception=True)
+                              fail_any_exception=True, db_type=db_type)
             assert db is not None
             docs = db.similarity_search("World")
             assert len(docs) == 1
@@ -240,7 +243,7 @@ def test_make_add_db():
             with open(test_file2, "wt") as f:
                 f.write(msg2)
             db = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path, add_if_exists=True,
-                              fail_any_exception=True)
+                              fail_any_exception=True, db_type=db_type)
             assert db is not None
             docs = db.similarity_search("World")
             assert len(docs) == 2
@@ -254,7 +257,8 @@ def test_make_add_db():
 
 
 @wrap_test_forked
-def test_zip_add():
+@pytest.mark.parametrize("db_type", db_types)
+def test_zip_add(db_type):
     from make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
@@ -265,7 +269,7 @@ def test_zip_add():
             zip_file = './tmpdata/data.zip'
             zip_data(tmp_user_path, zip_file=zip_file, fail_any_exception=True)
             db = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
-                              fail_any_exception=True)
+                              fail_any_exception=True, db_type=db_type)
             assert db is not None
             docs = db.similarity_search("World")
             assert len(docs) == 1
@@ -274,11 +278,12 @@ def test_zip_add():
 
 
 @wrap_test_forked
-def test_url_add():
+@pytest.mark.parametrize("db_type", db_types)
+def test_url_add(db_type):
     from make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
         url = 'https://h2o.ai/company/team/leadership-team/'
-        db = make_db_main(persist_directory=tmp_persistent_directory, url=url, fail_any_exception=True)
+        db = make_db_main(persist_directory=tmp_persistent_directory, url=url, fail_any_exception=True, db_type=db_type)
         assert db is not None
         docs = db.similarity_search("list founding team of h2o.ai")
         assert len(docs) == 4
@@ -286,7 +291,8 @@ def test_url_add():
 
 
 @wrap_test_forked
-def test_html_add():
+@pytest.mark.parametrize("db_type", db_types)
+def test_html_add(db_type):
     from make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
@@ -306,7 +312,7 @@ def test_html_add():
             with open(test_file1, "wt") as f:
                 f.write(html_content)
             db = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
-                              fail_any_exception=True)
+                              fail_any_exception=True, db_type=db_type)
             assert db is not None
             docs = db.similarity_search("Yugu")
             assert len(docs) == 1
@@ -315,7 +321,8 @@ def test_html_add():
 
 
 @wrap_test_forked
-def test_docx_add():
+@pytest.mark.parametrize("db_type", db_types)
+def test_docx_add(db_type):
     from make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
@@ -323,7 +330,7 @@ def test_docx_add():
             test_file1 = os.path.join(tmp_user_path, 'demo.docx')
             download_simple(url, dest=test_file1)
             db = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
-                              fail_any_exception=True)
+                              fail_any_exception=True, db_type=db_type)
             assert db is not None
             docs = db.similarity_search("What is calibre DOCX plugin do?")
             assert len(docs) == 4
@@ -332,7 +339,8 @@ def test_docx_add():
 
 
 @wrap_test_forked
-def test_md_add():
+@pytest.mark.parametrize("db_type", db_types)
+def test_md_add(db_type):
     from make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
@@ -344,7 +352,7 @@ def test_md_add():
             shutil.copy(test_file1, tmp_user_path)
             test_file1 = os.path.join(tmp_user_path, os.path.basename(test_file1))
             db = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
-                              fail_any_exception=True)
+                              fail_any_exception=True, db_type=db_type)
             assert db is not None
             docs = db.similarity_search("What is h2oGPT?")
             assert len(docs) == 4
@@ -353,7 +361,8 @@ def test_md_add():
 
 
 @wrap_test_forked
-def test_eml_add():
+@pytest.mark.parametrize("db_type", db_types)
+def test_eml_add(db_type):
     from make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
@@ -361,7 +370,7 @@ def test_eml_add():
             test_file1 = os.path.join(tmp_user_path, 'sample.eml')
             download_simple(url, dest=test_file1)
             db = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
-                              fail_any_exception=True)
+                              fail_any_exception=True, db_type=db_type)
             assert db is not None
             docs = db.similarity_search("What is subject?")
             assert len(docs) == 1
@@ -370,7 +379,8 @@ def test_eml_add():
 
 
 @wrap_test_forked
-def test_simple_eml_add():
+@pytest.mark.parametrize("db_type", db_types)
+def test_simple_eml_add(db_type):
     from make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
@@ -390,7 +400,7 @@ FYIcenter.com Team"""
             with open(test_file1, "wt") as f:
                 f.write(html_content)
             db = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
-                              fail_any_exception=True)
+                              fail_any_exception=True, db_type=db_type)
             assert db is not None
             docs = db.similarity_search("Subject")
             assert len(docs) == 1
@@ -399,7 +409,8 @@ FYIcenter.com Team"""
 
 
 @wrap_test_forked
-def test_odt_add():
+@pytest.mark.parametrize("db_type", db_types)
+def test_odt_add(db_type):
     from make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
@@ -407,7 +418,7 @@ def test_odt_add():
             test_file1 = os.path.join(tmp_user_path, 'sample.odt')
             download_simple(url, dest=test_file1)
             db = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
-                              fail_any_exception=True)
+                              fail_any_exception=True, db_type=db_type)
             assert db is not None
             docs = db.similarity_search("What is ownCloud?")
             assert len(docs) == 4
@@ -416,7 +427,8 @@ def test_odt_add():
 
 
 @wrap_test_forked
-def test_pptx_add():
+@pytest.mark.parametrize("db_type", db_types)
+def test_pptx_add(db_type):
     from make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
@@ -424,7 +436,7 @@ def test_pptx_add():
             test_file1 = os.path.join(tmp_user_path, 'sample.pptx')
             download_simple(url, dest=test_file1)
             db = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
-                              fail_any_exception=True)
+                              fail_any_exception=True, db_type=db_type)
             assert db is not None
             docs = db.similarity_search("Suggestions")
             assert len(docs) == 4
@@ -433,7 +445,8 @@ def test_pptx_add():
 
 
 @wrap_test_forked
-def test_simple_pptx_add():
+@pytest.mark.parametrize("db_type", db_types)
+def test_simple_pptx_add(db_type):
     from make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
@@ -441,7 +454,7 @@ def test_simple_pptx_add():
             test_file1 = os.path.join(tmp_user_path, 'sample.pptx')
             download_simple(url, dest=test_file1)
             db = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
-                              fail_any_exception=True)
+                              fail_any_exception=True, db_type=db_type)
             assert db is not None
             docs = db.similarity_search("Example")
             assert len(docs) == 1
@@ -450,7 +463,8 @@ def test_simple_pptx_add():
 
 
 @wrap_test_forked
-def test_epub_add():
+@pytest.mark.parametrize("db_type", db_types)
+def test_epub_add(db_type):
     from make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
@@ -458,7 +472,7 @@ def test_epub_add():
             test_file1 = os.path.join(tmp_user_path, 'sample.epub')
             download_simple(url, dest=test_file1)
             db = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
-                              fail_any_exception=True)
+                              fail_any_exception=True, db_type=db_type)
             assert db is not None
             docs = db.similarity_search("Grump")
             assert len(docs) == 4
@@ -470,7 +484,8 @@ def test_epub_add():
 @pytest.mark.xfail(strict=False,
                    reason="fails with AttributeError: 'Message' object has no attribute '_MSGFile__stringEncoding'. Did you mean: '_MSGFile__overrideEncoding'? even though can use online converter to .eml fine.")
 @wrap_test_forked
-def test_msg_add():
+@pytest.mark.parametrize("db_type", db_types)
+def test_msg_add(db_type):
     from make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
@@ -478,7 +493,7 @@ def test_msg_add():
             test_file1 = os.path.join(tmp_user_path, 'sample.msg')
             download_simple(url, dest=test_file1)
             db = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
-                              fail_any_exception=True)
+                              fail_any_exception=True, db_type=db_type)
             assert db is not None
             docs = db.similarity_search("Grump")
             assert len(docs) == 4
@@ -487,29 +502,33 @@ def test_msg_add():
 
 
 @wrap_test_forked
-def test_png_add():
-    return run_png_add(captions_model=None, caption_gpu=False)
+@pytest.mark.parametrize("db_type", db_types)
+def test_png_add(db_type):
+    return run_png_add(captions_model=None, caption_gpu=False, db_type=db_type)
 
 
 @pytest.mark.skipif(not have_gpus, reason="requires GPUs to run")
 @wrap_test_forked
-def test_png_add_gpu():
-    return run_png_add(captions_model=None, caption_gpu=True)
+@pytest.mark.parametrize("db_type", db_types)
+def test_png_add_gpu(db_type):
+    return run_png_add(captions_model=None, caption_gpu=True, db_type=db_type)
 
 
 @pytest.mark.skipif(not have_gpus, reason="requires GPUs to run")
 @wrap_test_forked
-def test_png_add_gpu_preload():
-    return run_png_add(captions_model=None, caption_gpu=True, pre_load_caption_model=True)
+@pytest.mark.parametrize("db_type", db_types)
+def test_png_add_gpu_preload(db_type):
+    return run_png_add(captions_model=None, caption_gpu=True, pre_load_caption_model=True, db_type=db_type)
 
 
 @pytest.mark.skipif(not (have_gpus and mem_gpus[0] > 20 * 1024 ** 3), reason="requires GPUs and enough memory to run")
 @wrap_test_forked
-def test_png_add_gpu_blip2():
-    return run_png_add(captions_model='Salesforce/blip2-flan-t5-xl', caption_gpu=True)
+@pytest.mark.parametrize("db_type", db_types)
+def test_png_add_gpu_blip2(db_type):
+    return run_png_add(captions_model='Salesforce/blip2-flan-t5-xl', caption_gpu=True, db_type=db_type)
 
 
-def run_png_add(captions_model=None, caption_gpu=False, pre_load_caption_model=False):
+def run_png_add(captions_model=None, caption_gpu=False, pre_load_caption_model=False, db_type='chroma'):
     from make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
@@ -524,7 +543,7 @@ def run_png_add(captions_model=None, caption_gpu=False, pre_load_caption_model=F
             db = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
                               fail_any_exception=True, enable_ocr=False, caption_gpu=caption_gpu,
                               pre_load_caption_model=pre_load_caption_model,
-                              captions_model=captions_model)
+                              captions_model=captions_model, db_type=db_type)
             assert db is not None
             docs = db.similarity_search("cat")
             assert len(docs) == 1
@@ -533,7 +552,8 @@ def run_png_add(captions_model=None, caption_gpu=False, pre_load_caption_model=F
 
 
 @wrap_test_forked
-def test_simple_rtf_add():
+@pytest.mark.parametrize("db_type", db_types)
+def test_simple_rtf_add(db_type):
     from make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
@@ -557,7 +577,7 @@ Microsoft  Word developed RTF for document transportability and gives a user acc
             with open(test_file1, "wt") as f:
                 f.write(rtf_content)
             db = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
-                              fail_any_exception=True)
+                              fail_any_exception=True, db_type=db_type)
             assert db is not None
             docs = db.similarity_search("How was this document created?")
             assert len(docs) == 4
