@@ -322,17 +322,17 @@ python setup.py sdist bdist_wheel
 ```
 To install all dependencies including GPU support do:
 ```bash
-pip install dist/h2ogpt-*-py3-none-any.whl[ALL]
-pip install dist/h2ogpt-*-py3-none-any.whl[GPU]
+pip install dist/h2ogpt-0.1.0-py3-none-any.whl[ALL]
+pip install dist/h2ogpt-0.1.0-py3-none-any.whl[GPU]
 ```
-replace `*` with actual version built if more than one. Or for CPU mode do:
+replace `0.1.0` with actual version built if more than one. Or for CPU mode do:
 ```bash
-pip install dist/h2ogpt-*-py3-none-any.whl[ALL]
-pip install dist/h2ogpt-*-py3-none-any.whl[CPU]
+pip install dist/h2ogpt-0.1.0-py3-none-any.whl[ALL]
+pip install dist/h2ogpt-0.1.0-py3-none-any.whl[CPU]
 ```
 if need to install support for 4-bit training do:
 ```bash
-pip install dist/h2ogpt-*-py3-none-any.whl[4BIT]
+pip install dist/h2ogpt-0.1.0-py3-none-any.whl[4BIT]
 ```
 once `whl` file is installed, two new scripts will be added to the current environment: `h2ogpt_finetune`, and `h2ogpt_generate`.
 
