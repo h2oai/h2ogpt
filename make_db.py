@@ -87,25 +87,26 @@ def make_db_main(use_openai_embedding: bool = False,
     :param db_type: Type of db to create. Currently only 'chroma' and 'weaviate' is supported.
     :return: None
     """
+    db = None
 
     if download_all:
         print("Downloading all (and unzipping): %s" % all_db_zips, flush=True)
         get_some_dbs_from_hf(download_dest, db_zips=all_db_zips)
         if verbose:
             print("DONE", flush=True)
-        return
+        return db, collection_name
     elif download_some:
         print("Downloading some (and unzipping): %s" % some_db_zips, flush=True)
         get_some_dbs_from_hf(download_dest, db_zips=some_db_zips)
         if verbose:
             print("DONE", flush=True)
-        return
+        return db, collection_name
     elif download_one:
         print("Downloading %s (and unzipping)" % download_one, flush=True)
         get_some_dbs_from_hf(download_dest, db_zips=[[download_one, '', 'Unknown License']])
         if verbose:
             print("DONE", flush=True)
-        return
+        return db, collection_name
 
     if enable_captions and pre_load_caption_model:
         # preload, else can be too slow or if on GPU have cuda context issues
@@ -147,7 +148,7 @@ def make_db_main(use_openai_embedding: bool = False,
     assert db is not None
     if verbose:
         print("DONE", flush=True)
-    return db
+    return db, collection_name
 
 
 if __name__ == "__main__":

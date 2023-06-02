@@ -21,7 +21,7 @@ from tqdm import tqdm
 
 from prompter import non_hf_types
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
-    get_device, ProgressParallel
+    get_device, ProgressParallel, remove
 
 import_matplotlib()
 
@@ -141,15 +141,16 @@ def create_or_update_db(db_type, persist_directory, collection_name,
             embedded_options=EmbeddedOptions()
         )
         index_name = collection_name.replace(' ', '_').capitalize()
-        if verbose and client.schema.exists(index_name):
-            print("Removing %s" % index_name, flush=True)
+        if client.schema.exists(index_name) and not add_if_exists:
             client.schema.delete_class(index_name)
+            if verbose:
+                print("Removing %s" % index_name, flush=True)
     elif db_type == 'chroma':
         if not os.path.isdir(persist_directory) or not add_if_exists:
             if os.path.isdir(persist_directory):
                 if verbose:
                     print("Removing %s" % persist_directory, flush=True)
-                os.remove(persist_directory)
+                remove(persist_directory)
             if verbose:
                 print("Generating db", flush=True)
 
