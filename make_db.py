@@ -1,7 +1,5 @@
 import os
-
 import fire
-from langchain.vectorstores import Chroma
 
 from gpt_langchain import path_to_docs, get_db, get_some_dbs_from_hf, all_db_zips, some_db_zips, \
     get_embedding, add_to_db
@@ -209,6 +207,7 @@ def _create_or_update_chroma_db(sources, use_openai_embedding, persist_directory
     else:
         # get embedding model
         embedding = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model)
+        from langchain.vectorstores import Chroma
         db = Chroma(embedding_function=embedding,
                     persist_directory=persist_directory,
                     collection_name=collection_name)
