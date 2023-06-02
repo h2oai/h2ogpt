@@ -2,7 +2,7 @@ import os
 import fire
 
 from gpt_langchain import path_to_docs, get_db, get_some_dbs_from_hf, all_db_zips, some_db_zips, \
-    get_embedding, add_to_db
+    get_embedding, add_to_db, create_or_update_db
 
 
 def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False,
@@ -140,79 +140,13 @@ def make_db_main(use_openai_embedding: bool = False,
     sources = [x for x in sources if 'exception' not in x.metadata]
 
     assert len(sources) > 0, "No sources found"
-    if db_type == 'chroma':
-        db = _create_or_update_chroma_db(sources, use_openai_embedding, persist_directory, add_if_exists, verbose,
-                                         hf_embedding_model, collection_name)
-    elif db_type == 'weaviate':
-        db = _create_or_update_weaviate_db(sources, use_openai_embedding, add_if_exists, verbose, hf_embedding_model,
-                                           collection_name)
-    else:
-        raise ValueError(f"db_type={db_type} not supported")
+    db = create_or_update_db(db_type, persist_directory, collection_name,
+                             sources, use_openai_embedding, add_if_exists, verbose,
+                             hf_embedding_model)
 
     assert db is not None
     if verbose:
         print("DONE", flush=True)
-    return db
-
-
-def _create_or_update_weaviate_db(sources, use_openai_embedding, add_if_exists, verbose, hf_embedding_model,
-                                  collection_name):
-    import weaviate
-    from weaviate.embedded import EmbeddedOptions
-    from langchain.vectorstores import Weaviate
-
-    # TODO: add support for connecting via docker compose
-    client = weaviate.Client(
-        embedded_options=EmbeddedOptions()
-    )
-
-    index_name = collection_name.replace(' ', '_').capitalize()
-
-    if not add_if_exists:
-        if verbose and client.schema.exists(index_name):
-            print("Removing %s" % index_name, flush=True)
-            client.schema.delete_class(index_name)
-
-        if verbose:
-            print("Generating db", flush=True)
-        db = get_db(sources,
-                    use_openai_embedding=use_openai_embedding,
-                    db_type='weaviate',
-                    persist_directory=None,
-                    langchain_mode='UserData',
-                    hf_embedding_model=hf_embedding_model)
-    else:
-        embedding = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model)
-        db = Weaviate(embedding=embedding, client=client, by_text=False, index_name=index_name)
-        add_to_db(db, sources, db_type='weaviate')
-
-    return db
-
-
-def _create_or_update_chroma_db(sources, use_openai_embedding, persist_directory, add_if_exists, verbose,
-                                hf_embedding_model, collection_name):
-    if not os.path.isdir(persist_directory) or not add_if_exists:
-        if os.path.isdir(persist_directory):
-            if verbose:
-                print("Removing %s" % persist_directory, flush=True)
-            os.remove(persist_directory)
-        if verbose:
-            print("Generating db", flush=True)
-        db = get_db(sources,
-                    use_openai_embedding=use_openai_embedding,
-                    db_type='chroma',
-                    persist_directory=persist_directory,
-                    langchain_mode='UserData',
-                    hf_embedding_model=hf_embedding_model)
-    else:
-        # get embedding model
-        embedding = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model)
-        from langchain.vectorstores import Chroma
-        db = Chroma(embedding_function=embedding,
-                    persist_directory=persist_directory,
-                    collection_name=collection_name)
-        add_to_db(db, sources, db_type='chroma')
-
     return db
 
 

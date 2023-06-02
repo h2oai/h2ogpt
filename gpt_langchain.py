@@ -45,12 +45,15 @@ from langchain.vectorstores import Chroma
 
 
 def get_db(sources, use_openai_embedding=False, db_type='faiss', persist_directory="db_dir", langchain_mode='notset',
+           collection_name=None,
            hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2"):
     if not sources:
         return None
     # get embedding model
     embedding = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model)
-    collection_name = langchain_mode.replace(' ', '_')
+    assert collection_name is not None or langchain_mode != 'notset'
+    if collection_name is None:
+        collection_name = langchain_mode.replace(' ', '_')
 
     # Create vector database
     if db_type == 'faiss':
@@ -71,6 +74,7 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss', persist_directo
                                      index_name=index_name)
 
     elif db_type == 'chroma':
+        assert persist_directory is not None
         os.makedirs(persist_directory, exist_ok=True)
         db = Chroma.from_documents(documents=sources,
                                    embedding=embedding,
@@ -78,11 +82,6 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss', persist_directo
                                    collection_name=collection_name,
                                    anonymized_telemetry=False)
         db.persist()
-        # FIXME: below just proves can load persistent dir, regenerates its embedding files, so a bit wasteful
-        if False:
-            db = Chroma(embedding_function=embedding,
-                        persist_directory=persist_directory,
-                        collection_name=collection_name)
     else:
         raise RuntimeError("No such db_type=%s" % db_type)
 
@@ -127,6 +126,46 @@ def add_to_db(db, sources, db_type='faiss', avoid_dup=True):
         db.persist()
     else:
         raise RuntimeError("No such db_type=%s" % db_type)
+
+    return db
+
+
+def create_or_update_db(db_type, persist_directory, collection_name,
+                        sources, use_openai_embedding, add_if_exists, verbose, hf_embedding_model):
+    if db_type == 'weaviate':
+        import weaviate
+        from weaviate.embedded import EmbeddedOptions
+
+        # TODO: add support for connecting via docker compose
+        client = weaviate.Client(
+            embedded_options=EmbeddedOptions()
+        )
+        index_name = collection_name.replace(' ', '_').capitalize()
+        if verbose and client.schema.exists(index_name):
+            print("Removing %s" % index_name, flush=True)
+            client.schema.delete_class(index_name)
+    elif db_type == 'chroma':
+        if not os.path.isdir(persist_directory) or not add_if_exists:
+            if os.path.isdir(persist_directory):
+                if verbose:
+                    print("Removing %s" % persist_directory, flush=True)
+                os.remove(persist_directory)
+            if verbose:
+                print("Generating db", flush=True)
+
+    if not add_if_exists:
+        if verbose:
+            print("Generating db", flush=True)
+    else:
+        if verbose:
+            print("Loading and updating db", flush=True)
+
+    db = get_db(sources,
+                use_openai_embedding=use_openai_embedding,
+                db_type=db_type,
+                persist_directory=persist_directory,
+                langchain_mode=collection_name,
+                hf_embedding_model=hf_embedding_model)
 
     return db
 
