@@ -45,6 +45,7 @@ def make_db_main(use_openai_embedding: bool = False,
                  pre_load_caption_model: bool = False,
                  caption_gpu: bool = True,
                  enable_ocr: bool = False,
+                 db_type: str = 'chroma',
                  ):
     """
     # To make UserData db for generate.py, put pdfs, etc. into path user_path and run:
@@ -85,10 +86,11 @@ def make_db_main(use_openai_embedding: bool = False,
     :param pre_load_caption_model: See generate.py
     :param caption_gpu: Caption images on GPU if present
     :param enable_ocr: Whether to enable OCR on images
+    :param db_type: Type of db to create. Currently only 'chroma' and 'weaviate' is supported.
     :return: None
     """
 
-    db_type = 'chroma'
+    
 
     if download_all:
         print("Downloading all (and unzipping): %s" % all_db_zips, flush=True)
@@ -142,6 +144,49 @@ def make_db_main(use_openai_embedding: bool = False,
     sources = [x for x in sources if 'exception' not in x.metadata]
 
     assert len(sources) > 0, "No sources found"
+    if db_type == 'chroma':
+        db = _create_or_update_chroma_db(sources, use_openai_embedding, persist_directory, add_if_exists, verbose, hf_embedding_model, collection_name)
+    elif db_type == 'weaviate':
+        db = _create_or_update_weaviate_db(sources, use_openai_embedding, add_if_exists, verbose, hf_embedding_model, collection_name)
+    else:
+        raise ValueError(f"db_type={db_type} not supported")
+    
+    assert db is not None
+    if verbose:
+        print("DONE", flush=True)
+    return db
+
+def _create_or_update_weaviate_db(sources, use_openai_embedding, add_if_exists, verbose, hf_embedding_model, collection_name):
+    import weaviate
+    from weaviate.embedded import EmbeddedOptions
+    from langchain.vectorstores import Weaviate
+
+    # TODO: add support for connecting via docker compose
+    client = weaviate.Client(
+        embedded_options=EmbeddedOptions()
+        )
+    
+    index_name = collection_name.replace(' ', '_').capitalize()
+
+    if not add_if_exists:
+        if verbose and client.schema.exists(index_name):
+            print("Removing %s" % index_name, flush=True)
+            client.schema.delete_class(index_name)
+            
+        if verbose:
+            print("Generating db", flush=True)
+        db = get_db(sources,
+                    use_openai_embedding=use_openai_embedding,
+                    db_type='weaviate',
+                    persist_directory=None,
+                    langchain_mode='UserData',
+                    hf_embedding_model=hf_embedding_model)
+    else:
+        embedding = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model)
+        db = Weaviate(embedding_function=embedding, client=client, by_text=False, index_name=index_name)
+        add_to_db(db, sources, db_type='weaviate')
+
+def _create_or_update_chroma_db(sources, use_openai_embedding, persist_directory, add_if_exists, verbose, hf_embedding_model, collection_name):
     if not os.path.isdir(persist_directory) or not add_if_exists:
         if os.path.isdir(persist_directory):
             if verbose:
@@ -151,7 +196,7 @@ def make_db_main(use_openai_embedding: bool = False,
             print("Generating db", flush=True)
         db = get_db(sources,
                     use_openai_embedding=use_openai_embedding,
-                    db_type=db_type,
+                    db_type='chroma',
                     persist_directory=persist_directory,
                     langchain_mode='UserData',
                     hf_embedding_model=hf_embedding_model)
@@ -161,12 +206,9 @@ def make_db_main(use_openai_embedding: bool = False,
         db = Chroma(embedding_function=embedding,
                     persist_directory=persist_directory,
                     collection_name=collection_name)
-        add_to_db(db, sources, db_type=db_type)
-    assert db is not None
-    if verbose:
-        print("DONE", flush=True)
+        add_to_db(db, sources, db_type='chroma')
+    
     return db
-
 
 if __name__ == "__main__":
     fire.Fire(make_db_main)
