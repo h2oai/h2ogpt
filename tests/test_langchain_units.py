@@ -220,8 +220,10 @@ def test_get_dai_db_dir():
 
 
 @wrap_test_forked
+# repeat is to check if first case really deletes, else assert will fail if accumulates wrongly
+@pytest.mark.parametrize("repeat", [0, 1])
 @pytest.mark.parametrize("db_type", db_types)
-def test_make_add_db(db_type):
+def test_make_add_db(repeat, db_type):
     from make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
