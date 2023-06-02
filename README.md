@@ -6,6 +6,28 @@ Welcome!  Join us and make an issue or a PR, and contribute to making the best f
 
 Turn ★ into ⭐ (top-right corner) if you like the project!
 
+<!--  cat README.md | ./gh-md-toc  - -->
+* [Try h2oGPT now](#try-h2ogpt-now)
+* [Supported OS and Hardware](#supported-os-and-hardware)
+* [Apache V2 ChatBot with LangChain Integration](#apache-v2-chatbot-with-langchain-integration)
+* [Apache V2 Data Preparation code, Training code, and Models](#apache-v2-data-preparation-code-training-code-and-models)
+* [Roadmap](#roadmap)
+* [Getting Started](#getting-started)
+   * [GPU (CUDA)](#gpu-cuda)
+   * [CPU](#cpu)
+   * [MACOS](#macos)
+   * [Windows 10/11](#windows-1011)
+   * [CLI chat](#cli-chat)
+   * [Gradio UI](#gradio-ui)
+   * [Client API](#client-api)
+* [Development](#development)
+* [Help](#help)
+* [More links, context, competitors, models, datasets](#more-links-context-competitors-models-datasets)
+* [Acknowledgements](#acknowledgements)
+* [Why H2O.ai?](#why-h2oai)
+* [Disclaimer](#disclaimer)
+
+
 ### Try h2oGPT now 
 
 Live hosted instances:
@@ -69,15 +91,12 @@ All open-source datasets and models are posted on [🤗 H2O.ai's Hugging Face pa
 
 Also check out [H2O LLM Studio](https://github.com/h2oai/h2o-llmstudio) for our no-code LLM fine-tuning framework!
 
-### General Roadmap items
+### Roadmap
 
 - Integration of code and resulting LLMs with downstream applications and low/no-code platforms
 - Complement h2oGPT chatbot with search and other APIs
 - High-performance distributed training of larger models on trillion tokens
 - Enhance the model's code completion, reasoning, and mathematical capabilities, ensure factual correctness, minimize hallucinations, and avoid repetitive output
-
-### ChatBot and LangChain Roadmap items
-
 - Add other tools like search
 - Add agents for SQL and CSV question/answer
 
