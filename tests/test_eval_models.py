@@ -37,8 +37,8 @@ def test_score_eval(base_model):
         chat=False,
         stream_output=False,
         gradio=False,
-        eval_sharegpt_prompts_only=500,
-        eval_sharegpt_as_output=False,
+        eval_prompts_only_num=500,
+        eval_as_output=False,
         num_beams=2,
         infer_devices=False,
     )
