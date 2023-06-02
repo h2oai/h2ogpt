@@ -9,8 +9,8 @@ buildSummary('https://github.com/h2ogpt', true)
 buildSummary.get().addStagesSummary(this, new StagesSummary())
 
 def ALL_TESTS = [
-        //"test_osx_py_3_10":  [ install_deps: ["ALL"],         test_target: "test", node: "osx",     env: ['CI_PYTHON_ENV=/Users/jenkins/anaconda/envs/h2ogpt-py3.10'] ],
-        "test_dl24_py_3_10": [ install_deps: ["ALL", "4BIT"], test_target: "test", node: "mr-dl24", env: ['CI_PYTHON_ENV=/home/jenkins/miniconda3/envs/h2ogpt-py3.10'] ],
+        //"test_osx_py_3_10":  [ install_deps: "ALL", test_target: "test", node: "osx", use_docker: false, env: ['PYTHON_BINARY=/Users/jenkins/anaconda/envs/h2ogpt-py3.10/bin/python'] ],
+        "test_dl24_py_3_10": [ install_deps: "ALL,4BIT", test_target: "test", node: "mr-dl24", use_docker: true, env: [] ],
 ]
 
 pipeline {
@@ -32,7 +32,9 @@ pipeline {
             }
             steps {
                 script {
-                    sh "make wheel"
+                    // def docker_image = sh(returnStdout: true, script: "make print-DOCKER_TEST_IMAGE").trim()
+                    sh "make docker_build"
+                    sh "SKIP_BUILD=1 make run_in_docker"
                     archiveArtifacts allowEmptyArchive: true, artifacts: "dist/h2ogpt-*.whl"
                     stash includes: "dist/h2ogpt-*.whl", name: "wheel_file"
                 }
@@ -60,16 +62,27 @@ pipeline {
                                     script {
                                         try {
                                             dir("${test_name}") {
-                                                withEnv(ALL_TESTS[test_name].env) {
+                                                withEnv(
+                                                ALL_TESTS[test_name].env +
+                                                [
+                                                    "PYTHON_BINARY=${PYTHON_BINARY}",
+                                                    "PYTEST_TEST_NAME=_${test_name}",
+                                                    "IS_PR_BUILD=${isPrBranch()}",
+                                                    "BUILD_NUMBER=${env.BUILD_ID}",
+                                                    "BUILD_BASE_NAME=${env.JOB_BASE_NAME}"
+                                                ]) {
                                                     deleteDir()
                                                     checkout scm
                                                     unstash "wheel_file"
+                                                    sh "make clean"
                                                     sh "rm -rf *.py spaces models"  // force the imports from installed wheel
-                                                    sh "make venv"                  // setup empty test env
-                                                    for (install_dep in ALL_TESTS[test_name].install_deps) {
-                                                        sh "make CI_PYTHON_ENV=${CI_PYTHON_ENV} install-${install_dep}"
+                                                    if (ALL_TESTS[test_name].use_docker) {
+                                                        sh "SKIP_BUILD=1 CMD_TO_RUN_IN_DOCKER='make install-${ALL_TESTS[test_name].install_deps} ${ALL_TESTS[test_name].test_target}' make run_in_docker"
+                                                    } else {
+                                                        sh "${PYTHON_BINARY} -m virtualenv -p ${PYTHON_BINARY} venv"  // setup empty test env
+                                                        sh "PYTHON_BINARY=`pwd`/venv/bin/python make install-${ALL_TESTS[test_name].install_deps}"
+                                                        sh "PYTHON_BINARY=`pwd`/venv/bin/python make ${ALL_TESTS[test_name].test_target}"
                                                     }
-                                                    sh "make CI_PYTHON_ENV=${CI_PYTHON_ENV} PYTEST_TEST_NAME=_${test_name} IS_PR_BUILD=${isPrBranch()} BUILD_NUMBER=${env.BUILD_ID} BUILD_BASE_NAME=${env.JOB_BASE_NAME} ${ALL_TESTS[test_name].test_target}"
                                                 }
                                             }
                                         } finally {

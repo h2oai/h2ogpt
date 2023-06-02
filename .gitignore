@@ -24,3 +24,7 @@ build
 h2ogpt.egg-info
 dist
 .idea
+.cache
+.local
+.bash_history
+.benchmarks
