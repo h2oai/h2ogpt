@@ -153,20 +153,22 @@ def test_qa_daidocs_db_chunk_hf_faiss():
 
 
 @wrap_test_forked
-def test_qa_daidocs_db_chunk_hf_chroma():
+@pytest.mark.parametrize("db_type", db_types)
+def test_qa_daidocs_db_chunk_hf_dbs(db_type):
     from gpt_langchain import _run_qa_db
     query = "Which config.toml enables pytorch for NLP?"
     # chunk_size is chars for each of k=4 chunks
     ret = _run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=None, chunk=True,
                      chunk_size=128 * 1,  # characters, and if k=4, then 4*4*128 = 2048 chars ~ 512 tokens
                      langchain_mode='DriverlessAI docs',
-                     db_type='chroma',
+                     db_type=db_type,
                      )
     check_ret(ret)
 
 
 @wrap_test_forked
-def test_qa_wiki_db_chunk_hf_weaviate():
+@pytest.mark.parametrize("db_type", db_types)
+def test_qa_wiki_db_chunk_hf_dbs_llama(db_type):
     from gpt4all_llm import get_model_tokenizer_gpt4all
     model_name = 'llama'
     model, tokenizer, device = get_model_tokenizer_gpt4all(model_name)
@@ -177,7 +179,7 @@ def test_qa_wiki_db_chunk_hf_weaviate():
     ret = _run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=None, chunk=True,
                      chunk_size=128 * 1,  # characters, and if k=4, then 4*4*128 = 2048 chars ~ 512 tokens
                      langchain_mode='wiki',
-                     db_type='weaviate',
+                     db_type=db_type,
                      prompt_type='wizard2',
                      model_name=model_name, model=model, tokenizer=tokenizer,
                      )
