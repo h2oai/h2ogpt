@@ -277,7 +277,8 @@ def test_zip_add(db_type):
             zip_file = './tmpdata/data.zip'
             zip_data(tmp_user_path, zip_file=zip_file, fail_any_exception=True)
             db, collection_name = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
-                                               fail_any_exception=True, db_type=db_type)
+                                               fail_any_exception=True, db_type=db_type,
+                                               add_if_exists=False)
             assert db is not None
             docs = db.similarity_search("World")
             assert len(docs) == 1
@@ -321,7 +322,8 @@ def test_html_add(db_type):
             with open(test_file1, "wt") as f:
                 f.write(html_content)
             db, collection_name = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
-                                               fail_any_exception=True, db_type=db_type)
+                                               fail_any_exception=True, db_type=db_type,
+                                               add_if_exists=False)
             assert db is not None
             docs = db.similarity_search("Yugu")
             assert len(docs) == 1
@@ -379,7 +381,8 @@ def test_eml_add(db_type):
             test_file1 = os.path.join(tmp_user_path, 'sample.eml')
             download_simple(url, dest=test_file1)
             db, collection_name = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
-                                               fail_any_exception=True, db_type=db_type)
+                                               fail_any_exception=True, db_type=db_type,
+                                               add_if_exists=False)
             assert db is not None
             docs = db.similarity_search("What is subject?")
             assert len(docs) == 1
@@ -409,7 +412,8 @@ FYIcenter.com Team"""
             with open(test_file1, "wt") as f:
                 f.write(html_content)
             db, collection_name = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
-                                               fail_any_exception=True, db_type=db_type)
+                                               fail_any_exception=True, db_type=db_type,
+                                               add_if_exists=False)
             assert db is not None
             docs = db.similarity_search("Subject")
             assert len(docs) == 1
@@ -445,7 +449,8 @@ def test_pptx_add(db_type):
             test_file1 = os.path.join(tmp_user_path, 'sample.pptx')
             download_simple(url, dest=test_file1)
             db, collection_name = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
-                                               fail_any_exception=True, db_type=db_type)
+                                               fail_any_exception=True, db_type=db_type,
+                                               add_if_exists=False)
             assert db is not None
             docs = db.similarity_search("Suggestions")
             assert len(docs) == 4
@@ -463,7 +468,8 @@ def test_simple_pptx_add(db_type):
             test_file1 = os.path.join(tmp_user_path, 'sample.pptx')
             download_simple(url, dest=test_file1)
             db, collection_name = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
-                                               fail_any_exception=True, db_type=db_type)
+                                               fail_any_exception=True, db_type=db_type,
+                                               add_if_exists=False)
             assert db is not None
             docs = db.similarity_search("Example")
             assert len(docs) == 1
@@ -481,7 +487,8 @@ def test_epub_add(db_type):
             test_file1 = os.path.join(tmp_user_path, 'sample.epub')
             download_simple(url, dest=test_file1)
             db, collection_name = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
-                                               fail_any_exception=True, db_type=db_type)
+                                               fail_any_exception=True, db_type=db_type,
+                                               add_if_exists=False)
             assert db is not None
             docs = db.similarity_search("Grump")
             assert len(docs) == 4
@@ -552,7 +559,8 @@ def run_png_add(captions_model=None, caption_gpu=False, pre_load_caption_model=F
             db, collection_name = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
                                                fail_any_exception=True, enable_ocr=False, caption_gpu=caption_gpu,
                                                pre_load_caption_model=pre_load_caption_model,
-                                               captions_model=captions_model, db_type=db_type)
+                                               captions_model=captions_model, db_type=db_type,
+                                               add_if_exists=False)
             assert db is not None
             docs = db.similarity_search("cat")
             assert len(docs) == 1
@@ -586,7 +594,8 @@ Microsoft  Word developed RTF for document transportability and gives a user acc
             with open(test_file1, "wt") as f:
                 f.write(rtf_content)
             db, collection_name = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
-                                               fail_any_exception=True, db_type=db_type)
+                                               fail_any_exception=True, db_type=db_type,
+                                               add_if_exists=False)
             assert db is not None
             docs = db.similarity_search("How was this document created?")
             assert len(docs) == 4
