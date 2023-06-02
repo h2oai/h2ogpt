@@ -50,6 +50,7 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss', persist_directo
         return None
     # get embedding model
     embedding = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model)
+    collection_name = langchain_mode.replace(' ', '_')
 
     # Create vector database
     if db_type == 'faiss':
@@ -65,12 +66,11 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss', persist_directo
         client = weaviate.Client(
             embedded_options=EmbeddedOptions()
         )
-        index_name = langchain_mode.replace(' ', '_').capitalize()
+        index_name = collection_name.capitalize()
         db = Weaviate.from_documents(documents=sources, embedding=embedding, client=client, by_text=False,
                                      index_name=index_name)
 
     elif db_type == 'chroma':
-        collection_name = langchain_mode.replace(' ', '_')
         os.makedirs(persist_directory, exist_ok=True)
         db = Chroma.from_documents(documents=sources,
                                    embedding=embedding,
