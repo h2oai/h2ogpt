@@ -4,9 +4,9 @@ import pytest
 from tests.utils import wrap_test_forked
 
 
-# @pytest.mark.skipif(not os.getenv('BENCHMARK'),
-#                     reason="Only valid on sufficiently large system and not normal part of testing."
-#                            "  Instead used to get eval scores for all models.")
+@pytest.mark.skipif(not os.getenv('BENCHMARK'),
+                    reason="Only valid on sufficiently large system and not normal part of testing."
+                           "  Instead used to get eval scores for all models.")
 @pytest.mark.parametrize(
     "base_model",
     [
@@ -32,8 +32,6 @@ from tests.utils import wrap_test_forked
 )
 @wrap_test_forked
 def test_score_eval(base_model):
-    if base_model != "h2oai/h2ogpt-oasst1-falcon-40b":
-        return
     from generate import main
     main(
         base_model=base_model,
