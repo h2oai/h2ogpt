@@ -30,7 +30,7 @@ should print `hello world`.  Then clone:
 git clone https://github.com/h2oai/h2ogpt.git
 cd h2ogpt
 ```
-Then go back to [README](README.md) for package installation and use of `generate.py`.
+Then go back to [README](../README.md) for package installation and use of `generate.py`.
 
 ### Installing CUDA Toolkit
 
