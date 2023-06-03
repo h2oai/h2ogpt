@@ -121,6 +121,7 @@ def add_to_db(db, sources, db_type='faiss',
         db.add_documents(documents=sources)
     elif db_type == 'chroma':
         collection = db.get()
+        # files we already have:
         metadata_files = set([x['source'] for x in collection['metadatas']])
         if avoid_dup_by_file:
             # Too weak in case file changed content, assume parent shouldn't pass true for this for now
@@ -130,14 +131,16 @@ def add_to_db(db, sources, db_type='faiss',
             # look at hash, instead of page_content
             # migration: If no hash previously, avoid updating,
             #  since don't know if need to update and may be expensive to redo all unhashed files
-            metadata_sources = set([x['hashid'] for x in collection['metadatas'] if 'hashid' in x and x['hashid'] is not None])
+            metadata_hash_ids = set([x['hashid'] for x in collection['metadatas'] if 'hashid' in x and x['hashid'] not in ["None", None]])
             # avoid sources with same hash
-            sources = [x for x in sources if x.metadata['hashid'] not in metadata_sources]
-            # delete existing files we are overridding
-            dup_metadata_files = set([x['source'] for x in sources if x in metadata_files])
+            sources = [x for x in sources if x.metadata.get('hashid') not in metadata_hash_ids]
+            # get new file names that match existing file names.  delete existing files we are overridding
+            dup_metadata_files = set([x.metadata['source'] for x in sources if x.metadata['source'] in metadata_files])
             print("Removing %s duplicate files from db because ingesting those as new documents" % len(dup_metadata_files), flush=True)
+            client_collection = db._client.get_collection(name=db._collection.name)
             for dup_file in dup_metadata_files:
-                collection.delete(where=dup_file)
+                dup_file_meta = dict(source=dup_file)
+                client_collection.delete(where=dup_file_meta)
         num_new_sources = len(sources)
         if num_new_sources == 0:
             return db, num_new_sources
@@ -772,10 +775,10 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
         hash_ids_all_non_image = set({x: hash_file(x) for x in globs_non_image_types}.items())
         # don't use symmetric diff.  If file is gone, ignore and don't remove or something
         #  just consider existing files (key) having new hash or not (value)
-        diff_image = set(dict(hash_ids_all_image - existing_hash_ids_set).keys())
-        diff_non_image = set(dict(hash_ids_all_non_image - existing_hash_ids_set).keys())
-        globs_image_types = [x for x in globs_image_types if x not in diff_image]
-        globs_non_image_types = [x for x in globs_non_image_types if x not in diff_non_image]
+        new_files_image = set(dict(hash_ids_all_image - existing_hash_ids_set).keys())
+        new_files_non_image = set(dict(hash_ids_all_non_image - existing_hash_ids_set).keys())
+        globs_image_types = [x for x in globs_image_types if x in new_files_image]
+        globs_non_image_types = [x for x in globs_non_image_types if x in new_files_non_image]
 
     # could use generator, but messes up metadata handling in recursive case
     if caption_loader and not isinstance(caption_loader, (bool, str)) and \
@@ -1032,10 +1035,16 @@ def _make_db(use_openai_embedding=False,
             sources.extend(sources1)
         if not sources:
             if verbose:
-                print("langchain_mode %s has no sources, not making db" % langchain_mode, flush=True)
-            return None
+                if db is not None:
+                    print("langchain_mode %s has no new sources, nothing to add to db" % langchain_mode, flush=True)
+                else:
+                    print("langchain_mode %s has no sources, not making new db" % langchain_mode, flush=True)
+            return db
         if verbose:
-            print("Generating db", flush=True)
+            if db is not None:
+                print("Generating db", flush=True)
+            else:
+                print("Adding to db", flush=True)
     if not db:
         if sources:
             db = get_db(sources, use_openai_embedding=use_openai_embedding, db_type=db_type,
@@ -1087,6 +1096,7 @@ def _run_qa_db(query=None,
                use_openai_model=False, use_openai_embedding=False,
                first_para=False, text_limit=None, k=4, chunk=False, chunk_size=1024,
                user_path=None,
+               detect_user_path_changes_every_query=False,
                db_type='faiss',
                model_name=None, model=None, tokenizer=None,
                hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
@@ -1219,6 +1229,7 @@ def get_similarity_chain(query=None,
                          use_openai_model=False, use_openai_embedding=False,
                          first_para=False, text_limit=None, k=4, chunk=False, chunk_size=1024,
                          user_path=None,
+                         detect_user_path_changes_every_query=False,
                          db_type='faiss',
                          model_name=None,
                          hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
@@ -1249,6 +1260,11 @@ def get_similarity_chain(query=None,
     k_db = 1000 if db_type == 'chroma' else k  # k=100 works ok too for
 
     # FIXME: For All just go over all dbs instead of a separate db for All
+    if not detect_user_path_changes_every_query and db is not None:
+        # avoid looking at user_path during similarity search db handling,
+        # if already have db and not updating from user_path every query
+        # but if db is None, no db yet loaded (e.g. from prep), so allow user_path to be whatever it was
+        user_path = None
     db = make_db(use_openai_embedding=use_openai_embedding,
                  hf_embedding_model=hf_embedding_model,
                  first_para=first_para, text_limit=text_limit, chunk=chunk, chunk_size=chunk_size,

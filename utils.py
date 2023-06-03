@@ -840,4 +840,4 @@ def hash_file(file):
         print("Cannot hash %s due to %s" % (file, str(e)))
         traceback.print_exc()
         md5 = None
-    return md5
+    return md5.hexdigest()

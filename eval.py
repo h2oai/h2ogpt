@@ -7,7 +7,7 @@ import torch
 from matplotlib import pyplot as plt
 
 from generate import eval_func_param_names, eval_extra_columns, get_context, get_score_model, get_model, evaluate, \
-    inputs_kwargs_list
+    inputs_kwargs_list, check_locals
 from prompter import Prompter
 from utils import clear_torch_cache, NullContext, get_kwargs
 
@@ -42,29 +42,7 @@ def run_eval(  # for local function:
         use_openai_embedding=None, use_openai_model=None, hf_embedding_model=None, chunk=None, chunk_size=None,
         db_type=None, n_jobs=None, first_para=None, text_limit=None, verbose=None, cli=None,
 ):
-    # ensure everything in evaluate is here
-    can_skip_because_locally_generated = [  # evaluate
-        'instruction',
-        'iinput',
-        'context',
-        'instruction_nochat',
-        'iinput_nochat',
-        # get_model:
-        'reward_type'
-    ]
-    for k in eval_func_param_names:
-        if k in can_skip_because_locally_generated:
-            continue
-        assert k in locals(), "Missing %s" % k
-    for k in inputs_kwargs_list:
-        if k in can_skip_because_locally_generated:
-            continue
-        assert k in locals(), "Missing %s" % k
-
-    for k in list(inspect.signature(get_model).parameters):
-        if k in can_skip_because_locally_generated:
-            continue
-        assert k in locals(), "Missing %s" % k
+    check_locals(**locals())
 
     if eval_prompts_only_num > 0:
         np.random.seed(eval_prompts_only_seed)
