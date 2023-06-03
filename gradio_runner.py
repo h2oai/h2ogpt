@@ -14,14 +14,18 @@ import tabulate
 
 # This is a hack to prevent Gradio from phoning home when it gets imported
 os.environ['GRADIO_ANALYTICS_ENABLED'] = 'False'
+
+
 def my_get(url, **kwargs):
     print('Gradio HTTP request redirected to localhost :)', flush=True)
     kwargs.setdefault('allow_redirects', True)
     return requests.api.request('get', 'http://127.0.0.1/', **kwargs)
 
+
 original_get = requests.get
 requests.get = my_get
 import gradio as gr
+
 requests.get = original_get
 
 from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, get_dark_js
@@ -341,6 +345,8 @@ body.dark{#warning {background-color: #555555};}
                                                         ).style(full_width=False, size='sm')
                             show_sources_btn = gr.Button(value="Show Sources",
                                                          ).style(full_width=False, size='sm')
+                            refresh_sources_btn = gr.Button(value="Refresh Sources",
+                                                            ).style(full_width=False, size='sm')
 
                     # import control
                     if kwargs['langchain_mode'] != 'Disabled':
@@ -553,7 +559,8 @@ body.dark{#warning {background-color: #555555};}
                         with gr.Column(scale=50):
                             new_lora = gr.Textbox(label="New LORA HF name/path", visible=kwargs['show_lora'])
                         with gr.Row():
-                            add_lora_button = gr.Button("Add new LORA name", visible=kwargs['show_lora']).style(full_width=False, size='sm')
+                            add_lora_button = gr.Button("Add new LORA name", visible=kwargs['show_lora']).style(
+                                full_width=False, size='sm')
                 with gr.TabItem("System"):
                     admin_row = gr.Row()
                     with admin_row:
@@ -684,14 +691,26 @@ body.dark{#warning {background-color: #555555};}
         def update_dropdown(x):
             return gr.Dropdown.update(choices=x, value=[docs_state0[0]])
 
-        show_sources1 = functools.partial(get_source_files_given_langchain_mode, dbs=dbs)
         get_sources_btn.click(get_sources1, inputs=[my_db_state, langchain_mode], outputs=[file_source, docs_state],
                               queue=queue,
                               api_name='get_sources' if allow_api else None) \
             .then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
         # show button, else only show when add.  Could add to above get_sources for download/dropdown, but bit much maybe
+        show_sources1 = functools.partial(get_source_files_given_langchain_mode, dbs=dbs)
         show_sources_btn.click(fn=show_sources1, inputs=[my_db_state, langchain_mode], outputs=sources_text,
                                api_name='show_sources' if allow_api else None)
+
+        # Get inputs to evaluate() and make_db()
+        # don't deepcopy, can contain model itself
+        all_kwargs = kwargs.copy()
+        all_kwargs.update(locals())
+
+        refresh_sources1 = functools.partial(update_and_get_source_files_given_langchain_mode,
+                                             **get_kwargs(update_and_get_source_files_given_langchain_mode,
+                                                          exclude_names=['db1', 'langchain_mode'],
+                                                          **all_kwargs))
+        refresh_sources_btn.click(fn=refresh_sources1, inputs=[my_db_state, langchain_mode], outputs=sources_text,
+                                  api_name='refresh_sources' if allow_api else None)
 
         def check_admin_pass(x):
             return gr.update(visible=x == admin_pass)
@@ -702,10 +721,6 @@ body.dark{#warning {background-color: #555555};}
         admin_btn.click(check_admin_pass, inputs=admin_pass_textbox, outputs=system_row, queue=False) \
             .then(close_admin, inputs=admin_pass_textbox, outputs=admin_row, queue=False)
 
-        # Get inputs to evaluate()
-        # don't deepcopy, can contain model itself
-        all_kwargs = kwargs.copy()
-        all_kwargs.update(locals())
         inputs_list = get_inputs_list(all_kwargs, kwargs['model_lower'])
         from functools import partial
         kwargs_evaluate = {k: v for k, v in all_kwargs.items() if k in inputs_kwargs_list}
@@ -1273,7 +1288,8 @@ body.dark{#warning {background-color: #555555};}
 
             all_kwargs1['lora_weights'] = lora_weights.strip()
             model1, tokenizer1, device1 = get_model(reward_type=False,
-                                                    **get_kwargs(get_model, exclude_names=['reward_type'], **all_kwargs1))
+                                                    **get_kwargs(get_model, exclude_names=['reward_type'],
+                                                                 **all_kwargs1))
             clear_torch_cache()
 
             if kwargs['debug']:
@@ -1307,7 +1323,8 @@ body.dark{#warning {background-color: #555555};}
         prompt_update_args2 = dict(fn=dropdown_prompt_type_list, inputs=prompt_type2, outputs=prompt_type2)
         chatbot_update_args2 = dict(fn=chatbot_list, inputs=[text_output2, model_used2], outputs=text_output2)
         if not is_public:
-            load_model_event2 = load_model_button2.click(**load_model_args2, api_name='load_model2' if allow_api else None) \
+            load_model_event2 = load_model_button2.click(**load_model_args2,
+                                                         api_name='load_model2' if allow_api else None) \
                 .then(**prompt_update_args2) \
                 .then(**chatbot_update_args2) \
                 .then(clear_torch_cache)
@@ -1545,7 +1562,7 @@ def _update_user_db(file, db1, x, y, dbs=None, db_type=None, langchain_mode='Use
         if langchain_mode == 'MyData':
             if db1[0] is not None:
                 # then add
-                add_to_db(db1[0], sources, db_type=db_type)
+                db, num_new_sources, new_sources_metadata = add_to_db(db1[0], sources, db_type=db_type)
             else:
                 assert len(db1) == 2 and db1[1] is None, "Bad MyData db: %s" % db1
                 # then create
@@ -1560,13 +1577,13 @@ def _update_user_db(file, db1, x, y, dbs=None, db_type=None, langchain_mode='Use
                                 hf_embedding_model=hf_embedding_model)
                 if db1[0] is None:
                     db1[1] = None
-            source_files_added = get_source_files(db1[0], exceptions=exceptions)
+            source_files_added = get_source_files(db=db1[0], exceptions=exceptions)
             return db1, x, y, source_files_added
         else:
             persist_directory = 'db_dir_%s' % langchain_mode
             if langchain_mode in dbs and dbs[langchain_mode] is not None:
                 # then add
-                add_to_db(dbs[langchain_mode], sources, db_type=db_type)
+                db, num_new_sources, new_sources_metadata = add_to_db(dbs[langchain_mode], sources, db_type=db_type)
             else:
                 # then create
                 db = get_db(sources, use_openai_embedding=use_openai_embedding,
@@ -1578,11 +1595,11 @@ def _update_user_db(file, db1, x, y, dbs=None, db_type=None, langchain_mode='Use
             # NOTE we do not return db, because function call always same code path
             # return dbs[langchain_mode], x, y
             # db in this code path is updated in place
-            source_files_added = get_source_files(dbs[langchain_mode], exceptions=exceptions)
+            source_files_added = get_source_files(db=dbs[langchain_mode], exceptions=exceptions)
             return x, y, source_files_added
 
 
-def get_source_files_given_langchain_mode(db1, langchain_mode='UserData', dbs=None):
+def get_db(db1, langchain_mode, dbs=None):
     with filelock.FileLock("db_%s.lock" % langchain_mode.replace(' ', '_')):
         if langchain_mode in ['wiki_full']:
             # NOTE: avoid showing full wiki.  Takes about 30 seconds over about 90k entries, but not useful for now
@@ -1593,17 +1610,31 @@ def get_source_files_given_langchain_mode(db1, langchain_mode='UserData', dbs=No
             db = dbs[langchain_mode]
         else:
             db = None
-    return get_source_files(db, exceptions=None)
+    return db
 
 
-def get_source_files(db, exceptions=None):
+def get_source_files_given_langchain_mode(db1, langchain_mode='UserData', dbs=None):
+    db = get_db(db1, langchain_mode, dbs=dbs)
+    return get_source_files(db=db, exceptions=None)
+
+
+def get_source_files(db=None, exceptions=None, metadatas=None):
     if exceptions is None:
         exceptions = []
 
-    if db is not None:
-        metadatas = db.get()['metadatas']
+    # only should be one source, not confused
+    assert db is not None or metadatas is not None
+
+    if metadatas is None:
+        source_label = "Sources:"
+        if db is not None:
+            metadatas = db.get()['metadatas']
+        else:
+            metadatas = []
+        adding_new = False
     else:
-        metadatas = []
+        source_label = "New Sources:"
+        adding_new = True
 
     # below automatically de-dups
     from gpt_langchain import get_url
@@ -1632,28 +1663,28 @@ def get_source_files(db, exceptions=None):
         <html>
           <body>
             <p>
-               Sources: <br>
+               {0} <br>
             </p>
                <div style="overflow-y: auto;height:400px">
-               {0}
                {1}
+               {2}
                </div>
           </body>
         </html>
-        """.format(source_files_added, exceptions_html)
+        """.format(source_label, source_files_added, exceptions_html)
     elif metadatas:
         source_files_added = """\
         <html>
           <body>
             <p>
-               Sources: <br>
+               {0} <br>
             </p>
                <div style="overflow-y: auto;height:400px">
-               {0}
+               {1}
                </div>
           </body>
         </html>
-        """.format(source_files_added)
+        """.format(source_label, source_files_added)
     elif exceptions_html:
         source_files_added = """\
         <html>
@@ -1668,6 +1699,31 @@ def get_source_files(db, exceptions=None):
         </html>
         """.format(exceptions_html)
     else:
-        source_files_added = ""
+        if adding_new:
+            source_files_added = "No New Sources"
+        else:
+            source_files_added = "No Sources"
 
     return source_files_added
+
+
+def update_and_get_source_files_given_langchain_mode(db1, langchain_mode, dbs=None, first_para=None,
+                                                     text_limit=None, chunk=None, chunk_size=None,
+                                                     user_path=None, db_type=None, load_db_if_exists=None,
+                                                     n_jobs=None, verbose=None):
+    db = get_db(db1, langchain_mode, dbs=dbs)
+
+    from gpt_langchain import make_db
+    db, num_new_sources, new_sources_metadata = make_db(use_openai_embedding=False,
+                                                        hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
+                                                        first_para=first_para, text_limit=text_limit, chunk=chunk,
+                                                        chunk_size=chunk_size,
+                                                        langchain_mode=langchain_mode,
+                                                        user_path=user_path,
+                                                        db_type=db_type,
+                                                        load_db_if_exists=load_db_if_exists,
+                                                        db=db,
+                                                        n_jobs=n_jobs,
+                                                        verbose=verbose)
+    # return only new sources with text saying such
+    return get_source_files(db=None, exceptions=None, metadatas=new_sources_metadata)

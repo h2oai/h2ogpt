@@ -107,7 +107,7 @@ def add_to_db(db, sources, db_type='faiss',
               avoid_dup_by_content=True):
     num_new_sources = len(sources)
     if not sources:
-        return db, num_new_sources
+        return db, num_new_sources, []
     if db_type == 'faiss':
         db.add_documents(sources)
     elif db_type == 'weaviate':
@@ -117,7 +117,7 @@ def add_to_db(db, sources, db_type='faiss',
             sources = [x for x in sources if x.metadata['source'] not in unique_sources]
         num_new_sources = len(sources)
         if num_new_sources == 0:
-            return db, num_new_sources
+            return db, num_new_sources, []
         db.add_documents(documents=sources)
     elif db_type == 'chroma':
         collection = db.get()
@@ -131,25 +131,32 @@ def add_to_db(db, sources, db_type='faiss',
             # look at hash, instead of page_content
             # migration: If no hash previously, avoid updating,
             #  since don't know if need to update and may be expensive to redo all unhashed files
-            metadata_hash_ids = set([x['hashid'] for x in collection['metadatas'] if 'hashid' in x and x['hashid'] not in ["None", None]])
+            metadata_hash_ids = set(
+                [x['hashid'] for x in collection['metadatas'] if 'hashid' in x and x['hashid'] not in ["None", None]])
             # avoid sources with same hash
             sources = [x for x in sources if x.metadata.get('hashid') not in metadata_hash_ids]
             # get new file names that match existing file names.  delete existing files we are overridding
             dup_metadata_files = set([x.metadata['source'] for x in sources if x.metadata['source'] in metadata_files])
-            print("Removing %s duplicate files from db because ingesting those as new documents" % len(dup_metadata_files), flush=True)
+            print("Removing %s duplicate files from db because ingesting those as new documents" % len(
+                dup_metadata_files), flush=True)
             client_collection = db._client.get_collection(name=db._collection.name)
             for dup_file in dup_metadata_files:
                 dup_file_meta = dict(source=dup_file)
-                client_collection.delete(where=dup_file_meta)
+                try:
+                    client_collection.delete(where=dup_file_meta)
+                except KeyError:
+                    pass
         num_new_sources = len(sources)
         if num_new_sources == 0:
-            return db, num_new_sources
+            return db, num_new_sources, []
         db.add_documents(documents=sources)
         db.persist()
     else:
         raise RuntimeError("No such db_type=%s" % db_type)
 
-    return db, num_new_sources
+    new_sources_metadata = [x.metadata for x in sources]
+
+    return db, num_new_sources, new_sources_metadata
 
 
 def create_or_update_db(db_type, persist_directory, collection_name,
@@ -858,7 +865,8 @@ def prep_langchain(persist_directory,
                              hf_embedding_model)
     else:
         if db_dir_exists and user_path is not None:
-            print("Prep: persist_directory=%s exists, user_path=%s passed, adding any changed or new documents" % (persist_directory, user_path), flush=True)
+            print("Prep: persist_directory=%s exists, user_path=%s passed, adding any changed or new documents" % (
+            persist_directory, user_path), flush=True)
         elif not db_dir_exists:
             print("Prep: persist_directory=%s does not exist, regenerating" % persist_directory, flush=True)
         db = None
@@ -871,7 +879,7 @@ def prep_langchain(persist_directory,
 
         langchain_kwargs = kwargs_make_db.copy()
         langchain_kwargs.update(locals())
-        db = make_db(**langchain_kwargs)
+        db, num_new_sources, new_sources_metadata = make_db(**langchain_kwargs)
 
     return db
 
@@ -969,7 +977,8 @@ def _make_db(use_openai_embedding=False,
         if verbose:
             if langchain_mode in ['UserData']:
                 if user_path is not None:
-                    print("Checking if changed or new sources in %s, and generating sources them" % user_path, flush=True)
+                    print("Checking if changed or new sources in %s, and generating sources them" % user_path,
+                          flush=True)
                 elif db is None:
                     print("user_path not passed and no db, no sources", flush=True)
                 else:
@@ -1039,7 +1048,7 @@ def _make_db(use_openai_embedding=False,
                     print("langchain_mode %s has no new sources, nothing to add to db" % langchain_mode, flush=True)
                 else:
                     print("langchain_mode %s has no sources, not making new db" % langchain_mode, flush=True)
-            return db
+            return db, 0, []
         if verbose:
             if db is not None:
                 print("Generating db", flush=True)
@@ -1054,12 +1063,15 @@ def _make_db(use_openai_embedding=False,
                 print("Generated db", flush=True)
         else:
             print("Did not generate db since no sources", flush=True)
+        new_sources_metadata = [x.metadata for x in sources]
     elif user_path is not None and langchain_mode in ['UserData']:
         print("Existing db, potentially adding %s sources from user_path=%s" % (len(sources), user_path), flush=True)
-        db, num_new_sources = add_to_db(db, sources, db_type=db_type)
+        db, num_new_sources, new_sources_metadata = add_to_db(db, sources, db_type=db_type)
         print("Existing db, added %s new sources from user_path=%s" % (num_new_sources, user_path), flush=True)
+    else:
+        new_sources_metadata = [x.metadata for x in sources]
 
-    return db
+    return db, len(new_sources_metadata), new_sources_metadata
 
 
 def get_existing_files(db):
@@ -1265,16 +1277,17 @@ def get_similarity_chain(query=None,
         # if already have db and not updating from user_path every query
         # but if db is None, no db yet loaded (e.g. from prep), so allow user_path to be whatever it was
         user_path = None
-    db = make_db(use_openai_embedding=use_openai_embedding,
-                 hf_embedding_model=hf_embedding_model,
-                 first_para=first_para, text_limit=text_limit, chunk=chunk, chunk_size=chunk_size,
-                 langchain_mode=langchain_mode,
-                 user_path=user_path,
-                 db_type=db_type,
-                 load_db_if_exists=load_db_if_exists,
-                 db=db,
-                 n_jobs=n_jobs,
-                 verbose=verbose)
+    db, num_new_sources, new_sources_metadata = make_db(use_openai_embedding=use_openai_embedding,
+                                                        hf_embedding_model=hf_embedding_model,
+                                                        first_para=first_para, text_limit=text_limit, chunk=chunk,
+                                                        chunk_size=chunk_size,
+                                                        langchain_mode=langchain_mode,
+                                                        user_path=user_path,
+                                                        db_type=db_type,
+                                                        load_db_if_exists=load_db_if_exists,
+                                                        db=db,
+                                                        n_jobs=n_jobs,
+                                                        verbose=verbose)
 
     if db and use_context:
         if isinstance(document_choice, str):

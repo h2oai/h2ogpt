@@ -280,20 +280,21 @@ To Chat with your docs, choose, e.g. UserData.  To avoid including docs, and jus
 * None: Similar to choosing ChatLLM instead of the chosen collection
 * ... Or choose one or more documents to chat with (then do not select All, Only, or None)
 
-| Button                       | Purpose                                                                                              |
-------------------------------|------------------------------------------------------------------------------------------------------|
-| Get Sources                  | For chosen collection, get all sources and place list into drop-down for choosing subset             |
-| Show Sources                 | For chosen collection, get and show (in HTML with links to source docs if present) at bottom of page |
-| Upload Box                   | Drag-n-drop or select from user's system one or more files                                           |
-| Add File(s) to UserData      | After using Upload box and seeing files listed there, add those files to UserData collection         |
-| Add File(s) to MyData        | After using Upload box and seeing files listed there, add those files to MyData collection           |
-| Download File w/Sources      | After clicking Get Sources, downloadable file will appear here that lists all sources in text file   |
-| URL                          | Enter text URL link or arxiv:<paper id> to download text content of web page or download             |
-| Add URL Content to UserData  | After entering text into URL box, download into UserData collection                                  |
-| Add URL Content to MyData    | After entering text into URL box, download into MyData collection                                    |
-| Paste Text                   | Enter raw text for adding to collection                                                              |
-| Add Text Content to UserData | After entering text Text box, add into UserData collection                                           |
-| Add Text Content to MyData   | After entering text Text box, add into MyData collection                                             |
+| Button                       | Purpose                                                                                            |
+-------------------------------|----------------------------------------------------------------------------------------------------|
+| Get Sources                  | For chosen collection, get all sources and place list into drop-down for choosing subset           |
+| Show Sources                 | For chosen collection, get and show (in HTML with links to source docs) at bottom of page          |
+| Refresh Sources              | For chosen collection, updaet any changed or new files and show new sources at bottom of page      |
+| Upload Box                   | Drag-n-drop or select from user's system one or more files                                         |
+| Add File(s) to UserData      | After using Upload box and seeing files listed there, add those files to UserData collection       |
+| Add File(s) to MyData        | After using Upload box and seeing files listed there, add those files to MyData collection         |
+| Download File w/Sources      | After clicking Get Sources, downloadable file will appear here that lists all sources in text file |
+| URL                          | Enter text URL link or arxiv:<paper id> to download text content of web page or download           |
+| Add URL Content to UserData  | After entering text into URL box, download into UserData collection                                |
+| Add URL Content to MyData    | After entering text into URL box, download into MyData collection                                  |
+| Paste Text                   | Enter raw text for adding to collection                                                            |
+| Add Text Content to UserData | After entering text Text box, add into UserData collection                                         |
+| Add Text Content to MyData   | After entering text Text box, add into MyData collection                                           |
 
 #### Expert Tab
 
