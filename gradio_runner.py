@@ -690,7 +690,8 @@ body.dark{#warning {background-color: #555555};}
                               api_name='get_sources' if allow_api else None) \
             .then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
         # show button, else only show when add.  Could add to above get_sources for download/dropdown, but bit much maybe
-        show_sources_btn.click(fn=show_sources1, inputs=[my_db_state, langchain_mode], outputs=sources_text)
+        show_sources_btn.click(fn=show_sources1, inputs=[my_db_state, langchain_mode], outputs=sources_text,
+                               api_name='show_sources' if allow_api else None)
 
         def check_admin_pass(x):
             return gr.update(visible=x == admin_pass)
@@ -1293,7 +1294,7 @@ body.dark{#warning {background-color: #555555};}
         chatbot_update_args = dict(fn=chatbot_list, inputs=[text_output, model_used], outputs=text_output)
         nochat_update_args = dict(fn=chatbot_list, inputs=[text_output_nochat, model_used], outputs=text_output_nochat)
         if not is_public:
-            load_model_event = load_model_button.click(**load_model_args) \
+            load_model_event = load_model_button.click(**load_model_args, api_name='load_model' if allow_api else None) \
                 .then(**prompt_update_args) \
                 .then(**chatbot_update_args) \
                 .then(**nochat_update_args) \
@@ -1306,7 +1307,7 @@ body.dark{#warning {background-color: #555555};}
         prompt_update_args2 = dict(fn=dropdown_prompt_type_list, inputs=prompt_type2, outputs=prompt_type2)
         chatbot_update_args2 = dict(fn=chatbot_list, inputs=[text_output2, model_used2], outputs=text_output2)
         if not is_public:
-            load_model_event2 = load_model_button2.click(**load_model_args2) \
+            load_model_event2 = load_model_button2.click(**load_model_args2, api_name='load_model2' if allow_api else None) \
                 .then(**prompt_update_args2) \
                 .then(**chatbot_update_args2) \
                 .then(clear_torch_cache)
@@ -1401,7 +1402,7 @@ body.dark{#warning {background-color: #555555};}
                 return "N/A"
 
         count_chat_tokens_btn.click(fn=count_chat_tokens, inputs=[model_state, text_output, prompt_type],
-                                    outputs=chat_token_count)
+                                    outputs=chat_token_count, api_name='count_tokens' if allow_api else None)
 
         demo.load(None, None, None, _js=get_dark_js() if kwargs['h2ocolors'] else None)
 
