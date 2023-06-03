@@ -62,3 +62,7 @@ def test_chat_control():
 
 def test_subset_only():
     raise NotImplementedError("""MANUAL TEST FOR NOW UserData, Select Only for subset, then put in whisper.  Ensure get back only chunks of data with url links to data sources.""")
+
+
+def test_add_new_doc():
+    raise NotImplementedError("""MANUAL TEST FOR NOW UserData, add new pdf or file to user_path and see if pushing refresh sources updates and shows new file in list, then ask question about that new doc""")
