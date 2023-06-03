@@ -194,7 +194,7 @@ def do_export():
         )
 
     do_copy(OUTPUT_NAME)
-    test_copy(OUTPUT_NAME)
+    test_copy()
 
 
 def do_copy(OUTPUT_NAME):
@@ -206,9 +206,8 @@ def do_copy(OUTPUT_NAME):
     os.system("""cat %s >> %s""" % ('prompter.py', dest_file))
 
 
-def test_copy(OUTPUT_NAME=None):
-    if OUTPUT_NAME is None:
-        OUTPUT_NAME = "test_output"
+def test_copy():
+    OUTPUT_NAME = "test_output"
     if os.path.isdir(OUTPUT_NAME):
         shutil.rmtree(OUTPUT_NAME)
     os.makedirs(OUTPUT_NAME, exist_ok=False)
