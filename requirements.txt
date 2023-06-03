@@ -50,3 +50,6 @@ pypandoc_binary==1.11
 openpyxl==3.1.2
 lm_dataformat==0.0.20
 bioc==2.0
+
+# eval
+openai==0.27.4
