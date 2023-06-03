@@ -232,7 +232,7 @@ def main(
     :param allow_upload_to_user_data: Whether to allow file uploads to update shared vector db
     :param allow_upload_to_my_data: Whether to allow file uploads to update scratch vector db
     :param enable_url_upload: Whether to allow upload from URL
-    :param enable_text_upload: Whether to allow uplaod of text
+    :param enable_text_upload: Whether to allow upload of text
     :param enable_sources_list: Whether to allow list (or download for non-shared db) of list of sources for chosen db
     :param chunk: Whether to chunk data (True unless know data is already optimally chunked)
     :param chunk_size: Size of chunks, with typically top-4 passed to LLM, so neesd to be in context length
