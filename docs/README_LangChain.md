@@ -100,11 +100,11 @@ python make_db.py --add_if_exists=True
 python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b --langchain_mode=UserData
 ```
 
-By default, `generate.py` will load an existing UserData database and ignore any documents added to user_path.  To add more docs to UserData from generate alone, run:
+By default, `generate.py` will load an existing UserData database and add any documents added to user_path or change any files that have changed.  To avoid detecting any new files, run:
 ```bash
-python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b --langchain_mode=UserData --user_path=user_path --add_to_userdata_db_if_exists=True
+python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b --langchain_mode=UserData --user_path=user_path --add_to_db_if_file_new=False
 ```
-which will go through all documents to see if anything changed or new docs are added to the `user_path`, but only new documents will be embedded.
+which will avoid going through all documents to look for a changed hash or new docs in the `user_path`.  Only new or changed documents will be embedded.
 
 ## Document Question-Answer FAQ
 

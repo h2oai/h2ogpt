@@ -123,8 +123,7 @@ def main(
         document_choice: list = ['All'],
         user_path: str = None,
         load_db_if_exists: bool = True,
-        add_to_userdata_db_if_exists: bool = False,
-        add_new_files_to_userdata_db_if_exists: bool = True,
+        add_to_db_if_file_new: bool = False,
         keep_sources_in_context: bool = False,
         db_type: str = 'chroma',
         use_openai_embedding: bool = False,
@@ -225,10 +224,8 @@ def main(
            FIXME: Avoid 'All' for now, not implemented
     :param document_choice: Default document choice when taking subset of collection
     :param load_db_if_exists: Whether to load chroma db if exists or re-generate db
-    :param add_to_userdata_db_if_exists: Whether to load existing UserData db if exists, and add any new user_path sources.
-           This requires re-loading all documents, so is not done by default.
-           At least embedding is not redone for duplicate sources.
-    :param add_new_files_to_userdata_db_if_exists: Similar to add_to_userdata_db_if_exists, but assume prior sources do not need to be re-parsed, and only new files are parsed and embedded.
+    :param add_to_db_if_file_new: Add to db if new files detected with changed hash,
+           by deleting all old content from those files and adding new content
     :param keep_sources_in_context: Whether to keep url sources in context, not helpful usually
     :param db_type: 'faiss' for in-memory or 'chroma' or 'weaviate' for persisted on disk
     :param use_openai_embedding: Whether to use OpenAI embeddings for vector db
@@ -386,7 +383,7 @@ def main(
                 continue
             persist_directory1 = 'db_dir_%s' % langchain_mode1  # single place, no special names for each case
             db = prep_langchain(persist_directory1,
-                                load_db_if_exists, add_to_userdata_db_if_exists, add_new_files_to_userdata_db_if_exists,
+                                load_db_if_exists, add_to_db_if_file_new,
                                 db_type, use_openai_embedding,
                                 langchain_mode1, user_path,
                                 hf_embedding_model,
