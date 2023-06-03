@@ -820,7 +820,7 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
 
 
 def prep_langchain(persist_directory,
-                   load_db_if_exists, add_to_db_if_file_new,
+                   load_db_if_exists,
                    db_type, use_openai_embedding, langchain_mode, user_path,
                    hf_embedding_model, n_jobs=-1, kwargs_make_db={}):
     """
@@ -832,13 +832,13 @@ def prep_langchain(persist_directory,
 
     db_dir_exists = os.path.isdir(persist_directory)
 
-    if db_dir_exists and not add_to_db_if_file_new :
+    if db_dir_exists and user_path is None:
         print("Prep: persist_directory=%s exists, using" % persist_directory, flush=True)
         db = get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
                              hf_embedding_model)
     else:
-        if db_dir_exists and add_to_db_if_file_new:
-            print("Prep: persist_directory=%s exists, adding any changed or new documents" % persist_directory, flush=True)
+        if db_dir_exists and user_path is not None:
+            print("Prep: persist_directory=%s exists, user_path=%s passed, adding any changed or new documents" % (persist_directory, user_path), flush=True)
         elif not db_dir_exists:
             print("Prep: persist_directory=%s does not exist, regenerating" % persist_directory, flush=True)
         db = None
@@ -924,7 +924,6 @@ def _make_db(use_openai_embedding=False,
              user_path=None,
              db_type='faiss',
              load_db_if_exists=True,
-             add_to_db_if_file_new=False,
              db=None,
              n_jobs=-1,
              verbose=False):
@@ -943,15 +942,19 @@ def _make_db(use_openai_embedding=False,
                     client_settings=client_settings)
     sources = []
     if not db and langchain_mode not in ['MyData'] or \
-            add_to_db_if_file_new and \
+            user_path is not None and \
             langchain_mode in ['UserData']:
         # Should not make MyData db this way, why avoided, only upload from UI
         assert langchain_mode not in ['MyData'], "Should not make MyData db this way"
-        if verbose:
-            if add_to_db_if_file_new:
-                print("Checking if changed or new sources, and generating them", flush=True)
+        if langchain_mode in ['UserData'] and verbose:
+            if user_path is not None:
+                print("Checking if changed or new sources in %s, and generating sources them" % user_path, flush=True)
+            elif db is None:
+                print("user_path not passed and no db, no sources", flush=True)
             else:
-                print("Generating sources", flush=True)
+                print("user_path not passed, using only existing db, no new sources", flush=True)
+        else:
+            print("Generating %s sources" % langchain_mode, flush=True)
         if langchain_mode in ['wiki_full', 'All', "'All'"]:
             from read_wiki_full import get_all_documents
             small_test = None
@@ -980,7 +983,7 @@ def _make_db(use_openai_embedding=False,
             sources.extend(sources1)
         if langchain_mode in ['All', 'UserData']:
             if user_path:
-                if add_to_db_if_file_new and db is not None:
+                if db is not None:
                     existing_files = get_existing_files(db)
                 else:
                     # pretend no existing files so won't filter
@@ -1020,10 +1023,10 @@ def _make_db(use_openai_embedding=False,
                 print("Generated db", flush=True)
         else:
             print("Did not generate db since no sources", flush=True)
-    elif add_to_db_if_file_new and langchain_mode in ['UserData']:
-        print("Existing db, potentially adding %s sources" % len(sources), flush=True)
+    elif user_path is not None and langchain_mode in ['UserData']:
+        print("Existing db, potentially adding %s sources from user_path=%s" % (len(sources), user_path), flush=True)
         db, num_new_sources = add_to_db(db, sources, db_type=db_type)
-        print("Existing db, added %s new sources" % num_new_sources, flush=True)
+        print("Existing db, added %s new sources from user_path=%s" % (num_new_sources, user_path), flush=True)
 
     return db
 
