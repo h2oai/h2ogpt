@@ -18,8 +18,8 @@ def do_export():
     OUTPUT_NAME = "h2ogpt-oasst1-512-12b"
 
     BASE_MODEL = 'tiiuae/falcon-40b'
-    LORA_WEIGHTS = 'falcon-40b.h2oaiopenassistant_oasst1_h2ogpt_graded.3_epochs.2e023709e9a36283986d136e66cb94e0bd7e6452.8'
-    OUTPUT_NAME = "h2ogpt-oasst1-40b"
+    LORA_WEIGHTS = 'falcon-40b.h2oaih2ogpt-oig-oasst1-instruct-cleaned-v3.3_epochs.2e023709e9a36283986d136e66cb94e0bd7e6452.10'
+    OUTPUT_NAME = "h2ogpt-oig-oasst1-40b"
 
     llama_type = "llama" in BASE_MODEL
     as_pytorch = False  # False -> HF
