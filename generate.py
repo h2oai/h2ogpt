@@ -93,8 +93,8 @@ def main(
         stream_output: bool = True,
         show_examples: bool = None,
         verbose: bool = False,
-        h2ocolors: bool = True,
-        height: int = 400,
+        h2ocolors: bool = False,
+        height: int = 600,
         show_lora: bool = True,
         login_mode_if_model0: bool = False,
         block_gradio_exit: bool = True,
@@ -122,6 +122,7 @@ def main(
         visible_langchain_modes: list = ['UserData', 'MyData'],
         document_choice: list = ['All'],
         user_path: str = None,
+        detect_user_path_changes_every_query: bool = False,
         load_db_if_exists: bool = True,
         keep_sources_in_context: bool = False,
         db_type: str = 'chroma',
@@ -214,7 +215,10 @@ def main(
     :param eval_as_output: for no gradio benchmark, whether to test eval_filename output itself
     :param langchain_mode: Data source to include.  Choose "UserData" to only consume files from make_db.py.
            WARNING: wiki_full requires extra data processing via read_wiki_full.py and requires really good workstation to generate db, unless already present.
-    :param user_path: user path to glob from to generate db for vector search, for 'UserData' langchain mode
+    :param user_path: user path to glob from to generate db for vector search, for 'UserData' langchain mode.
+           If already have db, any new/changed files are added automatically if path set, does not have to be same path used for prior db sources
+    :param detect_user_path_changes_every_query: whether to detect if any files changed or added every similarity search (by file hashes).
+           Expensive for large number of files, so not done by default.  By default only detect changes during db loading.
     :param visible_langchain_modes: dbs to generate at launch to be ready for LLM
            Can be up to ['wiki', 'wiki_full', 'UserData', 'MyData', 'github h2oGPT', 'DriverlessAI docs']
            But wiki_full is expensive and requires preparation
@@ -231,7 +235,7 @@ def main(
     :param allow_upload_to_user_data: Whether to allow file uploads to update shared vector db
     :param allow_upload_to_my_data: Whether to allow file uploads to update scratch vector db
     :param enable_url_upload: Whether to allow upload from URL
-    :param enable_text_upload: Whether to allow uplaod of text
+    :param enable_text_upload: Whether to allow upload of text
     :param enable_sources_list: Whether to allow list (or download for non-shared db) of list of sources for chosen db
     :param chunk: Whether to chunk data (True unless know data is already optimally chunked)
     :param chunk_size: Size of chunks, with typically top-4 passed to LLM, so neesd to be in context length
@@ -379,7 +383,9 @@ def main(
                 # FIXME: All should be avoided until scans over each db, shouldn't be separate db
                 continue
             persist_directory1 = 'db_dir_%s' % langchain_mode1  # single place, no special names for each case
-            db = prep_langchain(persist_directory1, load_db_if_exists, db_type, use_openai_embedding,
+            db = prep_langchain(persist_directory1,
+                                load_db_if_exists,
+                                db_type, use_openai_embedding,
                                 langchain_mode1, user_path,
                                 hf_embedding_model,
                                 kwargs_make_db=locals())
@@ -843,6 +849,7 @@ def evaluate(
         load_db_if_exists=True,
         dbs=None,
         user_path=None,
+        detect_user_path_changes_every_query=None,
         use_openai_embedding=None,
         use_openai_model=None,
         hf_embedding_model=None,
@@ -938,6 +945,7 @@ def evaluate(
                            load_db_if_exists=load_db_if_exists,
                            db=db1,
                            user_path=user_path,
+                           detect_user_path_changes_every_query=detect_user_path_changes_every_query,
                            max_new_tokens=max_new_tokens,
                            cut_distanct=1.1 if langchain_mode in ['wiki_full'] else 1.64,  # FIXME, too arbitrary
                            use_openai_embedding=use_openai_embedding,
@@ -1471,6 +1479,32 @@ def score_qa(smodel, stokenizer, max_length_tokenize, question, answer, cutoff_l
             raise
     os.environ['TOKENIZERS_PARALLELISM'] = 'true'
     return score
+
+
+def check_locals(**kwargs):
+    # ensure everything in evaluate is here
+    can_skip_because_locally_generated = [  # evaluate
+        'instruction',
+        'iinput',
+        'context',
+        'instruction_nochat',
+        'iinput_nochat',
+        # get_model:
+        'reward_type'
+    ]
+    for k in eval_func_param_names:
+        if k in can_skip_because_locally_generated:
+            continue
+        assert k in kwargs, "Missing %s" % k
+    for k in inputs_kwargs_list:
+        if k in can_skip_because_locally_generated:
+            continue
+        assert k in kwargs, "Missing %s" % k
+
+    for k in list(inspect.signature(get_model).parameters):
+        if k in can_skip_because_locally_generated:
+            continue
+        assert k in kwargs, "Missing %s" % k
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 import copy
 import torch
 
-from generate import eval_func_param_names, get_score_model, get_model, evaluate
+from generate import eval_func_param_names, get_score_model, get_model, evaluate, check_locals
 from prompter import non_hf_types
 from utils import clear_torch_cache, NullContext, get_kwargs
 
@@ -22,11 +22,14 @@ def run_cli(  # for local function:
         # for evaluate kwargs
         src_lang=None, tgt_lang=None, concurrency_count=None, save_dir=None, sanitize_bot_response=None,
         model_state0=None, raise_generate_gpu_exceptions=None, load_db_if_exists=None, dbs=None, user_path=None,
+        detect_user_path_changes_every_query=None,
         use_openai_embedding=None, use_openai_model=None, hf_embedding_model=None, chunk=None, chunk_size=None,
         db_type=None, n_jobs=None, first_para=None, text_limit=None, verbose=None, cli=None,
         # unique to this function:
         cli_loop=None,
 ):
+    check_locals(**locals())
+
     score_model = ""  # FIXME: For now, so user doesn't have to pass
     n_gpus = torch.cuda.device_count() if torch.cuda.is_available else 0
     device = 'cpu' if n_gpus == 0 else 'cuda'

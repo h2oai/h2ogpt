@@ -21,7 +21,7 @@ from tqdm import tqdm
 
 from prompter import non_hf_types
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
-    get_device, ProgressParallel, remove
+    get_device, ProgressParallel, remove, hash_file
 
 import_matplotlib()
 
@@ -102,32 +102,54 @@ def _get_unique_sources_in_weaviate(db):
     return unique_sources
 
 
-def add_to_db(db, sources, db_type='faiss', avoid_dup=True):
+def add_to_db(db, sources, db_type='faiss',
+              avoid_dup_by_file=False,
+              avoid_dup_by_content=True):
+    num_new_sources = len(sources)
     if not sources:
-        return db
+        return db, num_new_sources
     if db_type == 'faiss':
         db.add_documents(sources)
     elif db_type == 'weaviate':
-        if avoid_dup:
+        # FIXME: only control by file name, not hash yet
+        if avoid_dup_by_file or avoid_dup_by_content:
             unique_sources = _get_unique_sources_in_weaviate(db)
             sources = [x for x in sources if x.metadata['source'] not in unique_sources]
-        if len(sources) == 0:
-            return db
+        num_new_sources = len(sources)
+        if num_new_sources == 0:
+            return db, num_new_sources
         db.add_documents(documents=sources)
-
     elif db_type == 'chroma':
-        if avoid_dup:
-            collection = db.get()
-            metadata_sources = set([x['source'] for x in collection['metadatas']])
-            sources = [x for x in sources if x.metadata['source'] not in metadata_sources]
-        if len(sources) == 0:
-            return db
+        collection = db.get()
+        # files we already have:
+        metadata_files = set([x['source'] for x in collection['metadatas']])
+        if avoid_dup_by_file:
+            # Too weak in case file changed content, assume parent shouldn't pass true for this for now
+            raise RuntimeError("Not desired code path")
+            sources = [x for x in sources if x.metadata['source'] not in metadata_files]
+        if avoid_dup_by_content:
+            # look at hash, instead of page_content
+            # migration: If no hash previously, avoid updating,
+            #  since don't know if need to update and may be expensive to redo all unhashed files
+            metadata_hash_ids = set([x['hashid'] for x in collection['metadatas'] if 'hashid' in x and x['hashid'] not in ["None", None]])
+            # avoid sources with same hash
+            sources = [x for x in sources if x.metadata.get('hashid') not in metadata_hash_ids]
+            # get new file names that match existing file names.  delete existing files we are overridding
+            dup_metadata_files = set([x.metadata['source'] for x in sources if x.metadata['source'] in metadata_files])
+            print("Removing %s duplicate files from db because ingesting those as new documents" % len(dup_metadata_files), flush=True)
+            client_collection = db._client.get_collection(name=db._collection.name)
+            for dup_file in dup_metadata_files:
+                dup_file_meta = dict(source=dup_file)
+                client_collection.delete(where=dup_file_meta)
+        num_new_sources = len(sources)
+        if num_new_sources == 0:
+            return db, num_new_sources
         db.add_documents(documents=sources)
         db.persist()
     else:
         raise RuntimeError("No such db_type=%s" % db_type)
 
-    return db
+    return db, num_new_sources
 
 
 def create_or_update_db(db_type, persist_directory, collection_name,
@@ -432,6 +454,12 @@ try:
 except (pkg_resources.DistributionNotFound, AssertionError):
     have_arxiv = False
 
+try:
+    assert pkg_resources.get_distribution('pymupdf') is not None
+    have_pymupdf = True
+except (pkg_resources.DistributionNotFound, AssertionError):
+    have_pymupdf = False
+
 image_types = ["png", "jpg", "jpeg"]
 non_image_types = ["pdf", "txt", "csv", "toml", "py", "rst", "rtf",
                    "md", "html",
@@ -448,9 +476,10 @@ file_types = non_image_types + image_types
 
 def add_meta(docs1, file):
     file_extension = pathlib.Path(file).suffix
+    hashid = hash_file(file)
     if not isinstance(docs1, list):
         docs1 = [docs1]
-    [x.metadata.update(dict(input_type=file_extension, date=str(datetime.now))) for x in docs1]
+    [x.metadata.update(dict(input_type=file_extension, date=str(datetime.now), hashid=hashid)) for x in docs1]
 
 
 def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, chunk=True, chunk_size=512,
@@ -565,6 +594,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
                 docs1.extend(docs1c)
             for doci in docs1:
                 doci.metadata['source'] = doci.metadata['image_path']
+                doci.metadata['hash'] = hash_file(doci.metadata['source'])
             if docs1:
                 doc1 = chunk_sources(docs1, chunk_size=chunk_size)
     elif file.lower().endswith('.msg'):
@@ -594,9 +624,18 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
             doc1 = Document(page_content=f.read(), metadata={"source": file})
         add_meta(doc1, file)
     elif file.lower().endswith('.pdf'):
+        env_gpt4all_file = ".env_gpt4all"
+        from dotenv import dotenv_values
+        env_kwargs = dotenv_values(env_gpt4all_file)
+        pdf_class_name = env_kwargs.get('PDF_CLASS_NAME', 'PyMuPDFParser')
+        if have_pymupdf and pdf_class_name == 'PyMuPDFParser':
+            # GPL, only use if installed
+            from langchain.document_loaders import PyMuPDFLoader
+            doc1 = PyMuPDFLoader(file).load_and_split()
+        else:
+            # open-source fallback
+            doc1 = PyPDFLoader(file).load_and_split()
         # Some PDFs return nothing or junk from PDFMinerLoader
-        # e.g. Beyond fine-tuning_ Classifying high resolution mammograms using function-preserving transformations _ Elsevier Enhanced Reader.pdf
-        doc1 = PyPDFLoader(file).load_and_split()
         add_meta(doc1, file)
     elif file.lower().endswith('.csv'):
         doc1 = CSVLoader(file).load()
@@ -690,6 +729,8 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
                  captions_model=None,
                  caption_loader=None,
                  enable_ocr=False,
+                 existing_files=[],
+                 existing_hash_ids={},
                  ):
     globs_image_types = []
     globs_non_image_types = []
@@ -717,6 +758,28 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
         # But instead, allow fail so can collect unsupported too
         set_globs_image_types = set(globs_image_types)
         globs_non_image_types.extend([x for x in path_or_paths if x not in set_globs_image_types])
+
+    # filter out any files to skip (e.g. if already processed them)
+    # this is easy, but too aggressive in case a file changed, so parent probably passed existing_files=[]
+    assert not existing_files, "DEV: assume not using this approach"
+    if existing_files:
+        set_skip_files = set(existing_files)
+        globs_image_types = [x for x in globs_image_types if x not in set_skip_files]
+        globs_non_image_types = [x for x in globs_non_image_types if x not in set_skip_files]
+    if existing_hash_ids:
+        # assume consistent with add_meta() use of hash_file(file)
+        # also assume consistent with get_existing_hash_ids for dict creation
+        # assume hashable values
+        existing_hash_ids_set = set(existing_hash_ids.items())
+        hash_ids_all_image = set({x: hash_file(x) for x in globs_image_types}.items())
+        hash_ids_all_non_image = set({x: hash_file(x) for x in globs_non_image_types}.items())
+        # don't use symmetric diff.  If file is gone, ignore and don't remove or something
+        #  just consider existing files (key) having new hash or not (value)
+        new_files_image = set(dict(hash_ids_all_image - existing_hash_ids_set).keys())
+        new_files_non_image = set(dict(hash_ids_all_non_image - existing_hash_ids_set).keys())
+        globs_image_types = [x for x in globs_image_types if x in new_files_image]
+        globs_non_image_types = [x for x in globs_non_image_types if x in new_files_non_image]
+
     # could use generator, but messes up metadata handling in recursive case
     if caption_loader and not isinstance(caption_loader, (bool, str)) and \
             caption_loader.device != 'cpu' or \
@@ -776,7 +839,9 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
     return documents
 
 
-def prep_langchain(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode, user_path,
+def prep_langchain(persist_directory,
+                   load_db_if_exists,
+                   db_type, use_openai_embedding, langchain_mode, user_path,
                    hf_embedding_model, n_jobs=-1, kwargs_make_db={}):
     """
     do prep first time, involving downloads
@@ -785,12 +850,17 @@ def prep_langchain(persist_directory, load_db_if_exists, db_type, use_openai_emb
     """
     assert langchain_mode not in ['MyData'], "Should not prep scratch data"
 
-    if os.path.isdir(persist_directory):
+    db_dir_exists = os.path.isdir(persist_directory)
+
+    if db_dir_exists and user_path is None:
         print("Prep: persist_directory=%s exists, using" % persist_directory, flush=True)
         db = get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
                              hf_embedding_model)
     else:
-        print("Prep: persist_directory=%s does not exist, regenerating" % persist_directory, flush=True)
+        if db_dir_exists and user_path is not None:
+            print("Prep: persist_directory=%s exists, user_path=%s passed, adding any changed or new documents" % (persist_directory, user_path), flush=True)
+        elif not db_dir_exists:
+            print("Prep: persist_directory=%s does not exist, regenerating" % persist_directory, flush=True)
         db = None
         if langchain_mode in ['All', 'DriverlessAI docs']:
             # FIXME: Could also just use dai_docs.pickle directly and upload that
@@ -843,7 +913,7 @@ def get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_em
         from chromadb.config import Settings
         client_settings = Settings(anonymized_telemetry=False,
                                    chroma_db_impl="duckdb+parquet",
-                                   persist_directory=persist_directory, )
+                                   persist_directory=persist_directory)
         db = Chroma(persist_directory=persist_directory, embedding_function=embedding,
                     collection_name=langchain_mode.replace(' ', '_'),
                     client_settings=client_settings)
@@ -873,7 +943,7 @@ def _make_db(use_openai_embedding=False,
              langchain_mode=None,
              user_path=None,
              db_type='faiss',
-             load_db_if_exists=False,
+             load_db_if_exists=True,
              db=None,
              n_jobs=-1,
              verbose=False):
@@ -881,15 +951,31 @@ def _make_db(use_openai_embedding=False,
     if not db and load_db_if_exists and db_type == 'chroma' and os.path.isdir(persist_directory) and os.path.isdir(
             os.path.join(persist_directory, 'index')):
         assert langchain_mode not in ['MyData'], "Should not load MyData db this way"
-        print("Loading db", flush=True)
+        print("Loading existing db", flush=True)
         embedding = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model)
+        from chromadb.config import Settings
+        client_settings = Settings(anonymized_telemetry=False,
+                                   chroma_db_impl="duckdb+parquet",
+                                   persist_directory=persist_directory)
         db = Chroma(persist_directory=persist_directory, embedding_function=embedding,
-                    collection_name=langchain_mode.replace(' ', '_'))
-    elif not db and langchain_mode not in ['MyData']:
+                    collection_name=langchain_mode.replace(' ', '_'),
+                    client_settings=client_settings)
+    sources = []
+    if not db and langchain_mode not in ['MyData'] or \
+            user_path is not None and \
+            langchain_mode in ['UserData']:
         # Should not make MyData db this way, why avoided, only upload from UI
-        sources = []
+        assert langchain_mode not in ['MyData'], "Should not make MyData db this way"
         if verbose:
-            print("Generating sources", flush=True)
+            if langchain_mode in ['UserData']:
+                if user_path is not None:
+                    print("Checking if changed or new sources in %s, and generating sources them" % user_path, flush=True)
+                elif db is None:
+                    print("user_path not passed and no db, no sources", flush=True)
+                else:
+                    print("user_path not passed, using only existing db, no new sources", flush=True)
+            else:
+                print("Generating %s sources" % langchain_mode, flush=True)
         if langchain_mode in ['wiki_full', 'All', "'All'"]:
             from read_wiki_full import get_all_documents
             small_test = None
@@ -918,9 +1004,25 @@ def _make_db(use_openai_embedding=False,
             sources.extend(sources1)
         if langchain_mode in ['All', 'UserData']:
             if user_path:
+                if db is not None:
+                    # NOTE: Ignore file names for now, only go by hash ids
+                    # existing_files = get_existing_files(db)
+                    existing_files = []
+                    existing_hash_ids = get_existing_hash_ids(db)
+                else:
+                    # pretend no existing files so won't filter
+                    existing_files = []
+                    existing_hash_ids = []
                 # chunk internally for speed over multiple docs
-                sources1 = path_to_docs(user_path, n_jobs=n_jobs, chunk=chunk, chunk_size=chunk_size)
+                sources1 = path_to_docs(user_path, n_jobs=n_jobs, chunk=chunk, chunk_size=chunk_size,
+                                        existing_files=existing_files, existing_hash_ids=existing_hash_ids)
+                new_metadata_sources = set([x.metadata['source'] for x in sources1])
+                if new_metadata_sources:
+                    print("Loaded %s new files as sources to add to UserData" % len(new_metadata_sources), flush=True)
+                    if verbose:
+                        print("Files added: %s" % '\n'.join(new_metadata_sources), flush=True)
                 sources.extend(sources1)
+                print("Loaded %s sources for potentially adding to UserData" % len(sources), flush=True)
             else:
                 print("Chose UserData but user_path is empty/None", flush=True)
         if False and langchain_mode in ['urls', 'All', "'All'"]:
@@ -933,16 +1035,44 @@ def _make_db(use_openai_embedding=False,
             sources.extend(sources1)
         if not sources:
             if verbose:
-                print("langchain_mode %s has no sources, not making db" % langchain_mode, flush=True)
-            return None
+                if db is not None:
+                    print("langchain_mode %s has no new sources, nothing to add to db" % langchain_mode, flush=True)
+                else:
+                    print("langchain_mode %s has no sources, not making new db" % langchain_mode, flush=True)
+            return db
         if verbose:
-            print("Generating db", flush=True)
-        db = get_db(sources, use_openai_embedding=use_openai_embedding, db_type=db_type,
-                    persist_directory=persist_directory, langchain_mode=langchain_mode,
-                    hf_embedding_model=hf_embedding_model)
-        if verbose:
-            print("Generated db", flush=True)
+            if db is not None:
+                print("Generating db", flush=True)
+            else:
+                print("Adding to db", flush=True)
+    if not db:
+        if sources:
+            db = get_db(sources, use_openai_embedding=use_openai_embedding, db_type=db_type,
+                        persist_directory=persist_directory, langchain_mode=langchain_mode,
+                        hf_embedding_model=hf_embedding_model)
+            if verbose:
+                print("Generated db", flush=True)
+        else:
+            print("Did not generate db since no sources", flush=True)
+    elif user_path is not None and langchain_mode in ['UserData']:
+        print("Existing db, potentially adding %s sources from user_path=%s" % (len(sources), user_path), flush=True)
+        db, num_new_sources = add_to_db(db, sources, db_type=db_type)
+        print("Existing db, added %s new sources from user_path=%s" % (num_new_sources, user_path), flush=True)
+
     return db
+
+
+def get_existing_files(db):
+    collection = db.get()
+    metadata_sources = set([x['source'] for x in collection['metadatas']])
+    return metadata_sources
+
+
+def get_existing_hash_ids(db):
+    collection = db.get()
+    # assume consistency, that any prior hashed source was single hashed file at the time among all source chunks
+    metadata_hash_ids = {x['source']: x.get('hashid') for x in collection['metadatas']}
+    return metadata_hash_ids
 
 
 source_prefix = "Sources [Score | Link]:"
@@ -966,6 +1096,7 @@ def _run_qa_db(query=None,
                use_openai_model=False, use_openai_embedding=False,
                first_para=False, text_limit=None, k=4, chunk=False, chunk_size=1024,
                user_path=None,
+               detect_user_path_changes_every_query=False,
                db_type='faiss',
                model_name=None, model=None, tokenizer=None,
                hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
@@ -1098,6 +1229,7 @@ def get_similarity_chain(query=None,
                          use_openai_model=False, use_openai_embedding=False,
                          first_para=False, text_limit=None, k=4, chunk=False, chunk_size=1024,
                          user_path=None,
+                         detect_user_path_changes_every_query=False,
                          db_type='faiss',
                          model_name=None,
                          hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
@@ -1128,6 +1260,11 @@ def get_similarity_chain(query=None,
     k_db = 1000 if db_type == 'chroma' else k  # k=100 works ok too for
 
     # FIXME: For All just go over all dbs instead of a separate db for All
+    if not detect_user_path_changes_every_query and db is not None:
+        # avoid looking at user_path during similarity search db handling,
+        # if already have db and not updating from user_path every query
+        # but if db is None, no db yet loaded (e.g. from prep), so allow user_path to be whatever it was
+        user_path = None
     db = make_db(use_openai_embedding=use_openai_embedding,
                  hf_embedding_model=hf_embedding_model,
                  first_para=first_para, text_limit=text_limit, chunk=chunk, chunk_size=chunk_size,
