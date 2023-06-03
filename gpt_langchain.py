@@ -105,17 +105,18 @@ def _get_unique_sources_in_weaviate(db):
 def add_to_db(db, sources, db_type='faiss',
               avoid_dup_by_file=True,
               avoid_dup_by_content=True):
+    num_new_sources = len(sources)
     if not sources:
-        return db, 0
+        return db, num_new_sources
     if db_type == 'faiss':
         db.add_documents(sources)
-        num_new_sources = len(sources)
     elif db_type == 'weaviate':
         if avoid_dup_by_file:
             unique_sources = _get_unique_sources_in_weaviate(db)
             sources = [x for x in sources if x.metadata['source'] not in unique_sources]
-        if len(sources) == 0:
-            return db
+        num_new_sources = len(sources)
+        if num_new_sources == 0:
+            return db, num_new_sources
         db.add_documents(documents=sources)
     elif db_type == 'chroma':
         collection = db.get()
@@ -134,9 +135,9 @@ def add_to_db(db, sources, db_type='faiss',
             print("Removing %s duplicate files from db because ingesting those as new documents" % len(dup_metadata_files), flush=True)
             for dup_file in dup_metadata_files:
                 collection.delete(where=dup_file)
-        if len(sources) == 0:
-            return db, 0
         num_new_sources = len(sources)
+        if num_new_sources == 0:
+            return db, num_new_sources
         db.add_documents(documents=sources)
         db.persist()
     else:
