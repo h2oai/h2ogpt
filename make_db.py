@@ -1,10 +1,8 @@
 import os
-
 import fire
-from langchain.vectorstores import Chroma
 
 from gpt_langchain import path_to_docs, get_db, get_some_dbs_from_hf, all_db_zips, some_db_zips, \
-    get_embedding, add_to_db
+    get_embedding, add_to_db, create_or_update_db
 
 
 def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False,
@@ -45,6 +43,7 @@ def make_db_main(use_openai_embedding: bool = False,
                  pre_load_caption_model: bool = False,
                  caption_gpu: bool = True,
                  enable_ocr: bool = False,
+                 db_type: str = 'chroma',
                  ):
     """
     # To make UserData db for generate.py, put pdfs, etc. into path user_path and run:
@@ -85,29 +84,29 @@ def make_db_main(use_openai_embedding: bool = False,
     :param pre_load_caption_model: See generate.py
     :param caption_gpu: Caption images on GPU if present
     :param enable_ocr: Whether to enable OCR on images
+    :param db_type: Type of db to create. Currently only 'chroma' and 'weaviate' is supported.
     :return: None
     """
-
-    db_type = 'chroma'
+    db = None
 
     if download_all:
         print("Downloading all (and unzipping): %s" % all_db_zips, flush=True)
         get_some_dbs_from_hf(download_dest, db_zips=all_db_zips)
         if verbose:
             print("DONE", flush=True)
-        return
+        return db, collection_name
     elif download_some:
         print("Downloading some (and unzipping): %s" % some_db_zips, flush=True)
         get_some_dbs_from_hf(download_dest, db_zips=some_db_zips)
         if verbose:
             print("DONE", flush=True)
-        return
+        return db, collection_name
     elif download_one:
         print("Downloading %s (and unzipping)" % download_one, flush=True)
         get_some_dbs_from_hf(download_dest, db_zips=[[download_one, '', 'Unknown License']])
         if verbose:
             print("DONE", flush=True)
-        return
+        return db, collection_name
 
     if enable_captions and pre_load_caption_model:
         # preload, else can be too slow or if on GPU have cuda context issues
@@ -142,30 +141,14 @@ def make_db_main(use_openai_embedding: bool = False,
     sources = [x for x in sources if 'exception' not in x.metadata]
 
     assert len(sources) > 0, "No sources found"
-    if not os.path.isdir(persist_directory) or not add_if_exists:
-        if os.path.isdir(persist_directory):
-            if verbose:
-                print("Removing %s" % persist_directory, flush=True)
-            os.remove(persist_directory)
-        if verbose:
-            print("Generating db", flush=True)
-        db = get_db(sources,
-                    use_openai_embedding=use_openai_embedding,
-                    db_type=db_type,
-                    persist_directory=persist_directory,
-                    langchain_mode='UserData',
-                    hf_embedding_model=hf_embedding_model)
-    else:
-        # get embedding model
-        embedding = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model)
-        db = Chroma(embedding_function=embedding,
-                    persist_directory=persist_directory,
-                    collection_name=collection_name)
-        add_to_db(db, sources, db_type=db_type)
+    db = create_or_update_db(db_type, persist_directory, collection_name,
+                             sources, use_openai_embedding, add_if_exists, verbose,
+                             hf_embedding_model)
+
     assert db is not None
     if verbose:
         print("DONE", flush=True)
-    return db
+    return db, collection_name
 
 
 if __name__ == "__main__":

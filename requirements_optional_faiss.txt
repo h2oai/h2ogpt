@@ -1,3 +1,0 @@
-# choose:
-#faiss-cpu
-faiss-gpu==1.7.2

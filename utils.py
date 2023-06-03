@@ -374,18 +374,15 @@ def sanitize_filename(name):
     return name
 
 
-def shutil_rmtree_simple(*args, **kwargs):
-    path = args[0]
-    assert not os.path.samefile(path, "./tmp"), "Should not be trying to remove entire data directory: %s" % str(path)
-    # print("Removing path %s" % args[0])  # for debugging
+def shutil_rmtree(*args, **kwargs):
     return shutil.rmtree(*args, **kwargs)
 
 
-def remove_simple(path: str):
+def remove(path: str):
     try:
         if path is not None and os.path.exists(path):
             if os.path.isdir(path):
-                shutil_rmtree_simple(path, ignore_errors=True)
+                shutil_rmtree(path, ignore_errors=True)
             else:
                 with contextlib.suppress(FileNotFoundError):
                     os.remove(path)
@@ -411,7 +408,7 @@ def atomic_move_simple(src, dst):
         shutil.move(src, dst)
     except (shutil.Error, FileExistsError):
         pass
-    remove_simple(src)
+    remove(src)
 
 
 def download_simple(url, dest=None, print_func=None):
@@ -484,7 +481,7 @@ def download(url, dest=None, dest_path=None):
         shutil.move(dest_tmp, dest)
     except FileExistsError:
         pass
-    remove_simple(dest_tmp)
+    remove(dest_tmp)
     return dest
 
 

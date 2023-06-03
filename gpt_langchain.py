@@ -21,7 +21,7 @@ from tqdm import tqdm
 
 from prompter import non_hf_types
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
-    get_device, ProgressParallel, hash_file
+    get_device, ProgressParallel, remove, hash_file
 
 import_matplotlib()
 
@@ -45,18 +45,36 @@ from langchain.vectorstores import Chroma
 
 
 def get_db(sources, use_openai_embedding=False, db_type='faiss', persist_directory="db_dir", langchain_mode='notset',
+           collection_name=None,
            hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2"):
     if not sources:
         return None
     # get embedding model
     embedding = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model)
+    assert collection_name is not None or langchain_mode != 'notset'
+    if collection_name is None:
+        collection_name = langchain_mode.replace(' ', '_')
 
     # Create vector database
     if db_type == 'faiss':
         from langchain.vectorstores import FAISS
         db = FAISS.from_documents(sources, embedding)
+
+    elif db_type == 'weaviate':
+        import weaviate
+        from weaviate.embedded import EmbeddedOptions
+        from langchain.vectorstores import Weaviate
+
+        # TODO: add support for connecting via docker compose
+        client = weaviate.Client(
+            embedded_options=EmbeddedOptions()
+        )
+        index_name = collection_name.capitalize()
+        db = Weaviate.from_documents(documents=sources, embedding=embedding, client=client, by_text=False,
+                                     index_name=index_name)
+
     elif db_type == 'chroma':
-        collection_name = langchain_mode.replace(' ', '_')
+        assert persist_directory is not None
         os.makedirs(persist_directory, exist_ok=True)
         db = Chroma.from_documents(documents=sources,
                                    embedding=embedding,
@@ -64,15 +82,24 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss', persist_directo
                                    collection_name=collection_name,
                                    anonymized_telemetry=False)
         db.persist()
-        # FIXME: below just proves can load persistent dir, regenerates its embedding files, so a bit wasteful
-        if False:
-            db = Chroma(embedding_function=embedding,
-                        persist_directory=persist_directory,
-                        collection_name=collection_name)
     else:
         raise RuntimeError("No such db_type=%s" % db_type)
 
     return db
+
+
+def _get_unique_sources_in_weaviate(db):
+    batch_size = 100
+    id_source_list = []
+    result = db._client.data_object.get(class_name=db._index_name, limit=batch_size)
+
+    while result['objects']:
+        id_source_list += [(obj['id'], obj['properties']['source']) for obj in result['objects']]
+        last_id = id_source_list[-1][0]
+        result = db._client.data_object.get(class_name=db._index_name, limit=batch_size, after=last_id)
+
+    unique_sources = {source for _, source in id_source_list}
+    return unique_sources
 
 
 def add_to_db(db, sources, db_type='faiss',
@@ -83,6 +110,13 @@ def add_to_db(db, sources, db_type='faiss',
     if db_type == 'faiss':
         db.add_documents(sources)
         num_new_sources = len(sources)
+    elif db_type == 'weaviate':
+        if avoid_dup_by_file:
+            unique_sources = _get_unique_sources_in_weaviate(db)
+            sources = [x for x in sources if x.metadata['source'] not in unique_sources]
+        if len(sources) == 0:
+            return db
+        db.add_documents(documents=sources)
     elif db_type == 'chroma':
         collection = db.get()
         metadata_files = set([x['source'] for x in collection['metadatas']])
@@ -109,6 +143,47 @@ def add_to_db(db, sources, db_type='faiss',
         raise RuntimeError("No such db_type=%s" % db_type)
 
     return db, num_new_sources
+
+
+def create_or_update_db(db_type, persist_directory, collection_name,
+                        sources, use_openai_embedding, add_if_exists, verbose, hf_embedding_model):
+    if db_type == 'weaviate':
+        import weaviate
+        from weaviate.embedded import EmbeddedOptions
+
+        # TODO: add support for connecting via docker compose
+        client = weaviate.Client(
+            embedded_options=EmbeddedOptions()
+        )
+        index_name = collection_name.replace(' ', '_').capitalize()
+        if client.schema.exists(index_name) and not add_if_exists:
+            client.schema.delete_class(index_name)
+            if verbose:
+                print("Removing %s" % index_name, flush=True)
+    elif db_type == 'chroma':
+        if not os.path.isdir(persist_directory) or not add_if_exists:
+            if os.path.isdir(persist_directory):
+                if verbose:
+                    print("Removing %s" % persist_directory, flush=True)
+                remove(persist_directory)
+            if verbose:
+                print("Generating db", flush=True)
+
+    if not add_if_exists:
+        if verbose:
+            print("Generating db", flush=True)
+    else:
+        if verbose:
+            print("Loading and updating db", flush=True)
+
+    db = get_db(sources,
+                use_openai_embedding=use_openai_embedding,
+                db_type=db_type,
+                persist_directory=persist_directory,
+                langchain_mode=collection_name,
+                hf_embedding_model=hf_embedding_model)
+
+    return db
 
 
 def get_embedding(use_openai_embedding, hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2"):
@@ -780,10 +855,14 @@ def prep_langchain(persist_directory,
 
 
 import posthog
+
 posthog.disabled = True
+
+
 class FakeConsumer(object):
-    def __init__(self,*args, **kwargs):
+    def __init__(self, *args, **kwargs):
         pass
+
     def run(self):
         pass
 
@@ -862,9 +941,10 @@ def _make_db(use_openai_embedding=False,
                     collection_name=langchain_mode.replace(' ', '_'),
                     client_settings=client_settings)
     sources = []
-    if not db or \
+    if not db and langchain_mode not in ['MyData'] or \
             (add_to_userdata_db_if_exists or add_new_files_to_userdata_db_if_exists) and \
             langchain_mode in ['UserData']:
+        # Should not make MyData db this way, why avoided, only upload from UI
         assert langchain_mode not in ['MyData'], "Should not make MyData db this way"
         if verbose:
             if add_to_userdata_db_if_exists:
@@ -1017,7 +1097,7 @@ def _run_qa_db(query=None,
     :param chunk:
     :param chunk_size:
     :param user_path: user path to glob recursively from
-    :param db_type: 'faiss' for in-memory db or 'chroma' for persistent db
+    :param db_type: 'faiss' for in-memory db or 'chroma' or 'weaviate' for persistent db
     :param model_name: model name, used to switch behaviors
     :param model: pre-initialized model, else will make new one
     :param tokenizer: pre-initialized tokenizer, else will make new one.  Required not None if model is not None
@@ -1056,7 +1136,7 @@ def _run_qa_db(query=None,
     missing_kwargs = [x for x in func_names if x not in sim_kwargs]
     assert not missing_kwargs, "Missing: %s" % missing_kwargs
     docs, chain, scores, use_context = get_similarity_chain(**sim_kwargs)
-    if document_choice[0] == 'Only':
+    if len(document_choice) > 0 and document_choice[0] == 'Only':
         formatted_doc_chunks = '\n\n'.join([get_url(x) + '\n\n' + x.page_content for x in docs])
         yield formatted_doc_chunks, ''
         return
@@ -1107,7 +1187,7 @@ def _run_qa_db(query=None,
         extra = ''
         yield ret, extra
     elif answer is not None:
-        ret, extra = get_sources_answer(query, answer, scores, show_rank, answer_with_sources)
+        ret, extra = get_sources_answer(query, answer, scores, show_rank, answer_with_sources, verbose=verbose)
         yield ret, extra
     return
 
@@ -1161,19 +1241,23 @@ def get_similarity_chain(query=None,
         if isinstance(document_choice, str):
             # support string as well
             document_choice = [document_choice]
-        if not isinstance(db, Chroma) or len(document_choice) <= 1 and document_choice[0] == 'All':
+        if not isinstance(db, Chroma) or \
+                len(document_choice) == 0 or \
+                len(document_choice) <= 1 and document_choice[0] == 'All':
             # treat empty list as All for now, not 'None'
             filter_kwargs = {}
-        elif document_choice[0] == 'Only':
+        elif len(document_choice) > 0 and document_choice[0] == 'Only':
             # Only means All docs, but only will return sources, not LLM response
             filter_kwargs = {}
         else:
             if len(document_choice) >= 2:
                 or_filter = [{"source": {"$eq": x}} for x in document_choice]
                 filter_kwargs = dict(filter={"$or": or_filter})
-            else:
+            elif len(document_choice) > 0:
                 one_filter = [{"source": {"$eq": x}} for x in document_choice][0]
                 filter_kwargs = dict(filter=one_filter)
+            else:
+                filter_kwargs = {}
             if len(document_choice) == 1 and document_choice[0] == 'None':
                 k_db = 1
                 k = 0
@@ -1181,7 +1265,7 @@ def get_similarity_chain(query=None,
         # cut off so no high distance docs/sources considered
         docs = [x[0] for x in docs_with_score if x[1] < cut_distanct]
         scores = [x[1] for x in docs_with_score if x[1] < cut_distanct]
-        if len(scores) > 0:
+        if len(scores) > 0 and verbose:
             print("Distance: min: %s max: %s mean: %s median: %s" %
                   (scores[0], scores[-1], np.mean(scores), np.median(scores)), flush=True)
     else:
@@ -1192,7 +1276,7 @@ def get_similarity_chain(query=None,
         # if HF type and have no docs, can bail out
         return docs, None, [], False
 
-    if document_choice[0] == 'Only':
+    if len(document_choice) > 0 and document_choice[0] == 'Only':
         # no LLM use
         return docs, None, [], False
 
@@ -1243,9 +1327,10 @@ def get_similarity_chain(query=None,
     return docs, target, scores, use_context
 
 
-def get_sources_answer(query, answer, scores, show_rank, answer_with_sources):
-    print("query: %s" % query, flush=True)
-    print("answer: %s" % answer['output_text'], flush=True)
+def get_sources_answer(query, answer, scores, show_rank, answer_with_sources, verbose=False):
+    if verbose:
+        print("query: %s" % query, flush=True)
+        print("answer: %s" % answer['output_text'], flush=True)
 
     if len(answer['input_documents']) == 0:
         extra = ''

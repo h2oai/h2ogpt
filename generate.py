@@ -113,9 +113,10 @@ def main(
         score_model: str = 'OpenAssistant/reward-model-deberta-v3-large-v2',
         auto_score: bool = True,
 
-        eval_sharegpt_prompts_only: int = 0,
-        eval_sharegpt_prompts_only_seed: int = 1234,
-        eval_sharegpt_as_output: bool = False,
+        eval_filename: str = None,
+        eval_prompts_only_num: int = 0,
+        eval_prompts_only_seed: int = 1234,
+        eval_as_output: bool = False,
 
         langchain_mode: str = 'Disabled',
         visible_langchain_modes: list = ['UserData', 'MyData'],
@@ -209,9 +210,10 @@ def main(
     :param extra_lora_options: extra LORA to show in list in gradio
     :param score_model: which model to score responses (None means no scoring)
     :param auto_score: whether to automatically score responses
-    :param eval_sharegpt_prompts_only: for no gradio benchmark, if using ShareGPT prompts for eval
-    :param eval_sharegpt_prompts_only_seed: for no gradio benchmark, if seed for ShareGPT sampling
-    :param eval_sharegpt_as_output: for no gradio benchmark, whether to test ShareGPT output itself
+    :param eval_filename: json file to use for evaluation, if None is sharegpt
+    :param eval_prompts_only_num: for no gradio benchmark, if using eval_filename prompts for eval instead of examples
+    :param eval_prompts_only_seed: for no gradio benchmark, seed for eval_filename sampling
+    :param eval_as_output: for no gradio benchmark, whether to test eval_filename output itself
     :param langchain_mode: Data source to include.  Choose "UserData" to only consume files from make_db.py.
            WARNING: wiki_full requires extra data processing via read_wiki_full.py and requires really good workstation to generate db, unless already present.
     :param user_path: user path to glob from to generate db for vector search, for 'UserData' langchain mode
@@ -228,7 +230,7 @@ def main(
            At least embedding is not redone for duplicate sources.
     :param add_new_files_to_userdata_db_if_exists: Similar to add_to_userdata_db_if_exists, but assume prior sources do not need to be re-parsed, and only new files are parsed and embedded.
     :param keep_sources_in_context: Whether to keep url sources in context, not helpful usually
-    :param db_type: 'faiss' for in-memory or 'chroma' for persisted on disk
+    :param db_type: 'faiss' for in-memory or 'chroma' or 'weaviate' for persisted on disk
     :param use_openai_embedding: Whether to use OpenAI embeddings for vector db
     :param use_openai_model: Whether to use OpenAI model for use with vector db
     :param hf_embedding_model: Which HF embedding model to use for vector db
@@ -1325,9 +1327,6 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
             prompt_type = prompt_type or 'plain'
         else:
             prompt_type = ''
-        examples += [[summarize_example1, 'Summarize' if prompt_type not in ['plain', 'instruct_simple'] else '', "",
-                      stream_output, prompt_type or 'plain', 0.1, 0.75, 40, 4, 256, 0, False, max_time_defaults, 1.0, 1,
-                      False]]
         task_info = "No task"
         if prompt_type == 'instruct':
             task_info = "Answer question or follow imperative as instruction with optionally input."
@@ -1402,6 +1401,8 @@ y = np.random.randint(0, 1, 100)
 
 # fit random forest classifier with 20 estimators""", ''] + params_list,
         ]
+    # add summary example
+    examples += [[summarize_example1, 'Summarize' if prompt_type not in ['plain', 'instruct_simple'] else ''] + params_list]
 
     src_lang = "English"
     tgt_lang = "Russian"

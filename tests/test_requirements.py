@@ -3,7 +3,10 @@ from pathlib import Path
 import pkg_resources
 from pkg_resources import DistributionNotFound, VersionConflict
 
+from tests.utils import wrap_test_forked
 
+
+@wrap_test_forked
 def test_requirements():
     """Test that each required package is available."""
     packages_all = []

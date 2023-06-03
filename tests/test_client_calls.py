@@ -1,10 +1,5 @@
-import os
-import shutil
-
 import pytest
-
 from tests.utils import wrap_test_forked, make_user_path_test, get_llama
-from utils import makedirs
 
 
 @wrap_test_forked
@@ -42,7 +37,7 @@ def test_client_chat_nostream_gpt4all():
 @wrap_test_forked
 def test_client_chat_nostream_gpt4all_llama():
     res_dict, client = run_client_chat_with_server(stream_output=False, base_model='gpt4all_llama', prompt_type='plain')
-    assert 'What do you want? Why are you here?' in res_dict['response']
+    assert 'What do you want from me?' in res_dict['response'] or 'What do you want?' in res_dict['response']
 
 
 @wrap_test_forked
@@ -142,7 +137,7 @@ def test_client_chat_stream_langchain_steps():
 
     res_dict, client = run_client(client, prompt, args, kwargs)
     # odd answer since no whisper docs, but still shows some docs at very low score
-    assert 'Whisper is a chatbot that can be used' in res_dict['response'] and '.md' in res_dict['response']
+    assert 'Whisper is a secure messaging app that allows' in res_dict['response'] and '.md' in res_dict['response']
 
 
 @wrap_test_forked

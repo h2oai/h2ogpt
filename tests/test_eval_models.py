@@ -10,6 +10,7 @@ from tests.utils import wrap_test_forked
 @pytest.mark.parametrize(
     "base_model",
     [
+        "h2oai/h2ogpt-oasst1-falcon-40b",
         "h2oai/h2ogpt-oig-oasst1-512-6_9b",
         "h2oai/h2ogpt-oig-oasst1-512-12b",
         "h2oai/h2ogpt-oig-oasst1-512-20b",
@@ -37,8 +38,8 @@ def test_score_eval(base_model):
         chat=False,
         stream_output=False,
         gradio=False,
-        eval_sharegpt_prompts_only=500,
-        eval_sharegpt_as_output=False,
+        eval_prompts_only_num=500,
+        eval_as_output=False,
         num_beams=2,
         infer_devices=False,
     )

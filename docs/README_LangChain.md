@@ -2,32 +2,18 @@
 
 Our goal is to make it easy to have private offline document question-answer using LLMs.
 
-### Try h2oGPT now, with LangChain on example databases 
-
-Live hosted instances:
-- [![img-small.png](img-small.png) Latest LangChain-enabled h2oGPT (temporary link) 12B](https://b7d3d0f641ce517fb5.gradio.live/)
-- [![img-small.png](img-small.png) Latest LangChain-enabled h2oGPT (temporary link) 12B](https://e543f2006f237cb8dc.gradio.live)
-- [![img-small.png](img-small.png) Latest LangChain-enabled h2oGPT (temporary link) 12B](https://9ae2ee93116d6c21f2.gradio.live)
-- [![img-small.png](img-small.png) Latest LangChain-enabled h2oGPT (temporary link) 12B](https://9d2abc46e67a32b60c.gradio.live)
-
-For questions, discussing, or just hanging out, come and join our <a href="https://discord.gg/WKhYMWcVbq"><b>Discord</b></a>!
-
 ## Getting Started
 
-To get started quickly to upload from Chatbot any docs, urls, etc. do:
-```bash
-grep -v '#\|peft' requirements.txt > req_constraints.txt
-pip install -r requirements_optional_langchain.txt -c req_constraints.txt
-python generate.py --base_model=h2oai/h2ogpt-oasst1-512-12b --load_8bit=True --langchain_mode=MyData
-```
-See below for additional instructions to add support for some file types.
+Follow the main [README](../README.md#getting-started) getting started steps.  In this readme, we focus on other optional aspects.
 
 To support GPU FAISS database, run:
 ```bash
-grep -v '#\|peft' requirements.txt > req_constraints.txt
-pip install -r requirements_optional_faiss.txt -c req_constraints.txt
+pip install -r reqs_optional/requirements_optional_faiss.txt
 ```
-or if you have no GPUs, you can still use FAISS but comment-out the faiss-gpu line and uncomment the faiss-cpu line.
+or for CPU FAISS database, run:
+```bash
+pip install -r reqs_optional/requirements_optional_faiss_cpu.txt
+```
 
 ## Supported Datatypes
 
@@ -87,8 +73,7 @@ sudo apt-get install libreoffice
 
 To support ArXiv API, do:
 ```bash
-grep -v '#\|peft' requirements.txt > req_constraints.txt
-pip install -r requirements_optional_langchain.gpllike.txt -c req_constraints.txt
+pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt
 ```
 but pymupdf is AGPL, requiring any source code be made available, which is not an issue directly for h2oGPT, but it's like GPL and too strong a constraint for general commercial use.
 
@@ -121,7 +106,7 @@ python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b --langchain_mod
 ```
 which will go through all documents to see if anything changed or new docs are added to the `user_path`, but only new documents will be embedded.
 
-## FAQ
+## Document Question-Answer FAQ
 
 #### Why does the source link not work?
 
