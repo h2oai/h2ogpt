@@ -726,7 +726,8 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
                  captions_model=None,
                  caption_loader=None,
                  enable_ocr=False,
-                 skip_files=[],
+                 existing_files=[],
+                 existing_hash_ids={},
                  ):
     globs_image_types = []
     globs_non_image_types = []
@@ -756,9 +757,25 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
         globs_non_image_types.extend([x for x in path_or_paths if x not in set_globs_image_types])
 
     # filter out any files to skip (e.g. if already processed them)
-    set_skip_files = set(skip_files)
-    globs_image_types = [x for x in globs_image_types if x not in set_skip_files]
-    globs_non_image_types = [x for x in globs_non_image_types if x not in set_skip_files]
+    # this is easy, but too aggressive in case a file changed, so parent probably passed existing_files=[]
+    assert not existing_files, "DEV: assume not using this approach"
+    if existing_files:
+        set_skip_files = set(existing_files)
+        globs_image_types = [x for x in globs_image_types if x not in set_skip_files]
+        globs_non_image_types = [x for x in globs_non_image_types if x not in set_skip_files]
+    if existing_hash_ids:
+        # assume consistent with add_meta() use of hash_file(file)
+        # also assume consistent with get_existing_hash_ids for dict creation
+        # assume hashable values
+        existing_hash_ids_set = set(existing_hash_ids.items())
+        hash_ids_all_image = set({x: hash_file(x) for x in globs_image_types}.items())
+        hash_ids_all_non_image = set({x: hash_file(x) for x in globs_non_image_types}.items())
+        # don't use symmetric diff.  If file is gone, ignore and don't remove or something
+        #  just consider existing files (key) having new hash or not (value)
+        diff_image = set(dict(hash_ids_all_image - existing_hash_ids_set).keys())
+        diff_non_image = set(dict(hash_ids_all_non_image - existing_hash_ids_set).keys())
+        globs_image_types = [x for x in globs_image_types if x not in diff_image]
+        globs_non_image_types = [x for x in globs_non_image_types if x not in diff_non_image]
 
     # could use generator, but messes up metadata handling in recursive case
     if caption_loader and not isinstance(caption_loader, (bool, str)) and \
@@ -946,15 +963,16 @@ def _make_db(use_openai_embedding=False,
             langchain_mode in ['UserData']:
         # Should not make MyData db this way, why avoided, only upload from UI
         assert langchain_mode not in ['MyData'], "Should not make MyData db this way"
-        if langchain_mode in ['UserData'] and verbose:
-            if user_path is not None:
-                print("Checking if changed or new sources in %s, and generating sources them" % user_path, flush=True)
-            elif db is None:
-                print("user_path not passed and no db, no sources", flush=True)
+        if verbose:
+            if langchain_mode in ['UserData']:
+                if user_path is not None:
+                    print("Checking if changed or new sources in %s, and generating sources them" % user_path, flush=True)
+                elif db is None:
+                    print("user_path not passed and no db, no sources", flush=True)
+                else:
+                    print("user_path not passed, using only existing db, no new sources", flush=True)
             else:
-                print("user_path not passed, using only existing db, no new sources", flush=True)
-        else:
-            print("Generating %s sources" % langchain_mode, flush=True)
+                print("Generating %s sources" % langchain_mode, flush=True)
         if langchain_mode in ['wiki_full', 'All', "'All'"]:
             from read_wiki_full import get_all_documents
             small_test = None
@@ -984,13 +1002,17 @@ def _make_db(use_openai_embedding=False,
         if langchain_mode in ['All', 'UserData']:
             if user_path:
                 if db is not None:
-                    existing_files = get_existing_files(db)
+                    # NOTE: Ignore file names for now, only go by hash ids
+                    # existing_files = get_existing_files(db)
+                    existing_files = []
+                    existing_hash_ids = get_existing_hash_ids(db)
                 else:
                     # pretend no existing files so won't filter
                     existing_files = []
+                    existing_hash_ids = []
                 # chunk internally for speed over multiple docs
                 sources1 = path_to_docs(user_path, n_jobs=n_jobs, chunk=chunk, chunk_size=chunk_size,
-                                        skip_files=existing_files)
+                                        existing_files=existing_files, existing_hash_ids=existing_hash_ids)
                 new_metadata_sources = set([x.metadata['source'] for x in sources1])
                 if new_metadata_sources:
                     print("Loaded %s new files as sources to add to UserData" % len(new_metadata_sources), flush=True)
@@ -1035,6 +1057,13 @@ def get_existing_files(db):
     collection = db.get()
     metadata_sources = set([x['source'] for x in collection['metadatas']])
     return metadata_sources
+
+
+def get_existing_hash_ids(db):
+    collection = db.get()
+    # assume consistency, that any prior hashed source was single hashed file at the time among all source chunks
+    metadata_hash_ids = {x['source']: x.get('hashid') for x in collection['metadatas']}
+    return metadata_hash_ids
 
 
 source_prefix = "Sources [Score | Link]:"
