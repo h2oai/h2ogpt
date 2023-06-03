@@ -33,8 +33,8 @@ H2O.ai's `<<MODEL_NAME>>` is a <<MODEL_SIZE>> billion parameter instruction-foll
 To use the model with the `transformers` library on a machine with GPUs, first make sure you have the `transformers` and `accelerate` libraries installed.
 
 ```bash
-pip install transformers==4.28.1
-pip install accelerate==0.18.0
+pip install transformers==4.29.2
+pip install accelerate==0.19.0
 ```
 
 ```python

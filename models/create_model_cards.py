@@ -11,6 +11,20 @@ from transformers import AutoModelForCausalLM
     "model_name, base_model, dataset, training_logs, eval",
     [
         (
+                "h2ogpt-oig-oasst1-falcon-40b",
+                "tiiuae/falcon-40b",
+                [
+                    "h2oai/h2ogpt-oig-oasst1-instruct-cleaned-v3",
+                ],
+                [
+                    "https://huggingface.co/h2oai/h2ogpt-oig-oasst1-falcon-40b/blob/main/falcon-40b.h2oaih2ogpt-oig-oasst1-instruct-cleaned-v3.3_epochs.2e023709e9a36283986d136e66cb94e0bd7e6452.10.zip",
+                ],
+                """
+
+                TBD
+                """
+        ),
+        (
                 "h2ogpt-oasst1-falcon-40b",
                 "tiiuae/falcon-40b",
                 [
@@ -167,7 +181,7 @@ from transformers import AutoModelForCausalLM
     ],
 )
 def test_create_model_cards(model_name, base_model, dataset, training_logs, eval):
-    if model_name != "h2ogpt-oasst1-falcon-40b":
+    if model_name != "h2ogpt-oig-oasst1-falcon-40b":
         return
     model_size = model_name.split("-")[-1].upper()
     assert "B" == model_size[-1]
