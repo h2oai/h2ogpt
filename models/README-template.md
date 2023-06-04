@@ -43,7 +43,7 @@ pip install einops==0.6.1
 import torch
 from transformers import pipeline
 
-generate_text = pipeline(model="h2oai/<<MODEL_NAME>>", torch_dtype=torch.bfloat16, trust_remote_code=True, device_map="auto")
+generate_text = pipeline(model="h2oai/<<MODEL_NAME>>", torch_dtype=torch.bfloat16, trust_remote_code=True, device_map="auto", prompt_type="human_bot")
 
 res = generate_text("Why is drinking water so healthy?", max_new_tokens=100)
 print(res[0]["generated_text"])
@@ -59,7 +59,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 tokenizer = AutoTokenizer.from_pretrained("h2oai/<<MODEL_NAME>>", padding_side="left")
 model = AutoModelForCausalLM.from_pretrained("h2oai/<<MODEL_NAME>>", torch_dtype=torch.bfloat16, device_map="auto")
-generate_text = H2OTextGenerationPipeline(model=model, tokenizer=tokenizer)
+generate_text = H2OTextGenerationPipeline(model=model, tokenizer=tokenizer, prompt_type="human_bot")
 
 res = generate_text("Why is drinking water so healthy?", max_new_tokens=100)
 print(res[0]["generated_text"])
