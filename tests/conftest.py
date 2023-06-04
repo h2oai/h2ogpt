@@ -8,7 +8,7 @@ def pytest_itemcollected(item):
 
 
 def pytest_sessionstart(session):
-    if not os.getenv("BUILD_NUMBER", None):
+    if not os.getenv("USE_WHEEL", None):
         return
     try:
         for location in importlib.util.find_spec("h2ogpt").submodule_search_locations:
