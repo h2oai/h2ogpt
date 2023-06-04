@@ -9,7 +9,7 @@ from utils import clear_torch_cache, NullContext, get_kwargs
 def run_cli(  # for local function:
         base_model=None, lora_weights=None,
         debug=None, chat_context=None,
-        examples=None, is_low_mem=None,
+        examples=None, memory_restriction_level=None,
         # for get_model:
         score_model=None, load_8bit=None, load_4bit=None, load_half=None, infer_devices=None, tokenizer_base_model=None,
         gpu_id=None, local_files_only=None, resume_download=None, use_auth_token=None,

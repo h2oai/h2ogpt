@@ -16,7 +16,7 @@ def run_eval(  # for local function:
         base_model=None, lora_weights=None,
         prompt_type=None, debug=None, chat=False, chat_context=None, stream_output=None,
         eval_filename=None, eval_prompts_only_num=None, eval_prompts_only_seed=None, eval_as_output=None,
-        examples=None, is_low_mem=None,
+        examples=None, memory_restriction_level=None,
         # for get_model:
         score_model=None, load_8bit=None, load_4bit=None, load_half=None, infer_devices=None, tokenizer_base_model=None,
         gpu_id=None, local_files_only=None, resume_download=None, use_auth_token=None,
@@ -175,7 +175,10 @@ def run_eval(  # for local function:
                         if not (chat_context and prompt_type == 'human_bot'):
                             assert context in [None, ''], context  # should be no context
                         prompt = instruction
-                    cutoff_len = 768 if is_low_mem else tokenizer.model_max_length
+                    if memory_restriction_level > 0:
+                        cutoff_len = 768 if memory_restriction_level <= 2 else 512
+                    else:
+                        cutoff_len = tokenizer.model_max_length
                     inputs = stokenizer(prompt, res,
                                         return_tensors="pt",
                                         truncation=True,
