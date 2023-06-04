@@ -65,7 +65,6 @@ pipeline {
                                                 withEnv(
                                                 ALL_TESTS[test_name].env +
                                                 [
-                                                    "PYTHON_BINARY=${PYTHON_BINARY}",
                                                     "PYTEST_TEST_NAME=_${test_name}",
                                                     "IS_PR_BUILD=${isPrBranch()}",
                                                     "BUILD_NUMBER=${env.BUILD_ID}",
@@ -74,12 +73,11 @@ pipeline {
                                                     deleteDir()
                                                     checkout scm
                                                     unstash "wheel_file"
-                                                    sh "make clean"
                                                     sh "rm -rf *.py spaces models"  // force the imports from installed wheel
                                                     if (ALL_TESTS[test_name].use_docker) {
-                                                        sh "SKIP_BUILD=1 CMD_TO_RUN_IN_DOCKER='make install-${ALL_TESTS[test_name].install_deps} ${ALL_TESTS[test_name].test_target}' make run_in_docker"
+                                                        sh "BUILD_NUMBER=${env.BUILD_ID} SKIP_BUILD=1 CMD_TO_RUN_IN_DOCKER='make install-${ALL_TESTS[test_name].install_deps} ${ALL_TESTS[test_name].test_target}' make run_in_docker"
                                                     } else {
-                                                        sh "${PYTHON_BINARY} -m virtualenv -p ${PYTHON_BINARY} venv"  // setup empty test env
+                                                        sh "make venv"  // setup empty test env
                                                         sh "PYTHON_BINARY=`pwd`/venv/bin/python make install-${ALL_TESTS[test_name].install_deps}"
                                                         sh "PYTHON_BINARY=`pwd`/venv/bin/python make ${ALL_TESTS[test_name].test_target}"
                                                     }

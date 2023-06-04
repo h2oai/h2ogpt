@@ -1,4 +1,4 @@
-all: wheel
+all: reqs_optional/req_constraints.txt
 
 PACKAGE_VERSION      := `cat version.txt | tr -d '\n'`
 PYTHON_BINARY        ?= `which python`
@@ -20,6 +20,9 @@ reqs_optional/req_constraints.txt:
 
 clean:
 	rm -rf dist build h2ogpt.egg-info
+
+venv:
+	$(PYTHON_BINARY) -m virtualenv -p $(PYTHON_BINARY) venv
 
 install-%:
 	$(PYTHON_BINARY) -m pip install dist/h2ogpt-$(PACKAGE_VERSION)-py3-none-any.whl[$*]
@@ -45,6 +48,7 @@ run_in_docker:
 		-u `id -u`:`id -g` \
 		-e "HOME=/h2oai" \
 		-e "PYTHON_BINARY=/usr/bin/python3.10" \
+		-e "BUILD_NUMBER=$$BUILD_NUMBER" \
 		-v `pwd`:/h2oai \
 		--entrypoint bash \
 		--workdir /h2oai \
