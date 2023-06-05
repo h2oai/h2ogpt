@@ -1474,7 +1474,7 @@ def get_some_dbs_from_hf(dest='.', db_zips=None):
             assert os.path.isdir(os.path.join(dest, dir_expected, 'index')), "Missing index in %s" % dir_expected
 
 def _create_local_weaviate_client():
-    WEAVIATE_URL = os.getenv('WEAVIATE_URL')
+    WEAVIATE_URL = os.getenv('WEAVIATE_URL', "http://localhost:8080")
     WEAVIATE_USERNAME = os.getenv('WEAVIATE_USERNAME')
     WEAVIATE_PASSWORD = os.getenv('WEAVIATE_PASSWORD')
     WEAVIATE_SCOPE = os.getenv('WEAVIATE_SCOPE', "offline_access")
