@@ -65,7 +65,7 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss', persist_directo
         from weaviate.embedded import EmbeddedOptions
         from langchain.vectorstores import Weaviate
 
-        # TODO: add support for connecting via docker compose
+        if os.getenv()
         client = weaviate.Client(
             embedded_options=EmbeddedOptions()
         )
@@ -1468,6 +1468,28 @@ def get_some_dbs_from_hf(dest='.', db_zips=None):
             assert os.path.isdir(os.path.join(dest, dir_expected)), "Missing path for %s" % dir_expected
             assert os.path.isdir(os.path.join(dest, dir_expected, 'index')), "Missing index in %s" % dir_expected
 
+def _create_local_weaviate_client():
+    WEAVIATE_URL = os.getenv('WEAVIATE_URL')
+    WEAVIATE_USERNAME = os.getenv('WEAVIATE_USERNAME')
+    WEAVIATE_PASSWORD = os.getenv('WEAVIATE_PASSWORD')
+    WEAVIATE_SCOPE = os.getenv('WEAVIATE_SCOPE', "offline_access")  # default to "offline_access" if not set
+
+    if None in [WEAVIATE_URL, WEAVIATE_USERNAME, WEAVIATE_PASSWORD]:
+        print("Environment variables WEAVIATE_URL, WEAVIATE_USERNAME, or WEAVIATE_PASSWORD are not set.")
+        return None
+
+    try:
+        resource_owner_config = weaviate.AuthClientPassword(
+            username=WEAVIATE_USERNAME,
+            password=WEAVIATE_PASSWORD,
+            scope=WEAVIATE_SCOPE
+        )
+        client = weaviate.Client(WEAVIATE_URL, auth_client_secret=resource_owner_config)
+    except Exception as e:
+        print(f"Failed to create Weaviate client: {e}")
+        return None
+
+    return client
 
 if __name__ == '__main__':
     pass
