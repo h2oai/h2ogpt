@@ -65,10 +65,12 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss', persist_directo
         from weaviate.embedded import EmbeddedOptions
         from langchain.vectorstores import Weaviate
 
-        if os.getenv()
-        client = weaviate.Client(
-            embedded_options=EmbeddedOptions()
-        )
+        if os.getenv('WEAVIATE_URL', None):
+            client = _create_local_weaviate_client()
+        else:
+            client = weaviate.Client(
+                embedded_options=EmbeddedOptions()
+            )
         index_name = collection_name.capitalize()
         db = Weaviate.from_documents(documents=sources, embedding=embedding, client=client, by_text=False,
                                      index_name=index_name)
@@ -166,10 +168,13 @@ def create_or_update_db(db_type, persist_directory, collection_name,
         import weaviate
         from weaviate.embedded import EmbeddedOptions
 
-        # TODO: add support for connecting via docker compose
-        client = weaviate.Client(
-            embedded_options=EmbeddedOptions()
-        )
+        if os.getenv('WEAVIATE_URL', None):
+            client = _create_local_weaviate_client()
+        else:
+            client = weaviate.Client(
+                embedded_options=EmbeddedOptions()
+            )
+
         index_name = collection_name.replace(' ', '_').capitalize()
         if client.schema.exists(index_name) and not add_if_exists:
             client.schema.delete_class(index_name)
@@ -1472,11 +1477,7 @@ def _create_local_weaviate_client():
     WEAVIATE_URL = os.getenv('WEAVIATE_URL')
     WEAVIATE_USERNAME = os.getenv('WEAVIATE_USERNAME')
     WEAVIATE_PASSWORD = os.getenv('WEAVIATE_PASSWORD')
-    WEAVIATE_SCOPE = os.getenv('WEAVIATE_SCOPE', "offline_access")  # default to "offline_access" if not set
-
-    if None in [WEAVIATE_URL, WEAVIATE_USERNAME, WEAVIATE_PASSWORD]:
-        print("Environment variables WEAVIATE_URL, WEAVIATE_USERNAME, or WEAVIATE_PASSWORD are not set.")
-        return None
+    WEAVIATE_SCOPE = os.getenv('WEAVIATE_SCOPE', "offline_access")
 
     try:
         resource_owner_config = weaviate.AuthClientPassword(
