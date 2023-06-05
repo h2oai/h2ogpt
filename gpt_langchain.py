@@ -1479,18 +1479,19 @@ def _create_local_weaviate_client():
     WEAVIATE_PASSWORD = os.getenv('WEAVIATE_PASSWORD')
     WEAVIATE_SCOPE = os.getenv('WEAVIATE_SCOPE', "offline_access")
 
-    try:
+    resource_owner_config = None
+    if WEAVIATE_USERNAME is not None and WEAVIATE_PASSWORD is not None:
         resource_owner_config = weaviate.AuthClientPassword(
             username=WEAVIATE_USERNAME,
             password=WEAVIATE_PASSWORD,
             scope=WEAVIATE_SCOPE
         )
+
+    try:
         client = weaviate.Client(WEAVIATE_URL, auth_client_secret=resource_owner_config)
     except Exception as e:
         print(f"Failed to create Weaviate client: {e}")
         return None
-
-    return client
 
 if __name__ == '__main__':
     pass
