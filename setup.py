@@ -19,6 +19,9 @@ install_requires = parse_requirements('requirements.txt')
 # 4BIT - avoid 4bit deps as part of package until part of normal deps on pypi
 install_4bit = parse_requirements('reqs_optional/requirements_optional_4bit.txt')
 
+# GPT4ALL
+install_gpt4all = parse_requirements('reqs_optional/requirements_optional_gpt4all.txt')
+
 # LANGCHAIN
 install_langchain = parse_requirements('reqs_optional/requirements_optional_langchain.txt')
 
@@ -76,6 +79,7 @@ setuptools.setup(
     install_requires=install_requires,
     extras_require={
         'ALL': install_gpl + install_extra_training + install_wiki_extra,
+        'GPT4ALL': install_gpt4all,
         'CPU': install_no_gpu,
         'GPU': install_gpu,
         'LANGCHAIN': install_langchain,
