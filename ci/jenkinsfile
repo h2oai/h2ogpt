@@ -5,7 +5,7 @@
 import ai.h2o.ci.buildsummary.StagesSummary
 import groovy.json.JsonOutput
 
-buildSummary('https://github.com/h2ogpt', true)
+buildSummary('https://github.com/h2oai/h2ogpt', true)
 buildSummary.get().addStagesSummary(this, new StagesSummary())
 
 def ALL_TESTS = [
@@ -34,10 +34,14 @@ pipeline {
                 script {
                     def shortHash = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
                     def commitMsg = sh(returnStdout: true, script: 'git log -1 --pretty=format:"[%an] %s"').trim()
-                    currentBuild.displayName = "${env.BUILD_ID} - ${shortHash}"
+                    currentBuild.displayName = "${env.BUILD_ID} - [${shortHash}]"
                     currentBuild.description = "${commitMsg}"
+
                     sh "make docker_build"
-                    sh "make run_in_docker"
+                    docker.image("harbor.h2o.ai/library/python:3.10").inside("--entrypoint='' --security-opt seccomp=unconfined -e USE_WHEEL=1 -e HOME=${WORKSPACE}") {
+                        sh "make clean dist"
+                    }
+
                     archiveArtifacts allowEmptyArchive: true, artifacts: "dist/h2ogpt-*.whl"
                     stash includes: "dist/h2ogpt-*.whl", name: "wheel_file"
                 }
@@ -56,42 +60,44 @@ pipeline {
             }
             steps {
                 script {
-                    def test_targets = [:]
-                    params.testTargets.split('\n').findAll{ it.contains("test_") }.each { test_name ->
-                        test_targets[test_name] = {
-                            node("${ALL_TESTS[test_name].node}") {
-                                buildSummary.stageWithSummary("${test_name}", "${test_name}") {
-                                    buildSummary.setStageUrl("${test_name}")
+                    def testTargets = [:]
+                    params.testTargets.split('\n').findAll{ it.contains("test_") }.each { testName ->
+                        testTargets[testName] = {
+                            node("${ALL_TESTS[testName].node}") {
+                                buildSummary.stageWithSummary("${testName}", "${testName}") {
+                                    buildSummary.setStageUrl("${testName}")
                                     script {
                                         try {
-                                            def nvidia_smi_exit_code = sh(returnStdout: false, returnStatus: true, script: 'nvidia-smi')
-                                            def docker_runtime = "${nvidia_smi_exit_code}" == "0" ? "--runtime nvidia" : ""
+                                            dir("${testName}") {
+                                                withEnv(ALL_TESTS[testName].env + ["PYTEST_TEST_NAME=_${testName}", "IS_PR_BUILD=${isPrBranch()}"]) {
 
-                                            dir("${test_name}") {
-                                                withEnv(
-                                                ALL_TESTS[test_name].env +
-                                                [
-                                                    "PYTEST_TEST_NAME=_${test_name}",
-                                                    "IS_PR_BUILD=${isPrBranch()}",
-                                                    "DOCKER_BINARY_RUNTIME=${docker_runtime}"
-                                                ]) {
+                                                    // cleanup and force the use of the installed wheel
                                                     deleteDir()
                                                     checkout scm
                                                     unstash "wheel_file"
-                                                    sh "rm -rf *.py spaces models"  // force the imports from installed wheel
-                                                    if (ALL_TESTS[test_name].use_docker) {
-                                                        sh "CMD_TO_RUN_IN_DOCKER='make install-${ALL_TESTS[test_name].install_deps} ${ALL_TESTS[test_name].test_target}' make run_in_docker"
+                                                    sh "rm -rf *.py spaces models"
+
+                                                    // pull runtime details
+                                                    def dockerImage = sh(returnStdout: true, script: "make print-DOCKER_TEST_IMAGE").trim()
+                                                    def nvidiaSmiExitCode = sh(returnStdout: false, returnStatus: true, script: "nvidia-smi")
+                                                    def dockerRuntime = "${nvidiaSmiExitCode}" == "0" ? "--runtime nvidia" : ""
+
+                                                    if (ALL_TESTS[testName].use_docker) {
+                                                        docker.image("${dockerImage}").inside("--entrypoint='' --security-opt seccomp=unconfined --ulimit core=-1 --init --pid=host -e USE_WHEEL=1 -e HOME=${WORKSPACE}/${testName} ${dockerRuntime}") {
+                                                            sh "PYTHON_BINARY=/usr/bin/python3.10 make install-${ALL_TESTS[testName].install_deps}"
+                                                            sh "PYTHON_BINARY=/usr/bin/python3.10 make ${ALL_TESTS[testName].test_target}"
+                                                        }
                                                     } else {
                                                         sh "make venv"
-                                                        sh "PYTHON_BINARY=`pwd`/venv/bin/python make install-${ALL_TESTS[test_name].install_deps}"
-                                                        sh "PYTHON_BINARY=`pwd`/venv/bin/python make ${ALL_TESTS[test_name].test_target}"
+                                                        sh "PYTHON_BINARY=${WORKSPACE}/${testName}/venv/bin/python make install-${ALL_TESTS[testName].install_deps}"
+                                                        sh "PYTHON_BINARY=${WORKSPACE}/${testName}/venv/bin/python make ${ALL_TESTS[testName].test_target}"
                                                     }
                                                 }
                                             }
                                         } finally {
-                                            sh "mv ${test_name}/test_report.xml ${test_name}/${test_name}_report.xml"
-                                            archiveArtifacts allowEmptyArchive: true, artifacts: "${test_name}/${test_name}_report.xml"
-                                            junit testResults: "${test_name}/${test_name}_report.xml", keepLongStdio: true, allowEmptyResults: true
+                                            sh "mv ${testName}/test_report.xml ${testName}/${testName}_report.xml"
+                                            archiveArtifacts allowEmptyArchive: true, artifacts: "${testName}/${testName}_report.xml"
+                                            junit testResults: "${testName}/${testName}_report.xml", keepLongStdio: true, allowEmptyResults: true
                                         }
                                     }
                                 }
@@ -99,7 +105,7 @@ pipeline {
                         }
                     }
 
-                    parallel(test_targets)
+                    parallel(testTargets)
                 }
             }
         }

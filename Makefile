@@ -1,16 +1,12 @@
-all: clean
+all: clean dist
 
 PACKAGE_VERSION       := `cat version.txt | tr -d '\n'`
+BUILD_TAG_FILES       := requirements.txt Dockerfile `ls reqs_optional/*.txt | sort`
+BUILD_TAG             := $(shell md5sum $(BUILD_TAG_FILES) 2> /dev/null | sort | md5sum | cut -d' ' -f1)
+DOCKER_TEST_IMAGE     := harbor.h2o.ai/h2ogpt/test-image:$(BUILD_TAG)
 PYTHON_BINARY         ?= `which python`
-DOCKER_BINARY         ?= docker
-DOCKER_BINARY_RUNTIME ?=
-CMD_TO_RUN_IN_DOCKER  ?= make clean dist
 
-BUILD_TAG_FILES      := requirements.txt Dockerfile `ls reqs_optional/*.txt | sort`
-$(eval BUILD_TAG = $(shell md5sum $(BUILD_TAG_FILES) 2> /dev/null | sort | md5sum | cut -d' ' -f1))
-DOCKER_TEST_IMAGE    := harbor.h2o.ai/h2ogpt/test-image:$(BUILD_TAG)
-
-.PHONY: reqs_optional/req_constraints.txt publish dist test docker_build run_in_docker
+.PHONY: reqs_optional/req_constraints.txt venv dist test publish docker_build
 
 reqs_optional/req_constraints.txt:
 	grep -v '#\|peft\|transformers\|accelerate' requirements.txt > $@
@@ -40,27 +36,6 @@ else
 	DOCKER_BUILDKIT=1 docker build -t $(DOCKER_TEST_IMAGE) -f Dockerfile .
 	docker push $(DOCKER_TEST_IMAGE)
 endif
-
-run_in_docker:
-	$(DOCKER_BINARY) run \
-		$(DOCKER_BINARY_RUNTIME) \
-		--rm \
-		--security-opt seccomp=unconfined \
-		--ulimit core=-1 \
-		--entrypoint bash \
-		--workdir /h2oai \
-		-u `id -u`:`id -g` \
-		-e HOME=/h2oai \
-		-e PYTHON_BINARY=/usr/bin/python3.10 \
-		-e USE_WHEEL=1 \
-		-e PYTEST_TEST_NAME=$$PYTEST_TEST_NAME \
-		-e IS_PR_BUILD=$$IS_PR_BUILD \
-		-v /home/0xdiag:/home/0xdiag:ro \
-		-v /etc/passwd:/etc/passwd:ro \
-		-v /etc/group:/etc/group:ro \
-		-v `pwd`:/h2oai \
-		$(DOCKER_TEST_IMAGE) \
-		-c "$(CMD_TO_RUN_IN_DOCKER)"
 
 print-%:
 	@echo $($*)
