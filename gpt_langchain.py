@@ -139,7 +139,8 @@ def add_to_db(db, sources, db_type='faiss',
             dup_metadata_files = set([x.metadata['source'] for x in sources if x.metadata['source'] in metadata_files])
             print("Removing %s duplicate files from db because ingesting those as new documents" % len(
                 dup_metadata_files), flush=True)
-            client_collection = db._client.get_collection(name=db._collection.name)
+            client_collection = db._client.get_collection(name=db._collection.name,
+                                                          embedding_function=db._collection._embedding_function)
             for dup_file in dup_metadata_files:
                 dup_file_meta = dict(source=dup_file)
                 try:
@@ -866,7 +867,7 @@ def prep_langchain(persist_directory,
     else:
         if db_dir_exists and user_path is not None:
             print("Prep: persist_directory=%s exists, user_path=%s passed, adding any changed or new documents" % (
-            persist_directory, user_path), flush=True)
+                persist_directory, user_path), flush=True)
         elif not db_dir_exists:
             print("Prep: persist_directory=%s does not exist, regenerating" % persist_directory, flush=True)
         db = None
@@ -968,6 +969,7 @@ def _make_db(use_openai_embedding=False,
         db = Chroma(persist_directory=persist_directory, embedding_function=embedding,
                     collection_name=langchain_mode.replace(' ', '_'),
                     client_settings=client_settings)
+        db.persist()
     sources = []
     if not db and langchain_mode not in ['MyData'] or \
             user_path is not None and \

@@ -43,7 +43,7 @@ def go_gradio(**kwargs):
     allow_api = kwargs['allow_api']
     is_public = kwargs['is_public']
     is_hf = kwargs['is_hf']
-    is_low_mem = kwargs['is_low_mem']
+    memory_restriction_level = kwargs['memory_restriction_level']
     n_gpus = kwargs['n_gpus']
     admin_pass = kwargs['admin_pass']
     model_state0 = kwargs['model_state0']
@@ -446,7 +446,7 @@ body.dark{#warning {background-color: #555555};}
                             )
                             # FIXME: https://github.com/h2oai/h2ogpt/issues/106
                             if os.getenv('TESTINGFAIL'):
-                                max_beams = 8 if not (is_low_mem or is_public) else 1
+                                max_beams = 8 if not (memory_restriction_level or is_public) else 1
                             else:
                                 max_beams = 1
                             num_beams = gr.Slider(minimum=1, maximum=max_beams, step=1,
@@ -454,7 +454,16 @@ body.dark{#warning {background-color: #555555};}
                                                   info="Number of searches for optimal overall probability.  "
                                                        "Uses more GPU memory/compute")
                             # FIXME: 2048 should be tokenizer.model_max_length, but may not even have model yet
-                            max_max_new_tokens = 2048 if not is_low_mem else kwargs['max_new_tokens']
+                            if kwargs['max_new_tokens']:
+                                max_max_new_tokens = kwargs['max_new_tokens']
+                            elif memory_restriction_level == 1:
+                                max_max_new_tokens = 768
+                            elif memory_restriction_level == 2:
+                                max_max_new_tokens = 512
+                            elif memory_restriction_level >= 3:
+                                max_max_new_tokens = 256
+                            else:
+                                max_max_new_tokens = 2048
                             max_new_tokens = gr.Slider(
                                 minimum=1, maximum=max_max_new_tokens, step=1,
                                 value=min(max_max_new_tokens, kwargs['max_new_tokens']), label="Max output length",
@@ -770,7 +779,10 @@ body.dark{#warning {background-color: #555555};}
             """ Similar to user() """
             args_list = list(args)
 
-            max_length_tokenize = 512 if is_low_mem else 2048
+            if memory_restriction_level > 0:
+                max_length_tokenize = 768 - 256 if memory_restriction_level <= 2 else 512 - 256
+            else:
+                max_length_tokenize = 2048 - 256
             cutoff_len = max_length_tokenize * 4  # restrict deberta related to max for LLM
             smodel = score_model_state0[0]
             stokenizer = score_model_state0[1]
@@ -891,7 +903,7 @@ body.dark{#warning {background-color: #555555};}
         def history_to_context(history, langchain_mode1, prompt_type1, chat1):
             # ensure output will be unique to models
             # FIXME: hard-coded 2048 implicitly passed:
-            _, _, _, max_prompt_length = get_cutoffs(is_low_mem, for_context=True)
+            _, _, _, max_prompt_length = get_cutoffs(memory_restriction_level, for_context=True)
             history = copy.deepcopy(history)
 
             context1 = ''

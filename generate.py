@@ -71,6 +71,7 @@ def main(
         early_stopping: Union[bool, str] = None,
         max_time: float = None,
 
+        memory_restriction_level: int = None,
         debug: bool = False,
         save_dir: str = None,
         share: bool = True,
@@ -167,6 +168,7 @@ def main(
     :param min_new_tokens: generation min tokens
     :param early_stopping: generation early stopping
     :param max_time: maximum time to allow for generation
+    :param memory_restriction_level: 0 = no restriction to tokens or model, 1 = some restrictions on token 2 = HF like restriction 3 = very low memory case
     :param debug: enable debug mode
     :param save_dir: directory chat data is saved to
     :param share: whether to share the gradio app with sharable URL
@@ -257,7 +259,10 @@ def main(
     is_hf = bool(os.getenv("HUGGINGFACE_SPACES"))
     is_gpth2oai = bool(os.getenv("GPT_H2O_AI"))
     is_public = is_hf or is_gpth2oai  # multi-user case with fixed model and disclaimer
-    is_low_mem = is_hf  # assumes run on 24GB consumer GPU
+    if memory_restriction_level is None:
+        memory_restriction_level = 2 if is_hf else 0  # 2 assumes run on 24GB consumer GPU
+    else:
+        assert 0 <= memory_restriction_level <= 3, "Bad memory_restriction_level=%s" % memory_restriction_level
     admin_pass = os.getenv("ADMIN_PASS")
     # will sometimes appear in UI or sometimes actual generation, but maybe better than empty result
     # but becomes unrecoverable sometimes if raise, so just be silent for now
@@ -289,7 +294,7 @@ def main(
             # by default don't sample, too chatty
             do_sample = False if do_sample is None else do_sample
 
-        if is_low_mem:
+        if memory_restriction_level == 2:
             if not base_model:
                 base_model = 'h2oai/h2ogpt-oasst1-512-12b'
                 # don't set load_8bit if passed base_model, doesn't always work so can't just override
@@ -297,7 +302,7 @@ def main(
                 load_4bit = False  # FIXME - consider using 4-bit instead of 8-bit
         else:
             base_model = 'h2oai/h2ogpt-oasst1-512-20b' if not base_model else base_model
-    if is_low_mem:
+    if memory_restriction_level >= 2:
         load_8bit = True
         load_4bit = False  # FIXME - consider using 4-bit instead of 8-bit
     if is_hf:
@@ -842,7 +847,7 @@ def evaluate(
         save_dir=None,
         sanitize_bot_response=True,
         model_state0=None,
-        is_low_mem=None,
+        memory_restriction_level=None,
         raise_generate_gpu_exceptions=None,
         chat_context=None,
         lora_weights=None,
@@ -864,7 +869,7 @@ def evaluate(
 ):
     # ensure passed these
     assert concurrency_count is not None
-    assert is_low_mem is not None
+    assert memory_restriction_level is not None
     assert raise_generate_gpu_exceptions is not None
     assert chat_context is not None
     assert use_openai_embedding is not None
@@ -999,7 +1004,7 @@ def evaluate(
         # override, ignore user change
         num_return_sequences = 1
     stopping_criteria = get_stopping(prompt_type, tokenizer, device)
-    _, _, max_length_tokenize, max_prompt_length = get_cutoffs(is_low_mem, model_max_length=tokenizer.model_max_length)
+    _, _, max_length_tokenize, max_prompt_length = get_cutoffs(memory_restriction_level, model_max_length=tokenizer.model_max_length)
     prompt = prompt[-max_prompt_length:]
     inputs = tokenizer(prompt,
                        return_tensors="pt",
@@ -1148,12 +1153,15 @@ state_names = ['model_state', 'my_db_state']
 inputs_kwargs_list = [x for x in inputs_list_names if x not in eval_func_param_names + state_names]
 
 
-def get_cutoffs(is_low_mem, for_context=False, model_max_length=2048):
+def get_cutoffs(memory_restriction_level, for_context=False, model_max_length=2048):
     # help to avoid errors like:
     # RuntimeError: The size of tensor a (2048) must match the size of tensor b (2049) at non-singleton dimension 3
     # RuntimeError: expected scalar type Half but found Float
     # with - 256
-    max_length_tokenize = 768 - 256 if is_low_mem else model_max_length - 256
+    if memory_restriction_level > 0:
+        max_length_tokenize = 768 - 256 if memory_restriction_level <= 2 else 512 - 256
+    else:
+        max_length_tokenize = model_max_length - 256
     cutoff_len = max_length_tokenize * 4  # if reaches limit, then can't generate new tokens
     output_smallest = 30 * 4
     max_prompt_length = cutoff_len - output_smallest
