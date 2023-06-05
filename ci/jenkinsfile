@@ -84,6 +84,7 @@ pipeline {
 
                                                     if (ALL_TESTS[testName].use_docker) {
                                                         docker.image("${dockerImage}").inside("--entrypoint='' --security-opt seccomp=unconfined --ulimit core=-1 --init --pid=host -e USE_WHEEL=1 -e HOME=${WORKSPACE}/${testName} ${dockerRuntime}") {
+                                                            sh "nvidia-smi || true"
                                                             sh "PYTHON_BINARY=/usr/bin/python3.10 make install-${ALL_TESTS[testName].install_deps}"
                                                             sh "PYTHON_BINARY=/usr/bin/python3.10 make ${ALL_TESTS[testName].test_target}"
                                                         }
