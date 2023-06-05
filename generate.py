@@ -256,8 +256,8 @@ def main(
     :param enable_ocr: Whether to support OCR on images
     :return:
     """
-    is_hf = bool(os.getenv("HUGGINGFACE_SPACES"))
-    is_gpth2oai = bool(os.getenv("GPT_H2O_AI"))
+    is_hf = bool(int(os.getenv("HUGGINGFACE_SPACES", '0')))
+    is_gpth2oai = bool(int(os.getenv("GPT_H2O_AI", '0')))
     is_public = is_hf or is_gpth2oai  # multi-user case with fixed model and disclaimer
     if memory_restriction_level is None:
         memory_restriction_level = 2 if is_hf else 0  # 2 assumes run on 24GB consumer GPU
@@ -270,9 +270,10 @@ def main(
 
     # allow set token directly
     use_auth_token = os.environ.get("HUGGINGFACE_API_TOKEN", use_auth_token)
-    allow_upload_to_user_data = bool(os.environ.get("allow_upload_to_user_data", allow_upload_to_user_data))
-    allow_upload_to_my_data = bool(os.environ.get("allow_upload_to_my_data", allow_upload_to_my_data))
-    height = os.environ.get("HEIGHT", height)
+    allow_upload_to_user_data = bool(int(os.environ.get("allow_upload_to_user_data", allow_upload_to_user_data)))
+    allow_upload_to_my_data = bool(int(os.environ.get("allow_upload_to_my_data", allow_upload_to_my_data)))
+    height = int(os.environ.get("HEIGHT", height))
+    h2ocolors = bool(int(os.getenv('h2ocolors', h2ocolors)))
 
     # allow enabling langchain via ENV
     # FIRST PLACE where LangChain referenced, but no imports related to it
