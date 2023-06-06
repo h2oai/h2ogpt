@@ -1,3 +1,3 @@
-from h2ogpt_client.core import Client, PromptType
+from h2ogpt_client.core import Client, PromptType, LangChainMode
 
-__all__ = ["Client", "PromptType"]
+__all__ = ["Client", "PromptType", "LangChainMode"]
