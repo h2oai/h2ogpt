@@ -78,7 +78,6 @@ class TextCompletion:
         max_time: int = 180,
         repetition_penalty: float = 1.07,
         number_returns: int = 1,
-        input: str = "",
         system_pre_context: str = "",
         langchain_mode: LangChainMode = LangChainMode.DISABLED,
     ) -> str:
@@ -104,22 +103,28 @@ class TextCompletion:
         :param max_time: maximum time to search optimal output
         :param repetition_penalty: penalty for repetition
         :param number_returns:
-        :param input:
-        :param system_pre_context:
+        :param system_pre_context: directly pre-appended without prompt processing
         :param langchain_mode: LangChain mode
         :return: response from the model
         """
         # Not exposed parameters.
-        you = ""  # empty when chat_mode is False
+        instruction = ""  # empty when chat_mode is False
+        input = ""  # only chat_mode is True
         stream_output = False
+        prompt_dict = ""  # empty as prompt_type cannot be 'custom'
         chat_mode = False
+        langchain_top_k_docs = 4  # number of document chunks; not public
+        langchain_enable_chunk = True  # whether to chunk documents; not public
+        langchain_chunk_size = 512  # chunk size for document chunking; not public
+        langchain_document_choice = ["All"]
 
         return self._client._predict(
-            you,
+            instruction,
             input,
             system_pre_context,
             stream_output,
             prompt_type.value,
+            prompt_dict,
             temperature,
             top_p,
             top_k,
@@ -135,6 +140,10 @@ class TextCompletion:
             prompt,
             input_context_for_instruction,
             langchain_mode.value,
+            langchain_top_k_docs,
+            langchain_enable_chunk,
+            langchain_chunk_size,
+            langchain_document_choice,
             api_name="/submit_nochat",
         )
 
@@ -154,7 +163,6 @@ class TextCompletion:
         max_time: int = 180,
         repetition_penalty: float = 1.07,
         number_returns: int = 1,
-        input: str = "",
         system_pre_context: str = "",
         langchain_mode: LangChainMode = LangChainMode.DISABLED,
     ) -> str:
@@ -180,22 +188,28 @@ class TextCompletion:
         :param max_time: maximum time to search optimal output
         :param repetition_penalty: penalty for repetition
         :param number_returns:
-        :param input:
-        :param system_pre_context:
+        :param system_pre_context: directly pre-appended without prompt processing
         :param langchain_mode: LangChain mode
         :return: response from the model
         """
         # Not exposed parameters.
-        you = ""  # empty when chat_mode is False
+        instruction = ""  # empty when chat_mode is False
+        input = ""  # only chat_mode is True
         stream_output = False
+        prompt_dict = ""  # empty as prompt_type cannot be 'custom'
         chat_mode = False
+        langchain_top_k_docs = 4  # number of document chunks; not public
+        langchain_enable_chunk = True  # whether to chunk documents; not public
+        langchain_chunk_size = 512  # chunk size for document chunking; not public
+        langchain_document_choice = ["All"]
 
         return await self._client._predict_async(
-            you,
+            instruction,
             input,
             system_pre_context,
             stream_output,
             prompt_type.value,
+            prompt_dict,
             temperature,
             top_p,
             top_k,
@@ -211,5 +225,9 @@ class TextCompletion:
             prompt,
             input_context_for_instruction,
             langchain_mode.value,
+            langchain_top_k_docs,
+            langchain_enable_chunk,
+            langchain_chunk_size,
+            langchain_document_choice,
             api_name="/submit_nochat",
         )
