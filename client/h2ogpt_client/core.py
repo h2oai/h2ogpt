@@ -21,7 +21,6 @@ class PromptType(Enum):
     SUMMARIZE = "summarize"
     WIZARD_LM = "wizard_lm"
     WIZARD_MEGA = "wizard_mega"
-    WIZARD_MEGA = "wizard_mega"
 
 
 class LangChainMode(Enum):
