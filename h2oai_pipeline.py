@@ -8,7 +8,8 @@ from prompter import Prompter
 class H2OTextGenerationPipeline(TextGenerationPipeline):
     def __init__(self, *args, debug=False, chat=False, stream_output=False,
                  sanitize_bot_response=True,
-                 use_prompter=True, prompter=None, prompt_type=None,
+                 use_prompter=True, prompter=None,
+                 prompt_type=None, prompt_dict=None,
                  max_input_tokens=2048 - 256, **kwargs):
         """
         HF-like pipeline, but handle instruction prompting and stopping (for some models)
@@ -21,6 +22,7 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
         :param prompter: prompter, can pass if have already
         :param prompt_type: prompt_type, e.g. human_bot.  See prompt_type to model mapping in from prompter.py.
                             If use_prompter, then will make prompter and use it.
+        :param prompt_dict: dict of get_prompt(, return_dict=True) for prompt_type=custom
         :param max_input_tokens:
         :param kwargs:
         """
@@ -28,12 +30,14 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
         self.prompt_text = None
         self.use_prompter = use_prompter
         self.prompt_type = prompt_type
+        self.prompt_dict = prompt_dict
         self.prompter = prompter
         if self.use_prompter:
             if self.prompter is not None:
                 assert self.prompter.prompt_type is not None
             else:
-                self.prompter = Prompter(self.prompt_type, debug=debug, chat=chat, stream_output=stream_output)
+                self.prompter = Prompter(self.prompt_type, self.prompt_dict, debug=debug, chat=chat,
+                                         stream_output=stream_output)
             self.human = self.prompter.humanstr
             self.bot = self.prompter.botstr
             self.can_stop = True
@@ -73,8 +77,9 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
 
     def _forward(self, model_inputs, **generate_kwargs):
         if self.can_stop:
-            stopping_criteria = get_stopping(self.prompt_type, self.tokenizer, self.device, human=self.human,
-                                             bot=self.bot)
+            stopping_criteria = get_stopping(self.prompt_type, self.prompt_dict,
+                                             self.tokenizer, self.device,
+                                             human=self.human, bot=self.bot)
             generate_kwargs['stopping_criteria'] = stopping_criteria
         # return super()._forward(model_inputs, **generate_kwargs)
         return self.__forward(model_inputs, **generate_kwargs)

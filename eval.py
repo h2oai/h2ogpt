@@ -14,7 +14,8 @@ from utils import clear_torch_cache, NullContext, get_kwargs
 
 def run_eval(  # for local function:
         base_model=None, lora_weights=None,
-        prompt_type=None, debug=None, chat=False, chat_context=None, stream_output=None,
+        prompt_type=None, prompt_dict=None,
+        debug=None, chat=False, chat_context=None, stream_output=None,
         eval_filename=None, eval_prompts_only_num=None, eval_prompts_only_seed=None, eval_as_output=None,
         examples=None, memory_restriction_level=None,
         # for get_model:
@@ -165,7 +166,8 @@ def run_eval(  # for local function:
                     score_with_prompt = False
                     if score_with_prompt:
                         data_point = dict(instruction=instruction, input=iinput, context=context)
-                        prompter = Prompter(prompt_type, debug=debug, chat=chat, stream_output=stream_output)
+                        prompter = Prompter(prompt_type, prompt_dict,
+                                            debug=debug, chat=chat, stream_output=stream_output)
                         prompt = prompter.generate_prompt(data_point)
                     else:
                         # just raw input and output

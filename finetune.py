@@ -6,7 +6,7 @@ import fire
 import numpy as np
 
 from loaders import get_loaders, get_tokenizer
-from prompter import generate_prompt, prompt_types
+from prompter import generate_prompt, prompt_types, PromptType
 from utils import get_githash, copy_code
 import torch
 
@@ -104,7 +104,6 @@ def train(
         save_total_limit: int = 3,
         add_eos_token: bool = False,
 ):
-
     if llama_flash_attn:
         # Need to call this before importing transformers.
         from llama_flash_attn_monkey_patch import replace_llama_attn_with_flash_attn
@@ -129,10 +128,12 @@ def train(
     if not output_dir:
         output_dir = f"{base_model.split('/')[-1]}.{data_path.replace('/', '')}.{num_epochs}_epochs.{get_githash() or 'nogit'}.{run_id}"
         if os.path.exists(output_dir) and not resume_from_checkpoint:
-            raise FileExistsError(f"output_dir {output_dir} based on run_id {run_id} already exists. Please pick a different run_id.")
+            raise FileExistsError(
+                f"output_dir {output_dir} based on run_id {run_id} already exists. Please pick a different run_id.")
     else:
         if os.path.exists(output_dir) and not resume_from_checkpoint:
-            raise FileExistsError(f"output_dir {output_dir} already exists. Please pick a different output_dir, or specify a run_id instead.")
+            raise FileExistsError(
+                f"output_dir {output_dir} already exists. Please pick a different output_dir, or specify a run_id instead.")
     device_map = "auto"
 
     if save_code:
@@ -398,7 +399,8 @@ def train(
     if train_data_mix_in:
         train_data = concatenate_datasets([train_data, train_data_mix_in])
     log("Tokenizing %s training rows" % train_data.num_rows)
-    train_data = train_data.shuffle().map(generate_and_tokenize_prompt_fun, num_proc=os.cpu_count() // torch.cuda.device_count())
+    train_data = train_data.shuffle().map(generate_and_tokenize_prompt_fun,
+                                          num_proc=os.cpu_count() // torch.cuda.device_count())
     if drop_truncations:
         log("avoid keeping truncated cases to avoid contaminating model with truncation cases.  Original size: %s" % train_data.num_rows)
         prune_long_sequences_func = partial(prune_long_sequences, cutoff_len=cutoff_len)
@@ -413,7 +415,8 @@ def train(
 
     if valid_data:
         log("Tokenizing %s validation rows" % valid_data.num_rows)
-        valid_data = valid_data.shuffle().map(generate_and_tokenize_prompt_fun, num_proc=os.cpu_count() // torch.cuda.device_count())
+        valid_data = valid_data.shuffle().map(generate_and_tokenize_prompt_fun,
+                                              num_proc=os.cpu_count() // torch.cuda.device_count())
         val_set_size = len(valid_data)
     else:
         val_set_size = 0
@@ -468,7 +471,7 @@ def train(
     elif save_steps > eval_steps:
         # save steps must be round multiple of eval_steps
         save_steps0 = save_steps
-        save_steps = max(1, (save_steps//eval_steps)) * eval_steps
+        save_steps = max(1, (save_steps // eval_steps)) * eval_steps
         if save_steps0 != save_steps:
             log("Auto converted save_steps from %s to %s" % (save_steps0, save_steps))
 
@@ -478,21 +481,21 @@ def train(
         label_ids = eval_preds.label_ids
         predictions = eval_preds.predictions
 
-        #inputs = np.where(inputs != -100, inputs, tokenizer.pad_token_id)
-        #decoded_inputs = tokenizer.batch_decode(inputs, skip_special_tokens=True)
-        #decoded_inputs = [pred.strip() for pred in decoded_inputs]
+        # inputs = np.where(inputs != -100, inputs, tokenizer.pad_token_id)
+        # decoded_inputs = tokenizer.batch_decode(inputs, skip_special_tokens=True)
+        # decoded_inputs = [pred.strip() for pred in decoded_inputs]
 
         label_ids = np.where(label_ids != -100, label_ids, tokenizer.pad_token_id)
         # tokenizer behavior like generate time
         decoded_labels = tokenizer.batch_decode(label_ids, skip_special_tokens=True,
-                                                           clean_up_tokenization_spaces=True)
+                                                clean_up_tokenization_spaces=True)
         decoded_labels = [pred.strip() for pred in decoded_labels]
 
         predictions = np.argmax(predictions, -1)
         predictions = np.where(predictions != -100, predictions, tokenizer.pad_token_id)
         # tokenizer behavior like generate time
         decoded_predictions = tokenizer.batch_decode(predictions, skip_special_tokens=True,
-                                                                  clean_up_tokenization_spaces=True)
+                                                     clean_up_tokenization_spaces=True)
         decoded_predictions = [pred.strip() for pred in decoded_predictions]
 
         result = {}
@@ -541,8 +544,8 @@ def train(
             load_best_model_at_end=True if val_set_size > 0 else False,
             ddp_find_unused_parameters=False if ddp else None,
             group_by_length=group_by_length,
-            #fsdp="shard_grad_op auto_wrap" if gpus > 1 and not ddp else None,
-            #fsdp_min_num_params=20000 if gpus > 1 and not ddp else None,
+            # fsdp="shard_grad_op auto_wrap" if gpus > 1 and not ddp else None,
+            # fsdp_min_num_params=20000 if gpus > 1 and not ddp else None,
             report_to='tensorboard' if not neptune_run else 'neptune',
         ),
         data_collator=transformers.DataCollatorForSeq2Seq(
@@ -616,10 +619,12 @@ def generate_and_tokenize_prompt(data_point, prompt_type=None, train_on_inputs=F
     assert prompt_type is not None
     assert cutoff_len is not None
     assert tokenizer is not None
-    full_prompt, _, _, _ = generate_prompt(data_point, prompt_type, False, False)
+    prompt_dict = ''  # only for custom prompt_type
+    assert prompt_type != PromptType.custom.name, "custom not setup for finetune"
+    full_prompt, _, _, _ = generate_prompt(data_point, prompt_type, prompt_dict, False, False)
     tokenized_full_prompt = tokenize(full_prompt, tokenizer, cutoff_len, add_eos_token=add_eos_token)
     if not train_on_inputs:
-        user_prompt, _, _, _ = generate_prompt({**data_point, "output": ""}, prompt_type, False, False)
+        user_prompt, _, _, _ = generate_prompt({**data_point, "output": ""}, prompt_type, prompt_dict, False, False)
         tokenized_user_prompt = tokenize(user_prompt, tokenizer, cutoff_len, add_eos_token=add_eos_token)
         user_prompt_len = len(tokenized_user_prompt["input_ids"])
         if add_eos_token:
@@ -665,6 +670,7 @@ NCCL_P2P_LEVEL=LOC WORLD_SIZE=7 CUDA_VISIBLE_DEVICES="0,1" torchrun --node_rank 
 
     if os.environ.get("LOCAL_RANK") is None:
         # then not using torchrun, so can't do distributed, ensure CVD set
-        assert os.environ.get("CUDA_VISIBLE_DEVICES") is not None, "Run python script using: torchrun finetune.py OR set CUDA_VISIBLE_DEVICES to single GPU"
+        assert os.environ.get(
+            "CUDA_VISIBLE_DEVICES") is not None, "Run python script using: torchrun finetune.py OR set CUDA_VISIBLE_DEVICES to single GPU"
 
     fire.Fire(train)

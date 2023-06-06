@@ -1,3 +1,4 @@
+import ast
 import time
 from enum import Enum
 
@@ -5,6 +6,7 @@ non_hf_types = ['gpt4all_llama', 'llama', 'gptj']
 
 
 class PromptType(Enum):
+    custom = -1
     plain = 0
     instruct = 1
     quality = 2
@@ -23,6 +25,7 @@ class PromptType(Enum):
     instruct_vicuna3 = 15
     wizard2 = 16
     wizard3 = 17
+    instruct_simple = 18
 
 
 prompt_type_to_model_name = {
@@ -79,6 +82,7 @@ prompt_type_to_model_name = {
     "open_assistant": ['OpenAssistant/oasst-sft-7-llama-30b-xor', 'oasst-sft-7-llama-30b'],
     "wizard_lm": ['ehartford/WizardLM-7B-Uncensored', 'ehartford/WizardLM-13B-Uncensored'],
     "wizard_mega": ['openaccess-ai-collective/wizard-mega-13b'],
+    "instruct_simple": ['JosephusCheung/Guanaco'],
 }
 
 inv_prompt_type_to_model_name = {v.strip(): k for k, l in prompt_type_to_model_name.items() for v in l}
@@ -93,9 +97,29 @@ for p in PromptType:
     prompt_types.extend([p.name, p.value, str(p.value)])
 
 
-def get_prompt(prompt_type, chat, context, reduced):
-    if prompt_type in [PromptType.plain.value, str(PromptType.plain.value),
-                       PromptType.plain.name]:
+def get_prompt(prompt_type, prompt_dict, chat, context, reduced, return_dict=False):
+    prompt_dict_error = ''
+    if prompt_type == PromptType.custom.name and not isinstance(prompt_dict, dict):
+        try:
+            prompt_dict = ast.literal_eval(prompt_dict)
+        except BaseException as e:
+            prompt_dict_error = str(e)
+        if prompt_dict_error:
+            return dict(), prompt_dict_error
+
+    if prompt_type in [PromptType.custom.value, str(PromptType.custom.value),
+                       PromptType.custom.name]:
+        promptA = prompt_dict.get('promptA', '')
+        promptB = prompt_dict('promptB', '')
+        PreInstruct = prompt_dict.get('PreInstruct', '')
+        PreInput = prompt_dict.get('PreInput', '')
+        PreResponse = prompt_dict.get('PreResponse', '')
+        terminate_response = prompt_dict.get('terminate_response', None)
+        chat_sep = prompt_dict.get('chat_sep', '\n')
+        humanstr = prompt_dict.get('humanstr', '')
+        botstr = prompt_dict.get('botstr', '')
+    elif prompt_type in [PromptType.plain.value, str(PromptType.plain.value),
+                         PromptType.plain.name]:
         promptA = promptB = PreInstruct = PreInput = PreResponse = ''
         terminate_response = []
         chat_sep = ''
@@ -373,13 +397,38 @@ ASSISTANT:
         humanstr = PreInstruct
         botstr = PreResponse
 
+    elif prompt_type in [PromptType.instruct_simple.value, str(PromptType.instruct_simple.value),
+                         PromptType.instruct_simple.name]:
+        promptA = '' if not (chat and reduced) else ''
+        promptB = '' if not (chat and reduced) else ''
+
+        PreInstruct = """
+### Instruction:
+"""
+
+        PreInput = """
+### Input:
+"""
+
+        PreResponse = """
+### Response:
+"""
+        terminate_response = None
+        chat_sep = '\n'
+        humanstr = PreInstruct
+        botstr = PreResponse
     else:
         raise RuntimeError("No such prompt_type=%s" % prompt_type)
 
-    return promptA, promptB, PreInstruct, PreInput, PreResponse, terminate_response, chat_sep, humanstr, botstr
+    if return_dict:
+        return dict(promptA=promptA, promptB=promptB, PreInstruct=PreInstruct, PreInput=PreInput,
+                    PreResponse=PreResponse, terminate_response=terminate_response, chat_sep=chat_sep,
+                    humanstr=humanstr, botstr=botstr), ''
+    else:
+        return promptA, promptB, PreInstruct, PreInput, PreResponse, terminate_response, chat_sep, humanstr, botstr
 
 
-def generate_prompt(data_point, prompt_type, chat, reduced):
+def generate_prompt(data_point, prompt_type, prompt_dict, chat, reduced):
     context = data_point.get('context')
     if context is None:
         context = ''
@@ -387,9 +436,10 @@ def generate_prompt(data_point, prompt_type, chat, reduced):
     input = data_point.get('input')
     output = data_point.get('output')
     prompt_type = data_point.get('prompt_type', prompt_type)
+    prompt_dict = data_point.get('prompt_dict', prompt_dict)
     assert prompt_type in prompt_types, "Bad prompt type: %s" % prompt_type
     promptA, promptB, PreInstruct, PreInput, PreResponse, \
-        terminate_response, chat_sep, humanstr, botstr = get_prompt(prompt_type, chat, context, reduced)
+        terminate_response, chat_sep, humanstr, botstr = get_prompt(prompt_type, prompt_dict, chat, context, reduced)
 
     prompt = context if not reduced else ''
 
@@ -452,12 +502,13 @@ def inject_newline(prompt_type, prompt):
 
 
 class Prompter(object):
-    def __init__(self, prompt_type, debug=False, chat=False, stream_output=False, repeat_penalty=True,
+    def __init__(self, prompt_type, prompt_dict, debug=False, chat=False, stream_output=False, repeat_penalty=True,
                  allowed_repeat_line_length=10):
         self.prompt_type = prompt_type
+        self.prompt_dict = prompt_dict
         data_point = dict(instruction='', input='', output='')
         _, self.pre_response, self.terminate_response, self.chat_sep = \
-            generate_prompt(data_point, prompt_type, chat, False)
+            generate_prompt(data_point, self.prompt_type, self.prompt_dict, chat, False)
         self.debug = debug
         self.chat = chat
         self.stream_output = stream_output
@@ -468,11 +519,11 @@ class Prompter(object):
         reduced = False  # not for chat context
         self.promptA, self.promptB, self.PreInstruct, self.PreInput, self.PreResponse, \
             self.terminate_response, self.chat_sep, self.humanstr, self.botstr = \
-            get_prompt(prompt_type, chat, context, reduced)
+            get_prompt(self.prompt_type, self.prompt_dict, chat, context, reduced)
 
     def generate_prompt(self, data_point):
         reduced = False
-        prompt, _, _, _ = generate_prompt(data_point, self.prompt_type, self.chat, reduced)
+        prompt, _, _, _ = generate_prompt(data_point, self.prompt_type, self.prompt_dict, self.chat, reduced)
         if self.debug:
             print("prompt: ", prompt, flush=True)
         self.prompt = prompt

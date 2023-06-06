@@ -19,7 +19,7 @@ from operator import concat
 from joblib import Parallel, delayed
 from tqdm import tqdm
 
-from prompter import non_hf_types
+from prompter import non_hf_types, PromptType
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
     get_device, ProgressParallel, remove, hash_file
 
@@ -235,6 +235,7 @@ def get_llm(use_openai_model=False, model_name=None, model=None,
             top_k=40,
             top_p=0.7,
             prompt_type=None,
+            prompt_dict=None,
             prompter=None,
             verbose=False,
             ):
@@ -298,6 +299,7 @@ def get_llm(use_openai_model=False, model_name=None, model=None,
         pipe = H2OTextGenerationPipeline(model=model, use_prompter=True,
                                          prompter=prompter,
                                          prompt_type=prompt_type,
+                                         prompt_dict=prompt_dict,
                                          sanitize_bot_response=True,
                                          chat=False, stream_output=stream_output,
                                          tokenizer=tokenizer,
@@ -1117,6 +1119,7 @@ def _run_qa_db(query=None,
                stream_output=False,
                prompter=None,
                prompt_type=None,
+               prompt_dict=None,
                answer_with_sources=True,
                cut_distanct=1.1,
                sanitize_bot_response=True,
@@ -1155,8 +1158,13 @@ def _run_qa_db(query=None,
     assert prompter is not None or prompt_type is not None or model is None  # if model is None, then will generate
     if prompter is not None:
         prompt_type = prompter.prompt_type
+        prompt_dict = prompter.prompt_dict
     if model is not None:
         assert prompt_type is not None
+        if prompt_type == PromptType.custom.name:
+            assert prompt_dict is not None  # should at least be {} or ''
+        else:
+            prompt_dict = ''
     llm, model_name, streamer, prompt_type_out = get_llm(use_openai_model=use_openai_model, model_name=model_name,
                                                          model=model, tokenizer=tokenizer,
                                                          stream_output=stream_output,
@@ -1166,6 +1174,7 @@ def _run_qa_db(query=None,
                                                          top_k=top_k,
                                                          top_p=top_p,
                                                          prompt_type=prompt_type,
+                                                         prompt_dict=prompt_dict,
                                                          prompter=prompter,
                                                          verbose=verbose,
                                                          )
@@ -1248,6 +1257,7 @@ def get_similarity_chain(query=None,
                          model_name=None,
                          hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
                          prompt_type=None,
+                         prompt_dict=None,
                          cut_distanct=1.1,
                          load_db_if_exists=False,
                          db=None,

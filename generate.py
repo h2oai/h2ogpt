@@ -35,7 +35,7 @@ from peft import PeftModel
 from transformers import GenerationConfig, AutoModel, TextIteratorStreamer
 from accelerate import init_empty_weights, infer_auto_device_map
 
-from prompter import Prompter, inv_prompt_type_to_model_lower, non_hf_types
+from prompter import Prompter, inv_prompt_type_to_model_lower, non_hf_types, PromptType, get_prompt
 from stopping import get_stopping
 
 eval_extra_columns = ['prompt', 'response', 'score']
@@ -58,6 +58,7 @@ def main(
         compile_model: bool = True,
 
         prompt_type: Union[int, str] = None,
+        prompt_dict: typing.Dict = None,
         # input to generation
         temperature: float = None,
         top_p: float = None,
@@ -157,6 +158,7 @@ def main(
     :param gpu_id: if infer_devices, then use gpu_id for cuda device ID, or auto mode if gpu_id != -1
     :param compile_model Whether to compile the model
     :param prompt_type: type of prompt, usually matched to fine-tuned model or plain for foundational model
+    :param prompt_dict: If prompt_type=custom, then expects (some) items returned by get_prompt(..., return_dict=True)
     :param temperature: generation temperature
     :param top_p: generation top_p
     :param top_k: generation top_k
@@ -348,7 +350,8 @@ def main(
 
     placeholder_instruction, placeholder_input, \
         stream_output, show_examples, \
-        prompt_type, temperature, top_p, top_k, num_beams, \
+        prompt_type, prompt_dict, \
+        temperature, top_p, top_k, num_beams, \
         max_new_tokens, min_new_tokens, early_stopping, max_time, \
         repetition_penalty, num_return_sequences, \
         do_sample, \
@@ -357,7 +360,8 @@ def main(
         task_info = \
         get_generate_params(model_lower, chat,
                             stream_output, show_examples,
-                            prompt_type, temperature, top_p, top_k, num_beams,
+                            prompt_type, prompt_dict,
+                            temperature, top_p, top_k, num_beams,
                             max_new_tokens, min_new_tokens, early_stopping, max_time,
                             repetition_penalty, num_return_sequences,
                             do_sample,
@@ -789,11 +793,20 @@ def get_score_model(score_model: str = None,
     return smodel, stokenizer, sdevice
 
 
+no_default_param_names = [
+    'instruction',
+    'iinput',
+    'context',
+    'instruction_nochat',
+    'iinput_nochat',
+]
+
 eval_func_param_names = ['instruction',
                          'iinput',
                          'context',
                          'stream_output',
                          'prompt_type',
+                         'prompt_dict',
                          'temperature',
                          'top_p',
                          'top_k',
@@ -813,6 +826,89 @@ eval_func_param_names = ['instruction',
                          'document_choice',
                          ]
 
+# form evaluate defaults for submit_nochat_api
+eval_func_param_names_defaults = eval_func_param_names.copy()
+for k in no_default_param_names:
+    if k in eval_func_param_names_defaults:
+        eval_func_param_names_defaults.remove(k)
+
+
+def evaluate_from_str(
+        model_state,
+        my_db_state,
+        # START NOTE: Examples must have same order of parameters
+        user_kwargs,
+        # END NOTE: Examples must have same order of parameters
+        default_kwargs=None,
+        src_lang=None,
+        tgt_lang=None,
+        debug=False,
+        concurrency_count=None,
+        save_dir=None,
+        sanitize_bot_response=True,
+        model_state0=None,
+        memory_restriction_level=None,
+        raise_generate_gpu_exceptions=None,
+        chat_context=None,
+        lora_weights=None,
+        load_db_if_exists=True,
+        dbs=None,
+        user_path=None,
+        detect_user_path_changes_every_query=None,
+        use_openai_embedding=None,
+        use_openai_model=None,
+        hf_embedding_model=None,
+        chunk=None,
+        chunk_size=None,
+        db_type=None,
+        n_jobs=None,
+        first_para=None,
+        text_limit=None,
+        verbose=False,
+        cli=False,
+):
+    if isinstance(user_kwargs, str):
+        user_kwargs = ast.literal_eval(user_kwargs)
+    assert set(list(default_kwargs.keys())) == set(eval_func_param_names)
+    # correct ordering.  Note some things may not be in default_kwargs, so can't be default of user_kwargs.get()
+    args_list = [user_kwargs[k] if k in user_kwargs else default_kwargs[k] for k in eval_func_param_names]
+
+    ret = evaluate(
+        model_state,
+        my_db_state,
+        # START NOTE: Examples must have same order of parameters
+        *tuple(args_list),
+        # END NOTE: Examples must have same order of parameters
+        src_lang=src_lang,
+        tgt_lang=tgt_lang,
+        debug=debug,
+        concurrency_count=concurrency_count,
+        save_dir=save_dir,
+        sanitize_bot_response=sanitize_bot_response,
+        model_state0=model_state0,
+        memory_restriction_level=memory_restriction_level,
+        raise_generate_gpu_exceptions=raise_generate_gpu_exceptions,
+        chat_context=chat_context,
+        lora_weights=lora_weights,
+        load_db_if_exists=load_db_if_exists,
+        dbs=dbs,
+        user_path=user_path,
+        detect_user_path_changes_every_query=detect_user_path_changes_every_query,
+        use_openai_embedding=use_openai_embedding,
+        use_openai_model=use_openai_model,
+        hf_embedding_model=hf_embedding_model,
+        chunk=chunk,
+        chunk_size=chunk_size,
+        db_type=db_type,
+        n_jobs=n_jobs,
+        first_para=first_para,
+        text_limit=text_limit,
+        verbose=verbose,
+        cli=cli,
+    )
+    for ret1 in ret:
+        yield ret1
+
 
 def evaluate(
         model_state,
@@ -823,6 +919,7 @@ def evaluate(
         context,
         stream_output,
         prompt_type,
+        prompt_dict,
         temperature,
         top_p,
         top_k,
@@ -927,7 +1024,7 @@ def evaluate(
         # get hidden context if have one
         context = get_context(chat_context, prompt_type)
 
-    prompter = Prompter(prompt_type, debug=debug, chat=chat, stream_output=stream_output)
+    prompter = Prompter(prompt_type, prompt_dict, debug=debug, chat=chat, stream_output=stream_output)
     data_point = dict(context=context, instruction=instruction, input=iinput)
     prompt = prompter.generate_prompt(data_point)
 
@@ -970,6 +1067,7 @@ def evaluate(
                            top_k=top_k,
                            top_p=top_p,
                            prompt_type=prompt_type,
+                           prompt_dict=prompt_dict,
                            n_jobs=n_jobs,
                            verbose=verbose,
                            cli=cli,
@@ -1004,8 +1102,9 @@ def evaluate(
     if chat:
         # override, ignore user change
         num_return_sequences = 1
-    stopping_criteria = get_stopping(prompt_type, tokenizer, device)
-    _, _, max_length_tokenize, max_prompt_length = get_cutoffs(memory_restriction_level, model_max_length=tokenizer.model_max_length)
+    stopping_criteria = get_stopping(prompt_type, prompt_dict, tokenizer, device)
+    _, _, max_length_tokenize, max_prompt_length = get_cutoffs(memory_restriction_level,
+                                                               model_max_length=tokenizer.model_max_length)
     prompt = prompt[-max_prompt_length:]
     inputs = tokenizer(prompt,
                        return_tensors="pt",
@@ -1252,14 +1351,15 @@ def generate_with_exceptions(func, *args, prompt='', inputs_decoded='', raise_ge
 
 def get_generate_params(model_lower, chat,
                         stream_output, show_examples,
-                        prompt_type, temperature, top_p, top_k, num_beams,
+                        prompt_type, prompt_dict,
+                        temperature, top_p, top_k, num_beams,
                         max_new_tokens, min_new_tokens, early_stopping, max_time,
                         repetition_penalty, num_return_sequences,
                         do_sample, k, verbose):
     use_defaults = False
     use_default_examples = True
     examples = []
-    task_info = f"{prompt_type}"
+    task_info = 'LLM'
     if model_lower:
         print(f"Using Model {model_lower}", flush=True)
     else:
@@ -1289,15 +1389,13 @@ Jeff: and how can I get started?
 Jeff: where can I find documentation? 
 Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-partnership-amazon-sagemaker-and-hugging-face"""
 
+    use_placeholder_instruction_as_example = False
     if 'bart-large-cnn-samsum' in model_lower or 'flan-t5-base-samsum' in model_lower:
         placeholder_instruction = summarize_example1
         placeholder_input = ""
         use_defaults = True
         use_default_examples = False
-        examples += [
-            [placeholder_instruction, "", "", stream_output, 'plain', 1.0, 1.0, 50, 1, 128, 0, False, max_time_defaults,
-             1.0, 1,
-             False]]
+        use_placeholder_instruction_as_example = True
         task_info = "Summarization"
     elif 't5-' in model_lower or 't5' == model_lower or 'flan-' in model_lower:
         placeholder_instruction = "The square root of x is the cube root of y. What is y to the power of 2, if x = 4?"
@@ -1310,19 +1408,13 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         placeholder_input = ""
         use_defaults = True
         use_default_examples = False
-        examples += [
-            [placeholder_instruction, "", "", stream_output, 'plain', 1.0, 1.0, 50, 1, 128, 0, False, max_time_defaults,
-             1.0, 1,
-             False]]
+        use_placeholder_instruction_as_example = True
     elif 'gpt2' in model_lower:
         placeholder_instruction = "The sky is"
         placeholder_input = ""
         prompt_type = prompt_type or 'plain'
         use_default_examples = True  # some will be odd "continuations" but can be ok
-        examples += [
-            [placeholder_instruction, "", "", stream_output, 'plain', 1.0, 1.0, 50, 1, 128, 0, False, max_time_defaults,
-             1.0, 1,
-             False]]
+        use_placeholder_instruction_as_example = True
         task_info = "Auto-complete phrase, code, etc."
         use_defaults = True
     else:
@@ -1371,8 +1463,15 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         num_return_sequences = min(num_beams, num_return_sequences or 1)
         do_sample = False if do_sample is None else do_sample
     # doesn't include chat, instruction_nochat, iinput_nochat, added later
-    params_list = ["", stream_output, prompt_type, temperature, top_p, top_k, num_beams, max_new_tokens, min_new_tokens,
+    params_list = ["",
+                   stream_output,
+                   prompt_type, prompt_dict,
+                   temperature, top_p, top_k, num_beams, max_new_tokens,
+                   min_new_tokens,
                    early_stopping, max_time, repetition_penalty, num_return_sequences, do_sample]
+
+    if use_placeholder_instruction_as_example:
+        examples += [placeholder_instruction, ''] + params_list
 
     if use_default_examples:
         examples += [
@@ -1411,7 +1510,8 @@ y = np.random.randint(0, 1, 100)
 # fit random forest classifier with 20 estimators""", ''] + params_list,
         ]
     # add summary example
-    examples += [[summarize_example1, 'Summarize' if prompt_type not in ['plain', 'instruct_simple'] else ''] + params_list]
+    examples += [
+        [summarize_example1, 'Summarize' if prompt_type not in ['plain', 'instruct_simple'] else ''] + params_list]
 
     src_lang = "English"
     tgt_lang = "Russian"
@@ -1430,9 +1530,19 @@ y = np.random.randint(0, 1, 100)
         assert len(example) == len(eval_func_param_names), "Wrong example: %s %s" % (
             len(example), len(eval_func_param_names))
 
+    if prompt_type == PromptType.custom.name and not prompt_dict:
+        raise ValueError("Unexpected to get non-empty prompt_dict=%s for prompt_type=%s" % (prompt_dict, prompt_type))
+
+    # get prompt_dict from prompt_type, so user can see in UI etc., or for custom do nothing except check format
+    prompt_dict, error0 = get_prompt(prompt_type, prompt_dict,
+                                     chat=False, context='', reduced=False, return_dict=True)
+    if error0:
+        raise RuntimeError("Prompt wrong: %s" % error0)
+
     return placeholder_instruction, placeholder_input, \
         stream_output, show_examples, \
-        prompt_type, temperature, top_p, top_k, num_beams, \
+        prompt_type, prompt_dict, \
+        temperature, top_p, top_k, num_beams, \
         max_new_tokens, min_new_tokens, early_stopping, max_time, \
         repetition_penalty, num_return_sequences, \
         do_sample, \
@@ -1492,12 +1602,7 @@ def score_qa(smodel, stokenizer, max_length_tokenize, question, answer, cutoff_l
 
 def check_locals(**kwargs):
     # ensure everything in evaluate is here
-    can_skip_because_locally_generated = [  # evaluate
-        'instruction',
-        'iinput',
-        'context',
-        'instruction_nochat',
-        'iinput_nochat',
+    can_skip_because_locally_generated = no_default_param_names + [
         # get_model:
         'reward_type'
     ]
