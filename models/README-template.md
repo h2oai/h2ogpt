@@ -41,10 +41,10 @@ pip install einops==0.6.1
 
 ```python
 import torch
-from transformers import pipeline
+from transformers import pipeline, AutoTokenizer
 
 generate_text = pipeline(model="h2oai/<<MODEL_NAME>>", torch_dtype=torch.bfloat16, trust_remote_code=True, device_map="auto", prompt_type="human_bot")
-
+tokenizer = AutoTokenizer.from_pretrained("h2oai/<<MODEL_NAME>>", padding_side="left")
 res = generate_text("Why is drinking water so healthy?", max_new_tokens=100)
 print(res[0]["generated_text"])
 ```
