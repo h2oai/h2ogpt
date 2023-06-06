@@ -10,7 +10,7 @@ buildSummary.get().addStagesSummary(this, new StagesSummary())
 
 def ALL_TESTS = [
         //"test_osx":  [ install_deps: "ALL", test_target: "test", node: "osx", use_docker: false, env: ['PYTHON_BINARY=/Users/jenkins/anaconda/envs/h2ogpt-py3.10/bin/python'] ],
-        "test_dl24": [ install_deps: "ALL,4BIT,LANGCHAIN,GPL,GPT4ALL", test_target: "test", node: "mr-dl24", use_docker: true, env: [] ],
+        "test": [ install_deps: "ALL,4BIT,LANGCHAIN,GPL,GPT4ALL", test_target: "test", node: "DAIDEV-GPU || DAIDEV-2GPU", use_docker: true, env: [] ],
 ]
 
 pipeline {
@@ -85,13 +85,13 @@ pipeline {
                                                     if (ALL_TESTS[testName].use_docker) {
                                                         docker.image("${dockerImage}").inside("--entrypoint='' --security-opt seccomp=unconfined --ulimit core=-1 --init --pid=host -e USE_WHEEL=1 -e HOME=${WORKSPACE}/${testName} ${dockerRuntime}") {
                                                             sh "nvidia-smi || true"
-                                                            sh "PYTHON_BINARY=/usr/bin/python3.10 make install-${ALL_TESTS[testName].install_deps}"
-                                                            sh "PYTHON_BINARY=/usr/bin/python3.10 make ${ALL_TESTS[testName].test_target}"
+                                                            sh "SKIP_MANUAL_TESTS=1 PYTHON_BINARY=/usr/bin/python3.10 make install-${ALL_TESTS[testName].install_deps}"
+                                                            sh "SKIP_MANUAL_TESTS=1 PYTHON_BINARY=/usr/bin/python3.10 make ${ALL_TESTS[testName].test_target}"
                                                         }
                                                     } else {
                                                         sh "make venv"
-                                                        sh "PYTHON_BINARY=${WORKSPACE}/${testName}/venv/bin/python make install-${ALL_TESTS[testName].install_deps}"
-                                                        sh "PYTHON_BINARY=${WORKSPACE}/${testName}/venv/bin/python make ${ALL_TESTS[testName].test_target}"
+                                                        sh "SKIP_MANUAL_TESTS=1 PYTHON_BINARY=${WORKSPACE}/${testName}/venv/bin/python make install-${ALL_TESTS[testName].install_deps}"
+                                                        sh "SKIP_MANUAL_TESTS=1 PYTHON_BINARY=${WORKSPACE}/${testName}/venv/bin/python make ${ALL_TESTS[testName].test_target}"
                                                     }
                                                 }
                                             }
