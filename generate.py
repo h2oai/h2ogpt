@@ -348,6 +348,8 @@ def main(
     if offload_folder:
         makedirs(offload_folder)
 
+    user_set_max_new_tokens = max_new_tokens is not None
+
     placeholder_instruction, placeholder_input, \
         stream_output, show_examples, \
         prompt_type, prompt_dict, \
@@ -366,6 +368,8 @@ def main(
                             repetition_penalty, num_return_sequences,
                             do_sample,
                             top_k_docs,
+                            chunk,
+                            chunk_size,
                             verbose,
                             )
 
@@ -741,6 +745,8 @@ def get_model(
         # help automatically limit inputs to generate
         tokenizer.model_max_length = config.max_position_embeddings
     else:
+        if verbose:
+            print("Could not determine model_max_length, setting to 2048", flush=True)
         tokenizer.model_max_length = 2048
 
     return model, tokenizer, device
@@ -825,6 +831,8 @@ eval_func_param_names = ['instruction',
                          'iinput_nochat',
                          'langchain_mode',
                          'top_k_docs',
+                         'chunk',
+                         'chunk_size',
                          'document_choice',
                          ]
 
@@ -938,6 +946,8 @@ def evaluate(
         iinput_nochat,
         langchain_mode,
         top_k_docs,
+        chunk,
+        chunk_size,
         document_choice,
         # END NOTE: Examples must have same order of parameters
         src_lang=None,
@@ -958,8 +968,6 @@ def evaluate(
         use_openai_embedding=None,
         use_openai_model=None,
         hf_embedding_model=None,
-        chunk=None,
-        chunk_size=None,
         db_type=None,
         n_jobs=None,
         first_para=None,
@@ -975,10 +983,10 @@ def evaluate(
     assert use_openai_embedding is not None
     assert use_openai_model is not None
     assert hf_embedding_model is not None
-    assert chunk is not None
-    assert chunk_size is not None
     assert db_type is not None
     assert top_k_docs is not None and isinstance(top_k_docs, int)
+    assert chunk is not None and isinstance(chunk, bool)
+    assert chunk_size is not None and isinstance(chunk_size, int)
     assert n_jobs is not None
     assert first_para is not None
 
@@ -1357,7 +1365,9 @@ def get_generate_params(model_lower, chat,
                         temperature, top_p, top_k, num_beams,
                         max_new_tokens, min_new_tokens, early_stopping, max_time,
                         repetition_penalty, num_return_sequences,
-                        do_sample, k, verbose):
+                        do_sample,
+                        top_k_docs, chunk, chunk_size,
+                        verbose):
     use_defaults = False
     use_default_examples = True
     examples = []
@@ -1468,8 +1478,8 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
     params_list = ["",
                    stream_output,
                    prompt_type, prompt_dict,
-                   temperature, top_p, top_k, num_beams, max_new_tokens,
-                   min_new_tokens,
+                   temperature, top_p, top_k, num_beams,
+                   max_new_tokens, min_new_tokens,
                    early_stopping, max_time, repetition_penalty, num_return_sequences, do_sample]
 
     if use_placeholder_instruction_as_example:
@@ -1520,7 +1530,7 @@ y = np.random.randint(0, 1, 100)
 
     # move to correct position
     for example in examples:
-        example += [chat, '', '', 'Disabled', k, ['All']]
+        example += [chat, '', '', 'Disabled', top_k_docs, chunk, chunk_size, ['All']]
         # adjust examples if non-chat mode
         if not chat:
             example[eval_func_param_names.index('instruction_nochat')] = example[
@@ -1621,6 +1631,24 @@ def check_locals(**kwargs):
         if k in can_skip_because_locally_generated:
             continue
         assert k in kwargs, "Missing %s" % k
+
+
+def get_max_max_new_tokens(model_state, **kwargs):
+    if kwargs['max_new_tokens'] and kwargs['user_set_max_new_tokens']:
+        max_max_new_tokens = kwargs['max_new_tokens']
+    elif kwargs['memory_restriction_level'] == 1:
+        max_max_new_tokens = 768
+    elif kwargs['memory_restriction_level'] == 2:
+        max_max_new_tokens = 512
+    elif kwargs['memory_restriction_level'] >= 3:
+        max_max_new_tokens = 256
+    else:
+        if not isinstance(model_state[1], str):
+            max_max_new_tokens = model_state[1].model_max_length
+        else:
+            # FIXME: Need to update after new model loaded, so user can control with slider
+            max_max_new_tokens = 2048
+    return max_max_new_tokens
 
 
 if __name__ == "__main__":

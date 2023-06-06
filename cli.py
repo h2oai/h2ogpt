@@ -19,12 +19,12 @@ def run_cli(  # for local function:
         temperature=None, top_p=None, top_k=None, num_beams=None,
         max_new_tokens=None, min_new_tokens=None, early_stopping=None, max_time=None, repetition_penalty=None,
         num_return_sequences=None, do_sample=None, chat=None,
-        langchain_mode=None, document_choice=None, top_k_docs=None,
+        langchain_mode=None, document_choice=None, top_k_docs=None, chunk=None, chunk_size=None,
         # for evaluate kwargs
         src_lang=None, tgt_lang=None, concurrency_count=None, save_dir=None, sanitize_bot_response=None,
         model_state0=None, raise_generate_gpu_exceptions=None, load_db_if_exists=None, dbs=None, user_path=None,
         detect_user_path_changes_every_query=None,
-        use_openai_embedding=None, use_openai_model=None, hf_embedding_model=None, chunk=None, chunk_size=None,
+        use_openai_embedding=None, use_openai_model=None, hf_embedding_model=None,
         db_type=None, n_jobs=None, first_para=None, text_limit=None, verbose=None, cli=None,
         # unique to this function:
         cli_loop=None,
