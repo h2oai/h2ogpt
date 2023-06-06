@@ -6,6 +6,8 @@ import gradio_client  # type: ignore
 
 
 class PromptType(Enum):
+    """Prompt type"""
+
     DAI_FAQ = "dai_faq"
     HUMAN_BOT = "human_bot"
     HUMAN_BOT_ORIGINAL = "human_bot_orig"
@@ -24,6 +26,8 @@ class PromptType(Enum):
 
 
 class LangChainMode(Enum):
+    """LangChain mode"""
+
     ALL = "All"
     CHAT_LLM = "ChatLLM"
     DISABLED = "Disabled"
@@ -81,28 +85,28 @@ class TextCompletion:
         """
         Creates a new text completion.
 
-        :param prompt: The prompt to generate completions for.
-        :param prompt_type: Type of the prompt.
-        :param input_context_for_instruction: Input context for instruction.
-        :param enable_sampler: Enable or disable tje sampler, required for use of
-                temperature, top_p, top_k.
+        :param prompt: text prompt to generate completions for
+        :param prompt_type: type of the prompt
+        :param input_context_for_instruction: input context for instruction
+        :param enable_sampler: enable or disable the sampler, required for use of
+                temperature, top_p, top_k
         :param temperature: What sampling temperature to use, between 0 and 3.
                 Lower values will make it more focused and deterministic, but may lead
                 to repeat. Higher values will make the output more creative, but may
                 lead to hallucinations.
-        :param top_p: Cumulative probability of tokens to sample from.
-        :param top_k: Number of tokens to sample from.
+        :param top_p: cumulative probability of tokens to sample from
+        :param top_k: number of tokens to sample from
         :param beams: Number of searches for optimal overall probability.
                 Higher values uses more GPU memory and compute.
-        :param early_stopping: Whether to stop early or not in beam search.
-        :param min_output_length:
-        :param max_output_length:
-        :param max_time: Maximum time to search optimal output.
-        :param repetition_penalty:
+        :param early_stopping: whether to stop early or not in beam search
+        :param min_output_length: minimum output length
+        :param max_output_length: maximum output length
+        :param max_time: maximum time to search optimal output
+        :param repetition_penalty: penalty for repetition
         :param number_returns:
         :param input:
         :param system_pre_context:
-        :param langchain_mode:
+        :param langchain_mode: LangChain mode
         :return: response from the model
         """
         # Not exposed parameters.
@@ -155,30 +159,30 @@ class TextCompletion:
         langchain_mode: LangChainMode = LangChainMode.DISABLED,
     ) -> str:
         """
-        Creates a new text completion.
+        Creates a new text completion asynchronously.
 
-        :param prompt: The prompt to generate completions for.
-        :param prompt_type: Type of the prompt.
-        :param input_context_for_instruction: Input context for instruction.
-        :param enable_sampler: Enable or disable tje sampler, required for use of
-                temperature, top_p, top_k.
+        :param prompt: text prompt to generate completions for
+        :param prompt_type: type of the prompt
+        :param input_context_for_instruction: input context for instruction
+        :param enable_sampler: enable or disable the sampler, required for use of
+                temperature, top_p, top_k
         :param temperature: What sampling temperature to use, between 0 and 3.
                 Lower values will make it more focused and deterministic, but may lead
                 to repeat. Higher values will make the output more creative, but may
                 lead to hallucinations.
-        :param top_p: Cumulative probability of tokens to sample from.
-        :param top_k: Number of tokens to sample from.
+        :param top_p: cumulative probability of tokens to sample from
+        :param top_k: number of tokens to sample from
         :param beams: Number of searches for optimal overall probability.
                 Higher values uses more GPU memory and compute.
-        :param early_stopping: Whether to stop early or not in beam search.
-        :param min_output_length:
-        :param max_output_length:
-        :param max_time: Maximum time to search optimal output.
-        :param repetition_penalty:
+        :param early_stopping: whether to stop early or not in beam search
+        :param min_output_length: minimum output length
+        :param max_output_length: maximum output length
+        :param max_time: maximum time to search optimal output
+        :param repetition_penalty: penalty for repetition
         :param number_returns:
         :param input:
         :param system_pre_context:
-        :param langchain_mode:
+        :param langchain_mode: LangChain mode
         :return: response from the model
         """
         # Not exposed parameters.
