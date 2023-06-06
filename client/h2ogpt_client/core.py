@@ -24,17 +24,17 @@ class PromptType(Enum):
     WIZARD_MEGA = "wizard_mega"
 
 
-class LANGCHAIN_MODE(Enum):
-    DISABLED = "Disabled"
-    CHAT_LLM = "ChatLLM"
-    LLM = "LLM"
+class LangChainMode(Enum):
     ALL = "All"
-    WIKI = "wiki"
-    WIKI_FULL = "wiki_full"
-    USER_DATA = "UserData"
-    MY_DATA = "MyData"
+    CHAT_LLM = "ChatLLM"
+    DISABLED = "Disabled"
     GITHUB_H2OGPT = "github h2oGPT"
     H2O_DAI_DOCS = "DriverlessAI docs"
+    LLM = "LLM"
+    MY_DATA = "MyData"
+    USER_DATA = "UserData"
+    WIKI = "wiki"
+    WIKI_FULL = "wiki_full"
 
 
 class Client:
@@ -77,7 +77,7 @@ class TextCompletion:
         number_returns: int = 1,
         input: str = "",
         system_pre_context: str = "",
-        langchain_mode: LANGCHAIN_MODE = LANGCHAIN_MODE.DISABLED,
+        langchain_mode: LangChainMode = LangChainMode.DISABLED,
     ) -> str:
         """
         Creates a new text completion.
@@ -153,7 +153,7 @@ class TextCompletion:
         number_returns: int = 1,
         input: str = "",
         system_pre_context: str = "",
-        langchain_mode: LANGCHAIN_MODE = LANGCHAIN_MODE.DISABLED,
+        langchain_mode: LangChainMode = LangChainMode.DISABLED,
     ) -> str:
         """
         Creates a new text completion.
