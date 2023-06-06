@@ -55,6 +55,7 @@ test_in_docker: docker_build
 		$(DOCKER_BINARY_RUNTIME) \
 		--rm \
 		--init \
+		--security-opt seccomp=unconfined \
 		--workdir /h2oai \
 		--entrypoint bash \
 		-u `id -u`:`id -g` \
