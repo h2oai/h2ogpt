@@ -520,7 +520,7 @@ body.dark{#warning {background-color: #555555};}
                                                    visible=not is_public)
                             chunk_size = gr.Number(value=kwargs['chunk_size'],
                                                    label="Chunk size for document chunking",
-                                                   info="For LangChain",
+                                                   info="For LangChain (ignored if chunk=False)",
                                                    visible=not is_public,
                                                    precision=0)
 

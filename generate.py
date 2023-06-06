@@ -907,8 +907,6 @@ def evaluate_from_str(
         use_openai_embedding=use_openai_embedding,
         use_openai_model=use_openai_model,
         hf_embedding_model=hf_embedding_model,
-        chunk=chunk,
-        chunk_size=chunk_size,
         db_type=db_type,
         n_jobs=n_jobs,
         first_para=first_para,
