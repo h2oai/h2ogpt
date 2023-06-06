@@ -6,18 +6,22 @@ import gradio_client  # type: ignore
 
 
 class PromptType(Enum):
-    PLAIN = "plain"
-    INSTRUCT = "instruct"
-    QUALITY = "quality"
-    HUMAN_BOT = "human_bot"
     DAI_FAQ = "dai_faq"
-    SUMMARIZE = "summarize"
-    SIMPLE_INSTRUCT = "simple_instruct"
+    HUMAN_BOT = "human_bot"
+    HUMAN_BOT_ORIGINAL = "human_bot_orig"
+    INSTRUCT = "instruct"
+    INSTRUCT_SIMPLE = "instruct_simple"
     INSTRUCT_VICUNA = "instruct_vicuna"
     INSTRUCT_WITH_END = "instruct_with_end"
-    HUMAN_BOT_ORIGINAL = "human_bot_orig"
-    PROMPT_ANSWER = "prompt_answer"
     OPEN_ASSISTANT = "open_assistant"
+    PLAIN = "plain"
+    PROMPT_ANSWER = "prompt_answer"
+    QUALITY = "quality"
+    SIMPLE_INSTRUCT = "simple_instruct"
+    SUMMARIZE = "summarize"
+    WIZARD_LM = "wizard_lm"
+    WIZARD_MEGA = "wizard_mega"
+    WIZARD_MEGA = "wizard_mega"
 
 
 class LANGCHAIN_MODE(Enum):
