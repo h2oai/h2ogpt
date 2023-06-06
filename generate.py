@@ -1481,7 +1481,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
                    early_stopping, max_time, repetition_penalty, num_return_sequences, do_sample]
 
     if use_placeholder_instruction_as_example:
-        examples += [placeholder_instruction, ''] + params_list
+        examples += [[placeholder_instruction, ''] + params_list]
 
     if use_default_examples:
         examples += [
