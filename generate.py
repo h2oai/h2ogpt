@@ -735,7 +735,9 @@ def get_model(
         if torch.__version__ >= "2" and sys.platform != "win32" and compile_model:
             model = torch.compile(model)
 
-    if hasattr(config, 'max_position_embeddings') and isinstance(config.max_position_embeddings, int):
+    if hasattr(config, 'max_seq_len') and isinstance(config.max_seq_len, int):
+        tokenizer.model_max_length = config.max_seq_len
+    elif hasattr(config, 'max_position_embeddings') and isinstance(config.max_position_embeddings, int):
         # help automatically limit inputs to generate
         tokenizer.model_max_length = config.max_position_embeddings
     else:
