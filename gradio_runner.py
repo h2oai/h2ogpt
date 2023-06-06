@@ -3,6 +3,7 @@ import functools
 import inspect
 import json
 import os
+import pprint
 import random
 import sys
 import traceback
@@ -30,11 +31,13 @@ requests.get = original_get
 
 from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, get_dark_js
 from prompter import Prompter, \
-    prompt_type_to_model_name, prompt_types_strings, inv_prompt_type_to_model_lower, generate_prompt, non_hf_types
+    prompt_type_to_model_name, prompt_types_strings, inv_prompt_type_to_model_lower, generate_prompt, non_hf_types, \
+    get_prompt, PromptType
 from utils import get_githash, flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping, get_short_name, get_url, makedirs, get_kwargs
 from generate import get_model, languages_covered, evaluate, eval_func_param_names, score_qa, langchain_modes, \
-    inputs_kwargs_list, get_cutoffs, scratch_base_dir
+    inputs_kwargs_list, get_cutoffs, scratch_base_dir, evaluate_from_str, no_default_param_names, \
+    eval_func_param_names_defaults
 
 from apscheduler.schedulers.background import BackgroundScheduler
 
@@ -193,6 +196,10 @@ body.dark{#warning {background-color: #555555};}
         'base_model') else no_model_msg
     output_label0_model2 = no_model_msg
 
+    default_kwargs = {k: kwargs[k] for k in eval_func_param_names_defaults}
+    for k in no_default_param_names:
+        default_kwargs[k] = ''
+
     with demo:
         # avoid actual model/tokenizer here or anything that would be bad to deepcopy
         # https://github.com/gradio-app/gradio/issues/3558
@@ -279,6 +286,10 @@ body.dark{#warning {background-color: #555555};}
                                     score_text2 = gr.Textbox("Response Score2: NA", show_label=False, visible=False)
                             retry = gr.Button("Regenerate")
                             undo = gr.Button("Undo")
+                    submit_nochat_api = gr.Button("Submit nochat API", visible=False)
+                    inputs_dict_str = gr.Textbox(label='API input for nochat', show_label=False, visible=False)
+                    text_output_nochat_api = gr.Textbox(lines=5, label='API nochat output', visible=False).style(
+                        show_copy_button=True)
                 with gr.TabItem("Chat"):
                     with gr.Row():
                         if 'mbart-' in kwargs['model_lower']:
@@ -515,7 +526,7 @@ body.dark{#warning {background-color: #555555};}
                         n_gpus_list = [str(x) for x in list(range(-1, n_gpus))]
                         with gr.Column():
                             with gr.Row():
-                                with gr.Column(scale=50):
+                                with gr.Column(scale=20):
                                     model_choice = gr.Dropdown(model_options_state.value[0], label="Choose Model",
                                                                value=kwargs['base_model'])
                                     lora_choice = gr.Dropdown(lora_options_state.value[0], label="Choose LORA",
@@ -535,10 +546,13 @@ body.dark{#warning {background-color: #555555};}
                                                             interactive=False)
                                     lora_used = gr.Textbox(label="Current LORA", value=kwargs['lora_weights'],
                                                            visible=kwargs['show_lora'], interactive=False)
+                                    prompt_dict = gr.Textbox(label="Prompt (or Custom)",
+                                                             value=pprint.pformat(kwargs['prompt_dict'], indent=4),
+                                                             interactive=True, lines=4)
                         col_model2 = gr.Column(visible=False)
                         with col_model2:
                             with gr.Row():
-                                with gr.Column(scale=50):
+                                with gr.Column(scale=20):
                                     model_choice2 = gr.Dropdown(model_options_state.value[0], label="Choose Model 2",
                                                                 value=no_model_str)
                                     lora_choice2 = gr.Dropdown(lora_options_state.value[0], label="Choose LORA 2",
@@ -560,6 +574,9 @@ body.dark{#warning {background-color: #555555};}
                                     model_used2 = gr.Textbox(label="Current Model 2", value=no_model_str)
                                     lora_used2 = gr.Textbox(label="Current LORA 2", value=no_lora_str,
                                                             visible=kwargs['show_lora'])
+                                    prompt_dict2 = gr.Textbox(label="Prompt (or Custom) 2",
+                                                              value=pprint.pformat(kwargs['prompt_dict'], indent=4),
+                                                              interactive=True, lines=4)
                     with gr.Row():
                         with gr.Column(scale=50):
                             new_model = gr.Textbox(label="New Model HF name/path")
@@ -730,7 +747,8 @@ body.dark{#warning {background-color: #555555};}
         admin_btn.click(check_admin_pass, inputs=admin_pass_textbox, outputs=system_row, queue=False) \
             .then(close_admin, inputs=admin_pass_textbox, outputs=admin_row, queue=False)
 
-        inputs_list = get_inputs_list(all_kwargs, kwargs['model_lower'])
+        inputs_list, inputs_dict = get_inputs_list(all_kwargs, kwargs['model_lower'], model_id=1)
+        inputs_list2, inputs_dict2 = get_inputs_list(all_kwargs, kwargs['model_lower'], model_id=2)
         from functools import partial
         kwargs_evaluate = {k: v for k, v in all_kwargs.items() if k in inputs_kwargs_list}
         # ensure present
@@ -740,6 +758,10 @@ body.dark{#warning {background-color: #555555};}
                       **kwargs_evaluate)
         fun2 = partial(evaluate,
                        **kwargs_evaluate)
+        fun_with_dict_str = partial(evaluate_from_str,
+                                    default_kwargs=default_kwargs,
+                                    **kwargs_evaluate
+                                    )
 
         dark_mode_btn = gr.Button("Dark Mode", variant="primary").style(
             size="sm",
@@ -834,7 +856,7 @@ body.dark{#warning {background-color: #555555};}
                           outputs=[score_text],
                           )
         score_args2 = dict(fn=partial(score_fun, model2=True),
-                           inputs=inputs_list + [text_output2],
+                           inputs=inputs_list2 + [text_output2],
                            outputs=[score_text2],
                            )
 
@@ -862,6 +884,7 @@ body.dark{#warning {background-color: #555555};}
             input1 = args_list[eval_func_param_names.index('iinput')]  # chat only
             context1 = args_list[eval_func_param_names.index('context')]
             prompt_type1 = args_list[eval_func_param_names.index('prompt_type')]
+            prompt_dict1 = args_list[eval_func_param_names.index('prompt_dict')]
             chat1 = args_list[eval_func_param_names.index('chat')]
             stream_output1 = args_list[eval_func_param_names.index('stream_output')]
             if input1 and not user_message.endswith(':'):
@@ -874,7 +897,7 @@ body.dark{#warning {background-color: #555555};}
                 from better_profanity import profanity
                 user_message1 = profanity.censor(user_message1)
             # FIXME: WIP to use desired seperator when user enters nothing
-            prompter = Prompter(prompt_type1, debug=kwargs['debug'], chat=chat1, stream_output=stream_output1)
+            prompter = Prompter(prompt_type1, prompt_dict1, debug=kwargs['debug'], chat=chat1, stream_output=stream_output1)
             if user_message1 in ['']:
                 # e.g. when user just hits enter in textbox,
                 # else will have <human>: <bot>: on single line, which seems to be "ok" for LLM but not usual
@@ -900,7 +923,7 @@ body.dark{#warning {background-color: #555555};}
                 # FIXME: compare, same history for now
                 return history + [[user_message1, None]]
 
-        def history_to_context(history, langchain_mode1, prompt_type1, chat1):
+        def history_to_context(history, langchain_mode1, prompt_type1, prompt_dict1, chat1):
             # ensure output will be unique to models
             # FIXME: hard-coded 2048 implicitly passed:
             _, _, _, max_prompt_length = get_cutoffs(memory_restriction_level, for_context=True)
@@ -912,7 +935,9 @@ body.dark{#warning {background-color: #555555};}
                 # - 1 below because current instruction already in history from user()
                 for histi in range(0, len(history) - 1):
                     data_point = dict(instruction=history[histi][0], input='', output=history[histi][1])
-                    prompt, pre_response, terminate_response, chat_sep = generate_prompt(data_point, prompt_type1,
+                    prompt, pre_response, terminate_response, chat_sep = generate_prompt(data_point,
+                                                                                         prompt_type1,
+                                                                                         prompt_dict1,
                                                                                          chat1, reduced=True)
                     # md -> back to text, maybe not super important if model trained enough
                     if not kwargs['keep_sources_in_context']:
@@ -931,8 +956,8 @@ body.dark{#warning {background-color: #555555};}
                         break
                     context1 = prompt + context1
 
-                _, pre_response, terminate_response, chat_sep = generate_prompt({}, prompt_type1, chat1,
-                                                                                reduced=True)
+                _, pre_response, terminate_response, chat_sep = generate_prompt({}, prompt_type1, prompt_dict1,
+                                                                                chat1, reduced=True)
                 if context1 and not context1.endswith(chat_sep):
                     context1 += chat_sep  # ensure if terminates abruptly, then human continues on next line
             return context1
@@ -975,8 +1000,9 @@ body.dark{#warning {background-color: #555555};}
                 yield history, ''
                 return
             prompt_type1 = args_list[eval_func_param_names.index('prompt_type')]
+            prompt_dict1 = args_list[eval_func_param_names.index('prompt_dict')]
             chat1 = args_list[eval_func_param_names.index('chat')]
-            context1 = history_to_context(history, langchain_mode1, prompt_type1, chat1)
+            context1 = history_to_context(history, langchain_mode1, prompt_type1, prompt_dict1, chat1)
             args_list[0] = instruction1  # override original instruction with history from user
             args_list[2] = context1
             fun1 = partial(evaluate,
@@ -1032,19 +1058,19 @@ body.dark{#warning {background-color: #555555};}
 
         # MODEL2
         user_args2 = dict(fn=functools.partial(user, sanitize_user_prompt=kwargs['sanitize_user_prompt'], model2=True),
-                          inputs=inputs_list + [text_output2],
+                          inputs=inputs_list2 + [text_output2],
                           outputs=text_output2,
                           )
         bot_args2 = dict(fn=bot,
-                         inputs=inputs_list + [model_state2, my_db_state] + [text_output2],
+                         inputs=inputs_list2 + [model_state2, my_db_state] + [text_output2],
                          outputs=[text_output2, exception_text],
                          )
         retry_bot_args2 = dict(fn=functools.partial(bot, retry=True),
-                               inputs=inputs_list + [model_state2, my_db_state] + [text_output2],
+                               inputs=inputs_list2 + [model_state2, my_db_state] + [text_output2],
                                outputs=[text_output2, exception_text],
                                )
         undo_user_args2 = dict(fn=functools.partial(user, undo=True),
-                               inputs=inputs_list + [text_output2],
+                               inputs=inputs_list2 + [text_output2],
                                outputs=text_output2,
                                )
 
@@ -1249,6 +1275,13 @@ body.dark{#warning {background-color: #555555};}
             .then(clear_instruct, None, iinput_nochat) \
             .then(clear_torch_cache)
 
+        submit_event_nochat_api = submit_nochat_api.click(fun_with_dict_str,
+                                                          inputs=[model_state, my_db_state, inputs_dict_str],
+                                                          outputs=text_output_nochat_api,
+                                                          queue=True,  # required for generator
+                                                          api_name='submit_nochat_api' if allow_api else None) \
+            .then(clear_torch_cache)
+
         def load_model(model_name, lora_weights, model_state_old, prompt_type_old, load_8bit, infer_devices, gpu_id):
             # ensure old model removed from GPU memory
             if kwargs['debug']:
@@ -1308,6 +1341,18 @@ body.dark{#warning {background-color: #555555};}
                 print("Post-switch GPU memory: %s" % get_torch_allocated(), flush=True)
             return [model1, tokenizer1, device1, model_name], model_name, lora_weights, prompt_type1
 
+        def get_prompt_str(prompt_type1, prompt_dict1):
+            prompt_dict1, prompt_dict_error = get_prompt(prompt_type1, prompt_dict1, chat=False, context='',
+                                                         reduced=False, return_dict=True)
+            if prompt_dict_error:
+                return str(prompt_dict_error)
+            else:
+                # return so user can manipulate if want and use as custom
+                return str(prompt_dict1)
+
+        prompt_type.change(fn=get_prompt_str, inputs=[prompt_type, prompt_dict], outputs=prompt_dict)
+        prompt_type2.change(fn=get_prompt_str, inputs=[prompt_type2, prompt_dict2], outputs=prompt_dict2)
+
         def dropdown_prompt_type_list(x):
             return gr.Dropdown.update(value=x)
 
@@ -1317,7 +1362,10 @@ body.dark{#warning {background-color: #555555};}
         load_model_args = dict(fn=load_model,
                                inputs=[model_choice, lora_choice, model_state, prompt_type,
                                        model_load8bit_checkbox, model_infer_devices_checkbox, model_gpu],
-                               outputs=[model_state, model_used, lora_used, prompt_type])
+                               outputs=[model_state, model_used, lora_used,
+                                        # if prompt_type changes, prompt_dict will change via change rule
+                                        prompt_type,
+                                        ])
         prompt_update_args = dict(fn=dropdown_prompt_type_list, inputs=prompt_type, outputs=prompt_type)
         chatbot_update_args = dict(fn=chatbot_list, inputs=[text_output, model_used], outputs=text_output)
         nochat_update_args = dict(fn=chatbot_list, inputs=[text_output_nochat, model_used], outputs=text_output_nochat)
@@ -1331,7 +1379,10 @@ body.dark{#warning {background-color: #555555};}
         load_model_args2 = dict(fn=load_model,
                                 inputs=[model_choice2, lora_choice2, model_state2, prompt_type2,
                                         model_load8bit_checkbox2, model_infer_devices_checkbox2, model_gpu2],
-                                outputs=[model_state2, model_used2, lora_used2, prompt_type2])
+                                outputs=[model_state2, model_used2, lora_used2,
+                                         # if prompt_type2 changes, prompt_dict2 will change via change rule
+                                         prompt_type2,
+                                         ])
         prompt_update_args2 = dict(fn=dropdown_prompt_type_list, inputs=prompt_type2, outputs=prompt_type2)
         chatbot_update_args2 = dict(fn=chatbot_list, inputs=[text_output2, model_used2], outputs=text_output2)
         if not is_public:
@@ -1413,7 +1464,7 @@ body.dark{#warning {background-color: #555555};}
                                 submit_event_nochat],
                        queue=False, api_name='stop' if allow_api else None).then(clear_torch_cache, queue=False)
 
-        def count_chat_tokens(model_state1, chat1, prompt_type1):
+        def count_chat_tokens(model_state1, chat1, prompt_type1, prompt_dict1):
             if model_state1 and not isinstance(model_state1[1], str):
                 tokenizer = model_state1[1]
             elif model_state0 and not isinstance(model_state0[1], str):
@@ -1425,12 +1476,12 @@ body.dark{#warning {background-color: #555555};}
                 # fake user message to mimic bot()
                 chat1 = copy.deepcopy(chat1)
                 chat1 = chat1 + [['user_message1', None]]
-                context1 = history_to_context(chat1, langchain_mode1, prompt_type1, chat1)
+                context1 = history_to_context(chat1, langchain_mode1, prompt_type1, prompt_dict1, chat1)
                 return str(tokenizer(context1, return_tensors="pt")['input_ids'].shape[1])
             else:
                 return "N/A"
 
-        count_chat_tokens_btn.click(fn=count_chat_tokens, inputs=[model_state, text_output, prompt_type],
+        count_chat_tokens_btn.click(fn=count_chat_tokens, inputs=[model_state, text_output, prompt_type, prompt_dict],
                                     outputs=chat_token_count, api_name='count_tokens' if allow_api else None)
 
         demo.load(None, None, None, _js=get_dark_js() if kwargs['h2ocolors'] else None)
@@ -1466,15 +1517,17 @@ body.dark{#warning {background-color: #555555};}
 input_args_list = ['model_state', 'my_db_state']
 
 
-def get_inputs_list(inputs_dict, model_lower):
+def get_inputs_list(inputs_dict, model_lower, model_id=1):
     """
     map gradio objects in locals() to inputs for evaluate().
     :param inputs_dict:
     :param model_lower:
+    :param model_id: Which model (1 or 2) of 2
     :return:
     """
     inputs_list_names = list(inspect.signature(evaluate).parameters)
     inputs_list = []
+    inputs_dict_out = {}
     for k in inputs_list_names:
         if k == 'kwargs':
             continue
@@ -1483,8 +1536,14 @@ def get_inputs_list(inputs_dict, model_lower):
             continue
         if 'mbart-' not in model_lower and k in ['src_lang', 'tgt_lang']:
             continue
+        if model_id == 2:
+            if k == 'prompt_type':
+                k = 'prompt_type2'
+            if k == 'prompt_used':
+                k = 'prompt_used2'
         inputs_list.append(inputs_dict[k])
-    return inputs_list
+        inputs_dict_out[k] = inputs_dict[k]
+    return inputs_list, inputs_dict_out
 
 
 def get_sources(db1, langchain_mode, dbs=None, docs_state0=None):

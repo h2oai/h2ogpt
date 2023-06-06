@@ -71,6 +71,7 @@ def get_args(prompt, prompt_type, chat=False, stream_output=False, max_new_token
                          # but leave stream_output=False for simple input/output mode
                          stream_output=stream_output,
                          prompt_type=prompt_type,
+                         prompt_dict='',
                          temperature=0.1,
                          top_p=0.75,
                          top_k=40,
@@ -108,6 +109,28 @@ def run_client_nochat(prompt, prompt_type, max_new_tokens):
     client = get_client(serialize=True)
     res = client.predict(
         *tuple(args),
+        api_name=api_name,
+    )
+    print("Raw client result: %s" % res, flush=True)
+    res_dict = dict(prompt=kwargs['instruction_nochat'], iinput=kwargs['iinput_nochat'],
+                    response=md_to_text(ast.literal_eval(res)['response']),
+                    sources=ast.literal_eval(res)['sources'])
+    print(res_dict)
+    return res_dict
+
+
+@pytest.mark.skip(reason="For manual use against some server, no server launched")
+def test_client_basic_api():
+    return run_client_nochat_api(prompt='Who are you?', prompt_type='human_bot', max_new_tokens=50)
+
+
+def run_client_nochat_api(prompt, prompt_type, max_new_tokens):
+    kwargs, args = get_args(prompt, prompt_type, chat=False, max_new_tokens=max_new_tokens)
+
+    api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
+    client = get_client(serialize=True)
+    res = client.predict(
+        str(dict(kwargs)),
         api_name=api_name,
     )
     print("Raw client result: %s" % res, flush=True)

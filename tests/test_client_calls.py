@@ -1,4 +1,8 @@
+import ast
+
 import pytest
+
+from client_test import get_client, md_to_text
 from tests.utils import wrap_test_forked, make_user_path_test, get_llama
 
 
@@ -19,6 +23,45 @@ def test_client1():
     assert res_dict['iinput'] == ''
     assert 'I am h2oGPT' in res_dict['response'] or "I'm h2oGPT" in res_dict['response'] or 'I’m h2oGPT' in res_dict[
         'response']
+
+
+@wrap_test_forked
+def test_client1api():
+    import os, sys
+    os.environ['TEST_LANGCHAIN_IMPORT'] = "1"
+    sys.modules.pop('gpt_langchain', None)
+    sys.modules.pop('langchain', None)
+
+    from generate import main
+    main(base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b', prompt_type='human_bot', chat=False,
+         stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False)
+
+    from client_test import test_client_basic_api
+    res_dict = test_client_basic_api()
+    assert res_dict['prompt'] == 'Who are you?'
+    assert res_dict['iinput'] == ''
+    assert 'I am h2oGPT' in res_dict['response'] or "I'm h2oGPT" in res_dict['response'] or 'I’m h2oGPT' in res_dict[
+        'response']
+
+
+@wrap_test_forked
+def test_client1api_lean():
+    from generate import main
+    main(base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b', prompt_type='human_bot', chat=False,
+         stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False)
+
+    api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
+    prompt = 'Who are you?'
+
+    kwargs = dict(instruction_nochat=prompt)
+    client = get_client(serialize=True)
+    # pass string of dict.  All entries are optional, but expect at least instruction_nochat to be filled
+    res = client.predict(str(dict(kwargs)), api_name=api_name)
+
+    print("Raw client result: %s" % res, flush=True)
+    response = ast.literal_eval(res)['response']
+
+    assert 'I am h2oGPT' in response or "I'm h2oGPT" in response or 'I’m h2oGPT' in response
 
 
 @wrap_test_forked

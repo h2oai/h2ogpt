@@ -25,7 +25,8 @@ class StoppingCriteriaSub(StoppingCriteria):
         return False
 
 
-def get_stopping(prompt_type, tokenizer, device, human='<human>:', bot="<bot>:"):
+def get_stopping(prompt_type, prompt_dict, tokenizer, device, human='<human>:', bot="<bot>:"):
+    # FIXME: prompt_dict unused currently
     if prompt_type in [PromptType.human_bot.name, PromptType.instruct_vicuna.name, PromptType.instruct_with_end.name]:
         if prompt_type == PromptType.human_bot.name:
             # encounters = [prompt.count(human) + 1, prompt.count(bot) + 1]
