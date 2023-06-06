@@ -65,11 +65,11 @@ test_in_docker: docker_build
 		-v `pwd`:/h2oai \
 		$(DOCKER_TEST_IMAGE) \
 		-c "nvidia-smi || true && \
-			python3.10 -m pip install -f requirements.txt && \
-		   	python3.10 -m pip install -f reqs_optional/requirements_optional_4bit.txt && \
-		   	python3.10 -m pip install -f reqs_optional/requirements_optional_langchain.txt && \
-		   	python3.10 -m pip install -f reqs_optional/requirements_optional_langchain.gpllike.txt && \
-		   	python3.10 -m pip install -f reqs_optional/requirements_optional_gpt4all.txt && \
+			python3.10 -m pip install -r requirements.txt && \
+		   	python3.10 -m pip install -r reqs_optional/requirements_optional_4bit.txt && \
+		   	python3.10 -m pip install -r reqs_optional/requirements_optional_langchain.txt && \
+		   	python3.10 -m pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt && \
+		   	python3.10 -m pip install -r reqs_optional/requirements_optional_gpt4all.txt && \
 		   	python3.10 -m pytest tests --junit-xml=test_report.xml"
 
 print-%:
