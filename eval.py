@@ -36,12 +36,14 @@ def run_eval(  # for local function:
         do_sample=None,
         langchain_mode=None,
         top_k_docs=None,
+        chunk=None,
+        chunk_size=None,
         document_choice=None,
         # for evaluate kwargs:
         src_lang=None, tgt_lang=None, concurrency_count=None, save_dir=None, sanitize_bot_response=None,
         model_state0=None, raise_generate_gpu_exceptions=None, load_db_if_exists=None, dbs=None, user_path=None,
         detect_user_path_changes_every_query=None,
-        use_openai_embedding=None, use_openai_model=None, hf_embedding_model=None, chunk=None, chunk_size=None,
+        use_openai_embedding=None, use_openai_model=None, hf_embedding_model=None,
         db_type=None, n_jobs=None, first_para=None, text_limit=None, verbose=None, cli=None,
 ):
     check_locals(**locals())

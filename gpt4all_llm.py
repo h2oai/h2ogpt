@@ -9,6 +9,7 @@ from dotenv import dotenv_values
 
 
 class FakeTokenizer:
+    model_max_length = 2048
 
     def encode(self, x, *args, **kwargs):
         return dict(input_ids=[x])

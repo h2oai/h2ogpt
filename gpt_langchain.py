@@ -492,7 +492,8 @@ def add_meta(docs1, file):
     [x.metadata.update(dict(input_type=file_extension, date=str(datetime.now), hashid=hashid)) for x in docs1]
 
 
-def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, chunk=True, chunk_size=512,
+def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
+                chunk=True, chunk_size=512,
                 is_url=False, is_txt=False,
                 enable_captions=True,
                 captions_model=None,
@@ -530,7 +531,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
         else:
             docs1 = UnstructuredURLLoader(urls=[file]).load()
             [x.metadata.update(dict(input_type='url', date=str(datetime.now))) for x in docs1]
-        doc1 = chunk_sources(docs1, chunk_size=chunk_size)
+        doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
     elif is_txt:
         base_path = "user_paste"
         source_file = os.path.join(base_path, "_%s" % str(uuid.uuid4())[:10])
@@ -542,41 +543,41 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
     elif file.lower().endswith('.html') or file.lower().endswith('.mhtml'):
         docs1 = UnstructuredHTMLLoader(file_path=file).load()
         add_meta(docs1, file)
-        doc1 = chunk_sources(docs1, chunk_size=chunk_size)
+        doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
     elif (file.lower().endswith('.docx') or file.lower().endswith('.doc')) and have_libreoffice:
         docs1 = UnstructuredWordDocumentLoader(file_path=file).load()
         add_meta(docs1, file)
-        doc1 = chunk_sources(docs1, chunk_size=chunk_size)
+        doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
     elif file.lower().endswith('.odt'):
         docs1 = UnstructuredODTLoader(file_path=file).load()
         add_meta(docs1, file)
-        doc1 = chunk_sources(docs1, chunk_size=chunk_size)
+        doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
     elif file.lower().endswith('pptx') or file.lower().endswith('ppt'):
         docs1 = UnstructuredPowerPointLoader(file_path=file).load()
         add_meta(docs1, file)
-        doc1 = chunk_sources(docs1, chunk_size=chunk_size)
+        doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
     elif file.lower().endswith('.txt'):
         # use UnstructuredFileLoader ?
         docs1 = TextLoader(file, encoding="utf8", autodetect_encoding=True).load()
         # makes just one, but big one
-        doc1 = chunk_sources(docs1, chunk_size=chunk_size)
+        doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
         add_meta(doc1, file)
     elif file.lower().endswith('.rtf'):
         docs1 = UnstructuredRTFLoader(file).load()
         add_meta(docs1, file)
-        doc1 = chunk_sources(docs1, chunk_size=chunk_size)
+        doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
     elif file.lower().endswith('.md'):
         docs1 = UnstructuredMarkdownLoader(file).load()
         add_meta(docs1, file)
-        doc1 = chunk_sources(docs1, chunk_size=chunk_size)
+        doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
     elif file.lower().endswith('.enex'):
         docs1 = EverNoteLoader(file).load()
         add_meta(doc1, file)
-        doc1 = chunk_sources(docs1, chunk_size=chunk_size)
+        doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
     elif file.lower().endswith('.epub'):
         docs1 = UnstructuredEPubLoader(file).load()
         add_meta(docs1, file)
-        doc1 = chunk_sources(docs1, chunk_size=chunk_size)
+        doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
     elif file.lower().endswith('.jpeg') or file.lower().endswith('.jpg') or file.lower().endswith('.png'):
         docs1 = []
         if have_tesseract and enable_ocr:
@@ -606,7 +607,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
                 doci.metadata['source'] = doci.metadata['image_path']
                 doci.metadata['hash'] = hash_file(doci.metadata['source'])
             if docs1:
-                doc1 = chunk_sources(docs1, chunk_size=chunk_size)
+                doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
     elif file.lower().endswith('.msg'):
         raise RuntimeError("Not supported, GPL3 license")
         # docs1 = OutlookMessageLoader(file).load()
@@ -615,14 +616,14 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
         try:
             docs1 = UnstructuredEmailLoader(file).load()
             add_meta(docs1, file)
-            doc1 = chunk_sources(docs1, chunk_size=chunk_size)
+            doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
         except ValueError as e:
             if 'text/html content not found in email' in str(e):
                 # e.g. plain/text dict key exists, but not
                 # doc1 = TextLoader(file, encoding="utf8").load()
                 docs1 = UnstructuredEmailLoader(file, content_source="text/plain").load()
                 add_meta(docs1, file)
-                doc1 = chunk_sources(docs1, chunk_size=chunk_size)
+                doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
             else:
                 raise
     # elif file.lower().endswith('.gcsdir'):
@@ -641,10 +642,12 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
         if have_pymupdf and pdf_class_name == 'PyMuPDFParser':
             # GPL, only use if installed
             from langchain.document_loaders import PyMuPDFLoader
-            doc1 = PyMuPDFLoader(file).load_and_split()
+            # load() still chunks by pages, but every page has title at start to help
+            doc1 = PyMuPDFLoader(file).load()
         else:
             # open-source fallback
-            doc1 = PyPDFLoader(file).load_and_split()
+            # load() still chunks by pages, but every page has title at start to help
+            doc1 = PyPDFLoader(file).load()
         # Some PDFs return nothing or junk from PDFMinerLoader
         add_meta(doc1, file)
     elif file.lower().endswith('.csv'):
@@ -660,7 +663,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
         with open(file, "r") as f:
             docs1 = UnstructuredURLLoader(urls=f.readlines()).load()
         add_meta(docs1, file)
-        doc1 = chunk_sources(docs1, chunk_size=chunk_size)
+        doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
     elif file.lower().endswith('.zip'):
         with zipfile.ZipFile(file, 'r') as zip_ref:
             # don't put into temporary path, since want to keep references to docs inside zip
@@ -675,12 +678,12 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
     # if list of length one, don't trust and chunk it
     if not isinstance(doc1, list):
         if chunk:
-            docs = chunk_sources([doc1], chunk_size=chunk_size)
+            docs = chunk_sources([doc1], chunk=chunk, chunk_size=chunk_size)
         else:
             docs = [doc1]
     elif isinstance(doc1, list) and len(doc1) == 1:
         if chunk:
-            docs = chunk_sources(doc1, chunk_size=chunk_size)
+            docs = chunk_sources(doc1, chunk=chunk, chunk_size=chunk_size)
         else:
             docs = doc1
     else:
@@ -690,7 +693,8 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False, c
     return docs
 
 
-def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True, chunk=True, chunk_size=512,
+def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True,
+                 chunk=True, chunk_size=512,
                  is_url=False, is_txt=False,
                  enable_captions=True,
                  captions_model=None,
@@ -950,7 +954,8 @@ def make_db(**langchain_kwargs):
 
 def _make_db(use_openai_embedding=False,
              hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
-             first_para=False, text_limit=None, chunk=False, chunk_size=1024,
+             first_para=False, text_limit=None,
+             chunk=True, chunk_size=512,
              langchain_mode=None,
              user_path=None,
              db_type='faiss',
@@ -996,24 +1001,24 @@ def _make_db(use_openai_embedding=False,
             sources1 = get_all_documents(small_test=small_test, n_jobs=os.cpu_count() // 2)
             print("Got new wiki", flush=True)
             if chunk:
-                sources1 = chunk_sources(sources1, chunk_size=chunk_size)
+                sources1 = chunk_sources(sources1, chunk=chunk, chunk_size=chunk_size)
                 print("Chunked new wiki", flush=True)
             sources.extend(sources1)
         if langchain_mode in ['wiki', 'All', "'All'"]:
             sources1 = get_wiki_sources(first_para=first_para, text_limit=text_limit)
             if chunk:
-                sources1 = chunk_sources(sources1, chunk_size=chunk_size)
+                sources1 = chunk_sources(sources1, chunk=chunk, chunk_size=chunk_size)
             sources.extend(sources1)
         if langchain_mode in ['github h2oGPT', 'All', "'All'"]:
             # sources = get_github_docs("dagster-io", "dagster")
             sources1 = get_github_docs("h2oai", "h2ogpt")
             # FIXME: always chunk for now
-            sources1 = chunk_sources(sources1, chunk_size=chunk_size)
+            sources1 = chunk_sources(sources1, chunk=chunk, chunk_size=chunk_size)
             sources.extend(sources1)
         if langchain_mode in ['DriverlessAI docs', 'All', "'All'"]:
             sources1 = get_dai_docs(from_hf=True)
             if chunk and False:  # FIXME: DAI docs are already chunked well, should only chunk more if over limit
-                sources1 = chunk_sources(sources1, chunk_size=chunk_size)
+                sources1 = chunk_sources(sources1, chunk=chunk, chunk_size=chunk_size)
             sources.extend(sources1)
         if langchain_mode in ['All', 'UserData']:
             if user_path:
@@ -1110,7 +1115,7 @@ def run_qa_db(**kwargs):
 
 def _run_qa_db(query=None,
                use_openai_model=False, use_openai_embedding=False,
-               first_para=False, text_limit=None, k=4, chunk=False, chunk_size=1024,
+               first_para=False, text_limit=None, k=4, chunk=True, chunk_size=512,
                user_path=None,
                detect_user_path_changes_every_query=False,
                db_type='faiss',
@@ -1250,7 +1255,7 @@ def _run_qa_db(query=None,
 
 def get_similarity_chain(query=None,
                          use_openai_model=False, use_openai_embedding=False,
-                         first_para=False, text_limit=None, k=4, chunk=False, chunk_size=1024,
+                         first_para=False, text_limit=None, k=4, chunk=True, chunk_size=512,
                          user_path=None,
                          detect_user_path_changes_every_query=False,
                          db_type='faiss',
@@ -1291,7 +1296,8 @@ def get_similarity_chain(query=None,
         user_path = None
     db, num_new_sources, new_sources_metadata = make_db(use_openai_embedding=use_openai_embedding,
                                                         hf_embedding_model=hf_embedding_model,
-                                                        first_para=first_para, text_limit=text_limit, chunk=chunk,
+                                                        first_para=first_para, text_limit=text_limit,
+                                                        chunk=chunk,
                                                         chunk_size=chunk_size,
                                                         langchain_mode=langchain_mode,
                                                         user_path=user_path,
@@ -1432,7 +1438,9 @@ def get_sources_answer(query, answer, scores, show_rank, answer_with_sources, ve
     return ret, extra
 
 
-def chunk_sources(sources, chunk_size=1024):
+def chunk_sources(sources, chunk=True, chunk_size=512):
+    if not chunk:
+        return sources
     source_chunks = []
     # Below for known separator
     # splitter = CharacterTextSplitter(separator=" ", chunk_size=chunk_size, chunk_overlap=0)

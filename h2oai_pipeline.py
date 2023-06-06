@@ -2,7 +2,7 @@ from transformers import TextGenerationPipeline
 from transformers.pipelines.text_generation import ReturnType
 
 from stopping import get_stopping
-from prompter import Prompter
+from prompter import Prompter, PromptType
 
 
 class H2OTextGenerationPipeline(TextGenerationPipeline):
@@ -50,6 +50,25 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
         self.max_input_tokens = max_input_tokens  # not for generate, so ok that not kwargs
 
     def preprocess(self, prompt_text, prefix="", handle_long_generation=None, **generate_kwargs):
+        if self.prompt_type not in [PromptType.plain.name, PromptType.plain.value] and \
+                hasattr(self.tokenizer, 'model_max_length'):
+            # model_max_length only defined for generate.py, not raw use of h2oai_pipeline.py
+            model_max_length = self.tokenizer.model_max_length
+            verbose = False  # FIXME: debug
+            # can't wait for "hole" if not plain prompt_type, since would lose prefix like <human>:
+            # For https://github.com/h2oai/h2ogpt/issues/192
+            prompt_tokens = self.tokenizer(prompt_text)['input_ids']
+            num_prompt_tokens = len(prompt_tokens)
+            if num_prompt_tokens > model_max_length:
+                # conservative by using int()
+                chars_per_token = int(len(prompt_text) / num_prompt_tokens)
+                prompt_text = prompt_text[-model_max_length * chars_per_token:]
+                if verbose:
+                    print("reducing tokens, assuming average of %s chars/token: %s" % chars_per_token, flush=True)
+                    prompt_tokens2 = self.tokenizer(prompt_text)['input_ids']
+                    num_prompt_tokens2 = len(prompt_tokens2)
+                    print("reduced tokens from %d -> %d" % (num_prompt_tokens, num_prompt_tokens2), flush=True)
+
         data_point = dict(context='', instruction=prompt_text, input='')
         if self.prompter is not None:
             prompt_text = self.prompter.generate_prompt(data_point)

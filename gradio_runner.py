@@ -37,7 +37,7 @@ from utils import get_githash, flatten_list, zip_data, s3up, clear_torch_cache, 
     ping, get_short_name, get_url, makedirs, get_kwargs
 from generate import get_model, languages_covered, evaluate, eval_func_param_names, score_qa, langchain_modes, \
     inputs_kwargs_list, get_cutoffs, scratch_base_dir, evaluate_from_str, no_default_param_names, \
-    eval_func_param_names_defaults
+    eval_func_param_names_defaults, get_max_max_new_tokens
 
 from apscheduler.schedulers.background import BackgroundScheduler
 
@@ -464,17 +464,7 @@ body.dark{#warning {background-color: #555555};}
                                                   value=min(max_beams, kwargs['num_beams']), label="Beams",
                                                   info="Number of searches for optimal overall probability.  "
                                                        "Uses more GPU memory/compute")
-                            # FIXME: 2048 should be tokenizer.model_max_length, but may not even have model yet
-                            if kwargs['max_new_tokens']:
-                                max_max_new_tokens = kwargs['max_new_tokens']
-                            elif memory_restriction_level == 1:
-                                max_max_new_tokens = 768
-                            elif memory_restriction_level == 2:
-                                max_max_new_tokens = 512
-                            elif memory_restriction_level >= 3:
-                                max_max_new_tokens = 256
-                            else:
-                                max_max_new_tokens = 2048
+                            max_max_new_tokens = get_max_max_new_tokens(model_state0, **kwargs)
                             max_new_tokens = gr.Slider(
                                 minimum=1, maximum=max_max_new_tokens, step=1,
                                 value=min(max_max_new_tokens, kwargs['max_new_tokens']), label="Max output length",
@@ -483,9 +473,19 @@ body.dark{#warning {background-color: #555555};}
                                 minimum=0, maximum=max_max_new_tokens, step=1,
                                 value=min(max_max_new_tokens, kwargs['min_new_tokens']), label="Min output length",
                             )
+                            max_new_tokens2 = gr.Slider(
+                                minimum=1, maximum=max_max_new_tokens, step=1,
+                                value=min(max_max_new_tokens, kwargs['max_new_tokens']), label="Max output length 2",
+                                visible=False,
+                            )
+                            min_new_tokens2 = gr.Slider(
+                                minimum=0, maximum=max_max_new_tokens, step=1,
+                                value=min(max_max_new_tokens, kwargs['min_new_tokens']), label="Min output length 2",
+                                visible=False,
+                            )
                             early_stopping = gr.Checkbox(label="EarlyStopping", info="Stop early in beam search",
                                                          value=kwargs['early_stopping'])
-                            max_max_time = 60 * 5 if not is_public else 60 * 2
+                            max_max_time = 60 * 20 if not is_public else 60 * 2
                             if is_hf:
                                 max_max_time = min(max_max_time, 60 * 1)
                             max_time = gr.Slider(minimum=0, maximum=max_max_time, step=1,
@@ -509,11 +509,20 @@ body.dark{#warning {background-color: #555555};}
                             count_chat_tokens_btn = gr.Button(value="Count Chat Tokens", visible=not is_public)
                             chat_token_count = gr.Textbox(label="Chat Token Count", value=None,
                                                           visible=not is_public, interactive=False)
-                            top_k_docs = gr.Slider(minimum=0, maximum=20, step=1,
+                            chunk = gr.components.Checkbox(value=kwargs['chunk'],
+                                                           label="Whether to chunk documents",
+                                                           info="For LangChain",
+                                                           visible=not is_public)
+                            top_k_docs = gr.Slider(minimum=0, maximum=100, step=1,
                                                    value=kwargs['top_k_docs'],
                                                    label="Number of document chunks",
                                                    info="For LangChain",
                                                    visible=not is_public)
+                            chunk_size = gr.Number(value=kwargs['chunk_size'],
+                                                   label="Chunk size for document chunking",
+                                                   info="For LangChain (ignored if chunk=False)",
+                                                   visible=not is_public,
+                                                   precision=0)
 
                 with gr.TabItem("Models"):
                     load_msg = "Load-Unload Model/LORA [unload works if did not use --base_model]" if not is_public \
@@ -638,18 +647,21 @@ body.dark{#warning {background-color: #555555};}
             return gr.update(visible=True)
 
         # Add to UserData
-        update_user_db_func = functools.partial(update_user_db, dbs=dbs, db_type=db_type, langchain_mode='UserData',
+        update_user_db_func = functools.partial(update_user_db,
+                                                dbs=dbs, db_type=db_type, langchain_mode='UserData',
                                                 use_openai_embedding=use_openai_embedding,
                                                 hf_embedding_model=hf_embedding_model,
                                                 enable_captions=enable_captions,
                                                 captions_model=captions_model,
                                                 enable_ocr=enable_ocr,
                                                 caption_loader=caption_loader,
+                                                verbose=kwargs['verbose'],
                                                 )
 
         # note for update_user_db_func output is ignored for db
         add_to_shared_db_btn.click(update_user_db_func,
-                                   inputs=[fileup_output, my_db_state, add_to_shared_db_btn, add_to_my_db_btn],
+                                   inputs=[fileup_output, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
+                                           chunk, chunk_size],
                                    outputs=[add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
                                    api_name='add_to_shared' if allow_api else None) \
             .then(clear_file_list, outputs=fileup_output, queue=queue)
@@ -662,14 +674,16 @@ body.dark{#warning {background-color: #555555};}
 
         update_user_db_url_func = functools.partial(update_user_db_func, is_url=True)
         url_user_btn.click(update_user_db_url_func,
-                           inputs=[url_text, my_db_state, add_to_shared_db_btn, add_to_my_db_btn],
+                           inputs=[url_text, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
+                                   chunk, chunk_size],
                            outputs=[add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
                            api_name='add_url_to_shared' if allow_api else None) \
             .then(clear_textbox, outputs=url_text, queue=queue)
 
         update_user_db_txt_func = functools.partial(update_user_db_func, is_txt=True)
         user_text_user_btn.click(update_user_db_txt_func,
-                                 inputs=[user_text_text, my_db_state, add_to_shared_db_btn, add_to_my_db_btn],
+                                 inputs=[user_text_text, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
+                                         chunk, chunk_size],
                                  outputs=[add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
                                  api_name='add_text_to_shared' if allow_api else None) \
             .then(clear_textbox, outputs=user_text_text, queue=queue)
@@ -682,10 +696,12 @@ body.dark{#warning {background-color: #555555};}
                                               captions_model=captions_model,
                                               enable_ocr=enable_ocr,
                                               caption_loader=caption_loader,
+                                              verbose=kwargs['verbose'],
                                               )
 
         add_to_my_db_btn.click(update_my_db_func,
-                               inputs=[fileup_output, my_db_state, add_to_shared_db_btn, add_to_my_db_btn],
+                               inputs=[fileup_output, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
+                                       chunk, chunk_size],
                                outputs=[my_db_state, add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
                                api_name='add_to_my' if allow_api else None) \
             .then(clear_file_list, outputs=fileup_output, queue=queue)
@@ -694,14 +710,16 @@ body.dark{#warning {background-color: #555555};}
 
         update_my_db_url_func = functools.partial(update_my_db_func, is_url=True)
         url_my_btn.click(update_my_db_url_func,
-                         inputs=[url_text, my_db_state, add_to_shared_db_btn, add_to_my_db_btn],
+                         inputs=[url_text, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
+                                 chunk, chunk_size],
                          outputs=[my_db_state, add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
                          api_name='add_url_to_my' if allow_api else None) \
             .then(clear_textbox, outputs=url_text, queue=queue)
 
         update_my_db_txt_func = functools.partial(update_my_db_func, is_txt=True)
         user_text_my_btn.click(update_my_db_txt_func,
-                               inputs=[user_text_text, my_db_state, add_to_shared_db_btn, add_to_my_db_btn],
+                               inputs=[user_text_text, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
+                                       chunk, chunk_size],
                                outputs=[my_db_state, add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
                                api_name='add_txt_to_my' if allow_api else None) \
             .then(clear_textbox, outputs=user_text_text, queue=queue)
@@ -897,7 +915,8 @@ body.dark{#warning {background-color: #555555};}
                 from better_profanity import profanity
                 user_message1 = profanity.censor(user_message1)
             # FIXME: WIP to use desired seperator when user enters nothing
-            prompter = Prompter(prompt_type1, prompt_dict1, debug=kwargs['debug'], chat=chat1, stream_output=stream_output1)
+            prompter = Prompter(prompt_type1, prompt_dict1, debug=kwargs['debug'], chat=chat1,
+                                stream_output=stream_output1)
             if user_message1 in ['']:
                 # e.g. when user just hits enter in textbox,
                 # else will have <human>: <bot>: on single line, which seems to be "ok" for LLM but not usual
@@ -923,10 +942,10 @@ body.dark{#warning {background-color: #555555};}
                 # FIXME: compare, same history for now
                 return history + [[user_message1, None]]
 
-        def history_to_context(history, langchain_mode1, prompt_type1, prompt_dict1, chat1):
+        def history_to_context(history, langchain_mode1, prompt_type1, prompt_dict1, chat1, model_max_length1):
             # ensure output will be unique to models
-            # FIXME: hard-coded 2048 implicitly passed:
-            _, _, _, max_prompt_length = get_cutoffs(memory_restriction_level, for_context=True)
+            _, _, _, max_prompt_length = get_cutoffs(memory_restriction_level,
+                                                     for_context=True, model_max_length=model_max_length1)
             history = copy.deepcopy(history)
 
             context1 = ''
@@ -961,6 +980,18 @@ body.dark{#warning {background-color: #555555};}
                 if context1 and not context1.endswith(chat_sep):
                     context1 += chat_sep  # ensure if terminates abruptly, then human continues on next line
             return context1
+
+        def get_model_max_length(model_state1):
+            if model_state1 and not isinstance(model_state1[1], str):
+                tokenizer = model_state1[1]
+            elif model_state0 and not isinstance(model_state0[1], str):
+                tokenizer = model_state0[1]
+            else:
+                tokenizer = None
+            if tokenizer is not None:
+                return tokenizer.model_max_length
+            else:
+                return 2000
 
         def bot(*args, retry=False):
             """
@@ -1002,7 +1033,9 @@ body.dark{#warning {background-color: #555555};}
             prompt_type1 = args_list[eval_func_param_names.index('prompt_type')]
             prompt_dict1 = args_list[eval_func_param_names.index('prompt_dict')]
             chat1 = args_list[eval_func_param_names.index('chat')]
-            context1 = history_to_context(history, langchain_mode1, prompt_type1, prompt_dict1, chat1)
+            model_max_length1 = get_model_max_length(model_state1)
+            context1 = history_to_context(history, langchain_mode1, prompt_type1, prompt_dict1, chat1,
+                                          model_max_length1)
             args_list[0] = instruction1  # override original instruction with history from user
             args_list[2] = context1
             fun1 = partial(evaluate,
@@ -1337,9 +1370,15 @@ body.dark{#warning {background-color: #555555};}
                                                                  **all_kwargs1))
             clear_torch_cache()
 
+            model_state_new = [model1, tokenizer1, device1, model_name]
+
+            max_max_new_tokens1 = get_max_max_new_tokens(model_state_new, **kwargs)
+
             if kwargs['debug']:
                 print("Post-switch GPU memory: %s" % get_torch_allocated(), flush=True)
-            return [model1, tokenizer1, device1, model_name], model_name, lora_weights, prompt_type1
+            return model_state_new, model_name, lora_weights, prompt_type1, \
+                gr.Slider.update(maximum=max_max_new_tokens1), \
+                gr.Slider.update(maximum=max_max_new_tokens1)
 
         def get_prompt_str(prompt_type1, prompt_dict1):
             prompt_dict1, prompt_dict_error = get_prompt(prompt_type1, prompt_dict1, chat=False, context='',
@@ -1364,7 +1403,7 @@ body.dark{#warning {background-color: #555555};}
                                        model_load8bit_checkbox, model_infer_devices_checkbox, model_gpu],
                                outputs=[model_state, model_used, lora_used,
                                         # if prompt_type changes, prompt_dict will change via change rule
-                                        prompt_type,
+                                        prompt_type, max_new_tokens, min_new_tokens,
                                         ])
         prompt_update_args = dict(fn=dropdown_prompt_type_list, inputs=prompt_type, outputs=prompt_type)
         chatbot_update_args = dict(fn=chatbot_list, inputs=[text_output, model_used], outputs=text_output)
@@ -1381,7 +1420,7 @@ body.dark{#warning {background-color: #555555};}
                                         model_load8bit_checkbox2, model_infer_devices_checkbox2, model_gpu2],
                                 outputs=[model_state2, model_used2, lora_used2,
                                          # if prompt_type2 changes, prompt_dict2 will change via change rule
-                                         prompt_type2,
+                                         prompt_type2, max_new_tokens2, min_new_tokens2
                                          ])
         prompt_update_args2 = dict(fn=dropdown_prompt_type_list, inputs=prompt_type2, outputs=prompt_type2)
         chatbot_update_args2 = dict(fn=chatbot_list, inputs=[text_output2, model_used2], outputs=text_output2)
@@ -1433,11 +1472,16 @@ body.dark{#warning {background-color: #555555};}
         def compare_prompt_fun(x):
             return gr.Dropdown.update(visible=x)
 
+        def slider_fun(x):
+            return gr.Slider.update(visible=x)
+
         compare_checkbox.select(compare_textbox_fun, compare_checkbox, text_output2,
                                 api_name="compare_checkbox" if allow_api else None) \
             .then(compare_column_fun, compare_checkbox, col_model2) \
             .then(compare_prompt_fun, compare_checkbox, prompt_type2) \
-            .then(compare_textbox_fun, compare_checkbox, score_text2)
+            .then(compare_textbox_fun, compare_checkbox, score_text2) \
+            .then(slider_fun, compare_checkbox, max_new_tokens2) \
+            .then(slider_fun, compare_checkbox, min_new_tokens2)
         # FIXME: add score_res2 in condition, but do better
 
         # callback for logging flagged input/output
@@ -1541,6 +1585,10 @@ def get_inputs_list(inputs_dict, model_lower, model_id=1):
                 k = 'prompt_type2'
             if k == 'prompt_used':
                 k = 'prompt_used2'
+            if k == 'max_new_tokens':
+                k = 'max_new_tokens2'
+            if k == 'min_new_tokens':
+                k = 'min_new_tokens2'
         inputs_list.append(inputs_dict[k])
         inputs_dict_out[k] = inputs_dict[k]
     return inputs_list, inputs_dict_out
@@ -1598,14 +1646,23 @@ def update_user_db(file, db1, x, y, *args, dbs=None, langchain_mode='UserData', 
             return x, y, source_files_added
 
 
-def _update_user_db(file, db1, x, y, dbs=None, db_type=None, langchain_mode='UserData', use_openai_embedding=False,
-                    hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
+def _update_user_db(file, db1, x, y, chunk, chunk_size, dbs=None, db_type=None, langchain_mode='UserData',
+                    use_openai_embedding=None,
+                    hf_embedding_model=None,
                     caption_loader=None,
-                    enable_captions=True,
-                    captions_model="Salesforce/blip-image-captioning-base",
-                    enable_ocr=False,
-                    verbose=False,
-                    chunk=True, chunk_size=512, is_url=False, is_txt=False):
+                    enable_captions=None,
+                    captions_model=None,
+                    enable_ocr=None,
+                    verbose=None,
+                    is_url=None, is_txt=None):
+    assert use_openai_embedding is not None
+    assert hf_embedding_model is not None
+    assert caption_loader is not None
+    assert enable_captions is not None
+    assert captions_model is not None
+    assert enable_ocr is not None
+    assert verbose is not None
+
     assert isinstance(dbs, dict), "Wrong type for dbs: %s" % str(type(dbs))
     assert db_type in ['faiss', 'chroma'], "db_type %s not supported" % db_type
     from gpt_langchain import add_to_db, get_db, path_to_docs
@@ -1618,7 +1675,8 @@ def _update_user_db(file, db1, x, y, dbs=None, db_type=None, langchain_mode='Use
     if verbose:
         print("Adding %s" % file, flush=True)
     sources = path_to_docs(file if not is_url and not is_txt else None,
-                           verbose=verbose, chunk=chunk, chunk_size=chunk_size,
+                           verbose=verbose,
+                           chunk=chunk, chunk_size=chunk_size,
                            url=file if is_url else None,
                            text=file if is_txt else None,
                            enable_captions=enable_captions,
@@ -1787,7 +1845,8 @@ def update_and_get_source_files_given_langchain_mode(db1, langchain_mode, dbs=No
     from gpt_langchain import make_db
     db, num_new_sources, new_sources_metadata = make_db(use_openai_embedding=False,
                                                         hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
-                                                        first_para=first_para, text_limit=text_limit, chunk=chunk,
+                                                        first_para=first_para, text_limit=text_limit,
+                                                        chunk=chunk,
                                                         chunk_size=chunk_size,
                                                         langchain_mode=langchain_mode,
                                                         user_path=user_path,
