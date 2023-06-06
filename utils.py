@@ -1,6 +1,7 @@
 import contextlib
 import functools
 import hashlib
+import inspect
 import os
 import gc
 import pathlib
@@ -15,6 +16,10 @@ import zipfile
 from datetime import datetime
 import filelock
 import requests, uuid
+from typing import Tuple, Callable, Dict
+from tqdm.auto import tqdm
+from joblib import Parallel
+from concurrent.futures import ProcessPoolExecutor
 import numpy as np
 import pandas as pd
 
@@ -56,12 +61,26 @@ def clear_torch_cache():
 
 
 def ping():
-    print('Ping: %s' % str(datetime.now()), flush=True)
+    try:
+        print('Ping: %s' % str(datetime.now()), flush=True)
+    except AttributeError:
+        # some programs wrap print and will fail with flush passed
+        pass
 
 
 def get_torch_allocated():
     import torch
     return torch.cuda.memory_allocated()
+
+
+def get_device():
+    import torch
+    if torch.cuda.is_available():
+        device = "cuda"
+    else:
+        device = "cpu"
+
+    return device
 
 
 def system_info():
@@ -132,7 +151,7 @@ def _zip_data(root_dirs=None, zip_file=None, base_dir='./'):
         host_name = os.getenv('HF_HOSTNAME', 'emptyhost')
         zip_file = "data_%s_%s.zip" % (datetime_str, host_name)
     assert root_dirs is not None
-    if not os.path.isdir(os.path.dirname(zip_file)):
+    if not os.path.isdir(os.path.dirname(zip_file)) and os.path.dirname(zip_file):
         os.makedirs(os.path.dirname(zip_file), exist_ok=True)
     with zipfile.ZipFile(zip_file, "w") as expt_zip:
         for root_dir in root_dirs:
@@ -355,18 +374,15 @@ def sanitize_filename(name):
     return name
 
 
-def shutil_rmtree_simple(*args, **kwargs):
-    path = args[0]
-    assert not os.path.samefile(path, "./tmp"), "Should not be trying to remove entire data directory: %s" % str(path)
-    # print("Removing path %s" % args[0])  # for debugging
+def shutil_rmtree(*args, **kwargs):
     return shutil.rmtree(*args, **kwargs)
 
 
-def remove_simple(path: str):
+def remove(path: str):
     try:
         if path is not None and os.path.exists(path):
             if os.path.isdir(path):
-                shutil_rmtree_simple(path, ignore_errors=True)
+                shutil_rmtree(path, ignore_errors=True)
             else:
                 with contextlib.suppress(FileNotFoundError):
                     os.remove(path)
@@ -392,7 +408,7 @@ def atomic_move_simple(src, dst):
         shutil.move(src, dst)
     except (shutil.Error, FileExistsError):
         pass
-    remove_simple(src)
+    remove(src)
 
 
 def download_simple(url, dest=None, print_func=None):
@@ -465,5 +481,363 @@ def download(url, dest=None, dest_path=None):
         shutil.move(dest_tmp, dest)
     except FileExistsError:
         pass
-    remove_simple(dest_tmp)
+    remove(dest_tmp)
     return dest
+
+
+def get_url(x, from_str=False, short_name=False):
+    if not from_str:
+        source = x.metadata['source']
+    else:
+        source = x
+    if short_name:
+        source_name = get_short_name(source)
+    else:
+        source_name = source
+    if source.startswith('http://') or source.startswith('https://'):
+        return """<a href="%s" target="_blank"  rel="noopener noreferrer">%s</a>""" % (
+            source, source_name)
+    else:
+        return """<a href="file/%s" target="_blank"  rel="noopener noreferrer">%s</a>""" % (
+            source, source_name)
+
+
+def get_short_name(name, maxl=50):
+    if name is None:
+        return ''
+    length = len(name)
+    if length > maxl:
+        allow_length = maxl - 3
+        half_allowed = max(1, int(allow_length / 2))
+        name = name[0:half_allowed] + "..." + name[length - half_allowed:length]
+    return name
+
+
+def cuda_vis_check(total_gpus):
+    """Helper function to count GPUs by environment variable
+    Stolen from Jon's h2o4gpu utils
+    """
+    cudavis = os.getenv("CUDA_VISIBLE_DEVICES")
+    which_gpus = []
+    if cudavis is not None:
+        # prune away white-space, non-numerics,
+        # except commas for simple checking
+        cudavis = "".join(cudavis.split())
+        import re
+        cudavis = re.sub("[^0-9,]", "", cudavis)
+
+        lencudavis = len(cudavis)
+        if lencudavis == 0:
+            total_gpus = 0
+        else:
+            total_gpus = min(
+                total_gpus,
+                os.getenv("CUDA_VISIBLE_DEVICES").count(",") + 1)
+            which_gpus = os.getenv("CUDA_VISIBLE_DEVICES").split(",")
+            which_gpus = [int(x) for x in which_gpus]
+    else:
+        which_gpus = list(range(0, total_gpus))
+
+    return total_gpus, which_gpus
+
+
+def get_ngpus_vis(raise_if_exception=True):
+    ngpus_vis1 = 0
+
+    shell = False
+    if shell:
+        cmd = "nvidia-smi -L 2> /dev/null"
+    else:
+        cmd = ["nvidia-smi", "-L"]
+
+    try:
+        timeout = 5 * 3
+        o = subprocess.check_output(cmd, shell=shell, timeout=timeout)
+        lines = o.decode("utf-8").splitlines()
+        ngpus_vis1 = 0
+        for line in lines:
+            if 'Failed to initialize NVML' not in line:
+                ngpus_vis1 += 1
+    except (FileNotFoundError, subprocess.CalledProcessError, OSError):
+        # GPU systems might not have nvidia-smi, so can't fail
+        pass
+    except subprocess.TimeoutExpired as e:
+        print('Failed get_ngpus_vis: %s' % str(e))
+        if raise_if_exception:
+            raise
+
+    ngpus_vis1, which_gpus = cuda_vis_check(ngpus_vis1)
+    return ngpus_vis1
+
+
+def get_mem_gpus(raise_if_exception=True, ngpus=None):
+    totalmem_gpus1 = 0
+    usedmem_gpus1 = 0
+    freemem_gpus1 = 0
+
+    if ngpus == 0:
+        return totalmem_gpus1, usedmem_gpus1, freemem_gpus1
+
+    try:
+        cmd = "nvidia-smi -q 2> /dev/null | grep -A 3 'FB Memory Usage'"
+        o = subprocess.check_output(cmd, shell=True, timeout=15)
+        lines = o.decode("utf-8").splitlines()
+        for line in lines:
+            if 'Total' in line:
+                totalmem_gpus1 += int(line.split()[2]) * 1024 ** 2
+            if 'Used' in line:
+                usedmem_gpus1 += int(line.split()[2]) * 1024 ** 2
+            if 'Free' in line:
+                freemem_gpus1 += int(line.split()[2]) * 1024 ** 2
+    except (FileNotFoundError, subprocess.CalledProcessError, OSError):
+        # GPU systems might not have nvidia-smi, so can't fail
+        pass
+    except subprocess.TimeoutExpired as e:
+        print('Failed get_mem_gpus: %s' % str(e))
+        if raise_if_exception:
+            raise
+
+    return totalmem_gpus1, usedmem_gpus1, freemem_gpus1
+
+
+class ForkContext(threading.local):
+    """
+        Set context for forking
+        Ensures state is returned once done
+    """
+
+    def __init__(self, args=None, kwargs=None, forkdata_capable=True):
+        """
+        :param args:
+        :param kwargs:
+        :param forkdata_capable: whether fork is forkdata capable and will use copy-on-write forking of args/kwargs
+        """
+        self.forkdata_capable = forkdata_capable
+        if self.forkdata_capable:
+            self.has_args = args is not None
+            self.has_kwargs = kwargs is not None
+            forkdatacontext.args = args
+            forkdatacontext.kwargs = kwargs
+        else:
+            self.has_args = False
+            self.has_kwargs = False
+
+    def __enter__(self):
+        try:
+            # flush all outputs so doesn't happen during fork -- don't print/log inside ForkContext contexts!
+            sys.stdout.flush()
+            sys.stderr.flush()
+        except BaseException as e:
+            # exit not called if exception, and don't want to leave forkdatacontext filled in that case
+            print("ForkContext failure on enter: %s" % str(e))
+            self.finally_act()
+            raise
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        self.finally_act()
+
+    def finally_act(self):
+        """
+            Done when exception hit or exit is reached in context
+            first reset forkdatacontext as crucial to have reset even if later 2 calls fail
+        :return: None
+        """
+        if self.forkdata_capable and (self.has_args or self.has_kwargs):
+            forkdatacontext._reset()
+
+
+class _ForkDataContext(threading.local):
+    def __init__(
+            self,
+            args=None,
+            kwargs=None,
+    ):
+        """
+        Global context for fork to carry data to subprocess instead of relying upon copy/pickle/serialization
+
+        :param args: args
+        :param kwargs: kwargs
+        """
+        assert isinstance(args, (tuple, type(None)))
+        assert isinstance(kwargs, (dict, type(None)))
+        self.__args = args
+        self.__kwargs = kwargs
+
+    @property
+    def args(self) -> Tuple:
+        """returns args"""
+        return self.__args
+
+    @args.setter
+    def args(self, args):
+        if self.__args is not None:
+            raise AttributeError(
+                "args cannot be overwritten: %s %s" % (str(self.__args), str(self.__kwargs))
+            )
+
+        self.__args = args
+
+    @property
+    def kwargs(self) -> Dict:
+        """returns kwargs"""
+        return self.__kwargs
+
+    @kwargs.setter
+    def kwargs(self, kwargs):
+        if self.__kwargs is not None:
+            raise AttributeError(
+                "kwargs cannot be overwritten: %s %s" % (str(self.__args), str(self.__kwargs))
+            )
+
+        self.__kwargs = kwargs
+
+    def _reset(self):
+        """Reset fork arg-kwarg context to default values"""
+        self.__args = None
+        self.__kwargs = None
+
+    def get_args_kwargs(self, func, args, kwargs) -> Tuple[Callable, Tuple, Dict]:
+        if self.__args:
+            args = self.__args[1:]
+            if not func:
+                assert len(self.__args) > 0, "if have no func, must have in args"
+                func = self.__args[0]  # should always be there
+        if self.__kwargs:
+            kwargs = self.__kwargs
+        try:
+            return func, args, kwargs
+        finally:
+            forkdatacontext._reset()
+
+    @staticmethod
+    def get_args_kwargs_for_traced_func(func, args, kwargs):
+        """
+        Return args/kwargs out of forkdatacontext when using copy-on-write way of passing args/kwargs
+        :param func: actual function ran by _traced_func, which itself is directly what mppool treats as function
+        :param args:
+        :param kwargs:
+        :return: func, args, kwargs from forkdatacontext if used, else originals
+        """
+        # first 3 lines are debug
+        func_was_None = func is None
+        args_was_None_or_empty = args is None or len(args) == 0
+        kwargs_was_None_or_empty = kwargs is None or len(kwargs) == 0
+
+        forkdatacontext_args_was_None = forkdatacontext.args is None
+        forkdatacontext_kwargs_was_None = forkdatacontext.kwargs is None
+        func, args, kwargs = forkdatacontext.get_args_kwargs(func, args, kwargs)
+        using_forkdatacontext = func_was_None and func is not None  # pulled func out of forkdatacontext.__args[0]
+        assert forkdatacontext.args is None, "forkdatacontext.args should be None after get_args_kwargs"
+        assert forkdatacontext.kwargs is None, "forkdatacontext.kwargs should be None after get_args_kwargs"
+
+        proc_type = kwargs.get('proc_type', 'SUBPROCESS')
+        if using_forkdatacontext:
+            assert proc_type == "SUBPROCESS" or proc_type == "SUBPROCESS"
+        if proc_type == "NORMAL":
+            assert forkdatacontext_args_was_None, "if no fork, expect forkdatacontext.args None entering _traced_func"
+            assert forkdatacontext_kwargs_was_None, "if no fork, expect forkdatacontext.kwargs None entering _traced_func"
+        assert func is not None, "function should not be None, indicates original args[0] was None or args was None"
+
+        return func, args, kwargs
+
+
+forkdatacontext = _ForkDataContext()
+
+
+def _traced_func(func, *args, **kwargs):
+    func, args, kwargs = forkdatacontext.get_args_kwargs_for_traced_func(func, args, kwargs)
+    return func(*args, **kwargs)
+
+
+def call_subprocess_onetask(func, args=None, kwargs=None):
+    if isinstance(args, list):
+        args = tuple(args)
+    if args is None:
+        args = ()
+    if kwargs is None:
+        kwargs = {}
+    args = list(args)
+    args = [func] + args
+    args = tuple(args)
+    with ForkContext(args=args, kwargs=kwargs):
+        args = (None,)
+        kwargs = {}
+        with ProcessPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(_traced_func, *args, **kwargs)
+            return future.result()
+
+
+class ProgressParallel(Parallel):
+    def __init__(self, use_tqdm=True, total=None, *args, **kwargs):
+        self._use_tqdm = use_tqdm
+        self._total = total
+        super().__init__(*args, **kwargs)
+
+    def __call__(self, *args, **kwargs):
+        with tqdm(disable=not self._use_tqdm, total=self._total) as self._pbar:
+            return Parallel.__call__(self, *args, **kwargs)
+
+    def print_progress(self):
+        if self._total is None:
+            self._pbar.total = self.n_dispatched_tasks
+        self._pbar.n = self.n_completed_tasks
+        self._pbar.refresh()
+
+
+def get_kwargs(func, exclude_names=None, **kwargs):
+    func_names = list(inspect.signature(func).parameters)
+    missing_kwargs = [x for x in func_names if x not in kwargs]
+    if exclude_names:
+        for k in exclude_names:
+            if k in missing_kwargs:
+                missing_kwargs.remove(k)
+            if k in func_names:
+                func_names.remove(k)
+    assert not missing_kwargs, "Missing %s" % missing_kwargs
+    kwargs = {k: v for k, v in kwargs.items() if k in func_names}
+    return kwargs
+
+
+import pkg_resources
+have_faiss = False
+
+try:
+    assert pkg_resources.get_distribution('faiss') is not None
+    have_faiss = True
+except (pkg_resources.DistributionNotFound, AssertionError):
+    pass
+try:
+    assert pkg_resources.get_distribution('faiss_gpu') is not None
+    have_faiss = True
+except (pkg_resources.DistributionNotFound, AssertionError):
+    pass
+try:
+    assert pkg_resources.get_distribution('faiss_cpu') is not None
+    have_faiss = True
+except (pkg_resources.DistributionNotFound, AssertionError):
+    pass
+
+
+def hash_file(file):
+    try:
+        import hashlib
+
+        # BUF_SIZE is totally arbitrary, change for your app!
+        BUF_SIZE = 65536  # lets read stuff in 64kb chunks!
+
+        md5 = hashlib.md5()
+        #sha1 = hashlib.sha1()
+
+        with open(file, 'rb') as f:
+            while True:
+                data = f.read(BUF_SIZE)
+                if not data:
+                    break
+                md5.update(data)
+                #sha1.update(data)
+    except BaseException as e:
+        print("Cannot hash %s due to %s" % (file, str(e)))
+        traceback.print_exc()
+        md5 = None
+    return md5.hexdigest()

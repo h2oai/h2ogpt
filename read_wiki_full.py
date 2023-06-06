@@ -308,7 +308,7 @@ def test_reduce_pageview():
 @pytest.mark.skip("Only if doing full processing again, some manual steps")
 def test_do_wiki_full_all():
     # Install other requirements for wiki specific conversion:
-    # pip install -r requirements_optional_wikiprocessing.txt
+    # pip install -r reqs_optional/requirements_optional_wikiprocessing.txt
 
     # Use "Transmission" in Ubuntu to get wiki dump using torrent:
     # See: https://meta.wikimedia.org/wiki/Data_dump_torrents

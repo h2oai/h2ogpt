@@ -12,4 +12,12 @@ evaluate.py
 test_data.json
 todo.txt
 .neptune/
+*.bin
+db_dir_UserData
+temp_path_do_doc1
+offline_folder
+flagged_data_points
+.pytest_cache
+user_path
+user_path_test
 .idea

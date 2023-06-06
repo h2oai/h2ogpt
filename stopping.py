@@ -1,6 +1,8 @@
 import torch
 from transformers import StoppingCriteria, StoppingCriteriaList
 
+from prompter import PromptType
+
 
 class StoppingCriteriaSub(StoppingCriteria):
 
@@ -23,15 +25,16 @@ class StoppingCriteriaSub(StoppingCriteria):
         return False
 
 
-def get_stopping(prompt_type, tokenizer, device, human='<human>:', bot="<bot>:"):
-    if prompt_type in ['human_bot', 'instruct_vicuna', 'instruct_with_end']:
-        if prompt_type == 'human_bot':
+def get_stopping(prompt_type, prompt_dict, tokenizer, device, human='<human>:', bot="<bot>:"):
+    # FIXME: prompt_dict unused currently
+    if prompt_type in [PromptType.human_bot.name, PromptType.instruct_vicuna.name, PromptType.instruct_with_end.name]:
+        if prompt_type == PromptType.human_bot.name:
             # encounters = [prompt.count(human) + 1, prompt.count(bot) + 1]
             # stopping only starts once output is beyond prompt
             # 1 human is enough to trigger, but need 2 bots, because very first view back will be bot we added
             stop_words = [human, bot, '\n' + human, '\n' + bot]
             encounters = [1, 2]
-        elif prompt_type == 'instruct_vicuna':
+        elif prompt_type == PromptType.instruct_vicuna.name:
             # even below is not enough, generic strings and many ways to encode
             stop_words = [
                 '### Human:',
@@ -58,7 +61,7 @@ def get_stopping(prompt_type, tokenizer, device, human='<human>:', bot="<bot>:")
         stop_words_ids = [x if len(x.shape) > 0 else torch.tensor([x]) for x in stop_words_ids]
         stop_words_ids = [x for x in stop_words_ids if x.shape[0] > 0]
         # avoid padding in front of tokens
-        if tokenizer.pad_token:
+        if tokenizer._pad_token:  # use hidden variable to avoid annoying properly logger bug
             stop_words_ids = [x[1:] if x[0] == tokenizer.pad_token_id and len(x) > 1 else x for x in stop_words_ids]
         # handle fake \n added
         stop_words_ids = [x[1:] if y[0] == '\n' else x for x, y in zip(stop_words_ids, stop_words)]

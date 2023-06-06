@@ -1,0 +1,3 @@
+gpt4all==0.2.3
+llama-cpp-python==0.1.55
+python-dotenv==1.0.0

@@ -3,8 +3,10 @@ from pathlib import Path
 import pkg_resources
 from pkg_resources import DistributionNotFound, VersionConflict
 
+from tests.utils import wrap_test_forked
 
 
+@wrap_test_forked
 def test_requirements():
     """Test that each required package is available."""
     packages_all = []
@@ -49,7 +51,7 @@ def test_requirements():
         print('Wrong version of packages: %s' % packages_version, flush=True)
         print("Can't determine (e.g. http) packages: %s" % packages_unkn, flush=True)
         print('\n\nRUN THIS:\n\n', flush=True)
-        print('pip uninstall peft -y ; CUDA_HOME=/usr/local/cuda-11.7 pip install %s --upgrade' % str(' '.join(packages_all)), flush=True)
+        print('pip uninstall peft transformers accelerate -y ; CUDA_HOME=/usr/local/cuda-11.7 pip install %s --upgrade' % str(' '.join(packages_all)), flush=True)
         print('\n\n', flush=True)
 
         raise ValueError(packages_all)
