@@ -45,11 +45,14 @@ from langchain import PromptTemplate
 from langchain.vectorstores import Chroma
 
 
-def get_db(sources, use_openai_embedding=False, db_type='faiss', persist_directory="db_dir", langchain_mode='notset',
+def get_db(sources, use_openai_embedding=False, db_type='faiss',
+           persist_directory="db_dir", load_db_if_exists=True,
+           langchain_mode='notset',
            collection_name=None,
            hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2"):
     if not sources:
         return None
+
     # get embedding model
     embedding = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model)
     assert collection_name is not None or langchain_mode != 'notset'
@@ -77,13 +80,21 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss', persist_directo
     elif db_type == 'chroma':
         assert persist_directory is not None
         os.makedirs(persist_directory, exist_ok=True)
-        db = Chroma.from_documents(documents=sources,
-                                   embedding=embedding,
-                                   persist_directory=persist_directory,
-                                   collection_name=collection_name,
-                                   anonymized_telemetry=False)
-        db.persist()
-        save_embed(db, use_openai_embedding, hf_embedding_model)
+
+        # see if already actually have persistent db, and deal with possible changes in embedding
+        db = get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
+                             hf_embedding_model, verbose=False)
+        if db is None:
+            db = Chroma.from_documents(documents=sources,
+                                       embedding=embedding,
+                                       persist_directory=persist_directory,
+                                       collection_name=collection_name,
+                                       anonymized_telemetry=False)
+            db.persist()
+            save_embed(db, use_openai_embedding, hf_embedding_model)
+        else:
+            # then just add
+            db, num_new_sources, new_sources_metadata = add_to_db(db, sources, db_type=db_type)
     else:
         raise RuntimeError("No such db_type=%s" % db_type)
 
@@ -270,7 +281,6 @@ def get_llm(use_openai_model=False, model_name=None, model=None,
 
         if model is None:
             # only used if didn't pass model in
-            assert model_name is None
             assert tokenizer is None
             prompt_type = 'human_bot'
             model_name = 'h2oai/h2ogpt-oasst1-512-12b'
@@ -928,6 +938,21 @@ class FakeConsumer(object):
 posthog.Consumer = FakeConsumer
 
 
+def check_update_chroma_embedding(db, use_openai_embedding, hf_embedding_model, langchain_mode):
+    if load_embed(db) != (use_openai_embedding, hf_embedding_model):
+        print("Detected new embedding, updating db: %s" % langchain_mode, flush=True)
+        # handle embedding changes
+        client_collection = db._client.get_collection(name=db._collection.name,
+                                                      embedding_function=db._collection._embedding_function)
+        db_get = db.get()
+        # delete index, has to be redone
+        remove(os.path.join(db._persist_directory, 'index'))
+        client_collection.upsert(ids=db_get['ids'], metadatas=db_get['metadatas'], documents=db_get['documents'])
+        print("Done updating db for new embedding: %s" % langchain_mode, flush=True)
+
+    return db
+
+
 def get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
                     hf_embedding_model, verbose=False):
     if load_db_if_exists and db_type == 'chroma' and os.path.isdir(persist_directory) and os.path.isdir(
@@ -943,16 +968,7 @@ def get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_em
                     collection_name=langchain_mode.replace(' ', '_'),
                     client_settings=client_settings)
         print("DONE Loading db: %s" % langchain_mode, flush=True)
-        if load_embed(db) != (use_openai_embedding, hf_embedding_model):
-            print("Detected new embedding, updating db: %s" % langchain_mode, flush=True)
-            # handle embedding changes
-            client_collection = db._client.get_collection(name=db._collection.name,
-                                                          embedding_function=db._collection._embedding_function)
-            db_get = db.get()
-            # delete index, has to be redone
-            remove(os.path.join(persist_directory, 'index'))
-            client_collection.upsert(ids=db_get['ids'], metadatas=db_get['metadatas'], documents=db_get['documents'])
-            print("Done updating db for new embedding: %s" % langchain_mode, flush=True)
+        db = check_update_chroma_embedding(db, use_openai_embedding, hf_embedding_model, langchain_mode)
         db.persist()
         save_embed(db, use_openai_embedding, hf_embedding_model)
         return db
