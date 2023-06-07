@@ -953,7 +953,7 @@ def check_update_chroma_embedding(db, use_openai_embedding, hf_embedding_model, 
                    for result in zip(db_get['documents'], db_get['metadatas'])]
         # delete index, has to be redone
         persist_directory = db._persist_directory
-        shutil.move(persist_directory, persist_directory + '_' + str(random.randint(0, 2 ** 30)))
+        shutil.move(persist_directory, persist_directory + "_" + str(uuid.uuid4()) + ".bak")
         db_type = 'chroma'
         load_db_if_exists = False
         db = get_db(sources, use_openai_embedding=use_openai_embedding, db_type=db_type,

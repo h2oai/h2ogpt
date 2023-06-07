@@ -130,7 +130,7 @@ def main(
         db_type: str = 'chroma',
         use_openai_embedding: bool = False,
         use_openai_model: bool = False,
-        hf_embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2",
+        hf_embedding_model: str = 'hkunlp/instructor-large',
         allow_upload_to_user_data: bool = True,
         allow_upload_to_my_data: bool = True,
         enable_url_upload: bool = True,
@@ -236,6 +236,8 @@ def main(
     :param use_openai_embedding: Whether to use OpenAI embeddings for vector db
     :param use_openai_model: Whether to use OpenAI model for use with vector db
     :param hf_embedding_model: Which HF embedding model to use for vector db
+           Default is instructor-large, but can also choose simpler  "sentence-transformers/all-MiniLM-L6-v2"
+           We support automatically changing of embeddings for chroma, with a backup of db made if this is done
     :param allow_upload_to_user_data: Whether to allow file uploads to update shared vector db
     :param allow_upload_to_my_data: Whether to allow file uploads to update scratch vector db
     :param enable_url_upload: Whether to allow upload from URL
