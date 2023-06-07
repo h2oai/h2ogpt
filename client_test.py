@@ -167,6 +167,51 @@ def run_client_nochat_api_lean(prompt, prompt_type, max_new_tokens):
 
 
 @pytest.mark.skip(reason="For manual use against some server, no server launched")
+def test_client_basic_api_lean_morestuff():
+    return run_client_nochat_api_lean_morestuff(prompt='Who are you?', prompt_type='human_bot', max_new_tokens=50)
+
+
+def run_client_nochat_api_lean_morestuff(prompt, prompt_type, max_new_tokens):
+    kwargs = dict(
+        instruction='',
+        iinput='',
+        context='',
+        stream_output=False,
+        prompt_type='human_bot',
+        temperature=0.1,
+        top_p=0.75,
+        top_k=40,
+        num_beams=1,
+        max_new_tokens=256,
+        min_new_tokens=0,
+        early_stopping=False,
+        max_time=20,
+        repetition_penalty=1.0,
+        num_return_sequences=1,
+        do_sample=True,
+        chat=False,
+        instruction_nochat=prompt,
+        iinput_nochat='',
+        langchain_mode='Disabled',
+        top_k_docs=4,
+        document_choice=['All'],
+    )
+
+    api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
+    client = get_client(serialize=True)
+    res = client.predict(
+        str(dict(kwargs)),
+        api_name=api_name,
+    )
+    print("Raw client result: %s" % res, flush=True)
+    res_dict = dict(prompt=kwargs['instruction_nochat'],
+                    response=md_to_text(ast.literal_eval(res)['response']),
+                    sources=ast.literal_eval(res)['sources'])
+    print(res_dict)
+    return res_dict
+
+
+@pytest.mark.skip(reason="For manual use against some server, no server launched")
 def test_client_chat():
     return run_client_chat(prompt='Who are you?', prompt_type='human_bot', stream_output=False, max_new_tokens=50,
                            langchain_mode='Disabled')
@@ -227,3 +272,4 @@ if __name__ == '__main__':
     test_client_basic()
     test_client_basic_api()
     test_client_basic_api_lean()
+    test_client_basic_api_lean_morestuff()
