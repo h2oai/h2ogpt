@@ -244,7 +244,7 @@ def test_client_chat_stream_langchain_steps2():
                             max_new_tokens=max_new_tokens, langchain_mode=langchain_mode)
 
     res_dict, client = run_client(client, prompt, args, kwargs)
-    assert 'speech recognition system' in res_dict['response'] and 'whisper.pdf' in res_dict['response']
+    assert 'large-scale speech recognition model' in res_dict['response'] and 'whisper.pdf' in res_dict['response']
 
 
 @wrap_test_forked
