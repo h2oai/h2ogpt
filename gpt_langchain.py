@@ -17,6 +17,7 @@ from functools import reduce
 from operator import concat
 
 from joblib import Parallel, delayed
+from langchain.embeddings import HuggingFaceInstructEmbeddings
 from tqdm import tqdm
 
 from prompter import non_hf_types, PromptType
@@ -82,6 +83,7 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss', persist_directo
                                    collection_name=collection_name,
                                    anonymized_telemetry=False)
         db.persist()
+        save_embed(db, use_openai_embedding, hf_embedding_model)
     else:
         raise RuntimeError("No such db_type=%s" % db_type)
 
@@ -152,6 +154,7 @@ def add_to_db(db, sources, db_type='faiss',
             return db, num_new_sources, []
         db.add_documents(documents=sources)
         db.persist()
+        save_embed(db, use_openai_embedding, hf_embedding_model)
     else:
         raise RuntimeError("No such db_type=%s" % db_type)
 
@@ -213,7 +216,13 @@ def get_embedding(use_openai_embedding, hf_embedding_model="sentence-transformer
 
         device, torch_dtype, context_class = get_device_dtype()
         model_kwargs = dict(device=device)
-        embedding = HuggingFaceEmbeddings(model_name=hf_embedding_model, model_kwargs=model_kwargs)
+        if 'instructor' in hf_embedding_model:
+            encode_kwargs = {'normalize_embeddings': True}
+            embedding = HuggingFaceInstructEmbeddings(model_name=hf_embedding_model,
+                                                      model_kwargs=model_kwargs,
+                                                      encode_kwargs=encode_kwargs)
+        else:
+            embedding = HuggingFaceEmbeddings(model_name=hf_embedding_model, model_kwargs=model_kwargs)
     return embedding
 
 
@@ -920,10 +929,11 @@ posthog.Consumer = FakeConsumer
 
 
 def get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
-                    hf_embedding_model):
+                    hf_embedding_model, verbose=False):
     if load_db_if_exists and db_type == 'chroma' and os.path.isdir(persist_directory) and os.path.isdir(
             os.path.join(persist_directory, 'index')):
-        print("DO Loading db: %s" % langchain_mode, flush=True)
+        if verbose:
+            print("DO Loading db: %s" % langchain_mode, flush=True)
         embedding = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model)
         from chromadb.config import Settings
         client_settings = Settings(anonymized_telemetry=False,
@@ -933,6 +943,18 @@ def get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_em
                     collection_name=langchain_mode.replace(' ', '_'),
                     client_settings=client_settings)
         print("DONE Loading db: %s" % langchain_mode, flush=True)
+        if load_embed(db) != (use_openai_embedding, hf_embedding_model):
+            print("Detected new embedding, updating db: %s" % langchain_mode, flush=True)
+            # handle embedding changes
+            client_collection = db._client.get_collection(name=db._collection.name,
+                                                          embedding_function=db._collection._embedding_function)
+            db_get = db.get()
+            # delete index, has to be redone
+            remove(os.path.join(persist_directory, 'index'))
+            client_collection.upsert(ids=db_get['ids'], metadatas=db_get['metadatas'], documents=db_get['documents'])
+            print("Done updating db for new embedding: %s" % langchain_mode, flush=True)
+        db.persist()
+        save_embed(db, use_openai_embedding, hf_embedding_model)
         return db
     return None
 
@@ -952,6 +974,24 @@ def make_db(**langchain_kwargs):
     return _make_db(**langchain_kwargs)
 
 
+def save_embed(db, use_openai_embedding, hf_embedding_model):
+    embed_info_file = os.path.join(db._persist_directory, 'embed_info')
+    with open(embed_info_file, 'wb') as f:
+        pickle.dump((use_openai_embedding, hf_embedding_model), f)
+    return use_openai_embedding, hf_embedding_model
+
+
+def load_embed(db):
+    embed_info_file = os.path.join(db._persist_directory, 'embed_info')
+    if os.path.isfile(embed_info_file):
+        with open(embed_info_file, 'rb') as f:
+            use_openai_embedding, hf_embedding_model = pickle.load(f)
+    else:
+        # migration, assume defaults
+        use_openai_embedding, hf_embedding_model = False, "sentence-transformers/all-MiniLM-L6-v2"
+    return use_openai_embedding, hf_embedding_model
+
+
 def _make_db(use_openai_embedding=False,
              hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
              first_para=False, text_limit=None,
@@ -964,19 +1004,10 @@ def _make_db(use_openai_embedding=False,
              n_jobs=-1,
              verbose=False):
     persist_directory = 'db_dir_%s' % langchain_mode  # single place, no special names for each case
-    if not db and load_db_if_exists and db_type == 'chroma' and os.path.isdir(persist_directory) and os.path.isdir(
-            os.path.join(persist_directory, 'index')):
-        assert langchain_mode not in ['MyData'], "Should not load MyData db this way"
-        print("Loading existing db", flush=True)
-        embedding = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model)
-        from chromadb.config import Settings
-        client_settings = Settings(anonymized_telemetry=False,
-                                   chroma_db_impl="duckdb+parquet",
-                                   persist_directory=persist_directory)
-        db = Chroma(persist_directory=persist_directory, embedding_function=embedding,
-                    collection_name=langchain_mode.replace(' ', '_'),
-                    client_settings=client_settings)
-        db.persist()
+    # see if can get persistent chroma db
+    db = get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
+                         hf_embedding_model, verbose=verbose)
+
     sources = []
     if not db and langchain_mode not in ['MyData'] or \
             user_path is not None and \
