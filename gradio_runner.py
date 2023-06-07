@@ -233,7 +233,11 @@ body.dark{#warning {background-color: #555555};}
                 with gr.Row():
                     col_nochat = gr.Column(visible=not kwargs['chat'])
                     with col_nochat:  # FIXME: for model comparison, and check rest
-                        text_output_nochat = gr.Textbox(lines=5, label=output_label0).style(show_copy_button=True)
+                        if kwargs['langchain_mode'] == 'Disabled':
+                            text_output_nochat = gr.Textbox(lines=5, label=output_label0).style(show_copy_button=True)
+                        else:
+                            # text looks a bit worse, but HTML links work
+                            text_output_nochat = gr.HTML(label=output_label0)
                         instruction_nochat = gr.Textbox(
                             lines=kwargs['input_lines'],
                             label=instruction_label_nochat,
@@ -772,9 +776,14 @@ body.dark{#warning {background-color: #555555};}
         # ensure present
         for k in inputs_kwargs_list:
             assert k in kwargs_evaluate, "Missing %s" % k
-        fun = partial(evaluate,
+
+        def evaluate_gradio(*args1, **kwargs1):
+            for res_dict in evaluate(*args1, **kwargs1):
+                yield '<br>' + res_dict['response'].replace("\n", "<br>")
+
+        fun = partial(evaluate_gradio,
                       **kwargs_evaluate)
-        fun2 = partial(evaluate,
+        fun2 = partial(evaluate_gradio,
                        **kwargs_evaluate)
         fun_with_dict_str = partial(evaluate_from_str,
                                     default_kwargs=default_kwargs,
@@ -1298,12 +1307,19 @@ body.dark{#warning {background-color: #555555};}
             .then(lambda: None, None, text_output2, queue=False, api_name='clearB2' if allow_api else None)
         # NOTE: clear of instruction/iinput for nochat has to come after score,
         # because score for nochat consumes actual textbox, while chat consumes chat history filled by user()
-        submit_event_nochat = submit_nochat.click(fun,
-                                                  inputs=[model_state, my_db_state] + inputs_list,
-                                                  outputs=text_output_nochat,
-                                                  queue=queue,
-                                                  api_name='submit_nochat' if allow_api else None) \
+        no_chat_args = dict(fn=fun,
+                            inputs=[model_state, my_db_state] + inputs_list,
+                            outputs=text_output_nochat,
+                            queue=queue,
+                            )
+        submit_event_nochat = submit_nochat.click(**no_chat_args, api_name='submit_nochat' if allow_api else None) \
             .then(**score_args_nochat, api_name='instruction_bot_score_nochat' if allow_api else None, queue=queue) \
+            .then(clear_instruct, None, instruction_nochat) \
+            .then(clear_instruct, None, iinput_nochat) \
+            .then(clear_torch_cache)
+        # copy of above with text box submission
+        submit_event_nochat2 = instruction_nochat.submit(**no_chat_args) \
+            .then(**score_args_nochat, queue=queue) \
             .then(clear_instruct, None, instruction_nochat) \
             .then(clear_instruct, None, iinput_nochat) \
             .then(clear_torch_cache)
@@ -1505,7 +1521,9 @@ body.dark{#warning {background-color: #555555};}
                        cancels=[submit_event1d, submit_event1f,
                                 submit_event2d, submit_event2f,
                                 submit_event3d, submit_event3f,
-                                submit_event_nochat],
+                                submit_event_nochat,
+                                submit_event_nochat2,
+                                ],
                        queue=False, api_name='stop' if allow_api else None).then(clear_torch_cache, queue=False)
 
         def count_chat_tokens(model_state1, chat1, prompt_type1, prompt_dict1):
