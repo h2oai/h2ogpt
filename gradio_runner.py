@@ -32,7 +32,7 @@ requests.get = original_get
 from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, get_dark_js
 from prompter import Prompter, \
     prompt_type_to_model_name, prompt_types_strings, inv_prompt_type_to_model_lower, generate_prompt, non_hf_types, \
-    get_prompt, PromptType
+    get_prompt
 from utils import get_githash, flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping, get_short_name, get_url, makedirs, get_kwargs, DocumentChoices
 from generate import get_model, languages_covered, evaluate, eval_func_param_names, score_qa, langchain_modes, \
@@ -1138,6 +1138,9 @@ body.dark{#warning {background-color: #555555};}
             score_args_submit = dict(fn=lambda: None, inputs=None, outputs=None)
             score_args2_submit = dict(fn=lambda: None, inputs=None, outputs=None)
 
+        def deselect_radio_chats():
+            return gr.update(value=None)
+
         # in case 2nd model, consume instruction first, so can clear quickly
         # bot doesn't consume instruction itself, just history from user, so why works
         submit_event1a = instruction.submit(**user_args, queue=queue,
@@ -1155,6 +1158,8 @@ body.dark{#warning {background-color: #555555};}
         submit_event1g = submit_event1f.then(**score_args2_submit,
                                              api_name='instruction_bot_score2' if allow_api else None, queue=queue)
         submit_event1h = submit_event1g.then(clear_torch_cache)
+        # if hit enter on new instruction for submitting new query, no longer the saved chat
+        submit_event1i = submit_event1h.then(deselect_radio_chats, inputs=None, outputs=radio_chats, queue=False)
 
         submit_event2a = submit.click(**user_args, api_name='submit' if allow_api else None)
         submit_event2b = submit_event2a.then(**user_args2, api_name='submit2' if allow_api else None)
@@ -1167,6 +1172,8 @@ body.dark{#warning {background-color: #555555};}
         submit_event2g = submit_event2f.then(**score_args2_submit, api_name='submit_bot_score2' if allow_api else None,
                                              queue=queue)
         submit_event2h = submit_event2g.then(clear_torch_cache)
+        # if submit new query, no longer the saved chat
+        submit_event2i = submit_event2h.then(deselect_radio_chats, inputs=None, outputs=radio_chats, queue=False)
 
         submit_event3a = retry.click(**user_args, api_name='retry' if allow_api else None)
         submit_event3b = submit_event3a.then(**user_args2, api_name='retry2' if allow_api else None)
@@ -1181,13 +1188,16 @@ body.dark{#warning {background-color: #555555};}
         submit_event3g = submit_event3f.then(**score_args2_submit, api_name='retry_bot_score2' if allow_api else None,
                                              queue=queue)
         submit_event3h = submit_event3g.then(clear_torch_cache)
+        # if retry, no longer the saved chat
+        submit_event3i = submit_event3h.then(deselect_radio_chats, inputs=None, outputs=radio_chats, queue=False)
 
         submit_event4 = undo.click(**undo_user_args, api_name='undo' if allow_api else None) \
             .then(**undo_user_args2, api_name='undo2' if allow_api else None) \
             .then(clear_instruct, None, instruction) \
             .then(clear_instruct, None, iinput) \
             .then(**score_args_submit, api_name='undo_score' if allow_api else None) \
-            .then(**score_args2_submit, api_name='undo_score2' if allow_api else None)
+            .then(**score_args2_submit, api_name='undo_score2' if allow_api else None) \
+            .then(deselect_radio_chats, inputs=None, outputs=radio_chats, queue=False)  # if undo, no longer the saved chat
 
         # MANAGE CHATS
         def dedup(short_chat, short_chats):
@@ -1248,9 +1258,6 @@ body.dark{#warning {background-color: #555555};}
 
         def update_radio_chats(chat_state1):
             return gr.update(choices=list(chat_state1.keys()), value=None)
-
-        def deselect_radio_chats():
-            return gr.update(value=None)
 
         def switch_chat(chat_key, chat_state1):
             chosen_chat = chat_state1[chat_key]
@@ -1550,7 +1557,9 @@ body.dark{#warning {background-color: #555555};}
                 # fake user message to mimic bot()
                 chat1 = copy.deepcopy(chat1)
                 chat1 = chat1 + [['user_message1', None]]
-                context1 = history_to_context(chat1, langchain_mode1, prompt_type1, prompt_dict1, chat1)
+                model_max_length1 = tokenizer.model_max_length
+                context1 = history_to_context(chat1, langchain_mode1, prompt_type1, prompt_dict1, chat1,
+                                              model_max_length1)
                 return str(tokenizer(context1, return_tensors="pt")['input_ids'].shape[1])
             else:
                 return "N/A"
