@@ -4,6 +4,7 @@ import os
 import pathlib
 import pickle
 import queue
+import random
 import shutil
 import subprocess
 import sys
@@ -94,7 +95,9 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
             save_embed(db, use_openai_embedding, hf_embedding_model)
         else:
             # then just add
-            db, num_new_sources, new_sources_metadata = add_to_db(db, sources, db_type=db_type)
+            db, num_new_sources, new_sources_metadata = add_to_db(db, sources, db_type=db_type,
+                                                                  use_openai_embedding=use_openai_embedding,
+                                                                  hf_embedding_model=hf_embedding_model)
     else:
         raise RuntimeError("No such db_type=%s" % db_type)
 
@@ -117,7 +120,10 @@ def _get_unique_sources_in_weaviate(db):
 
 def add_to_db(db, sources, db_type='faiss',
               avoid_dup_by_file=False,
-              avoid_dup_by_content=True):
+              avoid_dup_by_content=True,
+              use_openai_embedding=False,
+              hf_embedding_model=None):
+    assert hf_embedding_model is not None
     num_new_sources = len(sources)
     if not sources:
         return db, num_new_sources, []
@@ -942,19 +948,32 @@ def check_update_chroma_embedding(db, use_openai_embedding, hf_embedding_model, 
     if load_embed(db) != (use_openai_embedding, hf_embedding_model):
         print("Detected new embedding, updating db: %s" % langchain_mode, flush=True)
         # handle embedding changes
-        client_collection = db._client.get_collection(name=db._collection.name,
-                                                      embedding_function=db._collection._embedding_function)
         db_get = db.get()
+        sources = [Document(page_content=result[0], metadata=result[1] or {})
+                   for result in zip(db_get['documents'], db_get['metadatas'])]
         # delete index, has to be redone
-        remove(os.path.join(db._persist_directory, 'index'))
-        client_collection.upsert(ids=db_get['ids'], metadatas=db_get['metadatas'], documents=db_get['documents'])
+        persist_directory = db._persist_directory
+        shutil.move(persist_directory, persist_directory + '_' + str(random.randint(0, 2 ** 30)))
+        db_type = 'chroma'
+        load_db_if_exists = False
+        db = get_db(sources, use_openai_embedding=use_openai_embedding, db_type=db_type,
+                    persist_directory=persist_directory, load_db_if_exists=load_db_if_exists,
+                    langchain_mode=langchain_mode,
+                    collection_name=None,
+                    hf_embedding_model=hf_embedding_model)
+        if False:
+            # below doesn't work if db already in memory, so have to switch to new db as above
+            # upsert does new embedding, but if index already in memory, complains about size mismatch etc.
+            client_collection = db._client.get_collection(name=db._collection.name,
+                                                          embedding_function=db._collection._embedding_function)
+            client_collection.upsert(ids=db_get['ids'], metadatas=db_get['metadatas'], documents=db_get['documents'])
         print("Done updating db for new embedding: %s" % langchain_mode, flush=True)
 
     return db
 
 
 def get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
-                    hf_embedding_model, verbose=False):
+                    hf_embedding_model, verbose=False, check_embedding=True):
     if load_db_if_exists and db_type == 'chroma' and os.path.isdir(persist_directory) and os.path.isdir(
             os.path.join(persist_directory, 'index')):
         if verbose:
@@ -968,7 +987,8 @@ def get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_em
                     collection_name=langchain_mode.replace(' ', '_'),
                     client_settings=client_settings)
         print("DONE Loading db: %s" % langchain_mode, flush=True)
-        db = check_update_chroma_embedding(db, use_openai_embedding, hf_embedding_model, langchain_mode)
+        if check_embedding:
+            db = check_update_chroma_embedding(db, use_openai_embedding, hf_embedding_model, langchain_mode)
         db.persist()
         save_embed(db, use_openai_embedding, hf_embedding_model)
         return db
@@ -1122,7 +1142,9 @@ def _make_db(use_openai_embedding=False,
         new_sources_metadata = [x.metadata for x in sources]
     elif user_path is not None and langchain_mode in ['UserData']:
         print("Existing db, potentially adding %s sources from user_path=%s" % (len(sources), user_path), flush=True)
-        db, num_new_sources, new_sources_metadata = add_to_db(db, sources, db_type=db_type)
+        db, num_new_sources, new_sources_metadata = add_to_db(db, sources, db_type=db_type,
+                                                              use_openai_embedding=use_openai_embedding,
+                                                              hf_embedding_model=hf_embedding_model)
         print("Existing db, added %s new sources from user_path=%s" % (num_new_sources, user_path), flush=True)
     else:
         new_sources_metadata = [x.metadata for x in sources]
