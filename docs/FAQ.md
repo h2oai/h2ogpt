@@ -505,3 +505,23 @@ DatasetDict({
 'Anarchism is a political philosophy and movement that is sceptical of authority and rejects all involuntary, coercive forms of hierarchy. Anarchism calls for the abolition of the state, which it holds to be unnecessary, undesirable, and harmful'
 >>>
 ```
+
+### Centos with llama-cpp-python
+
+This may help to get llama-cpp-python to install
+
+```bash
+# remove old gcc
+yum remove gcc yum remove gdb
+# install scl-utils
+sudo yum install scl-utils sudo yum install centos-release-scl
+# find devtoolset-11
+yum list all --enablerepo='centos-sclo-rh' | grep "devtoolset"
+# install devtoolset-11-toolchain
+yum install -y devtoolset-11-toolchain
+# add gcc 11 to PATH by adding following script to /etc/profile
+PATH=$PATH::/opt/rh/devtoolset-11/root/usr/bin export PATH sudo scl enable devtoolset-11 bash
+# show gcc version and gcc11 is installed successfully.
+gcc --version
+pip install llama-cpp-python
+```
