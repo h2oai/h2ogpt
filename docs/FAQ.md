@@ -262,6 +262,8 @@ All the buttons are also accessible via gradio client API.
 | Remove Selected Chats    | Remove the saved chat that is currently selected (if any)                                    |
 | Import Chats from Upload | After selecting Upload Chat Files box and selecting files or drag-n-drop, import those files |
 
+![Saved Chats](saved_chats.png)
+
 #### Data Source Tab
 
 ##### Data Collection of Sources
@@ -274,11 +276,20 @@ Defaults to value set by `--langchain_mode=` and visible items set by `--visible
 
 To Chat with your docs, choose, e.g. UserData.  To avoid including docs, and just chat with LLM, choose ChatLLM.
 
+If you add document to, e.g., MyData, if you want to query that document, ensure to select collection MyData before submitting the query.
+
 ##### Choose Subset of Doc(s) in Collection (click to get sources to update)
-* All: Choose to include all docs in chosen collection when chatting
-* Only: Ignore the LLM, just return sources the vector database similarity search
-* None: Similar to choosing ChatLLM instead of the chosen collection
-* ... Or choose one or more documents to chat with (then do not select All, Only, or None)
+Commands:
+* All_Relevant: Choose to include all docs in chosen collection when chatting
+* All_Relevant_Only_Sources: Ignore the LLM, just return sources the vector database similarity search
+* Only_All_Sources: Ignore LLM and similarity search, just show top_k_docs sources from selected (or all) documents
+* Just_LLM: Similar to choosing ChatLLM instead of the chosen collection
+
+If one selects nothing, the default of `All_Relevant` is chosen.  Can choose any command with any number of user documents to chat with.
+
+E.g. one can click `get sources` to ensure subset list is up to date, choose `Only_All_Sources`, pick a single PDF, click submit, and one will get back `top_k_docs` first entries in collection for that PDF.
+
+![Only_All_Sources](only_all_sources.png)
 
 | Button                       | Purpose                                                                                            |
 -------------------------------|----------------------------------------------------------------------------------------------------|

@@ -14,6 +14,8 @@ import time
 import traceback
 import zipfile
 from datetime import datetime
+from enum import Enum
+
 import filelock
 import requests, uuid
 from typing import Tuple, Callable, Dict
@@ -841,3 +843,10 @@ def hash_file(file):
         traceback.print_exc()
         md5 = None
     return md5.hexdigest()
+
+
+class DocumentChoices(Enum):
+    All_Relevant = 0
+    All_Relevant_Only_Sources = 1
+    Only_All_Sources = 2
+    Just_LLM = 3
