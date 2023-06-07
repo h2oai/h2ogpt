@@ -312,6 +312,7 @@ def main(
     if memory_restriction_level >= 2:
         load_8bit = True
         load_4bit = False  # FIXME - consider using 4-bit instead of 8-bit
+        hf_embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
     if is_hf:
         # must override share if in spaces
         share = False
