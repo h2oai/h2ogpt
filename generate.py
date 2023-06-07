@@ -130,7 +130,7 @@ def main(
         db_type: str = 'chroma',
         use_openai_embedding: bool = False,
         use_openai_model: bool = False,
-        hf_embedding_model: str = 'hkunlp/instructor-large',
+        hf_embedding_model: str = None,
         allow_upload_to_user_data: bool = True,
         allow_upload_to_my_data: bool = True,
         enable_url_upload: bool = True,
@@ -236,7 +236,7 @@ def main(
     :param use_openai_embedding: Whether to use OpenAI embeddings for vector db
     :param use_openai_model: Whether to use OpenAI model for use with vector db
     :param hf_embedding_model: Which HF embedding model to use for vector db
-           Default is instructor-large with 768 parameters per embedding
+           Default is instructor-large with 768 parameters per embedding if have GPUs, else all-MiniLM-L6-v1 if no GPUs
            Can also choose simpler model with 384 parameters per embedding: "sentence-transformers/all-MiniLM-L6-v2"
            Can also choose even better embedding with 1024 parameters: 'hkunlp/instructor-xl'
            We support automatically changing of embeddings for chroma, with a backup of db made if this is done
@@ -312,7 +312,8 @@ def main(
     if memory_restriction_level >= 2:
         load_8bit = True
         load_4bit = False  # FIXME - consider using 4-bit instead of 8-bit
-        hf_embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
+        if hf_embedding_model is None:
+            hf_embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
     if is_hf:
         # must override share if in spaces
         share = False
@@ -338,6 +339,13 @@ def main(
             # 12B uses ~94GB
             # 6.9B uses ~47GB
             base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b' if not base_model else base_model
+        if hf_embedding_model is None:
+            # if no GPUs, use simpler embedding model to avoid cost in time
+            hf_embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
+    else:
+        if hf_embedding_model is None:
+            # if still None, then set default
+            hf_embedding_model = 'hkunlp/instructor-large'
 
     # get defaults
     model_lower = base_model.lower()
