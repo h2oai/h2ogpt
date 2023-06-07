@@ -879,6 +879,10 @@ def evaluate_from_str(
 ):
     if isinstance(user_kwargs, str):
         user_kwargs = ast.literal_eval(user_kwargs)
+    # only used for submit_nochat_api
+    user_kwargs['chat'] = False
+    user_kwargs['stream_output'] = False
+
     assert set(list(default_kwargs.keys())) == set(eval_func_param_names)
     # correct ordering.  Note some things may not be in default_kwargs, so can't be default of user_kwargs.get()
     args_list = [user_kwargs[k] if k in user_kwargs else default_kwargs[k] for k in eval_func_param_names]
