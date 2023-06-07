@@ -115,8 +115,7 @@ def run_client_nochat(prompt, prompt_type, max_new_tokens):
     )
     print("Raw client result: %s" % res, flush=True)
     res_dict = dict(prompt=kwargs['instruction_nochat'], iinput=kwargs['iinput_nochat'],
-                    response=md_to_text(ast.literal_eval(res)['response']),
-                    sources=ast.literal_eval(res)['sources'])
+                    response=md_to_text(res))
     print(res_dict)
     return res_dict
 
