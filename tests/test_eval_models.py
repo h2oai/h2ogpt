@@ -43,3 +43,37 @@ def test_score_eval(base_model):
         num_beams=2,
         infer_devices=False,
     )
+
+
+@pytest.mark.skipif(not os.getenv('FALCONS'), reason="download purpose")
+@pytest.mark.parametrize(
+    "base_model",
+    [
+        "OpenAssistant/falcon-7b-sft-top1-696",
+        "OpenAssistant/falcon-7b-sft-mix-2000",
+        "h2oai/h2ogpt-oasst1-falcon-40b",
+        "h2oai/h2ogpt-gm-oasst1-en-2048-falcon-40b-v1",
+        "h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2",
+        "h2oai/h2ogpt-gm-oasst1-multilang-2048-falcon-7b",
+        "OpenAssistant/falcon-40b-sft-top1-560",
+        "OpenAssistant/falcon-40b-sft-mix-1226",
+    ]
+)
+@wrap_test_forked
+def test_get_falcons(base_model):
+    import torch
+    from transformers import AutoTokenizer, AutoModelForCausalLM
+
+    t = AutoTokenizer.from_pretrained(base_model,
+                                      use_fast=False,
+                                      padding_side="left",
+                                      trust_remote_code=True,
+                                      use_auth_token=True,
+                                      )
+    assert t is not None
+    m = AutoModelForCausalLM.from_pretrained(base_model,
+                                             trust_remote_code=True,
+                                             torch_dtype=torch.float16,
+                                             use_auth_token=True,
+                                             )
+    assert m is not None
