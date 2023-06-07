@@ -145,6 +145,28 @@ def run_client_nochat_api(prompt, prompt_type, max_new_tokens):
 
 
 @pytest.mark.skip(reason="For manual use against some server, no server launched")
+def test_client_basic_api_lean():
+    return run_client_nochat_api_lean(prompt='Who are you?', prompt_type='human_bot', max_new_tokens=50)
+
+
+def run_client_nochat_api_lean(prompt, prompt_type, max_new_tokens):
+    kwargs = dict(instruction_nochat=prompt)
+
+    api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
+    client = get_client(serialize=True)
+    res = client.predict(
+        str(dict(kwargs)),
+        api_name=api_name,
+    )
+    print("Raw client result: %s" % res, flush=True)
+    res_dict = dict(prompt=kwargs['instruction_nochat'],
+                    response=md_to_text(ast.literal_eval(res)['response']),
+                    sources=ast.literal_eval(res)['sources'])
+    print(res_dict)
+    return res_dict
+
+
+@pytest.mark.skip(reason="For manual use against some server, no server launched")
 def test_client_chat():
     return run_client_chat(prompt='Who are you?', prompt_type='human_bot', stream_output=False, max_new_tokens=50,
                            langchain_mode='Disabled')
@@ -203,3 +225,5 @@ def md_to_text(md, do_md_to_text=True):
 
 if __name__ == '__main__':
     test_client_basic()
+    test_client_basic_api()
+    test_client_basic_api_lean()
