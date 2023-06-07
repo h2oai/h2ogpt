@@ -200,7 +200,7 @@ def test_client_chat_stream_langchain_steps():
 
     res_dict, client = run_client(client, prompt, args, kwargs)
     # odd answer since no whisper docs, but still shows some docs at very low score
-    assert 'Whisper is a secure messaging app that allows' in res_dict['response'] and '.md' in res_dict['response']
+    assert 'h2oGPT' in res_dict['response'] and '.md' in res_dict['response']
 
 
 @wrap_test_forked

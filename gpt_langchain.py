@@ -1539,6 +1539,7 @@ def chunk_sources(sources, chunk=True, chunk_size=512):
 
 
 def get_db_from_hf(dest=".", db_dir='db_dir_DriverlessAI_docs.zip'):
+    remove(db_dir.replace(".zip", ""))
     from huggingface_hub import hf_hub_download
     # True for case when locally already logged in with correct token, so don't have to set key
     token = os.getenv('HUGGINGFACE_API_TOKEN', True)

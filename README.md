@@ -208,6 +208,12 @@ n_batch=1024
 ```
 for faster handling.  One some systems this has no strong effect, but on others may increase speed quite a bit.
 
+Also, for slow and low-memory systems, we recommend using a smaller embedding by using with `generrate.py`:
+```bash
+python generate.py ... --hf_embedding_model=sentence-transformers/all-MiniLM-L6-v2
+```
+where `...` means any other options one should add like `--base_model` etc.  This simpler embedding is about half the size as default `instruct-large` and so uses less disk, CPU memory, and GPU memory if using GPUs.
+
 #### MACOS
 
 First install [Rust](https://www.geeksforgeeks.org/how-to-install-rust-in-macos/):
