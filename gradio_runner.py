@@ -650,6 +650,9 @@ body.dark{#warning {background-color: #555555};}
         def make_visible():
             return gr.update(visible=True)
 
+        def update_radio_to_user():
+            return gr.update(value='UserData')
+
         # Add to UserData
         update_user_db_func = functools.partial(update_user_db,
                                                 dbs=dbs, db_type=db_type, langchain_mode='UserData',
@@ -668,7 +671,8 @@ body.dark{#warning {background-color: #555555};}
                                            chunk, chunk_size],
                                    outputs=[add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
                                    api_name='add_to_shared' if allow_api else None) \
-            .then(clear_file_list, outputs=fileup_output, queue=queue)
+            .then(clear_file_list, outputs=fileup_output, queue=queue) \
+            .then(update_radio_to_user, inputs=None, outputs=langchain_mode, queue=False)
 
         # .then(make_invisible, outputs=add_to_shared_db_btn, queue=queue)
         # .then(make_visible, outputs=upload_button, queue=queue)
@@ -682,7 +686,8 @@ body.dark{#warning {background-color: #555555};}
                                    chunk, chunk_size],
                            outputs=[add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
                            api_name='add_url_to_shared' if allow_api else None) \
-            .then(clear_textbox, outputs=url_text, queue=queue)
+            .then(clear_textbox, outputs=url_text, queue=queue) \
+            .then(update_radio_to_user, inputs=None, outputs=langchain_mode, queue=False)
 
         update_user_db_txt_func = functools.partial(update_user_db_func, is_txt=True)
         user_text_user_btn.click(update_user_db_txt_func,
@@ -690,9 +695,13 @@ body.dark{#warning {background-color: #555555};}
                                          chunk, chunk_size],
                                  outputs=[add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
                                  api_name='add_text_to_shared' if allow_api else None) \
-            .then(clear_textbox, outputs=user_text_text, queue=queue)
+            .then(clear_textbox, outputs=user_text_text, queue=queue) \
+            .then(update_radio_to_user, inputs=None, outputs=langchain_mode, queue=False)
 
         # Add to MyData
+        def update_radio_to_my():
+            return gr.update(value='MyData')
+
         update_my_db_func = functools.partial(update_user_db, dbs=dbs, db_type=db_type, langchain_mode='MyData',
                                               use_openai_embedding=use_openai_embedding,
                                               hf_embedding_model=hf_embedding_model,
@@ -708,7 +717,8 @@ body.dark{#warning {background-color: #555555};}
                                        chunk, chunk_size],
                                outputs=[my_db_state, add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
                                api_name='add_to_my' if allow_api else None) \
-            .then(clear_file_list, outputs=fileup_output, queue=queue)
+            .then(clear_file_list, outputs=fileup_output, queue=queue) \
+            .then(update_radio_to_my, inputs=None, outputs=langchain_mode, queue=False)
         # .then(make_invisible, outputs=add_to_shared_db_btn, queue=queue)
         # .then(make_visible, outputs=upload_button, queue=queue)
 
@@ -718,7 +728,8 @@ body.dark{#warning {background-color: #555555};}
                                  chunk, chunk_size],
                          outputs=[my_db_state, add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
                          api_name='add_url_to_my' if allow_api else None) \
-            .then(clear_textbox, outputs=url_text, queue=queue)
+            .then(clear_textbox, outputs=url_text, queue=queue) \
+            .then(update_radio_to_my, inputs=None, outputs=langchain_mode, queue=False)
 
         update_my_db_txt_func = functools.partial(update_my_db_func, is_txt=True)
         user_text_my_btn.click(update_my_db_txt_func,
@@ -726,7 +737,8 @@ body.dark{#warning {background-color: #555555};}
                                        chunk, chunk_size],
                                outputs=[my_db_state, add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
                                api_name='add_txt_to_my' if allow_api else None) \
-            .then(clear_textbox, outputs=user_text_text, queue=queue)
+            .then(clear_textbox, outputs=user_text_text, queue=queue) \
+            .then(update_radio_to_my, inputs=None, outputs=langchain_mode, queue=False)
 
         get_sources1 = functools.partial(get_sources, dbs=dbs, docs_state0=docs_state0)
 
