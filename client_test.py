@@ -48,6 +48,8 @@ import markdown  # pip install markdown
 import pytest
 from bs4 import BeautifulSoup  # pip install beautifulsoup4
 
+from utils import DocumentChoices
+
 debug = False
 
 os.environ['HF_HUB_DISABLE_TELEMETRY'] = '1'
@@ -90,7 +92,7 @@ def get_args(prompt, prompt_type, chat=False, stream_output=False, max_new_token
                          top_k_docs=4,
                          chunk=True,
                          chunk_size=512,
-                         document_choice=['All'],
+                         document_choice=[DocumentChoices.All_Relevant.name],
                          )
     if chat:
         # add chatbot output on end.  Assumes serialize=False

@@ -34,7 +34,7 @@ from prompter import Prompter, \
     prompt_type_to_model_name, prompt_types_strings, inv_prompt_type_to_model_lower, generate_prompt, non_hf_types, \
     get_prompt, PromptType
 from utils import get_githash, flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
-    ping, get_short_name, get_url, makedirs, get_kwargs
+    ping, get_short_name, get_url, makedirs, get_kwargs, DocumentChoices
 from generate import get_model, languages_covered, evaluate, eval_func_param_names, score_qa, langchain_modes, \
     inputs_kwargs_list, get_cutoffs, scratch_base_dir, evaluate_from_str, no_default_param_names, \
     eval_func_param_names_defaults, get_max_max_new_tokens
@@ -210,7 +210,7 @@ body.dark{#warning {background-color: #555555};}
         my_db_state = gr.State([None, None])
         chat_state = gr.State({})
         # make user default first and default choice, dedup
-        docs_state00 = kwargs['document_choice'] + ['All', 'Only', 'None']
+        docs_state00 = kwargs['document_choice'] + [x.name for x in list(DocumentChoices)]
         docs_state0 = []
         [docs_state0.append(x) for x in docs_state00 if x not in docs_state0]
         docs_state = gr.State(docs_state0)  # first is chosen as default

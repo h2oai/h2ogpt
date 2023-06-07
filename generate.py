@@ -20,7 +20,7 @@ warnings.filterwarnings('ignore', category=UserWarning, message='TypedStorage is
 
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial, EThread, get_githash, \
-    import_matplotlib, get_device, makedirs, get_kwargs
+    import_matplotlib, get_device, makedirs, get_kwargs, DocumentChoices
 
 import_matplotlib()
 
@@ -122,7 +122,7 @@ def main(
 
         langchain_mode: str = 'Disabled',
         visible_langchain_modes: list = ['UserData', 'MyData'],
-        document_choice: list = ['All'],
+        document_choice: list = [DocumentChoices.All_Relevant.name],
         user_path: str = None,
         detect_user_path_changes_every_query: bool = False,
         load_db_if_exists: bool = True,
@@ -1069,7 +1069,7 @@ def evaluate(
                            langchain_mode=langchain_mode,
                            document_choice=document_choice,
                            db_type=db_type,
-                           k=top_k_docs,
+                           top_k_docs=top_k_docs,
                            temperature=temperature,
                            repetition_penalty=repetition_penalty,
                            top_k=top_k,
@@ -1528,7 +1528,7 @@ y = np.random.randint(0, 1, 100)
 
     # move to correct position
     for example in examples:
-        example += [chat, '', '', 'Disabled', top_k_docs, chunk, chunk_size, ['All']]
+        example += [chat, '', '', 'Disabled', top_k_docs, chunk, chunk_size, [DocumentChoices.All_Relevant.name]]
         # adjust examples if non-chat mode
         if not chat:
             example[eval_func_param_names.index('instruction_nochat')] = example[

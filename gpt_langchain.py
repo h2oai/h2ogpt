@@ -21,7 +21,7 @@ from tqdm import tqdm
 
 from prompter import non_hf_types, PromptType
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
-    get_device, ProgressParallel, remove, hash_file
+    get_device, ProgressParallel, remove, hash_file, DocumentChoices
 
 import_matplotlib()
 
@@ -1115,7 +1115,7 @@ def run_qa_db(**kwargs):
 
 def _run_qa_db(query=None,
                use_openai_model=False, use_openai_embedding=False,
-               first_para=False, text_limit=None, k=4, chunk=True, chunk_size=512,
+               first_para=False, text_limit=None, top_k_docs=4, chunk=True, chunk_size=512,
                user_path=None,
                detect_user_path_changes_every_query=False,
                db_type='faiss',
@@ -1137,7 +1137,7 @@ def _run_qa_db(query=None,
                top_k=40,
                top_p=0.7,
                langchain_mode=None,
-               document_choice=['All'],
+               document_choice=[DocumentChoices.All_Relevant.name],
                n_jobs=-1,
                verbose=False,
                cli=False):
@@ -1192,12 +1192,22 @@ def _run_qa_db(query=None,
     scores = []
     chain = None
 
+    if isinstance(document_choice, str):
+        # support string as well
+        document_choice = [document_choice]
+    # get first DocumentChoices as command to use, ignore others
+    doc_choices_set = set([x.name for x in list(DocumentChoices)])
+    cmd = [x for x in document_choice if x in doc_choices_set]
+    cmd = None if len(cmd) == 0 else cmd[0]
+    # now have cmd, filter out for only docs
+    document_choice = [x for x in document_choice if x not in doc_choices_set]
+
     func_names = list(inspect.signature(get_similarity_chain).parameters)
     sim_kwargs = {k: v for k, v in locals().items() if k in func_names}
     missing_kwargs = [x for x in func_names if x not in sim_kwargs]
     assert not missing_kwargs, "Missing: %s" % missing_kwargs
     docs, chain, scores, use_context = get_similarity_chain(**sim_kwargs)
-    if len(document_choice) > 0 and document_choice[0] == 'Only':
+    if cmd in [DocumentChoices.All_Relevant_Only_Sources.name, DocumentChoices.Only_All_Sources.name]:
         formatted_doc_chunks = '\n\n'.join([get_url(x) + '\n\n' + x.page_content for x in docs])
         yield formatted_doc_chunks, ''
         return
@@ -1255,7 +1265,7 @@ def _run_qa_db(query=None,
 
 def get_similarity_chain(query=None,
                          use_openai_model=False, use_openai_embedding=False,
-                         first_para=False, text_limit=None, k=4, chunk=True, chunk_size=512,
+                         first_para=False, text_limit=None, top_k_docs=4, chunk=True, chunk_size=512,
                          user_path=None,
                          detect_user_path_changes_every_query=False,
                          db_type='faiss',
@@ -1267,11 +1277,12 @@ def get_similarity_chain(query=None,
                          load_db_if_exists=False,
                          db=None,
                          langchain_mode=None,
-                         document_choice=['All'],
+                         document_choice=[DocumentChoices.All_Relevant.name],
                          n_jobs=-1,
                          # beyond run_db_query:
                          llm=None,
                          verbose=False,
+                         cmd=None,
                          ):
     # determine whether use of context out of docs is planned
     if not use_openai_model and prompt_type not in ['plain'] or model_name in non_hf_types:
@@ -1283,10 +1294,10 @@ def get_similarity_chain(query=None,
         use_context = True
 
     # https://github.com/hwchase17/langchain/issues/1946
-    # FIXME: Seems to way to get size of chroma db to limit k to avoid
+    # FIXME: Seems to way to get size of chroma db to limit top_k_docs to avoid
     # Chroma collection MyData contains fewer than 4 elements.
     # type logger error
-    k_db = 1000 if db_type == 'chroma' else k  # k=100 works ok too for
+    k_db = 1000 if db_type == 'chroma' else top_k_docs  # top_k_docs=100 works ok too for
 
     # FIXME: For All just go over all dbs instead of a separate db for All
     if not detect_user_path_changes_every_query and db is not None:
@@ -1308,36 +1319,42 @@ def get_similarity_chain(query=None,
                                                         verbose=verbose)
 
     if db and use_context:
-        if isinstance(document_choice, str):
-            # support string as well
-            document_choice = [document_choice]
-        if not isinstance(db, Chroma) or \
-                len(document_choice) == 0 or \
-                len(document_choice) <= 1 and document_choice[0] == 'All':
-            # treat empty list as All for now, not 'None'
-            filter_kwargs = {}
-        elif len(document_choice) > 0 and document_choice[0] == 'Only':
-            # Only means All docs, but only will return sources, not LLM response
+        if not isinstance(db, Chroma):
+            # only chroma supports filtering
             filter_kwargs = {}
         else:
+            # if here then some cmd + documents selected or just documents selected
             if len(document_choice) >= 2:
                 or_filter = [{"source": {"$eq": x}} for x in document_choice]
                 filter_kwargs = dict(filter={"$or": or_filter})
-            elif len(document_choice) > 0:
+            elif len(document_choice) == 1:
+                # degenerate UX bug in chroma
                 one_filter = [{"source": {"$eq": x}} for x in document_choice][0]
                 filter_kwargs = dict(filter=one_filter)
             else:
+                # shouldn't reach
                 filter_kwargs = {}
-            if len(document_choice) == 1 and document_choice[0] == 'None':
-                k_db = 1
-                k = 0
-        docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:k]
-        # cut off so no high distance docs/sources considered
-        docs = [x[0] for x in docs_with_score if x[1] < cut_distanct]
-        scores = [x[1] for x in docs_with_score if x[1] < cut_distanct]
-        if len(scores) > 0 and verbose:
-            print("Distance: min: %s max: %s mean: %s median: %s" %
-                  (scores[0], scores[-1], np.mean(scores), np.median(scores)), flush=True)
+        if cmd == DocumentChoices.Just_LLM.name:
+            docs = []
+            scores = []
+        elif cmd == DocumentChoices.Only_All_Sources.name:
+            if isinstance(db, Chroma):
+                db_get = db._collection.get(where=filter_kwargs.get('filter'))
+            else:
+                db_get = db.get()
+            # similar to langchain's chroma's _results_to_docs_and_scores
+            docs_with_score = [(Document(page_content=result[0], metadata=result[1] or {}), 0)
+                               for result in zip(db_get['documents'], db_get['metadatas'])][:top_k_docs]
+            docs = [x[0] for x in docs_with_score]
+            scores = [x[1] for x in docs_with_score]
+        else:
+            docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:top_k_docs]
+            # cut off so no high distance docs/sources considered
+            docs = [x[0] for x in docs_with_score if x[1] < cut_distanct]
+            scores = [x[1] for x in docs_with_score if x[1] < cut_distanct]
+            if len(scores) > 0 and verbose:
+                print("Distance: min: %s max: %s mean: %s median: %s" %
+                      (scores[0], scores[-1], np.mean(scores), np.median(scores)), flush=True)
     else:
         docs = []
         scores = []
@@ -1346,7 +1363,7 @@ def get_similarity_chain(query=None,
         # if HF type and have no docs, can bail out
         return docs, None, [], False
 
-    if len(document_choice) > 0 and document_choice[0] == 'Only':
+    if cmd in [DocumentChoices.All_Relevant_Only_Sources.name, DocumentChoices.Only_All_Sources.name]:
         # no LLM use
         return docs, None, [], False
 
