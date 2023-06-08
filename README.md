@@ -145,7 +145,11 @@ pip install -r reqs_optional/requirements_optional_langchain.txt
 python -m nltk.downloader all  # for supporting unstructured package
 python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b  --load_8bit=True --langchain_mode=UserData --user_path=user_path
 ```
-For more ways to ingest on CLI and control see [LangChain Readme](docs/README_LangChain.md).
+For more ways to ingest on CLI and control see [LangChain Readme](docs/README_LangChain.md).  For example, for improved pdf handling via pymupdf (GPL) and support for docx, ppt, OCR, and ArXiV run:
+```bash
+sudo apt-get install -y libmagic-dev poppler-utils tesseract-ocr tesseract-ocr libreoffice
+pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt
+```
 
 For 4-bit support, the latest dev versions of transformers, accelerate, and peft are required, which can be installed by running:
 ```bash
