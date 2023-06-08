@@ -70,10 +70,12 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
         from weaviate.embedded import EmbeddedOptions
         from langchain.vectorstores import Weaviate
 
-        # TODO: add support for connecting via docker compose
-        client = weaviate.Client(
-            embedded_options=EmbeddedOptions()
-        )
+        if os.getenv('WEAVIATE_URL', None):
+            client = _create_local_weaviate_client()
+        else:
+            client = weaviate.Client(
+                embedded_options=EmbeddedOptions()
+            )
         index_name = collection_name.capitalize()
         db = Weaviate.from_documents(documents=sources, embedding=embedding, client=client, by_text=False,
                                      index_name=index_name)
@@ -186,10 +188,13 @@ def create_or_update_db(db_type, persist_directory, collection_name,
         import weaviate
         from weaviate.embedded import EmbeddedOptions
 
-        # TODO: add support for connecting via docker compose
-        client = weaviate.Client(
-            embedded_options=EmbeddedOptions()
-        )
+        if os.getenv('WEAVIATE_URL', None):
+            client = _create_local_weaviate_client()
+        else:
+            client = weaviate.Client(
+                embedded_options=EmbeddedOptions()
+            )
+
         index_name = collection_name.replace(' ', '_').capitalize()
         if client.schema.exists(index_name) and not add_if_exists:
             client.schema.delete_class(index_name)
@@ -1593,6 +1598,25 @@ def get_some_dbs_from_hf(dest='.', db_zips=None):
             assert os.path.isdir(os.path.join(dest, dir_expected)), "Missing path for %s" % dir_expected
             assert os.path.isdir(os.path.join(dest, dir_expected, 'index')), "Missing index in %s" % dir_expected
 
+def _create_local_weaviate_client():
+    WEAVIATE_URL = os.getenv('WEAVIATE_URL', "http://localhost:8080")
+    WEAVIATE_USERNAME = os.getenv('WEAVIATE_USERNAME')
+    WEAVIATE_PASSWORD = os.getenv('WEAVIATE_PASSWORD')
+    WEAVIATE_SCOPE = os.getenv('WEAVIATE_SCOPE', "offline_access")
+
+    resource_owner_config = None
+    if WEAVIATE_USERNAME is not None and WEAVIATE_PASSWORD is not None:
+        resource_owner_config = weaviate.AuthClientPassword(
+            username=WEAVIATE_USERNAME,
+            password=WEAVIATE_PASSWORD,
+            scope=WEAVIATE_SCOPE
+        )
+
+    try:
+        client = weaviate.Client(WEAVIATE_URL, auth_client_secret=resource_owner_config)
+    except Exception as e:
+        print(f"Failed to create Weaviate client: {e}")
+        return None
 
 if __name__ == '__main__':
     pass
