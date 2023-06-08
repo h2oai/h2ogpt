@@ -13,6 +13,8 @@ import pandas as pd
 import requests
 import tabulate
 
+from gradio_ui.prompt_form import make_prompt_form
+
 # This is a hack to prevent Gradio from phoning home when it gets imported
 os.environ['GRADIO_ANALYTICS_ENABLED'] = 'False'
 
@@ -77,10 +79,6 @@ def go_gradio(**kwargs):
     else:
         instruction_label_nochat = "Instruction (Shift-Enter or push Submit to send message," \
                                    " use Enter for multiple input lines)"
-    if kwargs['input_lines'] > 1:
-        instruction_label = "You (Shift-Enter or push Submit to send message, use Enter for multiple input lines)"
-    else:
-        instruction_label = "You (Enter or push Submit to send message, shift-enter for more lines)"
 
     title = 'h2oGPT'
     if 'h2ogpt-research' in kwargs['base_model']:
@@ -228,6 +226,7 @@ body.dark{#warning {background-color: #555555};}
         # go button visible if
         base_wanted = kwargs['base_model'] != no_model_str and kwargs['login_mode_if_model0']
         go_btn = gr.Button(value="ENTER", visible=base_wanted, variant="primary")
+
         normal_block = gr.Row(visible=not base_wanted)
         with normal_block:
             with gr.Tabs():
@@ -255,22 +254,16 @@ body.dark{#warning {background-color: #555555};}
                         else:
                             with gr.Column(visible=kwargs['score_model']):
                                 score_text_nochat = gr.Textbox("Response Score: NA", show_label=False)
+
                     col_chat = gr.Column(visible=kwargs['chat'])
                     with col_chat:
                         with gr.Row():
                             text_output = gr.Chatbot(label=output_label0).style(height=kwargs['height'] or 400)
                             text_output2 = gr.Chatbot(label=output_label0_model2, visible=False).style(
                                 height=kwargs['height'] or 400)
-                        with gr.Row():
-                            with gr.Column(scale=50):
-                                instruction = gr.Textbox(
-                                    lines=kwargs['input_lines'],
-                                    label=instruction_label,
-                                    placeholder=kwargs['placeholder_instruction'],
-                                )
-                            with gr.Row():
-                                submit = gr.Button(value='Submit').style(full_width=False, size='sm')
-                                stop_btn = gr.Button(value="Stop").style(full_width=False, size='sm')
+
+                        instruction, submit, stop_btn = make_prompt_form(kwargs)
+
                         with gr.Row():
                             clear = gr.Button("Save Chat / New Chat")
                             flag_btn = gr.Button("Flag")
