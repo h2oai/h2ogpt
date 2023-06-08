@@ -411,12 +411,16 @@ def main(
                 # FIXME: All should be avoided until scans over each db, shouldn't be separate db
                 continue
             persist_directory1 = 'db_dir_%s' % langchain_mode1  # single place, no special names for each case
-            db = prep_langchain(persist_directory1,
-                                load_db_if_exists,
-                                db_type, use_openai_embedding,
-                                langchain_mode1, user_path,
-                                hf_embedding_model,
-                                kwargs_make_db=locals())
+            try:
+                db = prep_langchain(persist_directory1,
+                                    load_db_if_exists,
+                                    db_type, use_openai_embedding,
+                                    langchain_mode1, user_path,
+                                    hf_embedding_model,
+                                    kwargs_make_db=locals())
+            finally:
+                # in case updated embeddings or created new embeddings
+                clear_torch_cache()
             dbs[langchain_mode1] = db
         # remove None db's so can just rely upon k in dbs for if hav db
         dbs = {k: v for k, v in dbs.items() if v is not None}

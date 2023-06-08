@@ -148,6 +148,8 @@ def run_eval(  # for local function:
         score_median = 0
 
         for exi, ex in enumerate(examples):
+            clear_torch_cache()
+
             instruction = ex[eval_func_param_names.index('instruction_nochat')]
             iinput = ex[eval_func_param_names.index('iinput_nochat')]
             context = ex[eval_func_param_names.index('context')]
