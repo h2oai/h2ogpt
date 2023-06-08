@@ -7,7 +7,7 @@ def make_prompt_form(kwargs):
     else:
         instruction_label = "press Enter or click Submit to send message, press Shift-Enter for more lines"
 
-    with gr.Row():
+    with gr.Row(elem_id='prompt-form-area'):
         with gr.Column(scale=50):
             instruction = gr.Textbox(
                 lines=kwargs['input_lines'],
@@ -18,7 +18,7 @@ def make_prompt_form(kwargs):
             )
             instruction.style(container=True)
         with gr.Row():
-            submit = gr.Button(value='Submit').style(full_width=False, size='sm')
-            stop_btn = gr.Button(value="Stop").style(full_width=False, size='sm')
+            submit = gr.Button(value='Submit', variant='primary').style(full_width=False, size='sm')
+            stop_btn = gr.Button(value="Stop", variant='secondary').style(full_width=False, size='sm')
 
     return instruction, submit, stop_btn
