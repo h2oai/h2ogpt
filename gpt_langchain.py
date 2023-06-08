@@ -83,7 +83,7 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
         os.makedirs(persist_directory, exist_ok=True)
 
         # see if already actually have persistent db, and deal with possible changes in embedding
-        db = get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
+        db = get_existing_db(None, persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
                              hf_embedding_model, verbose=False)
         if db is None:
             db = Chroma.from_documents(documents=sources,
@@ -893,7 +893,7 @@ def prep_langchain(persist_directory,
 
     if db_dir_exists and user_path is None:
         print("Prep: persist_directory=%s exists, using" % persist_directory, flush=True)
-        db = get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
+        db = get_existing_db(None, persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
                              hf_embedding_model)
     else:
         if db_dir_exists and user_path is not None:
@@ -974,21 +974,26 @@ def check_update_chroma_embedding(db, use_openai_embedding, hf_embedding_model, 
     return db, changed_db
 
 
-def get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
+def get_existing_db(db, persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
                     hf_embedding_model, verbose=False, check_embedding=True):
     if load_db_if_exists and db_type == 'chroma' and os.path.isdir(persist_directory) and os.path.isdir(
             os.path.join(persist_directory, 'index')):
-        if verbose:
-            print("DO Loading db: %s" % langchain_mode, flush=True)
-        embedding = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model)
-        from chromadb.config import Settings
-        client_settings = Settings(anonymized_telemetry=False,
-                                   chroma_db_impl="duckdb+parquet",
-                                   persist_directory=persist_directory)
-        db = Chroma(persist_directory=persist_directory, embedding_function=embedding,
-                    collection_name=langchain_mode.replace(' ', '_'),
-                    client_settings=client_settings)
-        print("DONE Loading db: %s" % langchain_mode, flush=True)
+        if db is None:
+            if verbose:
+                print("DO Loading db: %s" % langchain_mode, flush=True)
+            embedding = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model)
+            from chromadb.config import Settings
+            client_settings = Settings(anonymized_telemetry=False,
+                                       chroma_db_impl="duckdb+parquet",
+                                       persist_directory=persist_directory)
+            db = Chroma(persist_directory=persist_directory, embedding_function=embedding,
+                        collection_name=langchain_mode.replace(' ', '_'),
+                        client_settings=client_settings)
+            if verbose:
+                print("DONE Loading db: %s" % langchain_mode, flush=True)
+        else:
+            if verbose:
+                print("USING already-loaded db: %s" % langchain_mode, flush=True)
         if check_embedding:
             db_trial, changed_db = check_update_chroma_embedding(db, use_openai_embedding, hf_embedding_model, langchain_mode)
             if changed_db:
@@ -1050,7 +1055,7 @@ def _make_db(use_openai_embedding=False,
              verbose=False):
     persist_directory = get_persist_directory(langchain_mode)
     # see if can get persistent chroma db
-    db_trial = get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
+    db_trial = get_existing_db(db, persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
                                hf_embedding_model, verbose=verbose)
     if db_trial is not None:
         db = db_trial
