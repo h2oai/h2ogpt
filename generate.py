@@ -1482,10 +1482,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         temperature = 0.1 if temperature is None else temperature
         top_p = 0.75 if top_p is None else top_p
         top_k = 40 if top_k is None else top_k
-        if chat:
-            num_beams = num_beams or 1
-        else:
-            num_beams = num_beams or 4
+        num_beams = num_beams or 1
         max_new_tokens = max_new_tokens or 256
         repetition_penalty = repetition_penalty or 1.07
         num_return_sequences = min(num_beams, num_return_sequences or 1)
