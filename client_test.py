@@ -64,7 +64,10 @@ def get_client(serialize=True):
     return client
 
 
-def get_args(prompt, prompt_type, chat=False, stream_output=False, max_new_tokens=50, langchain_mode='Disabled'):
+def get_args(prompt, prompt_type, chat=False, stream_output=False,
+             max_new_tokens=50,
+             top_k_docs=3,
+             langchain_mode='Disabled'):
     from collections import OrderedDict
     kwargs = OrderedDict(instruction=prompt if chat else '',  # only for chat=True
                          iinput='',  # only for chat=True
@@ -89,7 +92,7 @@ def get_args(prompt, prompt_type, chat=False, stream_output=False, max_new_token
                          instruction_nochat=prompt if not chat else '',
                          iinput_nochat='',  # only for chat=False
                          langchain_mode=langchain_mode,
-                         top_k_docs=4,
+                         top_k_docs=top_k_docs,
                          chunk=True,
                          chunk_size=512,
                          document_choice=[DocumentChoices.All_Relevant.name],

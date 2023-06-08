@@ -1,3 +1,5 @@
+import os
+
 from transformers import TextGenerationPipeline
 from transformers.pipelines.text_generation import ReturnType
 
@@ -57,7 +59,7 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
             # unknown
             model_max_length = None
 
-        verbose = False  # FIXME: debug
+        verbose = bool(int(os.getenv('VERBOSE_PIPELINE', '0')))
         if model_max_length is not None:
             num_prompt_tokens = None
             # can't wait for "hole" if not plain prompt_type, since would lose prefix like <human>:
