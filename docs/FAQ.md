@@ -285,6 +285,10 @@ Commands:
 * Only_All_Sources: Ignore LLM and similarity search, just show top_k_docs sources from selected (or all) documents
 * Just_LLM: Similar to choosing ChatLLM instead of the chosen collection
 
+The most normal task is keep it on `All_Relevant` and just make a query, which will query all documents in the chosen collection.  Another normal task is to subset on just 1-2 documents, and make a query on those:
+
+![One Document Selected](onedocselected.png)
+
 If one selects nothing, the default of `All_Relevant` is chosen.  Can choose any command with any number of user documents to chat with.
 
 E.g. one can click `get sources` to ensure subset list is up to date, choose `Only_All_Sources`, pick a single PDF, click submit, and one will get back `top_k_docs` first entries in collection for that PDF.
