@@ -988,7 +988,9 @@ def get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_em
                     client_settings=client_settings)
         print("DONE Loading db: %s" % langchain_mode, flush=True)
         if check_embedding:
-            db = check_update_chroma_embedding(db, use_openai_embedding, hf_embedding_model, langchain_mode)
+            db_trial = check_update_chroma_embedding(db, use_openai_embedding, hf_embedding_model, langchain_mode)
+            if db_trial is not None:
+                db = db_trial
         db.persist()
         save_embed(db, use_openai_embedding, hf_embedding_model)
         return db
