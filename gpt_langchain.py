@@ -1047,8 +1047,10 @@ def _make_db(use_openai_embedding=False,
              verbose=False):
     persist_directory = get_persist_directory(langchain_mode)
     # see if can get persistent chroma db
-    db = get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
+    db_trial = get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
                          hf_embedding_model, verbose=verbose)
+    if db_trial is not None:
+        db = db_trial
 
     sources = []
     if not db and langchain_mode not in ['MyData'] or \
