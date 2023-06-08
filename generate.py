@@ -932,8 +932,12 @@ def evaluate_from_str(
         verbose=verbose,
         cli=cli,
     )
-    for ret1 in ret:
-        yield ret1
+    try:
+        for ret1 in ret:
+            yield ret1
+    finally:
+        # clear before return, in finally in case GPU OOM exception
+        clear_torch_cache()
 
 
 def evaluate(
@@ -1110,6 +1114,8 @@ def evaluate(
             # if got no response (e.g. not showing sources and got no sources,
             # so nothing to give to LLM), then slip through and ask LLM
             # Or if llama/gptj, then just return since they had no response and can't go down below code path
+            # clear before return, since .then() never done if from API
+            clear_torch_cache()
             return
 
     if isinstance(tokenizer, str):
@@ -1253,6 +1259,8 @@ def evaluate(
                             raise thread.exc
                         raise
                     finally:
+                        # clear before return, since .then() never done if from API
+                        clear_torch_cache()
                         # in case no exception and didn't join with thread yet, then join
                         if not thread.exc:
                             thread.join()
@@ -1261,7 +1269,10 @@ def evaluate(
                         raise thread.exc
                     decoded_output = outputs
                 else:
-                    outputs = model.generate(**gen_kwargs)
+                    try:
+                        outputs = model.generate(**gen_kwargs)
+                    finally:
+                        clear_torch_cache()  # has to be here for API submit_nochat_api since.then() not called
                     outputs = [decoder(s) for s in outputs.sequences]
                     yield dict(response=prompter.get_response(outputs, prompt=inputs_decoded,
                                                               sanitize_bot_response=sanitize_bot_response), sources='')

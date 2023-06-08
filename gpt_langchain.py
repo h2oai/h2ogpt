@@ -23,7 +23,7 @@ from tqdm import tqdm
 
 from prompter import non_hf_types, PromptType
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
-    get_device, ProgressParallel, remove, hash_file, DocumentChoices
+    get_device, ProgressParallel, remove, hash_file, DocumentChoices, clear_torch_cache
 
 import_matplotlib()
 
@@ -1195,7 +1195,10 @@ def run_qa_db(**kwargs):
     assert not missing_kwargs, "Missing kwargs: %s" % missing_kwargs
     # only keep actual used
     kwargs = {k: v for k, v in kwargs.items() if k in func_names}
-    return _run_qa_db(**kwargs)
+    try:
+        return _run_qa_db(**kwargs)
+    finally:
+        clear_torch_cache()
 
 
 def _run_qa_db(query=None,

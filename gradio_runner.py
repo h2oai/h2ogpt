@@ -877,7 +877,10 @@ body.dark{#warning {background-color: #555555};}
                 return 'Response Score: Bad Question'
             if answer is None:
                 return 'Response Score: Bad Answer'
-            score = score_qa(smodel, stokenizer, max_length_tokenize, question, answer, cutoff_len)
+            try:
+                score = score_qa(smodel, stokenizer, max_length_tokenize, question, answer, cutoff_len)
+            finally:
+                clear_torch_cache()
             if isinstance(score, str):
                 return 'Response Score: NA'
             return 'Response Score: {:.1%}'.format(score)
@@ -1092,6 +1095,8 @@ body.dark{#warning {background-color: #555555};}
                     history[-1][1] = ''
                 yield history, ex
                 raise
+            finally:
+                clear_torch_cache()
             return
 
         # NORMAL MODEL
