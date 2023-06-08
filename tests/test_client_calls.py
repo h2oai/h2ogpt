@@ -215,7 +215,7 @@ def test_client_chat_stream_langchain_steps2():
     base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
     prompt_type = 'human_bot'
     langchain_mode = 'UserData'
-    visible_langchain_modes = ['UserData', 'MyData']
+    visible_langchain_modes = ['UserData', 'MyData', 'github h2oGPT']
 
     from generate import main
     main(base_model=base_model, prompt_type=prompt_type, chat=True,
@@ -245,6 +245,15 @@ def test_client_chat_stream_langchain_steps2():
 
     res_dict, client = run_client(client, prompt, args, kwargs)
     assert 'large-scale speech recognition model' in res_dict['response'] and 'whisper.pdf' in res_dict['response']
+
+    # QUERY3
+    prompt = "What is h2oGPT"
+    langchain_mode = 'github h2oGPT'
+    kwargs, args = get_args(prompt, prompt_type, chat=True, stream_output=stream_output,
+                            max_new_tokens=max_new_tokens, langchain_mode=langchain_mode)
+
+    res_dict, client = run_client(client, prompt, args, kwargs)
+    assert 'h2oGPT is an open-source, fully permissive, commercially usable, and fully trained language model' in res_dict['response'] and 'README.md' in res_dict['response']
 
 
 @wrap_test_forked

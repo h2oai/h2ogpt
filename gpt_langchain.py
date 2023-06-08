@@ -1028,6 +1028,10 @@ def load_embed(db):
     return use_openai_embedding, hf_embedding_model
 
 
+def get_persist_directory(langchain_mode):
+    return 'db_dir_%s' % langchain_mode  # single place, no special names for each case
+
+
 def _make_db(use_openai_embedding=False,
              hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
              first_para=False, text_limit=None,
@@ -1039,7 +1043,7 @@ def _make_db(use_openai_embedding=False,
              db=None,
              n_jobs=-1,
              verbose=False):
-    persist_directory = 'db_dir_%s' % langchain_mode  # single place, no special names for each case
+    persist_directory = get_persist_directory(langchain_mode)
     # see if can get persistent chroma db
     db = get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
                          hf_embedding_model, verbose=verbose)
@@ -1539,13 +1543,14 @@ def chunk_sources(sources, chunk=True, chunk_size=512):
 
 
 def get_db_from_hf(dest=".", db_dir='db_dir_DriverlessAI_docs.zip'):
-    remove(db_dir.replace(".zip", ""))
     from huggingface_hub import hf_hub_download
     # True for case when locally already logged in with correct token, so don't have to set key
     token = os.getenv('HUGGINGFACE_API_TOKEN', True)
     path_to_zip_file = hf_hub_download('h2oai/db_dirs', db_dir, token=token, repo_type='dataset')
     import zipfile
     with zipfile.ZipFile(path_to_zip_file, 'r') as zip_ref:
+        persist_directory = os.path.dirname(zip_ref.namelist()[0])
+        remove(persist_directory)
         zip_ref.extractall(dest)
     return path_to_zip_file
 

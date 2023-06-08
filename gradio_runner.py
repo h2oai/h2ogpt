@@ -1753,7 +1753,8 @@ def _update_user_db(file, db1, x, y, chunk, chunk_size, dbs=None, db_type=None, 
             source_files_added = get_source_files(db=db1[0], exceptions=exceptions)
             return db1, x, y, source_files_added
         else:
-            persist_directory = 'db_dir_%s' % langchain_mode
+            from gpt_langchain import get_persist_directory
+            persist_directory = get_persist_directory(langchain_mode)
             if langchain_mode in dbs and dbs[langchain_mode] is not None:
                 # then add
                 db, num_new_sources, new_sources_metadata = add_to_db(dbs[langchain_mode], sources, db_type=db_type,

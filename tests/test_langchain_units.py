@@ -4,6 +4,7 @@ import tempfile
 
 import pytest
 
+from gpt_langchain import get_persist_directory
 from tests.utils import wrap_test_forked
 from utils import zip_data, download_simple, get_ngpus_vis, get_mem_gpus, have_faiss, remove, get_kwargs
 
@@ -157,7 +158,7 @@ def test_qa_daidocs_db_chunk_hf_faiss():
 @pytest.mark.parametrize("db_type", db_types)
 def test_qa_daidocs_db_chunk_hf_dbs(db_type):
     langchain_mode = 'DriverlessAI docs'
-    persist_directory = 'db_dir_%s' % langchain_mode  # single place, no special names for each case
+    persist_directory = get_persist_directory(langchain_mode)
     remove(persist_directory)
     from gpt_langchain import _run_qa_db
     query = "Which config.toml enables pytorch for NLP?"
@@ -199,7 +200,7 @@ def test_qa_daidocs_db_chunk_hf_dbs_switch_embedding(db_type):
                                          **get_kwargs(get_model, exclude_names=['reward_type'], **all_kwargs))
 
     langchain_mode = 'DriverlessAI docs'
-    persist_directory = 'db_dir_%s' % langchain_mode  # single place, no special names for each case
+    persist_directory = get_persist_directory(langchain_mode)
     remove(persist_directory)
     from gpt_langchain import _run_qa_db
     query = "Which config.toml enables pytorch for NLP?"
