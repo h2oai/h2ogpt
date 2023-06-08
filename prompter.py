@@ -1,31 +1,8 @@
 import ast
 import time
-from enum import Enum
+from enums import PromptType  # also supports imports from this file from other files
 
 non_hf_types = ['gpt4all_llama', 'llama', 'gptj']
-
-
-class PromptType(Enum):
-    custom = -1
-    plain = 0
-    instruct = 1
-    quality = 2
-    human_bot = 3
-    dai_faq = 4
-    summarize = 5
-    simple_instruct = 6
-    instruct_vicuna = 7
-    instruct_with_end = 8
-    human_bot_orig = 9
-    prompt_answer = 10
-    open_assistant = 11
-    wizard_lm = 12
-    wizard_mega = 13
-    instruct_vicuna2 = 14
-    instruct_vicuna3 = 15
-    wizard2 = 16
-    wizard3 = 17
-    instruct_simple = 18
 
 
 prompt_type_to_model_name = {

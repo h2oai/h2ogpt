@@ -845,13 +845,6 @@ def hash_file(file):
     return md5.hexdigest()
 
 
-class DocumentChoices(Enum):
-    All_Relevant = 0
-    All_Relevant_Only_Sources = 1
-    Only_All_Sources = 2
-    Just_LLM = 3
-
-
 def start_faulthandler():
     # If hit server or any subprocess with signal SIGUSR1, it'll print out all threads stack trace, but wont't quit or coredump
     # If more than one fork tries to write at same time, then looks corrupted.

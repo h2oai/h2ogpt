@@ -18,9 +18,10 @@ os.environ['HF_HUB_DISABLE_TELEMETRY'] = '1'
 os.environ['BITSANDBYTES_NOWELCOME'] = '1'
 warnings.filterwarnings('ignore', category=UserWarning, message='TypedStorage is deprecated')
 
+from enums import DocumentChoices, LangChainMode
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial, EThread, get_githash, \
-    import_matplotlib, get_device, makedirs, get_kwargs, DocumentChoices, start_faulthandler
+    import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler
 
 start_faulthandler()
 import_matplotlib()
@@ -41,8 +42,7 @@ from stopping import get_stopping
 
 eval_extra_columns = ['prompt', 'response', 'score']
 
-langchain_modes = ['Disabled', 'ChatLLM', 'LLM', 'All', 'wiki', 'wiki_full', 'UserData', 'MyData', 'github h2oGPT',
-                   'DriverlessAI docs']
+langchain_modes = [x.value for x in list(LangChainMode)]
 
 scratch_base_dir = '/tmp/'
 
