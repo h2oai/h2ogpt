@@ -21,9 +21,10 @@ from joblib import Parallel, delayed
 from langchain.embeddings import HuggingFaceInstructEmbeddings
 from tqdm import tqdm
 
+from enums import DocumentChoices
 from prompter import non_hf_types, PromptType
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
-    get_device, ProgressParallel, remove, hash_file, DocumentChoices, clear_torch_cache
+    get_device, ProgressParallel, remove, hash_file, clear_torch_cache
 
 import_matplotlib()
 
@@ -64,7 +65,6 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
     if db_type == 'faiss':
         from langchain.vectorstores import FAISS
         db = FAISS.from_documents(sources, embedding)
-
     elif db_type == 'weaviate':
         import weaviate
         from weaviate.embedded import EmbeddedOptions
@@ -79,7 +79,6 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
         index_name = collection_name.capitalize()
         db = Weaviate.from_documents(documents=sources, embedding=embedding, client=client, by_text=False,
                                      index_name=index_name)
-
     elif db_type == 'chroma':
         assert persist_directory is not None
         os.makedirs(persist_directory, exist_ok=True)
@@ -94,6 +93,7 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
                                        collection_name=collection_name,
                                        anonymized_telemetry=False)
             db.persist()
+            clear_embedding(db)
             save_embed(db, use_openai_embedding, hf_embedding_model)
         else:
             # then just add
@@ -173,6 +173,7 @@ def add_to_db(db, sources, db_type='faiss',
             return db, num_new_sources, []
         db.add_documents(documents=sources)
         db.persist()
+        clear_embedding(db)
         save_embed(db, use_openai_embedding, hf_embedding_model)
     else:
         raise RuntimeError("No such db_type=%s" % db_type)
@@ -1000,14 +1001,22 @@ def get_existing_db(db, persist_directory, load_db_if_exists, db_type, use_opena
             if verbose:
                 print("USING already-loaded db: %s" % langchain_mode, flush=True)
         if check_embedding:
-            db_trial, changed_db = check_update_chroma_embedding(db, use_openai_embedding, hf_embedding_model, langchain_mode)
+            db_trial, changed_db = check_update_chroma_embedding(db, use_openai_embedding, hf_embedding_model,
+                                                                 langchain_mode)
             if changed_db:
                 db = db_trial
                 # only call persist if really changed db, else takes too long for large db
                 db.persist()
+                clear_embedding(db)
         save_embed(db, use_openai_embedding, hf_embedding_model)
         return db
     return None
+
+
+def clear_embedding(db):
+    # don't keep on GPU, wastes memory, push back onto CPU and only put back on GPU once again embed
+    db._embedding_function.client.cpu()
+    clear_torch_cache()
 
 
 def make_db(**langchain_kwargs):
@@ -1120,6 +1129,8 @@ def _make_db(use_openai_embedding=False,
                     existing_files = []
                     existing_hash_ids = []
                 # chunk internally for speed over multiple docs
+                # FIXME: If first had old Hash=None and switch embeddings,
+                #  then re-embed, and then hit here and reload so have hash, and then re-embed.
                 sources1 = path_to_docs(user_path, n_jobs=n_jobs, chunk=chunk, chunk_size=chunk_size,
                                         existing_files=existing_files, existing_hash_ids=existing_hash_ids)
                 new_metadata_sources = set([x.metadata['source'] for x in sources1])

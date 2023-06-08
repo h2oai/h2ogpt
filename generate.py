@@ -18,9 +18,10 @@ os.environ['HF_HUB_DISABLE_TELEMETRY'] = '1'
 os.environ['BITSANDBYTES_NOWELCOME'] = '1'
 warnings.filterwarnings('ignore', category=UserWarning, message='TypedStorage is deprecated')
 
+from enums import DocumentChoices, LangChainMode
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial, EThread, get_githash, \
-    import_matplotlib, get_device, makedirs, get_kwargs, DocumentChoices, start_faulthandler
+    import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler
 
 start_faulthandler()
 import_matplotlib()
@@ -41,8 +42,7 @@ from stopping import get_stopping
 
 eval_extra_columns = ['prompt', 'response', 'score']
 
-langchain_modes = ['Disabled', 'ChatLLM', 'LLM', 'All', 'wiki', 'wiki_full', 'UserData', 'MyData', 'github h2oGPT',
-                   'DriverlessAI docs']
+langchain_modes = [x.value for x in list(LangChainMode)]
 
 scratch_base_dir = '/tmp/'
 
@@ -411,12 +411,16 @@ def main(
                 # FIXME: All should be avoided until scans over each db, shouldn't be separate db
                 continue
             persist_directory1 = 'db_dir_%s' % langchain_mode1  # single place, no special names for each case
-            db = prep_langchain(persist_directory1,
-                                load_db_if_exists,
-                                db_type, use_openai_embedding,
-                                langchain_mode1, user_path,
-                                hf_embedding_model,
-                                kwargs_make_db=locals())
+            try:
+                db = prep_langchain(persist_directory1,
+                                    load_db_if_exists,
+                                    db_type, use_openai_embedding,
+                                    langchain_mode1, user_path,
+                                    hf_embedding_model,
+                                    kwargs_make_db=locals())
+            finally:
+                # in case updated embeddings or created new embeddings
+                clear_torch_cache()
             dbs[langchain_mode1] = db
         # remove None db's so can just rely upon k in dbs for if hav db
         dbs = {k: v for k, v in dbs.items() if v is not None}

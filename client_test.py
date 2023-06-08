@@ -48,7 +48,7 @@ import markdown  # pip install markdown
 import pytest
 from bs4 import BeautifulSoup  # pip install beautifulsoup4
 
-from utils import DocumentChoices
+from enums import DocumentChoices
 
 debug = False
 
