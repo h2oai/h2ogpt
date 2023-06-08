@@ -54,3 +54,6 @@ bioc==2.0
 # falcon
 einops==0.6.1
 instructorembedding==1.0.1
+
+# for gpt4all .env file, but avoid worrying about imports
+python-dotenv==1.0.0
