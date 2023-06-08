@@ -13,6 +13,7 @@ Turn ★ into ⭐ (top-right corner) if you like the project!
 * [Apache V2 Data Preparation code, Training code, and Models](#apache-v2-data-preparation-code-training-code-and-models)
 * [Roadmap](#roadmap)
 * [Getting Started](#getting-started)
+   * [TLDR Install & Run](#tldr)
    * [GPU (CUDA)](#gpu-cuda)
    * [CPU](#cpu)
    * [MACOS](#macos)
@@ -119,7 +120,7 @@ On some systems, `pip` still refers back to the system one, then one can use `py
 
 #### TLDR
 
-After ENV installed:
+After environment installed:
 ```bash
 git clone https://github.com/h2oai/h2ogpt.git
 cd h2ogpt
