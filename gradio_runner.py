@@ -1197,7 +1197,8 @@ body.dark{#warning {background-color: #555555};}
             .then(clear_instruct, None, iinput) \
             .then(**score_args_submit, api_name='undo_score' if allow_api else None) \
             .then(**score_args2_submit, api_name='undo_score2' if allow_api else None) \
-            .then(deselect_radio_chats, inputs=None, outputs=radio_chats, queue=False)  # if undo, no longer the saved chat
+            .then(deselect_radio_chats, inputs=None, outputs=radio_chats,
+                  queue=False)  # if undo, no longer the saved chat
 
         # MANAGE CHATS
         def dedup(short_chat, short_chats):
@@ -1730,7 +1731,9 @@ def _update_user_db(file, db1, x, y, chunk, chunk_size, dbs=None, db_type=None, 
         if langchain_mode == 'MyData':
             if db1[0] is not None:
                 # then add
-                db, num_new_sources, new_sources_metadata = add_to_db(db1[0], sources, db_type=db_type)
+                db, num_new_sources, new_sources_metadata = add_to_db(db1[0], sources, db_type=db_type,
+                                                                      use_openai_embedding=use_openai_embedding,
+                                                                      hf_embedding_model=hf_embedding_model)
             else:
                 assert len(db1) == 2 and db1[1] is None, "Bad MyData db: %s" % db1
                 # then create
@@ -1738,20 +1741,25 @@ def _update_user_db(file, db1, x, y, chunk, chunk_size, dbs=None, db_type=None, 
                 # if added has to original state and didn't change, then would be shared db for all users
                 db1[1] = str(uuid.uuid4())
                 persist_directory = os.path.join(scratch_base_dir, 'db_dir_%s_%s' % (langchain_mode, db1[1]))
-                db1[0] = get_db(sources, use_openai_embedding=use_openai_embedding,
+                db = get_db(sources, use_openai_embedding=use_openai_embedding,
                                 db_type=db_type,
                                 persist_directory=persist_directory,
                                 langchain_mode=langchain_mode,
                                 hf_embedding_model=hf_embedding_model)
-                if db1[0] is None:
-                    db1[1] = None
+            if db is None:
+                db1[1] = None
+            else:
+                db1[0] = db
             source_files_added = get_source_files(db=db1[0], exceptions=exceptions)
             return db1, x, y, source_files_added
         else:
-            persist_directory = 'db_dir_%s' % langchain_mode
+            from gpt_langchain import get_persist_directory
+            persist_directory = get_persist_directory(langchain_mode)
             if langchain_mode in dbs and dbs[langchain_mode] is not None:
                 # then add
-                db, num_new_sources, new_sources_metadata = add_to_db(dbs[langchain_mode], sources, db_type=db_type)
+                db, num_new_sources, new_sources_metadata = add_to_db(dbs[langchain_mode], sources, db_type=db_type,
+                                                                      use_openai_embedding=use_openai_embedding,
+                                                                      hf_embedding_model=hf_embedding_model)
             else:
                 # then create
                 db = get_db(sources, use_openai_embedding=use_openai_embedding,
@@ -1759,7 +1767,7 @@ def _update_user_db(file, db1, x, y, chunk, chunk_size, dbs=None, db_type=None, 
                             persist_directory=persist_directory,
                             langchain_mode=langchain_mode,
                             hf_embedding_model=hf_embedding_model)
-                dbs[langchain_mode] = db
+            dbs[langchain_mode] = db
             # NOTE we do not return db, because function call always same code path
             # return dbs[langchain_mode], x, y
             # db in this code path is updated in place

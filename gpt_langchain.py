@@ -4,6 +4,7 @@ import os
 import pathlib
 import pickle
 import queue
+import random
 import shutil
 import subprocess
 import sys
@@ -17,6 +18,7 @@ from functools import reduce
 from operator import concat
 
 from joblib import Parallel, delayed
+from langchain.embeddings import HuggingFaceInstructEmbeddings
 from tqdm import tqdm
 
 from prompter import non_hf_types, PromptType
@@ -44,11 +46,14 @@ from langchain import PromptTemplate
 from langchain.vectorstores import Chroma
 
 
-def get_db(sources, use_openai_embedding=False, db_type='faiss', persist_directory="db_dir", langchain_mode='notset',
+def get_db(sources, use_openai_embedding=False, db_type='faiss',
+           persist_directory="db_dir", load_db_if_exists=True,
+           langchain_mode='notset',
            collection_name=None,
            hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2"):
     if not sources:
         return None
+
     # get embedding model
     embedding = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model)
     assert collection_name is not None or langchain_mode != 'notset'
@@ -76,12 +81,23 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss', persist_directo
     elif db_type == 'chroma':
         assert persist_directory is not None
         os.makedirs(persist_directory, exist_ok=True)
-        db = Chroma.from_documents(documents=sources,
-                                   embedding=embedding,
-                                   persist_directory=persist_directory,
-                                   collection_name=collection_name,
-                                   anonymized_telemetry=False)
-        db.persist()
+
+        # see if already actually have persistent db, and deal with possible changes in embedding
+        db = get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
+                             hf_embedding_model, verbose=False)
+        if db is None:
+            db = Chroma.from_documents(documents=sources,
+                                       embedding=embedding,
+                                       persist_directory=persist_directory,
+                                       collection_name=collection_name,
+                                       anonymized_telemetry=False)
+            db.persist()
+            save_embed(db, use_openai_embedding, hf_embedding_model)
+        else:
+            # then just add
+            db, num_new_sources, new_sources_metadata = add_to_db(db, sources, db_type=db_type,
+                                                                  use_openai_embedding=use_openai_embedding,
+                                                                  hf_embedding_model=hf_embedding_model)
     else:
         raise RuntimeError("No such db_type=%s" % db_type)
 
@@ -104,7 +120,10 @@ def _get_unique_sources_in_weaviate(db):
 
 def add_to_db(db, sources, db_type='faiss',
               avoid_dup_by_file=False,
-              avoid_dup_by_content=True):
+              avoid_dup_by_content=True,
+              use_openai_embedding=False,
+              hf_embedding_model=None):
+    assert hf_embedding_model is not None
     num_new_sources = len(sources)
     if not sources:
         return db, num_new_sources, []
@@ -152,6 +171,7 @@ def add_to_db(db, sources, db_type='faiss',
             return db, num_new_sources, []
         db.add_documents(documents=sources)
         db.persist()
+        save_embed(db, use_openai_embedding, hf_embedding_model)
     else:
         raise RuntimeError("No such db_type=%s" % db_type)
 
@@ -213,7 +233,13 @@ def get_embedding(use_openai_embedding, hf_embedding_model="sentence-transformer
 
         device, torch_dtype, context_class = get_device_dtype()
         model_kwargs = dict(device=device)
-        embedding = HuggingFaceEmbeddings(model_name=hf_embedding_model, model_kwargs=model_kwargs)
+        if 'instructor' in hf_embedding_model:
+            encode_kwargs = {'normalize_embeddings': True}
+            embedding = HuggingFaceInstructEmbeddings(model_name=hf_embedding_model,
+                                                      model_kwargs=model_kwargs,
+                                                      encode_kwargs=encode_kwargs)
+        else:
+            embedding = HuggingFaceEmbeddings(model_name=hf_embedding_model, model_kwargs=model_kwargs)
     return embedding
 
 
@@ -261,7 +287,6 @@ def get_llm(use_openai_model=False, model_name=None, model=None,
 
         if model is None:
             # only used if didn't pass model in
-            assert model_name is None
             assert tokenizer is None
             prompt_type = 'human_bot'
             model_name = 'h2oai/h2ogpt-oasst1-512-12b'
@@ -919,11 +944,40 @@ class FakeConsumer(object):
 posthog.Consumer = FakeConsumer
 
 
+def check_update_chroma_embedding(db, use_openai_embedding, hf_embedding_model, langchain_mode):
+    if load_embed(db) != (use_openai_embedding, hf_embedding_model):
+        print("Detected new embedding, updating db: %s" % langchain_mode, flush=True)
+        # handle embedding changes
+        db_get = db.get()
+        sources = [Document(page_content=result[0], metadata=result[1] or {})
+                   for result in zip(db_get['documents'], db_get['metadatas'])]
+        # delete index, has to be redone
+        persist_directory = db._persist_directory
+        shutil.move(persist_directory, persist_directory + "_" + str(uuid.uuid4()) + ".bak")
+        db_type = 'chroma'
+        load_db_if_exists = False
+        db = get_db(sources, use_openai_embedding=use_openai_embedding, db_type=db_type,
+                    persist_directory=persist_directory, load_db_if_exists=load_db_if_exists,
+                    langchain_mode=langchain_mode,
+                    collection_name=None,
+                    hf_embedding_model=hf_embedding_model)
+        if False:
+            # below doesn't work if db already in memory, so have to switch to new db as above
+            # upsert does new embedding, but if index already in memory, complains about size mismatch etc.
+            client_collection = db._client.get_collection(name=db._collection.name,
+                                                          embedding_function=db._collection._embedding_function)
+            client_collection.upsert(ids=db_get['ids'], metadatas=db_get['metadatas'], documents=db_get['documents'])
+        print("Done updating db for new embedding: %s" % langchain_mode, flush=True)
+
+    return db
+
+
 def get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
-                    hf_embedding_model):
+                    hf_embedding_model, verbose=False, check_embedding=True):
     if load_db_if_exists and db_type == 'chroma' and os.path.isdir(persist_directory) and os.path.isdir(
             os.path.join(persist_directory, 'index')):
-        print("DO Loading db: %s" % langchain_mode, flush=True)
+        if verbose:
+            print("DO Loading db: %s" % langchain_mode, flush=True)
         embedding = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model)
         from chromadb.config import Settings
         client_settings = Settings(anonymized_telemetry=False,
@@ -933,6 +987,10 @@ def get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_em
                     collection_name=langchain_mode.replace(' ', '_'),
                     client_settings=client_settings)
         print("DONE Loading db: %s" % langchain_mode, flush=True)
+        if check_embedding:
+            db = check_update_chroma_embedding(db, use_openai_embedding, hf_embedding_model, langchain_mode)
+        db.persist()
+        save_embed(db, use_openai_embedding, hf_embedding_model)
         return db
     return None
 
@@ -952,6 +1010,28 @@ def make_db(**langchain_kwargs):
     return _make_db(**langchain_kwargs)
 
 
+def save_embed(db, use_openai_embedding, hf_embedding_model):
+    embed_info_file = os.path.join(db._persist_directory, 'embed_info')
+    with open(embed_info_file, 'wb') as f:
+        pickle.dump((use_openai_embedding, hf_embedding_model), f)
+    return use_openai_embedding, hf_embedding_model
+
+
+def load_embed(db):
+    embed_info_file = os.path.join(db._persist_directory, 'embed_info')
+    if os.path.isfile(embed_info_file):
+        with open(embed_info_file, 'rb') as f:
+            use_openai_embedding, hf_embedding_model = pickle.load(f)
+    else:
+        # migration, assume defaults
+        use_openai_embedding, hf_embedding_model = False, "sentence-transformers/all-MiniLM-L6-v2"
+    return use_openai_embedding, hf_embedding_model
+
+
+def get_persist_directory(langchain_mode):
+    return 'db_dir_%s' % langchain_mode  # single place, no special names for each case
+
+
 def _make_db(use_openai_embedding=False,
              hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
              first_para=False, text_limit=None,
@@ -963,20 +1043,11 @@ def _make_db(use_openai_embedding=False,
              db=None,
              n_jobs=-1,
              verbose=False):
-    persist_directory = 'db_dir_%s' % langchain_mode  # single place, no special names for each case
-    if not db and load_db_if_exists and db_type == 'chroma' and os.path.isdir(persist_directory) and os.path.isdir(
-            os.path.join(persist_directory, 'index')):
-        assert langchain_mode not in ['MyData'], "Should not load MyData db this way"
-        print("Loading existing db", flush=True)
-        embedding = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model)
-        from chromadb.config import Settings
-        client_settings = Settings(anonymized_telemetry=False,
-                                   chroma_db_impl="duckdb+parquet",
-                                   persist_directory=persist_directory)
-        db = Chroma(persist_directory=persist_directory, embedding_function=embedding,
-                    collection_name=langchain_mode.replace(' ', '_'),
-                    client_settings=client_settings)
-        db.persist()
+    persist_directory = get_persist_directory(langchain_mode)
+    # see if can get persistent chroma db
+    db = get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
+                         hf_embedding_model, verbose=verbose)
+
     sources = []
     if not db and langchain_mode not in ['MyData'] or \
             user_path is not None and \
@@ -1075,7 +1146,9 @@ def _make_db(use_openai_embedding=False,
         new_sources_metadata = [x.metadata for x in sources]
     elif user_path is not None and langchain_mode in ['UserData']:
         print("Existing db, potentially adding %s sources from user_path=%s" % (len(sources), user_path), flush=True)
-        db, num_new_sources, new_sources_metadata = add_to_db(db, sources, db_type=db_type)
+        db, num_new_sources, new_sources_metadata = add_to_db(db, sources, db_type=db_type,
+                                                              use_openai_embedding=use_openai_embedding,
+                                                              hf_embedding_model=hf_embedding_model)
         print("Existing db, added %s new sources from user_path=%s" % (num_new_sources, user_path), flush=True)
     else:
         new_sources_metadata = [x.metadata for x in sources]
@@ -1476,6 +1549,8 @@ def get_db_from_hf(dest=".", db_dir='db_dir_DriverlessAI_docs.zip'):
     path_to_zip_file = hf_hub_download('h2oai/db_dirs', db_dir, token=token, repo_type='dataset')
     import zipfile
     with zipfile.ZipFile(path_to_zip_file, 'r') as zip_ref:
+        persist_directory = os.path.dirname(zip_ref.namelist()[0])
+        remove(persist_directory)
         zip_ref.extractall(dest)
     return path_to_zip_file
 
