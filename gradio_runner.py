@@ -905,9 +905,11 @@ body.dark{#warning {background-color: #555555};}
                                  )
         if not kwargs['auto_score']:
             score_event = score_btn.click(**score_args, queue=queue, api_name='score' if allow_api else None) \
-                .then(**score_args2, queue=queue, api_name='score2' if allow_api else None)
+                .then(**score_args2, queue=queue, api_name='score2' if allow_api else None) \
+                .then(clear_torch_cache)
             score_event_nochat = score_btn_nochat.click(**score_args_nochat, queue=queue,
-                                                        api_name='score_nochat' if allow_api else None)
+                                                        api_name='score_nochat' if allow_api else None) \
+                .then(clear_torch_cache)
 
         def user(*args, undo=False, sanitize_user_prompt=True, model2=False):
             """
@@ -1150,13 +1152,15 @@ body.dark{#warning {background-color: #555555};}
             .then(clear_instruct, None, iinput)
         submit_event1d = submit_event1c.then(**bot_args, api_name='instruction_bot' if allow_api else None,
                                              queue=queue)
-        submit_event1e = submit_event1d.then(**score_args_submit,
-                                             api_name='instruction_bot_score' if allow_api else None,
-                                             queue=queue)
+        submit_event1d2 = submit_event1d.then(clear_torch_cache)
+        submit_event1e = submit_event1d2.then(**score_args_submit,
+                                              api_name='instruction_bot_score' if allow_api else None,
+                                              queue=queue)
         submit_event1f = submit_event1e.then(**bot_args2, api_name='instruction_bot2' if allow_api else None,
                                              queue=queue)
-        submit_event1g = submit_event1f.then(**score_args2_submit,
-                                             api_name='instruction_bot_score2' if allow_api else None, queue=queue)
+        submit_event1f2 = submit_event1f.then(clear_torch_cache)
+        submit_event1g = submit_event1f2.then(**score_args2_submit,
+                                              api_name='instruction_bot_score2' if allow_api else None, queue=queue)
         submit_event1h = submit_event1g.then(clear_torch_cache)
         # if hit enter on new instruction for submitting new query, no longer the saved chat
         submit_event1i = submit_event1h.then(deselect_radio_chats, inputs=None, outputs=radio_chats, queue=False)
@@ -1166,11 +1170,13 @@ body.dark{#warning {background-color: #555555};}
         submit_event2c = submit_event2b.then(clear_instruct, None, instruction) \
             .then(clear_instruct, None, iinput)
         submit_event2d = submit_event2c.then(**bot_args, api_name='submit_bot' if allow_api else None, queue=queue)
-        submit_event2e = submit_event2d.then(**score_args_submit, api_name='submit_bot_score' if allow_api else None,
-                                             queue=queue)
+        submit_event2d2 = submit_event2d.then(clear_torch_cache)
+        submit_event2e = submit_event2d2.then(**score_args_submit, api_name='submit_bot_score' if allow_api else None,
+                                              queue=queue)
         submit_event2f = submit_event2e.then(**bot_args2, api_name='submit_bot2' if allow_api else None, queue=queue)
-        submit_event2g = submit_event2f.then(**score_args2_submit, api_name='submit_bot_score2' if allow_api else None,
-                                             queue=queue)
+        submit_event2f2 = submit_event2f.then(clear_torch_cache)
+        submit_event2g = submit_event2f2.then(**score_args2_submit, api_name='submit_bot_score2' if allow_api else None,
+                                              queue=queue)
         submit_event2h = submit_event2g.then(clear_torch_cache)
         # if submit new query, no longer the saved chat
         submit_event2i = submit_event2h.then(deselect_radio_chats, inputs=None, outputs=radio_chats, queue=False)
@@ -1181,24 +1187,27 @@ body.dark{#warning {background-color: #555555};}
             .then(clear_instruct, None, iinput)
         submit_event3d = submit_event3c.then(**retry_bot_args, api_name='retry_bot' if allow_api else None,
                                              queue=queue)
-        submit_event3e = submit_event3d.then(**score_args_submit, api_name='retry_bot_score' if allow_api else None,
-                                             queue=queue)
+        submit_event3d2 = submit_event3d.then(clear_torch_cache)
+        submit_event3e = submit_event3d2.then(**score_args_submit, api_name='retry_bot_score' if allow_api else None,
+                                              queue=queue)
         submit_event3f = submit_event3e.then(**retry_bot_args2, api_name='retry_bot2' if allow_api else None,
                                              queue=queue)
-        submit_event3g = submit_event3f.then(**score_args2_submit, api_name='retry_bot_score2' if allow_api else None,
-                                             queue=queue)
+        submit_event3f2 = submit_event3f.then(clear_torch_cache)
+        submit_event3g = submit_event3f2.then(**score_args2_submit, api_name='retry_bot_score2' if allow_api else None,
+                                              queue=queue)
         submit_event3h = submit_event3g.then(clear_torch_cache)
         # if retry, no longer the saved chat
         submit_event3i = submit_event3h.then(deselect_radio_chats, inputs=None, outputs=radio_chats, queue=False)
 
+        # if undo, no longer the saved chat
         submit_event4 = undo.click(**undo_user_args, api_name='undo' if allow_api else None) \
             .then(**undo_user_args2, api_name='undo2' if allow_api else None) \
             .then(clear_instruct, None, instruction) \
             .then(clear_instruct, None, iinput) \
             .then(**score_args_submit, api_name='undo_score' if allow_api else None) \
             .then(**score_args2_submit, api_name='undo_score2' if allow_api else None) \
-            .then(deselect_radio_chats, inputs=None, outputs=radio_chats,
-                  queue=False)  # if undo, no longer the saved chat
+            .then(deselect_radio_chats, inputs=None, outputs=radio_chats, queue=False) \
+            .then(clear_torch_cache)
 
         # MANAGE CHATS
         def dedup(short_chat, short_chats):
@@ -1333,12 +1342,14 @@ body.dark{#warning {background-color: #555555};}
                             queue=queue,
                             )
         submit_event_nochat = submit_nochat.click(**no_chat_args, api_name='submit_nochat' if allow_api else None) \
+            .then(clear_torch_cache) \
             .then(**score_args_nochat, api_name='instruction_bot_score_nochat' if allow_api else None, queue=queue) \
             .then(clear_instruct, None, instruction_nochat) \
             .then(clear_instruct, None, iinput_nochat) \
             .then(clear_torch_cache)
         # copy of above with text box submission
         submit_event_nochat2 = instruction_nochat.submit(**no_chat_args) \
+            .then(clear_torch_cache) \
             .then(**score_args_nochat, queue=queue) \
             .then(clear_instruct, None, instruction_nochat) \
             .then(clear_instruct, None, iinput_nochat) \
@@ -1684,6 +1695,8 @@ def update_user_db(file, db1, x, y, *args, dbs=None, langchain_mode='UserData', 
             return db1, x, y, source_files_added
         else:
             return x, y, source_files_added
+    finally:
+        clear_torch_cache()
 
 
 def _update_user_db(file, db1, x, y, chunk, chunk_size, dbs=None, db_type=None, langchain_mode='UserData',
@@ -1742,10 +1755,10 @@ def _update_user_db(file, db1, x, y, chunk, chunk_size, dbs=None, db_type=None, 
                 db1[1] = str(uuid.uuid4())
                 persist_directory = os.path.join(scratch_base_dir, 'db_dir_%s_%s' % (langchain_mode, db1[1]))
                 db = get_db(sources, use_openai_embedding=use_openai_embedding,
-                                db_type=db_type,
-                                persist_directory=persist_directory,
-                                langchain_mode=langchain_mode,
-                                hf_embedding_model=hf_embedding_model)
+                            db_type=db_type,
+                            persist_directory=persist_directory,
+                            langchain_mode=langchain_mode,
+                            hf_embedding_model=hf_embedding_model)
             if db is None:
                 db1[1] = None
             else:
