@@ -850,3 +850,14 @@ class DocumentChoices(Enum):
     All_Relevant_Only_Sources = 1
     Only_All_Sources = 2
     Just_LLM = 3
+
+
+def start_faulthandler():
+    # If hit server or any subprocess with signal SIGUSR1, it'll print out all threads stack trace, but wont't quit or coredump
+    # If more than one fork tries to write at same time, then looks corrupted.
+    import faulthandler
+    import signal
+
+    # SIGUSR1 in h2oai/__init__.py as well
+    faulthandler.enable()
+    faulthandler.register(signal.SIGUSR1)

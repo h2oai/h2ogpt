@@ -945,6 +945,7 @@ posthog.Consumer = FakeConsumer
 
 
 def check_update_chroma_embedding(db, use_openai_embedding, hf_embedding_model, langchain_mode):
+    changed_db = False
     if load_embed(db) != (use_openai_embedding, hf_embedding_model):
         print("Detected new embedding, updating db: %s" % langchain_mode, flush=True)
         # handle embedding changes
@@ -967,9 +968,10 @@ def check_update_chroma_embedding(db, use_openai_embedding, hf_embedding_model, 
             client_collection = db._client.get_collection(name=db._collection.name,
                                                           embedding_function=db._collection._embedding_function)
             client_collection.upsert(ids=db_get['ids'], metadatas=db_get['metadatas'], documents=db_get['documents'])
+        changed_db = True
         print("Done updating db for new embedding: %s" % langchain_mode, flush=True)
 
-    return db
+    return db, changed_db
 
 
 def get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
@@ -988,10 +990,11 @@ def get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_em
                     client_settings=client_settings)
         print("DONE Loading db: %s" % langchain_mode, flush=True)
         if check_embedding:
-            db_trial = check_update_chroma_embedding(db, use_openai_embedding, hf_embedding_model, langchain_mode)
-            if db_trial is not None:
+            db_trial, changed_db = check_update_chroma_embedding(db, use_openai_embedding, hf_embedding_model, langchain_mode)
+            if changed_db:
                 db = db_trial
-        db.persist()
+                # only call persist if really changed db, else takes too long for large db
+                db.persist()
         save_embed(db, use_openai_embedding, hf_embedding_model)
         return db
     return None

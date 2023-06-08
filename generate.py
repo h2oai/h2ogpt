@@ -20,8 +20,9 @@ warnings.filterwarnings('ignore', category=UserWarning, message='TypedStorage is
 
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial, EThread, get_githash, \
-    import_matplotlib, get_device, makedirs, get_kwargs, DocumentChoices
+    import_matplotlib, get_device, makedirs, get_kwargs, DocumentChoices, start_faulthandler
 
+start_faulthandler()
 import_matplotlib()
 
 SEED = 1236
