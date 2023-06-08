@@ -96,7 +96,7 @@ pip install protobuf==3.19.0
 source ~/.bashrc.mamba
 mamba create -n trans
 conda activate trans
-conda install python=3.10
+conda install python=3.10 -y
 
 git clone https://github.com/epfml/landmark-attention.git
 pip install fire datasets
