@@ -117,6 +117,31 @@ pip --version  # should say pip 23.x.y ... (python 3.10)
 ```
 On some systems, `pip` still refers back to the system one, then one can use `python -m pip` or `pip3` instead of `pip` or try `python3` instead of `python`.
 
+#### TLDR
+
+After ENV installed:
+```bash
+git clone https://github.com/h2oai/h2ogpt.git
+cd h2ogpt
+# broad support, but no training-time or data creation dependencies
+for fil in requirements.txt reqs_optional/requirements_optional_langchain.txt reqs_optional/requirements_optional_gpt4all.txt reqs_optional/requirements_optional_langchain.gpllike.txt ; do pip install -r $fil ; done
+# Optional: support docs, ppt, ArXiv, etc.
+sudo apt-get install -y libmagic-dev poppler-utils tesseract-ocr tesseract-ocr libreoffice
+# Optional: for supporting unstructured package
+python -m nltk.downloader all
+````
+
+Place all documents in `user_path` or upload in UI.
+
+UI using GPU with at least 24GB with streaming:
+```bash
+python generate.py --base_model=h2oai/h2ogpt-oasst1-512-12b --load_8bit=True  --score_model=None --langchain_mode='UserData' --user_path=user_path
+```
+UI using CPU (streaming not yet supported in UI):
+```bash
+python generate.py --base_model='llama' --prompt_type=wizard2 --score_model=None --langchain_mode='UserData' --user_path=user_path
+```
+
 #### GPU (CUDA)
 
 For help installing cuda toolkit, see [CUDA Toolkit](docs/INSTALL.md#installing-cuda-toolkit)
