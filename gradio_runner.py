@@ -13,6 +13,7 @@ import pandas as pd
 import requests
 import tabulate
 
+from gradio_ui.css import get_css
 from gradio_ui.prompt_form import make_prompt_form
 
 # This is a hack to prevent Gradio from phoning home when it gets imported
@@ -105,23 +106,7 @@ def go_gradio(**kwargs):
     else:
         task_info_md = ''
 
-    if kwargs['h2ocolors']:
-        css_code = """footer {visibility: hidden;}
-    body{background:linear-gradient(#f5f5f5,#e5e5e5);}
-    body.dark{background:linear-gradient(#000000,#0d0d0d);}
-    """
-    else:
-        css_code = """footer {visibility: hidden}"""
-    css_code += """
-@import url('https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;600&display=swap');
-body.dark{#warning {background-color: #555555};}
-#small_btn {
-    margin: 0.6em 0em 0.55em 0;
-    max-width: 20em;
-    min-width: 5em !important;
-    height: 5em;
-    font-size: 14px !important
-}"""
+    css_code = get_css(kwargs)
 
     if kwargs['gradio_avoid_processing_markdown']:
         from gradio_client import utils as client_utils
