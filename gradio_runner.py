@@ -46,6 +46,17 @@ from generate import get_model, languages_covered, evaluate, eval_func_param_nam
 from apscheduler.schedulers.background import BackgroundScheduler
 
 
+def fix_newlines(text):
+    # ensure good visually, else markdown ignores multiple \n
+    # handle code blocks
+    ts = text.split('```')
+    for parti, part in enumerate(ts):
+        inside = parti % 2 == 1
+        if not inside:
+            ts[parti] = ts[parti].replace('\n', '<br>')
+    return '```'.join(ts)
+
+
 def go_gradio(**kwargs):
     allow_api = kwargs['allow_api']
     is_public = kwargs['is_public']
@@ -770,7 +781,7 @@ def go_gradio(**kwargs):
 
         def evaluate_gradio(*args1, **kwargs1):
             for res_dict in evaluate(*args1, **kwargs1):
-                yield '<br>' + res_dict['response'].replace("\n", "<br>")
+                yield '<br>' + fix_newlines(res_dict['response'])
 
         fun = partial(evaluate_gradio,
                       **kwargs_evaluate)
@@ -926,8 +937,7 @@ def go_gradio(**kwargs):
                 # e.g. when user just hits enter in textbox,
                 # else will have <human>: <bot>: on single line, which seems to be "ok" for LLM but not usual
                 user_message1 = '\n'
-            # ensure good visually, else markdown ignores multiple \n
-            user_message1 = user_message1.replace('\n', '<br>')
+            user_message1 = fix_newlines(user_message1)
 
             history = args_list[-1]
             if undo and history:
@@ -1052,7 +1062,7 @@ def go_gradio(**kwargs):
                     output = output_fun['response']
                     extra = output_fun['sources']  # FIXME: can show sources in separate text box etc.
                     # ensure good visually, else markdown ignores multiple \n
-                    bot_message = output.replace('\n', '<br>')
+                    bot_message = fix_newlines(output)
                     history[-1][1] = bot_message
                     yield history, ''
             except StopIteration:
