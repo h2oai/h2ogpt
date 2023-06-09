@@ -13,7 +13,7 @@ setup:
 lint: generate_sources
 	poetry run black .
 	poetry run isort .
-	poetry run flake8 . || true
+	poetry run flake8 "$(PACKAGE_DIR)" "tests" || true
 	poetry run mypy --show-error-codes --pretty .
 
 .PHONY: test
