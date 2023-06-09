@@ -355,6 +355,10 @@ We disable background uploads by disabling telemetry for huggingface, gradio, an
 
 `generate.py` by default runs a gradio server, which also gives access to client API using gradio client.  See example [test code](client_test.py) or other tests in our [tests](https://github.com/h2oai/h2ogpt/blob/main/tests/test_client_calls.py).  Any element in [gradio_runner.py](gradio_runner.py) with `api_name` defined can be accessed via the gradio client.
 
+#### Python Client Library
+
+An OpenAI compliant client is available. Refer the [README](client/README.md)  for more details.
+
 #### Python Wheel
 
 The wheel adds all dependencies except specialized dependencies like 4-bit and flash-attention.  For GPU build do:
