@@ -18,10 +18,12 @@ os.environ['HF_HUB_DISABLE_TELEMETRY'] = '1'
 os.environ['BITSANDBYTES_NOWELCOME'] = '1'
 warnings.filterwarnings('ignore', category=UserWarning, message='TypedStorage is deprecated')
 
+from enums import DocumentChoices, LangChainMode
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial, EThread, get_githash, \
-    import_matplotlib, get_device, makedirs, get_kwargs
+    import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler
 
+start_faulthandler()
 import_matplotlib()
 
 SEED = 1236
@@ -31,7 +33,6 @@ from typing import Union
 
 import fire
 import torch
-from peft import PeftModel
 from transformers import GenerationConfig, AutoModel, TextIteratorStreamer
 from accelerate import init_empty_weights, infer_auto_device_map
 
@@ -40,8 +41,7 @@ from stopping import get_stopping
 
 eval_extra_columns = ['prompt', 'response', 'score']
 
-langchain_modes = ['Disabled', 'ChatLLM', 'LLM', 'All', 'wiki', 'wiki_full', 'UserData', 'MyData', 'github h2oGPT',
-                   'DriverlessAI docs']
+langchain_modes = [x.value for x in list(LangChainMode)]
 
 scratch_base_dir = '/tmp/'
 
@@ -122,7 +122,7 @@ def main(
 
         langchain_mode: str = 'Disabled',
         visible_langchain_modes: list = ['UserData', 'MyData'],
-        document_choice: list = ['All'],
+        document_choice: list = [DocumentChoices.All_Relevant.name],
         user_path: str = None,
         detect_user_path_changes_every_query: bool = False,
         load_db_if_exists: bool = True,
@@ -130,7 +130,7 @@ def main(
         db_type: str = 'chroma',
         use_openai_embedding: bool = False,
         use_openai_model: bool = False,
-        hf_embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2",
+        hf_embedding_model: str = None,
         allow_upload_to_user_data: bool = True,
         allow_upload_to_my_data: bool = True,
         enable_url_upload: bool = True,
@@ -236,6 +236,10 @@ def main(
     :param use_openai_embedding: Whether to use OpenAI embeddings for vector db
     :param use_openai_model: Whether to use OpenAI model for use with vector db
     :param hf_embedding_model: Which HF embedding model to use for vector db
+           Default is instructor-large with 768 parameters per embedding if have GPUs, else all-MiniLM-L6-v1 if no GPUs
+           Can also choose simpler model with 384 parameters per embedding: "sentence-transformers/all-MiniLM-L6-v2"
+           Can also choose even better embedding with 1024 parameters: 'hkunlp/instructor-xl'
+           We support automatically changing of embeddings for chroma, with a backup of db made if this is done
     :param allow_upload_to_user_data: Whether to allow file uploads to update shared vector db
     :param allow_upload_to_my_data: Whether to allow file uploads to update scratch vector db
     :param enable_url_upload: Whether to allow upload from URL
@@ -308,6 +312,8 @@ def main(
     if memory_restriction_level >= 2:
         load_8bit = True
         load_4bit = False  # FIXME - consider using 4-bit instead of 8-bit
+        if hf_embedding_model is None:
+            hf_embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
     if is_hf:
         # must override share if in spaces
         share = False
@@ -333,6 +339,13 @@ def main(
             # 12B uses ~94GB
             # 6.9B uses ~47GB
             base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b' if not base_model else base_model
+        if hf_embedding_model is None:
+            # if no GPUs, use simpler embedding model to avoid cost in time
+            hf_embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
+    else:
+        if hf_embedding_model is None:
+            # if still None, then set default
+            hf_embedding_model = 'hkunlp/instructor-large'
 
     # get defaults
     model_lower = base_model.lower()
@@ -397,12 +410,16 @@ def main(
                 # FIXME: All should be avoided until scans over each db, shouldn't be separate db
                 continue
             persist_directory1 = 'db_dir_%s' % langchain_mode1  # single place, no special names for each case
-            db = prep_langchain(persist_directory1,
-                                load_db_if_exists,
-                                db_type, use_openai_embedding,
-                                langchain_mode1, user_path,
-                                hf_embedding_model,
-                                kwargs_make_db=locals())
+            try:
+                db = prep_langchain(persist_directory1,
+                                    load_db_if_exists,
+                                    db_type, use_openai_embedding,
+                                    langchain_mode1, user_path,
+                                    hf_embedding_model,
+                                    kwargs_make_db=locals())
+            finally:
+                # in case updated embeddings or created new embeddings
+                clear_torch_cache()
             dbs[langchain_mode1] = db
         # remove None db's so can just rely upon k in dbs for if hav db
         dbs = {k: v for k, v in dbs.items() if v is not None}
@@ -692,6 +709,7 @@ def get_model(
                 base_model,
                 **model_kwargs
             )
+            from peft import PeftModel  # loads cuda, so avoid in global scope
             model = PeftModel.from_pretrained(
                 model,
                 lora_weights,
@@ -709,6 +727,7 @@ def get_model(
                     base_model,
                     **model_kwargs
                 )
+                from peft import PeftModel  # loads cuda, so avoid in global scope
                 model = PeftModel.from_pretrained(
                     model,
                     lora_weights,
@@ -809,24 +828,27 @@ no_default_param_names = [
     'iinput_nochat',
 ]
 
+gen_hyper = ['temperature',
+             'top_p',
+             'top_k',
+             'num_beams',
+             'max_new_tokens',
+             'min_new_tokens',
+             'early_stopping',
+             'max_time',
+             'repetition_penalty',
+             'num_return_sequences',
+             'do_sample',
+             ]
+
 eval_func_param_names = ['instruction',
                          'iinput',
                          'context',
                          'stream_output',
                          'prompt_type',
-                         'prompt_dict',
-                         'temperature',
-                         'top_p',
-                         'top_k',
-                         'num_beams',
-                         'max_new_tokens',
-                         'min_new_tokens',
-                         'early_stopping',
-                         'max_time',
-                         'repetition_penalty',
-                         'num_return_sequences',
-                         'do_sample',
-                         'chat',
+                         'prompt_dict'] + \
+                        gen_hyper + \
+                        ['chat',
                          'instruction_nochat',
                          'iinput_nochat',
                          'langchain_mode',
@@ -879,6 +901,13 @@ def evaluate_from_str(
 ):
     if isinstance(user_kwargs, str):
         user_kwargs = ast.literal_eval(user_kwargs)
+    # only used for submit_nochat_api
+    user_kwargs['chat'] = False
+    user_kwargs['stream_output'] = False
+    if 'langchain_mode' not in user_kwargs:
+        # if user doesn't specify, then assume disabled, not use default
+        user_kwargs['langchain_mode'] = 'Disabled'
+
     assert set(list(default_kwargs.keys())) == set(eval_func_param_names)
     # correct ordering.  Note some things may not be in default_kwargs, so can't be default of user_kwargs.get()
     args_list = [user_kwargs[k] if k in user_kwargs else default_kwargs[k] for k in eval_func_param_names]
@@ -914,8 +943,12 @@ def evaluate_from_str(
         verbose=verbose,
         cli=cli,
     )
-    for ret1 in ret:
-        yield ret1
+    try:
+        for ret1 in ret:
+            yield ret1
+    finally:
+        # clear before return, in finally in case GPU OOM exception
+        clear_torch_cache()
 
 
 def evaluate(
@@ -1057,7 +1090,6 @@ def evaluate(
                            db=db1,
                            user_path=user_path,
                            detect_user_path_changes_every_query=detect_user_path_changes_every_query,
-                           max_new_tokens=max_new_tokens,
                            cut_distanct=1.1 if langchain_mode in ['wiki_full'] else 1.64,  # FIXME, too arbitrary
                            use_openai_embedding=use_openai_embedding,
                            use_openai_model=use_openai_model,
@@ -1069,11 +1101,21 @@ def evaluate(
                            langchain_mode=langchain_mode,
                            document_choice=document_choice,
                            db_type=db_type,
-                           k=top_k_docs,
+                           top_k_docs=top_k_docs,
+
+                           # gen_hyper:
+                           do_sample=do_sample,
                            temperature=temperature,
                            repetition_penalty=repetition_penalty,
                            top_k=top_k,
                            top_p=top_p,
+                           num_beams=num_beams,
+                           min_new_tokens=min_new_tokens,
+                           max_new_tokens=max_new_tokens,
+                           early_stopping=early_stopping,
+                           max_time=max_time,
+                           num_return_sequences=num_return_sequences,
+
                            prompt_type=prompt_type,
                            prompt_dict=prompt_dict,
                            n_jobs=n_jobs,
@@ -1092,6 +1134,8 @@ def evaluate(
             # if got no response (e.g. not showing sources and got no sources,
             # so nothing to give to LLM), then slip through and ask LLM
             # Or if llama/gptj, then just return since they had no response and can't go down below code path
+            # clear before return, since .then() never done if from API
+            clear_torch_cache()
             return
 
     if isinstance(tokenizer, str):
@@ -1235,6 +1279,8 @@ def evaluate(
                             raise thread.exc
                         raise
                     finally:
+                        # clear before return, since .then() never done if from API
+                        clear_torch_cache()
                         # in case no exception and didn't join with thread yet, then join
                         if not thread.exc:
                             thread.join()
@@ -1243,7 +1289,10 @@ def evaluate(
                         raise thread.exc
                     decoded_output = outputs
                 else:
-                    outputs = model.generate(**gen_kwargs)
+                    try:
+                        outputs = model.generate(**gen_kwargs)
+                    finally:
+                        clear_torch_cache()  # has to be here for API submit_nochat_api since.then() not called
                     outputs = [decoder(s) for s in outputs.sequences]
                     yield dict(response=prompter.get_response(outputs, prompt=inputs_decoded,
                                                               sanitize_bot_response=sanitize_bot_response), sources='')
@@ -1464,10 +1513,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         temperature = 0.1 if temperature is None else temperature
         top_p = 0.75 if top_p is None else top_p
         top_k = 40 if top_k is None else top_k
-        if chat:
-            num_beams = num_beams or 1
-        else:
-            num_beams = num_beams or 4
+        num_beams = num_beams or 1
         max_new_tokens = max_new_tokens or 256
         repetition_penalty = repetition_penalty or 1.07
         num_return_sequences = min(num_beams, num_return_sequences or 1)
@@ -1528,7 +1574,7 @@ y = np.random.randint(0, 1, 100)
 
     # move to correct position
     for example in examples:
-        example += [chat, '', '', 'Disabled', top_k_docs, chunk, chunk_size, ['All']]
+        example += [chat, '', '', 'Disabled', top_k_docs, chunk, chunk_size, [DocumentChoices.All_Relevant.name]]
         # adjust examples if non-chat mode
         if not chat:
             example[eval_func_param_names.index('instruction_nochat')] = example[

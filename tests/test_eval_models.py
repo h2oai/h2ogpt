@@ -77,3 +77,40 @@ def test_get_falcons(base_model):
                                              use_auth_token=True,
                                              )
     assert m is not None
+
+
+@pytest.mark.skipif(not os.getenv('LLAMA'), reason="LLaMa conversion")
+@wrap_test_forked
+def test_get_landmark_llama():
+    import torch
+    from transformers import AutoTokenizer, AutoModelForCausalLM
+    from transformers import LlamaForCausalLM, LlamaTokenizer
+    m = LlamaForCausalLM.from_pretrained("epfml/landmark-attention-llama7b-wdiff")
+    t = LlamaTokenizer.from_pretrained("epfml/landmark-attention-llama7b-wdiff")
+    assert m is not None and t is not None
+
+    os.system("""
+#
+# step 1, convert llama to HF format
+pip install protobuf==3.19.0
+source ~/.bashrc.mamba
+mamba create -n trans
+conda activate trans
+conda install python=3.10 -y
+
+git clone https://github.com/epfml/landmark-attention.git
+pip install fire datasets
+git clone https://github.com/huggingface/transformers.git
+cd transformers
+pip install .
+pip install torch accelerate sentencepiece protobuf==3.19.0
+# below requires LLaMa weights
+python src/transformers/models/llama/convert_llama_weights_to_hf.py     --input_dir /data/jon/LLaMA --model_size 7B --output_dir llama_7B
+#
+# step 2, make landmark model (change hash if updated)
+mkdir -p epfml/landmark-attention-llama7b-wdiff
+cd epfml/landmark-attention-llama7b-wdiff
+ln -s ~/.cache/huggingface/hub/models--epfml--landmark-attention-llama7b-wdiff/snapshots/050562871ac72723b4ab674f0392b02cd9609842/* .
+cd ../../
+python ../landmark-attention/llama/weight_diff.py recover --path_raw llama_7B --path_diff epfml/landmark-attention-llama7b-wdiff --path_tuned landmark_llama_7b
+""")

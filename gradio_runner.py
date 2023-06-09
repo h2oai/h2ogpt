@@ -29,10 +29,11 @@ import gradio as gr
 
 requests.get = original_get
 
+from enums import DocumentChoices
 from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, get_dark_js
 from prompter import Prompter, \
     prompt_type_to_model_name, prompt_types_strings, inv_prompt_type_to_model_lower, generate_prompt, non_hf_types, \
-    get_prompt, PromptType
+    get_prompt
 from utils import get_githash, flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping, get_short_name, get_url, makedirs, get_kwargs
 from generate import get_model, languages_covered, evaluate, eval_func_param_names, score_qa, langchain_modes, \
@@ -210,7 +211,7 @@ body.dark{#warning {background-color: #555555};}
         my_db_state = gr.State([None, None])
         chat_state = gr.State({})
         # make user default first and default choice, dedup
-        docs_state00 = kwargs['document_choice'] + ['All', 'Only', 'None']
+        docs_state00 = kwargs['document_choice'] + [x.name for x in list(DocumentChoices)]
         docs_state0 = []
         [docs_state0.append(x) for x in docs_state00 if x not in docs_state0]
         docs_state = gr.State(docs_state0)  # first is chosen as default
@@ -650,6 +651,9 @@ body.dark{#warning {background-color: #555555};}
         def make_visible():
             return gr.update(visible=True)
 
+        def update_radio_to_user():
+            return gr.update(value='UserData')
+
         # Add to UserData
         update_user_db_func = functools.partial(update_user_db,
                                                 dbs=dbs, db_type=db_type, langchain_mode='UserData',
@@ -667,8 +671,9 @@ body.dark{#warning {background-color: #555555};}
                                    inputs=[fileup_output, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
                                            chunk, chunk_size],
                                    outputs=[add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
-                                   api_name='add_to_shared' if allow_api else None) \
-            .then(clear_file_list, outputs=fileup_output, queue=queue)
+                                   api_name='add_to_shared' if allow_api and allow_upload_to_user_data else None) \
+            .then(clear_file_list, outputs=fileup_output, queue=queue) \
+            .then(update_radio_to_user, inputs=None, outputs=langchain_mode, queue=False)
 
         # .then(make_invisible, outputs=add_to_shared_db_btn, queue=queue)
         # .then(make_visible, outputs=upload_button, queue=queue)
@@ -681,18 +686,23 @@ body.dark{#warning {background-color: #555555};}
                            inputs=[url_text, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
                                    chunk, chunk_size],
                            outputs=[add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
-                           api_name='add_url_to_shared' if allow_api else None) \
-            .then(clear_textbox, outputs=url_text, queue=queue)
+                           api_name='add_url_to_shared' if allow_api and allow_upload_to_user_data else None) \
+            .then(clear_textbox, outputs=url_text, queue=queue) \
+            .then(update_radio_to_user, inputs=None, outputs=langchain_mode, queue=False)
 
         update_user_db_txt_func = functools.partial(update_user_db_func, is_txt=True)
         user_text_user_btn.click(update_user_db_txt_func,
                                  inputs=[user_text_text, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
                                          chunk, chunk_size],
                                  outputs=[add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
-                                 api_name='add_text_to_shared' if allow_api else None) \
-            .then(clear_textbox, outputs=user_text_text, queue=queue)
+                                 api_name='add_text_to_shared' if allow_api and allow_upload_to_user_data else None) \
+            .then(clear_textbox, outputs=user_text_text, queue=queue) \
+            .then(update_radio_to_user, inputs=None, outputs=langchain_mode, queue=False)
 
         # Add to MyData
+        def update_radio_to_my():
+            return gr.update(value='MyData')
+
         update_my_db_func = functools.partial(update_user_db, dbs=dbs, db_type=db_type, langchain_mode='MyData',
                                               use_openai_embedding=use_openai_embedding,
                                               hf_embedding_model=hf_embedding_model,
@@ -707,8 +717,9 @@ body.dark{#warning {background-color: #555555};}
                                inputs=[fileup_output, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
                                        chunk, chunk_size],
                                outputs=[my_db_state, add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
-                               api_name='add_to_my' if allow_api else None) \
-            .then(clear_file_list, outputs=fileup_output, queue=queue)
+                               api_name='add_to_my' if allow_api and allow_upload_to_my_data else None) \
+            .then(clear_file_list, outputs=fileup_output, queue=queue) \
+            .then(update_radio_to_my, inputs=None, outputs=langchain_mode, queue=False)
         # .then(make_invisible, outputs=add_to_shared_db_btn, queue=queue)
         # .then(make_visible, outputs=upload_button, queue=queue)
 
@@ -717,16 +728,18 @@ body.dark{#warning {background-color: #555555};}
                          inputs=[url_text, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
                                  chunk, chunk_size],
                          outputs=[my_db_state, add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
-                         api_name='add_url_to_my' if allow_api else None) \
-            .then(clear_textbox, outputs=url_text, queue=queue)
+                         api_name='add_url_to_my' if allow_api and allow_upload_to_my_data else None) \
+            .then(clear_textbox, outputs=url_text, queue=queue) \
+            .then(update_radio_to_my, inputs=None, outputs=langchain_mode, queue=False)
 
         update_my_db_txt_func = functools.partial(update_my_db_func, is_txt=True)
         user_text_my_btn.click(update_my_db_txt_func,
                                inputs=[user_text_text, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
                                        chunk, chunk_size],
                                outputs=[my_db_state, add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
-                               api_name='add_txt_to_my' if allow_api else None) \
-            .then(clear_textbox, outputs=user_text_text, queue=queue)
+                               api_name='add_txt_to_my' if allow_api and allow_upload_to_my_data else None) \
+            .then(clear_textbox, outputs=user_text_text, queue=queue) \
+            .then(update_radio_to_my, inputs=None, outputs=langchain_mode, queue=False)
 
         get_sources1 = functools.partial(get_sources, dbs=dbs, docs_state0=docs_state0)
 
@@ -865,7 +878,10 @@ body.dark{#warning {background-color: #555555};}
                 return 'Response Score: Bad Question'
             if answer is None:
                 return 'Response Score: Bad Answer'
-            score = score_qa(smodel, stokenizer, max_length_tokenize, question, answer, cutoff_len)
+            try:
+                score = score_qa(smodel, stokenizer, max_length_tokenize, question, answer, cutoff_len)
+            finally:
+                clear_torch_cache()
             if isinstance(score, str):
                 return 'Response Score: NA'
             return 'Response Score: {:.1%}'.format(score)
@@ -893,9 +909,11 @@ body.dark{#warning {background-color: #555555};}
                                  )
         if not kwargs['auto_score']:
             score_event = score_btn.click(**score_args, queue=queue, api_name='score' if allow_api else None) \
-                .then(**score_args2, queue=queue, api_name='score2' if allow_api else None)
+                .then(**score_args2, queue=queue, api_name='score2' if allow_api else None) \
+                .then(clear_torch_cache)
             score_event_nochat = score_btn_nochat.click(**score_args_nochat, queue=queue,
-                                                        api_name='score_nochat' if allow_api else None)
+                                                        api_name='score_nochat' if allow_api else None) \
+                .then(clear_torch_cache)
 
         def user(*args, undo=False, sanitize_user_prompt=True, model2=False):
             """
@@ -1078,6 +1096,8 @@ body.dark{#warning {background-color: #555555};}
                     history[-1][1] = ''
                 yield history, ex
                 raise
+            finally:
+                clear_torch_cache()
             return
 
         # NORMAL MODEL
@@ -1126,6 +1146,9 @@ body.dark{#warning {background-color: #555555};}
             score_args_submit = dict(fn=lambda: None, inputs=None, outputs=None)
             score_args2_submit = dict(fn=lambda: None, inputs=None, outputs=None)
 
+        def deselect_radio_chats():
+            return gr.update(value=None)
+
         # in case 2nd model, consume instruction first, so can clear quickly
         # bot doesn't consume instruction itself, just history from user, so why works
         submit_event1a = instruction.submit(**user_args, queue=queue,
@@ -1135,26 +1158,34 @@ body.dark{#warning {background-color: #555555};}
             .then(clear_instruct, None, iinput)
         submit_event1d = submit_event1c.then(**bot_args, api_name='instruction_bot' if allow_api else None,
                                              queue=queue)
-        submit_event1e = submit_event1d.then(**score_args_submit,
-                                             api_name='instruction_bot_score' if allow_api else None,
-                                             queue=queue)
+        submit_event1d2 = submit_event1d.then(clear_torch_cache)
+        submit_event1e = submit_event1d2.then(**score_args_submit,
+                                              api_name='instruction_bot_score' if allow_api else None,
+                                              queue=queue)
         submit_event1f = submit_event1e.then(**bot_args2, api_name='instruction_bot2' if allow_api else None,
                                              queue=queue)
-        submit_event1g = submit_event1f.then(**score_args2_submit,
-                                             api_name='instruction_bot_score2' if allow_api else None, queue=queue)
+        submit_event1f2 = submit_event1f.then(clear_torch_cache)
+        submit_event1g = submit_event1f2.then(**score_args2_submit,
+                                              api_name='instruction_bot_score2' if allow_api else None, queue=queue)
         submit_event1h = submit_event1g.then(clear_torch_cache)
+        # if hit enter on new instruction for submitting new query, no longer the saved chat
+        submit_event1i = submit_event1h.then(deselect_radio_chats, inputs=None, outputs=radio_chats, queue=False)
 
         submit_event2a = submit.click(**user_args, api_name='submit' if allow_api else None)
         submit_event2b = submit_event2a.then(**user_args2, api_name='submit2' if allow_api else None)
         submit_event2c = submit_event2b.then(clear_instruct, None, instruction) \
             .then(clear_instruct, None, iinput)
         submit_event2d = submit_event2c.then(**bot_args, api_name='submit_bot' if allow_api else None, queue=queue)
-        submit_event2e = submit_event2d.then(**score_args_submit, api_name='submit_bot_score' if allow_api else None,
-                                             queue=queue)
+        submit_event2d2 = submit_event2d.then(clear_torch_cache)
+        submit_event2e = submit_event2d2.then(**score_args_submit, api_name='submit_bot_score' if allow_api else None,
+                                              queue=queue)
         submit_event2f = submit_event2e.then(**bot_args2, api_name='submit_bot2' if allow_api else None, queue=queue)
-        submit_event2g = submit_event2f.then(**score_args2_submit, api_name='submit_bot_score2' if allow_api else None,
-                                             queue=queue)
+        submit_event2f2 = submit_event2f.then(clear_torch_cache)
+        submit_event2g = submit_event2f2.then(**score_args2_submit, api_name='submit_bot_score2' if allow_api else None,
+                                              queue=queue)
         submit_event2h = submit_event2g.then(clear_torch_cache)
+        # if submit new query, no longer the saved chat
+        submit_event2i = submit_event2h.then(deselect_radio_chats, inputs=None, outputs=radio_chats, queue=False)
 
         submit_event3a = retry.click(**user_args, api_name='retry' if allow_api else None)
         submit_event3b = submit_event3a.then(**user_args2, api_name='retry2' if allow_api else None)
@@ -1162,20 +1193,27 @@ body.dark{#warning {background-color: #555555};}
             .then(clear_instruct, None, iinput)
         submit_event3d = submit_event3c.then(**retry_bot_args, api_name='retry_bot' if allow_api else None,
                                              queue=queue)
-        submit_event3e = submit_event3d.then(**score_args_submit, api_name='retry_bot_score' if allow_api else None,
-                                             queue=queue)
+        submit_event3d2 = submit_event3d.then(clear_torch_cache)
+        submit_event3e = submit_event3d2.then(**score_args_submit, api_name='retry_bot_score' if allow_api else None,
+                                              queue=queue)
         submit_event3f = submit_event3e.then(**retry_bot_args2, api_name='retry_bot2' if allow_api else None,
                                              queue=queue)
-        submit_event3g = submit_event3f.then(**score_args2_submit, api_name='retry_bot_score2' if allow_api else None,
-                                             queue=queue)
+        submit_event3f2 = submit_event3f.then(clear_torch_cache)
+        submit_event3g = submit_event3f2.then(**score_args2_submit, api_name='retry_bot_score2' if allow_api else None,
+                                              queue=queue)
         submit_event3h = submit_event3g.then(clear_torch_cache)
+        # if retry, no longer the saved chat
+        submit_event3i = submit_event3h.then(deselect_radio_chats, inputs=None, outputs=radio_chats, queue=False)
 
+        # if undo, no longer the saved chat
         submit_event4 = undo.click(**undo_user_args, api_name='undo' if allow_api else None) \
             .then(**undo_user_args2, api_name='undo2' if allow_api else None) \
             .then(clear_instruct, None, instruction) \
             .then(clear_instruct, None, iinput) \
             .then(**score_args_submit, api_name='undo_score' if allow_api else None) \
-            .then(**score_args2_submit, api_name='undo_score2' if allow_api else None)
+            .then(**score_args2_submit, api_name='undo_score2' if allow_api else None) \
+            .then(deselect_radio_chats, inputs=None, outputs=radio_chats, queue=False) \
+            .then(clear_torch_cache)
 
         # MANAGE CHATS
         def dedup(short_chat, short_chats):
@@ -1236,9 +1274,6 @@ body.dark{#warning {background-color: #555555};}
 
         def update_radio_chats(chat_state1):
             return gr.update(choices=list(chat_state1.keys()), value=None)
-
-        def deselect_radio_chats():
-            return gr.update(value=None)
 
         def switch_chat(chat_key, chat_state1):
             chosen_chat = chat_state1[chat_key]
@@ -1313,12 +1348,14 @@ body.dark{#warning {background-color: #555555};}
                             queue=queue,
                             )
         submit_event_nochat = submit_nochat.click(**no_chat_args, api_name='submit_nochat' if allow_api else None) \
+            .then(clear_torch_cache) \
             .then(**score_args_nochat, api_name='instruction_bot_score_nochat' if allow_api else None, queue=queue) \
             .then(clear_instruct, None, instruction_nochat) \
             .then(clear_instruct, None, iinput_nochat) \
             .then(clear_torch_cache)
         # copy of above with text box submission
         submit_event_nochat2 = instruction_nochat.submit(**no_chat_args) \
+            .then(clear_torch_cache) \
             .then(**score_args_nochat, queue=queue) \
             .then(clear_instruct, None, instruction_nochat) \
             .then(clear_instruct, None, iinput_nochat) \
@@ -1538,7 +1575,9 @@ body.dark{#warning {background-color: #555555};}
                 # fake user message to mimic bot()
                 chat1 = copy.deepcopy(chat1)
                 chat1 = chat1 + [['user_message1', None]]
-                context1 = history_to_context(chat1, langchain_mode1, prompt_type1, prompt_dict1, chat1)
+                model_max_length1 = tokenizer.model_max_length
+                context1 = history_to_context(chat1, langchain_mode1, prompt_type1, prompt_dict1, chat1,
+                                              model_max_length1)
                 return str(tokenizer(context1, return_tensors="pt")['input_ids'].shape[1])
             else:
                 return "N/A"
@@ -1662,6 +1701,8 @@ def update_user_db(file, db1, x, y, *args, dbs=None, langchain_mode='UserData', 
             return db1, x, y, source_files_added
         else:
             return x, y, source_files_added
+    finally:
+        clear_torch_cache()
 
 
 def _update_user_db(file, db1, x, y, chunk, chunk_size, dbs=None, db_type=None, langchain_mode='UserData',
@@ -1709,7 +1750,9 @@ def _update_user_db(file, db1, x, y, chunk, chunk_size, dbs=None, db_type=None, 
         if langchain_mode == 'MyData':
             if db1[0] is not None:
                 # then add
-                db, num_new_sources, new_sources_metadata = add_to_db(db1[0], sources, db_type=db_type)
+                db, num_new_sources, new_sources_metadata = add_to_db(db1[0], sources, db_type=db_type,
+                                                                      use_openai_embedding=use_openai_embedding,
+                                                                      hf_embedding_model=hf_embedding_model)
             else:
                 assert len(db1) == 2 and db1[1] is None, "Bad MyData db: %s" % db1
                 # then create
@@ -1717,20 +1760,25 @@ def _update_user_db(file, db1, x, y, chunk, chunk_size, dbs=None, db_type=None, 
                 # if added has to original state and didn't change, then would be shared db for all users
                 db1[1] = str(uuid.uuid4())
                 persist_directory = os.path.join(scratch_base_dir, 'db_dir_%s_%s' % (langchain_mode, db1[1]))
-                db1[0] = get_db(sources, use_openai_embedding=use_openai_embedding,
-                                db_type=db_type,
-                                persist_directory=persist_directory,
-                                langchain_mode=langchain_mode,
-                                hf_embedding_model=hf_embedding_model)
-                if db1[0] is None:
-                    db1[1] = None
+                db = get_db(sources, use_openai_embedding=use_openai_embedding,
+                            db_type=db_type,
+                            persist_directory=persist_directory,
+                            langchain_mode=langchain_mode,
+                            hf_embedding_model=hf_embedding_model)
+            if db is None:
+                db1[1] = None
+            else:
+                db1[0] = db
             source_files_added = get_source_files(db=db1[0], exceptions=exceptions)
             return db1, x, y, source_files_added
         else:
-            persist_directory = 'db_dir_%s' % langchain_mode
+            from gpt_langchain import get_persist_directory
+            persist_directory = get_persist_directory(langchain_mode)
             if langchain_mode in dbs and dbs[langchain_mode] is not None:
                 # then add
-                db, num_new_sources, new_sources_metadata = add_to_db(dbs[langchain_mode], sources, db_type=db_type)
+                db, num_new_sources, new_sources_metadata = add_to_db(dbs[langchain_mode], sources, db_type=db_type,
+                                                                      use_openai_embedding=use_openai_embedding,
+                                                                      hf_embedding_model=hf_embedding_model)
             else:
                 # then create
                 db = get_db(sources, use_openai_embedding=use_openai_embedding,
@@ -1738,7 +1786,7 @@ def _update_user_db(file, db1, x, y, chunk, chunk_size, dbs=None, db_type=None, 
                             persist_directory=persist_directory,
                             langchain_mode=langchain_mode,
                             hf_embedding_model=hf_embedding_model)
-                dbs[langchain_mode] = db
+            dbs[langchain_mode] = db
             # NOTE we do not return db, because function call always same code path
             # return dbs[langchain_mode], x, y
             # db in this code path is updated in place
@@ -1762,6 +1810,8 @@ def get_db(db1, langchain_mode, dbs=None):
 
 def get_source_files_given_langchain_mode(db1, langchain_mode='UserData', dbs=None):
     db = get_db(db1, langchain_mode, dbs=dbs)
+    if langchain_mode in ['ChatLLM', 'LLM'] or db is None:
+        return "Sources: N/A"
     return get_source_files(db=db, exceptions=None)
 
 

@@ -3,6 +3,47 @@ from utils import set_seed
 
 
 @wrap_test_forked
+def test_export_copy():
+    from export_hf_checkpoint import test_copy
+    test_copy()
+    from test_output.h2oai_pipeline import H2OTextGenerationPipeline, PromptType, DocumentChoices, LangChainMode, \
+        prompt_type_to_model_name, get_prompt, generate_prompt, inject_newline, Prompter
+    assert prompt_type_to_model_name is not None
+    assert get_prompt is not None
+    assert generate_prompt is not None
+    assert inject_newline is not None
+
+    prompt_type = 'human_bot'
+    prompt_dict = {}
+    model_name = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
+    load_in_8bit = True
+    import torch
+    n_gpus = torch.cuda.device_count() if torch.cuda.is_available else 0
+    device = 'cpu' if n_gpus == 0 else 'cuda'
+    device_map = {"": 0} if device == 'cuda' else "auto"
+
+    from transformers import AutoTokenizer, AutoModelForCausalLM
+    model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.bfloat16, device_map=device_map,
+                                                 load_in_8bit=load_in_8bit)
+    tokenizer = AutoTokenizer.from_pretrained(model_name, padding_side="left")
+    pipe = H2OTextGenerationPipeline(model=model, tokenizer=tokenizer, prompt_type=prompt_type)
+    assert pipe is not None
+
+    prompt_types = [x.name for x in list(PromptType)]
+    assert 'human_bot' in prompt_types and len(prompt_types) >= 20
+
+    subset_types = [x.name for x in list(DocumentChoices)]
+    assert 'All_Relevant' in subset_types and len(prompt_types) >= 4
+
+    langchain_types = [x.name for x in list(LangChainMode)]
+    langchain_types_v = [x.value for x in list(LangChainMode)]
+    assert 'UserData' in langchain_types_v and "USER_DATA" in langchain_types and len(langchain_types) >= 10
+
+    prompter = Prompter(prompt_type, prompt_dict)
+    assert prompter is not None
+
+
+@wrap_test_forked
 def test_pipeline1():
     SEED = 1236
     set_seed(SEED)

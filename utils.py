@@ -14,6 +14,7 @@ import time
 import traceback
 import zipfile
 from datetime import datetime
+
 import filelock
 import requests, uuid
 from typing import Tuple, Callable, Dict
@@ -841,3 +842,14 @@ def hash_file(file):
         traceback.print_exc()
         md5 = None
     return md5.hexdigest()
+
+
+def start_faulthandler():
+    # If hit server or any subprocess with signal SIGUSR1, it'll print out all threads stack trace, but wont't quit or coredump
+    # If more than one fork tries to write at same time, then looks corrupted.
+    import faulthandler
+    import signal
+
+    # SIGUSR1 in h2oai/__init__.py as well
+    faulthandler.enable()
+    faulthandler.register(signal.SIGUSR1)

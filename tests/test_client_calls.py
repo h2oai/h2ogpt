@@ -1,4 +1,5 @@
 import ast
+import os
 
 import pytest
 
@@ -49,6 +50,26 @@ def test_client1api_lean():
     from generate import main
     main(base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b', prompt_type='human_bot', chat=False,
          stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False)
+
+    api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
+    prompt = 'Who are you?'
+
+    kwargs = dict(instruction_nochat=prompt)
+    client = get_client(serialize=True)
+    # pass string of dict.  All entries are optional, but expect at least instruction_nochat to be filled
+    res = client.predict(str(dict(kwargs)), api_name=api_name)
+
+    print("Raw client result: %s" % res, flush=True)
+    response = ast.literal_eval(res)['response']
+
+    assert 'I am h2oGPT' in response or "I'm h2oGPT" in response or 'I’m h2oGPT' in response
+
+
+@wrap_test_forked
+def test_client1api_lean_chat_server():
+    from generate import main
+    main(base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b', prompt_type='human_bot', chat=True,
+         stream_output=True, gradio=True, num_beams=1, block_gradio_exit=False)
 
     api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
     prompt = 'Who are you?'
@@ -133,11 +154,13 @@ def test_client_chat_stream_langchain():
 
 
 @wrap_test_forked
-def test_client_chat_stream_langchain_steps():
+@pytest.mark.parametrize("max_new_tokens", [256, 2048])
+@pytest.mark.parametrize("top_k_docs", [3, 100])
+def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
+    os.environ['VERBOSE_PIPELINE'] = '1'
     user_path = make_user_path_test()
 
     stream_output = True
-    max_new_tokens = 256
     base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
     prompt_type = 'human_bot'
     langchain_mode = 'UserData'
@@ -147,6 +170,7 @@ def test_client_chat_stream_langchain_steps():
     main(base_model=base_model, prompt_type=prompt_type, chat=True,
          stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
          max_new_tokens=max_new_tokens,
+         top_k_docs=top_k_docs,
          langchain_mode=langchain_mode, user_path=user_path,
          visible_langchain_modes=visible_langchain_modes)
 
@@ -157,16 +181,36 @@ def test_client_chat_stream_langchain_steps():
     prompt = "What is h2oGPT?"
     langchain_mode = 'UserData'
     kwargs, args = get_args(prompt, prompt_type, chat=True, stream_output=stream_output,
-                            max_new_tokens=max_new_tokens, langchain_mode=langchain_mode)
+                            max_new_tokens=max_new_tokens,
+                            top_k_docs=top_k_docs,
+                            langchain_mode=langchain_mode)
 
     res_dict, client = run_client(client, prompt, args, kwargs)
-    assert 'a large language model' in res_dict['response'] and 'FAQ.md' in res_dict['response']
+    assert ('a large language model' in res_dict['response'] or 'language model trained' in res_dict['response']) \
+           and 'FAQ.md' in res_dict['response']
+
+    # QUERY1
+    prompt = "What is Whisper?"
+    langchain_mode = 'UserData'
+    kwargs, args = get_args(prompt, prompt_type, chat=True, stream_output=stream_output,
+                            max_new_tokens=max_new_tokens,
+                            top_k_docs=top_k_docs,
+                            langchain_mode=langchain_mode)
+
+    res_dict, client = run_client(client, prompt, args, kwargs)
+    # wrong answer given wrong docs
+    assert ('A secure chatbot that uses a large language' in res_dict['response'] or 'Whisper is a chatbot' in res_dict[
+        'response'] or 'Whisper is a privacy-focused chatbot platform' in res_dict['response']
+            ) \
+           and 'README.md' in res_dict['response']
 
     # QUERY2
     prompt = "What is h2oGPT?"
     langchain_mode = 'ChatLLM'
     kwargs, args = get_args(prompt, prompt_type, chat=True, stream_output=stream_output,
-                            max_new_tokens=max_new_tokens, langchain_mode=langchain_mode)
+                            max_new_tokens=max_new_tokens,
+                            top_k_docs=top_k_docs,
+                            langchain_mode=langchain_mode)
 
     res_dict, client = run_client(client, prompt, args, kwargs)
     # i.e. answers wrongly without data, dumb model, but also no docs at all since cutoff entirely
@@ -176,15 +220,23 @@ def test_client_chat_stream_langchain_steps():
     prompt = "What is whisper?"
     langchain_mode = 'UserData'
     kwargs, args = get_args(prompt, prompt_type, chat=True, stream_output=stream_output,
-                            max_new_tokens=max_new_tokens, langchain_mode=langchain_mode)
+                            max_new_tokens=max_new_tokens,
+                            top_k_docs=top_k_docs,
+                            langchain_mode=langchain_mode)
 
     res_dict, client = run_client(client, prompt, args, kwargs)
     # odd answer since no whisper docs, but still shows some docs at very low score
-    assert 'Whisper is a secure messaging app that allows' in res_dict['response'] and '.md' in res_dict['response']
+    assert ('h2oGPT' in res_dict['response'] or
+            'A chatbot that can whisper to you' in res_dict['response'] or
+            'whisper is a simple' in res_dict['response']) \
+           and '.md' in res_dict['response']
 
 
 @wrap_test_forked
-def test_client_chat_stream_langchain_steps2():
+@pytest.mark.parametrize("max_new_tokens", [256, 2048])
+@pytest.mark.parametrize("top_k_docs", [3, 100])
+def test_client_chat_stream_langchain_steps2(max_new_tokens, top_k_docs):
+    os.environ['VERBOSE_PIPELINE'] = '1'
     # full user data
     from make_db import make_db_main
     make_db_main(download_some=True)
@@ -195,7 +247,7 @@ def test_client_chat_stream_langchain_steps2():
     base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
     prompt_type = 'human_bot'
     langchain_mode = 'UserData'
-    visible_langchain_modes = ['UserData', 'MyData']
+    visible_langchain_modes = ['UserData', 'MyData', 'github h2oGPT']
 
     from generate import main
     main(base_model=base_model, prompt_type=prompt_type, chat=True,
@@ -224,7 +276,21 @@ def test_client_chat_stream_langchain_steps2():
                             max_new_tokens=max_new_tokens, langchain_mode=langchain_mode)
 
     res_dict, client = run_client(client, prompt, args, kwargs)
-    assert 'speech recognition system' in res_dict['response'] and 'whisper.pdf' in res_dict['response']
+    assert 'large-scale speech recognition model' in res_dict['response'] and 'whisper.pdf' in res_dict['response']
+
+    # QUERY3
+    prompt = "What is h2oGPT"
+    langchain_mode = 'github h2oGPT'
+    kwargs, args = get_args(prompt, prompt_type, chat=True, stream_output=stream_output,
+                            max_new_tokens=max_new_tokens, langchain_mode=langchain_mode)
+
+    res_dict, client = run_client(client, prompt, args, kwargs)
+    assert ('h2oGPT is an open-source, fully permissive, commercially usable, and fully trained language model' in
+            res_dict['response'] or
+            'h2oGPT is an open-source language model' in res_dict['response'] or
+            'h2oGPT is an open-source, fully permissive, commercially usable' in res_dict['response']
+            ) and \
+           'README.md' in res_dict['response']
 
 
 @wrap_test_forked

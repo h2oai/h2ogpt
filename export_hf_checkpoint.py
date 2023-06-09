@@ -200,9 +200,10 @@ def do_export():
 def do_copy(OUTPUT_NAME):
     dest_file = os.path.join(OUTPUT_NAME, "h2oai_pipeline.py")
     shutil.copyfile("h2oai_pipeline.py", dest_file)
-    os.system("""sed -i 's/from stopping import get_stopping//g' %s""" % dest_file)
-    os.system("""sed -i 's/from prompter import Prompter//g' %s""" % dest_file)
+    os.system("""sed -i 's/from stopping.*//g' %s""" % dest_file)
+    os.system("""sed -i 's/from prompter.*//g' %s""" % dest_file)
     os.system("""cat %s|grep -v "from prompter import PromptType" >> %s""" % ('stopping.py', dest_file))
+    os.system("""cat %s|grep -v "from enums import PromptType" >> %s""" % ('enums.py', dest_file))
     os.system("""cat %s >> %s""" % ('prompter.py', dest_file))
 
 

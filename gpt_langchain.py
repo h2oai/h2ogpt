@@ -4,6 +4,7 @@ import os
 import pathlib
 import pickle
 import queue
+import random
 import shutil
 import subprocess
 import sys
@@ -17,11 +18,14 @@ from functools import reduce
 from operator import concat
 
 from joblib import Parallel, delayed
+from langchain.embeddings import HuggingFaceInstructEmbeddings
 from tqdm import tqdm
 
+from enums import DocumentChoices
+from generate import gen_hyper
 from prompter import non_hf_types, PromptType
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
-    get_device, ProgressParallel, remove, hash_file
+    get_device, ProgressParallel, remove, hash_file, clear_torch_cache
 
 import_matplotlib()
 
@@ -44,11 +48,14 @@ from langchain import PromptTemplate
 from langchain.vectorstores import Chroma
 
 
-def get_db(sources, use_openai_embedding=False, db_type='faiss', persist_directory="db_dir", langchain_mode='notset',
+def get_db(sources, use_openai_embedding=False, db_type='faiss',
+           persist_directory="db_dir", load_db_if_exists=True,
+           langchain_mode='notset',
            collection_name=None,
            hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2"):
     if not sources:
         return None
+
     # get embedding model
     embedding = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model)
     assert collection_name is not None or langchain_mode != 'notset'
@@ -59,29 +66,41 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss', persist_directo
     if db_type == 'faiss':
         from langchain.vectorstores import FAISS
         db = FAISS.from_documents(sources, embedding)
-
     elif db_type == 'weaviate':
         import weaviate
         from weaviate.embedded import EmbeddedOptions
         from langchain.vectorstores import Weaviate
 
-        # TODO: add support for connecting via docker compose
-        client = weaviate.Client(
-            embedded_options=EmbeddedOptions()
-        )
+        if os.getenv('WEAVIATE_URL', None):
+            client = _create_local_weaviate_client()
+        else:
+            client = weaviate.Client(
+                embedded_options=EmbeddedOptions()
+            )
         index_name = collection_name.capitalize()
         db = Weaviate.from_documents(documents=sources, embedding=embedding, client=client, by_text=False,
                                      index_name=index_name)
-
     elif db_type == 'chroma':
         assert persist_directory is not None
         os.makedirs(persist_directory, exist_ok=True)
-        db = Chroma.from_documents(documents=sources,
-                                   embedding=embedding,
-                                   persist_directory=persist_directory,
-                                   collection_name=collection_name,
-                                   anonymized_telemetry=False)
-        db.persist()
+
+        # see if already actually have persistent db, and deal with possible changes in embedding
+        db = get_existing_db(None, persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
+                             hf_embedding_model, verbose=False)
+        if db is None:
+            db = Chroma.from_documents(documents=sources,
+                                       embedding=embedding,
+                                       persist_directory=persist_directory,
+                                       collection_name=collection_name,
+                                       anonymized_telemetry=False)
+            db.persist()
+            clear_embedding(db)
+            save_embed(db, use_openai_embedding, hf_embedding_model)
+        else:
+            # then just add
+            db, num_new_sources, new_sources_metadata = add_to_db(db, sources, db_type=db_type,
+                                                                  use_openai_embedding=use_openai_embedding,
+                                                                  hf_embedding_model=hf_embedding_model)
     else:
         raise RuntimeError("No such db_type=%s" % db_type)
 
@@ -104,7 +123,10 @@ def _get_unique_sources_in_weaviate(db):
 
 def add_to_db(db, sources, db_type='faiss',
               avoid_dup_by_file=False,
-              avoid_dup_by_content=True):
+              avoid_dup_by_content=True,
+              use_openai_embedding=False,
+              hf_embedding_model=None):
+    assert hf_embedding_model is not None
     num_new_sources = len(sources)
     if not sources:
         return db, num_new_sources, []
@@ -152,6 +174,8 @@ def add_to_db(db, sources, db_type='faiss',
             return db, num_new_sources, []
         db.add_documents(documents=sources)
         db.persist()
+        clear_embedding(db)
+        save_embed(db, use_openai_embedding, hf_embedding_model)
     else:
         raise RuntimeError("No such db_type=%s" % db_type)
 
@@ -166,10 +190,13 @@ def create_or_update_db(db_type, persist_directory, collection_name,
         import weaviate
         from weaviate.embedded import EmbeddedOptions
 
-        # TODO: add support for connecting via docker compose
-        client = weaviate.Client(
-            embedded_options=EmbeddedOptions()
-        )
+        if os.getenv('WEAVIATE_URL', None):
+            client = _create_local_weaviate_client()
+        else:
+            client = weaviate.Client(
+                embedded_options=EmbeddedOptions()
+            )
+
         index_name = collection_name.replace(' ', '_').capitalize()
         if client.schema.exists(index_name) and not add_if_exists:
             client.schema.delete_class(index_name)
@@ -213,7 +240,13 @@ def get_embedding(use_openai_embedding, hf_embedding_model="sentence-transformer
 
         device, torch_dtype, context_class = get_device_dtype()
         model_kwargs = dict(device=device)
-        embedding = HuggingFaceEmbeddings(model_name=hf_embedding_model, model_kwargs=model_kwargs)
+        if 'instructor' in hf_embedding_model:
+            encode_kwargs = {'normalize_embeddings': True}
+            embedding = HuggingFaceInstructEmbeddings(model_name=hf_embedding_model,
+                                                      model_kwargs=model_kwargs,
+                                                      encode_kwargs=encode_kwargs)
+        else:
+            embedding = HuggingFaceEmbeddings(model_name=hf_embedding_model, model_kwargs=model_kwargs)
     return embedding
 
 
@@ -229,11 +262,17 @@ def get_answer_from_sources(chain, sources, question):
 
 def get_llm(use_openai_model=False, model_name=None, model=None,
             tokenizer=None, stream_output=False,
-            max_new_tokens=256,
+            do_sample=False,
             temperature=0.1,
-            repetition_penalty=1.0,
             top_k=40,
             top_p=0.7,
+            num_beams=1,
+            max_new_tokens=256,
+            min_new_tokens=1,
+            early_stopping=False,
+            max_time=180,
+            repetition_penalty=1.0,
+            num_return_sequences=1,
             prompt_type=None,
             prompt_dict=None,
             prompter=None,
@@ -261,7 +300,6 @@ def get_llm(use_openai_model=False, model_name=None, model=None,
 
         if model is None:
             # only used if didn't pass model in
-            assert model_name is None
             assert tokenizer is None
             prompt_type = 'human_bot'
             model_name = 'h2oai/h2ogpt-oasst1-512-12b'
@@ -281,10 +319,20 @@ def get_llm(use_openai_model=False, model_name=None, model=None,
                                                              load_in_8bit=load_8bit)
 
         max_max_tokens = tokenizer.model_max_length
-        gen_kwargs = dict(max_new_tokens=max_new_tokens,
+        gen_kwargs = dict(do_sample=do_sample,
+                          temperature=temperature,
+                          top_k=top_k,
+                          top_p=top_p,
+                          num_beams=num_beams,
+                          max_new_tokens=max_new_tokens,
+                          min_new_tokens=min_new_tokens,
+                          early_stopping=early_stopping,
+                          max_time=max_time,
+                          repetition_penalty=repetition_penalty,
+                          num_return_sequences=num_return_sequences,
                           return_full_text=True,
-                          early_stopping=False,
                           handle_long_generation='hole')
+        assert len(set(gen_hyper).difference(gen_kwargs.keys())) == 0
 
         if stream_output:
             skip_prompt = False
@@ -868,7 +916,7 @@ def prep_langchain(persist_directory,
 
     if db_dir_exists and user_path is None:
         print("Prep: persist_directory=%s exists, using" % persist_directory, flush=True)
-        db = get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
+        db = get_existing_db(None, persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
                              hf_embedding_model)
     else:
         if db_dir_exists and user_path is not None:
@@ -919,22 +967,73 @@ class FakeConsumer(object):
 posthog.Consumer = FakeConsumer
 
 
-def get_existing_db(persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
-                    hf_embedding_model):
+def check_update_chroma_embedding(db, use_openai_embedding, hf_embedding_model, langchain_mode):
+    changed_db = False
+    if load_embed(db) != (use_openai_embedding, hf_embedding_model):
+        print("Detected new embedding, updating db: %s" % langchain_mode, flush=True)
+        # handle embedding changes
+        db_get = db.get()
+        sources = [Document(page_content=result[0], metadata=result[1] or {})
+                   for result in zip(db_get['documents'], db_get['metadatas'])]
+        # delete index, has to be redone
+        persist_directory = db._persist_directory
+        shutil.move(persist_directory, persist_directory + "_" + str(uuid.uuid4()) + ".bak")
+        db_type = 'chroma'
+        load_db_if_exists = False
+        db = get_db(sources, use_openai_embedding=use_openai_embedding, db_type=db_type,
+                    persist_directory=persist_directory, load_db_if_exists=load_db_if_exists,
+                    langchain_mode=langchain_mode,
+                    collection_name=None,
+                    hf_embedding_model=hf_embedding_model)
+        if False:
+            # below doesn't work if db already in memory, so have to switch to new db as above
+            # upsert does new embedding, but if index already in memory, complains about size mismatch etc.
+            client_collection = db._client.get_collection(name=db._collection.name,
+                                                          embedding_function=db._collection._embedding_function)
+            client_collection.upsert(ids=db_get['ids'], metadatas=db_get['metadatas'], documents=db_get['documents'])
+        changed_db = True
+        print("Done updating db for new embedding: %s" % langchain_mode, flush=True)
+
+    return db, changed_db
+
+
+def get_existing_db(db, persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
+                    hf_embedding_model, verbose=False, check_embedding=True):
     if load_db_if_exists and db_type == 'chroma' and os.path.isdir(persist_directory) and os.path.isdir(
             os.path.join(persist_directory, 'index')):
-        print("DO Loading db: %s" % langchain_mode, flush=True)
-        embedding = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model)
-        from chromadb.config import Settings
-        client_settings = Settings(anonymized_telemetry=False,
-                                   chroma_db_impl="duckdb+parquet",
-                                   persist_directory=persist_directory)
-        db = Chroma(persist_directory=persist_directory, embedding_function=embedding,
-                    collection_name=langchain_mode.replace(' ', '_'),
-                    client_settings=client_settings)
-        print("DONE Loading db: %s" % langchain_mode, flush=True)
+        if db is None:
+            if verbose:
+                print("DO Loading db: %s" % langchain_mode, flush=True)
+            embedding = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model)
+            from chromadb.config import Settings
+            client_settings = Settings(anonymized_telemetry=False,
+                                       chroma_db_impl="duckdb+parquet",
+                                       persist_directory=persist_directory)
+            db = Chroma(persist_directory=persist_directory, embedding_function=embedding,
+                        collection_name=langchain_mode.replace(' ', '_'),
+                        client_settings=client_settings)
+            if verbose:
+                print("DONE Loading db: %s" % langchain_mode, flush=True)
+        else:
+            if verbose:
+                print("USING already-loaded db: %s" % langchain_mode, flush=True)
+        if check_embedding:
+            db_trial, changed_db = check_update_chroma_embedding(db, use_openai_embedding, hf_embedding_model,
+                                                                 langchain_mode)
+            if changed_db:
+                db = db_trial
+                # only call persist if really changed db, else takes too long for large db
+                db.persist()
+                clear_embedding(db)
+        save_embed(db, use_openai_embedding, hf_embedding_model)
         return db
     return None
+
+
+def clear_embedding(db):
+    # don't keep on GPU, wastes memory, push back onto CPU and only put back on GPU once again embed
+    db._embedding_function.client.cpu()
+    clear_torch_cache()
 
 
 def make_db(**langchain_kwargs):
@@ -952,6 +1051,28 @@ def make_db(**langchain_kwargs):
     return _make_db(**langchain_kwargs)
 
 
+def save_embed(db, use_openai_embedding, hf_embedding_model):
+    embed_info_file = os.path.join(db._persist_directory, 'embed_info')
+    with open(embed_info_file, 'wb') as f:
+        pickle.dump((use_openai_embedding, hf_embedding_model), f)
+    return use_openai_embedding, hf_embedding_model
+
+
+def load_embed(db):
+    embed_info_file = os.path.join(db._persist_directory, 'embed_info')
+    if os.path.isfile(embed_info_file):
+        with open(embed_info_file, 'rb') as f:
+            use_openai_embedding, hf_embedding_model = pickle.load(f)
+    else:
+        # migration, assume defaults
+        use_openai_embedding, hf_embedding_model = False, "sentence-transformers/all-MiniLM-L6-v2"
+    return use_openai_embedding, hf_embedding_model
+
+
+def get_persist_directory(langchain_mode):
+    return 'db_dir_%s' % langchain_mode  # single place, no special names for each case
+
+
 def _make_db(use_openai_embedding=False,
              hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
              first_para=False, text_limit=None,
@@ -963,20 +1084,13 @@ def _make_db(use_openai_embedding=False,
              db=None,
              n_jobs=-1,
              verbose=False):
-    persist_directory = 'db_dir_%s' % langchain_mode  # single place, no special names for each case
-    if not db and load_db_if_exists and db_type == 'chroma' and os.path.isdir(persist_directory) and os.path.isdir(
-            os.path.join(persist_directory, 'index')):
-        assert langchain_mode not in ['MyData'], "Should not load MyData db this way"
-        print("Loading existing db", flush=True)
-        embedding = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model)
-        from chromadb.config import Settings
-        client_settings = Settings(anonymized_telemetry=False,
-                                   chroma_db_impl="duckdb+parquet",
-                                   persist_directory=persist_directory)
-        db = Chroma(persist_directory=persist_directory, embedding_function=embedding,
-                    collection_name=langchain_mode.replace(' ', '_'),
-                    client_settings=client_settings)
-        db.persist()
+    persist_directory = get_persist_directory(langchain_mode)
+    # see if can get persistent chroma db
+    db_trial = get_existing_db(db, persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
+                               hf_embedding_model, verbose=verbose)
+    if db_trial is not None:
+        db = db_trial
+
     sources = []
     if not db and langchain_mode not in ['MyData'] or \
             user_path is not None and \
@@ -1032,6 +1146,8 @@ def _make_db(use_openai_embedding=False,
                     existing_files = []
                     existing_hash_ids = []
                 # chunk internally for speed over multiple docs
+                # FIXME: If first had old Hash=None and switch embeddings,
+                #  then re-embed, and then hit here and reload so have hash, and then re-embed.
                 sources1 = path_to_docs(user_path, n_jobs=n_jobs, chunk=chunk, chunk_size=chunk_size,
                                         existing_files=existing_files, existing_hash_ids=existing_hash_ids)
                 new_metadata_sources = set([x.metadata['source'] for x in sources1])
@@ -1075,7 +1191,9 @@ def _make_db(use_openai_embedding=False,
         new_sources_metadata = [x.metadata for x in sources]
     elif user_path is not None and langchain_mode in ['UserData']:
         print("Existing db, potentially adding %s sources from user_path=%s" % (len(sources), user_path), flush=True)
-        db, num_new_sources, new_sources_metadata = add_to_db(db, sources, db_type=db_type)
+        db, num_new_sources, new_sources_metadata = add_to_db(db, sources, db_type=db_type,
+                                                              use_openai_embedding=use_openai_embedding,
+                                                              hf_embedding_model=hf_embedding_model)
         print("Existing db, added %s new sources from user_path=%s" % (num_new_sources, user_path), flush=True)
     else:
         new_sources_metadata = [x.metadata for x in sources]
@@ -1110,12 +1228,15 @@ def run_qa_db(**kwargs):
     assert not missing_kwargs, "Missing kwargs: %s" % missing_kwargs
     # only keep actual used
     kwargs = {k: v for k, v in kwargs.items() if k in func_names}
-    return _run_qa_db(**kwargs)
+    try:
+        return _run_qa_db(**kwargs)
+    finally:
+        clear_torch_cache()
 
 
 def _run_qa_db(query=None,
                use_openai_model=False, use_openai_embedding=False,
-               first_para=False, text_limit=None, k=4, chunk=True, chunk_size=512,
+               first_para=False, text_limit=None, top_k_docs=4, chunk=True, chunk_size=512,
                user_path=None,
                detect_user_path_changes_every_query=False,
                db_type='faiss',
@@ -1131,13 +1252,19 @@ def _run_qa_db(query=None,
                show_rank=False,
                load_db_if_exists=False,
                db=None,
-               max_new_tokens=256,
+               do_sample=False,
                temperature=0.1,
-               repetition_penalty=1.0,
                top_k=40,
                top_p=0.7,
+               num_beams=1,
+               max_new_tokens=256,
+               min_new_tokens=1,
+               early_stopping=False,
+               max_time=180,
+               repetition_penalty=1.0,
+               num_return_sequences=1,
                langchain_mode=None,
-               document_choice=['All'],
+               document_choice=[DocumentChoices.All_Relevant.name],
                n_jobs=-1,
                verbose=False,
                cli=False):
@@ -1170,14 +1297,21 @@ def _run_qa_db(query=None,
             assert prompt_dict is not None  # should at least be {} or ''
         else:
             prompt_dict = ''
+    assert len(set(gen_hyper).difference(inspect.signature(get_llm).parameters)) == 0
     llm, model_name, streamer, prompt_type_out = get_llm(use_openai_model=use_openai_model, model_name=model_name,
                                                          model=model, tokenizer=tokenizer,
                                                          stream_output=stream_output,
-                                                         max_new_tokens=max_new_tokens,
+                                                         do_sample=do_sample,
                                                          temperature=temperature,
-                                                         repetition_penalty=repetition_penalty,
                                                          top_k=top_k,
                                                          top_p=top_p,
+                                                         num_beams=num_beams,
+                                                         max_new_tokens=max_new_tokens,
+                                                         min_new_tokens=min_new_tokens,
+                                                         early_stopping=early_stopping,
+                                                         max_time=max_time,
+                                                         repetition_penalty=repetition_penalty,
+                                                         num_return_sequences=num_return_sequences,
                                                          prompt_type=prompt_type,
                                                          prompt_dict=prompt_dict,
                                                          prompter=prompter,
@@ -1192,12 +1326,22 @@ def _run_qa_db(query=None,
     scores = []
     chain = None
 
+    if isinstance(document_choice, str):
+        # support string as well
+        document_choice = [document_choice]
+    # get first DocumentChoices as command to use, ignore others
+    doc_choices_set = set([x.name for x in list(DocumentChoices)])
+    cmd = [x for x in document_choice if x in doc_choices_set]
+    cmd = None if len(cmd) == 0 else cmd[0]
+    # now have cmd, filter out for only docs
+    document_choice = [x for x in document_choice if x not in doc_choices_set]
+
     func_names = list(inspect.signature(get_similarity_chain).parameters)
     sim_kwargs = {k: v for k, v in locals().items() if k in func_names}
     missing_kwargs = [x for x in func_names if x not in sim_kwargs]
     assert not missing_kwargs, "Missing: %s" % missing_kwargs
     docs, chain, scores, use_context = get_similarity_chain(**sim_kwargs)
-    if len(document_choice) > 0 and document_choice[0] == 'Only':
+    if cmd in [DocumentChoices.All_Relevant_Only_Sources.name, DocumentChoices.Only_All_Sources.name]:
         formatted_doc_chunks = '\n\n'.join([get_url(x) + '\n\n' + x.page_content for x in docs])
         yield formatted_doc_chunks, ''
         return
@@ -1255,7 +1399,7 @@ def _run_qa_db(query=None,
 
 def get_similarity_chain(query=None,
                          use_openai_model=False, use_openai_embedding=False,
-                         first_para=False, text_limit=None, k=4, chunk=True, chunk_size=512,
+                         first_para=False, text_limit=None, top_k_docs=4, chunk=True, chunk_size=512,
                          user_path=None,
                          detect_user_path_changes_every_query=False,
                          db_type='faiss',
@@ -1267,11 +1411,12 @@ def get_similarity_chain(query=None,
                          load_db_if_exists=False,
                          db=None,
                          langchain_mode=None,
-                         document_choice=['All'],
+                         document_choice=[DocumentChoices.All_Relevant.name],
                          n_jobs=-1,
                          # beyond run_db_query:
                          llm=None,
                          verbose=False,
+                         cmd=None,
                          ):
     # determine whether use of context out of docs is planned
     if not use_openai_model and prompt_type not in ['plain'] or model_name in non_hf_types:
@@ -1283,10 +1428,10 @@ def get_similarity_chain(query=None,
         use_context = True
 
     # https://github.com/hwchase17/langchain/issues/1946
-    # FIXME: Seems to way to get size of chroma db to limit k to avoid
+    # FIXME: Seems to way to get size of chroma db to limit top_k_docs to avoid
     # Chroma collection MyData contains fewer than 4 elements.
     # type logger error
-    k_db = 1000 if db_type == 'chroma' else k  # k=100 works ok too for
+    k_db = 1000 if db_type == 'chroma' else top_k_docs  # top_k_docs=100 works ok too for
 
     # FIXME: For All just go over all dbs instead of a separate db for All
     if not detect_user_path_changes_every_query and db is not None:
@@ -1308,36 +1453,42 @@ def get_similarity_chain(query=None,
                                                         verbose=verbose)
 
     if db and use_context:
-        if isinstance(document_choice, str):
-            # support string as well
-            document_choice = [document_choice]
-        if not isinstance(db, Chroma) or \
-                len(document_choice) == 0 or \
-                len(document_choice) <= 1 and document_choice[0] == 'All':
-            # treat empty list as All for now, not 'None'
-            filter_kwargs = {}
-        elif len(document_choice) > 0 and document_choice[0] == 'Only':
-            # Only means All docs, but only will return sources, not LLM response
+        if not isinstance(db, Chroma):
+            # only chroma supports filtering
             filter_kwargs = {}
         else:
+            # if here then some cmd + documents selected or just documents selected
             if len(document_choice) >= 2:
                 or_filter = [{"source": {"$eq": x}} for x in document_choice]
                 filter_kwargs = dict(filter={"$or": or_filter})
-            elif len(document_choice) > 0:
+            elif len(document_choice) == 1:
+                # degenerate UX bug in chroma
                 one_filter = [{"source": {"$eq": x}} for x in document_choice][0]
                 filter_kwargs = dict(filter=one_filter)
             else:
+                # shouldn't reach
                 filter_kwargs = {}
-            if len(document_choice) == 1 and document_choice[0] == 'None':
-                k_db = 1
-                k = 0
-        docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:k]
-        # cut off so no high distance docs/sources considered
-        docs = [x[0] for x in docs_with_score if x[1] < cut_distanct]
-        scores = [x[1] for x in docs_with_score if x[1] < cut_distanct]
-        if len(scores) > 0 and verbose:
-            print("Distance: min: %s max: %s mean: %s median: %s" %
-                  (scores[0], scores[-1], np.mean(scores), np.median(scores)), flush=True)
+        if cmd == DocumentChoices.Just_LLM.name:
+            docs = []
+            scores = []
+        elif cmd == DocumentChoices.Only_All_Sources.name:
+            if isinstance(db, Chroma):
+                db_get = db._collection.get(where=filter_kwargs.get('filter'))
+            else:
+                db_get = db.get()
+            # similar to langchain's chroma's _results_to_docs_and_scores
+            docs_with_score = [(Document(page_content=result[0], metadata=result[1] or {}), 0)
+                               for result in zip(db_get['documents'], db_get['metadatas'])][:top_k_docs]
+            docs = [x[0] for x in docs_with_score]
+            scores = [x[1] for x in docs_with_score]
+        else:
+            docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:top_k_docs]
+            # cut off so no high distance docs/sources considered
+            docs = [x[0] for x in docs_with_score if x[1] < cut_distanct]
+            scores = [x[1] for x in docs_with_score if x[1] < cut_distanct]
+            if len(scores) > 0 and verbose:
+                print("Distance: min: %s max: %s mean: %s median: %s" %
+                      (scores[0], scores[-1], np.mean(scores), np.median(scores)), flush=True)
     else:
         docs = []
         scores = []
@@ -1346,7 +1497,7 @@ def get_similarity_chain(query=None,
         # if HF type and have no docs, can bail out
         return docs, None, [], False
 
-    if len(document_choice) > 0 and document_choice[0] == 'Only':
+    if cmd in [DocumentChoices.All_Relevant_Only_Sources.name, DocumentChoices.Only_All_Sources.name]:
         # no LLM use
         return docs, None, [], False
 
@@ -1459,6 +1610,8 @@ def get_db_from_hf(dest=".", db_dir='db_dir_DriverlessAI_docs.zip'):
     path_to_zip_file = hf_hub_download('h2oai/db_dirs', db_dir, token=token, repo_type='dataset')
     import zipfile
     with zipfile.ZipFile(path_to_zip_file, 'r') as zip_ref:
+        persist_directory = os.path.dirname(zip_ref.namelist()[0])
+        remove(persist_directory)
         zip_ref.extractall(dest)
     return path_to_zip_file
 
@@ -1485,6 +1638,27 @@ def get_some_dbs_from_hf(dest='.', db_zips=None):
         if dir_expected:
             assert os.path.isdir(os.path.join(dest, dir_expected)), "Missing path for %s" % dir_expected
             assert os.path.isdir(os.path.join(dest, dir_expected, 'index')), "Missing index in %s" % dir_expected
+
+
+def _create_local_weaviate_client():
+    WEAVIATE_URL = os.getenv('WEAVIATE_URL', "http://localhost:8080")
+    WEAVIATE_USERNAME = os.getenv('WEAVIATE_USERNAME')
+    WEAVIATE_PASSWORD = os.getenv('WEAVIATE_PASSWORD')
+    WEAVIATE_SCOPE = os.getenv('WEAVIATE_SCOPE', "offline_access")
+
+    resource_owner_config = None
+    if WEAVIATE_USERNAME is not None and WEAVIATE_PASSWORD is not None:
+        resource_owner_config = weaviate.AuthClientPassword(
+            username=WEAVIATE_USERNAME,
+            password=WEAVIATE_PASSWORD,
+            scope=WEAVIATE_SCOPE
+        )
+
+    try:
+        client = weaviate.Client(WEAVIATE_URL, auth_client_secret=resource_owner_config)
+    except Exception as e:
+        print(f"Failed to create Weaviate client: {e}")
+        return None
 
 
 if __name__ == '__main__':

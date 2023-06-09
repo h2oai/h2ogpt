@@ -20,4 +20,9 @@ flagged_data_points
 .pytest_cache
 user_path
 user_path_test
-.idea
+
+# IDEs
+.idea/
+
+# virtual envs
+venv
