@@ -276,8 +276,8 @@ def main(
 
     # allow set token directly
     use_auth_token = os.environ.get("HUGGINGFACE_API_TOKEN", use_auth_token)
-    allow_upload_to_user_data = bool(int(os.environ.get("allow_upload_to_user_data", allow_upload_to_user_data)))
-    allow_upload_to_my_data = bool(int(os.environ.get("allow_upload_to_my_data", allow_upload_to_my_data)))
+    allow_upload_to_user_data = bool(int(os.environ.get("allow_upload_to_user_data", str(int(allow_upload_to_user_data)))))
+    allow_upload_to_my_data = bool(int(os.environ.get("allow_upload_to_my_data", str(int(allow_upload_to_my_data)))))
     height = int(os.environ.get("HEIGHT", height))
     h2ocolors = bool(int(os.getenv('h2ocolors', h2ocolors)))
 
@@ -322,8 +322,8 @@ def main(
     if score_model == 'None' or score_model is None:
         score_model = ''
     concurrency_count = int(os.getenv('CONCURRENCY_COUNT', concurrency_count))
-    api_open = bool(int(os.getenv('API_OPEN', api_open)))
-    allow_api = bool(int(os.getenv('ALLOW_API', allow_api)))
+    api_open = bool(int(os.getenv('API_OPEN', str(int(api_open)))))
+    allow_api = bool(int(os.getenv('ALLOW_API', str(int(allow_api)))))
 
     n_gpus = torch.cuda.device_count() if torch.cuda.is_available else 0
     if n_gpus == 0:
