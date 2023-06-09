@@ -1,44 +1,10 @@
 import asyncio
 import collections
-from enum import Enum
 from typing import Any, Dict, List, Optional, OrderedDict, Tuple
 
 import gradio_client  # type: ignore
 
-
-class PromptType(Enum):
-    """Prompt type"""
-
-    DAI_FAQ = "dai_faq"
-    HUMAN_BOT = "human_bot"
-    HUMAN_BOT_ORIGINAL = "human_bot_orig"
-    INSTRUCT = "instruct"
-    INSTRUCT_SIMPLE = "instruct_simple"
-    INSTRUCT_VICUNA = "instruct_vicuna"
-    INSTRUCT_WITH_END = "instruct_with_end"
-    OPEN_ASSISTANT = "open_assistant"
-    PLAIN = "plain"
-    PROMPT_ANSWER = "prompt_answer"
-    QUALITY = "quality"
-    SIMPLE_INSTRUCT = "simple_instruct"
-    SUMMARIZE = "summarize"
-    WIZARD_LM = "wizard_lm"
-    WIZARD_MEGA = "wizard_mega"
-
-
-class LangChainMode(Enum):
-    """LangChain mode"""
-
-    ALL = "All"
-    CHAT_LLM = "ChatLLM"
-    DISABLED = "Disabled"
-    GITHUB_H2OGPT = "github h2oGPT"
-    H2O_DAI_DOCS = "DriverlessAI docs"
-    LLM = "LLM"
-    MY_DATA = "MyData"
-    USER_DATA = "UserData"
-    WIKI = "wiki"
-    WIKI_FULL = "wiki_full"
+from h2ogpt_client import enums
 
 
 class Client:
@@ -73,7 +39,7 @@ class TextCompletion:
     def create(
         self,
         prompt: str,
-        prompt_type: PromptType = PromptType.PLAIN,
+        prompt_type: enums.PromptType = enums.PromptType.plain,
         input_context_for_instruction: str = "",
         enable_sampler=False,
         temperature: float = 1.0,
@@ -87,7 +53,7 @@ class TextCompletion:
         repetition_penalty: float = 1.07,
         number_returns: int = 1,
         system_pre_context: str = "",
-        langchain_mode: LangChainMode = LangChainMode.DISABLED,
+        langchain_mode: enums.LangChainMode = enums.LangChainMode.DISABLED,
     ) -> str:
         """
         Creates a new text completion.
@@ -158,7 +124,7 @@ class TextCompletion:
     async def create_async(
         self,
         prompt: str,
-        prompt_type: PromptType = PromptType.PLAIN,
+        prompt_type: enums.PromptType = enums.PromptType.plain,
         input_context_for_instruction: str = "",
         enable_sampler=False,
         temperature: float = 1.0,
@@ -172,7 +138,7 @@ class TextCompletion:
         repetition_penalty: float = 1.07,
         number_returns: int = 1,
         system_pre_context: str = "",
-        langchain_mode: LangChainMode = LangChainMode.DISABLED,
+        langchain_mode: enums.LangChainMode = enums.LangChainMode.DISABLED,
     ) -> str:
         """
         Creates a new text completion asynchronously.
@@ -249,7 +215,7 @@ class ChatCompletion:
 
     def create(
         self,
-        prompt_type: PromptType = PromptType.PLAIN,
+        prompt_type: enums.PromptType = enums.PromptType.plain,
         input_context_for_instruction: str = "",
         enable_sampler=False,
         temperature: float = 1.0,
@@ -263,7 +229,7 @@ class ChatCompletion:
         repetition_penalty: float = 1.07,
         number_returns: int = 1,
         system_pre_context: str = "",
-        langchain_mode: LangChainMode = LangChainMode.DISABLED,
+        langchain_mode: enums.LangChainMode = enums.LangChainMode.DISABLED,
     ) -> "ChatContext":
         """
         Creates a new text completion asynchronously.
