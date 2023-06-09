@@ -35,4 +35,17 @@ def make_css_base() -> str:
     #prompt-form textarea {
         border: 1px solid rgb(209, 213, 219);
     }
+    
+    #prompt-form label > div {
+        margin-top: 4px;
+    }
+    
+    button.primary:hover {
+        background-color: var(--primary-600) !important;
+        transition: .2s;
+    }
+    
+    #prompt-form-area {
+        margin-bottom: 2.5rem;
+    }
     """
