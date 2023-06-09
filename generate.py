@@ -33,7 +33,6 @@ from typing import Union
 
 import fire
 import torch
-from peft import PeftModel
 from transformers import GenerationConfig, AutoModel, TextIteratorStreamer
 from accelerate import init_empty_weights, infer_auto_device_map
 
@@ -710,6 +709,7 @@ def get_model(
                 base_model,
                 **model_kwargs
             )
+            from peft import PeftModel  # loads cuda, so avoid in global scope
             model = PeftModel.from_pretrained(
                 model,
                 lora_weights,
@@ -727,6 +727,7 @@ def get_model(
                     base_model,
                     **model_kwargs
                 )
+                from peft import PeftModel  # loads cuda, so avoid in global scope
                 model = PeftModel.from_pretrained(
                     model,
                     lora_weights,
@@ -827,24 +828,27 @@ no_default_param_names = [
     'iinput_nochat',
 ]
 
+gen_hyper = ['temperature',
+             'top_p',
+             'top_k',
+             'num_beams',
+             'max_new_tokens',
+             'min_new_tokens',
+             'early_stopping',
+             'max_time',
+             'repetition_penalty',
+             'num_return_sequences',
+             'do_sample',
+             ]
+
 eval_func_param_names = ['instruction',
                          'iinput',
                          'context',
                          'stream_output',
                          'prompt_type',
-                         'prompt_dict',
-                         'temperature',
-                         'top_p',
-                         'top_k',
-                         'num_beams',
-                         'max_new_tokens',
-                         'min_new_tokens',
-                         'early_stopping',
-                         'max_time',
-                         'repetition_penalty',
-                         'num_return_sequences',
-                         'do_sample',
-                         'chat',
+                         'prompt_dict'] + \
+                        gen_hyper + \
+                        ['chat',
                          'instruction_nochat',
                          'iinput_nochat',
                          'langchain_mode',
@@ -1086,7 +1090,6 @@ def evaluate(
                            db=db1,
                            user_path=user_path,
                            detect_user_path_changes_every_query=detect_user_path_changes_every_query,
-                           max_new_tokens=max_new_tokens,
                            cut_distanct=1.1 if langchain_mode in ['wiki_full'] else 1.64,  # FIXME, too arbitrary
                            use_openai_embedding=use_openai_embedding,
                            use_openai_model=use_openai_model,
@@ -1099,10 +1102,20 @@ def evaluate(
                            document_choice=document_choice,
                            db_type=db_type,
                            top_k_docs=top_k_docs,
+
+                           # gen_hyper:
+                           do_sample=do_sample,
                            temperature=temperature,
                            repetition_penalty=repetition_penalty,
                            top_k=top_k,
                            top_p=top_p,
+                           num_beams=num_beams,
+                           min_new_tokens=min_new_tokens,
+                           max_new_tokens=max_new_tokens,
+                           early_stopping=early_stopping,
+                           max_time=max_time,
+                           num_return_sequences=num_return_sequences,
+
                            prompt_type=prompt_type,
                            prompt_dict=prompt_dict,
                            n_jobs=n_jobs,

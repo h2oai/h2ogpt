@@ -22,6 +22,7 @@ from langchain.embeddings import HuggingFaceInstructEmbeddings
 from tqdm import tqdm
 
 from enums import DocumentChoices
+from generate import gen_hyper
 from prompter import non_hf_types, PromptType
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
     get_device, ProgressParallel, remove, hash_file, clear_torch_cache
@@ -261,11 +262,17 @@ def get_answer_from_sources(chain, sources, question):
 
 def get_llm(use_openai_model=False, model_name=None, model=None,
             tokenizer=None, stream_output=False,
-            max_new_tokens=256,
+            do_sample=False,
             temperature=0.1,
-            repetition_penalty=1.0,
             top_k=40,
             top_p=0.7,
+            num_beams=1,
+            max_new_tokens=256,
+            min_new_tokens=1,
+            early_stopping=False,
+            max_time=180,
+            repetition_penalty=1.0,
+            num_return_sequences=1,
             prompt_type=None,
             prompt_dict=None,
             prompter=None,
@@ -312,10 +319,20 @@ def get_llm(use_openai_model=False, model_name=None, model=None,
                                                              load_in_8bit=load_8bit)
 
         max_max_tokens = tokenizer.model_max_length
-        gen_kwargs = dict(max_new_tokens=max_new_tokens,
+        gen_kwargs = dict(do_sample=do_sample,
+                          temperature=temperature,
+                          top_k=top_k,
+                          top_p=top_p,
+                          num_beams=num_beams,
+                          max_new_tokens=max_new_tokens,
+                          min_new_tokens=min_new_tokens,
+                          early_stopping=early_stopping,
+                          max_time=max_time,
+                          repetition_penalty=repetition_penalty,
+                          num_return_sequences=num_return_sequences,
                           return_full_text=True,
-                          early_stopping=False,
                           handle_long_generation='hole')
+        assert len(set(gen_hyper).difference(gen_kwargs.keys())) == 0
 
         if stream_output:
             skip_prompt = False
@@ -1235,11 +1252,17 @@ def _run_qa_db(query=None,
                show_rank=False,
                load_db_if_exists=False,
                db=None,
-               max_new_tokens=256,
+               do_sample=False,
                temperature=0.1,
-               repetition_penalty=1.0,
                top_k=40,
                top_p=0.7,
+               num_beams=1,
+               max_new_tokens=256,
+               min_new_tokens=1,
+               early_stopping=False,
+               max_time=180,
+               repetition_penalty=1.0,
+               num_return_sequences=1,
                langchain_mode=None,
                document_choice=[DocumentChoices.All_Relevant.name],
                n_jobs=-1,
@@ -1274,14 +1297,21 @@ def _run_qa_db(query=None,
             assert prompt_dict is not None  # should at least be {} or ''
         else:
             prompt_dict = ''
+    assert len(set(gen_hyper).difference(inspect.signature(get_llm).parameters)) == 0
     llm, model_name, streamer, prompt_type_out = get_llm(use_openai_model=use_openai_model, model_name=model_name,
                                                          model=model, tokenizer=tokenizer,
                                                          stream_output=stream_output,
-                                                         max_new_tokens=max_new_tokens,
+                                                         do_sample=do_sample,
                                                          temperature=temperature,
-                                                         repetition_penalty=repetition_penalty,
                                                          top_k=top_k,
                                                          top_p=top_p,
+                                                         num_beams=num_beams,
+                                                         max_new_tokens=max_new_tokens,
+                                                         min_new_tokens=min_new_tokens,
+                                                         early_stopping=early_stopping,
+                                                         max_time=max_time,
+                                                         repetition_penalty=repetition_penalty,
+                                                         num_return_sequences=num_return_sequences,
                                                          prompt_type=prompt_type,
                                                          prompt_dict=prompt_dict,
                                                          prompter=prompter,
@@ -1609,6 +1639,7 @@ def get_some_dbs_from_hf(dest='.', db_zips=None):
             assert os.path.isdir(os.path.join(dest, dir_expected)), "Missing path for %s" % dir_expected
             assert os.path.isdir(os.path.join(dest, dir_expected, 'index')), "Missing index in %s" % dir_expected
 
+
 def _create_local_weaviate_client():
     WEAVIATE_URL = os.getenv('WEAVIATE_URL', "http://localhost:8080")
     WEAVIATE_USERNAME = os.getenv('WEAVIATE_USERNAME')
@@ -1628,6 +1659,7 @@ def _create_local_weaviate_client():
     except Exception as e:
         print(f"Failed to create Weaviate client: {e}")
         return None
+
 
 if __name__ == '__main__':
     pass
