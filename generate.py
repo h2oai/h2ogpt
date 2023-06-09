@@ -900,6 +900,9 @@ def evaluate_from_str(
     # only used for submit_nochat_api
     user_kwargs['chat'] = False
     user_kwargs['stream_output'] = False
+    if 'langchain_mode' not in user_kwargs:
+        # if user doesn't specify, then assume disabled, not use default
+        user_kwargs['langchain_mode'] = 'Disabled'
 
     assert set(list(default_kwargs.keys())) == set(eval_func_param_names)
     # correct ordering.  Note some things may not be in default_kwargs, so can't be default of user_kwargs.get()

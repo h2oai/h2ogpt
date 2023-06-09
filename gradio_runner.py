@@ -1810,6 +1810,8 @@ def get_db(db1, langchain_mode, dbs=None):
 
 def get_source_files_given_langchain_mode(db1, langchain_mode='UserData', dbs=None):
     db = get_db(db1, langchain_mode, dbs=dbs)
+    if langchain_mode in ['ChatLLM', 'LLM'] or db is None:
+        return "Sources: N/A"
     return get_source_files(db=db, exceptions=None)
 
 
