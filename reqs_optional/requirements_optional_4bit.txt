@@ -1,4 +1,4 @@
 # dev required for now for 4-bit training or new transformers
 git+https://github.com/huggingface/accelerate.git@4d583ad6a1f13d1d7617e6a37f791ec01a68413a
-git+https://github.com/huggingface/peft.git@3714aa2fff158fdfa637b2b65952580801d890b2
+git+https://github.com/huggingface/peft.git@45529b149c7f91ec1d4d82a5a152ef56c56cb94
 git+https://github.com/huggingface/transformers.git@fabe17a726bbf6081cfbcc975d8ac451a81f3e2d
