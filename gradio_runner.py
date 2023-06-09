@@ -671,7 +671,7 @@ body.dark{#warning {background-color: #555555};}
                                    inputs=[fileup_output, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
                                            chunk, chunk_size],
                                    outputs=[add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
-                                   api_name='add_to_shared' if allow_api else None) \
+                                   api_name='add_to_shared' if allow_api and allow_upload_to_user_data else None) \
             .then(clear_file_list, outputs=fileup_output, queue=queue) \
             .then(update_radio_to_user, inputs=None, outputs=langchain_mode, queue=False)
 
@@ -686,7 +686,7 @@ body.dark{#warning {background-color: #555555};}
                            inputs=[url_text, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
                                    chunk, chunk_size],
                            outputs=[add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
-                           api_name='add_url_to_shared' if allow_api else None) \
+                           api_name='add_url_to_shared' if allow_api and allow_upload_to_user_data else None) \
             .then(clear_textbox, outputs=url_text, queue=queue) \
             .then(update_radio_to_user, inputs=None, outputs=langchain_mode, queue=False)
 
@@ -695,7 +695,7 @@ body.dark{#warning {background-color: #555555};}
                                  inputs=[user_text_text, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
                                          chunk, chunk_size],
                                  outputs=[add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
-                                 api_name='add_text_to_shared' if allow_api else None) \
+                                 api_name='add_text_to_shared' if allow_api and allow_upload_to_user_data else None) \
             .then(clear_textbox, outputs=user_text_text, queue=queue) \
             .then(update_radio_to_user, inputs=None, outputs=langchain_mode, queue=False)
 
@@ -717,7 +717,7 @@ body.dark{#warning {background-color: #555555};}
                                inputs=[fileup_output, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
                                        chunk, chunk_size],
                                outputs=[my_db_state, add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
-                               api_name='add_to_my' if allow_api else None) \
+                               api_name='add_to_my' if allow_api and allow_upload_to_my_data else None) \
             .then(clear_file_list, outputs=fileup_output, queue=queue) \
             .then(update_radio_to_my, inputs=None, outputs=langchain_mode, queue=False)
         # .then(make_invisible, outputs=add_to_shared_db_btn, queue=queue)
@@ -728,7 +728,7 @@ body.dark{#warning {background-color: #555555};}
                          inputs=[url_text, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
                                  chunk, chunk_size],
                          outputs=[my_db_state, add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
-                         api_name='add_url_to_my' if allow_api else None) \
+                         api_name='add_url_to_my' if allow_api and allow_upload_to_my_data else None) \
             .then(clear_textbox, outputs=url_text, queue=queue) \
             .then(update_radio_to_my, inputs=None, outputs=langchain_mode, queue=False)
 
@@ -737,7 +737,7 @@ body.dark{#warning {background-color: #555555};}
                                inputs=[user_text_text, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
                                        chunk, chunk_size],
                                outputs=[my_db_state, add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
-                               api_name='add_txt_to_my' if allow_api else None) \
+                               api_name='add_txt_to_my' if allow_api and allow_upload_to_my_data else None) \
             .then(clear_textbox, outputs=user_text_text, queue=queue) \
             .then(update_radio_to_my, inputs=None, outputs=langchain_mode, queue=False)
 
