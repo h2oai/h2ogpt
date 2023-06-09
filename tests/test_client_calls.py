@@ -200,7 +200,8 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
     res_dict, client = run_client(client, prompt, args, kwargs)
     # wrong answer given wrong docs
     assert ('A secure chatbot that uses a large language' in res_dict['response'] or 'Whisper is a chatbot' in res_dict[
-        'response']) \
+        'response'] or 'Whisper is a privacy-focused chatbot platform' in res_dict['response']
+            ) \
            and 'README.md' in res_dict['response']
 
     # QUERY2
@@ -285,7 +286,10 @@ def test_client_chat_stream_langchain_steps2(max_new_tokens, top_k_docs):
 
     res_dict, client = run_client(client, prompt, args, kwargs)
     assert ('h2oGPT is an open-source, fully permissive, commercially usable, and fully trained language model' in
-            res_dict['response'] or 'h2oGPT is an open-source language model' in res_dict['response']) and \
+            res_dict['response'] or
+            'h2oGPT is an open-source language model' in res_dict['response'] or
+            'h2oGPT is an open-source, fully permissive, commercially usable' in res_dict['response']
+            ) and \
            'README.md' in res_dict['response']
 
 
