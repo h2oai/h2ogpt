@@ -33,7 +33,6 @@ from typing import Union
 
 import fire
 import torch
-from peft import PeftModel
 from transformers import GenerationConfig, AutoModel, TextIteratorStreamer
 from accelerate import init_empty_weights, infer_auto_device_map
 
@@ -710,6 +709,7 @@ def get_model(
                 base_model,
                 **model_kwargs
             )
+            from peft import PeftModel  # loads cuda, so avoid in global scope
             model = PeftModel.from_pretrained(
                 model,
                 lora_weights,
@@ -727,6 +727,7 @@ def get_model(
                     base_model,
                     **model_kwargs
                 )
+                from peft import PeftModel  # loads cuda, so avoid in global scope
                 model = PeftModel.from_pretrained(
                     model,
                     lora_weights,
