@@ -1664,7 +1664,9 @@ def _create_local_weaviate_client():
         )
 
     try:
+        import weaviate
         client = weaviate.Client(WEAVIATE_URL, auth_client_secret=resource_owner_config)
+        return client
     except Exception as e:
         print(f"Failed to create Weaviate client: {e}")
         return None
