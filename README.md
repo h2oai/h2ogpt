@@ -124,7 +124,7 @@ On some systems, `pip` still refers back to the system one, then one can use `py
 
 #### TLDR
 
-After environment installed:
+After Python 3.10 environment installed:
 ```bash
 git clone https://github.com/h2oai/h2ogpt.git
 cd h2ogpt
