@@ -61,7 +61,7 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
             if max_prompt_length is not None:
                 model_max_length = min(model_max_length, max_prompt_length)
             # cut at some upper likely limit to avoid excessive tokenization etc
-            # upper bound of 10 chars/token, e.g. special chars someting are long
+            # upper bound of 10 chars/token, e.g. special chars sometimes are long
             if len(prompt_text) > model_max_length * 10:
                 len0 = len(prompt_text)
                 prompt_text = prompt_text[-model_max_length * 10:]
