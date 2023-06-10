@@ -1154,7 +1154,8 @@ def evaluate(
     if chat:
         # override, ignore user change
         num_return_sequences = 1
-    stopping_criteria = get_stopping(prompt_type, prompt_dict, tokenizer, device)
+    stopping_criteria = get_stopping(prompt_type, prompt_dict, tokenizer, device,
+                                     model_max_length=tokenizer.model_max_length)
     _, _, max_length_tokenize, max_prompt_length = get_cutoffs(memory_restriction_level,
                                                                model_max_length=tokenizer.model_max_length)
     prompt = prompt[-max_prompt_length:]

@@ -331,7 +331,7 @@ def get_llm(use_openai_model=False, model_name=None, model=None,
                           repetition_penalty=repetition_penalty,
                           num_return_sequences=num_return_sequences,
                           return_full_text=True,
-                          handle_long_generation='hole')
+                          handle_long_generation=None)
         assert len(set(gen_hyper).difference(gen_kwargs.keys())) == 0
 
         if stream_output:
@@ -396,7 +396,7 @@ def get_wiki_data(title, first_paragraph_only, text_limit=None, take_head=True):
         data = json.load(open(filename, "rt"))
     page_content = list(data["query"]["pages"].values())[0]["extract"]
     if take_head is not None and text_limit is not None:
-        page_content = page_content[:text_limit] if take_head else page_content[:-text_limit]
+        page_content = page_content[:text_limit] if take_head else page_content[-text_limit:]
     title_url = str(title).replace(' ', '_')
     return Document(
         page_content=page_content,
