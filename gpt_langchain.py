@@ -41,7 +41,7 @@ from langchain.document_loaders import PyPDFLoader, TextLoader, CSVLoader, Pytho
     UnstructuredURLLoader, UnstructuredHTMLLoader, UnstructuredWordDocumentLoader, UnstructuredMarkdownLoader, \
     EverNoteLoader, UnstructuredEmailLoader, UnstructuredODTLoader, UnstructuredPowerPointLoader, \
     UnstructuredEPubLoader, UnstructuredImageLoader, UnstructuredRTFLoader, ArxivLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.text_splitter import RecursiveCharacterTextSplitter, Language
 from langchain.chains.question_answering import load_qa_chain
 from langchain.docstore.document import Document
 from langchain import PromptTemplate
@@ -591,7 +591,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
     elif file.lower().endswith('.html') or file.lower().endswith('.mhtml'):
         docs1 = UnstructuredHTMLLoader(file_path=file).load()
         add_meta(docs1, file)
-        doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
+        doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size, language=Language.HTML)
     elif (file.lower().endswith('.docx') or file.lower().endswith('.doc')) and have_libreoffice:
         docs1 = UnstructuredWordDocumentLoader(file_path=file).load()
         add_meta(docs1, file)
@@ -617,7 +617,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
     elif file.lower().endswith('.md'):
         docs1 = UnstructuredMarkdownLoader(file).load()
         add_meta(docs1, file)
-        doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
+        doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size, language=Language.MARKDOWN)
     elif file.lower().endswith('.enex'):
         docs1 = EverNoteLoader(file).load()
         add_meta(doc1, file)
@@ -682,6 +682,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         with open(file, "r") as f:
             doc1 = Document(page_content=f.read(), metadata={"source": file})
         add_meta(doc1, file)
+        doc1 = chunk_sources(doc1, chunk=chunk, chunk_size=chunk_size, language=Language.RST)
     elif file.lower().endswith('.pdf'):
         env_gpt4all_file = ".env_gpt4all"
         from dotenv import dotenv_values
@@ -704,6 +705,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
     elif file.lower().endswith('.py'):
         doc1 = PythonLoader(file).load()
         add_meta(doc1, file)
+        doc1 = chunk_sources(doc1, chunk=chunk, chunk_size=chunk_size, language=Language.PYTHON)
     elif file.lower().endswith('.toml'):
         doc1 = TomlLoader(file).load()
         add_meta(doc1, file)
@@ -1589,17 +1591,24 @@ def get_sources_answer(query, answer, scores, show_rank, answer_with_sources, ve
     return ret, extra
 
 
-def chunk_sources(sources, chunk=True, chunk_size=512):
+def chunk_sources(sources, chunk=True, chunk_size=512, language=None):
     if not chunk:
         return sources
-    source_chunks = []
-    # Below for known separator
-    # splitter = CharacterTextSplitter(separator=" ", chunk_size=chunk_size, chunk_overlap=0)
-    splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=0)
-    for source in sources:
-        # print(source.metadata['source'], flush=True)
-        for chunky in splitter.split_text(source.page_content):
-            source_chunks.append(Document(page_content=chunky, metadata=source.metadata))
+    if not isinstance(sources, (list, tuple)):
+        # if just one document
+        sources = [sources]
+    if language and False:
+        # Bug in langchain, keep separator=True not working
+        # https://github.com/hwchase17/langchain/issues/2836
+        # so avoid this for now
+        keep_separator = True
+        separators = RecursiveCharacterTextSplitter.get_separators_for_language(language)
+    else:
+        separators = ["\n\n", "\n", " ", ""]
+        keep_separator = False
+    splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=0, keep_separator=keep_separator,
+                                              separators=separators)
+    source_chunks = splitter.split_documents(sources)
     return source_chunks
 
 
