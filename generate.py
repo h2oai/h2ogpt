@@ -276,7 +276,8 @@ def main(
 
     # allow set token directly
     use_auth_token = os.environ.get("HUGGINGFACE_API_TOKEN", use_auth_token)
-    allow_upload_to_user_data = bool(int(os.environ.get("allow_upload_to_user_data", str(int(allow_upload_to_user_data)))))
+    allow_upload_to_user_data = bool(
+        int(os.environ.get("allow_upload_to_user_data", str(int(allow_upload_to_user_data)))))
     allow_upload_to_my_data = bool(int(os.environ.get("allow_upload_to_my_data", str(int(allow_upload_to_my_data)))))
     height = int(os.environ.get("HEIGHT", height))
     h2ocolors = bool(int(os.getenv('h2ocolors', h2ocolors)))
@@ -1154,16 +1155,16 @@ def evaluate(
     if chat:
         # override, ignore user change
         num_return_sequences = 1
-    stopping_criteria = get_stopping(prompt_type, prompt_dict, tokenizer, device)
+    stopping_criteria = get_stopping(prompt_type, prompt_dict, tokenizer, device,
+                                     model_max_length=tokenizer.model_max_length)
+
+    # limit prompt using token length from user, implicit, or model
     _, _, max_length_tokenize, max_prompt_length = get_cutoffs(memory_restriction_level,
                                                                model_max_length=tokenizer.model_max_length)
-    prompt = prompt[-max_prompt_length:]
-    inputs = tokenizer(prompt,
-                       return_tensors="pt",
-                       truncation=True,
-                       max_length=max_length_tokenize)
-    if inputs['input_ids'].shape[1] >= max_length_tokenize - 1:
-        print("Cutting off input: %s %s" % (inputs['input_ids'].shape[1], max_length_tokenize), flush=True)
+    from h2oai_pipeline import H2OTextGenerationPipeline
+    prompt = H2OTextGenerationPipeline.limit_prompt(prompt, tokenizer, max_prompt_length=max_prompt_length)
+
+    inputs = tokenizer(prompt, return_tensors="pt")
     if debug and len(inputs["input_ids"]) > 0:
         print('input_ids length', len(inputs["input_ids"][0]), flush=True)
     input_ids = inputs["input_ids"].to(device)
@@ -1318,6 +1319,7 @@ def get_cutoffs(memory_restriction_level, for_context=False, model_max_length=20
     if memory_restriction_level > 0:
         max_length_tokenize = 768 - 256 if memory_restriction_level <= 2 else 512 - 256
     else:
+        # at least give room for 1 paragraph output
         max_length_tokenize = model_max_length - 256
     cutoff_len = max_length_tokenize * 4  # if reaches limit, then can't generate new tokens
     output_smallest = 30 * 4

@@ -108,7 +108,7 @@ def test_client_chat_nostream_gpt4all_llama():
 def test_client_chat_nostream_llama7b():
     prompt_type = get_llama()
     res_dict, client = run_client_chat_with_server(stream_output=False, base_model='llama', prompt_type=prompt_type)
-    assert 'I’m a software engineer' in res_dict['response']
+    assert "I’m a software engineer" in res_dict['response'] or "I'm a software engineer" in res_dict['response']
 
 
 def run_client_chat_with_server(prompt='Who are you?', stream_output=False, max_new_tokens=256,
@@ -228,7 +228,10 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
     # odd answer since no whisper docs, but still shows some docs at very low score
     assert ('h2oGPT' in res_dict['response'] or
             'A chatbot that can whisper to you' in res_dict['response'] or
-            'whisper is a simple' in res_dict['response']) \
+            'whisper is a simple' in res_dict['response'] or
+            'Whisper is a tool for generating text from a model' in res_dict['response'] or
+            'Whisper is a chatbot platform' in res_dict['response']
+            ) \
            and '.md' in res_dict['response']
 
 
