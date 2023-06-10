@@ -105,7 +105,8 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
                                             model_max_length - (num_prompt_tokens + fudge)))
                 if max_new_tokens < generate_kwargs['max_new_tokens']:
                     if verbose:
-                        print("Reduced max_new_tokens from %s -> %s" % (generate_kwargs['max_new_tokens'], max_new_tokens))
+                        print("Reduced max_new_tokens from %s -> %s" % (
+                        generate_kwargs['max_new_tokens'], max_new_tokens))
                     generate_kwargs['max_new_tokens'] = max_new_tokens
         return prompt_text
 

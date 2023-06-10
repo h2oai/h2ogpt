@@ -276,7 +276,8 @@ def main(
 
     # allow set token directly
     use_auth_token = os.environ.get("HUGGINGFACE_API_TOKEN", use_auth_token)
-    allow_upload_to_user_data = bool(int(os.environ.get("allow_upload_to_user_data", str(int(allow_upload_to_user_data)))))
+    allow_upload_to_user_data = bool(
+        int(os.environ.get("allow_upload_to_user_data", str(int(allow_upload_to_user_data)))))
     allow_upload_to_my_data = bool(int(os.environ.get("allow_upload_to_my_data", str(int(allow_upload_to_my_data)))))
     height = int(os.environ.get("HEIGHT", height))
     h2ocolors = bool(int(os.getenv('h2ocolors', h2ocolors)))
