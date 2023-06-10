@@ -125,9 +125,10 @@ After environment installed:
 git clone https://github.com/h2oai/h2ogpt.git
 cd h2ogpt
 # broad support, but no training-time or data creation dependencies
+# There are a few dependencies that need to be installed: sudo apt-get install build-essential gcc python3.10-dev
 for fil in requirements.txt reqs_optional/requirements_optional_langchain.txt reqs_optional/requirements_optional_gpt4all.txt reqs_optional/requirements_optional_langchain.gpllike.txt ; do pip install -r $fil ; done
 # Optional: support docx, pptx, ArXiv, etc.
-sudo apt-get install -y libmagic-dev poppler-utils tesseract-ocr tesseract-ocr libreoffice
+sudo apt-get install -y libmagic-dev poppler-utils tesseract-ocr libreoffice
 # Optional: for supporting unstructured package
 python -m nltk.downloader all
 ````
