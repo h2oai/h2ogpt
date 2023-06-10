@@ -40,10 +40,10 @@ Turn ★ into ⭐ (top-right corner) if you like the project!
 ### Try h2oGPT now 
 
 Live hosted instances:
-- [![img-small.png](docs/img-small.png) h2oGPT 12B](https://gpt.h2o.ai/)
+- [![img-small.png](docs/img-small.png) h2oGPT Falcon 40B](https://gpt.h2o.ai/)
+- [![img-small.png](docs/img-small.png) h2oGPT Falcon 40B](http://falcon.h2o.ai)
 - [🤗 h2oGPT 12B #1](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot)
 - [🤗 h2oGPT 12B #2](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot2)
-- [![img-small.png](docs/img-small.png) h2oGPT Falcon 40B](http://falcon.h2o.ai)
 <!--  - [![img-small.png](docs/img-small.png) Latest LangChain-enabled h2oGPT (temporary link) 12B](https://0756a80f3de3f98413.gradio.live) -->
 <!--  - [![img-small.png](docs/img-small.png) Latest LangChain-enabled h2oGPT (temporary link) 12B](https://0f3a3869de5fb3b6b5.gradio.live) -->
 <!--  - [![img-small.png](docs/img-small.png) Latest LangChain-enabled h2oGPT (temporary link) 12B](https://32a0109ace8028ce1a.gradio.live) -->
