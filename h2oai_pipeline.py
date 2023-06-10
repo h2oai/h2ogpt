@@ -51,12 +51,15 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
         self.sanitize_bot_response = sanitize_bot_response
         self.max_input_tokens = max_input_tokens  # not for generate, so ok that not kwargs
 
-    def preprocess(self, prompt_text, prefix="", handle_long_generation=None, **generate_kwargs):
+    @staticmethod
+    def limit_prompt(prompt_text, tokenizer, max_prompt_length=None):
         verbose = bool(int(os.getenv('VERBOSE_PIPELINE', '0')))
 
-        if hasattr(self.tokenizer, 'model_max_length'):
+        if hasattr(tokenizer, 'model_max_length'):
             # model_max_length only defined for generate.py, not raw use of h2oai_pipeline.py
-            model_max_length = self.tokenizer.model_max_length
+            model_max_length = tokenizer.model_max_length
+            if max_prompt_length is not None:
+                model_max_length = min(model_max_length, max_prompt_length)
             # cut at some upper likely limit to avoid excessive tokenization etc
             # upper bound of 10 chars/token, e.g. special chars someting are long
             if len(prompt_text) > model_max_length * 10:
@@ -73,7 +76,7 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
             # can't wait for "hole" if not plain prompt_type, since would lose prefix like <human>:
             # For https://github.com/h2oai/h2ogpt/issues/192
             for trial in range(0, 3):
-                prompt_tokens = self.tokenizer(prompt_text)['input_ids']
+                prompt_tokens = tokenizer(prompt_text)['input_ids']
                 num_prompt_tokens = len(prompt_tokens)
                 if num_prompt_tokens > model_max_length:
                     # conservative by using int()
@@ -104,6 +107,10 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
                     if verbose:
                         print("Reduced max_new_tokens from %s -> %s" % (generate_kwargs['max_new_tokens'], max_new_tokens))
                     generate_kwargs['max_new_tokens'] = max_new_tokens
+        return prompt_text
+
+    def preprocess(self, prompt_text, prefix="", handle_long_generation=None, **generate_kwargs):
+        prompt_text = H2OTextGenerationPipeline.limit_prompt(prompt_text, self.tokenizer)
 
         data_point = dict(context='', instruction=prompt_text, input='')
         if self.prompter is not None:
