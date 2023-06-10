@@ -111,7 +111,11 @@ Also check out [H2O LLM Studio](https://github.com/h2oai/h2o-llmstudio) for our 
 
 ### Getting Started
 
-First one needs a Python 3.10 environment.  For help installing a Python 3.10 environment, see [Install Python 3.10 Environment](docs/INSTALL.md#install-python-environment).  Check your installation by doing:
+First one needs a Python 3.10 environment.  For help installing a Python 3.10 environment, see [Install Python 3.10 Environment](docs/INSTALL.md#install-python-environment).  On newer Ubuntu systems and environment may be installed by just doing:
+```bash
+sudo apt-get install build-essential gcc python3.10-dev
+```
+Check your installation by doing:
 ```bash
 python --version # should say 3.10.xx
 pip --version  # should say pip 23.x.y ... (python 3.10)
@@ -125,7 +129,6 @@ After environment installed:
 git clone https://github.com/h2oai/h2ogpt.git
 cd h2ogpt
 # broad support, but no training-time or data creation dependencies
-# There are a few dependencies that need to be installed: sudo apt-get install build-essential gcc python3.10-dev
 for fil in requirements.txt reqs_optional/requirements_optional_langchain.txt reqs_optional/requirements_optional_gpt4all.txt reqs_optional/requirements_optional_langchain.gpllike.txt ; do pip install -r $fil ; done
 # Optional: support docx, pptx, ArXiv, etc.
 sudo apt-get install -y libmagic-dev poppler-utils tesseract-ocr libreoffice
