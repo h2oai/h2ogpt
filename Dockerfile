@@ -1,5 +1,5 @@
 # devel needed for bitsandbytes requirement of libcudart.so, otherwise runtime sufficient
-FROM nvidia/cuda:12.1.0-devel-ubuntu22.04
+FROM nvidia/cuda:12.1.1-cudnn8-devel-ubuntu20.04
 
 ARG DEBIAN_FRONTEND=noninteractive
 
