@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import traceback
+import types
 import uuid
 import zipfile
 from collections import defaultdict
@@ -1594,7 +1595,7 @@ def get_sources_answer(query, answer, scores, show_rank, answer_with_sources, ve
 def chunk_sources(sources, chunk=True, chunk_size=512, language=None):
     if not chunk:
         return sources
-    if not isinstance(sources, (list, tuple)):
+    if not isinstance(sources, (list, tuple, types.GeneratorType)) and not callable(sources):
         # if just one document
         sources = [sources]
     if language and False:
