@@ -4,6 +4,7 @@ import tempfile
 
 import pytest
 
+from enums import DocumentChoices
 from gpt_langchain import get_persist_directory
 from tests.utils import wrap_test_forked
 from utils import zip_data, download_simple, get_ngpus_vis, get_mem_gpus, have_faiss, remove, get_kwargs
@@ -18,6 +19,7 @@ mem_gpus = get_mem_gpus()
 os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 
 db_types = ['chroma', 'weaviate']
+db_types_full = ['chroma', 'weaviate', 'faiss']
 
 
 @pytest.mark.skipif(not have_openai_key, reason="requires OpenAI key to run")
@@ -290,44 +292,135 @@ def test_get_dai_db_dir():
 @wrap_test_forked
 # repeat is to check if first case really deletes, else assert will fail if accumulates wrongly
 @pytest.mark.parametrize("repeat", [0, 1])
-@pytest.mark.parametrize("db_type", db_types)
+@pytest.mark.parametrize("db_type", db_types_full)
 def test_make_add_db(repeat, db_type):
+    from gradio_runner import get_source_files, get_source_files_given_langchain_mode, get_db, update_user_db, \
+        get_sources, update_and_get_source_files_given_langchain_mode
     from make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
-            msg1 = "Hello World"
-            test_file1 = os.path.join(tmp_user_path, 'test.txt')
-            with open(test_file1, "wt") as f:
-                f.write(msg1)
-            db, collection_name = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
-                                               add_if_exists=False,
-                                               fail_any_exception=True, db_type=db_type)
-            assert db is not None
-            docs = db.similarity_search("World")
-            assert len(docs) == 1
-            assert docs[0].page_content == msg1
-            assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+            with tempfile.TemporaryDirectory() as tmp_persistent_directory_my:
+                with tempfile.TemporaryDirectory() as tmp_user_path_my:
+                    msg1 = "Hello World"
+                    test_file1 = os.path.join(tmp_user_path, 'test.txt')
+                    with open(test_file1, "wt") as f:
+                        f.write(msg1)
+                    chunk = True
+                    chunk_size = 512
+                    langchain_mode = 'UserData'
+                    db, collection_name = make_db_main(persist_directory=tmp_persistent_directory,
+                                                       user_path=tmp_user_path,
+                                                       add_if_exists=False,
+                                                       collection_name=langchain_mode,
+                                                       fail_any_exception=True, db_type=db_type)
+                    assert db is not None
+                    docs = db.similarity_search("World")
+                    assert len(docs) == 1
+                    assert docs[0].page_content == msg1
+                    assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
-        # now add using new source path, to original persisted
-        with tempfile.TemporaryDirectory() as tmp_user_path:
-            msg2 = "Jill ran up the hill"
-            test_file2 = os.path.join(tmp_user_path, 'test2.txt')
-            with open(test_file2, "wt") as f:
-                f.write(msg2)
-            db, collection_name = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
-                                               add_if_exists=True,
-                                               fail_any_exception=True, db_type=db_type,
-                                               collection_name=collection_name)
-            assert db is not None
-            docs = db.similarity_search("World")
-            assert len(docs) == 2
-            assert docs[0].page_content == msg1
-            assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+                    test_file1my = os.path.join(tmp_user_path_my, 'test.txt')
+                    with open(test_file1my, "wt") as f:
+                        f.write(msg1)
+                    dbmy, collection_namemy = make_db_main(persist_directory=tmp_persistent_directory_my,
+                                                           user_path=tmp_user_path_my,
+                                                           add_if_exists=False,
+                                                           collection_name='MyData',
+                                                           fail_any_exception=True, db_type=db_type)
+                    db1 = [dbmy, 'foouuid']
+                    assert dbmy is not None
+                    docs1 = dbmy.similarity_search("World")
+                    assert len(docs1) == 1
+                    assert docs1[0].page_content == msg1
+                    assert os.path.normpath(docs1[0].metadata['source']) == os.path.normpath(test_file1my)
 
-            docs = db.similarity_search("Jill")
-            assert len(docs) == 2
-            assert docs[0].page_content == msg2
-            assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file2)
+                    # some db testing for gradio UI/client
+                    get_source_files(db=db)
+                    get_source_files(db=dbmy)
+                    get_source_files_given_langchain_mode(None, langchain_mode=langchain_mode, dbs={langchain_mode: db})
+                    get_source_files_given_langchain_mode(db1, langchain_mode='MyData', dbs=None)
+                    get_db(None, langchain_mode='UserData', dbs={langchain_mode: db})
+                    get_db(db1, langchain_mode='MyDatta', dbs=None)
+
+                    msg1up = "Beefy Chicken"
+                    test_file2 = os.path.join(tmp_user_path, 'test2.txt')
+                    with open(test_file2, "wt") as f:
+                        f.write(msg1up)
+                    test_file2_my = os.path.join(tmp_user_path_my, 'test2my.txt')
+                    with open(test_file2_my, "wt") as f:
+                        f.write(msg1up)
+                    kwargs = dict(use_openai_embedding=False,
+                                  hf_embedding_model='hkunlp/instructor-large',
+                                  caption_loader=False,
+                                  enable_captions=False,
+                                  captions_model="Salesforce/blip-image-captioning-base",
+                                  enable_ocr=False,
+                                  verbose=False,
+                                  is_url=False, is_txt=False)
+                    db1out, x, y, source_files_added = update_user_db(test_file2_my, db1, 'foo', 'bar', chunk, chunk_size,
+                                                                      dbs=None, db_type=db_type,
+                                                                      langchain_mode='MyData',
+                                                                      **kwargs)
+                    assert 'test2my' in str(source_files_added)
+                    x, y, source_files_added = update_user_db(test_file2, None, 'foo', 'bar', chunk, chunk_size,
+                                                              dbs={langchain_mode: db},
+                                                              db_type=db_type,
+                                                              langchain_mode=langchain_mode,
+                                                              **kwargs)
+                    assert 'test2' in str(source_files_added)
+                    docs_state0 = [x.name for x in list(DocumentChoices)]
+                    get_sources(None, langchain_mode, dbs={langchain_mode: db}, docs_state0=docs_state0)
+                    get_sources(db1, 'MyData', dbs=None, docs_state0=docs_state0)
+                    kwargs2 = dict(first_para=False,
+                                   text_limit=None, chunk=chunk, chunk_size=chunk_size,
+                                   user_path=tmp_user_path, db_type=db_type,
+                                   load_db_if_exists=True,
+                                   n_jobs=-1, verbose=False)
+                    update_and_get_source_files_given_langchain_mode(None, langchain_mode, dbs={langchain_mode: db},
+                                                                     **kwargs2)
+                    update_and_get_source_files_given_langchain_mode(db1, 'MyData', dbs=None, **kwargs2)
+
+                if db_type == 'faiss':
+                    # doesn't persist
+                    return
+
+                # now add using new source path, to original persisted
+                with tempfile.TemporaryDirectory() as tmp_user_path3:
+                    msg2 = "Jill ran up the hill"
+                    test_file2 = os.path.join(tmp_user_path3, 'test2.txt')
+                    with open(test_file2, "wt") as f:
+                        f.write(msg2)
+                    db, collection_name = make_db_main(persist_directory=tmp_persistent_directory,
+                                                       user_path=tmp_user_path3,
+                                                       add_if_exists=True,
+                                                       fail_any_exception=True, db_type=db_type,
+                                                       collection_name=collection_name)
+                    assert db is not None
+                    docs = db.similarity_search("World")
+                    if db_type == 'weaviate':
+                        # FIXME: weaviate doesn't know about persistent directory properly
+                        assert len(docs) == 4
+                        assert docs[0].page_content == msg1
+                        assert docs[1].page_content == msg1up
+                        assert docs[2].page_content == msg1up
+                        assert docs[3].page_content == msg2
+                        assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+
+                        docs = db.similarity_search("Jill")
+                        assert len(docs) == 4
+                        assert docs[0].page_content == msg2
+                        assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file2)
+                    else:
+                        assert len(docs) == 3
+                        assert docs[0].page_content == msg1
+                        assert docs[1].page_content == msg1up
+                        assert docs[2].page_content == msg2
+                        assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+
+                        docs = db.similarity_search("Jill")
+                        assert len(docs) == 3
+                        assert docs[0].page_content == msg2
+                        assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file2)
 
 
 @wrap_test_forked
