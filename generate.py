@@ -251,9 +251,9 @@ def main(
     :param n_jobs: Number of processors to use when consuming documents (-1 = all, is default)
     :param enable_captions: Whether to support captions using BLIP for image files as documents, then preloads that model
     :param captions_model: Which model to use for captions.
-           captions_model: int = "Salesforce/blip-image-captioning-base",  # continue capable
+           captions_model: str = "Salesforce/blip-image-captioning-base",  # continue capable
            captions_model: str = "Salesforce/blip2-flan-t5-xl",   # question/answer capable, 16GB state
-           captions_model: int = "Salesforce/blip2-flan-t5-xxl",  # question/answer capable, 60GB state
+           captions_model: str = "Salesforce/blip2-flan-t5-xxl",  # question/answer capable, 60GB state
            Note: opt-based blip2 are not permissive license due to opt and Meta license restrictions
     :param pre_load_caption_model: Whether to preload caption model, or load after forking parallel doc loader
            parallel loading disabled if preload and have images, to prevent deadlocking on cuda context

@@ -536,7 +536,7 @@ file_types = non_image_types + image_types
 def add_meta(docs1, file):
     file_extension = pathlib.Path(file).suffix
     hashid = hash_file(file)
-    if not isinstance(docs1, list):
+    if not isinstance(docs1, (list, tuple, types.GeneratorType)):
         docs1 = [docs1]
     [x.metadata.update(dict(input_type=file_extension, date=str(datetime.now), hashid=hashid)) for x in docs1]
 
@@ -580,6 +580,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         else:
             docs1 = UnstructuredURLLoader(urls=[file]).load()
             [x.metadata.update(dict(input_type='url', date=str(datetime.now))) for x in docs1]
+        docs1 = clean_doc(docs1)
         doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
     elif is_txt:
         base_path = "user_paste"
@@ -589,9 +590,11 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             f.write(file)
         metadata = dict(source=source_file, date=str(datetime.now()), input_type='pasted txt')
         doc1 = Document(page_content=file, metadata=metadata)
+        doc1 = clean_doc(doc1)
     elif file.lower().endswith('.html') or file.lower().endswith('.mhtml'):
         docs1 = UnstructuredHTMLLoader(file_path=file).load()
         add_meta(docs1, file)
+        docs1 = clean_doc(docs1)
         doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size, language=Language.HTML)
     elif (file.lower().endswith('.docx') or file.lower().endswith('.doc')) and have_libreoffice:
         docs1 = UnstructuredWordDocumentLoader(file_path=file).load()
@@ -604,12 +607,14 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
     elif file.lower().endswith('pptx') or file.lower().endswith('ppt'):
         docs1 = UnstructuredPowerPointLoader(file_path=file).load()
         add_meta(docs1, file)
+        docs1 = clean_doc(docs1)
         doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
     elif file.lower().endswith('.txt'):
         # use UnstructuredFileLoader ?
         docs1 = TextLoader(file, encoding="utf8", autodetect_encoding=True).load()
         # makes just one, but big one
         doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
+        doc1 = clean_doc(doc1)
         add_meta(doc1, file)
     elif file.lower().endswith('.rtf'):
         docs1 = UnstructuredRTFLoader(file).load()
@@ -618,6 +623,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
     elif file.lower().endswith('.md'):
         docs1 = UnstructuredMarkdownLoader(file).load()
         add_meta(docs1, file)
+        docs1 = clean_doc(docs1)
         doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size, language=Language.MARKDOWN)
     elif file.lower().endswith('.enex'):
         docs1 = EverNoteLoader(file).load()
@@ -699,6 +705,8 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             # load() still chunks by pages, but every page has title at start to help
             doc1 = PyPDFLoader(file).load()
         # Some PDFs return nothing or junk from PDFMinerLoader
+        doc1 = clean_doc(doc1)
+        doc1 = chunk_sources(doc1, chunk=chunk, chunk_size=chunk_size)
         add_meta(doc1, file)
     elif file.lower().endswith('.csv'):
         doc1 = CSVLoader(file).load()
@@ -805,7 +813,7 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
         globs_non_image_types = [url]
     elif text:
         globs_non_image_types = [text]
-    elif isinstance(path_or_paths, str):
+    elif isinstance(path_or_paths, str) and os.path.isdir(path_or_paths):
         # single path, only consume allowed files
         path = path_or_paths
         # Below globs should match patterns in file_to_doc()
@@ -814,6 +822,8 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
         [globs_non_image_types.extend(glob.glob(os.path.join(path, "./**/*.%s" % ftype), recursive=True))
          for ftype in non_image_types]
     else:
+        if os.path.isfile(path_or_paths):
+            path_or_paths = [path_or_paths]
         # list/tuple of files (consume what can, and exception those that selected but cannot consume so user knows)
         assert isinstance(path_or_paths, (list, tuple)), "Wrong type for path_or_paths: %s" % type(path_or_paths)
         # reform out of allowed types
@@ -1204,16 +1214,29 @@ def _make_db(use_openai_embedding=False,
     return db, len(new_sources_metadata), new_sources_metadata
 
 
+def get_metadatas(db):
+    from langchain.vectorstores import FAISS
+    if isinstance(db, FAISS):
+        metadatas = [v.metadata for k, v in db.docstore._dict.items()]
+    elif isinstance(db, Chroma):
+        metadatas = db.get()['metadatas']
+    else:
+        # FIXME: Hack due to https://github.com/weaviate/weaviate/issues/1947
+        # seems no way to get all metadata, so need to avoid this approach for weaviate
+        metadatas = [x.metadata for x in db.similarity_search("", k=10000)]
+    return metadatas
+
+
 def get_existing_files(db):
-    collection = db.get()
-    metadata_sources = set([x['source'] for x in collection['metadatas']])
+    metadatas = get_metadatas(db)
+    metadata_sources = set([x['source'] for x in metadatas])
     return metadata_sources
 
 
 def get_existing_hash_ids(db):
-    collection = db.get()
+    metadatas = get_metadatas(db)
     # assume consistency, that any prior hashed source was single hashed file at the time among all source chunks
-    metadata_hash_ids = {x['source']: x.get('hashid') for x in collection['metadatas']}
+    metadata_hash_ids = {x['source']: x.get('hashid') for x in metadatas}
     return metadata_hash_ids
 
 
@@ -1475,13 +1498,24 @@ def get_similarity_chain(query=None,
             docs = []
             scores = []
         elif cmd == DocumentChoices.Only_All_Sources.name:
+            from langchain.vectorstores import FAISS
             if isinstance(db, Chroma):
                 db_get = db._collection.get(where=filter_kwargs.get('filter'))
+                db_metadatas = db_get['metadatas']
+                db_documents = db_get['documents']
+            elif isinstance(db, FAISS):
+                import itertools
+                db_metadatas = get_metadatas(db)
+                # FIXME: FAISS has no filter
+                # slice dict first
+                db_documents = list(dict(itertools.islice(db.docstore._dict.items(), top_k_docs)).values())
             else:
-                db_get = db.get()
+                # FIXME: not implemented
+                db_metadatas = []
+                db_documents = []
             # similar to langchain's chroma's _results_to_docs_and_scores
             docs_with_score = [(Document(page_content=result[0], metadata=result[1] or {}), 0)
-                               for result in zip(db_get['documents'], db_get['metadatas'])][:top_k_docs]
+                               for result in zip(db_documents, db_metadatas)][:top_k_docs]
             docs = [x[0] for x in docs_with_score]
             scores = [x[1] for x in docs_with_score]
         else:
@@ -1590,6 +1624,14 @@ def get_sources_answer(query, answer, scores, show_rank, answer_with_sources, ve
         extra = ''
     ret = answer['output_text'] + extra
     return ret, extra
+
+
+def clean_doc(docs1):
+    if not isinstance(docs1, (list, tuple, types.GeneratorType)):
+        docs1 = [docs1]
+    for doc in docs1:
+        doc.page_content = '\n'.join([x.strip() for x in doc.page_content.split("\n") if x.strip()])
+    return docs1
 
 
 def chunk_sources(sources, chunk=True, chunk_size=512, language=None):
