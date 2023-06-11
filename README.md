@@ -367,11 +367,13 @@ python setup.py sdist bdist_wheel
 ```
 To install all dependencies including GPU support do:
 ```bash
+pip install dist/h2ogpt-0.1.0-py3-none-any.whl
 pip install dist/h2ogpt-0.1.0-py3-none-any.whl[ALL]
 pip install dist/h2ogpt-0.1.0-py3-none-any.whl[GPU]
 ```
 replace `0.1.0` with actual version built if more than one. Or for CPU mode do:
 ```bash
+pip install dist/h2ogpt-0.1.0-py3-none-any.whl
 pip install dist/h2ogpt-0.1.0-py3-none-any.whl[ALL]
 pip install dist/h2ogpt-0.1.0-py3-none-any.whl[CPU]
 ```

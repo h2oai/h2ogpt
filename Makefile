@@ -17,6 +17,9 @@ clean:
 venv:
 	$(PYTHON_BINARY) -m virtualenv -p $(PYTHON_BINARY) venv
 
+install:
+	$(PYTHON_BINARY) -m pip install dist/h2ogpt-$(PACKAGE_VERSION)-py3-none-any.whl
+
 install-%:
 	$(PYTHON_BINARY) -m pip install dist/h2ogpt-$(PACKAGE_VERSION)-py3-none-any.whl[$*]
 
@@ -24,7 +27,10 @@ dist:
 	$(PYTHON_BINARY) setup.py bdist_wheel
 
 test:
-	$(PYTHON_BINARY) -m pytest tests --junit-xml=test_report.xml
+	$(PYTHON_BINARY) -m pytest tests --disable-warnings --junit-xml=test_report.xml
+
+test_imports:
+	$(PYTHON_BINARY) -m pytest tests tests/test_imports.py --disable-warnings --junit-xml=test_report.xml
 
 publish:
 	echo "Publishing not implemented yet."
