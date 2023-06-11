@@ -4,7 +4,6 @@ from enums import PromptType  # also supports imports from this file from other 
 
 non_hf_types = ['gpt4all_llama', 'llama', 'gptj']
 
-
 prompt_type_to_model_name = {
     'plain': [
         'EleutherAI/gpt-j-6B',
@@ -433,37 +432,37 @@ def generate_prompt(data_point, prompt_type, prompt_dict, chat, reduced):
 
     if instruction and PreInstruct is not None and input and PreInput is not None:
         prompt += f"""{PreInstruct}{instruction}{PreInput}{input}"""
-        prompt = inject_newline(prompt_type, prompt)
+        prompt = inject_chatsep(prompt_type, prompt, chat_sep=chat_sep)
     elif instruction and input and PreInstruct is None and PreInput is not None:
         prompt += f"""{PreInput}{instruction}
 {input}"""
-        prompt = inject_newline(prompt_type, prompt)
+        prompt = inject_chatsep(prompt_type, prompt, chat_sep=chat_sep)
     elif input and instruction and PreInput is None and PreInstruct is not None:
         prompt += f"""{PreInstruct}{instruction}
 {input}"""
-        prompt = inject_newline(prompt_type, prompt)
+        prompt = inject_chatsep(prompt_type, prompt, chat_sep=chat_sep)
     elif instruction and PreInstruct is not None:
         prompt += f"""{PreInstruct}{instruction}"""
-        prompt = inject_newline(prompt_type, prompt)
+        prompt = inject_chatsep(prompt_type, prompt, chat_sep=chat_sep)
     elif input and PreInput is not None:
         prompt += f"""{PreInput}{input}"""
-        prompt = inject_newline(prompt_type, prompt)
+        prompt = inject_chatsep(prompt_type, prompt, chat_sep=chat_sep)
     elif input and instruction and PreInput is not None:
         prompt += f"""{PreInput}{instruction}{input}"""
-        prompt = inject_newline(prompt_type, prompt)
+        prompt = inject_chatsep(prompt_type, prompt, chat_sep=chat_sep)
     elif input and instruction and PreInstruct is not None:
         prompt += f"""{PreInstruct}{instruction}{input}"""
-        prompt = inject_newline(prompt_type, prompt)
+        prompt = inject_chatsep(prompt_type, prompt, chat_sep=chat_sep)
     elif input and instruction:
         # i.e. for simple_instruct
         prompt += f"""{instruction}: {input}"""
-        prompt = inject_newline(prompt_type, prompt)
+        prompt = inject_chatsep(prompt_type, prompt, chat_sep=chat_sep)
     elif input:
         prompt += f"""{input}"""
-        prompt = inject_newline(prompt_type, prompt)
+        prompt = inject_chatsep(prompt_type, prompt, chat_sep=chat_sep)
     elif instruction:
         prompt += f"""{instruction}"""
-        prompt = inject_newline(prompt_type, prompt)
+        prompt = inject_chatsep(prompt_type, prompt, chat_sep=chat_sep)
 
     if PreResponse is not None:
         prompt += f"""{PreResponse}"""
@@ -477,10 +476,10 @@ def generate_prompt(data_point, prompt_type, prompt_dict, chat, reduced):
     return prompt, pre_response, terminate_response, chat_sep
 
 
-def inject_newline(prompt_type, prompt):
-    if prompt_type not in [-1, '-1', 'plain', 'simple_instruct']:
+def inject_chatsep(prompt_type, prompt, chat_sep=None):
+    if chat_sep:
         # only add new line if structured prompt, while 'plain' is just generation of next tokens from input
-        prompt += '\n'
+        prompt += chat_sep
     return prompt
 
 
