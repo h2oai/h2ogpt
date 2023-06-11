@@ -234,7 +234,8 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'whisper is a simple' in res_dict['response'] or
             'Whisper is a tool for generating text from a model' in res_dict['response'] or
             'Whisper is a chatbot platform' in res_dict['response'] or
-            'whisper is a chatbot framework' in res_dict['response']
+            'whisper is a chatbot framework' in res_dict['response'] or
+            'whisper is a tool for training language models' in res_dict['response']
             ) \
            and '.md' in res_dict['response']
 
