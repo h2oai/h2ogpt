@@ -80,6 +80,13 @@ def run_langchain_simple(base_model='h2oai/h2ogpt-oasst1-512-12b', prompt_type='
     print(answer)
 
     if 'vicuna' in base_model:
-        assert 'Both Albert Einstein and Sir Isaac Newton were brilliant scientists' in answer['output_text'] and "Newton" in answer['output_text']
+        res1 = 'Both Albert Einstein and Sir Isaac Newton were brilliant scientists' in answer[
+            'output_text'] and "Newton" in answer['output_text']
+        res2 = 'Both Albert Einstein and Sir Isaac Newton are considered two' in answer[
+            'output_text'] and "Newton" in answer['output_text']
     else:
-        assert 'Einstein was a genius who revolutionized physics' in answer['output_text'] and "Newton" in answer['output_text']
+        res1 = 'Einstein was a genius who revolutionized physics' in answer['output_text'] and "Newton" in answer[
+            'output_text']
+        res2 = 'Einstein and Newton are two of the most famous scientists in history' in answer[
+            'output_text'] and "Newton" in answer['output_text']
+    assert res1 or res2

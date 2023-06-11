@@ -28,3 +28,9 @@ dist
 .local
 .bash_history
 .benchmarks
+
+# IDEs
+.idea/
+
+# virtual envs
+venv

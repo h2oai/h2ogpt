@@ -48,6 +48,8 @@ import markdown  # pip install markdown
 import pytest
 from bs4 import BeautifulSoup  # pip install beautifulsoup4
 
+from enums import DocumentChoices
+
 debug = False
 
 os.environ['HF_HUB_DISABLE_TELEMETRY'] = '1'
@@ -62,7 +64,10 @@ def get_client(serialize=True):
     return client
 
 
-def get_args(prompt, prompt_type, chat=False, stream_output=False, max_new_tokens=50, langchain_mode='Disabled'):
+def get_args(prompt, prompt_type, chat=False, stream_output=False,
+             max_new_tokens=50,
+             top_k_docs=3,
+             langchain_mode='Disabled'):
     from collections import OrderedDict
     kwargs = OrderedDict(instruction=prompt if chat else '',  # only for chat=True
                          iinput='',  # only for chat=True
@@ -87,10 +92,10 @@ def get_args(prompt, prompt_type, chat=False, stream_output=False, max_new_token
                          instruction_nochat=prompt if not chat else '',
                          iinput_nochat='',  # only for chat=False
                          langchain_mode=langchain_mode,
-                         top_k_docs=4,
+                         top_k_docs=top_k_docs,
                          chunk=True,
                          chunk_size=512,
-                         document_choice=['All'],
+                         document_choice=[DocumentChoices.All_Relevant.name],
                          )
     if chat:
         # add chatbot output on end.  Assumes serialize=False
@@ -115,8 +120,7 @@ def run_client_nochat(prompt, prompt_type, max_new_tokens):
     )
     print("Raw client result: %s" % res, flush=True)
     res_dict = dict(prompt=kwargs['instruction_nochat'], iinput=kwargs['iinput_nochat'],
-                    response=md_to_text(ast.literal_eval(res)['response']),
-                    sources=ast.literal_eval(res)['sources'])
+                    response=md_to_text(res))
     print(res_dict)
     return res_dict
 
@@ -137,6 +141,73 @@ def run_client_nochat_api(prompt, prompt_type, max_new_tokens):
     )
     print("Raw client result: %s" % res, flush=True)
     res_dict = dict(prompt=kwargs['instruction_nochat'], iinput=kwargs['iinput_nochat'],
+                    response=md_to_text(ast.literal_eval(res)['response']),
+                    sources=ast.literal_eval(res)['sources'])
+    print(res_dict)
+    return res_dict
+
+
+@pytest.mark.skip(reason="For manual use against some server, no server launched")
+def test_client_basic_api_lean():
+    return run_client_nochat_api_lean(prompt='Who are you?', prompt_type='human_bot', max_new_tokens=50)
+
+
+def run_client_nochat_api_lean(prompt, prompt_type, max_new_tokens):
+    kwargs = dict(instruction_nochat=prompt)
+
+    api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
+    client = get_client(serialize=True)
+    res = client.predict(
+        str(dict(kwargs)),
+        api_name=api_name,
+    )
+    print("Raw client result: %s" % res, flush=True)
+    res_dict = dict(prompt=kwargs['instruction_nochat'],
+                    response=md_to_text(ast.literal_eval(res)['response']),
+                    sources=ast.literal_eval(res)['sources'])
+    print(res_dict)
+    return res_dict
+
+
+@pytest.mark.skip(reason="For manual use against some server, no server launched")
+def test_client_basic_api_lean_morestuff():
+    return run_client_nochat_api_lean_morestuff(prompt='Who are you?', prompt_type='human_bot', max_new_tokens=50)
+
+
+def run_client_nochat_api_lean_morestuff(prompt, prompt_type, max_new_tokens):
+    kwargs = dict(
+        instruction='',
+        iinput='',
+        context='',
+        stream_output=False,
+        prompt_type='human_bot',
+        temperature=0.1,
+        top_p=0.75,
+        top_k=40,
+        num_beams=1,
+        max_new_tokens=256,
+        min_new_tokens=0,
+        early_stopping=False,
+        max_time=20,
+        repetition_penalty=1.0,
+        num_return_sequences=1,
+        do_sample=True,
+        chat=False,
+        instruction_nochat=prompt,
+        iinput_nochat='',
+        langchain_mode='Disabled',
+        top_k_docs=4,
+        document_choice=['All'],
+    )
+
+    api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
+    client = get_client(serialize=True)
+    res = client.predict(
+        str(dict(kwargs)),
+        api_name=api_name,
+    )
+    print("Raw client result: %s" % res, flush=True)
+    res_dict = dict(prompt=kwargs['instruction_nochat'],
                     response=md_to_text(ast.literal_eval(res)['response']),
                     sources=ast.literal_eval(res)['sources'])
     print(res_dict)
@@ -202,3 +273,6 @@ def md_to_text(md, do_md_to_text=True):
 
 if __name__ == '__main__':
     test_client_basic()
+    test_client_basic_api()
+    test_client_basic_api_lean()
+    test_client_basic_api_lean_morestuff()

@@ -3,8 +3,10 @@ import shutil
 import tempfile
 
 import pytest
+
+from gpt_langchain import get_persist_directory
 from tests.utils import wrap_test_forked
-from utils import zip_data, download_simple, get_ngpus_vis, get_mem_gpus, have_faiss
+from utils import zip_data, download_simple, get_ngpus_vis, get_mem_gpus, have_faiss, remove, get_kwargs
 
 have_openai_key = os.environ.get('OPENAI_API_KEY') is not None
 
@@ -155,12 +157,76 @@ def test_qa_daidocs_db_chunk_hf_faiss():
 @wrap_test_forked
 @pytest.mark.parametrize("db_type", db_types)
 def test_qa_daidocs_db_chunk_hf_dbs(db_type):
+    langchain_mode = 'DriverlessAI docs'
+    persist_directory = get_persist_directory(langchain_mode)
+    remove(persist_directory)
     from gpt_langchain import _run_qa_db
     query = "Which config.toml enables pytorch for NLP?"
     # chunk_size is chars for each of k=4 chunks
     ret = _run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=None, chunk=True,
                      chunk_size=128 * 1,  # characters, and if k=4, then 4*4*128 = 2048 chars ~ 512 tokens
-                     langchain_mode='DriverlessAI docs',
+                     langchain_mode=langchain_mode,
+                     db_type=db_type,
+                     )
+    check_ret(ret)
+
+
+@wrap_test_forked
+@pytest.mark.parametrize("db_type", ['chroma'])
+def test_qa_daidocs_db_chunk_hf_dbs_switch_embedding(db_type):
+    # need to get model externally, so don't OOM
+    from generate import get_model
+    base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
+    prompt_type = 'human_bot'
+    all_kwargs = dict(load_8bit=False,
+                      load_4bit=False,
+                      load_half=True,
+                      infer_devices=True,
+                      base_model=base_model,
+                      tokenizer_base_model=base_model,
+                      lora_weights='',
+                      gpu_id=0,
+
+                      reward_type=False,
+                      local_files_only=False,
+                      resume_download=True,
+                      use_auth_token=False,
+                      trust_remote_code=True,
+                      offload_folder=None,
+                      compile_model=True,
+
+                      verbose=False)
+    model, tokenizer, device = get_model(reward_type=False,
+                                         **get_kwargs(get_model, exclude_names=['reward_type'], **all_kwargs))
+
+    langchain_mode = 'DriverlessAI docs'
+    persist_directory = get_persist_directory(langchain_mode)
+    remove(persist_directory)
+    from gpt_langchain import _run_qa_db
+    query = "Which config.toml enables pytorch for NLP?"
+    # chunk_size is chars for each of k=4 chunks
+    ret = _run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False,
+                     hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
+                     model=model,
+                     tokenizer=tokenizer,
+                     prompt_type=prompt_type,
+                     text_limit=None, chunk=True,
+                     chunk_size=128 * 1,  # characters, and if k=4, then 4*4*128 = 2048 chars ~ 512 tokens
+                     langchain_mode=langchain_mode,
+                     db_type=db_type,
+                     )
+    check_ret(ret)
+
+    query = "Which config.toml enables pytorch for NLP?"
+    # chunk_size is chars for each of k=4 chunks
+    ret = _run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False,
+                     hf_embedding_model='hkunlp/instructor-large',
+                     model=model,
+                     tokenizer=tokenizer,
+                     prompt_type=prompt_type,
+                     text_limit=None, chunk=True,
+                     chunk_size=128 * 1,  # characters, and if k=4, then 4*4*128 = 2048 chars ~ 512 tokens
+                     langchain_mode=langchain_mode,
                      db_type=db_type,
                      )
     check_ret(ret)

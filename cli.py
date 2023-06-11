@@ -52,11 +52,10 @@ def run_cli(  # for local function:
                       **get_kwargs(evaluate, exclude_names=['model_state', 'my_db_state'] + eval_func_param_names,
                                    **locals()))
 
-        clear_torch_cache()
-
         example1 = examples[-1]  # pick reference example
         all_generations = []
         while True:
+            clear_torch_cache()
             instruction = input("\nEnter an instruction: ")
             if instruction == "exit":
                 break

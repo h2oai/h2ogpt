@@ -6,12 +6,13 @@ from prompter import PromptType
 
 class StoppingCriteriaSub(StoppingCriteria):
 
-    def __init__(self, stops=[], encounters=[], device="cuda"):
+    def __init__(self, stops=[], encounters=[], device="cuda", model_max_length=None):
         super().__init__()
         assert len(stops) % len(encounters) == 0, "Number of stops and encounters must match"
         self.encounters = encounters
         self.stops = [stop.to(device) for stop in stops]
         self.num_stops = [0] * len(stops)
+        self.model_max_length = model_max_length
 
     def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor, **kwargs) -> bool:
         for stopi, stop in enumerate(self.stops):
@@ -20,12 +21,15 @@ class StoppingCriteriaSub(StoppingCriteria):
                 if self.num_stops[stopi] >= self.encounters[stopi % len(self.encounters)]:
                     # print("Stopped", flush=True)
                     return True
+        if self.model_max_length is not None and input_ids[0].shape[0] >= self.model_max_length:
+            # critical limit
+            return True
         # print("Tokens: %s" % input_ids[0].cpu().numpy(), flush=True)
         # print("Stop Tokens: %s" % [x.cpu().numpy() for x in self.stops], flush=True)
         return False
 
 
-def get_stopping(prompt_type, prompt_dict, tokenizer, device, human='<human>:', bot="<bot>:"):
+def get_stopping(prompt_type, prompt_dict, tokenizer, device, human='<human>:', bot="<bot>:", model_max_length=None):
     # FIXME: prompt_dict unused currently
     if prompt_type in [PromptType.human_bot.name, PromptType.instruct_vicuna.name, PromptType.instruct_with_end.name]:
         if prompt_type == PromptType.human_bot.name:
@@ -67,7 +71,8 @@ def get_stopping(prompt_type, prompt_dict, tokenizer, device, human='<human>:', 
         stop_words_ids = [x[1:] if y[0] == '\n' else x for x, y in zip(stop_words_ids, stop_words)]
         # build stopper
         stopping_criteria = StoppingCriteriaList(
-            [StoppingCriteriaSub(stops=stop_words_ids, encounters=encounters, device=device)])
+            [StoppingCriteriaSub(stops=stop_words_ids, encounters=encounters, device=device,
+                                 model_max_length=model_max_length)])
     else:
         stopping_criteria = StoppingCriteriaList()
     return stopping_criteria

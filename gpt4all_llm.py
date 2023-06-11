@@ -240,6 +240,8 @@ class H2OLlamaCpp(LlamaCpp):
     ) -> str:
         verbose = False
         # tokenize twice, just to count tokens, since llama cpp python wrapper has no way to truncate
+        # still have to avoid crazy sizes, else hit llama_tokenize: too many tokens -- might still hit, not fatal
+        prompt = prompt[-self.n_ctx * 4:]
         prompt_tokens = self.client.tokenize(b" " + prompt.encode("utf-8"))
         num_prompt_tokens = len(prompt_tokens)
         if num_prompt_tokens > self.n_ctx:
