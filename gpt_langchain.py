@@ -1227,6 +1227,19 @@ def get_metadatas(db):
     return metadatas
 
 
+def get_documents(db):
+    from langchain.vectorstores import FAISS
+    if isinstance(db, FAISS):
+        documents = [v for k, v in db.docstore._dict.items()]
+    elif isinstance(db, Chroma):
+        documents = db.get()
+    else:
+        # FIXME: Hack due to https://github.com/weaviate/weaviate/issues/1947
+        # seems no way to get all metadata, so need to avoid this approach for weaviate
+        documents = [x for x in db.similarity_search("", k=10000)]
+    return documents
+
+
 def get_existing_files(db):
     metadatas = get_metadatas(db)
     metadata_sources = set([x['source'] for x in metadatas])
@@ -1510,9 +1523,8 @@ def get_similarity_chain(query=None,
                 # slice dict first
                 db_documents = list(dict(itertools.islice(db.docstore._dict.items(), top_k_docs)).values())
             else:
-                # FIXME: not implemented
-                db_metadatas = []
-                db_documents = []
+                db_metadatas = get_metadatas(db)
+                db_documents = get_documents(db)
             # similar to langchain's chroma's _results_to_docs_and_scores
             docs_with_score = [(Document(page_content=result[0], metadata=result[1] or {}), 0)
                                for result in zip(db_documents, db_metadatas)][:top_k_docs]
