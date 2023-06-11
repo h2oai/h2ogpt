@@ -49,10 +49,9 @@ sudo apt-get -y install cuda
 
 Then set the system up to use the freshly installed CUDA location:
 ```bash
-echo "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64/" >> ~/.bashrc
-echo "CUDA_HOME=/usr/local/cuda" >> ~/.bashrc
-echo "export PATH=$PATH:/usr/local/cuda/bin/" >> ~/.bashrc
-echo "conda activate h2ogpt" >> ~/.bashrc
+echo "export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:/usr/local/cuda/lib64/" >> ~/.bashrc
+echo "export CUDA_HOME=/usr/local/cuda" >> ~/.bashrc
+echo "export PATH=\$PATH:/usr/local/cuda/bin/" >> ~/.bashrc
 source ~/.bashrc
 conda activate h2ogpt
 ```
