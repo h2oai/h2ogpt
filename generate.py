@@ -511,6 +511,7 @@ def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward
         if issubclass(config.__class__, tuple(AutoModel._model_mapping.keys())):
             model = AutoModel.from_config(
                 config,
+                trust_remote_code=trust_remote_code,
             )
         else:
             # can't infer
