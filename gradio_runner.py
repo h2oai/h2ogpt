@@ -1576,7 +1576,7 @@ def go_gradio(**kwargs):
         count_chat_tokens_btn.click(fn=count_chat_tokens, inputs=[model_state, text_output, prompt_type, prompt_dict],
                                     outputs=chat_token_count, api_name='count_tokens' if allow_api else None)
 
-        demo.load(None, None, None, _js=get_dark_js() if kwargs['h2ocolors'] else None)
+        demo.load(None, None, None, _js=get_dark_js() if kwargs['h2ocolors'] and False else None)  # light best
 
     demo.queue(concurrency_count=kwargs['concurrency_count'], api_open=kwargs['api_open'])
     favicon_path = "h2o-logo.svg"
