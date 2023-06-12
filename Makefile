@@ -30,7 +30,7 @@ test:
 	$(PYTHON_BINARY) -m pytest tests --disable-warnings --junit-xml=test_report.xml
 
 test_imports:
-	$(PYTHON_BINARY) -m pytest tests tests/test_imports.py --disable-warnings --junit-xml=test_report.xml
+	$(PYTHON_BINARY) -m pytest tests/test_imports.py --disable-warnings --junit-xml=test_report.xml
 
 publish:
 	echo "Publishing not implemented yet."

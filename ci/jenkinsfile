@@ -83,7 +83,7 @@ pipeline {
                                         script {
                                             try {
                                                 dir("${testName}") {
-                                                    withEnv(ALL_TESTS[testName].env + ["PYTEST_TEST_NAME=_${testName}", "IS_PR_BUILD=${isPrBranch()}"]) {
+                                                    withEnv(ALL_TESTS[testName].env + ["PYTEST_TEST_NAME=_${testName}", "IS_PR_BUILD=${isPrBranch()}", "USE_WHEEL=1"]) {
 
                                                         // cleanup and force the use of the installed wheel
                                                         deleteDir()

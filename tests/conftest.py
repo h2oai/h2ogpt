@@ -4,7 +4,7 @@ import importlib.util
 
 
 def pytest_itemcollected(item):
-    item.name = item.name + os.getenv("PYTEST_TEST_NAME", "")
+    item._nodeid = item.nodeid + os.getenv("PYTEST_TEST_NAME", "")
 
 
 def pytest_sessionstart(session):
