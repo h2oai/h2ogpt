@@ -297,6 +297,7 @@ def test_make_add_db(repeat, db_type):
     from gradio_runner import get_source_files, get_source_files_given_langchain_mode, get_db, update_user_db, \
         get_sources, update_and_get_source_files_given_langchain_mode
     from make_db import make_db_main
+    from gpt_langchain import path_to_docs
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
             with tempfile.TemporaryDirectory() as tmp_persistent_directory_my:
@@ -357,7 +358,8 @@ def test_make_add_db(repeat, db_type):
                                   enable_ocr=False,
                                   verbose=False,
                                   is_url=False, is_txt=False)
-                    db1out, x, y, source_files_added = update_user_db(test_file2_my, db1, 'foo', 'bar', chunk, chunk_size,
+                    db1out, x, y, source_files_added = update_user_db(test_file2_my, db1, 'foo', 'bar', chunk,
+                                                                      chunk_size,
                                                                       dbs=None, db_type=db_type,
                                                                       langchain_mode='MyData',
                                                                       **kwargs)
@@ -379,6 +381,12 @@ def test_make_add_db(repeat, db_type):
                     update_and_get_source_files_given_langchain_mode(None, langchain_mode, dbs={langchain_mode: db},
                                                                      **kwargs2)
                     update_and_get_source_files_given_langchain_mode(db1, 'MyData', dbs=None, **kwargs2)
+
+                    assert path_to_docs(test_file2_my)[0].metadata['source'] == test_file2_my
+                    assert os.path.normpath(
+                        path_to_docs(os.path.dirname(test_file2_my))[1].metadata['source']) == os.path.normpath(
+                        os.path.abspath(test_file2_my))
+                    assert path_to_docs([test_file1, test_file2, test_file2_my])[0].metadata['source'] == test_file1
 
                 if db_type == 'faiss':
                     # doesn't persist
