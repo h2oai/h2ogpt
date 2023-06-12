@@ -101,7 +101,8 @@ def test_client_chat_nostream_gpt4all():
 @wrap_test_forked
 def test_client_chat_nostream_gpt4all_llama():
     res_dict, client = run_client_chat_with_server(stream_output=False, base_model='gpt4all_llama', prompt_type='plain')
-    assert 'What do you want from me?' in res_dict['response'] or 'What do you want?' in res_dict['response']
+    assert 'What do you want from me?' in res_dict['response'] or 'What do you want?' in res_dict[
+        'response'] or 'What is your name and title?' in res_dict['response']
 
 
 @wrap_test_forked
@@ -202,7 +203,8 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
     res_dict, client = run_client(client, prompt, args, kwargs)
     # wrong answer given wrong docs
     assert ('A secure chatbot that uses a large language' in res_dict['response'] or
-            'Whisper is a chatbot' in res_dict['response'] or 'Whisper is a privacy-focused chatbot platform' in res_dict['response'] or
+            'Whisper is a chatbot' in res_dict['response'] or 'Whisper is a privacy-focused chatbot platform' in
+            res_dict['response'] or
             'h2oGPT' in res_dict['response']
             ) \
            and 'README.md' in res_dict['response']

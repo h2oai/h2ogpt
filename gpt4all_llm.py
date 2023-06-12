@@ -114,7 +114,7 @@ def get_llm_gpt4all(model_name,
     if model_name == 'llama':
         cls = H2OLlamaCpp
         model_path = env_kwargs.pop('model_path_llama') if model is None else model
-        model_kwargs = get_model_kwargs(env_kwargs, default_kwargs, cls)
+        model_kwargs = get_model_kwargs(env_kwargs, default_kwargs, cls, exclude_list=['lc_kwargs'])
         model_kwargs.update(dict(model_path=model_path, callbacks=callbacks))
         llm = cls(**model_kwargs)
         llm.client.verbose = verbose
