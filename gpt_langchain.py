@@ -41,7 +41,7 @@ from langchain.chains.qa_with_sources import load_qa_with_sources_chain
 from langchain.document_loaders import PyPDFLoader, TextLoader, CSVLoader, PythonLoader, TomlLoader, \
     UnstructuredURLLoader, UnstructuredHTMLLoader, UnstructuredWordDocumentLoader, UnstructuredMarkdownLoader, \
     EverNoteLoader, UnstructuredEmailLoader, UnstructuredODTLoader, UnstructuredPowerPointLoader, \
-    UnstructuredEPubLoader, UnstructuredImageLoader, UnstructuredRTFLoader, ArxivLoader
+    UnstructuredEPubLoader, UnstructuredImageLoader, UnstructuredRTFLoader, ArxivLoader, UnstructuredPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter, Language
 from langchain.chains.question_answering import load_qa_chain
 from langchain.docstore.document import Document
@@ -700,6 +700,8 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             from langchain.document_loaders import PyMuPDFLoader
             # load() still chunks by pages, but every page has title at start to help
             doc1 = PyMuPDFLoader(file).load()
+        elif pdf_class_name == 'UnstructuredPDFLoader':
+            doc1 = UnstructuredPDFLoader(file).load()
         else:
             # open-source fallback
             # load() still chunks by pages, but every page has title at start to help
@@ -822,10 +824,11 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
         [globs_non_image_types.extend(glob.glob(os.path.join(path, "./**/*.%s" % ftype), recursive=True))
          for ftype in non_image_types]
     else:
-        if os.path.isfile(path_or_paths):
+        if isinstance(path_or_paths, str) and os.path.isfile(path_or_paths):
             path_or_paths = [path_or_paths]
         # list/tuple of files (consume what can, and exception those that selected but cannot consume so user knows)
-        assert isinstance(path_or_paths, (list, tuple)), "Wrong type for path_or_paths: %s" % type(path_or_paths)
+        assert isinstance(path_or_paths, (list, tuple, types.GeneratorType)), "Wrong type for path_or_paths: %s" % type(
+            path_or_paths)
         # reform out of allowed types
         globs_image_types.extend(flatten_list([[x for x in path_or_paths if x.endswith(y)] for y in image_types]))
         # could do below:
