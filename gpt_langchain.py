@@ -700,14 +700,16 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             from langchain.document_loaders import PyMuPDFLoader
             # load() still chunks by pages, but every page has title at start to help
             doc1 = PyMuPDFLoader(file).load()
+            doc1 = clean_doc(doc1)
         elif pdf_class_name == 'UnstructuredPDFLoader':
             doc1 = UnstructuredPDFLoader(file).load()
+            # seems to not need cleaning in most cases
         else:
             # open-source fallback
             # load() still chunks by pages, but every page has title at start to help
             doc1 = PyPDFLoader(file).load()
+            doc1 = clean_doc(doc1)
         # Some PDFs return nothing or junk from PDFMinerLoader
-        doc1 = clean_doc(doc1)
         doc1 = chunk_sources(doc1, chunk=chunk, chunk_size=chunk_size)
         add_meta(doc1, file)
     elif file.lower().endswith('.csv'):
