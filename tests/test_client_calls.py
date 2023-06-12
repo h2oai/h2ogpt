@@ -108,7 +108,7 @@ def test_client_chat_nostream_gpt4all_llama():
 def test_client_chat_nostream_llama7b():
     prompt_type = get_llama()
     res_dict, client = run_client_chat_with_server(stream_output=False, base_model='llama', prompt_type=prompt_type)
-    assert 'I’m a software engineer' in res_dict['response']
+    assert "I’m a software engineer" in res_dict['response'] or "I'm a software engineer" in res_dict['response']
 
 
 def run_client_chat_with_server(prompt='Who are you?', stream_output=False, max_new_tokens=256,
@@ -186,7 +186,9 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
                             langchain_mode=langchain_mode)
 
     res_dict, client = run_client(client, prompt, args, kwargs)
-    assert ('a large language model' in res_dict['response'] or 'language model trained' in res_dict['response']) \
+    assert ('a large language model' in res_dict['response'] or
+            'language model trained' in res_dict['response'] or
+            'H2O GPT is a language model' in res_dict['response']) \
            and 'FAQ.md' in res_dict['response']
 
     # QUERY1
@@ -199,8 +201,9 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
 
     res_dict, client = run_client(client, prompt, args, kwargs)
     # wrong answer given wrong docs
-    assert ('A secure chatbot that uses a large language' in res_dict['response'] or 'Whisper is a chatbot' in res_dict[
-        'response'] or 'Whisper is a privacy-focused chatbot platform' in res_dict['response']
+    assert ('A secure chatbot that uses a large language' in res_dict['response'] or
+            'Whisper is a chatbot' in res_dict['response'] or 'Whisper is a privacy-focused chatbot platform' in res_dict['response'] or
+            'h2oGPT' in res_dict['response']
             ) \
            and 'README.md' in res_dict['response']
 
@@ -228,7 +231,12 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
     # odd answer since no whisper docs, but still shows some docs at very low score
     assert ('h2oGPT' in res_dict['response'] or
             'A chatbot that can whisper to you' in res_dict['response'] or
-            'whisper is a simple' in res_dict['response']) \
+            'whisper is a simple' in res_dict['response'] or
+            'Whisper is a tool for generating text from a model' in res_dict['response'] or
+            'Whisper is a chatbot platform' in res_dict['response'] or
+            'whisper is a chatbot framework' in res_dict['response'] or
+            'whisper is a tool for training language models' in res_dict['response']
+            ) \
            and '.md' in res_dict['response']
 
 

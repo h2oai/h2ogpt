@@ -40,10 +40,10 @@ Turn ★ into ⭐ (top-right corner) if you like the project!
 ### Try h2oGPT now 
 
 Live hosted instances:
-- [![img-small.png](docs/img-small.png) h2oGPT 12B](https://gpt.h2o.ai/)
+- [![img-small.png](docs/img-small.png) h2oGPT Falcon 40B](https://gpt.h2o.ai/)
+- [![img-small.png](docs/img-small.png) h2oGPT Falcon 40B](http://falcon.h2o.ai)
 - [🤗 h2oGPT 12B #1](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot)
 - [🤗 h2oGPT 12B #2](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot2)
-- [![img-small.png](docs/img-small.png) h2oGPT Falcon 40B](http://falcon.h2o.ai)
 <!--  - [![img-small.png](docs/img-small.png) Latest LangChain-enabled h2oGPT (temporary link) 12B](https://0756a80f3de3f98413.gradio.live) -->
 <!--  - [![img-small.png](docs/img-small.png) Latest LangChain-enabled h2oGPT (temporary link) 12B](https://0f3a3869de5fb3b6b5.gradio.live) -->
 <!--  - [![img-small.png](docs/img-small.png) Latest LangChain-enabled h2oGPT (temporary link) 12B](https://32a0109ace8028ce1a.gradio.live) -->
@@ -111,7 +111,11 @@ Also check out [H2O LLM Studio](https://github.com/h2oai/h2o-llmstudio) for our 
 
 ### Getting Started
 
-First one needs a Python 3.10 environment.  For help installing a Python 3.10 environment, see [Install Python 3.10 Environment](docs/INSTALL.md#install-python-environment).  Check your installation by doing:
+First one needs a Python 3.10 environment.  For help installing a Python 3.10 environment, see [Install Python 3.10 Environment](docs/INSTALL.md#install-python-environment).  On newer Ubuntu systems and environment may be installed by just doing:
+```bash
+sudo apt-get install -y build-essential gcc python3.10-dev
+```
+Check your installation by doing:
 ```bash
 python --version # should say 3.10.xx
 pip --version  # should say pip 23.x.y ... (python 3.10)
@@ -120,14 +124,14 @@ On some systems, `pip` still refers back to the system one, then one can use `py
 
 #### TLDR
 
-After environment installed:
+After Python 3.10 environment installed:
 ```bash
 git clone https://github.com/h2oai/h2ogpt.git
 cd h2ogpt
 # broad support, but no training-time or data creation dependencies
 for fil in requirements.txt reqs_optional/requirements_optional_langchain.txt reqs_optional/requirements_optional_gpt4all.txt reqs_optional/requirements_optional_langchain.gpllike.txt ; do pip install -r $fil ; done
 # Optional: support docx, pptx, ArXiv, etc.
-sudo apt-get install -y libmagic-dev poppler-utils tesseract-ocr tesseract-ocr libreoffice
+sudo apt-get install -y libmagic-dev poppler-utils tesseract-ocr libreoffice
 # Optional: for supporting unstructured package
 python -m nltk.downloader all
 ````

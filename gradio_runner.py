@@ -13,6 +13,9 @@ import pandas as pd
 import requests
 import tabulate
 
+from gradio_ui.css import get_css
+from gradio_ui.prompt_form import make_prompt_form
+
 # This is a hack to prevent Gradio from phoning home when it gets imported
 os.environ['GRADIO_ANALYTICS_ENABLED'] = 'False'
 
@@ -41,6 +44,20 @@ from generate import get_model, languages_covered, evaluate, eval_func_param_nam
     eval_func_param_names_defaults, get_max_max_new_tokens
 
 from apscheduler.schedulers.background import BackgroundScheduler
+
+
+def fix_newlines(text):
+    return text  # let Gradio handle code, since got improved recently
+
+    ## FIXME: below conflicts with Gradio, but need to see if can handle multiple \n\n\n etc. properly as is.
+    # ensure good visually, else markdown ignores multiple \n
+    # handle code blocks
+    ts = text.split('```')
+    for parti, part in enumerate(ts):
+        inside = parti % 2 == 1
+        if not inside:
+            ts[parti] = ts[parti].replace('\n', '<br>')
+    return '```'.join(ts)
 
 
 def go_gradio(**kwargs):
@@ -77,10 +94,6 @@ def go_gradio(**kwargs):
     else:
         instruction_label_nochat = "Instruction (Shift-Enter or push Submit to send message," \
                                    " use Enter for multiple input lines)"
-    if kwargs['input_lines'] > 1:
-        instruction_label = "You (Shift-Enter or push Submit to send message, use Enter for multiple input lines)"
-    else:
-        instruction_label = "You (Enter or push Submit to send message, shift-enter for more lines)"
 
     title = 'h2oGPT'
     if 'h2ogpt-research' in kwargs['base_model']:
@@ -96,7 +109,7 @@ def go_gradio(**kwargs):
                       """
     else:
         description = more_info
-    description += "If this host is busy, try [12B](https://gpt.h2o.ai), [Falcon 40B](http://falcon.h2o.ai), [HF Spaces1 12B](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot) or [HF Spaces2 12B](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot2)<br>"
+    description += "If this host is busy, try [Falcon 40B](https://gpt.h2o.ai), [Falcon 40B](http://falcon.h2o.ai), [HF Spaces1 12B](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot) or [HF Spaces2 12B](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot2)<br>"
     description += """<p>By using h2oGPT, you accept our [Terms of Service](https://github.com/h2oai/h2ogpt/blob/main/docs/tos.md)</p>"""
     if is_hf:
         description += '''<a href="https://huggingface.co/spaces/h2oai/h2ogpt-chatbot?duplicate=true"><img src="https://bit.ly/3gLdBN6" style="white-space: nowrap" alt="Duplicate Space"></a>'''
@@ -107,23 +120,7 @@ def go_gradio(**kwargs):
     else:
         task_info_md = ''
 
-    if kwargs['h2ocolors']:
-        css_code = """footer {visibility: hidden;}
-    body{background:linear-gradient(#f5f5f5,#e5e5e5);}
-    body.dark{background:linear-gradient(#000000,#0d0d0d);}
-    """
-    else:
-        css_code = """footer {visibility: hidden}"""
-    css_code += """
-@import url('https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;600&display=swap');
-body.dark{#warning {background-color: #555555};}
-#small_btn {
-    margin: 0.6em 0em 0.55em 0;
-    max-width: 20em;
-    min-width: 5em !important;
-    height: 5em;
-    font-size: 14px !important
-}"""
+    css_code = get_css(kwargs)
 
     if kwargs['gradio_avoid_processing_markdown']:
         from gradio_client import utils as client_utils
@@ -228,6 +225,7 @@ body.dark{#warning {background-color: #555555};}
         # go button visible if
         base_wanted = kwargs['base_model'] != no_model_str and kwargs['login_mode_if_model0']
         go_btn = gr.Button(value="ENTER", visible=base_wanted, variant="primary")
+
         normal_block = gr.Row(visible=not base_wanted)
         with normal_block:
             with gr.Tabs():
@@ -255,22 +253,16 @@ body.dark{#warning {background-color: #555555};}
                         else:
                             with gr.Column(visible=kwargs['score_model']):
                                 score_text_nochat = gr.Textbox("Response Score: NA", show_label=False)
+
                     col_chat = gr.Column(visible=kwargs['chat'])
                     with col_chat:
                         with gr.Row():
                             text_output = gr.Chatbot(label=output_label0).style(height=kwargs['height'] or 400)
                             text_output2 = gr.Chatbot(label=output_label0_model2, visible=False).style(
                                 height=kwargs['height'] or 400)
-                        with gr.Row():
-                            with gr.Column(scale=50):
-                                instruction = gr.Textbox(
-                                    lines=kwargs['input_lines'],
-                                    label=instruction_label,
-                                    placeholder=kwargs['placeholder_instruction'],
-                                )
-                            with gr.Row():
-                                submit = gr.Button(value='Submit').style(full_width=False, size='sm')
-                                stop_btn = gr.Button(value="Stop").style(full_width=False, size='sm')
+
+                        instruction, submit, stop_btn = make_prompt_form(kwargs)
+
                         with gr.Row():
                             clear = gr.Button("Save Chat / New Chat")
                             flag_btn = gr.Button("Flag")
@@ -792,7 +784,7 @@ body.dark{#warning {background-color: #555555};}
 
         def evaluate_gradio(*args1, **kwargs1):
             for res_dict in evaluate(*args1, **kwargs1):
-                yield '<br>' + res_dict['response'].replace("\n", "<br>")
+                yield '<br>' + fix_newlines(res_dict['response'])
 
         fun = partial(evaluate_gradio,
                       **kwargs_evaluate)
@@ -948,8 +940,7 @@ body.dark{#warning {background-color: #555555};}
                 # e.g. when user just hits enter in textbox,
                 # else will have <human>: <bot>: on single line, which seems to be "ok" for LLM but not usual
                 user_message1 = '\n'
-            # ensure good visually, else markdown ignores multiple \n
-            user_message1 = user_message1.replace('\n', '<br>')
+            user_message1 = fix_newlines(user_message1)
 
             history = args_list[-1]
             if undo and history:
@@ -1074,7 +1065,7 @@ body.dark{#warning {background-color: #555555};}
                     output = output_fun['response']
                     extra = output_fun['sources']  # FIXME: can show sources in separate text box etc.
                     # ensure good visually, else markdown ignores multiple \n
-                    bot_message = output.replace('\n', '<br>')
+                    bot_message = fix_newlines(output)
                     history[-1][1] = bot_message
                     yield history, ''
             except StopIteration:
@@ -1585,7 +1576,7 @@ body.dark{#warning {background-color: #555555};}
         count_chat_tokens_btn.click(fn=count_chat_tokens, inputs=[model_state, text_output, prompt_type, prompt_dict],
                                     outputs=chat_token_count, api_name='count_tokens' if allow_api else None)
 
-        demo.load(None, None, None, _js=get_dark_js() if kwargs['h2ocolors'] else None)
+        demo.load(None, None, None, _js=get_dark_js() if kwargs['h2ocolors'] and False else None)  # light best
 
     demo.queue(concurrency_count=kwargs['concurrency_count'], api_open=kwargs['api_open'])
     favicon_path = "h2o-logo.svg"
@@ -1660,13 +1651,15 @@ def get_sources(db1, langchain_mode, dbs=None, docs_state0=None):
                              "  Ask jon.mckinney@h2o.ai for file if required."
         source_list = []
     elif langchain_mode == 'MyData' and len(db1) > 0 and db1[0] is not None:
-        db_get = db1[0].get()
-        source_list = sorted(set([x['source'] for x in db_get['metadatas']]))
+        from gpt_langchain import get_metadatas
+        metadatas = get_metadatas(db1[0])
+        source_list = sorted(set([x['source'] for x in metadatas]))
         source_files_added = '\n'.join(source_list)
     elif langchain_mode in dbs and dbs[langchain_mode] is not None:
+        from gpt_langchain import get_metadatas
         db1 = dbs[langchain_mode]
-        db_get = db1.get()
-        source_list = sorted(set([x['source'] for x in db_get['metadatas']]))
+        metadatas = get_metadatas(db1)
+        source_list = sorted(set([x['source'] for x in metadatas]))
         source_files_added = '\n'.join(source_list)
     else:
         source_list = []
@@ -1722,8 +1715,10 @@ def _update_user_db(file, db1, x, y, chunk, chunk_size, dbs=None, db_type=None, 
     assert enable_ocr is not None
     assert verbose is not None
 
+    if dbs is None:
+        dbs = {}
     assert isinstance(dbs, dict), "Wrong type for dbs: %s" % str(type(dbs))
-    assert db_type in ['faiss', 'chroma'], "db_type %s not supported" % db_type
+    #assert db_type in ['faiss', 'chroma'], "db_type %s not supported" % db_type
     from gpt_langchain import add_to_db, get_db, path_to_docs
     # handle case of list of temp buffer
     if isinstance(file, list) and len(file) > 0 and hasattr(file[0], 'name'):
@@ -1801,7 +1796,7 @@ def get_db(db1, langchain_mode, dbs=None):
             db = None
         elif langchain_mode == 'MyData' and len(db1) > 0 and db1[0] is not None:
             db = db1[0]
-        elif langchain_mode in dbs and dbs[langchain_mode] is not None:
+        elif dbs is not None and langchain_mode in dbs and dbs[langchain_mode] is not None:
             db = dbs[langchain_mode]
         else:
             db = None
@@ -1825,7 +1820,8 @@ def get_source_files(db=None, exceptions=None, metadatas=None):
     if metadatas is None:
         source_label = "Sources:"
         if db is not None:
-            metadatas = db.get()['metadatas']
+            from gpt_langchain import get_metadatas
+            metadatas = get_metadatas(db)
         else:
             metadatas = []
         adding_new = False
