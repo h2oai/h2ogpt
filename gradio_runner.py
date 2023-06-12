@@ -47,6 +47,9 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 
 def fix_newlines(text):
+    return text  # let Gradio handle code, since got improved recently
+
+    ## FIXME: below conflicts with Gradio, but need to see if can handle multiple \n\n\n etc. properly as is.
     # ensure good visually, else markdown ignores multiple \n
     # handle code blocks
     ts = text.split('```')
