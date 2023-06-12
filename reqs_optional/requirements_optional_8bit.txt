@@ -1,3 +1,0 @@
-# dev required for now for 8-bit training
-accelerate==0.19.0
-transformers==4.28.1

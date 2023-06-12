@@ -365,17 +365,15 @@ The wheel adds all dependencies including optional dependencies like 4-bit and f
 ```bash
 python setup.py sdist bdist_wheel
 ```
-To install all dependencies including GPU support do:
+To install the default dependencies do:
 ```bash
 pip install dist/h2ogpt-0.1.0-py3-none-any.whl
-pip install dist/h2ogpt-0.1.0-py3-none-any.whl[ALL]
-pip install dist/h2ogpt-0.1.0-py3-none-any.whl[GPU]
 ```
-replace `0.1.0` with actual version built if more than one. Or for CPU mode do:
+replace `0.1.0` with actual version built if more than one.
+To install additional dependencies, for instance for faiss on GPU, do:
 ```bash
 pip install dist/h2ogpt-0.1.0-py3-none-any.whl
-pip install dist/h2ogpt-0.1.0-py3-none-any.whl[ALL]
-pip install dist/h2ogpt-0.1.0-py3-none-any.whl[CPU]
+pip install dist/h2ogpt-0.1.0-py3-none-any.whl[FAISS]
 ```
 if need to install support for 4-bit training do:
 ```bash

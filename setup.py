@@ -15,30 +15,21 @@ def parse_requirements(file_name: str) -> List[str]:
 
 # base requirements list
 install_requires = parse_requirements('requirements.txt')
-
-# 8BIT
-install_8bit = parse_requirements('reqs_optional/requirements_optional_8bit.txt')
+install_requires.extend(parse_requirements('reqs_optional/requirements_optional_langchain.txt'))
+install_requires.extend(parse_requirements('reqs_optional/requirements_optional_gpt4all.txt'))
+install_requires.extend(parse_requirements('reqs_optional/requirements_optional_langchain.gpllike.txt'))
 
 # 4BIT - avoid 4bit deps as part of package until part of normal deps on pypi
 install_4bit = parse_requirements('reqs_optional/requirements_optional_4bit.txt')
 
-# GPT4ALL
-install_gpt4all = parse_requirements('reqs_optional/requirements_optional_gpt4all.txt')
-
-# LANGCHAIN
-install_langchain = parse_requirements('reqs_optional/requirements_optional_langchain.txt')
-
 # FLASH
-install_flash = parse_requirements('reqs_optional/requirements_optional_flashattention.txt')
+install_flashattention = parse_requirements('reqs_optional/requirements_optional_flashattention.txt')
 
-# GPL
-install_gpl = parse_requirements('reqs_optional/requirements_optional_langchain.gpllike.txt')
+# FAISS_CPU
+install_faiss_cpu = parse_requirements('reqs_optional/requirements_optional_faiss_cpu.txt')
 
-# NO_GPU
-install_no_gpu = parse_requirements('reqs_optional/requirements_optional_faiss_cpu.txt')
-
-# GPU
-install_gpu = parse_requirements('reqs_optional/requirements_optional_faiss.txt')
+# FAISS
+install_faiss = parse_requirements('reqs_optional/requirements_optional_faiss.txt')
 
 # TRAINING
 install_extra_training = parse_requirements('reqs_optional/requirements_optional_training.txt')
@@ -81,15 +72,10 @@ setuptools.setup(
     keywords=['LLM', 'AI'],
     install_requires=install_requires,
     extras_require={
-        'ALL': install_gpt4all + install_langchain + install_gpl + install_extra_training + install_wiki_extra,
-        'GPT4ALL': install_gpt4all,
-        'CPU': install_no_gpu,
-        'GPU': install_gpu,
-        'LANGCHAIN': install_langchain,
-        '8BIT': install_8bit,
         '4BIT': install_4bit,
-        'FLASH': install_flash,
-        'GPL': install_gpl,
+        'FLASH': install_flashattention,
+        'FAISS_CPU': install_faiss_cpu,
+        'FAISS': install_faiss,
         'TRAINING': install_extra_training,
         'WIKI_EXTRA': install_wiki_extra,
     },
