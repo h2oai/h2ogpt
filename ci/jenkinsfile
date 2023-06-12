@@ -94,7 +94,8 @@ pipeline {
                                                         // pull runtime details
                                                         def dockerImage = sh(returnStdout: true, script: "make print-DOCKER_TEST_IMAGE").trim()
                                                         def nvidiaSmiExitCode = sh(returnStdout: false, returnStatus: true, script: "nvidia-smi")
-                                                        def dockerRuntime = "${nvidiaSmiExitCode}" == "0" ? "--runtime nvidia" : ""
+                                                        // def dockerRuntime = "${nvidiaSmiExitCode}" == "0" ? "--runtime nvidia" : ""
+                                                        def dockerRuntime = ""  // TODO: keep until lab machines are upgraded
 
                                                         if (ALL_TESTS[testName].use_docker) {
                                                             docker.image("${dockerImage}").inside("--entrypoint='' --security-opt seccomp=unconfined --ulimit core=-1 --init --pid=host -e USE_WHEEL=1 -e HOME=${WORKSPACE}/${testName} ${dockerRuntime}") {
@@ -111,6 +112,8 @@ pipeline {
                                                         }
                                                     }
                                                 }
+                                            } catch (e) {
+                                                throw e
                                             } finally {
                                                 sh "mv ${testName}/test_report.xml ${testName}/${testName}_report.xml"
                                                 archiveArtifacts allowEmptyArchive: true, artifacts: "${testName}/${testName}_report.xml"
