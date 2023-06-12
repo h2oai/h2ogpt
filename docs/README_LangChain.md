@@ -110,8 +110,13 @@ python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b --langchain_mod
 ```
 which will avoid using `user_path` since it is no longer passed.  Otherwise when passed, any new files will be added or changed (by hash) files will be updated (delete old sources and add new sources).
 
-# Using Weaviate
-## About
+### Note about FAISS
+
+FAISS filtering is not supported in h2oGPT yet, ask if this is desired to be added.  So subset by document does not function for FAISS.
+
+### Using Weaviate
+
+#### About
 [Weaviate](https://weaviate.io/) is an open-source vector database designed to scale seamlessly into billions of data objects. This implementation supports hybrid search out-of-the-box (meaning it will perform better for keyword searches).
 
 You can run Weaviate in 5 ways:
@@ -202,9 +207,12 @@ Similarly, if you had set up your weaviate instance with a username and password
 * WEAVIATE_PASSWORD: the password used for authentication
 * WEAVIATE_SCOPE: optional, defaults to "offline_access"
 
-Note:
+Notes:
 
-Since h2ogpt is focused on privacy, connecting to weaviate via WCS is not supported as that will expose your data to a 3rd party
+* Since h2oGPT is focused on privacy, connecting to weaviate via WCS is not supported as that will expose your data to a 3rd party
+* Weaviate doesn't know about persistent directory throughout code, and maintains locations based upon collection name
+* Weaviate doesn't support query of all metadata except via similarity search up to 10k documents, so full list of sources is not possible in h2oGPT UI for `get sources` or `show sources`
+
 ## Document Question-Answer FAQ
 
 #### Why does the source link not work?

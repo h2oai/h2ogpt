@@ -1648,13 +1648,15 @@ def get_sources(db1, langchain_mode, dbs=None, docs_state0=None):
                              "  Ask jon.mckinney@h2o.ai for file if required."
         source_list = []
     elif langchain_mode == 'MyData' and len(db1) > 0 and db1[0] is not None:
-        db_get = db1[0].get()
-        source_list = sorted(set([x['source'] for x in db_get['metadatas']]))
+        from gpt_langchain import get_metadatas
+        metadatas = get_metadatas(db1[0])
+        source_list = sorted(set([x['source'] for x in metadatas]))
         source_files_added = '\n'.join(source_list)
     elif langchain_mode in dbs and dbs[langchain_mode] is not None:
+        from gpt_langchain import get_metadatas
         db1 = dbs[langchain_mode]
-        db_get = db1.get()
-        source_list = sorted(set([x['source'] for x in db_get['metadatas']]))
+        metadatas = get_metadatas(db1)
+        source_list = sorted(set([x['source'] for x in metadatas]))
         source_files_added = '\n'.join(source_list)
     else:
         source_list = []
@@ -1710,8 +1712,10 @@ def _update_user_db(file, db1, x, y, chunk, chunk_size, dbs=None, db_type=None, 
     assert enable_ocr is not None
     assert verbose is not None
 
+    if dbs is None:
+        dbs = {}
     assert isinstance(dbs, dict), "Wrong type for dbs: %s" % str(type(dbs))
-    assert db_type in ['faiss', 'chroma'], "db_type %s not supported" % db_type
+    #assert db_type in ['faiss', 'chroma'], "db_type %s not supported" % db_type
     from gpt_langchain import add_to_db, get_db, path_to_docs
     # handle case of list of temp buffer
     if isinstance(file, list) and len(file) > 0 and hasattr(file[0], 'name'):
@@ -1789,7 +1793,7 @@ def get_db(db1, langchain_mode, dbs=None):
             db = None
         elif langchain_mode == 'MyData' and len(db1) > 0 and db1[0] is not None:
             db = db1[0]
-        elif langchain_mode in dbs and dbs[langchain_mode] is not None:
+        elif dbs is not None and langchain_mode in dbs and dbs[langchain_mode] is not None:
             db = dbs[langchain_mode]
         else:
             db = None
@@ -1813,7 +1817,8 @@ def get_source_files(db=None, exceptions=None, metadatas=None):
     if metadatas is None:
         source_label = "Sources:"
         if db is not None:
-            metadatas = db.get()['metadatas']
+            from gpt_langchain import get_metadatas
+            metadatas = get_metadatas(db)
         else:
             metadatas = []
         adding_new = False

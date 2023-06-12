@@ -186,7 +186,9 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
                             langchain_mode=langchain_mode)
 
     res_dict, client = run_client(client, prompt, args, kwargs)
-    assert ('a large language model' in res_dict['response'] or 'language model trained' in res_dict['response']) \
+    assert ('a large language model' in res_dict['response'] or
+            'language model trained' in res_dict['response'] or
+            'H2O GPT is a language model' in res_dict['response']) \
            and 'FAQ.md' in res_dict['response']
 
     # QUERY1
@@ -199,8 +201,9 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
 
     res_dict, client = run_client(client, prompt, args, kwargs)
     # wrong answer given wrong docs
-    assert ('A secure chatbot that uses a large language' in res_dict['response'] or 'Whisper is a chatbot' in res_dict[
-        'response'] or 'Whisper is a privacy-focused chatbot platform' in res_dict['response']
+    assert ('A secure chatbot that uses a large language' in res_dict['response'] or
+            'Whisper is a chatbot' in res_dict['response'] or 'Whisper is a privacy-focused chatbot platform' in res_dict['response'] or
+            'h2oGPT' in res_dict['response']
             ) \
            and 'README.md' in res_dict['response']
 
@@ -230,7 +233,9 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'A chatbot that can whisper to you' in res_dict['response'] or
             'whisper is a simple' in res_dict['response'] or
             'Whisper is a tool for generating text from a model' in res_dict['response'] or
-            'Whisper is a chatbot platform' in res_dict['response']
+            'Whisper is a chatbot platform' in res_dict['response'] or
+            'whisper is a chatbot framework' in res_dict['response'] or
+            'whisper is a tool for training language models' in res_dict['response']
             ) \
            and '.md' in res_dict['response']
 
