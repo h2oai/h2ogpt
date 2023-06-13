@@ -31,4 +31,6 @@ def test_test_prompt(prompt_type='instruct', data_point=0):
 def test_test_prompt2(prompt_type='human_bot', data_point=0):
     example_data_point = example_data_points[data_point]
     example_data_point.pop('output', None)
-    return generate_prompt(example_data_point, prompt_type, '', False, False)
+    res = generate_prompt(example_data_point, prompt_type, '', False, False)
+    print(res, flush=True)
+    return res
