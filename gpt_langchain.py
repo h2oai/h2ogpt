@@ -158,6 +158,9 @@ def add_to_db(db, sources, db_type='faiss',
                 [x['hashid'] for x in collection['metadatas'] if 'hashid' in x and x['hashid'] not in ["None", None]])
             # avoid sources with same hash
             sources = [x for x in sources if x.metadata.get('hashid') not in metadata_hash_ids]
+            num_nohash = len([x for x in sources if not x.metadata.get('hashid')])
+            print("Found %s new sources (%d have no hash in original source,"
+                  " so have to reprocess for migration to sources with hash)" % (len(sources), num_nohash), flush=True)
             # get new file names that match existing file names.  delete existing files we are overridding
             dup_metadata_files = set([x.metadata['source'] for x in sources if x.metadata['source'] in metadata_files])
             print("Removing %s duplicate files from db because ingesting those as new documents" % len(
@@ -826,7 +829,7 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
         [globs_non_image_types.extend(glob.glob(os.path.join(path, "./**/*.%s" % ftype), recursive=True))
          for ftype in non_image_types]
     else:
-        if isinstance(path_or_paths, str) and os.path.isfile(path_or_paths):
+        if isinstance(path_or_paths, str) and (os.path.isfile(path_or_paths) or os.path.isdir(path_or_paths)):
             path_or_paths = [path_or_paths]
         # list/tuple of files (consume what can, and exception those that selected but cannot consume so user knows)
         assert isinstance(path_or_paths, (list, tuple, types.GeneratorType)), "Wrong type for path_or_paths: %s" % type(
