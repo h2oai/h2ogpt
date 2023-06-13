@@ -1,6 +1,24 @@
 # h2oGPT Client
 A Python thin-client for h2oGPT.
 
+## Installation
+### Prerequisites
+- Python 3.8+
+- [Poetry](https://python-poetry.org/docs/#installation) - A dependency management and packaging tool for Python
+
+### Setup environment
+```shell
+cd client
+make setup
+make lint
+make build
+# install (choose version if multiple builds in dist directory)
+pip install dist/h2ogpt_client-*-py3-none-any.whl
+# test
+cd ..
+pytest -s -v --forked client
+```
+
 ## Usage
 ```python
 from h2ogpt_client import Client
@@ -20,22 +38,3 @@ chat_history = chat_context.chat_history()
 ```
 :warning: **Note**: Client APIs are still evolving. Hence, APIs can be changed without prior warnings.
 
-## Development
-### Prerequisites
-- Python 3.8
-- [Poetry](https://python-poetry.org/docs/#installation) - A dependency management and packaging tool for Python
-
-### Setup environment
-```shell
-make setup
-```
-
-### Run lint
-```shell
-make lint
-```
-
-### Build
-```shell
-make build
-```
