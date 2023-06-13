@@ -511,7 +511,7 @@ class Prompter(object):
         self.prompt = prompt
         return prompt
 
-    def get_response(self, outputs, prompt=None, sanitize_bot_response=True):
+    def get_response(self, outputs, prompt=None, sanitize_bot_response=False):
         if isinstance(outputs, str):
             outputs = [outputs]
         if self.debug:

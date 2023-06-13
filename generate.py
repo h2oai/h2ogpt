@@ -107,7 +107,7 @@ def main(
         auth: typing.List[typing.Tuple[str, str]] = None,
 
         sanitize_user_prompt: bool = True,
-        sanitize_bot_response: bool = True,
+        sanitize_bot_response: bool = False,
 
         extra_model_options: typing.List[str] = [],
         extra_lora_options: typing.List[str] = [],
@@ -207,7 +207,7 @@ def main(
     :param auth: gradio auth for launcher in form [(user1, pass1), (user2, pass2), ...]
                  e.g. --auth=[('jon','password')] with no spaces
     :param sanitize_user_prompt: whether to remove profanity from user input
-    :param sanitize_bot_response: whether to remove profanity and repeat lines from bot output
+    :param sanitize_bot_response: whether to remove profanity and repeat lines from bot output (about 2x slower generation for long streaming cases due to better_profanity being slow)
     :param extra_model_options: extra models to show in list in gradio
     :param extra_lora_options: extra LORA to show in list in gradio
     :param score_model: which model to score responses (None means no scoring)
@@ -879,7 +879,7 @@ def evaluate_from_str(
         debug=False,
         concurrency_count=None,
         save_dir=None,
-        sanitize_bot_response=True,
+        sanitize_bot_response=False,
         model_state0=None,
         memory_restriction_level=None,
         raise_generate_gpu_exceptions=None,
@@ -988,7 +988,7 @@ def evaluate(
         debug=False,
         concurrency_count=None,
         save_dir=None,
-        sanitize_bot_response=True,
+        sanitize_bot_response=False,
         model_state0=None,
         memory_restriction_level=None,
         raise_generate_gpu_exceptions=None,

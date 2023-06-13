@@ -9,7 +9,7 @@ from prompter import Prompter, PromptType
 
 class H2OTextGenerationPipeline(TextGenerationPipeline):
     def __init__(self, *args, debug=False, chat=False, stream_output=False,
-                 sanitize_bot_response=True,
+                 sanitize_bot_response=False,
                  use_prompter=True, prompter=None,
                  prompt_type=None, prompt_dict=None,
                  max_input_tokens=2048 - 256, **kwargs):
