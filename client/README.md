@@ -9,6 +9,7 @@ A Python thin-client for h2oGPT.
 ### Setup environment
 ```shell
 cd client
+pip install poetry==1.5.1
 make setup
 make lint
 make build
