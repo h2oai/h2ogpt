@@ -9,7 +9,7 @@ def create_client(server_url: str = "") -> Client:
 
 
 def test_text_completion():
-    launch_sever()
+    launch_server()
 
     client = create_client()
     r = client.text_completion.create("Hello world")
@@ -18,7 +18,7 @@ def test_text_completion():
 
 
 async def test_text_completion_async():
-    launch_sever()
+    launch_server()
 
     client = create_client()
     r = await client.text_completion.create_async("Hello world")
@@ -27,7 +27,7 @@ async def test_text_completion_async():
 
 
 def test_chat_completion():
-    launch_sever()
+    launch_server()
 
     client = create_client()
     chat_context = client.chat_completion.create()
@@ -49,7 +49,7 @@ def test_chat_completion():
     print(chat_history)
 
 
-def launch_sever():
+def launch_server():
     from generate import main
     main(base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b', prompt_type='human_bot', chat=False,
          stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False)
