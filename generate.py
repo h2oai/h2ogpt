@@ -1208,7 +1208,7 @@ def evaluate(
         tgt_lang = languages_covered()[tgt_lang]
         gen_kwargs.update(dict(forced_bos_token_id=tokenizer.lang_code_to_id[tgt_lang]))
     else:
-        token_ids = ['eos_token_id', 'bos_token_id']
+        token_ids = ['eos_token_id', 'bos_token_id', 'pad_token_id']
         for token_id in token_ids:
             if hasattr(tokenizer, token_id) and getattr(tokenizer, token_id) is not None:
                 gen_kwargs.update({token_id: getattr(tokenizer, token_id)})
