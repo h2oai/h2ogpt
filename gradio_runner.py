@@ -1034,9 +1034,6 @@ def go_gradio(**kwargs):
             langchain_mode1 = args_list[eval_func_param_names.index('langchain_mode')]
             if retry and history:
                 history.pop()
-                if not args_list[eval_func_param_names.index('do_sample')]:
-                    # if was not sampling, no point in retry unless change to sample
-                    args_list[eval_func_param_names.index('do_sample')] = True
             if not history:
                 print("No history", flush=True)
                 history = []

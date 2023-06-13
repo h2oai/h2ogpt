@@ -241,16 +241,16 @@ All the buttons are also accessible via gradio client API.
 
 #### All Tabs
 
-| Button               | Purpose                                                                                             |
-----------------------|-----------------------------------------------------------------------------------------------------|
-| Save Chat / New Chat | Save the chat into "Saved Chats" and clear the chat history                                         |
-| Flag                 | Tell owner of app (you if you ran locally) something is odd by logging chat history to disk         |
-| Regenerate           | Re-run the query with (potentially) new settings or re-sample if sampling is enabled                |
-| Undo                 | Remove last query-reponse pair                                                                      |
-| Submit               | Same as hitting enter (in chat mode) so submit question or imperitive                               |
-| Stop                 | Stop generation, although LLM may continue in background until completed even if chat view stopped  |
-| Dark Mode            | Enable/Disable Dark Mode                                                                            |
-| Chat Exceptions      | Any exceptions during chatting go here, due to gradio bug that does not handle them well            |
+| Button               | Purpose                                                                                                                       |
+----------------------|-------------------------------------------------------------------------------------------------------------------------------|
+| Save Chat / New Chat | Save the chat into "Saved Chats" and clear the chat history                                                                   |
+| Flag                 | Tell owner of app (you if you ran locally) something is odd by logging chat history to disk                                   |
+| Regenerate           | Re-run the query with (potentially) new settings or re-sample if sampling is enabled.  Turn on sampling if want new sampling. |
+| Undo                 | Remove last query-reponse pair                                                                                                |
+| Submit               | Same as hitting enter (in chat mode) so submit question or imperitive                                                         |
+| Stop                 | Stop generation, although LLM may continue in background until completed even if chat view stopped                            |
+| Dark Mode            | Enable/Disable Dark Mode                                                                                                      |
+| Chat Exceptions      | Any exceptions during chatting go here, due to gradio bug that does not handle them well                                      |
 
 #### Chat Tab
 
