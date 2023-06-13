@@ -19,9 +19,6 @@ install_requires.extend(parse_requirements('reqs_optional/requirements_optional_
 install_requires.extend(parse_requirements('reqs_optional/requirements_optional_gpt4all.txt'))
 install_requires.extend(parse_requirements('reqs_optional/requirements_optional_langchain.gpllike.txt'))
 
-# 4BIT - avoid 4bit deps as part of package until part of normal deps on pypi
-install_4bit = parse_requirements('reqs_optional/requirements_optional_4bit.txt')
-
 # FLASH
 install_flashattention = parse_requirements('reqs_optional/requirements_optional_flashattention.txt')
 
@@ -72,7 +69,6 @@ setuptools.setup(
     keywords=['LLM', 'AI'],
     install_requires=install_requires,
     extras_require={
-        '4BIT': install_4bit,
         'FLASH': install_flashattention,
         'FAISS_CPU': install_faiss_cpu,
         'FAISS': install_faiss,

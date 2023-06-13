@@ -379,10 +379,6 @@ To install additional dependencies, for instance for faiss on GPU, do:
 pip install dist/h2ogpt-0.1.0-py3-none-any.whl
 pip install dist/h2ogpt-0.1.0-py3-none-any.whl[FAISS]
 ```
-if need to install support for 4-bit training do:
-```bash
-pip install dist/h2ogpt-0.1.0-py3-none-any.whl[4BIT]
-```
 once `whl` file is installed, two new scripts will be added to the current environment: `h2ogpt_finetune`, and `h2ogpt_generate`.
 
 The wheel is not required to use h2oGPT locally from repo, but makes it portable with all required dependencies.
