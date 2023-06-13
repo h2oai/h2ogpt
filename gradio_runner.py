@@ -5,8 +5,10 @@ import json
 import os
 import pprint
 import random
+import shutil
 import sys
 import traceback
+import typing
 import uuid
 import filelock
 import pandas as pd
@@ -627,6 +629,7 @@ def go_gradio(**kwargs):
                                                 enable_ocr=enable_ocr,
                                                 caption_loader=caption_loader,
                                                 verbose=kwargs['verbose'],
+                                                user_path=kwargs['user_path'],
                                                 )
 
         # note for update_user_db_func output is ignored for db
@@ -674,6 +677,7 @@ def go_gradio(**kwargs):
                                               enable_ocr=enable_ocr,
                                               caption_loader=caption_loader,
                                               verbose=kwargs['verbose'],
+                                              user_path=kwargs['user_path'],
                                               )
 
         add_to_my_db_btn.click(update_my_db_func,
@@ -1667,6 +1671,7 @@ def update_user_db(file, db1, x, y, *args, dbs=None, langchain_mode='UserData', 
 
 
 def _update_user_db(file, db1, x, y, chunk, chunk_size, dbs=None, db_type=None, langchain_mode='UserData',
+                    user_path=None,
                     use_openai_embedding=None,
                     hf_embedding_model=None,
                     caption_loader=None,
@@ -1694,6 +1699,18 @@ def _update_user_db(file, db1, x, y, chunk, chunk_size, dbs=None, db_type=None, 
     # handle single file of temp buffer
     if hasattr(file, 'name'):
         file = file.name
+    if not isinstance(file, (list, tuple, typing.Generator)) and isinstance(file, str):
+        file = [file]
+
+    if langchain_mode == 'UserData' and user_path is not None:
+        # move temp files from gradio upload to stable location
+        for fili, fil in enumerate(file):
+            if isinstance(fil, str):
+                if fil.startswith('/tmp/gradio/'):
+                    new_fil = os.path.join(user_path, os.path.basename(fil))
+                    shutil.move(fil, new_fil)
+                    file[fili] = new_fil
+
     if verbose:
         print("Adding %s" % file, flush=True)
     sources = path_to_docs(file if not is_url and not is_txt else None,

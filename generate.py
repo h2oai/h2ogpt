@@ -384,6 +384,8 @@ def main(
 
     if offload_folder:
         makedirs(offload_folder)
+    if user_path:
+        makedirs(user_path)
 
     placeholder_instruction, placeholder_input, \
         stream_output, show_examples, \
