@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pkg_resources
+import pytest
 from pkg_resources import DistributionNotFound, VersionConflict
 
 from tests.utils import wrap_test_forked
@@ -88,9 +89,18 @@ def get_version(package, url_pattern=URL_PATTERN):
     return version
 
 
+import pkg_resources
+
+try:
+    assert pkg_resources.get_distribution('requirements-parser') is not None
+    have_requirements = True
+except (pkg_resources.DistributionNotFound, AssertionError):
+    have_requirements = False
+
+
+@pytest.mark.skipif(not have_requirements, reason="requires pip install requirements-parser")
 @wrap_test_forked
 def test_what_latest_packages():
-    # pip install requirements-parser
     import requirements
     import glob
     for req_name in ['requirements.txt'] + glob.glob('reqs_optional/req*.txt'):
