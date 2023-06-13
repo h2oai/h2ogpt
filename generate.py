@@ -8,6 +8,7 @@ import sys
 import os
 import time
 import traceback
+import types
 import typing
 import warnings
 from datetime import datetime
@@ -1690,7 +1691,7 @@ def get_max_max_new_tokens(model_state, **kwargs):
     elif kwargs['memory_restriction_level'] >= 3:
         max_max_new_tokens = 256
     else:
-        if not isinstance(model_state[1], str):
+        if not isinstance(model_state[1], (str, types.NoneType)):
             max_max_new_tokens = model_state[1].model_max_length
         else:
             # FIXME: Need to update after new model loaded, so user can control with slider
