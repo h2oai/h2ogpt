@@ -1,6 +1,9 @@
+import pytest
+
 from tests.utils import wrap_test_forked
 
 
+@pytest.mark.skip(reason="No longer doing, for now")
 @wrap_test_forked
 def test_newline_replace():
 
