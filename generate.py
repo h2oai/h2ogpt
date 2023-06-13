@@ -656,6 +656,7 @@ def get_model(
                                                      use_auth_token=use_auth_token,
                                                      trust_remote_code=trust_remote_code,
                                                      offload_folder=offload_folder,
+                                                     padding_side='left',
                                                      )
     else:
         tokenizer = tokenizer_loader
@@ -1174,17 +1175,21 @@ def evaluate(
     max_max_tokens = tokenizer.model_max_length
     max_input_tokens = max_max_tokens - max_new_tokens
     input_ids = input_ids[:, -max_input_tokens:]
-    generation_config = GenerationConfig(
-        temperature=float(temperature),
-        top_p=float(top_p),
-        top_k=top_k,
-        num_beams=num_beams,
-        do_sample=do_sample,
-        repetition_penalty=float(repetition_penalty),
-        num_return_sequences=num_return_sequences,
-        renormalize_logits=True,
-        remove_invalid_values=True,
-    )
+    gen_config_kwargs = dict(temperature=float(temperature),
+                             top_p=float(top_p),
+                             top_k=top_k,
+                             num_beams=num_beams,
+                             do_sample=do_sample,
+                             repetition_penalty=float(repetition_penalty),
+                             num_return_sequences=num_return_sequences,
+                             renormalize_logits=True,
+                             remove_invalid_values=True,
+                             )
+    token_ids = ['eos_token_id', 'pad_token_id', 'bos_token_id', 'cls_token_id', 'sep_token_id']
+    for token_id in token_ids:
+        if hasattr(tokenizer, token_id) and getattr(tokenizer, token_id) is not None:
+            gen_config_kwargs.update({token_id: getattr(tokenizer, token_id)})
+    generation_config = GenerationConfig(**gen_config_kwargs)
 
     gen_kwargs = dict(input_ids=input_ids,
                       generation_config=generation_config,
@@ -1203,7 +1208,10 @@ def evaluate(
         tgt_lang = languages_covered()[tgt_lang]
         gen_kwargs.update(dict(forced_bos_token_id=tokenizer.lang_code_to_id[tgt_lang]))
     else:
-        gen_kwargs.update(dict(pad_token_id=tokenizer.eos_token_id))
+        token_ids = ['eos_token_id', 'bos_token_id', 'pad_token_id']
+        for token_id in token_ids:
+            if hasattr(tokenizer, token_id) and getattr(tokenizer, token_id) is not None:
+                gen_kwargs.update({token_id: getattr(tokenizer, token_id)})
 
     decoder_kwargs = dict(skip_special_tokens=True,
                           clean_up_tokenization_spaces=True)
