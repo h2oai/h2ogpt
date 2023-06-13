@@ -328,3 +328,10 @@ def test_client_long():
     from client_test import run_client_nochat
     res_dict = run_client_nochat(prompt=prompt, prompt_type='plain', max_new_tokens=86000)
     print(res_dict['response'])
+
+
+@wrap_test_forked
+def test_fast_up():
+    from generate import main
+    main(gradio=True, block_gradio_exit=False)
+
