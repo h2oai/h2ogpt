@@ -40,7 +40,7 @@ from prompter import Prompter, \
     prompt_type_to_model_name, prompt_types_strings, inv_prompt_type_to_model_lower, generate_prompt, non_hf_types, \
     get_prompt
 from utils import get_githash, flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
-    ping, get_short_name, get_url, makedirs, get_kwargs
+    ping, get_short_name, get_url, makedirs, get_kwargs, remove
 from generate import get_model, languages_covered, evaluate, eval_func_param_names, score_qa, langchain_modes, \
     inputs_kwargs_list, get_cutoffs, scratch_base_dir, evaluate_from_str, no_default_param_names, \
     eval_func_param_names_defaults, get_max_max_new_tokens
@@ -1708,7 +1708,12 @@ def _update_user_db(file, db1, x, y, chunk, chunk_size, dbs=None, db_type=None, 
             if isinstance(fil, str):
                 if fil.startswith('/tmp/gradio/'):
                     new_fil = os.path.join(user_path, os.path.basename(fil))
-                    shutil.move(fil, new_fil)
+                    if os.path.isfile(new_fil):
+                        remove(new_fil)
+                    try:
+                        shutil.move(fil, new_fil)
+                    except FileExistsError:
+                        pass
                     file[fili] = new_fil
 
     if verbose:
