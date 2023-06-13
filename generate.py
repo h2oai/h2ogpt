@@ -105,6 +105,8 @@ def main(
         allow_api: bool = True,
         input_lines: int = 1,
         auth: typing.List[typing.Tuple[str, str]] = None,
+        max_max_time=None,
+        max_max_new_tokens=None,
 
         sanitize_user_prompt: bool = True,
         sanitize_bot_response: bool = False,
@@ -206,6 +208,8 @@ def main(
     :param input_lines: how many input lines to show for chat box (>1 forces shift-enter for submit, else enter is submit)
     :param auth: gradio auth for launcher in form [(user1, pass1), (user2, pass2), ...]
                  e.g. --auth=[('jon','password')] with no spaces
+    :param max_max_time: Maximum max_time for gradio slider
+    :param max_max_new_tokens: Maximum max_new_tokens for gradio slider
     :param sanitize_user_prompt: whether to remove profanity from user input
     :param sanitize_bot_response: whether to remove profanity and repeat lines from bot output (about 2x slower generation for long streaming cases due to better_profanity being slow)
     :param extra_model_options: extra models to show in list in gradio
@@ -314,9 +318,29 @@ def main(
         load_4bit = False  # FIXME - consider using 4-bit instead of 8-bit
         if hf_embedding_model is None:
             hf_embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
+    user_set_max_new_tokens = max_new_tokens is not None
+    if is_public:
+        if not max_time:
+            max_time = 60 * 2
+        if not max_max_time:
+            max_max_time = max_time
+        if not max_new_tokens:
+            max_new_tokens = 256
+        if not max_max_new_tokens:
+            max_max_new_tokens = 256
+    else:
+        if not max_max_time:
+            max_max_time = 60 * 20
+        if not max_max_new_tokens:
+            max_max_new_tokens = 256
     if is_hf:
         # must override share if in spaces
         share = False
+        if not max_time:
+            max_time = 60 * 1
+        if not max_max_time:
+            max_max_time = max_time
+        # HF accounted for later in get_max_max_new_tokens()
     save_dir = os.getenv('SAVE_DIR', save_dir)
     score_model = os.getenv('SCORE_MODEL', score_model)
     if score_model == 'None' or score_model is None:
@@ -360,8 +384,6 @@ def main(
 
     if offload_folder:
         makedirs(offload_folder)
-
-    user_set_max_new_tokens = max_new_tokens is not None
 
     placeholder_instruction, placeholder_input, \
         stream_output, show_examples, \

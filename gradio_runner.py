@@ -455,11 +455,9 @@ def go_gradio(**kwargs):
                             )
                             early_stopping = gr.Checkbox(label="EarlyStopping", info="Stop early in beam search",
                                                          value=kwargs['early_stopping'])
-                            max_max_time = 60 * 20 if not is_public else 60 * 2
-                            if is_hf:
-                                max_max_time = min(max_max_time, 60 * 1)
-                            max_time = gr.Slider(minimum=0, maximum=max_max_time, step=1,
-                                                 value=min(max_max_time, kwargs['max_time']), label="Max. time",
+                            max_time = gr.Slider(minimum=0, maximum=kwargs['max_max_time'], step=1,
+                                                 value=min(kwargs['max_max_time'],
+                                                           kwargs['max_time']), label="Max. time",
                                                  info="Max. time to search optimal output.")
                             repetition_penalty = gr.Slider(minimum=0.01, maximum=3.0,
                                                            value=kwargs['repetition_penalty'],
@@ -1688,7 +1686,7 @@ def _update_user_db(file, db1, x, y, chunk, chunk_size, dbs=None, db_type=None, 
     if dbs is None:
         dbs = {}
     assert isinstance(dbs, dict), "Wrong type for dbs: %s" % str(type(dbs))
-    #assert db_type in ['faiss', 'chroma'], "db_type %s not supported" % db_type
+    # assert db_type in ['faiss', 'chroma'], "db_type %s not supported" % db_type
     from gpt_langchain import add_to_db, get_db, path_to_docs
     # handle case of list of temp buffer
     if isinstance(file, list) and len(file) > 0 and hasattr(file[0], 'name'):
