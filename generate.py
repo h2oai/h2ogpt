@@ -89,7 +89,6 @@ def main(
         cli: bool = False,
         cli_loop: bool = True,
         gradio: bool = True,
-        gradio_avoid_processing_markdown: bool = False,
         gradio_offline_level: int = 0,
         chat: bool = True,
         chat_context: bool = False,
@@ -185,7 +184,6 @@ def main(
     :param cli: whether to use CLI (non-gradio) interface.
     :param cli_loop: whether to loop for CLI (False usually only for testing)
     :param gradio: whether to enable gradio, or to enable benchmark mode
-    :param gradio_avoid_processing_markdown:
     :param gradio_offline_level: > 0, then change fonts so full offline
            == 1 means backend won't need internet for fonts, but front-end UI might if font not cached
            == 2 means backend and frontend don't need internet to download any fonts.

@@ -122,33 +122,6 @@ def go_gradio(**kwargs):
 
     css_code = get_css(kwargs)
 
-    if kwargs['gradio_avoid_processing_markdown']:
-        from gradio_client import utils as client_utils
-        from gradio.components import Chatbot
-
-        # gradio has issue with taking too long to process input/output for markdown etc.
-        # Avoid for now, allow raw html to render, good enough for chatbot.
-        def _postprocess_chat_messages(self, chat_message: str):
-            if chat_message is None:
-                return None
-            elif isinstance(chat_message, (tuple, list)):
-                filepath = chat_message[0]
-                mime_type = client_utils.get_mimetype(filepath)
-                filepath = self.make_temp_copy_if_needed(filepath)
-                return {
-                    "name": filepath,
-                    "mime_type": mime_type,
-                    "alt_text": chat_message[1] if len(chat_message) > 1 else None,
-                    "data": None,  # These last two fields are filled in by the frontend
-                    "is_file": True,
-                }
-            elif isinstance(chat_message, str):
-                return chat_message
-            else:
-                raise ValueError(f"Invalid message for Chatbot component: {chat_message}")
-
-        Chatbot._postprocess_chat_messages = _postprocess_chat_messages
-
     if kwargs['gradio_offline_level'] >= 0:
         # avoid GoogleFont that pulls from internet
         if kwargs['gradio_offline_level'] == 1:
