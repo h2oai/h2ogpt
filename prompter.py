@@ -507,15 +507,15 @@ class Prompter(object):
         reduced = False
         prompt, _, _, _ = generate_prompt(data_point, self.prompt_type, self.prompt_dict, self.chat, reduced)
         if self.debug:
-            print("prompt: ", prompt, flush=True)
+            print("prompt: %s" % prompt, flush=True)
         self.prompt = prompt
         return prompt
 
-    def get_response(self, outputs, prompt=None, sanitize_bot_response=True):
+    def get_response(self, outputs, prompt=None, sanitize_bot_response=False):
         if isinstance(outputs, str):
             outputs = [outputs]
         if self.debug:
-            print("output:\n", '\n\n'.join(outputs), flush=True)
+            print("output:\n%s" % '\n\n'.join(outputs), flush=True)
         if prompt is not None:
             self.prompt = prompt
 
@@ -605,5 +605,5 @@ class Prompter(object):
         # join all outputs, only one extra new line between outputs
         output = '\n'.join(outputs)
         if self.debug:
-            print("outputclean:\n", '\n\n'.join(outputs), flush=True)
+            print("outputclean:\n%s" % '\n\n'.join(outputs), flush=True)
         return output

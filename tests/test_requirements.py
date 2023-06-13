@@ -6,18 +6,12 @@ from pkg_resources import DistributionNotFound, VersionConflict
 from tests.utils import wrap_test_forked
 
 
-@wrap_test_forked
-def test_requirements():
-    """Test that each required package is available."""
-    packages_all = []
-    packages_dist = []
-    packages_version = []
-    packages_unkn = []
+def get_requirements():
     req_file = "requirements.txt"
     req_tmp_file = req_file + '.tmp.txt'
 
     reqs_http = []
-    
+
     with open(req_file, 'rt') as f:
         contents = f.readlines()
         with open(req_tmp_file, 'wt') as g:
@@ -28,9 +22,22 @@ def test_requirements():
                     reqs_http.append(line.replace('\n', ''))
     reqs_http = [x for x in reqs_http if x]
     print('reqs_http: %s' % reqs_http, flush=True)
-            
+
     _REQUIREMENTS_PATH = Path(__file__).parent.with_name(req_tmp_file)
     requirements = pkg_resources.parse_requirements(_REQUIREMENTS_PATH.open())
+    return requirements, reqs_http
+
+
+@wrap_test_forked
+def test_requirements():
+    """Test that each required package is available."""
+    packages_all = []
+    packages_dist = []
+    packages_version = []
+    packages_unkn = []
+
+    requirements, reqs_http = get_requirements()
+
     for requirement in requirements:
         try:
             requirement = str(requirement)
@@ -55,4 +62,43 @@ def test_requirements():
         print('\n\n', flush=True)
 
         raise ValueError(packages_all)
-    
+
+
+import requests
+import json
+try:
+    from packaging.version import parse
+except ImportError:
+    from pip._vendor.packaging.version import parse
+
+URL_PATTERN = 'https://pypi.python.org/pypi/{package}/json'
+
+
+def get_version(package, url_pattern=URL_PATTERN):
+    """Return version of package on pypi.python.org using json."""
+    req = requests.get(url_pattern.format(package=package))
+    version = parse('0')
+    if req.status_code == requests.codes.ok:
+        j = json.loads(req.text.encode(req.encoding))
+        releases = j.get('releases', [])
+        for release in releases:
+            ver = parse(release)
+            if not ver.is_prerelease:
+                version = max(version, ver)
+    return version
+
+
+@wrap_test_forked
+def test_what_latest_packages():
+    # pip install requirements-parser
+    import requirements
+    import glob
+    for req_name in ['requirements.txt'] + glob.glob('reqs_optional/req*.txt'):
+        print("\n File: %s" % req_name, flush=True)
+        with open(req_name, 'rt') as fd:
+            for req in requirements.parse(fd):
+                try:
+                    print("%s==%s" % (req.name, get_version(req.name)), flush=True)
+                except Exception as e:
+                    print("Exception: %s" % str(e), flush=True)
+

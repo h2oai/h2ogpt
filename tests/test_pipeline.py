@@ -7,11 +7,11 @@ def test_export_copy():
     from export_hf_checkpoint import test_copy
     test_copy()
     from test_output.h2oai_pipeline import H2OTextGenerationPipeline, PromptType, DocumentChoices, LangChainMode, \
-        prompt_type_to_model_name, get_prompt, generate_prompt, inject_newline, Prompter
+        prompt_type_to_model_name, get_prompt, generate_prompt, inject_chatsep, Prompter
     assert prompt_type_to_model_name is not None
     assert get_prompt is not None
     assert generate_prompt is not None
-    assert inject_newline is not None
+    assert inject_chatsep is not None
 
     prompt_type = 'human_bot'
     prompt_dict = {}

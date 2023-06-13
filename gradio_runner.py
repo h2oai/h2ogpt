@@ -122,33 +122,6 @@ def go_gradio(**kwargs):
 
     css_code = get_css(kwargs)
 
-    if kwargs['gradio_avoid_processing_markdown']:
-        from gradio_client import utils as client_utils
-        from gradio.components import Chatbot
-
-        # gradio has issue with taking too long to process input/output for markdown etc.
-        # Avoid for now, allow raw html to render, good enough for chatbot.
-        def _postprocess_chat_messages(self, chat_message: str):
-            if chat_message is None:
-                return None
-            elif isinstance(chat_message, (tuple, list)):
-                filepath = chat_message[0]
-                mime_type = client_utils.get_mimetype(filepath)
-                filepath = self.make_temp_copy_if_needed(filepath)
-                return {
-                    "name": filepath,
-                    "mime_type": mime_type,
-                    "alt_text": chat_message[1] if len(chat_message) > 1 else None,
-                    "data": None,  # These last two fields are filled in by the frontend
-                    "is_file": True,
-                }
-            elif isinstance(chat_message, str):
-                return chat_message
-            else:
-                raise ValueError(f"Invalid message for Chatbot component: {chat_message}")
-
-        Chatbot._postprocess_chat_messages = _postprocess_chat_messages
-
     if kwargs['gradio_offline_level'] >= 0:
         # avoid GoogleFont that pulls from internet
         if kwargs['gradio_offline_level'] == 1:
@@ -482,11 +455,9 @@ def go_gradio(**kwargs):
                             )
                             early_stopping = gr.Checkbox(label="EarlyStopping", info="Stop early in beam search",
                                                          value=kwargs['early_stopping'])
-                            max_max_time = 60 * 20 if not is_public else 60 * 2
-                            if is_hf:
-                                max_max_time = min(max_max_time, 60 * 1)
-                            max_time = gr.Slider(minimum=0, maximum=max_max_time, step=1,
-                                                 value=min(max_max_time, kwargs['max_time']), label="Max. time",
+                            max_time = gr.Slider(minimum=0, maximum=kwargs['max_max_time'], step=1,
+                                                 value=min(kwargs['max_max_time'],
+                                                           kwargs['max_time']), label="Max. time",
                                                  info="Max. time to search optimal output.")
                             repetition_penalty = gr.Slider(minimum=0.01, maximum=3.0,
                                                            value=kwargs['repetition_penalty'],
@@ -1034,9 +1005,6 @@ def go_gradio(**kwargs):
             langchain_mode1 = args_list[eval_func_param_names.index('langchain_mode')]
             if retry and history:
                 history.pop()
-                if not args_list[eval_func_param_names.index('do_sample')]:
-                    # if was not sampling, no point in retry unless change to sample
-                    args_list[eval_func_param_names.index('do_sample')] = True
             if not history:
                 print("No history", flush=True)
                 history = []
@@ -1718,7 +1686,7 @@ def _update_user_db(file, db1, x, y, chunk, chunk_size, dbs=None, db_type=None, 
     if dbs is None:
         dbs = {}
     assert isinstance(dbs, dict), "Wrong type for dbs: %s" % str(type(dbs))
-    #assert db_type in ['faiss', 'chroma'], "db_type %s not supported" % db_type
+    # assert db_type in ['faiss', 'chroma'], "db_type %s not supported" % db_type
     from gpt_langchain import add_to_db, get_db, path_to_docs
     # handle case of list of temp buffer
     if isinstance(file, list) and len(file) > 0 and hasattr(file[0], 'name'):

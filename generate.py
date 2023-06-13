@@ -8,6 +8,7 @@ import sys
 import os
 import time
 import traceback
+import types
 import typing
 import warnings
 from datetime import datetime
@@ -91,7 +92,6 @@ def main(
         cli: bool = False,
         cli_loop: bool = True,
         gradio: bool = True,
-        gradio_avoid_processing_markdown: bool = False,
         gradio_offline_level: int = 0,
         chat: bool = True,
         chat_context: bool = False,
@@ -108,9 +108,11 @@ def main(
         allow_api: bool = True,
         input_lines: int = 1,
         auth: typing.List[typing.Tuple[str, str]] = None,
+        max_max_time=None,
+        max_max_new_tokens=None,
 
         sanitize_user_prompt: bool = True,
-        sanitize_bot_response: bool = True,
+        sanitize_bot_response: bool = False,
 
         extra_model_options: typing.List[str] = [],
         extra_lora_options: typing.List[str] = [],
@@ -187,7 +189,6 @@ def main(
     :param cli: whether to use CLI (non-gradio) interface.
     :param cli_loop: whether to loop for CLI (False usually only for testing)
     :param gradio: whether to enable gradio, or to enable benchmark mode
-    :param gradio_avoid_processing_markdown:
     :param gradio_offline_level: > 0, then change fonts so full offline
            == 1 means backend won't need internet for fonts, but front-end UI might if font not cached
            == 2 means backend and frontend don't need internet to download any fonts.
@@ -210,8 +211,10 @@ def main(
     :param input_lines: how many input lines to show for chat box (>1 forces shift-enter for submit, else enter is submit)
     :param auth: gradio auth for launcher in form [(user1, pass1), (user2, pass2), ...]
                  e.g. --auth=[('jon','password')] with no spaces
+    :param max_max_time: Maximum max_time for gradio slider
+    :param max_max_new_tokens: Maximum max_new_tokens for gradio slider
     :param sanitize_user_prompt: whether to remove profanity from user input
-    :param sanitize_bot_response: whether to remove profanity and repeat lines from bot output
+    :param sanitize_bot_response: whether to remove profanity and repeat lines from bot output (about 2x slower generation for long streaming cases due to better_profanity being slow)
     :param extra_model_options: extra models to show in list in gradio
     :param extra_lora_options: extra LORA to show in list in gradio
     :param score_model: which model to score responses (None means no scoring)
@@ -318,9 +321,29 @@ def main(
         load_4bit = False  # FIXME - consider using 4-bit instead of 8-bit
         if hf_embedding_model is None:
             hf_embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
+    user_set_max_new_tokens = max_new_tokens is not None
+    if is_public:
+        if not max_time:
+            max_time = 60 * 2
+        if not max_max_time:
+            max_max_time = max_time
+        if not max_new_tokens:
+            max_new_tokens = 256
+        if not max_max_new_tokens:
+            max_max_new_tokens = 256
+    else:
+        if not max_max_time:
+            max_max_time = 60 * 20
+        if not max_max_new_tokens:
+            max_max_new_tokens = 256
     if is_hf:
         # must override share if in spaces
         share = False
+        if not max_time:
+            max_time = 60 * 1
+        if not max_max_time:
+            max_max_time = max_time
+        # HF accounted for later in get_max_max_new_tokens()
     save_dir = os.getenv('SAVE_DIR', save_dir)
     score_model = os.getenv('SCORE_MODEL', score_model)
     if score_model == 'None' or score_model is None:
@@ -364,8 +387,6 @@ def main(
 
     if offload_folder:
         makedirs(offload_folder)
-
-    user_set_max_new_tokens = max_new_tokens is not None
 
     placeholder_instruction, placeholder_input, \
         stream_output, show_examples, \
@@ -658,6 +679,7 @@ def get_model(
                                                      use_auth_token=use_auth_token,
                                                      trust_remote_code=trust_remote_code,
                                                      offload_folder=offload_folder,
+                                                     padding_side='left',
                                                      )
     else:
         tokenizer = tokenizer_loader
@@ -882,7 +904,7 @@ def evaluate_from_str(
         debug=False,
         concurrency_count=None,
         save_dir=None,
-        sanitize_bot_response=True,
+        sanitize_bot_response=False,
         model_state0=None,
         memory_restriction_level=None,
         raise_generate_gpu_exceptions=None,
@@ -991,7 +1013,7 @@ def evaluate(
         debug=False,
         concurrency_count=None,
         save_dir=None,
-        sanitize_bot_response=True,
+        sanitize_bot_response=False,
         model_state0=None,
         memory_restriction_level=None,
         raise_generate_gpu_exceptions=None,
@@ -1176,17 +1198,21 @@ def evaluate(
     max_max_tokens = tokenizer.model_max_length
     max_input_tokens = max_max_tokens - max_new_tokens
     input_ids = input_ids[:, -max_input_tokens:]
-    generation_config = GenerationConfig(
-        temperature=float(temperature),
-        top_p=float(top_p),
-        top_k=top_k,
-        num_beams=num_beams,
-        do_sample=do_sample,
-        repetition_penalty=float(repetition_penalty),
-        num_return_sequences=num_return_sequences,
-        renormalize_logits=True,
-        remove_invalid_values=True,
-    )
+    gen_config_kwargs = dict(temperature=float(temperature),
+                             top_p=float(top_p),
+                             top_k=top_k,
+                             num_beams=num_beams,
+                             do_sample=do_sample,
+                             repetition_penalty=float(repetition_penalty),
+                             num_return_sequences=num_return_sequences,
+                             renormalize_logits=True,
+                             remove_invalid_values=True,
+                             )
+    token_ids = ['eos_token_id', 'pad_token_id', 'bos_token_id', 'cls_token_id', 'sep_token_id']
+    for token_id in token_ids:
+        if hasattr(tokenizer, token_id) and getattr(tokenizer, token_id) is not None:
+            gen_config_kwargs.update({token_id: getattr(tokenizer, token_id)})
+    generation_config = GenerationConfig(**gen_config_kwargs)
 
     gen_kwargs = dict(input_ids=input_ids,
                       generation_config=generation_config,
@@ -1205,7 +1231,10 @@ def evaluate(
         tgt_lang = languages_covered()[tgt_lang]
         gen_kwargs.update(dict(forced_bos_token_id=tokenizer.lang_code_to_id[tgt_lang]))
     else:
-        gen_kwargs.update(dict(pad_token_id=tokenizer.eos_token_id))
+        token_ids = ['eos_token_id', 'bos_token_id', 'pad_token_id']
+        for token_id in token_ids:
+            if hasattr(tokenizer, token_id) and getattr(tokenizer, token_id) is not None:
+                gen_kwargs.update({token_id: getattr(tokenizer, token_id)})
 
     decoder_kwargs = dict(skip_special_tokens=True,
                           clean_up_tokenization_spaces=True)
@@ -1693,7 +1722,7 @@ def get_max_max_new_tokens(model_state, **kwargs):
     elif kwargs['memory_restriction_level'] >= 3:
         max_max_new_tokens = 256
     else:
-        if not isinstance(model_state[1], str):
+        if not isinstance(model_state[1], (str, types.NoneType)):
             max_max_new_tokens = model_state[1].model_max_length
         else:
             # FIXME: Need to update after new model loaded, so user can control with slider

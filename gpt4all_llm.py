@@ -74,9 +74,9 @@ class H2OStreamingStdOutCallbackHandler(StreamingStdOutCallbackHandler):
         pass
 
 
-def get_model_kwargs(env_kwargs, default_kwargs, cls):
+def get_model_kwargs(env_kwargs, default_kwargs, cls, exclude_list=[]):
     # default from class
-    model_kwargs = {k: v.default for k, v in dict(inspect.signature(cls).parameters).items()}
+    model_kwargs = {k: v.default for k, v in dict(inspect.signature(cls).parameters).items() if k not in exclude_list}
     # from our defaults
     model_kwargs.update(default_kwargs)
     # from user defaults
@@ -114,20 +114,20 @@ def get_llm_gpt4all(model_name,
     if model_name == 'llama':
         cls = H2OLlamaCpp
         model_path = env_kwargs.pop('model_path_llama') if model is None else model
-        model_kwargs = get_model_kwargs(env_kwargs, default_kwargs, cls)
+        model_kwargs = get_model_kwargs(env_kwargs, default_kwargs, cls, exclude_list=['lc_kwargs'])
         model_kwargs.update(dict(model_path=model_path, callbacks=callbacks))
         llm = cls(**model_kwargs)
         llm.client.verbose = verbose
     elif model_name == 'gpt4all_llama':
         cls = H2OGPT4All
         model_path = env_kwargs.pop('model_path_gpt4all_llama') if model is None else model
-        model_kwargs = get_model_kwargs(env_kwargs, default_kwargs, cls)
+        model_kwargs = get_model_kwargs(env_kwargs, default_kwargs, cls, exclude_list=['lc_kwargs'])
         model_kwargs.update(dict(model=model_path, backend='llama', callbacks=callbacks))
         llm = cls(**model_kwargs)
     elif model_name == 'gptj':
         cls = H2OGPT4All
         model_path = env_kwargs.pop('model_path_gptj') if model is None else model
-        model_kwargs = get_model_kwargs(env_kwargs, default_kwargs, cls)
+        model_kwargs = get_model_kwargs(env_kwargs, default_kwargs, cls, exclude_list=['lc_kwargs'])
         model_kwargs.update(dict(model=model_path, backend='gptj', callbacks=callbacks))
         llm = cls(**model_kwargs)
     else:
@@ -156,9 +156,16 @@ class H2OGPT4All(gpt4all.GPT4All):
                     model_type=values["backend"],
                     allow_download=False,
                 )
+                if values["n_threads"] is not None:
+                    # set n_threads
+                    values["client"].model.set_thread_count(values["n_threads"])
             else:
                 values["client"] = values["model"]
-            values["backend"] = values["client"].model.model_type
+            try:
+                values["backend"] = values["client"].model_type
+            except AttributeError:
+                # The below is for compatibility with GPT4All Python bindings <= 0.2.3.
+                values["backend"] = values["client"].model.model_type
 
         except ImportError:
             raise ValueError(
