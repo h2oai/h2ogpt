@@ -13,15 +13,7 @@ from utils import remove
 def test_eval1(cpu, bits, base_model):
     if cpu and bits != 32:
         return
-    try:
-        run_eval1(cpu=cpu, bits=bits, base_model=base_model)
-    except Exception as e:
-        if bits == 4 and """GPTNeoXForCausalLM.__init__() got an unexpected keyword argument 'load_in_4bit'""" in str(
-                e):
-            # FIXME: when transformers/accelerate are in pypi with 4-bit update, can add to requirements and avoid this
-            pass
-        else:
-            raise
+    run_eval1(cpu=cpu, bits=bits, base_model=base_model)
 
 
 @wrap_test_forked
