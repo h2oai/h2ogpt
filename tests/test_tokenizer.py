@@ -48,6 +48,7 @@ def test_tokenizer1():
     
     In the main part of the program, we use a for loop to call the fib function with different"""
 
+    prompt = os.getenv('PROMPT', prompt)
     run_tokenizer1(prompt)
 
 
@@ -62,23 +63,23 @@ def run_tokenizer1(prompt):
 
     t0 = time.time()
     a = len(regTokenize(prompt))
-    print(a, time.time() - t0)
+    print("Regexp Tokenizer", a, time.time() - t0)
 
     t0 = time.time()
     a = len(nltkTokenize(prompt))
-    print(a, time.time() - t0)
+    print("NLTK Tokenizer", a, time.time() - t0)
 
     t0 = time.time()
     a = len(t(prompt)['input_ids'])
-    print(a, time.time() - t0)
+    print("Slow Tokenizer", a, time.time() - t0)
 
     t0 = time.time()
     a = len(llm_tokenizer(prompt)['input_ids'])
-    print(a, time.time() - t0)
+    print("Fast Tokenizer LLM", a, time.time() - t0)
 
     t0 = time.time()
     a = emb.tokenize([prompt])['input_ids'].shape[1]
-    print(a, time.time() - t0)
+    print("Instruct Embedding", a, time.time() - t0)
 
 
 if __name__ == '__main__':
