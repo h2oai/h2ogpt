@@ -1,0 +1,8 @@
+bert_score>=0.3.13
+git+https://github.com/huggingface/evaluate@7d7d81dd3ffec0812e2edb09f86b3b1e31d61118
+sacremoses>=0.0.53
+absl-py
+nltk
+rouge_score>=0.1.2
+# below install tensorflow and downgrades numpy, so heavy dependency
+git+https://github.com/google-research/bleurt.git

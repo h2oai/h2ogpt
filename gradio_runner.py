@@ -5,8 +5,10 @@ import json
 import os
 import pprint
 import random
+import shutil
 import sys
 import traceback
+import typing
 import uuid
 import filelock
 import pandas as pd
@@ -38,7 +40,7 @@ from prompter import Prompter, \
     prompt_type_to_model_name, prompt_types_strings, inv_prompt_type_to_model_lower, generate_prompt, non_hf_types, \
     get_prompt
 from utils import get_githash, flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
-    ping, get_short_name, get_url, makedirs, get_kwargs
+    ping, get_short_name, get_url, makedirs, get_kwargs, remove
 from generate import get_model, languages_covered, evaluate, eval_func_param_names, score_qa, langchain_modes, \
     inputs_kwargs_list, get_cutoffs, scratch_base_dir, evaluate_from_str, no_default_param_names, \
     eval_func_param_names_defaults, get_max_max_new_tokens
@@ -627,6 +629,7 @@ def go_gradio(**kwargs):
                                                 enable_ocr=enable_ocr,
                                                 caption_loader=caption_loader,
                                                 verbose=kwargs['verbose'],
+                                                user_path=kwargs['user_path'],
                                                 )
 
         # note for update_user_db_func output is ignored for db
@@ -674,6 +677,7 @@ def go_gradio(**kwargs):
                                               enable_ocr=enable_ocr,
                                               caption_loader=caption_loader,
                                               verbose=kwargs['verbose'],
+                                              user_path=kwargs['user_path'],
                                               )
 
         add_to_my_db_btn.click(update_my_db_func,
@@ -1667,6 +1671,7 @@ def update_user_db(file, db1, x, y, *args, dbs=None, langchain_mode='UserData', 
 
 
 def _update_user_db(file, db1, x, y, chunk, chunk_size, dbs=None, db_type=None, langchain_mode='UserData',
+                    user_path=None,
                     use_openai_embedding=None,
                     hf_embedding_model=None,
                     caption_loader=None,
@@ -1694,6 +1699,23 @@ def _update_user_db(file, db1, x, y, chunk, chunk_size, dbs=None, db_type=None, 
     # handle single file of temp buffer
     if hasattr(file, 'name'):
         file = file.name
+    if not isinstance(file, (list, tuple, typing.Generator)) and isinstance(file, str):
+        file = [file]
+
+    if langchain_mode == 'UserData' and user_path is not None:
+        # move temp files from gradio upload to stable location
+        for fili, fil in enumerate(file):
+            if isinstance(fil, str):
+                if fil.startswith('/tmp/gradio/'):
+                    new_fil = os.path.join(user_path, os.path.basename(fil))
+                    if os.path.isfile(new_fil):
+                        remove(new_fil)
+                    try:
+                        shutil.move(fil, new_fil)
+                    except FileExistsError:
+                        pass
+                    file[fili] = new_fil
+
     if verbose:
         print("Adding %s" % file, flush=True)
     sources = path_to_docs(file if not is_url and not is_txt else None,
