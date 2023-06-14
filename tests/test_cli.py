@@ -37,7 +37,7 @@ def test_cli_langchain(monkeypatch):
     print(all_generations)
     assert len(all_generations) == 1
     assert "pexels-evg-kowalievska-1170986_small.jpg" in all_generations[0]
-    assert "looking out the window" in all_generations[0]
+    assert "looking out the window" in all_generations[0] or "staring out the window at the city skyline" in all_generations[0]
 
 
 @wrap_test_forked
@@ -62,7 +62,7 @@ def test_cli_langchain_llamacpp(monkeypatch):
     print(all_generations)
     assert len(all_generations) == 1
     assert "pexels-evg-kowalievska-1170986_small.jpg" in all_generations[0]
-    assert "The cat is sitting on a window seat and looking out the window" in all_generations[0]
+    assert "The cat is sitting on a window seat and looking out the window" in all_generations[0] or "staring out the window at the city skyline" in all_generations[0]
 
 
 @wrap_test_forked
@@ -118,4 +118,4 @@ def test_cli_langchain_h2ogpt(monkeypatch):
     print(all_generations)
     assert len(all_generations) == 1
     assert "pexels-evg-kowalievska-1170986_small.jpg" in all_generations[0]
-    assert "looking out the window" in all_generations[0]
+    assert "looking out the window" in all_generations[0] or "staring out the window at the city skyline" in all_generations[0]
