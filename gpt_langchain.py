@@ -23,7 +23,7 @@ from langchain.embeddings import HuggingFaceInstructEmbeddings
 from tqdm import tqdm
 
 from enums import DocumentChoices
-from generate import gen_hyper
+from generate import gen_hyper, get_model
 from prompter import non_hf_types, PromptType
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
     get_device, ProgressParallel, remove, hash_file, clear_torch_cache
@@ -309,18 +309,7 @@ def get_llm(use_openai_model=False, model_name=None, model=None,
             model_name = 'h2oai/h2ogpt-oasst1-512-12b'
             # model_name = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
             # model_name = 'h2oai/h2ogpt-oasst1-512-20b'
-            tokenizer = AutoTokenizer.from_pretrained(model_name)
-            device, torch_dtype, context_class = get_device_dtype()
-
-            with context_class(device):
-                load_8bit = True
-                # FIXME: for now not to spread across hetero GPUs
-                # device_map={"": 0} if load_8bit and device == 'cuda' else "auto"
-                device_map = {"": 0} if device == 'cuda' else "auto"
-                model = AutoModelForCausalLM.from_pretrained(model_name,
-                                                             device_map=device_map,
-                                                             torch_dtype=torch_dtype,
-                                                             load_in_8bit=load_8bit)
+            model, tokenizer, device = get_model(load_8bit=True, base_model=model_name, gpu_id=0)
 
         max_max_tokens = tokenizer.model_max_length
         gen_kwargs = dict(do_sample=do_sample,
