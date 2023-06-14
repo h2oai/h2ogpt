@@ -45,41 +45,5 @@ else
 	docker push $(DOCKER_TEST_IMAGE)
 endif
 
-has_nvidia_smi    := $(shell nvidia-smi >/dev/null 2>&1 && echo "WORKING")
-ifeq ($(has_nvidia_smi),)
-	override DOCKER_BINARY=docker
-	override DOCKER_BINARY_RUNTIME=
-    $(warning System has no GPUs, using DOCKER_BINARY=$(DOCKER_BINARY) and DOCKER_BINARY_RUNTIME=$(DOCKER_BINARY_RUNTIME))
-else
-	override DOCKER_BINARY?=nvidia-docker
-    ifeq ($(shell echo `which $(DOCKER_BINARY)`),)
-        override DOCKER_BINARY=docker
-    endif
-	override DOCKER_BINARY_RUNTIME=--runtime nvidia
-    $(warning System has GPUs, using DOCKER_BINARY=$(DOCKER_BINARY) and DOCKER_BINARY_RUNTIME=$(DOCKER_BINARY_RUNTIME))
-endif
-test_in_docker: docker_build
-	$(DOCKER_BINARY) run \
-		$(DOCKER_BINARY_RUNTIME) \
-		--rm \
-		--init \
-		--security-opt seccomp=unconfined \
-		--workdir /h2oai \
-		--entrypoint bash \
-		-u `id -u`:`id -g` \
-		-e HOME=/h2oai \
-		-e HOST_HOSTNAME=`hostname` \
-		-v /etc/passwd:/etc/passwd:ro \
-		-v /etc/group:/etc/group:ro \
-		-v `pwd`:/h2oai \
-		$(DOCKER_TEST_IMAGE) \
-		-c "nvidia-smi || true && \
-			python3.10 -m pip install -r requirements.txt && \
-		   	python3.10 -m pip install -r reqs_optional/requirements_optional_4bit.txt && \
-		   	python3.10 -m pip install -r reqs_optional/requirements_optional_langchain.txt && \
-		   	python3.10 -m pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt && \
-		   	python3.10 -m pip install -r reqs_optional/requirements_optional_gpt4all.txt && \
-		   	python3.10 -m pytest tests --junit-xml=test_report.xml"
-
 print-%:
 	@echo $($*)
