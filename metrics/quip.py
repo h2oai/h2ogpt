@@ -171,9 +171,9 @@ class Quip(evaluate.Metric):
         references_per_prediction = len(references[0])
         if any(len(refs) != references_per_prediction for refs in references):
             raise ValueError(
-                "ChrF, as implemented by sacrebleu, requires the same number of references for each prediction"
+                "Quip requires the same number of references for each prediction"
             )
-        transformed_references = [[refs[i] for refs in references] for i in range(references_per_prediction)]
+        # transformed_references = [[refs[i] for refs in references] for i in range(references_per_prediction)]
 
         if reduced:
             punc = """"!"#$%&()*+,-./:;<=>?@[\\]^_{|}~"""
