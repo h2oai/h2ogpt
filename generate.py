@@ -95,7 +95,7 @@ def main(
         stream_output: bool = True,
         show_examples: bool = None,
         verbose: bool = False,
-        h2ocolors: bool = False,
+        h2ocolors: bool = True,
         height: int = 600,
         show_lora: bool = True,
         login_mode_if_model0: bool = False,
