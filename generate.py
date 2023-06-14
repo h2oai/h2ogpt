@@ -140,7 +140,7 @@ def main(
         enable_sources_list: bool = True,
         chunk: bool = True,
         chunk_size: int = 512,
-        top_k_docs: int = -1,
+        top_k_docs: int = None,
         n_jobs: int = -1,
         enable_captions: bool = True,
         captions_model: str = "Salesforce/blip-image-captioning-base",
@@ -301,9 +301,11 @@ def main(
         top_k = 70 if top_k is None else top_k
         if is_hf:
             do_sample = True if do_sample is None else do_sample
+            top_k_docs = 3 if top_k_docs is None else top_k_docs
         else:
             # by default don't sample, too chatty
             do_sample = False if do_sample is None else do_sample
+            top_k_docs = 4 if top_k_docs is None else top_k_docs
 
         if memory_restriction_level == 2:
             if not base_model:
@@ -313,11 +315,13 @@ def main(
                 load_4bit = False  # FIXME - consider using 4-bit instead of 8-bit
         else:
             base_model = 'h2oai/h2ogpt-oasst1-512-20b' if not base_model else base_model
+            top_k_docs = -1 if top_k_docs  is None else top_k_docs
     if memory_restriction_level >= 2:
         load_8bit = True
         load_4bit = False  # FIXME - consider using 4-bit instead of 8-bit
         if hf_embedding_model is None:
             hf_embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
+        top_k_docs = 3 if top_k_docs  is None else top_k_docs
     user_set_max_new_tokens = max_new_tokens is not None
     if is_public:
         if not max_time:
