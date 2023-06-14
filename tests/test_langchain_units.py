@@ -158,7 +158,7 @@ def test_qa_daidocs_db_chunk_hf_faiss():
 
 @wrap_test_forked
 @pytest.mark.parametrize("db_type", db_types)
-@pytest.mark.parametrize("top_k_docs", [-1, None])
+@pytest.mark.parametrize("top_k_docs", [-1, 3])
 def test_qa_daidocs_db_chunk_hf_dbs(db_type, top_k_docs):
     langchain_mode = 'DriverlessAI docs'
     persist_directory = get_persist_directory(langchain_mode)

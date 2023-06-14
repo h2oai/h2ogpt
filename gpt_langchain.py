@@ -1302,7 +1302,9 @@ def _run_qa_db(query=None,
                document_choice=[DocumentChoices.All_Relevant.name],
                n_jobs=-1,
                verbose=False,
-               cli=False):
+               cli=False,
+               reverse_docs=True,
+               ):
     """
 
     :param query:
@@ -1452,6 +1454,7 @@ def get_similarity_chain(query=None,
                          llm=None,
                          verbose=False,
                          cmd=None,
+                         reverse_docs=True,
                          ):
     # determine whether use of context out of docs is planned
     if not use_openai_model and prompt_type not in ['plain'] or model_name in non_hf_types:
@@ -1493,24 +1496,22 @@ def get_similarity_chain(query=None,
 
     if 'falcon' in model_name:
         extra = "According to only the information in the document sources provided within the triple quotes above, "
-        prefix = "Pay attention and remember information within triple quotes below which will help to answer this question: "
+        prefix = "Pay attention and remember information within triple quotes below which will help to answer the question after the triple quotes ends."
     else:
         extra = ""
         prefix = ""
     if langchain_mode in ['Disabled', 'ChatLLM', 'LLM'] or not use_context:
         template = """%s{context}{question}""" % prefix
     else:
-        template = """%s{question}
-\"\"\"
+        template = """%s
+==
 {context}
-\"\"\"
+==
 %s{question}""" % (prefix, extra)
     if not use_openai_model and prompt_type not in ['plain'] or model_name in non_hf_types:
         use_template = True
-        len_template = len(template)
     else:
         use_template = False
-        len_template = 0
 
     if db and use_context:
         if not isinstance(db, Chroma):
@@ -1582,7 +1583,9 @@ def get_similarity_chain(query=None,
                 docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:top_k_docs]
             # put most relevant chunks closest to question,
             # esp. if truncation occurs will be "oldest" or "farthest from response" text that is truncated
-            docs_with_score.reverse()
+            # BUT: for small models, e.g. 6_9 pythia, if sees some stuff related to h2oGPT first, it can connect that and not listen to rest
+            if reverse_docs:
+                docs_with_score.reverse()
             # cut off so no high distance docs/sources considered
             docs = [x[0] for x in docs_with_score if x[1] < cut_distanct]
             scores = [x[1] for x in docs_with_score if x[1] < cut_distanct]

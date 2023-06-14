@@ -115,7 +115,8 @@ def test_client_chat_nostream_llama7b():
 def run_client_chat_with_server(prompt='Who are you?', stream_output=False, max_new_tokens=256,
                                 base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b', prompt_type='human_bot',
                                 langchain_mode='Disabled', user_path=None,
-                                visible_langchain_modes=['UserData', 'MyData']):
+                                visible_langchain_modes=['UserData', 'MyData'],
+                                reverse_docs=True):
     import os, sys
     if langchain_mode == 'Disabled':
         os.environ['TEST_LANGCHAIN_IMPORT'] = "1"
@@ -127,7 +128,8 @@ def run_client_chat_with_server(prompt='Who are you?', stream_output=False, max_
          stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
          max_new_tokens=max_new_tokens,
          langchain_mode=langchain_mode, user_path=user_path,
-         visible_langchain_modes=visible_langchain_modes)
+         visible_langchain_modes=visible_langchain_modes,
+         reverse_docs=reverse_docs)
 
     from client_test import run_client_chat
     res_dict, client = run_client_chat(prompt=prompt, prompt_type='human_bot', stream_output=stream_output,
@@ -148,7 +150,9 @@ def test_client_chat_stream_langchain():
     prompt = "What is h2oGPT?"
     res_dict, client = run_client_chat_with_server(prompt=prompt, stream_output=True, langchain_mode="UserData",
                                                    user_path=user_path,
-                                                   visible_langchain_modes=['UserData', 'MyData'])
+                                                   visible_langchain_modes=['UserData', 'MyData'],
+                                                   reverse_docs=False,  # for 6_9 dumb model for testing
+                                                   )
     # below wouldn't occur if didn't use LangChain with README.md,
     # raw LLM tends to ramble about H2O.ai and what it does regardless of question.
     assert 'h2oGPT is a large language model' in res_dict['response']

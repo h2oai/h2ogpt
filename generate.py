@@ -141,6 +141,7 @@ def main(
         chunk: bool = True,
         chunk_size: int = 512,
         top_k_docs: int = None,
+        reverse_docs: bool = True,
         n_jobs: int = -1,
         enable_captions: bool = True,
         captions_model: str = "Salesforce/blip-image-captioning-base",
@@ -251,6 +252,9 @@ def main(
     :param chunk: Whether to chunk data (True unless know data is already optimally chunked)
     :param chunk_size: Size of chunks, with typically top-4 passed to LLM, so neesd to be in context length
     :param top_k_docs: number of chunks to give LLM
+    :param reverse_docs: whether to reverse docs order so most relevant is closest to question.
+           Best choice for sufficiently smart model, and truncation occurs for oldest context, so best then too.
+           But smaller 6_9 models fail to use newest context and can get stuck on old information.
     :param n_jobs: Number of processors to use when consuming documents (-1 = all, is default)
     :param enable_captions: Whether to support captions using BLIP for image files as documents, then preloads that model
     :param captions_model: Which model to use for captions.
@@ -928,6 +932,7 @@ def evaluate_from_str(
         text_limit=None,
         verbose=False,
         cli=False,
+        reverse_docs=True,
 ):
     if isinstance(user_kwargs, str):
         user_kwargs = ast.literal_eval(user_kwargs)
@@ -972,6 +977,7 @@ def evaluate_from_str(
         text_limit=text_limit,
         verbose=verbose,
         cli=cli,
+        reverse_docs=reverse_docs,
     )
     try:
         for ret1 in ret:
@@ -1035,6 +1041,7 @@ def evaluate(
         text_limit=None,
         verbose=False,
         cli=False,
+        reverse_docs=True,
 ):
     # ensure passed these
     assert concurrency_count is not None
@@ -1152,6 +1159,7 @@ def evaluate(
                            verbose=verbose,
                            cli=cli,
                            sanitize_bot_response=sanitize_bot_response,
+                           reverse_docs=reverse_docs,
                            ):
             outr, extra = r  # doesn't accumulate, new answer every yield, so only save that full answer
             yield dict(response=outr, sources=extra)
