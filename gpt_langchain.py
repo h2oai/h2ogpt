@@ -1478,7 +1478,11 @@ def get_similarity_chain(query=None,
     # FIXME: Seems to way to get size of chroma db to limit top_k_docs to avoid
     # Chroma collection MyData contains fewer than 4 elements.
     # type logger error
-    k_db = 1000 if db_type == 'chroma' else top_k_docs  # top_k_docs=100 works ok too for
+    if top_k_docs == -1:
+        k_db = 1000 if db_type == 'chroma' else 100
+    else:
+        # top_k_docs=100 works ok too
+        k_db = 1000 if db_type == 'chroma' else top_k_docs
 
     # FIXME: For All just go over all dbs instead of a separate db for All
     if not detect_user_path_changes_every_query and db is not None:
@@ -1539,24 +1543,29 @@ def get_similarity_chain(query=None,
             docs = [x[0] for x in docs_with_score]
             scores = [x[1] for x in docs_with_score]
         else:
-            #docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:top_k_docs]
-            top_k_docs_tokenize = 100
-            docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:top_k_docs_tokenize]
-            # FIXME: Should use LLM's tokenizer if have access, else embedding is kinda ok since small chunks normally
-            tokens = [db._embedding_function.client.tokenize([x[0].page_content])['input_ids'].shape[1] for x in
-                      docs_with_score]
-            tokens_cumsum = np.cumsum(tokens)
-            if hasattr(llm, 'pipeline') and hasattr(llm.pipeline, 'max_input_tokens'):
-                max_input_tokens = llm.pipeline.max_input_tokens
+            if top_k_docs == 1:
+                #docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:top_k_docs]
+                top_k_docs_tokenize = 100
+                docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:top_k_docs_tokenize]
+                # FIXME: Should use LLM's tokenizer if have access, else embedding is kinda ok since small chunks normally
+                tokens = [db._embedding_function.client.tokenize([x[0].page_content])['input_ids'].shape[1] for x in
+                          docs_with_score]
+                tokens_cumsum = np.cumsum(tokens)
+                if hasattr(llm, 'pipeline') and hasattr(llm.pipeline, 'max_input_tokens'):
+                    max_input_tokens = llm.pipeline.max_input_tokens
+                else:
+                    max_input_tokens = 2048 - 256
+                # FIXME: Doesn't account for query, == context, or new lines between contexts
+                top_k_docs_trial = np.where(tokens_cumsum < max_input_tokens)[0][-1]
+                if top_k_docs_trial > 0 and top_k_docs_trial < 100:
+                    # avoid craziness
+                    top_k_docs = top_k_docs_trial
+                docs_with_score = docs_with_score[:top_k_docs]
             else:
-                max_input_tokens = 2048 - 256
-            # FIXME: Doesn't account for query, == context, or new lines between contexts
-            top_k_docs_trial = np.where(tokens_cumsum < max_input_tokens)[0][-1]
-            if top_k_docs_trial > 0 and top_k_docs_trial < 100:
-                # avoid craziness
-                top_k_docs = top_k_docs_trial
-            docs_with_score = docs_with_score[:top_k_docs]
-
+                docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:top_k_docs]
+            # put most relevant chunks closest to question,
+            # esp. if truncation occurs will be "oldest" or "farthest from response" text that is truncated
+            docs_with_score.reverse()
             # cut off so no high distance docs/sources considered
             docs = [x[0] for x in docs_with_score if x[1] < cut_distanct]
             scores = [x[1] for x in docs_with_score if x[1] < cut_distanct]
@@ -1599,11 +1608,16 @@ def get_similarity_chain(query=None,
         if langchain_mode in ['Disabled', 'ChatLLM', 'LLM'] or not use_context:
             template = """%s{context}{question}""" % prefix
         else:
-            template = """%s
-==
+            if 'falcon' in model_name:
+                extra = "According to only the information in the document sources provided within the triple quotes above, "
+                prefix = "Pay attention and remember information within triple quotes below which will help to answer this question: "
+            else:
+                extra = ""
+            template = """%s{question}
+\"\"\"
 {context}
-==
-{question}""" % prefix
+\"\"\"
+%s{question}""" % (prefix, extra)
         prompt = PromptTemplate(
             # input_variables=["summaries", "question"],
             input_variables=["context", "question"],
