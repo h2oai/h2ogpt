@@ -1323,7 +1323,8 @@ def _run_qa_db(query=None,
     :param answer_with_sources
     :return:
     """
-    assert model_name is not None  # require so can make decisions
+    if model is not None:
+        assert model_name is not None  # require so can make decisions
     assert query is not None
     assert prompter is not None or prompt_type is not None or model is None  # if model is None, then will generate
     if prompter is not None:

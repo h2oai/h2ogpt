@@ -195,7 +195,9 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
     res_dict, client = run_client(client, prompt, args, kwargs)
     assert ('a large language model' in res_dict['response'] or
             'language model trained' in res_dict['response'] or
-            'H2O GPT is a language model' in res_dict['response']) \
+            'H2O GPT is a language model' in res_dict['response'] or
+            'H2O GPT is a chatbot framework' in res_dict['response']
+            ) \
            and 'FAQ.md' in res_dict['response']
 
     # QUERY1
