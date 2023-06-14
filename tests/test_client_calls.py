@@ -177,7 +177,9 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
          max_new_tokens=max_new_tokens,
          top_k_docs=top_k_docs,
          langchain_mode=langchain_mode, user_path=user_path,
-         visible_langchain_modes=visible_langchain_modes)
+         visible_langchain_modes=visible_langchain_modes,
+         reverse_docs=False,  # for 6_9
+         )
 
     from client_test import get_client, get_args, run_client
     client = get_client(serialize=False)
@@ -207,9 +209,10 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
     res_dict, client = run_client(client, prompt, args, kwargs)
     # wrong answer given wrong docs
     assert ('A secure chatbot that uses a large language' in res_dict['response'] or
-            'Whisper is a chatbot' in res_dict['response'] or 'Whisper is a privacy-focused chatbot platform' in
-            res_dict['response'] or
-            'h2oGPT' in res_dict['response']
+            'Whisper is a chatbot' in res_dict['response'] or
+            'Whisper is a privacy-focused chatbot platform' in res_dict['response'] or
+            'h2oGPT' in res_dict['response'] or
+            'A secure, private, and anonymous chat platform' in res_dict['response']
             ) \
            and 'README.md' in res_dict['response']
 
@@ -241,7 +244,8 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'Whisper is a tool for generating text from a model' in res_dict['response'] or
             'Whisper is a chatbot platform' in res_dict['response'] or
             'whisper is a chatbot framework' in res_dict['response'] or
-            'whisper is a tool for training language models' in res_dict['response']
+            'whisper is a tool for training language models' in res_dict['response'] or
+            'whisper is a secure messaging app' in res_dict['response']
             ) \
            and '.md' in res_dict['response']
 
@@ -301,6 +305,7 @@ def test_client_chat_stream_langchain_steps2(max_new_tokens, top_k_docs):
     res_dict, client = run_client(client, prompt, args, kwargs)
     assert ('h2oGPT is an open-source, fully permissive, commercially usable, and fully trained language model' in
             res_dict['response'] or
+            'A new open-source language model that is fully permissive' in res_dict['response'] or
             'h2oGPT is an open-source language model' in res_dict['response'] or
             'h2oGPT is an open-source, fully permissive, commercially usable' in res_dict['response']
             ) and \

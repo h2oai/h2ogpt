@@ -213,6 +213,7 @@ def test_qa_daidocs_db_chunk_hf_dbs_switch_embedding(db_type):
                      hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
                      model=model,
                      tokenizer=tokenizer,
+                     model_name=base_model,
                      prompt_type=prompt_type,
                      text_limit=None, chunk=True,
                      chunk_size=128 * 1,  # characters, and if k=4, then 4*4*128 = 2048 chars ~ 512 tokens
@@ -227,6 +228,7 @@ def test_qa_daidocs_db_chunk_hf_dbs_switch_embedding(db_type):
                      hf_embedding_model='hkunlp/instructor-large',
                      model=model,
                      tokenizer=tokenizer,
+                     model_name=base_model,
                      prompt_type=prompt_type,
                      text_limit=None, chunk=True,
                      chunk_size=128 * 1,  # characters, and if k=4, then 4*4*128 = 2048 chars ~ 512 tokens

@@ -326,6 +326,8 @@ def main(
         if hf_embedding_model is None:
             hf_embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
         top_k_docs = 3 if top_k_docs  is None else top_k_docs
+    if top_k_docs is None:
+        top_k_docs = 3
     user_set_max_new_tokens = max_new_tokens is not None
     if is_public:
         if not max_time:
