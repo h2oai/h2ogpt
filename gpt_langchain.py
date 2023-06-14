@@ -1539,7 +1539,24 @@ def get_similarity_chain(query=None,
             docs = [x[0] for x in docs_with_score]
             scores = [x[1] for x in docs_with_score]
         else:
-            docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:top_k_docs]
+            #docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:top_k_docs]
+            top_k_docs_tokenize = 100
+            docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:top_k_docs_tokenize]
+            # FIXME: Should use LLM's tokenizer if have access, else embedding is kinda ok since small chunks normally
+            tokens = [db._embedding_function.client.tokenize([x[0].page_content])['input_ids'].shape[1] for x in
+                      docs_with_score]
+            tokens_cumsum = np.cumsum(tokens)
+            if hasattr(llm, 'pipeline') and hasattr(llm.pipeline, 'max_input_tokens'):
+                max_input_tokens = llm.pipeline.max_input_tokens
+            else:
+                max_input_tokens = 2048 - 256
+            # FIXME: Doesn't account for query, == context, or new lines between contexts
+            top_k_docs_trial = np.where(tokens_cumsum < max_input_tokens)[0][-1]
+            if top_k_docs_trial > 0 and top_k_docs_trial < 100:
+                # avoid craziness
+                top_k_docs = top_k_docs_trial
+            docs_with_score = docs_with_score[:top_k_docs]
+
             # cut off so no high distance docs/sources considered
             docs = [x[0] for x in docs_with_score if x[1] < cut_distanct]
             scores = [x[1] for x in docs_with_score if x[1] < cut_distanct]
