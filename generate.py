@@ -315,7 +315,7 @@ def main(
                 load_4bit = False  # FIXME - consider using 4-bit instead of 8-bit
         else:
             base_model = 'h2oai/h2ogpt-oasst1-512-20b' if not base_model else base_model
-            top_k_docs = -1 if top_k_docs  is None else top_k_docs
+            top_k_docs = 10 if top_k_docs is None else top_k_docs
     if memory_restriction_level >= 2:
         load_8bit = True
         load_4bit = False  # FIXME - consider using 4-bit instead of 8-bit
