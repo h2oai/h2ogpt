@@ -62,41 +62,6 @@ def fix_newlines(text):
     return '```'.join(ts)
 
 
-from markdown_it import MarkdownIt
-
-
-def get_markdown_parser() -> MarkdownIt:
-    """Modified method of https://github.com/gradio-app/gradio/blob/main/gradio/utils.py#L42
-
-    Removes the dollarmath_plugin to render Latex equations.
-    """
-    from mdit_py_plugins.footnote.index import footnote_plugin
-    # from mdit_py_plugins.dollarmath import dollarmath_plugin
-    # from gradio.utils import tex2svg
-    md = (
-        MarkdownIt(
-            "js-default",
-            {
-                "linkify": True,
-                "typographer": True,
-                "html": True,
-            },
-        )
-        # .use(dollarmath_plugin, renderer=tex2svg, allow_digits=False)
-        .use(footnote_plugin)
-        .enable("table")
-    )
-
-    # Add target="_blank" to all links. Taken from MarkdownIt docs: https://github.com/executablebooks/markdown-it-py/blob/master/docs/architecture.md
-    def render_blank_link(self, tokens, idx, options, env):
-        tokens[idx].attrSet("target", "_blank")
-        return self.renderToken(tokens, idx, options, env)
-
-    md.add_render_rule("link_open", render_blank_link)
-
-    return md
-
-
 def go_gradio(**kwargs):
     allow_api = kwargs['allow_api']
     is_public = kwargs['is_public']
@@ -268,10 +233,8 @@ def go_gradio(**kwargs):
                     with col_chat:
                         with gr.Row():
                             text_output = gr.Chatbot(label=output_label0).style(height=kwargs['height'] or 400)
-                            text_output.md = get_markdown_parser()
                             text_output2 = gr.Chatbot(label=output_label0_model2, visible=False).style(
                                 height=kwargs['height'] or 400)
-                            text_output2.md = get_markdown_parser()
 
                         instruction, submit, stop_btn = make_prompt_form(kwargs)
 
