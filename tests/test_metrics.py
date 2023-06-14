@@ -133,14 +133,14 @@ def test_super_glue():
 
 @wrap_test_forked
 def test_quip():
-    prediction = ["The relationship between cats and dogs is not exactly friendly.",
-                  "a good bookshop is just a genteel black hole that knows how to read."]
-    reference = [["The relationship between dogs and cats is not exactly friendly.", ],
-                 ["A good bookshop is just a genteel Black Hole that knows how to read."]]
     from metrics.quip import Quip
     quip = Quip()
-    results = quip.compute(predictions=prediction, references=reference)
-    assert results == {'score': 84.64214891738334, 'char_order': 6, 'word_order': 0, 'beta': 2}
+
+    predictions = ["Kathy's hair is green according to the first passage."]
+    references = [["Kathy's hair is green.", "Bob is eating a sandwich.", "The sky is red with polka dots.", "Alice went to the county fair.", "George is reading a newspaper."]]
+    results = quip.compute(predictions=predictions, references=references)
+    print(results)
+    assert results == 0.8333333333333334
 
 
 @wrap_test_forked
@@ -187,3 +187,19 @@ def test_google_bleu():
     google_bleu = evaluate.load("google_bleu")
     results = google_bleu.compute(predictions=predictions, references=references, min_len=2, max_len=6)
     assert round(results["google_bleu"], 2) == 0.4
+
+
+@wrap_test_forked
+def test_meteor():
+    import evaluate
+    meteor = evaluate.load('meteor')
+    predictions = ["It is a guide to action which ensures that the military always obeys the commands of the party"]
+    references = [['It is a guide to action that ensures that the military will forever heed Party commands', 'It is the guiding principle which guarantees the military forces always being under the command of the Party', 'It is the practical guide for the army always to heed the directions of the party']]
+    results = meteor.compute(predictions=predictions, references=references)
+    assert round(results['meteor'], 2) == 0.69
+
+    predictions = ["Kathy's hair is green according to the first passage."]
+    references = [["Kathy's hair is green.", "Bob is eating a sandwich.", "The sky is red with polka dots.", "Alice went to the county fair.", "George is reading a newspaper."]]
+    results = meteor.compute(predictions=predictions, references=references)
+    assert results == {'meteor': 0.9059829059829061}
+    print(results)

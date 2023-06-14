@@ -1,7 +1,11 @@
+import os
+
 import datasets
+import pandas as pd
 import sacrebleu as scb
 from packaging import version
 from sacrebleu import CHRF
+import string
 
 import evaluate
 
@@ -99,16 +103,40 @@ Examples:
 
 @evaluate.utils.file_utils.add_start_docstrings(_DESCRIPTION, _KWARGS_DESCRIPTION)
 class Quip(evaluate.Metric):
+    def __init__(self, **kwargs):
+
+        self.set_common = None
+        if False:
+            common_words_file = "data/NGSL_1.2_stats.csv.zip"
+            if os.path.isfile(common_words_file):
+                df = pd.read_csv(common_words_file)
+                self.set_common = set(df['Lemma'].values.tolist())
+        else:
+            # https://norvig.com/ngrams/count_1w.txt
+            common_words_file = "data/count_1w.txt.zip"
+            if os.path.isfile(common_words_file):
+                df = pd.read_csv(common_words_file, names=["word", "freq"], header=None, sep='\t')
+                df = df.head(1000)
+                self.set_common = set(df['word'].values.tolist())
+                for k in list(string.ascii_lowercase):
+                    keep = {'i', 'I', 'A', 'a'}
+                    if k in self.set_common:
+                        if k in keep:
+                            continue
+                        self.set_common.remove(k)
+
+        super().__init__(**kwargs)
+
     def _info(self):
         if version.parse(scb.__version__) < version.parse("1.4.12"):
             raise ImportWarning(
-                "To use `sacrebleu`, the module `sacrebleu>=1.4.12` is required, and the current version of `sacrebleu` doesn't match this condition.\n"
+                "To use `quip`, the module `sacrebleu>=1.4.12` is required, and the current version of `sacrebleu` doesn't match this condition.\n"
                 'You can install it with `pip install "sacrebleu>=1.4.12"`.'
             )
         return evaluate.MetricInfo(
             description=_DESCRIPTION,
             citation=_CITATION,
-            homepage="https://github.com/mjpost/sacreBLEU#chrf--chrf",
+            homepage="https://github.com/h2oai/h2ogpt",
             inputs_description=_KWARGS_DESCRIPTION,
             features=[
                 datasets.Features(
@@ -124,9 +152,9 @@ class Quip(evaluate.Metric):
                     }
                 ),
             ],
-            codebase_urls=["https://github.com/mjpost/sacreBLEU#chrf--chrf"],
+            codebase_urls=["https://github.com/h2oai/h2ogpt"],
             reference_urls=[
-                "https://github.com/m-popovic/chrF",
+                "https://github.com/h2oai/h2ogpt",
             ],
         )
 
@@ -134,12 +162,8 @@ class Quip(evaluate.Metric):
             self,
             predictions=None,
             references=None,
-            char_order: int = CHRF.CHAR_ORDER,
-            word_order: int = CHRF.WORD_ORDER,
-            beta: int = CHRF.BETA,
-            lowercase: bool = False,
-            whitespace: bool = False,
-            eps_smoothing: bool = False,
+            reduced=True,
+            **kwargs,
     ):
         # if only one reference is provided make sure we still use list of lists
         if isinstance(references[0], str):
@@ -151,27 +175,30 @@ class Quip(evaluate.Metric):
             )
         transformed_references = [[refs[i] for refs in references] for i in range(references_per_prediction)]
 
-        sb_chrf = CHRF(char_order, word_order, beta, lowercase, whitespace, eps_smoothing)
-        output = sb_chrf.corpus_score(predictions, transformed_references)
+        if reduced:
+            punc = """"!"#$%&()*+,-./:;<=>?@[\\]^_{|}~"""
 
-        return {
-            "score": output.score,
-            "char_order": output.char_order,
-            "word_order": output.word_order,
-            "beta": output.beta,
-        }
-
-    @staticmethod
-    def test1():
-        prediction = ["The relationship between cats and dogs is not exactly friendly.",
-                      "a good bookshop is just a genteel black hole that knows how to read."]
-        reference = [["The relationship between dogs and cats is not exactly friendly.", ],
-                     ["A good bookshop is just a genteel Black Hole that knows how to read."]]
-
-        results = Quip.compute(predictions=prediction, references=reference)
-        return results
-        # {'score': 84.64214891738334, 'char_order': 6, 'word_order': 0, 'beta': 2}
+            for predi, pred in enumerate(predictions):
+                pred = pred.translate(str.maketrans(punc, ' ' * len(punc))).strip()
+                predictions[predi] = ' '.join([x for x in pred.split() if x not in self.set_common])
 
 
-if __name__ == '__main__':
-    print(ChrF.test1())
+        from nltk.util import everygrams
+        from utils import flatten_list
+        min_len = 2
+        max_len = 5
+        pred_ngrams = set(flatten_list([list(everygrams(x.split(), min_len=min_len, max_len=max_len)) for x in predictions]))
+        ref_ngrams = set(flatten_list([[list(everygrams(y.split(), min_len=min_len, max_len=max_len)) for y in z] for z in references]))
+        residual = pred_ngrams.difference(ref_ngrams)
+        num_residual = len(residual) / len(pred_ngrams)
+
+        return num_residual
+
+    def get_reduced_size(self, reduced_query, verbose=True):
+        reduced_query_words = reduced_query.split(' ')
+        set_common = set(self.df['Lemma'].values.tolist())
+        num_common = len([x.lower() in set_common for x in reduced_query_words])
+        frac_common = num_common / len(reduced_query) if reduced_query else 0
+        # FIXME: report to user bad query that uses too many common words
+        if verbose:
+            print("frac_common: %s" % frac_common, flush=True)
