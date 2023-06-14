@@ -1269,7 +1269,6 @@ def run_qa_db(**kwargs):
     func_names = list(inspect.signature(_run_qa_db).parameters)
     # hard-coded defaults
     kwargs['answer_with_sources'] = True
-    kwargs['sanitize_bot_response'] = True
     kwargs['show_rank'] = False
     missing_kwargs = [x for x in func_names if x not in kwargs]
     assert not missing_kwargs, "Missing kwargs: %s" % missing_kwargs

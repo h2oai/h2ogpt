@@ -1151,6 +1151,7 @@ def evaluate(
                            n_jobs=n_jobs,
                            verbose=verbose,
                            cli=cli,
+                           sanitize_bot_response=sanitize_bot_response,
                            ):
             outr, extra = r  # doesn't accumulate, new answer every yield, so only save that full answer
             yield dict(response=outr, sources=extra)
