@@ -1503,6 +1503,27 @@ def get_similarity_chain(query=None,
                                                         n_jobs=n_jobs,
                                                         verbose=verbose)
 
+    if 'falcon' in model_name:
+        extra = "According to only the information in the document sources provided within the triple quotes above, "
+        prefix = "Pay attention and remember information within triple quotes below which will help to answer this question: "
+    else:
+        extra = ""
+        prefix = ""
+    if langchain_mode in ['Disabled', 'ChatLLM', 'LLM'] or not use_context:
+        template = """%s{context}{question}""" % prefix
+    else:
+        template = """%s{question}
+\"\"\"
+{context}
+\"\"\"
+%s{question}""" % (prefix, extra)
+    if not use_openai_model and prompt_type not in ['plain'] or model_name in non_hf_types:
+        use_template = True
+        len_template = len(template)
+    else:
+        use_template = False
+        len_template = 0
+
     if db and use_context:
         if not isinstance(db, Chroma):
             # only chroma supports filtering
@@ -1543,18 +1564,26 @@ def get_similarity_chain(query=None,
             docs = [x[0] for x in docs_with_score]
             scores = [x[1] for x in docs_with_score]
         else:
-            if top_k_docs == 1:
+            if top_k_docs == -1:
                 #docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:top_k_docs]
                 top_k_docs_tokenize = 100
                 docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:top_k_docs_tokenize]
                 # FIXME: Should use LLM's tokenizer if have access, else embedding is kinda ok since small chunks normally
-                tokens = [db._embedding_function.client.tokenize([x[0].page_content])['input_ids'].shape[1] for x in
-                          docs_with_score]
+                if hasattr(llm, 'pipeline') and hasattr(llm.pipeline, 'tokenizer'):
+                    # more accurate
+                    tokens = [len(llm.pipeline.tokenizer(x[0].page_content)['input_ids']) for x in docs_with_score]
+                    template_tokens = len(llm.pipeline.tokenizer(template)['input_ids'])
+                else:
+                    # in case model is not our pipeline with HF tokenizer
+                    tokens = [db._embedding_function.client.tokenize([x[0].page_content])['input_ids'].shape[1] for x in
+                              docs_with_score]
+                    template_tokens = db._embedding_function.client.tokenize([template])['input_ids'].shape[1]
                 tokens_cumsum = np.cumsum(tokens)
                 if hasattr(llm, 'pipeline') and hasattr(llm.pipeline, 'max_input_tokens'):
                     max_input_tokens = llm.pipeline.max_input_tokens
                 else:
                     max_input_tokens = 2048 - 256
+                max_input_tokens -= template_tokens
                 # FIXME: Doesn't account for query, == context, or new lines between contexts
                 top_k_docs_trial = np.where(tokens_cumsum < max_input_tokens)[0][-1]
                 if top_k_docs_trial > 0 and top_k_docs_trial < 100:
@@ -1601,23 +1630,9 @@ def get_similarity_chain(query=None,
         # avoid context == in prompt then
         use_context = False
 
-    if not use_openai_model and prompt_type not in ['plain'] or model_name in non_hf_types:
+    if use_template:
         # instruct-like, rather than few-shot prompt_type='plain' as default
         # but then sources confuse the model with how inserted among rest of text, so avoid
-        prefix = ""
-        if langchain_mode in ['Disabled', 'ChatLLM', 'LLM'] or not use_context:
-            template = """%s{context}{question}""" % prefix
-        else:
-            if 'falcon' in model_name:
-                extra = "According to only the information in the document sources provided within the triple quotes above, "
-                prefix = "Pay attention and remember information within triple quotes below which will help to answer this question: "
-            else:
-                extra = ""
-            template = """%s{question}
-\"\"\"
-{context}
-\"\"\"
-%s{question}""" % (prefix, extra)
         prompt = PromptTemplate(
             # input_variables=["summaries", "question"],
             input_variables=["context", "question"],
@@ -1680,8 +1695,8 @@ def get_sources_answer(query, answer, scores, show_rank, answer_with_sources, ve
 def clean_doc(docs1):
     if not isinstance(docs1, (list, tuple, types.GeneratorType)):
         docs1 = [docs1]
-    for doc in docs1:
-        doc.page_content = '\n'.join([x.strip() for x in doc.page_content.split("\n") if x.strip()])
+    for doci, doc in enumerate(docs1):
+        docs1[doci].page_content = '\n'.join([x.strip() for x in doc.page_content.split("\n") if x.strip()])
     return docs1
 
 
