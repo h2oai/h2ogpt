@@ -105,6 +105,7 @@ def test_client_chat_nostream_gpt4all_llama():
         'response'] or 'What is your name and title?' in res_dict['response']
 
 
+@pytest.mark.need_tokens
 @wrap_test_forked
 def test_client_chat_nostream_llama7b():
     prompt_type = get_llama()
@@ -242,6 +243,7 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
            and '.md' in res_dict['response']
 
 
+@pytest.mark.need_tokens
 @wrap_test_forked
 @pytest.mark.parametrize("max_new_tokens", [256, 2048])
 @pytest.mark.parametrize("top_k_docs", [3, 100])

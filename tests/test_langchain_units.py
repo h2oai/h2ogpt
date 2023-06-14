@@ -28,6 +28,7 @@ def test_qa_wiki_openai():
     return run_qa_wiki_fork(use_openai_model=True)
 
 
+@pytest.mark.need_gpu
 @wrap_test_forked
 def test_qa_wiki_stuff_hf():
     # NOTE: total context length makes things fail when n_sources * text_limit >~ 2048
@@ -87,6 +88,7 @@ def test_qa_wiki_db_openai():
     check_ret(ret)
 
 
+@pytest.mark.need_gpu
 @wrap_test_forked
 def test_qa_wiki_db_hf():
     from gpt_langchain import _run_qa_db
@@ -99,6 +101,7 @@ def test_qa_wiki_db_hf():
     check_ret(ret)
 
 
+@pytest.mark.need_gpu
 @wrap_test_forked
 def test_qa_wiki_db_chunk_hf():
     from gpt_langchain import _run_qa_db
@@ -132,6 +135,7 @@ def test_qa_github_db_chunk_openai():
     check_ret(ret)
 
 
+@pytest.mark.need_gpu
 @wrap_test_forked
 def test_qa_daidocs_db_chunk_hf():
     from gpt_langchain import _run_qa_db
@@ -156,6 +160,7 @@ def test_qa_daidocs_db_chunk_hf_faiss():
     check_ret(ret)
 
 
+@pytest.mark.need_gpu
 @wrap_test_forked
 @pytest.mark.parametrize("db_type", db_types)
 def test_qa_daidocs_db_chunk_hf_dbs(db_type):
@@ -173,6 +178,7 @@ def test_qa_daidocs_db_chunk_hf_dbs(db_type):
     check_ret(ret)
 
 
+@pytest.mark.need_gpu
 @wrap_test_forked
 @pytest.mark.parametrize("db_type", ['chroma'])
 def test_qa_daidocs_db_chunk_hf_dbs_switch_embedding(db_type):
@@ -274,6 +280,7 @@ def test_qa_daidocs_db_chunk_openaiembedding_hfmodel():
     check_ret(ret)
 
 
+@pytest.mark.need_tokens
 @wrap_test_forked
 def test_get_dai_pickle():
     from gpt_langchain import get_dai_pickle
@@ -282,6 +289,7 @@ def test_get_dai_pickle():
         assert os.path.isfile(os.path.join(tmpdirname, 'dai_docs.pickle'))
 
 
+@pytest.mark.need_tokens
 @wrap_test_forked
 def test_get_dai_db_dir():
     from gpt_langchain import get_some_dbs_from_hf

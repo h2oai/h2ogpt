@@ -5,6 +5,7 @@ BUILD_TAG_FILES       := requirements.txt Dockerfile `ls reqs_optional/*.txt | s
 BUILD_TAG             := $(shell md5sum $(BUILD_TAG_FILES) 2> /dev/null | sort | md5sum | cut -d' ' -f1)
 DOCKER_TEST_IMAGE     := harbor.h2o.ai/h2ogpt/test-image:$(BUILD_TAG)
 PYTHON_BINARY         ?= `which python`
+DEFAULT_MARKERS       ?= "not need_tokens and not need_gpu"
 
 .PHONY: reqs_optional/req_constraints.txt venv dist test publish docker_build
 
@@ -27,10 +28,11 @@ dist:
 	$(PYTHON_BINARY) setup.py bdist_wheel
 
 test:
-	$(PYTHON_BINARY) -m pytest tests --disable-warnings --junit-xml=test_report.xml
+	$(PYTHON_BINARY) -m pip install requirements-parser -c reqs_optional/req_constraints.txt
+	$(PYTHON_BINARY) -m pytest tests --disable-warnings --junit-xml=test_report.xml -m "$(DEFAULT_MARKERS)"
 
 test_imports:
-	$(PYTHON_BINARY) -m pytest tests/test_imports.py --disable-warnings --junit-xml=test_report.xml
+	$(PYTHON_BINARY) -m pytest tests/test_imports.py --disable-warnings --junit-xml=test_report.xml -m "$(DEFAULT_MARKERS)"
 
 publish:
 	echo "Publishing not implemented yet."

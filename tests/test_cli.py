@@ -40,6 +40,7 @@ def test_cli_langchain(monkeypatch):
     assert "looking out the window" in all_generations[0]
 
 
+@pytest.mark.need_tokens
 @wrap_test_forked
 def test_cli_langchain_llamacpp(monkeypatch):
     prompt_type = get_llama()
@@ -65,6 +66,7 @@ def test_cli_langchain_llamacpp(monkeypatch):
     assert "The cat is sitting on a window seat and looking out the window" in all_generations[0]
 
 
+@pytest.mark.need_tokens
 @wrap_test_forked
 def test_cli_llamacpp(monkeypatch):
     prompt_type = get_llama()
