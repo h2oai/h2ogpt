@@ -1,3 +1,4 @@
+import pytest
 from tests.utils import wrap_test_forked
 from utils import set_seed
 
@@ -43,6 +44,7 @@ def test_export_copy():
     assert prompter is not None
 
 
+@pytest.mark.need_gpu
 @wrap_test_forked
 def test_pipeline1():
     SEED = 1236
@@ -76,6 +78,7 @@ def test_pipeline1():
     assert 'Drinking water is healthy because it is essential for life' in outputs[0]['generated_text']
 
 
+@pytest.mark.need_gpu
 @wrap_test_forked
 def test_pipeline2():
     SEED = 1236

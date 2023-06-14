@@ -1,11 +1,14 @@
+import pytest
 from tests.utils import wrap_test_forked
 
 
+@pytest.mark.need_tokens
 @wrap_test_forked
 def test_langchain_simple_h2ogpt():
     run_langchain_simple(base_model='h2oai/h2ogpt-oasst1-512-12b', prompt_type='human_bot')
 
 
+@pytest.mark.need_tokens
 @wrap_test_forked
 def test_langchain_simple_vicuna():
     run_langchain_simple(base_model='junelee/wizard-vicuna-13b', prompt_type='instruct_vicuna')

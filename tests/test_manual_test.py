@@ -1,3 +1,10 @@
+import os
+import pytest
+
+
+pytestmark = pytest.mark.skipif(os.getenv('SKIP_MANUAL_TESTS', None) is not None, reason="manual tests.")
+
+
 def test_chat_context():
     # on h2oai/h2ogpt-oasst1-512-20b
     instruction = """Rephrase in 5 different ways: “Apple a day keeps the doctor away.”"""
