@@ -163,7 +163,8 @@ def test_qa_daidocs_db_chunk_hf_faiss():
 @pytest.mark.need_gpu
 @wrap_test_forked
 @pytest.mark.parametrize("db_type", db_types)
-def test_qa_daidocs_db_chunk_hf_dbs(db_type):
+@pytest.mark.parametrize("top_k_docs", [-1, 3])
+def test_qa_daidocs_db_chunk_hf_dbs(db_type, top_k_docs):
     langchain_mode = 'DriverlessAI docs'
     persist_directory = get_persist_directory(langchain_mode)
     remove(persist_directory)
@@ -174,6 +175,7 @@ def test_qa_daidocs_db_chunk_hf_dbs(db_type):
                      chunk_size=128 * 1,  # characters, and if k=4, then 4*4*128 = 2048 chars ~ 512 tokens
                      langchain_mode=langchain_mode,
                      db_type=db_type,
+                     top_k_docs=top_k_docs,
                      )
     check_ret(ret)
 
@@ -217,6 +219,7 @@ def test_qa_daidocs_db_chunk_hf_dbs_switch_embedding(db_type):
                      hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
                      model=model,
                      tokenizer=tokenizer,
+                     model_name=base_model,
                      prompt_type=prompt_type,
                      text_limit=None, chunk=True,
                      chunk_size=128 * 1,  # characters, and if k=4, then 4*4*128 = 2048 chars ~ 512 tokens
@@ -231,6 +234,7 @@ def test_qa_daidocs_db_chunk_hf_dbs_switch_embedding(db_type):
                      hf_embedding_model='hkunlp/instructor-large',
                      model=model,
                      tokenizer=tokenizer,
+                     model_name=base_model,
                      prompt_type=prompt_type,
                      text_limit=None, chunk=True,
                      chunk_size=128 * 1,  # characters, and if k=4, then 4*4*128 = 2048 chars ~ 512 tokens

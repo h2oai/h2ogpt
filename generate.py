@@ -143,7 +143,8 @@ def main(
         enable_sources_list: bool = True,
         chunk: bool = True,
         chunk_size: int = 512,
-        top_k_docs: int = 3,  # FIXME: Can go back to 4 once https://github.com/h2oai/h2ogpt/issues/192 fixed
+        top_k_docs: int = None,
+        reverse_docs: bool = True,
         n_jobs: int = -1,
         enable_captions: bool = True,
         captions_model: str = "Salesforce/blip-image-captioning-base",
@@ -254,6 +255,9 @@ def main(
     :param chunk: Whether to chunk data (True unless know data is already optimally chunked)
     :param chunk_size: Size of chunks, with typically top-4 passed to LLM, so neesd to be in context length
     :param top_k_docs: number of chunks to give LLM
+    :param reverse_docs: whether to reverse docs order so most relevant is closest to question.
+           Best choice for sufficiently smart model, and truncation occurs for oldest context, so best then too.
+           But smaller 6_9 models fail to use newest context and can get stuck on old information.
     :param n_jobs: Number of processors to use when consuming documents (-1 = all, is default)
     :param enable_captions: Whether to support captions using BLIP for image files as documents, then preloads that model
     :param captions_model: Which model to use for captions.
@@ -304,9 +308,11 @@ def main(
         top_k = 70 if top_k is None else top_k
         if is_hf:
             do_sample = True if do_sample is None else do_sample
+            top_k_docs = 3 if top_k_docs is None else top_k_docs
         else:
             # by default don't sample, too chatty
             do_sample = False if do_sample is None else do_sample
+            top_k_docs = 4 if top_k_docs is None else top_k_docs
 
         if memory_restriction_level == 2:
             if not base_model:
@@ -316,11 +322,15 @@ def main(
                 load_4bit = False  # FIXME - consider using 4-bit instead of 8-bit
         else:
             base_model = 'h2oai/h2ogpt-oasst1-512-20b' if not base_model else base_model
+            top_k_docs = 10 if top_k_docs is None else top_k_docs
     if memory_restriction_level >= 2:
         load_8bit = True
         load_4bit = False  # FIXME - consider using 4-bit instead of 8-bit
         if hf_embedding_model is None:
             hf_embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
+        top_k_docs = 3 if top_k_docs is None else top_k_docs
+    if top_k_docs is None:
+        top_k_docs = 3
     user_set_max_new_tokens = max_new_tokens is not None
     if is_public:
         if not max_time:
@@ -927,6 +937,7 @@ def evaluate_from_str(
         text_limit=None,
         verbose=False,
         cli=False,
+        reverse_docs=True,
 ):
     if isinstance(user_kwargs, str):
         user_kwargs = ast.literal_eval(user_kwargs)
@@ -971,6 +982,7 @@ def evaluate_from_str(
         text_limit=text_limit,
         verbose=verbose,
         cli=cli,
+        reverse_docs=reverse_docs,
     )
     try:
         for ret1 in ret:
@@ -1034,6 +1046,7 @@ def evaluate(
         text_limit=None,
         verbose=False,
         cli=False,
+        reverse_docs=True,
 ):
     # ensure passed these
     assert concurrency_count is not None
@@ -1150,6 +1163,8 @@ def evaluate(
                            n_jobs=n_jobs,
                            verbose=verbose,
                            cli=cli,
+                           sanitize_bot_response=sanitize_bot_response,
+                           reverse_docs=reverse_docs,
                            ):
             outr, extra = r  # doesn't accumulate, new answer every yield, so only save that full answer
             yield dict(response=outr, sources=extra)

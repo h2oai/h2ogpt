@@ -25,7 +25,7 @@ def run_cli(  # for local function:
         model_state0=None, raise_generate_gpu_exceptions=None, load_db_if_exists=None, dbs=None, user_path=None,
         detect_user_path_changes_every_query=None,
         use_openai_embedding=None, use_openai_model=None, hf_embedding_model=None,
-        db_type=None, n_jobs=None, first_para=None, text_limit=None, verbose=None, cli=None,
+        db_type=None, n_jobs=None, first_para=None, text_limit=None, verbose=None, cli=None, reverse_docs=None,
         # unique to this function:
         cli_loop=None,
 ):

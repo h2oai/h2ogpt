@@ -48,18 +48,27 @@ from generate import get_model, languages_covered, evaluate, eval_func_param_nam
 from apscheduler.schedulers.background import BackgroundScheduler
 
 
-def fix_newlines(text):
-    return text  # let Gradio handle code, since got improved recently
+def fix_text_for_gradio(text, fix_new_lines=False, fix_latex_dollars=True):
+    if fix_latex_dollars:
+        ts = text.split('```')
+        for parti, part in enumerate(ts):
+            inside = parti % 2 == 1
+            if not inside:
+                ts[parti] = ts[parti].replace('$', '﹩')
+        text = '```'.join(ts)
 
-    ## FIXME: below conflicts with Gradio, but need to see if can handle multiple \n\n\n etc. properly as is.
-    # ensure good visually, else markdown ignores multiple \n
-    # handle code blocks
-    ts = text.split('```')
-    for parti, part in enumerate(ts):
-        inside = parti % 2 == 1
-        if not inside:
-            ts[parti] = ts[parti].replace('\n', '<br>')
-    return '```'.join(ts)
+    if fix_new_lines:
+        # let Gradio handle code, since got improved recently
+        ## FIXME: below conflicts with Gradio, but need to see if can handle multiple \n\n\n etc. properly as is.
+        # ensure good visually, else markdown ignores multiple \n
+        # handle code blocks
+        ts = text.split('```')
+        for parti, part in enumerate(ts):
+            inside = parti % 2 == 1
+            if not inside:
+                ts[parti] = ts[parti].replace('\n', '<br>')
+        text = '```'.join(ts)
+    return text
 
 
 def go_gradio(**kwargs):
@@ -483,9 +492,9 @@ def go_gradio(**kwargs):
                                                            label="Whether to chunk documents",
                                                            info="For LangChain",
                                                            visible=not is_public)
-                            top_k_docs = gr.Slider(minimum=0, maximum=100, step=1,
+                            top_k_docs = gr.Slider(minimum=-1, maximum=100, step=1,
                                                    value=kwargs['top_k_docs'],
-                                                   label="Number of document chunks",
+                                                   label="Number of document chunks (-1 = auto fill model context up to 100 chunks)",
                                                    info="For LangChain",
                                                    visible=not is_public)
                             chunk_size = gr.Number(value=kwargs['chunk_size'],
@@ -759,7 +768,7 @@ def go_gradio(**kwargs):
 
         def evaluate_gradio(*args1, **kwargs1):
             for res_dict in evaluate(*args1, **kwargs1):
-                yield '<br>' + fix_newlines(res_dict['response'])
+                yield '<br>' + fix_text_for_gradio(res_dict['response'])
 
         fun = partial(evaluate_gradio,
                       **kwargs_evaluate)
@@ -915,7 +924,7 @@ def go_gradio(**kwargs):
                 # e.g. when user just hits enter in textbox,
                 # else will have <human>: <bot>: on single line, which seems to be "ok" for LLM but not usual
                 user_message1 = '\n'
-            user_message1 = fix_newlines(user_message1)
+            user_message1 = fix_text_for_gradio(user_message1)
 
             history = args_list[-1]
             if undo and history:
@@ -1037,7 +1046,7 @@ def go_gradio(**kwargs):
                     output = output_fun['response']
                     extra = output_fun['sources']  # FIXME: can show sources in separate text box etc.
                     # ensure good visually, else markdown ignores multiple \n
-                    bot_message = fix_newlines(output)
+                    bot_message = fix_text_for_gradio(output)
                     history[-1][1] = bot_message
                     yield history, ''
             except StopIteration:

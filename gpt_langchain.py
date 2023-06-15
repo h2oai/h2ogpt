@@ -23,7 +23,7 @@ from langchain.embeddings import HuggingFaceInstructEmbeddings
 from tqdm import tqdm
 
 from enums import DocumentChoices
-from generate import gen_hyper
+from generate import gen_hyper, get_model
 from prompter import non_hf_types, PromptType
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
     get_device, ProgressParallel, remove, hash_file, clear_torch_cache
@@ -309,18 +309,7 @@ def get_llm(use_openai_model=False, model_name=None, model=None,
             model_name = 'h2oai/h2ogpt-oasst1-512-12b'
             # model_name = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
             # model_name = 'h2oai/h2ogpt-oasst1-512-20b'
-            tokenizer = AutoTokenizer.from_pretrained(model_name)
-            device, torch_dtype, context_class = get_device_dtype()
-
-            with context_class(device):
-                load_8bit = True
-                # FIXME: for now not to spread across hetero GPUs
-                # device_map={"": 0} if load_8bit and device == 'cuda' else "auto"
-                device_map = {"": 0} if device == 'cuda' else "auto"
-                model = AutoModelForCausalLM.from_pretrained(model_name,
-                                                             device_map=device_map,
-                                                             torch_dtype=torch_dtype,
-                                                             load_in_8bit=load_8bit)
+            model, tokenizer, device = get_model(load_8bit=True, base_model=model_name, gpu_id=0)
 
         max_max_tokens = tokenizer.model_max_length
         gen_kwargs = dict(do_sample=do_sample,
@@ -1269,7 +1258,6 @@ def run_qa_db(**kwargs):
     func_names = list(inspect.signature(_run_qa_db).parameters)
     # hard-coded defaults
     kwargs['answer_with_sources'] = True
-    kwargs['sanitize_bot_response'] = True
     kwargs['show_rank'] = False
     missing_kwargs = [x for x in func_names if x not in kwargs]
     assert not missing_kwargs, "Missing kwargs: %s" % missing_kwargs
@@ -1314,7 +1302,9 @@ def _run_qa_db(query=None,
                document_choice=[DocumentChoices.All_Relevant.name],
                n_jobs=-1,
                verbose=False,
-               cli=False):
+               cli=False,
+               reverse_docs=True,
+               ):
     """
 
     :param query:
@@ -1333,6 +1323,8 @@ def _run_qa_db(query=None,
     :param answer_with_sources
     :return:
     """
+    if model is not None:
+        assert model_name is not None  # require so can make decisions
     assert query is not None
     assert prompter is not None or prompt_type is not None or model is None  # if model is None, then will generate
     if prompter is not None:
@@ -1464,6 +1456,7 @@ def get_similarity_chain(query=None,
                          llm=None,
                          verbose=False,
                          cmd=None,
+                         reverse_docs=True,
                          ):
     # determine whether use of context out of docs is planned
     if not use_openai_model and prompt_type not in ['plain'] or model_name in non_hf_types:
@@ -1478,7 +1471,11 @@ def get_similarity_chain(query=None,
     # FIXME: Seems to way to get size of chroma db to limit top_k_docs to avoid
     # Chroma collection MyData contains fewer than 4 elements.
     # type logger error
-    k_db = 1000 if db_type == 'chroma' else top_k_docs  # top_k_docs=100 works ok too for
+    if top_k_docs == -1:
+        k_db = 1000 if db_type == 'chroma' else 100
+    else:
+        # top_k_docs=100 works ok too
+        k_db = 1000 if db_type == 'chroma' else top_k_docs
 
     # FIXME: For All just go over all dbs instead of a separate db for All
     if not detect_user_path_changes_every_query and db is not None:
@@ -1498,6 +1495,25 @@ def get_similarity_chain(query=None,
                                                         db=db,
                                                         n_jobs=n_jobs,
                                                         verbose=verbose)
+
+    if 'falcon' in model_name:
+        extra = "According to only the information in the document sources provided within the triple quotes above, "
+        prefix = "Pay attention and remember information within triple quotes below which will help to answer the question after the triple quotes ends."
+    else:
+        extra = ""
+        prefix = ""
+    if langchain_mode in ['Disabled', 'ChatLLM', 'LLM'] or not use_context:
+        template = """%s{context}{question}""" % prefix
+    else:
+        template = """%s
+==
+{context}
+==
+%s{question}""" % (prefix, extra)
+    if not use_openai_model and prompt_type not in ['plain'] or model_name in non_hf_types:
+        use_template = True
+    else:
+        use_template = False
 
     if db and use_context:
         if not isinstance(db, Chroma):
@@ -1539,7 +1555,39 @@ def get_similarity_chain(query=None,
             docs = [x[0] for x in docs_with_score]
             scores = [x[1] for x in docs_with_score]
         else:
-            docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:top_k_docs]
+            if top_k_docs == -1:
+                #docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:top_k_docs]
+                top_k_docs_tokenize = 100
+                docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:top_k_docs_tokenize]
+                # FIXME: Should use LLM's tokenizer if have access, else embedding is kinda ok since small chunks normally
+                if hasattr(llm, 'pipeline') and hasattr(llm.pipeline, 'tokenizer'):
+                    # more accurate
+                    tokens = [len(llm.pipeline.tokenizer(x[0].page_content)['input_ids']) for x in docs_with_score]
+                    template_tokens = len(llm.pipeline.tokenizer(template)['input_ids'])
+                else:
+                    # in case model is not our pipeline with HF tokenizer
+                    tokens = [db._embedding_function.client.tokenize([x[0].page_content])['input_ids'].shape[1] for x in
+                              docs_with_score]
+                    template_tokens = db._embedding_function.client.tokenize([template])['input_ids'].shape[1]
+                tokens_cumsum = np.cumsum(tokens)
+                if hasattr(llm, 'pipeline') and hasattr(llm.pipeline, 'max_input_tokens'):
+                    max_input_tokens = llm.pipeline.max_input_tokens
+                else:
+                    max_input_tokens = 2048 - 256
+                max_input_tokens -= template_tokens
+                # FIXME: Doesn't account for query, == context, or new lines between contexts
+                top_k_docs_trial = np.where(tokens_cumsum < max_input_tokens)[0][-1]
+                if top_k_docs_trial > 0 and top_k_docs_trial < 100:
+                    # avoid craziness
+                    top_k_docs = top_k_docs_trial
+                docs_with_score = docs_with_score[:top_k_docs]
+            else:
+                docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:top_k_docs]
+            # put most relevant chunks closest to question,
+            # esp. if truncation occurs will be "oldest" or "farthest from response" text that is truncated
+            # BUT: for small models, e.g. 6_9 pythia, if sees some stuff related to h2oGPT first, it can connect that and not listen to rest
+            if reverse_docs:
+                docs_with_score.reverse()
             # cut off so no high distance docs/sources considered
             docs = [x[0] for x in docs_with_score if x[1] < cut_distanct]
             scores = [x[1] for x in docs_with_score if x[1] < cut_distanct]
@@ -1575,18 +1623,9 @@ def get_similarity_chain(query=None,
         # avoid context == in prompt then
         use_context = False
 
-    if not use_openai_model and prompt_type not in ['plain'] or model_name in non_hf_types:
+    if use_template:
         # instruct-like, rather than few-shot prompt_type='plain' as default
         # but then sources confuse the model with how inserted among rest of text, so avoid
-        prefix = ""
-        if langchain_mode in ['Disabled', 'ChatLLM', 'LLM'] or not use_context:
-            template = """%s{context}{question}""" % prefix
-        else:
-            template = """%s
-==
-{context}
-==
-{question}""" % prefix
         prompt = PromptTemplate(
             # input_variables=["summaries", "question"],
             input_variables=["context", "question"],
@@ -1649,8 +1688,8 @@ def get_sources_answer(query, answer, scores, show_rank, answer_with_sources, ve
 def clean_doc(docs1):
     if not isinstance(docs1, (list, tuple, types.GeneratorType)):
         docs1 = [docs1]
-    for doc in docs1:
-        doc.page_content = '\n'.join([x.strip() for x in doc.page_content.split("\n") if x.strip()])
+    for doci, doc in enumerate(docs1):
+        docs1[doci].page_content = '\n'.join([x.strip() for x in doc.page_content.split("\n") if x.strip()])
     return docs1
 
 
