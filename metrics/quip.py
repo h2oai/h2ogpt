@@ -89,15 +89,15 @@ Args:
     predictions (list of str): The predicted sentences.
     references (list of list of str): The references. There should be one reference sub-list for each prediction sentence.
 Returns:
-    'score' (float): The chrF (chrF++) score,
+    'score' (float): The QUIP score,
 Examples:
     Example 1--a simple example of calculating chrF:
-        >>> prediction = ["The relationship between cats and dogs is not exactly friendly.", "a good bookshop is just a genteel black hole that knows how to read."]
-        >>> reference = [["The relationship between dogs and cats is not exactly friendly."], ["A good bookshop is just a genteel Black Hole that knows how to read."]]
-        >>> chrf = evaluate.load("chrf")
-        >>> results = chrf.compute(predictions=prediction, references=reference)
-        >>> print(results)
-        {'score': 84.64214891738334, 'char_order': 6, 'word_order': 0, 'beta': 2}
+    predictions = ["The current goodwill balance is $25,173 million as of December 31, 2022."]
+    references = [[
+                      "Table 7.3: Goodwill (in millions) Consumer Banking and Lending Commercial Banking Corporate and Investment Banking Wealth and Investment Management Corporate Consolidated Company December 31, 2020 $ 16,418 3,018 5,375 1,276 305 26,392 Foreign currency translation — — — — — — Transfers of goodwill — (80) — (932) 1,012 — Divestitures — — — — (1,212) (1,212) December 31, 2021 $ 16,418 2,938 5,375 344 105 25,180 Foreign currency translation — (7) — — — (7) December 31, 2022 $ 16,418 2,931 5,375 344 105 25,173 Table 7.4 presents the components of other assets."]]
+    results = quip.compute(predictions=predictions, references=references, return_match_fraction_by_pred_length=True)
+    print(results)
+    assert results == 0.5
 """
 
 
