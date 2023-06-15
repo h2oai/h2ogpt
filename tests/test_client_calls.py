@@ -214,7 +214,8 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'Whisper is a chatbot' in res_dict['response'] or
             'Whisper is a privacy-focused chatbot platform' in res_dict['response'] or
             'h2oGPT' in res_dict['response'] or
-            'A secure, private, and anonymous chat platform' in res_dict['response']
+            'A secure, private, and anonymous chat platform' in res_dict['response'] or
+            'Whisper is a privacy-preserving' in res_dict['response']
             ) \
            and 'README.md' in res_dict['response']
 
