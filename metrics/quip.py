@@ -163,6 +163,10 @@ class Quip(evaluate.Metric):
             predictions=None,
             references=None,
             reduced=True,
+            min_len=2,
+            max_len=5,
+            return_match_count=False,
+            return_match_fraction_by_pred_length=False,
             **kwargs,
     ):
         # if only one reference is provided make sure we still use list of lists
@@ -182,17 +186,29 @@ class Quip(evaluate.Metric):
                 pred = pred.translate(str.maketrans(punc, ' ' * len(punc))).strip()
                 predictions[predi] = ' '.join([x for x in pred.split() if x not in self.set_common])
 
+            for refi, refl in enumerate(references):
+                for refj, ref in enumerate(refl):
+                    ref = ref.translate(str.maketrans(punc, ' ' * len(punc))).strip()
+                    references[refi][refj] = ' '.join([x for x in ref.split() if x not in self.set_common])
 
         from nltk.util import everygrams
         from utils import flatten_list
-        min_len = 2
-        max_len = 5
-        pred_ngrams = set(flatten_list([list(everygrams(x.split(), min_len=min_len, max_len=max_len)) for x in predictions]))
-        ref_ngrams = set(flatten_list([[list(everygrams(y.split(), min_len=min_len, max_len=max_len)) for y in z] for z in references]))
+        pred_ngrams = set(
+            flatten_list([list(everygrams(x.split(), min_len=min_len, max_len=max_len)) for x in predictions]))
+        ref_ngrams = set(flatten_list(
+            [[list(everygrams(y.split(), min_len=min_len, max_len=max_len)) for y in z] for z in references]))
         residual = pred_ngrams.difference(ref_ngrams)
-        num_residual = len(residual) / len(pred_ngrams)
-
-        return num_residual
+        if return_match_count:
+            return len(pred_ngrams) - len(residual)
+        else:
+            if not return_match_fraction_by_pred_length:
+                # Score = 0.0: No match
+                # Score = 1.0: Perfect match
+                return 1.0 - len(residual) / len(pred_ngrams)
+            else:
+                # FIXME: only works with 1 prediction
+                nmatches = len(pred_ngrams) - len(residual)
+                return min(1.0, nmatches / len(predictions[0].split()))
 
     def get_reduced_size(self, reduced_query, verbose=True):
         reduced_query_words = reduced_query.split(' ')

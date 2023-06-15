@@ -137,10 +137,63 @@ def test_quip():
     quip = Quip()
 
     predictions = ["Kathy's hair is green according to the first passage."]
-    references = [["Kathy's hair is green.", "Bob is eating a sandwich.", "The sky is red with polka dots.", "Alice went to the county fair.", "George is reading a newspaper."]]
+    references = [["Kathy's hair is green.", "Bob is eating a sandwich.", "The sky is red with polka dots.",
+                   "Alice went to the county fair.", "George is reading a newspaper."]]
     results = quip.compute(predictions=predictions, references=references)
     print(results)
-    assert results == 0.8333333333333334
+    assert results == 0.16666666666666663
+
+    predictions = ["How much wood would a woodchuck chuck if a woodchuck could chuck wood?"]
+    references = [["Kathy's hair is green.", "Bob is eating a sandwich.", "The sky is red with polka dots.",
+                   "Alice went to the county fair.", "George is reading a newspaper."]]
+    results = quip.compute(predictions=predictions, references=references)
+    print(results)
+    assert results == 0.0
+
+    predictions = ["How much wood would a woodchuck chuck if a woodchuck could chuck wood?"]
+    references = [["chuck", "wood"]]
+    results = quip.compute(predictions=predictions, references=references)
+    print(results)
+    assert results == 0.0
+
+    predictions = ["How much wood would a woodchuck chuck if a woodchuck could chuck wood?"]
+    references = [["chuck", "woodchuck"]]
+    results = quip.compute(predictions=predictions, references=references)
+    print(results)
+    assert results == 0.0
+
+    predictions = ["How much wood would a woodchuck chuck if a woodchuck could chuck wood?"]
+    references = [["chuck", "woodchuck"]]
+    results = quip.compute(predictions=predictions, references=references, min_len=1)
+    print(results)
+    assert results == 0.09523809523809523
+
+    predictions = ["How much wood would a woodchuck chuck if a woodchuck could chuck wood?"]
+    references = [["woodchuck chuck", "chuck"]]
+    results = quip.compute(predictions=predictions, references=references)
+    print(results)
+    assert results == 0.05882352941176472
+
+    predictions = ["The current goodwill balance is $25,173 million as of December 31, 2022."]
+    references = [[
+                      "Table 7.3: Goodwill (in millions) Consumer Banking and Lending Commercial Banking Corporate and Investment Banking Wealth and Investment Management Corporate Consolidated Company December 31, 2020 $ 16,418 3,018 5,375 1,276 305 26,392 Foreign currency translation — — — — — — Transfers of goodwill — (80) — (932) 1,012 — Divestitures — — — — (1,212) (1,212) December 31, 2021 $ 16,418 2,938 5,375 344 105 25,180 Foreign currency translation — (7) — — — (7) December 31, 2022 $ 16,418 2,931 5,375 344 105 25,173 Table 7.4 presents the components of other assets."]]
+    results = quip.compute(predictions=predictions, references=references, min_len=1)
+    print(results)
+    assert results == 0.33333333333333337
+
+    predictions = ["The current goodwill balance is $25,173 million as of December 31, 2022."]
+    references = [[
+                      "Table 7.3: Goodwill (in millions) Consumer Banking and Lending Commercial Banking Corporate and Investment Banking Wealth and Investment Management Corporate Consolidated Company December 31, 2020 $ 16,418 3,018 5,375 1,276 305 26,392 Foreign currency translation — — — — — — Transfers of goodwill — (80) — (932) 1,012 — Divestitures — — — — (1,212) (1,212) December 31, 2021 $ 16,418 2,938 5,375 344 105 25,180 Foreign currency translation — (7) — — — (7) December 31, 2022 $ 16,418 2,931 5,375 344 105 25,173 Table 7.4 presents the components of other assets."]]
+    results = quip.compute(predictions=predictions, references=references, return_match_count=True)
+    print(results)
+    assert results == 4
+
+    predictions = ["The current goodwill balance is $25,173 million as of December 31, 2022."]
+    references = [[
+                      "Table 7.3: Goodwill (in millions) Consumer Banking and Lending Commercial Banking Corporate and Investment Banking Wealth and Investment Management Corporate Consolidated Company December 31, 2020 $ 16,418 3,018 5,375 1,276 305 26,392 Foreign currency translation — — — — — — Transfers of goodwill — (80) — (932) 1,012 — Divestitures — — — — (1,212) (1,212) December 31, 2021 $ 16,418 2,938 5,375 344 105 25,180 Foreign currency translation — (7) — — — (7) December 31, 2022 $ 16,418 2,931 5,375 344 105 25,173 Table 7.4 presents the components of other assets."]]
+    results = quip.compute(predictions=predictions, references=references, return_match_fraction_by_pred_length=True)
+    print(results)
+    assert results == 0.5
 
 
 @wrap_test_forked
@@ -194,12 +247,15 @@ def test_meteor():
     import evaluate
     meteor = evaluate.load('meteor')
     predictions = ["It is a guide to action which ensures that the military always obeys the commands of the party"]
-    references = [['It is a guide to action that ensures that the military will forever heed Party commands', 'It is the guiding principle which guarantees the military forces always being under the command of the Party', 'It is the practical guide for the army always to heed the directions of the party']]
+    references = [['It is a guide to action that ensures that the military will forever heed Party commands',
+                   'It is the guiding principle which guarantees the military forces always being under the command of the Party',
+                   'It is the practical guide for the army always to heed the directions of the party']]
     results = meteor.compute(predictions=predictions, references=references)
     assert round(results['meteor'], 2) == 0.69
 
     predictions = ["Kathy's hair is green according to the first passage."]
-    references = [["Kathy's hair is green.", "Bob is eating a sandwich.", "The sky is red with polka dots.", "Alice went to the county fair.", "George is reading a newspaper."]]
+    references = [["Kathy's hair is green.", "Bob is eating a sandwich.", "The sky is red with polka dots.",
+                   "Alice went to the county fair.", "George is reading a newspaper."]]
     results = meteor.compute(predictions=predictions, references=references)
     assert results == {'meteor': 0.9059829059829061}
     print(results)
