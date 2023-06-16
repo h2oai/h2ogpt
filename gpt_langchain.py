@@ -801,14 +801,15 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
                  existing_files=[],
                  existing_hash_ids={},
                  ):
+    # path_or_paths could be str, list, tuple, generator
     globs_image_types = []
     globs_non_image_types = []
     if not path_or_paths and not url and not text:
         return []
     elif url:
-        globs_non_image_types = [url]
+        globs_non_image_types = url if isinstance(url, (list, tuple, types.GeneratorType)) else [url]
     elif text:
-        globs_non_image_types = [text]
+        globs_non_image_types = text if isinstance(text, (list, tuple, types.GeneratorType)) else [text]
     elif isinstance(path_or_paths, str) and os.path.isdir(path_or_paths):
         # single path, only consume allowed files
         path = path_or_paths
