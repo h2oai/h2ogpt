@@ -1304,6 +1304,7 @@ def _run_qa_db(query=None,
                verbose=False,
                cli=False,
                reverse_docs=True,
+               lora_weights='',
                ):
     """
 
@@ -1388,43 +1389,50 @@ def _run_qa_db(query=None,
         # can only return if HF type
         return
 
-    if stream_output:
-        answer = None
-        assert streamer is not None
-        import queue
-        bucket = queue.Queue()
-        thread = EThread(target=chain, streamer=streamer, bucket=bucket)
-        thread.start()
-        outputs = ""
-        prompt = None  # FIXME
-        try:
-            for new_text in streamer:
-                # print("new_text: %s" % new_text, flush=True)
-                if bucket.qsize() > 0 or thread.exc:
-                    thread.join()
-                outputs += new_text
-                if prompter:  # and False:  # FIXME: pipeline can already use prompter
-                    output1 = prompter.get_response(outputs, prompt=prompt,
-                                                    sanitize_bot_response=sanitize_bot_response)
-                    yield output1, ''
-                else:
-                    yield outputs, ''
-        except BaseException:
-            # if any exception, raise that exception if was from thread, first
-            if thread.exc:
-                raise thread.exc
-            raise
-        finally:
-            # in case no exception and didn't join with thread yet, then join
-            if not thread.exc:
-                answer = thread.join()
-        # in case raise StopIteration or broke queue loop in streamer, but still have exception
-        if thread.exc:
-            raise thread.exc
-        # FIXME: answer is not string outputs from streamer.  How to get actual final output?
-        # answer = outputs
-    else:
-        answer = chain()
+    # context stuff similar to used in evaluate()
+    import torch
+    device, torch_dtype, context_class = get_device_dtype()
+    with torch.no_grad():
+        have_lora_weights = lora_weights not in ['[None/Remove]', '', None]
+        context_class_cast = NullContext if device == 'cpu' or have_lora_weights else torch.autocast
+        with context_class_cast(device):
+            if stream_output:
+                answer = None
+                assert streamer is not None
+                import queue
+                bucket = queue.Queue()
+                thread = EThread(target=chain, streamer=streamer, bucket=bucket)
+                thread.start()
+                outputs = ""
+                prompt = None  # FIXME
+                try:
+                    for new_text in streamer:
+                        # print("new_text: %s" % new_text, flush=True)
+                        if bucket.qsize() > 0 or thread.exc:
+                            thread.join()
+                        outputs += new_text
+                        if prompter:  # and False:  # FIXME: pipeline can already use prompter
+                            output1 = prompter.get_response(outputs, prompt=prompt,
+                                                            sanitize_bot_response=sanitize_bot_response)
+                            yield output1, ''
+                        else:
+                            yield outputs, ''
+                except BaseException:
+                    # if any exception, raise that exception if was from thread, first
+                    if thread.exc:
+                        raise thread.exc
+                    raise
+                finally:
+                    # in case no exception and didn't join with thread yet, then join
+                    if not thread.exc:
+                        answer = thread.join()
+                # in case raise StopIteration or broke queue loop in streamer, but still have exception
+                if thread.exc:
+                    raise thread.exc
+                # FIXME: answer is not string outputs from streamer.  How to get actual final output?
+                # answer = outputs
+            else:
+                answer = chain()
 
     if not use_context:
         ret = answer['output_text']
@@ -1556,7 +1564,7 @@ def get_similarity_chain(query=None,
             scores = [x[1] for x in docs_with_score]
         else:
             if top_k_docs == -1:
-                #docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:top_k_docs]
+                # docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:top_k_docs]
                 top_k_docs_tokenize = 100
                 docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:top_k_docs_tokenize]
                 # FIXME: Should use LLM's tokenizer if have access, else embedding is kinda ok since small chunks normally
@@ -1758,15 +1766,15 @@ def _create_local_weaviate_client():
     WEAVIATE_SCOPE = os.getenv('WEAVIATE_SCOPE', "offline_access")
 
     resource_owner_config = None
-    if WEAVIATE_USERNAME is not None and WEAVIATE_PASSWORD is not None:
-        resource_owner_config = weaviate.AuthClientPassword(
-            username=WEAVIATE_USERNAME,
-            password=WEAVIATE_PASSWORD,
-            scope=WEAVIATE_SCOPE
-        )
-
     try:
         import weaviate
+        if WEAVIATE_USERNAME is not None and WEAVIATE_PASSWORD is not None:
+            resource_owner_config = weaviate.AuthClientPassword(
+                username=WEAVIATE_USERNAME,
+                password=WEAVIATE_PASSWORD,
+                scope=WEAVIATE_SCOPE
+            )
+
         client = weaviate.Client(WEAVIATE_URL, auth_client_secret=resource_owner_config)
         return client
     except Exception as e:

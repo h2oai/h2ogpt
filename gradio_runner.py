@@ -642,13 +642,15 @@ def go_gradio(**kwargs):
                                                 )
 
         # note for update_user_db_func output is ignored for db
-        add_to_shared_db_btn.click(update_user_db_func,
-                                   inputs=[fileup_output, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
-                                           chunk, chunk_size],
-                                   outputs=[add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
-                                   api_name='add_to_shared' if allow_api and allow_upload_to_user_data else None) \
+        eventdb1 = add_to_shared_db_btn.click(update_user_db_func,
+                                              inputs=[fileup_output, my_db_state, add_to_shared_db_btn,
+                                                      add_to_my_db_btn,
+                                                      chunk, chunk_size],
+                                              outputs=[add_to_shared_db_btn, add_to_my_db_btn, sources_text],
+                                              queue=queue,
+                                              api_name='add_to_shared' if allow_api and allow_upload_to_user_data else None) \
             .then(clear_file_list, outputs=fileup_output, queue=queue) \
-            .then(update_radio_to_user, inputs=None, outputs=langchain_mode, queue=False)
+            .then(update_radio_to_user, inputs=None, outputs=langchain_mode, queue=queue)
 
         # .then(make_invisible, outputs=add_to_shared_db_btn, queue=queue)
         # .then(make_visible, outputs=upload_button, queue=queue)
@@ -657,22 +659,22 @@ def go_gradio(**kwargs):
             return gr.Textbox.update(value='')
 
         update_user_db_url_func = functools.partial(update_user_db_func, is_url=True)
-        url_user_btn.click(update_user_db_url_func,
-                           inputs=[url_text, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
-                                   chunk, chunk_size],
-                           outputs=[add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
-                           api_name='add_url_to_shared' if allow_api and allow_upload_to_user_data else None) \
+        eventdb2 = url_user_btn.click(update_user_db_url_func,
+                                      inputs=[url_text, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
+                                              chunk, chunk_size],
+                                      outputs=[add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
+                                      api_name='add_url_to_shared' if allow_api and allow_upload_to_user_data else None) \
             .then(clear_textbox, outputs=url_text, queue=queue) \
-            .then(update_radio_to_user, inputs=None, outputs=langchain_mode, queue=False)
+            .then(update_radio_to_user, inputs=None, outputs=langchain_mode, queue=queue)
 
         update_user_db_txt_func = functools.partial(update_user_db_func, is_txt=True)
-        user_text_user_btn.click(update_user_db_txt_func,
-                                 inputs=[user_text_text, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
-                                         chunk, chunk_size],
-                                 outputs=[add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
-                                 api_name='add_text_to_shared' if allow_api and allow_upload_to_user_data else None) \
+        eventdb3 = user_text_user_btn.click(update_user_db_txt_func,
+                                            inputs=[user_text_text, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
+                                                    chunk, chunk_size],
+                                            outputs=[add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
+                                            api_name='add_text_to_shared' if allow_api and allow_upload_to_user_data else None) \
             .then(clear_textbox, outputs=user_text_text, queue=queue) \
-            .then(update_radio_to_user, inputs=None, outputs=langchain_mode, queue=False)
+            .then(update_radio_to_user, inputs=None, outputs=langchain_mode, queue=queue)
 
         # Add to MyData
         def update_radio_to_my():
@@ -689,33 +691,36 @@ def go_gradio(**kwargs):
                                               user_path=kwargs['user_path'],
                                               )
 
-        add_to_my_db_btn.click(update_my_db_func,
-                               inputs=[fileup_output, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
-                                       chunk, chunk_size],
-                               outputs=[my_db_state, add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
-                               api_name='add_to_my' if allow_api and allow_upload_to_my_data else None) \
+        eventdb4 = add_to_my_db_btn.click(update_my_db_func,
+                                          inputs=[fileup_output, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
+                                                  chunk, chunk_size],
+                                          outputs=[my_db_state, add_to_shared_db_btn, add_to_my_db_btn, sources_text],
+                                          queue=queue,
+                                          api_name='add_to_my' if allow_api and allow_upload_to_my_data else None) \
             .then(clear_file_list, outputs=fileup_output, queue=queue) \
-            .then(update_radio_to_my, inputs=None, outputs=langchain_mode, queue=False)
+            .then(update_radio_to_my, inputs=None, outputs=langchain_mode, queue=queue)
         # .then(make_invisible, outputs=add_to_shared_db_btn, queue=queue)
         # .then(make_visible, outputs=upload_button, queue=queue)
 
         update_my_db_url_func = functools.partial(update_my_db_func, is_url=True)
-        url_my_btn.click(update_my_db_url_func,
-                         inputs=[url_text, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
-                                 chunk, chunk_size],
-                         outputs=[my_db_state, add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
-                         api_name='add_url_to_my' if allow_api and allow_upload_to_my_data else None) \
+        eventdb5 = url_my_btn.click(update_my_db_url_func,
+                                    inputs=[url_text, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
+                                            chunk, chunk_size],
+                                    outputs=[my_db_state, add_to_shared_db_btn, add_to_my_db_btn, sources_text],
+                                    queue=queue,
+                                    api_name='add_url_to_my' if allow_api and allow_upload_to_my_data else None) \
             .then(clear_textbox, outputs=url_text, queue=queue) \
-            .then(update_radio_to_my, inputs=None, outputs=langchain_mode, queue=False)
+            .then(update_radio_to_my, inputs=None, outputs=langchain_mode, queue=queue)
 
         update_my_db_txt_func = functools.partial(update_my_db_func, is_txt=True)
-        user_text_my_btn.click(update_my_db_txt_func,
-                               inputs=[user_text_text, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
-                                       chunk, chunk_size],
-                               outputs=[my_db_state, add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
-                               api_name='add_txt_to_my' if allow_api and allow_upload_to_my_data else None) \
+        eventdb6 = user_text_my_btn.click(update_my_db_txt_func,
+                                          inputs=[user_text_text, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
+                                                  chunk, chunk_size],
+                                          outputs=[my_db_state, add_to_shared_db_btn, add_to_my_db_btn, sources_text],
+                                          queue=queue,
+                                          api_name='add_txt_to_my' if allow_api and allow_upload_to_my_data else None) \
             .then(clear_textbox, outputs=user_text_text, queue=queue) \
-            .then(update_radio_to_my, inputs=None, outputs=langchain_mode, queue=False)
+            .then(update_radio_to_my, inputs=None, outputs=langchain_mode, queue=queue)
 
         get_sources1 = functools.partial(get_sources, dbs=dbs, docs_state0=docs_state0)
 
@@ -728,14 +733,15 @@ def go_gradio(**kwargs):
         def update_dropdown(x):
             return gr.Dropdown.update(choices=x, value=[docs_state0[0]])
 
-        get_sources_btn.click(get_sources1, inputs=[my_db_state, langchain_mode], outputs=[file_source, docs_state],
-                              queue=queue,
-                              api_name='get_sources' if allow_api else None) \
+        eventdb7 = get_sources_btn.click(get_sources1, inputs=[my_db_state, langchain_mode],
+                                         outputs=[file_source, docs_state],
+                                         queue=queue,
+                                         api_name='get_sources' if allow_api else None) \
             .then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
         # show button, else only show when add.  Could add to above get_sources for download/dropdown, but bit much maybe
         show_sources1 = functools.partial(get_source_files_given_langchain_mode, dbs=dbs)
-        show_sources_btn.click(fn=show_sources1, inputs=[my_db_state, langchain_mode], outputs=sources_text,
-                               api_name='show_sources' if allow_api else None)
+        eventdb8 = show_sources_btn.click(fn=show_sources1, inputs=[my_db_state, langchain_mode], outputs=sources_text,
+                                          api_name='show_sources' if allow_api else None)
 
         # Get inputs to evaluate() and make_db()
         # don't deepcopy, can contain model itself
@@ -746,8 +752,9 @@ def go_gradio(**kwargs):
                                              **get_kwargs(update_and_get_source_files_given_langchain_mode,
                                                           exclude_names=['db1', 'langchain_mode'],
                                                           **all_kwargs))
-        refresh_sources_btn.click(fn=refresh_sources1, inputs=[my_db_state, langchain_mode], outputs=sources_text,
-                                  api_name='refresh_sources' if allow_api else None)
+        eventdb9 = refresh_sources_btn.click(fn=refresh_sources1, inputs=[my_db_state, langchain_mode],
+                                             outputs=sources_text,
+                                             api_name='refresh_sources' if allow_api else None)
 
         def check_admin_pass(x):
             return gr.update(visible=x == admin_pass)
@@ -1125,7 +1132,9 @@ def go_gradio(**kwargs):
         # bot doesn't consume instruction itself, just history from user, so why works
         submit_event1a = instruction.submit(**user_args, queue=queue,
                                             api_name='instruction' if allow_api else None)
-        submit_event1b = submit_event1a.then(**user_args2, api_name='instruction2' if allow_api else None)
+        # if hit enter on new instruction for submitting new query, no longer the saved chat
+        submit_event1a2 = submit_event1a.then(deselect_radio_chats, inputs=None, outputs=radio_chats, queue=queue)
+        submit_event1b = submit_event1a2.then(**user_args2, api_name='instruction2' if allow_api else None)
         submit_event1c = submit_event1b.then(clear_instruct, None, instruction) \
             .then(clear_instruct, None, iinput)
         submit_event1d = submit_event1c.then(**bot_args, api_name='instruction_bot' if allow_api else None,
@@ -1140,11 +1149,15 @@ def go_gradio(**kwargs):
         submit_event1g = submit_event1f2.then(**score_args2_submit,
                                               api_name='instruction_bot_score2' if allow_api else None, queue=queue)
         submit_event1h = submit_event1g.then(clear_torch_cache)
-        # if hit enter on new instruction for submitting new query, no longer the saved chat
-        submit_event1i = submit_event1h.then(deselect_radio_chats, inputs=None, outputs=radio_chats, queue=False)
+
+        submits1 = [submit_event1a, submit_event1a2, submit_event1b, submit_event1c, submit_event1d, submit_event1d2,
+                    submit_event1e,
+                    submit_event1f, submit_event1f2, submit_event1g, submit_event1h]
 
         submit_event2a = submit.click(**user_args, api_name='submit' if allow_api else None)
-        submit_event2b = submit_event2a.then(**user_args2, api_name='submit2' if allow_api else None)
+        # if submit new query, no longer the saved chat
+        submit_event2a2 = submit_event2a.then(deselect_radio_chats, inputs=None, outputs=radio_chats, queue=queue)
+        submit_event2b = submit_event2a2.then(**user_args2, api_name='submit2' if allow_api else None)
         submit_event2c = submit_event2b.then(clear_instruct, None, instruction) \
             .then(clear_instruct, None, iinput)
         submit_event2d = submit_event2c.then(**bot_args, api_name='submit_bot' if allow_api else None, queue=queue)
@@ -1156,11 +1169,15 @@ def go_gradio(**kwargs):
         submit_event2g = submit_event2f2.then(**score_args2_submit, api_name='submit_bot_score2' if allow_api else None,
                                               queue=queue)
         submit_event2h = submit_event2g.then(clear_torch_cache)
-        # if submit new query, no longer the saved chat
-        submit_event2i = submit_event2h.then(deselect_radio_chats, inputs=None, outputs=radio_chats, queue=False)
+
+        submits2 = [submit_event2a, submit_event2a2, submit_event2b, submit_event2c, submit_event2d, submit_event2d2,
+                    submit_event2e,
+                    submit_event2f, submit_event2f2, submit_event2g, submit_event2h]
 
         submit_event3a = retry.click(**user_args, api_name='retry' if allow_api else None)
-        submit_event3b = submit_event3a.then(**user_args2, api_name='retry2' if allow_api else None)
+        # if retry, no longer the saved chat
+        submit_event3a2 = submit_event3a.then(deselect_radio_chats, inputs=None, outputs=radio_chats, queue=queue)
+        submit_event3b = submit_event3a2.then(**user_args2, api_name='retry2' if allow_api else None)
         submit_event3c = submit_event3b.then(clear_instruct, None, instruction) \
             .then(clear_instruct, None, iinput)
         submit_event3d = submit_event3c.then(**retry_bot_args, api_name='retry_bot' if allow_api else None,
@@ -1174,17 +1191,19 @@ def go_gradio(**kwargs):
         submit_event3g = submit_event3f2.then(**score_args2_submit, api_name='retry_bot_score2' if allow_api else None,
                                               queue=queue)
         submit_event3h = submit_event3g.then(clear_torch_cache)
-        # if retry, no longer the saved chat
-        submit_event3i = submit_event3h.then(deselect_radio_chats, inputs=None, outputs=radio_chats, queue=False)
+
+        submits3 = [submit_event3a, submit_event3a2, submit_event3b, submit_event3c, submit_event3d, submit_event3d2,
+                    submit_event3e,
+                    submit_event3f, submit_event3f2, submit_event3g, submit_event3h]
 
         # if undo, no longer the saved chat
         submit_event4 = undo.click(**undo_user_args, api_name='undo' if allow_api else None) \
+            .then(deselect_radio_chats, inputs=None, outputs=radio_chats, queue=queue) \
             .then(**undo_user_args2, api_name='undo2' if allow_api else None) \
             .then(clear_instruct, None, instruction) \
             .then(clear_instruct, None, iinput) \
             .then(**score_args_submit, api_name='undo_score' if allow_api else None) \
             .then(**score_args2_submit, api_name='undo_score2' if allow_api else None) \
-            .then(deselect_radio_chats, inputs=None, outputs=radio_chats, queue=False) \
             .then(clear_torch_cache)
 
         # MANAGE CHATS
@@ -1527,12 +1546,13 @@ def go_gradio(**kwargs):
         # don't pass text_output, don't want to clear output, just stop it
         # cancel only stops outer generation, not inner generation or non-generation
         stop_btn.click(lambda: None, None, None,
-                       cancels=[submit_event1d, submit_event1f,
-                                submit_event2d, submit_event2f,
-                                submit_event3d, submit_event3f,
-                                submit_event_nochat,
-                                submit_event_nochat2,
-                                ],
+                       cancels=submits1 + submits2 + submits3 +
+                               [submit_event4] +
+                               [submit_event_nochat, submit_event_nochat2] +
+                               [eventdb1, eventdb2, eventdb3,
+                                eventdb4, eventdb5, eventdb6] +
+                               [eventdb7, eventdb8, eventdb9]
+                       ,
                        queue=False, api_name='stop' if allow_api else None).then(clear_torch_cache, queue=False)
 
         def count_chat_tokens(model_state1, chat1, prompt_type1, prompt_dict1):
