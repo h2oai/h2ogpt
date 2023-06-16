@@ -26,7 +26,7 @@ from enums import DocumentChoices
 from generate import gen_hyper, get_model
 from prompter import non_hf_types, PromptType
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
-    get_device, ProgressParallel, remove, hash_file, clear_torch_cache
+    get_device, ProgressParallel, remove, hash_file, clear_torch_cache, NullContext
 
 import_matplotlib()
 
