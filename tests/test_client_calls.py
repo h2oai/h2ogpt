@@ -351,7 +351,7 @@ def test_fast_up():
 
 
 @pytest.mark.skipif(not os.getenv('STRESS'), reason="Only for stress testing already-running server")
-@pytest.mark.parametrize("repeat", list(range(0, 2)))
+@pytest.mark.parametrize("repeat", list(range(0, 16)))
 def test_client_stress(repeat):
     # pip install pytest-repeat  # license issues, don't put with requirements
     # pip install pytest-timeout  # license issues, don't put with requirements
@@ -359,7 +359,7 @@ def test_client_stress(repeat):
     # CUDA_VISIBLE_DEVICES=0 SCORE_MODEL=None python generate.py --base_model=h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2 --langchain_mode=UserData --user_path=user_path --debug=True --concurrency_count=4
     #
     # timeout to mimic client disconnecting and generation still going, else too clean and doesn't fail
-    # STRESS=1 pytest -s -v -n 2 --timeout=30 tests/test_client_calls.py::test_client_stress 2> stress1.log
+    # STRESS=1 pytest -s -v -n 8 --timeout=30 tests/test_client_calls.py::test_client_stress 2> stress1.log
 
     prompt = "Tell a very long kid's story about birds."
 
