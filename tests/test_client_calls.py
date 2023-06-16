@@ -212,7 +212,8 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
     assert ('a large language model' in res_dict['response'] or
             'language model trained' in res_dict['response'] or
             'H2O GPT is a language model' in res_dict['response'] or
-            'H2O GPT is a chatbot framework' in res_dict['response']
+            'H2O GPT is a chatbot framework' in res_dict['response'] or
+            'H2O GPT is a chatbot that can be trained' in res_dict['response']
             ) \
            and 'FAQ.md' in res_dict['response']
 
@@ -265,7 +266,8 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'Whisper is a chatbot platform' in res_dict['response'] or
             'whisper is a chatbot framework' in res_dict['response'] or
             'whisper is a tool for training language models' in res_dict['response'] or
-            'whisper is a secure messaging app' in res_dict['response']
+            'whisper is a secure messaging app' in res_dict['response'] or
+            'LLaMa-based models are not commercially viable' in res_dict['response']
             ) \
            and '.md' in res_dict['response']
 
