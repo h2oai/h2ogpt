@@ -3,7 +3,7 @@ import os
 
 import pytest
 
-from client_test import get_client, md_to_text
+from client_test import get_client, md_to_text, run_client_nochat_api_lean_morestuff
 from tests.utils import wrap_test_forked, make_user_path_test, get_llama
 
 
@@ -348,4 +348,36 @@ def test_client_long():
 def test_fast_up():
     from generate import main
     main(gradio=True, block_gradio_exit=False)
+
+
+@pytest.mark.skipif(not os.getenv('STRESS'), reason="Only for stress testing already-running server")
+@pytest.mark.parametrize("repeat", list(range(0, 100)))
+def test_client_stress(repeat):
+    # pip install pytest-repeat  # license issues, don't put with requirements
+    # pip install pytest-timeout  # license issues, don't put with requirements
+    #
+    # CUDA_VISIBLE_DEVICES=0 SCORE_MODEL=None python generate.py --base_model=h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2 --langchain_mode=UserData --user_path=user_path --debug=True --concurrency_count=4
+    #
+    # timeout to mimic client disconnecting and generation still going, else too clean and doesn't fail
+    # STRESS=1 pytest -s -v -n 8 --timeout=30 tests/test_client_calls.py::test_client_stress 2> stress1.log
+
+    prompt = "Tell a very long kid's story about birds."
+
+    kwargs = dict(
+        instruction='',
+        max_new_tokens=1024,
+        min_new_tokens=1,
+        max_time=300,
+        do_sample=False,
+        instruction_nochat=prompt,
+    )
+
+    api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
+    client = get_client(serialize=True)
+    res = client.predict(
+        str(dict(kwargs)),
+        api_name=api_name,
+    )
+    print("Raw client result: %s" % res, flush=True)
+
 
