@@ -103,6 +103,7 @@ class RotaryEmbedding(torch.nn.Module):
             self.sin_cached = self.sin_cached.type(dtype)
 
             return self.cos_cached, self.sin_cached
+        return self.cos_cached, self.sin_cached
 
     def forward(self, q, k):
         batch, seq_len, head_dim = q.shape
