@@ -24,7 +24,7 @@ def do_export():
 
     BASE_MODEL = 'decapoda-research/llama-65b-hf'
     LORA_WEIGHTS = 'llama-65b-hf.h2oaiopenassistant_oasst1_h2ogpt_graded.1_epochs.113510499324f0f007cbec9d9f1f8091441f2469.3'
-    OUTPUT_NAME = "h2ogpt-oasst1-llama-65b"
+    OUTPUT_NAME = "h2ogpt-research-oasst1-llama-65b"
 
     llama_type = "llama" in BASE_MODEL
     as_pytorch = False  # False -> HF
