@@ -42,7 +42,7 @@ Turn ★ into ⭐ (top-right corner) if you like the project!
 ### Try h2oGPT now 
 
 Live hosted instances:
-- [![img-small.png](docs/img-small.png) h2oGPT LlaMa 65B](https://llama.h2o.ai/)
+- [![img-small.png](docs/img-small.png) h2oGPT LLaMa 65B](https://llama.h2o.ai/)
 - [![img-small.png](docs/img-small.png) h2oGPT Falcon 40B](https://gpt.h2o.ai/)
 - [![img-small.png](docs/img-small.png) h2oGPT Falcon 40B](http://falcon.h2o.ai)
 - [🤗 h2oGPT 12B #1](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot)
