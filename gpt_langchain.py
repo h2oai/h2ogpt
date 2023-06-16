@@ -1389,6 +1389,7 @@ def _run_qa_db(query=None,
         return
 
     # context stuff similar to used in evaluate()
+    import torch
     with torch.no_grad():
         have_lora_weights = lora_weights not in ['[None/Remove]', '', None]
         context_class_cast = NullContext if device == 'cpu' or have_lora_weights else torch.autocast
