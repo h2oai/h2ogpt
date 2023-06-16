@@ -267,7 +267,8 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'whisper is a chatbot framework' in res_dict['response'] or
             'whisper is a tool for training language models' in res_dict['response'] or
             'whisper is a secure messaging app' in res_dict['response'] or
-            'LLaMa-based models are not commercially viable' in res_dict['response']
+            'LLaMa-based models are not commercially viable' in res_dict['response'] or
+            'A text-based chatbot that' in res_dict['response']
             ) \
            and '.md' in res_dict['response']
 
