@@ -1,3 +1,5 @@
+### Local Install
+
 This is just following the same [local-install](https://github.com/huggingface/text-generation-inference).
 ```bash
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
@@ -31,11 +33,17 @@ CUDA_HOME=/usr/local/cuda-11.7 BUILD_EXTENSIONS=True make install # Install repo
 CUDA_VISIBLE_DEVICES=0 text-generation-launcher --model-id h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2 --port 8080  --sharded false --trust-remote-code
 ```
 
-Test:
+### Docker Install:
+```bash
+docker run --gpus device=0 --shm-size 1g -e TRANSFORMERS_CACHE="/.cache/" -p 6112:80 -v $HOME/.cache:/.cache/ -v $PWD/data:/data ghcr.io/huggingface/text-generation-inference:0.8 --model-id h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2 --max-input-length 2048 --max-total-tokens 3072
+```
+
+### Testing
+Python test:
 ```python
 from text_generation import Client
 
-client = Client("http://127.0.0.1:8080")
+client = Client("http://127.0.0.1:6112")
 print(client.generate("What is Deep Learning?", max_new_tokens=17).generated_text)
 
 text = ""
@@ -43,4 +51,9 @@ for response in client.generate_stream("What is Deep Learning?", max_new_tokens=
     if not response.token.special:
         text += response.token.text
 print(text)
+```
+
+Curl Test:
+```bash
+curl 127.0.0.1:6112/generate     -X POST     -d '{"inputs":"<|prompt|>What is Deep Learning?<|endoftext|><|answer|>","parameters":{"max_new_tokens": 512, "truncate": 1024, "do_sample": true, "temperature": 0.1, "repetition_penalty": 1.2}}'     -H 'Content-Type: application/json' --user "user:bhx5xmu6UVX4"
 ```
