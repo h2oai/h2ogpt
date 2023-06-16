@@ -45,6 +45,7 @@ def run_eval(  # for local function:
         detect_user_path_changes_every_query=None,
         use_openai_embedding=None, use_openai_model=None, hf_embedding_model=None,
         db_type=None, n_jobs=None, first_para=None, text_limit=None, verbose=None, cli=None, reverse_docs=None,
+        use_cache=None,
 ):
     check_locals(**locals())
 
