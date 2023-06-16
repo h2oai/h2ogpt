@@ -356,7 +356,7 @@ def test_client_stress(repeat):
     # pip install pytest-repeat  # license issues, don't put with requirements
     # pip install pytest-timeout  # license issues, don't put with requirements
     #
-    # CUDA_VISIBLE_DEVICES=0 SCORE_MODEL=None python generate.py --base_model=h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2 --langchain_mode=UserData --user_path=user_path --debug=True --concurrency_count=4
+    # CUDA_VISIBLE_DEVICES=0 SCORE_MODEL=None python generate.py --base_model=h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2 --langchain_mode=UserData --user_path=user_path --debug=True --concurrency_count=8
     #
     # timeout to mimic client disconnecting and generation still going, else too clean and doesn't fail
     # STRESS=1 pytest -s -v -n 8 --timeout=30 tests/test_client_calls.py::test_client_stress 2> stress1.log

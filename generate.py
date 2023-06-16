@@ -551,6 +551,8 @@ def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward
         else:
             # can't infer
             model = None
+    if 'falcon' in base_model.lower():
+        config.use_cache = False
 
     if model is not None:
         # NOTE: Can specify max_memory={0: max_mem, 1: max_mem}, to shard model
