@@ -349,3 +349,33 @@ def test_fast_up():
     from generate import main
     main(gradio=True, block_gradio_exit=False)
 
+
+@pytest.mark.skipif(not os.getenv('SERVER'),
+                    reason="For testing text-generatino-inference server")
+@wrap_test_forked
+def test_text_generation_inference_server1():
+    # e.g. HOST=http://192.168.1.46:6112 SERVER=1 pytest -s -v test_client_calls::test_text_generation_inference_server1
+
+    # Python client test:
+    from text_generation import Client
+
+    host = os.getenv("HOST", "http://127.0.0.1:6112")
+    client = Client(host)
+    print(client.generate("What is Deep Learning?", max_new_tokens=17).generated_text)
+
+    text = ""
+    for response in client.generate_stream("What is Deep Learning?", max_new_tokens=17):
+        if not response.token.special:
+            text += response.token.text
+    assert 'Deep learning is a subfield of machine learning' in text
+
+    # Curl Test (not really pass fail yet)
+    import subprocess
+    output = subprocess.run(['curl', '%s/generate' % host, '-X', 'POST', '-d',
+                             '{"inputs":"<|prompt|>What is Deep Learning?<|endoftext|><|answer|>","parameters":{"max_new_tokens": 20, "truncate": 1024, "do_sample": false, "temperature": 0.1, "repetition_penalty": 1.2}}',
+                             '-H', 'Content-Type: application/json',
+                             '--user', 'user:bhx5xmu6UVX4'],
+                            check=True, capture_output=True).stdout.decode()
+    text = ast.literal_eval(output)['generated_text']
+    assert 'Deep learning is a subfield of machine learning' in text or \
+           'Deep learning refers to a class of machine learning' in text
