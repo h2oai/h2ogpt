@@ -1304,6 +1304,7 @@ def _run_qa_db(query=None,
                verbose=False,
                cli=False,
                reverse_docs=True,
+               lora_weights='',
                ):
     """
 

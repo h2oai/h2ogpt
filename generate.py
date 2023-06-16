@@ -1183,6 +1183,8 @@ def evaluate(
                            cli=cli,
                            sanitize_bot_response=sanitize_bot_response,
                            reverse_docs=reverse_docs,
+
+                           lora_weights=lora_weights,
                            ):
             outr, extra = r  # doesn't accumulate, new answer every yield, so only save that full answer
             yield dict(response=outr, sources=extra)
