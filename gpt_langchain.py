@@ -1515,9 +1515,9 @@ def get_similarity_chain(query=None,
         template = """%s{context}{question}""" % prefix
     else:
         template = """%s
-==
+\"\"\"
 {context}
-==
+\"\"\"
 %s{question}""" % (prefix, extra)
     if not use_openai_model and prompt_type not in ['plain'] or model_name in non_hf_types:
         use_template = True
