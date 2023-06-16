@@ -508,29 +508,14 @@ def main(
         go_gradio(**locals())
 
 
-def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward_type,
-                       gpu_id=0,
-                       use_auth_token=False,
-                       trust_remote_code=True,
-                       offload_folder=None,
-                       triton_attn=False,
-                       long_sequence=True,
-                       ):
-    """
-    Ensure model gets on correct device
-    :param base_model:
-    :param model_loader:
-    :param load_half:
-    :param model_kwargs:
-    :param reward_type:
-    :param gpu_id:
-    :param use_auth_token:
-    :param trust_remote_code:
-    :param offload_folder:
-    :param triton_attn:
-    :param long_sequence:
-    :return:
-    """
+def get_config(base_model,
+               use_auth_token=False,
+               trust_remote_code=True,
+               offload_folder=None,
+               triton_attn=False,
+               long_sequence=True,
+               return_model=False,
+               ):
     with init_empty_weights():
         from transformers import AutoConfig
         config = AutoConfig.from_pretrained(base_model, use_auth_token=use_auth_token,
@@ -543,7 +528,8 @@ def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward
                 config.update({"max_seq_len": 83968})
             if 'mosaicml/mpt-7b-chat' in base_model.lower():
                 config.update({"max_seq_len": 4096})
-        if issubclass(config.__class__, tuple(AutoModel._model_mapping.keys())):
+        if return_model and \
+                issubclass(config.__class__, tuple(AutoModel._model_mapping.keys())):
             model = AutoModel.from_config(
                 config,
                 trust_remote_code=trust_remote_code,
@@ -553,6 +539,17 @@ def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward
             model = None
     if 'falcon' in base_model.lower():
         config.use_cache = False
+
+    return config, model
+
+
+def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward_type,
+                       config, model,
+                       gpu_id=0,
+                       ):
+    """
+    Ensure model gets on correct device
+    """
 
     if model is not None:
         # NOTE: Can specify max_memory={0: max_mem, 1: max_mem}, to shard model
@@ -729,27 +726,41 @@ def get_model(
             model_kwargs.pop('torch_dtype', None)
         pop_unused_model_kwargs(model_kwargs)
 
+        triton_attn = False
+        long_sequence = True
+
+        config_kwargs = dict(use_auth_token=use_auth_token,
+                             trust_remote_code=trust_remote_code,
+                             offload_folder=offload_folder,
+                             triton_attn=triton_attn,
+                             long_sequence=long_sequence)
+
         if not lora_weights:
             with torch.device(device):
+
                 if infer_devices:
+                    config, model = get_config(base_model, return_model=True, **config_kwargs)
                     model = get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward_type,
+                                               config, model,
                                                gpu_id=gpu_id,
-                                               use_auth_token=use_auth_token,
-                                               trust_remote_code=trust_remote_code,
-                                               offload_folder=offload_folder,
                                                )
                 else:
+                    config, _ = get_config(base_model, **config_kwargs)
                     if load_half and not (load_8bit or load_4bit):
                         model = model_loader.from_pretrained(
                             base_model,
+                            config=config,
                             **model_kwargs).half()
                     else:
                         model = model_loader.from_pretrained(
                             base_model,
+                            config=config,
                             **model_kwargs)
         elif load_8bit or load_4bit:
+            config, _ = get_config(base_model, **config_kwargs)
             model = model_loader.from_pretrained(
                 base_model,
+                config=config,
                 **model_kwargs
             )
             from peft import PeftModel  # loads cuda, so avoid in global scope
@@ -766,8 +777,10 @@ def get_model(
             )
         else:
             with torch.device(device):
+                config, _ = get_config(base_model, **config_kwargs)
                 model = model_loader.from_pretrained(
                     base_model,
+                    config=config,
                     **model_kwargs
                 )
                 from peft import PeftModel  # loads cuda, so avoid in global scope
