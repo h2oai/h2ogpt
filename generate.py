@@ -60,6 +60,7 @@ def main(
         lora_weights: str = "",
         gpu_id: int = 0,
         compile_model: bool = True,
+        use_cache: bool = None,
 
         prompt_type: Union[int, str] = None,
         prompt_dict: typing.Dict = None,
@@ -163,6 +164,7 @@ def main(
     :param lora_weights: LORA weights path/HF link
     :param gpu_id: if infer_devices, then use gpu_id for cuda device ID, or auto mode if gpu_id != -1
     :param compile_model Whether to compile the model
+    :param use_cache: Whether to use caching in model (some models fail when multiple threads use)
     :param prompt_type: type of prompt, usually matched to fine-tuned model or plain for foundational model
     :param prompt_dict: If prompt_type=custom, then expects (some) items returned by get_prompt(..., return_dict=True)
     :param temperature: generation temperature
@@ -929,8 +931,6 @@ def evaluate_from_str(
         use_openai_embedding=None,
         use_openai_model=None,
         hf_embedding_model=None,
-        chunk=None,
-        chunk_size=None,
         db_type=None,
         n_jobs=None,
         first_para=None,
@@ -938,6 +938,7 @@ def evaluate_from_str(
         verbose=False,
         cli=False,
         reverse_docs=True,
+        use_cache=None,
 ):
     if isinstance(user_kwargs, str):
         user_kwargs = ast.literal_eval(user_kwargs)
@@ -983,6 +984,7 @@ def evaluate_from_str(
         verbose=verbose,
         cli=cli,
         reverse_docs=reverse_docs,
+        use_cache=use_cache,
     )
     try:
         for ret1 in ret:
@@ -1047,6 +1049,7 @@ def evaluate(
         verbose=False,
         cli=False,
         reverse_docs=True,
+        use_cache=None,
 ):
     # ensure passed these
     assert concurrency_count is not None
@@ -1215,6 +1218,9 @@ def evaluate(
     max_max_tokens = tokenizer.model_max_length
     max_input_tokens = max_max_tokens - max_new_tokens
     input_ids = input_ids[:, -max_input_tokens:]
+    # required for falcon if multiple threads or asyncio accesses to model during generation
+    if use_cache is None:
+        use_cache = False if 'falcon' in base_model else True
     gen_config_kwargs = dict(temperature=float(temperature),
                              top_p=float(top_p),
                              top_k=top_k,
@@ -1224,6 +1230,7 @@ def evaluate(
                              num_return_sequences=num_return_sequences,
                              renormalize_logits=True,
                              remove_invalid_values=True,
+                             use_cache=use_cache,
                              )
     token_ids = ['eos_token_id', 'pad_token_id', 'bos_token_id', 'cls_token_id', 'sep_token_id']
     for token_id in token_ids:
@@ -1267,7 +1274,8 @@ def evaluate(
                                     )
 
     with torch.no_grad():
-        context_class_cast = NullContext if device == 'cpu' or lora_weights else torch.autocast
+        have_lora_weights = lora_weights not in ['[None/Remove]', '', None]
+        context_class_cast = NullContext if device == 'cpu' or have_lora_weights else torch.autocast
         with context_class_cast(device):
             # protection for gradio not keeping track of closed users,
             # else hit bitsandbytes lack of thread safety:
