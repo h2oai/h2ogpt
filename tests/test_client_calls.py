@@ -1,4 +1,5 @@
 import ast
+import json
 import os
 
 import pytest
@@ -46,9 +47,12 @@ def test_client1api():
 
 
 @wrap_test_forked
-def test_client1api_lean():
+@pytest.mark.parametrize("admin_pass", ['', 'foodoo1234'])
+def test_client1api_lean(admin_pass):
     from generate import main
-    main(base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b', prompt_type='human_bot', chat=False,
+    base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
+    os.environ['ADMIN_PASS'] = admin_pass
+    main(base_model=base_model, prompt_type='human_bot', chat=False,
          stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False)
 
     api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
@@ -63,6 +67,17 @@ def test_client1api_lean():
     response = ast.literal_eval(res)['response']
 
     assert 'I am h2oGPT' in response or "I'm h2oGPT" in response or 'I’m h2oGPT' in response
+
+    api_name = '/system_info_dict'
+    # pass string of dict.  All entries are optional, but expect at least instruction_nochat to be filled
+    ADMIN_PASS = os.getenv('ADMIN_PASS', admin_pass)
+    res = client.predict(ADMIN_PASS, api_name=api_name)
+    res = json.loads(res)
+    assert isinstance(res, dict)
+    assert res['base_model'] == base_model
+    assert 'device' in res
+
+    print(res)
 
 
 @wrap_test_forked
@@ -379,5 +394,3 @@ def test_client_stress(repeat):
         api_name=api_name,
     )
     print("Raw client result: %s" % res, flush=True)
-
-

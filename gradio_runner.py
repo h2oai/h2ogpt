@@ -7,6 +7,7 @@ import pprint
 import random
 import shutil
 import sys
+import time
 import traceback
 import typing
 import uuid
@@ -40,7 +41,7 @@ from prompter import Prompter, \
     prompt_type_to_model_name, prompt_types_strings, inv_prompt_type_to_model_lower, generate_prompt, non_hf_types, \
     get_prompt
 from utils import get_githash, flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
-    ping, get_short_name, get_url, makedirs, get_kwargs, remove
+    ping, get_short_name, get_url, makedirs, get_kwargs, remove, system_info, ping_gpu
 from generate import get_model, languages_covered, evaluate, eval_func_param_names, score_qa, langchain_modes, \
     inputs_kwargs_list, get_cutoffs, scratch_base_dir, evaluate_from_str, no_default_param_names, \
     eval_func_param_names_defaults, get_max_max_new_tokens
@@ -586,6 +587,9 @@ def go_gradio(**kwargs):
                             with gr.Row():
                                 system_btn = gr.Button(value='Get System Info')
                                 system_text = gr.Textbox(label='System Info', interactive=False).style(
+                                    show_copy_button=True)
+                                system_input = gr.Textbox(label='System Info Dict', interactive=True,
+                                                          visible=False).style(
                                     show_copy_button=True)
 
                             with gr.Row():
@@ -1538,10 +1542,33 @@ def go_gradio(**kwargs):
                               api_name='flag_nochat' if allow_api else None, queue=False)
 
         def get_system_info():
+            time.sleep(10)  # delay to avoid spam since queue=False
             return gr.Textbox.update(value=system_info_print())
 
         system_event = system_btn.click(get_system_info, outputs=system_text,
                                         api_name='system_info' if allow_api else None, queue=False)
+
+        def get_system_info_dict(system_input1, **kwargs1):
+            if system_input1 != os.getenv("ADMIN_PASS", ""):
+                return json.dumps({})
+            exclude_list = ['admin_pass', 'examples']
+            sys_dict = {k: v for k, v in kwargs1.items() if
+                        isinstance(v, (str, int, bool, float)) and k not in exclude_list}
+            try:
+                sys_dict.update(system_info())
+            except Exception as e:
+                # protection
+                print("Exception: %s" % str(e), flush=True)
+            return json.dumps(sys_dict)
+
+        get_system_info_dict_func = functools.partial(get_system_info_dict, **all_kwargs)
+
+        system_dict_event = system_btn.click(get_system_info_dict_func,
+                                             inputs=system_input,
+                                             outputs=system_text,
+                                             api_name='system_info_dict' if allow_api else None,
+                                             queue=False,  # queue to avoid spam
+                                             )
 
         # don't pass text_output, don't want to clear output, just stop it
         # cancel only stops outer generation, not inner generation or non-generation
@@ -1589,6 +1616,7 @@ def go_gradio(**kwargs):
         # FIXME: disable for gptj, langchain or gpt4all modify print itself
         # FIXME: and any multi-threaded/async print will enter model output!
         scheduler.add_job(func=ping, trigger="interval", seconds=60)
+    scheduler.add_job(func=ping_gpu, trigger="interval", seconds=60 * 10)
     scheduler.start()
 
     # import control
