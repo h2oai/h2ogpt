@@ -148,6 +148,7 @@
 [Kubernetes Triton](https://developer.nvidia.com/blog/deploying-nvidia-triton-at-scale-with-mig-and-kubernetes/)<br />
 
 ### Faster inference
+[text-generation-inference](https://github.com/huggingface/text-generation-inference)<br />
 [Optimum](https://github.com/huggingface/optimum)<br />
 
 ### Semi-Open source Semi-Commercial products
