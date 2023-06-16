@@ -1564,7 +1564,7 @@ def get_similarity_chain(query=None,
             scores = [x[1] for x in docs_with_score]
         else:
             if top_k_docs == -1:
-                #docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:top_k_docs]
+                # docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:top_k_docs]
                 top_k_docs_tokenize = 100
                 docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:top_k_docs_tokenize]
                 # FIXME: Should use LLM's tokenizer if have access, else embedding is kinda ok since small chunks normally

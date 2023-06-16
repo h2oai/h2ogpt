@@ -220,7 +220,8 @@ def run_eval(  # for local function:
                     plt.hist(df_scores['score'], bins=20)
                     score_avg = np.mean(df_scores['score'])
                     score_median = np.median(df_scores['score'])
-                    print("SCORE %s: %s  So far: AVG: %s MEDIAN: %s" % (exi, score, score_avg, score_median), flush=True)
+                    print("SCORE %s: %s  So far: AVG: %s MEDIAN: %s" % (exi, score, score_avg, score_median),
+                          flush=True)
                     plt.title("Score avg: %s median: %s" % (score_avg, score_median))
                     plt.savefig(eval_out_filename.replace('.parquet', '.png'))
                     plt.close()
@@ -228,7 +229,8 @@ def run_eval(  # for local function:
             print("END" + "=" * 102)
             print("")
             t2 = time.time()
-            print("Time taken for example: %s Time taken so far: %.4f about %.4g per example" % (t2 - t1, t2 - t0, (t2 - t0) / (1 + exi)))
+            print("Time taken for example: %s Time taken so far: %.4f about %.4g per example" % (
+            t2 - t1, t2 - t0, (t2 - t0) / (1 + exi)))
         t1 = time.time()
         print("Total time taken: %.4f about %.4g per example" % (t1 - t0, (t1 - t0) / num_examples))
         print("Score avg: %s median: %s" % (score_avg, score_median), flush=True)
