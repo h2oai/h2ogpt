@@ -69,6 +69,14 @@ def ping():
         pass
 
 
+def ping_gpu():
+    try:
+        print('Ping_GPU: %s %s' % (str(datetime.now()), system_info()), flush=True)
+    except AttributeError:
+        # some programs wrap print and will fail with flush passed
+        pass
+
+
 def get_torch_allocated():
     import torch
     return torch.cuda.memory_allocated()

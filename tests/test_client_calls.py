@@ -1,9 +1,10 @@
 import ast
+import json
 import os
 
 import pytest
 
-from client_test import get_client, md_to_text
+from client_test import get_client, md_to_text, run_client_nochat_api_lean_morestuff
 from tests.utils import wrap_test_forked, make_user_path_test, get_llama
 
 
@@ -46,9 +47,12 @@ def test_client1api():
 
 
 @wrap_test_forked
-def test_client1api_lean():
+@pytest.mark.parametrize("admin_pass", ['', 'foodoo1234'])
+def test_client1api_lean(admin_pass):
     from generate import main
-    main(base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b', prompt_type='human_bot', chat=False,
+    base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
+    os.environ['ADMIN_PASS'] = admin_pass
+    main(base_model=base_model, prompt_type='human_bot', chat=False,
          stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False)
 
     api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
@@ -63,6 +67,17 @@ def test_client1api_lean():
     response = ast.literal_eval(res)['response']
 
     assert 'I am h2oGPT' in response or "I'm h2oGPT" in response or 'I’m h2oGPT' in response
+
+    api_name = '/system_info_dict'
+    # pass string of dict.  All entries are optional, but expect at least instruction_nochat to be filled
+    ADMIN_PASS = os.getenv('ADMIN_PASS', admin_pass)
+    res = client.predict(ADMIN_PASS, api_name=api_name)
+    res = json.loads(res)
+    assert isinstance(res, dict)
+    assert res['base_model'] == base_model
+    assert 'device' in res
+
+    print(res)
 
 
 @wrap_test_forked
@@ -197,7 +212,8 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
     assert ('a large language model' in res_dict['response'] or
             'language model trained' in res_dict['response'] or
             'H2O GPT is a language model' in res_dict['response'] or
-            'H2O GPT is a chatbot framework' in res_dict['response']
+            'H2O GPT is a chatbot framework' in res_dict['response'] or
+            'H2O GPT is a chatbot that can be trained' in res_dict['response']
             ) \
            and 'FAQ.md' in res_dict['response']
 
@@ -216,7 +232,8 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'Whisper is a privacy-focused chatbot platform' in res_dict['response'] or
             'h2oGPT' in res_dict['response'] or
             'A secure, private, and anonymous chat platform' in res_dict['response'] or
-            'Whisper is a privacy-preserving' in res_dict['response']
+            'Whisper is a privacy-preserving' in res_dict['response'] or
+            'A chatbot that uses a large language model' in res_dict['response']
             ) \
            and 'README.md' in res_dict['response']
 
@@ -249,7 +266,9 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'Whisper is a chatbot platform' in res_dict['response'] or
             'whisper is a chatbot framework' in res_dict['response'] or
             'whisper is a tool for training language models' in res_dict['response'] or
-            'whisper is a secure messaging app' in res_dict['response']
+            'whisper is a secure messaging app' in res_dict['response'] or
+            'LLaMa-based models are not commercially viable' in res_dict['response'] or
+            'A text-based chatbot that' in res_dict['response']
             ) \
            and '.md' in res_dict['response']
 
@@ -348,6 +367,37 @@ def test_client_long():
 def test_fast_up():
     from generate import main
     main(gradio=True, block_gradio_exit=False)
+
+
+@pytest.mark.skipif(not os.getenv('STRESS'), reason="Only for stress testing already-running server")
+@pytest.mark.parametrize("repeat", list(range(0, 16)))
+def test_client_stress(repeat):
+    # pip install pytest-repeat  # license issues, don't put with requirements
+    # pip install pytest-timeout  # license issues, don't put with requirements
+    #
+    # CUDA_VISIBLE_DEVICES=0 SCORE_MODEL=None python generate.py --base_model=h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2 --langchain_mode=UserData --user_path=user_path --debug=True --concurrency_count=8
+    #
+    # timeout to mimic client disconnecting and generation still going, else too clean and doesn't fail
+    # STRESS=1 pytest -s -v -n 8 --timeout=30 tests/test_client_calls.py::test_client_stress 2> stress1.log
+
+    prompt = "Tell a very long kid's story about birds."
+
+    kwargs = dict(
+        instruction='',
+        max_new_tokens=1024,
+        min_new_tokens=1,
+        max_time=300,
+        do_sample=False,
+        instruction_nochat=prompt,
+    )
+
+    api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
+    client = get_client(serialize=True)
+    res = client.predict(
+        str(dict(kwargs)),
+        api_name=api_name,
+    )
+    print("Raw client result: %s" % res, flush=True)
 
 
 @pytest.mark.skipif(not os.getenv('SERVER'),

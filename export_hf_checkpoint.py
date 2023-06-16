@@ -13,6 +13,7 @@ def do_export():
     BASE_MODEL = 'h2oai/h2ogpt-oasst1-512-12b'
     LORA_WEIGHTS = 'h2ogpt-oasst1-512-12b.h2oaih2ogpt-oig-oasst1-instruct-cleaned-v3.1_epochs.805b8e8eff369207340a5a6f90f3c833f9731254.2'
     OUTPUT_NAME = "h2ogpt-oig-oasst1-512-12b"
+
     BASE_MODEL = 'EleutherAI/pythia-12b-deduped'
     LORA_WEIGHTS = 'pythia-12b-deduped.h2oaiopenassistant_oasst1_h2ogpt_graded.3_epochs.2ccf687ea3f3f3775a501838e81c1a0066430455.4'
     OUTPUT_NAME = "h2ogpt-oasst1-512-12b"
@@ -20,6 +21,10 @@ def do_export():
     BASE_MODEL = 'tiiuae/falcon-40b'
     LORA_WEIGHTS = 'falcon-40b.h2oaih2ogpt-oig-oasst1-instruct-cleaned-v3.3_epochs.2e023709e9a36283986d136e66cb94e0bd7e6452.10'
     OUTPUT_NAME = "h2ogpt-oig-oasst1-40b"
+
+    BASE_MODEL = 'decapoda-research/llama-65b-hf'
+    LORA_WEIGHTS = 'llama-65b-hf.h2oaiopenassistant_oasst1_h2ogpt_graded.1_epochs.113510499324f0f007cbec9d9f1f8091441f2469.3'
+    OUTPUT_NAME = "h2ogpt-research-oasst1-llama-65b"
 
     llama_type = "llama" in BASE_MODEL
     as_pytorch = False  # False -> HF

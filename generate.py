@@ -60,6 +60,7 @@ def main(
         lora_weights: str = "",
         gpu_id: int = 0,
         compile_model: bool = True,
+        use_cache: bool = None,
 
         prompt_type: Union[int, str] = None,
         prompt_dict: typing.Dict = None,
@@ -163,6 +164,7 @@ def main(
     :param lora_weights: LORA weights path/HF link
     :param gpu_id: if infer_devices, then use gpu_id for cuda device ID, or auto mode if gpu_id != -1
     :param compile_model Whether to compile the model
+    :param use_cache: Whether to use caching in model (some models fail when multiple threads use)
     :param prompt_type: type of prompt, usually matched to fine-tuned model or plain for foundational model
     :param prompt_dict: If prompt_type=custom, then expects (some) items returned by get_prompt(..., return_dict=True)
     :param temperature: generation temperature
@@ -506,29 +508,14 @@ def main(
         go_gradio(**locals())
 
 
-def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward_type,
-                       gpu_id=0,
-                       use_auth_token=False,
-                       trust_remote_code=True,
-                       offload_folder=None,
-                       triton_attn=False,
-                       long_sequence=True,
-                       ):
-    """
-    Ensure model gets on correct device
-    :param base_model:
-    :param model_loader:
-    :param load_half:
-    :param model_kwargs:
-    :param reward_type:
-    :param gpu_id:
-    :param use_auth_token:
-    :param trust_remote_code:
-    :param offload_folder:
-    :param triton_attn:
-    :param long_sequence:
-    :return:
-    """
+def get_config(base_model,
+               use_auth_token=False,
+               trust_remote_code=True,
+               offload_folder=None,
+               triton_attn=False,
+               long_sequence=True,
+               return_model=False,
+               ):
     with init_empty_weights():
         from transformers import AutoConfig
         config = AutoConfig.from_pretrained(base_model, use_auth_token=use_auth_token,
@@ -541,7 +528,8 @@ def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward
                 config.update({"max_seq_len": 83968})
             if 'mosaicml/mpt-7b-chat' in base_model.lower():
                 config.update({"max_seq_len": 4096})
-        if issubclass(config.__class__, tuple(AutoModel._model_mapping.keys())):
+        if return_model and \
+                issubclass(config.__class__, tuple(AutoModel._model_mapping.keys())):
             model = AutoModel.from_config(
                 config,
                 trust_remote_code=trust_remote_code,
@@ -549,6 +537,19 @@ def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward
         else:
             # can't infer
             model = None
+    if 'falcon' in base_model.lower():
+        config.use_cache = False
+
+    return config, model
+
+
+def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward_type,
+                       config, model,
+                       gpu_id=0,
+                       ):
+    """
+    Ensure model gets on correct device
+    """
 
     if model is not None:
         # NOTE: Can specify max_memory={0: max_mem, 1: max_mem}, to shard model
@@ -725,27 +726,41 @@ def get_model(
             model_kwargs.pop('torch_dtype', None)
         pop_unused_model_kwargs(model_kwargs)
 
+        triton_attn = False
+        long_sequence = True
+
+        config_kwargs = dict(use_auth_token=use_auth_token,
+                             trust_remote_code=trust_remote_code,
+                             offload_folder=offload_folder,
+                             triton_attn=triton_attn,
+                             long_sequence=long_sequence)
+
         if not lora_weights:
             with torch.device(device):
+
                 if infer_devices:
+                    config, model = get_config(base_model, return_model=True, **config_kwargs)
                     model = get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward_type,
+                                               config, model,
                                                gpu_id=gpu_id,
-                                               use_auth_token=use_auth_token,
-                                               trust_remote_code=trust_remote_code,
-                                               offload_folder=offload_folder,
                                                )
                 else:
+                    config, _ = get_config(base_model, **config_kwargs)
                     if load_half and not (load_8bit or load_4bit):
                         model = model_loader.from_pretrained(
                             base_model,
+                            config=config,
                             **model_kwargs).half()
                     else:
                         model = model_loader.from_pretrained(
                             base_model,
+                            config=config,
                             **model_kwargs)
         elif load_8bit or load_4bit:
+            config, _ = get_config(base_model, **config_kwargs)
             model = model_loader.from_pretrained(
                 base_model,
+                config=config,
                 **model_kwargs
             )
             from peft import PeftModel  # loads cuda, so avoid in global scope
@@ -762,8 +777,10 @@ def get_model(
             )
         else:
             with torch.device(device):
+                config, _ = get_config(base_model, **config_kwargs)
                 model = model_loader.from_pretrained(
                     base_model,
+                    config=config,
                     **model_kwargs
                 )
                 from peft import PeftModel  # loads cuda, so avoid in global scope
@@ -929,8 +946,6 @@ def evaluate_from_str(
         use_openai_embedding=None,
         use_openai_model=None,
         hf_embedding_model=None,
-        chunk=None,
-        chunk_size=None,
         db_type=None,
         n_jobs=None,
         first_para=None,
@@ -938,6 +953,7 @@ def evaluate_from_str(
         verbose=False,
         cli=False,
         reverse_docs=True,
+        use_cache=None,
 ):
     if isinstance(user_kwargs, str):
         user_kwargs = ast.literal_eval(user_kwargs)
@@ -983,6 +999,7 @@ def evaluate_from_str(
         verbose=verbose,
         cli=cli,
         reverse_docs=reverse_docs,
+        use_cache=use_cache,
     )
     try:
         for ret1 in ret:
@@ -1047,6 +1064,7 @@ def evaluate(
         verbose=False,
         cli=False,
         reverse_docs=True,
+        use_cache=None,
 ):
     # ensure passed these
     assert concurrency_count is not None
@@ -1165,6 +1183,8 @@ def evaluate(
                            cli=cli,
                            sanitize_bot_response=sanitize_bot_response,
                            reverse_docs=reverse_docs,
+
+                           lora_weights=lora_weights,
                            ):
             outr, extra = r  # doesn't accumulate, new answer every yield, so only save that full answer
             yield dict(response=outr, sources=extra)
@@ -1215,6 +1235,9 @@ def evaluate(
     max_max_tokens = tokenizer.model_max_length
     max_input_tokens = max_max_tokens - max_new_tokens
     input_ids = input_ids[:, -max_input_tokens:]
+    # required for falcon if multiple threads or asyncio accesses to model during generation
+    if use_cache is None:
+        use_cache = False if 'falcon' in base_model else True
     gen_config_kwargs = dict(temperature=float(temperature),
                              top_p=float(top_p),
                              top_k=top_k,
@@ -1224,6 +1247,7 @@ def evaluate(
                              num_return_sequences=num_return_sequences,
                              renormalize_logits=True,
                              remove_invalid_values=True,
+                             use_cache=use_cache,
                              )
     token_ids = ['eos_token_id', 'pad_token_id', 'bos_token_id', 'cls_token_id', 'sep_token_id']
     for token_id in token_ids:
@@ -1267,7 +1291,8 @@ def evaluate(
                                     )
 
     with torch.no_grad():
-        context_class_cast = NullContext if device == 'cpu' or lora_weights else torch.autocast
+        have_lora_weights = lora_weights not in ['[None/Remove]', '', None]
+        context_class_cast = NullContext if device == 'cpu' or have_lora_weights else torch.autocast
         with context_class_cast(device):
             # protection for gradio not keeping track of closed users,
             # else hit bitsandbytes lack of thread safety:

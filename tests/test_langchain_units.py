@@ -400,6 +400,11 @@ def test_make_add_db(repeat, db_type):
                         os.path.abspath(test_file2_my))
                     assert path_to_docs([test_file1, test_file2, test_file2_my])[0].metadata['source'] == test_file1
 
+                    assert path_to_docs(None, url='arxiv:1706.03762')[0].metadata['source'] == 'http://arxiv.org/abs/2002.05202v1'
+                    assert path_to_docs(None, url='http://h2o.ai')[0].metadata['source'] == 'http://h2o.ai'
+
+                    assert 'user_paste' in path_to_docs(None, text='Yufuu is a wonderful place and you should really visit because there is lots of sun.')[0].metadata['source']
+
                 if db_type == 'faiss':
                     # doesn't persist
                     return
