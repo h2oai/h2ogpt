@@ -1768,7 +1768,10 @@ def _update_user_db(file, db1, x, y, chunk, chunk_size, dbs=None, db_type=None, 
                                                                       use_openai_embedding=use_openai_embedding,
                                                                       hf_embedding_model=hf_embedding_model)
             else:
-                assert len(db1) == 2 and db1[1] is None, "Bad MyData db: %s" % db1
+                # in testing expect:
+                # assert len(db1) == 2 and db1[1] is None, "Bad MyData db: %s" % db1
+                # for production hit, when user gets clicky:
+                assert len(db1) == 2, "Bad MyData db: %s" % db1
                 # then create
                 # assign fresh hash for this user session, so not shared
                 # if added has to original state and didn't change, then would be shared db for all users
@@ -1834,7 +1837,10 @@ def get_source_files(db=None, exceptions=None, metadatas=None):
         exceptions = []
 
     # only should be one source, not confused
-    assert db is not None or metadatas is not None
+    # assert db is not None or metadatas is not None
+    # clicky user
+    if db is None and metadatas is None:
+        return "No Sources at all"
 
     if metadatas is None:
         source_label = "Sources:"
