@@ -288,6 +288,22 @@ def get_llm(use_openai_model=False, model_name=None, model=None,
         model_name = 'openai'
         streamer = None
         prompt_type = 'plain'
+    elif 'http://' in model_name:
+        from langchain.callbacks import streaming_stdout
+
+        callbacks = [streaming_stdout.StreamingStdOutCallbackHandler()]
+        from langchain import HuggingFaceTextGenInference
+        llm = HuggingFaceTextGenInference(
+            inference_server_url=model_name,
+            max_new_tokens=max_new_tokens,
+            top_k=top_k,
+            top_p=top_p,
+            typical_p=top_p,
+            temperature=temperature,
+            repetition_penalty=repetition_penalty,
+            callbacks=callbacks if stream_output else None,
+            stream=stream_output,
+        )
     elif model_name in non_hf_types:
         from gpt4all_llm import get_llm_gpt4all
         llm = get_llm_gpt4all(model_name, model=model, max_new_tokens=max_new_tokens,
