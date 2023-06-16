@@ -65,6 +65,7 @@
 [code alpaca](https://github.com/sahil280114/codealpaca)<br />
 [serge](https://github.com/nsarrazin/serge)<br />
 [BlinkDL](https://huggingface.co/spaces/BlinkDL/ChatRWKV-gradio)<br />
+[RWKV-LM](https://github.com/BlinkDL/RWKV-LM)<br />
 [MosaicCM](https://github.com/mosaicml/examples#large-language-models-llms)<br />
 [OpenAI Plugins](https://openai.com/blog/chatgpt-plugins)<br />
 [GPT3.5-Turbo-PGVector](https://github.com/gannonh/gpt3.5-turbo-pgvector)<br />
@@ -72,6 +73,7 @@
 [llama-index](https://github.com/jerryjliu/llama_index)<br />
 [minimal-llama](https://github.com/zphang/minimal-llama/)<br />
 [llama.cpp](https://github.com/ggerganov/llama.cpp)<br />
+[ggml](https://github.com/ggerganov/ggml)<br />
 [mmap](https://justine.lol/mmap/)<br />
 [lamma.cpp more](https://til.simonwillison.net/llms/llama-7b-m2)<br />
 [TargetedSummarization](https://github.com/helliun/targetedSummarization)<br />
