@@ -354,7 +354,16 @@ def test_fast_up():
                     reason="For testing text-generatino-inference server")
 @wrap_test_forked
 def test_text_generation_inference_server1():
-    # e.g. HOST=http://192.168.1.46:6112 SERVER=1 pytest -s -v test_client_calls::test_text_generation_inference_server1
+    """
+    e.g.
+    SERVER on 192.168.1.46
+    (alpaca) jon@gpu:/data/jon/h2o-llm$ CUDA_VISIBLE_DEVICES=0,1 docker run --gpus all --shm-size 2g -e NCCL_SHM_DISABLE=1 -e TRANSFORMERS_CACHE="/.cache/" -p 6112:80 -v $HOME/.cache:/.cache/ -v $HOME/.cache/huggingface/hub/:/data  ghcr.io/huggingface/text-generation-inference:0.8.2 --model-id h2oai/h2ogpt-oasst1-512-12b --max-input-length 2048 --max-total-tokens 3072 --sharded=true --num-shard=2 --disable-custom-kernels --quantize bitsandbytes
+
+    CLIENT on separate system
+    HOST=http://192.168.1.46:6112 SERVER=1 pytest -s -v test_client_calls::test_text_generation_inference_server1
+
+    :return:
+    """
 
     # Python client test:
     from text_generation import Client
