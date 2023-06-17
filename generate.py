@@ -614,6 +614,7 @@ def get_model(
         load_half: bool = True,
         infer_devices: bool = True,
         base_model: str = '',
+        text_generation_server: str = None,
         tokenizer_base_model: str = '',
         lora_weights: str = "",
         gpu_id: int = 0,
@@ -637,6 +638,7 @@ def get_model(
            For non-LORA case, False will spread shards across multiple GPUs, but this can lead to cuda:x cuda:y mismatches
            So it is not the default
     :param base_model: name/path of base model
+    :param text_generation_server: whether base_model is hosted locally (None, '') or via http (url)
     :param tokenizer_base_model: name/path of tokenizer
     :param lora_weights: name/path
     :param gpu_id: which GPU (0..n_gpus-1) or allow all GPUs if relevant (-1)
@@ -652,8 +654,8 @@ def get_model(
     """
     if verbose:
         print("Get %s model" % base_model, flush=True)
-    if isinstance(base_model, str) and base_model.startswith("http"):
-        return None, None, 'http'
+    if isinstance(text_generation_server, str) and text_generation_server.startswith("http"):
+        return None, base_model, text_generation_server
     if base_model in non_hf_types:
         from gpt4all_llm import get_model_tokenizer_gpt4all
         model, tokenizer, device = get_model_tokenizer_gpt4all(base_model)
@@ -850,6 +852,7 @@ def get_score_model(score_model: str = None,
                     load_half: bool = True,
                     infer_devices: bool = True,
                     base_model: str = '',
+                    text_generation_server: str = None,
                     tokenizer_base_model: str = '',
                     lora_weights: str = "",
                     gpu_id: int = 0,
@@ -1097,6 +1100,7 @@ def evaluate(
         # e.g. for no gradio case, set dummy value, else should be set
         model_state0 = [None, None, None, None]
 
+    text_generation_server = None
     if model_state is not None and len(model_state) == 4 and not isinstance(model_state[0], str):
         # try to free-up original model (i.e. list was passed as reference)
         if model_state0 is not None and model_state0[0] is not None:
@@ -1113,9 +1117,8 @@ def evaluate(
     elif model_state0 is not None and \
             len(model_state0) == 4 and \
             model_state0[2] is not None and \
-            model_state0[2] == "http":
-        assert isinstance(model_state[3], str) and model_state[3].startswith('http')
-        model, tokenizer, device, base_model = model_state0
+            model_state0[2].startswith("http"):
+        model, base_model, text_generation_server, base_model = model_state0
         model = base_model
         tokenizer = base_model
     else:
@@ -1149,8 +1152,10 @@ def evaluate(
         db1 = dbs[langchain_mode]
     else:
         db1 = None
-    do_langchain_path = langchain_mode not in [False, 'Disabled', 'ChatLLM', 'LLM'] and db1 is not None or base_model in non_hf_types
-    if do_langchain_path and not base_model.startswith("http"):  # FIXME: WIP
+    do_langchain_path = langchain_mode not in [False, 'Disabled', 'ChatLLM',
+                                               'LLM'] and db1 is not None or base_model in non_hf_types
+    do_http = isinstance(text_generation_server, str) and text_generation_server.startswith('http')
+    if do_langchain_path and not do_http:  # FIXME: WIP
         query = instruction if not iinput else "%s\n%s" % (instruction, iinput)
         outr = ""
         # use smaller cut_distanct for wiki_full since so many matches could be obtained, and often irrelevant unless close
@@ -1215,17 +1220,33 @@ def evaluate(
             clear_torch_cache()
             return
 
-    if 'http://' in base_model:
+    if do_http:
         # prompt must include all human-bot like tokens, already added by prompt
         from text_generation import Client
 
-        client = Client(base_model)
+        client = Client(text_generation_server)
+        # https://github.com/huggingface/text-generation-inference/tree/main/clients/python#types
+        gen_server_kwargs = dict(do_sample=do_sample,
+                                 max_new_tokens=max_new_tokens,
+                                 #best_of=None,
+                                 repetition_penalty=repetition_penalty,
+                                 return_full_text=True,
+                                 seed=SEED,
+                                 stop_sequences=prompter.terminate_response + [prompter.PreResponse],
+                                 temperature=temperature,
+                                 top_k=top_k,
+                                 top_p=top_p,
+                                 truncate=True,
+                                 #typical_p=top_p,
+                                 #watermark=False,
+                                 #decoder_input_details=False,
+                                 )
         if not stream_output:
-            text = client.generate(prompt).generated_text
+            text = client.generate(prompt, **gen_server_kwargs).generated_text
             yield dict(response=text, sources='')
         else:
             text = ""
-            for response in client.generate_stream(prompt):
+            for response in client.generate_stream(prompt, **gen_server_kwargs):
                 if not response.token.special:
                     text_chunk = response.token.text
                     text += text_chunk
