@@ -11,6 +11,19 @@ from transformers import AutoModelForCausalLM
     "model_name, base_model, dataset, training_logs, eval",
     [
         (
+                "h2ogpt-research-oasst1-llama-65b",
+                "decapoda-research/llama-65b-hf",
+                [
+                    "h2oai/openassistant_oasst1_h2ogpt_graded",
+                ],
+                [
+                    "https://huggingface.co/h2oai/h2ogpt-research-oasst1-llama-65b/blob/main/llama-65b-hf.h2oaiopenassistant_oasst1_h2ogpt_graded.1_epochs.113510499324f0f007cbec9d9f1f8091441f2469.3.zip",
+                ],
+                """
+TBD
+"""
+        ),
+        (
                 "h2ogpt-oig-oasst1-falcon-40b",
                 "tiiuae/falcon-40b",
                 [
@@ -210,8 +223,7 @@ from transformers import AutoModelForCausalLM
 )
 def test_create_model_cards(model_name, base_model, dataset, training_logs, eval):
     if model_name not in [
-        "h2ogpt-oig-oasst1-falcon-40b",
-        "h2ogpt-oasst1-falcon-40b",
+        "h2ogpt-research-oasst1-llama-65b",
     ]:
         return
     model_size = model_name.split("-")[-1].upper()
