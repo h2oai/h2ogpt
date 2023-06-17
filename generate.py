@@ -876,6 +876,7 @@ def get_score_model(score_model: str = None,
         base_model = score_model.strip()
         tokenizer_base_model = ''
         lora_weights = ''
+        inference_server = ''
         llama_type = False
         compile_model = False
         smodel, stokenizer, sdevice = get_model(reward_type=True,
