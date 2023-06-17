@@ -1226,31 +1226,39 @@ def evaluate(
 
         client = Client(text_generation_server)
         # https://github.com/huggingface/text-generation-inference/tree/main/clients/python#types
+        stop_sequences = prompter.terminate_response + [prompter.PreResponse]
         gen_server_kwargs = dict(do_sample=do_sample,
                                  max_new_tokens=max_new_tokens,
-                                 #best_of=None,
+                                 # best_of=None,
                                  repetition_penalty=repetition_penalty,
                                  return_full_text=True,
                                  seed=SEED,
-                                 stop_sequences=prompter.terminate_response + [prompter.PreResponse],
+                                 stop_sequences=stop_sequences,
                                  temperature=temperature,
                                  top_k=top_k,
                                  top_p=top_p,
-                                 #truncate=False,  # behaves oddly
-                                 #typical_p=top_p,
-                                 #watermark=False,
-                                 #decoder_input_details=False,
+                                 # truncate=False,  # behaves oddly
+                                 # typical_p=top_p,
+                                 # watermark=False,
+                                 # decoder_input_details=False,
                                  )
         if not stream_output:
             text = client.generate(prompt, **gen_server_kwargs).generated_text
-            yield dict(response=text, sources='')
+            yield dict(response=prompter.get_response(text, prompt=prompt,
+                                                      sanitize_bot_response=sanitize_bot_response),
+                       sources='')
         else:
             text = ""
             for response in client.generate_stream(prompt, **gen_server_kwargs):
                 if not response.token.special:
+                    # stop_sequences
                     text_chunk = response.token.text
                     text += text_chunk
-                    yield dict(response=text, sources='')
+                    yield dict(response=prompter.get_response(prompt + text, prompt=prompt,
+                                                              sanitize_bot_response=sanitize_bot_response),
+                               sources='')
+        if save_dir and text:
+            save_generate_output(output=text, base_model=base_model, save_dir=save_dir)
         return
 
     if isinstance(tokenizer, str):
