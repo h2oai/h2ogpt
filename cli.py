@@ -7,7 +7,7 @@ from utils import clear_torch_cache, NullContext, get_kwargs
 
 
 def run_cli(  # for local function:
-        base_model=None, lora_weights=None,
+        base_model=None, lora_weights=None, inference_server=None,
         debug=None, chat_context=None,
         examples=None, memory_restriction_level=None,
         # for get_model:
@@ -47,7 +47,7 @@ def run_cli(  # for local function:
 
         model, tokenizer, device = get_model(reward_type=False,
                                              **get_kwargs(get_model, exclude_names=['reward_type'], **locals()))
-        model_state = [model, tokenizer, device, base_model]
+        model_state = [model, tokenizer, device, base_model, inference_server]
         my_db_state = [None]
         fun = partial(evaluate, model_state, my_db_state,
                       **get_kwargs(evaluate, exclude_names=['model_state', 'my_db_state'] + eval_func_param_names,

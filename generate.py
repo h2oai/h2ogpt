@@ -22,7 +22,7 @@ os.environ['HF_HUB_DISABLE_TELEMETRY'] = '1'
 os.environ['BITSANDBYTES_NOWELCOME'] = '1'
 warnings.filterwarnings('ignore', category=UserWarning, message='TypedStorage is deprecated')
 
-from enums import DocumentChoices, LangChainMode
+from enums import DocumentChoices, LangChainMode, no_lora_str
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler
@@ -61,7 +61,7 @@ def main(
         gpu_id: int = 0,
         compile_model: bool = True,
         use_cache: bool = None,
-        text_generation_server: str = None,
+        inference_server: str = "",
 
         prompt_type: Union[int, str] = None,
         prompt_dict: typing.Dict = None,
@@ -118,6 +118,7 @@ def main(
 
         extra_model_options: typing.List[str] = [],
         extra_lora_options: typing.List[str] = [],
+        extra_server_options: typing.List[str] = [],
 
         score_model: str = 'OpenAssistant/reward-model-deberta-v3-large-v2',
         auto_score: bool = True,
@@ -166,7 +167,7 @@ def main(
     :param gpu_id: if infer_devices, then use gpu_id for cuda device ID, or auto mode if gpu_id != -1
     :param compile_model Whether to compile the model
     :param use_cache: Whether to use caching in model (some models fail when multiple threads use)
-    :param text_generation_server: Consume base_model as type of model at this address
+    :param inference_server: Consume base_model as type of model at this address
     :param prompt_type: type of prompt, usually matched to fine-tuned model or plain for foundational model
     :param prompt_dict: If prompt_type=custom, then expects (some) items returned by get_prompt(..., return_dict=True)
     :param temperature: generation temperature
@@ -319,12 +320,12 @@ def main(
             top_k_docs = 4 if top_k_docs is None else top_k_docs
 
         if memory_restriction_level == 2:
-            if not base_model and not text_generation_server:
+            if not base_model and not inference_server:
                 base_model = 'h2oai/h2ogpt-oasst1-512-12b'
                 # don't set load_8bit if passed base_model, doesn't always work so can't just override
                 load_8bit = True
                 load_4bit = False  # FIXME - consider using 4-bit instead of 8-bit
-        elif not text_generation_server:
+        elif not inference_server:
             base_model = 'h2oai/h2ogpt-oasst1-512-20b' if not base_model else base_model
             top_k_docs = 10 if top_k_docs is None else top_k_docs
     if memory_restriction_level >= 2:
@@ -376,7 +377,7 @@ def main(
         torch.backends.cudnn.benchmark = True
         torch.backends.cudnn.enabled = False
         torch.set_default_dtype(torch.float32)
-        if psutil.virtual_memory().available < 94 * 1024 ** 3 and not text_generation_server:
+        if psutil.virtual_memory().available < 94 * 1024 ** 3 and not inference_server:
             # 12B uses ~94GB
             # 6.9B uses ~47GB
             base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b' if not base_model else base_model
@@ -489,13 +490,13 @@ def main(
         else:
             # if empty model, then don't load anything, just get gradio up
             model0, tokenizer0, device = None, None, None
-        model_state0 = [model0, tokenizer0, device, all_kwargs['base_model']]
+        model_state0 = [model0, tokenizer0, device, all_kwargs['base_model'], all_kwargs['inference_server']]
 
         # get score model
         smodel, stokenizer, sdevice = get_score_model(reward_type=True,
                                                       **get_kwargs(get_score_model, exclude_names=['reward_type'],
                                                                    **all_kwargs))
-        score_model_state0 = [smodel, stokenizer, sdevice, score_model]
+        score_model_state0 = [smodel, stokenizer, sdevice, score_model, '']
 
         if enable_captions:
             if pre_load_caption_model:
@@ -614,7 +615,7 @@ def get_model(
         load_half: bool = True,
         infer_devices: bool = True,
         base_model: str = '',
-        text_generation_server: str = None,
+        inference_server: str = "",
         tokenizer_base_model: str = '',
         lora_weights: str = "",
         gpu_id: int = 0,
@@ -638,7 +639,7 @@ def get_model(
            For non-LORA case, False will spread shards across multiple GPUs, but this can lead to cuda:x cuda:y mismatches
            So it is not the default
     :param base_model: name/path of base model
-    :param text_generation_server: whether base_model is hosted locally (None, '') or via http (url)
+    :param inference_server: whether base_model is hosted locally ('') or via http (url)
     :param tokenizer_base_model: name/path of tokenizer
     :param lora_weights: name/path
     :param gpu_id: which GPU (0..n_gpus-1) or allow all GPUs if relevant (-1)
@@ -654,8 +655,9 @@ def get_model(
     """
     if verbose:
         print("Get %s model" % base_model, flush=True)
-    if isinstance(text_generation_server, str) and text_generation_server.startswith("http"):
-        return None, base_model, text_generation_server
+    if isinstance(inference_server, str) and inference_server.startswith("http"):
+        # Don't return None, None for model, tokenizer so triggers
+        return inference_server, inference_server, 'http'
     if base_model in non_hf_types:
         from gpt4all_llm import get_model_tokenizer_gpt4all
         model, tokenizer, device = get_model_tokenizer_gpt4all(base_model)
@@ -852,7 +854,7 @@ def get_score_model(score_model: str = None,
                     load_half: bool = True,
                     infer_devices: bool = True,
                     base_model: str = '',
-                    text_generation_server: str = None,
+                    inference_server: str = '',
                     tokenizer_base_model: str = '',
                     lora_weights: str = "",
                     gpu_id: int = 0,
@@ -1098,10 +1100,10 @@ def evaluate(
 
     if model_state0 is None:
         # e.g. for no gradio case, set dummy value, else should be set
-        model_state0 = [None, None, None, None]
+        model_state0 = [None, None, None, None, None]
 
-    text_generation_server = None
-    if model_state is not None and len(model_state) == 4 and not isinstance(model_state[0], str):
+    if model_state is not None and len(model_state) == 5 and not isinstance(model_state[0], str):
+        # USE FRESH MODEL
         # try to free-up original model (i.e. list was passed as reference)
         if model_state0 is not None and model_state0[0] is not None:
             model_state0[0].cpu()
@@ -1110,17 +1112,15 @@ def evaluate(
         if model_state0 is not None and model_state0[1] is not None:
             model_state0[1] = None
         clear_torch_cache()
-        model, tokenizer, device, base_model = model_state
-    elif model_state0 is not None and len(model_state0) == 4 and model_state0[0] is not None:
+        model, tokenizer, device, base_model, inference_server = model_state
+    elif model_state0 is not None and len(model_state0) == 5 and model_state0[0] is not None and not isinstance(model_state0[0], str):
+        # USE MODEL SETUP AT CLI
         assert isinstance(model_state[0], str)
-        model, tokenizer, device, base_model = model_state0
-    elif model_state0 is not None and \
-            len(model_state0) == 4 and \
-            model_state0[2] is not None and \
-            model_state0[2].startswith("http"):
-        model, base_model, text_generation_server, base_model = model_state0
-        model = base_model
-        tokenizer = base_model
+        model, tokenizer, device, base_model, inference_server = model_state0
+    elif model_state is not None and len(model_state) == 5 and model_state[4]:
+        model, tokenizer, device, base_model, inference_server = model_state
+    elif model_state0 is not None and len(model_state0) == 5 and model_state0[4]:
+        model, tokenizer, device, base_model, inference_server = model_state0
     else:
         raise AssertionError(no_model_msg)
 
@@ -1154,8 +1154,7 @@ def evaluate(
         db1 = None
     do_langchain_path = langchain_mode not in [False, 'Disabled', 'ChatLLM',
                                                'LLM'] and db1 is not None or base_model in non_hf_types
-    do_http = isinstance(text_generation_server, str) and text_generation_server.startswith('http')
-    if do_langchain_path and not do_http:  # FIXME: WIP
+    if do_langchain_path and not inference_server:  # FIXME: WIP
         query = instruction if not iinput else "%s\n%s" % (instruction, iinput)
         outr = ""
         # use smaller cut_distanct for wiki_full since so many matches could be obtained, and often irrelevant unless close
@@ -1220,11 +1219,11 @@ def evaluate(
             clear_torch_cache()
             return
 
-    if do_http:
+    if inference_server:
         # prompt must include all human-bot like tokens, already added by prompt
         from text_generation import Client
 
-        client = Client(text_generation_server)
+        client = Client(inference_server)
         # https://github.com/huggingface/text-generation-inference/tree/main/clients/python#types
         stop_sequences = prompter.terminate_response + [prompter.PreResponse]
         gen_server_kwargs = dict(do_sample=do_sample,
@@ -1350,7 +1349,7 @@ def evaluate(
                                     )
 
     with torch.no_grad():
-        have_lora_weights = lora_weights not in ['[None/Remove]', '', None]
+        have_lora_weights = lora_weights not in [no_lora_str, '', None]
         context_class_cast = NullContext if device == 'cpu' or have_lora_weights else torch.autocast
         with context_class_cast(device):
             # protection for gradio not keeping track of closed users,

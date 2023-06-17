@@ -22,7 +22,7 @@ from joblib import Parallel, delayed
 from langchain.embeddings import HuggingFaceInstructEmbeddings
 from tqdm import tqdm
 
-from enums import DocumentChoices
+from enums import DocumentChoices, no_lora_str
 from generate import gen_hyper, get_model
 from prompter import non_hf_types, PromptType
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
@@ -323,9 +323,11 @@ def get_llm(use_openai_model=False, model_name=None, model=None,
             assert tokenizer is None
             prompt_type = 'human_bot'
             model_name = 'h2oai/h2ogpt-oasst1-512-12b'
+            inference_server = ''
             # model_name = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
             # model_name = 'h2oai/h2ogpt-oasst1-512-20b'
-            model, tokenizer, device = get_model(load_8bit=True, base_model=model_name, gpu_id=0)
+            model, tokenizer, device = get_model(load_8bit=True, base_model=model_name,
+                                                 inference_server=inference_server, gpu_id=0)
 
         max_max_tokens = tokenizer.model_max_length
         gen_kwargs = dict(do_sample=do_sample,
@@ -1410,7 +1412,7 @@ def _run_qa_db(query=None,
     import torch
     device, torch_dtype, context_class = get_device_dtype()
     with torch.no_grad():
-        have_lora_weights = lora_weights not in ['[None/Remove]', '', None]
+        have_lora_weights = lora_weights not in [no_lora_str, '', None]
         context_class_cast = NullContext if device == 'cpu' or have_lora_weights else torch.autocast
         with context_class_cast(device):
             if stream_output:

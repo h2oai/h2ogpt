@@ -44,3 +44,6 @@ class LangChainMode(Enum):
     MY_DATA = "MyData"
     GITHUB_H2OGPT = "github h2oGPT"
     H2O_DAI_DOCS = "DriverlessAI docs"
+
+
+no_server_str = no_lora_str = no_model_str = '[None/Remove]'

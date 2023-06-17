@@ -194,6 +194,7 @@ def test_qa_daidocs_db_chunk_hf_dbs_switch_embedding(db_type):
                       infer_devices=True,
                       base_model=base_model,
                       tokenizer_base_model=base_model,
+                      inference_server='',
                       lora_weights='',
                       gpu_id=0,
 

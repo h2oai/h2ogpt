@@ -68,5 +68,5 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 docker run --gpus all --shm-size 2g -e NCCL_SHM_DIS
 
 Then generate in h2oGPT environment:
 ```bash
-SAVE_DIR=./save/ python generate.py --text_generation_server="http://192.168.1.46:6112" --base_model=h2oai/h2ogpt-oasst1-512-12b
+SAVE_DIR=./save/ python generate.py --inference_server="http://192.168.1.46:6112" --base_model=h2oai/h2ogpt-oasst1-512-12b
 ```
