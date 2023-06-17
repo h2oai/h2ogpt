@@ -242,6 +242,8 @@ For links to direct to the document and download to your local machine, the orig
 
 * [DB-GPT](https://github.com/csunny/DB-GPT) but h2oGPT is fully commercially viable by not using [Vicuna](https://lmsys.org/blog/2023-03-30-vicuna/) (LLaMa based with GPT3.5 training data).
 
+* [Chat2GB](https://github.com/alibaba/Chat2DB) like DB-GPT by Alibaba.
+
 * [ChatPDF](https://www.chatpdf.com/) but h2oGPT is open-source and private and many more data types.
 
 * [Sharly](https://www.sharly.ai/) but h2oGPT is open-source and private and many more data types.  Sharly and h2oGPT both allow sharing work through UserData shared collection.
