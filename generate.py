@@ -61,6 +61,7 @@ def main(
         gpu_id: int = 0,
         compile_model: bool = True,
         use_cache: bool = None,
+        text_generation_server: str = None,
 
         prompt_type: Union[int, str] = None,
         prompt_dict: typing.Dict = None,
@@ -165,6 +166,7 @@ def main(
     :param gpu_id: if infer_devices, then use gpu_id for cuda device ID, or auto mode if gpu_id != -1
     :param compile_model Whether to compile the model
     :param use_cache: Whether to use caching in model (some models fail when multiple threads use)
+    :param text_generation_server: Consume base_model as type of model at this address
     :param prompt_type: type of prompt, usually matched to fine-tuned model or plain for foundational model
     :param prompt_dict: If prompt_type=custom, then expects (some) items returned by get_prompt(..., return_dict=True)
     :param temperature: generation temperature
@@ -317,12 +319,12 @@ def main(
             top_k_docs = 4 if top_k_docs is None else top_k_docs
 
         if memory_restriction_level == 2:
-            if not base_model:
+            if not base_model and not text_generation_server:
                 base_model = 'h2oai/h2ogpt-oasst1-512-12b'
                 # don't set load_8bit if passed base_model, doesn't always work so can't just override
                 load_8bit = True
                 load_4bit = False  # FIXME - consider using 4-bit instead of 8-bit
-        else:
+        elif not text_generation_server:
             base_model = 'h2oai/h2ogpt-oasst1-512-20b' if not base_model else base_model
             top_k_docs = 10 if top_k_docs is None else top_k_docs
     if memory_restriction_level >= 2:
@@ -374,7 +376,7 @@ def main(
         torch.backends.cudnn.benchmark = True
         torch.backends.cudnn.enabled = False
         torch.set_default_dtype(torch.float32)
-        if psutil.virtual_memory().available < 94 * 1024 ** 3:
+        if psutil.virtual_memory().available < 94 * 1024 ** 3 and not text_generation_server:
             # 12B uses ~94GB
             # 6.9B uses ~47GB
             base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b' if not base_model else base_model
@@ -650,6 +652,8 @@ def get_model(
     """
     if verbose:
         print("Get %s model" % base_model, flush=True)
+    if isinstance(base_model, str) and base_model.startswith("http"):
+        return None, None, 'http'
     if base_model in non_hf_types:
         from gpt4all_llm import get_model_tokenizer_gpt4all
         model, tokenizer, device = get_model_tokenizer_gpt4all(base_model)
@@ -1106,6 +1110,14 @@ def evaluate(
     elif model_state0 is not None and len(model_state0) == 4 and model_state0[0] is not None:
         assert isinstance(model_state[0], str)
         model, tokenizer, device, base_model = model_state0
+    elif model_state0 is not None and \
+            len(model_state0) == 4 and \
+            model_state0[2] is not None and \
+            model_state0[2] == "http":
+        assert isinstance(model_state[3], str) and model_state[3].startswith('http')
+        model, tokenizer, device, base_model = model_state0
+        model = base_model
+        tokenizer = base_model
     else:
         raise AssertionError(no_model_msg)
 
@@ -1137,7 +1149,8 @@ def evaluate(
         db1 = dbs[langchain_mode]
     else:
         db1 = None
-    if langchain_mode not in [False, 'Disabled', 'ChatLLM', 'LLM'] and db1 is not None or base_model in non_hf_types:
+    do_langchain_path = langchain_mode not in [False, 'Disabled', 'ChatLLM', 'LLM'] and db1 is not None or base_model in non_hf_types
+    if do_langchain_path and not base_model.startswith("http"):  # FIXME: WIP
         query = instruction if not iinput else "%s\n%s" % (instruction, iinput)
         outr = ""
         # use smaller cut_distanct for wiki_full since so many matches could be obtained, and often irrelevant unless close
@@ -1201,6 +1214,23 @@ def evaluate(
             # clear before return, since .then() never done if from API
             clear_torch_cache()
             return
+
+    if 'http://' in base_model:
+        # prompt must include all human-bot like tokens, already added by prompt
+        from text_generation import Client
+
+        client = Client(base_model)
+        if not stream_output:
+            text = client.generate(prompt).generated_text
+            yield dict(response=text, sources='')
+        else:
+            text = ""
+            for response in client.generate_stream(prompt):
+                if not response.token.special:
+                    text_chunk = response.token.text
+                    text += text_chunk
+                    yield dict(response=text, sources='')
+        return
 
     if isinstance(tokenizer, str):
         # pipeline
