@@ -1236,7 +1236,7 @@ def evaluate(
                                  temperature=temperature,
                                  top_k=top_k,
                                  top_p=top_p,
-                                 truncate=True,
+                                 #truncate=False,  # behaves oddly
                                  #typical_p=top_p,
                                  #watermark=False,
                                  #decoder_input_details=False,
