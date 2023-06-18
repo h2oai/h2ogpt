@@ -66,6 +66,7 @@ prompt_type_to_model_name = {
     "wizard_lm": ['ehartford/WizardLM-7B-Uncensored', 'ehartford/WizardLM-13B-Uncensored'],
     "wizard_mega": ['openaccess-ai-collective/wizard-mega-13b'],
     "instruct_simple": ['JosephusCheung/Guanaco'],
+    "wizard_vicuna": ['ehartford/Wizard-Vicuna-13B-Uncensored'],
 }
 if os.getenv('OPENAI_API_KEY'):
     prompt_type_to_model_name.update({
@@ -375,6 +376,18 @@ ASSISTANT:
                          PromptType.wizard3.name]:
         # https://huggingface.co/TheBloke/wizardLM-13B-1.0-GGML
         preprompt = """A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions."""
+        start = ''
+        promptB = promptA = '%s%s' % (preprompt, start)
+        PreInstruct = """USER: """
+        PreInput = None
+        PreResponse = """ASSISTANT: """
+        terminate_response = [PreResponse]
+        chat_sep = '\n'
+        humanstr = PreInstruct
+        botstr = PreResponse
+    elif prompt_type in [PromptType.wizard_vicuna.value, str(PromptType.wizard_vicuna.value),
+                         PromptType.wizard_vicuna.name]:
+        preprompt = ''
         start = ''
         promptB = promptA = '%s%s' % (preprompt, start)
         PreInstruct = """USER: """

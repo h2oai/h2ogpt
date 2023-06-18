@@ -22,8 +22,9 @@ class PromptType(Enum):
     wizard2 = 16
     wizard3 = 17
     instruct_simple = 18
-    openai = 19
-    openai_chat = 20
+    wizard_vicuna = 19
+    openai = 20
+    openai_chat = 21
 
 
 class DocumentChoices(Enum):
