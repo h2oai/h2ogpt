@@ -531,6 +531,7 @@ def go_gradio(**kwargs):
                         else "LOAD-UNLOAD DISABLED FOR HOSTED DEMO"
                     load_msg2 = "Load-Unload Model/LORA 2 [unload works if did not use --base_model]" if not is_public \
                         else "LOAD-UNLOAD DISABLED FOR HOSTED DEMO 2"
+                    variant_load_msg = 'primary' if not is_public else 'secondary'
                     compare_checkbox = gr.components.Checkbox(label="Compare Mode",
                                                               value=False, visible=not is_public)
                     with gr.Row():
@@ -545,9 +546,9 @@ def go_gradio(**kwargs):
                                     server_choice = gr.Dropdown(server_options_state.value[0], label="Choose Server",
                                                                 value=kwargs['inference_server'])
                                 with gr.Column(scale=1):
-                                    variant = 'primary' if not is_public else 'secondary'
-                                    load_model_button = gr.Button(load_msg, variant=variant).style(full_width=False,
-                                                                                                   size='sm')
+                                    load_model_button = gr.Button(load_msg, variant=variant_load_msg).style(
+                                        full_width=False,
+                                        size='sm')
                                     model_load8bit_checkbox = gr.components.Checkbox(
                                         label="Load 8-bit [requires support]",
                                         value=kwargs['load_8bit'])
@@ -580,7 +581,8 @@ def go_gradio(**kwargs):
                                     server_choice2 = gr.Dropdown(server_options_state.value[0], label="Choose Server 2",
                                                                  value=no_server_str)
                                 with gr.Column(scale=1):
-                                    load_model_button2 = gr.Button(load_msg2).style(full_width=False, size='sm')
+                                    load_model_button2 = gr.Button(load_msg2, variant=variant_load_msg).style(
+                                        full_width=False, size='sm')
                                     model_load8bit_checkbox2 = gr.components.Checkbox(
                                         label="Load 8-bit 2 [requires support]",
                                         value=kwargs['load_8bit'])
