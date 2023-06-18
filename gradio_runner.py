@@ -1531,8 +1531,10 @@ def go_gradio(**kwargs):
                                             ):
             model_new_state = [model_list0[0] + [model_x]]
             model_new_options = [*model_new_state[0]]
-            ret1 = [gr.Dropdown.update(value=model_x, choices=model_new_options),
-                    gr.Dropdown.update(value=model_x, choices=model_new_options),
+            x1 = model_x if model_used1 == no_model_str else model_used1
+            x2 = model_x if model_used2 == no_model_str else model_used2
+            ret1 = [gr.Dropdown.update(value=x1, choices=model_new_options),
+                    gr.Dropdown.update(value=x2, choices=model_new_options),
                     '', model_new_state]
 
             lora_new_state = [lora_list0[0] + [lora_x]]
