@@ -1664,11 +1664,11 @@ def get_similarity_chain(query=None,
                                                         verbose=verbose)
 
     if 'falcon' in model_name:
-        extra = "According to only the information in the document sources provided within the triple quotes above, "
-        prefix = "Pay attention and remember information within triple quotes below which will help to answer the question after the triple quotes ends."
+        extra = "According to only the information in the document sources provided within the context above, "
+        prefix = "Pay attention and remember information below, which will help to answer the question or imperative after the context ends."
     elif inference_server in ['openai', 'openai_chat']:
-        extra = "According to primarily the information in the document sources provided within the two sets of triple quotes above, "
-        prefix = "Pay attention and remember information within triple quotes below which will help to answer the question after the triple quotes ends.  If the answer cannot be primarily obtained from information within the two sets of triple quotes, then respond that the answer does not appear in the documents."
+        extra = "According to (primarily) the information in the document sources provided within context above, "
+        prefix = "Pay attention and remember information below, which will help to answer the question or imperitive after the context ends.  If the answer cannot be primarily obtained from information within the context, then respond that the answer does not appear in the context of the documents."
     else:
         extra = ""
         prefix = ""
