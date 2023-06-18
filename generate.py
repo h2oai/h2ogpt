@@ -1114,7 +1114,8 @@ def evaluate(
             model_state0[1] = None
         clear_torch_cache()
         model, tokenizer, device, base_model, inference_server = model_state
-    elif model_state0 is not None and len(model_state0) == 5 and model_state0[0] is not None and not isinstance(model_state0[0], str):
+    elif model_state0 is not None and len(model_state0) == 5 and model_state0[0] is not None and not isinstance(
+            model_state0[0], str):
         # USE MODEL SETUP AT CLI
         assert isinstance(model_state[0], str)
         model, tokenizer, device, base_model, inference_server = model_state0
@@ -1153,15 +1154,17 @@ def evaluate(
         db1 = dbs[langchain_mode]
     else:
         db1 = None
-    do_langchain_path = langchain_mode not in [False, 'Disabled', 'ChatLLM',
-                                               'LLM'] and db1 is not None or base_model in non_hf_types
-    if do_langchain_path and not inference_server:  # FIXME: WIP
+    do_langchain_path = langchain_mode not in [False, 'Disabled', 'ChatLLM', 'LLM'] and \
+                        db1 is not None or \
+                        base_model in non_hf_types
+    if do_langchain_path:
         query = instruction if not iinput else "%s\n%s" % (instruction, iinput)
         outr = ""
         # use smaller cut_distanct for wiki_full since so many matches could be obtained, and often irrelevant unless close
         from gpt_langchain import run_qa_db
         for r in run_qa_db(query=query,
                            model_name=base_model, model=model, tokenizer=tokenizer,
+                           inference_server=inference_server,
                            stream_output=stream_output,
                            prompter=prompter,
                            load_db_if_exists=load_db_if_exists,

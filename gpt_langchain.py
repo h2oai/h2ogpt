@@ -23,7 +23,7 @@ from langchain.embeddings import HuggingFaceInstructEmbeddings
 from tqdm import tqdm
 
 from enums import DocumentChoices, no_lora_str
-from generate import gen_hyper, get_model
+from generate import gen_hyper, get_model, SEED
 from prompter import non_hf_types, PromptType
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
     get_device, ProgressParallel, remove, hash_file, clear_torch_cache, NullContext
@@ -264,8 +264,12 @@ def get_answer_from_sources(chain, sources, question):
     )["output_text"]
 
 
-def get_llm(use_openai_model=False, model_name=None, model=None,
-            tokenizer=None, stream_output=False,
+def get_llm(use_openai_model=False,
+            model_name=None,
+            model=None,
+            tokenizer=None,
+            inference_server=None,
+            stream_output=False,
             do_sample=False,
             temperature=0.1,
             top_k=40,
@@ -288,19 +292,25 @@ def get_llm(use_openai_model=False, model_name=None, model=None,
         model_name = 'openai'
         streamer = None
         prompt_type = 'plain'
-    elif 'http://' in model_name:
+    elif inference_server:
         from langchain.callbacks import streaming_stdout
 
         callbacks = [streaming_stdout.StreamingStdOutCallbackHandler()]
         from langchain import HuggingFaceTextGenInference
+        assert prompter is not None
+        stop_sequences = prompter.terminate_response + [prompter.PreResponse]
         llm = HuggingFaceTextGenInference(
-            inference_server_url=model_name,
+            inference_server_url=inference_server,
+            do_sample=do_sample,
             max_new_tokens=max_new_tokens,
+            repetition_penalty=repetition_penalty,
+            return_full_text=True,
+            seed=SEED,
+            stop_sequences=stop_sequences,
+            temperature=temperature,
             top_k=top_k,
             top_p=top_p,
-            typical_p=top_p,
-            temperature=temperature,
-            repetition_penalty=repetition_penalty,
+            # typical_p=top_p,
             callbacks=callbacks if stream_output else None,
             stream=stream_output,
         )
@@ -1294,7 +1304,7 @@ def _run_qa_db(query=None,
                user_path=None,
                detect_user_path_changes_every_query=False,
                db_type='faiss',
-               model_name=None, model=None, tokenizer=None,
+               model_name=None, model=None, tokenizer=None, inference_server=None,
                hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
                stream_output=False,
                prompter=None,
@@ -1358,7 +1368,9 @@ def _run_qa_db(query=None,
             prompt_dict = ''
     assert len(set(gen_hyper).difference(inspect.signature(get_llm).parameters)) == 0
     llm, model_name, streamer, prompt_type_out = get_llm(use_openai_model=use_openai_model, model_name=model_name,
-                                                         model=model, tokenizer=tokenizer,
+                                                         model=model,
+                                                         tokenizer=tokenizer,
+                                                         inference_server=inference_server,
                                                          stream_output=stream_output,
                                                          do_sample=do_sample,
                                                          temperature=temperature,
