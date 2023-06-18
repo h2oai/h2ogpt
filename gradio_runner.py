@@ -159,6 +159,12 @@ def go_gradio(**kwargs):
     server_options = kwargs['extra_server_options']
     if kwargs['inference_server'].strip() not in server_options:
         server_options = [kwargs['inference_server'].strip()] + server_options
+    if os.getenv('OPENAI_API_KEY'):
+        if 'openai_chat' not in server_options:
+            server_options += ['openai_chat']
+        if 'openai' not in server_options:
+            server_options += ['openai']
+
     # always add in no lora case
     # add fake space so doesn't go away in gradio dropdown
     model_options = [no_model_str] + model_options
@@ -508,7 +514,7 @@ def go_gradio(**kwargs):
                             else:
                                 min_top_k_docs = -1
                                 max_top_k_docs = 100
-                                label_top_k_docs = "Number of document chunks (-1 = auto fill model context up to 100 chunks)"
+                                label_top_k_docs = "Number of document chunks (-1 = auto fill model context)"
                             top_k_docs = gr.Slider(minimum=min_top_k_docs, maximum=max_top_k_docs, step=1,
                                                    value=kwargs['top_k_docs'],
                                                    label=label_top_k_docs,

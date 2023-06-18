@@ -1,3 +1,4 @@
+import os
 import ast
 import time
 from enums import PromptType  # also supports imports from this file from other files
@@ -66,6 +67,11 @@ prompt_type_to_model_name = {
     "wizard_mega": ['openaccess-ai-collective/wizard-mega-13b'],
     "instruct_simple": ['JosephusCheung/Guanaco'],
 }
+if os.getenv('OPENAI_API_KEY'):
+    prompt_type_to_model_name.update({
+        "openai": ["text-davinci-003", "text-curie-001", "text-babbage-001", "text-ada-001"],
+        "openai_chat": ["gpt-3.5-turbo", "gpt-3.5-turbo-16k"],
+    })
 
 inv_prompt_type_to_model_name = {v.strip(): k for k, l in prompt_type_to_model_name.items() for v in l}
 inv_prompt_type_to_model_lower = {v.strip().lower(): k for k, l in prompt_type_to_model_name.items() for v in l}
@@ -396,6 +402,31 @@ ASSISTANT:
 ### Response:
 """
         terminate_response = None
+        chat_sep = '\n'
+        humanstr = PreInstruct
+        botstr = PreResponse
+    elif prompt_type in [PromptType.openai.value, str(PromptType.openai.value),
+                         PromptType.openai.name]:
+        preprompt = """The following is a conversation with an AI assistant. The assistant is helpful, creative, clever, and very friendly."""
+        start = ''
+        promptB = promptA = '%s%s' % (preprompt, start)
+        PreInstruct = "\nHuman: "
+        PreInput = None
+        PreResponse = "\nAI:"
+        terminate_response = [PreResponse] + [" Human:", " AI:"]
+        chat_sep = '\n'
+        humanstr = PreInstruct
+        botstr = PreResponse
+    elif prompt_type in [PromptType.openai_chat.value, str(PromptType.openai_chat.value),
+                         PromptType.openai_chat.name]:
+        # prompting and termination all handled by endpoint
+        preprompt = """"""
+        start = ''
+        promptB = promptA = '%s%s' % (preprompt, start)
+        PreInstruct = ""
+        PreInput = None
+        PreResponse = ""
+        terminate_response = []
         chat_sep = '\n'
         humanstr = PreInstruct
         botstr = PreResponse

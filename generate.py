@@ -148,6 +148,8 @@ def main(
         chunk_size: int = 512,
         top_k_docs: int = None,
         reverse_docs: bool = True,
+        auto_reduce_chunks: bool = True,
+        max_chunks: int = 100,
         n_jobs: int = -1,
         enable_captions: bool = True,
         captions_model: str = "Salesforce/blip-image-captioning-base",
@@ -169,7 +171,10 @@ def main(
     :param use_cache: Whether to use caching in model (some models fail when multiple threads use)
     :param inference_server: Consume base_model as type of model at this address
                              Address can be text-generation-server hosting that base_model
-                             Or Address can be "openai" for OpenAI API
+                             e.g. python generate.py --inference_server="http://192.168.1.46:6112" --base_model=h2oai/h2ogpt-oasst1-512-12b
+                             Or Address can be "openai_chat" or "openai" for OpenAI API
+                             e.g. python generate.py --inference_server="openai_chat" --base_model=gpt-3.5-turbo
+                             e.g. python generate.py --inference_server="openai" --base_model=text-davinci-003
     :param prompt_type: type of prompt, usually matched to fine-tuned model or plain for foundational model
     :param prompt_dict: If prompt_type=custom, then expects (some) items returned by get_prompt(..., return_dict=True)
     :param temperature: generation temperature
@@ -225,6 +230,7 @@ def main(
     :param sanitize_bot_response: whether to remove profanity and repeat lines from bot output (about 2x slower generation for long streaming cases due to better_profanity being slow)
     :param extra_model_options: extra models to show in list in gradio
     :param extra_lora_options: extra LORA to show in list in gradio
+    :param extra_server_options: extra servers to show in list in gradio
     :param score_model: which model to score responses (None means no scoring)
     :param auto_score: whether to automatically score responses
     :param eval_filename: json file to use for evaluation, if None is sharegpt
@@ -265,6 +271,8 @@ def main(
     :param reverse_docs: whether to reverse docs order so most relevant is closest to question.
            Best choice for sufficiently smart model, and truncation occurs for oldest context, so best then too.
            But smaller 6_9 models fail to use newest context and can get stuck on old information.
+    :param auto_reduce_chunks: Whether to automatically reduce top_k_docs to fit context given prompt
+    :param max_chunks: If top_k_docs=-1, maximum number of chunks to allow
     :param n_jobs: Number of processors to use when consuming documents (-1 = all, is default)
     :param enable_captions: Whether to support captions using BLIP for image files as documents, then preloads that model
     :param captions_model: Which model to use for captions.
@@ -660,6 +668,10 @@ def get_model(
     if isinstance(inference_server, str) and inference_server.startswith("http"):
         # Don't return None, None for model, tokenizer so triggers
         return inference_server, inference_server, 'http'
+    if isinstance(inference_server, str) and inference_server.startswith('openai'):
+        assert os.getenv('OPENAI_API_KEY'), "Set environment for OPENAI_API_KEY"
+        # Don't return None, None for model, tokenizer so triggers
+        return inference_server, inference_server, inference_server
     if base_model in non_hf_types:
         from gpt4all_llm import get_model_tokenizer_gpt4all
         model, tokenizer, device = get_model_tokenizer_gpt4all(base_model)
@@ -966,6 +978,8 @@ def evaluate_from_str(
         cli=False,
         reverse_docs=True,
         use_cache=None,
+        auto_reduce_chunks=None,
+        max_chunks=None,
 ):
     if isinstance(user_kwargs, str):
         user_kwargs = ast.literal_eval(user_kwargs)
@@ -1012,6 +1026,8 @@ def evaluate_from_str(
         cli=cli,
         reverse_docs=reverse_docs,
         use_cache=use_cache,
+        auto_reduce_chunks=auto_reduce_chunks,
+        max_chunks=max_chunks,
     )
     try:
         for ret1 in ret:
@@ -1077,6 +1093,8 @@ def evaluate(
         cli=False,
         reverse_docs=True,
         use_cache=None,
+        auto_reduce_chunks=None,
+        max_chunks=None,
 ):
     # ensure passed these
     assert concurrency_count is not None
@@ -1208,6 +1226,9 @@ def evaluate(
                            reverse_docs=reverse_docs,
 
                            lora_weights=lora_weights,
+
+                           auto_reduce_chunks=auto_reduce_chunks,
+                           max_chunks=max_chunks,
                            ):
             outr, extra = r  # doesn't accumulate, new answer every yield, so only save that full answer
             yield dict(response=outr, sources=extra)
@@ -1225,7 +1246,67 @@ def evaluate(
             clear_torch_cache()
             return
 
-    if inference_server:
+    if inference_server.startswith('openai'):
+        import openai
+
+        openai.api_key = os.getenv("OPENAI_API_KEY")
+        stop_sequences = prompter.terminate_response + [prompter.PreResponse]
+        openai_gen_kwargs = dict(temperature=temperature if do_sample else 0,
+                                 max_tokens=max_new_tokens,
+                                 top_p=top_p if do_sample else 1,
+                                 frequency_penalty=0,
+                                 n=num_return_sequences,
+                                 presence_penalty=1.07 - repetition_penalty + 0.6,  # so good default
+                                 )
+        if inference_server == 'openai':
+            response = openai.Completion.create(
+                model=base_model,
+                prompt=prompt,
+                **openai_gen_kwargs,
+                stop=stop_sequences,
+                stream=stream_output,
+            )
+            if not stream_output:
+                text = response['choices'][0]['text']
+                yield dict(response=prompter.get_response(prompt + text, prompt=prompt,
+                                                          sanitize_bot_response=sanitize_bot_response),
+                           sources='')
+            else:
+                collected_events = []
+                text = ''
+                for event in response:
+                    collected_events.append(event)  # save the event response
+                    event_text = event['choices'][0]['text']  # extract the text
+                    text += event_text  # append the text
+                    yield dict(response=prompter.get_response(prompt + text, prompt=prompt,
+                                                              sanitize_bot_response=sanitize_bot_response),
+                               sources='')
+            return
+        if inference_server == 'openai_chat':
+            response = openai.ChatCompletion.create(
+                model=base_model,
+                messages=[
+                    {'role': 'user', 'content': prompt}
+                ],
+                stream=stream_output,
+                **openai_gen_kwargs,
+            )
+            if not stream_output:
+                text = response["choices"][0]["message"]["content"]
+                yield dict(response=prompter.get_response(prompt + text, prompt=prompt,
+                                                          sanitize_bot_response=sanitize_bot_response),
+                           sources='')
+            else:
+                text = ""
+                for chunk in response:
+                    delta = chunk["choices"][0]["delta"]
+                    if 'content' in delta:
+                        text += delta['content']
+                        yield dict(response=prompter.get_response(prompt + text, prompt=prompt,
+                                                                  sanitize_bot_response=sanitize_bot_response),
+                                   sources='')
+            return
+    elif inference_server.startswith('http'):
         # prompt must include all human-bot like tokens, already added by prompt
         from text_generation import Client
 
@@ -1265,6 +1346,8 @@ def evaluate(
         if save_dir and text:
             save_generate_output(output=text, base_model=base_model, save_dir=save_dir)
         return
+    else:
+        assert not inference_server, "inferene_server=%s not supported" % inference_server
 
     if isinstance(tokenizer, str):
         # pipeline

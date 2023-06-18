@@ -22,7 +22,7 @@ from joblib import Parallel, delayed
 from langchain.embeddings import HuggingFaceInstructEmbeddings
 from tqdm import tqdm
 
-from enums import DocumentChoices, no_lora_str
+from enums import DocumentChoices, no_lora_str, model_token_mapping
 from generate import gen_hyper, get_model, SEED
 from prompter import non_hf_types, PromptType
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
@@ -382,13 +382,25 @@ def get_llm(use_openai_model=False,
             sanitize_bot_response=False,
             verbose=False,
             ):
-    if use_openai_model:
-        from langchain.llms import OpenAI
-        llm = OpenAI(temperature=0)
-        model_name = 'openai'
+    if use_openai_model or inference_server in ['openai', 'openai_chat']:
+        if inference_server == 'openai':
+            from langchain.llms import OpenAI
+        else:
+            from langchain.chat_models import ChatOpenAI as OpenAI
+        llm = OpenAI(model_name=model_name,
+                     temperature=temperature if do_sample else 0,
+                     max_tokens=max_new_tokens,
+                     top_p=top_p if do_sample else 1,
+                     frequency_penalty=0,
+                     presence_penalty=1.07 - repetition_penalty + 0.6,  # so good default
+                     )
         streamer = None
-        prompt_type = 'plain'
+        if inference_server in ['openai', 'openai_chat']:
+            prompt_type = inference_server
+        else:
+            prompt_type = 'plain'
     elif inference_server:
+        assert inference_server.startswith('http'), "Malformed inference_server=%s" % inference_server
         from langchain.callbacks import streaming_stdout
 
         callbacks = [streaming_stdout.StreamingStdOutCallbackHandler()]
@@ -1431,6 +1443,8 @@ def _run_qa_db(query=None,
                cli=False,
                reverse_docs=True,
                lora_weights='',
+               auto_reduce_chunks=True,
+               max_chunks=100,
                ):
     """
 
@@ -1579,6 +1593,7 @@ def get_similarity_chain(query=None,
                          detect_user_path_changes_every_query=False,
                          db_type='faiss',
                          model_name=None,
+                         inference_server='',
                          hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
                          prompt_type=None,
                          prompt_dict=None,
@@ -1593,6 +1608,10 @@ def get_similarity_chain(query=None,
                          verbose=False,
                          cmd=None,
                          reverse_docs=True,
+
+                         # local
+                         auto_reduce_chunks=True,
+                         max_chunks=100,
                          ):
     # determine whether use of context out of docs is planned
     if not use_openai_model and prompt_type not in ['plain'] or model_name in non_hf_types:
@@ -1691,15 +1710,17 @@ def get_similarity_chain(query=None,
             docs = [x[0] for x in docs_with_score]
             scores = [x[1] for x in docs_with_score]
         else:
-            if top_k_docs == -1:
+            if top_k_docs == -1 or auto_reduce_chunks:
                 # docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:top_k_docs]
                 top_k_docs_tokenize = 100
                 docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:top_k_docs_tokenize]
-                # FIXME: Should use LLM's tokenizer if have access, else embedding is kinda ok since small chunks normally
                 if hasattr(llm, 'pipeline') and hasattr(llm.pipeline, 'tokenizer'):
                     # more accurate
                     tokens = [len(llm.pipeline.tokenizer(x[0].page_content)['input_ids']) for x in docs_with_score]
                     template_tokens = len(llm.pipeline.tokenizer(template)['input_ids'])
+                elif inference_server in ['openai', 'openai_chat']:
+                    tokens = [llm.get_num_tokens(x[0].page_content) for x in docs_with_score]
+                    template_tokens = llm.get_num_tokens(template)
                 else:
                     # in case model is not our pipeline with HF tokenizer
                     tokens = [db._embedding_function.client.tokenize([x[0].page_content])['input_ids'].shape[1] for x in
@@ -1708,14 +1729,27 @@ def get_similarity_chain(query=None,
                 tokens_cumsum = np.cumsum(tokens)
                 if hasattr(llm, 'pipeline') and hasattr(llm.pipeline, 'max_input_tokens'):
                     max_input_tokens = llm.pipeline.max_input_tokens
+                elif inference_server in ['openai']:
+                    max_tokens = llm.modelname_to_contextsize(model_name)
+                    max_input_tokens = max_tokens - 256
+                elif inference_server in ['openai_chat']:
+                    max_tokens = model_token_mapping[model_name]
+                    max_input_tokens = max_tokens - 256
                 else:
                     max_input_tokens = 2048 - 256
                 max_input_tokens -= template_tokens
                 # FIXME: Doesn't account for query, == context, or new lines between contexts
                 top_k_docs_trial = np.where(tokens_cumsum < max_input_tokens)[0][-1]
-                if top_k_docs_trial > 0 and top_k_docs_trial < 100:
+                if 0 < top_k_docs_trial < max_chunks:
                     # avoid craziness
-                    top_k_docs = top_k_docs_trial
+                    if top_k_docs == -1:
+                        top_k_docs = top_k_docs_trial
+                    else:
+                        top_k_docs = min(top_k_docs, top_k_docs_trial)
+                if top_k_docs == -1:
+                    # if here, means 0 and just do best with 1 doc
+                    print("Unexpected large chunks and can't add to context, will add 1 anyways", flush=True)
+                    top_k_docs = 1
                 docs_with_score = docs_with_score[:top_k_docs]
             else:
                 docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:top_k_docs]
