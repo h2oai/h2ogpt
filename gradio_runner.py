@@ -605,9 +605,9 @@ def go_gradio(**kwargs):
                                                               interactive=True, lines=4)
                     with gr.Row():
                         with gr.Column(scale=50):
-                            new_model = gr.Textbox(label="New Model HF name/path")
+                            new_model = gr.Textbox(label="New Model name/path")
                         with gr.Column(scale=50):
-                            new_lora = gr.Textbox(label="New LORA HF name/path", visible=kwargs['show_lora'])
+                            new_lora = gr.Textbox(label="New LORA name/path", visible=kwargs['show_lora'])
                         with gr.Column(scale=50):
                             new_server = gr.Textbox(label="New Server url:port")
                         with gr.Row():
