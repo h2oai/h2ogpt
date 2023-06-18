@@ -171,11 +171,17 @@ def test_qa_daidocs_db_chunk_hf_dbs(db_type, top_k_docs):
     from gpt_langchain import _run_qa_db
     query = "Which config.toml enables pytorch for NLP?"
     # chunk_size is chars for each of k=4 chunks
+    if top_k_docs == -1:
+        # else OOMs on generation immediately when generation starts, even though only 1600 tokens and 256 new tokens
+        model_name = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
+    else:
+        model_name = None
     ret = _run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=None, chunk=True,
                      chunk_size=128 * 1,  # characters, and if k=4, then 4*4*128 = 2048 chars ~ 512 tokens
                      langchain_mode=langchain_mode,
                      db_type=db_type,
                      top_k_docs=top_k_docs,
+                     model_name=model_name,
                      )
     check_ret(ret)
 

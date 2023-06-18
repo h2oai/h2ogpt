@@ -326,16 +326,15 @@ def get_llm(use_openai_model=False,
         streamer = None
         prompt_type = 'plain'
     else:
-        from transformers import AutoTokenizer, AutoModelForCausalLM
-
         if model is None:
             # only used if didn't pass model in
             assert tokenizer is None
             prompt_type = 'human_bot'
-            model_name = 'h2oai/h2ogpt-oasst1-512-12b'
+            if model_name is None:
+                model_name = 'h2oai/h2ogpt-oasst1-512-12b'
+                # model_name = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
+                # model_name = 'h2oai/h2ogpt-oasst1-512-20b'
             inference_server = ''
-            # model_name = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
-            # model_name = 'h2oai/h2ogpt-oasst1-512-20b'
             model, tokenizer, device = get_model(load_8bit=True, base_model=model_name,
                                                  inference_server=inference_server, gpu_id=0)
 
