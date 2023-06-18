@@ -501,9 +501,17 @@ def go_gradio(**kwargs):
                                                            label="Whether to chunk documents",
                                                            info="For LangChain",
                                                            visible=not is_public)
-                            top_k_docs = gr.Slider(minimum=-1, maximum=100, step=1,
+                            if is_public:
+                                min_top_k_docs = 1
+                                max_top_k_docs = 3
+                                label_top_k_docs = "Number of document chunks"
+                            else:
+                                min_top_k_docs = -1
+                                max_top_k_docs = 100
+                                label_top_k_docs = "Number of document chunks (-1 = auto fill model context up to 100 chunks)"
+                            top_k_docs = gr.Slider(minimum=min_top_k_docs, maximum=max_top_k_docs, step=1,
                                                    value=kwargs['top_k_docs'],
-                                                   label="Number of document chunks (-1 = auto fill model context up to 100 chunks)",
+                                                   label=label_top_k_docs,
                                                    info="For LangChain",
                                                    visible=not is_public)
                             chunk_size = gr.Number(value=kwargs['chunk_size'],
