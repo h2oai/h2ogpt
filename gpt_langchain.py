@@ -266,7 +266,7 @@ def get_answer_from_sources(chain, sources, question):
 
 """Wrapper around Huggingface text generation inference API."""
 from functools import partial
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 from pydantic import Extra, Field, root_validator
 
@@ -359,6 +359,17 @@ class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
         return text
 
 
+from langchain.chat_models import ChatOpenAI
+
+
+class H2OChatOpenAI(ChatOpenAI):
+    @classmethod
+    def all_required_field_names(cls) -> Set:
+        all_required_field_names = super().all_required_field_names()
+        all_required_field_names.update({'top_p', 'frequency_penalty', 'presence_penalty'})
+        return all_required_field_names
+
+
 def get_llm(use_openai_model=False,
             model_name=None,
             model=None,
@@ -385,15 +396,16 @@ def get_llm(use_openai_model=False,
     if use_openai_model or inference_server in ['openai', 'openai_chat']:
         if inference_server == 'openai':
             from langchain.llms import OpenAI
+            cls = OpenAI
         else:
-            from langchain.chat_models import ChatOpenAI as OpenAI
-        llm = OpenAI(model_name=model_name,
-                     temperature=temperature if do_sample else 0,
-                     max_tokens=max_new_tokens,
-                     top_p=top_p if do_sample else 1,
-                     frequency_penalty=0,
-                     presence_penalty=1.07 - repetition_penalty + 0.6,  # so good default
-                     )
+            cls = H2OChatOpenAI
+        llm = cls(model_name=model_name,
+                  temperature=temperature if do_sample else 0,
+                  max_tokens=max_new_tokens,
+                  top_p=top_p if do_sample else 1,
+                  frequency_penalty=0,
+                  presence_penalty=1.07 - repetition_penalty + 0.6,  # so good default
+                  )
         streamer = None
         if inference_server in ['openai', 'openai_chat']:
             prompt_type = inference_server
@@ -1654,6 +1666,9 @@ def get_similarity_chain(query=None,
     if 'falcon' in model_name:
         extra = "According to only the information in the document sources provided within the triple quotes above, "
         prefix = "Pay attention and remember information within triple quotes below which will help to answer the question after the triple quotes ends."
+    elif inference_server in ['openai', 'openai_chat']:
+        extra = "According to primarily the information in the document sources provided within the two sets of triple quotes above, "
+        prefix = "Pay attention and remember information within triple quotes below which will help to answer the question after the triple quotes ends.  If the answer cannot be primarily obtained from information within the two sets of triple quotes, then respond that the answer does not appear in the documents."
     else:
         extra = ""
         prefix = ""
