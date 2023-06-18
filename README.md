@@ -117,6 +117,8 @@ Also check out [H2O LLM Studio](https://github.com/h2oai/h2o-llmstudio) for our 
 First one needs a Python 3.10 environment.  For help installing a Python 3.10 environment, see [Install Python 3.10 Environment](docs/INSTALL.md#install-python-environment).  On newer Ubuntu systems and environment may be installed by just doing:
 ```bash
 sudo apt-get install -y build-essential gcc python3.10-dev
+virtualenv -p python3 h2ogpt
+source h2ogpt/bin/activate
 ```
 Check your installation by doing:
 ```bash
