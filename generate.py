@@ -168,6 +168,8 @@ def main(
     :param compile_model Whether to compile the model
     :param use_cache: Whether to use caching in model (some models fail when multiple threads use)
     :param inference_server: Consume base_model as type of model at this address
+                             Address can be text-generation-server hosting that base_model
+                             Or Address can be "openai" for OpenAI API
     :param prompt_type: type of prompt, usually matched to fine-tuned model or plain for foundational model
     :param prompt_dict: If prompt_type=custom, then expects (some) items returned by get_prompt(..., return_dict=True)
     :param temperature: generation temperature
