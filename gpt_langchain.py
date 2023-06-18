@@ -45,7 +45,7 @@ from langchain.document_loaders import PyPDFLoader, TextLoader, CSVLoader, Pytho
 from langchain.text_splitter import RecursiveCharacterTextSplitter, Language
 from langchain.chains.question_answering import load_qa_chain
 from langchain.docstore.document import Document
-from langchain import PromptTemplate
+from langchain import PromptTemplate, HuggingFaceTextGenInference
 from langchain.vectorstores import Chroma
 
 
@@ -264,6 +264,101 @@ def get_answer_from_sources(chain, sources, question):
     )["output_text"]
 
 
+"""Wrapper around Huggingface text generation inference API."""
+from functools import partial
+from typing import Any, Dict, List, Optional
+
+from pydantic import Extra, Field, root_validator
+
+from langchain.callbacks.manager import CallbackManagerForLLMRun
+
+
+class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
+    max_new_tokens: int = 512
+    do_sample: bool = False
+    top_k: Optional[int] = None
+    top_p: Optional[float] = 0.95
+    typical_p: Optional[float] = 0.95
+    temperature: float = 0.8
+    repetition_penalty: Optional[float] = None
+    return_full_text: bool = False
+    stop_sequences: List[str] = Field(default_factory=list)
+    seed: Optional[int] = None
+    inference_server_url: str = ""
+    timeout: int = 120
+    stream: bool = False
+    sanitize_bot_response: bool = False
+    prompter: Any
+    client: Any
+
+    def _call(
+            self,
+            prompt: str,
+            stop: Optional[List[str]] = None,
+            run_manager: Optional[CallbackManagerForLLMRun] = None,
+            **kwargs: Any,
+    ) -> str:
+        if stop is None:
+            stop = self.stop_sequences
+        else:
+            stop += self.stop_sequences
+
+        data_point = dict(context='', instruction=prompt, input='')
+        prompt = self.prompter.generate_prompt(data_point)
+
+        gen_server_kwargs = dict(do_sample=self.do_sample,
+                                 stop_sequences=stop,
+                                 max_new_tokens=self.max_new_tokens,
+                                 top_k=self.top_k,
+                                 top_p=self.top_p,
+                                 typical_p=self.typical_p,
+                                 temperature=self.temperature,
+                                 repetition_penalty=self.repetition_penalty,
+                                 return_full_text=self.return_full_text,
+                                 seed=self.seed,
+                                 )
+        gen_server_kwargs.update(kwargs)
+
+        if not self.stream:
+            res = self.client.generate(
+                prompt,
+                **gen_server_kwargs,
+            )
+            # remove stop sequences from the end of the generated text
+            for stop_seq in stop:
+                if stop_seq in res.generated_text:
+                    res.generated_text = res.generated_text[
+                                         : res.generated_text.index(stop_seq)
+                                         ]
+            text = res.generated_text
+            text = self.prompter.get_response(text, prompt=prompt,
+                                              sanitize_bot_response=self.sanitize_bot_response)
+        else:
+            text_callback = None
+            if run_manager:
+                text_callback = partial(
+                    run_manager.on_llm_new_token, verbose=self.verbose
+                )
+            text = ""
+            for response in self.client.generate_stream(prompt, **gen_server_kwargs):
+                text_chunk = response.token.text
+                text += text_chunk
+                text = self.prompter.get_response(prompt + text, prompt=prompt,
+                                                  sanitize_bot_response=self.sanitize_bot_response)
+                # stream part
+                is_stop = False
+                for stop_seq in stop:
+                    if stop_seq in response.token.text:
+                        is_stop = True
+                        break
+                if is_stop:
+                    break
+                if not response.token.special:
+                    if text_callback:
+                        text_callback(response.token.text)
+        return text
+
+
 def get_llm(use_openai_model=False,
             model_name=None,
             model=None,
@@ -284,6 +379,7 @@ def get_llm(use_openai_model=False,
             prompt_type=None,
             prompt_dict=None,
             prompter=None,
+            sanitize_bot_response=False,
             verbose=False,
             ):
     if use_openai_model:
@@ -296,10 +392,9 @@ def get_llm(use_openai_model=False,
         from langchain.callbacks import streaming_stdout
 
         callbacks = [streaming_stdout.StreamingStdOutCallbackHandler()]
-        from langchain import HuggingFaceTextGenInference
         assert prompter is not None
         stop_sequences = prompter.terminate_response + [prompter.PreResponse]
-        llm = HuggingFaceTextGenInference(
+        llm = H2OHuggingFaceTextGenInference(
             inference_server_url=inference_server,
             do_sample=do_sample,
             max_new_tokens=max_new_tokens,
@@ -313,7 +408,10 @@ def get_llm(use_openai_model=False,
             # typical_p=top_p,
             callbacks=callbacks if stream_output else None,
             stream=stream_output,
+            prompter=prompter,
+            sanitize_bot_response=sanitize_bot_response,
         )
+        streamer = None
     elif model_name in non_hf_types:
         from gpt4all_llm import get_llm_gpt4all
         llm = get_llm_gpt4all(model_name, model=model, max_new_tokens=max_new_tokens,
@@ -368,7 +466,7 @@ def get_llm(use_openai_model=False,
                                          prompter=prompter,
                                          prompt_type=prompt_type,
                                          prompt_dict=prompt_dict,
-                                         sanitize_bot_response=False,
+                                         sanitize_bot_response=sanitize_bot_response,
                                          chat=False, stream_output=stream_output,
                                          tokenizer=tokenizer,
                                          max_input_tokens=max_max_tokens - max_new_tokens,
@@ -1385,6 +1483,7 @@ def _run_qa_db(query=None,
                                                          prompt_type=prompt_type,
                                                          prompt_dict=prompt_dict,
                                                          prompter=prompter,
+                                                         sanitize_bot_response=sanitize_bot_response,
                                                          verbose=verbose,
                                                          )
 
@@ -1426,9 +1525,8 @@ def _run_qa_db(query=None,
         have_lora_weights = lora_weights not in [no_lora_str, '', None]
         context_class_cast = NullContext if device == 'cpu' or have_lora_weights else torch.autocast
         with context_class_cast(device):
-            if stream_output:
+            if stream_output and streamer:
                 answer = None
-                assert streamer is not None
                 import queue
                 bucket = queue.Queue()
                 thread = EThread(target=chain, streamer=streamer, bucket=bucket)
