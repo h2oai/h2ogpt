@@ -25,10 +25,8 @@ prompt_type_to_model_name = {
         'mosaicml/mpt-7b-storywriter',
         'mosaicml/mpt-7b-instruct',  # internal code handles instruct
         'mosaicml/mpt-7b-chat',  # NC, internal code handles instruct
-        'gptj',  # internally handles prompting
-        'llama',  # plain, or need to choose prompt_type for given TheBloke model
-        'gpt4all_llama',  # internally handles prompting
     ],
+    'gptj': ['gptj', 'gpt4all_llama'],
     'prompt_answer': [
         'h2oai/h2ogpt-gm-oasst1-en-1024-20b',
         'h2oai/h2ogpt-gm-oasst1-en-1024-12b',
@@ -67,6 +65,8 @@ prompt_type_to_model_name = {
     "wizard_mega": ['openaccess-ai-collective/wizard-mega-13b'],
     "instruct_simple": ['JosephusCheung/Guanaco'],
     "wizard_vicuna": ['ehartford/Wizard-Vicuna-13B-Uncensored'],
+    "wizard2": ['llama'],
+    # could be plain, but default is correct prompt_type for default TheBloke model ggml-wizardLM-7B.q4_2.bin
 }
 if os.getenv('OPENAI_API_KEY'):
     prompt_type_to_model_name.update({
@@ -427,6 +427,18 @@ ASSISTANT:
         PreInput = None
         PreResponse = "\nAI:"
         terminate_response = [PreResponse] + [" Human:", " AI:"]
+        chat_sep = '\n'
+        humanstr = PreInstruct
+        botstr = PreResponse
+    elif prompt_type in [PromptType.gptj.value, str(PromptType.gptj.value),
+                         PromptType.gptj.name]:
+        preprompt = "### Instruction:\n The prompt below is a question to answer, a task to complete, or a conversation to respond to; decide which and write an appropriate response."
+        start = ''
+        promptB = promptA = '%s%s' % (preprompt, start)
+        PreInstruct = "\n### Prompt: "
+        PreInput = None
+        PreResponse = "\n### Response: "
+        terminate_response = [PreResponse] + ["Prompt:", "Response:"]
         chat_sep = '\n'
         humanstr = PreInstruct
         botstr = PreResponse

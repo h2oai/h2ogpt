@@ -3,13 +3,9 @@ import inspect
 import os
 import pathlib
 import pickle
-import queue
-import random
 import shutil
 import subprocess
-import sys
 import tempfile
-import time
 import traceback
 import types
 import uuid
@@ -20,6 +16,7 @@ from functools import reduce
 from operator import concat
 
 from joblib import Parallel, delayed
+from langchain.callbacks import streaming_stdout
 from langchain.embeddings import HuggingFaceInstructEmbeddings
 from tqdm import tqdm
 
@@ -28,6 +25,7 @@ from generate import gen_hyper, get_model, SEED
 from prompter import non_hf_types, PromptType
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
     get_device, ProgressParallel, remove, hash_file, clear_torch_cache, NullContext
+from utils_langchain import StreamingGradioCallbackHandler
 
 import_matplotlib()
 
@@ -363,69 +361,6 @@ class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
         return text
 
 
-from langchain.callbacks.base import BaseCallbackHandler
-from langchain.schema import LLMResult
-from typing import Union, Optional
-
-
-class StreamingGradioCallbackHandler(BaseCallbackHandler):
-    """
-    Similar to H2OTextIteratorStreamer that is for HF backend, but here LangChain backend
-    """
-    def __init__(self, timeout: Optional[float] = None, block=True):
-        super().__init__()
-        self.text_queue = queue.SimpleQueue()
-        self.stop_signal = None
-        self.do_stop = False
-        self.timeout = timeout
-        self.block = block
-
-    def on_llm_start(
-        self, serialized: Dict[str, Any], prompts: List[str], **kwargs: Any
-    ) -> None:
-        """Run when LLM starts running. Clean the queue."""
-        while not self.text_queue.empty():
-            try:
-                self.text_queue.get(block=False)
-            except queue.Empty:
-                continue
-
-    def on_llm_new_token(self, token: str, **kwargs: Any) -> None:
-        """Run on new LLM token. Only available when streaming is enabled."""
-        self.text_queue.put(token)
-
-    def on_llm_end(self, response: LLMResult, **kwargs: Any) -> None:
-        """Run when LLM ends running."""
-        self.text_queue.put(self.stop_signal)
-
-    def on_llm_error(
-        self, error: Union[Exception, KeyboardInterrupt], **kwargs: Any
-    ) -> None:
-        """Run when LLM errors."""
-        self.text_queue.put(self.stop_signal)
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        while True:
-            try:
-                value = self.stop_signal  # value looks unused in pycharm, not true
-                if self.do_stop:
-                    print("hit stop", flush=True)
-                    # could raise or break, maybe best to raise and make parent see if any exception in thread
-                    raise StopIteration()
-                    # break
-                value = self.text_queue.get(block=self.block, timeout=self.timeout)
-                break
-            except queue.Empty:
-                time.sleep(0.01)
-        if value == self.stop_signal:
-            raise StopIteration()
-        else:
-            return value
-
-
 from langchain.chat_models import ChatOpenAI
 
 
@@ -466,21 +401,22 @@ def get_llm(use_openai_model=False,
             cls = OpenAI
         else:
             cls = H2OChatOpenAI
+        callbacks = [streaming_stdout.StreamingStdOutCallbackHandler(), StreamingGradioCallbackHandler()]
         llm = cls(model_name=model_name,
                   temperature=temperature if do_sample else 0,
                   max_tokens=max_new_tokens,
                   top_p=top_p if do_sample else 1,
                   frequency_penalty=0,
                   presence_penalty=1.07 - repetition_penalty + 0.6,  # so good default
+                  callbacks=callbacks,
                   )
-        streamer = None
+        streamer = callbacks[1] if stream_output else None
         if inference_server in ['openai', 'openai_chat']:
             prompt_type = inference_server
         else:
             prompt_type = 'plain'
     elif inference_server:
         assert inference_server.startswith('http'), "Malformed inference_server=%s" % inference_server
-        from langchain.callbacks import streaming_stdout
 
         callbacks = [streaming_stdout.StreamingStdOutCallbackHandler(), StreamingGradioCallbackHandler()]
         assert prompter is not None
@@ -504,15 +440,19 @@ def get_llm(use_openai_model=False,
         )
         streamer = callbacks[1] if stream_output else None
     elif model_name in non_hf_types:
+        callbacks = [streaming_stdout.StreamingStdOutCallbackHandler(), StreamingGradioCallbackHandler()]
         from gpt4all_llm import get_llm_gpt4all
         llm = get_llm_gpt4all(model_name, model=model, max_new_tokens=max_new_tokens,
                               temperature=temperature,
                               repetition_penalty=repetition_penalty,
                               top_k=top_k,
                               top_p=top_p,
+                              callbacks=callbacks,
                               verbose=verbose,
+                              streaming=stream_output,
+                              prompter=prompter,
                               )
-        streamer = None
+        streamer = callbacks[1] if stream_output else None
         prompt_type = 'plain'
     else:
         if model is None:
@@ -1580,10 +1520,6 @@ def _run_qa_db(query=None,
                                                          verbose=verbose,
                                                          )
 
-    if model_name in non_hf_types:
-        # FIXME: for now, streams to stdout/stderr currently
-        stream_output = False
-
     use_context = False
     scores = []
     chain = None
@@ -1741,12 +1677,14 @@ def get_similarity_chain(query=None,
         prefix = ""
     if langchain_mode in ['Disabled', 'ChatLLM', 'LLM'] or not use_context:
         template = """%s{context}{question}""" % prefix
+        template_if_no_docs = template = """%s{context}{question}""" % prefix
     else:
         template = """%s
 \"\"\"
 {context}
 \"\"\"
 %s{question}""" % (prefix, extra)
+        template_if_no_docs = """%s{context}%s{question}""" % (prefix, extra)
     if not use_openai_model and prompt_type not in ['plain'] or model_name in non_hf_types:
         use_template = True
     else:
@@ -1874,6 +1812,7 @@ def get_similarity_chain(query=None,
     if len(docs) == 0:
         # avoid context == in prompt then
         use_context = False
+        template = template_if_no_docs
 
     if use_template:
         # instruct-like, rather than few-shot prompt_type='plain' as default
