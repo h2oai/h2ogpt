@@ -666,8 +666,18 @@ def get_model(
     if verbose:
         print("Get %s model" % base_model, flush=True)
     if isinstance(inference_server, str) and inference_server.startswith("http"):
+        # preload client since slow for gradio case especially
+        from gradio_client import Client as GradioClient
+        try:
+            client = GradioClient(inference_server)
+        except ValueError:
+            client = None
+        if client is None:
+            from text_generation import Client as HFClient
+            client = HFClient(inference_server)
+
         # Don't return None, None for model, tokenizer so triggers
-        return inference_server, inference_server, 'http'
+        return client, inference_server, 'http'
     if isinstance(inference_server, str) and inference_server.startswith('openai'):
         assert os.getenv('OPENAI_API_KEY'), "Set environment for OPENAI_API_KEY"
         # Don't return None, None for model, tokenizer so triggers
@@ -985,7 +995,8 @@ def evaluate_from_str(
         user_kwargs = ast.literal_eval(user_kwargs)
     # only used for submit_nochat_api
     user_kwargs['chat'] = False
-    user_kwargs['stream_output'] = False
+    if 'stream_output' not in user_kwargs:
+        user_kwargs['stream_output'] = False
     if 'langchain_mode' not in user_kwargs:
         # if user doesn't specify, then assume disabled, not use default
         user_kwargs['langchain_mode'] = 'Disabled'
@@ -1310,42 +1321,120 @@ def evaluate(
                                    sources='')
             return
     elif inference_server.startswith('http'):
-        # prompt must include all human-bot like tokens, already added by prompt
-        from text_generation import Client
-
-        client = Client(inference_server)
-        # https://github.com/huggingface/text-generation-inference/tree/main/clients/python#types
-        stop_sequences = prompter.terminate_response + [prompter.PreResponse]
-        gen_server_kwargs = dict(do_sample=do_sample,
-                                 max_new_tokens=max_new_tokens,
-                                 # best_of=None,
-                                 repetition_penalty=repetition_penalty,
-                                 return_full_text=True,
-                                 seed=SEED,
-                                 stop_sequences=stop_sequences,
-                                 temperature=temperature,
-                                 top_k=top_k,
-                                 top_p=top_p,
-                                 # truncate=False,  # behaves oddly
-                                 # typical_p=top_p,
-                                 # watermark=False,
-                                 # decoder_input_details=False,
-                                 )
-        if not stream_output:
-            text = client.generate(prompt, **gen_server_kwargs).generated_text
-            yield dict(response=prompter.get_response(text, prompt=prompt,
-                                                      sanitize_bot_response=sanitize_bot_response),
-                       sources='')
+        from gradio_client import Client as GradioClient
+        from text_generation import Client as HFClient
+        if isinstance(model, GradioClient):
+            gr_client = model
+            hf_client = None
+        elif isinstance(model, HFClient):
+            gr_client = None
+            hf_client = model
         else:
-            text = ""
-            for response in client.generate_stream(prompt, **gen_server_kwargs):
-                if not response.token.special:
-                    # stop_sequences
-                    text_chunk = response.token.text
-                    text += text_chunk
-                    yield dict(response=prompter.get_response(prompt + text, prompt=prompt,
-                                                              sanitize_bot_response=sanitize_bot_response),
-                               sources='')
+            # check if gradio server
+            try:
+                gr_client = GradioClient(inference_server)
+            except ValueError:
+                gr_client = None
+            if gr_client is None:
+                from text_generation import Client as HFClient
+                hf_client = HFClient(inference_server)
+
+        if gr_client is not None:
+            chat_client = False
+            client_langchain_mode = 'Disabled'
+            client_kwargs = dict(instruction=prompt if chat_client else '',  # only for chat=True
+                                 iinput='',  # only for chat=True
+                                 context='',
+                                 # streaming output is supported, loops over and outputs each generation in streaming mode
+                                 # but leave stream_output=False for simple input/output mode
+                                 stream_output=stream_output,
+                                 prompt_type=prompt_type,
+                                 prompt_dict='',
+                                 temperature=temperature,
+                                 top_p=top_p,
+                                 top_k=top_k,
+                                 num_beams=num_beams,
+                                 max_new_tokens=max_new_tokens,
+                                 min_new_tokens=min_new_tokens,
+                                 early_stopping=early_stopping,
+                                 max_time=max_time,
+                                 repetition_penalty=repetition_penalty,
+                                 num_return_sequences=num_return_sequences,
+                                 do_sample=do_sample,
+                                 chat=chat_client,
+                                 instruction_nochat=prompt if not chat_client else '',
+                                 iinput_nochat='',  # only for chat=False
+                                 langchain_mode=client_langchain_mode,
+                                 top_k_docs=top_k_docs,
+                                 chunk=chunk,
+                                 chunk_size=chunk_size,
+                                 document_choice=[DocumentChoices.All_Relevant.name],
+                                 )
+            api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
+            if not stream_output:
+                res = gr_client.predict(str(dict(client_kwargs)), api_name=api_name)
+                res_dict = ast.literal_eval(res)
+                text = res_dict['response']
+                sources = res_dict['sources']
+                yield dict(response=prompter.get_response(prompt + text, prompt=prompt,
+                                                          sanitize_bot_response=sanitize_bot_response),
+                           sources=sources)
+            else:
+                job = gr_client.submit(str(dict(client_kwargs)), api_name=api_name)
+                text = ''
+                while not job.done():
+                    outputs_list = job.communicator.job.outputs
+                    if outputs_list:
+                        res = job.communicator.job.outputs[-1]
+                        res_dict = ast.literal_eval(res)
+                        text = res_dict['response']
+                        sources = res_dict['sources']
+                        yield dict(response=prompter.get_response(prompt + text, prompt=prompt,
+                                                                  sanitize_bot_response=sanitize_bot_response),
+                                   sources=sources)
+                    time.sleep(0.01)
+                # ensure get last output to avoid race
+                res = job.outputs()[-1]
+                res_dict = ast.literal_eval(res)
+                text = res_dict['response']
+                sources = res_dict['sources']
+                yield dict(response=prompter.get_response(prompt + text, prompt=prompt,
+                                                          sanitize_bot_response=sanitize_bot_response),
+                           sources=sources)
+        else:
+            # prompt must include all human-bot like tokens, already added by prompt
+            # https://github.com/huggingface/text-generation-inference/tree/main/clients/python#types
+            stop_sequences = prompter.terminate_response + [prompter.PreResponse]
+            gen_server_kwargs = dict(do_sample=do_sample,
+                                     max_new_tokens=max_new_tokens,
+                                     # best_of=None,
+                                     repetition_penalty=repetition_penalty,
+                                     return_full_text=True,
+                                     seed=SEED,
+                                     stop_sequences=stop_sequences,
+                                     temperature=temperature,
+                                     top_k=top_k,
+                                     top_p=top_p,
+                                     # truncate=False,  # behaves oddly
+                                     # typical_p=top_p,
+                                     # watermark=False,
+                                     # decoder_input_details=False,
+                                     )
+            if not stream_output:
+                text = hf_client.generate(prompt, **gen_server_kwargs).generated_text
+                yield dict(response=prompter.get_response(text, prompt=prompt,
+                                                          sanitize_bot_response=sanitize_bot_response),
+                           sources='')
+            else:
+                text = ""
+                for response in hf_client.generate_stream(prompt, **gen_server_kwargs):
+                    if not response.token.special:
+                        # stop_sequences
+                        text_chunk = response.token.text
+                        text += text_chunk
+                        yield dict(response=prompter.get_response(prompt + text, prompt=prompt,
+                                                                  sanitize_bot_response=sanitize_bot_response),
+                                   sources='')
         if save_dir and text:
             save_generate_output(output=text, base_model=base_model, save_dir=save_dir)
         return

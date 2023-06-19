@@ -160,6 +160,38 @@ def test_client_chat_stream():
     run_client_chat_with_server(stream_output=True)
 
 
+def run_client_nochat_with_server(prompt='Who are you?', stream_output=False, max_new_tokens=256,
+                                base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b', prompt_type='human_bot',
+                                langchain_mode='Disabled', user_path=None,
+                                visible_langchain_modes=['UserData', 'MyData'],
+                                reverse_docs=True):
+    import os, sys
+    if langchain_mode == 'Disabled':
+        os.environ['TEST_LANGCHAIN_IMPORT'] = "1"
+        sys.modules.pop('gpt_langchain', None)
+        sys.modules.pop('langchain', None)
+
+    from generate import main
+    main(base_model=base_model, prompt_type=prompt_type, chat=True,
+         stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
+         max_new_tokens=max_new_tokens,
+         langchain_mode=langchain_mode, user_path=user_path,
+         visible_langchain_modes=visible_langchain_modes,
+         reverse_docs=reverse_docs)
+
+    from client_test import run_client_nochat_gen
+    res_dict, client = run_client_nochat_gen(prompt=prompt, prompt_type='human_bot',
+                                             stream_output=stream_output,
+                                       max_new_tokens=max_new_tokens, langchain_mode=langchain_mode)
+    assert 'Birds' in res_dict['response'] or ' and can learn new things' in res_dict['response']
+    return res_dict, client
+
+
+@wrap_test_forked
+def test_client_nochat_stream():
+    run_client_nochat_with_server(stream_output=True, prompt="Tell a very long kid's story about birds.")
+
+
 @wrap_test_forked
 def test_client_chat_stream_langchain():
     user_path = make_user_path_test()

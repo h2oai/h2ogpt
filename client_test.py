@@ -220,6 +220,13 @@ def test_client_chat():
                            langchain_mode='Disabled')
 
 
+@pytest.mark.skip(reason="For manual use against some server, no server launched")
+def test_client_chat_stream():
+    return run_client_chat(prompt="Tell a very long kid's story about birds.", prompt_type='human_bot',
+                           stream_output=True, max_new_tokens=512,
+                           langchain_mode='Disabled')
+
+
 def run_client_chat(prompt, prompt_type, stream_output, max_new_tokens, langchain_mode):
     client = get_client(serialize=False)
 
@@ -262,6 +269,44 @@ def run_client(client, prompt, args, kwargs, do_md_to_text=True, verbose=False):
         return res_dict, client
 
 
+@pytest.mark.skip(reason="For manual use against some server, no server launched")
+def test_client_nochat_stream():
+    return run_client_nochat_gen(prompt="Tell a very long kid's story about birds.", prompt_type='human_bot',
+                                 stream_output=True, max_new_tokens=512,
+                                 langchain_mode='Disabled')
+
+
+def run_client_nochat_gen(prompt, prompt_type, stream_output, max_new_tokens, langchain_mode):
+    client = get_client(serialize=False)
+
+    kwargs, args = get_args(prompt, prompt_type, chat=False, stream_output=stream_output,
+                            max_new_tokens=max_new_tokens, langchain_mode=langchain_mode)
+    return run_client_gen(client, prompt, args, kwargs)
+
+
+def run_client_gen(client, prompt, args, kwargs, do_md_to_text=True, verbose=False):
+    res_dict = kwargs
+    res_dict['prompt'] = prompt
+    if not kwargs['stream_output']:
+        res = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
+        res_dict['response'] = res[0]
+        print(md_to_text(res_dict['response'], do_md_to_text=do_md_to_text))
+        return res_dict, client
+    else:
+        job = client.submit(str(dict(kwargs)), api_name='/submit_nochat_api')
+        while not job.done():
+            outputs_list = job.communicator.job.outputs
+            if outputs_list:
+                res = job.communicator.job.outputs[-1]
+                res_dict = ast.literal_eval(res)
+                print('Stream: %s' % res_dict['response'])
+            time.sleep(0.1)
+        res = job.outputs()[-1]
+        res_dict = ast.literal_eval(res)
+        print('Final: %s' % res_dict['response'])
+        return res_dict, client
+
+
 def md_to_text(md, do_md_to_text=True):
     if not do_md_to_text:
         return md
@@ -272,6 +317,9 @@ def md_to_text(md, do_md_to_text=True):
 
 
 if __name__ == '__main__':
+    test_client_chat()
+    test_client_chat_stream()
+    test_client_nochat_stream()
     test_client_basic()
     test_client_basic_api()
     test_client_basic_api_lean()
