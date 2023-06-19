@@ -959,7 +959,8 @@ def evaluate_from_str(
         user_kwargs = ast.literal_eval(user_kwargs)
     # only used for submit_nochat_api
     user_kwargs['chat'] = False
-    user_kwargs['stream_output'] = False
+    if 'stream_output' not in user_kwargs:
+        user_kwargs['stream_output'] = False
     if 'langchain_mode' not in user_kwargs:
         # if user doesn't specify, then assume disabled, not use default
         user_kwargs['langchain_mode'] = 'Disabled'
