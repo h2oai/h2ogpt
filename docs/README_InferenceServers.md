@@ -102,3 +102,16 @@ If you have an OpenAI key and set an ENV `OPENAI_API_KEY`, then you can access O
 OPENAI_API_KEY=<key> python generate.py --inference_server="openai_chat" --base_model=gpt-3.5-turbo --h2ocolors=False --langchain_mode=MyData
 ```
 where `<key>` should be replaced by your OpenAI key that probably starts with `sk-`.  OpenAI is **not** recommended for private document question-answer, but it can be a good reference for testing purposes or when privacy is not required.
+
+
+## h2oGPT start-up vs. in-app selection
+
+When using `generate.py`, specifying the `--base_model` or `--inference_server` on the CLI is not required.  One can also add any model and server URL (with optional port) in the **Model** tab at the bottom:
+
+![Add Model](model_add.png)
+
+Enter the mode name as the same name one would use for `--base_model` and enter the server url:port as the same url (optional port) one would use for `--inference_server`.  Then click `Add new Model, Lora, Server url:port` button.  This adds that to the drop-down selection, and then one can load the model by clicking "Load-Unload" model button.
+
+One can also do model comparison by clicking the `Compare Mode` checkbox, and add new models and servers to each left and right models for a view like:
+
+![Model Compare](models_compare.png)
