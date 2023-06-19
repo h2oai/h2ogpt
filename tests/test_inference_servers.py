@@ -6,6 +6,7 @@ from datetime import datetime
 import pytest
 
 from client_test import run_client_many
+from enums import PromptType
 from tests.test_langchain_units import have_openai_key
 from tests.utils import wrap_test_forked
 
@@ -53,7 +54,7 @@ def test_gradio_inference_server(prompt='Who are you?', stream_output=False, max
     print("DONE", flush=True)
 
 
-def run_docker(inf_port):
+def run_docker(inf_port, base_model):
     datetime_str = str(datetime.now()).replace(" ", "_").replace(":", "_")
     msg = "Starting HF inference %s..." % datetime_str
     print(msg, flush=True)
@@ -67,7 +68,7 @@ def run_docker(inf_port):
                         '-v', '%s/.cache:/.cache/' % home_dir,
                         '-v', '%s:/data' % data_dir,
                         'ghcr.io/huggingface/text-generation-inference:0.8.2',
-                        '--model-id', 'h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2',
+                        '--model-id', base_model,
                         '--max-input-length', '2048',
                         '--max-total-tokens', '3072',
                         ]
@@ -80,11 +81,20 @@ def run_docker(inf_port):
 
 
 @wrap_test_forked
-def test_hf_inference_server(prompt='Who are you?', stream_output=False, max_new_tokens=256,
-                             base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b', prompt_type='human_bot',
+@pytest.mark.parametrize("base_model",
+                         # FIXME: Can't get 6.9 or 12b (quantized or not) to work on home system, so do falcon only for now
+                         # ['h2oai/h2ogpt-oig-oasst1-512-6_9b', 'h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2']
+                         ['h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2']
+                         )
+def test_hf_inference_server(base_model,
+                             prompt='Who are you?', stream_output=False, max_new_tokens=256,
                              langchain_mode='Disabled', user_path=None,
                              visible_langchain_modes=['UserData', 'MyData'],
                              reverse_docs=True):
+    if base_model in ['h2oai/h2ogpt-oig-oasst1-512-6_9b', 'h2oai/h2ogpt-oasst1-512-12b']:
+        prompt_type = PromptType.human_bot.name
+    else:
+        prompt_type = PromptType.prompt_answer.name
     main_kwargs = dict(base_model=base_model, prompt_type=prompt_type, chat=True,
                        stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
                        max_new_tokens=max_new_tokens,
@@ -94,8 +104,8 @@ def test_hf_inference_server(prompt='Who are you?', stream_output=False, max_new
 
     # HF inference server
     inf_port = "6112"
-    inf_pid = run_docker(inf_port=inf_port)
-    time.sleep(30)
+    inf_pid = run_docker(inf_port, base_model)
+    time.sleep(60)
 
     try:
         # server that consumes inference server
@@ -113,15 +123,28 @@ def test_hf_inference_server(prompt='Who are you?', stream_output=False, max_new
 
         # will use HOST from above
         ret1, ret2, ret3, ret4, ret5, ret6, ret7 = run_client_many()
-        # FIXME: not h2oGPT response
-        # AssertionError: assert 'h2oGPT' in 'I am a language model trained to respond to your questions and provide information.'
-        assert 'h2oGPT' in ret1['response']
-        assert 'Birds' in ret2['response']
-        assert 'Birds' in ret3['response']
-        assert 'h2oGPT' in ret4['response']
-        assert 'h2oGPT' in ret5['response']
-        assert 'h2oGPT' in ret6['response']
-        assert 'h2oGPT' in ret7['response']
+        # here docker started with falcon before personalization
+        if base_model == 'h2oai/h2ogpt-oig-oasst1-512-6_9b':
+            assert 'h2oGPT' in ret1['response']
+            assert 'Birds' in ret2['response']
+            assert 'Birds' in ret3['response']
+            assert 'h2oGPT' in ret4['response']
+            assert 'h2oGPT' in ret5['response']
+            assert 'h2oGPT' in ret6['response']
+            assert 'h2oGPT' in ret7['response']
+        else:
+            assert 'I am a language model trained' in ret1['response'] or 'I am an AI language model developed by' in \
+                   ret1['response']
+            assert 'Once upon a time' in ret2['response']
+            assert 'Once upon a time' in ret3['response']
+            assert 'I am a language model trained' in ret4['response'] or 'I am an AI language model developed by' in \
+                   ret4['response']
+            assert 'I am a language model trained' in ret5['response'] or 'I am an AI language model developed by' in \
+                   ret5['response']
+            assert 'I am a language model trained' in ret6['response'] or 'I am an AI language model developed by' in \
+                   ret6['response']
+            assert 'I am a language model trained' in ret7['response'] or 'I am an AI language model developed by' in \
+                   ret7['response']
         print("DONE", flush=True)
     finally:
         # take down docker server
