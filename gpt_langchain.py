@@ -1,3 +1,4 @@
+import ast
 import glob
 import inspect
 import os
@@ -6,6 +7,7 @@ import pickle
 import shutil
 import subprocess
 import tempfile
+import time
 import traceback
 import types
 import uuid
@@ -271,6 +273,154 @@ from pydantic import Extra, Field, root_validator
 
 from langchain.callbacks.manager import CallbackManagerForLLMRun
 
+"""Wrapper around Huggingface text generation inference API."""
+from functools import partial
+from typing import Any, Dict, List, Optional
+
+from pydantic import Extra, Field, root_validator
+
+from langchain.callbacks.manager import CallbackManagerForLLMRun
+from langchain.llms.base import LLM
+
+
+class GradioInference(LLM):
+    inference_server_url: str = ""
+
+    temperature: float = 0.8
+    top_p: Optional[float] = 0.95
+    top_k: Optional[int] = None
+    num_beams: Optional[int] = 1
+    max_new_tokens: int = 512
+    min_new_tokens: int = 1
+    early_stopping: bool = False
+    max_time: int = 180
+    repetition_penalty: Optional[float] = None
+    num_return_sequences: Optional[int] = 1
+    do_sample: bool = False
+    chat_client: bool = False
+
+    return_full_text: bool = True
+    stream: bool = False
+    sanitize_bot_response: bool = False
+
+    prompter: Any = None
+    client: Any = None
+
+    class Config:
+        """Configuration for this pydantic object."""
+
+        extra = Extra.forbid
+
+    @root_validator()
+    def validate_environment(cls, values: Dict) -> Dict:
+        """Validate that python package exists in environment."""
+
+        try:
+            if values['client'] is None:
+                import gradio_client
+                values["client"] = gradio_client.Client(
+                    values["inference_server_url"]
+                )
+        except ImportError:
+            raise ImportError(
+                "Could not import gradio_client python package. "
+                "Please install it with `pip install gradio_client`."
+            )
+        return values
+
+    @property
+    def _llm_type(self) -> str:
+        """Return type of llm."""
+        return "hf_textgen_inference"
+
+    def _call(
+            self,
+            prompt: str,
+            stop: Optional[List[str]] = None,
+            run_manager: Optional[CallbackManagerForLLMRun] = None,
+            **kwargs: Any,
+    ) -> str:
+        stream_output = self.stream
+        gr_client = self.client
+        client_langchain_mode = 'Disabled'
+        top_k_docs = 1
+        chunk = True
+        chunk_size = 512
+        client_kwargs = dict(instruction=prompt if self.chat_client else '',  # only for chat=True
+                             iinput='',  # only for chat=True
+                             context='',
+                             # streaming output is supported, loops over and outputs each generation in streaming mode
+                             # but leave stream_output=False for simple input/output mode
+                             stream_output=stream_output,
+                             prompt_type=self.prompter.prompt_type,
+                             prompt_dict='',
+
+                             temperature=self.temperature,
+                             top_p=self.top_p,
+                             top_k=self.top_k,
+                             num_beams=self.num_beams,
+                             max_new_tokens=self.max_new_tokens,
+                             min_new_tokens=self.min_new_tokens,
+                             early_stopping=self.early_stopping,
+                             max_time=self.max_time,
+                             repetition_penalty=self.repetition_penalty,
+                             num_return_sequences=self.num_return_sequences,
+                             do_sample=self.do_sample,
+                             chat=self.chat_client,
+
+                             instruction_nochat=prompt if not self.chat_client else '',
+                             iinput_nochat='',  # only for chat=False
+                             langchain_mode=client_langchain_mode,
+                             top_k_docs=top_k_docs,
+                             chunk=chunk,
+                             chunk_size=chunk_size,
+                             document_choice=[DocumentChoices.All_Relevant.name],
+                             )
+        api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
+        if not stream_output:
+            res = gr_client.predict(str(dict(client_kwargs)), api_name=api_name)
+            res_dict = ast.literal_eval(res)
+            text = res_dict['response']
+            return self.prompter.get_response(prompt + text, prompt=prompt,
+                                              sanitize_bot_response=self.sanitize_bot_response)
+        else:
+            text_callback = None
+            if run_manager:
+                text_callback = partial(
+                    run_manager.on_llm_new_token, verbose=self.verbose
+                )
+
+            job = gr_client.submit(str(dict(client_kwargs)), api_name=api_name)
+            text0 = ''
+            while not job.done():
+                outputs_list = job.communicator.job.outputs
+                if outputs_list:
+                    res = job.communicator.job.outputs[-1]
+                    res_dict = ast.literal_eval(res)
+                    text = res_dict['response']
+                    text = self.prompter.get_response(prompt + text, prompt=prompt,
+                                                      sanitize_bot_response=self.sanitize_bot_response)
+                    # FIXME: derive chunk from full for now
+                    text_chunk = text[len(text0):]
+                    # save old
+                    text0 = text
+
+                    if text_callback:
+                        text_callback(text_chunk)
+
+                time.sleep(0.01)
+
+            # ensure get last output to avoid race
+            res = job.outputs()[-1]
+            res_dict = ast.literal_eval(res)
+            text = res_dict['response']
+            # FIXME: derive chunk from full for now
+            text_chunk = text[len(text0):]
+            if text_callback:
+                text_callback(text_chunk)
+            return self.prompter.get_response(prompt + text, prompt=prompt,
+                                              sanitize_bot_response=self.sanitize_bot_response)
+
 
 class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
     max_new_tokens: int = 512
@@ -287,8 +437,26 @@ class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
     timeout: int = 120
     stream: bool = False
     sanitize_bot_response: bool = False
-    prompter: Any
-    client: Any
+    prompter: Any = None
+    client: Any = None
+
+    @root_validator()
+    def validate_environment(cls, values: Dict) -> Dict:
+        """Validate that python package exists in environment."""
+
+        try:
+            if values['client'] is None:
+                import text_generation
+
+                values["client"] = text_generation.Client(
+                    values["inference_server_url"], timeout=values["timeout"]
+                )
+        except ImportError:
+            raise ImportError(
+                "Could not import text_generation python package. "
+                "Please install it with `pip install text_generation`."
+            )
+        return values
 
     def _call(
             self,
@@ -418,26 +586,67 @@ def get_llm(use_openai_model=False,
     elif inference_server:
         assert inference_server.startswith('http'), "Malformed inference_server=%s" % inference_server
 
+        from gradio_client import Client as GradioClient
+        from text_generation import Client as HFClient
+        if isinstance(model, GradioClient):
+            gr_client = model
+            hf_client = None
+        else:
+            gr_client = None
+            hf_client = model
+            assert isinstance(hf_client, HFClient)
+
         callbacks = [streaming_stdout.StreamingStdOutCallbackHandler(), StreamingGradioCallbackHandler()]
         assert prompter is not None
         stop_sequences = prompter.terminate_response + [prompter.PreResponse]
-        llm = H2OHuggingFaceTextGenInference(
-            inference_server_url=inference_server,
-            do_sample=do_sample,
-            max_new_tokens=max_new_tokens,
-            repetition_penalty=repetition_penalty,
-            return_full_text=True,
-            seed=SEED,
-            stop_sequences=stop_sequences,
-            temperature=temperature,
-            top_k=top_k,
-            top_p=top_p,
-            # typical_p=top_p,
-            callbacks=callbacks if stream_output else None,
-            stream=stream_output,
-            prompter=prompter,
-            sanitize_bot_response=sanitize_bot_response,
-        )
+
+        if gr_client:
+            chat_client = False
+            llm = GradioInference(
+                inference_server_url=inference_server,
+                return_full_text=True,
+
+                temperature=temperature,
+                top_p=top_p,
+                top_k=top_k,
+                num_beams=num_beams,
+                max_new_tokens=max_new_tokens,
+                min_new_tokens=min_new_tokens,
+                early_stopping=early_stopping,
+                max_time=max_time,
+                repetition_penalty=repetition_penalty,
+                num_return_sequences=num_return_sequences,
+                do_sample=do_sample,
+                chat_client=chat_client,
+
+                callbacks=callbacks if stream_output else None,
+                stream=stream_output,
+                prompter=prompter,
+                client=gr_client,
+                sanitize_bot_response=sanitize_bot_response,
+            )
+        elif hf_client:
+            llm = H2OHuggingFaceTextGenInference(
+                inference_server_url=inference_server,
+                do_sample=do_sample,
+                max_new_tokens=max_new_tokens,
+                repetition_penalty=repetition_penalty,
+                return_full_text=True,
+                seed=SEED,
+
+                stop_sequences=stop_sequences,
+                temperature=temperature,
+                top_k=top_k,
+                top_p=top_p,
+                # typical_p=top_p,
+                callbacks=callbacks if stream_output else None,
+                stream=stream_output,
+                prompter=prompter,
+                client=hf_client,
+                sanitize_bot_response=sanitize_bot_response,
+            )
+        else:
+            raise RuntimeError("No defined client")
         streamer = callbacks[1] if stream_output else None
     elif model_name in non_hf_types:
         callbacks = [streaming_stdout.StreamingStdOutCallbackHandler(), StreamingGradioCallbackHandler()]

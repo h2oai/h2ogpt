@@ -1351,6 +1351,7 @@ def evaluate(
                                  stream_output=stream_output,
                                  prompt_type=prompt_type,
                                  prompt_dict='',
+
                                  temperature=temperature,
                                  top_p=top_p,
                                  top_k=top_k,
@@ -1363,6 +1364,7 @@ def evaluate(
                                  num_return_sequences=num_return_sequences,
                                  do_sample=do_sample,
                                  chat=chat_client,
+
                                  instruction_nochat=prompt if not chat_client else '',
                                  iinput_nochat='',  # only for chat=False
                                  langchain_mode=client_langchain_mode,

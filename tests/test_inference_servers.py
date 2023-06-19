@@ -12,11 +12,27 @@ from tests.utils import wrap_test_forked
 
 
 @wrap_test_forked
-def test_gradio_inference_server(prompt='Who are you?', stream_output=False, max_new_tokens=256,
-                                 base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b', prompt_type='human_bot',
+@pytest.mark.parametrize("base_model",
+                         ['h2oai/h2ogpt-oig-oasst1-512-6_9b',
+                          'h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2',
+                          'llama', 'gptj']
+                         )
+def test_gradio_inference_server(base_model,
+                                 prompt='Who are you?', stream_output=False, max_new_tokens=256,
                                  langchain_mode='Disabled', user_path=None,
                                  visible_langchain_modes=['UserData', 'MyData'],
                                  reverse_docs=True):
+    if base_model in ['h2oai/h2ogpt-oig-oasst1-512-6_9b', 'h2oai/h2ogpt-oasst1-512-12b']:
+        prompt_type = PromptType.human_bot.name
+    elif base_model in ['h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2']:
+        prompt_type = PromptType.prompt_answer.name
+    elif base_model in ['llama']:
+        prompt_type = PromptType.wizard2.name
+    elif base_model in ['gptj']:
+        prompt_type = PromptType.gptj.name
+    else:
+        raise NotImplementedError(base_model)
+
     main_kwargs = dict(base_model=base_model, prompt_type=prompt_type, chat=True,
                        stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
                        max_new_tokens=max_new_tokens,
@@ -44,13 +60,43 @@ def test_gradio_inference_server(prompt='Who are you?', stream_output=False, max
 
     # will use HOST from above
     ret1, ret2, ret3, ret4, ret5, ret6, ret7 = run_client_many()
-    assert 'h2oGPT' in ret1['response']
-    assert 'Birds' in ret2['response']
-    assert 'Birds' in ret3['response']
-    assert 'h2oGPT' in ret4['response']
-    assert 'h2oGPT' in ret5['response']
-    assert 'h2oGPT' in ret6['response']
-    assert 'h2oGPT' in ret7['response']
+    if base_model == 'h2oai/h2ogpt-oig-oasst1-512-6_9b':
+        assert 'h2oGPT' in ret1['response']
+        assert 'Birds' in ret2['response']
+        assert 'Birds' in ret3['response']
+        assert 'h2oGPT' in ret4['response']
+        assert 'h2oGPT' in ret5['response']
+        assert 'h2oGPT' in ret6['response']
+        assert 'h2oGPT' in ret7['response']
+    elif base_model == 'h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2':
+        assert 'I am a language model trained' in ret1['response'] or 'I am an AI language model developed by' in \
+               ret1['response'] or 'I am a chatbot.' in ret1['response']
+        assert 'Once upon a time' in ret2['response']
+        assert 'Once upon a time' in ret3['response']
+        assert 'I am a language model trained' in ret4['response'] or 'I am an AI language model developed by' in \
+               ret4['response'] or 'I am a chatbot.' in ret4['response']
+        assert 'I am a language model trained' in ret5['response'] or 'I am an AI language model developed by' in \
+               ret5['response'] or 'I am a chatbot.' in ret5['response']
+        assert 'I am a language model trained' in ret6['response'] or 'I am an AI language model developed by' in \
+               ret6['response'] or 'I am a chatbot.' in ret6['response']
+        assert 'I am a language model trained' in ret7['response'] or 'I am an AI language model developed by' in \
+               ret7['response'] or 'I am a chatbot.' in ret7['response']
+    elif base_model == 'llama':
+        assert 'I am a bot.' in ret1['response'] or 'can I assist you today?' in ret1['response']
+        assert 'Birds' in ret2['response'] or 'Once upon a time' in ret2['response']
+        assert 'Birds' in ret3['response'] or 'Once upon a time' in ret3['response']
+        assert 'I am a bot.' in ret4['response'] or 'can I assist you today?' in ret4['response']
+        assert 'I am a bot.' in ret5['response'] or 'can I assist you today?' in ret5['response']
+        assert 'I am a bot.' in ret6['response'] or 'can I assist you today?' in ret6['response']
+        assert 'I am a bot.' in ret7['response'] or 'can I assist you today?' in ret7['response']
+    elif base_model == 'gptj':
+        assert 'I am a bot.' in ret1['response'] or 'can I assist you today?' in ret1['response']
+        assert 'Birds' in ret2['response'] or 'Once upon a time' in ret2['response']
+        assert 'Birds' in ret3['response'] or 'Once upon a time' in ret3['response']
+        assert 'I am a bot.' in ret4['response'] or 'can I assist you today?' in ret4['response']
+        assert 'I am a bot.' in ret5['response'] or 'can I assist you today?' in ret5['response']
+        assert 'I am a bot.' in ret6['response'] or 'can I assist you today?' in ret6['response']
+        assert 'I am a bot.' in ret7['response'] or 'can I assist you today?' in ret7['response']
     print("DONE", flush=True)
 
 
