@@ -110,7 +110,7 @@ When using `generate.py`, specifying the `--base_model` or `--inference_server` 
 
 ![Add Model](model_add.png)
 
-Enter the mode name as the same name one would use for `--base_model` and enter the server url:port as the same url (optional port) one would use for `--inference_server`.  Then click `Add new Model, Lora, Server url:port` button.  This adds that to the drop-down selection, and then one can load the model by clicking "Load-Unload" model button.
+Enter the mode name as the same name one would use for `--base_model` and enter the server url:port as the same url (optional port) one would use for `--inference_server`.  Then click `Add new Model, Lora, Server url:port` button.  This adds that to the drop-down selection, and then one can load the model by clicking "Load-Unload" model button.  For an inference server, the `Load 8-bit`, `Choose Devices`, `LORA`, and `GPU ID` buttons or selections are not applicable.
 
 One can also do model comparison by clicking the `Compare Mode` checkbox, and add new models and servers to each left and right models for a view like:
 
