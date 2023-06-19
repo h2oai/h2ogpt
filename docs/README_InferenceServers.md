@@ -28,16 +28,26 @@ sudo apt-get install libssl-dev gcc -y
 
 Use `BUILD_EXTENSIONS=False` instead of have GPUs below A100.
 ```bash
+conda create -n textgen -y
+conda activate textgen
+conda install python=3.10 -y
 CUDA_HOME=/usr/local/cuda-11.7 BUILD_EXTENSIONS=True make install # Install repository and HF/transformer fork with CUDA kernels
+# FIXME: FAILS with lower launcher with flash attn
+CUDA_HOME=/usr/local/cuda-11.7 pip install flash_attn
+# FIXME: FAILS to build
 ```
 
 ```bash
-CUDA_VISIBLE_DEVICES=0 text-generation-launcher --model-id h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2 --port 8080  --sharded false --trust-remote-code
+NCCL_SHM_DISABLE=1 CUDA_VISIBLE_DEVICES=0 text-generation-launcher --model-id h2oai/h2ogpt-oig-oasst1-512-6_9b --port 8080  --sharded false --trust-remote-code
 ```
 
 ### Docker Install:
 ```bash
-docker run --gpus device=0 --shm-size 1g -e TRANSFORMERS_CACHE="/.cache/" -p 6112:80 -v $HOME/.cache:/.cache/ -v $PWD/data:/data ghcr.io/huggingface/text-generation-inference:0.8 --model-id h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2 --max-input-length 2048 --max-total-tokens 3072
+docker run --gpus device=0 --net=host --shm-size 1g -e TRANSFORMERS_CACHE="/.cache/" -p 6112:80 -v $HOME/.cache:/.cache/ -v $HOME/.cache/huggingface/hub/:/data ghcr.io/huggingface/text-generation-inference:0.8.2 --model-id h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2 --max-input-length 2048 --max-total-tokens 3072
+```
+or
+```bash
+CUDA_VISIBLE_DEVICES=0,1,2 docker run --net=host --gpus all --shm-size 2g -e TRANSFORMERS_CACHE="/.cache/" -p 6112:80 -v $HOME/.cache:/.cache/ -v $HOME/.cache/huggingface/hub/:/data ghcr.io/huggingface/text-generation-inference:0.8.2 --model-id h2oai/h2ogpt-oasst1-512-12b --max-input-length 2048 --max-total-tokens 3072 --sharded=true --num-shard=3
 ```
 
 ### Testing
