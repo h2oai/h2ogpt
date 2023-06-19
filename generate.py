@@ -1286,7 +1286,10 @@ def evaluate(
             response = openai.ChatCompletion.create(
                 model=base_model,
                 messages=[
-                    {'role': 'user', 'content': prompt}
+                    {"role": "system", "content": "You are a helpful assistant."},
+                    {'role': 'user',
+                     'content': prompt,
+                     }
                 ],
                 stream=stream_output,
                 **openai_gen_kwargs,
