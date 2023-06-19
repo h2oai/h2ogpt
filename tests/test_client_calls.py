@@ -39,7 +39,7 @@ def test_client1api():
          stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False)
 
     from client_test import test_client_basic_api
-    res_dict = test_client_basic_api()
+    res_dict, _ = test_client_basic_api()
     assert res_dict['prompt'] == 'Who are you?'
     assert res_dict['iinput'] == ''
     assert 'I am h2oGPT' in res_dict['response'] or "I'm h2oGPT" in res_dict['response'] or 'I’m h2oGPT' in res_dict[
@@ -391,7 +391,7 @@ def test_client_long():
         prompt = f.readlines()
 
     from client_test import run_client_nochat
-    res_dict = run_client_nochat(prompt=prompt, prompt_type='plain', max_new_tokens=86000)
+    res_dict, _ = run_client_nochat(prompt=prompt, prompt_type='plain', max_new_tokens=86000)
     print(res_dict['response'])
 
 

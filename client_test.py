@@ -122,7 +122,7 @@ def run_client_nochat(prompt, prompt_type, max_new_tokens):
     res_dict = dict(prompt=kwargs['instruction_nochat'], iinput=kwargs['iinput_nochat'],
                     response=md_to_text(res))
     print(res_dict)
-    return res_dict
+    return res_dict, client
 
 
 @pytest.mark.skip(reason="For manual use against some server, no server launched")
@@ -144,7 +144,7 @@ def run_client_nochat_api(prompt, prompt_type, max_new_tokens):
                     response=md_to_text(ast.literal_eval(res)['response']),
                     sources=ast.literal_eval(res)['sources'])
     print(res_dict)
-    return res_dict
+    return res_dict, client
 
 
 @pytest.mark.skip(reason="For manual use against some server, no server launched")
@@ -166,7 +166,7 @@ def run_client_nochat_api_lean(prompt, prompt_type, max_new_tokens):
                     response=md_to_text(ast.literal_eval(res)['response']),
                     sources=ast.literal_eval(res)['sources'])
     print(res_dict)
-    return res_dict
+    return res_dict, client
 
 
 @pytest.mark.skip(reason="For manual use against some server, no server launched")
@@ -211,7 +211,7 @@ def run_client_nochat_api_lean_morestuff(prompt, prompt_type, max_new_tokens):
                     response=md_to_text(ast.literal_eval(res)['response']),
                     sources=ast.literal_eval(res)['sources'])
     print(res_dict)
-    return res_dict
+    return res_dict, client
 
 
 @pytest.mark.skip(reason="For manual use against some server, no server launched")
@@ -317,13 +317,14 @@ def md_to_text(md, do_md_to_text=True):
 
 
 def run_client_many():
-    test_client_chat()
-    test_client_chat_stream()
-    test_client_nochat_stream()
-    test_client_basic()
-    test_client_basic_api()
-    test_client_basic_api_lean()
-    test_client_basic_api_lean_morestuff()
+    ret1, _ = test_client_chat()
+    ret2, _ = test_client_chat_stream()
+    ret3, _ = test_client_nochat_stream()
+    ret4, _ = test_client_basic()
+    ret5, _ = test_client_basic_api()
+    ret6, _ = test_client_basic_api_lean()
+    ret7, _ = test_client_basic_api_lean_morestuff()
+    return ret1, ret2, ret3, ret4, ret5, ret6, ret7
 
 
 if __name__ == '__main__':
