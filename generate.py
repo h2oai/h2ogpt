@@ -682,6 +682,7 @@ def get_model(
         assert os.getenv('OPENAI_API_KEY'), "Set environment for OPENAI_API_KEY"
         # Don't return None, None for model, tokenizer so triggers
         return inference_server, inference_server, inference_server
+    assert not inference_server, "Malformed inference_server=%s" % inference_server
     if base_model in non_hf_types:
         from gpt4all_llm import get_model_tokenizer_gpt4all
         model, tokenizer, device = get_model_tokenizer_gpt4all(base_model)

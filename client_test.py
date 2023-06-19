@@ -316,7 +316,7 @@ def md_to_text(md, do_md_to_text=True):
     return soup.get_text()
 
 
-if __name__ == '__main__':
+def run_client_many():
     test_client_chat()
     test_client_chat_stream()
     test_client_nochat_stream()
@@ -324,3 +324,7 @@ if __name__ == '__main__':
     test_client_basic_api()
     test_client_basic_api_lean()
     test_client_basic_api_lean_morestuff()
+
+
+if __name__ == '__main__':
+    run_client_many()
