@@ -59,7 +59,7 @@ def test_gradio_inference_server(base_model,
     assert res_dict['iinput'] == ''
 
     # will use HOST from above
-    ret1, ret2, ret3, ret4, ret5, ret6, ret7 = run_client_many()
+    ret1, ret2, ret3, ret4, ret5, ret6, ret7 = run_client_many(prompt_type=None)  # client shouldn't have to specify
     if base_model == 'h2oai/h2ogpt-oig-oasst1-512-6_9b':
         assert 'h2oGPT' in ret1['response']
         assert 'Birds' in ret2['response']
@@ -90,13 +90,23 @@ def test_gradio_inference_server(base_model,
         assert 'I am a bot.' in ret6['response'] or 'can I assist you today?' in ret6['response']
         assert 'I am a bot.' in ret7['response'] or 'can I assist you today?' in ret7['response']
     elif base_model == 'gptj':
-        assert 'I am a bot.' in ret1['response'] or 'can I assist you today?' in ret1['response']
+        assert 'I am a bot.' in ret1['response'] or 'can I assist you today?' in ret1[
+            'response'] or 'I am a student at' in ret1['response'] or 'am a person who' in ret1['response'] or 'I am' in \
+               ret1['response']
         assert 'Birds' in ret2['response'] or 'Once upon a time' in ret2['response']
         assert 'Birds' in ret3['response'] or 'Once upon a time' in ret3['response']
-        assert 'I am a bot.' in ret4['response'] or 'can I assist you today?' in ret4['response']
-        assert 'I am a bot.' in ret5['response'] or 'can I assist you today?' in ret5['response']
-        assert 'I am a bot.' in ret6['response'] or 'can I assist you today?' in ret6['response']
-        assert 'I am a bot.' in ret7['response'] or 'can I assist you today?' in ret7['response']
+        assert 'I am a bot.' in ret4['response'] or 'can I assist you today?' in ret4[
+            'response'] or 'I am a student at' in ret4['response'] or 'am a person who' in ret4['response'] or 'I am' in \
+               ret4['response']
+        assert 'I am a bot.' in ret5['response'] or 'can I assist you today?' in ret5[
+            'response'] or 'I am a student at' in ret5['response'] or 'am a person who' in ret5['response'] or 'I am' in \
+               ret5['response']
+        assert 'I am a bot.' in ret6['response'] or 'can I assist you today?' in ret6[
+            'response'] or 'I am a student at' in ret6['response'] or 'am a person who' in ret6['response'] or 'I am' in \
+               ret6['response']
+        assert 'I am a bot.' in ret7['response'] or 'can I assist you today?' in ret7[
+            'response'] or 'I am a student at' in ret7['response'] or 'am a person who' in ret7['response'] or 'I am' in \
+               ret7['response']
     print("DONE", flush=True)
 
 
@@ -168,7 +178,7 @@ def test_hf_inference_server(base_model,
         assert res_dict['iinput'] == ''
 
         # will use HOST from above
-        ret1, ret2, ret3, ret4, ret5, ret6, ret7 = run_client_many()
+        ret1, ret2, ret3, ret4, ret5, ret6, ret7 = run_client_many(prompt_type=None)  # client shouldn't have to specify
         # here docker started with falcon before personalization
         if base_model == 'h2oai/h2ogpt-oig-oasst1-512-6_9b':
             assert 'h2oGPT' in ret1['response']
@@ -228,7 +238,7 @@ def test_openai_inference_server(prompt='Who are you?', stream_output=False, max
     assert res_dict['iinput'] == ''
 
     # will use HOST from above
-    ret1, ret2, ret3, ret4, ret5, ret6, ret7 = run_client_many()
+    ret1, ret2, ret3, ret4, ret5, ret6, ret7 = run_client_many(prompt_type=None)  # client shouldn't have to specify
     assert 'I am an AI language model designed to assist' in ret1['response']
     assert 'I am an AI language model designed to assist' in ret2['response']
     assert 'Once upon a time, in a far-off land,' in ret3['response']

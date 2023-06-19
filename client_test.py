@@ -105,8 +105,8 @@ def get_args(prompt, prompt_type, chat=False, stream_output=False,
 
 
 @pytest.mark.skip(reason="For manual use against some server, no server launched")
-def test_client_basic():
-    return run_client_nochat(prompt='Who are you?', prompt_type='human_bot', max_new_tokens=50)
+def test_client_basic(prompt_type='human_bot'):
+    return run_client_nochat(prompt='Who are you?', prompt_type=prompt_type, max_new_tokens=50)
 
 
 def run_client_nochat(prompt, prompt_type, max_new_tokens):
@@ -126,8 +126,8 @@ def run_client_nochat(prompt, prompt_type, max_new_tokens):
 
 
 @pytest.mark.skip(reason="For manual use against some server, no server launched")
-def test_client_basic_api():
-    return run_client_nochat_api(prompt='Who are you?', prompt_type='human_bot', max_new_tokens=50)
+def test_client_basic_api(prompt_type='human_bot'):
+    return run_client_nochat_api(prompt='Who are you?', prompt_type=prompt_type, max_new_tokens=50)
 
 
 def run_client_nochat_api(prompt, prompt_type, max_new_tokens):
@@ -148,8 +148,8 @@ def run_client_nochat_api(prompt, prompt_type, max_new_tokens):
 
 
 @pytest.mark.skip(reason="For manual use against some server, no server launched")
-def test_client_basic_api_lean():
-    return run_client_nochat_api_lean(prompt='Who are you?', prompt_type='human_bot', max_new_tokens=50)
+def test_client_basic_api_lean(prompt_type='human_bot'):
+    return run_client_nochat_api_lean(prompt='Who are you?', prompt_type=prompt_type, max_new_tokens=50)
 
 
 def run_client_nochat_api_lean(prompt, prompt_type, max_new_tokens):
@@ -170,17 +170,17 @@ def run_client_nochat_api_lean(prompt, prompt_type, max_new_tokens):
 
 
 @pytest.mark.skip(reason="For manual use against some server, no server launched")
-def test_client_basic_api_lean_morestuff():
-    return run_client_nochat_api_lean_morestuff(prompt='Who are you?', prompt_type='human_bot', max_new_tokens=50)
+def test_client_basic_api_lean_morestuff(prompt_type='human_bot'):
+    return run_client_nochat_api_lean_morestuff(prompt='Who are you?', prompt_type=prompt_type, max_new_tokens=50)
 
 
-def run_client_nochat_api_lean_morestuff(prompt, prompt_type, max_new_tokens):
+def run_client_nochat_api_lean_morestuff(prompt, prompt_type='human_bot', max_new_tokens=512):
     kwargs = dict(
         instruction='',
         iinput='',
         context='',
         stream_output=False,
-        prompt_type='human_bot',
+        prompt_type=prompt_type,
         temperature=0.1,
         top_p=0.75,
         top_k=40,
@@ -215,14 +215,14 @@ def run_client_nochat_api_lean_morestuff(prompt, prompt_type, max_new_tokens):
 
 
 @pytest.mark.skip(reason="For manual use against some server, no server launched")
-def test_client_chat():
-    return run_client_chat(prompt='Who are you?', prompt_type='human_bot', stream_output=False, max_new_tokens=50,
+def test_client_chat(prompt_type='human_bot'):
+    return run_client_chat(prompt='Who are you?', prompt_type=prompt_type, stream_output=False, max_new_tokens=50,
                            langchain_mode='Disabled')
 
 
 @pytest.mark.skip(reason="For manual use against some server, no server launched")
-def test_client_chat_stream():
-    return run_client_chat(prompt="Tell a very long kid's story about birds.", prompt_type='human_bot',
+def test_client_chat_stream(prompt_type='human_bot'):
+    return run_client_chat(prompt="Tell a very long kid's story about birds.", prompt_type=prompt_type,
                            stream_output=True, max_new_tokens=512,
                            langchain_mode='Disabled')
 
@@ -270,8 +270,8 @@ def run_client(client, prompt, args, kwargs, do_md_to_text=True, verbose=False):
 
 
 @pytest.mark.skip(reason="For manual use against some server, no server launched")
-def test_client_nochat_stream():
-    return run_client_nochat_gen(prompt="Tell a very long kid's story about birds.", prompt_type='human_bot',
+def test_client_nochat_stream(prompt_type='human_bot'):
+    return run_client_nochat_gen(prompt="Tell a very long kid's story about birds.", prompt_type=prompt_type,
                                  stream_output=True, max_new_tokens=512,
                                  langchain_mode='Disabled')
 
@@ -316,14 +316,14 @@ def md_to_text(md, do_md_to_text=True):
     return soup.get_text()
 
 
-def run_client_many():
-    ret1, _ = test_client_chat()
-    ret2, _ = test_client_chat_stream()
-    ret3, _ = test_client_nochat_stream()
-    ret4, _ = test_client_basic()
-    ret5, _ = test_client_basic_api()
-    ret6, _ = test_client_basic_api_lean()
-    ret7, _ = test_client_basic_api_lean_morestuff()
+def run_client_many(prompt_type='human_bot'):
+    ret1, _ = test_client_chat(prompt_type=prompt_type)
+    ret2, _ = test_client_chat_stream(prompt_type=prompt_type)
+    ret3, _ = test_client_nochat_stream(prompt_type=prompt_type)
+    ret4, _ = test_client_basic(prompt_type=prompt_type)
+    ret5, _ = test_client_basic_api(prompt_type=prompt_type)
+    ret6, _ = test_client_basic_api_lean(prompt_type=prompt_type)
+    ret7, _ = test_client_basic_api_lean_morestuff(prompt_type=prompt_type)
     return ret1, ret2, ret3, ret4, ret5, ret6, ret7
 
 

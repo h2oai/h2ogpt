@@ -954,6 +954,11 @@ def go_gradio(**kwargs):
             input1 = args_list[eval_func_param_names.index('iinput')]  # chat only
             context1 = args_list[eval_func_param_names.index('context')]
             prompt_type1 = args_list[eval_func_param_names.index('prompt_type')]
+            if not prompt_type1:
+                # shouldn't have to specify if CLI launched model
+                prompt_type1 = kwargs['prompt_type']
+                # apply back
+                args_list[eval_func_param_names.index('prompt_type')] = prompt_type1
             prompt_dict1 = args_list[eval_func_param_names.index('prompt_dict')]
             chat1 = args_list[eval_func_param_names.index('chat')]
             stream_output1 = args_list[eval_func_param_names.index('stream_output')]
@@ -1079,6 +1084,11 @@ def go_gradio(**kwargs):
                 yield history, ''
                 return
             prompt_type1 = args_list[eval_func_param_names.index('prompt_type')]
+            if not prompt_type1:
+                # shouldn't have to specify if CLI launched model
+                prompt_type1 = kwargs['prompt_type']
+                # apply back
+                args_list[eval_func_param_names.index('prompt_type')] = prompt_type1
             prompt_dict1 = args_list[eval_func_param_names.index('prompt_dict')]
             chat1 = args_list[eval_func_param_names.index('chat')]
             model_max_length1 = get_model_max_length(model_state1)

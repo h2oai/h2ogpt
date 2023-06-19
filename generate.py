@@ -1170,6 +1170,14 @@ def evaluate(
         instruction = instruction_nochat
         iinput = iinput_nochat
 
+    # in some cases, like lean nochat API, don't want to force sending prompt_type, allow default choice
+    model_lower = base_model.lower()
+    if not prompt_type and model_lower in inv_prompt_type_to_model_lower:
+        prompt_type = inv_prompt_type_to_model_lower[model_lower]
+        if verbose:
+            print("Auto-selecting prompt_type=%s for %s" % (prompt_type, model_lower), flush=True)
+    assert prompt_type is not None, "prompt_type was None"
+
     if not context:
         # get hidden context if have one
         context = get_context(chat_context, prompt_type)
