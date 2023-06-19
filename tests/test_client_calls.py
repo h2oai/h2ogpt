@@ -161,10 +161,10 @@ def test_client_chat_stream():
 
 
 def run_client_nochat_with_server(prompt='Who are you?', stream_output=False, max_new_tokens=256,
-                                base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b', prompt_type='human_bot',
-                                langchain_mode='Disabled', user_path=None,
-                                visible_langchain_modes=['UserData', 'MyData'],
-                                reverse_docs=True):
+                                  base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b', prompt_type='human_bot',
+                                  langchain_mode='Disabled', user_path=None,
+                                  visible_langchain_modes=['UserData', 'MyData'],
+                                  reverse_docs=True):
     import os, sys
     if langchain_mode == 'Disabled':
         os.environ['TEST_LANGCHAIN_IMPORT'] = "1"
@@ -182,7 +182,7 @@ def run_client_nochat_with_server(prompt='Who are you?', stream_output=False, ma
     from client_test import run_client_nochat_gen
     res_dict, client = run_client_nochat_gen(prompt=prompt, prompt_type='human_bot',
                                              stream_output=stream_output,
-                                       max_new_tokens=max_new_tokens, langchain_mode=langchain_mode)
+                                             max_new_tokens=max_new_tokens, langchain_mode=langchain_mode)
     assert 'Birds' in res_dict['response'] or ' and can learn new things' in res_dict['response']
     return res_dict, client
 
