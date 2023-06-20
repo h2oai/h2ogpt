@@ -284,6 +284,9 @@ from langchain.llms.base import LLM
 
 
 class GradioInference(LLM):
+    """
+    Gradio generation inference API.
+    """
     inference_server_url: str = ""
 
     temperature: float = 0.8
