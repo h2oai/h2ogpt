@@ -571,7 +571,7 @@ def get_llm(use_openai_model=False,
             cls = OpenAI
         else:
             cls = H2OChatOpenAI
-        callbacks = [streaming_stdout.StreamingStdOutCallbackHandler(), StreamingGradioCallbackHandler()]
+        callbacks = [StreamingGradioCallbackHandler()]
         llm = cls(model_name=model_name,
                   temperature=temperature if do_sample else 0,
                   max_tokens=max_new_tokens,
@@ -580,7 +580,7 @@ def get_llm(use_openai_model=False,
                   presence_penalty=1.07 - repetition_penalty + 0.6,  # so good default
                   callbacks=callbacks if stream_output else None,
                   )
-        streamer = callbacks[1] if stream_output else None
+        streamer = callbacks[0] if stream_output else None
         if inference_server in ['openai', 'openai_chat']:
             prompt_type = inference_server
         else:
@@ -598,7 +598,7 @@ def get_llm(use_openai_model=False,
             hf_client = model
             assert isinstance(hf_client, HFClient)
 
-        callbacks = [streaming_stdout.StreamingStdOutCallbackHandler(), StreamingGradioCallbackHandler()]
+        callbacks = [StreamingGradioCallbackHandler()]
         assert prompter is not None
         stop_sequences = prompter.terminate_response + [prompter.PreResponse]
 
@@ -649,9 +649,17 @@ def get_llm(use_openai_model=False,
             )
         else:
             raise RuntimeError("No defined client")
-        streamer = callbacks[1] if stream_output else None
+        streamer = callbacks[0] if stream_output else None
     elif model_name in non_hf_types:
-        callbacks = [streaming_stdout.StreamingStdOutCallbackHandler(), StreamingGradioCallbackHandler()]
+        if model_name == 'llama':
+            callbacks = [StreamingGradioCallbackHandler()]
+            streamer = callbacks[0] if stream_output else None
+        else:
+            #stream_output = False
+            # doesn't stream properly as generator, but at least
+            callbacks = [streaming_stdout.StreamingStdOutCallbackHandler()]
+            streamer = None
+        prompt_type = prompter.prompt_type
         from gpt4all_llm import get_llm_gpt4all
         llm = get_llm_gpt4all(model_name, model=model, max_new_tokens=max_new_tokens,
                               temperature=temperature,
@@ -663,8 +671,6 @@ def get_llm(use_openai_model=False,
                               streaming=stream_output,
                               prompter=prompter,
                               )
-        streamer = callbacks[1] if stream_output else None
-        prompt_type = 'plain'
     else:
         if model is None:
             # only used if didn't pass model in
