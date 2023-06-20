@@ -535,7 +535,7 @@ from langchain.chat_models import ChatOpenAI
 class H2OChatOpenAI(ChatOpenAI):
     @classmethod
     def all_required_field_names(cls) -> Set:
-        all_required_field_names = super().all_required_field_names()
+        all_required_field_names = super(ChatOpenAI, cls).all_required_field_names()
         all_required_field_names.update({'top_p', 'frequency_penalty', 'presence_penalty'})
         return all_required_field_names
 
@@ -564,6 +564,8 @@ def get_llm(use_openai_model=False,
             verbose=False,
             ):
     if use_openai_model or inference_server in ['openai', 'openai_chat']:
+        if use_openai_model and model_name is None:
+            model_name = "gpt-3.5-turbo"
         if inference_server == 'openai':
             from langchain.llms import OpenAI
             cls = OpenAI
@@ -576,7 +578,7 @@ def get_llm(use_openai_model=False,
                   top_p=top_p if do_sample else 1,
                   frequency_penalty=0,
                   presence_penalty=1.07 - repetition_penalty + 0.6,  # so good default
-                  callbacks=callbacks,
+                  callbacks=callbacks if stream_output else None,
                   )
         streamer = callbacks[1] if stream_output else None
         if inference_server in ['openai', 'openai_chat']:
