@@ -248,9 +248,10 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'language model trained' in res_dict['response'] or
             'H2O GPT is a language model' in res_dict['response'] or
             'H2O GPT is a chatbot framework' in res_dict['response'] or
-            'H2O GPT is a chatbot that can be trained' in res_dict['response']
+            'H2O GPT is a chatbot that can be trained' in res_dict['response'] or
+            'A large language model (LLM)' in res_dict['response']
             ) \
-           and 'FAQ.md' in res_dict['response']
+           and ('FAQ.md' in res_dict['response'] or 'README.md' in res_dict['response'])
 
     # QUERY1
     prompt = "What is Whisper?"
@@ -268,9 +269,10 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'h2oGPT' in res_dict['response'] or
             'A secure, private, and anonymous chat platform' in res_dict['response'] or
             'Whisper is a privacy-preserving' in res_dict['response'] or
-            'A chatbot that uses a large language model' in res_dict['response']
+            'A chatbot that uses a large language model' in res_dict['response'] or
+            'This is a config file for Whisper' in res_dict['response']
             ) \
-           and 'README.md' in res_dict['response']
+           and ('FAQ.md' in res_dict['response'] or 'README.md' in res_dict['response'])
 
     # QUERY2
     prompt = "What is h2oGPT?"
@@ -303,7 +305,9 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'whisper is a tool for training language models' in res_dict['response'] or
             'whisper is a secure messaging app' in res_dict['response'] or
             'LLaMa-based models are not commercially viable' in res_dict['response'] or
-            'A text-based chatbot that' in res_dict['response']
+            'A text-based chatbot that' in res_dict['response'] or
+            'A secure, private, and anonymous chat service' in res_dict['response'] or
+            'LLaMa is a language' in res_dict['response']
             ) \
            and '.md' in res_dict['response']
 

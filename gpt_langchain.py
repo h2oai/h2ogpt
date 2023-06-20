@@ -717,7 +717,8 @@ def get_llm(use_openai_model=False,
                                          sanitize_bot_response=sanitize_bot_response,
                                          chat=False, stream_output=stream_output,
                                          tokenizer=tokenizer,
-                                         max_input_tokens=max_max_tokens - max_new_tokens,
+                                         # leave some room for 1 paragraph, even if min_new_tokens=0
+                                         max_input_tokens=max_max_tokens - max(min_new_tokens, 256),
                                          **gen_kwargs)
         # pipe.task = "text-generation"
         # below makes it listen only to our prompt removal,
@@ -1968,15 +1969,23 @@ def get_similarity_chain(query=None,
                     max_input_tokens = llm.pipeline.max_input_tokens
                 elif inference_server in ['openai']:
                     max_tokens = llm.modelname_to_contextsize(model_name)
+                    # leave some room for 1 paragraph, even if min_new_tokens=0
                     max_input_tokens = max_tokens - 256
                 elif inference_server in ['openai_chat']:
                     max_tokens = model_token_mapping[model_name]
+                    # leave some room for 1 paragraph, even if min_new_tokens=0
                     max_input_tokens = max_tokens - 256
                 else:
+                    # leave some room for 1 paragraph, even if min_new_tokens=0
                     max_input_tokens = 2048 - 256
                 max_input_tokens -= template_tokens
                 # FIXME: Doesn't account for query, == context, or new lines between contexts
-                top_k_docs_trial = np.where(tokens_cumsum < max_input_tokens)[0][-1]
+                where_res = np.where(tokens_cumsum < max_input_tokens)[0]
+                if where_res.shape[0] > 0:
+                    # then no chunk can fit, still do first one
+                    top_k_docs_trial = 1
+                else:
+                    top_k_docs_trial = where_res[-1]
                 if 0 < top_k_docs_trial < max_chunks:
                     # avoid craziness
                     if top_k_docs == -1:

@@ -1542,7 +1542,8 @@ def evaluate(
     input_ids = inputs["input_ids"].to(device)
     # CRITICAL LIMIT else will fail
     max_max_tokens = tokenizer.model_max_length
-    max_input_tokens = max_max_tokens - max_new_tokens
+    max_input_tokens = max_max_tokens - min_new_tokens
+    # NOTE: Don't limit up front due to max_new_tokens, let go up to max or reach max_max_tokens in stopping.py
     input_ids = input_ids[:, -max_input_tokens:]
     # required for falcon if multiple threads or asyncio accesses to model during generation
     if use_cache is None:
