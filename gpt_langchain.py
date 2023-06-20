@@ -1993,7 +1993,7 @@ def get_similarity_chain(query=None,
                     # then no chunk can fit, still do first one
                     top_k_docs_trial = 1
                 else:
-                    top_k_docs_trial = where_res[-1]
+                    top_k_docs_trial = 1 + where_res[-1]
                 if 0 < top_k_docs_trial < max_chunks:
                     # avoid craziness
                     if top_k_docs == -1:
