@@ -559,13 +559,6 @@ def train(
     )
     model.config.use_cache = False
 
-    old_state_dict = model.state_dict
-    from peft import get_peft_model_state_dict
-
-    model.state_dict = (
-        lambda self, *_, **__: get_peft_model_state_dict(self, old_state_dict())
-    ).__get__(model, type(model))
-
     if torch.__version__ >= "2" and sys.platform != "win32":
         model = torch.compile(model)
         # WIP (not generally replacing layers until pytorch 2.1)
@@ -578,7 +571,7 @@ def train(
         assert not trainer.is_model_parallel
     trainer.train(resume_from_checkpoint=resume_from_checkpoint)
 
-    model.save_pretrained(output_dir, state_dict=old_state_dict())
+    model.save_pretrained(output_dir)
 
     log("\n If there's a warning about missing keys above, please disregard :)")
 
