@@ -24,7 +24,7 @@ from tqdm import tqdm
 
 from enums import DocumentChoices, no_lora_str, model_token_mapping
 from generate import gen_hyper, get_model, SEED
-from prompter import non_hf_types, PromptType
+from prompter import non_hf_types, PromptType, Prompter
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
     get_device, ProgressParallel, remove, hash_file, clear_torch_cache, NullContext
 from utils_langchain import StreamingGradioCallbackHandler
@@ -584,7 +584,7 @@ def get_llm(use_openai_model=False,
         if inference_server in ['openai', 'openai_chat']:
             prompt_type = inference_server
         else:
-            prompt_type = 'plain'
+            prompt_type = prompt_type or 'plain'
     elif inference_server:
         assert inference_server.startswith('http'), "Malformed inference_server=%s" % inference_server
 
@@ -659,7 +659,11 @@ def get_llm(use_openai_model=False,
             # doesn't stream properly as generator, but at least
             callbacks = [streaming_stdout.StreamingStdOutCallbackHandler()]
             streamer = None
-        prompt_type = prompter.prompt_type
+        if prompter:
+            prompt_type = prompter.prompt_type
+        else:
+            prompter = Prompter(prompt_type, prompt_dict, debug=False, chat=False, stream_output=stream_output)
+            pass  # assume inputted prompt_type is correct
         from gpt4all_llm import get_llm_gpt4all
         llm = get_llm_gpt4all(model_name, model=model, max_new_tokens=max_new_tokens,
                               temperature=temperature,
@@ -1956,7 +1960,7 @@ def get_similarity_chain(query=None,
                     # more accurate
                     tokens = [len(llm.pipeline.tokenizer(x[0].page_content)['input_ids']) for x in docs_with_score]
                     template_tokens = len(llm.pipeline.tokenizer(template)['input_ids'])
-                elif inference_server in ['openai', 'openai_chat'] or use_openai_model or db_type == 'faiss':
+                elif inference_server in ['openai', 'openai_chat'] or use_openai_model or db_type in ['faiss', 'weaviate']:
                     # use ticktoken for faiss since embedding called differently
                     tokens = [llm.get_num_tokens(x[0].page_content) for x in docs_with_score]
                     template_tokens = llm.get_num_tokens(template)
