@@ -80,6 +80,7 @@ def go_gradio(**kwargs):
     n_gpus = kwargs['n_gpus']
     admin_pass = kwargs['admin_pass']
     model_state0 = kwargs['model_state0']
+    model_states = kwargs['model_states']
     score_model_state0 = kwargs['score_model_state0']
     dbs = kwargs['dbs']
     db_type = kwargs['db_type']
@@ -533,19 +534,20 @@ def go_gradio(**kwargs):
                         else "LOAD-UNLOAD DISABLED FOR HOSTED DEMO 2"
                     variant_load_msg = 'primary' if not is_public else 'secondary'
                     compare_checkbox = gr.components.Checkbox(label="Compare Mode",
-                                                              value=False, visible=not is_public)
+                                                              value=kwargs['model_lock'],
+                                                              visible=not is_public and not kwargs['model_lock'])
                     with gr.Row():
                         n_gpus_list = [str(x) for x in list(range(-1, n_gpus))]
                         with gr.Column():
                             with gr.Row():
-                                with gr.Column(scale=20):
+                                with gr.Column(scale=20, visible=not kwargs['model_lock']):
                                     model_choice = gr.Dropdown(model_options_state.value[0], label="Choose Model",
                                                                value=kwargs['base_model'])
                                     lora_choice = gr.Dropdown(lora_options_state.value[0], label="Choose LORA",
                                                               value=kwargs['lora_weights'], visible=kwargs['show_lora'])
                                     server_choice = gr.Dropdown(server_options_state.value[0], label="Choose Server",
                                                                 value=kwargs['inference_server'])
-                                with gr.Column(scale=1):
+                                with gr.Column(scale=1, visible=not kwargs['model_lock']):
                                     load_model_button = gr.Button(load_msg, variant=variant_load_msg).style(
                                         full_width=False,
                                         size='sm')
@@ -572,7 +574,7 @@ def go_gradio(**kwargs):
                         col_model2 = gr.Column(visible=False)
                         with col_model2:
                             with gr.Row():
-                                with gr.Column(scale=20):
+                                with gr.Column(scale=20, visible=not kwargs['model_lock']):
                                     model_choice2 = gr.Dropdown(model_options_state.value[0], label="Choose Model 2",
                                                                 value=no_model_str)
                                     lora_choice2 = gr.Dropdown(lora_options_state.value[0], label="Choose LORA 2",
@@ -580,7 +582,7 @@ def go_gradio(**kwargs):
                                                                visible=kwargs['show_lora'])
                                     server_choice2 = gr.Dropdown(server_options_state.value[0], label="Choose Server 2",
                                                                  value=no_server_str)
-                                with gr.Column(scale=1):
+                                with gr.Column(scale=1, visible=not kwargs['model_lock']):
                                     load_model_button2 = gr.Button(load_msg2, variant=variant_load_msg).style(
                                         full_width=False, size='sm')
                                     model_load8bit_checkbox2 = gr.components.Checkbox(
@@ -603,7 +605,7 @@ def go_gradio(**kwargs):
                                     prompt_dict2 = gr.Textbox(label="Prompt (or Custom) 2",
                                                               value=pprint.pformat(kwargs['prompt_dict'], indent=4),
                                                               interactive=True, lines=4)
-                    with gr.Row():
+                    with gr.Row(visible=not kwargs['model_lock']):
                         with gr.Column(scale=50):
                             new_model = gr.Textbox(label="New Model name/path")
                         with gr.Column(scale=50):

@@ -1,4 +1,5 @@
 import ast
+import copy
 import functools
 import glob
 import inspect
@@ -62,9 +63,11 @@ def main(
         compile_model: bool = True,
         use_cache: bool = None,
         inference_server: str = "",
-
         prompt_type: Union[int, str] = None,
         prompt_dict: typing.Dict = None,
+
+        model_lock: typing.List[typing.Dict[str, str]] = None,
+
         # input to generation
         temperature: float = None,
         top_p: float = None,
@@ -177,6 +180,16 @@ def main(
                              e.g. python generate.py --inference_server="openai" --base_model=text-davinci-003
     :param prompt_type: type of prompt, usually matched to fine-tuned model or plain for foundational model
     :param prompt_dict: If prompt_type=custom, then expects (some) items returned by get_prompt(..., return_dict=True)
+    :param model_lock: Lock models to specific combinations, for ease of use and extending to many models
+           Only used if gradio = True
+           List of dicts, each dict has base_model, tokenizer_base_model, lora_weights, inference_server, prompt_type, and prompt_dict
+           If all models have same prompt_type, and prompt_dict, can still specify that once in CLI outside model_lock as default for dict
+           Can specify model_lock instead of those items on CLI
+           As with CLI itself, base_model can infer prompt_type and prompt_dict if in prompter.py.
+             Also, tokenizer_base_model and lora_weights are optional.
+             Also, inference_server is optional if loading model from local system.
+           All models provided will automatically appear in compare model mode
+           Model loading-unloading and related choices will be disabled.  Model/lora/server adding will be disabled
     :param temperature: generation temperature
     :param top_p: generation top_p
     :param top_k: generation top_k
@@ -287,6 +300,17 @@ def main(
     :param enable_ocr: Whether to support OCR on images
     :return:
     """
+    if model_lock:
+        assert gradio, "model_lock only supported for gradio=True"
+        assert not cli, "model_lock only supported for cli=False"
+        assert not (not cli and not gradio), "model_lock only supported for eval (cli=gradio=False)"
+        assert not base_model, "Don't specify model_lock and base_model"
+        assert not tokenizer_base_model, "Don't specify model_lock and tokenizer_base_model"
+        assert not lora_weights, "Don't specify model_lock and lora_weights"
+        assert not inference_server, "Don't specify model_lock and inference_server"
+        # assert not prompt_type, "Don't specify model_lock and prompt_type"
+        # assert not prompt_dict, "Don't specify model_lock and prompt_dict"
+
     is_hf = bool(int(os.getenv("HUGGINGFACE_SPACES", '0')))
     is_gpth2oai = bool(int(os.getenv("GPT_H2O_AI", '0')))
     is_public = is_hf or is_gpth2oai  # multi-user case with fixed model and disclaimer
@@ -493,16 +517,49 @@ def main(
         from gradio_runner import go_gradio
 
         # get default model
-        all_kwargs = locals().copy()
-        if all_kwargs.get('base_model') and not all_kwargs['login_mode_if_model0']:
-            model0, tokenizer0, device = get_model(reward_type=False,
-                                                   **get_kwargs(get_model, exclude_names=['reward_type'], **all_kwargs))
-        else:
-            # if empty model, then don't load anything, just get gradio up
-            model0, tokenizer0, device = None, None, None
-        model_state0 = [model0, tokenizer0, device, all_kwargs['base_model'], all_kwargs['inference_server']]
+        model_states = []
+        model_list = [dict(base_model=base_model, tokenizer_base_model=tokenizer_base_model, lora_weights=lora_weights,
+                           inference_server=inference_server, prompt_type=prompt_type, prompt_dict=prompt_dict)]
+        model_list0 = copy.deepcopy(model_list)
+        model_state0 = None
+        if model_lock:
+            model_list = model_lock
+        for model_dict in reversed(model_list):
+            # do reverse, so first is default base_model etc., so some logic works in go_gradio() more easily
+            # handles defaults user didn't have to pass
+            model_dict['base_model'] = base_model = model_dict.get('base_model', '')
+            model_dict['tokenizer_base_model'] = tokenizer_base_model = model_dict.get('tokenizer_base_model', '')
+            model_dict['lora_weights'] = lora_weights = model_dict.get('lora_weights', '')
+            model_dict['inference_server'] = inference_server = model_dict.get('inference_server', '')
+            prompt_type = model_dict.get('prompt_type', prompt_type)
+            # try to infer, ignore empty initial state leading to get_generate_params -> 'plain'
+            if model_dict.get('prompt_type') is None:
+                model_lower = base_model.lower()
+                if model_lower in inv_prompt_type_to_model_lower:
+                    prompt_type = inv_prompt_type_to_model_lower[model_lower]
+                    prompt_dict, error0 = get_prompt(prompt_type, '',
+                                                     chat=False, context='', reduced=False, return_dict=True)
+            model_dict['prompt_type'] = prompt_type
+            model_dict['prompt_dict'] = prompt_dict = model_dict.get('prompt_dict', prompt_dict)
+            all_kwargs = locals().copy()
+            if base_model and not login_mode_if_model0:
+                model0, tokenizer0, device = get_model(reward_type=False,
+                                                       **get_kwargs(get_model, exclude_names=['reward_type'],
+                                                                    **all_kwargs))
+            else:
+                # if empty model, then don't load anything, just get gradio up
+                model0, tokenizer0, device = None, None, None
+            model_state_trial = [model0, tokenizer0, device, base_model, inference_server]
+            if model_lock:
+                # last in iteration will be first
+                model_states.insert(0, model_state_trial)
+                # fill model_state0 so go_gradio() easier, manage model_states separately
+                model_state0 = model_state_trial
+            else:
+                model_state0 = model_state_trial
 
         # get score model
+        all_kwargs = locals().copy()
         smodel, stokenizer, sdevice = get_score_model(reward_type=True,
                                                       **get_kwargs(get_score_model, exclude_names=['reward_type'],
                                                                    **all_kwargs))
@@ -1749,7 +1806,8 @@ def get_generate_params(model_lower, chat,
     if model_lower:
         print(f"Using Model {model_lower}", flush=True)
     else:
-        print("No model defined yet", flush=True)
+        if verbose:
+            print("No model defined yet", flush=True)
 
     min_new_tokens = min_new_tokens if min_new_tokens is not None else 0
     early_stopping = early_stopping if early_stopping is not None else False
@@ -1809,8 +1867,10 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         else:
             placeholder_instruction = "Give detailed answer for whether Einstein or Newton is smarter."
         placeholder_input = ""
-        if model_lower:
-            # default is plain, because might relly upon trust_remote_code to handle prompting
+        if model_lower in inv_prompt_type_to_model_lower:
+            prompt_type = inv_prompt_type_to_model_lower[model_lower]
+        elif model_lower:
+            # default is plain, because might rely upon trust_remote_code to handle prompting
             prompt_type = prompt_type or 'plain'
         else:
             prompt_type = ''

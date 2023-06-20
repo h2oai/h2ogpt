@@ -152,3 +152,11 @@ Enter the mode name as the same name one would use for `--base_model` and enter 
 One can also do model comparison by clicking the `Compare Mode` checkbox, and add new models and servers to each left and right models for a view like:
 
 ![Model Compare](models_compare.png)
+
+## Locking Models for easy start-up or in-app comparison
+
+To avoid specifying model-related settings as independent options, and to disable loading new models, use `--model_lock` like:
+```bash
+python generate.py --model_lock=[{'inference_server':'http://192.168.1.46:6112','base_model':'h2oai/h2ogpt-oasst1-512-12b'}]
+```
+where for this case the prompt_type for this base_model is in prompter.py, so it doesn't need to be specified.  Note that no spaces or other white space is allowed within the double quotes for model_lock due to how CLI arguments are parsed.
