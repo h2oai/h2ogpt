@@ -1,11 +1,15 @@
 import inspect
 import os
 import sys
+from functools import partial
 from typing import Dict, Any, Optional, List
 from langchain.callbacks.manager import CallbackManagerForLLMRun
+from langchain.llms.utils import enforce_stop_tokens
 from pydantic import root_validator
 from langchain.llms import gpt4all
 from dotenv import dotenv_values
+
+from utils_langchain import StreamingGradioCallbackHandler
 
 
 class FakeTokenizer:
@@ -94,10 +98,14 @@ def get_llm_gpt4all(model_name,
                     repetition_penalty=1.0,
                     top_k=40,
                     top_p=0.7,
-                    verbose=False):
+                    streaming=False,
+                    callbacks=None,
+                    prompter=None,
+                    verbose=False,
+                    ):
+    assert prompter is not None
     env_gpt4all_file = ".env_gpt4all"
     env_kwargs = dotenv_values(env_gpt4all_file)
-    callbacks = [H2OStreamingStdOutCallbackHandler()]
     n_ctx = env_kwargs.pop('n_ctx', 2048 - max_new_tokens)
     default_kwargs = dict(context_erase=0.5,
                           n_batch=1,
@@ -115,20 +123,22 @@ def get_llm_gpt4all(model_name,
         cls = H2OLlamaCpp
         model_path = env_kwargs.pop('model_path_llama') if model is None else model
         model_kwargs = get_model_kwargs(env_kwargs, default_kwargs, cls, exclude_list=['lc_kwargs'])
-        model_kwargs.update(dict(model_path=model_path, callbacks=callbacks))
+        model_kwargs.update(dict(model_path=model_path, callbacks=callbacks, streaming=streaming, prompter=prompter))
         llm = cls(**model_kwargs)
         llm.client.verbose = verbose
     elif model_name == 'gpt4all_llama':
         cls = H2OGPT4All
         model_path = env_kwargs.pop('model_path_gpt4all_llama') if model is None else model
         model_kwargs = get_model_kwargs(env_kwargs, default_kwargs, cls, exclude_list=['lc_kwargs'])
-        model_kwargs.update(dict(model=model_path, backend='llama', callbacks=callbacks))
+        model_kwargs.update(
+            dict(model=model_path, backend='llama', callbacks=callbacks, streaming=streaming, prompter=prompter))
         llm = cls(**model_kwargs)
     elif model_name == 'gptj':
         cls = H2OGPT4All
         model_path = env_kwargs.pop('model_path_gptj') if model is None else model
         model_kwargs = get_model_kwargs(env_kwargs, default_kwargs, cls, exclude_list=['lc_kwargs'])
-        model_kwargs.update(dict(model=model_path, backend='gptj', callbacks=callbacks))
+        model_kwargs.update(
+            dict(model=model_path, backend='gptj', callbacks=callbacks, streaming=streaming, prompter=prompter))
         llm = cls(**model_kwargs)
     else:
         raise RuntimeError("No such model_name %s" % model_name)
@@ -137,6 +147,7 @@ def get_llm_gpt4all(model_name,
 
 class H2OGPT4All(gpt4all.GPT4All):
     model: Any
+    prompter: Any
     """Path to the pre-trained GPT4All model file."""
 
     @root_validator()
@@ -179,12 +190,19 @@ class H2OGPT4All(gpt4all.GPT4All):
             prompt: str,
             stop: Optional[List[str]] = None,
             run_manager: Optional[CallbackManagerForLLMRun] = None,
+            **kwargs,
     ) -> str:
         # Roughly 4 chars per token if natural language
         prompt = prompt[-self.n_ctx * 4:]
+
+        # use instruct prompting
+        data_point = dict(context='', instruction=prompt, input='')
+        prompt = self.prompter.generate_prompt(data_point)
+
         verbose = False
         if verbose:
             print("_call prompt: %s" % prompt, flush=True)
+        # FIXME: GPT4ALl doesn't support yield during generate, so cannot support streaming except via itself to stdout
         return super()._call(prompt, stop=stop, run_manager=run_manager)
 
 
@@ -193,6 +211,7 @@ from langchain.llms import LlamaCpp
 
 class H2OLlamaCpp(LlamaCpp):
     model_path: Any
+    prompter: Any
     """Path to the pre-trained GPT4All model file."""
 
     @root_validator()
@@ -244,6 +263,7 @@ class H2OLlamaCpp(LlamaCpp):
             prompt: str,
             stop: Optional[List[str]] = None,
             run_manager: Optional[CallbackManagerForLLMRun] = None,
+            **kwargs,
     ) -> str:
         verbose = False
         # tokenize twice, just to count tokens, since llama cpp python wrapper has no way to truncate
@@ -260,6 +280,33 @@ class H2OLlamaCpp(LlamaCpp):
                 prompt_tokens2 = self.client.tokenize(b" " + prompt.encode("utf-8"))
                 num_prompt_tokens2 = len(prompt_tokens2)
                 print("reduced tokens from %d -> %d" % (num_prompt_tokens, num_prompt_tokens2), flush=True)
+
+        # use instruct prompting
+        data_point = dict(context='', instruction=prompt, input='')
+        prompt = self.prompter.generate_prompt(data_point)
+
         if verbose:
             print("_call prompt: %s" % prompt, flush=True)
-        return super()._call(prompt, stop=stop, run_manager=run_manager)
+
+        if self.streaming:
+            text_callback = None
+            if run_manager:
+                text_callback = partial(
+                    run_manager.on_llm_new_token, verbose=self.verbose
+                )
+            # parent handler of streamer expects to see prompt first else output="" and lose if prompt=None in prompter
+            if text_callback:
+                text_callback(prompt)
+            text = ""
+            for token in self.stream(prompt=prompt, stop=stop, run_manager=run_manager):
+                text_chunk = token["choices"][0]["text"]
+                # self.stream already calls text_callback
+                # if text_callback:
+                #    text_callback(text_chunk)
+                text += text_chunk
+            return text
+        else:
+            params = self._get_parameters(stop)
+            params = {**params, **kwargs}
+            result = self.client(prompt=prompt, **params)
+            return result["choices"][0]["text"]

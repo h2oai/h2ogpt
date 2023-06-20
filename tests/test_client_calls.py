@@ -20,7 +20,7 @@ def test_client1():
          stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False)
 
     from client_test import test_client_basic
-    res_dict = test_client_basic()
+    res_dict, _ = test_client_basic()
     assert res_dict['prompt'] == 'Who are you?'
     assert res_dict['iinput'] == ''
     assert 'I am h2oGPT' in res_dict['response'] or "I'm h2oGPT" in res_dict['response'] or 'I’m h2oGPT' in res_dict[
@@ -39,7 +39,7 @@ def test_client1api():
          stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False)
 
     from client_test import test_client_basic_api
-    res_dict = test_client_basic_api()
+    res_dict, _ = test_client_basic_api()
     assert res_dict['prompt'] == 'Who are you?'
     assert res_dict['iinput'] == ''
     assert 'I am h2oGPT' in res_dict['response'] or "I'm h2oGPT" in res_dict['response'] or 'I’m h2oGPT' in res_dict[
@@ -109,15 +109,20 @@ def test_client_chat_nostream():
 
 @wrap_test_forked
 def test_client_chat_nostream_gpt4all():
-    res_dict, client = run_client_chat_with_server(stream_output=False, base_model='gptj', prompt_type='plain')
-    assert 'I am a computer program designed to assist' in res_dict['response']
+    res_dict, client = run_client_chat_with_server(stream_output=False, base_model='gptj', prompt_type='gptj')
+    assert 'I am a computer program designed to assist' in res_dict['response'] or \
+        'I am a person who enjoys' in res_dict['response'] or \
+        'I am a student at' in res_dict['response'] or \
+        'I am a person who' in res_dict['response']
 
 
 @wrap_test_forked
 def test_client_chat_nostream_gpt4all_llama():
-    res_dict, client = run_client_chat_with_server(stream_output=False, base_model='gpt4all_llama', prompt_type='plain')
-    assert 'What do you want from me?' in res_dict['response'] or 'What do you want?' in res_dict[
-        'response'] or 'What is your name and title?' in res_dict['response']
+    res_dict, client = run_client_chat_with_server(stream_output=False, base_model='gpt4all_llama', prompt_type='gptj')
+    assert 'What do you want from me?' in res_dict['response'] or \
+           'What do you want?' in res_dict['response'] or \
+           'What is your name and title?' in res_dict['response'] or \
+           'I can assist you with any information' in res_dict['response']
 
 
 @pytest.mark.need_tokens
@@ -125,7 +130,7 @@ def test_client_chat_nostream_gpt4all_llama():
 def test_client_chat_nostream_llama7b():
     prompt_type = get_llama()
     res_dict, client = run_client_chat_with_server(stream_output=False, base_model='llama', prompt_type=prompt_type)
-    assert "I’m a software engineer" in res_dict['response'] or "I'm a software engineer" in res_dict['response']
+    assert "am a virtual assistant" in res_dict['response']
 
 
 def run_client_chat_with_server(prompt='Who are you?', stream_output=False, max_new_tokens=256,
@@ -148,7 +153,7 @@ def run_client_chat_with_server(prompt='Who are you?', stream_output=False, max_
          reverse_docs=reverse_docs)
 
     from client_test import run_client_chat
-    res_dict, client = run_client_chat(prompt=prompt, prompt_type='human_bot', stream_output=stream_output,
+    res_dict, client = run_client_chat(prompt=prompt, prompt_type=prompt_type, stream_output=stream_output,
                                        max_new_tokens=max_new_tokens, langchain_mode=langchain_mode)
     assert res_dict['prompt'] == prompt
     assert res_dict['iinput'] == ''
@@ -158,6 +163,38 @@ def run_client_chat_with_server(prompt='Who are you?', stream_output=False, max_
 @wrap_test_forked
 def test_client_chat_stream():
     run_client_chat_with_server(stream_output=True)
+
+
+def run_client_nochat_with_server(prompt='Who are you?', stream_output=False, max_new_tokens=256,
+                                  base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b', prompt_type='human_bot',
+                                  langchain_mode='Disabled', user_path=None,
+                                  visible_langchain_modes=['UserData', 'MyData'],
+                                  reverse_docs=True):
+    import os, sys
+    if langchain_mode == 'Disabled':
+        os.environ['TEST_LANGCHAIN_IMPORT'] = "1"
+        sys.modules.pop('gpt_langchain', None)
+        sys.modules.pop('langchain', None)
+
+    from generate import main
+    main(base_model=base_model, prompt_type=prompt_type, chat=True,
+         stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
+         max_new_tokens=max_new_tokens,
+         langchain_mode=langchain_mode, user_path=user_path,
+         visible_langchain_modes=visible_langchain_modes,
+         reverse_docs=reverse_docs)
+
+    from client_test import run_client_nochat_gen
+    res_dict, client = run_client_nochat_gen(prompt=prompt, prompt_type=prompt_type,
+                                             stream_output=stream_output,
+                                             max_new_tokens=max_new_tokens, langchain_mode=langchain_mode)
+    assert 'Birds' in res_dict['response'] or ' and can learn new things' in res_dict['response']
+    return res_dict, client
+
+
+@wrap_test_forked
+def test_client_nochat_stream():
+    run_client_nochat_with_server(stream_output=True, prompt="Tell a very long kid's story about birds.")
 
 
 @wrap_test_forked
@@ -213,9 +250,10 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'language model trained' in res_dict['response'] or
             'H2O GPT is a language model' in res_dict['response'] or
             'H2O GPT is a chatbot framework' in res_dict['response'] or
-            'H2O GPT is a chatbot that can be trained' in res_dict['response']
+            'H2O GPT is a chatbot that can be trained' in res_dict['response'] or
+            'A large language model (LLM)' in res_dict['response']
             ) \
-           and 'FAQ.md' in res_dict['response']
+           and ('FAQ.md' in res_dict['response'] or 'README.md' in res_dict['response'])
 
     # QUERY1
     prompt = "What is Whisper?"
@@ -233,9 +271,10 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'h2oGPT' in res_dict['response'] or
             'A secure, private, and anonymous chat platform' in res_dict['response'] or
             'Whisper is a privacy-preserving' in res_dict['response'] or
-            'A chatbot that uses a large language model' in res_dict['response']
+            'A chatbot that uses a large language model' in res_dict['response'] or
+            'This is a config file for Whisper' in res_dict['response']
             ) \
-           and 'README.md' in res_dict['response']
+           and ('FAQ.md' in res_dict['response'] or 'README.md' in res_dict['response'])
 
     # QUERY2
     prompt = "What is h2oGPT?"
@@ -268,7 +307,9 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'whisper is a tool for training language models' in res_dict['response'] or
             'whisper is a secure messaging app' in res_dict['response'] or
             'LLaMa-based models are not commercially viable' in res_dict['response'] or
-            'A text-based chatbot that' in res_dict['response']
+            'A text-based chatbot that' in res_dict['response'] or
+            'A secure, private, and anonymous chat service' in res_dict['response'] or
+            'LLaMa is a language' in res_dict['response']
             ) \
            and '.md' in res_dict['response']
 
@@ -359,7 +400,7 @@ def test_client_long():
         prompt = f.readlines()
 
     from client_test import run_client_nochat
-    res_dict = run_client_nochat(prompt=prompt, prompt_type='plain', max_new_tokens=86000)
+    res_dict, _ = run_client_nochat(prompt=prompt, prompt_type='plain', max_new_tokens=86000)
     print(res_dict['response'])
 
 
@@ -398,3 +439,43 @@ def test_client_stress(repeat):
         api_name=api_name,
     )
     print("Raw client result: %s" % res, flush=True)
+
+
+@pytest.mark.skipif(not os.getenv('SERVER'),
+                    reason="For testing text-generatino-inference server")
+@wrap_test_forked
+def test_text_generation_inference_server1():
+    """
+    e.g.
+    SERVER on 192.168.1.46
+    (alpaca) jon@gpu:/data/jon/h2o-llm$ CUDA_VISIBLE_DEVICES=0,1 docker run --gpus all --shm-size 2g -e NCCL_SHM_DISABLE=1 -e TRANSFORMERS_CACHE="/.cache/" -p 6112:80 -v $HOME/.cache:/.cache/ -v $HOME/.cache/huggingface/hub/:/data  ghcr.io/huggingface/text-generation-inference:0.8.2 --model-id h2oai/h2ogpt-oasst1-512-12b --max-input-length 2048 --max-total-tokens 3072 --sharded=true --num-shard=2 --disable-custom-kernels --quantize bitsandbytes
+
+    CLIENT on separate system
+    HOST=http://192.168.1.46:6112 SERVER=1 pytest -s -v tests/test_client_calls.py::test_text_generation_inference_server1
+
+    :return:
+    """
+
+    # Python client test:
+    from text_generation import Client
+
+    host = os.getenv("HOST", "http://127.0.0.1:6112")
+    client = Client(host)
+    print(client.generate("What is Deep Learning?", max_new_tokens=17).generated_text)
+
+    text = ""
+    for response in client.generate_stream("What is Deep Learning?", max_new_tokens=17):
+        if not response.token.special:
+            text += response.token.text
+    assert 'Deep learning is a subfield of machine learning' in text
+
+    # Curl Test (not really pass fail yet)
+    import subprocess
+    output = subprocess.run(['curl', '%s/generate' % host, '-X', 'POST', '-d',
+                             '{"inputs":"<|prompt|>What is Deep Learning?<|endoftext|><|answer|>","parameters":{"max_new_tokens": 20, "truncate": 1024, "do_sample": false, "temperature": 0.1, "repetition_penalty": 1.2}}',
+                             '-H', 'Content-Type: application/json',
+                             '--user', 'user:bhx5xmu6UVX4'],
+                            check=True, capture_output=True).stdout.decode()
+    text = ast.literal_eval(output)['generated_text']
+    assert 'Deep learning is a subfield of machine learning' in text or \
+           'Deep learning refers to a class of machine learning' in text

@@ -1,14 +1,13 @@
+import ast
 import glob
 import inspect
 import os
 import pathlib
 import pickle
-import queue
-import random
 import shutil
 import subprocess
-import sys
 import tempfile
+import time
 import traceback
 import types
 import uuid
@@ -19,14 +18,16 @@ from functools import reduce
 from operator import concat
 
 from joblib import Parallel, delayed
+from langchain.callbacks import streaming_stdout
 from langchain.embeddings import HuggingFaceInstructEmbeddings
 from tqdm import tqdm
 
-from enums import DocumentChoices
-from generate import gen_hyper, get_model
-from prompter import non_hf_types, PromptType
+from enums import DocumentChoices, no_lora_str, model_token_mapping
+from generate import gen_hyper, get_model, SEED
+from prompter import non_hf_types, PromptType, Prompter
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
     get_device, ProgressParallel, remove, hash_file, clear_torch_cache, NullContext
+from utils_langchain import StreamingGradioCallbackHandler
 
 import_matplotlib()
 
@@ -45,7 +46,7 @@ from langchain.document_loaders import PyPDFLoader, TextLoader, CSVLoader, Pytho
 from langchain.text_splitter import RecursiveCharacterTextSplitter, Language
 from langchain.chains.question_answering import load_qa_chain
 from langchain.docstore.document import Document
-from langchain import PromptTemplate
+from langchain import PromptTemplate, HuggingFaceTextGenInference
 from langchain.vectorstores import Chroma
 
 
@@ -264,8 +265,290 @@ def get_answer_from_sources(chain, sources, question):
     )["output_text"]
 
 
-def get_llm(use_openai_model=False, model_name=None, model=None,
-            tokenizer=None, stream_output=False,
+"""Wrapper around Huggingface text generation inference API."""
+from functools import partial
+from typing import Any, Dict, List, Optional, Set
+
+from pydantic import Extra, Field, root_validator
+
+from langchain.callbacks.manager import CallbackManagerForLLMRun
+
+"""Wrapper around Huggingface text generation inference API."""
+from functools import partial
+from typing import Any, Dict, List, Optional
+
+from pydantic import Extra, Field, root_validator
+
+from langchain.callbacks.manager import CallbackManagerForLLMRun
+from langchain.llms.base import LLM
+
+
+class GradioInference(LLM):
+    """
+    Gradio generation inference API.
+    """
+    inference_server_url: str = ""
+
+    temperature: float = 0.8
+    top_p: Optional[float] = 0.95
+    top_k: Optional[int] = None
+    num_beams: Optional[int] = 1
+    max_new_tokens: int = 512
+    min_new_tokens: int = 1
+    early_stopping: bool = False
+    max_time: int = 180
+    repetition_penalty: Optional[float] = None
+    num_return_sequences: Optional[int] = 1
+    do_sample: bool = False
+    chat_client: bool = False
+
+    return_full_text: bool = True
+    stream: bool = False
+    sanitize_bot_response: bool = False
+
+    prompter: Any = None
+    client: Any = None
+
+    class Config:
+        """Configuration for this pydantic object."""
+
+        extra = Extra.forbid
+
+    @root_validator()
+    def validate_environment(cls, values: Dict) -> Dict:
+        """Validate that python package exists in environment."""
+
+        try:
+            if values['client'] is None:
+                import gradio_client
+                values["client"] = gradio_client.Client(
+                    values["inference_server_url"]
+                )
+        except ImportError:
+            raise ImportError(
+                "Could not import gradio_client python package. "
+                "Please install it with `pip install gradio_client`."
+            )
+        return values
+
+    @property
+    def _llm_type(self) -> str:
+        """Return type of llm."""
+        return "gradio_inference"
+
+    def _call(
+            self,
+            prompt: str,
+            stop: Optional[List[str]] = None,
+            run_manager: Optional[CallbackManagerForLLMRun] = None,
+            **kwargs: Any,
+    ) -> str:
+        stream_output = self.stream
+        gr_client = self.client
+        client_langchain_mode = 'Disabled'
+        top_k_docs = 1
+        chunk = True
+        chunk_size = 512
+        client_kwargs = dict(instruction=prompt if self.chat_client else '',  # only for chat=True
+                             iinput='',  # only for chat=True
+                             context='',
+                             # streaming output is supported, loops over and outputs each generation in streaming mode
+                             # but leave stream_output=False for simple input/output mode
+                             stream_output=stream_output,
+                             prompt_type=self.prompter.prompt_type,
+                             prompt_dict='',
+
+                             temperature=self.temperature,
+                             top_p=self.top_p,
+                             top_k=self.top_k,
+                             num_beams=self.num_beams,
+                             max_new_tokens=self.max_new_tokens,
+                             min_new_tokens=self.min_new_tokens,
+                             early_stopping=self.early_stopping,
+                             max_time=self.max_time,
+                             repetition_penalty=self.repetition_penalty,
+                             num_return_sequences=self.num_return_sequences,
+                             do_sample=self.do_sample,
+                             chat=self.chat_client,
+
+                             instruction_nochat=prompt if not self.chat_client else '',
+                             iinput_nochat='',  # only for chat=False
+                             langchain_mode=client_langchain_mode,
+                             top_k_docs=top_k_docs,
+                             chunk=chunk,
+                             chunk_size=chunk_size,
+                             document_choice=[DocumentChoices.All_Relevant.name],
+                             )
+        api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
+        if not stream_output:
+            res = gr_client.predict(str(dict(client_kwargs)), api_name=api_name)
+            res_dict = ast.literal_eval(res)
+            text = res_dict['response']
+            return self.prompter.get_response(prompt + text, prompt=prompt,
+                                              sanitize_bot_response=self.sanitize_bot_response)
+        else:
+            text_callback = None
+            if run_manager:
+                text_callback = partial(
+                    run_manager.on_llm_new_token, verbose=self.verbose
+                )
+
+            job = gr_client.submit(str(dict(client_kwargs)), api_name=api_name)
+            text0 = ''
+            while not job.done():
+                outputs_list = job.communicator.job.outputs
+                if outputs_list:
+                    res = job.communicator.job.outputs[-1]
+                    res_dict = ast.literal_eval(res)
+                    text = res_dict['response']
+                    text = self.prompter.get_response(prompt + text, prompt=prompt,
+                                                      sanitize_bot_response=self.sanitize_bot_response)
+                    # FIXME: derive chunk from full for now
+                    text_chunk = text[len(text0):]
+                    # save old
+                    text0 = text
+
+                    if text_callback:
+                        text_callback(text_chunk)
+
+                time.sleep(0.01)
+
+            # ensure get last output to avoid race
+            res = job.outputs()[-1]
+            res_dict = ast.literal_eval(res)
+            text = res_dict['response']
+            # FIXME: derive chunk from full for now
+            text_chunk = text[len(text0):]
+            if text_callback:
+                text_callback(text_chunk)
+            return self.prompter.get_response(prompt + text, prompt=prompt,
+                                              sanitize_bot_response=self.sanitize_bot_response)
+
+
+class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
+    max_new_tokens: int = 512
+    do_sample: bool = False
+    top_k: Optional[int] = None
+    top_p: Optional[float] = 0.95
+    typical_p: Optional[float] = 0.95
+    temperature: float = 0.8
+    repetition_penalty: Optional[float] = None
+    return_full_text: bool = False
+    stop_sequences: List[str] = Field(default_factory=list)
+    seed: Optional[int] = None
+    inference_server_url: str = ""
+    timeout: int = 120
+    stream: bool = False
+    sanitize_bot_response: bool = False
+    prompter: Any = None
+    client: Any = None
+
+    @root_validator()
+    def validate_environment(cls, values: Dict) -> Dict:
+        """Validate that python package exists in environment."""
+
+        try:
+            if values['client'] is None:
+                import text_generation
+
+                values["client"] = text_generation.Client(
+                    values["inference_server_url"], timeout=values["timeout"]
+                )
+        except ImportError:
+            raise ImportError(
+                "Could not import text_generation python package. "
+                "Please install it with `pip install text_generation`."
+            )
+        return values
+
+    def _call(
+            self,
+            prompt: str,
+            stop: Optional[List[str]] = None,
+            run_manager: Optional[CallbackManagerForLLMRun] = None,
+            **kwargs: Any,
+    ) -> str:
+        if stop is None:
+            stop = self.stop_sequences
+        else:
+            stop += self.stop_sequences
+
+        data_point = dict(context='', instruction=prompt, input='')
+        prompt = self.prompter.generate_prompt(data_point)
+
+        gen_server_kwargs = dict(do_sample=self.do_sample,
+                                 stop_sequences=stop,
+                                 max_new_tokens=self.max_new_tokens,
+                                 top_k=self.top_k,
+                                 top_p=self.top_p,
+                                 typical_p=self.typical_p,
+                                 temperature=self.temperature,
+                                 repetition_penalty=self.repetition_penalty,
+                                 return_full_text=self.return_full_text,
+                                 seed=self.seed,
+                                 )
+        gen_server_kwargs.update(kwargs)
+
+        if not self.stream:
+            res = self.client.generate(
+                prompt,
+                **gen_server_kwargs,
+            )
+            # remove stop sequences from the end of the generated text
+            for stop_seq in stop:
+                if stop_seq in res.generated_text:
+                    res.generated_text = res.generated_text[
+                                         : res.generated_text.index(stop_seq)
+                                         ]
+            text = res.generated_text
+            text = self.prompter.get_response(text, prompt=prompt,
+                                              sanitize_bot_response=self.sanitize_bot_response)
+        else:
+            text_callback = None
+            if run_manager:
+                text_callback = partial(
+                    run_manager.on_llm_new_token, verbose=self.verbose
+                )
+            # parent handler of streamer expects to see prompt first else output="" and lose if prompt=None in prompter
+            if text_callback:
+                text_callback(prompt)
+            text = ""
+            for response in self.client.generate_stream(prompt, **gen_server_kwargs):
+                text_chunk = response.token.text
+                text += text_chunk
+                text = self.prompter.get_response(prompt + text, prompt=prompt,
+                                                  sanitize_bot_response=self.sanitize_bot_response)
+                # stream part
+                is_stop = False
+                for stop_seq in stop:
+                    if stop_seq in response.token.text:
+                        is_stop = True
+                        break
+                if is_stop:
+                    break
+                if not response.token.special:
+                    if text_callback:
+                        text_callback(response.token.text)
+        return text
+
+
+from langchain.chat_models import ChatOpenAI
+
+
+class H2OChatOpenAI(ChatOpenAI):
+    @classmethod
+    def all_required_field_names(cls) -> Set:
+        all_required_field_names = super(ChatOpenAI, cls).all_required_field_names()
+        all_required_field_names.update({'top_p', 'frequency_penalty', 'presence_penalty'})
+        return all_required_field_names
+
+
+def get_llm(use_openai_model=False,
+            model_name=None,
+            model=None,
+            tokenizer=None,
+            inference_server=None,
+            stream_output=False,
             do_sample=False,
             temperature=0.1,
             top_k=40,
@@ -280,36 +563,133 @@ def get_llm(use_openai_model=False, model_name=None, model=None,
             prompt_type=None,
             prompt_dict=None,
             prompter=None,
+            sanitize_bot_response=False,
             verbose=False,
             ):
-    if use_openai_model:
-        from langchain.llms import OpenAI
-        llm = OpenAI(temperature=0)
-        model_name = 'openai'
-        streamer = None
-        prompt_type = 'plain'
+    if use_openai_model or inference_server in ['openai', 'openai_chat']:
+        if use_openai_model and model_name is None:
+            model_name = "gpt-3.5-turbo"
+        if inference_server == 'openai':
+            from langchain.llms import OpenAI
+            cls = OpenAI
+        else:
+            cls = H2OChatOpenAI
+        callbacks = [StreamingGradioCallbackHandler()]
+        llm = cls(model_name=model_name,
+                  temperature=temperature if do_sample else 0,
+                  max_tokens=max_new_tokens,
+                  top_p=top_p if do_sample else 1,
+                  frequency_penalty=0,
+                  presence_penalty=1.07 - repetition_penalty + 0.6,  # so good default
+                  callbacks=callbacks if stream_output else None,
+                  )
+        streamer = callbacks[0] if stream_output else None
+        if inference_server in ['openai', 'openai_chat']:
+            prompt_type = inference_server
+        else:
+            prompt_type = prompt_type or 'plain'
+    elif inference_server:
+        assert inference_server.startswith('http'), "Malformed inference_server=%s" % inference_server
+
+        from gradio_client import Client as GradioClient
+        from text_generation import Client as HFClient
+        if isinstance(model, GradioClient):
+            gr_client = model
+            hf_client = None
+        else:
+            gr_client = None
+            hf_client = model
+            assert isinstance(hf_client, HFClient)
+
+        callbacks = [StreamingGradioCallbackHandler()]
+        assert prompter is not None
+        stop_sequences = prompter.terminate_response + [prompter.PreResponse]
+
+        if gr_client:
+            chat_client = False
+            llm = GradioInference(
+                inference_server_url=inference_server,
+                return_full_text=True,
+
+                temperature=temperature,
+                top_p=top_p,
+                top_k=top_k,
+                num_beams=num_beams,
+                max_new_tokens=max_new_tokens,
+                min_new_tokens=min_new_tokens,
+                early_stopping=early_stopping,
+                max_time=max_time,
+                repetition_penalty=repetition_penalty,
+                num_return_sequences=num_return_sequences,
+                do_sample=do_sample,
+                chat_client=chat_client,
+
+                callbacks=callbacks if stream_output else None,
+                stream=stream_output,
+                prompter=prompter,
+                client=gr_client,
+                sanitize_bot_response=sanitize_bot_response,
+            )
+        elif hf_client:
+            llm = H2OHuggingFaceTextGenInference(
+                inference_server_url=inference_server,
+                do_sample=do_sample,
+                max_new_tokens=max_new_tokens,
+                repetition_penalty=repetition_penalty,
+                return_full_text=True,
+                seed=SEED,
+
+                stop_sequences=stop_sequences,
+                temperature=temperature,
+                top_k=top_k,
+                top_p=top_p,
+                # typical_p=top_p,
+                callbacks=callbacks if stream_output else None,
+                stream=stream_output,
+                prompter=prompter,
+                client=hf_client,
+                sanitize_bot_response=sanitize_bot_response,
+            )
+        else:
+            raise RuntimeError("No defined client")
+        streamer = callbacks[0] if stream_output else None
     elif model_name in non_hf_types:
+        if model_name == 'llama':
+            callbacks = [StreamingGradioCallbackHandler()]
+            streamer = callbacks[0] if stream_output else None
+        else:
+            #stream_output = False
+            # doesn't stream properly as generator, but at least
+            callbacks = [streaming_stdout.StreamingStdOutCallbackHandler()]
+            streamer = None
+        if prompter:
+            prompt_type = prompter.prompt_type
+        else:
+            prompter = Prompter(prompt_type, prompt_dict, debug=False, chat=False, stream_output=stream_output)
+            pass  # assume inputted prompt_type is correct
         from gpt4all_llm import get_llm_gpt4all
         llm = get_llm_gpt4all(model_name, model=model, max_new_tokens=max_new_tokens,
                               temperature=temperature,
                               repetition_penalty=repetition_penalty,
                               top_k=top_k,
                               top_p=top_p,
+                              callbacks=callbacks,
                               verbose=verbose,
+                              streaming=stream_output,
+                              prompter=prompter,
                               )
-        streamer = None
-        prompt_type = 'plain'
     else:
-        from transformers import AutoTokenizer, AutoModelForCausalLM
-
         if model is None:
             # only used if didn't pass model in
             assert tokenizer is None
             prompt_type = 'human_bot'
-            model_name = 'h2oai/h2ogpt-oasst1-512-12b'
-            # model_name = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
-            # model_name = 'h2oai/h2ogpt-oasst1-512-20b'
-            model, tokenizer, device = get_model(load_8bit=True, base_model=model_name, gpu_id=0)
+            if model_name is None:
+                model_name = 'h2oai/h2ogpt-oasst1-512-12b'
+                # model_name = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
+                # model_name = 'h2oai/h2ogpt-oasst1-512-20b'
+            inference_server = ''
+            model, tokenizer, device = get_model(load_8bit=True, base_model=model_name,
+                                                 inference_server=inference_server, gpu_id=0)
 
         max_max_tokens = tokenizer.model_max_length
         gen_kwargs = dict(do_sample=do_sample,
@@ -341,10 +721,11 @@ def get_llm(use_openai_model=False, model_name=None, model=None,
                                          prompter=prompter,
                                          prompt_type=prompt_type,
                                          prompt_dict=prompt_dict,
-                                         sanitize_bot_response=False,
+                                         sanitize_bot_response=sanitize_bot_response,
                                          chat=False, stream_output=stream_output,
                                          tokenizer=tokenizer,
-                                         max_input_tokens=max_max_tokens - max_new_tokens,
+                                         # leave some room for 1 paragraph, even if min_new_tokens=0
+                                         max_input_tokens=max_max_tokens - max(min_new_tokens, 256),
                                          **gen_kwargs)
         # pipe.task = "text-generation"
         # below makes it listen only to our prompt removal,
@@ -1276,7 +1657,7 @@ def _run_qa_db(query=None,
                user_path=None,
                detect_user_path_changes_every_query=False,
                db_type='faiss',
-               model_name=None, model=None, tokenizer=None,
+               model_name=None, model=None, tokenizer=None, inference_server=None,
                hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
                stream_output=False,
                prompter=None,
@@ -1306,6 +1687,8 @@ def _run_qa_db(query=None,
                cli=False,
                reverse_docs=True,
                lora_weights='',
+               auto_reduce_chunks=True,
+               max_chunks=100,
                ):
     """
 
@@ -1340,7 +1723,9 @@ def _run_qa_db(query=None,
             prompt_dict = ''
     assert len(set(gen_hyper).difference(inspect.signature(get_llm).parameters)) == 0
     llm, model_name, streamer, prompt_type_out = get_llm(use_openai_model=use_openai_model, model_name=model_name,
-                                                         model=model, tokenizer=tokenizer,
+                                                         model=model,
+                                                         tokenizer=tokenizer,
+                                                         inference_server=inference_server,
                                                          stream_output=stream_output,
                                                          do_sample=do_sample,
                                                          temperature=temperature,
@@ -1356,12 +1741,9 @@ def _run_qa_db(query=None,
                                                          prompt_type=prompt_type,
                                                          prompt_dict=prompt_dict,
                                                          prompter=prompter,
+                                                         sanitize_bot_response=sanitize_bot_response,
                                                          verbose=verbose,
                                                          )
-
-    if model_name in non_hf_types:
-        # FIXME: for now, streams to stdout/stderr currently
-        stream_output = False
 
     use_context = False
     scores = []
@@ -1394,12 +1776,11 @@ def _run_qa_db(query=None,
     import torch
     device, torch_dtype, context_class = get_device_dtype()
     with torch.no_grad():
-        have_lora_weights = lora_weights not in ['[None/Remove]', '', None]
+        have_lora_weights = lora_weights not in [no_lora_str, '', None]
         context_class_cast = NullContext if device == 'cpu' or have_lora_weights else torch.autocast
         with context_class_cast(device):
-            if stream_output:
+            if stream_output and streamer:
                 answer = None
-                assert streamer is not None
                 import queue
                 bucket = queue.Queue()
                 thread = EThread(target=chain, streamer=streamer, bucket=bucket)
@@ -1452,6 +1833,7 @@ def get_similarity_chain(query=None,
                          detect_user_path_changes_every_query=False,
                          db_type='faiss',
                          model_name=None,
+                         inference_server='',
                          hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
                          prompt_type=None,
                          prompt_dict=None,
@@ -1466,6 +1848,10 @@ def get_similarity_chain(query=None,
                          verbose=False,
                          cmd=None,
                          reverse_docs=True,
+
+                         # local
+                         auto_reduce_chunks=True,
+                         max_chunks=100,
                          ):
     # determine whether use of context out of docs is planned
     if not use_openai_model and prompt_type not in ['plain'] or model_name in non_hf_types:
@@ -1506,19 +1892,24 @@ def get_similarity_chain(query=None,
                                                         verbose=verbose)
 
     if 'falcon' in model_name:
-        extra = "According to only the information in the document sources provided within the triple quotes above, "
-        prefix = "Pay attention and remember information within triple quotes below which will help to answer the question after the triple quotes ends."
+        extra = "According to only the information in the document sources provided within the context above, "
+        prefix = "Pay attention and remember information below, which will help to answer the question or imperative after the context ends."
+    elif inference_server in ['openai', 'openai_chat']:
+        extra = "According to (primarily) the information in the document sources provided within context above, "
+        prefix = "Pay attention and remember information below, which will help to answer the question or imperitive after the context ends.  If the answer cannot be primarily obtained from information within the context, then respond that the answer does not appear in the context of the documents."
     else:
         extra = ""
         prefix = ""
     if langchain_mode in ['Disabled', 'ChatLLM', 'LLM'] or not use_context:
         template = """%s{context}{question}""" % prefix
+        template_if_no_docs = template = """%s{context}{question}""" % prefix
     else:
         template = """%s
 \"\"\"
 {context}
 \"\"\"
 %s{question}""" % (prefix, extra)
+        template_if_no_docs = """%s{context}%s{question}""" % (prefix, extra)
     if not use_openai_model and prompt_type not in ['plain'] or model_name in non_hf_types:
         use_template = True
     else:
@@ -1564,15 +1955,18 @@ def get_similarity_chain(query=None,
             docs = [x[0] for x in docs_with_score]
             scores = [x[1] for x in docs_with_score]
         else:
-            if top_k_docs == -1:
+            if top_k_docs == -1 or auto_reduce_chunks:
                 # docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:top_k_docs]
                 top_k_docs_tokenize = 100
                 docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:top_k_docs_tokenize]
-                # FIXME: Should use LLM's tokenizer if have access, else embedding is kinda ok since small chunks normally
                 if hasattr(llm, 'pipeline') and hasattr(llm.pipeline, 'tokenizer'):
                     # more accurate
                     tokens = [len(llm.pipeline.tokenizer(x[0].page_content)['input_ids']) for x in docs_with_score]
                     template_tokens = len(llm.pipeline.tokenizer(template)['input_ids'])
+                elif inference_server in ['openai', 'openai_chat'] or use_openai_model or db_type in ['faiss', 'weaviate']:
+                    # use ticktoken for faiss since embedding called differently
+                    tokens = [llm.get_num_tokens(x[0].page_content) for x in docs_with_score]
+                    template_tokens = llm.get_num_tokens(template)
                 else:
                     # in case model is not our pipeline with HF tokenizer
                     tokens = [db._embedding_function.client.tokenize([x[0].page_content])['input_ids'].shape[1] for x in
@@ -1581,14 +1975,35 @@ def get_similarity_chain(query=None,
                 tokens_cumsum = np.cumsum(tokens)
                 if hasattr(llm, 'pipeline') and hasattr(llm.pipeline, 'max_input_tokens'):
                     max_input_tokens = llm.pipeline.max_input_tokens
+                elif inference_server in ['openai']:
+                    max_tokens = llm.modelname_to_contextsize(model_name)
+                    # leave some room for 1 paragraph, even if min_new_tokens=0
+                    max_input_tokens = max_tokens - 256
+                elif inference_server in ['openai_chat']:
+                    max_tokens = model_token_mapping[model_name]
+                    # leave some room for 1 paragraph, even if min_new_tokens=0
+                    max_input_tokens = max_tokens - 256
                 else:
+                    # leave some room for 1 paragraph, even if min_new_tokens=0
                     max_input_tokens = 2048 - 256
                 max_input_tokens -= template_tokens
                 # FIXME: Doesn't account for query, == context, or new lines between contexts
-                top_k_docs_trial = np.where(tokens_cumsum < max_input_tokens)[0][-1]
-                if top_k_docs_trial > 0 and top_k_docs_trial < 100:
+                where_res = np.where(tokens_cumsum < max_input_tokens)[0]
+                if where_res.shape[0] == 0:
+                    # then no chunk can fit, still do first one
+                    top_k_docs_trial = 1
+                else:
+                    top_k_docs_trial = 1 + where_res[-1]
+                if 0 < top_k_docs_trial < max_chunks:
                     # avoid craziness
-                    top_k_docs = top_k_docs_trial
+                    if top_k_docs == -1:
+                        top_k_docs = top_k_docs_trial
+                    else:
+                        top_k_docs = min(top_k_docs, top_k_docs_trial)
+                if top_k_docs == -1:
+                    # if here, means 0 and just do best with 1 doc
+                    print("Unexpected large chunks and can't add to context, will add 1 anyways", flush=True)
+                    top_k_docs = 1
                 docs_with_score = docs_with_score[:top_k_docs]
             else:
                 docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:top_k_docs]
@@ -1631,6 +2046,7 @@ def get_similarity_chain(query=None,
     if len(docs) == 0:
         # avoid context == in prompt then
         use_context = False
+        template = template_if_no_docs
 
     if use_template:
         # instruct-like, rather than few-shot prompt_type='plain' as default

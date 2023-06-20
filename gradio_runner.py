@@ -35,7 +35,20 @@ import gradio as gr
 
 requests.get = original_get
 
-from enums import DocumentChoices
+
+def fix_pydantic_duplicate_validators_error():
+    try:
+        from pydantic import class_validators
+
+        class_validators.in_ipython = lambda: True  # type: ignore[attr-defined]
+    except ImportError:
+        pass
+
+
+fix_pydantic_duplicate_validators_error()
+
+
+from enums import DocumentChoices, no_model_str, no_lora_str, no_server_str
 from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, get_dark_js
 from prompter import Prompter, \
     prompt_type_to_model_name, prompt_types_strings, inv_prompt_type_to_model_lower, generate_prompt, non_hf_types, \
@@ -80,6 +93,7 @@ def go_gradio(**kwargs):
     n_gpus = kwargs['n_gpus']
     admin_pass = kwargs['admin_pass']
     model_state0 = kwargs['model_state0']
+    model_states = kwargs['model_states']
     score_model_state0 = kwargs['score_model_state0']
     dbs = kwargs['dbs']
     db_type = kwargs['db_type']
@@ -152,24 +166,36 @@ def go_gradio(**kwargs):
 
     model_options = flatten_list(list(prompt_type_to_model_name.values())) + kwargs['extra_model_options']
     if kwargs['base_model'].strip() not in model_options:
-        lora_options = [kwargs['base_model'].strip()] + model_options
+        model_options = [kwargs['base_model'].strip()] + model_options
     lora_options = kwargs['extra_lora_options']
     if kwargs['lora_weights'].strip() not in lora_options:
         lora_options = [kwargs['lora_weights'].strip()] + lora_options
+    server_options = kwargs['extra_server_options']
+    if kwargs['inference_server'].strip() not in server_options:
+        server_options = [kwargs['inference_server'].strip()] + server_options
+    if os.getenv('OPENAI_API_KEY'):
+        if 'openai_chat' not in server_options:
+            server_options += ['openai_chat']
+        if 'openai' not in server_options:
+            server_options += ['openai']
+
     # always add in no lora case
     # add fake space so doesn't go away in gradio dropdown
-    no_lora_str = no_model_str = '[None/Remove]'
-    lora_options = [no_lora_str] + kwargs['extra_lora_options']  # FIXME: why double?
+    model_options = [no_model_str] + model_options
+    lora_options = [no_lora_str] + lora_options
+    server_options = [no_server_str] + server_options
     # always add in no model case so can free memory
     # add fake space so doesn't go away in gradio dropdown
-    model_options = [no_model_str] + model_options
 
     # transcribe, will be detranscribed before use by evaluate()
+    if not kwargs['base_model'].strip():
+        kwargs['base_model'] = no_model_str
+
     if not kwargs['lora_weights'].strip():
         kwargs['lora_weights'] = no_lora_str
 
-    if not kwargs['base_model'].strip():
-        kwargs['base_model'] = no_model_str
+    if not kwargs['inference_server'].strip():
+        kwargs['inference_server'] = no_server_str
 
     # transcribe for gradio
     kwargs['gpu_id'] = str(kwargs['gpu_id'])
@@ -186,10 +212,12 @@ def go_gradio(**kwargs):
     with demo:
         # avoid actual model/tokenizer here or anything that would be bad to deepcopy
         # https://github.com/gradio-app/gradio/issues/3558
-        model_state = gr.State(['model', 'tokenizer', kwargs['device'], kwargs['base_model']])
-        model_state2 = gr.State([None, None, None, None])
+        model_state = gr.State(
+            ['model', 'tokenizer', kwargs['device'], kwargs['base_model'], kwargs['inference_server']])
+        model_state2 = gr.State([None, None, None, None, None])
         model_options_state = gr.State([model_options])
         lora_options_state = gr.State([lora_options])
+        server_options_state = gr.State([server_options])
         my_db_state = gr.State([None, None])
         chat_state = gr.State({})
         # make user default first and default choice, dedup
@@ -493,9 +521,17 @@ def go_gradio(**kwargs):
                                                            label="Whether to chunk documents",
                                                            info="For LangChain",
                                                            visible=not is_public)
-                            top_k_docs = gr.Slider(minimum=-1, maximum=100, step=1,
+                            if is_public:
+                                min_top_k_docs = 1
+                                max_top_k_docs = 3
+                                label_top_k_docs = "Number of document chunks"
+                            else:
+                                min_top_k_docs = -1
+                                max_top_k_docs = 100
+                                label_top_k_docs = "Number of document chunks (-1 = auto fill model context)"
+                            top_k_docs = gr.Slider(minimum=min_top_k_docs, maximum=max_top_k_docs, step=1,
                                                    value=kwargs['top_k_docs'],
-                                                   label="Number of document chunks (-1 = auto fill model context up to 100 chunks)",
+                                                   label=label_top_k_docs,
                                                    info="For LangChain",
                                                    visible=not is_public)
                             chunk_size = gr.Number(value=kwargs['chunk_size'],
@@ -509,19 +545,25 @@ def go_gradio(**kwargs):
                         else "LOAD-UNLOAD DISABLED FOR HOSTED DEMO"
                     load_msg2 = "Load-Unload Model/LORA 2 [unload works if did not use --base_model]" if not is_public \
                         else "LOAD-UNLOAD DISABLED FOR HOSTED DEMO 2"
+                    variant_load_msg = 'primary' if not is_public else 'secondary'
                     compare_checkbox = gr.components.Checkbox(label="Compare Mode",
-                                                              value=False, visible=not is_public)
+                                                              value=kwargs['model_lock'],
+                                                              visible=not is_public and not kwargs['model_lock'])
                     with gr.Row():
                         n_gpus_list = [str(x) for x in list(range(-1, n_gpus))]
                         with gr.Column():
                             with gr.Row():
-                                with gr.Column(scale=20):
+                                with gr.Column(scale=20, visible=not kwargs['model_lock']):
                                     model_choice = gr.Dropdown(model_options_state.value[0], label="Choose Model",
                                                                value=kwargs['base_model'])
                                     lora_choice = gr.Dropdown(lora_options_state.value[0], label="Choose LORA",
                                                               value=kwargs['lora_weights'], visible=kwargs['show_lora'])
-                                with gr.Column(scale=1):
-                                    load_model_button = gr.Button(load_msg).style(full_width=False, size='sm')
+                                    server_choice = gr.Dropdown(server_options_state.value[0], label="Choose Server",
+                                                                value=kwargs['inference_server'])
+                                with gr.Column(scale=1, visible=not kwargs['model_lock']):
+                                    load_model_button = gr.Button(load_msg, variant=variant_load_msg).style(
+                                        full_width=False,
+                                        size='sm')
                                     model_load8bit_checkbox = gr.components.Checkbox(
                                         label="Load 8-bit [requires support]",
                                         value=kwargs['load_8bit'])
@@ -535,20 +577,27 @@ def go_gradio(**kwargs):
                                                             interactive=False)
                                     lora_used = gr.Textbox(label="Current LORA", value=kwargs['lora_weights'],
                                                            visible=kwargs['show_lora'], interactive=False)
+                                    server_used = gr.Textbox(label="Current Server",
+                                                             value=kwargs['inference_server'],
+                                                             visible=kwargs['inference_server'],
+                                                             interactive=False)
                                     prompt_dict = gr.Textbox(label="Prompt (or Custom)",
                                                              value=pprint.pformat(kwargs['prompt_dict'], indent=4),
                                                              interactive=True, lines=4)
                         col_model2 = gr.Column(visible=False)
                         with col_model2:
                             with gr.Row():
-                                with gr.Column(scale=20):
+                                with gr.Column(scale=20, visible=not kwargs['model_lock']):
                                     model_choice2 = gr.Dropdown(model_options_state.value[0], label="Choose Model 2",
                                                                 value=no_model_str)
                                     lora_choice2 = gr.Dropdown(lora_options_state.value[0], label="Choose LORA 2",
                                                                value=no_lora_str,
                                                                visible=kwargs['show_lora'])
-                                with gr.Column(scale=1):
-                                    load_model_button2 = gr.Button(load_msg2).style(full_width=False, size='sm')
+                                    server_choice2 = gr.Dropdown(server_options_state.value[0], label="Choose Server 2",
+                                                                 value=no_server_str)
+                                with gr.Column(scale=1, visible=not kwargs['model_lock']):
+                                    load_model_button2 = gr.Button(load_msg2, variant=variant_load_msg).style(
+                                        full_width=False, size='sm')
                                     model_load8bit_checkbox2 = gr.components.Checkbox(
                                         label="Load 8-bit 2 [requires support]",
                                         value=kwargs['load_8bit'])
@@ -560,21 +609,24 @@ def go_gradio(**kwargs):
                                                              label="GPU ID 2 [-1 = all GPUs, if choose is enabled]",
                                                              value=kwargs['gpu_id'])
                                     # no model/lora loaded ever in model2 by default
-                                    model_used2 = gr.Textbox(label="Current Model 2", value=no_model_str)
+                                    model_used2 = gr.Textbox(label="Current Model 2", value=no_model_str,
+                                                             interactive=False)
                                     lora_used2 = gr.Textbox(label="Current LORA 2", value=no_lora_str,
-                                                            visible=kwargs['show_lora'])
+                                                            visible=kwargs['show_lora'], interactive=False)
+                                    server_used2 = gr.Textbox(label="Current Server 2", value=no_server_str,
+                                                              interactive=False)
                                     prompt_dict2 = gr.Textbox(label="Prompt (or Custom) 2",
                                                               value=pprint.pformat(kwargs['prompt_dict'], indent=4),
                                                               interactive=True, lines=4)
-                    with gr.Row():
+                    with gr.Row(visible=not kwargs['model_lock']):
                         with gr.Column(scale=50):
-                            new_model = gr.Textbox(label="New Model HF name/path")
-                        with gr.Row():
-                            add_model_button = gr.Button("Add new model name").style(full_width=False, size='sm')
+                            new_model = gr.Textbox(label="New Model name/path")
                         with gr.Column(scale=50):
-                            new_lora = gr.Textbox(label="New LORA HF name/path", visible=kwargs['show_lora'])
+                            new_lora = gr.Textbox(label="New LORA name/path", visible=kwargs['show_lora'])
+                        with gr.Column(scale=50):
+                            new_server = gr.Textbox(label="New Server url:port")
                         with gr.Row():
-                            add_lora_button = gr.Button("Add new LORA name", visible=kwargs['show_lora']).style(
+                            add_model_lora_server_button = gr.Button("Add new Model, Lora, Server url:port").style(
                                 full_width=False, size='sm')
                 with gr.TabItem("System"):
                     admin_row = gr.Row()
@@ -779,7 +831,10 @@ def go_gradio(**kwargs):
 
         def evaluate_gradio(*args1, **kwargs1):
             for res_dict in evaluate(*args1, **kwargs1):
-                yield '<br>' + fix_text_for_gradio(res_dict['response'])
+                if kwargs['langchain_mode'] == 'Disabled':
+                    yield fix_text_for_gradio(res_dict['response'])
+                else:
+                    yield '<br>' + fix_text_for_gradio(res_dict['response'])
 
         fun = partial(evaluate_gradio,
                       **kwargs_evaluate)
@@ -836,6 +891,7 @@ def go_gradio(**kwargs):
             smodel = score_model_state0[0]
             stokenizer = score_model_state0[1]
             sdevice = score_model_state0[2]
+            sserver = score_model_state0[3]
             if not nochat:
                 history = args_list[-1]
                 if history is None:
@@ -916,6 +972,11 @@ def go_gradio(**kwargs):
             input1 = args_list[eval_func_param_names.index('iinput')]  # chat only
             context1 = args_list[eval_func_param_names.index('context')]
             prompt_type1 = args_list[eval_func_param_names.index('prompt_type')]
+            if not prompt_type1:
+                # shouldn't have to specify if CLI launched model
+                prompt_type1 = kwargs['prompt_type']
+                # apply back
+                args_list[eval_func_param_names.index('prompt_type')] = prompt_type1
             prompt_dict1 = args_list[eval_func_param_names.index('prompt_dict')]
             chat1 = args_list[eval_func_param_names.index('chat')]
             stream_output1 = args_list[eval_func_param_names.index('stream_output')]
@@ -1041,6 +1102,11 @@ def go_gradio(**kwargs):
                 yield history, ''
                 return
             prompt_type1 = args_list[eval_func_param_names.index('prompt_type')]
+            if not prompt_type1:
+                # shouldn't have to specify if CLI launched model
+                prompt_type1 = kwargs['prompt_type']
+                # apply back
+                args_list[eval_func_param_names.index('prompt_type')] = prompt_type1
             prompt_dict1 = args_list[eval_func_param_names.index('prompt_dict')]
             chat1 = args_list[eval_func_param_names.index('chat')]
             model_max_length1 = get_model_max_length(model_state1)
@@ -1363,7 +1429,8 @@ def go_gradio(**kwargs):
                                                           api_name='submit_nochat_api' if allow_api else None) \
             .then(clear_torch_cache)
 
-        def load_model(model_name, lora_weights, model_state_old, prompt_type_old, load_8bit, infer_devices, gpu_id):
+        def load_model(model_name, lora_weights, server_name, model_state_old, prompt_type_old, load_8bit,
+                       infer_devices, gpu_id):
             # ensure old model removed from GPU memory
             if kwargs['debug']:
                 print("Pre-switch pre-del GPU memory: %s" % get_torch_allocated(), flush=True)
@@ -1394,7 +1461,11 @@ def go_gradio(**kwargs):
                 # no-op if no model, just free memory
                 # no detranscribe needed for model, never go into evaluate
                 lora_weights = no_lora_str
-                return [None, None, None, model_name], model_name, lora_weights, prompt_type_old
+                server_name = no_server_str
+                return [None, None, None, model_name, server_name], \
+                    model_name, lora_weights, server_name, prompt_type_old, \
+                    gr.Slider.update(maximum=256), \
+                    gr.Slider.update(maximum=256)
 
             # don't deepcopy, can contain model itself
             all_kwargs1 = all_kwargs.copy()
@@ -1411,20 +1482,23 @@ def go_gradio(**kwargs):
             # detranscribe
             if lora_weights == no_lora_str:
                 lora_weights = ''
-
             all_kwargs1['lora_weights'] = lora_weights.strip()
+            if server_name == no_server_str:
+                server_name = ''
+            all_kwargs1['inference_server'] = server_name.strip()
+
             model1, tokenizer1, device1 = get_model(reward_type=False,
                                                     **get_kwargs(get_model, exclude_names=['reward_type'],
                                                                  **all_kwargs1))
             clear_torch_cache()
 
-            model_state_new = [model1, tokenizer1, device1, model_name]
+            model_state_new = [model1, tokenizer1, device1, model_name, server_name]
 
             max_max_new_tokens1 = get_max_max_new_tokens(model_state_new, **kwargs)
 
             if kwargs['debug']:
                 print("Post-switch GPU memory: %s" % get_torch_allocated(), flush=True)
-            return model_state_new, model_name, lora_weights, prompt_type1, \
+            return model_state_new, model_name, lora_weights, server_name, prompt_type1, \
                 gr.Slider.update(maximum=max_max_new_tokens1), \
                 gr.Slider.update(maximum=max_max_new_tokens1)
 
@@ -1447,9 +1521,9 @@ def go_gradio(**kwargs):
             return gr.Textbox.update(label=f'h2oGPT [Model: {model_used_in}]')
 
         load_model_args = dict(fn=load_model,
-                               inputs=[model_choice, lora_choice, model_state, prompt_type,
+                               inputs=[model_choice, lora_choice, server_choice, model_state, prompt_type,
                                        model_load8bit_checkbox, model_infer_devices_checkbox, model_gpu],
-                               outputs=[model_state, model_used, lora_used,
+                               outputs=[model_state, model_used, lora_used, server_used,
                                         # if prompt_type changes, prompt_dict will change via change rule
                                         prompt_type, max_new_tokens, min_new_tokens,
                                         ])
@@ -1464,9 +1538,9 @@ def go_gradio(**kwargs):
                 .then(clear_torch_cache)
 
         load_model_args2 = dict(fn=load_model,
-                                inputs=[model_choice2, lora_choice2, model_state2, prompt_type2,
+                                inputs=[model_choice2, lora_choice2, server_choice2, model_state2, prompt_type2,
                                         model_load8bit_checkbox2, model_infer_devices_checkbox2, model_gpu2],
-                                outputs=[model_state2, model_used2, lora_used2,
+                                outputs=[model_state2, model_used2, lora_used2, server_used2,
                                          # if prompt_type2 changes, prompt_dict2 will change via change rule
                                          prompt_type2, max_new_tokens2, min_new_tokens2
                                          ])
@@ -1479,32 +1553,51 @@ def go_gradio(**kwargs):
                 .then(**chatbot_update_args2) \
                 .then(clear_torch_cache)
 
-        def dropdown_model_list(list0, x):
-            new_state = [list0[0] + [x]]
-            new_options = [*new_state[0]]
-            return gr.Dropdown.update(value=x, choices=new_options), \
-                gr.Dropdown.update(value=x, choices=new_options), \
-                '', new_state
+        def dropdown_model_lora_server_list(model_list0, model_x,
+                                            lora_list0, lora_x,
+                                            server_list0, server_x,
+                                            model_used1, lora_used1, server_used1,
+                                            model_used2, lora_used2, server_used2,
+                                            ):
+            model_new_state = [model_list0[0] + [model_x]]
+            model_new_options = [*model_new_state[0]]
+            x1 = model_x if model_used1 == no_model_str else model_used1
+            x2 = model_x if model_used2 == no_model_str else model_used2
+            ret1 = [gr.Dropdown.update(value=x1, choices=model_new_options),
+                    gr.Dropdown.update(value=x2, choices=model_new_options),
+                    '', model_new_state]
 
-        add_model_event = add_model_button.click(fn=dropdown_model_list,
-                                                 inputs=[model_options_state, new_model],
-                                                 outputs=[model_choice, model_choice2, new_model, model_options_state],
-                                                 queue=False)
-
-        def dropdown_lora_list(list0, x, model_used1, lora_used1, model_used2, lora_used2):
-            new_state = [list0[0] + [x]]
-            new_options = [*new_state[0]]
+            lora_new_state = [lora_list0[0] + [lora_x]]
+            lora_new_options = [*lora_new_state[0]]
             # don't switch drop-down to added lora if already have model loaded
-            x1 = x if model_used1 == no_model_str else lora_used1
-            x2 = x if model_used2 == no_model_str else lora_used2
-            return gr.Dropdown.update(value=x1, choices=new_options), \
-                gr.Dropdown.update(value=x2, choices=new_options), \
-                '', new_state
+            x1 = lora_x if model_used1 == no_model_str else lora_used1
+            x2 = lora_x if model_used2 == no_model_str else lora_used2
+            ret2 = [gr.Dropdown.update(value=x1, choices=lora_new_options),
+                    gr.Dropdown.update(value=x2, choices=lora_new_options),
+                    '', lora_new_state]
 
-        add_lora_event = add_lora_button.click(fn=dropdown_lora_list,
-                                               inputs=[lora_options_state, new_lora, model_used, lora_used, model_used2,
-                                                       lora_used2],
-                                               outputs=[lora_choice, lora_choice2, new_lora, lora_options_state],
+            server_new_state = [server_list0[0] + [server_x]]
+            server_new_options = [*server_new_state[0]]
+            # don't switch drop-down to added server if already have model loaded
+            x1 = server_x if model_used1 == no_model_str else server_used1
+            x2 = server_x if model_used2 == no_model_str else server_used2
+            ret3 = [gr.Dropdown.update(value=x1, choices=server_new_options),
+                    gr.Dropdown.update(value=x2, choices=server_new_options),
+                    '', server_new_state]
+
+            return tuple(ret1 + ret2 + ret3)
+
+        add_model_lora_server_event = \
+            add_model_lora_server_button.click(fn=dropdown_model_lora_server_list,
+                                               inputs=[model_options_state, new_model] +
+                                                      [lora_options_state, new_lora] +
+                                                      [server_options_state, new_server] +
+                                                      [model_used, lora_used, server_used] +
+                                                      [model_used2, lora_used2, server_used2],
+                                               outputs=[model_choice, model_choice2, new_model, model_options_state] +
+                                                       [lora_choice, lora_choice2, new_lora, lora_options_state] +
+                                                       [server_choice, server_choice2, new_server,
+                                                        server_options_state],
                                                queue=False)
 
         go_btn.click(lambda: gr.update(visible=False), None, go_btn, api_name="go" if allow_api else None, queue=False) \

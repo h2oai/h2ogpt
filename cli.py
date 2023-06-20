@@ -7,7 +7,7 @@ from utils import clear_torch_cache, NullContext, get_kwargs
 
 
 def run_cli(  # for local function:
-        base_model=None, lora_weights=None,
+        base_model=None, lora_weights=None, inference_server=None,
         debug=None, chat_context=None,
         examples=None, memory_restriction_level=None,
         # for get_model:
@@ -20,6 +20,7 @@ def run_cli(  # for local function:
         max_new_tokens=None, min_new_tokens=None, early_stopping=None, max_time=None, repetition_penalty=None,
         num_return_sequences=None, do_sample=None, chat=None,
         langchain_mode=None, document_choice=None, top_k_docs=None, chunk=None, chunk_size=None,
+        auto_reduce_chunks=None, max_chunks=None,
         # for evaluate kwargs
         src_lang=None, tgt_lang=None, concurrency_count=None, save_dir=None, sanitize_bot_response=None,
         model_state0=None, raise_generate_gpu_exceptions=None, load_db_if_exists=None, dbs=None, user_path=None,
@@ -47,7 +48,7 @@ def run_cli(  # for local function:
 
         model, tokenizer, device = get_model(reward_type=False,
                                              **get_kwargs(get_model, exclude_names=['reward_type'], **locals()))
-        model_state = [model, tokenizer, device, base_model]
+        model_state = [model, tokenizer, device, base_model, inference_server]
         my_db_state = [None]
         fun = partial(evaluate, model_state, my_db_state,
                       **get_kwargs(evaluate, exclude_names=['model_state', 'my_db_state'] + eval_func_param_names,
@@ -79,7 +80,7 @@ def run_cli(  # for local function:
             for gen_output in gener:
                 res = gen_output['response']
                 extra = gen_output['sources']
-                if base_model not in non_hf_types:
+                if base_model not in non_hf_types or base_model in ['llama']:
                     if not stream_output:
                         print(res)
                     else:
@@ -90,10 +91,7 @@ def run_cli(  # for local function:
                     outr = res  # don't accumulate
                 else:
                     outr += res  # just is one thing
-                    if base_model in ['llama']:
-                        # full thing, no streaming until fixed
-                        print(outr, flush=True)
-                    elif extra:
+                    if extra:
                         # show sources at end after model itself had streamed to std rest of response
                         print(extra, flush=True)
             all_generations.append(outr + '\n')

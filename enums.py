@@ -23,6 +23,9 @@ class PromptType(Enum):
     wizard3 = 17
     instruct_simple = 18
     wizard_vicuna = 19
+    openai = 20
+    openai_chat = 21
+    gptj = 22
 
 
 class DocumentChoices(Enum):
@@ -45,3 +48,31 @@ class LangChainMode(Enum):
     MY_DATA = "MyData"
     GITHUB_H2OGPT = "github h2oGPT"
     H2O_DAI_DOCS = "DriverlessAI docs"
+
+
+no_server_str = no_lora_str = no_model_str = '[None/Remove]'
+
+
+# from site-packages/langchain/llms/openai.py, but needed since ChatOpenAI doesn't have this information
+model_token_mapping = {
+    "gpt-4": 8192,
+    "gpt-4-0314": 8192,
+    "gpt-4-32k": 32768,
+    "gpt-4-32k-0314": 32768,
+    "gpt-3.5-turbo": 4096,
+    "gpt-3.5-turbo-16k": 16*1024,
+    "gpt-3.5-turbo-0301": 4096,
+    "text-ada-001": 2049,
+    "ada": 2049,
+    "text-babbage-001": 2040,
+    "babbage": 2049,
+    "text-curie-001": 2049,
+    "curie": 2049,
+    "davinci": 2049,
+    "text-davinci-003": 4097,
+    "text-davinci-002": 4097,
+    "code-davinci-002": 8001,
+    "code-davinci-001": 8001,
+    "code-cushman-002": 2048,
+    "code-cushman-001": 2048,
+}

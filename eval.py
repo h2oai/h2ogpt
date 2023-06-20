@@ -13,7 +13,7 @@ from utils import clear_torch_cache, NullContext, get_kwargs
 
 
 def run_eval(  # for local function:
-        base_model=None, lora_weights=None,
+        base_model=None, lora_weights=None, inference_server=None,
         prompt_type=None, prompt_dict=None,
         debug=None, chat=False, chat_context=None, stream_output=None,
         eval_filename=None, eval_prompts_only_num=None, eval_prompts_only_seed=None, eval_as_output=None,
@@ -38,6 +38,7 @@ def run_eval(  # for local function:
         top_k_docs=None,
         chunk=None,
         chunk_size=None,
+        auto_reduce_chunks=None, max_chunks=None,
         document_choice=None,
         # for evaluate kwargs:
         src_lang=None, tgt_lang=None, concurrency_count=None, save_dir=None, sanitize_bot_response=None,
@@ -101,14 +102,18 @@ def run_eval(  # for local function:
     if eval_as_output:
         used_base_model = 'gpt35'
         used_lora_weights = ''
+        used_inference_server = ''
     else:
         used_base_model = str(base_model.split('/')[-1])
         used_lora_weights = str(lora_weights.split('/')[-1])
-    eval_out_filename = "df_scores_%s_%s_%s_%s_%s_%s.parquet" % (num_examples, eval_prompts_only_num,
-                                                                 eval_prompts_only_seed,
-                                                                 eval_as_output,
-                                                                 used_base_model,
-                                                                 used_lora_weights)
+        used_inference_server = str(inference_server.split('/')[-1])
+    eval_out_filename = "df_scores_%s_%s_%s_%s_%s_%s_%s.parquet" % (num_examples, eval_prompts_only_num,
+                                                                    eval_prompts_only_seed,
+                                                                    eval_as_output,
+                                                                    used_base_model,
+                                                                    used_lora_weights,
+                                                                    used_inference_server,
+                                                                    )
     eval_out_filename = os.path.join(scoring_path, eval_out_filename)
 
     # torch.device("cuda") leads to cuda:x cuda:y mismatches for multi-GPU consistently
@@ -130,7 +135,7 @@ def run_eval(  # for local function:
         if not eval_as_output:
             model, tokenizer, device = get_model(reward_type=False,
                                                  **get_kwargs(get_model, exclude_names=['reward_type'], **locals()))
-            model_state = [model, tokenizer, device, base_model]
+            model_state = [model, tokenizer, device, base_model, inference_server]
             my_db_state = [None]
             fun = partial(evaluate, model_state, my_db_state,
                           **get_kwargs(evaluate, exclude_names=['model_state', 'my_db_state'] + eval_func_param_names,
@@ -230,7 +235,7 @@ def run_eval(  # for local function:
             print("")
             t2 = time.time()
             print("Time taken for example: %s Time taken so far: %.4f about %.4g per example" % (
-            t2 - t1, t2 - t0, (t2 - t0) / (1 + exi)))
+                t2 - t1, t2 - t0, (t2 - t0) / (1 + exi)))
         t1 = time.time()
         print("Total time taken: %.4f about %.4g per example" % (t1 - t0, (t1 - t0) / num_examples))
         print("Score avg: %s median: %s" % (score_avg, score_median), flush=True)
