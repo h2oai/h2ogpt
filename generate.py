@@ -302,6 +302,8 @@ def main(
     """
     if model_lock:
         assert gradio, "model_lock only supported for gradio=True"
+        if len(model_lock) > 1:
+            assert chat, "model_lock only works for multiple models for chat=True"
         assert not cli, "model_lock only supported for cli=False"
         assert not (not cli and not gradio), "model_lock only supported for eval (cli=gradio=False)"
         assert not base_model, "Don't specify model_lock and base_model"
