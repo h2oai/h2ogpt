@@ -1,5 +1,5 @@
 # for generate (gradio server) and finetune
-datasets==2.12.0
+datasets==2.13.0
 sentencepiece==0.1.99
 gradio==3.34.0
 huggingface_hub==0.15.1
