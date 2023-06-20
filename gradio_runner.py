@@ -818,7 +818,10 @@ def go_gradio(**kwargs):
 
         def evaluate_gradio(*args1, **kwargs1):
             for res_dict in evaluate(*args1, **kwargs1):
-                yield '<br>' + fix_text_for_gradio(res_dict['response'])
+                if kwargs['langchain_mode'] == 'Disabled':
+                    yield fix_text_for_gradio(res_dict['response'])
+                else:
+                    yield '<br>' + fix_text_for_gradio(res_dict['response'])
 
         fun = partial(evaluate_gradio,
                       **kwargs_evaluate)

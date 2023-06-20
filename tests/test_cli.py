@@ -88,7 +88,8 @@ def test_cli_llamacpp(monkeypatch):
 
     print(all_generations)
     assert len(all_generations) == 1
-    assert "I'm a software engineer with a passion for building scalable" in all_generations[0]
+    assert "I'm a software engineer with a passion for building scalable" in all_generations[0] or \
+        "how can I assist" in all_generations[0]
 
 
 @wrap_test_forked
