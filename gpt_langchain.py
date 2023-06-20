@@ -331,7 +331,7 @@ class GradioInference(LLM):
     @property
     def _llm_type(self) -> str:
         """Return type of llm."""
-        return "hf_textgen_inference"
+        return "gradio_inference"
 
     def _call(
             self,
