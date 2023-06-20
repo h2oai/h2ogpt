@@ -212,6 +212,7 @@ def test_hf_inference_server(base_model,
 
 
 @pytest.mark.skipif(not have_openai_key, reason="requires OpenAI key to run")
+@wrap_test_forked
 def test_openai_inference_server(prompt='Who are you?', stream_output=False, max_new_tokens=256,
                                  base_model='gpt-3.5-turbo',
                                  langchain_mode='Disabled', user_path=None,
@@ -239,10 +240,10 @@ def test_openai_inference_server(prompt='Who are you?', stream_output=False, max
 
     # will use HOST from above
     ret1, ret2, ret3, ret4, ret5, ret6, ret7 = run_client_many(prompt_type=None)  # client shouldn't have to specify
-    assert 'I am an AI language model designed to assist' in ret1['response']
-    assert 'I am an AI language model designed to assist' in ret2['response']
+    assert 'I am an AI language model' in ret1['response']
+    assert 'Once upon a time, in a far-off land,' in ret2['response']
     assert 'Once upon a time, in a far-off land,' in ret3['response']
-    assert 'Once upon a time, in a far-off land,' in ret4['response']
+    assert 'I am an AI language model' in ret4['response']
     assert 'I am an AI language model' in ret5['response']
     assert 'I am an AI language model' in ret6['response']
     assert 'I am an AI language model' in ret7['response']

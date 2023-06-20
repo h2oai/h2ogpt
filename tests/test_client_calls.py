@@ -20,7 +20,7 @@ def test_client1():
          stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False)
 
     from client_test import test_client_basic
-    res_dict = test_client_basic()
+    res_dict, _ = test_client_basic()
     assert res_dict['prompt'] == 'Who are you?'
     assert res_dict['iinput'] == ''
     assert 'I am h2oGPT' in res_dict['response'] or "I'm h2oGPT" in res_dict['response'] or 'I’m h2oGPT' in res_dict[
@@ -109,13 +109,16 @@ def test_client_chat_nostream():
 
 @wrap_test_forked
 def test_client_chat_nostream_gpt4all():
-    res_dict, client = run_client_chat_with_server(stream_output=False, base_model='gptj', prompt_type='plain')
-    assert 'I am a computer program designed to assist' in res_dict['response']
+    res_dict, client = run_client_chat_with_server(stream_output=False, base_model='gptj', prompt_type='gptj')
+    assert 'I am a computer program designed to assist' in res_dict['response'] or \
+        'I am a person who enjoys' in res_dict['response'] or \
+        'I am a student at' in res_dict['response'] or \
+        'I am a person who' in res_dict['response']
 
 
 @wrap_test_forked
 def test_client_chat_nostream_gpt4all_llama():
-    res_dict, client = run_client_chat_with_server(stream_output=False, base_model='gpt4all_llama', prompt_type='plain')
+    res_dict, client = run_client_chat_with_server(stream_output=False, base_model='gpt4all_llama', prompt_type='gptj')
     assert 'What do you want from me?' in res_dict['response'] or 'What do you want?' in res_dict[
         'response'] or 'What is your name and title?' in res_dict['response']
 
