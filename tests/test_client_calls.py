@@ -125,7 +125,7 @@ def test_client_chat_nostream_gpt4all_llama():
 def test_client_chat_nostream_llama7b():
     prompt_type = get_llama()
     res_dict, client = run_client_chat_with_server(stream_output=False, base_model='llama', prompt_type=prompt_type)
-    assert "I’m a software engineer" in res_dict['response'] or "I'm a software engineer" in res_dict['response']
+    assert "am a virtual assistant" in res_dict['response']
 
 
 def run_client_chat_with_server(prompt='Who are you?', stream_output=False, max_new_tokens=256,
@@ -148,7 +148,7 @@ def run_client_chat_with_server(prompt='Who are you?', stream_output=False, max_
          reverse_docs=reverse_docs)
 
     from client_test import run_client_chat
-    res_dict, client = run_client_chat(prompt=prompt, prompt_type='human_bot', stream_output=stream_output,
+    res_dict, client = run_client_chat(prompt=prompt, prompt_type=prompt_type, stream_output=stream_output,
                                        max_new_tokens=max_new_tokens, langchain_mode=langchain_mode)
     assert res_dict['prompt'] == prompt
     assert res_dict['iinput'] == ''
@@ -180,7 +180,7 @@ def run_client_nochat_with_server(prompt='Who are you?', stream_output=False, ma
          reverse_docs=reverse_docs)
 
     from client_test import run_client_nochat_gen
-    res_dict, client = run_client_nochat_gen(prompt=prompt, prompt_type='human_bot',
+    res_dict, client = run_client_nochat_gen(prompt=prompt, prompt_type=prompt_type,
                                              stream_output=stream_output,
                                              max_new_tokens=max_new_tokens, langchain_mode=langchain_mode)
     assert 'Birds' in res_dict['response'] or ' and can learn new things' in res_dict['response']
