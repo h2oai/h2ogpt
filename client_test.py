@@ -49,7 +49,6 @@ import pytest
 from bs4 import BeautifulSoup  # pip install beautifulsoup4
 
 from enums import DocumentChoices
-from tests.utils import wrap_test_forked
 
 debug = False
 
@@ -106,7 +105,6 @@ def get_args(prompt, prompt_type, chat=False, stream_output=False,
 
 
 @pytest.mark.skip(reason="For manual use against some server, no server launched")
-@wrap_test_forked
 def test_client_basic(prompt_type='human_bot'):
     return run_client_nochat(prompt='Who are you?', prompt_type=prompt_type, max_new_tokens=50)
 
@@ -128,7 +126,6 @@ def run_client_nochat(prompt, prompt_type, max_new_tokens):
 
 
 @pytest.mark.skip(reason="For manual use against some server, no server launched")
-@wrap_test_forked
 def test_client_basic_api(prompt_type='human_bot'):
     return run_client_nochat_api(prompt='Who are you?', prompt_type=prompt_type, max_new_tokens=50)
 
@@ -151,7 +148,6 @@ def run_client_nochat_api(prompt, prompt_type, max_new_tokens):
 
 
 @pytest.mark.skip(reason="For manual use against some server, no server launched")
-@wrap_test_forked
 def test_client_basic_api_lean(prompt_type='human_bot'):
     return run_client_nochat_api_lean(prompt='Who are you?', prompt_type=prompt_type, max_new_tokens=50)
 
@@ -174,7 +170,6 @@ def run_client_nochat_api_lean(prompt, prompt_type, max_new_tokens):
 
 
 @pytest.mark.skip(reason="For manual use against some server, no server launched")
-@wrap_test_forked
 def test_client_basic_api_lean_morestuff(prompt_type='human_bot'):
     return run_client_nochat_api_lean_morestuff(prompt='Who are you?', prompt_type=prompt_type, max_new_tokens=50)
 
@@ -220,14 +215,12 @@ def run_client_nochat_api_lean_morestuff(prompt, prompt_type='human_bot', max_ne
 
 
 @pytest.mark.skip(reason="For manual use against some server, no server launched")
-@wrap_test_forked
 def test_client_chat(prompt_type='human_bot'):
     return run_client_chat(prompt='Who are you?', prompt_type=prompt_type, stream_output=False, max_new_tokens=50,
                            langchain_mode='Disabled')
 
 
 @pytest.mark.skip(reason="For manual use against some server, no server launched")
-@wrap_test_forked
 def test_client_chat_stream(prompt_type='human_bot'):
     return run_client_chat(prompt="Tell a very long kid's story about birds.", prompt_type=prompt_type,
                            stream_output=True, max_new_tokens=512,
@@ -277,7 +270,6 @@ def run_client(client, prompt, args, kwargs, do_md_to_text=True, verbose=False):
 
 
 @pytest.mark.skip(reason="For manual use against some server, no server launched")
-@wrap_test_forked
 def test_client_nochat_stream(prompt_type='human_bot'):
     return run_client_nochat_gen(prompt="Tell a very long kid's story about birds.", prompt_type=prompt_type,
                                  stream_output=True, max_new_tokens=512,
