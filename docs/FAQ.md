@@ -538,5 +538,7 @@ yum install -y devtoolset-11-toolchain
 PATH=$PATH::/opt/rh/devtoolset-11/root/usr/bin export PATH sudo scl enable devtoolset-11 bash
 # show gcc version and gcc11 is installed successfully.
 gcc --version
-pip install llama-cpp-python
+export FORCE_CMAKE=1
+export CMAKE_ARGS=-DLLAMA_OPENBLAS=on
+pip install llama-cpp-python --no-cache-dir
 ```
