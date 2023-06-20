@@ -1986,7 +1986,7 @@ def get_similarity_chain(query=None,
                 max_input_tokens -= template_tokens
                 # FIXME: Doesn't account for query, == context, or new lines between contexts
                 where_res = np.where(tokens_cumsum < max_input_tokens)[0]
-                if where_res.shape[0] > 0:
+                if where_res.shape[0] == 0:
                     # then no chunk can fit, still do first one
                     top_k_docs_trial = 1
                 else:
