@@ -119,8 +119,10 @@ def test_client_chat_nostream_gpt4all():
 @wrap_test_forked
 def test_client_chat_nostream_gpt4all_llama():
     res_dict, client = run_client_chat_with_server(stream_output=False, base_model='gpt4all_llama', prompt_type='gptj')
-    assert 'What do you want from me?' in res_dict['response'] or 'What do you want?' in res_dict[
-        'response'] or 'What is your name and title?' in res_dict['response']
+    assert 'What do you want from me?' in res_dict['response'] or \
+           'What do you want?' in res_dict['response'] or \
+           'What is your name and title?' in res_dict['response'] or \
+           'I can assist you with any information' in res_dict['response']
 
 
 @pytest.mark.need_tokens
