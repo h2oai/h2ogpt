@@ -35,6 +35,19 @@ import gradio as gr
 
 requests.get = original_get
 
+
+def fix_pydantic_duplicate_validators_error():
+    try:
+        from pydantic import class_validators
+
+        class_validators.in_ipython = lambda: True  # type: ignore[attr-defined]
+    except ImportError:
+        pass
+
+
+fix_pydantic_duplicate_validators_error()
+
+
 from enums import DocumentChoices, no_model_str, no_lora_str, no_server_str
 from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, get_dark_js
 from prompter import Prompter, \
