@@ -1901,7 +1901,6 @@ def get_similarity_chain(query=None,
         extra = ""
         prefix = ""
     if langchain_mode in ['Disabled', 'ChatLLM', 'LLM'] or not use_context:
-        template = """%s{context}{question}""" % prefix
         template_if_no_docs = template = """%s{context}{question}""" % prefix
     else:
         template = """%s
