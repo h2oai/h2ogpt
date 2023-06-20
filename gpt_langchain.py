@@ -1956,7 +1956,8 @@ def get_similarity_chain(query=None,
                     # more accurate
                     tokens = [len(llm.pipeline.tokenizer(x[0].page_content)['input_ids']) for x in docs_with_score]
                     template_tokens = len(llm.pipeline.tokenizer(template)['input_ids'])
-                elif inference_server in ['openai', 'openai_chat']:
+                elif inference_server in ['openai', 'openai_chat'] or use_openai_model or db_type == 'faiss':
+                    # use ticktoken for faiss since embedding called differently
                     tokens = [llm.get_num_tokens(x[0].page_content) for x in docs_with_score]
                     template_tokens = llm.get_num_tokens(template)
                 else:
