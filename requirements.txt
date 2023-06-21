@@ -60,5 +60,4 @@ python-dotenv==1.0.0
 text-generation==0.6.0
 
 # quantization
-#auto-gptq[triton]==0.1.0
-git+https://github.com/PanQiWei/AutoGPTQ.git@570867c109201ea78097280688e27d450d30a573
+git+https://github.com/PanQiWei/AutoGPTQ.git@046c0311396e5d2e06472b5e66b20dfd0e7c13fa
