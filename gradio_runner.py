@@ -894,13 +894,27 @@ def go_gradio(**kwargs):
             gr.Examples(examples=kwargs['examples'], inputs=inputs_list)
 
         # Score
-        def score_last_response(*args, nochat=False):
+        def score_last_response(*args, nochat=False, num_model_lock=0):
             try:
-                return _score_last_response(*args, nochat=nochat)
+                if num_model_lock > 0:
+                    # then lock way
+                    args_list = list(args).copy()
+                    outputs = args_list[-num_model_lock:]
+                    score_texts1 = []
+                    for output in outputs:
+                        # same input, put into form good for _score_last_response()
+                        args_list[-1] = output
+                        score_texts1.append(_score_last_response(*args, nochat=nochat, num_model_lock=num_model_lock))
+                    if len(score_texts1) > 1:
+                        return tuple(score_texts1)
+                    else:
+                        return score_texts1[0]
+                else:
+                    return _score_last_response(*args, nochat=nochat, num_model_lock=num_model_lock)
             finally:
                 clear_torch_cache()
 
-        def _score_last_response(*args, nochat=False):
+        def _score_last_response(*args, nochat=False, num_model_lock=0):
             """ Similar to user() """
             args_list = list(args)
 
@@ -962,7 +976,8 @@ def go_gradio(**kwargs):
                            inputs=inputs_list2 + [text_output2],
                            outputs=[score_text2],
                            )
-        all_score_args = dict(fn=score_fun,
+        score_fun_func = functools.partial(score_fun, num_model_lock=len(text_outputs))
+        all_score_args = dict(fn=score_fun_func,
                               inputs=inputs_list + text_outputs,
                               outputs=score_texts,
                               )
@@ -1034,8 +1049,10 @@ def go_gradio(**kwargs):
                 hargs += [history]
                 history_list[hi] = update_history(*hargs, undo=undo, retry=retry,
                                                   sanitize_user_prompt=sanitize_user_prompt)
-            # return tuple(history_list)
-            return history_list[0]
+            if len(history_list) > 0:
+                return tuple(history_list)
+            else:
+                return history_list[0]
 
         def history_to_context(history, langchain_mode1, prompt_type1, prompt_dict1, chat1, model_max_length1):
             # ensure output will be unique to models
@@ -1192,21 +1209,26 @@ def go_gradio(**kwargs):
                 yield res
 
         def all_bot(*args, retry=False, model_states1=None):
+            args_list = list(args).copy()
+            chatbots = args_list[-len(model_states1):]
+            args_list0 = args_list[:-len(model_states1)]  # same for all models
             try:
                 gen_list = []
-                for model_state1 in model_states1:
-                    args_list1 = list(args)
-                    args_list1.insert(-2, model_state1)  # insert at -2 so is at -3
+                for chatbot1, model_state1 in zip(chatbots, model_states1):
+                    args_list1 = args_list0.copy()
+                    args_list1.insert(-1, model_state1)  # insert at -1 so is at -2
+                    args_list1.append(chatbot1)
+                    # so consistent with prep_bot()
+                    # with model_state1 at -3, my_db_state1 at -2, and history(chatbot) at -1
                     gen_list.append(get_response(*tuple(args_list1), retry=retry))
 
-                for gen in gen_list:
-                    bots = []
-                    exceptions = []
-                    for res1 in gen:
-                        bots.append(res1[0])
-                        exceptions.append(res1[1])
-                        # yield bots, '\n'.join(exceptions)
-                        yield bots[0], '\n'.join(exceptions)
+                for res1 in zip(*gen_list):
+                    bots = [x[0] for x in res1]
+                    exceptions = '\n'.join([x[1] for x in res1 if x[1]])
+                    if len(bots) > 0:
+                        yield tuple(bots + [exceptions])
+                    else:
+                        yield bots[0], exceptions
             finally:
                 clear_torch_cache()
 
