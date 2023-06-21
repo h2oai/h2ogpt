@@ -30,19 +30,21 @@ H2O.ai's `<<MODEL_NAME>>` is a <<MODEL_SIZE>> billion parameter instruction-foll
 
 ## Usage
 
-To use the model with the `transformers` library on a machine with GPUs, first make sure you have the `transformers` and `accelerate` libraries installed.
+To use the model with the `transformers` library on a machine with GPUs, first make sure you have the following libraries installed.
 
 ```bash
-pip install transformers==4.28.1
-pip install accelerate==0.18.0
+pip install transformers==4.29.2
+pip install accelerate==0.19.0
+pip install torch==2.0.1
+pip install einops==0.6.1
 ```
 
 ```python
 import torch
-from transformers import pipeline
+from transformers import pipeline, AutoTokenizer
 
-generate_text = pipeline(model="h2oai/<<MODEL_NAME>>", torch_dtype=torch.bfloat16, trust_remote_code=True, device_map="auto")
-
+tokenizer = AutoTokenizer.from_pretrained("h2oai/<<MODEL_NAME>>", padding_side="left")
+generate_text = pipeline(model="h2oai/<<MODEL_NAME>>", tokenizer=tokenizer, torch_dtype=torch.bfloat16, trust_remote_code=True, device_map="auto", prompt_type="human_bot")
 res = generate_text("Why is drinking water so healthy?", max_new_tokens=100)
 print(res[0]["generated_text"])
 ```
@@ -57,7 +59,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 tokenizer = AutoTokenizer.from_pretrained("h2oai/<<MODEL_NAME>>", padding_side="left")
 model = AutoModelForCausalLM.from_pretrained("h2oai/<<MODEL_NAME>>", torch_dtype=torch.bfloat16, device_map="auto")
-generate_text = H2OTextGenerationPipeline(model=model, tokenizer=tokenizer)
+generate_text = H2OTextGenerationPipeline(model=model, tokenizer=tokenizer, prompt_type="human_bot")
 
 res = generate_text("Why is drinking water so healthy?", max_new_tokens=100)
 print(res[0]["generated_text"])

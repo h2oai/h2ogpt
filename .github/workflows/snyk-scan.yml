@@ -1,0 +1,76 @@
+name: Snyk Security Vulnerability Scan
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+    branches:
+      - main
+
+jobs:
+  snyk_scan_test:
+    if: ${{ github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+      - uses: snyk/actions/setup@master
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Check changed Deps files
+        uses: tj-actions/changed-files@v35
+        id: changed-files
+        with:
+          files: | # This will match all the files with below patterns
+            requirements.txt
+    
+      - name: Scan python dependencies
+        if: contains(steps.changed-files.outputs.all_changed_and_modified_files, 'requirements.txt')
+        env:
+          SNYK_TOKEN: '${{ secrets.SNYK_TOKEN }}'
+        run: |
+          head -n 41 requirements.txt > temp-requirements.txt #remove test deps
+          python3.10 -m pip install -r temp-requirements.txt
+          snyk test \
+            -d \
+            --file=temp-requirements.txt \
+            --package-manager=pip \
+            --command=python3.10 \
+            --skip-unresolved \
+            --severity-threshold=high
+     
+  snyk_scan_monitor:
+    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch'}}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+      - uses: snyk/actions/setup@master
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Extract github branch/tag name
+        shell: bash
+        run: echo "ref=$(echo ${GITHUB_REF##*/})" >> $GITHUB_OUTPUT
+        id: extract_ref
+        
+      - name: Monitor python dependencies
+        env:
+          SNYK_TOKEN: '${{ secrets.SNYK_TOKEN }}'
+        run: |
+          head -n 41 requirements.txt > temp-requirements.txt #remove test deps
+          python3.10 -m pip install -r temp-requirements.txt
+          snyk monitor \
+            -d \
+            --file=temp-requirements.txt \
+            --command=python3.10 \
+            --package-manager=pip \
+            --skip-unresolved \
+            --remote-repo-url=h2ogpt/${{ steps.extract_ref.outputs.ref }} \
+            --org=h2o-gpt \
+            --project-name=H2O-GPT/h2ogpt/${{ steps.extract_ref.outputs.ref }}/requirements.txt

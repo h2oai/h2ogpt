@@ -1,43 +1,43 @@
 # for generate (gradio server) and finetune
-datasets==2.12.0
-sentencepiece==0.1.97
-accelerate==0.18.0
-gradio==3.29.0
-huggingface_hub==0.14.1
+datasets==2.13.0
+sentencepiece==0.1.99
+gradio==3.34.0
+huggingface_hub==0.15.1
 appdirs==1.4.4
 fire==0.5.0
-docutils==0.19
+docutils==0.20.1
 torch==2.0.1
 evaluate==0.4.0
 rouge_score==0.1.2
 sacrebleu==2.3.1
 scikit-learn==1.2.2
 alt-profanity-check==1.2.2
-better-profanity==0.6.1
-numpy==1.24.2
-pandas==2.0.0
+better-profanity==0.7.0
+numpy==1.24.3
+pandas==2.0.2
 matplotlib==3.7.1
 loralib==0.1.1
-bitsandbytes==0.38.1
-git+https://github.com/huggingface/peft.git@098962fa6515f2e4fe83a757f5995d3ffbb1c373
-transformers==4.28.1
+bitsandbytes==0.39.0
+accelerate==0.20.3
+git+https://github.com/huggingface/peft.git@0b62b4378b4ce9367932c73540349da9a41bdea8
+transformers==4.30.1
 tokenizers==0.13.3
 APScheduler==3.10.1
 
 # optional for generate
 pynvml==11.5.0
-psutil==5.9.4
+psutil==5.9.5
 boto3==1.26.101
 botocore==1.29.101
 
 # optional for finetune
-tensorboard==2.12.1
-neptune==1.1.1
+tensorboard==2.13.0
+neptune==1.2.0
 
 # for gradio client
-gradio_client==0.2.2
+gradio_client==0.2.6
 beautifulsoup4==4.12.2
-markdown==3.4.1
+markdown==3.4.3
 
 # data and testing
 pytest==7.2.2
@@ -50,6 +50,14 @@ pypandoc_binary==1.11
 openpyxl==3.1.2
 lm_dataformat==0.0.20
 bioc==2.0
+
+einops==0.6.1
+instructorembedding==1.0.1
+
+# for gpt4all .env file, but avoid worrying about imports
+python-dotenv==1.0.0
+
+text-generation==0.6.0
 
 # quantization
 #auto-gptq[triton]==0.1.0

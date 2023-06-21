@@ -11,25 +11,31 @@ echo "Space name: $spacename"
 
 h2ogpt_hash=`git rev-parse HEAD`
 
-ln -sr generate.py gradio_runner.py gradio_themes.py h2o-logo.svg LICENSE stopping.py prompter.py finetune.py utils.py client_test.py gpt_langchain.py create_data.py h2oai_pipeline.py requirements.txt requirements_optional_pdf.txt spaces/chatbot/
+ln -sr generate.py gradio_runner.py gradio_themes.py h2o-logo.svg LICENSE stopping.py prompter.py enums.py finetune.py utils.py utils_langchain.py client_test.py gpt_langchain.py create_data.py h2oai_pipeline.py gpt4all_llm.py loaders.py requirements.txt reqs_optional reqs_optional gradio_ui spaces/chatbot/
 cd ..
 
+rm -rf ${spacename}
 git clone https://huggingface.co/spaces/h2oai/"${spacename}"
 cd "${spacename}"
+git reset --hard origin/main
 git pull --rebase
-rm -rf app.py generate.py gradio_runner.py h2o-logo.svg LICENSE stopping.py prompter.py finetune.py utils.py client_test.py gpt_langchain.py create_data.py h2oai_pipeline.py requirements.txt requirements_optional_pdf.txt
+rm -rf app.py generate.py gradio_runner.py h2o-logo.svg LICENSE stopping.py prompter.py enums.py finetune.py utils.py utils_langchain.py client_test.py gpt_langchain.py create_data.py h2oai_pipeline.py gpt4all_llm.py loaders.py requirements.txt reqs_optional gradio_ui gradio_themes.py
 cd ../h2ogpt/spaces/chatbot/
-cp generate.py gradio_runner.py gradio_themes.py h2o-logo.svg LICENSE stopping.py prompter.py finetune.py utils.py client_test.py gpt_langchain.py create_data.py h2oai_pipeline.py requirements.txt requirements_optional_pdf.txt ../../../"${spacename}"/
+cp -rL generate.py gradio_runner.py gradio_themes.py h2o-logo.svg LICENSE stopping.py prompter.py enums.py finetune.py utils.py utils_langchain.py client_test.py gpt_langchain.py create_data.py h2oai_pipeline.py gpt4all_llm.py loaders.py requirements.txt reqs_optional gradio_ui ../../../"${spacename}"/
 cd ../../../"${spacename}"/
 
 ln -s generate.py app.py
 
-# for langchain support
+# for langchain support and gpt4all support
 mv requirements.txt requirements.txt.001
-cat requirements.txt.001 requirements_optional_pdf.txt >> requirements.txt
+# avoid gpt4all, hit ERROR: Could not build wheels for llama-cpp-python, which is required to install pyproject.toml-based projects
+#cat requirements.txt.001 requirements_optional_langchain.txt requirements_optional_gpt4all.txt >> requirements.txt
+cat requirements.txt.001 reqs_optional/requirements_optional_langchain.txt reqs_optional/requirements_optional_langchain.txt reqs_optional/requirements_optional_faiss.txt reqs_optional/requirements_optional_langchain.gpllike.txt >> requirements.txt
 rm -rf requirements.txt.001
 
-git add app.py generate.py gradio_runner.py gradio_themes.py h2o-logo.svg LICENSE stopping.py prompter.py finetune.py utils.py gpt_langchain.py create_data.py client_test.py h2oai_pipeline.py requirements.txt
+git add app.py generate.py gradio_runner.py gradio_themes.py h2o-logo.svg LICENSE stopping.py prompter.py enums.py finetune.py utils.py utils_langchain.py gpt_langchain.py create_data.py client_test.py h2oai_pipeline.py gpt4all_llm.py loaders.py requirements.txt gradio_ui
 git commit -m "Update with h2oGPT hash ${h2ogpt_hash}"
 # ensure write token used and login with git control: huggingface-cli login --token <HUGGINGFACE_API_TOKEN> --add-to-git-credential
 git push
+
+echo "Also change sdk_version: x.xx.xx in README.md in space"

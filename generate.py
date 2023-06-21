@@ -1,51 +1,59 @@
 import ast
+import copy
 import functools
 import glob
+import inspect
 import queue
 import shutil
 import sys
 import os
 import time
 import traceback
+import types
 import typing
+import warnings
 from datetime import datetime
 import psutil
 from auto_gptq import AutoGPTQForCausalLM
 
-from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial, EThread, get_githash, \
-    import_matplotlib
+if os.path.dirname(os.path.abspath(__file__)) not in sys.path:
+    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+os.environ['HF_HUB_DISABLE_TELEMETRY'] = '1'
+os.environ['BITSANDBYTES_NOWELCOME'] = '1'
+warnings.filterwarnings('ignore', category=UserWarning, message='TypedStorage is deprecated')
+
+from enums import DocumentChoices, LangChainMode, no_lora_str
+from loaders import get_loaders
+from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial, EThread, get_githash, \
+    import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler
+
+start_faulthandler()
 import_matplotlib()
-from matplotlib import pyplot as plt
 
 SEED = 1236
 set_seed(SEED)
 
-os.environ['HF_HUB_DISABLE_TELEMETRY'] = '1'
 from typing import Union
-import numpy as np
-import pandas as pd
 
 import fire
 import torch
-from peft import PeftModel
 from transformers import GenerationConfig, AutoModel, TextIteratorStreamer
 from accelerate import init_empty_weights, infer_auto_device_map
 
-from prompter import Prompter, inv_prompt_type_to_model_lower, generate_prompt
-from finetune import get_loaders, example_data_points
+from prompter import Prompter, inv_prompt_type_to_model_lower, non_hf_types, PromptType, get_prompt
 from stopping import get_stopping
 
 eval_extra_columns = ['prompt', 'response', 'score']
 
-langchain_modes = ['Disabled', 'ChatLLM', 'LLM', 'All', 'wiki', 'wiki_full', 'UserData', 'MyData', 'github h2oGPT',
-                   'DriverlessAI docs']
+langchain_modes = [x.value for x in list(LangChainMode)]
 
 scratch_base_dir = '/tmp/'
 
 
 def main(
         load_8bit: bool = False,
+        load_4bit: bool = False,
         load_half: bool = True,
         infer_devices: bool = True,
         base_model: str = '',
@@ -53,8 +61,14 @@ def main(
         tokenizer_base_model: str = '',
         lora_weights: str = "",
         gpu_id: int = 0,
-
+        compile_model: bool = True,
+        use_cache: bool = None,
+        inference_server: str = "",
         prompt_type: Union[int, str] = None,
+        prompt_dict: typing.Dict = None,
+
+        model_lock: typing.List[typing.Dict[str, str]] = None,
+
         # input to generation
         temperature: float = None,
         top_p: float = None,
@@ -68,6 +82,7 @@ def main(
         early_stopping: Union[bool, str] = None,
         max_time: float = None,
 
+        memory_restriction_level: int = None,
         debug: bool = False,
         save_dir: str = None,
         share: bool = True,
@@ -75,19 +90,22 @@ def main(
         resume_download: bool = True,
         use_auth_token: Union[str, bool] = False,
         trust_remote_code: Union[str, bool] = True,
+        offload_folder: str = "offline_folder",
 
         src_lang: str = "English",
         tgt_lang: str = "Russian",
 
+        cli: bool = False,
+        cli_loop: bool = True,
         gradio: bool = True,
-        gradio_avoid_processing_markdown: bool = False,
+        gradio_offline_level: int = 0,
         chat: bool = True,
         chat_context: bool = False,
         stream_output: bool = True,
         show_examples: bool = None,
         verbose: bool = False,
         h2ocolors: bool = True,
-        height: int = 400,
+        height: int = 600,
         show_lora: bool = True,
         login_mode_if_model0: bool = False,
         block_gradio_exit: bool = True,
@@ -96,40 +114,83 @@ def main(
         allow_api: bool = True,
         input_lines: int = 1,
         auth: typing.List[typing.Tuple[str, str]] = None,
+        max_max_time=None,
+        max_max_new_tokens=None,
 
         sanitize_user_prompt: bool = True,
-        sanitize_bot_response: bool = True,
+        sanitize_bot_response: bool = False,
 
         extra_model_options: typing.List[str] = [],
         extra_lora_options: typing.List[str] = [],
+        extra_server_options: typing.List[str] = [],
 
         score_model: str = 'OpenAssistant/reward-model-deberta-v3-large-v2',
         auto_score: bool = True,
 
-        eval_sharegpt_prompts_only: int = 0,
-        eval_sharegpt_prompts_only_seed: int = 1234,
-        eval_sharegpt_as_output: bool = False,
+        eval_filename: str = None,
+        eval_prompts_only_num: int = 0,
+        eval_prompts_only_seed: int = 1234,
+        eval_as_output: bool = False,
 
         langchain_mode: str = 'Disabled',
         visible_langchain_modes: list = ['UserData', 'MyData'],
+        document_choice: list = [DocumentChoices.All_Relevant.name],
         user_path: str = None,
+        detect_user_path_changes_every_query: bool = False,
         load_db_if_exists: bool = True,
         keep_sources_in_context: bool = False,
         db_type: str = 'chroma',
         use_openai_embedding: bool = False,
+        use_openai_model: bool = False,
+        hf_embedding_model: str = None,
         allow_upload_to_user_data: bool = True,
         allow_upload_to_my_data: bool = True,
+        enable_url_upload: bool = True,
+        enable_text_upload: bool = True,
+        enable_sources_list: bool = True,
+        chunk: bool = True,
+        chunk_size: int = 512,
+        top_k_docs: int = None,
+        reverse_docs: bool = True,
+        auto_reduce_chunks: bool = True,
+        max_chunks: int = 100,
+        n_jobs: int = -1,
+        enable_captions: bool = True,
+        captions_model: str = "Salesforce/blip-image-captioning-base",
+        pre_load_caption_model: bool = False,
+        caption_gpu: bool = True,
+        enable_ocr: bool = False,
 ):
     """
 
     :param load_8bit: load model in 8-bit using bitsandbytes
+    :param load_4bit: load model in 4-bit using bitsandbytes
     :param load_half: load model in float16
     :param infer_devices: whether to control devices with gpu_id.  If False, then spread across GPUs
-    :param base_model: model HF-type name
-    :param tokenizer_base_model: tokenizer HF-type name
+    :param base_model: model HF-type name.  If use --base_model to preload model, cannot unload in gradio in models tab
+    :param tokenizer_base_model: tokenizer HF-type name.  Usually not required, inferred from base_model.
     :param lora_weights: LORA weights path/HF link
     :param gpu_id: if infer_devices, then use gpu_id for cuda device ID, or auto mode if gpu_id != -1
+    :param compile_model Whether to compile the model
+    :param use_cache: Whether to use caching in model (some models fail when multiple threads use)
+    :param inference_server: Consume base_model as type of model at this address
+                             Address can be text-generation-server hosting that base_model
+                             e.g. python generate.py --inference_server="http://192.168.1.46:6112" --base_model=h2oai/h2ogpt-oasst1-512-12b
+                             Or Address can be "openai_chat" or "openai" for OpenAI API
+                             e.g. python generate.py --inference_server="openai_chat" --base_model=gpt-3.5-turbo
+                             e.g. python generate.py --inference_server="openai" --base_model=text-davinci-003
     :param prompt_type: type of prompt, usually matched to fine-tuned model or plain for foundational model
+    :param prompt_dict: If prompt_type=custom, then expects (some) items returned by get_prompt(..., return_dict=True)
+    :param model_lock: Lock models to specific combinations, for ease of use and extending to many models
+           Only used if gradio = True
+           List of dicts, each dict has base_model, tokenizer_base_model, lora_weights, inference_server, prompt_type, and prompt_dict
+           If all models have same prompt_type, and prompt_dict, can still specify that once in CLI outside model_lock as default for dict
+           Can specify model_lock instead of those items on CLI
+           As with CLI itself, base_model can infer prompt_type and prompt_dict if in prompter.py.
+             Also, tokenizer_base_model and lora_weights are optional.
+             Also, inference_server is optional if loading model from local system.
+           All models provided will automatically appear in compare model mode
+           Model loading-unloading and related choices will be disabled.  Model/lora/server adding will be disabled
     :param temperature: generation temperature
     :param top_p: generation top_p
     :param top_k: generation top_k
@@ -141,6 +202,7 @@ def main(
     :param min_new_tokens: generation min tokens
     :param early_stopping: generation early stopping
     :param max_time: maximum time to allow for generation
+    :param memory_restriction_level: 0 = no restriction to tokens or model, 1 = some restrictions on token 2 = HF like restriction 3 = very low memory case
     :param debug: enable debug mode
     :param save_dir: directory chat data is saved to
     :param share: whether to share the gradio app with sharable URL
@@ -148,10 +210,18 @@ def main(
     :param resume_download: whether to resume downloads from HF for models
     :param use_auth_token: whether to use HF auth token (requires CLI did huggingface-cli login before)
     :param trust_remote_code: whether to use trust any code needed for HF model
+    :param offload_folder: path for spilling model onto disk
     :param src_lang: source languages to include if doing translation (None = all)
     :param tgt_lang: target languages to include if doing translation (None = all)
+    :param cli: whether to use CLI (non-gradio) interface.
+    :param cli_loop: whether to loop for CLI (False usually only for testing)
     :param gradio: whether to enable gradio, or to enable benchmark mode
-    :param gradio_avoid_processing_markdown:
+    :param gradio_offline_level: > 0, then change fonts so full offline
+           == 1 means backend won't need internet for fonts, but front-end UI might if font not cached
+           == 2 means backend and frontend don't need internet to download any fonts.
+           Note: Some things always disabled include HF telemetry, gradio telemetry, chromadb posthog that involve uploading.
+           This option further disables google fonts for downloading, which is less intrusive than uploading,
+           but still required in air-gapped case.  The fonts don't look as nice as google fonts, but ensure full offline behavior.
     :param chat: whether to enable chat mode with chat history
     :param chat_context: whether to use extra helpful context if human_bot
     :param stream_output: whether to stream output from generate
@@ -168,36 +238,89 @@ def main(
     :param input_lines: how many input lines to show for chat box (>1 forces shift-enter for submit, else enter is submit)
     :param auth: gradio auth for launcher in form [(user1, pass1), (user2, pass2), ...]
                  e.g. --auth=[('jon','password')] with no spaces
+    :param max_max_time: Maximum max_time for gradio slider
+    :param max_max_new_tokens: Maximum max_new_tokens for gradio slider
     :param sanitize_user_prompt: whether to remove profanity from user input
-    :param sanitize_bot_response: whether to remove profanity and repeat lines from bot output
+    :param sanitize_bot_response: whether to remove profanity and repeat lines from bot output (about 2x slower generation for long streaming cases due to better_profanity being slow)
     :param extra_model_options: extra models to show in list in gradio
     :param extra_lora_options: extra LORA to show in list in gradio
+    :param extra_server_options: extra servers to show in list in gradio
     :param score_model: which model to score responses (None means no scoring)
     :param auto_score: whether to automatically score responses
-    :param eval_sharegpt_prompts_only: for no gradio benchmark, if using ShareGPT prompts for eval
-    :param eval_sharegpt_prompts_only_seed: for no gradio benchmark, if seed for ShareGPT sampling
-    :param eval_sharegpt_as_output: for no gradio benchmark, whether to test ShareGPT output itself
+    :param eval_filename: json file to use for evaluation, if None is sharegpt
+    :param eval_prompts_only_num: for no gradio benchmark, if using eval_filename prompts for eval instead of examples
+    :param eval_prompts_only_seed: for no gradio benchmark, seed for eval_filename sampling
+    :param eval_as_output: for no gradio benchmark, whether to test eval_filename output itself
     :param langchain_mode: Data source to include.  Choose "UserData" to only consume files from make_db.py.
            WARNING: wiki_full requires extra data processing via read_wiki_full.py and requires really good workstation to generate db, unless already present.
-    :param user_path: user path to glob from to generate db for vector search, for 'UserData' langchain mode
+    :param user_path: user path to glob from to generate db for vector search, for 'UserData' langchain mode.
+           If already have db, any new/changed files are added automatically if path set, does not have to be same path used for prior db sources
+    :param detect_user_path_changes_every_query: whether to detect if any files changed or added every similarity search (by file hashes).
+           Expensive for large number of files, so not done by default.  By default only detect changes during db loading.
     :param visible_langchain_modes: dbs to generate at launch to be ready for LLM
            Can be up to ['wiki', 'wiki_full', 'UserData', 'MyData', 'github h2oGPT', 'DriverlessAI docs']
            But wiki_full is expensive and requires preparation
            To allow scratch space only live in session, add 'MyData' to list
            Default: If only want to consume local files, e.g. prepared by make_db.py, only include ['UserData']
            FIXME: Avoid 'All' for now, not implemented
+    :param document_choice: Default document choice when taking subset of collection
     :param load_db_if_exists: Whether to load chroma db if exists or re-generate db
     :param keep_sources_in_context: Whether to keep url sources in context, not helpful usually
-    :param db_type: 'faiss' for in-memory or 'chroma' for persisted on disk
+    :param db_type: 'faiss' for in-memory or 'chroma' or 'weaviate' for persisted on disk
     :param use_openai_embedding: Whether to use OpenAI embeddings for vector db
+    :param use_openai_model: Whether to use OpenAI model for use with vector db
+    :param hf_embedding_model: Which HF embedding model to use for vector db
+           Default is instructor-large with 768 parameters per embedding if have GPUs, else all-MiniLM-L6-v1 if no GPUs
+           Can also choose simpler model with 384 parameters per embedding: "sentence-transformers/all-MiniLM-L6-v2"
+           Can also choose even better embedding with 1024 parameters: 'hkunlp/instructor-xl'
+           We support automatically changing of embeddings for chroma, with a backup of db made if this is done
     :param allow_upload_to_user_data: Whether to allow file uploads to update shared vector db
     :param allow_upload_to_my_data: Whether to allow file uploads to update scratch vector db
+    :param enable_url_upload: Whether to allow upload from URL
+    :param enable_text_upload: Whether to allow upload of text
+    :param enable_sources_list: Whether to allow list (or download for non-shared db) of list of sources for chosen db
+    :param chunk: Whether to chunk data (True unless know data is already optimally chunked)
+    :param chunk_size: Size of chunks, with typically top-4 passed to LLM, so neesd to be in context length
+    :param top_k_docs: number of chunks to give LLM
+    :param reverse_docs: whether to reverse docs order so most relevant is closest to question.
+           Best choice for sufficiently smart model, and truncation occurs for oldest context, so best then too.
+           But smaller 6_9 models fail to use newest context and can get stuck on old information.
+    :param auto_reduce_chunks: Whether to automatically reduce top_k_docs to fit context given prompt
+    :param max_chunks: If top_k_docs=-1, maximum number of chunks to allow
+    :param n_jobs: Number of processors to use when consuming documents (-1 = all, is default)
+    :param enable_captions: Whether to support captions using BLIP for image files as documents, then preloads that model
+    :param captions_model: Which model to use for captions.
+           captions_model: str = "Salesforce/blip-image-captioning-base",  # continue capable
+           captions_model: str = "Salesforce/blip2-flan-t5-xl",   # question/answer capable, 16GB state
+           captions_model: str = "Salesforce/blip2-flan-t5-xxl",  # question/answer capable, 60GB state
+           Note: opt-based blip2 are not permissive license due to opt and Meta license restrictions
+    :param pre_load_caption_model: Whether to preload caption model, or load after forking parallel doc loader
+           parallel loading disabled if preload and have images, to prevent deadlocking on cuda context
+           Recommended if using larger caption model
+    :param caption_gpu: If support caption, then use GPU if exists
+    :param enable_ocr: Whether to support OCR on images
     :return:
     """
-    is_hf = bool(os.getenv("HUGGINGFACE_SPACES"))
-    is_gpth2oai = bool(os.getenv("GPT_H2O_AI"))
+    if model_lock:
+        assert gradio, "model_lock only supported for gradio=True"
+        if len(model_lock) > 1:
+            assert chat, "model_lock only works for multiple models for chat=True"
+        assert not cli, "model_lock only supported for cli=False"
+        assert not (not cli and not gradio), "model_lock only supported for eval (cli=gradio=False)"
+        assert not base_model, "Don't specify model_lock and base_model"
+        assert not tokenizer_base_model, "Don't specify model_lock and tokenizer_base_model"
+        assert not lora_weights, "Don't specify model_lock and lora_weights"
+        assert not inference_server, "Don't specify model_lock and inference_server"
+        # assert not prompt_type, "Don't specify model_lock and prompt_type"
+        # assert not prompt_dict, "Don't specify model_lock and prompt_dict"
+
+    is_hf = bool(int(os.getenv("HUGGINGFACE_SPACES", '0')))
+    is_gpth2oai = bool(int(os.getenv("GPT_H2O_AI", '0')))
     is_public = is_hf or is_gpth2oai  # multi-user case with fixed model and disclaimer
-    is_low_mem = is_hf  # assumes run on 24GB consumer GPU
+    if memory_restriction_level is None:
+        memory_restriction_level = 2 if is_hf else 0  # 2 assumes run on 24GB consumer GPU
+    else:
+        assert 0 <= memory_restriction_level <= 3, "Bad memory_restriction_level=%s" % memory_restriction_level
     admin_pass = os.getenv("ADMIN_PASS")
     # will sometimes appear in UI or sometimes actual generation, but maybe better than empty result
     # but becomes unrecoverable sometimes if raise, so just be silent for now
@@ -205,9 +328,11 @@ def main(
 
     # allow set token directly
     use_auth_token = os.environ.get("HUGGINGFACE_API_TOKEN", use_auth_token)
-    allow_upload_to_user_data = bool(os.environ.get("allow_upload_to_user_data", allow_upload_to_user_data))
-    allow_upload_to_my_data = bool(os.environ.get("allow_upload_to_my_data", allow_upload_to_my_data))
-    height = os.environ.get("HEIGHT", height)
+    allow_upload_to_user_data = bool(
+        int(os.environ.get("allow_upload_to_user_data", str(int(allow_upload_to_user_data)))))
+    allow_upload_to_my_data = bool(int(os.environ.get("allow_upload_to_my_data", str(int(allow_upload_to_my_data)))))
+    height = int(os.environ.get("HEIGHT", height))
+    h2ocolors = bool(int(os.getenv('h2ocolors', h2ocolors)))
 
     # allow enabling langchain via ENV
     # FIRST PLACE where LangChain referenced, but no imports related to it
@@ -225,43 +350,81 @@ def main(
         top_k = 70 if top_k is None else top_k
         if is_hf:
             do_sample = True if do_sample is None else do_sample
+            top_k_docs = 3 if top_k_docs is None else top_k_docs
         else:
             # by default don't sample, too chatty
             do_sample = False if do_sample is None else do_sample
+            top_k_docs = 4 if top_k_docs is None else top_k_docs
 
-        if is_low_mem:
-            if not base_model:
+        if memory_restriction_level == 2:
+            if not base_model and not inference_server:
                 base_model = 'h2oai/h2ogpt-oasst1-512-12b'
                 # don't set load_8bit if passed base_model, doesn't always work so can't just override
                 load_8bit = True
-        else:
+                load_4bit = False  # FIXME - consider using 4-bit instead of 8-bit
+        elif not inference_server:
             base_model = 'h2oai/h2ogpt-oasst1-512-20b' if not base_model else base_model
-    if is_low_mem:
+            top_k_docs = 10 if top_k_docs is None else top_k_docs
+    if memory_restriction_level >= 2:
         load_8bit = True
+        load_4bit = False  # FIXME - consider using 4-bit instead of 8-bit
+        if hf_embedding_model is None:
+            hf_embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
+        top_k_docs = 3 if top_k_docs is None else top_k_docs
+    if top_k_docs is None:
+        top_k_docs = 3
+    user_set_max_new_tokens = max_new_tokens is not None
+    if is_public:
+        if not max_time:
+            max_time = 60 * 2
+        if not max_max_time:
+            max_max_time = max_time
+        if not max_new_tokens:
+            max_new_tokens = 256
+        if not max_max_new_tokens:
+            max_max_new_tokens = 256
+    else:
+        if not max_max_time:
+            max_max_time = 60 * 20
+        if not max_max_new_tokens:
+            max_max_new_tokens = 256
     if is_hf:
         # must override share if in spaces
         share = False
+        if not max_time:
+            max_time = 60 * 1
+        if not max_max_time:
+            max_max_time = max_time
+        # HF accounted for later in get_max_max_new_tokens()
     save_dir = os.getenv('SAVE_DIR', save_dir)
     score_model = os.getenv('SCORE_MODEL', score_model)
-    if score_model == 'None':
+    if score_model == 'None' or score_model is None:
         score_model = ''
     concurrency_count = int(os.getenv('CONCURRENCY_COUNT', concurrency_count))
-    api_open = bool(int(os.getenv('API_OPEN', api_open)))
-    allow_api = bool(int(os.getenv('ALLOW_API', allow_api)))
+    api_open = bool(int(os.getenv('API_OPEN', str(int(api_open)))))
+    allow_api = bool(int(os.getenv('ALLOW_API', str(int(allow_api)))))
 
     n_gpus = torch.cuda.device_count() if torch.cuda.is_available else 0
     if n_gpus == 0:
         gpu_id = None
         load_8bit = False
+        load_4bit = False
         load_half = False
         infer_devices = False
         torch.backends.cudnn.benchmark = True
         torch.backends.cudnn.enabled = False
         torch.set_default_dtype(torch.float32)
-        if psutil.virtual_memory().available < 94 * 1024 ** 3:
+        if psutil.virtual_memory().available < 94 * 1024 ** 3 and not inference_server:
             # 12B uses ~94GB
             # 6.9B uses ~47GB
-            base_model = 'h2oai/h2ogpt-oig-oasst1-512-6.9b' if not base_model else base_model
+            base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b' if not base_model else base_model
+        if hf_embedding_model is None:
+            # if no GPUs, use simpler embedding model to avoid cost in time
+            hf_embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
+    else:
+        if hf_embedding_model is None:
+            # if still None, then set default
+            hf_embedding_model = 'hkunlp/instructor-large'
 
     # get defaults
     model_lower = base_model.lower()
@@ -270,10 +433,19 @@ def main(
         stream_output = False
         # else prompt removal can mess up output
         chat = False
+    # hard-coded defaults
+    first_para = False
+    text_limit = None
+
+    if offload_folder:
+        makedirs(offload_folder)
+    if user_path:
+        makedirs(user_path)
 
     placeholder_instruction, placeholder_input, \
         stream_output, show_examples, \
-        prompt_type, temperature, top_p, top_k, num_beams, \
+        prompt_type, prompt_dict, \
+        temperature, top_p, top_k, num_beams, \
         max_new_tokens, min_new_tokens, early_stopping, max_time, \
         repetition_penalty, num_return_sequences, \
         do_sample, \
@@ -282,16 +454,22 @@ def main(
         task_info = \
         get_generate_params(model_lower, chat,
                             stream_output, show_examples,
-                            prompt_type, temperature, top_p, top_k, num_beams,
+                            prompt_type, prompt_dict,
+                            temperature, top_p, top_k, num_beams,
                             max_new_tokens, min_new_tokens, early_stopping, max_time,
                             repetition_penalty, num_return_sequences,
                             do_sample,
+                            top_k_docs,
+                            chunk,
+                            chunk_size,
+                            verbose,
                             )
 
     locals_dict = locals()
     locals_print = '\n'.join(['%s: %s' % (k, v) for k, v in locals_dict.items()])
-    print(f"Generating model with params:\n{locals_print}", flush=True)
-    print("Command: %s\nHash: %s" % (str(' '.join(sys.argv)), get_githash()), flush=True)
+    if verbose:
+        print(f"Generating model with params:\n{locals_print}", flush=True)
+        print("Command: %s\nHash: %s" % (str(' '.join(sys.argv)), get_githash()), flush=True)
 
     if langchain_mode != "Disabled":
         # SECOND PLACE where LangChain referenced, but all imports are kept local so not required
@@ -311,224 +489,111 @@ def main(
                 # FIXME: All should be avoided until scans over each db, shouldn't be separate db
                 continue
             persist_directory1 = 'db_dir_%s' % langchain_mode1  # single place, no special names for each case
-            db = prep_langchain(persist_directory1, load_db_if_exists, db_type, use_openai_embedding, langchain_mode1, user_path)
+            try:
+                db = prep_langchain(persist_directory1,
+                                    load_db_if_exists,
+                                    db_type, use_openai_embedding,
+                                    langchain_mode1, user_path,
+                                    hf_embedding_model,
+                                    kwargs_make_db=locals())
+            finally:
+                # in case updated embeddings or created new embeddings
+                clear_torch_cache()
             dbs[langchain_mode1] = db
         # remove None db's so can just rely upon k in dbs for if hav db
         dbs = {k: v for k, v in dbs.items() if v is not None}
     else:
         dbs = {}
+        # import control
+        if os.environ.get("TEST_LANGCHAIN_IMPORT"):
+            assert 'gpt_langchain' not in sys.modules, "Dev bug, import of langchain when should not have"
+            assert 'langchain' not in sys.modules, "Dev bug, import of langchain when should not have"
 
-    if not gradio:
-        if eval_sharegpt_prompts_only > 0:
-            # override default examples with shareGPT ones for human-level eval purposes only
-            eval_filename = 'ShareGPT_V3_unfiltered_cleaned_split_no_imsorry.json'
-            if not os.path.isfile(eval_filename):
-                os.system(
-                    'wget https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/resolve/main/%s' % eval_filename)
-            import json
-            data = json.load(open(eval_filename, 'rt'))
-            # focus on data that starts with human, else likely chopped from other data
-            turn_start = 0  # odd in general
-            data = [x for x in data if len(x['conversations']) > turn_start + 1 and
-                    x['conversations'][turn_start]['from'] == 'human' and
-                    x['conversations'][turn_start + 1]['from'] == 'gpt']
-            np.random.seed(eval_sharegpt_prompts_only_seed)
-            example1 = examples[-1]  # pick reference example
-            examples = []
-            responses = []
-            for i in list(np.random.randint(0, len(data), size=eval_sharegpt_prompts_only)):
-                assert data[i]['conversations'][turn_start]['from'] == 'human'
-                instruction = data[i]['conversations'][turn_start]['value']
-                assert data[i]['conversations'][turn_start + 1]['from'] == 'gpt'
-                output = data[i]['conversations'][turn_start + 1]['value']
-                examplenew = example1.copy()
-                assert not chat, "No gradio must use chat=False, uses nochat instruct"
-                examplenew[eval_func_param_names.index('instruction_nochat')] = instruction
-                examplenew[eval_func_param_names.index('iinput_nochat')] = ''  # no input
-                examplenew[eval_func_param_names.index('context')] = get_context(chat_context, prompt_type)
-                examples.append(examplenew)
-                responses.append(output)
-
-        num_examples = len(examples)
-        scoring_path = 'scoring'
-        os.makedirs(scoring_path, exist_ok=True)
-        if eval_sharegpt_as_output:
-            used_base_model = 'gpt35'
-            used_lora_weights = ''
-        else:
-            used_base_model = str(base_model.split('/')[-1])
-            used_lora_weights = str(lora_weights.split('/')[-1])
-        eval_filename = "df_scores_%s_%s_%s_%s_%s_%s.parquet" % (num_examples, eval_sharegpt_prompts_only,
-                                                                 eval_sharegpt_prompts_only_seed,
-                                                                 eval_sharegpt_as_output,
-                                                                 used_base_model,
-                                                                 used_lora_weights)
-        eval_filename = os.path.join(scoring_path, eval_filename)
-
-        # torch.device("cuda") leads to cuda:x cuda:y mismatches for multi-GPU consistently
-        device = 'cpu' if n_gpus == 0 else 'cuda'
-        context_class = NullContext if n_gpus > 1 or n_gpus == 0 else torch.device
-
-        with context_class(device):
-            # ensure was set right above before examples generated
-            assert not stream_output, "stream_output=True does not make sense with example loop"
-            import time
-            from functools import partial
-
-            # get score model
-            smodel, stokenizer, sdevice = get_score_model(**locals())
-
-            if not eval_sharegpt_as_output:
-                model, tokenizer, device = get_model(**locals())
-                model_state = [model, tokenizer, device, base_model]
-                kwargs_evaluate = {k: v for k, v in locals().items() if k in inputs_kwargs_list}
-                my_db_state = [None]
-                fun = partial(evaluate, model_state, my_db_state, debug=debug, save_dir=save_dir, is_low_mem=is_low_mem,
-                              raise_generate_gpu_exceptions=raise_generate_gpu_exceptions,
-                              chat_context=chat_context,
-                              concurrency_count=concurrency_count,
-                              lora_weights=lora_weights)
-            else:
-                assert eval_sharegpt_prompts_only > 0
-
-                def get_response(*args, exi=0):
-                    # assumes same ordering of examples and responses
-                    yield responses[exi]
-
-                fun = get_response
-            t0 = time.time()
-            score_dump = []
-
-            for exi, ex in enumerate(examples):
-                instruction = ex[eval_func_param_names.index('instruction_nochat')]
-                iinput = ex[eval_func_param_names.index('iinput_nochat')]
-                context = ex[eval_func_param_names.index('context')]
-                clear_torch_cache()
-                print("")
-                print("START" + "=" * 100)
-                print("Question: %s %s" % (instruction, ('input=%s' % iinput if iinput else '')))
-                print("-" * 105)
-                # fun yields as generator, so have to iterate over it
-                # Also means likely do NOT want --stream_output=True, else would show all generations
-                gener = fun(*tuple(ex), exi=exi) if eval_sharegpt_as_output else fun(*tuple(ex))
-                for res in gener:
-                    print(res)
-                    if smodel:
-                        score_with_prompt = False
-                        if score_with_prompt:
-                            data_point = dict(instruction=instruction, input=iinput, context=context)
-                            prompter = Prompter(prompt_type, debug=debug, chat=chat, stream_output=stream_output)
-                            prompt = prompter.generate_prompt(data_point)
-                        else:
-                            # just raw input and output
-                            if eval_sharegpt_prompts_only > 0:
-                                # only our own examples have this filled at moment
-                                assert iinput in [None, ''], iinput  # should be no iinput
-                            if not (chat_context and prompt_type == 'human_bot'):
-                                assert context in [None, ''], context  # should be no context
-                            prompt = instruction
-                        cutoff_len = 768 if is_low_mem else 2048
-                        inputs = stokenizer(prompt, res,
-                                            return_tensors="pt",
-                                            truncation=True,
-                                            max_length=cutoff_len)
-                        try:
-                            score = torch.sigmoid(smodel(**inputs).logits[0].float()).cpu().detach().numpy()[0]
-                        except torch.cuda.OutOfMemoryError as e:
-                            print("GPU OOM 1: question: %s answer: %s exception: %s" % (prompt, res, str(e)),
-                                  flush=True)
-                            traceback.print_exc()
-                            score = 0.0
-                            clear_torch_cache()
-                        except (Exception, RuntimeError) as e:
-                            if 'Expected all tensors to be on the same device' in str(e) or \
-                                    'expected scalar type Half but found Float' in str(e) or \
-                                    'probability tensor contains either' in str(e) or \
-                                    'cublasLt ran into an error!' in str(e):
-                                print("GPU error: question: %s answer: %s exception: %s" % (prompt, res, str(e)),
-                                      flush=True)
-                                traceback.print_exc()
-                                score = 0.0
-                                clear_torch_cache()
-                            else:
-                                raise
-                        print("SCORE %s: %s" % (exi, score), flush=True)
-                        score_dump.append(ex + [prompt, res, score])
-                        # dump every score in case abort
-                        df_scores = pd.DataFrame(score_dump,
-                                                 columns=eval_func_param_names + eval_extra_columns)
-                        df_scores.to_parquet(eval_filename, index=False)
-                        # plot histogram so far
-                        plt.figure(figsize=(10, 10))
-                        plt.hist(df_scores['score'], bins=20)
-                        score_avg = np.mean(df_scores['score'])
-                        score_median = np.median(df_scores['score'])
-                        plt.title("Score avg: %s median: %s" % (score_avg, score_median))
-                        plt.savefig(eval_filename.replace('.parquet', '.png'))
-                        plt.close()
-
-                print("END" + "=" * 102)
-                print("")
-                t2 = time.time()
-                print("Time taken so far: %.4f about %.4g per example" % (t2 - t0, (t2 - t0) / (1 + exi)))
-            t1 = time.time()
-            print("Total time taken: %.4f about %.4g per example" % (t1 - t0, (t1 - t0) / num_examples))
-        return eval_filename
-
-    if gradio:
+    if cli:
+        from cli import run_cli
+        return run_cli(**get_kwargs(run_cli, exclude_names=['model_state0'], **locals()))
+    elif not gradio:
+        from eval import run_eval
+        return run_eval(**get_kwargs(run_eval, exclude_names=['model_state0'], **locals()))
+    elif gradio:
         # imported here so don't require gradio to run generate
         from gradio_runner import go_gradio
 
         # get default model
-        all_kwargs = locals().copy()
-        if all_kwargs.get('base_model') and not all_kwargs['login_mode_if_model0']:
-            model0, tokenizer0, device = get_model(**all_kwargs)
-        else:
-            # if empty model, then don't load anything, just get gradio up
-            model0, tokenizer0, device = None, None, None
-        model_state0 = [model0, tokenizer0, device, all_kwargs['base_model']]
+        model_states = []
+        model_list = [dict(base_model=base_model, tokenizer_base_model=tokenizer_base_model, lora_weights=lora_weights,
+                           inference_server=inference_server, prompt_type=prompt_type, prompt_dict=prompt_dict)]
+        model_list0 = copy.deepcopy(model_list)
+        model_state0 = None
+        if model_lock:
+            model_list = model_lock
+        for model_dict in reversed(model_list):
+            # do reverse, so first is default base_model etc., so some logic works in go_gradio() more easily
+            # handles defaults user didn't have to pass
+            model_dict['base_model'] = base_model = model_dict.get('base_model', '')
+            model_dict['tokenizer_base_model'] = tokenizer_base_model = model_dict.get('tokenizer_base_model', '')
+            model_dict['lora_weights'] = lora_weights = model_dict.get('lora_weights', '')
+            model_dict['inference_server'] = inference_server = model_dict.get('inference_server', '')
+            prompt_type = model_dict.get('prompt_type', prompt_type)
+            # try to infer, ignore empty initial state leading to get_generate_params -> 'plain'
+            if model_dict.get('prompt_type') is None:
+                model_lower = base_model.lower()
+                if model_lower in inv_prompt_type_to_model_lower:
+                    prompt_type = inv_prompt_type_to_model_lower[model_lower]
+                    prompt_dict, error0 = get_prompt(prompt_type, '',
+                                                     chat=False, context='', reduced=False, return_dict=True)
+            model_dict['prompt_type'] = prompt_type
+            model_dict['prompt_dict'] = prompt_dict = model_dict.get('prompt_dict', prompt_dict)
+            all_kwargs = locals().copy()
+            if base_model and not login_mode_if_model0:
+                model0, tokenizer0, device = get_model(reward_type=False,
+                                                       **get_kwargs(get_model, exclude_names=['reward_type'],
+                                                                    **all_kwargs))
+            else:
+                # if empty model, then don't load anything, just get gradio up
+                model0, tokenizer0, device = None, None, None
+            model_state_trial = [model0, tokenizer0, device, base_model, inference_server]
+            if model_lock:
+                # last in iteration will be first
+                model_states.insert(0, model_state_trial)
+                # fill model_state0 so go_gradio() easier, manage model_states separately
+                model_state0 = model_state_trial
+            else:
+                model_state0 = model_state_trial
 
         # get score model
-        smodel, stokenizer, sdevice = get_score_model(**all_kwargs)
-        score_model_state0 = [smodel, stokenizer, sdevice, score_model]
+        all_kwargs = locals().copy()
+        smodel, stokenizer, sdevice = get_score_model(reward_type=True,
+                                                      **get_kwargs(get_score_model, exclude_names=['reward_type'],
+                                                                   **all_kwargs))
+        score_model_state0 = [smodel, stokenizer, sdevice, score_model, '']
 
+        if enable_captions:
+            if pre_load_caption_model:
+                from image_captions import H2OImageCaptionLoader
+                caption_loader = H2OImageCaptionLoader(caption_gpu=caption_gpu).load_model()
+            else:
+                caption_loader = 'gpu' if caption_gpu else 'cpu'
+        else:
+            caption_loader = False
+
+        # assume gradio needs everything
         go_gradio(**locals())
 
 
-def get_device():
-    if torch.cuda.is_available():
-        device = "cuda"
-    else:
-        device = "cpu"
-
-    return device
-
-
-def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward_type,
-                       gpu_id=0,
-                       use_auth_token=False,
-                       trust_remote_code=True,
-                       triton_attn=False,
-                       long_sequence=True,
-                       ):
-    """
-    Ensure model gets on correct device
-    :param base_model:
-    :param model_loader:
-    :param load_half:
-    :param model_kwargs:
-    :param reward_type:
-    :param gpu_id:
-    :param use_auth_token:
-    :param trust_remote_code:
-    :param triton_attn:
-    :param long_sequence:
-    :return:
-    """
+def get_config(base_model,
+               use_auth_token=False,
+               trust_remote_code=True,
+               offload_folder=None,
+               triton_attn=False,
+               long_sequence=True,
+               return_model=False,
+               ):
     with init_empty_weights():
         from transformers import AutoConfig
         config = AutoConfig.from_pretrained(base_model, use_auth_token=use_auth_token,
-                                            trust_remote_code=trust_remote_code)
+                                            trust_remote_code=trust_remote_code,
+                                            offload_folder=offload_folder)
         if triton_attn and 'mpt-' in base_model.lower():
             config.attn_config['attn_impl'] = 'triton'
         if long_sequence:
@@ -536,13 +601,28 @@ def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward
                 config.update({"max_seq_len": 83968})
             if 'mosaicml/mpt-7b-chat' in base_model.lower():
                 config.update({"max_seq_len": 4096})
-        if issubclass(config.__class__, tuple(AutoModel._model_mapping.keys())):
+        if return_model and \
+                issubclass(config.__class__, tuple(AutoModel._model_mapping.keys())):
             model = AutoModel.from_config(
                 config,
+                trust_remote_code=trust_remote_code,
             )
         else:
             # can't infer
             model = None
+    if 'falcon' in base_model.lower():
+        config.use_cache = False
+
+    return config, model
+
+
+def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward_type,
+                       config, model,
+                       gpu_id=0,
+                       ):
+    """
+    Ensure model gets on correct device
+    """
 
     if model is not None:
         # NOTE: Can specify max_memory={0: max_mem, 1: max_mem}, to shard model
@@ -576,12 +656,15 @@ def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward
     else:
         device_map = {'': 'cpu'}
         model_kwargs['load_in_8bit'] = False
+        model_kwargs['load_in_4bit'] = False
     print('device_map: %s' % device_map, flush=True)
 
     load_in_8bit = model_kwargs.get('load_in_8bit', False)
+    load_in_4bit = model_kwargs.get('load_in_4bit', False)
     model_kwargs['device_map'] = device_map
+    pop_unused_model_kwargs(model_kwargs)
 
-    if load_in_8bit or not load_half:
+    if load_in_8bit or load_in_4bit or not load_half:
         model = model_loader.from_pretrained(
             base_model,
             config=config,
@@ -598,10 +681,12 @@ def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward
 
 def get_model(
         load_8bit: bool = False,
+        load_4bit: bool = False,
         load_half: bool = True,
         infer_devices: bool = True,
         base_model: str = '',
         quant_model: str = '',
+        inference_server: str = "",
         tokenizer_base_model: str = '',
         lora_weights: str = "",
         gpu_id: int = 0,
@@ -611,17 +696,21 @@ def get_model(
         resume_download: bool = True,
         use_auth_token: Union[str, bool] = False,
         trust_remote_code: bool = True,
-        compile: bool = True,
-        **kwargs,
+        offload_folder: str = None,
+        compile_model: bool = True,
+
+        verbose: bool = False,
 ):
     """
 
     :param load_8bit: load model in 8-bit, not supported by all models
+    :param load_4bit: load model in 4-bit, not supported by all models
     :param load_half: load model in 16-bit
     :param infer_devices: Use torch infer of optimal placement of layers on devices (for non-lora case)
            For non-LORA case, False will spread shards across multiple GPUs, but this can lead to cuda:x cuda:y mismatches
            So it is not the default
     :param base_model: name/path of base model
+    :param inference_server: whether base_model is hosted locally ('') or via http (url)
     :param tokenizer_base_model: name/path of tokenizer
     :param lora_weights: name/path
     :param gpu_id: which GPU (0..n_gpus-1) or allow all GPUs if relevant (-1)
@@ -630,32 +719,61 @@ def get_model(
     :param resume_download: resume downloads from HF
     :param use_auth_token: assumes user did on CLI `huggingface-cli login` to access private repo
     :param trust_remote_code: trust code needed by model
-    :param compile: whether to compile torch model
-    :param kwargs:
+    :param offload_folder: offload folder
+    :param compile_model: whether to compile torch model
+    :param verbose:
     :return:
     """
-    print("Get %s model" % base_model, flush=True)
+    if verbose:
+        print("Get %s model" % base_model, flush=True)
+    if isinstance(inference_server, str) and inference_server.startswith("http"):
+        # preload client since slow for gradio case especially
+        from gradio_client import Client as GradioClient
+        try:
+            client = GradioClient(inference_server)
+        except ValueError:
+            client = None
+        if client is None:
+            from text_generation import Client as HFClient
+            client = HFClient(inference_server)
+
+        # Don't return None, None for model, tokenizer so triggers
+        return client, inference_server, 'http'
+    if isinstance(inference_server, str) and inference_server.startswith('openai'):
+        assert os.getenv('OPENAI_API_KEY'), "Set environment for OPENAI_API_KEY"
+        # Don't return None, None for model, tokenizer so triggers
+        return inference_server, inference_server, inference_server
+    assert not inference_server, "Malformed inference_server=%s" % inference_server
+    if base_model in non_hf_types:
+        from gpt4all_llm import get_model_tokenizer_gpt4all
+        model, tokenizer, device = get_model_tokenizer_gpt4all(base_model)
+        return model, tokenizer, device
+
     if lora_weights is not None and lora_weights.strip():
-        print("Get %s lora weights" % lora_weights, flush=True)
+        if verbose:
+            print("Get %s lora weights" % lora_weights, flush=True)
     device = get_device()
 
     if 'gpt2' in base_model.lower():
         # RuntimeError: where expected condition to be a boolean tensor, but got a tensor with dtype Half
         load_8bit = False
+        load_4bit = False
 
     assert base_model.strip(), (
-        "Please choose a base model with --base_model (CLI) or in Models Tab (gradio)"
+        "Please choose a base model with --base_model (CLI) or load one from Models Tab (gradio)"
     )
 
     from transformers import AutoConfig
     config = AutoConfig.from_pretrained(base_model, use_auth_token=use_auth_token,
-                                        trust_remote_code=trust_remote_code)
+                                        trust_remote_code=trust_remote_code,
+                                        offload_folder=offload_folder)
     llama_type_from_config = 'llama' in str(config).lower()
     llama_type_from_name = "llama" in base_model.lower()
     llama_type = llama_type_from_config or llama_type_from_name
     if llama_type:
-        print("Detected as llama type from"
-              " config (%s) or name (%s)" % (llama_type_from_config, llama_type_from_name), flush=True)
+        if verbose:
+            print("Detected as llama type from"
+                  " config (%s) or name (%s)" % (llama_type_from_config, llama_type_from_name), flush=True)
 
     model_loader, tokenizer_loader = get_loaders(llama_type=llama_type, model_name=base_model, reward_type=reward_type)
     if not tokenizer_base_model:
@@ -667,6 +785,8 @@ def get_model(
                                                      resume_download=resume_download,
                                                      use_auth_token=use_auth_token,
                                                      trust_remote_code=trust_remote_code,
+                                                     offload_folder=offload_folder,
+                                                     padding_side='left',
                                                      )
     else:
         tokenizer = tokenizer_loader
@@ -684,10 +804,12 @@ def get_model(
                             resume_download=resume_download,
                             use_auth_token=use_auth_token,
                             trust_remote_code=trust_remote_code,
+                            offload_folder=offload_folder,
                             )
         if 'mbart-' not in base_model.lower() and 'mpt-' not in base_model.lower():
             model_kwargs.update(dict(load_in_8bit=load_8bit,
-                                     device_map={"": 0} if load_8bit and device == 'cuda' else "auto",
+                                     load_in_4bit=load_4bit,
+                                     device_map={"": 0} if (load_8bit or load_4bit) and device == 'cuda' else "auto",
                                      ))
         if 'mpt-' in base_model.lower() and gpu_id >= 0:
             model_kwargs.update(dict(device_map={"": gpu_id} if device == 'cuda' else "cpu"))
@@ -696,32 +818,47 @@ def get_model(
             # FIXME: could put on other GPUs
             model_kwargs['device_map'] = {"": 0} if device == 'cuda' else {"": 'cpu'}
             model_kwargs.pop('torch_dtype', None)
+        pop_unused_model_kwargs(model_kwargs)
+
+        triton_attn = False
+        long_sequence = True
+
+        config_kwargs = dict(use_auth_token=use_auth_token,
+                             trust_remote_code=trust_remote_code,
+                             offload_folder=offload_folder,
+                             triton_attn=triton_attn,
+                             long_sequence=long_sequence)
 
         if not lora_weights:
-            if quant_model:
-                model = AutoGPTQForCausalLM.from_quantized(quant_model, use_triton=False, device=device)
-            else:
-                with torch.device(device):
-                    if infer_devices:
-                        model = get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward_type,
-                                                   gpu_id=gpu_id,
-                                                   use_auth_token=use_auth_token,
-                                                   trust_remote_code=trust_remote_code,
-                                                   )
+            with torch.device(device):
+                if quant_model:
+                    model = AutoGPTQForCausalLM.from_quantized(quant_model, use_triton=False, device=device)
+                elif infer_devices:
+                    config, model = get_config(base_model, return_model=True, **config_kwargs)
+                    model = get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward_type,
+                                               config, model,
+                                               gpu_id=gpu_id,
+                                               )
+                else:
+                    config, _ = get_config(base_model, **config_kwargs)
+                    if load_half and not (load_8bit or load_4bit):
+                        model = model_loader.from_pretrained(
+                            base_model,
+                            config=config,
+                            **model_kwargs).half()
                     else:
-                        if load_half and not load_8bit:
-                            model = model_loader.from_pretrained(
-                                base_model,
-                                **model_kwargs).half()
-                        else:
-                            model = model_loader.from_pretrained(
-                                base_model,
-                                **model_kwargs)
-        elif load_8bit:
+                        model = model_loader.from_pretrained(
+                            base_model,
+                            config=config,
+                            **model_kwargs)
+        elif load_8bit or load_4bit:
+            config, _ = get_config(base_model, **config_kwargs)
             model = model_loader.from_pretrained(
                 base_model,
+                config=config,
                 **model_kwargs
             )
+            from peft import PeftModel  # loads cuda, so avoid in global scope
             model = PeftModel.from_pretrained(
                 model,
                 lora_weights,
@@ -730,14 +867,18 @@ def get_model(
                 resume_download=resume_download,
                 use_auth_token=use_auth_token,
                 trust_remote_code=trust_remote_code,
+                offload_folder=offload_folder,
                 device_map={"": 0} if device == 'cuda' else {"": 'cpu'},  # seems to be required
             )
         else:
             with torch.device(device):
+                config, _ = get_config(base_model, **config_kwargs)
                 model = model_loader.from_pretrained(
                     base_model,
+                    config=config,
                     **model_kwargs
                 )
+                from peft import PeftModel  # loads cuda, so avoid in global scope
                 model = PeftModel.from_pretrained(
                     model,
                     lora_weights,
@@ -746,6 +887,7 @@ def get_model(
                     resume_download=resume_download,
                     use_auth_token=use_auth_token,
                     trust_remote_code=trust_remote_code,
+                    offload_folder=offload_folder,
                     device_map="auto",
                 )
                 if load_half:
@@ -764,12 +906,23 @@ def get_model(
 
     if not isinstance(tokenizer, str):
         model.eval()
-        if torch.__version__ >= "2" and sys.platform != "win32" and compile:
+        if torch.__version__ >= "2" and sys.platform != "win32" and compile_model:
             model = torch.compile(model)
+
+    if hasattr(config, 'max_seq_len') and isinstance(config.max_seq_len, int):
+        tokenizer.model_max_length = config.max_seq_len
+    elif hasattr(config, 'max_position_embeddings') and isinstance(config.max_position_embeddings, int):
+        # help automatically limit inputs to generate
+        tokenizer.model_max_length = config.max_position_embeddings
+    else:
+        if verbose:
+            print("Could not determine model_max_length, setting to 2048", flush=True)
+        tokenizer.model_max_length = 2048
 
     return model, tokenizer, device
 
 
+<<<<<<< HEAD
 def get_score_model(**kwargs):
     # score model
     if kwargs.get('score_model') is not None and kwargs.get('score_model').strip():
@@ -783,36 +936,195 @@ def get_score_model(**kwargs):
         score_all_kwargs['compile'] = False
         score_all_kwargs['quant_model'] = ''
         smodel, stokenizer, sdevice = get_model(**score_all_kwargs)
+=======
+def pop_unused_model_kwargs(model_kwargs):
+    """
+    in-place pop unused kwargs that are not dependency-upgrade friendly
+    no point passing in False, is default, and helps avoid needing to update requirements for new deps
+    :param model_kwargs:
+    :return:
+    """
+    check_list = ['load_in_8bit', 'load_in_4bit']
+    for k in check_list:
+        if k in model_kwargs and not model_kwargs[k]:
+            model_kwargs.pop(k)
+
+
+def get_score_model(score_model: str = None,
+                    load_8bit: bool = False,
+                    load_4bit: bool = False,
+                    load_half: bool = True,
+                    infer_devices: bool = True,
+                    base_model: str = '',
+                    inference_server: str = '',
+                    tokenizer_base_model: str = '',
+                    lora_weights: str = "",
+                    gpu_id: int = 0,
+
+                    reward_type: bool = None,
+                    local_files_only: bool = False,
+                    resume_download: bool = True,
+                    use_auth_token: Union[str, bool] = False,
+                    trust_remote_code: bool = True,
+                    offload_folder: str = None,
+                    compile_model: bool = True,
+
+                    verbose: bool = False,
+                    ):
+    if score_model is not None and score_model.strip():
+        load_8bit = False
+        load_4bit = False
+        load_half = False
+        base_model = score_model.strip()
+        tokenizer_base_model = ''
+        lora_weights = ''
+        inference_server = ''
+        llama_type = False
+        compile_model = False
+        smodel, stokenizer, sdevice = get_model(reward_type=True,
+                                                **get_kwargs(get_model, exclude_names=['reward_type'], **locals()))
+>>>>>>> origin/main
     else:
         smodel, stokenizer, sdevice = None, None, None
     return smodel, stokenizer, sdevice
 
+
+no_default_param_names = [
+    'instruction',
+    'iinput',
+    'context',
+    'instruction_nochat',
+    'iinput_nochat',
+]
+
+gen_hyper = ['temperature',
+             'top_p',
+             'top_k',
+             'num_beams',
+             'max_new_tokens',
+             'min_new_tokens',
+             'early_stopping',
+             'max_time',
+             'repetition_penalty',
+             'num_return_sequences',
+             'do_sample',
+             ]
 
 eval_func_param_names = ['instruction',
                          'iinput',
                          'context',
                          'stream_output',
                          'prompt_type',
-                         'temperature',
-                         'top_p',
-                         'top_k',
-                         'num_beams',
-                         'max_new_tokens',
-                         'min_new_tokens',
-                         'early_stopping',
-                         'max_time',
-                         'repetition_penalty',
-                         'num_return_sequences',
-                         'do_sample',
-                         'chat',
+                         'prompt_dict'] + \
+                        gen_hyper + \
+                        ['chat',
                          'instruction_nochat',
                          'iinput_nochat',
                          'langchain_mode',
+                         'top_k_docs',
+                         'chunk',
+                         'chunk_size',
+                         'document_choice',
                          ]
 
-inputs_kwargs_list = ['debug', 'save_dir', 'sanitize_bot_response', 'model_state0', 'is_low_mem',
-                      'raise_generate_gpu_exceptions', 'chat_context', 'concurrency_count', 'lora_weights',
-                      'load_db_if_exists', 'dbs', 'user_path']
+# form evaluate defaults for submit_nochat_api
+eval_func_param_names_defaults = eval_func_param_names.copy()
+for k in no_default_param_names:
+    if k in eval_func_param_names_defaults:
+        eval_func_param_names_defaults.remove(k)
+
+
+def evaluate_from_str(
+        model_state,
+        my_db_state,
+        # START NOTE: Examples must have same order of parameters
+        user_kwargs,
+        # END NOTE: Examples must have same order of parameters
+        default_kwargs=None,
+        src_lang=None,
+        tgt_lang=None,
+        debug=False,
+        concurrency_count=None,
+        save_dir=None,
+        sanitize_bot_response=False,
+        model_state0=None,
+        memory_restriction_level=None,
+        raise_generate_gpu_exceptions=None,
+        chat_context=None,
+        lora_weights=None,
+        load_db_if_exists=True,
+        dbs=None,
+        user_path=None,
+        detect_user_path_changes_every_query=None,
+        use_openai_embedding=None,
+        use_openai_model=None,
+        hf_embedding_model=None,
+        db_type=None,
+        n_jobs=None,
+        first_para=None,
+        text_limit=None,
+        verbose=False,
+        cli=False,
+        reverse_docs=True,
+        use_cache=None,
+        auto_reduce_chunks=None,
+        max_chunks=None,
+):
+    if isinstance(user_kwargs, str):
+        user_kwargs = ast.literal_eval(user_kwargs)
+    # only used for submit_nochat_api
+    user_kwargs['chat'] = False
+    if 'stream_output' not in user_kwargs:
+        user_kwargs['stream_output'] = False
+    if 'langchain_mode' not in user_kwargs:
+        # if user doesn't specify, then assume disabled, not use default
+        user_kwargs['langchain_mode'] = 'Disabled'
+
+    assert set(list(default_kwargs.keys())) == set(eval_func_param_names)
+    # correct ordering.  Note some things may not be in default_kwargs, so can't be default of user_kwargs.get()
+    args_list = [user_kwargs[k] if k in user_kwargs else default_kwargs[k] for k in eval_func_param_names]
+
+    ret = evaluate(
+        model_state,
+        my_db_state,
+        # START NOTE: Examples must have same order of parameters
+        *tuple(args_list),
+        # END NOTE: Examples must have same order of parameters
+        src_lang=src_lang,
+        tgt_lang=tgt_lang,
+        debug=debug,
+        concurrency_count=concurrency_count,
+        save_dir=save_dir,
+        sanitize_bot_response=sanitize_bot_response,
+        model_state0=model_state0,
+        memory_restriction_level=memory_restriction_level,
+        raise_generate_gpu_exceptions=raise_generate_gpu_exceptions,
+        chat_context=chat_context,
+        lora_weights=lora_weights,
+        load_db_if_exists=load_db_if_exists,
+        dbs=dbs,
+        user_path=user_path,
+        detect_user_path_changes_every_query=detect_user_path_changes_every_query,
+        use_openai_embedding=use_openai_embedding,
+        use_openai_model=use_openai_model,
+        hf_embedding_model=hf_embedding_model,
+        db_type=db_type,
+        n_jobs=n_jobs,
+        first_para=first_para,
+        text_limit=text_limit,
+        verbose=verbose,
+        cli=cli,
+        reverse_docs=reverse_docs,
+        use_cache=use_cache,
+        auto_reduce_chunks=auto_reduce_chunks,
+        max_chunks=max_chunks,
+    )
+    try:
+        for ret1 in ret:
+            yield ret1
+    finally:
+        # clear before return, in finally in case GPU OOM exception
+        clear_torch_cache()
 
 
 def evaluate(
@@ -824,6 +1136,7 @@ def evaluate(
         context,
         stream_output,
         prompt_type,
+        prompt_dict,
         temperature,
         top_p,
         top_k,
@@ -839,27 +1152,54 @@ def evaluate(
         instruction_nochat,
         iinput_nochat,
         langchain_mode,
+        top_k_docs,
+        chunk,
+        chunk_size,
+        document_choice,
         # END NOTE: Examples must have same order of parameters
         src_lang=None,
         tgt_lang=None,
         debug=False,
         concurrency_count=None,
         save_dir=None,
-        sanitize_bot_response=True,
+        sanitize_bot_response=False,
         model_state0=None,
-        is_low_mem=None,
+        memory_restriction_level=None,
         raise_generate_gpu_exceptions=None,
         chat_context=None,
         lora_weights=None,
         load_db_if_exists=True,
         dbs=None,
         user_path=None,
+        detect_user_path_changes_every_query=None,
+        use_openai_embedding=None,
+        use_openai_model=None,
+        hf_embedding_model=None,
+        db_type=None,
+        n_jobs=None,
+        first_para=None,
+        text_limit=None,
+        verbose=False,
+        cli=False,
+        reverse_docs=True,
+        use_cache=None,
+        auto_reduce_chunks=None,
+        max_chunks=None,
 ):
     # ensure passed these
     assert concurrency_count is not None
-    assert is_low_mem is not None
+    assert memory_restriction_level is not None
     assert raise_generate_gpu_exceptions is not None
     assert chat_context is not None
+    assert use_openai_embedding is not None
+    assert use_openai_model is not None
+    assert hf_embedding_model is not None
+    assert db_type is not None
+    assert top_k_docs is not None and isinstance(top_k_docs, int)
+    assert chunk is not None and isinstance(chunk, bool)
+    assert chunk_size is not None and isinstance(chunk_size, int)
+    assert n_jobs is not None
+    assert first_para is not None
 
     if debug:
         locals_dict = locals().copy()
@@ -867,13 +1207,14 @@ def evaluate(
         locals_dict.pop('model_state0', None)
         print(locals_dict)
 
-    no_model_msg = "Please choose a base model with --base_model (CLI) or in Models Tab (gradio).\nThen start New Conversation"
+    no_model_msg = "Please choose a base model with --base_model (CLI) or load in Models Tab (gradio).\nThen start New Conversation"
 
     if model_state0 is None:
         # e.g. for no gradio case, set dummy value, else should be set
-        model_state0 = [None, None, None, None]
+        model_state0 = [None, None, None, None, None]
 
-    if model_state is not None and len(model_state) == 4 and not isinstance(model_state[0], str):
+    if model_state is not None and len(model_state) == 5 and not isinstance(model_state[0], str):
+        # USE FRESH MODEL
         # try to free-up original model (i.e. list was passed as reference)
         if model_state0 is not None and model_state0[0] is not None:
             model_state0[0].cpu()
@@ -882,10 +1223,16 @@ def evaluate(
         if model_state0 is not None and model_state0[1] is not None:
             model_state0[1] = None
         clear_torch_cache()
-        model, tokenizer, device, base_model = model_state
-    elif model_state0 is not None and len(model_state0) == 4 and model_state0[0] is not None:
+        model, tokenizer, device, base_model, inference_server = model_state
+    elif model_state0 is not None and len(model_state0) == 5 and model_state0[0] is not None and not isinstance(
+            model_state0[0], str):
+        # USE MODEL SETUP AT CLI
         assert isinstance(model_state[0], str)
-        model, tokenizer, device, base_model = model_state0
+        model, tokenizer, device, base_model, inference_server = model_state0
+    elif model_state is not None and len(model_state) == 5 and model_state[4]:
+        model, tokenizer, device, base_model, inference_server = model_state
+    elif model_state0 is not None and len(model_state0) == 5 and model_state0[4]:
+        model, tokenizer, device, base_model, inference_server = model_state0
     else:
         raise AssertionError(no_model_msg)
 
@@ -901,11 +1248,19 @@ def evaluate(
         instruction = instruction_nochat
         iinput = iinput_nochat
 
+    # in some cases, like lean nochat API, don't want to force sending prompt_type, allow default choice
+    model_lower = base_model.lower()
+    if not prompt_type and model_lower in inv_prompt_type_to_model_lower:
+        prompt_type = inv_prompt_type_to_model_lower[model_lower]
+        if verbose:
+            print("Auto-selecting prompt_type=%s for %s" % (prompt_type, model_lower), flush=True)
+    assert prompt_type is not None, "prompt_type was None"
+
     if not context:
         # get hidden context if have one
         context = get_context(chat_context, prompt_type)
 
-    prompter = Prompter(prompt_type, debug=debug, chat=chat, stream_output=stream_output)
+    prompter = Prompter(prompt_type, prompt_dict, debug=debug, chat=chat, stream_output=stream_output)
     data_point = dict(context=context, instruction=instruction, input=iinput)
     prompt = prompter.generate_prompt(data_point)
 
@@ -917,30 +1272,263 @@ def evaluate(
         db1 = dbs[langchain_mode]
     else:
         db1 = None
-    if langchain_mode not in [False, 'Disabled', 'ChatLLM', 'LLM'] and db1 is not None:
+    do_langchain_path = langchain_mode not in [False, 'Disabled', 'ChatLLM', 'LLM'] and \
+                        db1 is not None or \
+                        base_model in non_hf_types
+    if do_langchain_path:
         query = instruction if not iinput else "%s\n%s" % (instruction, iinput)
-        from gpt_langchain import run_qa_db, get_db_kwargs
-        langchain_kwargs = get_db_kwargs(langchain_mode)
         outr = ""
         # use smaller cut_distanct for wiki_full since so many matches could be obtained, and often irrelevant unless close
+        from gpt_langchain import run_qa_db
         for r in run_qa_db(query=query,
                            model_name=base_model, model=model, tokenizer=tokenizer,
-                           stream_output=stream_output, prompter=prompter,
-                           do_yield=True,
+                           inference_server=inference_server,
+                           stream_output=stream_output,
+                           prompter=prompter,
                            load_db_if_exists=load_db_if_exists,
                            db=db1,
                            user_path=user_path,
+                           detect_user_path_changes_every_query=detect_user_path_changes_every_query,
+                           cut_distanct=1.1 if langchain_mode in ['wiki_full'] else 1.64,  # FIXME, too arbitrary
+                           use_openai_embedding=use_openai_embedding,
+                           use_openai_model=use_openai_model,
+                           hf_embedding_model=hf_embedding_model,
+                           first_para=first_para,
+                           text_limit=text_limit,
+                           chunk=chunk,
+                           chunk_size=chunk_size,
+                           langchain_mode=langchain_mode,
+                           document_choice=document_choice,
+                           db_type=db_type,
+                           top_k_docs=top_k_docs,
+
+                           # gen_hyper:
+                           do_sample=do_sample,
+                           temperature=temperature,
+                           repetition_penalty=repetition_penalty,
+                           top_k=top_k,
+                           top_p=top_p,
+                           num_beams=num_beams,
+                           min_new_tokens=min_new_tokens,
                            max_new_tokens=max_new_tokens,
-                           cut_distanct=1.1 if langchain_mode in ['wiki_full'] else 1.8,
-                           **langchain_kwargs):
-            outr = r  # doesn't accumualte, new answer every yield, so only save that full answer
-            yield r
+                           early_stopping=early_stopping,
+                           max_time=max_time,
+                           num_return_sequences=num_return_sequences,
+
+                           prompt_type=prompt_type,
+                           prompt_dict=prompt_dict,
+                           n_jobs=n_jobs,
+                           verbose=verbose,
+                           cli=cli,
+                           sanitize_bot_response=sanitize_bot_response,
+                           reverse_docs=reverse_docs,
+
+                           lora_weights=lora_weights,
+
+                           auto_reduce_chunks=auto_reduce_chunks,
+                           max_chunks=max_chunks,
+                           ):
+            outr, extra = r  # doesn't accumulate, new answer every yield, so only save that full answer
+            yield dict(response=outr, sources=extra)
         if save_dir:
             save_generate_output(output=outr, base_model=base_model, save_dir=save_dir)
-            print('Post-Generate Langchain: %s decoded_output: %s' % (str(datetime.now()), len(outr) if outr else -1),
-                  flush=True)
-        if outr:
+            if verbose:
+                print(
+                    'Post-Generate Langchain: %s decoded_output: %s' % (str(datetime.now()), len(outr) if outr else -1),
+                    flush=True)
+        if outr or base_model in non_hf_types:
+            # if got no response (e.g. not showing sources and got no sources,
+            # so nothing to give to LLM), then slip through and ask LLM
+            # Or if llama/gptj, then just return since they had no response and can't go down below code path
+            # clear before return, since .then() never done if from API
+            clear_torch_cache()
             return
+
+    if inference_server.startswith('openai'):
+        import openai
+
+        openai.api_key = os.getenv("OPENAI_API_KEY")
+        stop_sequences = prompter.terminate_response + [prompter.PreResponse]
+        openai_gen_kwargs = dict(temperature=temperature if do_sample else 0,
+                                 max_tokens=max_new_tokens,
+                                 top_p=top_p if do_sample else 1,
+                                 frequency_penalty=0,
+                                 n=num_return_sequences,
+                                 presence_penalty=1.07 - repetition_penalty + 0.6,  # so good default
+                                 )
+        if inference_server == 'openai':
+            response = openai.Completion.create(
+                model=base_model,
+                prompt=prompt,
+                **openai_gen_kwargs,
+                stop=stop_sequences,
+                stream=stream_output,
+            )
+            if not stream_output:
+                text = response['choices'][0]['text']
+                yield dict(response=prompter.get_response(prompt + text, prompt=prompt,
+                                                          sanitize_bot_response=sanitize_bot_response),
+                           sources='')
+            else:
+                collected_events = []
+                text = ''
+                for event in response:
+                    collected_events.append(event)  # save the event response
+                    event_text = event['choices'][0]['text']  # extract the text
+                    text += event_text  # append the text
+                    yield dict(response=prompter.get_response(prompt + text, prompt=prompt,
+                                                              sanitize_bot_response=sanitize_bot_response),
+                               sources='')
+            return
+        if inference_server == 'openai_chat':
+            response = openai.ChatCompletion.create(
+                model=base_model,
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant."},
+                    {'role': 'user',
+                     'content': prompt,
+                     }
+                ],
+                stream=stream_output,
+                **openai_gen_kwargs,
+            )
+            if not stream_output:
+                text = response["choices"][0]["message"]["content"]
+                yield dict(response=prompter.get_response(prompt + text, prompt=prompt,
+                                                          sanitize_bot_response=sanitize_bot_response),
+                           sources='')
+            else:
+                text = ""
+                for chunk in response:
+                    delta = chunk["choices"][0]["delta"]
+                    if 'content' in delta:
+                        text += delta['content']
+                        yield dict(response=prompter.get_response(prompt + text, prompt=prompt,
+                                                                  sanitize_bot_response=sanitize_bot_response),
+                                   sources='')
+            return
+    elif inference_server.startswith('http'):
+        from gradio_client import Client as GradioClient
+        from text_generation import Client as HFClient
+        if isinstance(model, GradioClient):
+            gr_client = model
+            hf_client = None
+        elif isinstance(model, HFClient):
+            gr_client = None
+            hf_client = model
+        else:
+            # check if gradio server
+            try:
+                gr_client = GradioClient(inference_server)
+            except ValueError:
+                gr_client = None
+            if gr_client is None:
+                from text_generation import Client as HFClient
+                hf_client = HFClient(inference_server)
+
+        if gr_client is not None:
+            chat_client = False
+            client_langchain_mode = 'Disabled'
+            client_kwargs = dict(instruction=prompt if chat_client else '',  # only for chat=True
+                                 iinput='',  # only for chat=True
+                                 context='',
+                                 # streaming output is supported, loops over and outputs each generation in streaming mode
+                                 # but leave stream_output=False for simple input/output mode
+                                 stream_output=stream_output,
+                                 prompt_type=prompt_type,
+                                 prompt_dict='',
+
+                                 temperature=temperature,
+                                 top_p=top_p,
+                                 top_k=top_k,
+                                 num_beams=num_beams,
+                                 max_new_tokens=max_new_tokens,
+                                 min_new_tokens=min_new_tokens,
+                                 early_stopping=early_stopping,
+                                 max_time=max_time,
+                                 repetition_penalty=repetition_penalty,
+                                 num_return_sequences=num_return_sequences,
+                                 do_sample=do_sample,
+                                 chat=chat_client,
+
+                                 instruction_nochat=prompt if not chat_client else '',
+                                 iinput_nochat='',  # only for chat=False
+                                 langchain_mode=client_langchain_mode,
+                                 top_k_docs=top_k_docs,
+                                 chunk=chunk,
+                                 chunk_size=chunk_size,
+                                 document_choice=[DocumentChoices.All_Relevant.name],
+                                 )
+            api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
+            if not stream_output:
+                res = gr_client.predict(str(dict(client_kwargs)), api_name=api_name)
+                res_dict = ast.literal_eval(res)
+                text = res_dict['response']
+                sources = res_dict['sources']
+                yield dict(response=prompter.get_response(prompt + text, prompt=prompt,
+                                                          sanitize_bot_response=sanitize_bot_response),
+                           sources=sources)
+            else:
+                job = gr_client.submit(str(dict(client_kwargs)), api_name=api_name)
+                text = ''
+                while not job.done():
+                    outputs_list = job.communicator.job.outputs
+                    if outputs_list:
+                        res = job.communicator.job.outputs[-1]
+                        res_dict = ast.literal_eval(res)
+                        text = res_dict['response']
+                        sources = res_dict['sources']
+                        yield dict(response=prompter.get_response(prompt + text, prompt=prompt,
+                                                                  sanitize_bot_response=sanitize_bot_response),
+                                   sources=sources)
+                    time.sleep(0.01)
+                # ensure get last output to avoid race
+                res = job.outputs()[-1]
+                res_dict = ast.literal_eval(res)
+                text = res_dict['response']
+                sources = res_dict['sources']
+                yield dict(response=prompter.get_response(prompt + text, prompt=prompt,
+                                                          sanitize_bot_response=sanitize_bot_response),
+                           sources=sources)
+        else:
+            # prompt must include all human-bot like tokens, already added by prompt
+            # https://github.com/huggingface/text-generation-inference/tree/main/clients/python#types
+            stop_sequences = prompter.terminate_response + [prompter.PreResponse]
+            gen_server_kwargs = dict(do_sample=do_sample,
+                                     max_new_tokens=max_new_tokens,
+                                     # best_of=None,
+                                     repetition_penalty=repetition_penalty,
+                                     return_full_text=True,
+                                     seed=SEED,
+                                     stop_sequences=stop_sequences,
+                                     temperature=temperature,
+                                     top_k=top_k,
+                                     top_p=top_p,
+                                     # truncate=False,  # behaves oddly
+                                     # typical_p=top_p,
+                                     # watermark=False,
+                                     # decoder_input_details=False,
+                                     )
+            if not stream_output:
+                text = hf_client.generate(prompt, **gen_server_kwargs).generated_text
+                yield dict(response=prompter.get_response(text, prompt=prompt,
+                                                          sanitize_bot_response=sanitize_bot_response),
+                           sources='')
+            else:
+                text = ""
+                for response in hf_client.generate_stream(prompt, **gen_server_kwargs):
+                    if not response.token.special:
+                        # stop_sequences
+                        text_chunk = response.token.text
+                        text += text_chunk
+                        yield dict(response=prompter.get_response(prompt + text, prompt=prompt,
+                                                                  sanitize_bot_response=sanitize_bot_response),
+                                   sources='')
+        if save_dir and text:
+            save_generate_output(output=text, base_model=base_model, save_dir=save_dir)
+        return
+    else:
+        assert not inference_server, "inferene_server=%s not supported" % inference_server
 
     if isinstance(tokenizer, str):
         # pipeline
@@ -949,7 +1537,7 @@ def evaluate(
         else:
             raise RuntimeError("No such task type %s" % tokenizer)
         # NOTE: uses max_length only
-        yield model(prompt, max_length=max_new_tokens)[0][key]
+        yield dict(response=model(prompt, max_length=max_new_tokens)[0][key], sources='')
 
     if 'mbart-' in base_model.lower():
         assert src_lang is not None
@@ -958,29 +1546,43 @@ def evaluate(
     if chat:
         # override, ignore user change
         num_return_sequences = 1
-    stopping_criteria = get_stopping(prompt_type, tokenizer, device)
-    _, _, max_length_tokenize, max_prompt_length = get_cutoffs(is_low_mem)
-    prompt = prompt[-max_prompt_length:]
-    inputs = tokenizer(prompt,
-                       return_tensors="pt",
-                       truncation=True,
-                       max_length=max_length_tokenize)
-    if inputs['input_ids'].shape[1] >= max_length_tokenize - 1:
-        print("Cutting off input: %s %s" % (inputs['input_ids'].shape[1], max_length_tokenize), flush=True)
+    stopping_criteria = get_stopping(prompt_type, prompt_dict, tokenizer, device,
+                                     model_max_length=tokenizer.model_max_length)
+
+    # limit prompt using token length from user, implicit, or model
+    _, _, max_length_tokenize, max_prompt_length = get_cutoffs(memory_restriction_level,
+                                                               model_max_length=tokenizer.model_max_length)
+    from h2oai_pipeline import H2OTextGenerationPipeline
+    prompt = H2OTextGenerationPipeline.limit_prompt(prompt, tokenizer, max_prompt_length=max_prompt_length)
+
+    inputs = tokenizer(prompt, return_tensors="pt")
     if debug and len(inputs["input_ids"]) > 0:
         print('input_ids length', len(inputs["input_ids"][0]), flush=True)
     input_ids = inputs["input_ids"].to(device)
-    generation_config = GenerationConfig(
-        temperature=float(temperature),
-        top_p=float(top_p),
-        top_k=top_k,
-        num_beams=num_beams,
-        do_sample=do_sample,
-        repetition_penalty=float(repetition_penalty),
-        num_return_sequences=num_return_sequences,
-        renormalize_logits=True,
-        remove_invalid_values=True,
-    )
+    # CRITICAL LIMIT else will fail
+    max_max_tokens = tokenizer.model_max_length
+    max_input_tokens = max_max_tokens - min_new_tokens
+    # NOTE: Don't limit up front due to max_new_tokens, let go up to max or reach max_max_tokens in stopping.py
+    input_ids = input_ids[:, -max_input_tokens:]
+    # required for falcon if multiple threads or asyncio accesses to model during generation
+    if use_cache is None:
+        use_cache = False if 'falcon' in base_model else True
+    gen_config_kwargs = dict(temperature=float(temperature),
+                             top_p=float(top_p),
+                             top_k=top_k,
+                             num_beams=num_beams,
+                             do_sample=do_sample,
+                             repetition_penalty=float(repetition_penalty),
+                             num_return_sequences=num_return_sequences,
+                             renormalize_logits=True,
+                             remove_invalid_values=True,
+                             use_cache=use_cache,
+                             )
+    token_ids = ['eos_token_id', 'pad_token_id', 'bos_token_id', 'cls_token_id', 'sep_token_id']
+    for token_id in token_ids:
+        if hasattr(tokenizer, token_id) and getattr(tokenizer, token_id) is not None:
+            gen_config_kwargs.update({token_id: getattr(tokenizer, token_id)})
+    generation_config = GenerationConfig(**gen_config_kwargs)
 
     gen_kwargs = dict(input_ids=input_ids,
                       generation_config=generation_config,
@@ -999,7 +1601,10 @@ def evaluate(
         tgt_lang = languages_covered()[tgt_lang]
         gen_kwargs.update(dict(forced_bos_token_id=tokenizer.lang_code_to_id[tgt_lang]))
     else:
-        gen_kwargs.update(dict(pad_token_id=tokenizer.eos_token_id))
+        token_ids = ['eos_token_id', 'bos_token_id', 'pad_token_id']
+        for token_id in token_ids:
+            if hasattr(tokenizer, token_id) and getattr(tokenizer, token_id) is not None:
+                gen_kwargs.update({token_id: getattr(tokenizer, token_id)})
 
     decoder_kwargs = dict(skip_special_tokens=True,
                           clean_up_tokenization_spaces=True)
@@ -1015,17 +1620,20 @@ def evaluate(
                                     )
 
     with torch.no_grad():
-        context_class_cast = NullContext if device == 'cpu' or lora_weights else torch.autocast
+        have_lora_weights = lora_weights not in [no_lora_str, '', None]
+        context_class_cast = NullContext if device == 'cpu' or have_lora_weights else torch.autocast
         with context_class_cast(device):
             # protection for gradio not keeping track of closed users,
             # else hit bitsandbytes lack of thread safety:
             # https://github.com/h2oai/h2ogpt/issues/104
             # but only makes sense if concurrency_count == 1
             context_class = NullContext  # if concurrency_count > 1 else filelock.FileLock
-            print('Pre-Generate: %s' % str(datetime.now()), flush=True)
+            if verbose:
+                print('Pre-Generate: %s' % str(datetime.now()), flush=True)
             decoded_output = None
             with context_class("generate.lock"):
-                print('Generate: %s' % str(datetime.now()), flush=True)
+                if verbose:
+                    print('Generate: %s' % str(datetime.now()), flush=True)
                 # decoded tokenized prompt can deviate from prompt due to special characters
                 inputs_decoded = decoder(input_ids[0])
                 inputs_decoded_raw = decoder_raw(input_ids[0])
@@ -1047,7 +1655,8 @@ def evaluate(
                     decoder = decoder_raw
                     decoder_kwargs = decoder_raw_kwargs
                 else:
-                    print("WARNING: Special characters in prompt", flush=True)
+                    if verbose:
+                        print("WARNING: Special characters in prompt", flush=True)
                 if stream_output:
                     skip_prompt = False
                     streamer = H2OTextIteratorStreamer(tokenizer, skip_prompt=skip_prompt, block=False,
@@ -1066,14 +1675,17 @@ def evaluate(
                             if bucket.qsize() > 0 or thread.exc:
                                 thread.join()
                             outputs += new_text
-                            yield prompter.get_response(outputs, prompt=inputs_decoded,
-                                                        sanitize_bot_response=sanitize_bot_response)
+                            yield dict(response=prompter.get_response(outputs, prompt=inputs_decoded,
+                                                                      sanitize_bot_response=sanitize_bot_response),
+                                       sources='')
                     except BaseException:
                         # if any exception, raise that exception if was from thread, first
                         if thread.exc:
                             raise thread.exc
                         raise
                     finally:
+                        # clear before return, since .then() never done if from API
+                        clear_torch_cache()
                         # in case no exception and didn't join with thread yet, then join
                         if not thread.exc:
                             thread.join()
@@ -1082,24 +1694,37 @@ def evaluate(
                         raise thread.exc
                     decoded_output = outputs
                 else:
-                    outputs = model.generate(**gen_kwargs)
+                    try:
+                        outputs = model.generate(**gen_kwargs)
+                    finally:
+                        clear_torch_cache()  # has to be here for API submit_nochat_api since.then() not called
                     outputs = [decoder(s) for s in outputs.sequences]
-                    yield prompter.get_response(outputs, prompt=inputs_decoded,
-                                                sanitize_bot_response=sanitize_bot_response)
+                    yield dict(response=prompter.get_response(outputs, prompt=inputs_decoded,
+                                                              sanitize_bot_response=sanitize_bot_response), sources='')
                     if outputs and len(outputs) >= 1:
                         decoded_output = prompt + outputs[0]
                 if save_dir and decoded_output:
                     save_generate_output(output=decoded_output, base_model=base_model, save_dir=save_dir)
-            print('Post-Generate: %s decoded_output: %s' % (
-                str(datetime.now()), len(decoded_output) if decoded_output else -1), flush=True)
+            if verbose:
+                print('Post-Generate: %s decoded_output: %s' % (
+                    str(datetime.now()), len(decoded_output) if decoded_output else -1), flush=True)
 
 
-def get_cutoffs(is_low_mem, for_context=False):
+inputs_list_names = list(inspect.signature(evaluate).parameters)
+state_names = ['model_state', 'my_db_state']
+inputs_kwargs_list = [x for x in inputs_list_names if x not in eval_func_param_names + state_names]
+
+
+def get_cutoffs(memory_restriction_level, for_context=False, model_max_length=2048):
     # help to avoid errors like:
     # RuntimeError: The size of tensor a (2048) must match the size of tensor b (2049) at non-singleton dimension 3
     # RuntimeError: expected scalar type Half but found Float
     # with - 256
-    max_length_tokenize = 768 - 256 if is_low_mem else 2048 - 256
+    if memory_restriction_level > 0:
+        max_length_tokenize = 768 - 256 if memory_restriction_level <= 2 else 512 - 256
+    else:
+        # at least give room for 1 paragraph output
+        max_length_tokenize = model_max_length - 256
     cutoff_len = max_length_tokenize * 4  # if reaches limit, then can't generate new tokens
     output_smallest = 30 * 4
     max_prompt_length = cutoff_len - output_smallest
@@ -1189,18 +1814,22 @@ def generate_with_exceptions(func, *args, prompt='', inputs_decoded='', raise_ge
 
 def get_generate_params(model_lower, chat,
                         stream_output, show_examples,
-                        prompt_type, temperature, top_p, top_k, num_beams,
+                        prompt_type, prompt_dict,
+                        temperature, top_p, top_k, num_beams,
                         max_new_tokens, min_new_tokens, early_stopping, max_time,
                         repetition_penalty, num_return_sequences,
-                        do_sample):
+                        do_sample,
+                        top_k_docs, chunk, chunk_size,
+                        verbose):
     use_defaults = False
     use_default_examples = True
     examples = []
-    task_info = f"{prompt_type}"
+    task_info = 'LLM'
     if model_lower:
         print(f"Using Model {model_lower}", flush=True)
     else:
-        print("No model defined yet", flush=True)
+        if verbose:
+            print("No model defined yet", flush=True)
 
     min_new_tokens = min_new_tokens if min_new_tokens is not None else 0
     early_stopping = early_stopping if early_stopping is not None else False
@@ -1209,7 +1838,8 @@ def get_generate_params(model_lower, chat,
 
     if not prompt_type and model_lower in inv_prompt_type_to_model_lower:
         prompt_type = inv_prompt_type_to_model_lower[model_lower]
-        print("Auto-selecting prompt_type=%s for %s" % (prompt_type, model_lower), flush=True)
+        if verbose:
+            print("Auto-selecting prompt_type=%s for %s" % (prompt_type, model_lower), flush=True)
 
     # examples at first don't include chat, instruction_nochat, iinput_nochat, added at end
     if show_examples is None:
@@ -1225,15 +1855,13 @@ Jeff: and how can I get started?
 Jeff: where can I find documentation? 
 Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-partnership-amazon-sagemaker-and-hugging-face"""
 
+    use_placeholder_instruction_as_example = False
     if 'bart-large-cnn-samsum' in model_lower or 'flan-t5-base-samsum' in model_lower:
         placeholder_instruction = summarize_example1
         placeholder_input = ""
         use_defaults = True
         use_default_examples = False
-        examples += [
-            [placeholder_instruction, "", "", stream_output, 'plain', 1.0, 1.0, 50, 1, 128, 0, False, max_time_defaults,
-             1.0, 1,
-             False]]
+        use_placeholder_instruction_as_example = True
         task_info = "Summarization"
     elif 't5-' in model_lower or 't5' == model_lower or 'flan-' in model_lower:
         placeholder_instruction = "The square root of x is the cube root of y. What is y to the power of 2, if x = 4?"
@@ -1246,19 +1874,13 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         placeholder_input = ""
         use_defaults = True
         use_default_examples = False
-        examples += [
-            [placeholder_instruction, "", "", stream_output, 'plain', 1.0, 1.0, 50, 1, 128, 0, False, max_time_defaults,
-             1.0, 1,
-             False]]
+        use_placeholder_instruction_as_example = True
     elif 'gpt2' in model_lower:
         placeholder_instruction = "The sky is"
         placeholder_input = ""
         prompt_type = prompt_type or 'plain'
         use_default_examples = True  # some will be odd "continuations" but can be ok
-        examples += [
-            [placeholder_instruction, "", "", stream_output, 'plain', 1.0, 1.0, 50, 1, 128, 0, False, max_time_defaults,
-             1.0, 1,
-             False]]
+        use_placeholder_instruction_as_example = True
         task_info = "Auto-complete phrase, code, etc."
         use_defaults = True
     else:
@@ -1267,14 +1889,13 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         else:
             placeholder_instruction = "Give detailed answer for whether Einstein or Newton is smarter."
         placeholder_input = ""
-        if model_lower:
-            # default is plain, because might relly upon trust_remote_code to handle prompting
+        if model_lower in inv_prompt_type_to_model_lower:
+            prompt_type = inv_prompt_type_to_model_lower[model_lower]
+        elif model_lower:
+            # default is plain, because might rely upon trust_remote_code to handle prompting
             prompt_type = prompt_type or 'plain'
         else:
             prompt_type = ''
-        examples += [[summarize_example1, 'Summarize' if prompt_type not in ['plain', 'instruct_simple'] else '', "",
-                      stream_output, prompt_type or 'plain', 0.1, 0.75, 40, 4, 256, 0, False, max_time_defaults, 1.0, 1,
-                      False]]
         task_info = "No task"
         if prompt_type == 'instruct':
             task_info = "Answer question or follow imperative as instruction with optionally input."
@@ -1301,17 +1922,21 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         temperature = 0.1 if temperature is None else temperature
         top_p = 0.75 if top_p is None else top_p
         top_k = 40 if top_k is None else top_k
-        if chat:
-            num_beams = num_beams or 1
-        else:
-            num_beams = num_beams or 4
+        num_beams = num_beams or 1
         max_new_tokens = max_new_tokens or 256
         repetition_penalty = repetition_penalty or 1.07
         num_return_sequences = min(num_beams, num_return_sequences or 1)
         do_sample = False if do_sample is None else do_sample
     # doesn't include chat, instruction_nochat, iinput_nochat, added later
-    params_list = ["", stream_output, prompt_type, temperature, top_p, top_k, num_beams, max_new_tokens, min_new_tokens,
+    params_list = ["",
+                   stream_output,
+                   prompt_type, prompt_dict,
+                   temperature, top_p, top_k, num_beams,
+                   max_new_tokens, min_new_tokens,
                    early_stopping, max_time, repetition_penalty, num_return_sequences, do_sample]
+
+    if use_placeholder_instruction_as_example:
+        examples += [[placeholder_instruction, ''] + params_list]
 
     if use_default_examples:
         examples += [
@@ -1349,13 +1974,16 @@ y = np.random.randint(0, 1, 100)
 
 # fit random forest classifier with 20 estimators""", ''] + params_list,
         ]
+    # add summary example
+    examples += [
+        [summarize_example1, 'Summarize' if prompt_type not in ['plain', 'instruct_simple'] else ''] + params_list]
 
     src_lang = "English"
     tgt_lang = "Russian"
 
     # move to correct position
     for example in examples:
-        example += [chat, '', '', 'Disabled']
+        example += [chat, '', '', 'Disabled', top_k_docs, chunk, chunk_size, [DocumentChoices.All_Relevant.name]]
         # adjust examples if non-chat mode
         if not chat:
             example[eval_func_param_names.index('instruction_nochat')] = example[
@@ -1364,11 +1992,22 @@ y = np.random.randint(0, 1, 100)
 
             example[eval_func_param_names.index('iinput_nochat')] = example[eval_func_param_names.index('iinput')]
             example[eval_func_param_names.index('iinput')] = ''
-        assert len(example) == len(eval_func_param_names), "Wrong example: %s %s" % (len(example), len(eval_func_param_names))
+        assert len(example) == len(eval_func_param_names), "Wrong example: %s %s" % (
+            len(example), len(eval_func_param_names))
+
+    if prompt_type == PromptType.custom.name and not prompt_dict:
+        raise ValueError("Unexpected to get non-empty prompt_dict=%s for prompt_type=%s" % (prompt_dict, prompt_type))
+
+    # get prompt_dict from prompt_type, so user can see in UI etc., or for custom do nothing except check format
+    prompt_dict, error0 = get_prompt(prompt_type, prompt_dict,
+                                     chat=False, context='', reduced=False, return_dict=True)
+    if error0:
+        raise RuntimeError("Prompt wrong: %s" % error0)
 
     return placeholder_instruction, placeholder_input, \
         stream_output, show_examples, \
-        prompt_type, temperature, top_p, top_k, num_beams, \
+        prompt_type, prompt_dict, \
+        temperature, top_p, top_k, num_beams, \
         max_new_tokens, min_new_tokens, early_stopping, max_time, \
         repetition_penalty, num_return_sequences, \
         do_sample, \
@@ -1392,12 +2031,6 @@ def get_context(chat_context, prompt_type):
     else:
         context0 = ''
     return context0
-
-
-def test_test_prompt(prompt_type='instruct', data_point=0):
-    example_data_point = example_data_points[data_point]
-    example_data_point.pop('output', None)
-    return generate_prompt(example_data_point, prompt_type, False, False)
 
 
 def score_qa(smodel, stokenizer, max_length_tokenize, question, answer, cutoff_len):
@@ -1432,7 +2065,46 @@ def score_qa(smodel, stokenizer, max_length_tokenize, question, answer, cutoff_l
     return score
 
 
-if __name__ == "__main__":
+def check_locals(**kwargs):
+    # ensure everything in evaluate is here
+    can_skip_because_locally_generated = no_default_param_names + [
+        # get_model:
+        'reward_type'
+    ]
+    for k in eval_func_param_names:
+        if k in can_skip_because_locally_generated:
+            continue
+        assert k in kwargs, "Missing %s" % k
+    for k in inputs_kwargs_list:
+        if k in can_skip_because_locally_generated:
+            continue
+        assert k in kwargs, "Missing %s" % k
+
+    for k in list(inspect.signature(get_model).parameters):
+        if k in can_skip_because_locally_generated:
+            continue
+        assert k in kwargs, "Missing %s" % k
+
+
+def get_max_max_new_tokens(model_state, **kwargs):
+    if kwargs['max_new_tokens'] and kwargs['user_set_max_new_tokens']:
+        max_max_new_tokens = kwargs['max_new_tokens']
+    elif kwargs['memory_restriction_level'] == 1:
+        max_max_new_tokens = 768
+    elif kwargs['memory_restriction_level'] == 2:
+        max_max_new_tokens = 512
+    elif kwargs['memory_restriction_level'] >= 3:
+        max_max_new_tokens = 256
+    else:
+        if not isinstance(model_state[1], (str, types.NoneType)):
+            max_max_new_tokens = model_state[1].model_max_length
+        else:
+            # FIXME: Need to update after new model loaded, so user can control with slider
+            max_max_new_tokens = 2048
+    return max_max_new_tokens
+
+
+def entrypoint_main():
     """
     Examples:
 
@@ -1460,42 +2132,10 @@ if __name__ == "__main__":
     can also pass --prompt_type='human_bot' and model can somewhat handle instructions without being instruct tuned
     python generate.py --base_model=decapoda-research/llama-65b-hf --load_8bit=False --infer_devices=False --prompt_type='human_bot'
 
-    python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6.9b
+    python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b
     """
     fire.Fire(main)
 
 
-import pytest
-
-@pytest.mark.parametrize(
-    "base_model",
-    [
-        "h2oai/h2ogpt-oig-oasst1-512-6.9b",
-        "h2oai/h2ogpt-oig-oasst1-512-12b",
-        "h2oai/h2ogpt-oig-oasst1-512-20b",
-        "h2oai/h2ogpt-oasst1-512-12b",
-        "h2oai/h2ogpt-oasst1-512-20b",
-        "h2oai/h2ogpt-gm-oasst1-en-1024-20b",
-        "databricks/dolly-v2-12b",
-        "h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b-preview-300bt-v2",
-        "ehartford/WizardLM-7B-Uncensored",
-        "ehartford/WizardLM-13B-Uncensored",
-        "AlekseyKorshuk/vicuna-7b",
-        "TheBloke/stable-vicuna-13B-HF",
-        "decapoda-research/llama-7b-hf",
-        "decapoda-research/llama-13b-hf",
-        "decapoda-research/llama-30b-hf",
-        "junelee/wizard-vicuna-13b",
-    ]
-)
-def test_score_eval(base_model):
-    main(
-        base_model=base_model,
-        chat=False,
-        stream_output=False,
-        gradio=False,
-        eval_sharegpt_prompts_only=500,
-        eval_sharegpt_as_output=False,
-        num_beams=2,
-        infer_devices=False,
-    )
+if __name__ == "__main__":
+    entrypoint_main()

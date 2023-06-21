@@ -11,6 +11,75 @@ from transformers import AutoModelForCausalLM
     "model_name, base_model, dataset, training_logs, eval",
     [
         (
+                "h2ogpt-research-oasst1-llama-65b",
+                "decapoda-research/llama-65b-hf",
+                [
+                    "h2oai/openassistant_oasst1_h2ogpt_graded",
+                ],
+                [
+                    "https://huggingface.co/h2oai/h2ogpt-research-oasst1-llama-65b/blob/main/llama-65b-hf.h2oaiopenassistant_oasst1_h2ogpt_graded.1_epochs.113510499324f0f007cbec9d9f1f8091441f2469.3.zip",
+                ],
+                """
+TBD
+"""
+        ),
+        (
+                "h2ogpt-oig-oasst1-falcon-40b",
+                "tiiuae/falcon-40b",
+                [
+                    "h2oai/h2ogpt-oig-oasst1-instruct-cleaned-v3",
+                ],
+                [
+                    "https://huggingface.co/h2oai/h2ogpt-oig-oasst1-falcon-40b/blob/main/falcon-40b.h2oaih2ogpt-oig-oasst1-instruct-cleaned-v3.3_epochs.2e023709e9a36283986d136e66cb94e0bd7e6452.10.zip",
+                ],
+                """
+[eval source code](https://github.com/h2oai/h2ogpt/issues/216#issuecomment-1579573101)
+
+|    Task     |Version| Metric |Value |   |Stderr|
+|-------------|------:|--------|-----:|---|-----:|
+|arc_challenge|      0|acc     |0.4957|±  |0.0146|
+|             |       |acc_norm|0.5324|±  |0.0146|
+|arc_easy     |      0|acc     |0.8140|±  |0.0080|
+|             |       |acc_norm|0.7837|±  |0.0084|
+|boolq        |      1|acc     |0.8297|±  |0.0066|
+|hellaswag    |      0|acc     |0.6490|±  |0.0048|
+|             |       |acc_norm|0.8293|±  |0.0038|
+|openbookqa   |      0|acc     |0.3780|±  |0.0217|
+|             |       |acc_norm|0.4740|±  |0.0224|
+|piqa         |      0|acc     |0.8248|±  |0.0089|
+|             |       |acc_norm|0.8362|±  |0.0086|
+|winogrande   |      0|acc     |0.7837|±  |0.0116|
+"""
+        ),
+        (
+                "h2ogpt-oasst1-falcon-40b",
+                "tiiuae/falcon-40b",
+                [
+                    "h2oai/openassistant_oasst1_h2ogpt_graded",
+                ],
+                [
+                    "https://huggingface.co/h2oai/h2ogpt-oasst1-falcon-40b/blob/main/falcon-40b.h2oaiopenassistant_oasst1_h2ogpt_graded.3_epochs.2e023709e9a36283986d136e66cb94e0bd7e6452.8.zip",
+                ],
+                """
+[eval source code](https://github.com/h2oai/h2ogpt/issues/216#issuecomment-1579573101)
+
+|    Task     |Version| Metric |Value |   |Stderr|
+|-------------|------:|--------|-----:|---|-----:|
+|arc_challenge|      0|acc     |0.5196|±  |0.0146|
+|             |       |acc_norm|0.5461|±  |0.0145|
+|arc_easy     |      0|acc     |0.8190|±  |0.0079|
+|             |       |acc_norm|0.7799|±  |0.0085|
+|boolq        |      1|acc     |0.8514|±  |0.0062|
+|hellaswag    |      0|acc     |0.6485|±  |0.0048|
+|             |       |acc_norm|0.8314|±  |0.0037|
+|openbookqa   |      0|acc     |0.3860|±  |0.0218|
+|             |       |acc_norm|0.4880|±  |0.0224|
+|piqa         |      0|acc     |0.8194|±  |0.0090|
+|             |       |acc_norm|0.8335|±  |0.0087|
+|winogrande   |      0|acc     |0.7751|±  |0.0117|
+"""
+        ),
+        (
                 "h2ogpt-oasst1-512-20b",
                 "EleutherAI/gpt-neox-20b",
                 [
@@ -153,7 +222,9 @@ from transformers import AutoModelForCausalLM
     ],
 )
 def test_create_model_cards(model_name, base_model, dataset, training_logs, eval):
-    if model_name != "h2ogpt-oasst1-512-12b":
+    if model_name not in [
+        "h2ogpt-research-oasst1-llama-65b",
+    ]:
         return
     model_size = model_name.split("-")[-1].upper()
     assert "B" == model_size[-1]
@@ -172,6 +243,7 @@ def test_create_model_cards(model_name, base_model, dataset, training_logs, eval
         print("call 'huggingface_cli login' first and provide access token with write permission")
     model = AutoModelForCausalLM.from_pretrained("h2oai/%s" % model_name,
                                                  local_files_only=False,
+                                                 trust_remote_code=True,
                                                  torch_dtype=torch.float16,
                                                  device_map="auto")
     model_arch = str(model)

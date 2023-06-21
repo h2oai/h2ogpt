@@ -15,7 +15,7 @@ auth_token = os.environ.get("SECRET_TOKEN") or True
 
 from h2oai_pipeline import H2OTextGenerationPipeline
 
-model_name = "h2oai/h2ogpt-oig-oasst1-512-6.9b"
+model_name = "h2oai/h2ogpt-oig-oasst1-512-6_9b"
 tokenizer = AutoTokenizer.from_pretrained(model_name, padding_side="left", trust_remote_code=True, use_auth_token=auth_token)
 model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.bfloat16, device_map="auto", trust_remote_code=True, use_auth_token=auth_token)
 

@@ -56,7 +56,7 @@ To start using our LLM as a developer, follow the steps below:
 1. Clone the repository: `git clone https://github.com/h2oai/h2ogpt.git`
 2. Change to the repository directory: `cd h2ogpt`
 3. Install the requirements: `pip install -r requirements.txt`
-4. Run the chatbot: `python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-256-6.9b`
+4. Run the chatbot: `python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-256-6_9b`
 5. Open your browser at `http://0.0.0.0:7860` or the public live URL printed by the server.
 
 For more information, visit [h2oGPT GitHub page](https://github.com/h2oai/h2ogpt), [H2O.ai's Hugging Face page](https://huggingface.co/h2oai) and [H2O LLM Studio GitHub page](https://github.com/h2oai/h2o-llmstudio).

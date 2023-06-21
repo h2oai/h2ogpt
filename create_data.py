@@ -23,7 +23,7 @@ import pandas as pd
 import numpy as np
 from tqdm import tqdm
 
-from utils import flatten_list
+from utils import flatten_list, remove
 
 
 def parse_rst_file(filepath):
@@ -184,7 +184,7 @@ def setup_dai_docs(path=None, dst="working_dir_docs", from_hf=False):
     return dst
 
 
-def rst_to_outputs(files, min_len=30, max_len=2048//2 - 30):
+def rst_to_outputs(files, min_len=30, max_len=2048 // 2 - 30):
     # account for sequence length (context window) including prompt and input and output
 
     # os.system('pandoc -f rst -t plain ./expert_settings/nlp_settings.rst')
@@ -274,22 +274,6 @@ def test_scrape_dai_docs_all_pandoc():
         f.write(json.dumps(save_thing, indent=2))
 
 
-def remove(path: str):
-    try:
-        if path is not None and os.path.exists(path):
-            if os.path.isdir(path):
-                shutil_rmtree(path, ignore_errors=True)
-            else:
-                with contextlib.suppress(FileNotFoundError):
-                    os.remove(path)
-    except:
-        pass
-
-
-def shutil_rmtree(*args, **kwargs):
-    return shutil.rmtree(*args, **kwargs)
-
-
 def test_config_to_json():
     """
     Needs to run from Driverless AI source directory.
@@ -310,15 +294,18 @@ def test_config_to_json():
                 [
                     {
                         'prompt_type': 'plain',
-                        'instruction': f"<human>: What does {k} do?\n<bot>: {k.replace('_', ' ')} config.toml:  {comment or title}\n<human>:".replace("\n", ""),
+                        'instruction': f"<human>: What does {k} do?\n<bot>: {k.replace('_', ' ')} config.toml:  {comment or title}\n<human>:".replace(
+                            "\n", ""),
                     },
                     {
                         'prompt_type': 'plain',
-                        'instruction': f"<human>: Explain {k}.\n<bot>: {k.replace('_', ' ')} config.toml:  {comment or title}\n<human>:".replace("\n", ""),
+                        'instruction': f"<human>: Explain {k}.\n<bot>: {k.replace('_', ' ')} config.toml:  {comment or title}\n<human>:".replace(
+                            "\n", ""),
                     },
                     {
                         'prompt_type': 'plain',
-                        'instruction': f"<human>: How can I do this: {title}.\n<bot>: Set the {k.replace('_', ' ')} config.toml\n<human>:".replace("\n", ""),
+                        'instruction': f"<human>: How can I do this: {title}.\n<bot>: Set the {k.replace('_', ' ')} config.toml\n<human>:".replace(
+                            "\n", ""),
                     } if title and comment else None,
                     {
                         'prompt_type': 'human_bot',
@@ -420,7 +407,8 @@ def test_prep_instruct_vicuna():
     from datasets import load_dataset
     filename = 'ShareGPT_unfiltered_cleaned_split.json'
     if not os.path.exists(filename):
-        os.system('wget https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/resolve/main/%s' % filename)
+        os.system(
+            'wget https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/resolve/main/%s' % filename)
     data = load_dataset("json", data_files={"train": filename})["train"]
     training_rows = []
     for i in range(data.num_rows):
@@ -439,6 +427,7 @@ def test_prep_instruct_vicuna():
             training_rows.append(dict(input=convo))
     with open(filename + ".generate_human_bot.train_plain.json", "wt") as f:
         f.write(json.dumps(training_rows, indent=2))
+
 
 POSTFIX = ".generate_human_bot.train_plain.json"
 
@@ -497,10 +486,10 @@ useful_oig_files = ['unified_rallio_safety_and_prosocial.jsonl.parquet',
                     'unified_mathqa_flanv2_kojma_cot.jsonl.parquet',
                     'unified_merged_code_xp3.jsonl.parquet',
                     'unified_multi_news.jsonl.parquet',
-                    #'unified_multi_sum.jsonl.parquet'
+                    # 'unified_multi_sum.jsonl.parquet'
                     'unified_ni.jsonl.gz.parquet',
                     'unified_openai_summarize_tldr.jsonl.parquet',
-                    #'unified_oscar_en_sample_dialog.jsonl.parquet', # create text containing these N words, not specific
+                    # 'unified_oscar_en_sample_dialog.jsonl.parquet', # create text containing these N words, not specific
                     'unified_plot_screenplay_books_dialog.jsonl.parquet',
                     'unified_soda_dialog.jsonl.parquet',
                     'unified_unnatural_instructions.jsonl.parquet',
@@ -546,8 +535,8 @@ def test_merge_shuffle_small_sample_oig_data():
 
 def test_join_jsons():
     files = ['config.json'] * 1 + \
-             ['dai_docs.train_cleaned.json'] * 2 + \
-             ['dai_faq.json'] * 3
+            ['dai_docs.train_cleaned.json'] * 2 + \
+            ['dai_faq.json'] * 3
     print(files)
     lst = []
     [lst.extend(json.load(open(fil, 'rt'))) for fil in files]
@@ -570,16 +559,15 @@ def test_make_rlhf_good_data(filename):
         f.write(json.dumps(new_rows, indent=2))
 
 
-
 def test_show_prompts():
     files = ['config.json'] * 1 + \
-             ['dai_docs.train_cleaned.json'] * 1 + \
-             ['dai_faq.json'] * 1
+            ['dai_docs.train_cleaned.json'] * 1 + \
+            ['dai_faq.json'] * 1
     file_points = [json.load(open(fil, 'rt')) for fil in files]
     from prompter import generate_prompt
     for data_points in file_points:
         for data_point in data_points:
-            print(generate_prompt(data_point, 'plain', False, False)[0])
+            print(generate_prompt(data_point, 'plain', '', False, False)[0])
 
 
 def test_get_open_datasets():
@@ -600,7 +588,7 @@ def test_get_open_datasets():
                  'license:openrail++',
                  'license:openrail',
                  'license:bigscience-bloom-rail-1.0',
-                 #'license:agpl-3.0',
+                 # 'license:agpl-3.0',
                  'license:other',
                  'license:unknown',
                  # 'license:mpl-2.0',     # ok, but would have to include original copyright, license, source, copies in distribution
@@ -610,13 +598,13 @@ def test_get_open_datasets():
                  'license:cc-by-3.0',
                  'license:cc-by-2.0',
                  'license:cc-by-2.5',
-                 #'license:cc-by-sa-4.0',  # would require same license
+                 # 'license:cc-by-sa-4.0',  # would require same license
                  'license:odbl',
                  'license:pddl',
                  'license:ms-pl',
                  'license:zlib',
                  ]
-                 # bad license: cc-by-nc-4.0
+    # bad license: cc-by-nc-4.0
 
     from huggingface_hub import list_datasets
     datasets = flatten_list([[x for x in list_datasets(filter=y)] for y in open_tags])
@@ -656,12 +644,12 @@ def test_get_open_datasets():
                                     'language:' not in str(x.tags) or
                                     'language:en' in str(x.tags)]
     small_open_english_tasked_datasets = [x for x in open_english_tasked_datasets if
-                                    'n<1K' in str(x.tags) or
-                                    '1K<n<10K' in str(x.tags) or
-                                    '1K0<n<100K' in str(x.tags) or
-                                    '100K<n<1M' in str(x.tags) or
-                                    'size_category' not in str(x.tags)
-                                    ]
+                                          'n<1K' in str(x.tags) or
+                                          '1K<n<10K' in str(x.tags) or
+                                          '1K0<n<100K' in str(x.tags) or
+                                          '100K<n<1M' in str(x.tags) or
+                                          'size_category' not in str(x.tags)
+                                          ]
     # 'aeslc' : email_body, subject -> summarization?
     # load_dataset(open_tasked_datasets[0].id).data['train'].to_pandas()
     ids = [x.id for x in small_open_english_tasked_datasets]
@@ -689,7 +677,8 @@ def test_get_open_datasets():
                    'humarin/chatgpt-paraphrases',  # Paraphrase using ChatGPT
                    'Jeska/vaccinchat',  # not useful
                    'alespalla/chatbot_instruction_prompts',  # mixes alpaca
-                   'allenai/prosocial-dialog',  # already exlucded, but wrongly in other datasets that say more permissive license
+                   'allenai/prosocial-dialog',
+                   # already exlucded, but wrongly in other datasets that say more permissive license
                    'AlekseyKorshuk/persona-chat',  # low quality
                    'bavard/personachat_truecased',  # low quality
                    'adamlin/daily_dialog',  # medium quality conversations
@@ -724,7 +713,8 @@ def test_get_open_datasets():
     # some ids clearly speech related
     small_open_english_tasked_datasets = [x for x in small_open_english_tasked_datasets if 'speech' not in x.id]
     # HF testing
-    small_open_english_tasked_datasets = [x for x in small_open_english_tasked_datasets if 'hf-internal-testing' not in x.id]
+    small_open_english_tasked_datasets = [x for x in small_open_english_tasked_datasets if
+                                          'hf-internal-testing' not in x.id]
     small_open_english_tasked_datasets = [x for x in small_open_english_tasked_datasets if
                                           'chinese' not in x.id]
 
@@ -737,7 +727,6 @@ def test_get_open_datasets():
     # grep 'load_dataset(' getdata9.log|grep -v data_id|less -S
     # grep "pip install" getdata9.log
     # NOTE: Some datasets have default config, but others are there.  Don't know how to access them.
-
 
     """
     https://huggingface.co/datasets/wikihow/blob/main/wikihow.py
@@ -773,7 +762,7 @@ def test_get_open_datasets():
 def do_one(data_id, num_downloads):
     from datasets import load_dataset
     out_file = "data_%s.parquet" % str(data_id.replace('/', '_'))
-    if os.path.isfile(out_file) and os.path.getsize(out_file) > 1024**3:
+    if os.path.isfile(out_file) and os.path.getsize(out_file) > 1024 ** 3:
         return
     try:
         print("Loading data_id %s num_downloads: %s" % (data_id, num_downloads), flush=True)
@@ -881,30 +870,27 @@ useful = ['Dahoas/instruct-human-assistant-prompt',
           'lmqg/qg_squad',  # context QA
           'lmqg/qg_squadshifts',  # context QA
           'lmqg/qg_subjqa',  # context QA
-          'pszemraj/HC3-textgen-qa',  # QA medium, has human responses -- humans tend to provide links instead of trying to answer
+          'pszemraj/HC3-textgen-qa',
+          # QA medium, has human responses -- humans tend to provide links instead of trying to answer
           'pythonist/newdata',  # long context, QA, brief A
           'ropes',  # long background, situation, question, A
           'wikitablequestions',  # table -> QA
           'bigscience/p3',  # context QA but short answers
           ]
 
-
-
 code_useful = ['0n1xus/codexglue',
                'openai_humaneval',
                'koutch/staqc',
                ]
 
-
 maybe_useful = ['AlekseyKorshuk/comedy-scripts',
-                 'openbookqa',  # hard to parse, low reasoning
+                'openbookqa',  # hard to parse, low reasoning
                 'qed',  # reasonable QA, but low reasoning
                 'selqa',  # candidate answers
                 'HuggingFaceH4/instruction-pilot-outputs-filtered',
                 'GBaker/MedQA-USMLE-4-options',  # medical QA with long questions
                 'npc-engine/light-batch-summarize-dialogue',  # dialog summarize, kinda low specific quality
                 ]
-
 
 summary_useful = ['austin/rheum_abstracts',
                   'CarperAI/openai_summarize_comparisons',  # summarize chosen/rejected
@@ -928,14 +914,12 @@ summary_useful = ['austin/rheum_abstracts',
                   'stacked-summaries/stacked-xsum-1024',
                   ]
 
-
 math_useful = [
-              'competition_math'
-              ]
-
+    'competition_math'
+]
 
 skipped = ['c4',  # maybe useful, used for flan, but skipped due to size
-          ]
+           ]
 
 """
 To get training data from oig:
@@ -958,14 +942,14 @@ def test_assemble_and_detox():
         text_list = df[['text']].values.ravel().tolist()
         new_text = []
         max_len = 2048  # uber cutoff
-        MAX_LEN = 2048//2 - 30  # max len per question/answer
+        MAX_LEN = 2048 // 2 - 30  # max len per question/answer
         for text in tqdm(text_list):
             human_starts = [m.start() for m in re.finditer('<human>: ', text)]
             if len(human_starts) == 1:
                 human_starts = [0, len(text)]  # always go into for loop below
             blurb = ''
             for i in range(len(human_starts) - 1):
-                interaction = text[human_starts[i]: human_starts[i+1]][:max_len]
+                interaction = text[human_starts[i]: human_starts[i + 1]][:max_len]
                 blurb += interaction
                 if len(blurb) >= MAX_LEN:
                     blurb = get_sentences(blurb, length=MAX_LEN)[0]
@@ -1002,17 +986,17 @@ def test_basic_cleaning():
     from profanity_check import predict
     df_list = []
     for data in useful_oig_files:
-    #for data in useful_oig_files[:5]:
-    #for data in ['unified_openai_summarize_tldr.jsonl.parquet']:
+        # for data in useful_oig_files[:5]:
+        # for data in ['unified_openai_summarize_tldr.jsonl.parquet']:
         print("Processing %s" % data, flush=True)
         df = pd.read_parquet(data)
         df = df.reset_index(drop=True)
         # NOTE: Not correct if multiple human-bot interactions, but those dialogs even more desired
-        #avg_chars = len(df['text'][0])/(df['text'][0].count(human)+df['text'][0].count(bot))
-        df['avg_words'] = df['text'].apply(lambda x: x.count(' ') / (x.count(human) + x.count(bot))/2.0)
+        # avg_chars = len(df['text'][0])/(df['text'][0].count(human)+df['text'][0].count(bot))
+        df['avg_words'] = df['text'].apply(lambda x: x.count(' ') / (x.count(human) + x.count(bot)) / 2.0)
         df['avg_bot_words'] = df['text'].apply(lambda x: x.split(bot)[1].count(' ') / x.count(bot))
-        #df['bad_words'] = df['text'].apply(lambda x: profanity.contains_profanity(x))
-        #low_quality_patterns = ['Write the rest of this wikipedia article']
+        # df['bad_words'] = df['text'].apply(lambda x: profanity.contains_profanity(x))
+        # low_quality_patterns = ['Write the rest of this wikipedia article']
         res = predict(df['text'])
         df['bad_words'] = res
         df = df.reset_index(drop=True)
@@ -1215,7 +1199,7 @@ def count_human_bot_lengths(df, human=None, bot=None):
             assert len(text)
             list_what = []
             for ii in range(len(starts) - 1):
-                interaction = text[starts[ii]: starts[ii+1]]
+                interaction = text[starts[ii]: starts[ii + 1]]
                 if other in interaction:
                     interaction = interaction[:interaction.find(other)]
                 interaction.strip()
@@ -1416,9 +1400,13 @@ def test_add_open_assistant(fixup_personality, only_personality, deberta_grading
                         conv2['message_id'] = None
         conversations = [c for c in conversations if c['message_id']]
         if only_personality:
-            all_rows.extend([dict(input=c['text'] + "\n<human>:", prompt_type='plain', source=data_file) for c in conversations if 'h2oGPT' in c['text']])
+            all_rows.extend(
+                [dict(input=c['text'] + "\n<human>:", prompt_type='plain', source=data_file) for c in conversations if
+                 'h2oGPT' in c['text']])
         else:
-            all_rows.extend([dict(input=c['text'] + "\n<human>:", prompt_type='plain', source=data_file) for c in conversations if "What is H2O.ai" not in c['text']])
+            all_rows.extend(
+                [dict(input=c['text'] + "\n<human>:", prompt_type='plain', source=data_file) for c in conversations if
+                 "What is H2O.ai" not in c['text']])
     unhelpful = get_unhelpful_list()
     all_rows = [x for x in all_rows if not any(u in x['input'] for u in unhelpful)]
     personality = create_personality_data()
@@ -1477,13 +1465,14 @@ def test_finalize_to_json():
 
     def final_clean(df):
         from better_profanity import profanity
-        profanity.load_censor_words_from_file("censor_words.txt")
+        profanity.load_censor_words_from_file("data/censor_words.txt")
         df['profanity'] = parallel_apply(
             df['input'],
             lambda x: profanity.contains_profanity(x),
             n_jobs=-1,
         )
         return df[(df['profanity'] == 0)].reset_index(drop=True)
+
     print("Before cleaning: Number of final high-quality human_bot interactions: %s" % df.shape[0], flush=True)
     df = final_clean(df)
     print("After cleaning: Number of final high-quality human_bot interactions: %s" % df.shape[0], flush=True)
@@ -1576,7 +1565,8 @@ def test_check_stats_data():
     plt.close()
 
     # get tokenize stats for random sample of 1000 rows
-    from finetune import get_loaders, get_tokenizer, generate_and_tokenize_prompt
+    from finetune import generate_and_tokenize_prompt
+    from loaders import get_loaders, get_tokenizer
     from functools import partial
 
     llama_type = False
@@ -1720,7 +1710,7 @@ def test_check_unhelpful():
     # file = 'h2ogpt-oig-oasst1-instruct-cleaned-v2.json'
 
     unhelpful = get_unhelpful_list()
-    #data = json.load(open(file, 'rt'))
+    # data = json.load(open(file, 'rt'))
     df = pd.read_json(file)
 
     use_reward_score_threshold = False
@@ -1732,7 +1722,7 @@ def test_check_unhelpful():
     from nltk.translate.bleu_score import sentence_bleu
 
     def get_bleu(actual, expected_list):
-        #return bleu.sentence_score(actual, expected_list).score
+        # return bleu.sentence_score(actual, expected_list).score
         return sentence_bleu(expected_list, actual)
 
     threshold = 0.0
@@ -1769,12 +1759,13 @@ def test_check_unhelpful():
         # pip install sentence_transformers-2.2.2
         from sentence_transformers import SentenceTransformer
         # sent_model = 'bert-base-nli-mean-tokens'
-        #sent_model = 'nli-distilroberta-base-v2'
+        # sent_model = 'nli-distilroberta-base-v2'
         sent_model = 'all-MiniLM-L6-v2'
         model = SentenceTransformer(sent_model)
         sentence_embeddings = model.encode(unhelpful)
         from sklearn.metrics.pairwise import cosine_similarity
-        bots = [x for x in tqdm(bots) if np.max(cosine_similarity(model.encode(x), sentence_embeddings)) < cosine_sim_threshold]
+        bots = [x for x in tqdm(bots) if
+                np.max(cosine_similarity(model.encode(x), sentence_embeddings)) < cosine_sim_threshold]
 
     bads_bots = {}
     string_all = str(bots)
@@ -1786,7 +1777,8 @@ def test_check_unhelpful():
     pp.pprint(bads_bots)
 
     total_bads_bots = sum(list(bads_bots.values()))
-    print('threshold: %g use_bleu_threshold: %g total_bads_bots: %s total_bots: %s total_humans: %s' % (threshold, use_bleu_threshold, total_bads_bots, len(bots), len(humans)), flush=True)
+    print('threshold: %g use_bleu_threshold: %g total_bads_bots: %s total_bots: %s total_humans: %s' % (
+    threshold, use_bleu_threshold, total_bads_bots, len(bots), len(humans)), flush=True)
 
     # assert len(bads) == 0, bads
     assert len(bads_bots) == 0, bads_bots

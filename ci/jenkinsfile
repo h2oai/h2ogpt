@@ -1,0 +1,158 @@
+#!/usr/bin/groovy
+
+@Library('test-shared-library@dai_pipeline') _
+
+import ai.h2o.ci.buildsummary.StagesSummary
+import groovy.json.JsonOutput
+
+buildSummary('https://github.com/h2oai/h2ogpt', true)
+buildSummary.get().addStagesSummary(this, new StagesSummary())
+
+def ALL_TESTS = [
+        "test_osx": [
+            install_deps: "TRAINING",
+            test_target: "test_imports",
+            node: "osx",
+            test_markers: "not need_tokens and not need_gpu",
+            timeout: 90,
+            use_docker: false,
+            env: ['PYTHON_BINARY=/Users/jenkins/anaconda/envs/h2ogpt-py3.10/bin/python']
+        ],
+        "test_all": [
+            install_deps: "TRAINING,WIKI_EXTRA",
+            test_target: "test",
+            test_markers: "not need_tokens and not need_gpu",
+            node: "DAIDEV-GPU || DAIDEV-2GPU",
+            timeout: 90,
+            use_docker: true,
+            env: []
+        ],
+]
+
+pipeline {
+    agent none
+    parameters {
+        booleanParam(name: 'skipTesting', defaultValue: false, description: 'Skip testing')
+        text(name: "testTargets", defaultValue: "${ALL_TESTS.keySet().join('\n')}", description: "A select set of tests to run")
+        booleanParam(name: 'publish', defaultValue: false, description: 'Upload to HF')
+    }
+    options {
+        ansiColor('xterm')
+        timestamps()
+    }
+    stages {
+        stage('Build') {
+            agent {
+                label "linux && docker"
+            }
+            steps {
+                script {
+                    def shortHash = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
+                    def commitMsg = sh(returnStdout: true, script: 'git log -1 --pretty=format:"[%an] %s"').trim()
+                    currentBuild.displayName = "${env.BUILD_ID} - [${shortHash}]"
+                    currentBuild.description = "${commitMsg}"
+
+                    sh "make docker_build"
+                    docker.image("harbor.h2o.ai/library/python:3.10").inside("--entrypoint='' --security-opt seccomp=unconfined -e USE_WHEEL=1 -e HOME=${WORKSPACE}") {
+                        sh "make clean dist"
+                    }
+
+                    archiveArtifacts allowEmptyArchive: true, artifacts: "dist/h2ogpt-*.whl"
+                    stash includes: "dist/h2ogpt-*.whl", name: "wheel_file"
+                }
+            }
+        }
+
+        stage('Tests') {
+            when {
+                anyOf {
+                    expression { return !params.skipTesting }
+                }
+                beforeAgent true
+            }
+            agent {
+                label "linux && docker"
+            }
+            steps {
+                script {
+                    def testTargets = [:]
+                    params.testTargets.split('\n').findAll{ it.contains("test_") }.each { testName ->
+                        testTargets[testName] = {
+                            node("${ALL_TESTS[testName].node}") {
+                                buildSummary.stageWithSummary("${testName}", "${testName}") {
+                                    buildSummary.setStageUrl("${testName}")
+                                    timeout(time: ALL_TESTS[testName].timeout, unit: 'MINUTES') {
+                                        script {
+                                            try {
+                                                dir("${testName}") {
+                                                    withEnv(ALL_TESTS[testName].env + ["PYTEST_TEST_NAME=_${testName}", "IS_PR_BUILD=${isPrBranch()}", "USE_WHEEL=1"]) {
+
+                                                        // cleanup and force the use of the installed wheel
+                                                        deleteDir()
+                                                        checkout scm
+                                                        unstash "wheel_file"
+                                                        sh "rm -rf *.py spaces models"
+
+                                                        // pull runtime details
+                                                        def dockerImage = sh(returnStdout: true, script: "make print-DOCKER_TEST_IMAGE").trim()
+                                                        def nvidiaSmiExitCode = sh(returnStdout: false, returnStatus: true, script: "nvidia-smi")
+                                                        // def dockerRuntime = "${nvidiaSmiExitCode}" == "0" ? "--runtime nvidia" : ""
+                                                        def dockerRuntime = ""  // TODO: keep until lab machines are upgraded
+
+                                                        if (ALL_TESTS[testName].use_docker) {
+                                                            docker.image("${dockerImage}").inside("--entrypoint='' --security-opt seccomp=unconfined --ulimit core=-1 --init --pid=host -e USE_WHEEL=1 -e HOME=${WORKSPACE}/${testName} ${dockerRuntime}") {
+                                                                sh "nvidia-smi || true"
+                                                                sh "SKIP_MANUAL_TESTS=1 PYTHON_BINARY=/usr/bin/python3.10 make install"
+                                                                sh "SKIP_MANUAL_TESTS=1 PYTHON_BINARY=/usr/bin/python3.10 make install-${ALL_TESTS[testName].install_deps}"
+                                                                sh """DEFAULT_MARKERS="${ALL_TESTS[testName].test_markers}" SKIP_MANUAL_TESTS=1 PYTHON_BINARY=/usr/bin/python3.10 make ${ALL_TESTS[testName].test_target}"""
+                                                            }
+                                                        } else {
+                                                            sh "make venv"
+                                                            sh "SKIP_MANUAL_TESTS=1 PYTHON_BINARY=${WORKSPACE}/${testName}/venv/bin/python make install"
+                                                            sh "SKIP_MANUAL_TESTS=1 PYTHON_BINARY=${WORKSPACE}/${testName}/venv/bin/python make install-${ALL_TESTS[testName].install_deps}"
+                                                            sh """DEFAULT_MARKERS="${ALL_TESTS[testName].test_markers}" SKIP_MANUAL_TESTS=1 PYTHON_BINARY=${WORKSPACE}/${testName}/venv/bin/python make ${ALL_TESTS[testName].test_target}"""
+                                                        }
+                                                    }
+                                                }
+                                            } catch (e) {
+                                                throw e
+                                            } finally {
+                                                sh "mv ${testName}/test_report.xml ${testName}/${testName}_report.xml"
+                                                archiveArtifacts allowEmptyArchive: true, artifacts: "${testName}/${testName}_report.xml"
+                                                junit testResults: "${testName}/${testName}_report.xml", keepLongStdio: true, allowEmptyResults: true
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    parallel(testTargets)
+                }
+            }
+        }
+
+        stage('Publish') {
+            when {
+                anyOf {
+                    expression { return params.publish }
+                }
+                beforeAgent true
+            }
+            agent {
+                label "linux && docker"
+            }
+            steps {
+                script {
+                    sh "make IS_PR_BUILD=${isPrBranch()} BUILD_NUMBER=${env.BUILD_ID} BUILD_BASE_NAME=${env.JOB_BASE_NAME} publish"
+                }
+            }
+        }
+    }
+}
+
+def isPrBranch() {
+    return (env.CHANGE_BRANCH != null && env.CHANGE_BRANCH != '') ||
+            (env.BRANCH_NAME != null && env.BRANCH_NAME.startsWith("PR-"))
+}
