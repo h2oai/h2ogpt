@@ -124,7 +124,6 @@ def main(
         extra_server_options: typing.List[str] = [],
 
         score_model: str = 'OpenAssistant/reward-model-deberta-v3-large-v2',
-        auto_score: bool = True,
 
         eval_filename: str = None,
         eval_prompts_only_num: int = 0,
@@ -522,7 +521,7 @@ def main(
         model_states = []
         model_list = [dict(base_model=base_model, tokenizer_base_model=tokenizer_base_model, lora_weights=lora_weights,
                            inference_server=inference_server, prompt_type=prompt_type, prompt_dict=prompt_dict)]
-        model_list0 = copy.deepcopy(model_list)
+        model_list0 = copy.deepcopy(model_list)  # just strings, safe to deepcopy
         model_state0 = None
         if model_lock:
             model_list = model_lock
@@ -551,21 +550,24 @@ def main(
             else:
                 # if empty model, then don't load anything, just get gradio up
                 model0, tokenizer0, device = None, None, None
-            model_state_trial = [model0, tokenizer0, device, base_model, inference_server]
+            model_state_trial = dict(model=model0, tokenizer=tokenizer0, device=device)
+            model_state_trial.update(model_dict)
             if model_lock:
                 # last in iteration will be first
                 model_states.insert(0, model_state_trial)
                 # fill model_state0 so go_gradio() easier, manage model_states separately
-                model_state0 = model_state_trial
+                model_state0 = model_state_trial.copy()
             else:
-                model_state0 = model_state_trial
+                model_state0 = model_state_trial.copy()
 
         # get score model
         all_kwargs = locals().copy()
         smodel, stokenizer, sdevice = get_score_model(reward_type=True,
                                                       **get_kwargs(get_score_model, exclude_names=['reward_type'],
                                                                    **all_kwargs))
-        score_model_state0 = [smodel, stokenizer, sdevice, score_model, '']
+        score_model_state0 = dict(model=smodel, tokenizer=stokenizer, device=sdevice,
+                                  base_model=score_model, tokenizer_base_model='', lora_weights='',
+                                  inference_server='', prompt_type='', prompt_dict='')
 
         if enable_captions:
             if pre_load_caption_model:
@@ -1186,36 +1188,51 @@ def evaluate(
         locals_dict = locals().copy()
         locals_dict.pop('model_state', None)
         locals_dict.pop('model_state0', None)
+        locals_dict.pop('model_states', None)
         print(locals_dict)
 
     no_model_msg = "Please choose a base model with --base_model (CLI) or load in Models Tab (gradio).\nThen start New Conversation"
 
+    model_state_None = dict(model=None, tokenizer=None, device=None,
+                            base_model=None, tokenizer_base_model=None, lora_weights=None,
+                            inference_server=None, prompt_type=None, prompt_dict=None)
+    if model_state is None:
+        model_state = model_state_None.copy()
     if model_state0 is None:
         # e.g. for no gradio case, set dummy value, else should be set
-        model_state0 = [None, None, None, None, None]
+        model_state0 = model_state_None.copy()
 
-    if model_state is not None and len(model_state) == 5 and not isinstance(model_state[0], str):
+    have_fresh_model = model_state['model'] and not isinstance(model_state['model'], str)
+    have_cli_model = model_state0['model'] and not isinstance(model_state0['model'], str)
+
+    if have_fresh_model:
         # USE FRESH MODEL
         # try to free-up original model (i.e. list was passed as reference)
-        if model_state0 is not None and model_state0[0] is not None:
-            model_state0[0].cpu()
-            model_state0[0] = None
+        if model_state0['model'] and hasattr(model_state0['model'], 'cpu'):
+            model_state0['model'].cpu()
+            model_state0['model'] = None
         # try to free-up original tokenizer (i.e. list was passed as reference)
-        if model_state0 is not None and model_state0[1] is not None:
-            model_state0[1] = None
+        if model_state0['tokenizer']:
+            model_state0['tokenizer'] = None
         clear_torch_cache()
-        model, tokenizer, device, base_model, inference_server = model_state
-    elif model_state0 is not None and len(model_state0) == 5 and model_state0[0] is not None and not isinstance(
-            model_state0[0], str):
+        chosen_model_state = model_state
+    elif have_cli_model:
         # USE MODEL SETUP AT CLI
-        assert isinstance(model_state[0], str)
-        model, tokenizer, device, base_model, inference_server = model_state0
-    elif model_state is not None and len(model_state) == 5 and model_state[4]:
-        model, tokenizer, device, base_model, inference_server = model_state
-    elif model_state0 is not None and len(model_state0) == 5 and model_state0[4]:
-        model, tokenizer, device, base_model, inference_server = model_state0
+        assert isinstance(model_state['model'], str)  # expect no fresh model
+        chosen_model_state = model_state0
     else:
         raise AssertionError(no_model_msg)
+    # get variables
+    model = chosen_model_state['model']
+    tokenizer = chosen_model_state['tokenizer']
+    device = chosen_model_state['device']
+    base_model = chosen_model_state['base_model']
+    tokenizer_base_model = chosen_model_state['tokenizer_base_model']
+    lora_weights = chosen_model_state['lora_weights']
+    inference_server = chosen_model_state['inference_server']
+    # prefer use input from API over model state
+    prompt_type = prompt_type or chosen_model_state['prompt_type']
+    prompt_dict = prompt_dict or chosen_model_state['prompt_dict']
 
     if base_model is None:
         raise AssertionError(no_model_msg)
@@ -2077,8 +2094,8 @@ def get_max_max_new_tokens(model_state, **kwargs):
     elif kwargs['memory_restriction_level'] >= 3:
         max_max_new_tokens = 256
     else:
-        if not isinstance(model_state[1], (str, types.NoneType)):
-            max_max_new_tokens = model_state[1].model_max_length
+        if not isinstance(model_state['tokenizer'], (str, types.NoneType)):
+            max_max_new_tokens = model_state['tokenizer'].model_max_length
         else:
             # FIXME: Need to update after new model loaded, so user can control with slider
             max_max_new_tokens = 2048
