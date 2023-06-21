@@ -922,21 +922,7 @@ def get_model(
     return model, tokenizer, device
 
 
-<<<<<<< HEAD
-def get_score_model(**kwargs):
-    # score model
-    if kwargs.get('score_model') is not None and kwargs.get('score_model').strip():
-        score_all_kwargs = kwargs.copy()
-        score_all_kwargs['load_8bit'] = False
-        score_all_kwargs['load_half'] = False
-        score_all_kwargs['base_model'] = kwargs.get('score_model').strip()
-        score_all_kwargs['tokenizer_base_model'] = ''
-        score_all_kwargs['lora_weights'] = ''
-        score_all_kwargs['llama_type'] = False
-        score_all_kwargs['compile'] = False
-        score_all_kwargs['quant_model'] = ''
         smodel, stokenizer, sdevice = get_model(**score_all_kwargs)
-=======
 def pop_unused_model_kwargs(model_kwargs):
     """
     in-place pop unused kwargs that are not dependency-upgrade friendly
@@ -981,9 +967,9 @@ def get_score_model(score_model: str = None,
         inference_server = ''
         llama_type = False
         compile_model = False
+        quant_model = ''
         smodel, stokenizer, sdevice = get_model(reward_type=True,
                                                 **get_kwargs(get_model, exclude_names=['reward_type'], **locals()))
->>>>>>> origin/main
     else:
         smodel, stokenizer, sdevice = None, None, None
     return smodel, stokenizer, sdevice
