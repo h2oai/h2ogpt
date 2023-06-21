@@ -904,7 +904,8 @@ def go_gradio(**kwargs):
                     for output in outputs:
                         # same input, put into form good for _score_last_response()
                         args_list[-1] = output
-                        score_texts1.append(_score_last_response(*args, nochat=nochat, num_model_lock=num_model_lock))
+                        score_texts1.append(
+                            _score_last_response(*tuple(args_list), nochat=nochat, num_model_lock=num_model_lock))
                     if len(score_texts1) > 1:
                         return tuple(score_texts1)
                     else:
@@ -1808,7 +1809,8 @@ def go_gradio(**kwargs):
 
         # callback for logging flagged input/output
         callback.setup(inputs_list + [text_output, text_output2] + text_outputs, "flagged_data_points")
-        flag_btn.click(lambda *args: callback.flag(args), inputs_list + [text_output, text_output2] + text_outputs, None,
+        flag_btn.click(lambda *args: callback.flag(args), inputs_list + [text_output, text_output2] + text_outputs,
+                       None,
                        preprocess=False,
                        api_name='flag' if allow_api else None, queue=False)
         flag_btn_nochat.click(lambda *args: callback.flag(args), inputs_list + [text_output_nochat], None,
