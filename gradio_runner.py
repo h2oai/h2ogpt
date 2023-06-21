@@ -1785,8 +1785,8 @@ def go_gradio(**kwargs):
         # FIXME: add score_res2 in condition, but do better
 
         # callback for logging flagged input/output
-        callback.setup(inputs_list + [text_output, text_output2], "flagged_data_points")
-        flag_btn.click(lambda *args: callback.flag(args), inputs_list + [text_output, text_output2], None,
+        callback.setup(inputs_list + [text_output, text_output2] + text_outputs, "flagged_data_points")
+        flag_btn.click(lambda *args: callback.flag(args), inputs_list + [text_output, text_output2] + text_outputs, None,
                        preprocess=False,
                        api_name='flag' if allow_api else None, queue=False)
         flag_btn_nochat.click(lambda *args: callback.flag(args), inputs_list + [text_output_nochat], None,
@@ -1853,7 +1853,8 @@ def go_gradio(**kwargs):
             else:
                 return "N/A"
 
-        count_chat_tokens_btn.click(fn=count_chat_tokens, inputs=[model_state, text_output, prompt_type, prompt_dict],
+        count_chat_tokens_btn.click(fn=count_chat_tokens,
+                                    inputs=[model_state, text_output, prompt_type, prompt_dict],
                                     outputs=chat_token_count, api_name='count_tokens' if allow_api else None)
 
         demo.load(None, None, None, _js=get_dark_js() if kwargs['h2ocolors'] and False else None)  # light best
