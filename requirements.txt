@@ -19,7 +19,7 @@ matplotlib==3.7.1
 loralib==0.1.1
 bitsandbytes==0.39.0
 accelerate==0.20.3
-git+https://github.com/huggingface/peft.git@189a6b8e357ecda05ccde13999e4c35759596a67
+git+https://github.com/huggingface/peft.git@0b62b4378b4ce9367932c73540349da9a41bdea8
 transformers==4.30.1
 tokenizers==0.13.3
 APScheduler==3.10.1
