@@ -6,10 +6,8 @@ from transformers import AutoTokenizer, TextGenerationPipeline
 from auto_gptq import AutoGPTQForCausalLM, BaseQuantizeConfig
 
 
-pretrained_model_dir = "h2oai/h2ogpt-oig-oasst1-512-6.9b"
-quantized_model_dir = "h2ogpt-oig-oasst1-512-6.9b-4bit"
-
-# os.makedirs(quantized_model_dir, exist_ok=True)
+pretrained_model_dir = "h2oai/h2ogpt-oasst1-falcon-40b"
+quantized_model_dir = "h2ogpt-oasst1-falcon-40b-4bit"
 
 
 def main():

@@ -922,7 +922,6 @@ def get_model(
     return model, tokenizer, device
 
 
-        smodel, stokenizer, sdevice = get_model(**score_all_kwargs)
 def pop_unused_model_kwargs(model_kwargs):
     """
     in-place pop unused kwargs that are not dependency-upgrade friendly
