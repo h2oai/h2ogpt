@@ -68,14 +68,25 @@ sudo systemctl stop docker
 sudo systemctl start docker
 ```
 
+Reboot or run:
+```bash
+newgrp docker
+```
+in order to login to this user.
+
 Then run:
 ```bash
-docker run --gpus device=0 --net=host --shm-size 1g -e TRANSFORMERS_CACHE="/.cache/" -p 6112:80 -v $HOME/.cache:/.cache/ -v $HOME/.cache/huggingface/hub/:/data ghcr.io/huggingface/text-generation-inference:0.8.2 --model-id h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2 --max-input-length 2048 --max-total-tokens 3072
+CUDA_VISIBLE_DEVICES=0 docker run --gpus device=0 --shm-size 2g -e NCCL_SHM_DISABLE=1 -e TRANSFORMERS_CACHE="/.cache/" -p 6112:80 -v $HOME/.cache:/.cache/ -v $HOME/.cache/huggingface/hub/:/data  ghcr.io/huggingface/text-generation-inference:0.8.2 --model-id h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2 --max-input-length 2048 --max-total-tokens 3072 --sharded=false --disable-custom-kernels --trust-remote-code
 ```
 or
 ```bash
-CUDA_VISIBLE_DEVICES=0,1,2 docker run --net=host --gpus all --shm-size 2g -e TRANSFORMERS_CACHE="/.cache/" -p 6112:80 -v $HOME/.cache:/.cache/ -v $HOME/.cache/huggingface/hub/:/data ghcr.io/huggingface/text-generation-inference:0.8.2 --model-id h2oai/h2ogpt-oasst1-512-12b --max-input-length 2048 --max-total-tokens 3072 --sharded=true --num-shard=3
+CUDA_VISIBLE_DEVICES=0,1,2,3 docker run --gpus all --shm-size 2g -e NCCL_SHM_DISABLE=1 -e TRANSFORMERS_CACHE="/.cache/" -p 6112:80 -v $HOME/.cache:/.cache/ -v $HOME/.cache/huggingface/hub/:/data  ghcr.io/huggingface/text-generation-inference:0.8.2 --model-id h2oai/h2ogpt-oasst1-512-12b --max-input-length 2048 --max-total-tokens 3072 --sharded=true --num-shard=4 --disable-custom-kernels
 ```
+or
+```bash
+CUDA_VISIBLE_DEVICES=0,1,2,3 docker run --gpus all --shm-size 2g -e NCCL_SHM_DISABLE=1 -e TRANSFORMERS_CACHE="/.cache/" -p 6112:80 -v $HOME/.cache:/.cache/ -v $HOME/.cache/huggingface/hub/:/data  ghcr.io/huggingface/text-generation-inference:0.8.2 --model-id h2oai/h2ogpt-oasst1-512-20b --max-input-length 2048 --max-total-tokens 3072 --sharded=true --num-shard=4 --disable-custom-kernels
+```
+
 or for falcon40 for now seems to not support sharding, and then requires quantization on A100 80GB.  This takes a while to load even if no downloading or conversion occurs.  Below is command and entire sequence up to running state:
 ```bash
 (h2ollm) ubuntu@cloudvm:~/h2ogpt$ sudo docker run --gpus device=4 --shm-size 2g -e NCCL_SHM_DISABLE=1 -e TRANSFORMERS_CACHE="/.cache/" -p 6112:80 -v $HOME/.cache:/.cache/ -v $HOME/.cache/huggingface/hub/:/data ghcr.io/huggingface/text-generation-inference:0.8.2 --model-id h2oai/h2ogpt-oasst1-falcon-40b --max-input-length 2048 --max-total-tokens 3072 --quantize bitsandbytes --sharded false
@@ -112,6 +123,8 @@ or for falcon40 for now seems to not support sharding, and then requires quantiz
 2023-06-19T21:30:51.057319Z  INFO text_generation_launcher: Starting Webserver
 2023-06-19T21:30:56.712305Z  INFO text_generation_router: router/src/main.rs:178: Connected
 ```
+
+If one changes the port `6112` for each docker run command, any number of inference servers with any models can be added.
 
 ### Testing
 
@@ -196,3 +209,7 @@ To avoid specifying model-related settings as independent options, and to disabl
 python generate.py --model_lock=[{'inference_server':'http://192.168.1.46:6112','base_model':'h2oai/h2ogpt-oasst1-512-12b'}]
 ```
 where for this case the prompt_type for this base_model is in prompter.py, so it doesn't need to be specified.  Note that no spaces or other white space is allowed within the double quotes for model_lock due to how CLI arguments are parsed.
+For two endpoints, one uses (again with no spaces in arg)
+```bash
+python generate.py --model_lock=[{'inference_server':'http://192.168.1.46:6112','base_model':'h2oai/h2ogpt-oasst1-512-12b'},{'inference_server':'http://192.168.1.46:6114','base_model':'h2oai/h2ogpt-oasst1-512-20b'},{'inference_server':'http://192.168.1.46:6113','base_model':'h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2'}]
+```
