@@ -1459,25 +1459,34 @@ def go_gradio(**kwargs):
                     return False
             return is_same
 
-        def save_chat(chat1, chat2, chat_state1):
+        def save_chat(*args):
+            args_list = list(args)
+            chat_list = args_list[:-1]
+            chat_state1 = args_list[-1]
             short_chats = list(chat_state1.keys())
-            for chati in [chat1, chat2]:
+            for ii, chati in enumerate(chat_list):
                 if chati and len(chati) > 0 and len(chati[0]) == 2 and chati[0][1] is not None:
                     short_chat = get_short_chat(chati, short_chats)
                     if short_chat:
                         already_exists = any([is_chat_same(chati, x) for x in chat_state1.values()])
                         if not already_exists:
                             chat_state1[short_chat] = chati
-            return chat_state1
+                chat_list[ii] = None
+            ret_list = chat_list + [chat_state1]
+            return tuple(ret_list)
 
         def update_radio_chats(chat_state1):
             return gr.update(choices=list(chat_state1.keys()), value=None)
 
-        def switch_chat(chat_key, chat_state1):
+        def switch_chat(chat_key, chat_state1, num_model_lock=0):
             chosen_chat = chat_state1[chat_key]
-            return chosen_chat, chosen_chat
+            chosen_chats = [chosen_chat] * (2 + num_model_lock)
+            return tuple(chosen_chats)
 
-        radio_chats.input(switch_chat, inputs=[radio_chats, chat_state], outputs=[text_output, text_output2])
+        switch_chat_fun = functools.partial(switch_chat, num_model_lock=len(text_outputs))
+        radio_chats.input(switch_chat_fun,
+                          inputs=[radio_chats, chat_state],
+                          outputs=[text_output, text_output2] + text_outputs)
 
         def remove_chat(chat_key, chat_state1):
             chat_state1.pop(chat_key, None)
@@ -1514,7 +1523,7 @@ def go_gradio(**kwargs):
                         new_chats = json.loads(f.read())
                         for chat1_k, chat1_v in new_chats.items():
                             # ignore chat1_k, regenerate and de-dup to avoid loss
-                            chat_state1 = save_chat(chat1_v, None, chat_state1)
+                            _, chat_state1 = save_chat(chat1_v, chat_state1)
                 except BaseException as e:
                     print("Add chats exception: %s" % str(e), flush=True)
             return chat_state1, add_btn
@@ -1527,17 +1536,23 @@ def go_gradio(**kwargs):
             .then(clear_file_list, outputs=chatsup_output, queue=False) \
             .then(update_radio_chats, inputs=chat_state, outputs=radio_chats, queue=False)
 
-        clear_chat_btn.click(lambda: None, None, text_output, queue=False, api_name='clear' if allow_api else None) \
-            .then(lambda: None, None, text_output2, queue=False, api_name='clear2' if allow_api else None) \
+        def clear_texts(*args):
+            return tuple([gr.Textbox.update(value='')] * len(args))
+
+        clear_chat_btn.click(fn=clear_texts,
+                             inputs=[text_output, text_output2] + text_outputs,
+                             outputs=[text_output, text_output2] + text_outputs,
+                             queue=False, api_name='clear' if allow_api else None) \
             .then(deselect_radio_chats, inputs=None, outputs=radio_chats, queue=False)
 
         # does both models
-        clear.click(save_chat, inputs=[text_output, text_output2, chat_state], outputs=chat_state,
+        clear.click(save_chat,
+                    inputs=[text_output, text_output2] + text_outputs + [chat_state],
+                    outputs=[text_output, text_output2] + text_outputs + [chat_state],
                     api_name='save_chat' if allow_api else None) \
             .then(update_radio_chats, inputs=chat_state, outputs=radio_chats,
-                  api_name='update_chats' if allow_api else None) \
-            .then(lambda: None, None, text_output, queue=False, api_name='clearB' if allow_api else None) \
-            .then(lambda: None, None, text_output2, queue=False, api_name='clearB2' if allow_api else None)
+                  api_name='update_chats' if allow_api else None)
+
         # NOTE: clear of instruction/iinput for nochat has to come after score,
         # because score for nochat consumes actual textbox, while chat consumes chat history filled by user()
         no_chat_args = dict(fn=fun,
