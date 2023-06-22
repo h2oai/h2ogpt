@@ -13,11 +13,19 @@ def make_chatbots(output_label0, output_label0_model2, **kwargs):
 
     if kwargs['model_lock_columns'] == -1:
         kwargs['model_lock_columns'] = len(kwargs['model_states'])
+    if kwargs['model_lock_columns'] is None:
+        kwargs['model_lock_columns'] = 3
 
     ncols = kwargs['model_lock_columns']
-    nrows = math.ceil(len(kwargs['model_states']) / kwargs['model_lock_columns'])
+    if kwargs['model_states'] == 0:
+        nrows = 0
+    else:
+        nrows = math.ceil(len(kwargs['model_states']) / kwargs['model_lock_columns'])
 
-    if nrows <= 1:
+    if kwargs['model_lock_columns'] == 0:
+        # not using model_lock
+        pass
+    elif nrows <= 1:
         with gr.Row():
             with gr.Column():
                 for chat_kwargs1, model_state_lock in zip(chat_kwargs, kwargs['model_states']):
