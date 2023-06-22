@@ -736,12 +736,21 @@ def get_model(
     if verbose:
         print("Get %s model" % base_model, flush=True)
     if isinstance(inference_server, str) and inference_server.startswith("http"):
-        from transformers import AutoConfig
-        config = AutoConfig.from_pretrained(base_model, use_auth_token=use_auth_token,
-                                            trust_remote_code=trust_remote_code,
-                                            offload_folder=offload_folder)
         tokenizer = FakeTokenizer()
-        set_model_max_len(config, tokenizer, verbose=False)
+        try:
+            from transformers import AutoConfig
+            config, _ = get_config(base_model, use_auth_token=use_auth_token,
+                                   trust_remote_code=trust_remote_code,
+                                   offload_folder=offload_folder)
+            set_model_max_len(config, tokenizer, verbose=False)
+        except OSError as e:
+            t, v, tb = sys.exc_info()
+            ex = ''.join(traceback.format_exception(t, v, tb))
+            if 'not a local folder' in str(ex) or '404 Client Error' in str(ex):
+                # e.g. llama, gpjt, etc.
+                pass
+            else:
+                raise
 
         inf_split = inference_server.split("$$$$")
         # preload client since slow for gradio case especially
@@ -1309,7 +1318,7 @@ def evaluate(
     do_langchain_path = langchain_mode not in [False, 'Disabled', 'ChatLLM', 'LLM'] and \
                         db1 is not None or \
                         base_model in non_hf_types or \
-        force_langchain_evaluate
+                        force_langchain_evaluate
     if do_langchain_path:
         query = instruction if not iinput else "%s\n%s" % (instruction, iinput)
         outr = ""
