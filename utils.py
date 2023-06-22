@@ -874,3 +874,17 @@ def get_hf_server(inference_server):
     else:
         headers = None
     return inference_server, headers
+
+
+class FakeTokenizer:
+    def __init__(self, model_max_length=2048):
+        self.model_max_length = model_max_length
+
+    def encode(self, x, *args, **kwargs):
+        return dict(input_ids=[x])
+
+    def decode(self, x, *args, **kwargs):
+        return x
+
+    def __call__(self, x, *args, **kwargs):
+        return self.encode(x, *args, **kwargs)

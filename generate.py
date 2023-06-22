@@ -23,10 +23,10 @@ os.environ['HF_HUB_DISABLE_TELEMETRY'] = '1'
 os.environ['BITSANDBYTES_NOWELCOME'] = '1'
 warnings.filterwarnings('ignore', category=UserWarning, message='TypedStorage is deprecated')
 
-from enums import DocumentChoices, LangChainMode, no_lora_str
+from enums import DocumentChoices, LangChainMode, no_lora_str, model_token_mapping
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial, EThread, get_githash, \
-    import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server
+    import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer
 
 start_faulthandler()
 import_matplotlib()
@@ -735,6 +735,13 @@ def get_model(
     if verbose:
         print("Get %s model" % base_model, flush=True)
     if isinstance(inference_server, str) and inference_server.startswith("http"):
+        from transformers import AutoConfig
+        config = AutoConfig.from_pretrained(base_model, use_auth_token=use_auth_token,
+                                            trust_remote_code=trust_remote_code,
+                                            offload_folder=offload_folder)
+        tokenizer = FakeTokenizer()
+        set_model_max_len(config, tokenizer, verbose=False)
+
         inf_split = inference_server.split("$$$$")
         # preload client since slow for gradio case especially
         from gradio_client import Client as GradioClient
@@ -755,11 +762,12 @@ def get_model(
             print("HF Client End: %s" % inference_server)
 
         # Don't return None, None for model, tokenizer so triggers
-        return client, inference_server, 'http'
+        return client, tokenizer, 'http'
     if isinstance(inference_server, str) and inference_server.startswith('openai'):
         assert os.getenv('OPENAI_API_KEY'), "Set environment for OPENAI_API_KEY"
         # Don't return None, None for model, tokenizer so triggers
-        return inference_server, inference_server, inference_server
+        tokenizer = FakeTokenizer(model_max_length=model_token_mapping[base_model])
+        return inference_server, tokenizer, inference_server
     assert not inference_server, "Malformed inference_server=%s" % inference_server
     if base_model in non_hf_types:
         from gpt4all_llm import get_model_tokenizer_gpt4all
@@ -925,6 +933,10 @@ def get_model(
         if torch.__version__ >= "2" and sys.platform != "win32" and compile_model:
             model = torch.compile(model)
 
+    return model, tokenizer, device
+
+
+def set_model_max_len(config, tokenizer, verbose=False):
     if hasattr(config, 'max_seq_len') and isinstance(config.max_seq_len, int):
         tokenizer.model_max_length = config.max_seq_len
     elif hasattr(config, 'max_position_embeddings') and isinstance(config.max_position_embeddings, int):
@@ -934,8 +946,6 @@ def get_model(
         if verbose:
             print("Could not determine model_max_length, setting to 2048", flush=True)
         tokenizer.model_max_length = 2048
-
-    return model, tokenizer, device
 
 
 def pop_unused_model_kwargs(model_kwargs):
