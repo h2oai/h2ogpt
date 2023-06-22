@@ -238,7 +238,7 @@ def get_embedding(use_openai_embedding, hf_embedding_model="sentence-transformer
     if use_openai_embedding:
         assert os.getenv("OPENAI_API_KEY") is not None, "Set ENV OPENAI_API_KEY"
         from langchain.embeddings import OpenAIEmbeddings
-        embedding = OpenAIEmbeddings()
+        embedding = OpenAIEmbeddings(disallowed_special=())
     else:
         # to ensure can fork without deadlock
         from langchain.embeddings import HuggingFaceEmbeddings
