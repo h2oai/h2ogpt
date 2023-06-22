@@ -301,7 +301,9 @@ def run_client_gen(client, prompt, args, kwargs, do_md_to_text=True, verbose=Fal
                 res_dict = ast.literal_eval(res)
                 print('Stream: %s' % res_dict['response'])
             time.sleep(0.1)
-        res = job.outputs()[-1]
+        res_list = job.outputs()
+        assert len(res_list) > 0, "No response, check server"
+        res = res_list[-1]
         res_dict = ast.literal_eval(res)
         print('Final: %s' % res_dict['response'])
         return res_dict, client
