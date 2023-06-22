@@ -53,7 +53,7 @@ def make_chatbots(output_label0, output_label0_model2, **kwargs):
                 if mii < 2 * len(kwargs['model_states']) / 3:
                     continue
                 text_outputs.append(gr.Chatbot(**chat_kwargs1))
-    elif nrows == 4:
+    elif nrows >= 4:
         with gr.Row():
             for mii, (chat_kwargs1, model_state_lock) in enumerate(zip(chat_kwargs, kwargs['model_states'])):
                 if mii >= 1 * len(kwargs['model_states']) / 4:
