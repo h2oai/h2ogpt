@@ -15,6 +15,8 @@ import warnings
 from datetime import datetime
 import filelock
 import psutil
+from requests import ConnectTimeout
+from urllib3.exceptions import ConnectTimeoutError, MaxRetryError
 
 if os.path.dirname(os.path.abspath(__file__)) not in sys.path:
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -23,10 +25,10 @@ os.environ['HF_HUB_DISABLE_TELEMETRY'] = '1'
 os.environ['BITSANDBYTES_NOWELCOME'] = '1'
 warnings.filterwarnings('ignore', category=UserWarning, message='TypedStorage is deprecated')
 
-from enums import DocumentChoices, LangChainMode, no_lora_str
+from enums import DocumentChoices, LangChainMode, no_lora_str, model_token_mapping, no_model_str
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial, EThread, get_githash, \
-    import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler
+    import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer
 
 start_faulthandler()
 import_matplotlib()
@@ -67,6 +69,8 @@ def main(
         prompt_dict: typing.Dict = None,
 
         model_lock: typing.List[typing.Dict[str, str]] = None,
+        model_lock_columns: int = None,
+        fail_if_cannot_connect: bool = False,
 
         # input to generation
         temperature: float = None,
@@ -112,6 +116,7 @@ def main(
         api_open: bool = False,
         allow_api: bool = True,
         input_lines: int = 1,
+        gradio_size: str = None,
         auth: typing.List[typing.Tuple[str, str]] = None,
         max_max_time=None,
         max_max_new_tokens=None,
@@ -124,7 +129,6 @@ def main(
         extra_server_options: typing.List[str] = [],
 
         score_model: str = 'OpenAssistant/reward-model-deberta-v3-large-v2',
-        auto_score: bool = True,
 
         eval_filename: str = None,
         eval_prompts_only_num: int = 0,
@@ -132,6 +136,7 @@ def main(
         eval_as_output: bool = False,
 
         langchain_mode: str = 'Disabled',
+        force_langchain_evaluate: bool = False,
         visible_langchain_modes: list = ['UserData', 'MyData'],
         document_choice: list = [DocumentChoices.All_Relevant.name],
         user_path: str = None,
@@ -190,6 +195,12 @@ def main(
              Also, inference_server is optional if loading model from local system.
            All models provided will automatically appear in compare model mode
            Model loading-unloading and related choices will be disabled.  Model/lora/server adding will be disabled
+    :param model_lock_columns: How many columns to show if locking models (and so showing all at once)
+           If None, then defaults to up to 3
+           if -1, then all goes into 1 row
+           Maximum value is 4 due to non-dynamic gradio rendering elements
+    :param fail_if_cannot_connect: if doing model locking (e.g. with many models), fail if True.  Otherwise ignore.
+           Useful when many endpoints and want to just see what works, but still have to wait for timeout.
     :param temperature: generation temperature
     :param top_p: generation top_p
     :param top_k: generation top_k
@@ -235,6 +246,7 @@ def main(
     :param api_open: If False, don't let API calls skip gradio queue
     :param allow_api: whether to allow API calls at all to gradio server
     :param input_lines: how many input lines to show for chat box (>1 forces shift-enter for submit, else enter is submit)
+    :param gradio_size: Overall size of text and spaces: "small", "medium", "large".  Small useful for many chatbots in model_lock mode
     :param auth: gradio auth for launcher in form [(user1, pass1), (user2, pass2), ...]
                  e.g. --auth=[('jon','password')] with no spaces
     :param max_max_time: Maximum max_time for gradio slider
@@ -245,13 +257,13 @@ def main(
     :param extra_lora_options: extra LORA to show in list in gradio
     :param extra_server_options: extra servers to show in list in gradio
     :param score_model: which model to score responses (None means no scoring)
-    :param auto_score: whether to automatically score responses
     :param eval_filename: json file to use for evaluation, if None is sharegpt
     :param eval_prompts_only_num: for no gradio benchmark, if using eval_filename prompts for eval instead of examples
     :param eval_prompts_only_seed: for no gradio benchmark, seed for eval_filename sampling
     :param eval_as_output: for no gradio benchmark, whether to test eval_filename output itself
     :param langchain_mode: Data source to include.  Choose "UserData" to only consume files from make_db.py.
            WARNING: wiki_full requires extra data processing via read_wiki_full.py and requires really good workstation to generate db, unless already present.
+    :param force_langchain_evaluate: Whether to force langchain LLM use even if not doing langchain, mostly for testing.
     :param user_path: user path to glob from to generate db for vector search, for 'UserData' langchain mode.
            If already have db, any new/changed files are added automatically if path set, does not have to be same path used for prior db sources
     :param detect_user_path_changes_every_query: whether to detect if any files changed or added every similarity search (by file hashes).
@@ -522,7 +534,7 @@ def main(
         model_states = []
         model_list = [dict(base_model=base_model, tokenizer_base_model=tokenizer_base_model, lora_weights=lora_weights,
                            inference_server=inference_server, prompt_type=prompt_type, prompt_dict=prompt_dict)]
-        model_list0 = copy.deepcopy(model_list)
+        model_list0 = copy.deepcopy(model_list)  # just strings, safe to deepcopy
         model_state0 = None
         if model_lock:
             model_list = model_lock
@@ -533,7 +545,7 @@ def main(
             model_dict['tokenizer_base_model'] = tokenizer_base_model = model_dict.get('tokenizer_base_model', '')
             model_dict['lora_weights'] = lora_weights = model_dict.get('lora_weights', '')
             model_dict['inference_server'] = inference_server = model_dict.get('inference_server', '')
-            prompt_type = model_dict.get('prompt_type', prompt_type)
+            prompt_type = model_dict.get('prompt_type', model_list0[0]['prompt_type'])  # don't use mutated value
             # try to infer, ignore empty initial state leading to get_generate_params -> 'plain'
             if model_dict.get('prompt_type') is None:
                 model_lower = base_model.lower()
@@ -551,21 +563,31 @@ def main(
             else:
                 # if empty model, then don't load anything, just get gradio up
                 model0, tokenizer0, device = None, None, None
-            model_state_trial = [model0, tokenizer0, device, base_model, inference_server]
+            if model0 is None:
+                if fail_if_cannot_connect:
+                    raise RuntimeError("Could not connect, see logs")
+                # skip
+                model_lock.remove(model_dict)
+                continue
+            model_state_trial = dict(model=model0, tokenizer=tokenizer0, device=device)
+            model_state_trial.update(model_dict)
+            print("Model %s" % model_dict, flush=True)
             if model_lock:
                 # last in iteration will be first
                 model_states.insert(0, model_state_trial)
                 # fill model_state0 so go_gradio() easier, manage model_states separately
-                model_state0 = model_state_trial
+                model_state0 = model_state_trial.copy()
             else:
-                model_state0 = model_state_trial
+                model_state0 = model_state_trial.copy()
 
         # get score model
         all_kwargs = locals().copy()
         smodel, stokenizer, sdevice = get_score_model(reward_type=True,
                                                       **get_kwargs(get_score_model, exclude_names=['reward_type'],
                                                                    **all_kwargs))
-        score_model_state0 = [smodel, stokenizer, sdevice, score_model, '']
+        score_model_state0 = dict(model=smodel, tokenizer=stokenizer, device=sdevice,
+                                  base_model=score_model, tokenizer_base_model='', lora_weights='',
+                                  inference_server='', prompt_type='', prompt_dict='')
 
         if enable_captions:
             if pre_load_caption_model:
@@ -727,22 +749,54 @@ def get_model(
     if verbose:
         print("Get %s model" % base_model, flush=True)
     if isinstance(inference_server, str) and inference_server.startswith("http"):
+        tokenizer = FakeTokenizer()
+        try:
+            from transformers import AutoConfig
+            config, _ = get_config(base_model, use_auth_token=use_auth_token,
+                                   trust_remote_code=trust_remote_code,
+                                   offload_folder=offload_folder)
+            set_model_max_len(config, tokenizer, verbose=False)
+        except OSError as e:
+            t, v, tb = sys.exc_info()
+            ex = ''.join(traceback.format_exception(t, v, tb))
+            if 'not a local folder' in str(ex) or '404 Client Error' in str(ex):
+                # e.g. llama, gpjt, etc.
+                pass
+            else:
+                if base_model not in non_hf_types:
+                    raise
+
+        inf_split = inference_server.split("$$$$")
         # preload client since slow for gradio case especially
         from gradio_client import Client as GradioClient
-        try:
-            client = GradioClient(inference_server)
-        except ValueError:
+        if len(inf_split) == 1:
+            try:
+                print("GR Client Begin: %s" % inference_server)
+                client = GradioClient(inference_server)
+                print("GR Client End: %s" % inference_server)
+            except ValueError:
+                client = None
+            except (ConnectTimeoutError, ConnectTimeout, MaxRetryError) as e:
+                t, v, tb = sys.exc_info()
+                ex = ''.join(traceback.format_exception(t, v, tb))
+                print("GR Client Failed: %s" % str(ex))
+                return None, None, None
+        else:
             client = None
         if client is None:
             from text_generation import Client as HFClient
-            client = HFClient(inference_server)
+            inference_server, headers = get_hf_server(inference_server)
+            print("HF Client Begin: %s" % inference_server)
+            client = HFClient(inference_server, headers=headers, timeout=120)
+            print("HF Client End: %s" % inference_server)
 
         # Don't return None, None for model, tokenizer so triggers
-        return client, inference_server, 'http'
+        return client, tokenizer, 'http'
     if isinstance(inference_server, str) and inference_server.startswith('openai'):
         assert os.getenv('OPENAI_API_KEY'), "Set environment for OPENAI_API_KEY"
         # Don't return None, None for model, tokenizer so triggers
-        return inference_server, inference_server, inference_server
+        tokenizer = FakeTokenizer(model_max_length=model_token_mapping[base_model])
+        return inference_server, tokenizer, inference_server
     assert not inference_server, "Malformed inference_server=%s" % inference_server
     if base_model in non_hf_types:
         from gpt4all_llm import get_model_tokenizer_gpt4all
@@ -908,6 +962,12 @@ def get_model(
         if torch.__version__ >= "2" and sys.platform != "win32" and compile_model:
             model = torch.compile(model)
 
+    set_model_max_len(config, tokenizer, verbose=False)
+
+    return model, tokenizer, device
+
+
+def set_model_max_len(config, tokenizer, verbose=False):
     if hasattr(config, 'max_seq_len') and isinstance(config.max_seq_len, int):
         tokenizer.model_max_length = config.max_seq_len
     elif hasattr(config, 'max_position_embeddings') and isinstance(config.max_position_embeddings, int):
@@ -917,8 +977,6 @@ def get_model(
         if verbose:
             print("Could not determine model_max_length, setting to 2048", flush=True)
         tokenizer.model_max_length = 2048
-
-    return model, tokenizer, device
 
 
 def pop_unused_model_kwargs(model_kwargs):
@@ -1052,6 +1110,8 @@ def evaluate_from_str(
         use_cache=None,
         auto_reduce_chunks=None,
         max_chunks=None,
+        model_lock=None,
+        force_langchain_evaluate=None,
 ):
     if isinstance(user_kwargs, str):
         user_kwargs = ast.literal_eval(user_kwargs)
@@ -1101,6 +1161,8 @@ def evaluate_from_str(
         use_cache=use_cache,
         auto_reduce_chunks=auto_reduce_chunks,
         max_chunks=max_chunks,
+        model_lock=model_lock,
+        force_langchain_evaluate=force_langchain_evaluate,
     )
     try:
         for ret1 in ret:
@@ -1168,6 +1230,8 @@ def evaluate(
         use_cache=None,
         auto_reduce_chunks=None,
         max_chunks=None,
+        model_lock=None,
+        force_langchain_evaluate=None,
 ):
     # ensure passed these
     assert concurrency_count is not None
@@ -1188,36 +1252,58 @@ def evaluate(
         locals_dict = locals().copy()
         locals_dict.pop('model_state', None)
         locals_dict.pop('model_state0', None)
+        locals_dict.pop('model_states', None)
         print(locals_dict)
 
     no_model_msg = "Please choose a base model with --base_model (CLI) or load in Models Tab (gradio).\nThen start New Conversation"
 
+    model_state_None = dict(model=None, tokenizer=None, device=None,
+                            base_model=None, tokenizer_base_model=None, lora_weights=None,
+                            inference_server=None, prompt_type=None, prompt_dict=None)
+    if model_state is None:
+        model_state = model_state_None.copy()
     if model_state0 is None:
         # e.g. for no gradio case, set dummy value, else should be set
-        model_state0 = [None, None, None, None, None]
+        model_state0 = model_state_None.copy()
 
-    if model_state is not None and len(model_state) == 5 and not isinstance(model_state[0], str):
+    # model_state['model] is only 'model' if should use model_state0
+    # model could also be None
+    have_model_lock = model_lock is not None
+    have_fresh_model = model_state['model'] not in [None, 'model', no_model_str]
+    if have_model_lock:
+        assert have_fresh_model, "Expected model_state and model_state0 to match if have_model_lock"
+    have_cli_model = model_state0['model'] not in [None, 'model', no_model_str]
+
+    if have_fresh_model:
         # USE FRESH MODEL
-        # try to free-up original model (i.e. list was passed as reference)
-        if model_state0 is not None and model_state0[0] is not None:
-            model_state0[0].cpu()
-            model_state0[0] = None
-        # try to free-up original tokenizer (i.e. list was passed as reference)
-        if model_state0 is not None and model_state0[1] is not None:
-            model_state0[1] = None
-        clear_torch_cache()
-        model, tokenizer, device, base_model, inference_server = model_state
-    elif model_state0 is not None and len(model_state0) == 5 and model_state0[0] is not None and not isinstance(
-            model_state0[0], str):
+        if not have_model_lock:
+            # model_state0 is just one of model_state if model_lock, so don't nuke
+            # try to free-up original model (i.e. list was passed as reference)
+            if model_state0['model'] and hasattr(model_state0['model'], 'cpu'):
+                model_state0['model'].cpu()
+                model_state0['model'] = None
+            # try to free-up original tokenizer (i.e. list was passed as reference)
+            if model_state0['tokenizer']:
+                model_state0['tokenizer'] = None
+            clear_torch_cache()
+        chosen_model_state = model_state
+    elif have_cli_model:
         # USE MODEL SETUP AT CLI
-        assert isinstance(model_state[0], str)
-        model, tokenizer, device, base_model, inference_server = model_state0
-    elif model_state is not None and len(model_state) == 5 and model_state[4]:
-        model, tokenizer, device, base_model, inference_server = model_state
-    elif model_state0 is not None and len(model_state0) == 5 and model_state0[4]:
-        model, tokenizer, device, base_model, inference_server = model_state0
+        assert isinstance(model_state['model'], str)  # expect no fresh model
+        chosen_model_state = model_state0
     else:
         raise AssertionError(no_model_msg)
+    # get variables
+    model = chosen_model_state['model']
+    tokenizer = chosen_model_state['tokenizer']
+    device = chosen_model_state['device']
+    base_model = chosen_model_state['base_model']
+    tokenizer_base_model = chosen_model_state['tokenizer_base_model']
+    lora_weights = chosen_model_state['lora_weights']
+    inference_server = chosen_model_state['inference_server']
+    # prefer use input from API over model state
+    prompt_type = prompt_type or chosen_model_state['prompt_type']
+    prompt_dict = prompt_dict or chosen_model_state['prompt_dict']
 
     if base_model is None:
         raise AssertionError(no_model_msg)
@@ -1257,7 +1343,8 @@ def evaluate(
         db1 = None
     do_langchain_path = langchain_mode not in [False, 'Disabled', 'ChatLLM', 'LLM'] and \
                         db1 is not None or \
-                        base_model in non_hf_types
+                        base_model in non_hf_types or \
+                        force_langchain_evaluate
     if do_langchain_path:
         query = instruction if not iinput else "%s\n%s" % (instruction, iinput)
         outr = ""
@@ -2079,8 +2166,8 @@ def get_max_max_new_tokens(model_state, **kwargs):
     elif kwargs['memory_restriction_level'] >= 3:
         max_max_new_tokens = 256
     else:
-        if not isinstance(model_state[1], (str, types.NoneType)):
-            max_max_new_tokens = model_state[1].model_max_length
+        if not isinstance(model_state['tokenizer'], (str, types.NoneType)):
+            max_max_new_tokens = model_state['tokenizer'].model_max_length
         else:
             # FIXME: Need to update after new model loaded, so user can control with slider
             max_max_new_tokens = 2048

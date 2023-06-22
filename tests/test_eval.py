@@ -6,10 +6,10 @@ from enums import DocumentChoices
 from utils import remove
 
 
-@wrap_test_forked
 @pytest.mark.parametrize("base_model", ['h2oai/h2ogpt-oig-oasst1-512-6_9b', 'junelee/wizard-vicuna-13b'])
 @pytest.mark.parametrize("bits", [4, 8, 16, 32])
 @pytest.mark.parametrize("cpu", [False, True])
+@wrap_test_forked
 def test_eval1(cpu, bits, base_model):
     if cpu and bits != 32:
         return

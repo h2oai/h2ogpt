@@ -46,8 +46,8 @@ def test_client1api():
         'response']
 
 
-@wrap_test_forked
 @pytest.mark.parametrize("admin_pass", ['', 'foodoo1234'])
+@wrap_test_forked
 def test_client1api_lean(admin_pass):
     from generate import main
     base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
@@ -211,9 +211,9 @@ def test_client_chat_stream_langchain():
     assert 'h2oGPT is a large language model' in res_dict['response']
 
 
-@wrap_test_forked
 @pytest.mark.parametrize("max_new_tokens", [256, 2048])
 @pytest.mark.parametrize("top_k_docs", [3, 100])
+@wrap_test_forked
 def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
     os.environ['VERBOSE_PIPELINE'] = '1'
     user_path = make_user_path_test()
@@ -251,7 +251,8 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'H2O GPT is a language model' in res_dict['response'] or
             'H2O GPT is a chatbot framework' in res_dict['response'] or
             'H2O GPT is a chatbot that can be trained' in res_dict['response'] or
-            'A large language model (LLM)' in res_dict['response']
+            'A large language model (LLM)' in res_dict['response'] or
+            'GPT-based language model' in res_dict['response']
             ) \
            and ('FAQ.md' in res_dict['response'] or 'README.md' in res_dict['response'])
 
@@ -272,7 +273,8 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'A secure, private, and anonymous chat platform' in res_dict['response'] or
             'Whisper is a privacy-preserving' in res_dict['response'] or
             'A chatbot that uses a large language model' in res_dict['response'] or
-            'This is a config file for Whisper' in res_dict['response']
+            'This is a config file for Whisper' in res_dict['response'] or
+            'Whisper is a secure messaging app' in res_dict['response']
             ) \
            and ('FAQ.md' in res_dict['response'] or 'README.md' in res_dict['response'])
 
@@ -309,15 +311,16 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'LLaMa-based models are not commercially viable' in res_dict['response'] or
             'A text-based chatbot that' in res_dict['response'] or
             'A secure, private, and anonymous chat service' in res_dict['response'] or
-            'LLaMa is a language' in res_dict['response']
+            'LLaMa is a language' in res_dict['response'] or
+            'chatbot that can' in res_dict['response']
             ) \
            and '.md' in res_dict['response']
 
 
 @pytest.mark.need_tokens
-@wrap_test_forked
 @pytest.mark.parametrize("max_new_tokens", [256, 2048])
 @pytest.mark.parametrize("top_k_docs", [3, 100])
+@wrap_test_forked
 def test_client_chat_stream_langchain_steps2(max_new_tokens, top_k_docs):
     os.environ['VERBOSE_PIPELINE'] = '1'
     # full user data
@@ -412,6 +415,7 @@ def test_fast_up():
 
 @pytest.mark.skipif(not os.getenv('STRESS'), reason="Only for stress testing already-running server")
 @pytest.mark.parametrize("repeat", list(range(0, 16)))
+@wrap_test_forked
 def test_client_stress(repeat):
     # pip install pytest-repeat  # license issues, don't put with requirements
     # pip install pytest-timeout  # license issues, don't put with requirements

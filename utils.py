@@ -863,3 +863,28 @@ def start_faulthandler():
         # windows/mac
         import signal
         faulthandler.register(signal.SIGUSR1)
+
+
+def get_hf_server(inference_server):
+    inf_split = inference_server.split("$$$$")
+    assert len(inf_split) == 1 or len(inf_split) == 3
+    inference_server = inf_split[0]
+    if len(inf_split) == 3:
+        headers = {"authorization": "%s %s" % (inf_split[1], inf_split[2])}
+    else:
+        headers = None
+    return inference_server, headers
+
+
+class FakeTokenizer:
+    def __init__(self, model_max_length=2048):
+        self.model_max_length = model_max_length
+
+    def encode(self, x, *args, **kwargs):
+        return dict(input_ids=[x])
+
+    def decode(self, x, *args, **kwargs):
+        return x
+
+    def __call__(self, x, *args, **kwargs):
+        return self.encode(x, *args, **kwargs)

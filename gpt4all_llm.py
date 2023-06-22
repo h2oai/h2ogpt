@@ -1,28 +1,13 @@
 import inspect
 import os
-import sys
 from functools import partial
 from typing import Dict, Any, Optional, List
 from langchain.callbacks.manager import CallbackManagerForLLMRun
-from langchain.llms.utils import enforce_stop_tokens
 from pydantic import root_validator
 from langchain.llms import gpt4all
 from dotenv import dotenv_values
 
-from utils_langchain import StreamingGradioCallbackHandler
-
-
-class FakeTokenizer:
-    model_max_length = 2048
-
-    def encode(self, x, *args, **kwargs):
-        return dict(input_ids=[x])
-
-    def decode(self, x, *args, **kwargs):
-        return x
-
-    def __call__(self, x, *args, **kwargs):
-        return self.encode(x, *args, **kwargs)
+from utils import FakeTokenizer
 
 
 def get_model_tokenizer_gpt4all(base_model, **kwargs):

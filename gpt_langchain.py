@@ -26,7 +26,7 @@ from enums import DocumentChoices, no_lora_str, model_token_mapping
 from generate import gen_hyper, get_model, SEED
 from prompter import non_hf_types, PromptType, Prompter
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
-    get_device, ProgressParallel, remove, hash_file, clear_torch_cache, NullContext
+    get_device, ProgressParallel, remove, hash_file, clear_torch_cache, NullContext, get_hf_server
 from utils_langchain import StreamingGradioCallbackHandler
 
 import_matplotlib()
@@ -238,7 +238,7 @@ def get_embedding(use_openai_embedding, hf_embedding_model="sentence-transformer
     if use_openai_embedding:
         assert os.getenv("OPENAI_API_KEY") is not None, "Set ENV OPENAI_API_KEY"
         from langchain.embeddings import OpenAIEmbeddings
-        embedding = OpenAIEmbeddings()
+        embedding = OpenAIEmbeddings(disallowed_special=())
     else:
         # to ensure can fork without deadlock
         from langchain.embeddings import HuggingFaceEmbeddings
@@ -438,6 +438,7 @@ class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
     seed: Optional[int] = None
     inference_server_url: str = ""
     timeout: int = 120
+    headers: dict = None
     stream: bool = False
     sanitize_bot_response: bool = False
     prompter: Any = None
@@ -452,7 +453,9 @@ class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
                 import text_generation
 
                 values["client"] = text_generation.Client(
-                    values["inference_server_url"], timeout=values["timeout"]
+                    values["inference_server_url"],
+                    timeout=values["timeout"],
+                    headers=values["headers"],
                 )
         except ImportError:
             raise ImportError(
@@ -494,13 +497,15 @@ class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
                 prompt,
                 **gen_server_kwargs,
             )
+            if self.return_full_text:
+                gen_text = res.generated_text[len(prompt):]
+            else:
+                gen_text = res.generated_text
             # remove stop sequences from the end of the generated text
             for stop_seq in stop:
-                if stop_seq in res.generated_text:
-                    res.generated_text = res.generated_text[
-                                         : res.generated_text.index(stop_seq)
-                                         ]
-            text = res.generated_text
+                if stop_seq in gen_text:
+                    gen_text = gen_text[:gen_text.index(stop_seq)]
+            text = prompt + gen_text
             text = self.prompter.get_response(text, prompt=prompt,
                                               sanitize_bot_response=self.sanitize_bot_response)
         else:
@@ -513,6 +518,7 @@ class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
             if text_callback:
                 text_callback(prompt)
             text = ""
+            # Note: Streaming ignores return_full_text=True
             for response in self.client.generate_stream(prompt, **gen_server_kwargs):
                 text_chunk = response.token.text
                 text += text_chunk
@@ -589,7 +595,8 @@ def get_llm(use_openai_model=False,
         else:
             prompt_type = prompt_type or 'plain'
     elif inference_server:
-        assert inference_server.startswith('http'), "Malformed inference_server=%s" % inference_server
+        assert inference_server.startswith(
+            'http'), "Malformed inference_server=%s.  Did you add http:// in front?" % inference_server
 
         from gradio_client import Client as GradioClient
         from text_generation import Client as HFClient
@@ -631,6 +638,7 @@ def get_llm(use_openai_model=False,
                 sanitize_bot_response=sanitize_bot_response,
             )
         elif hf_client:
+            inference_server, headers = get_hf_server(inference_server)
             llm = H2OHuggingFaceTextGenInference(
                 inference_server_url=inference_server,
                 do_sample=do_sample,
@@ -658,7 +666,7 @@ def get_llm(use_openai_model=False,
             callbacks = [StreamingGradioCallbackHandler()]
             streamer = callbacks[0] if stream_output else None
         else:
-            #stream_output = False
+            # stream_output = False
             # doesn't stream properly as generator, but at least
             callbacks = [streaming_stdout.StreamingStdOutCallbackHandler()]
             streamer = None
@@ -1962,7 +1970,8 @@ def get_similarity_chain(query=None,
                     # more accurate
                     tokens = [len(llm.pipeline.tokenizer(x[0].page_content)['input_ids']) for x in docs_with_score]
                     template_tokens = len(llm.pipeline.tokenizer(template)['input_ids'])
-                elif inference_server in ['openai', 'openai_chat'] or use_openai_model or db_type in ['faiss', 'weaviate']:
+                elif inference_server in ['openai', 'openai_chat'] or use_openai_model or db_type in ['faiss',
+                                                                                                      'weaviate']:
                     # use ticktoken for faiss since embedding called differently
                     tokens = [llm.get_num_tokens(x[0].page_content) for x in docs_with_score]
                     template_tokens = llm.get_num_tokens(template)

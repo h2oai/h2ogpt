@@ -38,8 +38,9 @@ def run_eval(  # for local function:
         top_k_docs=None,
         chunk=None,
         chunk_size=None,
-        auto_reduce_chunks=None, max_chunks=None,
         document_choice=None,
+        auto_reduce_chunks=None, max_chunks=None,
+        model_lock=None, force_langchain_evaluate=None,
         # for evaluate kwargs:
         src_lang=None, tgt_lang=None, concurrency_count=None, save_dir=None, sanitize_bot_response=None,
         model_state0=None, raise_generate_gpu_exceptions=None, load_db_if_exists=None, dbs=None, user_path=None,
@@ -135,7 +136,11 @@ def run_eval(  # for local function:
         if not eval_as_output:
             model, tokenizer, device = get_model(reward_type=False,
                                                  **get_kwargs(get_model, exclude_names=['reward_type'], **locals()))
-            model_state = [model, tokenizer, device, base_model, inference_server]
+            model_dict = dict(base_model=base_model, tokenizer_base_model=tokenizer_base_model,
+                              lora_weights=lora_weights,
+                              inference_server=inference_server, prompt_type=prompt_type, prompt_dict=prompt_dict)
+            model_state = dict(model=model, tokenizer=tokenizer, device=device)
+            model_state.update(model_dict)
             my_db_state = [None]
             fun = partial(evaluate, model_state, my_db_state,
                           **get_kwargs(evaluate, exclude_names=['model_state', 'my_db_state'] + eval_func_param_names,

@@ -161,9 +161,9 @@ def test_qa_daidocs_db_chunk_hf_faiss():
 
 
 @pytest.mark.need_gpu
-@wrap_test_forked
 @pytest.mark.parametrize("db_type", db_types)
 @pytest.mark.parametrize("top_k_docs", [-1, 3])
+@wrap_test_forked
 def test_qa_daidocs_db_chunk_hf_dbs(db_type, top_k_docs):
     langchain_mode = 'DriverlessAI docs'
     persist_directory = get_persist_directory(langchain_mode)
@@ -187,8 +187,8 @@ def test_qa_daidocs_db_chunk_hf_dbs(db_type, top_k_docs):
 
 
 @pytest.mark.need_gpu
-@wrap_test_forked
 @pytest.mark.parametrize("db_type", ['chroma'])
+@wrap_test_forked
 def test_qa_daidocs_db_chunk_hf_dbs_switch_embedding(db_type):
     # need to get model externally, so don't OOM
     from generate import get_model
@@ -251,8 +251,8 @@ def test_qa_daidocs_db_chunk_hf_dbs_switch_embedding(db_type):
     check_ret(ret)
 
 
-@wrap_test_forked
 @pytest.mark.parametrize("db_type", db_types)
+@wrap_test_forked
 def test_qa_wiki_db_chunk_hf_dbs_llama(db_type):
     from gpt4all_llm import get_model_tokenizer_gpt4all
     model_name = 'llama'
@@ -308,10 +308,10 @@ def test_get_dai_db_dir():
         get_some_dbs_from_hf(tmpdirname)
 
 
-@wrap_test_forked
 # repeat is to check if first case really deletes, else assert will fail if accumulates wrongly
 @pytest.mark.parametrize("repeat", [0, 1])
 @pytest.mark.parametrize("db_type", db_types_full)
+@wrap_test_forked
 def test_make_add_db(repeat, db_type):
     from gradio_runner import get_source_files, get_source_files_given_langchain_mode, get_db, update_user_db, \
         get_sources, update_and_get_source_files_given_langchain_mode
@@ -455,8 +455,8 @@ def test_make_add_db(repeat, db_type):
                         assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file2)
 
 
-@wrap_test_forked
 @pytest.mark.parametrize("db_type", db_types)
+@wrap_test_forked
 def test_zip_add(db_type):
     from make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
@@ -477,8 +477,8 @@ def test_zip_add(db_type):
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
 
-@wrap_test_forked
 @pytest.mark.parametrize("db_type", db_types)
+@wrap_test_forked
 def test_url_add(db_type):
     from make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
@@ -491,8 +491,8 @@ def test_url_add(db_type):
         assert 'Sri Ambati' in docs[0].page_content
 
 
-@wrap_test_forked
 @pytest.mark.parametrize("db_type", db_types)
+@wrap_test_forked
 def test_html_add(db_type):
     from make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
@@ -522,8 +522,8 @@ def test_html_add(db_type):
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
 
-@wrap_test_forked
 @pytest.mark.parametrize("db_type", db_types)
+@wrap_test_forked
 def test_docx_add(db_type):
     from make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
@@ -540,8 +540,8 @@ def test_docx_add(db_type):
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
 
-@wrap_test_forked
 @pytest.mark.parametrize("db_type", db_types)
+@wrap_test_forked
 def test_md_add(db_type):
     from make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
@@ -562,8 +562,8 @@ def test_md_add(db_type):
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
 
-@wrap_test_forked
 @pytest.mark.parametrize("db_type", db_types)
+@wrap_test_forked
 def test_eml_add(db_type):
     from make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
@@ -581,8 +581,8 @@ def test_eml_add(db_type):
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
 
-@wrap_test_forked
 @pytest.mark.parametrize("db_type", db_types)
+@wrap_test_forked
 def test_simple_eml_add(db_type):
     from make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
@@ -612,8 +612,8 @@ FYIcenter.com Team"""
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
 
-@wrap_test_forked
 @pytest.mark.parametrize("db_type", db_types)
+@wrap_test_forked
 def test_odt_add(db_type):
     from make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
@@ -630,8 +630,8 @@ def test_odt_add(db_type):
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
 
-@wrap_test_forked
 @pytest.mark.parametrize("db_type", db_types)
+@wrap_test_forked
 def test_pptx_add(db_type):
     from make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
@@ -649,8 +649,8 @@ def test_pptx_add(db_type):
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
 
-@wrap_test_forked
 @pytest.mark.parametrize("db_type", db_types)
+@wrap_test_forked
 def test_simple_pptx_add(db_type):
     from make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
@@ -668,8 +668,8 @@ def test_simple_pptx_add(db_type):
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
 
-@wrap_test_forked
 @pytest.mark.parametrize("db_type", db_types)
+@wrap_test_forked
 def test_epub_add(db_type):
     from make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
@@ -690,8 +690,8 @@ def test_epub_add(db_type):
 @pytest.mark.skip(reason="Not supported, GPL3, and msg-extractor code fails too often")
 @pytest.mark.xfail(strict=False,
                    reason="fails with AttributeError: 'Message' object has no attribute '_MSGFile__stringEncoding'. Did you mean: '_MSGFile__overrideEncoding'? even though can use online converter to .eml fine.")
-@wrap_test_forked
 @pytest.mark.parametrize("db_type", db_types)
+@wrap_test_forked
 def test_msg_add(db_type):
     from make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
@@ -708,29 +708,29 @@ def test_msg_add(db_type):
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
 
-@wrap_test_forked
 @pytest.mark.parametrize("db_type", db_types)
+@wrap_test_forked
 def test_png_add(db_type):
     return run_png_add(captions_model=None, caption_gpu=False, db_type=db_type)
 
 
 @pytest.mark.skipif(not have_gpus, reason="requires GPUs to run")
-@wrap_test_forked
 @pytest.mark.parametrize("db_type", db_types)
+@wrap_test_forked
 def test_png_add_gpu(db_type):
     return run_png_add(captions_model=None, caption_gpu=True, db_type=db_type)
 
 
 @pytest.mark.skipif(not have_gpus, reason="requires GPUs to run")
-@wrap_test_forked
 @pytest.mark.parametrize("db_type", db_types)
+@wrap_test_forked
 def test_png_add_gpu_preload(db_type):
     return run_png_add(captions_model=None, caption_gpu=True, pre_load_caption_model=True, db_type=db_type)
 
 
 @pytest.mark.skipif(not (have_gpus and mem_gpus[0] > 20 * 1024 ** 3), reason="requires GPUs and enough memory to run")
-@wrap_test_forked
 @pytest.mark.parametrize("db_type", db_types)
+@wrap_test_forked
 def test_png_add_gpu_blip2(db_type):
     return run_png_add(captions_model='Salesforce/blip2-flan-t5-xl', caption_gpu=True, db_type=db_type)
 
@@ -759,8 +759,8 @@ def run_png_add(captions_model=None, caption_gpu=False, pre_load_caption_model=F
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
 
-@wrap_test_forked
 @pytest.mark.parametrize("db_type", db_types)
+@wrap_test_forked
 def test_simple_rtf_add(db_type):
     from make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
