@@ -566,7 +566,7 @@ def go_gradio(**kwargs):
                                     lora_choice = gr.Dropdown(lora_options_state.value[0], label="Choose LORA",
                                                               value=kwargs['lora_weights'], visible=kwargs['show_lora'])
                                     server_choice = gr.Dropdown(server_options_state.value[0], label="Choose Server",
-                                                                value=kwargs['inference_server'])
+                                                                value=kwargs['inference_server'], visible=not is_public)
                                 with gr.Column(scale=1, visible=not kwargs['model_lock']):
                                     load_model_button = gr.Button(load_msg, variant=variant_load_msg, scale=0,
                                                                   size='sm')
@@ -585,7 +585,7 @@ def go_gradio(**kwargs):
                                                            visible=kwargs['show_lora'], interactive=False)
                                     server_used = gr.Textbox(label="Current Server",
                                                              value=kwargs['inference_server'],
-                                                             visible=kwargs['inference_server'],
+                                                             visible=kwargs['inference_server'] and not is_public,
                                                              interactive=False)
                                     prompt_dict = gr.Textbox(label="Prompt (or Custom)",
                                                              value=pprint.pformat(kwargs['prompt_dict'], indent=4),
@@ -600,7 +600,8 @@ def go_gradio(**kwargs):
                                                                value=no_lora_str,
                                                                visible=kwargs['show_lora'])
                                     server_choice2 = gr.Dropdown(server_options_state.value[0], label="Choose Server 2",
-                                                                 value=no_server_str)
+                                                                 value=no_server_str,
+                                                                 visible=not is_public)
                                 with gr.Column(scale=1, visible=not kwargs['model_lock']):
                                     load_model_button2 = gr.Button(load_msg2, variant=variant_load_msg, scale=0,
                                                                    size='sm')
@@ -620,7 +621,8 @@ def go_gradio(**kwargs):
                                     lora_used2 = gr.Textbox(label="Current LORA 2", value=no_lora_str,
                                                             visible=kwargs['show_lora'], interactive=False)
                                     server_used2 = gr.Textbox(label="Current Server 2", value=no_server_str,
-                                                              interactive=False)
+                                                              interactive=False,
+                                                              visible=not is_public)
                                     prompt_dict2 = gr.Textbox(label="Prompt (or Custom) 2",
                                                               value=pprint.pformat(kwargs['prompt_dict'], indent=4),
                                                               interactive=True, lines=4)
