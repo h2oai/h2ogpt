@@ -600,6 +600,8 @@ def get_config(base_model,
                 config.update({"max_seq_len": 83968})
             if 'mosaicml/mpt-7b-chat' in base_model.lower():
                 config.update({"max_seq_len": 4096})
+            if 'mpt-30b' in base_model.lower():
+                config.update({"max_seq_len": 2 * 8192})
         if return_model and \
                 issubclass(config.__class__, tuple(AutoModel._model_mapping.keys())):
             model = AutoModel.from_config(
