@@ -23,6 +23,7 @@ Turn ★ into ⭐ (top-right corner) if you like the project!
    * [CLI chat](#cli-chat)
    * [Gradio UI](#gradio-ui)
    * [Client API](#client-api)
+   * [Connect to Inference Servers](#connect-to-inference-servers)
    * [Python Wheel](#python-wheel)
 * [Development](#development)
 * [Help](#help)
@@ -367,6 +368,10 @@ We disable background uploads by disabling telemetry for Hugging Face, gradio, a
 #### Python Client Library
 
 An OpenAI compliant client is available. Refer the [README](client/README.md)  for more details.
+
+#### Connect to Inference Servers
+
+One can connect to Hugging Face text generation inference server, gradio servers running h2oGPT, or OpenAI servers.  See [README](docs/README_InferenceServers.md).
 
 #### Python Wheel
 

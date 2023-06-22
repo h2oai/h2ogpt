@@ -2,6 +2,8 @@
 
 ### Local Install
 
+#### **Not Recommended**
+
 This is just following the same [local-install](https://github.com/huggingface/text-generation-inference).
 ```bash
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
@@ -41,7 +43,9 @@ CUDA_HOME=/usr/local/cuda-11.7 pip install flash_attn
 NCCL_SHM_DISABLE=1 CUDA_VISIBLE_DEVICES=0 text-generation-launcher --model-id h2oai/h2ogpt-oig-oasst1-512-6_9b --port 8080  --sharded false --trust-remote-code
 ```
 
-### Docker Install:
+### Docker Install
+
+#### **Recommended** (instead of Local Install)
 
 ```bash
 # https://docs.docker.com/engine/install/ubuntu/
@@ -218,4 +222,6 @@ One can have a mix of local models, HF text-generation inference servers, Gradio
 ```bash
 python generate.py --model_lock=[{'inference_server':'http://192.168.1.46:6112','base_model':'h2oai/h2ogpt-oasst1-512-12b'},{'inference_server':'http://192.168.1.46:6114','base_model':'h2oai/h2ogpt-oasst1-512-20b'},{'inference_server':'http://192.168.1.46:6113','base_model':'h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2'},{'inference_server':'http://192.168.0.1:6000','base_model':'TheBloke/Wizard-Vicuna-13B-Uncensored-HF','prompt_type':'instruct_vicuna'},{'inference_server':'http://192.168.0.245:6000','base_model':'h2oai/h2ogpt-oasst1-falcon-40b'},{'inference_server':'http://192.168.1.46:7860','base_model':'h2oai/h2ogpt-oasst1-512-12b'},{'inference_server':'http://192.168.0.1:7000','base_model':'h2oai/h2ogpt-research-oasst1-llama-65b','prompt_type':'human_bot'},{'inference_server':'openai_chat','base_model':'gpt-3.5-turbo'}] --model_lock_columns=4
 ```
-where the lock columns of 4 makes a grid of chatbots with 4 columns
+where the lock columns of 4 makes a grid of chatbots with 4 columns.
+
+![Models Lock](models_lock.png)
