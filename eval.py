@@ -38,8 +38,9 @@ def run_eval(  # for local function:
         top_k_docs=None,
         chunk=None,
         chunk_size=None,
-        auto_reduce_chunks=None, max_chunks=None,
         document_choice=None,
+        auto_reduce_chunks=None, max_chunks=None,
+        model_lock=None, force_langchain_evaluate=None,
         # for evaluate kwargs:
         src_lang=None, tgt_lang=None, concurrency_count=None, save_dir=None, sanitize_bot_response=None,
         model_state0=None, raise_generate_gpu_exceptions=None, load_db_if_exists=None, dbs=None, user_path=None,
