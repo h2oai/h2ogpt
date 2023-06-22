@@ -281,10 +281,14 @@ def go_gradio(**kwargs):
                     with col_chat:
                         with gr.Row():
                             text_outputs = []
+                            chat_kwargs = []
+                            style_kwargs = dict(height=kwargs['height'] or 400)
                             for model_state_lock in kwargs['model_states']:
                                 output_label = f'h2oGPT [Model: {model_state_lock["base_model"]}]'
-                                text_outputs.append(gr.Chatbot(label=output_label, visible=kwargs['model_lock']).style(
-                                    height=kwargs['height'] or 400))
+                                chat_kwargs.append(dict(label=output_label, visible=kwargs['model_lock']))
+                            for chat_kwargs1, model_state_lock in zip(chat_kwargs, kwargs['model_states']):
+                                text_outputs.append(gr.Chatbot(**chat_kwargs1).style(**style_kwargs))
+
                             text_output = gr.Chatbot(label=output_label0, visible=not kwargs['model_lock']).style(
                                 height=kwargs['height'] or 400)
                             text_output2 = gr.Chatbot(label=output_label0_model2,
