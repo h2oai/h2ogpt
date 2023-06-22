@@ -1,6 +1,7 @@
 import copy
 import functools
 import inspect
+import itertools
 import json
 import os
 import pprint
@@ -1223,9 +1224,11 @@ def go_gradio(**kwargs):
                     # with model_state1 at -3, my_db_state1 at -2, and history(chatbot) at -1
                     gen_list.append(get_response(*tuple(args_list1), retry=retry))
 
-                for res1 in zip(*gen_list):
-                    bots = [x[0] for x in res1]
-                    exceptions = '\n'.join([x[1] for x in res1 if x[1]])
+                bots_old = [''] * len(gen_list)
+                for res1 in itertools.zip_longest(*gen_list):
+                    bots = [x[0] if x is not None else y for x, y in zip(res1, bots_old)]
+                    bots_old = bots.copy()
+                    exceptions = '\n'.join([x[1] for x in res1 if x and x[1]])
                     if len(bots) > 0:
                         yield tuple(bots + [exceptions])
                     else:

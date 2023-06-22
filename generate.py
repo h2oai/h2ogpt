@@ -532,7 +532,7 @@ def main(
             model_dict['tokenizer_base_model'] = tokenizer_base_model = model_dict.get('tokenizer_base_model', '')
             model_dict['lora_weights'] = lora_weights = model_dict.get('lora_weights', '')
             model_dict['inference_server'] = inference_server = model_dict.get('inference_server', '')
-            prompt_type = model_dict.get('prompt_type', prompt_type)
+            prompt_type = model_dict.get('prompt_type', model_list0[0]['prompt_type'])  # don't use mutated value
             # try to infer, ignore empty initial state leading to get_generate_params -> 'plain'
             if model_dict.get('prompt_type') is None:
                 model_lower = base_model.lower()
@@ -552,6 +552,7 @@ def main(
                 model0, tokenizer0, device = None, None, None
             model_state_trial = dict(model=model0, tokenizer=tokenizer0, device=device)
             model_state_trial.update(model_dict)
+            print("Model %s" % model_dict, flush=True)
             if model_lock:
                 # last in iteration will be first
                 model_states.insert(0, model_state_trial)
