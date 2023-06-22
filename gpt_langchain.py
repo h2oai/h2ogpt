@@ -589,7 +589,7 @@ def get_llm(use_openai_model=False,
         else:
             prompt_type = prompt_type or 'plain'
     elif inference_server:
-        assert inference_server.startswith('http'), "Malformed inference_server=%s" % inference_server
+        assert inference_server.startswith('http'), "Malformed inference_server=%s.  Did you add http:// in front?" % inference_server
 
         from gradio_client import Client as GradioClient
         from text_generation import Client as HFClient
