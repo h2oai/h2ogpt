@@ -18,7 +18,7 @@ import requests
 import tabulate
 
 from gradio_ui.css import get_css
-from gradio_ui.prompt_form import make_prompt_form
+from gradio_ui.prompt_form import make_prompt_form, make_chatbots
 
 # This is a hack to prevent Gradio from phoning home when it gets imported
 os.environ['GRADIO_ANALYTICS_ENABLED'] = 'False'
@@ -279,22 +279,7 @@ def go_gradio(**kwargs):
 
                     col_chat = gr.Column(visible=kwargs['chat'])
                     with col_chat:
-                        with gr.Row():
-                            text_outputs = []
-                            chat_kwargs = []
-                            style_kwargs = dict(height=kwargs['height'] or 400)
-                            for model_state_lock in kwargs['model_states']:
-                                output_label = f'h2oGPT [Model: {model_state_lock["base_model"]}]'
-                                chat_kwargs.append(dict(label=output_label, visible=kwargs['model_lock']))
-                            for chat_kwargs1, model_state_lock in zip(chat_kwargs, kwargs['model_states']):
-                                text_outputs.append(gr.Chatbot(**chat_kwargs1).style(**style_kwargs))
-
-                            text_output = gr.Chatbot(label=output_label0, visible=not kwargs['model_lock']).style(
-                                height=kwargs['height'] or 400)
-                            text_output2 = gr.Chatbot(label=output_label0_model2,
-                                                      visible=False and not kwargs['model_lock']).style(
-                                height=kwargs['height'] or 400)
-
+                        text_output, text_output2, text_outputs = make_chatbots(output_label0, output_label0_model2, **kwargs)
                         instruction, submit, stop_btn = make_prompt_form(kwargs)
 
                         with gr.Row():

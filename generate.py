@@ -67,6 +67,7 @@ def main(
         prompt_dict: typing.Dict = None,
 
         model_lock: typing.List[typing.Dict[str, str]] = None,
+        model_lock_columns: int = None,
 
         # input to generation
         temperature: float = None,
@@ -189,6 +190,10 @@ def main(
              Also, inference_server is optional if loading model from local system.
            All models provided will automatically appear in compare model mode
            Model loading-unloading and related choices will be disabled.  Model/lora/server adding will be disabled
+    :param model_lock_columns: How many columns to show if locking models (and so showing all at once)
+           If None, then defaults to up to 3
+           if -1, then all goes into 1 row
+           Maximum value is 4 due to non-dynamic gradio rendering elements
     :param temperature: generation temperature
     :param top_p: generation top_p
     :param top_k: generation top_k
