@@ -10,6 +10,7 @@ def get_css(kwargs) -> str:
     css_code += make_css_base()
     return css_code
 
+
 def make_css_base() -> str:
     return """
     @import url('https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;600&display=swap');
@@ -48,4 +49,5 @@ def make_css_base() -> str:
     #prompt-form-area {
         margin-bottom: 2.5rem;
     }
+    .chatsmall chatbot {font-size: 10px !important}
     """

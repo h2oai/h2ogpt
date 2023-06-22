@@ -159,6 +159,12 @@ def go_gradio(**kwargs):
                             font_mono=('IBM Plex Mono', 'ui-monospace', 'Consolas', 'monospace'))
     else:
         theme_kwargs = dict()
+    if kwargs['gradio_size'] == 'small':
+        theme_kwargs.update(dict(spacing_size=gr.themes.sizes.spacing_sm, text_size=gr.themes.sizes.text_sm))
+    elif kwargs['gradio_size'] == 'large':
+        theme_kwargs.update(dict(spacing_size=gr.themes.sizes.spacing_lg, text_size=gr.themes.sizes.text_lg))
+    elif kwargs['gradio_size'] == 'medium':
+        theme_kwargs.update(dict(spacing_size=gr.themes.sizes.spacing_md, text_size=gr.themes.sizes.text_md))
 
     theme = H2oTheme(**theme_kwargs) if kwargs['h2ocolors'] else SoftTheme(**theme_kwargs)
     demo = gr.Blocks(theme=theme, css=css_code, title="h2oGPT", analytics_enabled=False)

@@ -113,6 +113,7 @@ def main(
         api_open: bool = False,
         allow_api: bool = True,
         input_lines: int = 1,
+        gradio_size: str = None,
         auth: typing.List[typing.Tuple[str, str]] = None,
         max_max_time=None,
         max_max_new_tokens=None,
@@ -239,6 +240,7 @@ def main(
     :param api_open: If False, don't let API calls skip gradio queue
     :param allow_api: whether to allow API calls at all to gradio server
     :param input_lines: how many input lines to show for chat box (>1 forces shift-enter for submit, else enter is submit)
+    :param gradio_size: Overall size of text and spaces: "small", "medium", "large".  Small useful for many chatbots in model_lock mode
     :param auth: gradio auth for launcher in form [(user1, pass1), (user2, pass2), ...]
                  e.g. --auth=[('jon','password')] with no spaces
     :param max_max_time: Maximum max_time for gradio slider
@@ -1058,6 +1060,7 @@ def evaluate_from_str(
         use_cache=None,
         auto_reduce_chunks=None,
         max_chunks=None,
+        model_lock=None,
 ):
     if isinstance(user_kwargs, str):
         user_kwargs = ast.literal_eval(user_kwargs)
@@ -1107,6 +1110,7 @@ def evaluate_from_str(
         use_cache=use_cache,
         auto_reduce_chunks=auto_reduce_chunks,
         max_chunks=max_chunks,
+        model_lock=model_lock,
     )
     try:
         for ret1 in ret:
@@ -1174,6 +1178,7 @@ def evaluate(
         use_cache=None,
         auto_reduce_chunks=None,
         max_chunks=None,
+        model_lock=None,
 ):
     # ensure passed these
     assert concurrency_count is not None
@@ -1208,19 +1213,21 @@ def evaluate(
         # e.g. for no gradio case, set dummy value, else should be set
         model_state0 = model_state_None.copy()
 
-    have_fresh_model = model_state['model'] and not isinstance(model_state['model'], str)
-    have_cli_model = model_state0['model'] and not isinstance(model_state0['model'], str)
+    have_fresh_model = model_state['model'] and not isinstance(model_state['model'], str) or model_lock
+    have_cli_model = model_state0['model'] and not isinstance(model_state0['model'], str) and not model_lock
 
     if have_fresh_model:
         # USE FRESH MODEL
-        # try to free-up original model (i.e. list was passed as reference)
-        if model_state0['model'] and hasattr(model_state0['model'], 'cpu'):
-            model_state0['model'].cpu()
-            model_state0['model'] = None
-        # try to free-up original tokenizer (i.e. list was passed as reference)
-        if model_state0['tokenizer']:
-            model_state0['tokenizer'] = None
-        clear_torch_cache()
+        if not model_lock:
+            # model_state0 is just one of model_state if model_lock, so don't nuke
+            # try to free-up original model (i.e. list was passed as reference)
+            if model_state0['model'] and hasattr(model_state0['model'], 'cpu'):
+                model_state0['model'].cpu()
+                model_state0['model'] = None
+            # try to free-up original tokenizer (i.e. list was passed as reference)
+            if model_state0['tokenizer']:
+                model_state0['tokenizer'] = None
+            clear_torch_cache()
         chosen_model_state = model_state
     elif have_cli_model:
         # USE MODEL SETUP AT CLI
