@@ -1,3 +1,5 @@
+import math
+
 import gradio as gr
 
 
@@ -13,7 +15,7 @@ def make_chatbots(output_label0, output_label0_model2, **kwargs):
         kwargs['model_lock_columns'] = len(kwargs['model_states'])
 
     ncols = kwargs['model_lock_columns']
-    nrows = len(kwargs['model_states']) / kwargs['model_lock_columns']
+    nrows = math.ceil(len(kwargs['model_states']) / kwargs['model_lock_columns'])
 
     if nrows <= 1:
         with gr.Row():

@@ -26,7 +26,7 @@ warnings.filterwarnings('ignore', category=UserWarning, message='TypedStorage is
 from enums import DocumentChoices, LangChainMode, no_lora_str
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial, EThread, get_githash, \
-    import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler
+    import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server
 
 start_faulthandler()
 import_matplotlib()
@@ -735,15 +735,24 @@ def get_model(
     if verbose:
         print("Get %s model" % base_model, flush=True)
     if isinstance(inference_server, str) and inference_server.startswith("http"):
+        inf_split = inference_server.split("$$$$")
         # preload client since slow for gradio case especially
         from gradio_client import Client as GradioClient
-        try:
-            client = GradioClient(inference_server)
-        except ValueError:
+        if len(inf_split) == 1:
+            try:
+                print("GR Client Begin: %s" % inference_server)
+                client = GradioClient(inference_server)
+                print("GR Client End: %s" % inference_server)
+            except ValueError:
+                client = None
+        else:
             client = None
         if client is None:
             from text_generation import Client as HFClient
-            client = HFClient(inference_server)
+            inference_server, headers = get_hf_server(inference_server)
+            print("HF Client Begin: %s" % inference_server)
+            client = HFClient(inference_server, headers=headers, timeout=120)
+            print("HF Client End: %s" % inference_server)
 
         # Don't return None, None for model, tokenizer so triggers
         return client, inference_server, 'http'

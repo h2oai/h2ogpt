@@ -26,7 +26,7 @@ from enums import DocumentChoices, no_lora_str, model_token_mapping
 from generate import gen_hyper, get_model, SEED
 from prompter import non_hf_types, PromptType, Prompter
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
-    get_device, ProgressParallel, remove, hash_file, clear_torch_cache, NullContext
+    get_device, ProgressParallel, remove, hash_file, clear_torch_cache, NullContext, get_hf_server
 from utils_langchain import StreamingGradioCallbackHandler
 
 import_matplotlib()
@@ -438,6 +438,7 @@ class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
     seed: Optional[int] = None
     inference_server_url: str = ""
     timeout: int = 120
+    headers: dict = None
     stream: bool = False
     sanitize_bot_response: bool = False
     prompter: Any = None
@@ -452,7 +453,9 @@ class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
                 import text_generation
 
                 values["client"] = text_generation.Client(
-                    values["inference_server_url"], timeout=values["timeout"]
+                    values["inference_server_url"],
+                    timeout=values["timeout"],
+                    headers=values["headers"],
                 )
         except ImportError:
             raise ImportError(
@@ -631,6 +634,7 @@ def get_llm(use_openai_model=False,
                 sanitize_bot_response=sanitize_bot_response,
             )
         elif hf_client:
+            inference_server, headers = get_hf_server(inference_server)
             llm = H2OHuggingFaceTextGenInference(
                 inference_server_url=inference_server,
                 do_sample=do_sample,
