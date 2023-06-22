@@ -73,3 +73,7 @@ def test_subset_only():
 
 def test_add_new_doc():
     raise NotImplementedError("""MANUAL TEST FOR NOW UserData, add new pdf or file to user_path and see if pushing refresh sources updates and shows new file in list, then ask question about that new doc""")
+
+
+def test_model_lock():
+    raise NotImplementedError("""MANUAL TEST FOR NOW  UI test of model lock""")
