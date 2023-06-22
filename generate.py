@@ -15,6 +15,7 @@ import warnings
 from datetime import datetime
 import filelock
 import psutil
+from requests import ConnectTimeout
 from urllib3.exceptions import ConnectTimeoutError, MaxRetryError
 
 if os.path.dirname(os.path.abspath(__file__)) not in sys.path:
@@ -773,7 +774,7 @@ def get_model(
                 print("GR Client End: %s" % inference_server)
             except ValueError:
                 client = None
-            except (ConnectTimeoutError, MaxRetryError) as e:
+            except (ConnectTimeoutError, ConnectTimeout, MaxRetryError) as e:
                 t, v, tb = sys.exc_info()
                 ex = ''.join(traceback.format_exception(t, v, tb))
                 print("GR Client Failed: %s" % str(ex))
