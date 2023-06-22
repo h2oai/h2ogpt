@@ -1331,7 +1331,7 @@ def evaluate(
         import openai
 
         openai.api_key = os.getenv("OPENAI_API_KEY")
-        stop_sequences = prompter.terminate_response + [prompter.PreResponse]
+        stop_sequences = list(set(prompter.terminate_response + [prompter.PreResponse]))
         openai_gen_kwargs = dict(temperature=temperature if do_sample else 0,
                                  max_tokens=max_new_tokens,
                                  top_p=top_p if do_sample else 1,
@@ -1476,7 +1476,7 @@ def evaluate(
         else:
             # prompt must include all human-bot like tokens, already added by prompt
             # https://github.com/huggingface/text-generation-inference/tree/main/clients/python#types
-            stop_sequences = prompter.terminate_response + [prompter.PreResponse]
+            stop_sequences = list(set(prompter.terminate_response + [prompter.PreResponse]))
             gen_server_kwargs = dict(do_sample=do_sample,
                                      max_new_tokens=max_new_tokens,
                                      # best_of=None,
