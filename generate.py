@@ -787,7 +787,7 @@ def get_model(
             from text_generation import Client as HFClient
             inference_server, headers = get_hf_server(inference_server)
             print("HF Client Begin: %s" % inference_server)
-            client = HFClient(inference_server, headers=headers, timeout=120)
+            client = HFClient(inference_server, headers=headers, timeout=300)
             print("HF Client End: %s" % inference_server)
 
         # Don't return None, None for model, tokenizer so triggers
@@ -1493,8 +1493,8 @@ def evaluate(
             except ValueError:
                 gr_client = None
             if gr_client is None:
-                from text_generation import Client as HFClient
-                hf_client = HFClient(inference_server)
+                inference_server, headers = get_hf_server(inference_server)
+                hf_client = HFClient(inference_server, headers=headers, timeout=300)
 
         if gr_client is not None:
             chat_client = False
@@ -1579,6 +1579,10 @@ def evaluate(
                                      # watermark=False,
                                      # decoder_input_details=False,
                                      )
+            # work-around for timeout at constructor time, will be issue if multi-threading,
+            # so just do something reasonable or max_time if larger
+            # lower bound because client is re-used if multi-threading
+            hf_client.timeout = max(300, max_time)
             if not stream_output:
                 text = hf_client.generate(prompt, **gen_server_kwargs).generated_text
                 yield dict(response=prompter.get_response(text, prompt=prompt,

@@ -437,7 +437,7 @@ class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
     stop_sequences: List[str] = Field(default_factory=list)
     seed: Optional[int] = None
     inference_server_url: str = ""
-    timeout: int = 120
+    timeout: int = 300
     headers: dict = None
     stream: bool = False
     sanitize_bot_response: bool = False
@@ -491,6 +491,9 @@ class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
                                  seed=self.seed,
                                  )
         gen_server_kwargs.update(kwargs)
+
+        # lower bound because client is re-used if multi-threading
+        self.client.timeout = max(300, self.timeout)
 
         if not self.stream:
             res = self.client.generate(
@@ -656,6 +659,7 @@ def get_llm(use_openai_model=False,
                 stream=stream_output,
                 prompter=prompter,
                 client=hf_client,
+                timeout=max_time,
                 sanitize_bot_response=sanitize_bot_response,
             )
         else:
