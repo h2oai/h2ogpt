@@ -497,13 +497,15 @@ class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
                 prompt,
                 **gen_server_kwargs,
             )
+            if self.return_full_text:
+                gen_text = res.generated_text[len(prompt):]
+            else:
+                gen_text = res.generated_text
             # remove stop sequences from the end of the generated text
             for stop_seq in stop:
-                if stop_seq in res.generated_text:
-                    res.generated_text = res.generated_text[
-                                         : res.generated_text.index(stop_seq)
-                                         ]
-            text = res.generated_text
+                if stop_seq in gen_text:
+                    gen_text = gen_text[:gen_text.index(stop_seq)]
+            text = prompt + gen_text
             text = self.prompter.get_response(text, prompt=prompt,
                                               sanitize_bot_response=self.sanitize_bot_response)
         else:
@@ -516,6 +518,7 @@ class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
             if text_callback:
                 text_callback(prompt)
             text = ""
+            # Note: Streaming ignores return_full_text=True
             for response in self.client.generate_stream(prompt, **gen_server_kwargs):
                 text_chunk = response.token.text
                 text += text_chunk

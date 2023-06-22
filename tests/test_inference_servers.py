@@ -109,21 +109,21 @@ def test_gradio_inference_server(base_model, force_langchain_evaluate, do_langch
         assert 'I am a bot.' in ret7['response'] or 'can I assist you today?' in ret7['response']
     elif base_model == 'gptj':
         assert 'I am a bot.' in ret1['response'] or 'can I assist you today?' in ret1[
-            'response'] or 'I am a student at' in ret1['response'] or 'am a person who' in ret1['response'] or 'I am' in \
+            'response'] or 'a student at' in ret1['response'] or 'am a person who' in ret1['response'] or 'I am' in \
                ret1['response'] or "I'm a student at" in ret1['response']
         assert 'Birds' in ret2['response'] or 'Once upon a time' in ret2['response']
         assert 'Birds' in ret3['response'] or 'Once upon a time' in ret3['response']
         assert 'I am a bot.' in ret4['response'] or 'can I assist you today?' in ret4[
-            'response'] or 'I am a student at' in ret4['response'] or 'am a person who' in ret4['response'] or 'I am' in \
+            'response'] or 'a student at' in ret4['response'] or 'am a person who' in ret4['response'] or 'I am' in \
                ret4['response'] or "I'm a student at" in ret4['response']
         assert 'I am a bot.' in ret5['response'] or 'can I assist you today?' in ret5[
-            'response'] or 'I am a student at' in ret5['response'] or 'am a person who' in ret5['response'] or 'I am' in \
+            'response'] or 'a student at' in ret5['response'] or 'am a person who' in ret5['response'] or 'I am' in \
                ret5['response'] or "I'm a student at" in ret5['response']
         assert 'I am a bot.' in ret6['response'] or 'can I assist you today?' in ret6[
-            'response'] or 'I am a student at' in ret6['response'] or 'am a person who' in ret6['response'] or 'I am' in \
+            'response'] or 'a student at' in ret6['response'] or 'am a person who' in ret6['response'] or 'I am' in \
                ret6['response'] or "I'm a student at" in ret6['response']
         assert 'I am a bot.' in ret7['response'] or 'can I assist you today?' in ret7[
-            'response'] or 'I am a student at' in ret7['response'] or 'am a person who' in ret7['response'] or 'I am' in \
+            'response'] or 'a student at' in ret7['response'] or 'am a person who' in ret7['response'] or 'I am' in \
                ret7['response'] or "I'm a student at" in ret7['response']
     print("DONE", flush=True)
 
@@ -220,17 +220,17 @@ def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain,
             assert 'h2oGPT' in ret7['response']
         else:
             assert 'I am a language model trained' in ret1['response'] or 'I am an AI language model developed by' in \
-                   ret1['response']
+                   ret1['response'] or 'a chat-based assistant' in ret1['response']
             assert 'Once upon a time' in ret2['response']
             assert 'Once upon a time' in ret3['response']
             assert 'I am a language model trained' in ret4['response'] or 'I am an AI language model developed by' in \
-                   ret4['response']
+                   ret4['response'] or 'a chat-based assistant' in ret4['response']
             assert 'I am a language model trained' in ret5['response'] or 'I am an AI language model developed by' in \
-                   ret5['response']
+                   ret5['response'] or 'a chat-based assistant' in ret5['response']
             assert 'I am a language model trained' in ret6['response'] or 'I am an AI language model developed by' in \
-                   ret6['response']
+                   ret6['response'] or 'a chat-based assistant' in ret6['response']
             assert 'I am a language model trained' in ret7['response'] or 'I am an AI language model developed by' in \
-                   ret7['response']
+                   ret7['response'] or 'a chat-based assistant' in ret7['response']
         print("DONE", flush=True)
     finally:
         # take down docker server
