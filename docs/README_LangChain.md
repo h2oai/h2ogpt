@@ -63,6 +63,11 @@ To support Microsoft Office docx and doc, on Ubuntu run:
 sudo apt-get install libreoffice
 ```
 
+In some cases unstructured by itself cannot handle URL content properly, then we will use Selenium or PlayWright as backup methods if unstructured fails.  To have this be done, do:
+```bash
+pip install -r reqs_optional/requirements_optional_langchain.urls.txt
+```
+
 ### Supported Meta Datatypes
 
    - `.zip` : Zip File containing any native datatype,

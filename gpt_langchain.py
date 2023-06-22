@@ -900,6 +900,20 @@ try:
 except (pkg_resources.DistributionNotFound, AssertionError):
     have_pymupdf = False
 
+try:
+    assert pkg_resources.get_distribution('selenium') is not None
+    have_selenium = True
+except (pkg_resources.DistributionNotFound, AssertionError):
+    have_selenium = False
+
+try:
+    assert pkg_resources.get_distribution('playwright') is not None
+    have_playwright = True
+except (pkg_resources.DistributionNotFound, AssertionError):
+    have_playwright = False
+
+
+
 image_types = ["png", "jpg", "jpeg"]
 non_image_types = ["pdf", "txt", "csv", "toml", "py", "rst", "rtf",
                    "md", "html",
@@ -960,6 +974,14 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                 docs1 = []
         else:
             docs1 = UnstructuredURLLoader(urls=[file]).load()
+            if len(docs1) == 0 and have_selenium:
+                # then something went wrong, try another loader:
+                from langchain.document_loaders import SeleniumURLLoader
+                docs1 = SeleniumURLLoader(urls=[file]).load()
+            if len(docs1) == 0 and have_playwright:
+                # then something went wrong, try another loader:
+                from langchain.document_loaders import PlaywrightURLLoader
+                docs1 = PlaywrightURLLoader(urls=[file]).load()
             [x.metadata.update(dict(input_type='url', date=str(datetime.now))) for x in docs1]
         docs1 = clean_doc(docs1)
         doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
