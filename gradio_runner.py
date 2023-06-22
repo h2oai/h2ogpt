@@ -267,7 +267,7 @@ def go_gradio(**kwargs):
                     col_nochat = gr.Column(visible=not kwargs['chat'])
                     with col_nochat:  # FIXME: for model comparison, and check rest
                         if kwargs['langchain_mode'] == 'Disabled':
-                            text_output_nochat = gr.Textbox(lines=5, label=output_label0).style(show_copy_button=True)
+                            text_output_nochat = gr.Textbox(lines=5, label=output_label0, show_copy_button=True)
                         else:
                             # text looks a bit worse, but HTML links work
                             text_output_nochat = gr.HTML(label=output_label0)
@@ -285,7 +285,8 @@ def go_gradio(**kwargs):
 
                     col_chat = gr.Column(visible=kwargs['chat'])
                     with col_chat:
-                        text_output, text_output2, text_outputs = make_chatbots(output_label0, output_label0_model2, **kwargs)
+                        text_output, text_output2, text_outputs = make_chatbots(output_label0, output_label0_model2,
+                                                                                **kwargs)
                         instruction, submit, stop_btn = make_prompt_form(kwargs)
 
                         with gr.Row():
@@ -304,8 +305,8 @@ def go_gradio(**kwargs):
                             undo = gr.Button("Undo")
                     submit_nochat_api = gr.Button("Submit nochat API", visible=False)
                     inputs_dict_str = gr.Textbox(label='API input for nochat', show_label=False, visible=False)
-                    text_output_nochat_api = gr.Textbox(lines=5, label='API nochat output', visible=False).style(
-                        show_copy_button=True)
+                    text_output_nochat_api = gr.Textbox(lines=5, label='API nochat output', visible=False,
+                                                        show_copy_button=True)
                 with gr.TabItem("Chat"):
                     with gr.Row():
                         if 'mbart-' in kwargs['model_lower']:
@@ -318,10 +319,10 @@ def go_gradio(**kwargs):
                     radio_chats = gr.Radio(value=None, label="Saved Chats", visible=True, interactive=True,
                                            type='value')
                     with gr.Row():
-                        clear_chat_btn = gr.Button(value="Clear Chat", visible=True).style(size='sm')
-                        export_chats_btn = gr.Button(value="Export Chats to Download").style(size='sm')
-                        remove_chat_btn = gr.Button(value="Remove Selected Chat", visible=True).style(size='sm')
-                        add_to_chats_btn = gr.Button("Import Chats from Upload").style(size='sm')
+                        clear_chat_btn = gr.Button(value="Clear Chat", visible=True, size='sm')
+                        export_chats_btn = gr.Button(value="Export Chats to Download", size='sm')
+                        remove_chat_btn = gr.Button(value="Remove Selected Chat", visible=True, size='sm')
+                        add_to_chats_btn = gr.Button("Import Chats from Upload", size='sm')
                     with gr.Row():
                         chats_file = gr.File(interactive=False, label="Download Exported Chats")
                         chatsup_output = gr.File(label="Upload Chat File(s)",
@@ -368,12 +369,9 @@ def go_gradio(**kwargs):
                                                           multiselect=True,
                                                           )
                         with gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and enable_sources_list):
-                            get_sources_btn = gr.Button(value="Get Sources",
-                                                        ).style(full_width=False, size='sm')
-                            show_sources_btn = gr.Button(value="Show Sources",
-                                                         ).style(full_width=False, size='sm')
-                            refresh_sources_btn = gr.Button(value="Refresh Sources",
-                                                            ).style(full_width=False, size='sm')
+                            get_sources_btn = gr.Button(value="Get Sources", scale=0, size='sm')
+                            show_sources_btn = gr.Button(value="Show Sources", scale=0, size='sm')
+                            refresh_sources_btn = gr.Button(value="Refresh Sources", scale=0, size='sm')
 
                     # import control
                     if kwargs['langchain_mode'] != 'Disabled':
@@ -382,8 +380,8 @@ def go_gradio(**kwargs):
                         have_arxiv = False
                         file_types = []
 
-                    upload_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and allow_upload).style(
-                        equal_height=False)
+                    upload_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and allow_upload,
+                                        equal_height=False)
                     with upload_row:
                         with gr.Column():
                             file_types_str = '[' + ' '.join(file_types) + ']'
@@ -397,8 +395,7 @@ def go_gradio(**kwargs):
                                 add_to_my_db_btn = gr.Button("Add File(s) to Scratch MyData",
                                                              visible=allow_upload_to_my_data,
                                                              elem_id='small_btn' if allow_upload_to_user_data else None,
-                                                             ).style(
-                                    size='sm' if not allow_upload_to_user_data else None)
+                                                             size='sm' if not allow_upload_to_user_data else None)
                         with gr.Column(
                                 visible=kwargs['langchain_mode'] != 'Disabled' and allow_upload and enable_url_upload):
                             url_label = 'URL (http/https) or ArXiv:' if have_arxiv else 'URL (http/https)'
@@ -409,7 +406,7 @@ def go_gradio(**kwargs):
                                 url_my_btn = gr.Button(value='Add URL content to Scratch MyData',
                                                        visible=allow_upload_to_my_data,
                                                        elem_id='small_btn' if allow_upload_to_user_data else None,
-                                                       ).style(size='sm' if not allow_upload_to_user_data else None)
+                                                       size='sm' if not allow_upload_to_user_data else None)
                         with gr.Column(
                                 visible=kwargs['langchain_mode'] != 'Disabled' and allow_upload and enable_text_upload):
                             user_text_text = gr.Textbox(label='Paste Text [Shift-Enter more lines]', interactive=True)
@@ -420,11 +417,10 @@ def go_gradio(**kwargs):
                                 user_text_my_btn = gr.Button(value='Add Text to Scratch MyData',
                                                              visible=allow_upload_to_my_data,
                                                              elem_id='small_btn' if allow_upload_to_user_data else None,
-                                                             ).style(
-                                    size='sm' if not allow_upload_to_user_data else None)
+                                                             size='sm' if not allow_upload_to_user_data else None)
                         with gr.Column(visible=False):
                             # WIP:
-                            with gr.Row(visible=False).style(equal_height=False):
+                            with gr.Row(visible=False, equal_height=False):
                                 github_textbox = gr.Textbox(label="Github URL")
                                 with gr.Row(visible=True):
                                     github_shared_btn = gr.Button(value="Add Github to Shared UserData",
@@ -432,16 +428,16 @@ def go_gradio(**kwargs):
                                                                   elem_id='small_btn')
                                     github_my_btn = gr.Button(value="Add Github to Scratch MyData",
                                                               visible=allow_upload_to_my_data, elem_id='small_btn')
-                    sources_row3 = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and enable_sources_list).style(
-                        equal_height=False)
+                    sources_row3 = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and enable_sources_list,
+                                          equal_height=False)
                     with sources_row3:
                         with gr.Column(scale=1):
                             file_source = gr.File(interactive=False,
                                                   label="Download File w/Sources [click get sources to make file]")
                         with gr.Column(scale=2):
                             pass
-                    sources_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and enable_sources_list).style(
-                        equal_height=False)
+                    sources_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and enable_sources_list,
+                                         equal_height=False)
                     with sources_row:
                         sources_text = gr.HTML(label='Sources Added', interactive=False)
 
@@ -572,9 +568,8 @@ def go_gradio(**kwargs):
                                     server_choice = gr.Dropdown(server_options_state.value[0], label="Choose Server",
                                                                 value=kwargs['inference_server'])
                                 with gr.Column(scale=1, visible=not kwargs['model_lock']):
-                                    load_model_button = gr.Button(load_msg, variant=variant_load_msg).style(
-                                        full_width=False,
-                                        size='sm')
+                                    load_model_button = gr.Button(load_msg, variant=variant_load_msg, scale=0,
+                                                                  size='sm')
                                     model_load8bit_checkbox = gr.components.Checkbox(
                                         label="Load 8-bit [requires support]",
                                         value=kwargs['load_8bit'])
@@ -607,8 +602,8 @@ def go_gradio(**kwargs):
                                     server_choice2 = gr.Dropdown(server_options_state.value[0], label="Choose Server 2",
                                                                  value=no_server_str)
                                 with gr.Column(scale=1, visible=not kwargs['model_lock']):
-                                    load_model_button2 = gr.Button(load_msg2, variant=variant_load_msg).style(
-                                        full_width=False, size='sm')
+                                    load_model_button2 = gr.Button(load_msg2, variant=variant_load_msg, scale=0,
+                                                                   size='sm')
                                     model_load8bit_checkbox2 = gr.components.Checkbox(
                                         label="Load 8-bit 2 [requires support]",
                                         value=kwargs['load_8bit'])
@@ -637,8 +632,8 @@ def go_gradio(**kwargs):
                         with gr.Column(scale=50):
                             new_server = gr.Textbox(label="New Server url:port")
                         with gr.Row():
-                            add_model_lora_server_button = gr.Button("Add new Model, Lora, Server url:port").style(
-                                full_width=False, size='sm')
+                            add_model_lora_server_button = gr.Button("Add new Model, Lora, Server url:port", scale=0,
+                                                                     size='sm')
                 with gr.TabItem("System"):
                     admin_row = gr.Row()
                     with admin_row:
@@ -649,11 +644,9 @@ def go_gradio(**kwargs):
                         with gr.Column():
                             with gr.Row():
                                 system_btn = gr.Button(value='Get System Info')
-                                system_text = gr.Textbox(label='System Info', interactive=False).style(
-                                    show_copy_button=True)
+                                system_text = gr.Textbox(label='System Info', interactive=False, show_copy_button=True)
                                 system_input = gr.Textbox(label='System Info Dict', interactive=True,
-                                                          visible=False).style(
-                                    show_copy_button=True)
+                                                          visible=False, show_copy_button=True)
 
                             with gr.Row():
                                 zip_btn = gr.Button("Zip")
@@ -856,9 +849,7 @@ def go_gradio(**kwargs):
                                     **kwargs_evaluate
                                     )
 
-        dark_mode_btn = gr.Button("Dark Mode", variant="primary").style(
-            size="sm",
-        )
+        dark_mode_btn = gr.Button("Dark Mode", variant="primary", size="sm")
         # FIXME: Could add exceptions for non-chat but still streaming
         exception_text = gr.Textbox(value="", visible=kwargs['chat'], label='Chat Exceptions', interactive=False)
         dark_mode_btn.click(
