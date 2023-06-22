@@ -51,7 +51,6 @@ openpyxl==3.1.2
 lm_dataformat==0.0.20
 bioc==2.0
 
-# falcon
 einops==0.6.1
 instructorembedding==1.0.1
 
@@ -59,3 +58,6 @@ instructorembedding==1.0.1
 python-dotenv==1.0.0
 
 text-generation==0.6.0
+
+# quantization
+git+https://github.com/PanQiWei/AutoGPTQ.git@046c0311396e5d2e06472b5e66b20dfd0e7c13fa

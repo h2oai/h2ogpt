@@ -13,8 +13,8 @@ import types
 import typing
 import warnings
 from datetime import datetime
-import filelock
 import psutil
+from auto_gptq import AutoGPTQForCausalLM
 
 if os.path.dirname(os.path.abspath(__file__)) not in sys.path:
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -57,6 +57,7 @@ def main(
         load_half: bool = True,
         infer_devices: bool = True,
         base_model: str = '',
+        quant_model: str = '',
         tokenizer_base_model: str = '',
         lora_weights: str = "",
         gpu_id: int = 0,
@@ -684,6 +685,7 @@ def get_model(
         load_half: bool = True,
         infer_devices: bool = True,
         base_model: str = '',
+        quant_model: str = '',
         inference_server: str = "",
         tokenizer_base_model: str = '',
         lora_weights: str = "",
@@ -829,8 +831,9 @@ def get_model(
 
         if not lora_weights:
             with torch.device(device):
-
-                if infer_devices:
+                if quant_model:
+                    model = AutoGPTQForCausalLM.from_quantized(quant_model, use_triton=False, device=device)
+                elif infer_devices:
                     config, model = get_config(base_model, return_model=True, **config_kwargs)
                     model = get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward_type,
                                                config, model,
@@ -963,6 +966,7 @@ def get_score_model(score_model: str = None,
         inference_server = ''
         llama_type = False
         compile_model = False
+        quant_model = ''
         smodel, stokenizer, sdevice = get_model(reward_type=True,
                                                 **get_kwargs(get_model, exclude_names=['reward_type'], **locals()))
     else:
