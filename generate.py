@@ -23,7 +23,7 @@ os.environ['HF_HUB_DISABLE_TELEMETRY'] = '1'
 os.environ['BITSANDBYTES_NOWELCOME'] = '1'
 warnings.filterwarnings('ignore', category=UserWarning, message='TypedStorage is deprecated')
 
-from enums import DocumentChoices, LangChainMode, no_lora_str, model_token_mapping
+from enums import DocumentChoices, LangChainMode, no_lora_str, model_token_mapping, no_model_str
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer
@@ -1247,12 +1247,17 @@ def evaluate(
         # e.g. for no gradio case, set dummy value, else should be set
         model_state0 = model_state_None.copy()
 
-    have_fresh_model = model_state['model'] and not isinstance(model_state['model'], str) or model_lock
-    have_cli_model = model_state0['model'] and not isinstance(model_state0['model'], str) and not model_lock
+    # model_state['model] is only 'model' if should use model_state0
+    # model could also be None
+    have_model_lock = model_lock is not None
+    have_fresh_model = model_state['model'] not in [None, 'model', no_model_str]
+    if have_model_lock:
+        assert have_fresh_model, "Expected model_state and model_state0 to match if have_model_lock"
+    have_cli_model = model_state0['model'] not in [None, 'model', no_model_str]
 
     if have_fresh_model:
         # USE FRESH MODEL
-        if not model_lock:
+        if not have_model_lock:
             # model_state0 is just one of model_state if model_lock, so don't nuke
             # try to free-up original model (i.e. list was passed as reference)
             if model_state0['model'] and hasattr(model_state0['model'], 'cpu'):
