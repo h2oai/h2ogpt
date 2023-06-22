@@ -17,11 +17,22 @@ from tests.utils import wrap_test_forked
                           'h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2',
                           'llama', 'gptj']
                          )
-def test_gradio_inference_server(base_model,
+@pytest.mark.parametrize("force_langchain_evaluate", [False, True])
+@pytest.mark.parametrize("do_langchain", [False, True])
+def test_gradio_inference_server(base_model, force_langchain_evaluate, do_langchain,
                                  prompt='Who are you?', stream_output=False, max_new_tokens=256,
                                  langchain_mode='Disabled', user_path=None,
                                  visible_langchain_modes=['UserData', 'MyData'],
                                  reverse_docs=True):
+    if force_langchain_evaluate:
+        langchain_mode = 'MyData'
+    if do_langchain:
+        langchain_mode = 'UserData'
+        from tests.utils import make_user_path_test
+        user_path = make_user_path_test()
+        # from gpt_langchain import get_some_dbs_from_hf
+        # get_some_dbs_from_hf()
+
     if base_model in ['h2oai/h2ogpt-oig-oasst1-512-6_9b', 'h2oai/h2ogpt-oasst1-512-12b']:
         prompt_type = PromptType.human_bot.name
     elif base_model in ['h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2']:
@@ -38,7 +49,8 @@ def test_gradio_inference_server(base_model,
                        max_new_tokens=max_new_tokens,
                        langchain_mode=langchain_mode, user_path=user_path,
                        visible_langchain_modes=visible_langchain_modes,
-                       reverse_docs=reverse_docs)
+                       reverse_docs=reverse_docs,
+                       force_langchain_evaluate=force_langchain_evaluate)
 
     # inference server
     inf_port = os.environ['GRADIO_SERVER_PORT'] = "7860"
@@ -142,11 +154,22 @@ def run_docker(inf_port, base_model):
                          # ['h2oai/h2ogpt-oig-oasst1-512-6_9b', 'h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2']
                          ['h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2']
                          )
-def test_hf_inference_server(base_model,
+@pytest.mark.parametrize("force_langchain_evaluate", [False, True])
+@pytest.mark.parametrize("do_langchain", [False, True])
+def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain,
                              prompt='Who are you?', stream_output=False, max_new_tokens=256,
                              langchain_mode='Disabled', user_path=None,
                              visible_langchain_modes=['UserData', 'MyData'],
                              reverse_docs=True):
+    if force_langchain_evaluate:
+        langchain_mode = 'MyData'
+    if do_langchain:
+        langchain_mode = 'UserData'
+        from tests.utils import make_user_path_test
+        user_path = make_user_path_test()
+        # from gpt_langchain import get_some_dbs_from_hf
+        # get_some_dbs_from_hf()
+
     if base_model in ['h2oai/h2ogpt-oig-oasst1-512-6_9b', 'h2oai/h2ogpt-oasst1-512-12b']:
         prompt_type = PromptType.human_bot.name
     else:
@@ -156,7 +179,8 @@ def test_hf_inference_server(base_model,
                        max_new_tokens=max_new_tokens,
                        langchain_mode=langchain_mode, user_path=user_path,
                        visible_langchain_modes=visible_langchain_modes,
-                       reverse_docs=reverse_docs)
+                       reverse_docs=reverse_docs,
+                       force_langchain_evaluate=force_langchain_evaluate)
 
     # HF inference server
     inf_port = "6112"
@@ -213,11 +237,16 @@ def test_hf_inference_server(base_model,
 
 @pytest.mark.skipif(not have_openai_key, reason="requires OpenAI key to run")
 @wrap_test_forked
-def test_openai_inference_server(prompt='Who are you?', stream_output=False, max_new_tokens=256,
+@pytest.mark.parametrize("force_langchain_evaluate", [False, True])
+def test_openai_inference_server(force_langchain_evaluate,
+                                 prompt='Who are you?', stream_output=False, max_new_tokens=256,
                                  base_model='gpt-3.5-turbo',
                                  langchain_mode='Disabled', user_path=None,
                                  visible_langchain_modes=['UserData', 'MyData'],
                                  reverse_docs=True):
+    if force_langchain_evaluate:
+        langchain_mode = 'MyData'
+
     main_kwargs = dict(base_model=base_model, chat=True,
                        stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
                        max_new_tokens=max_new_tokens,

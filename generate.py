@@ -133,6 +133,7 @@ def main(
         eval_as_output: bool = False,
 
         langchain_mode: str = 'Disabled',
+        force_langchain_evaluate: bool = False,
         visible_langchain_modes: list = ['UserData', 'MyData'],
         document_choice: list = [DocumentChoices.All_Relevant.name],
         user_path: str = None,
@@ -251,13 +252,13 @@ def main(
     :param extra_lora_options: extra LORA to show in list in gradio
     :param extra_server_options: extra servers to show in list in gradio
     :param score_model: which model to score responses (None means no scoring)
-    :param auto_score: whether to automatically score responses
     :param eval_filename: json file to use for evaluation, if None is sharegpt
     :param eval_prompts_only_num: for no gradio benchmark, if using eval_filename prompts for eval instead of examples
     :param eval_prompts_only_seed: for no gradio benchmark, seed for eval_filename sampling
     :param eval_as_output: for no gradio benchmark, whether to test eval_filename output itself
     :param langchain_mode: Data source to include.  Choose "UserData" to only consume files from make_db.py.
            WARNING: wiki_full requires extra data processing via read_wiki_full.py and requires really good workstation to generate db, unless already present.
+    :param force_langchain_evaluate: Whether to force langchain LLM use even if not doing langchain, mostly for testing.
     :param user_path: user path to glob from to generate db for vector search, for 'UserData' langchain mode.
            If already have db, any new/changed files are added automatically if path set, does not have to be same path used for prior db sources
     :param detect_user_path_changes_every_query: whether to detect if any files changed or added every similarity search (by file hashes).
@@ -1080,6 +1081,7 @@ def evaluate_from_str(
         auto_reduce_chunks=None,
         max_chunks=None,
         model_lock=None,
+        force_langchain_evaluate=None,
 ):
     if isinstance(user_kwargs, str):
         user_kwargs = ast.literal_eval(user_kwargs)
@@ -1130,6 +1132,7 @@ def evaluate_from_str(
         auto_reduce_chunks=auto_reduce_chunks,
         max_chunks=max_chunks,
         model_lock=model_lock,
+        force_langchain_evaluate=force_langchain_evaluate,
     )
     try:
         for ret1 in ret:
@@ -1198,6 +1201,7 @@ def evaluate(
         auto_reduce_chunks=None,
         max_chunks=None,
         model_lock=None,
+        force_langchain_evaluate=None,
 ):
     # ensure passed these
     assert concurrency_count is not None
@@ -1304,7 +1308,8 @@ def evaluate(
         db1 = None
     do_langchain_path = langchain_mode not in [False, 'Disabled', 'ChatLLM', 'LLM'] and \
                         db1 is not None or \
-                        base_model in non_hf_types
+                        base_model in non_hf_types or \
+        force_langchain_evaluate
     if do_langchain_path:
         query = instruction if not iinput else "%s\n%s" % (instruction, iinput)
         outr = ""
