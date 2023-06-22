@@ -15,6 +15,7 @@ import warnings
 from datetime import datetime
 import filelock
 import psutil
+from urllib3.exceptions import ConnectTimeoutError, MaxRetryError
 
 if os.path.dirname(os.path.abspath(__file__)) not in sys.path:
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -68,6 +69,7 @@ def main(
 
         model_lock: typing.List[typing.Dict[str, str]] = None,
         model_lock_columns: int = None,
+        fail_if_cannot_connect: bool = False,
 
         # input to generation
         temperature: float = None,
@@ -196,6 +198,8 @@ def main(
            If None, then defaults to up to 3
            if -1, then all goes into 1 row
            Maximum value is 4 due to non-dynamic gradio rendering elements
+    :param fail_if_cannot_connect: if doing model locking (e.g. with many models), fail if True.  Otherwise ignore.
+           Useful when many endpoints and want to just see what works, but still have to wait for timeout.
     :param temperature: generation temperature
     :param top_p: generation top_p
     :param top_k: generation top_k
@@ -558,6 +562,12 @@ def main(
             else:
                 # if empty model, then don't load anything, just get gradio up
                 model0, tokenizer0, device = None, None, None
+            if model0 is None:
+                if fail_if_cannot_connect:
+                    raise RuntimeError("Could not connect, see logs")
+                # skip
+                model_lock.remove(model_dict)
+                continue
             model_state_trial = dict(model=model0, tokenizer=tokenizer0, device=device)
             model_state_trial.update(model_dict)
             print("Model %s" % model_dict, flush=True)
@@ -750,7 +760,8 @@ def get_model(
                 # e.g. llama, gpjt, etc.
                 pass
             else:
-                raise
+                if base_model not in non_hf_types:
+                    raise
 
         inf_split = inference_server.split("$$$$")
         # preload client since slow for gradio case especially
@@ -762,6 +773,11 @@ def get_model(
                 print("GR Client End: %s" % inference_server)
             except ValueError:
                 client = None
+            except (ConnectTimeoutError, MaxRetryError) as e:
+                t, v, tb = sys.exc_info()
+                ex = ''.join(traceback.format_exception(t, v, tb))
+                print("GR Client Failed: %s" % str(ex))
+                return None, None, None
         else:
             client = None
         if client is None:
