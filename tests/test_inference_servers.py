@@ -11,7 +11,6 @@ from tests.test_langchain_units import have_openai_key
 from tests.utils import wrap_test_forked
 
 
-@wrap_test_forked
 @pytest.mark.parametrize("base_model",
                          ['h2oai/h2ogpt-oig-oasst1-512-6_9b',
                           'h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2',
@@ -19,6 +18,7 @@ from tests.utils import wrap_test_forked
                          )
 @pytest.mark.parametrize("force_langchain_evaluate", [False, True])
 @pytest.mark.parametrize("do_langchain", [False, True])
+@wrap_test_forked
 def test_gradio_inference_server(base_model, force_langchain_evaluate, do_langchain,
                                  prompt='Who are you?', stream_output=False, max_new_tokens=256,
                                  langchain_mode='Disabled', user_path=None,
@@ -154,7 +154,6 @@ def run_docker(inf_port, base_model):
     return p.pid
 
 
-@wrap_test_forked
 @pytest.mark.parametrize("base_model",
                          # FIXME: Can't get 6.9 or 12b (quantized or not) to work on home system, so do falcon only for now
                          # ['h2oai/h2ogpt-oig-oasst1-512-6_9b', 'h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2']
@@ -162,6 +161,7 @@ def run_docker(inf_port, base_model):
                          )
 @pytest.mark.parametrize("force_langchain_evaluate", [False, True])
 @pytest.mark.parametrize("do_langchain", [False, True])
+@wrap_test_forked
 def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain,
                              prompt='Who are you?', stream_output=False, max_new_tokens=256,
                              langchain_mode='Disabled', user_path=None,
@@ -242,8 +242,8 @@ def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain,
 
 
 @pytest.mark.skipif(not have_openai_key, reason="requires OpenAI key to run")
-@wrap_test_forked
 @pytest.mark.parametrize("force_langchain_evaluate", [False, True])
+@wrap_test_forked
 def test_openai_inference_server(force_langchain_evaluate,
                                  prompt='Who are you?', stream_output=False, max_new_tokens=256,
                                  base_model='gpt-3.5-turbo',
