@@ -592,7 +592,8 @@ def get_llm(use_openai_model=False,
         else:
             prompt_type = prompt_type or 'plain'
     elif inference_server:
-        assert inference_server.startswith('http'), "Malformed inference_server=%s.  Did you add http:// in front?" % inference_server
+        assert inference_server.startswith(
+            'http'), "Malformed inference_server=%s.  Did you add http:// in front?" % inference_server
 
         from gradio_client import Client as GradioClient
         from text_generation import Client as HFClient
@@ -662,7 +663,7 @@ def get_llm(use_openai_model=False,
             callbacks = [StreamingGradioCallbackHandler()]
             streamer = callbacks[0] if stream_output else None
         else:
-            #stream_output = False
+            # stream_output = False
             # doesn't stream properly as generator, but at least
             callbacks = [streaming_stdout.StreamingStdOutCallbackHandler()]
             streamer = None
@@ -1966,7 +1967,8 @@ def get_similarity_chain(query=None,
                     # more accurate
                     tokens = [len(llm.pipeline.tokenizer(x[0].page_content)['input_ids']) for x in docs_with_score]
                     template_tokens = len(llm.pipeline.tokenizer(template)['input_ids'])
-                elif inference_server in ['openai', 'openai_chat'] or use_openai_model or db_type in ['faiss', 'weaviate']:
+                elif inference_server in ['openai', 'openai_chat'] or use_openai_model or db_type in ['faiss',
+                                                                                                      'weaviate']:
                     # use ticktoken for faiss since embedding called differently
                     tokens = [llm.get_num_tokens(x[0].page_content) for x in docs_with_score]
                     template_tokens = llm.get_num_tokens(template)
