@@ -943,6 +943,8 @@ def get_model(
         if torch.__version__ >= "2" and sys.platform != "win32" and compile_model:
             model = torch.compile(model)
 
+    set_model_max_len(config, tokenizer, verbose=False)
+
     return model, tokenizer, device
 
 
