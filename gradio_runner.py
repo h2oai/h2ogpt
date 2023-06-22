@@ -1141,13 +1141,16 @@ def go_gradio(**kwargs):
                 # reject submit button if already filled and not retrying
                 return history, None
 
-            prompt_type1 = args_list[eval_func_param_names.index('prompt_type')]
-            if not prompt_type1:
-                # shouldn't have to specify if CLI launched model
-                prompt_type1 = kwargs['prompt_type']
-                # apply back
-                args_list[eval_func_param_names.index('prompt_type')] = prompt_type1
-            prompt_dict1 = args_list[eval_func_param_names.index('prompt_dict')]
+            # shouldn't have to specify in API prompt_type if CLI launched model, so prefer global CLI one if have it
+            prompt_type1 = kwargs.get('prompt_type', args_list[eval_func_param_names.index('prompt_type')])
+            # prefer model specific prompt type instead of global one, and apply back to args_list for evaluate()
+            args_list[eval_func_param_names.index('prompt_type')] = prompt_type1 = \
+                model_state1.get('prompt_type', prompt_type1)
+
+            prompt_dict1 = kwargs.get('prompt_dict', args_list[eval_func_param_names.index('prompt_dict')])
+            args_list[eval_func_param_names.index('prompt_dict')] = prompt_dict1 = \
+                model_state1.get('prompt_dict', prompt_dict1)
+
             chat1 = args_list[eval_func_param_names.index('chat')]
             model_max_length1 = get_model_max_length(model_state1)
             context1 = history_to_context(history, langchain_mode1, prompt_type1, prompt_dict1, chat1,
