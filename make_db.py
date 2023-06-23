@@ -3,6 +3,7 @@ import fire
 
 from gpt_langchain import path_to_docs, get_db, get_some_dbs_from_hf, all_db_zips, some_db_zips, \
     get_embedding, add_to_db, create_or_update_db
+from utils import get_ngpus_vis
 
 
 def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False,
@@ -23,7 +24,7 @@ def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False,
 
 
 def make_db_main(use_openai_embedding: bool = False,
-                 hf_embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2",
+                 hf_embedding_model: str = None,
                  persist_directory: str = 'db_dir_UserData',
                  user_path: str = 'user_path',
                  url: str = None,
@@ -64,7 +65,7 @@ def make_db_main(use_openai_embedding: bool = False,
     python make_db.py --download_one=db_dir_DriverlessAI_docs.zip
 
     :param use_openai_embedding: Whether to use OpenAI embedding
-    :param hf_embedding_model: HF embedding model to use
+    :param hf_embedding_model: HF embedding model to use. Like generate.py, uses 'hkunlp/instructor-large' if have GPUs, else "sentence-transformers/all-MiniLM-L6-v2"
     :param persist_directory: where to persist db
     :param user_path: where to pull documents from (None means url is not None.  If url is not None, this is ignored.)
     :param url: url to generate documents from (None means user_path is not None)
@@ -88,6 +89,17 @@ def make_db_main(use_openai_embedding: bool = False,
     :return: None
     """
     db = None
+
+    # match behavior of main() in generate.py for non-HF case
+    n_gpus = get_ngpus_vis()
+    if n_gpus == 0:
+        if hf_embedding_model is None:
+            # if no GPUs, use simpler embedding model to avoid cost in time
+            hf_embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
+    else:
+        if hf_embedding_model is None:
+            # if still None, then set default
+            hf_embedding_model = 'hkunlp/instructor-large'
 
     if download_all:
         print("Downloading all (and unzipping): %s" % all_db_zips, flush=True)
