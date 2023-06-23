@@ -41,7 +41,14 @@ from langchain.embeddings import HuggingFaceEmbeddings
 embedding = HuggingFaceEmbeddings(model_name=hf_embedding_model, model_kwargs=model_kwargs)
 ```
 
-4) Run generate with transformers in [Offline Mode](https://huggingface.co/docs/transformers/installation#offline-mode)
+4) For HF inference server and OpenAI, this downloads the tokenizers used for Hugging Face text generation inference server and gpt-3.5-turbo:
+```python
+import tiktoken
+encoding = tiktoken.get_encoding("cl100k_base")
+encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
+```
+
+5) Run generate with transformers in [Offline Mode](https://huggingface.co/docs/transformers/installation#offline-mode)
 
 ```bash
 HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python generate.py --base_model='h2oai/h2ogpt-oasst1-512-12b' --gradio_offline_level=2

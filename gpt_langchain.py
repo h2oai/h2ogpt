@@ -26,7 +26,7 @@ from enums import DocumentChoices, no_lora_str, model_token_mapping
 from generate import gen_hyper, get_model, SEED
 from prompter import non_hf_types, PromptType, Prompter
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
-    get_device, ProgressParallel, remove, hash_file, clear_torch_cache, NullContext, get_hf_server
+    get_device, ProgressParallel, remove, hash_file, clear_torch_cache, NullContext, get_hf_server, FakeTokenizer
 from utils_langchain import StreamingGradioCallbackHandler
 
 import_matplotlib()
@@ -437,11 +437,12 @@ class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
     stop_sequences: List[str] = Field(default_factory=list)
     seed: Optional[int] = None
     inference_server_url: str = ""
-    timeout: int = 120
+    timeout: int = 300
     headers: dict = None
     stream: bool = False
     sanitize_bot_response: bool = False
     prompter: Any = None
+    tokenizer: Any = None
     client: Any = None
 
     @root_validator()
@@ -476,6 +477,11 @@ class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
         else:
             stop += self.stop_sequences
 
+        # HF inference server needs control over input tokens
+        assert self.tokenizer is not None
+        from h2oai_pipeline import H2OTextGenerationPipeline
+        prompt = H2OTextGenerationPipeline.limit_prompt(prompt, self.tokenizer)
+
         data_point = dict(context='', instruction=prompt, input='')
         prompt = self.prompter.generate_prompt(data_point)
 
@@ -491,6 +497,9 @@ class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
                                  seed=self.seed,
                                  )
         gen_server_kwargs.update(kwargs)
+
+        # lower bound because client is re-used if multi-threading
+        self.client.timeout = max(300, self.timeout)
 
         if not self.stream:
             res = self.client.generate(
@@ -610,7 +619,7 @@ def get_llm(use_openai_model=False,
 
         callbacks = [StreamingGradioCallbackHandler()]
         assert prompter is not None
-        stop_sequences = prompter.terminate_response + [prompter.PreResponse]
+        stop_sequences = list(set(prompter.terminate_response + [prompter.PreResponse]))
 
         if gr_client:
             chat_client = False
@@ -655,7 +664,9 @@ def get_llm(use_openai_model=False,
                 callbacks=callbacks if stream_output else None,
                 stream=stream_output,
                 prompter=prompter,
+                tokenizer=tokenizer,
                 client=hf_client,
+                timeout=max_time,
                 sanitize_bot_response=sanitize_bot_response,
             )
         else:
@@ -1875,6 +1886,7 @@ def get_similarity_chain(query=None,
                          n_jobs=-1,
                          # beyond run_db_query:
                          llm=None,
+                         tokenizer=None,
                          verbose=False,
                          cmd=None,
                          reverse_docs=True,
@@ -1997,6 +2009,9 @@ def get_similarity_chain(query=None,
                     # use ticktoken for faiss since embedding called differently
                     tokens = [llm.get_num_tokens(x[0].page_content) for x in docs_with_score]
                     template_tokens = llm.get_num_tokens(template)
+                elif isinstance(tokenizer, FakeTokenizer):
+                    tokens = [tokenizer.num_tokens_from_string(x[0].page_content) for x in docs_with_score]
+                    template_tokens = tokenizer.num_tokens_from_string(template)
                 else:
                     # in case model is not our pipeline with HF tokenizer
                     tokens = [db._embedding_function.client.tokenize([x[0].page_content])['input_ids'].shape[1] for x in
@@ -2013,6 +2028,8 @@ def get_similarity_chain(query=None,
                     max_tokens = model_token_mapping[model_name]
                     # leave some room for 1 paragraph, even if min_new_tokens=0
                     max_input_tokens = max_tokens - 256
+                elif isinstance(tokenizer, FakeTokenizer):
+                    max_input_tokens = tokenizer.model_max_length - 256
                 else:
                     # leave some room for 1 paragraph, even if min_new_tokens=0
                     max_input_tokens = 2048 - 256
