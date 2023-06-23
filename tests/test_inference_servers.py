@@ -144,7 +144,7 @@ def run_docker(inf_port, base_model):
                         'ghcr.io/huggingface/text-generation-inference:0.8.2',
                         '--model-id', base_model,
                         '--max-input-length', '2048',
-                        '--max-total-tokens', '3072',
+                        '--max-total-tokens', '4096',
                         '--max-stop-sequences', '6',
                         ]
     print(cmd, flush=True)
