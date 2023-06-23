@@ -1678,7 +1678,10 @@ def go_gradio(**kwargs):
                 gr.Slider.update(maximum=max_max_new_tokens1), \
                 gr.Slider.update(maximum=max_max_new_tokens1)
 
-        def get_prompt_str(prompt_type1, prompt_dict1):
+        def get_prompt_str(prompt_type1, prompt_dict1, which=0):
+            if prompt_type1 in ['', None]:
+                print("Got prompt_type %s: %s" % (which, prompt_type1), flush=True)
+                return str({})
             prompt_dict1, prompt_dict_error = get_prompt(prompt_type1, prompt_dict1, chat=False, context='',
                                                          reduced=False, return_dict=True)
             if prompt_dict_error:
@@ -1687,8 +1690,10 @@ def go_gradio(**kwargs):
                 # return so user can manipulate if want and use as custom
                 return str(prompt_dict1)
 
-        prompt_type.change(fn=get_prompt_str, inputs=[prompt_type, prompt_dict], outputs=prompt_dict)
-        prompt_type2.change(fn=get_prompt_str, inputs=[prompt_type2, prompt_dict2], outputs=prompt_dict2)
+        get_prompt_str_func1 = functools.partial(get_prompt_str, which=1)
+        get_prompt_str_func2 = functools.partial(get_prompt_str, which=2)
+        prompt_type.change(fn=get_prompt_str_func1, inputs=[prompt_type, prompt_dict], outputs=prompt_dict)
+        prompt_type2.change(fn=get_prompt_str_func2, inputs=[prompt_type2, prompt_dict2], outputs=prompt_dict2)
 
         def dropdown_prompt_type_list(x):
             return gr.Dropdown.update(value=x)
