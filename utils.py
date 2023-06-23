@@ -889,7 +889,7 @@ class FakeTokenizer:
         self.encoding = tiktoken.get_encoding(self.encoding_name)
 
     def encode(self, x, *args, **kwargs):
-        input_ids = self.encoding.encode(x)
+        input_ids = self.encoding.encode(x, disallowed_special=())
         return dict(input_ids=input_ids)
 
     def decode(self, x, *args, **kwargs):

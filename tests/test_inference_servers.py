@@ -145,7 +145,7 @@ def run_docker(inf_port, base_model):
                         '--model-id', base_model,
                         '--max-input-length', '2048',
                         '--max-total-tokens', '3072',
-                        '--max_stop_sequences', '6',
+                        '--max-stop-sequences', '6',
                         ]
     print(cmd, flush=True)
     p = subprocess.Popen(cmd,
