@@ -1497,6 +1497,7 @@ def evaluate(
                 hf_client = HFClient(inference_server, headers=headers, timeout=300)
 
         if gr_client is not None:
+            # h2oGPT gradio server will handle input token size issues for prompt
             chat_client = False
             client_langchain_mode = 'Disabled'
             client_kwargs = dict(instruction=prompt if chat_client else '',  # only for chat=True
@@ -1561,6 +1562,10 @@ def evaluate(
                                                           sanitize_bot_response=sanitize_bot_response),
                            sources=sources)
         else:
+            # HF inference server needs control over input tokens
+            from h2oai_pipeline import H2OTextGenerationPipeline
+            prompt = H2OTextGenerationPipeline.limit_prompt(prompt, tokenizer)
+
             # prompt must include all human-bot like tokens, already added by prompt
             # https://github.com/huggingface/text-generation-inference/tree/main/clients/python#types
             stop_sequences = list(set(prompter.terminate_response + [prompter.PreResponse]))

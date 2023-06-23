@@ -877,14 +877,29 @@ def get_hf_server(inference_server):
 
 
 class FakeTokenizer:
-    def __init__(self, model_max_length=2048):
+    """
+    1) For keeping track of model_max_length
+    2) For when model doesn't directly expose tokenizer but need to count tokens
+    """
+    def __init__(self, model_max_length=2048, encoding_name="cl100k_base"):
         self.model_max_length = model_max_length
+        self.encoding_name = encoding_name
+        # The first time this runs, it will require an internet connection to download. Later runs won't need an internet connection.
+        import tiktoken
+        self.encoding = tiktoken.get_encoding(self.encoding_name)
 
     def encode(self, x, *args, **kwargs):
-        return dict(input_ids=[x])
+        input_ids = self.encoding.encode(x)
+        return dict(input_ids=input_ids)
 
     def decode(self, x, *args, **kwargs):
-        return x
+        # input is input_ids[0] form
+        return self.encoding.decode(x)
+
+    def num_tokens_from_string(self, prompt: str) -> int:
+        """Returns the number of tokens in a text string."""
+        num_tokens = len(self.encoding.encode(prompt))
+        return num_tokens
 
     def __call__(self, x, *args, **kwargs):
         return self.encode(x, *args, **kwargs)
