@@ -43,7 +43,7 @@ def do_export():
         load_in_8bit=False,
         trust_remote_code=True,
         torch_dtype=torch.float16,
-        device_map="auto",  # {"": "cpu"},
+        device_map={"": "cpu"},
     )
 
     print(base_model)
@@ -64,7 +64,7 @@ def do_export():
     lora_model = PeftModel.from_pretrained(
         base_model,
         LORA_WEIGHTS,
-        device_map="auto",  # {"": "cpu"},
+        device_map={"": "cpu"},
         torch_dtype=torch.float16,
     )
 
