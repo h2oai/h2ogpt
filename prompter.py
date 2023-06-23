@@ -37,6 +37,7 @@ prompt_type_to_model_name = {
         'h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b',
         'h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2',
         'h2oai/h2ogpt-gm-oasst1-en-2048-falcon-40b-v1',
+        'h2oai/h2ogpt-gm-oasst1-en-2048-falcon-40b-v2',
     ],
     'prompt_answer_openllama': [
         'h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b-preview-300bt',
