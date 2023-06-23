@@ -162,8 +162,9 @@ def run_docker(inf_port, base_model):
                          )
 @pytest.mark.parametrize("force_langchain_evaluate", [False, True])
 @pytest.mark.parametrize("do_langchain", [False, True])
+@pytest.mark.parametrize("pass_prompt_type", [False, True])
 @wrap_test_forked
-def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain,
+def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain, pass_prompt_type,
                              prompt='Who are you?', stream_output=False, max_new_tokens=256,
                              langchain_mode='Disabled', user_path=None,
                              visible_langchain_modes=['UserData', 'MyData'],
@@ -181,6 +182,8 @@ def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain,
         prompt_type = PromptType.human_bot.name
     else:
         prompt_type = PromptType.prompt_answer.name
+    if not pass_prompt_type:
+        prompt_type = None
     main_kwargs = dict(base_model=base_model, prompt_type=prompt_type, chat=True,
                        stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
                        max_new_tokens=max_new_tokens,
