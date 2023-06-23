@@ -31,16 +31,18 @@ prompt_type_to_model_name = {
         'h2oai/h2ogpt-gm-oasst1-en-1024-20b',
         'h2oai/h2ogpt-gm-oasst1-en-1024-12b',
         'h2oai/h2ogpt-gm-oasst1-multilang-1024-20b',
-        'h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b-preview-300bt',
-        'h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b-preview-300bt-v2',
-        'h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b-preview-700bt',
-        'h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b',
         'h2oai/h2ogpt-gm-oasst1-multilang-2048-falcon-7b',
         'h2oai/h2ogpt-gm-oasst1-multilang-2048-falcon-7b-v2',
         'h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v3',
         'h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b',
         'h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2',
         'h2oai/h2ogpt-gm-oasst1-en-2048-falcon-40b-v1',
+    ],
+    'prompt_answer_openllama': [
+        'h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b-preview-300bt',
+        'h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b-preview-300bt-v2',
+        'h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b-preview-700bt',
+        'h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b',
         'h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-13b',
     ],
     'instruct': [],
@@ -269,6 +271,21 @@ Current Time: {}
         PreInput = None
         PreResponse = answer_tokens
         eos = '<|endoftext|>'  # neox eos
+        terminate_response = [start, PreResponse, eos]
+        chat_sep = eos
+        humanstr = prompt_tokens
+        botstr = answer_tokens
+    elif prompt_type in [PromptType.prompt_answer_openllama.value, str(PromptType.prompt_answer_openllama.value),
+                         PromptType.prompt_answer_openllama.name]:
+        preprompt = ''
+        prompt_tokens = "<|prompt|>"
+        answer_tokens = "<|answer|>"
+        start = prompt_tokens
+        promptB = promptA = '%s%s' % (preprompt, start)
+        PreInstruct = ""
+        PreInput = None
+        PreResponse = answer_tokens
+        eos = '</s>'  # llama eos
         terminate_response = [start, PreResponse, eos]
         chat_sep = eos
         humanstr = prompt_tokens
