@@ -28,7 +28,7 @@ warnings.filterwarnings('ignore', category=UserWarning, message='TypedStorage is
 from enums import DocumentChoices, LangChainMode, no_lora_str, model_token_mapping, no_model_str
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial, EThread, get_githash, \
-    import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer
+    import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, remove
 
 start_faulthandler()
 import_matplotlib()
@@ -494,7 +494,7 @@ def main(
                 for gpath1 in glob.glob(os.path.join(scratch_base_dir, 'db_dir_%s*' % langchain_mode1)):
                     if os.path.isdir(gpath1):
                         print("Removing old MyData: %s" % gpath1, flush=True)
-                        shutil.rmtree(gpath1)
+                        remove(gpath1)
                 continue
             if langchain_mode1 in ['All']:
                 # FIXME: All should be avoided until scans over each db, shouldn't be separate db
