@@ -25,6 +25,9 @@ prompt_type_to_model_name = {
         'mosaicml/mpt-7b-storywriter',
         'mosaicml/mpt-7b-instruct',  # internal code handles instruct
         'mosaicml/mpt-7b-chat',  # NC, internal code handles instruct
+        'mosaicml/mpt-30b',  # internal code handles instruct
+        'mosaicml/mpt-30b-instruct',  # internal code handles instruct
+        'mosaicml/mpt-30b-chat',  # NC, internal code handles instruct
     ],
     'gptj': ['gptj', 'gpt4all_llama'],
     'prompt_answer': [
