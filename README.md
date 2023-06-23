@@ -63,7 +63,7 @@ For questions, discussing, or just hanging out, come and join our <a href="https
 ![Windows](https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white)
 ![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)
 
-**GPU** mode requires CUDA support via torch and transformers.  A 6.9B (or 12GB) model in 8-bit uses 7GB (or 13GB) of GPU memory. 8-bit or 4-bit precision can further reduce memory requirements.
+**GPU** mode requires CUDA support via torch and transformers.  A 6.9B (or 12GB) model in 8-bit uses 8GB (or 13GB) of GPU memory. 8-bit or 4-bit precision can further reduce memory requirements down no more than about 6.5GB when asking a question about your documents (see [low-memory mode](docs/FAQ.md#low-memory-mode)).
 
 **CPU** mode uses GPT4ALL and LLaMa.cpp, e.g. gpt4all-j, requiring about 14GB of system RAM in typical use.
 
@@ -253,6 +253,8 @@ Also, for slow and low-memory systems, we recommend using a smaller embedding by
 python generate.py ... --hf_embedding_model=sentence-transformers/all-MiniLM-L6-v2
 ```
 where `...` means any other options one should add like `--base_model` etc.  This simpler embedding is about half the size as default `instruct-large` and so uses less disk, CPU memory, and GPU memory if using GPUs.
+
+See also [Low Memory](docs/FAQ.md#low-memory-mode) for more information about low-memory recommendations.
 
 #### MACOS
 

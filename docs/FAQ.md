@@ -5,6 +5,23 @@ E.g. for vicuna models, a typical prompt_type is used and we support that alread
 but if you pass `--prompt_type=instruct_vicuna` with any other Vicuna model, we'll use it assuming that is the correct prompt type.
 See models that are currently supported in this automatic way, and the same dictionary shows which prompt types are supported: [prompter](prompter.py).
 
+### Low-memory mode
+
+For GPU case, a reasonable model for low memory is to run:
+```bash
+python generate.py --base_model=h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v3 --hf_embedding_model=sentence-transformers/all-MiniLM-L6-v2 --score_model=None --load_8bit=True --langchain_model='MyData'
+```
+which uses good but smaller base model, embedding model, and no response score model to save GPU memory.  If you can do 4-bit, then do:
+```bash
+python generate.py --base_model=h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v3 --hf_embedding_model=sentence-transformers/all-MiniLM-L6-v2 --score_model=None --load_4bit=True --langchain_mode='MyData'
+```
+This uses 5800MB to startup, then soon drops to 5075MB after torch cache is cleared. Asking a simple question uses up to 6050MB. Adding a document uses no more new GPU memory.  Asking a question uses up to 6312MB for a few chunks (default), then drops back down to 5600MB.
+
+On CPU case, a good model that's still low memory is to run:
+```bash
+python generate.py --base_model='llama' --prompt_type=wizard2 --hf_embedding_model=sentence-transformers/all-MiniLM-L6-v2 --langchain_mode=MyData --user_path=user_path
+```
+
 ### Offline Mode:
 
 Note, when running `generate.py` and asking your first question, it will download the model(s), which for the 6.9B model takes about 15 minutes per 3 pytorch bin files if have 10MB/s download.
