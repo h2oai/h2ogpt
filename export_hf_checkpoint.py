@@ -19,12 +19,12 @@ def do_export():
     OUTPUT_NAME = "h2ogpt-oasst1-512-12b"
 
     BASE_MODEL = 'tiiuae/falcon-40b'
-    LORA_WEIGHTS = 'falcon-40b.h2oaih2ogpt-oig-oasst1-instruct-cleaned-v3.3_epochs.2e023709e9a36283986d136e66cb94e0bd7e6452.10'
-    OUTPUT_NAME = "h2ogpt-oig-oasst1-40b"
+    LORA_WEIGHTS = 'falcon-40b.h2oaiopenassistant_oasst1_h2ogpt.1_epochs.894d8450d35c180cd03222a45658d04c15b78d4b.9'
+    OUTPUT_NAME = "h2ogpt-oasst1-2048-falcon-40b"
 
-    BASE_MODEL = 'decapoda-research/llama-65b-hf'
-    LORA_WEIGHTS = 'llama-65b-hf.h2oaiopenassistant_oasst1_h2ogpt_graded.1_epochs.113510499324f0f007cbec9d9f1f8091441f2469.3'
-    OUTPUT_NAME = "h2ogpt-research-oasst1-llama-65b"
+    # BASE_MODEL = 'decapoda-research/llama-65b-hf'
+    # LORA_WEIGHTS = 'llama-65b-hf.h2oaiopenassistant_oasst1_h2ogpt_graded.1_epochs.113510499324f0f007cbec9d9f1f8091441f2469.3'
+    # OUTPUT_NAME = "h2ogpt-research-oasst1-llama-65b"
 
     llama_type = "llama" in BASE_MODEL
     as_pytorch = False  # False -> HF
@@ -43,7 +43,7 @@ def do_export():
         load_in_8bit=False,
         trust_remote_code=True,
         torch_dtype=torch.float16,
-        device_map={"": "cpu"},
+        device_map="auto",  # {"": "cpu"},
     )
 
     print(base_model)
@@ -64,7 +64,7 @@ def do_export():
     lora_model = PeftModel.from_pretrained(
         base_model,
         LORA_WEIGHTS,
-        device_map={"": "cpu"},
+        device_map="auto",  # {"": "cpu"},
         torch_dtype=torch.float16,
     )
 
@@ -195,7 +195,7 @@ def do_export():
             base_model,
             OUTPUT_NAME,
             state_dict=deloreanized_sd,
-            max_shard_size="5GB",
+            # max_shard_size="5GB",
         )
 
     do_copy(OUTPUT_NAME)
