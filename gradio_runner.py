@@ -57,7 +57,7 @@ from utils import get_githash, flatten_list, zip_data, s3up, clear_torch_cache, 
     ping, get_short_name, get_url, makedirs, get_kwargs, remove, system_info, ping_gpu
 from generate import get_model, languages_covered, evaluate, eval_func_param_names, score_qa, langchain_modes, \
     inputs_kwargs_list, get_cutoffs, scratch_base_dir, evaluate_from_str, no_default_param_names, \
-    eval_func_param_names_defaults, get_max_max_new_tokens
+    eval_func_param_names_defaults, get_max_max_new_tokens, get_minmax_top_k_docs
 
 from apscheduler.schedulers.background import BackgroundScheduler
 
@@ -459,11 +459,11 @@ def go_gradio(**kwargs):
                                                     value=kwargs['temperature'],
                                                     label="Temperature",
                                                     info="Lower is deterministic (but may lead to repeats), Higher more creative (but may lead to hallucinations)")
-                            top_p = gr.Slider(minimum=0, maximum=1,
+                            top_p = gr.Slider(minimum=1e-3, maximum=1.0 - 1e-3,
                                               value=kwargs['top_p'], label="Top p",
                                               info="Cumulative probability of tokens to sample from")
                             top_k = gr.Slider(
-                                minimum=0, maximum=100, step=1,
+                                minimum=1, maximum=100, step=1,
                                 value=kwargs['top_k'], label="Top k",
                                 info='Num. tokens to sample from'
                             )
@@ -525,14 +525,7 @@ def go_gradio(**kwargs):
                                                            label="Whether to chunk documents",
                                                            info="For LangChain",
                                                            visible=not is_public)
-                            if is_public:
-                                min_top_k_docs = 1
-                                max_top_k_docs = 3
-                                label_top_k_docs = "Number of document chunks"
-                            else:
-                                min_top_k_docs = -1
-                                max_top_k_docs = 100
-                                label_top_k_docs = "Number of document chunks (-1 = auto fill model context)"
+                            min_top_k_docs, max_top_k_docs, label_top_k_docs = get_minmax_top_k_docs(is_public)
                             top_k_docs = gr.Slider(minimum=min_top_k_docs, maximum=max_top_k_docs, step=1,
                                                    value=kwargs['top_k_docs'],
                                                    label=label_top_k_docs,
@@ -541,6 +534,8 @@ def go_gradio(**kwargs):
                             chunk_size = gr.Number(value=kwargs['chunk_size'],
                                                    label="Chunk size for document chunking",
                                                    info="For LangChain (ignored if chunk=False)",
+                                                   minimum=128,
+                                                   maximum=2048,
                                                    visible=not is_public,
                                                    precision=0)
 

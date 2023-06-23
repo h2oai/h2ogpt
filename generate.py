@@ -1090,6 +1090,9 @@ def evaluate_from_str(
         sanitize_bot_response=False,
         model_state0=None,
         memory_restriction_level=None,
+        user_set_max_new_tokens=None,
+        is_public=None,
+        max_max_time=None,
         raise_generate_gpu_exceptions=None,
         chat_context=None,
         lora_weights=None,
@@ -1141,6 +1144,9 @@ def evaluate_from_str(
         sanitize_bot_response=sanitize_bot_response,
         model_state0=model_state0,
         memory_restriction_level=memory_restriction_level,
+        user_set_max_new_tokens=user_set_max_new_tokens,
+        is_public=is_public,
+        max_max_time=max_max_time,
         raise_generate_gpu_exceptions=raise_generate_gpu_exceptions,
         chat_context=chat_context,
         lora_weights=lora_weights,
@@ -1210,6 +1216,9 @@ def evaluate(
         sanitize_bot_response=False,
         model_state0=None,
         memory_restriction_level=None,
+        user_set_max_new_tokens=None,
+        is_public=None,
+        max_max_time=None,
         raise_generate_gpu_exceptions=None,
         chat_context=None,
         lora_weights=None,
@@ -1325,10 +1334,31 @@ def evaluate(
             print("Auto-selecting prompt_type=%s for %s" % (prompt_type, model_lower), flush=True)
     assert prompt_type is not None, "prompt_type was None"
 
+    # Control generation hyperparameters
+    # adjust for bad inputs, e.g. in case also come from API that doesn't get constrained by gradio sliders
+    # below is for TGI server, not required for HF transformers
+    # limits are chosen similar to gradio_runner.py sliders/numbers
+    top_p = min(max(1e-3, top_p), 1.0 - 1e-3)
+    top_k = min(max(1, int(top_k)), 100)
+    temperature = min(max(0.01, temperature), 3.0)
+    # FIXME: https://github.com/h2oai/h2ogpt/issues/106
+    num_beams = 1 if stream_output else num_beams  # See max_beams in gradio_runner
+    max_max_new_tokens = get_max_max_new_tokens(chosen_model_state, memory_restriction_level=memory_restriction_level,
+                                                max_new_tokens=max_new_tokens,
+                                                user_set_max_new_tokens=user_set_max_new_tokens)
+    max_new_tokens = min(max(1, int(max_new_tokens)), max_max_new_tokens)
+    min_new_tokens = min(max(0, int(min_new_tokens)), max_new_tokens)
+    max_time = min(max(0, max_time), max_max_time)
+    repetition_penalty = min(max(0.01, repetition_penalty), 3.0)
+    num_return_sequences = 1 if chat else min(max(1, int(num_return_sequences)), 10)
+    min_top_k_docs, max_top_k_docs, label_top_k_docs = get_minmax_top_k_docs(is_public)
+    top_k_docs = min(max(min_top_k_docs, int(top_k_docs)), max_top_k_docs)
+    chunk_size = min(max(128, int(chunk_size)), 2048)
     if not context:
         # get hidden context if have one
         context = get_context(chat_context, prompt_type)
 
+    # get prompt
     prompter = Prompter(prompt_type, prompt_dict, debug=debug, chat=chat, stream_output=stream_output)
     data_point = dict(context=context, instruction=instruction, input=iinput)
     prompt = prompter.generate_prompt(data_point)
@@ -2181,6 +2211,18 @@ def get_max_max_new_tokens(model_state, **kwargs):
             # FIXME: Need to update after new model loaded, so user can control with slider
             max_max_new_tokens = 2048
     return max_max_new_tokens
+
+
+def get_minmax_top_k_docs(is_public):
+    if is_public:
+        min_top_k_docs = 1
+        max_top_k_docs = 3
+        label_top_k_docs = "Number of document chunks"
+    else:
+        min_top_k_docs = -1
+        max_top_k_docs = 100
+        label_top_k_docs = "Number of document chunks (-1 = auto fill model context)"
+    return min_top_k_docs, max_top_k_docs, label_top_k_docs
 
 
 def entrypoint_main():
