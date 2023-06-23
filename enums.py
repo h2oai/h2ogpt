@@ -27,6 +27,7 @@ class PromptType(Enum):
     openai_chat = 21
     gptj = 22
     prompt_answer_openllama = 23
+    vicuna11 = 24
 
 
 class DocumentChoices(Enum):
