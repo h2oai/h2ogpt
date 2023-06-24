@@ -567,7 +567,8 @@ def main(
                 if fail_if_cannot_connect:
                     raise RuntimeError("Could not connect, see logs")
                 # skip
-                model_lock.remove(model_dict)
+                if isinstance(model_lock, list):
+                    model_lock.remove(model_dict)
                 continue
             model_state_trial = dict(model=model0, tokenizer=tokenizer0, device=device)
             model_state_trial.update(model_dict)
