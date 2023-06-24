@@ -391,7 +391,8 @@ def go_gradio(**kwargs):
                                                     elem_id="warning", elem_classes="feedback")
                             with gr.Row():
                                 add_to_shared_db_btn = gr.Button("Add File(s) to UserData",
-                                                                 visible=allow_upload_to_user_data, elem_id='small_btn')
+                                                                 visible=allow_upload_to_user_data,
+                                                                 elem_id='small_btn')
                                 add_to_my_db_btn = gr.Button("Add File(s) to Scratch MyData",
                                                              visible=allow_upload_to_my_data,
                                                              elem_id='small_btn' if allow_upload_to_user_data else None,
@@ -448,10 +449,13 @@ def go_gradio(**kwargs):
                                                                    value=kwargs['stream_output'])
                             prompt_type = gr.Dropdown(prompt_types_strings,
                                                       value=kwargs['prompt_type'], label="Prompt Type",
-                                                      visible=not is_public and not kwargs['model_lock'])
+                                                      visible=not kwargs['model_lock'],
+                                                      interactive=not is_public,
+                                                      )
                             prompt_type2 = gr.Dropdown(prompt_types_strings,
                                                        value=kwargs['prompt_type'], label="Prompt Type Model 2",
-                                                       visible=not is_public and False and not kwargs['model_lock'])
+                                                       visible=False and not kwargs['model_lock'],
+                                                       interactive=not is_public)
                             do_sample = gr.Checkbox(label="Sample",
                                                     info="Enable sampler, required for use of temperature, top_p, top_k",
                                                     value=kwargs['do_sample'])
@@ -475,7 +479,8 @@ def go_gradio(**kwargs):
                             num_beams = gr.Slider(minimum=1, maximum=max_beams, step=1,
                                                   value=min(max_beams, kwargs['num_beams']), label="Beams",
                                                   info="Number of searches for optimal overall probability.  "
-                                                       "Uses more GPU memory/compute")
+                                                       "Uses more GPU memory/compute",
+                                                  interactive=False)
                             max_max_new_tokens = get_max_max_new_tokens(model_state0, **kwargs)
                             max_new_tokens = gr.Slider(
                                 minimum=1, maximum=max_max_new_tokens, step=1,
@@ -507,36 +512,42 @@ def go_gradio(**kwargs):
                             num_return_sequences = gr.Slider(minimum=1, maximum=10, step=1,
                                                              value=kwargs['num_return_sequences'],
                                                              label="Number Returns", info="Must be <= num_beams",
-                                                             visible=not is_public)
+                                                             interactive=not is_public)
                             iinput = gr.Textbox(lines=4, label="Input",
                                                 placeholder=kwargs['placeholder_input'],
-                                                visible=not is_public)
+                                                interactive=not is_public)
                             context = gr.Textbox(lines=3, label="System Pre-Context",
                                                  info="Directly pre-appended without prompt processing",
-                                                 visible=not is_public)
+                                                 interactive=not is_public)
                             chat = gr.components.Checkbox(label="Chat mode", value=kwargs['chat'],
-                                                          visible=not is_public and not kwargs['model_lock'])
+                                                          visible=not kwargs['model_lock'],
+                                                          interactive=not is_public,
+                                                          )
                             count_chat_tokens_btn = gr.Button(value="Count Chat Tokens",
-                                                              visible=not is_public and not kwargs['model_lock'])
+                                                              visible=not is_public and not kwargs['model_lock'],
+                                                              interactive=not is_public)
                             chat_token_count = gr.Textbox(label="Chat Token Count", value=None,
                                                           visible=not is_public and not kwargs['model_lock'],
                                                           interactive=False)
                             chunk = gr.components.Checkbox(value=kwargs['chunk'],
                                                            label="Whether to chunk documents",
                                                            info="For LangChain",
-                                                           visible=not is_public)
+                                                           visible=kwargs['langchain_mode'] != 'Disabled',
+                                                           interactive=not is_public)
                             min_top_k_docs, max_top_k_docs, label_top_k_docs = get_minmax_top_k_docs(is_public)
                             top_k_docs = gr.Slider(minimum=min_top_k_docs, maximum=max_top_k_docs, step=1,
                                                    value=kwargs['top_k_docs'],
                                                    label=label_top_k_docs,
                                                    info="For LangChain",
-                                                   visible=not is_public)
+                                                   visible=kwargs['langchain_mode'] != 'Disabled',
+                                                   interactive=not is_public)
                             chunk_size = gr.Number(value=kwargs['chunk_size'],
                                                    label="Chunk size for document chunking",
                                                    info="For LangChain (ignored if chunk=False)",
                                                    minimum=128,
                                                    maximum=2048,
-                                                   visible=not is_public,
+                                                   visible=kwargs['langchain_mode'] != 'Disabled',
+                                                   interactive=not is_public,
                                                    precision=0)
 
                 with gr.TabItem("Models"):
@@ -564,16 +575,16 @@ def go_gradio(**kwargs):
                                                                 value=kwargs['inference_server'], visible=not is_public)
                                 with gr.Column(scale=1, visible=not kwargs['model_lock']):
                                     load_model_button = gr.Button(load_msg, variant=variant_load_msg, scale=0,
-                                                                  size='sm')
+                                                                  size='sm', interactive=not is_public)
                                     model_load8bit_checkbox = gr.components.Checkbox(
                                         label="Load 8-bit [requires support]",
-                                        value=kwargs['load_8bit'])
+                                        value=kwargs['load_8bit'], interactive=not is_public)
                                     model_infer_devices_checkbox = gr.components.Checkbox(
                                         label="Choose Devices [If not Checked, use all GPUs]",
-                                        value=kwargs['infer_devices'])
+                                        value=kwargs['infer_devices'], interactive=not is_public)
                                     model_gpu = gr.Dropdown(n_gpus_list,
                                                             label="GPU ID [-1 = all GPUs, if Choose is enabled]",
-                                                            value=kwargs['gpu_id'])
+                                                            value=kwargs['gpu_id'], interactive=not is_public)
                                     model_used = gr.Textbox(label="Current Model", value=kwargs['base_model'],
                                                             interactive=False)
                                     lora_used = gr.Textbox(label="Current LORA", value=kwargs['lora_weights'],
@@ -584,7 +595,7 @@ def go_gradio(**kwargs):
                                                              interactive=False)
                                     prompt_dict = gr.Textbox(label="Prompt (or Custom)",
                                                              value=pprint.pformat(kwargs['prompt_dict'], indent=4),
-                                                             interactive=True, lines=4)
+                                                             interactive=not is_public, lines=4)
                         col_model2 = gr.Column(visible=False)
                         with col_model2:
                             with gr.Row():
@@ -599,17 +610,17 @@ def go_gradio(**kwargs):
                                                                  visible=not is_public)
                                 with gr.Column(scale=1, visible=not kwargs['model_lock']):
                                     load_model_button2 = gr.Button(load_msg2, variant=variant_load_msg, scale=0,
-                                                                   size='sm')
+                                                                   size='sm', interactive=not is_public)
                                     model_load8bit_checkbox2 = gr.components.Checkbox(
                                         label="Load 8-bit 2 [requires support]",
-                                        value=kwargs['load_8bit'])
+                                        value=kwargs['load_8bit'], interactive=not is_public)
                                     model_infer_devices_checkbox2 = gr.components.Checkbox(
                                         label="Choose Devices 2 [If not Checked, use all GPUs]",
                                         value=kwargs[
-                                            'infer_devices'])
+                                            'infer_devices'], interactive=not is_public)
                                     model_gpu2 = gr.Dropdown(n_gpus_list,
                                                              label="GPU ID 2 [-1 = all GPUs, if choose is enabled]",
-                                                             value=kwargs['gpu_id'])
+                                                             value=kwargs['gpu_id'], interactive=not is_public)
                                     # no model/lora loaded ever in model2 by default
                                     model_used2 = gr.Textbox(label="Current Model 2", value=no_model_str,
                                                              interactive=False)
@@ -620,17 +631,18 @@ def go_gradio(**kwargs):
                                                               visible=not is_public)
                                     prompt_dict2 = gr.Textbox(label="Prompt (or Custom) 2",
                                                               value=pprint.pformat(kwargs['prompt_dict'], indent=4),
-                                                              interactive=True, lines=4)
+                                                              interactive=not is_public, lines=4)
                     with gr.Row(visible=not kwargs['model_lock']):
                         with gr.Column(scale=50):
-                            new_model = gr.Textbox(label="New Model name/path")
+                            new_model = gr.Textbox(label="New Model name/path", interactive=not is_public)
                         with gr.Column(scale=50):
-                            new_lora = gr.Textbox(label="New LORA name/path", visible=kwargs['show_lora'])
+                            new_lora = gr.Textbox(label="New LORA name/path", visible=kwargs['show_lora'],
+                                                  interactive=not is_public)
                         with gr.Column(scale=50):
-                            new_server = gr.Textbox(label="New Server url:port")
+                            new_server = gr.Textbox(label="New Server url:port", interactive=not is_public)
                         with gr.Row():
                             add_model_lora_server_button = gr.Button("Add new Model, Lora, Server url:port", scale=0,
-                                                                     size='sm')
+                                                                     size='sm', interactive=not is_public)
                 with gr.TabItem("System"):
                     admin_row = gr.Row()
                     with admin_row:
