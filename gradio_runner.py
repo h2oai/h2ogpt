@@ -1417,39 +1417,50 @@ def go_gradio(**kwargs):
             # length of conversation has to be same
             if len(x) != len(y):
                 return False
+            if len(x) != len(y):
+                return False
             for stepx, stepy in zip(x, y):
                 if len(stepx) != len(stepy):
                     # something off with a conversation
                     return False
-                if len(stepx) != 2:
-                    # something off
-                    return False
-                if len(stepy) != 2:
-                    # something off
-                    return False
-                questionx = stepx[0].replace('<p>', '').replace('</p>', '') if stepx[0] is not None else None
-                answerx = stepx[1].replace('<p>', '').replace('</p>', '') if stepx[1] is not None else None
+                for stepxx, stepyy in zip(stepx, stepy):
+                    if len(stepxx) != len(stepyy):
+                        # something off with a conversation
+                        return False
+                    if len(stepxx) != 2:
+                        # something off
+                        return False
+                    if len(stepyy) != 2:
+                        # something off
+                        return False
+                    questionx = stepxx[0].replace('<p>', '').replace('</p>', '') if stepxx[0] is not None else None
+                    answerx = stepxx[1].replace('<p>', '').replace('</p>', '') if stepxx[1] is not None else None
 
-                questiony = stepy[0].replace('<p>', '').replace('</p>', '') if stepy[0] is not None else None
-                answery = stepy[1].replace('<p>', '').replace('</p>', '') if stepy[1] is not None else None
+                    questiony = stepyy[0].replace('<p>', '').replace('</p>', '') if stepyy[0] is not None else None
+                    answery = stepyy[1].replace('<p>', '').replace('</p>', '') if stepyy[1] is not None else None
 
-                if questionx != questiony or answerx != answery:
-                    return False
+                    if questionx != questiony or answerx != answery:
+                        return False
             return is_same
 
         def save_chat(*args):
             args_list = list(args)
-            chat_list = args_list[:-1]
-            chat_state1 = args_list[-1]
+            chat_list = args_list[:-1]  # list of chatbot histories
+            # remove None histories
+            chat_list_not_none = [x for x in chat_list if x and len(x) > 0 and len(x[0]) == 2 and x[0][1] is not None]
+            chat_state1 = args_list[-1]  # dict with keys of short chat names, values of list of list of chatbot histories
             short_chats = list(chat_state1.keys())
-            for ii, chati in enumerate(chat_list):
-                if chati and len(chati) > 0 and len(chati[0]) == 2 and chati[0][1] is not None:
-                    short_chat = get_short_chat(chati, short_chats)
-                    if short_chat:
-                        already_exists = any([is_chat_same(chati, x) for x in chat_state1.values()])
-                        if not already_exists:
-                            chat_state1[short_chat] = chati
-                chat_list[ii] = None
+            if len(chat_list_not_none) > 0:
+                # make short_chat key from only first history, based upon question that is same anyways
+                chat_first = chat_list_not_none[0]
+                short_chat = get_short_chat(chat_first, short_chats)
+                if short_chat:
+                    old_chat_lists = list(chat_state1.values())
+                    already_exists = any([is_chat_same(chat_list, x) for x in old_chat_lists])
+                    if not already_exists:
+                        chat_state1[short_chat] = chat_list.copy()
+                # clear chat_list so saved and then new conversation starts
+                chat_list = [[]] * len(chat_list)
             ret_list = chat_list + [chat_state1]
             return tuple(ret_list)
 
@@ -1458,8 +1469,11 @@ def go_gradio(**kwargs):
 
         def switch_chat(chat_key, chat_state1, num_model_lock=0):
             chosen_chat = chat_state1[chat_key]
-            chosen_chats = [chosen_chat] * (2 + num_model_lock)
-            return tuple(chosen_chats)
+            # deal with possible different size of chat list vs. current list
+            ret_chat = [None] * (2 + num_model_lock)
+            for chati in range(0, 2 + num_model_lock):
+                ret_chat[chati % len(ret_chat)] = chosen_chat[chati % len(chosen_chat)]
+            return tuple(ret_chat)
 
         switch_chat_fun = functools.partial(switch_chat, num_model_lock=len(text_outputs))
         radio_chats.input(switch_chat_fun,
@@ -1503,7 +1517,9 @@ def go_gradio(**kwargs):
                             # ignore chat1_k, regenerate and de-dup to avoid loss
                             _, chat_state1 = save_chat(chat1_v, chat_state1)
                 except BaseException as e:
-                    print("Add chats exception: %s" % str(e), flush=True)
+                    t, v, tb = sys.exc_info()
+                    ex = ''.join(traceback.format_exception(t, v, tb))
+                    print("Add chats exception: %s" % str(ex), flush=True)
             return chat_state1, add_btn
 
         # note for update_user_db_func output is ignored for db
