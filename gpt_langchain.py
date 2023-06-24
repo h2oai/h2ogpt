@@ -1456,8 +1456,9 @@ def get_existing_db(db, persist_directory, load_db_if_exists, db_type, use_opena
             if changed_db:
                 db = db_trial
                 # only call persist if really changed db, else takes too long for large db
-                db.persist()
-                clear_embedding(db)
+                if db is not None:
+                    db.persist()
+                    clear_embedding(db)
         save_embed(db, use_openai_embedding, hf_embedding_model)
         return db
     return None
