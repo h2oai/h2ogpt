@@ -191,6 +191,7 @@
 [LoraChat](https://github.com/bupticybee/FastLoRAChat)<br />
 [Tabby](https://github.com/TabbyML/tabby)<br />
 [TalkToModel](https://github.com/dylan-slack/TalkToModel)<br />
+[You.com](https://you.com/)<br />
 
 ### LangChain or Agent related
 [Gradio Tools](https://github.com/freddyaboulton/gradio-tools)<br />

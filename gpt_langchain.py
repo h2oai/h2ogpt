@@ -17,12 +17,12 @@ from datetime import datetime
 from functools import reduce
 from operator import concat
 
-from joblib import Parallel, delayed
+from joblib import delayed
 from langchain.callbacks import streaming_stdout
 from langchain.embeddings import HuggingFaceInstructEmbeddings
 from tqdm import tqdm
 
-from enums import DocumentChoices, no_lora_str, model_token_mapping
+from enums import DocumentChoices, no_lora_str, model_token_mapping, source_prefix, source_postfix
 from generate import gen_hyper, get_model, SEED
 from prompter import non_hf_types, PromptType, Prompter
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
@@ -1456,8 +1456,9 @@ def get_existing_db(db, persist_directory, load_db_if_exists, db_type, use_opena
             if changed_db:
                 db = db_trial
                 # only call persist if really changed db, else takes too long for large db
-                db.persist()
-                clear_embedding(db)
+                if db is not None:
+                    db.persist()
+                    clear_embedding(db)
         save_embed(db, use_openai_embedding, hf_embedding_model)
         return db
     return None
@@ -1671,10 +1672,6 @@ def get_existing_hash_ids(db):
     # assume consistency, that any prior hashed source was single hashed file at the time among all source chunks
     metadata_hash_ids = {x['source']: x.get('hashid') for x in metadatas}
     return metadata_hash_ids
-
-
-source_prefix = "Sources [Score | Link]:"
-source_postfix = "End Sources<p>"
 
 
 def run_qa_db(**kwargs):

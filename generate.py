@@ -25,7 +25,8 @@ os.environ['HF_HUB_DISABLE_TELEMETRY'] = '1'
 os.environ['BITSANDBYTES_NOWELCOME'] = '1'
 warnings.filterwarnings('ignore', category=UserWarning, message='TypedStorage is deprecated')
 
-from enums import DocumentChoices, LangChainMode, no_lora_str, model_token_mapping, no_model_str
+from enums import DocumentChoices, LangChainMode, no_lora_str, model_token_mapping, no_model_str, source_prefix, \
+    source_postfix
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, remove
@@ -41,9 +42,8 @@ from typing import Union
 import fire
 import torch
 from transformers import GenerationConfig, AutoModel, TextIteratorStreamer
-from accelerate import init_empty_weights, infer_auto_device_map
 
-from prompter import Prompter, inv_prompt_type_to_model_lower, non_hf_types, PromptType, get_prompt
+from prompter import Prompter, inv_prompt_type_to_model_lower, non_hf_types, PromptType, get_prompt, generate_prompt
 from stopping import get_stopping
 
 eval_extra_columns = ['prompt', 'response', 'score']
@@ -520,6 +520,10 @@ def main(
             assert 'gpt_langchain' not in sys.modules, "Dev bug, import of langchain when should not have"
             assert 'langchain' not in sys.modules, "Dev bug, import of langchain when should not have"
 
+    model_state_none = dict(model=None, tokenizer=None, device=None,
+                            base_model=None, tokenizer_base_model=None, lora_weights=None,
+                            inference_server=None, prompt_type=None, prompt_dict=None)
+
     if cli:
         from cli import run_cli
         return run_cli(**get_kwargs(run_cli, exclude_names=['model_state0'], **locals()))
@@ -535,7 +539,8 @@ def main(
         model_list = [dict(base_model=base_model, tokenizer_base_model=tokenizer_base_model, lora_weights=lora_weights,
                            inference_server=inference_server, prompt_type=prompt_type, prompt_dict=prompt_dict)]
         model_list0 = copy.deepcopy(model_list)  # just strings, safe to deepcopy
-        model_state0 = None
+        model_state0 = model_state_none.copy()
+        assert len(model_state_none) == len(model_state0)
         if model_lock:
             model_list = model_lock
         for model_dict in reversed(model_list):
@@ -552,7 +557,7 @@ def main(
                 if model_lower in inv_prompt_type_to_model_lower:
                     prompt_type = inv_prompt_type_to_model_lower[model_lower]
                     prompt_dict, error0 = get_prompt(prompt_type, '',
-                                                     chat=False, context='', reduced=False, return_dict=True)
+                                                     chat=False, context='', reduced=False, making_context=False, return_dict=True)
             model_dict['prompt_type'] = prompt_type
             model_dict['prompt_dict'] = prompt_dict = model_dict.get('prompt_dict', prompt_dict)
             all_kwargs = locals().copy()
@@ -567,10 +572,12 @@ def main(
                 if fail_if_cannot_connect:
                     raise RuntimeError("Could not connect, see logs")
                 # skip
-                model_lock.remove(model_dict)
+                if isinstance(model_lock, list):
+                    model_lock.remove(model_dict)
                 continue
             model_state_trial = dict(model=model0, tokenizer=tokenizer0, device=device)
             model_state_trial.update(model_dict)
+            assert len(model_state_none) == len(model_state_trial)
             print("Model %s" % model_dict, flush=True)
             if model_lock:
                 # last in iteration will be first
@@ -579,6 +586,7 @@ def main(
                 model_state0 = model_state_trial.copy()
             else:
                 model_state0 = model_state_trial.copy()
+            assert len(model_state_none) == len(model_state0)
 
         # get score model
         all_kwargs = locals().copy()
@@ -610,6 +618,7 @@ def get_config(base_model,
                long_sequence=True,
                return_model=False,
                ):
+    from accelerate import init_empty_weights
     with init_empty_weights():
         from transformers import AutoConfig
         config = AutoConfig.from_pretrained(base_model, use_auth_token=use_auth_token,
@@ -651,6 +660,7 @@ def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward
         # NOTE: Can specify max_memory={0: max_mem, 1: max_mem}, to shard model
         # NOTE: Some models require avoiding sharding some layers,
         # then would pass no_split_module_classes and give list of those layers.
+        from accelerate import infer_auto_device_map
         device_map = infer_auto_device_map(
             model,
             dtype=torch.float16 if load_half else torch.float32,
@@ -1090,6 +1100,9 @@ def evaluate_from_str(
         sanitize_bot_response=False,
         model_state0=None,
         memory_restriction_level=None,
+        user_set_max_new_tokens=None,
+        is_public=None,
+        max_max_time=None,
         raise_generate_gpu_exceptions=None,
         chat_context=None,
         lora_weights=None,
@@ -1112,6 +1125,7 @@ def evaluate_from_str(
         max_chunks=None,
         model_lock=None,
         force_langchain_evaluate=None,
+        model_state_none=None,
 ):
     if isinstance(user_kwargs, str):
         user_kwargs = ast.literal_eval(user_kwargs)
@@ -1141,6 +1155,9 @@ def evaluate_from_str(
         sanitize_bot_response=sanitize_bot_response,
         model_state0=model_state0,
         memory_restriction_level=memory_restriction_level,
+        user_set_max_new_tokens=user_set_max_new_tokens,
+        is_public=is_public,
+        max_max_time=max_max_time,
         raise_generate_gpu_exceptions=raise_generate_gpu_exceptions,
         chat_context=chat_context,
         lora_weights=lora_weights,
@@ -1163,6 +1180,7 @@ def evaluate_from_str(
         max_chunks=max_chunks,
         model_lock=model_lock,
         force_langchain_evaluate=force_langchain_evaluate,
+        model_state_none=model_state_none,
     )
     try:
         for ret1 in ret:
@@ -1210,6 +1228,9 @@ def evaluate(
         sanitize_bot_response=False,
         model_state0=None,
         memory_restriction_level=None,
+        user_set_max_new_tokens=None,
+        is_public=None,
+        max_max_time=None,
         raise_generate_gpu_exceptions=None,
         chat_context=None,
         lora_weights=None,
@@ -1232,6 +1253,7 @@ def evaluate(
         max_chunks=None,
         model_lock=None,
         force_langchain_evaluate=None,
+        model_state_none=None,
 ):
     # ensure passed these
     assert concurrency_count is not None
@@ -1255,16 +1277,14 @@ def evaluate(
         locals_dict.pop('model_states', None)
         print(locals_dict)
 
-    no_model_msg = "Please choose a base model with --base_model (CLI) or load in Models Tab (gradio).\nThen start New Conversation"
+    no_model_msg = "Please choose a base model with --base_model (CLI) or load in Models Tab (gradio).\n" \
+                   "Then start New Conversation"
 
-    model_state_None = dict(model=None, tokenizer=None, device=None,
-                            base_model=None, tokenizer_base_model=None, lora_weights=None,
-                            inference_server=None, prompt_type=None, prompt_dict=None)
     if model_state is None:
-        model_state = model_state_None.copy()
+        model_state = model_state_none.copy()
     if model_state0 is None:
         # e.g. for no gradio case, set dummy value, else should be set
-        model_state0 = model_state_None.copy()
+        model_state0 = model_state_none.copy()
 
     # model_state['model] is only 'model' if should use model_state0
     # model could also be None
@@ -1325,10 +1345,31 @@ def evaluate(
             print("Auto-selecting prompt_type=%s for %s" % (prompt_type, model_lower), flush=True)
     assert prompt_type is not None, "prompt_type was None"
 
+    # Control generation hyperparameters
+    # adjust for bad inputs, e.g. in case also come from API that doesn't get constrained by gradio sliders
+    # below is for TGI server, not required for HF transformers
+    # limits are chosen similar to gradio_runner.py sliders/numbers
+    top_p = min(max(1e-3, top_p), 1.0 - 1e-3)
+    top_k = min(max(1, int(top_k)), 100)
+    temperature = min(max(0.01, temperature), 3.0)
+    # FIXME: https://github.com/h2oai/h2ogpt/issues/106
+    num_beams = 1 if stream_output else num_beams  # See max_beams in gradio_runner
+    max_max_new_tokens = get_max_max_new_tokens(chosen_model_state, memory_restriction_level=memory_restriction_level,
+                                                max_new_tokens=max_new_tokens,
+                                                user_set_max_new_tokens=user_set_max_new_tokens)
+    max_new_tokens = min(max(1, int(max_new_tokens)), max_max_new_tokens)
+    min_new_tokens = min(max(0, int(min_new_tokens)), max_new_tokens)
+    max_time = min(max(0, max_time), max_max_time)
+    repetition_penalty = min(max(0.01, repetition_penalty), 3.0)
+    num_return_sequences = 1 if chat else min(max(1, int(num_return_sequences)), 10)
+    min_top_k_docs, max_top_k_docs, label_top_k_docs = get_minmax_top_k_docs(is_public)
+    top_k_docs = min(max(min_top_k_docs, int(top_k_docs)), max_top_k_docs)
+    chunk_size = min(max(128, int(chunk_size)), 2048)
     if not context:
         # get hidden context if have one
         context = get_context(chat_context, prompt_type)
 
+    # get prompt
     prompter = Prompter(prompt_type, prompt_dict, debug=debug, chat=chat, stream_output=stream_output)
     data_point = dict(context=context, instruction=instruction, input=iinput)
     prompt = prompter.generate_prompt(data_point)
@@ -2079,7 +2120,7 @@ y = np.random.randint(0, 1, 100)
 
     # get prompt_dict from prompt_type, so user can see in UI etc., or for custom do nothing except check format
     prompt_dict, error0 = get_prompt(prompt_type, prompt_dict,
-                                     chat=False, context='', reduced=False, return_dict=True)
+                                     chat=False, context='', reduced=False, making_context=False, return_dict=True)
     if error0:
         raise RuntimeError("Prompt wrong: %s" % error0)
 
@@ -2181,6 +2222,72 @@ def get_max_max_new_tokens(model_state, **kwargs):
             # FIXME: Need to update after new model loaded, so user can control with slider
             max_max_new_tokens = 2048
     return max_max_new_tokens
+
+
+def get_minmax_top_k_docs(is_public):
+    if is_public:
+        min_top_k_docs = 1
+        max_top_k_docs = 3
+        label_top_k_docs = "Number of document chunks"
+    else:
+        min_top_k_docs = -1
+        max_top_k_docs = 100
+        label_top_k_docs = "Number of document chunks (-1 = auto fill model context)"
+    return min_top_k_docs, max_top_k_docs, label_top_k_docs
+
+
+def history_to_context(history, langchain_mode1, prompt_type1, prompt_dict1, chat1, model_max_length1,
+                       memory_restriction_level1, keep_sources_in_context1):
+    """
+    consumes all history up to (but not including) latest history item that is presumed to be an [instruction, None] pair
+    :param history:
+    :param langchain_mode1:
+    :param prompt_type1:
+    :param prompt_dict1:
+    :param chat1:
+    :param model_max_length1:
+    :param memory_restriction_level1:
+    :param keep_sources_in_context1:
+    :return:
+    """
+    # ensure output will be unique to models
+    _, _, _, max_prompt_length = get_cutoffs(memory_restriction_level1,
+                                             for_context=True, model_max_length=model_max_length1)
+    context1 = ''
+    if max_prompt_length is not None and langchain_mode1 not in ['LLM']:
+        context1 = ''
+        # - 1 below because current instruction already in history from user()
+        for histi in range(0, len(history) - 1):
+            data_point = dict(instruction=history[histi][0], input='', output=history[histi][1])
+            prompt, pre_response, terminate_response, chat_sep, chat_turn_sep = generate_prompt(data_point,
+                                                                                                prompt_type1,
+                                                                                                prompt_dict1,
+                                                                                                chat1,
+                                                                                                reduced=True,
+                                                                                                making_context=True)
+            # md -> back to text, maybe not super important if model trained enough
+            if not keep_sources_in_context1 and langchain_mode1 != 'Disabled' and prompt.find(source_prefix) >= 0:
+                # FIXME: This is relatively slow even for small amount of text, like 0.3s each history item
+                import re
+                prompt = re.sub(f'{re.escape(source_prefix)}.*?{re.escape(source_postfix)}', '', prompt,
+                                flags=re.DOTALL)
+                if prompt.endswith('\n<p>'):
+                    prompt = prompt[:-4]
+            prompt = prompt.replace('<br>', chat_turn_sep)
+            if not prompt.endswith(chat_turn_sep):
+                prompt += chat_turn_sep
+            # most recent first, add older if can
+            # only include desired chat history
+            if len(prompt + context1) > max_prompt_length:
+                break
+            context1 += prompt
+
+        _, pre_response, terminate_response, chat_sep, chat_turn_sep = generate_prompt({}, prompt_type1, prompt_dict1,
+                                                                                       chat1, reduced=True,
+                                                                                       making_context=True)
+        if context1 and not context1.endswith(chat_turn_sep):
+            context1 += chat_turn_sep  # ensure if terminates abruptly, then human continues on next line
+    return context1
 
 
 def entrypoint_main():

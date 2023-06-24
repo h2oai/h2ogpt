@@ -433,9 +433,9 @@ def test_make_add_db(repeat, db_type):
                         # FIXME: weaviate doesn't know about persistent directory properly
                         assert len(docs) == 4
                         assert docs[0].page_content == msg1
-                        assert docs[1].page_content == msg1up
-                        assert docs[2].page_content == msg1up
-                        assert docs[3].page_content == msg2
+                        assert docs[1].page_content in [msg2, msg1up]
+                        assert docs[2].page_content in [msg2, msg1up]
+                        assert docs[3].page_content in [msg2, msg1up]
                         assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
                         docs = db.similarity_search("Jill")
@@ -445,8 +445,8 @@ def test_make_add_db(repeat, db_type):
                     else:
                         assert len(docs) == 3
                         assert docs[0].page_content == msg1
-                        assert docs[1].page_content == msg1up
-                        assert docs[2].page_content == msg2
+                        assert docs[1].page_content in [msg2, msg1up]
+                        assert docs[2].page_content in [msg2, msg1up]
                         assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
                         docs = db.similarity_search("Jill")

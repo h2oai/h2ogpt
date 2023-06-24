@@ -20,14 +20,19 @@ def run_cli(  # for local function:
         max_new_tokens=None, min_new_tokens=None, early_stopping=None, max_time=None, repetition_penalty=None,
         num_return_sequences=None, do_sample=None, chat=None,
         langchain_mode=None, document_choice=None, top_k_docs=None, chunk=None, chunk_size=None,
-        auto_reduce_chunks=None, max_chunks=None, model_lock=None, force_langchain_evaluate=None,
         # for evaluate kwargs
         src_lang=None, tgt_lang=None, concurrency_count=None, save_dir=None, sanitize_bot_response=None,
-        model_state0=None, raise_generate_gpu_exceptions=None, load_db_if_exists=None, dbs=None, user_path=None,
+        model_state0=None,
+        user_set_max_new_tokens=None,
+        is_public=None,
+        max_max_time=None,
+        raise_generate_gpu_exceptions=None, load_db_if_exists=None, dbs=None, user_path=None,
         detect_user_path_changes_every_query=None,
         use_openai_embedding=None, use_openai_model=None, hf_embedding_model=None,
         db_type=None, n_jobs=None, first_para=None, text_limit=None, verbose=None, cli=None, reverse_docs=None,
         use_cache=None,
+        auto_reduce_chunks=None, max_chunks=None, model_lock=None, force_langchain_evaluate=None,
+        model_state_none=None,
         # unique to this function:
         cli_loop=None,
 ):
