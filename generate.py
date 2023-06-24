@@ -558,7 +558,8 @@ def main(
                 if model_lower in inv_prompt_type_to_model_lower:
                     prompt_type = inv_prompt_type_to_model_lower[model_lower]
                     prompt_dict, error0 = get_prompt(prompt_type, '',
-                                                     chat=False, context='', reduced=False, making_context=False, return_dict=True)
+                                                     chat=False, context='', reduced=False, making_context=False,
+                                                     return_dict=True)
             model_dict['prompt_type'] = prompt_type
             model_dict['prompt_dict'] = prompt_dict = model_dict.get('prompt_dict', prompt_dict)
             all_kwargs = locals().copy()
@@ -1291,8 +1292,10 @@ def evaluate(
     # model could also be None
     have_model_lock = model_lock is not None
     have_fresh_model = model_state['model'] not in [None, 'model', no_model_str]
-    if have_model_lock:
-        assert have_fresh_model, "Expected model_state and model_state0 to match if have_model_lock"
+    # for gradio UI control, expect model_state and model_state0 to match, so if have_model_lock=True, then should have_fresh_model=True
+    # but gradio API control will only use nochat api etc. and won't use fresh model, so can't assert in general
+    # if have_model_lock:
+    #    assert have_fresh_model, "Expected model_state and model_state0 to match if have_model_lock"
     have_cli_model = model_state0['model'] not in [None, 'model', no_model_str]
 
     if have_fresh_model:
