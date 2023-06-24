@@ -78,3 +78,7 @@ model_token_mapping = {
     "code-cushman-002": 2048,
     "code-cushman-001": 2048,
 }
+
+
+source_prefix = "Sources [Score | Link]:"
+source_postfix = "End Sources<p>"

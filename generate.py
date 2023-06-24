@@ -25,7 +25,8 @@ os.environ['HF_HUB_DISABLE_TELEMETRY'] = '1'
 os.environ['BITSANDBYTES_NOWELCOME'] = '1'
 warnings.filterwarnings('ignore', category=UserWarning, message='TypedStorage is deprecated')
 
-from enums import DocumentChoices, LangChainMode, no_lora_str, model_token_mapping, no_model_str
+from enums import DocumentChoices, LangChainMode, no_lora_str, model_token_mapping, no_model_str, source_prefix, \
+    source_postfix
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, remove
@@ -2243,8 +2244,6 @@ def history_to_context(history, langchain_mode1, prompt_type1, prompt_dict1, cha
     # ensure output will be unique to models
     _, _, _, max_prompt_length = get_cutoffs(memory_restriction_level1,
                                              for_context=True, model_max_length=model_max_length1)
-    history = copy.deepcopy(history)
-
     context1 = ''
     if max_prompt_length is not None and langchain_mode1 not in ['LLM']:
         context1 = ''
@@ -2258,8 +2257,8 @@ def history_to_context(history, langchain_mode1, prompt_type1, prompt_dict1, cha
                                                                                                 reduced=True,
                                                                                                 making_context=True)
             # md -> back to text, maybe not super important if model trained enough
-            if not keep_sources_in_context1:
-                from gpt_langchain import source_prefix, source_postfix
+            if not keep_sources_in_context1 and langchain_mode1 != 'Disabled' and prompt.find(source_prefix) >= 0:
+                # FIXME: This is relatively slow even for small amount of text, like 0.3s each history item
                 import re
                 prompt = re.sub(f'{re.escape(source_prefix)}.*?{re.escape(source_postfix)}', '', prompt,
                                 flags=re.DOTALL)

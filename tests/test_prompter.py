@@ -1,5 +1,8 @@
+import time
+
 import pytest
 
+from enums import source_prefix, source_postfix
 from prompter import generate_prompt
 from tests.utils import wrap_test_forked
 
@@ -69,22 +72,31 @@ def test_prompt_with_context(prompt_type, expected):
 
     from prompter import Prompter
     from generate import history_to_context
+
+    t0 = time.time()
     history = [["Hello!", "Hi!"],
                ["How are you?", "I'm good"],
                ["Go to the market?", None]
                ]
-
+    print("duration1: %s %s" % (prompt_type, time.time() - t0), flush=True)
+    t0 = time.time()
     context = history_to_context(history, langchain_mode, prompt_type, prompt_dict, chat,
                                  model_max_length, memory_restriction_level,
                                  keep_sources_in_context1)
+    print("duration2: %s %s" % (prompt_type, time.time() - t0), flush=True)
+    t0 = time.time()
     instruction = history[-1][0]
 
     # get prompt
     prompter = Prompter(prompt_type, prompt_dict, debug=debug, chat=chat, stream_output=stream_output)
+    print("duration3: %s %s" % (prompt_type, time.time() - t0), flush=True)
+    t0 = time.time()
     data_point = dict(context=context, instruction=instruction, input=iinput)
     prompt = prompter.generate_prompt(data_point)
     print(prompt)
+    print("duration4: %s %s" % (prompt_type, time.time() - t0), flush=True)
     assert prompt == expected
+    assert prompt.find(source_prefix) == -1
 
 
 prompt_fastchat1 = """A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions. USER: Go to the market? ASSISTANT:"""
@@ -96,7 +108,6 @@ prompt_prompt_answer1 = "<|prompt|>Go to the market?<|answer|>"
 prompt_prompt_answer_openllama1 = "<|prompt|>Go to the market?<|answer|>"
 
 
-@wrap_test_forked
 @pytest.mark.parametrize("prompt_type,expected",
                          [
                              ('vicuna11', prompt_fastchat1),
@@ -105,6 +116,7 @@ prompt_prompt_answer_openllama1 = "<|prompt|>Go to the market?<|answer|>"
                              ('prompt_answer_openllama', prompt_prompt_answer_openllama1),
                          ]
                          )
+@wrap_test_forked
 def test_prompt_with_no_context(prompt_type, expected):
     prompt_dict = None  # not used unless prompt_type='custom'
     chat = True
@@ -122,3 +134,10 @@ def test_prompt_with_no_context(prompt_type, expected):
     prompt = prompter.generate_prompt(data_point)
     print(prompt)
     assert prompt == expected
+    assert prompt.find(source_prefix) == -1
+
+
+@wrap_test_forked
+def test_source():
+    prompt = "Who are you?%s\nFOO\n%s" % (source_prefix, source_postfix)
+    assert prompt.find(source_prefix) >= 0
