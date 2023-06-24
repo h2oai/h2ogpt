@@ -210,7 +210,7 @@ Current Time: {}
             # if add space here, non-unique tokenization will often make LLM produce wrong output
             PreResponse = bot
 
-        terminate_response = [start, PreResponse]
+        terminate_response = [human, bot, PreResponse]
         chat_turn_sep = chat_sep = '\n'
         humanstr = human  # tag before human talks
         botstr = bot  # tag before bot talks
@@ -272,11 +272,11 @@ Current Time: {}
         PreInput = None
         PreResponse = answer_tokens
         eos = '<|endoftext|>'  # neox eos
-        terminate_response = [start, PreResponse, eos]
-        chat_sep = ''
-        chat_turn_sep = eos
         humanstr = prompt_tokens
         botstr = answer_tokens
+        terminate_response = [humanstr, PreResponse, eos]
+        chat_sep = ''
+        chat_turn_sep = eos
     elif prompt_type in [PromptType.prompt_answer_openllama.value, str(PromptType.prompt_answer_openllama.value),
                          PromptType.prompt_answer_openllama.name]:
         preprompt = ''
@@ -288,11 +288,11 @@ Current Time: {}
         PreInput = None
         PreResponse = answer_tokens
         eos = '</s>'  # llama eos
-        terminate_response = [start, PreResponse, eos]
-        chat_sep = ''
-        chat_turn_sep = eos
         humanstr = prompt_tokens
         botstr = answer_tokens
+        terminate_response = [humanstr, PreResponse, eos]
+        chat_sep = ''
+        chat_turn_sep = eos
     elif prompt_type in [PromptType.open_assistant.value, str(PromptType.open_assistant.value),
                          PromptType.open_assistant.name]:
         # From added_tokens.json
@@ -306,10 +306,10 @@ Current Time: {}
         PreResponse = answer_tokens
         pend = "<|prefix_end|>"
         eos = "</s>"
-        terminate_response = [start, PreResponse, pend, eos]
-        chat_turn_sep = chat_sep = eos
         humanstr = prompt_tokens
         botstr = answer_tokens
+        terminate_response = [humanstr, PreResponse, pend, eos]
+        chat_turn_sep = chat_sep = eos
     elif prompt_type in [PromptType.wizard_lm.value, str(PromptType.wizard_lm.value),
                          PromptType.wizard_lm.name]:
         # https://github.com/ehartford/WizardLM/blob/main/src/train_freeform.py
@@ -504,6 +504,9 @@ ASSISTANT:
             PreResponse = PreResponse
     else:
         raise RuntimeError("No such prompt_type=%s" % prompt_type)
+
+    if isinstance(terminate_response, (tuple, list)):
+        assert '' not in terminate_response, "Bad terminate_response"
 
     if return_dict:
         return dict(promptA=promptA, promptB=promptB, PreInstruct=PreInstruct, PreInput=PreInput,
