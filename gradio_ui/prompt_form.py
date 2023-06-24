@@ -27,9 +27,8 @@ def make_chatbots(output_label0, output_label0_model2, **kwargs):
         pass
     elif nrows <= 1:
         with gr.Row():
-            with gr.Column():
-                for chat_kwargs1, model_state_lock in zip(chat_kwargs, kwargs['model_states']):
-                    text_outputs.append(gr.Chatbot(**chat_kwargs1))
+            for chat_kwargs1, model_state_lock in zip(chat_kwargs, kwargs['model_states']):
+                text_outputs.append(gr.Chatbot(**chat_kwargs1))
     elif nrows == kwargs['model_states']:
         with gr.Row():
             for chat_kwargs1, model_state_lock in zip(chat_kwargs, kwargs['model_states']):

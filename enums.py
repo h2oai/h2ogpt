@@ -27,6 +27,7 @@ class PromptType(Enum):
     openai_chat = 21
     gptj = 22
     prompt_answer_openllama = 23
+    vicuna11 = 24
 
 
 class DocumentChoices(Enum):
@@ -77,3 +78,7 @@ model_token_mapping = {
     "code-cushman-002": 2048,
     "code-cushman-001": 2048,
 }
+
+
+source_prefix = "Sources [Score | Link]:"
+source_postfix = "End Sources<p>"

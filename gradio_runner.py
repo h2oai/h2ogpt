@@ -57,7 +57,7 @@ from utils import get_githash, flatten_list, zip_data, s3up, clear_torch_cache, 
     ping, get_short_name, get_url, makedirs, get_kwargs, remove, system_info, ping_gpu
 from generate import get_model, languages_covered, evaluate, eval_func_param_names, score_qa, langchain_modes, \
     inputs_kwargs_list, get_cutoffs, scratch_base_dir, evaluate_from_str, no_default_param_names, \
-    eval_func_param_names_defaults, get_max_max_new_tokens, get_minmax_top_k_docs
+    eval_func_param_names_defaults, get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context
 
 from apscheduler.schedulers.background import BackgroundScheduler
 
@@ -1039,45 +1039,6 @@ def go_gradio(**kwargs):
             else:
                 return history_list[0]
 
-        def history_to_context(history, langchain_mode1, prompt_type1, prompt_dict1, chat1, model_max_length1):
-            # ensure output will be unique to models
-            _, _, _, max_prompt_length = get_cutoffs(memory_restriction_level,
-                                                     for_context=True, model_max_length=model_max_length1)
-            history = copy.deepcopy(history)
-
-            context1 = ''
-            if max_prompt_length is not None and langchain_mode1 not in ['LLM']:
-                context1 = ''
-                # - 1 below because current instruction already in history from user()
-                for histi in range(0, len(history) - 1):
-                    data_point = dict(instruction=history[histi][0], input='', output=history[histi][1])
-                    prompt, pre_response, terminate_response, chat_sep = generate_prompt(data_point,
-                                                                                         prompt_type1,
-                                                                                         prompt_dict1,
-                                                                                         chat1, reduced=True)
-                    # md -> back to text, maybe not super important if model trained enough
-                    if not kwargs['keep_sources_in_context']:
-                        from gpt_langchain import source_prefix, source_postfix
-                        import re
-                        prompt = re.sub(f'{re.escape(source_prefix)}.*?{re.escape(source_postfix)}', '', prompt,
-                                        flags=re.DOTALL)
-                        if prompt.endswith('\n<p>'):
-                            prompt = prompt[:-4]
-                    prompt = prompt.replace('<br>', chat_sep)
-                    if not prompt.endswith(chat_sep):
-                        prompt += chat_sep
-                    # most recent first, add older if can
-                    # only include desired chat history
-                    if len(prompt + context1) > max_prompt_length:
-                        break
-                    context1 = prompt + context1
-
-                _, pre_response, terminate_response, chat_sep = generate_prompt({}, prompt_type1, prompt_dict1,
-                                                                                chat1, reduced=True)
-                if context1 and not context1.endswith(chat_sep):
-                    context1 += chat_sep  # ensure if terminates abruptly, then human continues on next line
-            return context1
-
         def get_model_max_length(model_state1):
             if model_state1 and not isinstance(model_state1["tokenizer"], str):
                 tokenizer = model_state1["tokenizer"]
@@ -1137,7 +1098,8 @@ def go_gradio(**kwargs):
             chat1 = args_list[eval_func_param_names.index('chat')]
             model_max_length1 = get_model_max_length(model_state1)
             context1 = history_to_context(history, langchain_mode1, prompt_type1, prompt_dict1, chat1,
-                                          model_max_length1)
+                                          model_max_length1, memory_restriction_level,
+                                          kwargs['keep_sources_in_context'])
             args_list[0] = instruction1  # override original instruction with history from user
             args_list[2] = context1
 
@@ -1658,7 +1620,8 @@ def go_gradio(**kwargs):
 
             tokenizer_base_model = model_name
             prompt_dict1, error0 = get_prompt(prompt_type1, '',
-                                              chat=False, context='', reduced=False, return_dict=True)
+                                              chat=False, context='', reduced=False, making_context=False,
+                                              return_dict=True)
             model_state_new = dict(model=model1, tokenizer=tokenizer1, device=device1,
                                    base_model=model_name, tokenizer_base_model=tokenizer_base_model,
                                    lora_weights=lora_weights, inference_server=server_name,
@@ -1678,7 +1641,7 @@ def go_gradio(**kwargs):
                 print("Got prompt_type %s: %s" % (which, prompt_type1), flush=True)
                 return str({})
             prompt_dict1, prompt_dict_error = get_prompt(prompt_type1, prompt_dict1, chat=False, context='',
-                                                         reduced=False, return_dict=True)
+                                                         reduced=False, making_context=False, return_dict=True)
             if prompt_dict_error:
                 return str(prompt_dict_error)
             else:

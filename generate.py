@@ -25,7 +25,8 @@ os.environ['HF_HUB_DISABLE_TELEMETRY'] = '1'
 os.environ['BITSANDBYTES_NOWELCOME'] = '1'
 warnings.filterwarnings('ignore', category=UserWarning, message='TypedStorage is deprecated')
 
-from enums import DocumentChoices, LangChainMode, no_lora_str, model_token_mapping, no_model_str
+from enums import DocumentChoices, LangChainMode, no_lora_str, model_token_mapping, no_model_str, source_prefix, \
+    source_postfix
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, remove
@@ -41,9 +42,8 @@ from typing import Union
 import fire
 import torch
 from transformers import GenerationConfig, AutoModel, TextIteratorStreamer
-from accelerate import init_empty_weights, infer_auto_device_map
 
-from prompter import Prompter, inv_prompt_type_to_model_lower, non_hf_types, PromptType, get_prompt
+from prompter import Prompter, inv_prompt_type_to_model_lower, non_hf_types, PromptType, get_prompt, generate_prompt
 from stopping import get_stopping
 
 eval_extra_columns = ['prompt', 'response', 'score']
@@ -552,7 +552,7 @@ def main(
                 if model_lower in inv_prompt_type_to_model_lower:
                     prompt_type = inv_prompt_type_to_model_lower[model_lower]
                     prompt_dict, error0 = get_prompt(prompt_type, '',
-                                                     chat=False, context='', reduced=False, return_dict=True)
+                                                     chat=False, context='', reduced=False, making_context=False, return_dict=True)
             model_dict['prompt_type'] = prompt_type
             model_dict['prompt_dict'] = prompt_dict = model_dict.get('prompt_dict', prompt_dict)
             all_kwargs = locals().copy()
@@ -611,6 +611,7 @@ def get_config(base_model,
                long_sequence=True,
                return_model=False,
                ):
+    from accelerate import init_empty_weights
     with init_empty_weights():
         from transformers import AutoConfig
         config = AutoConfig.from_pretrained(base_model, use_auth_token=use_auth_token,
@@ -652,6 +653,7 @@ def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward
         # NOTE: Can specify max_memory={0: max_mem, 1: max_mem}, to shard model
         # NOTE: Some models require avoiding sharding some layers,
         # then would pass no_split_module_classes and give list of those layers.
+        from accelerate import infer_auto_device_map
         device_map = infer_auto_device_map(
             model,
             dtype=torch.float16 if load_half else torch.float32,
@@ -2110,7 +2112,7 @@ y = np.random.randint(0, 1, 100)
 
     # get prompt_dict from prompt_type, so user can see in UI etc., or for custom do nothing except check format
     prompt_dict, error0 = get_prompt(prompt_type, prompt_dict,
-                                     chat=False, context='', reduced=False, return_dict=True)
+                                     chat=False, context='', reduced=False, making_context=False, return_dict=True)
     if error0:
         raise RuntimeError("Prompt wrong: %s" % error0)
 
@@ -2224,6 +2226,60 @@ def get_minmax_top_k_docs(is_public):
         max_top_k_docs = 100
         label_top_k_docs = "Number of document chunks (-1 = auto fill model context)"
     return min_top_k_docs, max_top_k_docs, label_top_k_docs
+
+
+def history_to_context(history, langchain_mode1, prompt_type1, prompt_dict1, chat1, model_max_length1,
+                       memory_restriction_level1, keep_sources_in_context1):
+    """
+    consumes all history up to (but not including) latest history item that is presumed to be an [instruction, None] pair
+    :param history:
+    :param langchain_mode1:
+    :param prompt_type1:
+    :param prompt_dict1:
+    :param chat1:
+    :param model_max_length1:
+    :param memory_restriction_level1:
+    :param keep_sources_in_context1:
+    :return:
+    """
+    # ensure output will be unique to models
+    _, _, _, max_prompt_length = get_cutoffs(memory_restriction_level1,
+                                             for_context=True, model_max_length=model_max_length1)
+    context1 = ''
+    if max_prompt_length is not None and langchain_mode1 not in ['LLM']:
+        context1 = ''
+        # - 1 below because current instruction already in history from user()
+        for histi in range(0, len(history) - 1):
+            data_point = dict(instruction=history[histi][0], input='', output=history[histi][1])
+            prompt, pre_response, terminate_response, chat_sep, chat_turn_sep = generate_prompt(data_point,
+                                                                                                prompt_type1,
+                                                                                                prompt_dict1,
+                                                                                                chat1,
+                                                                                                reduced=True,
+                                                                                                making_context=True)
+            # md -> back to text, maybe not super important if model trained enough
+            if not keep_sources_in_context1 and langchain_mode1 != 'Disabled' and prompt.find(source_prefix) >= 0:
+                # FIXME: This is relatively slow even for small amount of text, like 0.3s each history item
+                import re
+                prompt = re.sub(f'{re.escape(source_prefix)}.*?{re.escape(source_postfix)}', '', prompt,
+                                flags=re.DOTALL)
+                if prompt.endswith('\n<p>'):
+                    prompt = prompt[:-4]
+            prompt = prompt.replace('<br>', chat_turn_sep)
+            if not prompt.endswith(chat_turn_sep):
+                prompt += chat_turn_sep
+            # most recent first, add older if can
+            # only include desired chat history
+            if len(prompt + context1) > max_prompt_length:
+                break
+            context1 += prompt
+
+        _, pre_response, terminate_response, chat_sep, chat_turn_sep = generate_prompt({}, prompt_type1, prompt_dict1,
+                                                                                       chat1, reduced=True,
+                                                                                       making_context=True)
+        if context1 and not context1.endswith(chat_turn_sep):
+            context1 += chat_turn_sep  # ensure if terminates abruptly, then human continues on next line
+    return context1
 
 
 def entrypoint_main():
