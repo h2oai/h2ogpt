@@ -785,7 +785,7 @@ def get_model(
                 print("GR Client Begin: %s" % inference_server)
                 client = GradioClient(inference_server)
                 print("GR Client End: %s" % inference_server)
-            except ValueError:
+            except (OSError, ValueError):
                 client = None
             except (ConnectTimeoutError, ConnectTimeout, MaxRetryError) as e:
                 t, v, tb = sys.exc_info()
@@ -1532,7 +1532,7 @@ def evaluate(
             # check if gradio server
             try:
                 gr_client = GradioClient(inference_server)
-            except ValueError:
+            except (OSError, ValueError):
                 gr_client = None
             if gr_client is None:
                 inference_server, headers = get_hf_server(inference_server)
