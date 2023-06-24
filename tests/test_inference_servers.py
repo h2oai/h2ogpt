@@ -239,8 +239,11 @@ def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain,
     finally:
         # take down docker server
         import signal
-        os.kill(inf_pid, signal.SIGTERM)
-        os.kill(inf_pid, signal.SIGKILL)
+        try:
+            os.kill(inf_pid, signal.SIGTERM)
+            os.kill(inf_pid, signal.SIGKILL)
+        except:
+            pass
 
         os.system("docker ps | grep text-generation-inference | awk '{print $1}' | xargs docker stop ")
 
