@@ -75,6 +75,7 @@ prompt_type_to_model_name = {
     "instruct_simple": ['JosephusCheung/Guanaco'],
     "wizard_vicuna": ['ehartford/Wizard-Vicuna-13B-Uncensored'],
     "wizard2": ['llama'],
+    "vicuna11": ['lmsys/vicuna-33b-v1.3'],
     # could be plain, but default is correct prompt_type for default TheBloke model ggml-wizardLM-7B.q4_2.bin
 }
 if os.getenv('OPENAI_API_KEY'):
