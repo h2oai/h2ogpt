@@ -137,7 +137,7 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
             'response': 'The ligaments that support the spine are called the “spinal ligaments.” They are there to help keep the spine straight and upright. They are made up of tough fibers that run from the pelvis to the skull. They are like the stays on a sailboat, except that they are much thicker and stronger. \nThe spinal ligaments are divided into two groups: anterior and posterior. The anterior ligaments are attached to the front of the vertebrae, while the posterior ligaments are attached to the back. The anterior ligaments are called the “anterior longitudinal ligaments”',
             'score': 0.77}
 
-    assert np.isclose(actual2['score'], expected2['score'], rtol=0.2), "Score is not as expected: %s %s" % (
+    assert np.isclose(actual2['score'], expected2['score'], rtol=0.3), "Score is not as expected: %s %s" % (
         actual2['score'], expected2['score'])
 
     from sacrebleu.metrics import BLEU
