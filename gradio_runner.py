@@ -228,14 +228,7 @@ def go_gradio(**kwargs):
                  prompt_dict=kwargs['prompt_dict'],
                  )
         )
-        model_state2 = gr.State(dict(model=None, tokenizer=None, device=None,
-                                     base_model=None,
-                                     tokenizer_base_model=None,
-                                     lora_weights=None,
-                                     inference_server=None,
-                                     prompt_type=None,
-                                     prompt_dict=None,
-                                     ))
+        model_state2 = gr.State(kwargs['model_state_none'].copy())
         model_options_state = gr.State([model_options])
         lora_options_state = gr.State([lora_options])
         server_options_state = gr.State([server_options])

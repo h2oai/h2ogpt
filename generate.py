@@ -520,6 +520,10 @@ def main(
             assert 'gpt_langchain' not in sys.modules, "Dev bug, import of langchain when should not have"
             assert 'langchain' not in sys.modules, "Dev bug, import of langchain when should not have"
 
+    model_state_none = dict(model=None, tokenizer=None, device=None,
+                            base_model=None, tokenizer_base_model=None, lora_weights=None,
+                            inference_server=None, prompt_type=None, prompt_dict=None)
+
     if cli:
         from cli import run_cli
         return run_cli(**get_kwargs(run_cli, exclude_names=['model_state0'], **locals()))
@@ -535,7 +539,8 @@ def main(
         model_list = [dict(base_model=base_model, tokenizer_base_model=tokenizer_base_model, lora_weights=lora_weights,
                            inference_server=inference_server, prompt_type=prompt_type, prompt_dict=prompt_dict)]
         model_list0 = copy.deepcopy(model_list)  # just strings, safe to deepcopy
-        model_state0 = None
+        model_state0 = model_state_none.copy()
+        assert len(model_state_none) == len(model_state0)
         if model_lock:
             model_list = model_lock
         for model_dict in reversed(model_list):
@@ -572,6 +577,7 @@ def main(
                 continue
             model_state_trial = dict(model=model0, tokenizer=tokenizer0, device=device)
             model_state_trial.update(model_dict)
+            assert len(model_state_none) == len(model_state_trial)
             print("Model %s" % model_dict, flush=True)
             if model_lock:
                 # last in iteration will be first
@@ -580,6 +586,7 @@ def main(
                 model_state0 = model_state_trial.copy()
             else:
                 model_state0 = model_state_trial.copy()
+            assert len(model_state_none) == len(model_state0)
 
         # get score model
         all_kwargs = locals().copy()
@@ -1118,6 +1125,7 @@ def evaluate_from_str(
         max_chunks=None,
         model_lock=None,
         force_langchain_evaluate=None,
+        model_state_none=None,
 ):
     if isinstance(user_kwargs, str):
         user_kwargs = ast.literal_eval(user_kwargs)
@@ -1172,6 +1180,7 @@ def evaluate_from_str(
         max_chunks=max_chunks,
         model_lock=model_lock,
         force_langchain_evaluate=force_langchain_evaluate,
+        model_state_none=model_state_none,
     )
     try:
         for ret1 in ret:
@@ -1244,6 +1253,7 @@ def evaluate(
         max_chunks=None,
         model_lock=None,
         force_langchain_evaluate=None,
+        model_state_none=None,
 ):
     # ensure passed these
     assert concurrency_count is not None
@@ -1267,16 +1277,14 @@ def evaluate(
         locals_dict.pop('model_states', None)
         print(locals_dict)
 
-    no_model_msg = "Please choose a base model with --base_model (CLI) or load in Models Tab (gradio).\nThen start New Conversation"
+    no_model_msg = "Please choose a base model with --base_model (CLI) or load in Models Tab (gradio).\n" \
+                   "Then start New Conversation"
 
-    model_state_None = dict(model=None, tokenizer=None, device=None,
-                            base_model=None, tokenizer_base_model=None, lora_weights=None,
-                            inference_server=None, prompt_type=None, prompt_dict=None)
     if model_state is None:
-        model_state = model_state_None.copy()
+        model_state = model_state_none.copy()
     if model_state0 is None:
         # e.g. for no gradio case, set dummy value, else should be set
-        model_state0 = model_state_None.copy()
+        model_state0 = model_state_none.copy()
 
     # model_state['model] is only 'model' if should use model_state0
     # model could also be None
