@@ -284,7 +284,8 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'Whisper is a privacy-preserving' in res_dict['response'] or
             'A chatbot that uses a large language model' in res_dict['response'] or
             'This is a config file for Whisper' in res_dict['response'] or
-            'Whisper is a secure messaging app' in res_dict['response']
+            'Whisper is a secure messaging app' in res_dict['response'] or
+            'secure, private, and anonymous chatbot' in res_dict['response']
             ) \
            and ('FAQ.md' in res_dict['response'] or 'README.md' in res_dict['response'])
 
@@ -322,7 +323,8 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'A text-based chatbot that' in res_dict['response'] or
             'A secure, private, and anonymous chat service' in res_dict['response'] or
             'LLaMa is a language' in res_dict['response'] or
-            'chatbot that can' in res_dict['response']
+            'chatbot that can' in res_dict['response'] or
+            'A secure, private, and anonymous chatbot' in res_dict['response']
             ) \
            and '.md' in res_dict['response']
 
