@@ -288,7 +288,7 @@ def go_gradio(**kwargs):
                                 score_texts = []
                                 for model_state_lock in kwargs['model_states']:
                                     score_texts.append(gr.Textbox("Response Score: NA", show_label=False,
-                                                                  visible=kwargs['model_lock']))
+                                                                  visible=bool(kwargs['model_lock'])))
                                 score_text = gr.Textbox("Response Score: NA", show_label=False,
                                                         visible=not kwargs['model_lock'])
                                 score_text2 = gr.Textbox("Response Score2: NA", show_label=False,
@@ -545,7 +545,7 @@ def go_gradio(**kwargs):
                 with gr.TabItem("Models"):
                     model_lock_msg = gr.Textbox(lines=1, label="Model Lock Notice",
                                                 placeholder="Started in model_lock mode, no model changes allowed.",
-                                                visible=kwargs['model_lock'], interactive=False)
+                                                visible=bool(kwargs['model_lock']), interactive=False)
                     load_msg = "Load-Unload Model/LORA [unload works if did not use --base_model]" if not is_public \
                         else "LOAD-UNLOAD DISABLED FOR HOSTED DEMO"
                     load_msg2 = "Load-Unload Model/LORA 2 [unload works if did not use --base_model]" if not is_public \
@@ -583,7 +583,7 @@ def go_gradio(**kwargs):
                                                            visible=kwargs['show_lora'], interactive=False)
                                     server_used = gr.Textbox(label="Current Server",
                                                              value=kwargs['inference_server'],
-                                                             visible=kwargs['inference_server'] and not is_public,
+                                                             visible=bool(kwargs['inference_server']) and not is_public,
                                                              interactive=False)
                                     prompt_dict = gr.Textbox(label="Prompt (or Custom)",
                                                              value=pprint.pformat(kwargs['prompt_dict'], indent=4),
@@ -867,7 +867,7 @@ def go_gradio(**kwargs):
             return gr.Column.update(visible=not x)
 
         def col_chat_fun(x):
-            return gr.Column.update(visible=x)
+            return gr.Column.update(visible=bool(x))
 
         def context_fun(x):
             return gr.Textbox.update(visible=not x)
