@@ -52,6 +52,7 @@ def test_client1api_lean(admin_pass):
     from generate import main
     base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
     os.environ['ADMIN_PASS'] = admin_pass
+    inf_port = os.environ['GRADIO_SERVER_PORT'] = "9999"
     main(base_model=base_model, prompt_type='human_bot', chat=False,
          stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False)
 
@@ -59,6 +60,7 @@ def test_client1api_lean(admin_pass):
     prompt = 'Who are you?'
 
     kwargs = dict(instruction_nochat=prompt)
+    os.environ['HOST'] = "http://127.0.0.1:%s" % inf_port
     client = get_client(serialize=True)
     # pass string of dict.  All entries are optional, but expect at least instruction_nochat to be filled
     res = client.predict(str(dict(kwargs)), api_name=api_name)
