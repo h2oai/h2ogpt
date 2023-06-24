@@ -74,7 +74,7 @@ def test_client1api_lean(admin_pass):
     res = client.predict(ADMIN_PASS, api_name=api_name)
     res = json.loads(res)
     assert isinstance(res, dict)
-    assert res['base_model'] == base_model
+    assert res['base_model'] == base_model, "Problem with res=%s" % res
     assert 'device' in res
 
     print(res)
