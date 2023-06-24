@@ -246,7 +246,8 @@ def main(
     :param api_open: If False, don't let API calls skip gradio queue
     :param allow_api: whether to allow API calls at all to gradio server
     :param input_lines: how many input lines to show for chat box (>1 forces shift-enter for submit, else enter is submit)
-    :param gradio_size: Overall size of text and spaces: "small", "medium", "large".  Small useful for many chatbots in model_lock mode
+    :param gradio_size: Overall size of text and spaces: "xsmall", "small", "medium", "large".
+           Small useful for many chatbots in model_lock mode
     :param auth: gradio auth for launcher in form [(user1, pass1), (user2, pass2), ...]
                  e.g. --auth=[('jon','password')] with no spaces
     :param max_max_time: Maximum max_time for gradio slider

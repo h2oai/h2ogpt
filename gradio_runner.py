@@ -49,7 +49,8 @@ def fix_pydantic_duplicate_validators_error():
 fix_pydantic_duplicate_validators_error()
 
 from enums import DocumentChoices, no_model_str, no_lora_str, no_server_str
-from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, get_dark_js
+from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, get_dark_js, spacing_xsm, radius_xsm, \
+    text_xsm
 from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt_type_to_model_lower, non_hf_types, \
     get_prompt
 from utils import get_githash, flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
@@ -158,12 +159,17 @@ def go_gradio(**kwargs):
                             font_mono=('IBM Plex Mono', 'ui-monospace', 'Consolas', 'monospace'))
     else:
         theme_kwargs = dict()
-    if kwargs['gradio_size'] == 'small':
-        theme_kwargs.update(dict(spacing_size=gr.themes.sizes.spacing_sm, text_size=gr.themes.sizes.text_sm))
+    if kwargs['gradio_size'] == 'xsmall':
+        theme_kwargs.update(dict(spacing_size=spacing_xsm, text_size=text_xsm, radius_size=radius_xsm))
+    elif kwargs['gradio_size'] == 'small':
+        theme_kwargs.update(dict(spacing_size=gr.themes.sizes.spacing_sm, text_size=gr.themes.sizes.text_sm,
+                                 radius_size=gr.themes.sizes.spacing_sm))
     elif kwargs['gradio_size'] == 'large':
-        theme_kwargs.update(dict(spacing_size=gr.themes.sizes.spacing_lg, text_size=gr.themes.sizes.text_lg))
+        theme_kwargs.update(dict(spacing_size=gr.themes.sizes.spacing_lg, text_size=gr.themes.sizes.text_lg),
+                            radius_size=gr.themes.sizes.spacing_lg)
     elif kwargs['gradio_size'] == 'medium':
-        theme_kwargs.update(dict(spacing_size=gr.themes.sizes.spacing_md, text_size=gr.themes.sizes.text_md))
+        theme_kwargs.update(dict(spacing_size=gr.themes.sizes.spacing_md, text_size=gr.themes.sizes.text_md,
+                                 radius_size=gr.themes.sizes.spacing_md))
 
     theme = H2oTheme(**theme_kwargs) if kwargs['h2ocolors'] else SoftTheme(**theme_kwargs)
     demo = gr.Blocks(theme=theme, css=css_code, title="h2oGPT", analytics_enabled=False)
@@ -1448,7 +1454,8 @@ def go_gradio(**kwargs):
             chat_list = args_list[:-1]  # list of chatbot histories
             # remove None histories
             chat_list_not_none = [x for x in chat_list if x and len(x) > 0 and len(x[0]) == 2 and x[0][1] is not None]
-            chat_state1 = args_list[-1]  # dict with keys of short chat names, values of list of list of chatbot histories
+            chat_state1 = args_list[
+                -1]  # dict with keys of short chat names, values of list of list of chatbot histories
             short_chats = list(chat_state1.keys())
             if len(chat_list_not_none) > 0:
                 # make short_chat key from only first history, based upon question that is same anyways

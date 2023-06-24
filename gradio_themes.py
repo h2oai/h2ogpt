@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Iterable
 
 from gradio.themes.soft import Soft
-from gradio.themes import Color
+from gradio.themes import Color, Size
 from gradio.themes.utils import colors, sizes, fonts
 
 h2o_yellow = Color(
@@ -33,6 +33,42 @@ h2o_gray = Color(
     c800="#333333",
     c900="#191919",
     c950="#0d0d0d",
+)
+
+
+text_xsm = Size(
+    name="text_xsm",
+    xxs="4px",
+    xs="5px",
+    sm="6px",
+    md="7px",
+    lg="8px",
+    xl="10px",
+    xxl="12px",
+)
+
+
+spacing_xsm = Size(
+    name="spacing_xsm",
+    xxs="1px",
+    xs="1px",
+    sm="1px",
+    md="2px",
+    lg="3px",
+    xl="5px",
+    xxl="7px",
+)
+
+
+radius_xsm = Size(
+    name="radius_xsm",
+    xxs="1px",
+    xs="1px",
+    sm="1px",
+    md="2px",
+    lg="3px",
+    xl="5px",
+    xxl="7px",
 )
 
 
