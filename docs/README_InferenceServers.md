@@ -224,4 +224,12 @@ python generate.py --model_lock=[{'inference_server':'http://192.168.1.46:6112',
 ```
 where the lock columns of 4 makes a grid of chatbots with 4 columns.
 
+If you run in bash and need to use an authentication for the Hugging Face text generation inference server, then that can be passed:
+```text
+{'inference_server':'https://server.h2o.ai$$$$USER$$$$AUTH','base_model':'h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2'}
+```
+where USER should be the user and AUTH be the token.
+
+**Important:** If this is run in bash or some other shell where `$` is special, then not only should there be no spaces between characters if not using double quotes, but also the `$` should be escaped as `\$` in the CLI or any bash script.
+
 ![Models Lock](models_lock.png)
