@@ -50,13 +50,12 @@ fix_pydantic_duplicate_validators_error()
 
 from enums import DocumentChoices, no_model_str, no_lora_str, no_server_str
 from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, get_dark_js
-from prompter import Prompter, \
-    prompt_type_to_model_name, prompt_types_strings, inv_prompt_type_to_model_lower, generate_prompt, non_hf_types, \
+from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt_type_to_model_lower, non_hf_types, \
     get_prompt
 from utils import get_githash, flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping, get_short_name, get_url, makedirs, get_kwargs, remove, system_info, ping_gpu
 from generate import get_model, languages_covered, evaluate, eval_func_param_names, score_qa, langchain_modes, \
-    inputs_kwargs_list, get_cutoffs, scratch_base_dir, evaluate_from_str, no_default_param_names, \
+    inputs_kwargs_list, scratch_base_dir, evaluate_from_str, no_default_param_names, \
     eval_func_param_names_defaults, get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -1820,7 +1819,10 @@ def go_gradio(**kwargs):
                        ,
                        queue=False, api_name='stop' if allow_api else None).then(clear_torch_cache, queue=False)
 
-        def count_chat_tokens(model_state1, chat1, prompt_type1, prompt_dict1):
+        def count_chat_tokens(model_state1, chat1, prompt_type1, prompt_dict1,
+                              memory_restriction_level1=0,
+                              keep_sources_in_context1=False,
+                              ):
             if model_state1 and not isinstance(model_state1['tokenizer'], str):
                 tokenizer = model_state1['tokenizer']
             elif model_state0 and not isinstance(model_state0['tokenizer'], str):
@@ -1834,11 +1836,15 @@ def go_gradio(**kwargs):
                 chat1 = chat1 + [['user_message1', None]]
                 model_max_length1 = tokenizer.model_max_length
                 context1 = history_to_context(chat1, langchain_mode1, prompt_type1, prompt_dict1, chat1,
-                                              model_max_length1)
+                                              model_max_length1,
+                                              memory_restriction_level1, keep_sources_in_context1)
                 return str(tokenizer(context1, return_tensors="pt")['input_ids'].shape[1])
             else:
                 return "N/A"
 
+        count_chat_tokens_func = functools.partial(count_chat_tokens,
+                                                   memory_restriction_level1=memory_restriction_level,
+                                                   keep_sources_in_context1=kwargs['keep_sources_in_context'])
         count_chat_tokens_btn.click(fn=count_chat_tokens,
                                     inputs=[model_state, text_output, prompt_type, prompt_dict],
                                     outputs=chat_token_count, api_name='count_tokens' if allow_api else None)
