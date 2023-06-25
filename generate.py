@@ -725,6 +725,50 @@ def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward
     return model
 
 
+def get_client_from_inference_server(inference_server, raise_connection_exception=False):
+    inference_server, headers = get_hf_server(inference_server)
+    # preload client since slow for gradio case especially
+    from gradio_client import Client as GradioClient
+    gr_client = None
+    hf_client = None
+    if headers is None:
+        try:
+            print("GR Client Begin: %s" % inference_server)
+            # first do sanity check if alive, else gradio client takes too long by default
+            requests.get(inference_server, timeout=int(os.getenv('REQUEST_TIMEOUT', '30')))
+            gr_client = GradioClient(inference_server)
+            print("GR Client End: %s" % inference_server)
+        except (OSError, ValueError):
+            gr_client = None
+        except (ConnectTimeoutError, ConnectTimeout, MaxRetryError, ConnectionError, ConnectionError2,
+                JSONDecodeError) as e:
+            t, v, tb = sys.exc_info()
+            ex = ''.join(traceback.format_exception(t, v, tb))
+            print("GR Client Failed: %s" % str(ex))
+            if raise_connection_exception:
+                raise
+
+    if gr_client is None:
+        res = None
+        from text_generation import Client as HFClient
+        print("HF Client Begin: %s" % inference_server)
+        try:
+            hf_client = HFClient(inference_server, headers=headers, timeout=int(os.getenv('REQUEST_TIMEOUT', '30')))
+            # quick check valid TGI endpoint
+            # res = client.generate('What?', max_new_tokens=1)
+            # hf_client = HFClient(inference_server, headers=headers, timeout=300)
+        except (ConnectTimeoutError, ConnectTimeout, MaxRetryError, ConnectionError, ConnectionError2,
+                JSONDecodeError) as e:
+            hf_client = None
+            t, v, tb = sys.exc_info()
+            ex = ''.join(traceback.format_exception(t, v, tb))
+            print("HF Client Failed: %s" % str(ex))
+            if raise_connection_exception:
+                raise
+        print("HF Client End: %s %s" % (inference_server, res))
+    return inference_server, gr_client, hf_client
+
+
 def get_model(
         load_8bit: bool = False,
         load_4bit: bool = False,
@@ -789,44 +833,8 @@ def get_model(
                 if base_model not in non_hf_types:
                     raise
 
-        inf_split = inference_server.split("$$$$")
-        # preload client since slow for gradio case especially
-        from gradio_client import Client as GradioClient
-        if len(inf_split) == 1:
-            try:
-                print("GR Client Begin: %s" % inference_server)
-                # first do sanity check if alive, else gradio client takes too long by default
-                requests.get(inference_server, timeout=int(os.getenv('REQUEST_TIMEOUT', '30')))
-                client = GradioClient(inference_server)
-                print("GR Client End: %s" % inference_server)
-            except (OSError, ValueError):
-                client = None
-            except (ConnectTimeoutError, ConnectTimeout, MaxRetryError, ConnectionError, ConnectionError2,
-                    JSONDecodeError) as e:
-                client = None
-                t, v, tb = sys.exc_info()
-                ex = ''.join(traceback.format_exception(t, v, tb))
-                print("GR Client Failed: %s" % str(ex))
-        else:
-            client = None
-        if client is None:
-            res = None
-            from text_generation import Client as HFClient
-            inference_server, headers = get_hf_server(inference_server)
-            print("HF Client Begin: %s" % inference_server)
-            try:
-                client = HFClient(inference_server, headers=headers, timeout=int(os.getenv('REQUEST_TIMEOUT', '30')))
-                # quick check valid TGI endpoint
-                res = client.generate('What?', max_new_tokens=1)
-                client = HFClient(inference_server, headers=headers, timeout=300)
-            except (ConnectTimeoutError, ConnectTimeout, MaxRetryError, ConnectionError, ConnectionError2,
-                    JSONDecodeError) as e:
-                client = None
-                t, v, tb = sys.exc_info()
-                ex = ''.join(traceback.format_exception(t, v, tb))
-                print("HF Client Failed: %s" % str(ex))
-            print("HF Client End: %s %s" % (inference_server, res))
-
+        inference_server, gr_client, hf_client = get_client_from_inference_server(inference_server)
+        client = gr_client or hf_client
         # Don't return None, None for model, tokenizer so triggers
         return client, tokenizer, 'http'
     if isinstance(inference_server, str) and inference_server.startswith('openai'):
@@ -1548,6 +1556,7 @@ def evaluate(
                                    sources='')
             return
     elif inference_server.startswith('http'):
+        inference_server, headers = get_hf_server(inference_server)
         from gradio_client import Client as GradioClient
         from text_generation import Client as HFClient
         if isinstance(model, GradioClient):
@@ -1557,24 +1566,10 @@ def evaluate(
             gr_client = None
             hf_client = model
         else:
-            gr_client = None
-            hf_client = None
-            # check if gradio server
-            try:
-                gr_client = GradioClient(inference_server)
-            except (OSError, ValueError):
-                gr_client = None
-            if gr_client is None:
-                inference_server, headers = get_hf_server(inference_server)
-                try:
-                    hf_client = HFClient(inference_server, headers=headers,
-                                         timeout=int(os.getenv('REQUEST_TIMEOUT', '30')))
-                    # quick check valid TGI endpoint
-                    res = hf_client.generate('What?', max_new_tokens=1)
-                    hf_client = HFClient(inference_server, headers=headers, timeout=300)
-                except (ConnectTimeoutError, ConnectTimeout, MaxRetryError, ConnectionError, JSONDecodeError) as e:
-                    hf_client = None
-                    res = None
+            inference_server, gr_client, hf_client = get_client_from_inference_server(inference_server)
+
+        # quick sanity check to avoid long timeouts, just see if can reach server
+        requests.get(inference_server, timeout=int(os.getenv('REQUEST_TIMEOUT_FAST', '10')))
 
         if gr_client is not None:
             # h2oGPT gradio server will handle input token size issues for prompt

@@ -19,11 +19,12 @@ class TimeoutIterator:
     """
     ZERO_TIMEOUT = 0.0
 
-    def __init__(self, iterator, timeout=0.0, sentinel=object(), reset_on_next=False):
+    def __init__(self, iterator, timeout=0.0, sentinel=object(), reset_on_next=False, raise_on_exception=True):
         self._iterator = iterator
         self._timeout = timeout
         self._sentinel = sentinel
         self._reset_on_next = reset_on_next
+        self._raise_on_exception = raise_on_exception
 
         self._interrupt = False
         self._done = False
@@ -80,7 +81,10 @@ class TimeoutIterator:
         # propagate any exceptions including StopIteration
         if isinstance(data, BaseException):
             self._done = True
-            raise data
+            if self._raise_on_exception:
+                raise data
+            else:
+                return data
 
         return data
 
