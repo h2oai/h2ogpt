@@ -16,6 +16,7 @@ import filelock
 import pandas as pd
 import requests
 import tabulate
+from iterators import TimeoutIterator
 
 from gradio_ui.css import get_css
 from gradio_ui.prompt_form import make_prompt_form, make_chatbots
@@ -258,6 +259,10 @@ def go_gradio(**kwargs):
         base_wanted = kwargs['base_model'] != no_model_str and kwargs['login_mode_if_model0']
         go_btn = gr.Button(value="ENTER", visible=base_wanted, variant="primary")
 
+        nas = ' '.join(['NA'] * len(kwargs['model_states']))
+        res_value = "Response Score: NA" if not kwargs[
+            'model_lock'] else "Response Scores: %s" % nas
+
         normal_block = gr.Row(visible=not base_wanted)
         with normal_block:
             with gr.Tabs():
@@ -291,12 +296,9 @@ def go_gradio(**kwargs):
                             clear = gr.Button("Save Chat / New Chat")
                             flag_btn = gr.Button("Flag")
                             with gr.Column(visible=kwargs['score_model']):
-                                score_texts = []
-                                for model_state_lock in kwargs['model_states']:
-                                    score_texts.append(gr.Textbox("Response Score: NA", show_label=False,
-                                                                  visible=bool(kwargs['model_lock'])))
-                                score_text = gr.Textbox("Response Score: NA", show_label=False,
-                                                        visible=not kwargs['model_lock'])
+                                score_text = gr.Textbox(res_value,
+                                                        show_label=False,
+                                                        visible=True)
                                 score_text2 = gr.Textbox("Response Score2: NA", show_label=False,
                                                          visible=False and not kwargs['model_lock'])
                             retry_btn = gr.Button("Regenerate")
@@ -899,17 +901,18 @@ def go_gradio(**kwargs):
                         # same input, put into form good for _score_last_response()
                         args_list[-1] = output
                         score_texts1.append(
-                            _score_last_response(*tuple(args_list), nochat=nochat, num_model_lock=num_model_lock))
+                            _score_last_response(*tuple(args_list), nochat=nochat,
+                                                 num_model_lock=num_model_lock, prefix=''))
                     if len(score_texts1) > 1:
-                        return tuple(score_texts1)
+                        return "Response Scores: %s" % ' '.join(score_texts1)
                     else:
-                        return score_texts1[0]
+                        return "Response Scores: %s" % score_texts1[0]
                 else:
                     return _score_last_response(*args, nochat=nochat, num_model_lock=num_model_lock)
             finally:
                 clear_torch_cache()
 
-        def _score_last_response(*args, nochat=False, num_model_lock=0):
+        def _score_last_response(*args, nochat=False, num_model_lock=0, prefix='Response Score: '):
             """ Similar to user() """
             args_list = list(args)
 
@@ -937,23 +940,23 @@ def go_gradio(**kwargs):
 
                     answer = history[-1][1]
                 else:
-                    return 'Response Score: NA'
+                    return '%sNA' % prefix
             else:
                 answer = args_list[-1]
                 instruction_nochat_arg_id = eval_func_param_names.index('instruction_nochat')
                 question = args_list[instruction_nochat_arg_id]
 
             if question is None:
-                return 'Response Score: Bad Question'
+                return '%sBad Question' % prefix
             if answer is None:
-                return 'Response Score: Bad Answer'
+                return '%sBad Answer' % prefix
             try:
                 score = score_qa(smodel, stokenizer, max_length_tokenize, question, answer, cutoff_len)
             finally:
                 clear_torch_cache()
             if isinstance(score, str):
-                return 'Response Score: NA'
-            return 'Response Score: {:.1%}'.format(score)
+                return '%sNA' % prefix
+            return '{}{:.1%}'.format(prefix, score)
 
         def noop_score_last_response(*args, **kwargs):
             return "Response Score: Disabled"
@@ -974,7 +977,7 @@ def go_gradio(**kwargs):
         score_fun_func = functools.partial(score_fun, num_model_lock=len(text_outputs))
         all_score_args = dict(fn=score_fun_func,
                               inputs=inputs_list + text_outputs,
-                              outputs=score_texts,
+                              outputs=score_text,
                               )
 
         score_args_nochat = dict(fn=partial(score_fun, nochat=True),
@@ -1181,9 +1184,11 @@ def go_gradio(**kwargs):
                     args_list1.append(chatbot1)
                     # so consistent with prep_bot()
                     # with model_state1 at -3, my_db_state1 at -2, and history(chatbot) at -1
-                    gen_list.append(get_response(*tuple(args_list1), retry=retry))
+                    gen1 = get_response(*tuple(args_list1), retry=retry)
+                    gen1 = TimeoutIterator(gen1, timeout=0.01, sentinel=None)
+                    gen_list.append(gen1)
 
-                bots_old = [''] * len(gen_list)
+                bots_old = chatbots.copy()
                 for res1 in itertools.zip_longest(*gen_list):
                     bots = [x[0] if x is not None else y for x, y in zip(res1, bots_old)]
                     bots_old = bots.copy()
@@ -1277,7 +1282,8 @@ def go_gradio(**kwargs):
             return gr.update(value=None)
 
         def clear_all():
-            return gr.Textbox.update(value=''), gr.Textbox.update(value=''), gr.update(value=None)
+            return gr.Textbox.update(value=''), gr.Textbox.update(value=''), gr.update(value=None), \
+                gr.Textbox.update(value=''), gr.Textbox.update(value='')
 
         if kwargs['model_states']:
             submits1 = submits2 = submits3 = []
@@ -1290,7 +1296,9 @@ def go_gradio(**kwargs):
             for userargs1, botarg1, funn1, funs1 in zip(user_args, bot_args, fun_name, fun_source):
                 submit_event1a = funs1(**userargs1, queue=queue, api_name='%s' % funn1 if allow_api else None)
                 # if hit enter on new instruction for submitting new query, no longer the saved chat
-                submit_event1b = submit_event1a.then(clear_all, inputs=None, outputs=[instruction, iinput, radio_chats],
+                submit_event1b = submit_event1a.then(clear_all, inputs=None,
+                                                     outputs=[instruction, iinput, radio_chats, score_text,
+                                                              score_text2],
                                                      queue=queue)
                 submit_event1c = submit_event1b.then(**botarg1,
                                                      api_name='%s_bot' % funn1 if allow_api else None,
@@ -1322,45 +1330,39 @@ def go_gradio(**kwargs):
                 .then(clear_instruct, None, iinput)
             submit_event1d = submit_event1c.then(**bot_args, api_name='instruction_bot' if allow_api else None,
                                                  queue=queue)
-            submit_event1d2 = submit_event1d.then(clear_torch_cache)
-            submit_event1e = submit_event1d2.then(**score_args,
-                                                  api_name='instruction_bot_score' if allow_api else None,
-                                                  queue=queue)
+            submit_event1e = submit_event1d.then(**score_args,
+                                                 api_name='instruction_bot_score' if allow_api else None,
+                                                 queue=queue)
             submit_event1f = submit_event1e.then(**bot_args2, api_name='instruction_bot2' if allow_api else None,
                                                  queue=queue)
-            submit_event1f2 = submit_event1f.then(clear_torch_cache)
-            submit_event1g = submit_event1f2.then(**score_args2,
-                                                  api_name='instruction_bot_score2' if allow_api else None, queue=queue)
+            submit_event1g = submit_event1f.then(**score_args2,
+                                                 api_name='instruction_bot_score2' if allow_api else None, queue=queue)
             submit_event1h = submit_event1g.then(clear_torch_cache)
 
             submits1 = [submit_event1a, submit_event1a2, submit_event1b, submit_event1c, submit_event1d,
-                        submit_event1d2,
                         submit_event1e,
-                        submit_event1f, submit_event1f2, submit_event1g, submit_event1h]
+                        submit_event1f, submit_event1g, submit_event1h]
 
             submit_event2a = submit.click(**user_args, api_name='submit' if allow_api else None)
             # if submit new query, no longer the saved chat
             submit_event2a2 = submit_event2a.then(deselect_radio_chats, inputs=None, outputs=radio_chats, queue=queue)
             submit_event2b = submit_event2a2.then(**user_args2, api_name='submit2' if allow_api else None)
-            submit_event2c = submit_event2b.then(clear_instruct, None, instruction) \
-                .then(clear_instruct, None, iinput)
+            submit_event2c = submit_event2b.then(clear_all, inputs=None,
+                                                 outputs=[instruction, iinput, radio_chats, score_text, score_text2],
+                                                 queue=queue)
             submit_event2d = submit_event2c.then(**bot_args, api_name='submit_bot' if allow_api else None, queue=queue)
-            submit_event2d2 = submit_event2d.then(clear_torch_cache)
-            submit_event2e = submit_event2d2.then(**score_args,
-                                                  api_name='submit_bot_score' if allow_api else None,
-                                                  queue=queue)
+            submit_event2e = submit_event2d.then(**score_args,
+                                                 api_name='submit_bot_score' if allow_api else None,
+                                                 queue=queue)
             submit_event2f = submit_event2e.then(**bot_args2, api_name='submit_bot2' if allow_api else None,
                                                  queue=queue)
-            submit_event2f2 = submit_event2f.then(clear_torch_cache)
-            submit_event2g = submit_event2f2.then(**score_args2,
-                                                  api_name='submit_bot_score2' if allow_api else None,
-                                                  queue=queue)
-            submit_event2h = submit_event2g.then(clear_torch_cache)
+            submit_event2g = submit_event2f.then(**score_args2,
+                                                 api_name='submit_bot_score2' if allow_api else None,
+                                                 queue=queue)
 
             submits2 = [submit_event2a, submit_event2a2, submit_event2b, submit_event2c, submit_event2d,
-                        submit_event2d2,
                         submit_event2e,
-                        submit_event2f, submit_event2f2, submit_event2g, submit_event2h]
+                        submit_event2f, submit_event2g]
 
             submit_event3a = retry_btn.click(**user_args, api_name='retry' if allow_api else None)
             # if retry, no longer the saved chat
@@ -1483,10 +1485,19 @@ def go_gradio(**kwargs):
                 ret_chat[chati % len(ret_chat)] = chosen_chat[chati % len(chosen_chat)]
             return tuple(ret_chat)
 
+        def clear_texts(*args):
+            return tuple([gr.Textbox.update(value='')] * len(args))
+
+        def clear_scores():
+            return gr.Textbox.update(value=res_value), \
+                gr.Textbox.update(value='Response Score: NA'), \
+                gr.Textbox.update(value='Response Score: NA')
+
         switch_chat_fun = functools.partial(switch_chat, num_model_lock=len(text_outputs))
         radio_chats.input(switch_chat_fun,
                           inputs=[radio_chats, chat_state],
-                          outputs=[text_output, text_output2] + text_outputs)
+                          outputs=[text_output, text_output2] + text_outputs) \
+            .then(clear_scores, outputs=[score_text, score_text2, score_text_nochat])
 
         def remove_chat(chat_key, chat_state1):
             chat_state1.pop(chat_key, None)
@@ -1538,14 +1549,12 @@ def go_gradio(**kwargs):
             .then(clear_file_list, outputs=chatsup_output, queue=False) \
             .then(update_radio_chats, inputs=chat_state, outputs=radio_chats, queue=False)
 
-        def clear_texts(*args):
-            return tuple([gr.Textbox.update(value='')] * len(args))
-
         clear_chat_btn.click(fn=clear_texts,
                              inputs=[text_output, text_output2] + text_outputs,
                              outputs=[text_output, text_output2] + text_outputs,
                              queue=False, api_name='clear' if allow_api else None) \
-            .then(deselect_radio_chats, inputs=None, outputs=radio_chats, queue=False)
+            .then(deselect_radio_chats, inputs=None, outputs=radio_chats, queue=False) \
+            .then(clear_scores, outputs=[score_text, score_text2, score_text_nochat])
 
         # does both models
         clear.click(save_chat,
@@ -1553,7 +1562,8 @@ def go_gradio(**kwargs):
                     outputs=[text_output, text_output2] + text_outputs + [chat_state],
                     api_name='save_chat' if allow_api else None) \
             .then(update_radio_chats, inputs=chat_state, outputs=radio_chats,
-                  api_name='update_chats' if allow_api else None)
+                  api_name='update_chats' if allow_api else None) \
+            .then(clear_scores, outputs=[score_text, score_text2, score_text_nochat])
 
         # NOTE: clear of instruction/iinput for nochat has to come after score,
         # because score for nochat consumes actual textbox, while chat consumes chat history filled by user()
