@@ -1176,6 +1176,7 @@ def go_gradio(**kwargs):
             args_list = list(args).copy()
             chatbots = args_list[-len(model_states1):]
             args_list0 = args_list[:-len(model_states1)]  # same for all models
+            exceptions = []
             try:
                 gen_list = []
                 for chatbot1, model_state1 in zip(chatbots, model_states1):
@@ -1185,18 +1186,39 @@ def go_gradio(**kwargs):
                     # so consistent with prep_bot()
                     # with model_state1 at -3, my_db_state1 at -2, and history(chatbot) at -1
                     gen1 = get_response(*tuple(args_list1), retry=retry)
-                    gen1 = TimeoutIterator(gen1, timeout=0.01, sentinel=None)
+                    gen1 = TimeoutIterator(gen1, timeout=0.01, sentinel=None, raise_on_exception=False)
                     gen_list.append(gen1)
 
                 bots_old = chatbots.copy()
+                exceptions_old = [''] * len(bots_old)
                 for res1 in itertools.zip_longest(*gen_list):
-                    bots = [x[0] if x is not None else y for x, y in zip(res1, bots_old)]
+                    bots = [x[0] if x is not None and not isinstance(x, BaseException) else y for x, y in
+                            zip(res1, bots_old)]
                     bots_old = bots.copy()
-                    exceptions = '\n'.join([x[1] for x in res1 if x and x[1]])
+
+                    def larger_str(x, y):
+                        return x if len(x) > len(y) else y
+
+                    exceptions = [x[1] if x is not None and not isinstance(x, BaseException) else larger_str(str(x), y)
+                                  for x, y in zip(res1, exceptions_old)]
+                    exceptions_old = exceptions.copy()
+
+                    def choose_exc(x):
+                        # don't expose ports etc. to exceptions window
+                        if is_public:
+                            return "Endpoint unavailable or failed"
+                        else:
+                            return x
+
+                    exceptions_str = '\n'.join(
+                        ['Model %s: %s' % (iix, choose_exc(x)) for iix, x in enumerate(exceptions) if
+                         x not in [None, '', 'None']])
                     if len(bots) > 1:
-                        yield tuple(bots + [exceptions])
+                        yield tuple(bots + [exceptions_str])
                     else:
-                        yield bots[0], exceptions
+                        yield bots[0], exceptions_str
+                if exceptions:
+                    print("Generate exceptions: %s" % exceptions, flush=True)
             finally:
                 clear_torch_cache()
 
