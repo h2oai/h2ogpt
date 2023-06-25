@@ -1225,7 +1225,7 @@ def go_gradio(**kwargs):
                     else:
                         yield bots[0], exceptions_str
                 if exceptions:
-                    exceptions = [x for x in exceptions if x]
+                    exceptions = [x for x in exceptions if x not in ['', None, 'None']]
                     if exceptions:
                         print("Generate exceptions: %s" % exceptions, flush=True)
             finally:
