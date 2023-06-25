@@ -14,8 +14,9 @@ import typing
 import warnings
 from datetime import datetime
 import filelock
+import requests
 import psutil
-from requests import ConnectTimeout
+from requests import ConnectTimeout, JSONDecodeError
 from urllib3.exceptions import ConnectTimeoutError, MaxRetryError
 
 if os.path.dirname(os.path.abspath(__file__)) not in sys.path:
@@ -793,11 +794,13 @@ def get_model(
         if len(inf_split) == 1:
             try:
                 print("GR Client Begin: %s" % inference_server)
+                # first do sanity check if alive, else gradio client takes too long by default
+                requests.get(inference_server, timeout=30)
                 client = GradioClient(inference_server)
                 print("GR Client End: %s" % inference_server)
             except (OSError, ValueError):
                 client = None
-            except (ConnectTimeoutError, ConnectTimeout, MaxRetryError) as e:
+            except (ConnectTimeoutError, ConnectTimeout, MaxRetryError, ConnectionError, JSONDecodeError) as e:
                 t, v, tb = sys.exc_info()
                 ex = ''.join(traceback.format_exception(t, v, tb))
                 print("GR Client Failed: %s" % str(ex))
@@ -808,8 +811,15 @@ def get_model(
             from text_generation import Client as HFClient
             inference_server, headers = get_hf_server(inference_server)
             print("HF Client Begin: %s" % inference_server)
-            client = HFClient(inference_server, headers=headers, timeout=300)
-            print("HF Client End: %s" % inference_server)
+            try:
+                client = HFClient(inference_server, headers=headers, timeout=30)
+                # quick check valid TGI endpoint
+                res = client.generate('What?', max_new_tokens=1)
+                client = HFClient(inference_server, headers=headers, timeout=300)
+            except (ConnectTimeoutError, ConnectTimeout, MaxRetryError, ConnectionError, JSONDecodeError) as e:
+                client = None
+                res = None
+            print("HF Client End: %s %s" % (inference_server, res))
 
         # Don't return None, None for model, tokenizer so triggers
         return client, tokenizer, 'http'
@@ -1541,6 +1551,8 @@ def evaluate(
             gr_client = None
             hf_client = model
         else:
+            gr_client = None
+            hf_client = None
             # check if gradio server
             try:
                 gr_client = GradioClient(inference_server)
@@ -1548,7 +1560,14 @@ def evaluate(
                 gr_client = None
             if gr_client is None:
                 inference_server, headers = get_hf_server(inference_server)
-                hf_client = HFClient(inference_server, headers=headers, timeout=300)
+                try:
+                    hf_client = HFClient(inference_server, headers=headers, timeout=30)
+                    # quick check valid TGI endpoint
+                    res = hf_client.generate('What?', max_new_tokens=1)
+                    hf_client = HFClient(inference_server, headers=headers, timeout=300)
+                except (ConnectTimeoutError, ConnectTimeout, MaxRetryError, ConnectionError, JSONDecodeError) as e:
+                    hf_client = None
+                    res = None
 
         if gr_client is not None:
             # h2oGPT gradio server will handle input token size issues for prompt
@@ -1615,7 +1634,7 @@ def evaluate(
                 yield dict(response=prompter.get_response(prompt + text, prompt=prompt,
                                                           sanitize_bot_response=sanitize_bot_response),
                            sources=sources)
-        else:
+        elif hf_client:
             # HF inference server needs control over input tokens
             from h2oai_pipeline import H2OTextGenerationPipeline
             prompt = H2OTextGenerationPipeline.limit_prompt(prompt, tokenizer)
@@ -1657,6 +1676,8 @@ def evaluate(
                         yield dict(response=prompter.get_response(prompt + text, prompt=prompt,
                                                                   sanitize_bot_response=sanitize_bot_response),
                                    sources='')
+        else:
+            raise RuntimeError("Failed to get client: %s" % inference_server)
         if save_dir and text:
             save_generate_output(output=text, base_model=base_model, save_dir=save_dir)
         return
