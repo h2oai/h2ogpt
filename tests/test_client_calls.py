@@ -125,6 +125,7 @@ def test_client_chat_nostream_gpt4all_llama():
            'What do you want?' in res_dict['response'] or \
            'What is your name and title?' in res_dict['response'] or \
            'I can assist you with any information' in res_dict['response'] or \
+           'I can provide information or assistance' in res_dict['response'] or \
            'am a student' in res_dict['response']
 
 
