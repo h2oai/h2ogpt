@@ -795,7 +795,7 @@ def get_model(
             try:
                 print("GR Client Begin: %s" % inference_server)
                 # first do sanity check if alive, else gradio client takes too long by default
-                requests.get(inference_server, timeout=30)
+                requests.get(inference_server, timeout=int(os.getenv('REQUEST_TIMEOUT', '30')))
                 client = GradioClient(inference_server)
                 print("GR Client End: %s" % inference_server)
             except (OSError, ValueError):
@@ -812,7 +812,7 @@ def get_model(
             inference_server, headers = get_hf_server(inference_server)
             print("HF Client Begin: %s" % inference_server)
             try:
-                client = HFClient(inference_server, headers=headers, timeout=30)
+                client = HFClient(inference_server, headers=headers, timeout=int(os.getenv('REQUEST_TIMEOUT', '30')))
                 # quick check valid TGI endpoint
                 res = client.generate('What?', max_new_tokens=1)
                 client = HFClient(inference_server, headers=headers, timeout=300)
@@ -1561,7 +1561,7 @@ def evaluate(
             if gr_client is None:
                 inference_server, headers = get_hf_server(inference_server)
                 try:
-                    hf_client = HFClient(inference_server, headers=headers, timeout=30)
+                    hf_client = HFClient(inference_server, headers=headers, timeout=int(os.getenv('REQUEST_TIMEOUT', '30')))
                     # quick check valid TGI endpoint
                     res = hf_client.generate('What?', max_new_tokens=1)
                     hf_client = HFClient(inference_server, headers=headers, timeout=300)
