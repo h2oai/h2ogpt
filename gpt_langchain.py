@@ -617,6 +617,11 @@ def get_llm(use_openai_model=False,
             hf_client = model
             assert isinstance(hf_client, HFClient)
 
+        inference_server, headers = get_hf_server(inference_server)
+
+        # quick sanity check to avoid long timeouts, just see if can reach server
+        requests.get(inference_server, timeout=int(os.getenv('REQUEST_TIMEOUT_FAST', '10')))
+
         callbacks = [StreamingGradioCallbackHandler()]
         assert prompter is not None
         stop_sequences = list(set(prompter.terminate_response + [prompter.PreResponse]))
@@ -647,7 +652,6 @@ def get_llm(use_openai_model=False,
                 sanitize_bot_response=sanitize_bot_response,
             )
         elif hf_client:
-            inference_server, headers = get_hf_server(inference_server)
             llm = H2OHuggingFaceTextGenInference(
                 inference_server_url=inference_server,
                 do_sample=do_sample,
