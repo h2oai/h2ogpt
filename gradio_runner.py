@@ -292,12 +292,12 @@ def go_gradio(**kwargs):
                             clear = gr.Button("Save Chat / New Chat")
                             flag_btn = gr.Button("Flag")
                             with gr.Column(visible=kwargs['score_model']):
-                                score_texts = []
-                                for model_state_lock in kwargs['model_states']:
-                                    score_texts.append(gr.Textbox("Response Score: NA", show_label=False,
-                                                                  visible=bool(kwargs['model_lock'])))
-                                score_text = gr.Textbox("Response Score: NA", show_label=False,
-                                                        visible=not kwargs['model_lock'])
+                                nas = ' '.join(['NA'] * len(kwargs['model_states']))
+                                res_value = "Response Score: NA" if not kwargs[
+                                    'model_lock'] else "Response Scores: %s" % nas
+                                score_text = gr.Textbox(res_value,
+                                                        show_label=False,
+                                                        visible=True)
                                 score_text2 = gr.Textbox("Response Score2: NA", show_label=False,
                                                          visible=False and not kwargs['model_lock'])
                             retry_btn = gr.Button("Regenerate")
@@ -900,17 +900,18 @@ def go_gradio(**kwargs):
                         # same input, put into form good for _score_last_response()
                         args_list[-1] = output
                         score_texts1.append(
-                            _score_last_response(*tuple(args_list), nochat=nochat, num_model_lock=num_model_lock))
+                            _score_last_response(*tuple(args_list), nochat=nochat,
+                                                 num_model_lock=num_model_lock, prefix=''))
                     if len(score_texts1) > 1:
-                        return tuple(score_texts1)
+                        return "Response Scores: %s" % ' '.join(score_texts1)
                     else:
-                        return score_texts1[0]
+                        return "Response Scores: %s" % score_texts1[0]
                 else:
                     return _score_last_response(*args, nochat=nochat, num_model_lock=num_model_lock)
             finally:
                 clear_torch_cache()
 
-        def _score_last_response(*args, nochat=False, num_model_lock=0):
+        def _score_last_response(*args, nochat=False, num_model_lock=0, prefix='Response Score: '):
             """ Similar to user() """
             args_list = list(args)
 
@@ -938,23 +939,23 @@ def go_gradio(**kwargs):
 
                     answer = history[-1][1]
                 else:
-                    return 'Response Score: NA'
+                    return '%sNA' % prefix
             else:
                 answer = args_list[-1]
                 instruction_nochat_arg_id = eval_func_param_names.index('instruction_nochat')
                 question = args_list[instruction_nochat_arg_id]
 
             if question is None:
-                return 'Response Score: Bad Question'
+                return '%sBad Question' % prefix
             if answer is None:
-                return 'Response Score: Bad Answer'
+                return '%sBad Answer' % prefix
             try:
                 score = score_qa(smodel, stokenizer, max_length_tokenize, question, answer, cutoff_len)
             finally:
                 clear_torch_cache()
             if isinstance(score, str):
-                return 'Response Score: NA'
-            return 'Response Score: {:.1%}'.format(score)
+                return '%sNA' % prefix
+            return '{}{:.1%}'.format(prefix, score)
 
         def noop_score_last_response(*args, **kwargs):
             return "Response Score: Disabled"
@@ -975,7 +976,7 @@ def go_gradio(**kwargs):
         score_fun_func = functools.partial(score_fun, num_model_lock=len(text_outputs))
         all_score_args = dict(fn=score_fun_func,
                               inputs=inputs_list + text_outputs,
-                              outputs=score_texts,
+                              outputs=score_text,
                               )
 
         score_args_nochat = dict(fn=partial(score_fun, nochat=True),
