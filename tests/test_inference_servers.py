@@ -168,12 +168,19 @@ def run_docker(inf_port, base_model):
 @pytest.mark.parametrize("force_langchain_evaluate", [False, True])
 @pytest.mark.parametrize("do_langchain", [False, True])
 @pytest.mark.parametrize("pass_prompt_type", [False, True])
+@pytest.mark.parametrize("do_model_lock", [False, True])
 @wrap_test_forked
-def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain, pass_prompt_type,
+def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain, pass_prompt_type, do_model_lock,
                              prompt='Who are you?', stream_output=False, max_new_tokens=256,
                              langchain_mode='Disabled', user_path=None,
                              visible_langchain_modes=['UserData', 'MyData'],
                              reverse_docs=True):
+    # HF inference server
+    inf_port = "6112"
+    inference_server = 'http://127.0.0.1:%s' % inf_port
+    inf_pid = run_docker(inf_port, base_model)
+    time.sleep(60)
+
     if force_langchain_evaluate:
         langchain_mode = 'MyData'
     if do_langchain:
@@ -189,24 +196,27 @@ def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain,
         prompt_type = PromptType.prompt_answer.name
     if not pass_prompt_type:
         prompt_type = None
+    if do_model_lock:
+        model_lock = [{'inference_server': inference_server, 'base_model': base_model}]
+        base_model = None
+        inference_server = None
+    else:
+        model_lock = None
     main_kwargs = dict(base_model=base_model, prompt_type=prompt_type, chat=True,
                        stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
                        max_new_tokens=max_new_tokens,
                        langchain_mode=langchain_mode, user_path=user_path,
                        visible_langchain_modes=visible_langchain_modes,
                        reverse_docs=reverse_docs,
-                       force_langchain_evaluate=force_langchain_evaluate)
-
-    # HF inference server
-    inf_port = "6112"
-    inf_pid = run_docker(inf_port, base_model)
-    time.sleep(60)
+                       force_langchain_evaluate=force_langchain_evaluate,
+                       inference_server=inference_server,
+                       model_lock=model_lock)
 
     try:
         # server that consumes inference server
         client_port = os.environ['GRADIO_SERVER_PORT'] = "7861"
         from generate import main
-        main(**main_kwargs, inference_server='http://127.0.0.1:%s' % inf_port)
+        main(**main_kwargs)
 
         # client test to server that only consumes inference server
         from client_test import run_client_chat

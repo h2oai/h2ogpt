@@ -1036,6 +1036,7 @@ def go_gradio(**kwargs):
         def all_user(*args, undo=False, retry=False, sanitize_user_prompt=True, num_model_lock=0):
             args_list = list(args)
             history_list = args_list[-num_model_lock:]
+            assert len(history_list) > 0, "Bad history list: %s" % history_list
             for hi, history in enumerate(history_list):
                 if num_model_lock > 0:
                     hargs = args_list[:-num_model_lock].copy()
@@ -1044,7 +1045,7 @@ def go_gradio(**kwargs):
                 hargs += [history]
                 history_list[hi] = update_history(*hargs, undo=undo, retry=retry,
                                                   sanitize_user_prompt=sanitize_user_prompt)
-            if len(history_list) > 0:
+            if len(history_list) > 1:
                 return tuple(history_list)
             else:
                 return history_list[0]
@@ -1187,7 +1188,7 @@ def go_gradio(**kwargs):
                     bots = [x[0] if x is not None else y for x, y in zip(res1, bots_old)]
                     bots_old = bots.copy()
                     exceptions = '\n'.join([x[1] for x in res1 if x and x[1]])
-                    if len(bots) > 0:
+                    if len(bots) > 1:
                         yield tuple(bots + [exceptions])
                     else:
                         yield bots[0], exceptions

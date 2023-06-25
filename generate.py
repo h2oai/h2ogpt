@@ -313,6 +313,15 @@ def main(
     :param enable_ocr: Whether to support OCR on images
     :return:
     """
+    if base_model is None:
+        base_model = ''
+    if tokenizer_base_model is None:
+        tokenizer_base_model = ''
+    if lora_weights is None:
+        lora_weights = ''
+    if inference_server is None:
+        inference_server = ''
+
     if model_lock:
         assert gradio, "model_lock only supported for gradio=True"
         if len(model_lock) > 1:
