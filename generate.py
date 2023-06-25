@@ -739,6 +739,7 @@ def get_client_from_inference_server(inference_server, raise_connection_exceptio
             gr_client = GradioClient(inference_server)
             print("GR Client End: %s" % inference_server)
         except (OSError, ValueError):
+            # Occurs when wrong endpoint and should have been HF client, so don't hard raise, just move to HF
             gr_client = None
         except (ConnectTimeoutError, ConnectTimeout, MaxRetryError, ConnectionError, ConnectionError2,
                 JSONDecodeError) as e:

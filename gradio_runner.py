@@ -1176,6 +1176,7 @@ def go_gradio(**kwargs):
             args_list = list(args).copy()
             chatbots = args_list[-len(model_states1):]
             args_list0 = args_list[:-len(model_states1)]  # same for all models
+            exceptions = []
             try:
                 gen_list = []
                 for chatbot1, model_state1 in zip(chatbots, model_states1):
@@ -1201,12 +1202,23 @@ def go_gradio(**kwargs):
                     exceptions = [x[1] if x is not None and not isinstance(x, BaseException) else larger_str(str(x), y)
                                   for x, y in zip(res1, exceptions_old)]
                     exceptions_old = exceptions.copy()
+
+                    def choose_exc(x):
+                        # don't expose ports etc. to exceptions window
+                        if is_public:
+                            return "Endpoint unavailable or failed"
+                        else:
+                            return x
+
                     exceptions_str = '\n'.join(
-                        ['Model %s: %s' % (iix, x) for iix, x in enumerate(exceptions) if x not in [None, '', 'None']])
+                        ['Model %s: %s' % (iix, choose_exc(x)) for iix, x in enumerate(exceptions) if
+                         x not in [None, '', 'None']])
                     if len(bots) > 1:
                         yield tuple(bots + [exceptions_str])
                     else:
                         yield bots[0], exceptions_str
+                if exceptions:
+                    print("Generate exceptions: %s" % exceptions, flush=True)
             finally:
                 clear_torch_cache()
 
