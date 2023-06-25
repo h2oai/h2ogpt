@@ -1177,6 +1177,7 @@ def go_gradio(**kwargs):
             chatbots = args_list[-len(model_states1):]
             args_list0 = args_list[:-len(model_states1)]  # same for all models
             exceptions = []
+            stream_output1 = args_list[eval_func_param_names.index('stream_output')]
             try:
                 gen_list = []
                 for chatbot1, model_state1 in zip(chatbots, model_states1):
@@ -1186,7 +1187,9 @@ def go_gradio(**kwargs):
                     # so consistent with prep_bot()
                     # with model_state1 at -3, my_db_state1 at -2, and history(chatbot) at -1
                     gen1 = get_response(*tuple(args_list1), retry=retry)
-                    gen1 = TimeoutIterator(gen1, timeout=0.01, sentinel=None, raise_on_exception=False)
+                    if stream_output1:
+                        gen1 = TimeoutIterator(gen1, timeout=0.01, sentinel=None, raise_on_exception=False)
+                    # else timeout will truncate output for non-streaming case
                     gen_list.append(gen1)
 
                 bots_old = chatbots.copy()
@@ -1194,6 +1197,10 @@ def go_gradio(**kwargs):
                 for res1 in itertools.zip_longest(*gen_list):
                     bots = [x[0] if x is not None and not isinstance(x, BaseException) else y for x, y in
                             zip(res1, bots_old)]
+                    # if at start, have None in response still, replace with '' so client etc. acts like normal
+                    for boti, bot1 in enumerate(bots):
+                        if len(bot1) > 0 and len(bot1[-1]) == 2 and bot1[-1][1] is None:
+                            bots[boti][-1][1] = ''
                     bots_old = bots.copy()
 
                     def larger_str(x, y):
@@ -1218,7 +1225,9 @@ def go_gradio(**kwargs):
                     else:
                         yield bots[0], exceptions_str
                 if exceptions:
-                    print("Generate exceptions: %s" % exceptions, flush=True)
+                    exceptions = [x for x in exceptions if x]
+                    if exceptions:
+                        print("Generate exceptions: %s" % exceptions, flush=True)
             finally:
                 clear_torch_cache()
 
