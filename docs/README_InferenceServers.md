@@ -232,4 +232,6 @@ where USER should be the user and AUTH be the token.
 
 **Important:** If this is run in bash or some other shell where `$` is special, then not only should there be no spaces between characters if not using double quotes, but also the `$` should be escaped as `\$` in the CLI or any bash script.
 
+When bringing up `generate.py` with any inference server, one can set `REQUEST_TIMEOUT` ENV to smaller value than default of 60 seconds to get server up faster if have many inaccessible endpoints you don't mind skipping.  E.g. set `REQUEST_TIMEOUT=5`.  One can also choose the timeout overall for each chat turn using env `REQUEST_TIMEOUT_FAST` that defaults to 10 seconds.
+
 ![Models Lock](models_lock.png)
