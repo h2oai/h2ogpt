@@ -17,7 +17,8 @@ import filelock
 import requests
 import psutil
 from requests import ConnectTimeout, JSONDecodeError
-from urllib3.exceptions import ConnectTimeoutError, MaxRetryError
+from urllib3.exceptions import ConnectTimeoutError, MaxRetryError, ConnectionError
+from requests.exceptions import ConnectionError as ConnectionError2
 
 if os.path.dirname(os.path.abspath(__file__)) not in sys.path:
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -800,14 +801,16 @@ def get_model(
                 print("GR Client End: %s" % inference_server)
             except (OSError, ValueError):
                 client = None
-            except (ConnectTimeoutError, ConnectTimeout, MaxRetryError, ConnectionError, JSONDecodeError) as e:
+            except (ConnectTimeoutError, ConnectTimeout, MaxRetryError, ConnectionError, ConnectionError2,
+                    JSONDecodeError) as e:
+                client = None
                 t, v, tb = sys.exc_info()
                 ex = ''.join(traceback.format_exception(t, v, tb))
                 print("GR Client Failed: %s" % str(ex))
-                return None, None, None
         else:
             client = None
         if client is None:
+            res = None
             from text_generation import Client as HFClient
             inference_server, headers = get_hf_server(inference_server)
             print("HF Client Begin: %s" % inference_server)
@@ -816,9 +819,12 @@ def get_model(
                 # quick check valid TGI endpoint
                 res = client.generate('What?', max_new_tokens=1)
                 client = HFClient(inference_server, headers=headers, timeout=300)
-            except (ConnectTimeoutError, ConnectTimeout, MaxRetryError, ConnectionError, JSONDecodeError) as e:
+            except (ConnectTimeoutError, ConnectTimeout, MaxRetryError, ConnectionError, ConnectionError2,
+                    JSONDecodeError) as e:
                 client = None
-                res = None
+                t, v, tb = sys.exc_info()
+                ex = ''.join(traceback.format_exception(t, v, tb))
+                print("HF Client Failed: %s" % str(ex))
             print("HF Client End: %s %s" % (inference_server, res))
 
         # Don't return None, None for model, tokenizer so triggers
@@ -1561,7 +1567,8 @@ def evaluate(
             if gr_client is None:
                 inference_server, headers = get_hf_server(inference_server)
                 try:
-                    hf_client = HFClient(inference_server, headers=headers, timeout=int(os.getenv('REQUEST_TIMEOUT', '30')))
+                    hf_client = HFClient(inference_server, headers=headers,
+                                         timeout=int(os.getenv('REQUEST_TIMEOUT', '30')))
                     # quick check valid TGI endpoint
                     res = hf_client.generate('What?', max_new_tokens=1)
                     hf_client = HFClient(inference_server, headers=headers, timeout=300)
