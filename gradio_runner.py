@@ -16,6 +16,7 @@ import filelock
 import pandas as pd
 import requests
 import tabulate
+from iterators import TimeoutIterator
 
 from gradio_ui.css import get_css
 from gradio_ui.prompt_form import make_prompt_form, make_chatbots
@@ -1181,9 +1182,11 @@ def go_gradio(**kwargs):
                     args_list1.append(chatbot1)
                     # so consistent with prep_bot()
                     # with model_state1 at -3, my_db_state1 at -2, and history(chatbot) at -1
-                    gen_list.append(get_response(*tuple(args_list1), retry=retry))
+                    gen1 = get_response(*tuple(args_list1), retry=retry)
+                    gen1 = TimeoutIterator(gen1, timeout=0.01, sentinel=None)
+                    gen_list.append(gen1)
 
-                bots_old = [''] * len(gen_list)
+                bots_old = chatbots.copy()
                 for res1 in itertools.zip_longest(*gen_list):
                     bots = [x[0] if x is not None else y for x, y in zip(res1, bots_old)]
                     bots_old = bots.copy()
