@@ -756,8 +756,8 @@ def get_client_from_inference_server(inference_server, raise_connection_exceptio
         try:
             hf_client = HFClient(inference_server, headers=headers, timeout=int(os.getenv('REQUEST_TIMEOUT', '30')))
             # quick check valid TGI endpoint
-            # res = client.generate('What?', max_new_tokens=1)
-            # hf_client = HFClient(inference_server, headers=headers, timeout=300)
+            res = hf_client.generate('What?', max_new_tokens=1)
+            hf_client = HFClient(inference_server, headers=headers, timeout=300)
         except (ConnectTimeoutError, ConnectTimeout, MaxRetryError, ConnectionError, ConnectionError2,
                 JSONDecodeError) as e:
             hf_client = None
