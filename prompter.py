@@ -104,7 +104,10 @@ def get_prompt(prompt_type, prompt_dict, chat, context, reduced, making_context,
         except BaseException as e:
             prompt_dict_error = str(e)
         if prompt_dict_error:
-            return dict(), prompt_dict_error
+            if return_dict:
+                return dict(), prompt_dict_error
+            else:
+                return '', '', '', '', '', None, '', '', '', ''
 
     if prompt_type in [PromptType.custom.value, str(PromptType.custom.value),
                        PromptType.custom.name]:
