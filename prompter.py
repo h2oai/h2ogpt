@@ -25,9 +25,7 @@ prompt_type_to_model_name = {
         'mosaicml/mpt-7b-storywriter',
         'mosaicml/mpt-7b-instruct',  # internal code handles instruct
         'mosaicml/mpt-7b-chat',  # NC, internal code handles instruct
-        'mosaicml/mpt-30b',  # internal code handles instruct
         'mosaicml/mpt-30b-instruct',  # internal code handles instruct
-        'mosaicml/mpt-30b-chat',  # NC, internal code handles instruct
     ],
     'gptj': ['gptj', 'gpt4all_llama'],
     'prompt_answer': [
@@ -74,7 +72,7 @@ prompt_type_to_model_name = {
     "wizard_mega": ['openaccess-ai-collective/wizard-mega-13b'],
     "instruct_simple": ['JosephusCheung/Guanaco'],
     "wizard_vicuna": ['ehartford/Wizard-Vicuna-13B-Uncensored'],
-    "wizard2": ['llama'],
+    "wizard2": ['llama', 'mosaicml/mpt-30b-instruct'],
     "vicuna11": ['lmsys/vicuna-33b-v1.3'],
     # could be plain, but default is correct prompt_type for default TheBloke model ggml-wizardLM-7B.q4_2.bin
 }
