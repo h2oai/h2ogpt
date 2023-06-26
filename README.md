@@ -1,7 +1,6 @@
 ## h2oGPT
 
-Live demo of h2oGPT:
-- [![img-small.png](docs/img-small.png) h2oGPT](https://gpt.h2o.ai/)
+[![img-small.png](docs/img-small.png) Live h2oGPT Demo](https://gpt.h2o.ai/)
 
 For questions, discussing, or just hanging out, come and join our <a href="https://discord.gg/WKhYMWcVbq"><b>Discord</b></a>!
 
