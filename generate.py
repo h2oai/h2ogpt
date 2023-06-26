@@ -19,6 +19,7 @@ import psutil
 from requests import ConnectTimeout, JSONDecodeError
 from urllib3.exceptions import ConnectTimeoutError, MaxRetryError, ConnectionError
 from requests.exceptions import ConnectionError as ConnectionError2
+from requests.exceptions import ReadTimeout as ReadTimeout2
 
 if os.path.dirname(os.path.abspath(__file__)) not in sys.path:
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -742,10 +743,10 @@ def get_client_from_inference_server(inference_server, raise_connection_exceptio
             # Occurs when wrong endpoint and should have been HF client, so don't hard raise, just move to HF
             gr_client = None
         except (ConnectTimeoutError, ConnectTimeout, MaxRetryError, ConnectionError, ConnectionError2,
-                JSONDecodeError) as e:
+                JSONDecodeError, ReadTimeout2, KeyError) as e:
             t, v, tb = sys.exc_info()
             ex = ''.join(traceback.format_exception(t, v, tb))
-            print("GR Client Failed: %s" % str(ex))
+            print("GR Client Failed %s: %s" % (inference_server, str(ex)))
             if raise_connection_exception:
                 raise
 
@@ -759,11 +760,11 @@ def get_client_from_inference_server(inference_server, raise_connection_exceptio
             res = hf_client.generate('What?', max_new_tokens=1)
             hf_client = HFClient(inference_server, headers=headers, timeout=300)
         except (ConnectTimeoutError, ConnectTimeout, MaxRetryError, ConnectionError, ConnectionError2,
-                JSONDecodeError) as e:
+                JSONDecodeError, ReadTimeout2, KeyError) as e:
             hf_client = None
             t, v, tb = sys.exc_info()
             ex = ''.join(traceback.format_exception(t, v, tb))
-            print("HF Client Failed: %s" % str(ex))
+            print("HF Client Failed %s: %s" % (inference_server, str(ex)))
             if raise_connection_exception:
                 raise
         print("HF Client End: %s %s" % (inference_server, res))
