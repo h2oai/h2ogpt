@@ -1356,12 +1356,12 @@ def go_gradio(**kwargs):
                 submits1.extend([submit_event1a, submit_event1b, submit_event1c, submit_event1d])
 
             # if undo, no longer the saved chat
-            submit_event4 = undo.click(**all_undo_user_args, api_name='undo' if allow_api else None) \
-                .then(deselect_radio_chats, inputs=None, outputs=radio_chats, queue=queue) \
-                .then(clear_instruct, None, instruction) \
-                .then(clear_instruct, None, iinput) \
-                .then(**all_score_args, api_name='undo_score' if allow_api else None) \
-                .then(clear_torch_cache)
+            submit_event4 = undo.click(fn=dummy_fun,
+                                       inputs=instruction, outputs=instruction, queue=queue) \
+                .then(**all_undo_user_args, api_name='undo' if allow_api else None) \
+                .then(clear_all, inputs=None, outputs=[instruction, iinput, radio_chats, score_text,
+                                                       score_text2], queue=queue) \
+                .then(**all_score_args, api_name='undo_score' if allow_api else None)
             submits4 = [submit_event4]
 
         else:
@@ -1385,11 +1385,10 @@ def go_gradio(**kwargs):
                                                  queue=queue)
             submit_event1g = submit_event1f.then(**score_args2,
                                                  api_name='instruction_bot_score2' if allow_api else None, queue=queue)
-            submit_event1h = submit_event1g.then(clear_torch_cache)
 
             submits1 = [submit_event1a, submit_event1a2, submit_event1b, submit_event1c, submit_event1d,
                         submit_event1e,
-                        submit_event1f, submit_event1g, submit_event1h]
+                        submit_event1f, submit_event1g]
 
             submit_event21 = submit.click(fn=dummy_fun,
                                           inputs=instruction, outputs=instruction, queue=queue)
@@ -1424,32 +1423,28 @@ def go_gradio(**kwargs):
                 .then(clear_instruct, None, iinput)
             submit_event3d = submit_event3c.then(**retry_bot_args, api_name='retry_bot' if allow_api else None,
                                                  queue=queue)
-            submit_event3d2 = submit_event3d.then(clear_torch_cache)
-            submit_event3e = submit_event3d2.then(**score_args,
-                                                  api_name='retry_bot_score' if allow_api else None,
-                                                  queue=queue)
+            submit_event3e = submit_event3d.then(**score_args,
+                                                 api_name='retry_bot_score' if allow_api else None,
+                                                 queue=queue)
             submit_event3f = submit_event3e.then(**retry_bot_args2, api_name='retry_bot2' if allow_api else None,
                                                  queue=queue)
-            submit_event3f2 = submit_event3f.then(clear_torch_cache)
-            submit_event3g = submit_event3f2.then(**score_args2,
-                                                  api_name='retry_bot_score2' if allow_api else None,
-                                                  queue=queue)
-            submit_event3h = submit_event3g.then(clear_torch_cache)
+            submit_event3g = submit_event3f.then(**score_args2,
+                                                 api_name='retry_bot_score2' if allow_api else None,
+                                                 queue=queue)
 
             submits3 = [submit_event3a, submit_event3a2, submit_event3b, submit_event3c, submit_event3d,
-                        submit_event3d2,
                         submit_event3e,
-                        submit_event3f, submit_event3f2, submit_event3g, submit_event3h]
+                        submit_event3f, submit_event3g]
 
             # if undo, no longer the saved chat
-            submit_event4 = undo.click(**undo_user_args, api_name='undo' if allow_api else None) \
-                .then(deselect_radio_chats, inputs=None, outputs=radio_chats, queue=queue) \
+            submit_event4 = undo.click(fn=dummy_fun,
+                                       inputs=instruction, outputs=instruction, queue=queue) \
+                .then(**undo_user_args, api_name='undo' if allow_api else None) \
                 .then(**undo_user_args2, api_name='undo2' if allow_api else None) \
-                .then(clear_instruct, None, instruction) \
-                .then(clear_instruct, None, iinput) \
+                .then(clear_all, inputs=None, outputs=[instruction, iinput, radio_chats, score_text,
+                                                       score_text2], queue=queue) \
                 .then(**score_args, api_name='undo_score' if allow_api else None) \
-                .then(**score_args2, api_name='undo_score2' if allow_api else None) \
-                .then(clear_torch_cache)
+                .then(**score_args2, api_name='undo_score2' if allow_api else None)
             submits4 = [submit_event4]
 
         # MANAGE CHATS
