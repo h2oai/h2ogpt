@@ -1095,8 +1095,9 @@ def go_gradio(**kwargs):
             elif not instruction1:
                 # if not retrying, then reject empty query
                 return history, None
-            elif len(history) > 0 and history[-1][1] is not None:
+            elif len(history) > 0 and history[-1][1] not in [None, '']:
                 # reject submit button if already filled and not retrying
+                # None when not filling with '' to keep client happy
                 return history, None
 
             # shouldn't have to specify in API prompt_type if CLI launched model, so prefer global CLI one if have it
@@ -1178,11 +1179,17 @@ def go_gradio(**kwargs):
             args_list0 = args_list[:-len(model_states1)]  # same for all models
             exceptions = []
             stream_output1 = args_list[eval_func_param_names.index('stream_output')]
+            max_time1 = args_list[eval_func_param_names.index('max_time')]
             try:
                 gen_list = []
                 for chatbot1, model_state1 in zip(chatbots, model_states1):
                     args_list1 = args_list0.copy()
                     args_list1.insert(-1, model_state1)  # insert at -1 so is at -2
+                    # if at start, have None in response still, replace with '' so client etc. acts like normal
+                    # assumes other parts of code treat '' and None as if no response yet from bot
+                    # can't do this later in bot code as racy with threaded generators
+                    if len(chatbot1) > 0 and len(chatbot1[-1]) == 2 and chatbot1[-1][1] is None:
+                        chatbot1[-1][1] = ''
                     args_list1.append(chatbot1)
                     # so consistent with prep_bot()
                     # with model_state1 at -3, my_db_state1 at -2, and history(chatbot) at -1
@@ -1194,13 +1201,13 @@ def go_gradio(**kwargs):
 
                 bots_old = chatbots.copy()
                 exceptions_old = [''] * len(bots_old)
+                tgen0 = time.time()
                 for res1 in itertools.zip_longest(*gen_list):
+                    if time.time() - tgen0 > max_time1:
+                        break
+
                     bots = [x[0] if x is not None and not isinstance(x, BaseException) else y for x, y in
                             zip(res1, bots_old)]
-                    # if at start, have None in response still, replace with '' so client etc. acts like normal
-                    for boti, bot1 in enumerate(bots):
-                        if len(bot1) > 0 and len(bot1[-1]) == 2 and bot1[-1][1] is None:
-                            bots[boti][-1][1] = ''
                     bots_old = bots.copy()
 
                     def larger_str(x, y):
@@ -1316,6 +1323,11 @@ def go_gradio(**kwargs):
             return gr.Textbox.update(value=''), gr.Textbox.update(value=''), gr.update(value=None), \
                 gr.Textbox.update(value=''), gr.Textbox.update(value='')
 
+        def dummy_fun(x):
+            # need dummy function to block new input from being sent until output is done,
+            # else gets input_list at time of submit that is old, and shows up as truncated in chatbot
+            return x
+
         if kwargs['model_states']:
             submits1 = submits2 = submits3 = []
             submits4 = []
@@ -1325,7 +1337,10 @@ def go_gradio(**kwargs):
             user_args = [all_user_args, all_user_args, all_retry_user_args]
             bot_args = [all_bot_args, all_bot_args, all_retry_bot_args]
             for userargs1, botarg1, funn1, funs1 in zip(user_args, bot_args, fun_name, fun_source):
-                submit_event1a = funs1(**userargs1, queue=queue, api_name='%s' % funn1 if allow_api else None)
+                submit_event11 = funs1(fn=dummy_fun,
+                                       inputs=instruction, outputs=instruction, queue=queue)
+                submit_event1a = submit_event11.then(**userargs1, queue=queue,
+                                                     api_name='%s' % funn1 if allow_api else None)
                 # if hit enter on new instruction for submitting new query, no longer the saved chat
                 submit_event1b = submit_event1a.then(clear_all, inputs=None,
                                                      outputs=[instruction, iinput, radio_chats, score_text,
@@ -1352,8 +1367,10 @@ def go_gradio(**kwargs):
         else:
             # in case 2nd model, consume instruction first, so can clear quickly
             # bot doesn't consume instruction itself, just history from user, so why works
-            submit_event1a = instruction.submit(**user_args, queue=queue,
-                                                api_name='instruction' if allow_api else None)
+            submit_event11 = instruction.submit(fn=dummy_fun,
+                                                inputs=instruction, outputs=instruction, queue=queue)
+            submit_event1a = submit_event11.then(**user_args, queue=queue,
+                                                 api_name='instruction' if allow_api else None)
             # if hit enter on new instruction for submitting new query, no longer the saved chat
             submit_event1a2 = submit_event1a.then(deselect_radio_chats, inputs=None, outputs=radio_chats, queue=queue)
             submit_event1b = submit_event1a2.then(**user_args2, api_name='instruction2' if allow_api else None)
@@ -1374,7 +1391,9 @@ def go_gradio(**kwargs):
                         submit_event1e,
                         submit_event1f, submit_event1g, submit_event1h]
 
-            submit_event2a = submit.click(**user_args, api_name='submit' if allow_api else None)
+            submit_event21 = submit.click(fn=dummy_fun,
+                                          inputs=instruction, outputs=instruction, queue=queue)
+            submit_event2a = submit_event21.then(**user_args, api_name='submit' if allow_api else None)
             # if submit new query, no longer the saved chat
             submit_event2a2 = submit_event2a.then(deselect_radio_chats, inputs=None, outputs=radio_chats, queue=queue)
             submit_event2b = submit_event2a2.then(**user_args2, api_name='submit2' if allow_api else None)
@@ -1395,7 +1414,9 @@ def go_gradio(**kwargs):
                         submit_event2e,
                         submit_event2f, submit_event2g]
 
-            submit_event3a = retry_btn.click(**user_args, api_name='retry' if allow_api else None)
+            submit_event31 = retry_btn.click(fn=dummy_fun,
+                                             inputs=instruction, outputs=instruction, queue=queue)
+            submit_event3a = submit_event31.then(**user_args, api_name='retry' if allow_api else None)
             # if retry, no longer the saved chat
             submit_event3a2 = submit_event3a.then(deselect_radio_chats, inputs=None, outputs=radio_chats, queue=queue)
             submit_event3b = submit_event3a2.then(**user_args2, api_name='retry2' if allow_api else None)
