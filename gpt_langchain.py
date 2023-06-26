@@ -16,6 +16,7 @@ from collections import defaultdict
 from datetime import datetime
 from functools import reduce
 from operator import concat
+import filelock
 
 from joblib import delayed
 from langchain.callbacks import streaming_stdout
@@ -2000,7 +2001,8 @@ def get_similarity_chain(query=None,
             if top_k_docs == -1 or auto_reduce_chunks:
                 # docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:top_k_docs]
                 top_k_docs_tokenize = 100
-                docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:top_k_docs_tokenize]
+                with filelock.FileLock("sim.lock"):
+                    docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:top_k_docs_tokenize]
                 if hasattr(llm, 'pipeline') and hasattr(llm.pipeline, 'tokenizer'):
                     # more accurate
                     tokens = [len(llm.pipeline.tokenizer(x[0].page_content)['input_ids']) for x in docs_with_score]
