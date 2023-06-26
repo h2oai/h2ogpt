@@ -95,13 +95,13 @@ def make_prompt_form(kwargs):
     else:
         instruction_label = "press Enter or click Submit to send message, press Shift-Enter for more lines"
 
-    with gr.Row(elem_id='prompt-form-area'):
+    with gr.Row():#elem_id='prompt-form-area'):
         with gr.Column(scale=50):
             instruction = gr.Textbox(
                 lines=kwargs['input_lines'],
                 label='Ask anything',
-                placeholder=kwargs['placeholder_instruction'],
-                info=instruction_label,
+                placeholder=kwargs['placeholder_instruction'] + '(%s)' % instruction_label,
+                info=None,
                 elem_id='prompt-form',
                 container=True,
             )

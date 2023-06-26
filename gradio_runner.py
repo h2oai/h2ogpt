@@ -123,9 +123,7 @@ def go_gradio(**kwargs):
                                    " use Enter for multiple input lines)"
 
     title = 'h2oGPT'
-    if 'h2ogpt-research' in kwargs['base_model']:
-        title += " [Research demonstration]"
-    more_info = """For more information, visit our GitHub pages: [h2oGPT](https://github.com/h2oai/h2ogpt) and [H2O-LLMStudio](https://github.com/h2oai/h2o-llmstudio)<br>"""
+    more_info = """Visit <a href="https://github.com/h2oai/h2ogpt"> h2oGPT</a> and <a href="https://github.com/h2oai/h2o-llmstudio"> H2O-LLMStudio</a>"""
     if is_public:
         more_info += """<iframe src="https://ghbtns.com/github-btn.html?user=h2oai&repo=h2ogpt&type=star&count=true&size=small" frameborder="0" scrolling="0" width="150" height="20" title="GitHub"></iframe>"""
     if kwargs['verbose']:
@@ -136,10 +134,10 @@ def go_gradio(**kwargs):
                       """
     else:
         description = more_info
-    description += "If this host is busy, try [LLaMa 65B](https://llama.h2o.ai), [Falcon 40B](https://gpt.h2o.ai), [Falcon 40B](http://falcon.h2o.ai), [HF Spaces1 12B](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot) or [HF Spaces2 12B](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot2)<br>"
-    description += """<p>By using h2oGPT, you accept our [Terms of Service](https://github.com/h2oai/h2ogpt/blob/main/docs/tos.md)</p>"""
+    description_bottom = "If this host is busy, try [LLaMa 65B](https://llama.h2o.ai), [Falcon 40B](https://gpt.h2o.ai), [Falcon 40B](http://falcon.h2o.ai), [HF Spaces1 12B](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot) or [HF Spaces2 12B](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot2)<br>"
+    description_bottom += """<p>By using h2oGPT, you accept our [Terms of Service](https://github.com/h2oai/h2ogpt/blob/main/docs/tos.md)</p>"""
     if is_hf:
-        description += '''<a href="https://huggingface.co/spaces/h2oai/h2ogpt-chatbot?duplicate=true"><img src="https://bit.ly/3gLdBN6" style="white-space: nowrap" alt="Duplicate Space"></a>'''
+        description_bottom += '''<a href="https://huggingface.co/spaces/h2oai/h2ogpt-chatbot?duplicate=true"><img src="https://bit.ly/3gLdBN6" style="white-space: nowrap" alt="Duplicate Space"></a>'''
 
     if kwargs['verbose']:
         task_info_md = f"""
@@ -246,14 +244,8 @@ def go_gradio(**kwargs):
         [docs_state0.append(x) for x in docs_state00 if x not in docs_state0]
         docs_state = gr.State(docs_state0)  # first is chosen as default
         gr.Markdown(f"""
-            {get_h2o_title(title) if kwargs['h2ocolors'] else get_simple_title(title)}
-
-            {description}
-            {task_info_md}
+            {get_h2o_title(title, description) if kwargs['h2ocolors'] else get_simple_title(title, description)}
             """)
-        if is_hf:
-            gr.HTML(
-            )
 
         # go button visible if
         base_wanted = kwargs['base_model'] != no_model_str and kwargs['login_mode_if_model0']
@@ -288,9 +280,9 @@ def go_gradio(**kwargs):
 
                     col_chat = gr.Column(visible=kwargs['chat'])
                     with col_chat:
+                        instruction, submit, stop_btn = make_prompt_form(kwargs)
                         text_output, text_output2, text_outputs = make_chatbots(output_label0, output_label0_model2,
                                                                                 **kwargs)
-                        instruction, submit, stop_btn = make_prompt_form(kwargs)
 
                         with gr.Row():
                             clear = gr.Button("Save Chat / New Chat")
@@ -674,6 +666,11 @@ def go_gradio(**kwargs):
                         description += """<i><li>Research demonstration only, not used for commercial purposes.</i></li>"""
                     description += """<i><li>By using h2oGPT, you accept our <a href="https://github.com/h2oai/h2ogpt/blob/main/docs/tos.md">Terms of Service</a></i></li></ul></p>"""
                     gr.Markdown(value=description, show_label=False, interactive=False)
+
+        gr.Markdown(f"""
+            {description_bottom}
+            {task_info_md}
+            """)
 
         # Get flagged data
         zip_data1 = functools.partial(zip_data, root_dirs=['flagged_data_points', kwargs['save_dir']])
