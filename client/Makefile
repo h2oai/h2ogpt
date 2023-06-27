@@ -31,5 +31,5 @@ test_with_h2ogpt:
 	pkill -f "$(H2OGPT_START)" &
 
 .PHONY: build
-build: generate_sources
+build: lint
 	poetry build

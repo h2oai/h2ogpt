@@ -55,7 +55,8 @@ class LangChainMode(Enum):
 no_server_str = no_lora_str = no_model_str = '[None/Remove]'
 
 
-# from site-packages/langchain/llms/openai.py, but needed since ChatOpenAI doesn't have this information
+# from site-packages/langchain/llms/openai.py
+# but needed since ChatOpenAI doesn't have this information
 model_token_mapping = {
     "gpt-4": 8192,
     "gpt-4-0314": 8192,
