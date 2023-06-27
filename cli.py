@@ -23,7 +23,7 @@ def run_cli(  # for local function:
         # for evaluate kwargs
         src_lang=None, tgt_lang=None, concurrency_count=None, save_dir=None, sanitize_bot_response=None,
         model_state0=None,
-        user_set_max_new_tokens=None,
+        max_max_new_tokens=None,
         is_public=None,
         max_max_time=None,
         raise_generate_gpu_exceptions=None, load_db_if_exists=None, dbs=None, user_path=None,

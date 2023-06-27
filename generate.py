@@ -396,7 +396,6 @@ def main(
         top_k_docs = 3 if top_k_docs is None else top_k_docs
     if top_k_docs is None:
         top_k_docs = 3
-    user_set_max_new_tokens = max_new_tokens is not None
     if is_public:
         if not max_time:
             max_time = 60 * 2
@@ -1136,7 +1135,7 @@ def evaluate_from_str(
         sanitize_bot_response=False,
         model_state0=None,
         memory_restriction_level=None,
-        user_set_max_new_tokens=None,
+        max_max_new_tokens=None,
         is_public=None,
         max_max_time=None,
         raise_generate_gpu_exceptions=None,
@@ -1191,7 +1190,7 @@ def evaluate_from_str(
         sanitize_bot_response=sanitize_bot_response,
         model_state0=model_state0,
         memory_restriction_level=memory_restriction_level,
-        user_set_max_new_tokens=user_set_max_new_tokens,
+        max_max_new_tokens=max_max_new_tokens,
         is_public=is_public,
         max_max_time=max_max_time,
         raise_generate_gpu_exceptions=raise_generate_gpu_exceptions,
@@ -1264,7 +1263,7 @@ def evaluate(
         sanitize_bot_response=False,
         model_state0=None,
         memory_restriction_level=None,
-        user_set_max_new_tokens=None,
+        max_max_new_tokens=None,
         is_public=None,
         max_max_time=None,
         raise_generate_gpu_exceptions=None,
@@ -1392,9 +1391,10 @@ def evaluate(
     temperature = min(max(0.01, temperature), 3.0)
     # FIXME: https://github.com/h2oai/h2ogpt/issues/106
     num_beams = 1 if stream_output else num_beams  # See max_beams in gradio_runner
-    max_max_new_tokens = get_max_max_new_tokens(chosen_model_state, memory_restriction_level=memory_restriction_level,
+    max_max_new_tokens = get_max_max_new_tokens(chosen_model_state,
+                                                memory_restriction_level=memory_restriction_level,
                                                 max_new_tokens=max_new_tokens,
-                                                user_set_max_new_tokens=user_set_max_new_tokens)
+                                                max_max_new_tokens=max_max_new_tokens)
     max_new_tokens = min(max(1, int(max_new_tokens)), max_max_new_tokens)
     min_new_tokens = min(max(0, int(min_new_tokens)), max_new_tokens)
     max_time = min(max(0, max_time), max_max_time)
@@ -1429,6 +1429,18 @@ def evaluate(
         outr = ""
         # use smaller cut_distanct for wiki_full since so many matches could be obtained, and often irrelevant unless close
         from gpt_langchain import run_qa_db
+        gen_hyper_langchain = dict(do_sample=do_sample,
+                                   temperature=temperature,
+                                   repetition_penalty=repetition_penalty,
+                                   top_k=top_k,
+                                   top_p=top_p,
+                                   num_beams=num_beams,
+                                   min_new_tokens=min_new_tokens,
+                                   max_new_tokens=max_new_tokens,
+                                   early_stopping=early_stopping,
+                                   max_time=max_time,
+                                   num_return_sequences=num_return_sequences,
+                                   )
         for r in run_qa_db(query=query,
                            model_name=base_model, model=model, tokenizer=tokenizer,
                            inference_server=inference_server,
@@ -1451,18 +1463,7 @@ def evaluate(
                            db_type=db_type,
                            top_k_docs=top_k_docs,
 
-                           # gen_hyper:
-                           do_sample=do_sample,
-                           temperature=temperature,
-                           repetition_penalty=repetition_penalty,
-                           top_k=top_k,
-                           top_p=top_p,
-                           num_beams=num_beams,
-                           min_new_tokens=min_new_tokens,
-                           max_new_tokens=max_new_tokens,
-                           early_stopping=early_stopping,
-                           max_time=max_time,
-                           num_return_sequences=num_return_sequences,
+                           **gen_hyper_langchain,
 
                            prompt_type=prompt_type,
                            prompt_dict=prompt_dict,
@@ -1480,7 +1481,11 @@ def evaluate(
             outr, extra = r  # doesn't accumulate, new answer every yield, so only save that full answer
             yield dict(response=outr, sources=extra)
         if save_dir:
-            save_generate_output(output=outr, base_model=base_model, save_dir=save_dir)
+            extra_dict = gen_hyper_langchain.copy()
+            extra_dict.update(prompt_type=prompt_type)
+            save_generate_output(prompt=query, output=outr, base_model=base_model, save_dir=save_dir,
+                                 where_from='run_qa_db',
+                                 extra_dict=extra_dict)
             if verbose:
                 print(
                     'Post-Generate Langchain: %s decoded_output: %s' % (str(datetime.now()), len(outr) if outr else -1),
@@ -1575,28 +1580,32 @@ def evaluate(
         if gr_client is not None:
             # h2oGPT gradio server will handle input token size issues for prompt
             chat_client = False
+            where_from = "gr_client"
             client_langchain_mode = 'Disabled'
+            gen_server_kwargs = dict(temperature=temperature,
+                                     top_p=top_p,
+                                     top_k=top_k,
+                                     num_beams=num_beams,
+                                     max_new_tokens=max_new_tokens,
+                                     min_new_tokens=min_new_tokens,
+                                     early_stopping=early_stopping,
+                                     max_time=max_time,
+                                     repetition_penalty=repetition_penalty,
+                                     num_return_sequences=num_return_sequences,
+                                     do_sample=do_sample,
+                                     chat=chat_client,
+                                     )
             client_kwargs = dict(instruction=prompt if chat_client else '',  # only for chat=True
                                  iinput='',  # only for chat=True
                                  context='',
                                  # streaming output is supported, loops over and outputs each generation in streaming mode
                                  # but leave stream_output=False for simple input/output mode
                                  stream_output=stream_output,
+
+                                 **gen_server_kwargs,
+
                                  prompt_type=prompt_type,
                                  prompt_dict='',
-
-                                 temperature=temperature,
-                                 top_p=top_p,
-                                 top_k=top_k,
-                                 num_beams=num_beams,
-                                 max_new_tokens=max_new_tokens,
-                                 min_new_tokens=min_new_tokens,
-                                 early_stopping=early_stopping,
-                                 max_time=max_time,
-                                 repetition_penalty=repetition_penalty,
-                                 num_return_sequences=num_return_sequences,
-                                 do_sample=do_sample,
-                                 chat=chat_client,
 
                                  instruction_nochat=prompt if not chat_client else '',
                                  iinput_nochat='',  # only for chat=False
@@ -1640,6 +1649,7 @@ def evaluate(
         elif hf_client:
             # HF inference server needs control over input tokens
             from h2oai_pipeline import H2OTextGenerationPipeline
+            where_from = "hf_client"
             prompt = H2OTextGenerationPipeline.limit_prompt(prompt, tokenizer)
 
             # prompt must include all human-bot like tokens, already added by prompt
@@ -1682,7 +1692,9 @@ def evaluate(
         else:
             raise RuntimeError("Failed to get client: %s" % inference_server)
         if save_dir and text:
-            save_generate_output(output=text, base_model=base_model, save_dir=save_dir)
+            # save prompt + new text
+            save_generate_output(prompt=prompt, output=text, base_model=base_model, save_dir=save_dir,
+                                 where_from=where_from, extra_dict=gen_server_kwargs)
         return
     else:
         assert not inference_server, "inferene_server=%s not supported" % inference_server
@@ -1861,7 +1873,9 @@ def evaluate(
                     if outputs and len(outputs) >= 1:
                         decoded_output = prompt + outputs[0]
                 if save_dir and decoded_output:
-                    save_generate_output(output=decoded_output, base_model=base_model, save_dir=save_dir)
+                    save_generate_output(prompt=prompt, output=decoded_output, base_model=base_model, save_dir=save_dir,
+                                         where_from="evaluate_%s" % str(stream_output),
+                                         extra_dict=gen_config_kwargs)
             if verbose:
                 print('Post-Generate: %s decoded_output: %s' % (
                     str(datetime.now()), len(decoded_output) if decoded_output else -1), flush=True)
@@ -2244,21 +2258,24 @@ def check_locals(**kwargs):
 
 
 def get_max_max_new_tokens(model_state, **kwargs):
-    if kwargs['max_new_tokens'] and kwargs['user_set_max_new_tokens']:
-        max_max_new_tokens = kwargs['max_new_tokens']
-    elif kwargs['memory_restriction_level'] == 1:
-        max_max_new_tokens = 768
-    elif kwargs['memory_restriction_level'] == 2:
-        max_max_new_tokens = 512
-    elif kwargs['memory_restriction_level'] >= 3:
-        max_max_new_tokens = 256
+    if not isinstance(model_state['tokenizer'], (str, types.NoneType)):
+        max_max_new_tokens = model_state['tokenizer'].model_max_length
     else:
-        if not isinstance(model_state['tokenizer'], (str, types.NoneType)):
-            max_max_new_tokens = model_state['tokenizer'].model_max_length
-        else:
-            # FIXME: Need to update after new model loaded, so user can control with slider
-            max_max_new_tokens = 2048
-    return max_max_new_tokens
+        max_max_new_tokens = None
+
+    if kwargs['max_max_new_tokens'] is not None and max_max_new_tokens is not None:
+        return min(max_max_new_tokens, kwargs['max_max_new_tokens'])
+    elif kwargs['max_max_new_tokens'] is not None:
+        return kwargs['max_max_new_tokens']
+    elif kwargs['memory_restriction_level'] == 1:
+        return 768
+    elif kwargs['memory_restriction_level'] == 2:
+        return 512
+    elif kwargs['memory_restriction_level'] >= 3:
+        return 256
+    else:
+        # FIXME: Need to update after new model loaded, so user can control with slider
+        return 2048
 
 
 def get_minmax_top_k_docs(is_public):

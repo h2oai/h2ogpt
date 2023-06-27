@@ -175,35 +175,39 @@ def _zip_data(root_dirs=None, zip_file=None, base_dir='./'):
     return zip_file, zip_file
 
 
-def save_generate_output(output=None, base_model=None, save_dir=None):
+def save_generate_output(prompt=None, output=None, base_model=None, save_dir=None, where_from='unknown where from',
+                         extra_dict={}):
     try:
-        return _save_generate_output(output=output, base_model=base_model, save_dir=save_dir)
+        return _save_generate_output(prompt=prompt, output=output, base_model=base_model, save_dir=save_dir,
+                                     where_from=where_from, extra_dict=extra_dict)
     except Exception as e:
         traceback.print_exc()
         print('Exception in saving: %s' % str(e))
 
 
-def _save_generate_output(output=None, base_model=None, save_dir=None):
+def _save_generate_output(prompt=None, output=None, base_model=None, save_dir=None, where_from='unknown where from',
+                          extra_dict={}):
     """
     Save conversation to .json, row by row.
     json_file_path is path to final JSON file. If not in ., then will attempt to make directories.
     Appends if file exists
     """
+    prompt = '<not set>' if prompt is None else prompt
+    output = '<not set>' if output is None else output
     assert save_dir, "save_dir must be provided"
     if os.path.exists(save_dir) and not os.path.isdir(save_dir):
         raise RuntimeError("save_dir already exists and is not a directory!")
     os.makedirs(save_dir, exist_ok=True)
     import json
-    if output[-10:] == '\n\n<human>:':
-        # remove trailing <human>:
-        output = output[:-10]
+    dict_to_save = dict(prompt=prompt, text=output, time=time.ctime(), base_model=base_model, where_from=where_from)
+    dict_to_save.update(extra_dict)
     with filelock.FileLock("save_dir.lock"):
         # lock logging in case have concurrency
         with open(os.path.join(save_dir, "history.json"), "a") as f:
             # just add [ at start, and ] at end, and have proper JSON dataset
             f.write(
                 "  " + json.dumps(
-                    dict(text=output, time=time.ctime(), base_model=base_model)
+                    dict_to_save
                 ) + ",\n"
             )
 
@@ -809,6 +813,7 @@ def get_kwargs(func, exclude_names=None, **kwargs):
 
 
 import pkg_resources
+
 have_faiss = False
 
 try:
@@ -836,7 +841,7 @@ def hash_file(file):
         BUF_SIZE = 65536  # lets read stuff in 64kb chunks!
 
         md5 = hashlib.md5()
-        #sha1 = hashlib.sha1()
+        # sha1 = hashlib.sha1()
 
         with open(file, 'rb') as f:
             while True:
@@ -844,7 +849,7 @@ def hash_file(file):
                 if not data:
                     break
                 md5.update(data)
-                #sha1.update(data)
+                # sha1.update(data)
     except BaseException as e:
         print("Cannot hash %s due to %s" % (file, str(e)))
         traceback.print_exc()
@@ -881,6 +886,7 @@ class FakeTokenizer:
     1) For keeping track of model_max_length
     2) For when model doesn't directly expose tokenizer but need to count tokens
     """
+
     def __init__(self, model_max_length=2048, encoding_name="cl100k_base"):
         self.model_max_length = model_max_length
         self.encoding_name = encoding_name
