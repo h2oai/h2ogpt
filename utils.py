@@ -199,9 +199,6 @@ def _save_generate_output(prompt=None, output=None, base_model=None, save_dir=No
         raise RuntimeError("save_dir already exists and is not a directory!")
     os.makedirs(save_dir, exist_ok=True)
     import json
-    if output[-10:] == '\n\n<human>:':
-        # remove trailing <human>:
-        output = output[:-10]
     dict_to_save = dict(prompt=prompt, text=output, time=time.ctime(), base_model=base_model, where_from=where_from)
     dict_to_save.update(extra_dict)
     with filelock.FileLock("save_dir.lock"):
