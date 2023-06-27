@@ -11,13 +11,23 @@ A Python thin-client for h2oGPT.
 cd client
 pip install poetry==1.5.1
 make setup
-make lint
 make build
-# install (choose version if multiple builds in dist directory)
-pip install dist/h2ogpt_client-*-py3-none-any.whl
-# test
-cd ..
-pytest -s -v --forked client
+```
+
+### Build
+```shell
+make build
+```
+Distribution wheel file can be found in the `dist` directory.
+
+### Run tests
+#### With h2oGPT from source
+```shell
+make test_with_h2ogpt
+```
+#### With a h2oGPT deployed in a remote server
+```shell
+make H2OGPT_SERVER="http://192.168.1.1:7860" test
 ```
 
 ## Usage

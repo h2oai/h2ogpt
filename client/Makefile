@@ -20,6 +20,16 @@ lint: generate_sources
 test: generate_sources
 	poetry run pytest
 
+.PHONY: test_with_h2ogpt
+test_with_h2ogpt: H2OGPT_START=python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b --load_8bit=True
+test_with_h2ogpt: H2OGPT_SERVER=http://0.0.0.0:7860
+test_with_h2ogpt:
+	cd .. && . venv/bin/activate && \
+	$(H2OGPT_START) &
+	sleep 20 && wget --retry-connrefused --waitretry=30 --timeout=60 --tries=50 --output-document=/dev/null "$(H2OGPT_SERVER)"
+	$(MAKE) H2OGPT_SERVER="$(H2OGPT_SERVER)" test
+	pkill -f "$(H2OGPT_START)" &
+
 .PHONY: build
 build: generate_sources
 	poetry build
