@@ -596,7 +596,7 @@ def get_llm(use_openai_model=False,
                   max_tokens=max_new_tokens,
                   top_p=top_p if do_sample else 1,
                   frequency_penalty=0,
-                  presence_penalty=1.07 - repetition_penalty + 0.6,  # so good default
+                  presence_penalty=1.0 - repetition_penalty + 0.6,  # so good default
                   callbacks=callbacks if stream_output else None,
                   )
         streamer = callbacks[0] if stream_output else None
