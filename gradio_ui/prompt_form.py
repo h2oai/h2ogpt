@@ -91,17 +91,17 @@ def make_chatbots(output_label0, output_label0_model2, **kwargs):
 
 def make_prompt_form(kwargs):
     if kwargs['input_lines'] > 1:
-        instruction_label = "press Shift-Enter or click Submit to send message, press Enter for multiple input lines"
+        instruction_label = "Shift-Enter to Submit, Enter for more lines"
     else:
-        instruction_label = "press Enter or click Submit to send message, press Shift-Enter for more lines"
+        instruction_label = "Enter to Submit, Shift-Enter for more lines"
 
-    with gr.Row(elem_id='prompt-form-area'):
+    with gr.Row():#elem_id='prompt-form-area'):
         with gr.Column(scale=50):
             instruction = gr.Textbox(
                 lines=kwargs['input_lines'],
                 label='Ask anything',
-                placeholder=kwargs['placeholder_instruction'],
-                info=instruction_label,
+                placeholder=instruction_label,
+                info=None,
                 elem_id='prompt-form',
                 container=True,
             )
