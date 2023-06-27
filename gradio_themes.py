@@ -195,7 +195,7 @@ h2o_logo = '<svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/
 
 
 def get_h2o_title(title, description):
-    return f"""<div style="float:left; justify-content:left; height: 80px; width: 300px; margin-top:0px">
+    return f"""<div style="float:left; justify-content:left; height: 80px; width: 200px; margin-top:0px">
                     {description}
                 </div>
                 <div style="display:flex; justify-content:center; margin-bottom:30px; margin-right:330px;">
