@@ -409,7 +409,7 @@ def main(
         if not max_max_time:
             max_max_time = 60 * 20
         if not max_max_new_tokens:
-            max_max_new_tokens = 256
+            max_max_new_tokens = 512
     if is_hf:
         # must override share if in spaces
         share = False
@@ -1508,7 +1508,7 @@ def evaluate(
                                  top_p=top_p if do_sample else 1,
                                  frequency_penalty=0,
                                  n=num_return_sequences,
-                                 presence_penalty=1.07 - repetition_penalty + 0.6,  # so good default
+                                 presence_penalty=1.00 - repetition_penalty + 0.6,  # so good default
                                  )
         if inference_server == 'openai':
             response = openai.Completion.create(
@@ -1595,6 +1595,18 @@ def evaluate(
                                      do_sample=do_sample,
                                      chat=chat_client,
                                      )
+            # account for gradio into gradio that handles prompting, avoid duplicating prompter prompt injection
+            if prompt_type in [None, PromptType.plain.name, PromptType.plain.value, str(PromptType.plain.value)]:
+                # if our prompt is plain, assume either correct or gradio server knows different prompt type,
+                # so pass empty prompt_Type
+                gr_prompt_type = ''
+                gr_prompt_dict = ''
+            else:
+                # if already have prompt_type that is not plain, then already applied some prompting
+                # assume server also knows model type and may know prompt_type, so avoid doubling-up
+                # by passing plain as override since already have prompt_type applied in this code, earlier
+                gr_prompt_type = 'plain'
+                gr_prompt_dict = ''
             client_kwargs = dict(instruction=prompt if chat_client else '',  # only for chat=True
                                  iinput='',  # only for chat=True
                                  context='',
@@ -1604,8 +1616,8 @@ def evaluate(
 
                                  **gen_server_kwargs,
 
-                                 prompt_type=prompt_type,
-                                 prompt_dict='',
+                                 prompt_type=gr_prompt_type,
+                                 prompt_dict=gr_prompt_dict,
 
                                  instruction_nochat=prompt if not chat_client else '',
                                  iinput_nochat='',  # only for chat=False
@@ -1634,7 +1646,12 @@ def evaluate(
                         res_dict = ast.literal_eval(res)
                         text = res_dict['response']
                         sources = res_dict['sources']
-                        yield dict(response=prompter.get_response(prompt + text, prompt=prompt,
+                        if gr_prompt_type == 'plain':
+                            # then gradio server passes back full prompt + text
+                            prompt_and_text = text
+                        else:
+                            prompt_and_text = prompt + text
+                        yield dict(response=prompter.get_response(prompt_and_text, prompt=prompt,
                                                                   sanitize_bot_response=sanitize_bot_response),
                                    sources=sources)
                     time.sleep(0.01)
@@ -1643,7 +1660,12 @@ def evaluate(
                 res_dict = ast.literal_eval(res)
                 text = res_dict['response']
                 sources = res_dict['sources']
-                yield dict(response=prompter.get_response(prompt + text, prompt=prompt,
+                if gr_prompt_type == 'plain':
+                    # then gradio server passes back full prompt + text
+                    prompt_and_text = text
+                else:
+                    prompt_and_text = prompt + text
+                yield dict(response=prompter.get_response(prompt_and_text, prompt=prompt,
                                                           sanitize_bot_response=sanitize_bot_response),
                            sources=sources)
         elif hf_client:
@@ -2086,7 +2108,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         top_k = 40 if top_k is None else top_k
         num_beams = num_beams or 1
         max_new_tokens = max_new_tokens or 128
-        repetition_penalty = repetition_penalty or 1.07
+        repetition_penalty = repetition_penalty or 1.0
         num_return_sequences = min(num_beams, num_return_sequences or 1)
         do_sample = False if do_sample is None else do_sample
     else:
@@ -2095,7 +2117,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         top_k = 40 if top_k is None else top_k
         num_beams = num_beams or 1
         max_new_tokens = max_new_tokens or 256
-        repetition_penalty = repetition_penalty or 1.07
+        repetition_penalty = repetition_penalty or 1.0
         num_return_sequences = min(num_beams, num_return_sequences or 1)
         do_sample = False if do_sample is None else do_sample
     # doesn't include chat, instruction_nochat, iinput_nochat, added later
