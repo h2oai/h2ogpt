@@ -2042,7 +2042,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         use_defaults = True
     else:
         if chat:
-            placeholder_instruction = "Enter a question or imperative."
+            placeholder_instruction = ""
         else:
             placeholder_instruction = "Give detailed answer for whether Einstein or Newton is smarter."
         placeholder_input = ""
