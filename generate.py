@@ -409,7 +409,7 @@ def main(
         if not max_max_time:
             max_max_time = 60 * 20
         if not max_max_new_tokens:
-            max_max_new_tokens = 256
+            max_max_new_tokens = 512
     if is_hf:
         # must override share if in spaces
         share = False
