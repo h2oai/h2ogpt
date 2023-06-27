@@ -1595,6 +1595,18 @@ def evaluate(
                                      do_sample=do_sample,
                                      chat=chat_client,
                                      )
+            # account for gradio into gradio that handles prompting, avoid duplicating prompter prompt injection
+            if prompt_type in [None, PromptType.plain.name, PromptType.plain.value, str(PromptType.plain.value)]:
+                # if our prompt is plain, assume either correct or gradio server knows different prompt type,
+                # so pass empty prompt_Type
+                gr_prompt_type = ''
+                gr_prompt_dict = ''
+            else:
+                # if already have prompt_type that is not plain, then already applied some prompting
+                # assume server also knows model type and may know prompt_type, so avoid doubling-up
+                # by passing plain as override since already have prompt_type applied in this code, earlier
+                gr_prompt_type = 'plain'
+                gr_prompt_dict = ''
             client_kwargs = dict(instruction=prompt if chat_client else '',  # only for chat=True
                                  iinput='',  # only for chat=True
                                  context='',
@@ -1604,8 +1616,8 @@ def evaluate(
 
                                  **gen_server_kwargs,
 
-                                 prompt_type=prompt_type,
-                                 prompt_dict='',
+                                 prompt_type=gr_prompt_type,
+                                 prompt_dict=gr_prompt_dict,
 
                                  instruction_nochat=prompt if not chat_client else '',
                                  iinput_nochat='',  # only for chat=False
@@ -1634,7 +1646,12 @@ def evaluate(
                         res_dict = ast.literal_eval(res)
                         text = res_dict['response']
                         sources = res_dict['sources']
-                        yield dict(response=prompter.get_response(prompt + text, prompt=prompt,
+                        if gr_prompt_type == 'plain':
+                            # then gradio server passes back full prompt + text
+                            prompt_and_text = text
+                        else:
+                            prompt_and_text = prompt + text
+                        yield dict(response=prompter.get_response(prompt_and_text, prompt=prompt,
                                                                   sanitize_bot_response=sanitize_bot_response),
                                    sources=sources)
                     time.sleep(0.01)
@@ -1643,7 +1660,12 @@ def evaluate(
                 res_dict = ast.literal_eval(res)
                 text = res_dict['response']
                 sources = res_dict['sources']
-                yield dict(response=prompter.get_response(prompt + text, prompt=prompt,
+                if gr_prompt_type == 'plain':
+                    # then gradio server passes back full prompt + text
+                    prompt_and_text = text
+                else:
+                    prompt_and_text = prompt + text
+                yield dict(response=prompter.get_response(prompt_and_text, prompt=prompt,
                                                           sanitize_bot_response=sanitize_bot_response),
                            sources=sources)
         elif hf_client:
