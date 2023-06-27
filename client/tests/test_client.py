@@ -1,5 +1,7 @@
 import os
 
+import pytest
+
 from h2ogpt_client import Client
 
 
@@ -8,43 +10,47 @@ def create_client(server_url: str = "") -> Client:
     return Client(server_url)
 
 
-def test_text_completion():
+def test_text_completion_sync():
     launch_server()
 
     client = create_client()
-    r = client.text_completion.create("Hello world")
-    assert r
-    print(r)
+    text_completion = client.text_completion.create()
+    response = text_completion.complete_sync(prompt="Hello world")
+    assert response
+    print(response)
 
 
-async def test_text_completion_async():
+@pytest.mark.asyncio
+async def test_text_completion():
     launch_server()
 
     client = create_client()
-    r = await client.text_completion.create_async("Hello world")
-    assert r
-    print(r)
+    text_completion = client.text_completion.create()
+    response = await text_completion.complete(prompt="Hello world")
+    assert response
+    print(response)
 
 
-def test_chat_completion():
+@pytest.mark.asyncio
+async def test_chat_completion():
     launch_server()
 
     client = create_client()
-    chat_context = client.chat_completion.create()
+    chat_completion = client.chat_completion.create()
 
-    chat1 = chat_context.chat("Hey!")
+    chat1 = await chat_completion.chat(prompt="Hey!")
     assert chat1["user"] == "Hey!"
     assert chat1["gpt"]
 
-    chat2 = chat_context.chat("How are you?")
+    chat2 = await chat_completion.chat(prompt="How are you?")
     assert chat2["user"] == "How are you?"
     assert chat2["gpt"]
 
-    chat3 = chat_context.chat("Have a good day")
+    chat3 = await chat_completion.chat(prompt="Have a good day")
     assert chat3["user"] == "Have a good day"
     assert chat3["gpt"]
 
-    chat_history = chat_context.chat_history()
+    chat_history = chat_completion.chat_history()
     assert chat_history == [chat1, chat2, chat3]
     print(chat_history)
 

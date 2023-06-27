@@ -27,15 +27,15 @@ from h2ogpt_client import Client
 client = Client("http://0.0.0.0:7860")
 
 # text completion
-response = client.text_completion.create("Hello world")
-response = await client.text_completion.create_async("Hello world")
+text_completion = client.text_completion.create()
+response = await text_completion.complete("Hello world")
 
 # chat completion
-chat_context = client.chat_completion.create()
-chat = chat_context.chat("Hey!")
-print(chat["user"])  # prints user prompt, i.e. "Hey!"
-print(chat["gpt"])   # prints reply of the h2oGPT
-chat_history = chat_context.chat_history()
+chat_completion = client.chat_completion.create()
+reply = await chat_completion.chat("Hey!")
+print(reply["user"])  # prints user prompt, i.e. "Hey!"
+print(reply["gpt"])   # prints reply of the h2oGPT
+chat_history = chat_completion.chat_history()
 ```
 :warning: **Note**: Client APIs are still evolving. Hence, APIs can be changed without prior warnings.
 
