@@ -325,6 +325,10 @@ def main(
     if inference_server is None:
         inference_server = ''
 
+    if isinstance(model_lock, str):
+        # try to convert
+        model_lock = ast.literal_eval(model_lock)
+
     if model_lock:
         assert gradio, "model_lock only supported for gradio=True"
         if len(model_lock) > 1:
