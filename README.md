@@ -13,7 +13,6 @@ Welcome!  Join us and make an issue or a PR, and contribute to making the best f
 Turn ★ into ⭐ (top-right corner) if you like the project!
 
 <!--  cat README.md | ./gh-md-toc  -  But Help is heavily processed -->
-* [Try h2oGPT now](#try-h2ogpt-now)
 * [Supported OS and Hardware](#supported-os-and-hardware)
 * [Apache V2 ChatBot with LangChain Integration](#apache-v2-chatbot-with-langchain-integration)
 * [Apache V2 Data Preparation code, Training code, and Models](#apache-v2-data-preparation-code-training-code-and-models)
