@@ -9,7 +9,7 @@ def make_chatbots(output_label0, output_label0_model2, **kwargs):
     chat_kwargs = []
     for model_state_lock in kwargs['model_states']:
         if os.environ.get('DEBUG_MODEL_LOCK'):
-            model_name = model_state_lock["base_model"] + "_" + model_state_lock["inference_server"]
+            model_name = model_state_lock["base_model"] + " : " + model_state_lock["inference_server"]
         else:
             model_name = model_state_lock["base_model"]
         output_label = f'h2oGPT [{model_name}]'
