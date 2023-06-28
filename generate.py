@@ -235,6 +235,7 @@ def main(
            Note: Some things always disabled include HF telemetry, gradio telemetry, chromadb posthog that involve uploading.
            This option further disables google fonts for downloading, which is less intrusive than uploading,
            but still required in air-gapped case.  The fonts don't look as nice as google fonts, but ensure full offline behavior.
+           Also set --share=False to avoid sharing a gradio live link.
     :param chat: whether to enable chat mode with chat history
     :param chat_context: whether to use extra helpful context if human_bot
     :param stream_output: whether to stream output from generate
