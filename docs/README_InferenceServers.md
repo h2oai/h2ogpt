@@ -239,3 +239,23 @@ When bringing up `generate.py` with any inference server, one can set `REQUEST_T
 Note: The client API calls for chat APIs (i.e. `instruction` type for `instruction`, `instruction_bot`, `instruction_bot_score`, and similar for `submit` and `retry` types) require managing all chat sessions via API.  However, the `nochat` APIs only use the first model in the list of chats or model_lock list.
 
 ![Models Lock](models_lock.png)
+
+
+### System info from gradio server
+
+```python
+import os
+import json
+from gradio_client import Client
+ADMIN_PASS = ''
+HOST = "http://localhost:7860"
+client = Client(HOST)
+api_name = '/system_info_dict'
+res = client.predict(ADMIN_PASS, api_name=api_name)
+res = json.loads(res)
+print(res)
+# e.g.
+print(res['base_model'])
+print(res['hash'])
+```
+where one should set `ADMIN_PASS` to pass set for that instance and change `HOST` to the desired host.
