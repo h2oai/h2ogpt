@@ -871,7 +871,7 @@ def start_faulthandler():
 
 
 def get_hf_server(inference_server):
-    inf_split = inference_server.split("$$$$")
+    inf_split = inference_server.split("    ")
     assert len(inf_split) == 1 or len(inf_split) == 3
     inference_server = inf_split[0]
     if len(inf_split) == 3:

@@ -230,11 +230,9 @@ where the lock columns of 4 makes a grid of chatbots with 4 columns.
 
 If you run in bash and need to use an authentication for the Hugging Face text generation inference server, then that can be passed:
 ```text
-{'inference_server':'https://server.h2o.ai$$$$USER$$$$AUTH','base_model':'h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2'}
+{'inference_server':'https://server.h2o.ai    USER    AUTH','base_model':'h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2'}
 ```
-where USER should be the user and AUTH be the token.
-
-**Important:** If this is run in bash or some other shell where `$` is special, then not only should there be no spaces between characters if not using double quotes, but also the `$` should be escaped as `\$` in the CLI or any bash script.
+i.e. 4 spaces between each IP, USER, and AUTH.  USER should be the user and AUTH be the token.
 
 When bringing up `generate.py` with any inference server, one can set `REQUEST_TIMEOUT` ENV to smaller value than default of 60 seconds to get server up faster if have many inaccessible endpoints you don't mind skipping.  E.g. set `REQUEST_TIMEOUT=5`.  One can also choose the timeout overall for each chat turn using env `REQUEST_TIMEOUT_FAST` that defaults to 10 seconds.
 
