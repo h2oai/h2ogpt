@@ -18,7 +18,7 @@ lint: generate_sources
 
 .PHONY: test
 test: generate_sources
-	poetry run pytest
+	poetry run pytest -r A
 
 .PHONY: test_with_h2ogpt
 test_with_h2ogpt: H2OGPT_START=python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b --load_8bit=True
