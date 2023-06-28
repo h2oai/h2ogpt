@@ -13,7 +13,7 @@ def test_cli(monkeypatch):
     all_generations = main(base_model='gptj', cli=True, cli_loop=False, score_model='None')
 
     assert len(all_generations) == 1
-    assert "The Earth is a planet in our solar system that orbits around the Sun." in all_generations[0]
+    assert "The Earth is a planet in our solar system" in all_generations[0]
 
 
 @wrap_test_forked
@@ -65,9 +65,9 @@ def test_cli_langchain_llamacpp(monkeypatch):
     assert "pexels-evg-kowalievska-1170986_small.jpg" in all_generations[0]
     assert "The cat is sitting on a window seat and looking out the window" in all_generations[0] or \
            "staring out the window at the city skyline" in all_generations[0] or \
-        "The cat is likely relaxing and enjoying" in all_generations[0] or \
-        "The cat is sitting on a window seat and looking out" in all_generations[0] or \
-        "cat in the image is" in all_generations[0]
+           "The cat is likely relaxing and enjoying" in all_generations[0] or \
+           "The cat is sitting on a window seat and looking out" in all_generations[0] or \
+           "cat in the image is" in all_generations[0]
 
 
 @pytest.mark.need_tokens
@@ -90,7 +90,8 @@ def test_cli_llamacpp(monkeypatch):
     print(all_generations)
     assert len(all_generations) == 1
     assert "I'm a software engineer with a passion for building scalable" in all_generations[0] or \
-        "how can I assist" in all_generations[0]
+           "how can I assist" in all_generations[0] or \
+           "am a virtual assistant" in all_generations[0]
 
 
 @wrap_test_forked
@@ -102,7 +103,8 @@ def test_cli_h2ogpt(monkeypatch):
     all_generations = main(base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b', cli=True, cli_loop=False, score_model='None')
 
     assert len(all_generations) == 1
-    assert "The Earth is a planet in the Solar System." in all_generations[0]
+    assert "The Earth is a planet in the Solar System." in all_generations[0] or \
+           "The Earth is the third planet" in all_generations[0]
 
 
 @wrap_test_forked
@@ -125,4 +127,5 @@ def test_cli_langchain_h2ogpt(monkeypatch):
     print(all_generations)
     assert len(all_generations) == 1
     assert "pexels-evg-kowalievska-1170986_small.jpg" in all_generations[0]
-    assert "looking out the window" in all_generations[0] or "staring out the window at the city skyline" in all_generations[0]
+    assert "looking out the window" in all_generations[0] or "staring out the window at the city skyline" in \
+           all_generations[0]

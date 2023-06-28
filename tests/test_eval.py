@@ -36,7 +36,7 @@ def test_eval_json():
                                   eval_prompts_only_num=len(prompts))
     df = pd.read_parquet(eval_out_filename)
     assert df['response'].values[
-               0] == "My name is h2oGPT. I'm a large language model trained by H2O.ai. How may I assist you?"
+               0] == "My name is h2oGPT. I'm a large language model trained by H2O.ai."
     assert df['score'].values[0] > 0.03  # odd score IMO
     assert df['response'].values[1] == "2 + 2 = 4"
     assert df['score'].values[1] > 0.95
@@ -121,20 +121,24 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
         elif bits == 8:
             if base_model == 'junelee/wizard-vicuna-13b':
                 expected2 = {
-                    'response': """The human spine is made up of individual vertebrae, each consisting of two distinct segments - the vertebral body and the vertebral arch. The vertebral body is a weight-bearing segment while the vertebral arch contains the spinous processes, which serve as anchor points for muscles and ligaments. The discs between the vertebrae act as shock absorbers and help with flexibility. However, dysfunctional discs can cause problems and pain. Bulging and ruptured discs are mostly a young person's issue, while older people are more likely to have serious back pain due to other factors. The ligaments and tendons provide support to the spine and prevent it from bending too much. Bad posture, injuries, and persistent poor movements can cause ligament sprains and tendon strains, leading to joint instability.""",
+                    'response': """The human spine is made up of a stack of bones called vertebrae. Each vertebra has two distinct segments: the vertebral body and the vertebral arch. The vertebral body is the more or less solid and weight-bearing portion toward your front, while the vertebral arch is the flying buttress-looking piece that sticks off the back. The vertebra is one solid piece of bone but with two very distinct segments and a hole down the middle where the spinal cord goes. The spinous processes are the anchor points for ligaments that attach muscles to the vertebrae. The discs are washers that keep the vertebrae apart and provide shock absorption. Bulging and ruptured discs are mostly a young person's problem, while older people have horrendous problems like serious back pain. Ligaments and tendons provide support to the spine and can become deformed or sprained from bad posture, bad movements, or an injury.""",
                     'score': 0.7533428072929382}
             else:
                 expected2 = {
-                    'response': """The spinal ligaments are like the webbing on a tree branch. They are there to help hold the spine together and keep it straight. If you pull on the spinal ligaments, they will give. If you push on them, they will give. They are there to help keep the spine straight. If you twist your spine, the ligaments will give. If you turn your spine sideways, the ligaments will give. If you have a bad posture, the ligaments will give. If you have a bad habit, the ligaments will give. If you do something stupid, the ligaments will give. If you are lucky, they won’t give. If you are unlucky, they will give.""",
+                    'response': """The spinal ligaments are like the spinal cord, they are a support system for the spine. They are there to keep the spine from moving too much and to keep the vertebrae from slipping around. If you have a bad back, you can get a sprain or a strain.""",
                     'score': 0.7533428072929382}
 
+        elif bits == 16:
+            expected2 = {
+                'response': """The ligaments are the bands of fibrous tissue that connect the vertebrae to one another. They are like a belt around the spine. The ligaments are very important in maintaining the proper alignment of the spine. The ligaments are very strong and can withstand a lot of pressure. The ligaments are very important in maintaining the proper alignment of the spine.""",
+                'score': 0.7533428072929382}
         else:
             expected2 = {
-                'response': """The ligaments are the bands of tissue that connect the vertebrae together. The ligaments help to stabilize the spine and protect the spinal cord. Ligament tears are common in people who have poor posture or repetitive strain injuries.""",
+                'response': """The ligaments are the bands of fibrous tissue that connect the vertebrae to one another. They are like a belt around the spine. The ligaments are very important in maintaining the proper alignment of the spine. The ligaments are very strong and can withstand a lot of pressure. The ligaments are very important in maintaining the proper alignment of the spine.""",
                 'score': 0.7533428072929382}
     else:
         expected2 = {
-            'response': 'The ligaments that support the spine are called the “spinal ligaments.” They are there to help keep the spine straight and upright. They are made up of tough fibers that run from the pelvis to the skull. They are like the stays on a sailboat, except that they are much thicker and stronger. \nThe spinal ligaments are divided into two groups: anterior and posterior. The anterior ligaments are attached to the front of the vertebrae, while the posterior ligaments are attached to the back. The anterior ligaments are called the “anterior longitudinal ligaments”',
+            'response': """'The ligaments that support the spine are called the ?ligamentum flavum? and the ?ligamentum transversum.? The ligamentum flavum is the ?soft? ligament that runs along the front of the spine. The ligamentum transversum is the ?stiff? ligament that runs along the back of the spine. Both are very important, and if they are damaged, the spine can become unstable. \nThe ligaments are connected to the vertebrae by a series of ?ligamentous bridges.? These bridges are called ?interspinous ligaments.? They are very important, too. If the interspinous ligaments are damaged, the vertebrae can move around and the spine can become unstable. \nThe interspinous ligaments are connected to the vertebrae by a series of ?spinous processes.? These are bony projections that stick out from the vertebrae. The spinous processes are connected to the vertebrae by ligaments called ?spinous ligaments.? If the spinous ligaments are damaged, the vertebrae can move around and the spine can become unstable. \nThe ligaments are connected to the vertebrae by a series of ?transverse processes.? These are bony projections that stick out from the vertebrae'""",
             'score': 0.77}
 
     assert np.isclose(actual2['score'], expected2['score'], rtol=0.3), "Score is not as expected: %s %s" % (

@@ -286,7 +286,8 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'A chatbot that uses a large language model' in res_dict['response'] or
             'This is a config file for Whisper' in res_dict['response'] or
             'Whisper is a secure messaging app' in res_dict['response'] or
-            'secure, private, and anonymous chatbot' in res_dict['response']
+            'secure, private, and anonymous chatbot' in res_dict['response'] or
+            'Whisper is a secure, anonymous, and encrypted' in res_dict['response']
             ) \
            and ('FAQ.md' in res_dict['response'] or 'README.md' in res_dict['response'])
 

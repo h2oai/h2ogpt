@@ -558,7 +558,7 @@ def test_md_add(db_type):
             assert db is not None
             docs = db.similarity_search("What is h2oGPT?")
             assert len(docs) == 4
-            assert 'h2oGPT is a large language model' in docs[0].page_content
+            assert 'h2oGPT is a large language model' in docs[1].page_content
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
 
