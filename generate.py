@@ -1498,7 +1498,8 @@ def evaluate(
             yield dict(response=outr, sources=extra)
         if save_dir:
             extra_dict = gen_hyper_langchain.copy()
-            extra_dict.update(prompt_type=prompt_type)
+            extra_dict.update(prompt_type=prompt_type, inference_server=inference_server,
+                              langchain_mode=langchain_mode, document_choice=document_choice)
             save_generate_output(prompt=query, output=outr, base_model=base_model, save_dir=save_dir,
                                  where_from='run_qa_db',
                                  extra_dict=extra_dict)
@@ -1748,8 +1749,10 @@ def evaluate(
             raise RuntimeError("Failed to get client: %s" % inference_server)
         if save_dir and text:
             # save prompt + new text
+            extra_dict = gen_server_kwargs.copy()
+            extra_dict.update(dict(inference_server=inference_server))
             save_generate_output(prompt=prompt, output=text, base_model=base_model, save_dir=save_dir,
-                                 where_from=where_from, extra_dict=gen_server_kwargs)
+                                 where_from=where_from, extra_dict=extra_dict)
         return
     else:
         assert not inference_server, "inferene_server=%s not supported" % inference_server
