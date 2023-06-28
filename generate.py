@@ -1017,12 +1017,15 @@ def get_model(
         if torch.__version__ >= "2" and sys.platform != "win32" and compile_model:
             model = torch.compile(model)
 
-    set_model_max_len(config, tokenizer, verbose=False)
+    set_model_max_len(config, tokenizer, verbose=False, reward_type=reward_type)
 
     return model, tokenizer, device
 
 
-def set_model_max_len(config, tokenizer, verbose=False):
+def set_model_max_len(config, tokenizer, verbose=False, reward_type=False):
+    if reward_type:
+        # limit deberta, else uses too much memory and not worth response score
+        tokenizer.model_max_length = 512
     if hasattr(config, 'max_seq_len') and isinstance(config.max_seq_len, int):
         tokenizer.model_max_length = config.max_seq_len
     elif hasattr(config, 'max_position_embeddings') and isinstance(config.max_position_embeddings, int):
@@ -1031,6 +1034,9 @@ def set_model_max_len(config, tokenizer, verbose=False):
     else:
         if verbose:
             print("Could not determine model_max_length, setting to 2048", flush=True)
+        tokenizer.model_max_length = 2048
+    # for bug in HF transformers
+    if tokenizer.model_max_length > 100000000:
         tokenizer.model_max_length = 2048
 
 
@@ -2273,7 +2279,8 @@ def score_qa(smodel, stokenizer, max_length_tokenize, question, answer, cutoff_l
         if 'Expected all tensors to be on the same device' in str(e) or \
                 'expected scalar type Half but found Float' in str(e) or \
                 'probability tensor contains either' in str(e) or \
-                'cublasLt ran into an error!' in str(e):
+                'cublasLt ran into an error!' in str(e) or \
+                'device-side assert triggered' in str(e):
             print("GPU Error: question: %s answer: %s exception: %s" % (question, answer, str(e)),
                   flush=True)
             traceback.print_exc()
