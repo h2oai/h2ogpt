@@ -145,7 +145,7 @@ class TextCompletion:
             *self._get_parameters(prompt), api_name=self._API_NAME
         )
 
-    async def complete_sync(self, prompt: str) -> str:
+    def complete_sync(self, prompt: str) -> str:
         """
         Complete this text completion synchronously.
 
