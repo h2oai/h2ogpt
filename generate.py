@@ -124,7 +124,7 @@ def main(
         max_max_time=None,
         max_max_new_tokens=None,
 
-        sanitize_user_prompt: bool = True,
+        sanitize_user_prompt: bool = False,
         sanitize_bot_response: bool = False,
 
         extra_model_options: typing.List[str] = [],
@@ -256,7 +256,7 @@ def main(
                  e.g. --auth=[('jon','password')] with no spaces
     :param max_max_time: Maximum max_time for gradio slider
     :param max_max_new_tokens: Maximum max_new_tokens for gradio slider
-    :param sanitize_user_prompt: whether to remove profanity from user input
+    :param sanitize_user_prompt: whether to remove profanity from user input (slows down input processing)
     :param sanitize_bot_response: whether to remove profanity and repeat lines from bot output (about 2x slower generation for long streaming cases due to better_profanity being slow)
     :param extra_model_options: extra models to show in list in gradio
     :param extra_lora_options: extra LORA to show in list in gradio

@@ -984,7 +984,7 @@ def go_gradio(**kwargs):
                                  outputs=[score_text_nochat],
                                  )
 
-        def update_history(*args, undo=False, retry=False, sanitize_user_prompt=True):
+        def update_history(*args, undo=False, retry=False, sanitize_user_prompt=False):
             """
             User that fills history for bot
             :param args:
@@ -1032,10 +1032,10 @@ def go_gradio(**kwargs):
             user_message1 = fix_text_for_gradio(user_message1)
             return history + [[user_message1, None]]
 
-        def user(*args, undo=False, retry=False, sanitize_user_prompt=True):
+        def user(*args, undo=False, retry=False, sanitize_user_prompt=False):
             return update_history(*args, undo=undo, retry=retry, sanitize_user_prompt=sanitize_user_prompt)
 
-        def all_user(*args, undo=False, retry=False, sanitize_user_prompt=True, num_model_lock=0):
+        def all_user(*args, undo=False, retry=False, sanitize_user_prompt=False, num_model_lock=0):
             args_list = list(args)
             history_list = args_list[-num_model_lock:]
             assert len(history_list) > 0, "Bad history list: %s" % history_list
