@@ -1600,20 +1600,30 @@ def evaluate(
                                      chat=chat_client,
                                      )
             # account for gradio into gradio that handles prompting, avoid duplicating prompter prompt injection
-            if prompt_type in [None, PromptType.plain.name, PromptType.plain.value, str(PromptType.plain.value)]:
+            if prompt_type in [None, '', PromptType.plain.name, PromptType.plain.value, str(PromptType.plain.value)]:
                 # if our prompt is plain, assume either correct or gradio server knows different prompt type,
                 # so pass empty prompt_Type
                 gr_prompt_type = ''
                 gr_prompt_dict = ''
+                gr_prompt = prompt  # already prepared prompt
+                gr_context = ''
+                gr_iinput = ''
             else:
-                # if already have prompt_type that is not plain, then already applied some prompting
-                # assume server also knows model type and may know prompt_type, so avoid doubling-up
-                # by passing plain as override since already have prompt_type applied in this code, earlier
-                gr_prompt_type = 'plain'
-                gr_prompt_dict = ''
-            client_kwargs = dict(instruction=prompt if chat_client else '',  # only for chat=True
-                                 iinput='',  # only for chat=True
-                                 context='',
+                # if already have prompt_type that is not plain, None, or '', then already applied some prompting
+                #  But assume server can handle prompting, and need to avoid double-up.
+                #  Also assume server can do better job of using stopping.py to stop early, so avoid local prompting, let server handle
+                #  So avoid "prompt" and let gradio server reconstruct from prompt_type we passed
+                # Note it's ok that prompter.get_response() has prompt+text, prompt=prompt passed,
+                #  because just means extra processing and removal of prompt, but that has no human-bot prompting doesn't matter
+                #  since those won't appear
+                gr_context = context
+                gr_prompt = instruction
+                gr_iinput = iinput
+                gr_prompt_type = prompt_type
+                gr_prompt_dict = prompt_dict
+            client_kwargs = dict(instruction=gr_prompt if chat_client else '',  # only for chat=True
+                                 iinput=gr_iinput,  # only for chat=True
+                                 context=gr_context,
                                  # streaming output is supported, loops over and outputs each generation in streaming mode
                                  # but leave stream_output=False for simple input/output mode
                                  stream_output=stream_output,
@@ -1623,8 +1633,8 @@ def evaluate(
                                  prompt_type=gr_prompt_type,
                                  prompt_dict=gr_prompt_dict,
 
-                                 instruction_nochat=prompt if not chat_client else '',
-                                 iinput_nochat='',  # only for chat=False
+                                 instruction_nochat=gr_prompt if not chat_client else '',
+                                 iinput_nochat=gr_iinput,  # only for chat=False
                                  langchain_mode=client_langchain_mode,
                                  top_k_docs=top_k_docs,
                                  chunk=chunk,
@@ -1643,6 +1653,8 @@ def evaluate(
             else:
                 job = gr_client.submit(str(dict(client_kwargs)), api_name=api_name)
                 text = ''
+                sources = ''
+                res_dict = dict(response=text, sources=sources)
                 while not job.done():
                     outputs_list = job.communicator.job.outputs
                     if outputs_list:
@@ -1660,10 +1672,15 @@ def evaluate(
                                    sources=sources)
                     time.sleep(0.01)
                 # ensure get last output to avoid race
-                res = job.outputs()[-1]
-                res_dict = ast.literal_eval(res)
-                text = res_dict['response']
-                sources = res_dict['sources']
+                res_all = job.outputs()
+                if len(res_all) > 0:
+                    res = res_all[-1]
+                    res_dict = ast.literal_eval(res)
+                    text = res_dict['response']
+                    sources = res_dict['sources']
+                else:
+                    # go with old text if last call didn't work
+                    print("Bad final response: %s" % res_all, flush=True)
                 if gr_prompt_type == 'plain':
                     # then gradio server passes back full prompt + text
                     prompt_and_text = text
