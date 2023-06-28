@@ -121,17 +121,18 @@ def get_prompt(prompt_type, prompt_dict, chat, context, reduced, making_context,
         botstr = prompt_dict.get('botstr', '')
     elif prompt_type in [PromptType.plain.value, str(PromptType.plain.value),
                          PromptType.plain.name]:
-        promptA = promptB = PreInstruct = PreInput = PreResponse = ''
+        promptA = promptB = PreInstruct = PreInput = PreResponse = None
         terminate_response = []
         chat_turn_sep = chat_sep = ''
-        humanstr = ''
-        botstr = ''
+        # plain should have None for human/bot, so nothing truncated out, not '' that would truncate after first token
+        humanstr = None
+        botstr = None
     elif prompt_type == 'simple_instruct':
         promptA = promptB = PreInstruct = PreInput = PreResponse = None
         terminate_response = []
         chat_turn_sep = chat_sep = '\n'
-        humanstr = ''
-        botstr = ''
+        humanstr = None
+        botstr = None
     elif prompt_type in [PromptType.instruct.value, str(PromptType.instruct.value),
                          PromptType.instruct.name] + [PromptType.instruct_with_end.value,
                                                       str(PromptType.instruct_with_end.value),
@@ -483,8 +484,8 @@ ASSISTANT:
         PreResponse = ""
         terminate_response = []
         chat_turn_sep = chat_sep = '\n'
-        humanstr = PreInstruct
-        botstr = PreResponse
+        humanstr = None
+        botstr = None
     elif prompt_type in [PromptType.vicuna11.value, str(PromptType.vicuna11.value),
                          PromptType.vicuna11.name]:
         preprompt = """A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions. """ if not (

@@ -1,3 +1,4 @@
+import os
 import math
 
 import gradio as gr
@@ -7,7 +8,11 @@ def make_chatbots(output_label0, output_label0_model2, **kwargs):
     text_outputs = []
     chat_kwargs = []
     for model_state_lock in kwargs['model_states']:
-        output_label = f'h2oGPT [{model_state_lock["base_model"]}]'
+        if os.environ.get('DEBUG_MODEL_LOCK'):
+            model_name = model_state_lock["base_model"] + "_" + model_state_lock["inference_server"]
+        else:
+            model_name = model_state_lock["base_model"]
+        output_label = f'h2oGPT [{model_name}]'
         chat_kwargs.append(dict(label=output_label, visible=kwargs['model_lock'], elem_classes='chatsmall',
                                 height=kwargs['height'] or 400))
 

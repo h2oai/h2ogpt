@@ -344,6 +344,10 @@ class GradioInference(LLM):
             run_manager: Optional[CallbackManagerForLLMRun] = None,
             **kwargs: Any,
     ) -> str:
+        # NOTE: prompt here has no prompt_type (e.g. human: bot:) prompt injection,
+        # so server should get prompt_type or '', not plain
+        # This is good, so gradio server can also handle stopping.py conditions
+        # this is different than TGI server that uses prompter to inject prompt_type prompting
         stream_output = self.stream
         gr_client = self.client
         client_langchain_mode = 'Disabled'
@@ -415,10 +419,15 @@ class GradioInference(LLM):
                 time.sleep(0.01)
 
             # ensure get last output to avoid race
-            res = job.outputs()[-1]
-            res_dict = ast.literal_eval(res)
-            text = res_dict['response']
-            # FIXME: derive chunk from full for now
+            res_all = job.outputs()
+            if len(res_all) > 0:
+                res = res_all[-1]
+                res_dict = ast.literal_eval(res)
+                text = res_dict['response']
+                # FIXME: derive chunk from full for now
+            else:
+                # go with old if failure
+                text = text0
             text_chunk = text[len(text0):]
             if text_callback:
                 text_callback(text_chunk)
@@ -483,6 +492,7 @@ class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
         from h2oai_pipeline import H2OTextGenerationPipeline
         prompt = H2OTextGenerationPipeline.limit_prompt(prompt, self.tokenizer)
 
+        # NOTE: TGI server does not add prompting, so must do here
         data_point = dict(context='', instruction=prompt, input='')
         prompt = self.prompter.generate_prompt(data_point)
 
@@ -596,7 +606,7 @@ def get_llm(use_openai_model=False,
                   max_tokens=max_new_tokens,
                   top_p=top_p if do_sample else 1,
                   frequency_penalty=0,
-                  presence_penalty=1.07 - repetition_penalty + 0.6,  # so good default
+                  presence_penalty=1.0 - repetition_penalty + 0.6,  # so good default
                   callbacks=callbacks if stream_output else None,
                   )
         streamer = callbacks[0] if stream_output else None
