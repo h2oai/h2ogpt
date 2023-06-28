@@ -484,8 +484,8 @@ ASSISTANT:
         PreResponse = ""
         terminate_response = []
         chat_turn_sep = chat_sep = '\n'
-        humanstr = PreInstruct
-        botstr = PreResponse
+        humanstr = None
+        botstr = None
     elif prompt_type in [PromptType.vicuna11.value, str(PromptType.vicuna11.value),
                          PromptType.vicuna11.name]:
         preprompt = """A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions. """ if not (
