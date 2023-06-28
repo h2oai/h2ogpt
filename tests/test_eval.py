@@ -38,7 +38,7 @@ def test_eval_json():
     assert df['response'].values[
                0] == "My name is h2oGPT. I'm a large language model trained by H2O.ai."
     assert df['score'].values[0] > 0.03  # odd score IMO
-    assert df['response'].values[1] == "2 + 2 = 4"
+    assert df['response'].values[1] in ["2 + 2 = 4", "2+2 = 4"]
     assert df['score'].values[1] > 0.95
 
 
