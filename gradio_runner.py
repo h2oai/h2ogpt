@@ -910,15 +910,19 @@ def go_gradio(**kwargs):
         def _score_last_response(*args, nochat=False, num_model_lock=0, prefix='Response Score: '):
             """ Similar to user() """
             args_list = list(args)
-
-            if memory_restriction_level > 0:
-                max_length_tokenize = 768 - 256 if memory_restriction_level <= 2 else 512 - 256
-            else:
-                max_length_tokenize = 2048 - 256
-            cutoff_len = max_length_tokenize * 4  # restrict deberta related to max for LLM
             smodel = score_model_state0['model']
             stokenizer = score_model_state0['tokenizer']
             sdevice = score_model_state0['device']
+
+            if memory_restriction_level > 0:
+                max_length_tokenize = 768 - 256 if memory_restriction_level <= 2 else 512 - 256
+            elif hasattr(stokenizer, 'model_max_length'):
+                max_length_tokenize = stokenizer.model_max_length
+            else:
+                # limit to 1024, not worth OOMing on reward score
+                max_length_tokenize = 2048 - 1024
+            cutoff_len = max_length_tokenize * 4  # restrict deberta related to max for LLM
+
             if not nochat:
                 history = args_list[-1]
                 if history is None:

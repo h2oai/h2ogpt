@@ -871,7 +871,7 @@ def start_faulthandler():
 
 
 def get_hf_server(inference_server):
-    inf_split = inference_server.split("$$$$")
+    inf_split = inference_server.split("    ")
     assert len(inf_split) == 1 or len(inf_split) == 3
     inference_server = inf_split[0]
     if len(inf_split) == 3:
@@ -888,7 +888,8 @@ class FakeTokenizer:
     """
 
     def __init__(self, model_max_length=2048, encoding_name="cl100k_base"):
-        self.model_max_length = model_max_length
+        # dont' push limit, since if using fake tokenizer, only estimate, and seen underestimates by order 200
+        self.model_max_length = model_max_length - 250
         self.encoding_name = encoding_name
         # The first time this runs, it will require an internet connection to download. Later runs won't need an internet connection.
         import tiktoken

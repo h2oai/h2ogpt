@@ -938,8 +938,6 @@ try:
 except (pkg_resources.DistributionNotFound, AssertionError):
     have_playwright = False
 
-
-
 image_types = ["png", "jpg", "jpeg"]
 non_image_types = ["pdf", "txt", "csv", "toml", "py", "rst", "rtf",
                    "md", "html",
@@ -1000,14 +998,19 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                 docs1 = []
         else:
             docs1 = UnstructuredURLLoader(urls=[file]).load()
-            if len(docs1) == 0 and have_selenium:
-                # then something went wrong, try another loader:
-                from langchain.document_loaders import SeleniumURLLoader
-                docs1 = SeleniumURLLoader(urls=[file]).load()
             if len(docs1) == 0 and have_playwright:
                 # then something went wrong, try another loader:
                 from langchain.document_loaders import PlaywrightURLLoader
                 docs1 = PlaywrightURLLoader(urls=[file]).load()
+            if len(docs1) == 0 and have_selenium:
+                # then something went wrong, try another loader:
+                # but requires Chrome binary, else get: selenium.common.exceptions.WebDriverException: Message: unknown error: cannot find Chrome binary
+                from langchain.document_loaders import SeleniumURLLoader
+                from selenium.common.exceptions import WebDriverException
+                try:
+                    docs1 = SeleniumURLLoader(urls=[file]).load()
+                except WebDriverException as e:
+                    print("No web driver: %s" % str(e), flush=True)
             [x.metadata.update(dict(input_type='url', date=str(datetime.now))) for x in docs1]
         docs1 = clean_doc(docs1)
         doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
@@ -2012,7 +2015,8 @@ def get_similarity_chain(query=None,
                 # docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:top_k_docs]
                 top_k_docs_tokenize = 100
                 with filelock.FileLock("sim.lock"):
-                    docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:top_k_docs_tokenize]
+                    docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[
+                                      :top_k_docs_tokenize]
                 if hasattr(llm, 'pipeline') and hasattr(llm.pipeline, 'tokenizer'):
                     # more accurate
                     tokens = [len(llm.pipeline.tokenizer(x[0].page_content)['input_ids']) for x in docs_with_score]

@@ -827,7 +827,11 @@ def get_model(
             config, _ = get_config(base_model, use_auth_token=use_auth_token,
                                    trust_remote_code=trust_remote_code,
                                    offload_folder=offload_folder)
+            # sets raw (no cushion) limit
             set_model_max_len(config, tokenizer, verbose=False)
+            # if using fake tokenizer, not really accurate when lots of numbers, give a bit of buffer, else get:
+            # Generation Failed: Input validation error: `inputs` must have less than 2048 tokens. Given: 2233
+            tokenizer.model_max_length = tokenizer.model_max_length - 250
         except OSError as e:
             t, v, tb = sys.exc_info()
             ex = ''.join(traceback.format_exception(t, v, tb))
@@ -845,7 +849,8 @@ def get_model(
     if isinstance(inference_server, str) and inference_server.startswith('openai'):
         assert os.getenv('OPENAI_API_KEY'), "Set environment for OPENAI_API_KEY"
         # Don't return None, None for model, tokenizer so triggers
-        tokenizer = FakeTokenizer(model_max_length=model_token_mapping[base_model])
+        # include small token cushion
+        tokenizer = FakeTokenizer(model_max_length=model_token_mapping[base_model] - 100)
         return inference_server, tokenizer, inference_server
     assert not inference_server, "Malformed inference_server=%s" % inference_server
     if base_model in non_hf_types:
@@ -1012,12 +1017,15 @@ def get_model(
         if torch.__version__ >= "2" and sys.platform != "win32" and compile_model:
             model = torch.compile(model)
 
-    set_model_max_len(config, tokenizer, verbose=False)
+    set_model_max_len(config, tokenizer, verbose=False, reward_type=reward_type)
 
     return model, tokenizer, device
 
 
-def set_model_max_len(config, tokenizer, verbose=False):
+def set_model_max_len(config, tokenizer, verbose=False, reward_type=False):
+    if reward_type:
+        # limit deberta, else uses too much memory and not worth response score
+        tokenizer.model_max_length = 512
     if hasattr(config, 'max_seq_len') and isinstance(config.max_seq_len, int):
         tokenizer.model_max_length = config.max_seq_len
     elif hasattr(config, 'max_position_embeddings') and isinstance(config.max_position_embeddings, int):
@@ -1026,6 +1034,9 @@ def set_model_max_len(config, tokenizer, verbose=False):
     else:
         if verbose:
             print("Could not determine model_max_length, setting to 2048", flush=True)
+        tokenizer.model_max_length = 2048
+    # for bug in HF transformers
+    if tokenizer.model_max_length > 100000000:
         tokenizer.model_max_length = 2048
 
 
@@ -1412,6 +1423,12 @@ def evaluate(
         # get hidden context if have one
         context = get_context(chat_context, prompt_type)
 
+    # restrict instruction, typically what has large input
+    from h2oai_pipeline import H2OTextGenerationPipeline
+    instruction = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer)
+    context = H2OTextGenerationPipeline.limit_prompt(context, tokenizer)
+    iinput = H2OTextGenerationPipeline.limit_prompt(iinput, tokenizer)
+
     # get prompt
     prompter = Prompter(prompt_type, prompt_dict, debug=debug, chat=chat, stream_output=stream_output)
     data_point = dict(context=context, instruction=instruction, input=iinput)
@@ -1487,7 +1504,8 @@ def evaluate(
             yield dict(response=outr, sources=extra)
         if save_dir:
             extra_dict = gen_hyper_langchain.copy()
-            extra_dict.update(prompt_type=prompt_type)
+            extra_dict.update(prompt_type=prompt_type, inference_server=inference_server,
+                              langchain_mode=langchain_mode, document_choice=document_choice)
             save_generate_output(prompt=query, output=outr, base_model=base_model, save_dir=save_dir,
                                  where_from='run_qa_db',
                                  extra_dict=extra_dict)
@@ -1583,7 +1601,9 @@ def evaluate(
         requests.get(inference_server, timeout=int(os.getenv('REQUEST_TIMEOUT_FAST', '10')))
 
         if gr_client is not None:
-            # h2oGPT gradio server will handle input token size issues for prompt
+            # Note: h2oGPT gradio server could handle input token size issues for prompt,
+            # but best to handle here so send less data to server
+
             chat_client = False
             where_from = "gr_client"
             client_langchain_mode = 'Disabled'
@@ -1692,9 +1712,7 @@ def evaluate(
                            sources=sources)
         elif hf_client:
             # HF inference server needs control over input tokens
-            from h2oai_pipeline import H2OTextGenerationPipeline
             where_from = "hf_client"
-            prompt = H2OTextGenerationPipeline.limit_prompt(prompt, tokenizer)
 
             # prompt must include all human-bot like tokens, already added by prompt
             # https://github.com/huggingface/text-generation-inference/tree/main/clients/python#types
@@ -1737,8 +1755,10 @@ def evaluate(
             raise RuntimeError("Failed to get client: %s" % inference_server)
         if save_dir and text:
             # save prompt + new text
+            extra_dict = gen_server_kwargs.copy()
+            extra_dict.update(dict(inference_server=inference_server))
             save_generate_output(prompt=prompt, output=text, base_model=base_model, save_dir=save_dir,
-                                 where_from=where_from, extra_dict=gen_server_kwargs)
+                                 where_from=where_from, extra_dict=extra_dict)
         return
     else:
         assert not inference_server, "inferene_server=%s not supported" % inference_server
@@ -1756,17 +1776,8 @@ def evaluate(
         assert src_lang is not None
         tokenizer.src_lang = languages_covered()[src_lang]
 
-    if chat:
-        # override, ignore user change
-        num_return_sequences = 1
     stopping_criteria = get_stopping(prompt_type, prompt_dict, tokenizer, device,
                                      model_max_length=tokenizer.model_max_length)
-
-    # limit prompt using token length from user, implicit, or model
-    _, _, max_length_tokenize, max_prompt_length = get_cutoffs(memory_restriction_level,
-                                                               model_max_length=tokenizer.model_max_length)
-    from h2oai_pipeline import H2OTextGenerationPipeline
-    prompt = H2OTextGenerationPipeline.limit_prompt(prompt, tokenizer, max_prompt_length=max_prompt_length)
 
     inputs = tokenizer(prompt, return_tensors="pt")
     if debug and len(inputs["input_ids"]) > 0:
@@ -2268,7 +2279,8 @@ def score_qa(smodel, stokenizer, max_length_tokenize, question, answer, cutoff_l
         if 'Expected all tensors to be on the same device' in str(e) or \
                 'expected scalar type Half but found Float' in str(e) or \
                 'probability tensor contains either' in str(e) or \
-                'cublasLt ran into an error!' in str(e):
+                'cublasLt ran into an error!' in str(e) or \
+                'device-side assert triggered' in str(e):
             print("GPU Error: question: %s answer: %s exception: %s" % (question, answer, str(e)),
                   flush=True)
             traceback.print_exc()
