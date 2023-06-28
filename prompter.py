@@ -639,9 +639,9 @@ class Prompter(object):
             print("prompt: %s" % prompt, flush=True)
         # if have context, should have always reduced and only preappend promptA/B here
         if data_point.get('context'):
-            if data_point.get('input'):
+            if data_point.get('input') and self.promptA:
                 prompt = self.promptA + prompt
-            else:
+            elif self.promptB:
                 prompt = self.promptB + prompt
 
         self.prompt = prompt
