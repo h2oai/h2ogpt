@@ -1703,7 +1703,8 @@ def evaluate(
                     sources = res_dict['sources']
                 else:
                     # go with old text if last call didn't work
-                    print("Bad final response: %s" % res_all, flush=True)
+                    print("Bad final response: %s %s %s %s %s" % (base_model, inference_server,
+                                                                  res_all, prompt, text), flush=True)
                 if gr_prompt_type == 'plain':
                     # then gradio server passes back full prompt + text
                     prompt_and_text = text
