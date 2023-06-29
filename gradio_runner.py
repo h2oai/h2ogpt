@@ -302,29 +302,7 @@ def go_gradio(**kwargs):
                     inputs_dict_str = gr.Textbox(label='API input for nochat', show_label=False, visible=False)
                     text_output_nochat_api = gr.Textbox(lines=5, label='API nochat output', visible=False,
                                                         show_copy_button=True)
-                with gr.TabItem("Chat"):
-                    with gr.Row():
-                        if 'mbart-' in kwargs['model_lower']:
-                            src_lang = gr.Dropdown(list(languages_covered().keys()),
-                                                   value=kwargs['src_lang'],
-                                                   label="Input Language")
-                            tgt_lang = gr.Dropdown(list(languages_covered().keys()),
-                                                   value=kwargs['tgt_lang'],
-                                                   label="Output Language")
-                    radio_chats = gr.Radio(value=None, label="Saved Chats", visible=True, interactive=True,
-                                           type='value')
-                    with gr.Row():
-                        clear_chat_btn = gr.Button(value="Clear Chat", visible=True, size='sm')
-                        export_chats_btn = gr.Button(value="Export Chats to Download", size='sm')
-                        remove_chat_btn = gr.Button(value="Remove Selected Chat", visible=True, size='sm')
-                        add_to_chats_btn = gr.Button("Import Chats from Upload", size='sm')
-                    with gr.Row():
-                        chats_file = gr.File(interactive=False, label="Download Exported Chats")
-                        chatsup_output = gr.File(label="Upload Chat File(s)",
-                                                 file_types=['.json'],
-                                                 file_count='multiple',
-                                                 elem_id="warning", elem_classes="feedback")
-                with gr.TabItem("Data Source"):
+                with gr.TabItem("Documents"):
                     langchain_readme = get_url('https://github.com/h2oai/h2ogpt/blob/main/docs/README_LangChain.md',
                                                from_str=True)
                     gr.HTML(value=f"""LangChain Support Disabled<p>
@@ -445,6 +423,29 @@ def go_gradio(**kwargs):
                                                   label="Download File w/Sources [click get sources to make file]")
                         with gr.Column(scale=2):
                             sources_text = gr.HTML(label='Sources Added', interactive=False)
+
+                with gr.TabItem("Chat History"):
+                    with gr.Row():
+                        if 'mbart-' in kwargs['model_lower']:
+                            src_lang = gr.Dropdown(list(languages_covered().keys()),
+                                                   value=kwargs['src_lang'],
+                                                   label="Input Language")
+                            tgt_lang = gr.Dropdown(list(languages_covered().keys()),
+                                                   value=kwargs['tgt_lang'],
+                                                   label="Output Language")
+                    radio_chats = gr.Radio(value=None, label="Saved Chats", visible=True, interactive=True,
+                                           type='value')
+                    with gr.Row():
+                        clear_chat_btn = gr.Button(value="Clear Chat", visible=True, size='sm')
+                        export_chats_btn = gr.Button(value="Export Chats to Download", size='sm')
+                        remove_chat_btn = gr.Button(value="Remove Selected Chat", visible=True, size='sm')
+                        add_to_chats_btn = gr.Button("Import Chats from Upload", size='sm')
+                    with gr.Row():
+                        chats_file = gr.File(interactive=False, label="Download Exported Chats")
+                        chatsup_output = gr.File(label="Upload Chat File(s)",
+                                                 file_types=['.json'],
+                                                 file_count='multiple',
+                                                 elem_id="warning", elem_classes="feedback")
 
                 with gr.TabItem("Expert"):
                     with gr.Row():
