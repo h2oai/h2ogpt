@@ -922,7 +922,7 @@ def get_model(
                                      load_in_4bit=load_4bit,
                                      device_map={"": 0} if (load_8bit or load_4bit) and device == 'cuda' else "auto",
                                      ))
-        if 'mpt-' in base_model.lower() and gpu_id >= 0:
+        if 'mpt-' in base_model.lower() and gpu_id is not None and gpu_id >= 0:
             model_kwargs.update(dict(device_map={"": gpu_id} if device == 'cuda' else "cpu"))
 
         if 'OpenAssistant/reward-model'.lower() in base_model.lower():
