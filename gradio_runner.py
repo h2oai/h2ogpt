@@ -2106,7 +2106,9 @@ def get_sources(db1, langchain_mode, dbs=None, docs_state0=None):
     else:
         source_list = []
         source_files_added = "None"
-    sources_file = 'sources_%s_%s' % (langchain_mode, str(uuid.uuid4()))
+    sources_dir = "sources_dir"
+    makedirs(sources_dir)
+    sources_file = os.path.join(sources_dir, 'sources_%s_%s' % (langchain_mode, str(uuid.uuid4())))
     with open(sources_file, "wt") as f:
         f.write(source_files_added)
     source_list = docs_state0 + source_list
