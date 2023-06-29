@@ -733,7 +733,7 @@ def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward
 def get_client_from_inference_server(inference_server, raise_connection_exception=False):
     inference_server, headers = get_hf_server(inference_server)
     # preload client since slow for gradio case especially
-    from gradio_client import Client as GradioClient
+    from gradio_utils.grclient import GradioClient
     gr_client = None
     hf_client = None
     if headers is None:
@@ -1588,7 +1588,7 @@ def evaluate(
             return
     elif inference_server.startswith('http'):
         inference_server, headers = get_hf_server(inference_server)
-        from gradio_client import Client as GradioClient
+        from gradio_utils.grclient import GradioClient
         from text_generation import Client as HFClient
         if isinstance(model, GradioClient):
             gr_client = model

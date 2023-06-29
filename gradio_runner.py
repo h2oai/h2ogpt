@@ -18,8 +18,8 @@ import requests
 import tabulate
 from iterators import TimeoutIterator
 
-from gradio_ui.css import get_css
-from gradio_ui.prompt_form import make_prompt_form, make_chatbots
+from gradio_utils.css import get_css
+from gradio_utils.prompt_form import make_prompt_form, make_chatbots
 
 # This is a hack to prevent Gradio from phoning home when it gets imported
 os.environ['GRADIO_ANALYTICS_ENABLED'] = 'False'
