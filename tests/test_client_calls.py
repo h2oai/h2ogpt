@@ -55,33 +55,49 @@ def test_client1api_lean(admin_pass):
     main(base_model=base_model, prompt_type='human_bot', chat=False,
          stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False)
 
-    api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
-    prompt = 'Who are you?'
-
-    kwargs = dict(instruction_nochat=prompt)
     os.environ['HOST'] = "http://127.0.0.1:%s" % inf_port
-    client = get_client(serialize=True)
-    # pass string of dict.  All entries are optional, but expect at least instruction_nochat to be filled
-    res = client.predict(str(dict(kwargs)), api_name=api_name)
 
-    print("Raw client result: %s" % res, flush=True)
-    response = ast.literal_eval(res)['response']
+    client1 = get_client(serialize=True)
 
-    assert 'I am h2oGPT' in response or "I'm h2oGPT" in response or 'I’m h2oGPT' in response
+    from gradio_utils.grclient import GradioClient
+    client2 = GradioClient(os.environ['HOST'])
+    client2.refresh_client()  # test refresh
 
-    api_name = '/system_info_dict'
-    # pass string of dict.  All entries are optional, but expect at least instruction_nochat to be filled
-    ADMIN_PASS = os.getenv('ADMIN_PASS', admin_pass)
-    res = client.predict(ADMIN_PASS, api_name=api_name)
-    res = json.loads(res)
-    assert isinstance(res, dict)
-    assert res['base_model'] == base_model, "Problem with res=%s" % res
-    assert 'device' in res
-    assert res['hash'] == get_githash()
+    for client in [client1, client2]:
 
-    api_name = '/system_hash'
-    client = get_client(serialize=True)
+        api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
+        prompt = 'Who are you?'
+        kwargs = dict(instruction_nochat=prompt)
+        # pass string of dict.  All entries are optional, but expect at least instruction_nochat to be filled
+        res = client.predict(str(dict(kwargs)), api_name=api_name)
+
+        print("Raw client result: %s" % res, flush=True)
+        response = ast.literal_eval(res)['response']
+
+        assert 'I am h2oGPT' in response or "I'm h2oGPT" in response or 'I’m h2oGPT' in response
+
+        api_name = '/system_info_dict'
+        # pass string of dict.  All entries are optional, but expect at least instruction_nochat to be filled
+        ADMIN_PASS = os.getenv('ADMIN_PASS', admin_pass)
+        res = client.predict(ADMIN_PASS, api_name=api_name)
+        res = json.loads(res)
+        assert isinstance(res, dict)
+        assert res['base_model'] == base_model, "Problem with res=%s" % res
+        assert 'device' in res
+        assert res['hash'] == get_githash()
+
+        api_name = '/system_hash'
+        res = client.predict(api_name=api_name)
+        assert res == get_githash()
+
+        res = client.predict(api_name=api_name)
+        assert res == get_githash()
+
+    client2.refresh_client()  # test refresh
     res = client.predict(api_name=api_name)
+    assert res == get_githash()
+
+    res = client2.get_server_hash()
     assert res == get_githash()
 
 
