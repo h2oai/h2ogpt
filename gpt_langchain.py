@@ -1958,7 +1958,7 @@ def get_similarity_chain(query=None,
         prefix = "Pay attention and remember information below, which will help to answer the question or imperative after the context ends."
     elif inference_server in ['openai', 'openai_chat']:
         extra = "According to (primarily) the information in the document sources provided within context above, "
-        prefix = "Pay attention and remember information below, which will help to answer the question or imperitive after the context ends.  If the answer cannot be primarily obtained from information within the context, then respond that the answer does not appear in the context of the documents."
+        prefix = "Pay attention and remember information below, which will help to answer the question or imperative after the context ends.  If the answer cannot be primarily obtained from information within the context, then respond that the answer does not appear in the context of the documents."
     else:
         extra = ""
         prefix = ""
