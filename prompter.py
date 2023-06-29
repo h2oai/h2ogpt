@@ -96,19 +96,27 @@ for p in PromptType:
 
 def get_prompt(prompt_type, prompt_dict, chat, context, reduced, making_context, return_dict=False):
     prompt_dict_error = ''
+    generates_leading_space = False
+
     if prompt_type == PromptType.custom.name and not isinstance(prompt_dict, dict):
         try:
             prompt_dict = ast.literal_eval(prompt_dict)
         except BaseException as e:
             prompt_dict_error = str(e)
-        if prompt_dict_error:
-            if return_dict:
-                return dict(), prompt_dict_error
-            else:
-                return '', '', '', '', '', None, '', '', '', ''
-
-    if prompt_type in [PromptType.custom.value, str(PromptType.custom.value),
-                       PromptType.custom.name]:
+    if prompt_dict_error:
+        promptA = None
+        promptB = None
+        PreInstruct = None
+        PreInput = ''
+        PreResponse = ''
+        terminate_response = None
+        chat_sep = ''
+        chat_turn_sep = ''
+        humanstr = ''
+        botstr = ''
+        generates_leading_space = False
+    elif prompt_type in [PromptType.custom.value, str(PromptType.custom.value),
+                         PromptType.custom.name]:
         promptA = prompt_dict.get('promptA', '')
         promptB = prompt_dict('promptB', '')
         PreInstruct = prompt_dict.get('PreInstruct', '')
@@ -217,10 +225,11 @@ Current Time: {}
             # if add space here, non-unique tokenization will often make LLM produce wrong output
             PreResponse = bot
 
-        terminate_response = [human, bot, PreResponse]
+        terminate_response = ['\n' + human, '\n' + bot, human, bot, PreResponse]
         chat_turn_sep = chat_sep = '\n'
         humanstr = human  # tag before human talks
         botstr = bot  # tag before bot talks
+        generates_leading_space = True
     elif prompt_type in [PromptType.dai_faq.value, str(PromptType.dai_faq.value),
                          PromptType.dai_faq.name]:
         promptA = ''
@@ -515,17 +524,16 @@ ASSISTANT:
     if isinstance(terminate_response, (tuple, list)):
         assert '' not in terminate_response, "Bad terminate_response"
 
-    if return_dict:
-        return dict(promptA=promptA, promptB=promptB, PreInstruct=PreInstruct, PreInput=PreInput,
+    ret_dict = dict(promptA=promptA, promptB=promptB, PreInstruct=PreInstruct, PreInput=PreInput,
                     PreResponse=PreResponse, terminate_response=terminate_response, chat_sep=chat_sep,
                     chat_turn_sep=chat_turn_sep,
-                    humanstr=humanstr, botstr=botstr), ''
+                    humanstr=humanstr, botstr=botstr,
+                    generates_leading_space=generates_leading_space)
+
+    if return_dict:
+        return ret_dict, prompt_dict_error
     else:
-        return promptA, promptB, \
-            PreInstruct, PreInput, PreResponse, \
-            terminate_response, \
-            chat_sep, chat_turn_sep, \
-            humanstr, botstr
+        return tuple(list(ret_dict.values()))
 
 
 def generate_prompt(data_point, prompt_type, prompt_dict, chat, reduced, making_context):
@@ -539,8 +547,9 @@ def generate_prompt(data_point, prompt_type, prompt_dict, chat, reduced, making_
     prompt_dict = data_point.get('prompt_dict', prompt_dict)
     assert prompt_type in prompt_types, "Bad prompt type: %s" % prompt_type
     promptA, promptB, PreInstruct, PreInput, PreResponse, \
-        terminate_response, chat_sep, chat_turn_sep, humanstr, botstr = get_prompt(prompt_type, prompt_dict, chat,
-                                                                                   context, reduced, making_context)
+        terminate_response, chat_sep, chat_turn_sep, humanstr, botstr, \
+        generates_leading_space = get_prompt(prompt_type, prompt_dict, chat,
+                                             context, reduced, making_context)
 
     # could avoid if reduce=True, but too complex for parent functions to handle
     prompt = context
@@ -608,9 +617,6 @@ class Prompter(object):
                  allowed_repeat_line_length=10):
         self.prompt_type = prompt_type
         self.prompt_dict = prompt_dict
-        data_point = dict(instruction='', input='', output='')
-        _, self.pre_response, self.terminate_response, self.chat_sep, self.chat_turn_sep = \
-            generate_prompt(data_point, self.prompt_type, self.prompt_dict, chat, False, False)
         self.debug = debug
         self.chat = chat
         self.stream_output = stream_output
@@ -621,8 +627,10 @@ class Prompter(object):
         reduced = False  # not for chat context
         making_context = False  # not for chat context
         self.promptA, self.promptB, self.PreInstruct, self.PreInput, self.PreResponse, \
-            self.terminate_response, self.chat_sep, self.chat_turn_sep, self.humanstr, self.botstr = \
+            self.terminate_response, self.chat_sep, self.chat_turn_sep, self.humanstr, self.botstr, \
+            self.generates_leading_space = \
             get_prompt(self.prompt_type, self.prompt_dict, chat, context, reduced, making_context)
+        self.pre_response = self.PreResponse
 
     def generate_prompt(self, data_point, reduced=None):
         """
@@ -662,7 +670,8 @@ class Prompter(object):
             if sanitize_bot_response:
                 from better_profanity import profanity
                 response = profanity.censor(response)
-            response = response.lstrip(" ")
+            if self.generates_leading_space and isinstance(response, str) and len(response) > 0 and response[0] == ' ':
+                response = response[1:]
             return response
 
         def clean_repeats(response):
