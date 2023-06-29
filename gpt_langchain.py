@@ -938,6 +938,9 @@ try:
 except (pkg_resources.DistributionNotFound, AssertionError):
     have_playwright = False
 
+# disable, hangs too often
+have_playwright = False
+
 image_types = ["png", "jpg", "jpeg"]
 non_image_types = ["pdf", "txt", "csv", "toml", "py", "rst", "rtf",
                    "md", "html",
@@ -997,6 +1000,8 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             else:
                 docs1 = []
         else:
+            if not (file.startswith("http://") or file.startswith("file://") or file.startswith("https://")):
+                file = 'http://' + file
             docs1 = UnstructuredURLLoader(urls=[file]).load()
             if len(docs1) == 0 and have_playwright:
                 # then something went wrong, try another loader:

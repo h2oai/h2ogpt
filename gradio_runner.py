@@ -384,29 +384,42 @@ def go_gradio(**kwargs):
                                                                  visible=allow_upload_to_user_data,
                                                                  elem_id='small_btn')
                                 add_to_my_db_btn = gr.Button("Add File(s) to Scratch MyData",
-                                                             visible=allow_upload_to_my_data,
+                                                             visible=allow_upload_to_my_data and
+                                                                     allow_upload_to_user_data,
                                                              elem_id='small_btn' if allow_upload_to_user_data else None,
                                                              size='sm' if not allow_upload_to_user_data else None)
                         with gr.Column(
                                 visible=kwargs['langchain_mode'] != 'Disabled' and allow_upload and enable_url_upload):
                             url_label = 'URL (http/https) or ArXiv:' if have_arxiv else 'URL (http/https)'
-                            url_text = gr.Textbox(label=url_label, interactive=True)
+                            url_text = gr.Textbox(label=url_label,
+                                                  placeholder="Click Add to Submit" if
+                                                  allow_upload_to_my_data and
+                                                  allow_upload_to_user_data else
+                                                  "Enter to Submit",
+                                                  max_lines=1,
+                                                  interactive=True)
                             with gr.Row():
                                 url_user_btn = gr.Button(value='Add URL content to Shared UserData',
-                                                         visible=allow_upload_to_user_data, elem_id='small_btn')
+                                                         visible=allow_upload_to_user_data and allow_upload_to_my_data,
+                                                         elem_id='small_btn')
                                 url_my_btn = gr.Button(value='Add URL content to Scratch MyData',
-                                                       visible=allow_upload_to_my_data,
+                                                       visible=allow_upload_to_my_data and allow_upload_to_user_data,
                                                        elem_id='small_btn' if allow_upload_to_user_data else None,
                                                        size='sm' if not allow_upload_to_user_data else None)
                         with gr.Column(
                                 visible=kwargs['langchain_mode'] != 'Disabled' and allow_upload and enable_text_upload):
-                            user_text_text = gr.Textbox(label='Paste Text [Shift-Enter more lines]', interactive=True)
+                            user_text_text = gr.Textbox(label='Paste Text [Shift-Enter more lines]',
+                                                        placeholder="Click Add to Submit" if
+                                                        allow_upload_to_my_data and
+                                                        allow_upload_to_user_data else
+                                                        "Enter to Submit, Shift-Enter for more lines",
+                                                        interactive=True)
                             with gr.Row():
                                 user_text_user_btn = gr.Button(value='Add Text to Shared UserData',
-                                                               visible=allow_upload_to_user_data,
+                                                               visible=allow_upload_to_user_data and allow_upload_to_my_data,
                                                                elem_id='small_btn')
                                 user_text_my_btn = gr.Button(value='Add Text to Scratch MyData',
-                                                             visible=allow_upload_to_my_data,
+                                                             visible=allow_upload_to_my_data and allow_upload_to_user_data,
                                                              elem_id='small_btn' if allow_upload_to_user_data else None,
                                                              size='sm' if not allow_upload_to_user_data else None)
                         with gr.Column(visible=False):
@@ -419,18 +432,14 @@ def go_gradio(**kwargs):
                                                                   elem_id='small_btn')
                                     github_my_btn = gr.Button(value="Add Github to Scratch MyData",
                                                               visible=allow_upload_to_my_data, elem_id='small_btn')
-                    sources_row3 = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and enable_sources_list,
-                                          equal_height=False)
-                    with sources_row3:
+                    sources_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and enable_sources_list,
+                                         equal_height=False)
+                    with sources_row:
                         with gr.Column(scale=1):
                             file_source = gr.File(interactive=False,
                                                   label="Download File w/Sources [click get sources to make file]")
                         with gr.Column(scale=2):
-                            pass
-                    sources_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and enable_sources_list,
-                                         equal_height=False)
-                    with sources_row:
-                        sources_text = gr.HTML(label='Sources Added', interactive=False)
+                            sources_text = gr.HTML(label='Sources Added', interactive=False)
 
                 with gr.TabItem("Expert"):
                     with gr.Row():
@@ -713,15 +722,21 @@ def go_gradio(**kwargs):
                                                 user_path=kwargs['user_path'],
                                                 )
 
+        add_file_kwargs = dict(fn=update_user_db_func,
+                               inputs=[fileup_output, my_db_state, add_to_shared_db_btn,
+                                       add_to_my_db_btn,
+                                       chunk, chunk_size],
+                               outputs=[add_to_shared_db_btn, add_to_my_db_btn, sources_text],
+                               queue=queue)
+
+        if allow_upload_to_user_data and not allow_upload_to_my_data:
+            # then no need for add buttons, only single changable db
+            eventdb1 = fileup_output.change(**add_file_kwargs)
+        else:
+            eventdb1 = add_to_shared_db_btn.click(**add_file_kwargs,
+                                                  api_name='add_to_shared' if allow_api and allow_upload_to_user_data else None)
         # note for update_user_db_func output is ignored for db
-        eventdb1 = add_to_shared_db_btn.click(update_user_db_func,
-                                              inputs=[fileup_output, my_db_state, add_to_shared_db_btn,
-                                                      add_to_my_db_btn,
-                                                      chunk, chunk_size],
-                                              outputs=[add_to_shared_db_btn, add_to_my_db_btn, sources_text],
-                                              queue=queue,
-                                              api_name='add_to_shared' if allow_api and allow_upload_to_user_data else None) \
-            .then(clear_file_list, outputs=fileup_output, queue=queue) \
+        eventdb1.then(clear_file_list, outputs=fileup_output, queue=queue) \
             .then(update_radio_to_user, inputs=None, outputs=langchain_mode, queue=queue)
 
         # .then(make_invisible, outputs=add_to_shared_db_btn, queue=queue)
@@ -731,21 +746,32 @@ def go_gradio(**kwargs):
             return gr.Textbox.update(value='')
 
         update_user_db_url_func = functools.partial(update_user_db_func, is_url=True)
-        eventdb2 = url_user_btn.click(update_user_db_url_func,
-                                      inputs=[url_text, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
-                                              chunk, chunk_size],
-                                      outputs=[add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
-                                      api_name='add_url_to_shared' if allow_api and allow_upload_to_user_data else None) \
-            .then(clear_textbox, outputs=url_text, queue=queue) \
+
+        add_url_kwargs = dict(fn=update_user_db_url_func,
+                              inputs=[url_text, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
+                                      chunk, chunk_size],
+                              outputs=[add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
+                              api_name='add_url_to_shared' if allow_api and allow_upload_to_user_data else None)
+
+        if allow_upload_to_user_data and not allow_upload_to_my_data:
+            eventdb2 = url_text.submit(**add_url_kwargs)
+        else:
+            eventdb2 = url_user_btn.click(**add_url_kwargs)
+        eventdb2.then(clear_textbox, outputs=url_text, queue=queue) \
             .then(update_radio_to_user, inputs=None, outputs=langchain_mode, queue=queue)
 
         update_user_db_txt_func = functools.partial(update_user_db_func, is_txt=True)
-        eventdb3 = user_text_user_btn.click(update_user_db_txt_func,
-                                            inputs=[user_text_text, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
-                                                    chunk, chunk_size],
-                                            outputs=[add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
-                                            api_name='add_text_to_shared' if allow_api and allow_upload_to_user_data else None) \
-            .then(clear_textbox, outputs=user_text_text, queue=queue) \
+        add_text_kwargs = dict(fn=update_user_db_txt_func,
+                               inputs=[user_text_text, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
+                                       chunk, chunk_size],
+                               outputs=[add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
+                               api_name='add_text_to_shared' if allow_api and allow_upload_to_user_data else None
+                               )
+        if allow_upload_to_user_data and not allow_upload_to_my_data:
+            eventdb3 = user_text_text.submit(**add_text_kwargs)
+        else:
+            eventdb3 = user_text_user_btn.click(**add_text_kwargs)
+        eventdb3.then(clear_textbox, outputs=user_text_text, queue=queue) \
             .then(update_radio_to_user, inputs=None, outputs=langchain_mode, queue=queue)
 
         # Add to MyData
@@ -763,35 +789,50 @@ def go_gradio(**kwargs):
                                               user_path=kwargs['user_path'],
                                               )
 
-        eventdb4 = add_to_my_db_btn.click(update_my_db_func,
-                                          inputs=[fileup_output, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
-                                                  chunk, chunk_size],
-                                          outputs=[my_db_state, add_to_shared_db_btn, add_to_my_db_btn, sources_text],
-                                          queue=queue,
-                                          api_name='add_to_my' if allow_api and allow_upload_to_my_data else None) \
-            .then(clear_file_list, outputs=fileup_output, queue=queue) \
+        add_my_file_kwargs = dict(fn=update_my_db_func,
+                                  inputs=[fileup_output, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
+                                          chunk, chunk_size],
+                                  outputs=[my_db_state, add_to_shared_db_btn, add_to_my_db_btn, sources_text],
+                                  queue=queue,
+                                  api_name='add_to_my' if allow_api and allow_upload_to_my_data else None)
+
+        if not allow_upload_to_user_data and allow_upload_to_my_data:
+            eventdb4 = fileup_output.change(**add_my_file_kwargs)
+        else:
+            eventdb4 = add_to_my_db_btn.click(**add_my_file_kwargs)
+        eventdb4.then(clear_file_list, outputs=fileup_output, queue=queue) \
             .then(update_radio_to_my, inputs=None, outputs=langchain_mode, queue=queue)
         # .then(make_invisible, outputs=add_to_shared_db_btn, queue=queue)
         # .then(make_visible, outputs=upload_button, queue=queue)
 
         update_my_db_url_func = functools.partial(update_my_db_func, is_url=True)
-        eventdb5 = url_my_btn.click(update_my_db_url_func,
-                                    inputs=[url_text, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
-                                            chunk, chunk_size],
-                                    outputs=[my_db_state, add_to_shared_db_btn, add_to_my_db_btn, sources_text],
-                                    queue=queue,
-                                    api_name='add_url_to_my' if allow_api and allow_upload_to_my_data else None) \
-            .then(clear_textbox, outputs=url_text, queue=queue) \
+        add_my_url_kwargs = dict(fn=update_my_db_url_func,
+                                 inputs=[url_text, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
+                                         chunk, chunk_size],
+                                 outputs=[my_db_state, add_to_shared_db_btn, add_to_my_db_btn, sources_text],
+                                 queue=queue,
+                                 api_name='add_url_to_my' if allow_api and allow_upload_to_my_data else None)
+        if not allow_upload_to_user_data and allow_upload_to_my_data:
+            eventdb5 = url_text.submit(**add_my_url_kwargs)
+        else:
+            eventdb5 = url_my_btn.click(**add_my_url_kwargs)
+
+        eventdb5.then(clear_textbox, outputs=url_text, queue=queue) \
             .then(update_radio_to_my, inputs=None, outputs=langchain_mode, queue=queue)
 
         update_my_db_txt_func = functools.partial(update_my_db_func, is_txt=True)
-        eventdb6 = user_text_my_btn.click(update_my_db_txt_func,
-                                          inputs=[user_text_text, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
-                                                  chunk, chunk_size],
-                                          outputs=[my_db_state, add_to_shared_db_btn, add_to_my_db_btn, sources_text],
-                                          queue=queue,
-                                          api_name='add_txt_to_my' if allow_api and allow_upload_to_my_data else None) \
-            .then(clear_textbox, outputs=user_text_text, queue=queue) \
+
+        add_my_text_kwargs = dict(fn=update_my_db_txt_func,
+                                  inputs=[user_text_text, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
+                                          chunk, chunk_size],
+                                  outputs=[my_db_state, add_to_shared_db_btn, add_to_my_db_btn, sources_text],
+                                  queue=queue,
+                                  api_name='add_txt_to_my' if allow_api and allow_upload_to_my_data else None)
+        if not allow_upload_to_user_data and allow_upload_to_my_data:
+            eventdb6 = user_text_text.submit(**add_my_text_kwargs)
+        else:
+            eventdb6 = user_text_my_btn.click(**add_my_text_kwargs)
+        eventdb6.then(clear_textbox, outputs=user_text_text, queue=queue) \
             .then(update_radio_to_my, inputs=None, outputs=langchain_mode, queue=queue)
 
         get_sources1 = functools.partial(get_sources, dbs=dbs, docs_state0=docs_state0)
