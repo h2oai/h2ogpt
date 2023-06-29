@@ -662,7 +662,7 @@ class Prompter(object):
             if sanitize_bot_response:
                 from better_profanity import profanity
                 response = profanity.censor(response)
-            response = response.strip("\n")
+            response = response.lstrip(" ")
             return response
 
         def clean_repeats(response):
@@ -684,12 +684,12 @@ class Prompter(object):
                 # then use most basic parsing like pipeline
                 if self.botstr in output:
                     if self.humanstr:
-                        output = clean_response(output.split(self.botstr)[1].strip().split(self.humanstr)[0].strip())
+                        output = clean_response(output.split(self.botstr)[1].split(self.humanstr)[0])
                     else:
                         # i.e. use after bot but only up to next bot
-                        output = clean_response(output.split(self.botstr)[1].strip().split(self.botstr)[0].strip())
+                        output = clean_response(output.split(self.botstr)[1].split(self.botstr)[0])
                 else:
-                    # output = clean_response(output.strip())
+                    # output = clean_response(output)
                     # assume just not printed yet
                     output = ""
             else:
@@ -716,9 +716,9 @@ class Prompter(object):
                     allow_terminate = True
                     output = output[len(prompt):]
                 # clean after subtract prompt out, so correct removal of pre_response
-                output = clean_response(output).strip()
+                output = clean_response(output)
                 if self.repeat_penalty:
-                    output = clean_repeats(output).strip()
+                    output = clean_repeats(output)
                 if self.terminate_response and allow_terminate:
                     finds = []
                     for term in self.terminate_response:
@@ -726,11 +726,9 @@ class Prompter(object):
                     finds = [x for x in finds if x >= 0]
                     if len(finds) > 0:
                         termi = finds[0]
-                        output = output[:termi].strip()
+                        output = output[:termi]
                     else:
-                        output = output.strip()
-                else:
-                    output = output.strip()
+                        output = output
             if multi_output:
                 # prefix with output counter
                 output = "\n=========== Output %d\n\n" % (1 + oi) + output
