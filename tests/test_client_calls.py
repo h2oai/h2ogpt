@@ -1,16 +1,16 @@
 import ast
 import json
-import os
+import os, sys
 
 import pytest
 
-from client_test import get_client, md_to_text, run_client_nochat_api_lean_morestuff
+from client_test import get_client
 from tests.utils import wrap_test_forked, make_user_path_test, get_llama
+from utils import get_githash
 
 
 @wrap_test_forked
 def test_client1():
-    import os, sys
     os.environ['TEST_LANGCHAIN_IMPORT'] = "1"
     sys.modules.pop('gpt_langchain', None)
     sys.modules.pop('langchain', None)
@@ -29,7 +29,6 @@ def test_client1():
 
 @wrap_test_forked
 def test_client1api():
-    import os, sys
     os.environ['TEST_LANGCHAIN_IMPORT'] = "1"
     sys.modules.pop('gpt_langchain', None)
     sys.modules.pop('langchain', None)
@@ -78,8 +77,12 @@ def test_client1api_lean(admin_pass):
     assert isinstance(res, dict)
     assert res['base_model'] == base_model, "Problem with res=%s" % res
     assert 'device' in res
+    assert res['hash'] == get_githash()
 
-    print(res)
+    api_name = '/system_hash'
+    client = get_client(serialize=True)
+    res = client.predict(api_name=api_name)
+    assert res == get_githash()
 
 
 @wrap_test_forked
@@ -143,7 +146,6 @@ def run_client_chat_with_server(prompt='Who are you?', stream_output=False, max_
                                 langchain_mode='Disabled', user_path=None,
                                 visible_langchain_modes=['UserData', 'MyData'],
                                 reverse_docs=True):
-    import os, sys
     if langchain_mode == 'Disabled':
         os.environ['TEST_LANGCHAIN_IMPORT'] = "1"
         sys.modules.pop('gpt_langchain', None)
@@ -175,7 +177,6 @@ def run_client_nochat_with_server(prompt='Who are you?', stream_output=False, ma
                                   langchain_mode='Disabled', user_path=None,
                                   visible_langchain_modes=['UserData', 'MyData'],
                                   reverse_docs=True):
-    import os, sys
     if langchain_mode == 'Disabled':
         os.environ['TEST_LANGCHAIN_IMPORT'] = "1"
         sys.modules.pop('gpt_langchain', None)
@@ -404,7 +405,6 @@ def test_client_chat_stream_long():
 @pytest.mark.skip(reason="Local file required")
 @wrap_test_forked
 def test_client_long():
-    import os, sys
     os.environ['TEST_LANGCHAIN_IMPORT'] = "1"
     sys.modules.pop('gpt_langchain', None)
     sys.modules.pop('langchain', None)

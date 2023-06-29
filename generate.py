@@ -492,11 +492,12 @@ def main(
                             verbose,
                             )
 
+    git_hash = get_githash()
     locals_dict = locals()
     locals_print = '\n'.join(['%s: %s' % (k, v) for k, v in locals_dict.items()])
     if verbose:
         print(f"Generating model with params:\n{locals_print}", flush=True)
-        print("Command: %s\nHash: %s" % (str(' '.join(sys.argv)), get_githash()), flush=True)
+        print("Command: %s\nHash: %s" % (str(' '.join(sys.argv)), git_hash), flush=True)
 
     if langchain_mode != "Disabled":
         # SECOND PLACE where LangChain referenced, but all imports are kept local so not required

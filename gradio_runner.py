@@ -644,8 +644,16 @@ def go_gradio(**kwargs):
                             with gr.Row():
                                 system_btn = gr.Button(value='Get System Info')
                                 system_text = gr.Textbox(label='System Info', interactive=False, show_copy_button=True)
-                                system_input = gr.Textbox(label='System Info Dict', interactive=True,
-                                                          visible=False, show_copy_button=True)
+                            with gr.Row():
+                                system_input = gr.Textbox(label='System Info Dict Password', interactive=True,
+                                                          visible=not is_public)
+                                system_btn2 = gr.Button(value='Get System Info Dict', visible=not is_public)
+                                system_text2 = gr.Textbox(label='System Info Dict', interactive=False,
+                                                          visible=not is_public, show_copy_button=True)
+                            with gr.Row():
+                                system_btn3 = gr.Button(value='Get Hash', visible=not is_public)
+                                system_text3 = gr.Textbox(label='Hash', interactive=False,
+                                                          visible=not is_public, show_copy_button=True)
 
                             with gr.Row():
                                 zip_btn = gr.Button("Zip")
@@ -1859,7 +1867,8 @@ def go_gradio(**kwargs):
                               api_name='flag_nochat' if allow_api else None, queue=False)
 
         def get_system_info():
-            time.sleep(10)  # delay to avoid spam since queue=False
+            if is_public:
+                time.sleep(10)  # delay to avoid spam since queue=False
             return gr.Textbox.update(value=system_info_print())
 
         system_event = system_btn.click(get_system_info, outputs=system_text,
@@ -1880,12 +1889,21 @@ def go_gradio(**kwargs):
 
         get_system_info_dict_func = functools.partial(get_system_info_dict, **all_kwargs)
 
-        system_dict_event = system_btn.click(get_system_info_dict_func,
-                                             inputs=system_input,
-                                             outputs=system_text,
-                                             api_name='system_info_dict' if allow_api else None,
-                                             queue=False,  # queue to avoid spam
-                                             )
+        system_dict_event = system_btn2.click(get_system_info_dict_func,
+                                              inputs=system_input,
+                                              outputs=system_text2,
+                                              api_name='system_info_dict' if allow_api else None,
+                                              queue=False,  # queue to avoid spam
+                                              )
+
+        def get_hash():
+            return kwargs['git_hash']
+
+        system_btn3.click(get_hash,
+                          outputs=system_text3,
+                          api_name='system_hash' if allow_api else None,
+                          queue=False,
+                          )
 
         # don't pass text_output, don't want to clear output, just stop it
         # cancel only stops outer generation, not inner generation or non-generation
