@@ -29,7 +29,7 @@ def do_export():
     llama_type = "llama" in BASE_MODEL
     as_pytorch = False  # False -> HF
 
-    model_loader, tokenizer_loader = get_loaders(llama_type=llama_type, model_name=BASE_MODEL, reward_type=False)
+    model_loader, tokenizer_loader = get_loaders(model_name=BASE_MODEL, reward_type=False, llama_type=llama_type)
 
     tokenizer = tokenizer_loader.from_pretrained(
         BASE_MODEL,

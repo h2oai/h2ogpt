@@ -185,7 +185,7 @@ def train(
             log("num_gpus: %d" % gpus)
             log("max mem: %s" % max_memory)
 
-    model_loader, tokenizer_loader = get_loaders(llama_type=llama_type, model_name=base_model, reward_type=False)
+    model_loader, tokenizer_loader = get_loaders(model_name=base_model, reward_type=False, llama_type=llama_type)
 
     model = model_loader.from_pretrained(
         base_model,
