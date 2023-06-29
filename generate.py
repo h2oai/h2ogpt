@@ -4,7 +4,6 @@ import functools
 import glob
 import inspect
 import queue
-import shutil
 import sys
 import os
 import time
@@ -635,13 +634,26 @@ def get_config(base_model,
                triton_attn=False,
                long_sequence=True,
                return_model=False,
+               raise_exception=False,
                ):
     from accelerate import init_empty_weights
     with init_empty_weights():
         from transformers import AutoConfig
-        config = AutoConfig.from_pretrained(base_model, use_auth_token=use_auth_token,
-                                            trust_remote_code=trust_remote_code,
-                                            offload_folder=offload_folder)
+        try:
+            config = AutoConfig.from_pretrained(base_model, use_auth_token=use_auth_token,
+                                                trust_remote_code=trust_remote_code,
+                                                offload_folder=offload_folder)
+        except OSError as e:
+            if raise_exception:
+                raise
+            if 'not a local folder and is not a valid model identifier listed on' in str(
+                    e) or '404 Client Error' in str(e):
+                # e.g. llama, gpjt, etc.
+                # e.g. HF TGI but not model on HF or private etc.
+                # HF TGI server only should really require prompt_type, not HF model state
+                return None, None
+            else:
+                raise
         if triton_attn and 'mpt-' in base_model.lower():
             config.attn_config['attn_impl'] = 'triton'
         if long_sequence:
@@ -738,20 +750,20 @@ def get_client_from_inference_server(inference_server, raise_connection_exceptio
     hf_client = None
     if headers is None:
         try:
-            print("GR Client Begin: %s" % inference_server)
+            print("GR Client Begin: %s" % inference_server, flush=True)
             # first do sanity check if alive, else gradio client takes too long by default
             requests.get(inference_server, timeout=int(os.getenv('REQUEST_TIMEOUT', '30')))
             gr_client = GradioClient(inference_server)
-            print("GR Client End: %s" % inference_server)
+            print("GR Client End: %s" % inference_server, flush=True)
         except (OSError, ValueError) as e:
             # Occurs when wrong endpoint and should have been HF client, so don't hard raise, just move to HF
             gr_client = None
-            print("GR Client Failed %s: %s" % (inference_server, str(e)))
+            print("GR Client Failed %s: %s" % (inference_server, str(e)), flush=True)
         except (ConnectTimeoutError, ConnectTimeout, MaxRetryError, ConnectionError, ConnectionError2,
                 JSONDecodeError, ReadTimeout2, KeyError) as e:
             t, v, tb = sys.exc_info()
             ex = ''.join(traceback.format_exception(t, v, tb))
-            print("GR Client Failed %s: %s" % (inference_server, str(ex)))
+            print("GR Client Failed %s: %s" % (inference_server, str(ex)), flush=True)
             if raise_connection_exception:
                 raise
 
@@ -822,28 +834,51 @@ def get_model(
     """
     if verbose:
         print("Get %s model" % base_model, flush=True)
-    if isinstance(inference_server, str) and inference_server.startswith("http"):
-        tokenizer = FakeTokenizer()
-        try:
-            from transformers import AutoConfig
-            config, _ = get_config(base_model, use_auth_token=use_auth_token,
-                                   trust_remote_code=trust_remote_code,
-                                   offload_folder=offload_folder)
-            # sets raw (no cushion) limit
-            set_model_max_len(config, tokenizer, verbose=False)
-            # if using fake tokenizer, not really accurate when lots of numbers, give a bit of buffer, else get:
-            # Generation Failed: Input validation error: `inputs` must have less than 2048 tokens. Given: 2233
-            tokenizer.model_max_length = tokenizer.model_max_length - 250
-        except OSError as e:
-            t, v, tb = sys.exc_info()
-            ex = ''.join(traceback.format_exception(t, v, tb))
-            if 'not a local folder' in str(ex) or '404 Client Error' in str(ex):
-                # e.g. llama, gpjt, etc.
-                pass
-            else:
-                if base_model not in non_hf_types:
-                    raise
 
+    triton_attn = False
+    long_sequence = True
+    config_kwargs = dict(use_auth_token=use_auth_token,
+                         trust_remote_code=trust_remote_code,
+                         offload_folder=offload_folder,
+                         triton_attn=triton_attn,
+                         long_sequence=long_sequence)
+    config, _ = get_config(base_model, **config_kwargs, raise_exception=False)
+
+    if base_model in non_hf_types:
+        assert config is None, "Expected config None for %s" % base_model
+
+    llama_type_from_config = 'llama' in str(config).lower()
+    llama_type_from_name = "llama" in base_model.lower()
+    llama_type = llama_type_from_config or llama_type_from_name
+    if llama_type:
+        if verbose:
+            print("Detected as llama type from"
+                  " config (%s) or name (%s)" % (llama_type_from_config, llama_type_from_name), flush=True)
+
+    model_loader, tokenizer_loader = get_loaders(model_name=base_model, reward_type=reward_type, llama_type=llama_type)
+
+    tokenizer_kwargs = dict(local_files_only=local_files_only,
+                            resume_download=resume_download,
+                            use_auth_token=use_auth_token,
+                            trust_remote_code=trust_remote_code,
+                            offload_folder=offload_folder,
+                            padding_side='left',
+                            config=config,
+                            )
+    if not tokenizer_base_model:
+        tokenizer_base_model = base_model
+
+    if config is not None and tokenizer_loader is not None and not isinstance(tokenizer_loader, str):
+        tokenizer = tokenizer_loader.from_pretrained(tokenizer_base_model, **tokenizer_kwargs)
+        # sets raw (no cushion) limit
+        set_model_max_len(config, tokenizer, verbose=False)
+        # if using fake tokenizer, not really accurate when lots of numbers, give a bit of buffer, else get:
+        # Generation Failed: Input validation error: `inputs` must have less than 2048 tokens. Given: 2233
+        tokenizer.model_max_length = tokenizer.model_max_length - 50
+    else:
+        tokenizer = FakeTokenizer()
+
+    if isinstance(inference_server, str) and inference_server.startswith("http"):
         inference_server, gr_client, hf_client = get_client_from_inference_server(inference_server)
         client = gr_client or hf_client
         # Don't return None, None for model, tokenizer so triggers
@@ -852,13 +887,64 @@ def get_model(
         assert os.getenv('OPENAI_API_KEY'), "Set environment for OPENAI_API_KEY"
         # Don't return None, None for model, tokenizer so triggers
         # include small token cushion
-        tokenizer = FakeTokenizer(model_max_length=model_token_mapping[base_model] - 100)
+        tokenizer = FakeTokenizer(model_max_length=model_token_mapping[base_model] - 50)
         return inference_server, tokenizer, inference_server
     assert not inference_server, "Malformed inference_server=%s" % inference_server
     if base_model in non_hf_types:
         from gpt4all_llm import get_model_tokenizer_gpt4all
         model, tokenizer, device = get_model_tokenizer_gpt4all(base_model)
         return model, tokenizer, device
+
+    # get local torch-HF model
+    return get_hf_model(load_8bit=load_8bit,
+                        load_4bit=load_4bit,
+                        load_half=load_half,
+                        infer_devices=infer_devices,
+                        base_model=base_model,
+                        tokenizer_base_model=tokenizer_base_model,
+                        lora_weights=lora_weights,
+                        gpu_id=gpu_id,
+
+                        reward_type=reward_type,
+                        local_files_only=local_files_only,
+                        resume_download=resume_download,
+                        use_auth_token=use_auth_token,
+                        trust_remote_code=trust_remote_code,
+                        offload_folder=offload_folder,
+                        compile_model=compile_model,
+
+                        llama_type=llama_type,
+                        config_kwargs=config_kwargs,
+                        tokenizer_kwargs=tokenizer_kwargs,
+
+                        verbose=verbose)
+
+
+def get_hf_model(load_8bit: bool = False,
+                 load_4bit: bool = False,
+                 load_half: bool = True,
+                 infer_devices: bool = True,
+                 base_model: str = '',
+                 tokenizer_base_model: str = '',
+                 lora_weights: str = "",
+                 gpu_id: int = 0,
+
+                 reward_type: bool = None,
+                 local_files_only: bool = False,
+                 resume_download: bool = True,
+                 use_auth_token: Union[str, bool] = False,
+                 trust_remote_code: bool = True,
+                 offload_folder: str = None,
+                 compile_model: bool = True,
+
+                 llama_type: bool = False,
+                 config_kwargs=None,
+                 tokenizer_kwargs=None,
+
+                 verbose: bool = False,
+                 ):
+    assert config_kwargs is not None
+    assert tokenizer_kwargs is not None
 
     if lora_weights is not None and lora_weights.strip():
         if verbose:
@@ -874,31 +960,13 @@ def get_model(
         "Please choose a base model with --base_model (CLI) or load one from Models Tab (gradio)"
     )
 
-    from transformers import AutoConfig
-    config = AutoConfig.from_pretrained(base_model, use_auth_token=use_auth_token,
-                                        trust_remote_code=trust_remote_code,
-                                        offload_folder=offload_folder)
-    llama_type_from_config = 'llama' in str(config).lower()
-    llama_type_from_name = "llama" in base_model.lower()
-    llama_type = llama_type_from_config or llama_type_from_name
-    if llama_type:
-        if verbose:
-            print("Detected as llama type from"
-                  " config (%s) or name (%s)" % (llama_type_from_config, llama_type_from_name), flush=True)
+    model_loader, tokenizer_loader = get_loaders(model_name=base_model, reward_type=reward_type, llama_type=llama_type)
 
-    model_loader, tokenizer_loader = get_loaders(llama_type=llama_type, model_name=base_model, reward_type=reward_type)
-    if not tokenizer_base_model:
-        tokenizer_base_model = base_model
+    config, _ = get_config(base_model, return_model=False, raise_exception=True, **config_kwargs)
 
     if tokenizer_loader is not None and not isinstance(tokenizer_loader, str):
         tokenizer = tokenizer_loader.from_pretrained(tokenizer_base_model,
-                                                     local_files_only=local_files_only,
-                                                     resume_download=resume_download,
-                                                     use_auth_token=use_auth_token,
-                                                     trust_remote_code=trust_remote_code,
-                                                     offload_folder=offload_folder,
-                                                     padding_side='left',
-                                                     )
+                                                     **tokenizer_kwargs)
     else:
         tokenizer = tokenizer_loader
 
@@ -931,20 +999,11 @@ def get_model(
             model_kwargs.pop('torch_dtype', None)
         pop_unused_model_kwargs(model_kwargs)
 
-        triton_attn = False
-        long_sequence = True
-
-        config_kwargs = dict(use_auth_token=use_auth_token,
-                             trust_remote_code=trust_remote_code,
-                             offload_folder=offload_folder,
-                             triton_attn=triton_attn,
-                             long_sequence=long_sequence)
-
         if not lora_weights:
             with torch.device(device):
 
                 if infer_devices:
-                    config, model = get_config(base_model, return_model=True, **config_kwargs)
+                    config, model = get_config(base_model, return_model=True, raise_exception=True, **config_kwargs)
                     model = get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward_type,
                                                config, model,
                                                gpu_id=gpu_id,
@@ -982,7 +1041,7 @@ def get_model(
             )
         else:
             with torch.device(device):
-                config, _ = get_config(base_model, **config_kwargs)
+                config, _ = get_config(base_model, raise_exception=True, **config_kwargs)
                 model = model_loader.from_pretrained(
                     base_model,
                     config=config,
