@@ -217,6 +217,11 @@ def go_gradio(**kwargs):
     for k in no_default_param_names:
         default_kwargs[k] = ''
 
+    def dummy_fun(x):
+        # need dummy function to block new input from being sent until output is done,
+        # else gets input_list at time of submit that is old, and shows up as truncated in chatbot
+        return x
+
     with demo:
         # avoid actual model/tokenizer here or anything that would be bad to deepcopy
         # https://github.com/gradio-app/gradio/issues/3558
@@ -694,20 +699,8 @@ def go_gradio(**kwargs):
         s3up_btn.click(s3up, inputs=zip_text, outputs=s3up_text, queue=False,
                        api_name='s3up_data' if allow_api else None)
 
-        def make_add_visible(x):
-            return gr.update(visible=x is not None)
-
         def clear_file_list():
             return None
-
-        def make_invisible():
-            return gr.update(visible=False)
-
-        def make_visible():
-            return gr.update(visible=True)
-
-        def update_radio_to_user():
-            return gr.update(value='UserData')
 
         # Add to UserData
         update_user_db_func = functools.partial(update_user_db,
@@ -726,7 +719,7 @@ def go_gradio(**kwargs):
                                inputs=[fileup_output, my_db_state, add_to_shared_db_btn,
                                        add_to_my_db_btn,
                                        chunk, chunk_size],
-                               outputs=[add_to_shared_db_btn, add_to_my_db_btn, sources_text],
+                               outputs=[fileup_output, langchain_mode, add_to_shared_db_btn, add_to_my_db_btn, sources_text],
                                queue=queue)
 
         if allow_upload_to_user_data and not allow_upload_to_my_data:
@@ -736,11 +729,6 @@ def go_gradio(**kwargs):
             eventdb1 = add_to_shared_db_btn.click(**add_file_kwargs,
                                                   api_name='add_to_shared' if allow_api and allow_upload_to_user_data else None)
         # note for update_user_db_func output is ignored for db
-        eventdb1.then(clear_file_list, outputs=fileup_output, queue=queue) \
-            .then(update_radio_to_user, inputs=None, outputs=langchain_mode, queue=queue)
-
-        # .then(make_invisible, outputs=add_to_shared_db_btn, queue=queue)
-        # .then(make_visible, outputs=upload_button, queue=queue)
 
         def clear_textbox():
             return gr.Textbox.update(value='')
@@ -750,33 +738,27 @@ def go_gradio(**kwargs):
         add_url_kwargs = dict(fn=update_user_db_url_func,
                               inputs=[url_text, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
                                       chunk, chunk_size],
-                              outputs=[add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
+                              outputs=[url_text, langchain_mode, add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
                               api_name='add_url_to_shared' if allow_api and allow_upload_to_user_data else None)
 
         if allow_upload_to_user_data and not allow_upload_to_my_data:
-            eventdb2 = url_text.submit(**add_url_kwargs)
+            eventdb2a = url_text.submit(fn=dummy_fun, inputs=url_text, outputs=url_text, queue=queue)
+            eventdb2 = eventdb2a.submit(**add_url_kwargs)
         else:
             eventdb2 = url_user_btn.click(**add_url_kwargs)
-        eventdb2.then(clear_textbox, outputs=url_text, queue=queue) \
-            .then(update_radio_to_user, inputs=None, outputs=langchain_mode, queue=queue)
 
         update_user_db_txt_func = functools.partial(update_user_db_func, is_txt=True)
         add_text_kwargs = dict(fn=update_user_db_txt_func,
                                inputs=[user_text_text, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
                                        chunk, chunk_size],
-                               outputs=[add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
+                               outputs=[user_text_text, langchain_mode, add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
                                api_name='add_text_to_shared' if allow_api and allow_upload_to_user_data else None
                                )
         if allow_upload_to_user_data and not allow_upload_to_my_data:
-            eventdb3 = user_text_text.submit(**add_text_kwargs)
+            eventdb3a = user_text_text.submit(fn=dummy_fun, inputs=user_text_text, outputs=user_text_text, queue=queue)
+            eventdb3 = eventdb3a.submit(**add_text_kwargs)
         else:
             eventdb3 = user_text_user_btn.click(**add_text_kwargs)
-        eventdb3.then(clear_textbox, outputs=user_text_text, queue=queue) \
-            .then(update_radio_to_user, inputs=None, outputs=langchain_mode, queue=queue)
-
-        # Add to MyData
-        def update_radio_to_my():
-            return gr.update(value='MyData')
 
         update_my_db_func = functools.partial(update_user_db, dbs=dbs, db_type=db_type, langchain_mode='MyData',
                                               use_openai_embedding=use_openai_embedding,
@@ -792,7 +774,7 @@ def go_gradio(**kwargs):
         add_my_file_kwargs = dict(fn=update_my_db_func,
                                   inputs=[fileup_output, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
                                           chunk, chunk_size],
-                                  outputs=[my_db_state, add_to_shared_db_btn, add_to_my_db_btn, sources_text],
+                                  outputs=[fileup_output, langchain_mode, my_db_state, add_to_shared_db_btn, add_to_my_db_btn, sources_text],
                                   queue=queue,
                                   api_name='add_to_my' if allow_api and allow_upload_to_my_data else None)
 
@@ -800,16 +782,12 @@ def go_gradio(**kwargs):
             eventdb4 = fileup_output.change(**add_my_file_kwargs)
         else:
             eventdb4 = add_to_my_db_btn.click(**add_my_file_kwargs)
-        eventdb4.then(clear_file_list, outputs=fileup_output, queue=queue) \
-            .then(update_radio_to_my, inputs=None, outputs=langchain_mode, queue=queue)
-        # .then(make_invisible, outputs=add_to_shared_db_btn, queue=queue)
-        # .then(make_visible, outputs=upload_button, queue=queue)
 
         update_my_db_url_func = functools.partial(update_my_db_func, is_url=True)
         add_my_url_kwargs = dict(fn=update_my_db_url_func,
                                  inputs=[url_text, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
                                          chunk, chunk_size],
-                                 outputs=[my_db_state, add_to_shared_db_btn, add_to_my_db_btn, sources_text],
+                                 outputs=[url_text, langchain_mode, my_db_state, add_to_shared_db_btn, add_to_my_db_btn, sources_text],
                                  queue=queue,
                                  api_name='add_url_to_my' if allow_api and allow_upload_to_my_data else None)
         if not allow_upload_to_user_data and allow_upload_to_my_data:
@@ -817,23 +795,18 @@ def go_gradio(**kwargs):
         else:
             eventdb5 = url_my_btn.click(**add_my_url_kwargs)
 
-        eventdb5.then(clear_textbox, outputs=url_text, queue=queue) \
-            .then(update_radio_to_my, inputs=None, outputs=langchain_mode, queue=queue)
-
         update_my_db_txt_func = functools.partial(update_my_db_func, is_txt=True)
 
         add_my_text_kwargs = dict(fn=update_my_db_txt_func,
                                   inputs=[user_text_text, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
                                           chunk, chunk_size],
-                                  outputs=[my_db_state, add_to_shared_db_btn, add_to_my_db_btn, sources_text],
+                                  outputs=[user_text_text, langchain_mode, my_db_state, add_to_shared_db_btn, add_to_my_db_btn, sources_text],
                                   queue=queue,
                                   api_name='add_txt_to_my' if allow_api and allow_upload_to_my_data else None)
         if not allow_upload_to_user_data and allow_upload_to_my_data:
             eventdb6 = user_text_text.submit(**add_my_text_kwargs)
         else:
             eventdb6 = user_text_my_btn.click(**add_my_text_kwargs)
-        eventdb6.then(clear_textbox, outputs=user_text_text, queue=queue) \
-            .then(update_radio_to_my, inputs=None, outputs=langchain_mode, queue=queue)
 
         get_sources1 = functools.partial(get_sources, dbs=dbs, docs_state0=docs_state0)
 
@@ -1370,11 +1343,6 @@ def go_gradio(**kwargs):
         def clear_all():
             return gr.Textbox.update(value=''), gr.Textbox.update(value=''), gr.update(value=None), \
                 gr.Textbox.update(value=''), gr.Textbox.update(value='')
-
-        def dummy_fun(x):
-            # need dummy function to block new input from being sent until output is done,
-            # else gets input_list at time of submit that is old, and shows up as truncated in chatbot
-            return x
 
         if kwargs['model_states']:
             submits1 = submits2 = submits3 = []
@@ -2104,9 +2072,9 @@ def update_user_db(file, db1, x, y, *args, dbs=None, langchain_mode='UserData', 
         </html>
         """.format(ex_str)
         if langchain_mode == 'MyData':
-            return db1, x, y, source_files_added
+            return None, langchain_mode, db1, x, y, source_files_added
         else:
-            return x, y, source_files_added
+            return None, langchain_mode, x, y, source_files_added
     finally:
         clear_torch_cache()
 
@@ -2199,7 +2167,7 @@ def _update_user_db(file, db1, x, y, chunk, chunk_size, dbs=None, db_type=None, 
             else:
                 db1[0] = db
             source_files_added = get_source_files(db=db1[0], exceptions=exceptions)
-            return db1, x, y, source_files_added
+            return None, langchain_mode, db1, x, y, source_files_added
         else:
             from gpt_langchain import get_persist_directory
             persist_directory = get_persist_directory(langchain_mode)
@@ -2220,7 +2188,7 @@ def _update_user_db(file, db1, x, y, chunk, chunk_size, dbs=None, db_type=None, 
             # return dbs[langchain_mode], x, y
             # db in this code path is updated in place
             source_files_added = get_source_files(db=dbs[langchain_mode], exceptions=exceptions)
-            return x, y, source_files_added
+            return None, langchain_mode, x, y, source_files_added
 
 
 def get_db(db1, langchain_mode, dbs=None):
