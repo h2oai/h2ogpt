@@ -720,14 +720,14 @@ def go_gradio(**kwargs):
                                        add_to_my_db_btn,
                                        chunk, chunk_size],
                                outputs=[fileup_output, langchain_mode, add_to_shared_db_btn, add_to_my_db_btn, sources_text],
-                               queue=queue)
+                               queue=queue,
+                               api_name='add_to_shared' if allow_api and allow_upload_to_user_data else None)
 
         if allow_upload_to_user_data and not allow_upload_to_my_data:
             # then no need for add buttons, only single changable db
             eventdb1 = fileup_output.change(**add_file_kwargs)
         else:
-            eventdb1 = add_to_shared_db_btn.click(**add_file_kwargs,
-                                                  api_name='add_to_shared' if allow_api and allow_upload_to_user_data else None)
+            eventdb1 = add_to_shared_db_btn.click(**add_file_kwargs)
         # note for update_user_db_func output is ignored for db
 
         def clear_textbox():

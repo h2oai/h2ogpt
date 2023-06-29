@@ -370,6 +370,12 @@ def main(
     if langchain_mode not in visible_langchain_modes and langchain_mode in langchain_modes:
         visible_langchain_modes += [langchain_mode]
 
+    # if specifically chose not to show My or User Data, disable upload, so gradio elements are simpler
+    if LangChainMode.MY_DATA.value not in visible_langchain_modes:
+        allow_upload_to_my_data = False
+    if LangChainMode.USER_DATA.value not in visible_langchain_modes:
+        allow_upload_to_user_data = False
+
     if is_public:
         allow_upload_to_user_data = False
         input_lines = 1  # ensure set, for ease of use
