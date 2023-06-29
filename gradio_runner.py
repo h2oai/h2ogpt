@@ -702,6 +702,18 @@ def go_gradio(**kwargs):
         def clear_file_list():
             return None
 
+        def make_non_interactive(*args):
+            if len(args) == 1:
+                return gr.update(interactive=False)
+            else:
+                return tuple([gr.update(interactive=False)] * len(args))
+
+        def make_interactive(*args):
+            if len(args) == 1:
+                return gr.update(interactive=True)
+            else:
+                return tuple([gr.update(interactive=True)] * len(args))
+
         # Add to UserData
         update_user_db_func = functools.partial(update_user_db,
                                                 dbs=dbs, db_type=db_type, langchain_mode='UserData',
@@ -714,20 +726,25 @@ def go_gradio(**kwargs):
                                                 verbose=kwargs['verbose'],
                                                 user_path=kwargs['user_path'],
                                                 )
-
+        add_file_outputs = [fileup_output, langchain_mode, add_to_shared_db_btn, add_to_my_db_btn]
         add_file_kwargs = dict(fn=update_user_db_func,
                                inputs=[fileup_output, my_db_state, add_to_shared_db_btn,
                                        add_to_my_db_btn,
                                        chunk, chunk_size],
-                               outputs=[fileup_output, langchain_mode, add_to_shared_db_btn, add_to_my_db_btn, sources_text],
+                               outputs=add_file_outputs + [sources_text],
                                queue=queue,
                                api_name='add_to_shared' if allow_api and allow_upload_to_user_data else None)
 
         if allow_upload_to_user_data and not allow_upload_to_my_data:
-            # then no need for add buttons, only single changable db
-            eventdb1 = fileup_output.change(**add_file_kwargs)
+            func1 = fileup_output.change
         else:
-            eventdb1 = add_to_shared_db_btn.click(**add_file_kwargs)
+            func1 = add_to_shared_db_btn.click
+        # then no need for add buttons, only single changeable db
+        eventdb1a = func1(make_non_interactive, inputs=add_file_outputs, outputs=add_file_outputs,
+                          show_progress='minimal')
+        eventdb1 = eventdb1a.then(**add_file_kwargs, show_progress='minimal')
+        eventdb1.then(make_interactive, inputs=add_file_outputs, outputs=add_file_outputs, show_progress='minimal')
+
         # note for update_user_db_func output is ignored for db
 
         def clear_textbox():
@@ -735,30 +752,47 @@ def go_gradio(**kwargs):
 
         update_user_db_url_func = functools.partial(update_user_db_func, is_url=True)
 
+        add_url_outputs = [url_text, langchain_mode, url_user_btn, url_my_btn]
         add_url_kwargs = dict(fn=update_user_db_url_func,
-                              inputs=[url_text, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
+                              inputs=[url_text, my_db_state, url_user_btn, url_my_btn,
                                       chunk, chunk_size],
-                              outputs=[url_text, langchain_mode, add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
+                              outputs=add_url_outputs + [sources_text],
+                              queue=queue,
                               api_name='add_url_to_shared' if allow_api and allow_upload_to_user_data else None)
 
         if allow_upload_to_user_data and not allow_upload_to_my_data:
-            eventdb2a = url_text.submit(fn=dummy_fun, inputs=url_text, outputs=url_text, queue=queue)
-            eventdb2 = eventdb2a.submit(**add_url_kwargs)
+            func2 = url_text.submit
         else:
-            eventdb2 = url_user_btn.click(**add_url_kwargs)
+            func2 = url_user_btn.click
+        eventdb2a = func2(fn=dummy_fun, inputs=url_text, outputs=url_text, queue=queue,
+                          show_progress='minimal')
+        # work around https://github.com/gradio-app/gradio/issues/4733
+        eventdb2b = eventdb2a.then(make_non_interactive, inputs=add_url_outputs, outputs=add_url_outputs,
+                                   show_progress='minimal')
+        eventdb2 = eventdb2b.then(**add_url_kwargs, show_progress='minimal')
+        eventdb2.then(make_interactive, inputs=add_url_outputs, outputs=add_url_outputs, show_progress='minimal')
 
         update_user_db_txt_func = functools.partial(update_user_db_func, is_txt=True)
+        add_text_outputs = [user_text_text, langchain_mode, user_text_user_btn, user_text_my_btn]
         add_text_kwargs = dict(fn=update_user_db_txt_func,
-                               inputs=[user_text_text, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
+                               inputs=[user_text_text, my_db_state, user_text_user_btn, user_text_my_btn,
                                        chunk, chunk_size],
-                               outputs=[user_text_text, langchain_mode, add_to_shared_db_btn, add_to_my_db_btn, sources_text], queue=queue,
+                               outputs=add_text_outputs + [sources_text],
+                               queue=queue,
                                api_name='add_text_to_shared' if allow_api and allow_upload_to_user_data else None
                                )
         if allow_upload_to_user_data and not allow_upload_to_my_data:
-            eventdb3a = user_text_text.submit(fn=dummy_fun, inputs=user_text_text, outputs=user_text_text, queue=queue)
-            eventdb3 = eventdb3a.submit(**add_text_kwargs)
+            func3 = user_text_text.submit
         else:
-            eventdb3 = user_text_user_btn.click(**add_text_kwargs)
+            func3 = user_text_user_btn.click
+
+        eventdb3a = func3(fn=dummy_fun, inputs=user_text_text, outputs=user_text_text, queue=queue,
+                          show_progress='minimal')
+        eventdb3b = eventdb3a.then(make_non_interactive, inputs=add_text_outputs, outputs=add_text_outputs,
+                                   show_progress='minimal')
+        eventdb3 = eventdb3b.then(**add_text_kwargs, show_progress='minimal')
+        eventdb3.then(make_interactive, inputs=add_text_outputs, outputs=add_text_outputs,
+                      show_progress='minimal')
 
         update_my_db_func = functools.partial(update_user_db, dbs=dbs, db_type=db_type, langchain_mode='MyData',
                                               use_openai_embedding=use_openai_embedding,
@@ -771,42 +805,68 @@ def go_gradio(**kwargs):
                                               user_path=kwargs['user_path'],
                                               )
 
+        add_my_file_outputs = [fileup_output, langchain_mode, my_db_state, add_to_shared_db_btn, add_to_my_db_btn]
         add_my_file_kwargs = dict(fn=update_my_db_func,
                                   inputs=[fileup_output, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
                                           chunk, chunk_size],
-                                  outputs=[fileup_output, langchain_mode, my_db_state, add_to_shared_db_btn, add_to_my_db_btn, sources_text],
+                                  outputs=add_my_file_outputs + [sources_text],
                                   queue=queue,
                                   api_name='add_to_my' if allow_api and allow_upload_to_my_data else None)
 
         if not allow_upload_to_user_data and allow_upload_to_my_data:
-            eventdb4 = fileup_output.change(**add_my_file_kwargs)
+            func4 = fileup_output.change
         else:
-            eventdb4 = add_to_my_db_btn.click(**add_my_file_kwargs)
+            func4 = add_to_my_db_btn.click
+
+        eventdb4a = func4(make_non_interactive, inputs=add_my_file_outputs,
+                          outputs=add_my_file_outputs,
+                          show_progress='minimal')
+        eventdb4 = eventdb4a.then(**add_my_file_kwargs, show_progress='minimal')
+        eventdb4.then(make_interactive, inputs=add_my_file_outputs, outputs=add_my_file_outputs,
+                      show_progress='minimal')
 
         update_my_db_url_func = functools.partial(update_my_db_func, is_url=True)
+        add_my_url_outputs = [url_text, langchain_mode, my_db_state, url_user_btn, url_my_btn]
         add_my_url_kwargs = dict(fn=update_my_db_url_func,
-                                 inputs=[url_text, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
+                                 inputs=[url_text, my_db_state, url_user_btn, url_my_btn,
                                          chunk, chunk_size],
-                                 outputs=[url_text, langchain_mode, my_db_state, add_to_shared_db_btn, add_to_my_db_btn, sources_text],
+                                 outputs=add_my_url_outputs + [sources_text],
                                  queue=queue,
                                  api_name='add_url_to_my' if allow_api and allow_upload_to_my_data else None)
         if not allow_upload_to_user_data and allow_upload_to_my_data:
-            eventdb5 = url_text.submit(**add_my_url_kwargs)
+            func5 = url_text.submit
         else:
-            eventdb5 = url_my_btn.click(**add_my_url_kwargs)
+            func5 = url_my_btn.click
+        eventdb5a = func5(fn=dummy_fun, inputs=url_text, outputs=url_text, queue=queue,
+                          show_progress='minimal')
+        eventdb5b = eventdb5a.then(make_non_interactive, inputs=add_my_url_outputs, outputs=add_my_url_outputs,
+                                   show_progress='minimal')
+        eventdb5 = eventdb5b.then(**add_my_url_kwargs, show_progress='minimal')
+        eventdb5.then(make_interactive, inputs=add_my_url_outputs, outputs=add_my_url_outputs,
+                      show_progress='minimal')
 
         update_my_db_txt_func = functools.partial(update_my_db_func, is_txt=True)
 
+        add_my_text_outputs = [user_text_text, langchain_mode, my_db_state, user_text_user_btn,
+                               user_text_my_btn]
         add_my_text_kwargs = dict(fn=update_my_db_txt_func,
-                                  inputs=[user_text_text, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
+                                  inputs=[user_text_text, my_db_state, user_text_user_btn, user_text_my_btn,
                                           chunk, chunk_size],
-                                  outputs=[user_text_text, langchain_mode, my_db_state, add_to_shared_db_btn, add_to_my_db_btn, sources_text],
+                                  outputs=add_my_text_outputs + [sources_text],
                                   queue=queue,
                                   api_name='add_txt_to_my' if allow_api and allow_upload_to_my_data else None)
         if not allow_upload_to_user_data and allow_upload_to_my_data:
-            eventdb6 = user_text_text.submit(**add_my_text_kwargs)
+            func6 = user_text_text.submit
         else:
-            eventdb6 = user_text_my_btn.click(**add_my_text_kwargs)
+            func6 = user_text_my_btn.click
+
+        eventdb6a = func6(fn=dummy_fun, inputs=user_text_text, outputs=user_text_text, queue=queue,
+                          show_progress='minimal')
+        eventdb6b = eventdb6a.then(make_non_interactive, inputs=add_my_text_outputs, outputs=add_my_text_outputs,
+                                   show_progress='minimal')
+        eventdb6 = eventdb6b.then(**add_my_text_kwargs, show_progress='minimal')
+        eventdb6.then(make_interactive, inputs=add_my_text_outputs, outputs=add_my_text_outputs,
+                      show_progress='minimal')
 
         get_sources1 = functools.partial(get_sources, dbs=dbs, docs_state0=docs_state0)
 
