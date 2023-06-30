@@ -21,7 +21,7 @@ from tests.utils import wrap_test_forked
 @wrap_test_forked
 def test_gradio_inference_server(base_model, force_langchain_evaluate, do_langchain,
                                  prompt='Who are you?', stream_output=False, max_new_tokens=256,
-                                 langchain_mode='Disabled', langchain_action='Query',
+                                 langchain_mode='Disabled', langchain_action=LangChainAction.QUERY.value,
                                  user_path=None,
                                  visible_langchain_modes=['UserData', 'MyData'],
                                  reverse_docs=True):
@@ -180,7 +180,7 @@ def run_docker(inf_port, base_model):
 @wrap_test_forked
 def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain, pass_prompt_type, do_model_lock,
                              prompt='Who are you?', stream_output=False, max_new_tokens=256,
-                             langchain_mode='Disabled', langchain_action='Query',
+                             langchain_mode='Disabled', langchain_action=LangChainAction.QUERY.value,
                              user_path=None,
                              visible_langchain_modes=['UserData', 'MyData'],
                              reverse_docs=True):
@@ -287,7 +287,7 @@ def test_openai_inference_server(force_langchain_evaluate,
                                  prompt='Who are you?', stream_output=False, max_new_tokens=256,
                                  base_model='gpt-3.5-turbo',
                                  langchain_mode='Disabled',
-                                 langchain_action='Query',
+                                 langchain_action=LangChainAction.QUERY.value,
                                  user_path=None,
                                  visible_langchain_modes=['UserData', 'MyData'],
                                  reverse_docs=True):

@@ -28,7 +28,7 @@ os.environ['BITSANDBYTES_NOWELCOME'] = '1'
 warnings.filterwarnings('ignore', category=UserWarning, message='TypedStorage is deprecated')
 
 from enums import DocumentChoices, LangChainMode, no_lora_str, model_token_mapping, no_model_str, source_prefix, \
-    source_postfix
+    source_postfix, LangChainAction
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, remove
@@ -52,7 +52,7 @@ eval_extra_columns = ['prompt', 'response', 'score']
 
 langchain_modes = [x.value for x in list(LangChainMode)]
 
-langchain_actions = ['Query', 'Summarize']
+langchain_actions = [x.value for x in list(LangChainAction)]
 
 scratch_base_dir = '/tmp/'
 
@@ -140,7 +140,7 @@ def main(
         eval_as_output: bool = False,
 
         langchain_mode: str = 'Disabled',
-        langchain_action: str = langchain_actions[0],
+        langchain_action: str = LangChainAction.QUERY.value,
         force_langchain_evaluate: bool = False,
         visible_langchain_modes: list = ['UserData', 'MyData'],
         visible_langchain_actions: list = langchain_actions.copy(),
@@ -272,8 +272,10 @@ def main(
     :param langchain_mode: Data source to include.  Choose "UserData" to only consume files from make_db.py.
            WARNING: wiki_full requires extra data processing via read_wiki_full.py and requires really good workstation to generate db, unless already present.
     :param langchain_action: Mode langchain operations in on documents.
-            'Query': Make query of document(s)
-            'Summarize': Summarize document(s)
+            Query: Make query of document(s)
+            Summarize_map_reduce: Summarize document(s) via map_reduce
+            Summarize_all: Summarize document(s) using entire document at once
+            Summarize_refine: Summarize document(s) using entire document, and try to refine before returning summary
     :param force_langchain_evaluate: Whether to force langchain LLM use even if not doing langchain, mostly for testing.
     :param user_path: user path to glob from to generate db for vector search, for 'UserData' langchain mode.
            If already have db, any new/changed files are added automatically if path set, does not have to be same path used for prior db sources
@@ -1268,7 +1270,7 @@ def evaluate_from_str(
         # if user doesn't specify, then assume disabled, not use default
         user_kwargs['langchain_mode'] = 'Disabled'
     if 'langchain_action' not in user_kwargs:
-        user_kwargs['langchain_action'] = langchain_actions[0]
+        user_kwargs['langchain_action'] = LangChainAction.QUERY.value
 
     assert set(list(default_kwargs.keys())) == set(eval_func_param_names)
     # correct ordering.  Note some things may not be in default_kwargs, so can't be default of user_kwargs.get()
@@ -1532,7 +1534,6 @@ def evaluate(
                         base_model in non_hf_types or \
                         force_langchain_evaluate
     if do_langchain_path:
-        query = instruction if not iinput else "%s\n%s" % (instruction, iinput)
         outr = ""
         # use smaller cut_distanct for wiki_full since so many matches could be obtained, and often irrelevant unless close
         from gpt_langchain import run_qa_db
@@ -1548,7 +1549,9 @@ def evaluate(
                                    max_time=max_time,
                                    num_return_sequences=num_return_sequences,
                                    )
-        for r in run_qa_db(query=query,
+        for r in run_qa_db(query=instruction,
+                           iinput=iinput,
+                           context=context,
                            model_name=base_model, model=model, tokenizer=tokenizer,
                            inference_server=inference_server,
                            stream_output=stream_output,
@@ -1595,8 +1598,13 @@ def evaluate(
                               langchain_mode=langchain_mode,
                               langchain_action=langchain_action,
                               document_choice=document_choice,
-                              num_prompt_tokens=num_prompt_tokens)
-            save_generate_output(prompt=query, output=outr, base_model=base_model, save_dir=save_dir,
+                              num_prompt_tokens=num_prompt_tokens,
+                              instruction=instruction,
+                              iinput=iinput,
+                              context=context,
+                              )
+            save_generate_output(prompt=prompt,
+                                 output=outr, base_model=base_model, save_dir=save_dir,
                                  where_from='run_qa_db',
                                  extra_dict=extra_dict)
             if verbose:
@@ -1699,7 +1707,7 @@ def evaluate(
             chat_client = False
             where_from = "gr_client"
             client_langchain_mode = 'Disabled'
-            client_langchain_action = 'Query'
+            client_langchain_action = LangChainAction.QUERY.value
             gen_server_kwargs = dict(temperature=temperature,
                                      top_p=top_p,
                                      top_k=top_k,
@@ -2307,7 +2315,7 @@ y = np.random.randint(0, 1, 100)
 
     # move to correct position
     for example in examples:
-        example += [chat, '', '', 'Disabled', langchain_actions[0],
+        example += [chat, '', '', 'Disabled', LangChainAction.QUERY.value,
                     top_k_docs, chunk, chunk_size, [DocumentChoices.All_Relevant.name]
                     ]
         # adjust examples if non-chat mode

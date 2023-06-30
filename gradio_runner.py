@@ -49,7 +49,7 @@ def fix_pydantic_duplicate_validators_error():
 
 fix_pydantic_duplicate_validators_error()
 
-from enums import DocumentChoices, no_model_str, no_lora_str, no_server_str
+from enums import DocumentChoices, no_model_str, no_lora_str, no_server_str, LangChainAction, LangChainMode
 from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, get_dark_js, spacing_xsm, radius_xsm, \
     text_xsm
 from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt_type_to_model_lower, non_hf_types, \
@@ -337,7 +337,7 @@ def go_gradio(**kwargs):
                         langchain_action = gr.Radio(
                             allowed_actions,
                             value=allowed_actions[0] if len(allowed_actions) > 0 else None,
-                            label="Action",
+                            label="Data Action",
                             visible=True)
                     data_row2 = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled')
                     with data_row2:
@@ -1080,13 +1080,14 @@ def go_gradio(**kwargs):
             :param args:
             :param undo:
             :param sanitize_user_prompt:
-            :param model2:
             :return:
             """
             args_list = list(args)
             user_message = args_list[eval_func_param_names.index('instruction')]  # chat only
             input1 = args_list[eval_func_param_names.index('iinput')]  # chat only
             prompt_type1 = args_list[eval_func_param_names.index('prompt_type')]
+            langchain_mode1 = args_list[eval_func_param_names.index('langchain_mode')]
+            langchain_action1 = args_list[eval_func_param_names.index('langchain_action')]
             if not prompt_type1:
                 # shouldn't have to specify if CLI launched model
                 prompt_type1 = kwargs['prompt_type']
@@ -1117,8 +1118,10 @@ def go_gradio(**kwargs):
                     history[-1][1] = None
                 return history
             if user_message1 in ['', None, '\n']:
-                # reject non-retry submit/enter
-                return history
+                if langchain_action1 in LangChainAction.QUERY.value or \
+                        langchain_mode1 in [LangChainMode.CHAT_LLM.value, LangChainMode.LLM.value]:
+                    # reject non-retry submit/enter
+                    return history
             user_message1 = fix_text_for_gradio(user_message1)
             return history + [[user_message1, None]]
 
@@ -1172,7 +1175,6 @@ def go_gradio(**kwargs):
 
             args_list = args_list[:-3]  # only keep rest needed for evaluate()
             langchain_mode1 = args_list[eval_func_param_names.index('langchain_mode')]
-            # FIXME: ok if query empty if not query action
             langchain_action1 = args_list[eval_func_param_names.index('langchain_action')]
             if not history:
                 print("No history", flush=True)
@@ -1184,8 +1186,10 @@ def go_gradio(**kwargs):
                 instruction1 = history[-1][0]
                 history[-1][1] = None
             elif not instruction1:
-                # if not retrying, then reject empty query
-                return history, None
+                if langchain_action1 in LangChainAction.QUERY.value or \
+                        langchain_mode1 in [LangChainMode.CHAT_LLM.value, LangChainMode.LLM.value]:
+                    # if not retrying, then reject empty query
+                    return history, None
             elif len(history) > 0 and history[-1][1] not in [None, '']:
                 # reject submit button if already filled and not retrying
                 # None when not filling with '' to keep client happy

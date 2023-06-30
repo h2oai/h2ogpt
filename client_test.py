@@ -68,7 +68,7 @@ def get_args(prompt, prompt_type, chat=False, stream_output=False,
              max_new_tokens=50,
              top_k_docs=3,
              langchain_mode='Disabled',
-             langchain_action='Query'):
+             langchain_action=LangChainAction.QUERY.value):
     from collections import OrderedDict
     kwargs = OrderedDict(instruction=prompt if chat else '',  # only for chat=True
                          iinput='',  # only for chat=True
@@ -200,7 +200,7 @@ def run_client_nochat_api_lean_morestuff(prompt, prompt_type='human_bot', max_ne
         instruction_nochat=prompt,
         iinput_nochat='',
         langchain_mode='Disabled',
-        langchain_action='Query',
+        langchain_action=LangChainAction.QUERY.value,
         top_k_docs=4,
         document_choice=['All'],
     )
@@ -222,14 +222,14 @@ def run_client_nochat_api_lean_morestuff(prompt, prompt_type='human_bot', max_ne
 @pytest.mark.skip(reason="For manual use against some server, no server launched")
 def test_client_chat(prompt_type='human_bot'):
     return run_client_chat(prompt='Who are you?', prompt_type=prompt_type, stream_output=False, max_new_tokens=50,
-                           langchain_mode='Disabled', langchain_action='Query')
+                           langchain_mode='Disabled', langchain_action=LangChainAction.QUERY.value)
 
 
 @pytest.mark.skip(reason="For manual use against some server, no server launched")
 def test_client_chat_stream(prompt_type='human_bot'):
     return run_client_chat(prompt="Tell a very long kid's story about birds.", prompt_type=prompt_type,
                            stream_output=True, max_new_tokens=512,
-                           langchain_mode='Disabled', langchain_action='Query')
+                           langchain_mode='Disabled', langchain_action=LangChainAction.QUERY.value)
 
 
 def run_client_chat(prompt, prompt_type, stream_output, max_new_tokens, langchain_mode, langchain_action):
@@ -280,7 +280,7 @@ def run_client(client, prompt, args, kwargs, do_md_to_text=True, verbose=False):
 def test_client_nochat_stream(prompt_type='human_bot'):
     return run_client_nochat_gen(prompt="Tell a very long kid's story about birds.", prompt_type=prompt_type,
                                  stream_output=True, max_new_tokens=512,
-                                 langchain_mode='Disabled', langchain_action='Query')
+                                 langchain_mode='Disabled', langchain_action=LangChainAction.QUERY.value)
 
 
 def run_client_nochat_gen(prompt, prompt_type, stream_output, max_new_tokens, langchain_mode, langchain_action):

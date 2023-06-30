@@ -159,7 +159,7 @@ def test_client_chat_nostream_llama7b():
 
 def run_client_chat_with_server(prompt='Who are you?', stream_output=False, max_new_tokens=256,
                                 base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b', prompt_type='human_bot',
-                                langchain_mode='Disabled', langchain_action='Query',
+                                langchain_mode='Disabled', langchain_action=LangChainAction.QUERY.value,
                                 user_path=None,
                                 visible_langchain_modes=['UserData', 'MyData'],
                                 reverse_docs=True):
@@ -192,7 +192,7 @@ def test_client_chat_stream():
 
 def run_client_nochat_with_server(prompt='Who are you?', stream_output=False, max_new_tokens=256,
                                   base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b', prompt_type='human_bot',
-                                  langchain_mode='Disabled', langchain_action='Query',
+                                  langchain_mode='Disabled', langchain_action=LangChainAction.QUERY.value,
                                   user_path=None,
                                   visible_langchain_modes=['UserData', 'MyData'],
                                   reverse_docs=True):
