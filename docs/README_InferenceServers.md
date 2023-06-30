@@ -33,7 +33,8 @@ Use `BUILD_EXTENSIONS=False` instead of have GPUs below A100.
 conda create -n textgen -y
 conda activate textgen
 conda install python=3.10 -y
-CUDA_HOME=/usr/local/cuda-11.7 BUILD_EXTENSIONS=True make install # Install repository and HF/transformer fork with CUDA kernels
+export CUDA_HOME=/usr/local/cuda-11.8
+BUILD_EXTENSIONS=True make install # Install repository and HF/transformer fork with CUDA kernels
 cd server && make install install-flash-attention
 ```
 
