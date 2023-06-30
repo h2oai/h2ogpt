@@ -175,13 +175,13 @@ You can run Weaviate in 5 ways:
   2. [Install the Docker Compose Plugin](https://docs.docker.com/compose/install/)
   3. Download a `docker-compose.yml` file with this `curl` command:
 
-     ```
-     curl -o docker-compose.yml "https://configuration.weaviate.io/v2/docker-compose/docker-compose.yml?modules=standalone&runtime=docker-compose&weaviate_version=v1.19.6"
-     ```
+```bash
+curl -o docker-compose.yml "https://configuration.weaviate.io/v2/docker-compose/docker-compose.yml?modules=standalone&runtime=docker-compose&weaviate_version=v1.19.6"
+```
 
      Alternatively, you can use Weaviate's docker compose [configuration tool](https://weaviate.io/developers/weaviate/installation/docker-compose) to generate your own `docker-compose.yml` file.
 
-  4. Run `docker compose up -d` to spin up a Weaviate instance.
+4. Run `docker compose up -d` to spin up a Weaviate instance.
 
      > To shut it down, run `docker compose down`.
 
@@ -193,7 +193,7 @@ You can run Weaviate in 5 ways:
    
   This code snippet shows how to instantiate an embedded weaviate instance and upload a document:
 
-  ```python
+```python
   import weaviate
   from weaviate.embedded import EmbeddedOptions
 
@@ -207,7 +207,7 @@ You can run Weaviate in 5 ways:
   }
 
   client.data_object.create(data_obj, "Wine")
-  ```
+```
   
   Refer to the [documentation](https://weaviate.io/developers/weaviate/installation/embedded) for more details about this deployment method.
 ## How To Use
