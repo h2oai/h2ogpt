@@ -34,9 +34,7 @@ conda create -n textgen -y
 conda activate textgen
 conda install python=3.10 -y
 CUDA_HOME=/usr/local/cuda-11.7 BUILD_EXTENSIONS=True make install # Install repository and HF/transformer fork with CUDA kernels
-# FIXME: FAILS with lower launcher with flash attn
-CUDA_HOME=/usr/local/cuda-11.7 pip install flash_attn
-# FIXME: FAILS to build
+cd server && make install install-flash-attention
 ```
 
 ```bash
