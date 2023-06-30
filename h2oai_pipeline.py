@@ -132,7 +132,7 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
                 outputs = self.prompter.get_response(outputs, prompt=self.prompt_text,
                                                      sanitize_bot_response=self.sanitize_bot_response)
             elif self.bot and self.human:
-                outputs = rec['generated_text'].split(self.bot)[1].strip().split(self.human)[0].strip()
+                outputs = rec['generated_text'].split(self.bot)[1].split(self.human)[0]
             else:
                 outputs = rec['generated_text']
             rec['generated_text'] = outputs

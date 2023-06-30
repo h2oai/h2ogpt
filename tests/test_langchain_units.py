@@ -377,18 +377,22 @@ def test_make_add_db(repeat, db_type):
                                   enable_ocr=False,
                                   verbose=False,
                                   is_url=False, is_txt=False)
-                    db1out, x, y, source_files_added = update_user_db(test_file2_my, db1, 'foo', 'bar', chunk,
-                                                                      chunk_size,
-                                                                      dbs=None, db_type=db_type,
-                                                                      langchain_mode='MyData',
-                                                                      **kwargs)
+                    z1, z2, db1out, x, y, source_files_added = update_user_db(test_file2_my, db1, 'foo', 'bar', chunk,
+                                                                              chunk_size,
+                                                                              dbs=None, db_type=db_type,
+                                                                              langchain_mode='MyData',
+                                                                              **kwargs)
                     assert 'test2my' in str(source_files_added)
-                    x, y, source_files_added = update_user_db(test_file2, None, 'foo', 'bar', chunk, chunk_size,
-                                                              dbs={langchain_mode: db},
-                                                              db_type=db_type,
-                                                              langchain_mode=langchain_mode,
-                                                              **kwargs)
+                    assert 'MyData' == z2
+                    assert z1 is None
+                    z1, z2, x, y, source_files_added = update_user_db(test_file2, None, 'foo', 'bar', chunk, chunk_size,
+                                                                      dbs={langchain_mode: db},
+                                                                      db_type=db_type,
+                                                                      langchain_mode=langchain_mode,
+                                                                      **kwargs)
                     assert 'test2' in str(source_files_added)
+                    assert langchain_mode == z2
+                    assert z1 is None
                     docs_state0 = [x.name for x in list(DocumentChoices)]
                     get_sources(None, langchain_mode, dbs={langchain_mode: db}, docs_state0=docs_state0)
                     get_sources(db1, 'MyData', dbs=None, docs_state0=docs_state0)
@@ -407,10 +411,13 @@ def test_make_add_db(repeat, db_type):
                         os.path.abspath(test_file2_my))
                     assert path_to_docs([test_file1, test_file2, test_file2_my])[0].metadata['source'] == test_file1
 
-                    assert path_to_docs(None, url='arxiv:1706.03762')[0].metadata['source'] == 'http://arxiv.org/abs/2002.05202v1'
+                    assert path_to_docs(None, url='arxiv:1706.03762')[0].metadata[
+                               'source'] == 'http://arxiv.org/abs/2002.05202v1'
                     assert path_to_docs(None, url='http://h2o.ai')[0].metadata['source'] == 'http://h2o.ai'
 
-                    assert 'user_paste' in path_to_docs(None, text='Yufuu is a wonderful place and you should really visit because there is lots of sun.')[0].metadata['source']
+                    assert 'user_paste' in path_to_docs(None,
+                                                        text='Yufuu is a wonderful place and you should really visit because there is lots of sun.')[
+                        0].metadata['source']
 
                 if db_type == 'faiss':
                     # doesn't persist

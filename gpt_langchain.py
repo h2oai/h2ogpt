@@ -606,7 +606,7 @@ def get_llm(use_openai_model=False,
                   max_tokens=max_new_tokens,
                   top_p=top_p if do_sample else 1,
                   frequency_penalty=0,
-                  presence_penalty=1.0 - repetition_penalty + 0.6,  # so good default
+                  presence_penalty=1.07 - repetition_penalty + 0.6,  # so good default
                   callbacks=callbacks if stream_output else None,
                   )
         streamer = callbacks[0] if stream_output else None
@@ -938,6 +938,9 @@ try:
 except (pkg_resources.DistributionNotFound, AssertionError):
     have_playwright = False
 
+# disable, hangs too often
+have_playwright = False
+
 image_types = ["png", "jpg", "jpeg"]
 non_image_types = ["pdf", "txt", "csv", "toml", "py", "rst", "rtf",
                    "md", "html",
@@ -997,6 +1000,8 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             else:
                 docs1 = []
         else:
+            if not (file.startswith("http://") or file.startswith("file://") or file.startswith("https://")):
+                file = 'http://' + file
             docs1 = UnstructuredURLLoader(urls=[file]).load()
             if len(docs1) == 0 and have_playwright:
                 # then something went wrong, try another loader:
@@ -1953,7 +1958,7 @@ def get_similarity_chain(query=None,
         prefix = "Pay attention and remember information below, which will help to answer the question or imperative after the context ends."
     elif inference_server in ['openai', 'openai_chat']:
         extra = "According to (primarily) the information in the document sources provided within context above, "
-        prefix = "Pay attention and remember information below, which will help to answer the question or imperitive after the context ends.  If the answer cannot be primarily obtained from information within the context, then respond that the answer does not appear in the context of the documents."
+        prefix = "Pay attention and remember information below, which will help to answer the question or imperative after the context ends.  If the answer cannot be primarily obtained from information within the context, then respond that the answer does not appear in the context of the documents."
     else:
         extra = ""
         prefix = ""

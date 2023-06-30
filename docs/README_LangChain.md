@@ -68,6 +68,20 @@ In some cases unstructured by itself cannot handle URL content properly, then we
 pip install -r reqs_optional/requirements_optional_langchain.urls.txt
 ```
 
+For Selenium, one needs to have chrome installed, e.g. on Ubuntu:
+```bash
+sudo bash
+apt install -y unzip xvfb libxi6 libgconf-2-4
+apt install -y default-jdk
+curl -sS -o - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add
+bash -c "echo 'deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main' >> /etc/apt/sources.list.d/google-chrome.list"
+apt -y update
+apt -y install google-chrome-stable
+google-chrome --version
+```
+
+PlayWright is disabled by default as it hangs.
+
 ### Supported Meta Datatypes
 
    - `.zip` : Zip File containing any native datatype,

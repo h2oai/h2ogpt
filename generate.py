@@ -370,6 +370,12 @@ def main(
     if langchain_mode not in visible_langchain_modes and langchain_mode in langchain_modes:
         visible_langchain_modes += [langchain_mode]
 
+    # if specifically chose not to show My or User Data, disable upload, so gradio elements are simpler
+    if LangChainMode.MY_DATA.value not in visible_langchain_modes:
+        allow_upload_to_my_data = False
+    if LangChainMode.USER_DATA.value not in visible_langchain_modes:
+        allow_upload_to_user_data = False
+
     if is_public:
         allow_upload_to_user_data = False
         input_lines = 1  # ensure set, for ease of use
@@ -1592,7 +1598,7 @@ def evaluate(
                                  top_p=top_p if do_sample else 1,
                                  frequency_penalty=0,
                                  n=num_return_sequences,
-                                 presence_penalty=1.00 - repetition_penalty + 0.6,  # so good default
+                                 presence_penalty=1.07 - repetition_penalty + 0.6,  # so good default
                                  )
         if inference_server == 'openai':
             response = openai.Completion.create(
@@ -2203,7 +2209,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         top_k = 40 if top_k is None else top_k
         num_beams = num_beams or 1
         max_new_tokens = max_new_tokens or 128
-        repetition_penalty = repetition_penalty or 1.0
+        repetition_penalty = repetition_penalty or 1.07
         num_return_sequences = min(num_beams, num_return_sequences or 1)
         do_sample = False if do_sample is None else do_sample
     else:
@@ -2212,7 +2218,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         top_k = 40 if top_k is None else top_k
         num_beams = num_beams or 1
         max_new_tokens = max_new_tokens or 256
-        repetition_penalty = repetition_penalty or 1.0
+        repetition_penalty = repetition_penalty or 1.07
         num_return_sequences = min(num_beams, num_return_sequences or 1)
         do_sample = False if do_sample is None else do_sample
     # doesn't include chat, instruction_nochat, iinput_nochat, added later
