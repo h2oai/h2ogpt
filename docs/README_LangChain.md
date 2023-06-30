@@ -241,6 +241,14 @@ Notes:
 
 ## Document Question-Answer FAQ
 
+### What is UserData and MyData?
+
+UserData: Shared with anyone who is on your server.  Persisted across sessions in single location for entire server.  Control upload via allow_upload_to_user_data option.  Useful for collaboration.
+
+MyData: Scratch space that is inaccessible if one goes into a new browser session.  Useful for public demonstrations so that every instance is independent.  Or useful  if user is not allowed to upload to shared UserData and wants to do Q/A.
+
+It's work in progress to add other persistent databases and to have MyData persisted across browser sessions via cookie or other authentication.
+
 #### Why does the source link not work?
 
 For links to direct to the document and download to your local machine, the original source documents must still be present on the host system where the database was created, e.g. `user_path` for `UserData` by default.  If the database alone is copied somewhere else, that host won't have access to the documents.  URL links like Wikipedia will still work normally on any host.
