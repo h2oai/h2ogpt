@@ -21,7 +21,8 @@ from tests.utils import wrap_test_forked
 @wrap_test_forked
 def test_gradio_inference_server(base_model, force_langchain_evaluate, do_langchain,
                                  prompt='Who are you?', stream_output=False, max_new_tokens=256,
-                                 langchain_mode='Disabled', user_path=None,
+                                 langchain_mode='Disabled', langchain_action='Query',
+                                 user_path=None,
                                  visible_langchain_modes=['UserData', 'MyData'],
                                  reverse_docs=True):
     if force_langchain_evaluate:
@@ -47,7 +48,8 @@ def test_gradio_inference_server(base_model, force_langchain_evaluate, do_langch
     main_kwargs = dict(base_model=base_model, prompt_type=prompt_type, chat=True,
                        stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
                        max_new_tokens=max_new_tokens,
-                       langchain_mode=langchain_mode, user_path=user_path,
+                       langchain_mode=langchain_mode, langchain_action=langchain_action,
+                       user_path=user_path,
                        visible_langchain_modes=visible_langchain_modes,
                        reverse_docs=reverse_docs,
                        force_langchain_evaluate=force_langchain_evaluate)
@@ -66,7 +68,8 @@ def test_gradio_inference_server(base_model, force_langchain_evaluate, do_langch
     from client_test import run_client_chat
     os.environ['HOST'] = "http://127.0.0.1:%s" % client_port
     res_dict, client = run_client_chat(prompt=prompt, prompt_type=prompt_type, stream_output=stream_output,
-                                       max_new_tokens=max_new_tokens, langchain_mode=langchain_mode)
+                                       max_new_tokens=max_new_tokens, langchain_mode=langchain_mode,
+                                       langchain_action=langchain_action)
     assert res_dict['prompt'] == prompt
     assert res_dict['iinput'] == ''
 
@@ -177,7 +180,8 @@ def run_docker(inf_port, base_model):
 @wrap_test_forked
 def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain, pass_prompt_type, do_model_lock,
                              prompt='Who are you?', stream_output=False, max_new_tokens=256,
-                             langchain_mode='Disabled', user_path=None,
+                             langchain_mode='Disabled', langchain_action='Query',
+                             user_path=None,
                              visible_langchain_modes=['UserData', 'MyData'],
                              reverse_docs=True):
     # HF inference server
@@ -210,7 +214,9 @@ def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain,
     main_kwargs = dict(base_model=base_model, prompt_type=prompt_type, chat=True,
                        stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
                        max_new_tokens=max_new_tokens,
-                       langchain_mode=langchain_mode, user_path=user_path,
+                       langchain_mode=langchain_mode,
+                       langchain_action=langchain_action,
+                       user_path=user_path,
                        visible_langchain_modes=visible_langchain_modes,
                        reverse_docs=reverse_docs,
                        force_langchain_evaluate=force_langchain_evaluate,
@@ -227,7 +233,8 @@ def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain,
         from client_test import run_client_chat
         os.environ['HOST'] = "http://127.0.0.1:%s" % client_port
         res_dict, client = run_client_chat(prompt=prompt, prompt_type=prompt_type, stream_output=stream_output,
-                                           max_new_tokens=max_new_tokens, langchain_mode=langchain_mode)
+                                           max_new_tokens=max_new_tokens, langchain_mode=langchain_mode,
+                                           langchain_action=langchain_action)
         assert res_dict['prompt'] == prompt
         assert res_dict['iinput'] == ''
 
@@ -279,7 +286,9 @@ def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain,
 def test_openai_inference_server(force_langchain_evaluate,
                                  prompt='Who are you?', stream_output=False, max_new_tokens=256,
                                  base_model='gpt-3.5-turbo',
-                                 langchain_mode='Disabled', user_path=None,
+                                 langchain_mode='Disabled',
+                                 langchain_action='Query',
+                                 user_path=None,
                                  visible_langchain_modes=['UserData', 'MyData'],
                                  reverse_docs=True):
     if force_langchain_evaluate:
@@ -288,7 +297,9 @@ def test_openai_inference_server(force_langchain_evaluate,
     main_kwargs = dict(base_model=base_model, chat=True,
                        stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
                        max_new_tokens=max_new_tokens,
-                       langchain_mode=langchain_mode, user_path=user_path,
+                       langchain_mode=langchain_mode,
+                       langchain_action=langchain_action,
+                       user_path=user_path,
                        visible_langchain_modes=visible_langchain_modes,
                        reverse_docs=reverse_docs)
 
@@ -301,7 +312,8 @@ def test_openai_inference_server(force_langchain_evaluate,
     from client_test import run_client_chat
     os.environ['HOST'] = "http://127.0.0.1:%s" % client_port
     res_dict, client = run_client_chat(prompt=prompt, prompt_type='openai_chat', stream_output=stream_output,
-                                       max_new_tokens=max_new_tokens, langchain_mode=langchain_mode)
+                                       max_new_tokens=max_new_tokens, langchain_mode=langchain_mode,
+                                       langchain_action=langchain_action)
     assert res_dict['prompt'] == prompt
     assert res_dict['iinput'] == ''
 

@@ -351,6 +351,7 @@ class GradioInference(LLM):
         stream_output = self.stream
         gr_client = self.client
         client_langchain_mode = 'Disabled'
+        client_langchain_action = 'Query'
         top_k_docs = 1
         chunk = True
         chunk_size = 512
@@ -379,6 +380,7 @@ class GradioInference(LLM):
                              instruction_nochat=prompt if not self.chat_client else '',
                              iinput_nochat='',  # only for chat=False
                              langchain_mode=client_langchain_mode,
+                             langchain_action=client_langchain_action,
                              top_k_docs=top_k_docs,
                              chunk=chunk,
                              chunk_size=chunk_size,
@@ -1742,6 +1744,7 @@ def _run_qa_db(query=None,
                repetition_penalty=1.0,
                num_return_sequences=1,
                langchain_mode=None,
+               langchain_action=None,
                document_choice=[DocumentChoices.All_Relevant.name],
                n_jobs=-1,
                verbose=False,
@@ -1758,7 +1761,7 @@ def _run_qa_db(query=None,
     :param use_openai_embedding:
     :param first_para:
     :param text_limit:
-    :param k:
+    :param top_k_docs:
     :param chunk:
     :param chunk_size:
     :param user_path: user path to glob recursively from
@@ -1902,6 +1905,7 @@ def get_similarity_chain(query=None,
                          load_db_if_exists=False,
                          db=None,
                          langchain_mode=None,
+                         langchain_action=None,
                          document_choice=[DocumentChoices.All_Relevant.name],
                          n_jobs=-1,
                          # beyond run_db_query:

@@ -52,6 +52,8 @@ eval_extra_columns = ['prompt', 'response', 'score']
 
 langchain_modes = [x.value for x in list(LangChainMode)]
 
+langchain_actions = ['Query', 'Summarize']
+
 scratch_base_dir = '/tmp/'
 
 
@@ -138,8 +140,10 @@ def main(
         eval_as_output: bool = False,
 
         langchain_mode: str = 'Disabled',
+        langchain_action: str = langchain_actions[0],
         force_langchain_evaluate: bool = False,
         visible_langchain_modes: list = ['UserData', 'MyData'],
+        visible_langchain_actions: list = langchain_actions.copy(),
         document_choice: list = [DocumentChoices.All_Relevant.name],
         user_path: str = None,
         detect_user_path_changes_every_query: bool = False,
@@ -267,6 +271,9 @@ def main(
     :param eval_as_output: for no gradio benchmark, whether to test eval_filename output itself
     :param langchain_mode: Data source to include.  Choose "UserData" to only consume files from make_db.py.
            WARNING: wiki_full requires extra data processing via read_wiki_full.py and requires really good workstation to generate db, unless already present.
+    :param langchain_action: Mode langchain operations in on documents.
+            'Query': Make query of document(s)
+            'Summarize': Summarize document(s)
     :param force_langchain_evaluate: Whether to force langchain LLM use even if not doing langchain, mostly for testing.
     :param user_path: user path to glob from to generate db for vector search, for 'UserData' langchain mode.
            If already have db, any new/changed files are added automatically if path set, does not have to be same path used for prior db sources
@@ -278,6 +285,7 @@ def main(
            To allow scratch space only live in session, add 'MyData' to list
            Default: If only want to consume local files, e.g. prepared by make_db.py, only include ['UserData']
            FIXME: Avoid 'All' for now, not implemented
+    :param visible_langchain_actions: Which actions to allow
     :param document_choice: Default document choice when taking subset of collection
     :param load_db_if_exists: Whether to load chroma db if exists or re-generate db
     :param keep_sources_in_context: Whether to keep url sources in context, not helpful usually
@@ -369,6 +377,8 @@ def main(
     visible_langchain_modes = ast.literal_eval(os.environ.get("visible_langchain_modes", str(visible_langchain_modes)))
     if langchain_mode not in visible_langchain_modes and langchain_mode in langchain_modes:
         visible_langchain_modes += [langchain_mode]
+
+    assert langchain_action in langchain_actions, "Invalid langchain_action %s" % langchain_action
 
     # if specifically chose not to show My or User Data, disable upload, so gradio elements are simpler
     if LangChainMode.MY_DATA.value not in visible_langchain_modes:
@@ -1190,6 +1200,7 @@ eval_func_param_names = ['instruction',
                          'instruction_nochat',
                          'iinput_nochat',
                          'langchain_mode',
+                         'langchain_action',
                          'top_k_docs',
                          'chunk',
                          'chunk_size',
@@ -1254,6 +1265,8 @@ def evaluate_from_str(
     if 'langchain_mode' not in user_kwargs:
         # if user doesn't specify, then assume disabled, not use default
         user_kwargs['langchain_mode'] = 'Disabled'
+    if 'langchain_action' not in user_kwargs:
+        user_kwargs['langchain_action'] = langchain_actions[0]
 
     assert set(list(default_kwargs.keys())) == set(eval_func_param_names)
     # correct ordering.  Note some things may not be in default_kwargs, so can't be default of user_kwargs.get()
@@ -1333,6 +1346,7 @@ def evaluate(
         instruction_nochat,
         iinput_nochat,
         langchain_mode,
+        langchain_action,
         top_k_docs,
         chunk,
         chunk_size,
@@ -1502,6 +1516,7 @@ def evaluate(
     prompt = prompter.generate_prompt(data_point)
 
     # THIRD PLACE where LangChain referenced, but imports only occur if enabled and have db to use
+    assert langchain_action in langchain_actions, "Invalid langchain_action %s" % langchain_action
     assert langchain_mode in langchain_modes, "Invalid langchain_mode %s" % langchain_mode
     if langchain_mode in ['MyData'] and my_db_state is not None and len(my_db_state) > 0 and my_db_state[0] is not None:
         db1 = my_db_state[0]
@@ -1548,6 +1563,7 @@ def evaluate(
                            chunk=chunk,
                            chunk_size=chunk_size,
                            langchain_mode=langchain_mode,
+                           langchain_action=langchain_action,
                            document_choice=document_choice,
                            db_type=db_type,
                            top_k_docs=top_k_docs,
@@ -1572,7 +1588,9 @@ def evaluate(
         if save_dir:
             extra_dict = gen_hyper_langchain.copy()
             extra_dict.update(prompt_type=prompt_type, inference_server=inference_server,
-                              langchain_mode=langchain_mode, document_choice=document_choice)
+                              langchain_mode=langchain_mode,
+                              langchain_action=langchain_action,
+                              document_choice=document_choice)
             save_generate_output(prompt=query, output=outr, base_model=base_model, save_dir=save_dir,
                                  where_from='run_qa_db',
                                  extra_dict=extra_dict)
@@ -1674,6 +1692,7 @@ def evaluate(
             chat_client = False
             where_from = "gr_client"
             client_langchain_mode = 'Disabled'
+            client_langchain_action = 'Query'
             gen_server_kwargs = dict(temperature=temperature,
                                      top_p=top_p,
                                      top_k=top_k,
@@ -1724,6 +1743,7 @@ def evaluate(
                                  instruction_nochat=gr_prompt if not chat_client else '',
                                  iinput_nochat=gr_iinput,  # only for chat=False
                                  langchain_mode=client_langchain_mode,
+                                 langchain_action=client_langchain_action,
                                  top_k_docs=top_k_docs,
                                  chunk=chunk,
                                  chunk_size=chunk_size,
@@ -2277,7 +2297,9 @@ y = np.random.randint(0, 1, 100)
 
     # move to correct position
     for example in examples:
-        example += [chat, '', '', 'Disabled', top_k_docs, chunk, chunk_size, [DocumentChoices.All_Relevant.name]]
+        example += [chat, '', '', 'Disabled', langchain_actions[0],
+                    top_k_docs, chunk, chunk_size, [DocumentChoices.All_Relevant.name]
+                    ]
         # adjust examples if non-chat mode
         if not chat:
             example[eval_func_param_names.index('instruction_nochat')] = example[

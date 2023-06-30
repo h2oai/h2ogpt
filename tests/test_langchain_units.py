@@ -84,7 +84,7 @@ def test_qa_wiki_db_openai():
     from gpt_langchain import _run_qa_db
     query = "What are the main differences between Linux and Windows?"
     ret = _run_qa_db(query=query, use_openai_model=True, use_openai_embedding=True, text_limit=None,
-                     langchain_mode='wiki')
+                     langchain_mode='wiki', langchain_action='Query')
     check_ret(ret)
 
 
@@ -97,7 +97,7 @@ def test_qa_wiki_db_hf():
     # FIXME: but spitting out garbage answer right now, all fragmented, or just 1-word answer
     query = "What are the main differences between Linux and Windows?"
     ret = _run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=256,
-                     langchain_mode='wiki')
+                     langchain_mode='wiki', langchain_action='Query')
     check_ret(ret)
 
 
@@ -108,7 +108,7 @@ def test_qa_wiki_db_chunk_hf():
     query = "What are the main differences between Linux and Windows?"
     ret = _run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=256, chunk=True,
                      chunk_size=256,
-                     langchain_mode='wiki')
+                     langchain_mode='wiki', langchain_action='Query')
     check_ret(ret)
 
 
@@ -120,7 +120,7 @@ def test_qa_wiki_db_chunk_openai():
     query = "What are the main differences between Linux and Windows?"
     ret = _run_qa_db(query=query, use_openai_model=True, use_openai_embedding=True, text_limit=256, chunk=True,
                      chunk_size=256,
-                     langchain_mode='wiki')
+                     langchain_mode='wiki', langchain_action='Query')
     check_ret(ret)
 
 
@@ -131,7 +131,7 @@ def test_qa_github_db_chunk_openai():
     # don't need 256, just seeing how compares to hf
     query = "what is a software defined asset"
     ret = _run_qa_db(query=query, use_openai_model=True, use_openai_embedding=True, text_limit=256, chunk=True,
-                     chunk_size=256, langchain_mode='github h2oGPT')
+                     chunk_size=256, langchain_mode='github h2oGPT', langchain_action='Query')
     check_ret(ret)
 
 
@@ -142,7 +142,7 @@ def test_qa_daidocs_db_chunk_hf():
     # FIXME: doesn't work well with non-instruct-tuned Cerebras
     query = "Which config.toml enables pytorch for NLP?"
     ret = _run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=None, chunk=True,
-                     chunk_size=128, langchain_mode='DriverlessAI docs')
+                     chunk_size=128, langchain_mode='DriverlessAI docs', langchain_action='Query')
     check_ret(ret)
 
 
@@ -154,7 +154,7 @@ def test_qa_daidocs_db_chunk_hf_faiss():
     # chunk_size is chars for each of k=4 chunks
     ret = _run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=None, chunk=True,
                      chunk_size=128 * 1,  # characters, and if k=4, then 4*4*128 = 2048 chars ~ 512 tokens
-                     langchain_mode='DriverlessAI docs',
+                     langchain_mode='DriverlessAI docs', langchain_action='Query',
                      db_type='faiss',
                      )
     check_ret(ret)
@@ -166,6 +166,7 @@ def test_qa_daidocs_db_chunk_hf_faiss():
 @wrap_test_forked
 def test_qa_daidocs_db_chunk_hf_dbs(db_type, top_k_docs):
     langchain_mode = 'DriverlessAI docs'
+    langchain_action = 'Query'
     persist_directory = get_persist_directory(langchain_mode)
     remove(persist_directory)
     from gpt_langchain import _run_qa_db
@@ -179,6 +180,7 @@ def test_qa_daidocs_db_chunk_hf_dbs(db_type, top_k_docs):
     ret = _run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=None, chunk=True,
                      chunk_size=128 * 1,  # characters, and if k=4, then 4*4*128 = 2048 chars ~ 512 tokens
                      langchain_mode=langchain_mode,
+                     langchain_action=langchain_action,
                      db_type=db_type,
                      top_k_docs=top_k_docs,
                      model_name=model_name,
@@ -217,6 +219,7 @@ def test_qa_daidocs_db_chunk_hf_dbs_switch_embedding(db_type):
                                          **get_kwargs(get_model, exclude_names=['reward_type'], **all_kwargs))
 
     langchain_mode = 'DriverlessAI docs'
+    langchain_action = 'Query'
     persist_directory = get_persist_directory(langchain_mode)
     remove(persist_directory)
     from gpt_langchain import _run_qa_db
@@ -231,6 +234,7 @@ def test_qa_daidocs_db_chunk_hf_dbs_switch_embedding(db_type):
                      text_limit=None, chunk=True,
                      chunk_size=128 * 1,  # characters, and if k=4, then 4*4*128 = 2048 chars ~ 512 tokens
                      langchain_mode=langchain_mode,
+                     langchain_action=langchain_action,
                      db_type=db_type,
                      )
     check_ret(ret)
@@ -246,6 +250,7 @@ def test_qa_daidocs_db_chunk_hf_dbs_switch_embedding(db_type):
                      text_limit=None, chunk=True,
                      chunk_size=128 * 1,  # characters, and if k=4, then 4*4*128 = 2048 chars ~ 512 tokens
                      langchain_mode=langchain_mode,
+                     langchain_action=langchain_action,
                      db_type=db_type,
                      )
     check_ret(ret)
@@ -264,6 +269,7 @@ def test_qa_wiki_db_chunk_hf_dbs_llama(db_type):
     ret = _run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=None, chunk=True,
                      chunk_size=128 * 1,  # characters, and if k=4, then 4*4*128 = 2048 chars ~ 512 tokens
                      langchain_mode='wiki',
+                     langchain_action='Query',
                      db_type=db_type,
                      prompt_type='wizard2',
                      model_name=model_name, model=model, tokenizer=tokenizer,
@@ -277,7 +283,7 @@ def test_qa_daidocs_db_chunk_openai():
     from gpt_langchain import _run_qa_db
     query = "Which config.toml enables pytorch for NLP?"
     ret = _run_qa_db(query=query, use_openai_model=True, use_openai_embedding=True, text_limit=256, chunk=True,
-                     chunk_size=256, langchain_mode='DriverlessAI docs')
+                     chunk_size=256, langchain_mode='DriverlessAI docs', langchain_action='Query')
     check_ret(ret)
 
 
@@ -287,7 +293,7 @@ def test_qa_daidocs_db_chunk_openaiembedding_hfmodel():
     from gpt_langchain import _run_qa_db
     query = "Which config.toml enables pytorch for NLP?"
     ret = _run_qa_db(query=query, use_openai_model=False, use_openai_embedding=True, text_limit=None, chunk=True,
-                     chunk_size=128, langchain_mode='DriverlessAI docs')
+                     chunk_size=128, langchain_mode='DriverlessAI docs', langchain_action='Query')
     check_ret(ret)
 
 

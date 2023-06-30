@@ -159,7 +159,8 @@ def test_client_chat_nostream_llama7b():
 
 def run_client_chat_with_server(prompt='Who are you?', stream_output=False, max_new_tokens=256,
                                 base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b', prompt_type='human_bot',
-                                langchain_mode='Disabled', user_path=None,
+                                langchain_mode='Disabled', langchain_action='Query',
+                                user_path=None,
                                 visible_langchain_modes=['UserData', 'MyData'],
                                 reverse_docs=True):
     if langchain_mode == 'Disabled':
@@ -177,7 +178,8 @@ def run_client_chat_with_server(prompt='Who are you?', stream_output=False, max_
 
     from client_test import run_client_chat
     res_dict, client = run_client_chat(prompt=prompt, prompt_type=prompt_type, stream_output=stream_output,
-                                       max_new_tokens=max_new_tokens, langchain_mode=langchain_mode)
+                                       max_new_tokens=max_new_tokens, langchain_mode=langchain_mode,
+                                       langchain_action=langchain_action)
     assert res_dict['prompt'] == prompt
     assert res_dict['iinput'] == ''
     return res_dict, client
@@ -190,7 +192,8 @@ def test_client_chat_stream():
 
 def run_client_nochat_with_server(prompt='Who are you?', stream_output=False, max_new_tokens=256,
                                   base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b', prompt_type='human_bot',
-                                  langchain_mode='Disabled', user_path=None,
+                                  langchain_mode='Disabled', langchain_action='Query',
+                                  user_path=None,
                                   visible_langchain_modes=['UserData', 'MyData'],
                                   reverse_docs=True):
     if langchain_mode == 'Disabled':
@@ -202,14 +205,16 @@ def run_client_nochat_with_server(prompt='Who are you?', stream_output=False, ma
     main(base_model=base_model, prompt_type=prompt_type, chat=True,
          stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
          max_new_tokens=max_new_tokens,
-         langchain_mode=langchain_mode, user_path=user_path,
+         langchain_mode=langchain_mode, langchain_action=langchain_action,
+         user_path=user_path,
          visible_langchain_modes=visible_langchain_modes,
          reverse_docs=reverse_docs)
 
     from client_test import run_client_nochat_gen
     res_dict, client = run_client_nochat_gen(prompt=prompt, prompt_type=prompt_type,
                                              stream_output=stream_output,
-                                             max_new_tokens=max_new_tokens, langchain_mode=langchain_mode)
+                                             max_new_tokens=max_new_tokens, langchain_mode=langchain_mode,
+                                             langchain_action=langchain_action)
     assert 'Birds' in res_dict['response'] or \
            'and can learn new things' in res_dict['response'] or \
            'Once upon a time' in res_dict['response']

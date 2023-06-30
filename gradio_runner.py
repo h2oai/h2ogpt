@@ -58,7 +58,7 @@ from utils import get_githash, flatten_list, zip_data, s3up, clear_torch_cache, 
     ping, get_short_name, get_url, makedirs, get_kwargs, remove, system_info, ping_gpu
 from generate import get_model, languages_covered, evaluate, eval_func_param_names, score_qa, langchain_modes, \
     inputs_kwargs_list, scratch_base_dir, evaluate_from_str, no_default_param_names, \
-    eval_func_param_names_defaults, get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context
+    eval_func_param_names_defaults, get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions
 
 from apscheduler.schedulers.background import BackgroundScheduler
 
@@ -99,6 +99,7 @@ def go_gradio(**kwargs):
     dbs = kwargs['dbs']
     db_type = kwargs['db_type']
     visible_langchain_modes = kwargs['visible_langchain_modes']
+    visible_langchain_actions = kwargs['visible_langchain_actions']
     allow_upload_to_user_data = kwargs['allow_upload_to_user_data']
     allow_upload_to_my_data = kwargs['allow_upload_to_my_data']
     enable_sources_list = kwargs['enable_sources_list']
@@ -332,6 +333,12 @@ def go_gradio(**kwargs):
                             value=kwargs['langchain_mode'],
                             label="Data Collection of Sources",
                             visible=kwargs['langchain_mode'] != 'Disabled')
+                        allowed_actions = [x for x in langchain_actions if x in visible_langchain_actions]
+                        langchain_action = gr.Radio(
+                            allowed_actions,
+                            value=allowed_actions[0] if len(allowed_actions) > 0 else None,
+                            label="Action",
+                            visible=True)
                     data_row2 = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled')
                     with data_row2:
                         with gr.Column(scale=50):
@@ -1165,6 +1172,8 @@ def go_gradio(**kwargs):
 
             args_list = args_list[:-3]  # only keep rest needed for evaluate()
             langchain_mode1 = args_list[eval_func_param_names.index('langchain_mode')]
+            # FIXME: ok if query empty if not query action
+            langchain_action1 = args_list[eval_func_param_names.index('langchain_action')]
             if not history:
                 print("No history", flush=True)
                 history = []
