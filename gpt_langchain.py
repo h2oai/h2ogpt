@@ -490,7 +490,7 @@ class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
         # HF inference server needs control over input tokens
         assert self.tokenizer is not None
         from h2oai_pipeline import H2OTextGenerationPipeline
-        prompt = H2OTextGenerationPipeline.limit_prompt(prompt, self.tokenizer)
+        prompt, num_prompt_tokens = H2OTextGenerationPipeline.limit_prompt(prompt, self.tokenizer)
 
         # NOTE: TGI server does not add prompting, so must do here
         data_point = dict(context='', instruction=prompt, input='')
@@ -603,6 +603,7 @@ def get_llm(use_openai_model=False,
         callbacks = [StreamingGradioCallbackHandler()]
         llm = cls(model_name=model_name,
                   temperature=temperature if do_sample else 0,
+                  # FIXME: Need to count tokens and reduce max_new_tokens to fit like in generate.py
                   max_tokens=max_new_tokens,
                   top_p=top_p if do_sample else 1,
                   frequency_penalty=0,

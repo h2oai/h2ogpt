@@ -1492,9 +1492,10 @@ def evaluate(
 
     # restrict instruction, typically what has large input
     from h2oai_pipeline import H2OTextGenerationPipeline
-    instruction = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer)
-    context = H2OTextGenerationPipeline.limit_prompt(context, tokenizer)
-    iinput = H2OTextGenerationPipeline.limit_prompt(iinput, tokenizer)
+    instruction, num_prompt_tokens1 = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer)
+    context, num_prompt_tokens2 = H2OTextGenerationPipeline.limit_prompt(context, tokenizer)
+    iinput, num_prompt_tokens3 = H2OTextGenerationPipeline.limit_prompt(iinput, tokenizer)
+    num_prompt_tokens = (num_prompt_tokens1 or 0) + (num_prompt_tokens2 or 0) + (num_prompt_tokens3 or 0)
 
     # get prompt
     prompter = Prompter(prompt_type, prompt_dict, debug=debug, chat=chat, stream_output=stream_output)
@@ -1572,7 +1573,8 @@ def evaluate(
         if save_dir:
             extra_dict = gen_hyper_langchain.copy()
             extra_dict.update(prompt_type=prompt_type, inference_server=inference_server,
-                              langchain_mode=langchain_mode, document_choice=document_choice)
+                              langchain_mode=langchain_mode, document_choice=document_choice,
+                              num_prompt_tokens=num_prompt_tokens)
             save_generate_output(prompt=query, output=outr, base_model=base_model, save_dir=save_dir,
                                  where_from='run_qa_db',
                                  extra_dict=extra_dict)
@@ -1593,6 +1595,8 @@ def evaluate(
 
         openai.api_key = os.getenv("OPENAI_API_KEY")
         stop_sequences = list(set(prompter.terminate_response + [prompter.PreResponse]))
+        # OpenAI will complain if ask for too many new tokens, takes it as min in some sense, wrongly so.
+        max_new_tokens_openai = min(max_new_tokens, max_max_new_tokens - num_prompt_tokens)
         openai_gen_kwargs = dict(temperature=temperature if do_sample else 0,
                                  max_tokens=max_new_tokens,
                                  top_p=top_p if do_sample else 1,
@@ -1623,8 +1627,7 @@ def evaluate(
                     yield dict(response=prompter.get_response(prompt + text, prompt=prompt,
                                                               sanitize_bot_response=sanitize_bot_response),
                                sources='')
-            return
-        if inference_server == 'openai_chat':
+        elif inference_server == 'openai_chat':
             response = openai.ChatCompletion.create(
                 model=base_model,
                 messages=[
@@ -1650,7 +1653,8 @@ def evaluate(
                         yield dict(response=prompter.get_response(prompt + text, prompt=prompt,
                                                                   sanitize_bot_response=sanitize_bot_response),
                                    sources='')
-            return
+        else:
+            raise RuntimeError("No such OpenAI mode: %s" % inference_server)
     elif inference_server.startswith('http'):
         inference_server, headers = get_hf_server(inference_server)
         from gradio_utils.grclient import GradioClient
@@ -1821,10 +1825,11 @@ def evaluate(
                                    sources='')
         else:
             raise RuntimeError("Failed to get client: %s" % inference_server)
+
         if save_dir and text:
             # save prompt + new text
             extra_dict = gen_server_kwargs.copy()
-            extra_dict.update(dict(inference_server=inference_server))
+            extra_dict.update(dict(inference_server=inference_server, num_prompt_tokens=num_prompt_tokens))
             save_generate_output(prompt=prompt, output=text, base_model=base_model, save_dir=save_dir,
                                  where_from=where_from, extra_dict=extra_dict)
         return
@@ -1996,6 +2001,8 @@ def evaluate(
                     if outputs and len(outputs) >= 1:
                         decoded_output = prompt + outputs[0]
                 if save_dir and decoded_output:
+                    extra_dict = gen_config_kwargs.copy()
+                    extra_dict.update(dict(num_prompt_tokens=num_prompt_tokens))
                     save_generate_output(prompt=prompt, output=decoded_output, base_model=base_model, save_dir=save_dir,
                                          where_from="evaluate_%s" % str(stream_output),
                                          extra_dict=gen_config_kwargs)
