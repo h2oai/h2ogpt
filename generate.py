@@ -856,6 +856,8 @@ def get_model(
     llama_type_from_config = 'llama' in str(config).lower()
     llama_type_from_name = "llama" in base_model.lower()
     llama_type = llama_type_from_config or llama_type_from_name
+    if "xgen" in base_model.lower():
+        llama_type = False
     if llama_type:
         if verbose:
             print("Detected as llama type from"

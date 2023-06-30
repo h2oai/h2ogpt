@@ -3,8 +3,6 @@ def get_loaders(model_name, reward_type, llama_type=None):
     # E.g. t5_xxl_true_nli_mixture has input format: "premise: PREMISE_TEXT hypothesis: HYPOTHESIS_TEXT".)
     if llama_type is None:
         llama_type = "llama" in model_name.lower()
-    if "xgen" in model_name.lower():
-        llama_type = False
     if llama_type:
         from transformers import LlamaForCausalLM, LlamaTokenizer
         model_loader = LlamaForCausalLM
