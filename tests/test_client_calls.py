@@ -4,7 +4,7 @@ import os, sys
 
 import pytest
 
-from client_test import get_client
+from client_test import get_client, run_client_chat, run_client, get_args, run_client_gen
 from tests.utils import wrap_test_forked, make_user_path_test, get_llama
 from utils import get_githash
 
@@ -444,7 +444,7 @@ def test_fast_up():
 
 
 @pytest.mark.skipif(not os.getenv('STRESS'), reason="Only for stress testing already-running server")
-@pytest.mark.parametrize("repeat", list(range(0, 16)))
+@pytest.mark.parametrize("repeat", list(range(0, 100)))
 @wrap_test_forked
 def test_client_stress(repeat):
     # pip install pytest-repeat  # license issues, don't put with requirements
@@ -452,14 +452,17 @@ def test_client_stress(repeat):
     #
     # CUDA_VISIBLE_DEVICES=0 SCORE_MODEL=None python generate.py --base_model=h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2 --langchain_mode=UserData --user_path=user_path --debug=True --concurrency_count=8
     #
-    # timeout to mimic client disconnecting and generation still going, else too clean and doesn't fail
-    # STRESS=1 pytest -s -v -n 8 --timeout=30 tests/test_client_calls.py::test_client_stress 2> stress1.log
+    # timeout to mimic client disconnecting and generation still going, else too clean and doesn't fail STRESS=1
+    # pytest -s -v -n 8 --timeout=30 tests/test_client_calls.py::test_client_stress 2> stress1.log
+    # HOST=http://192.168.1.46:9999 STRESS=1 pytest -s -v -n 8 --timeout=1000 tests/test_client_calls.py::test_client_stress 2> stress1.log
 
     prompt = "Tell a very long kid's story about birds."
+    #prompt = "Say exactly only one word."
 
+    client = get_client(serialize=True)
     kwargs = dict(
         instruction='',
-        max_new_tokens=1024,
+        max_new_tokens=200,
         min_new_tokens=1,
         max_time=300,
         do_sample=False,
@@ -467,12 +470,33 @@ def test_client_stress(repeat):
     )
 
     api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
-    client = get_client(serialize=True)
     res = client.predict(
         str(dict(kwargs)),
         api_name=api_name,
     )
     print("Raw client result: %s" % res, flush=True)
+    assert isinstance(res, str)
+    res_dict = ast.literal_eval(res)
+    assert 'response' in res_dict and res_dict['response']
+
+
+@pytest.mark.skipif(not os.getenv('STRESS'), reason="Only for stress testing already-running server")
+@pytest.mark.parametrize("repeat", list(range(0, 100)))
+@wrap_test_forked
+def test_client_stress_stream(repeat):
+    prompt = "Tell a very long kid's story about birds."
+    max_new_tokens = 200
+    prompt_type = None
+    langchain_mode = 'Disabled'
+    stream_output = True
+    chat = False
+
+    client = get_client(serialize=True)
+    kwargs, args = get_args(prompt, prompt_type, chat=chat, stream_output=stream_output,
+                            max_new_tokens=max_new_tokens, langchain_mode=langchain_mode)
+    res_dict, client = run_client_gen(client, prompt, args, kwargs, do_md_to_text=False, verbose=False)
+
+    assert 'response' in res_dict and res_dict['response']
 
 
 @pytest.mark.skipif(not os.getenv('SERVER'),
