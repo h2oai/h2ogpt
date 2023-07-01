@@ -1510,9 +1510,10 @@ def make_db(**langchain_kwargs):
 
 
 def save_embed(db, use_openai_embedding, hf_embedding_model):
-    embed_info_file = os.path.join(db._persist_directory, 'embed_info')
-    with open(embed_info_file, 'wb') as f:
-        pickle.dump((use_openai_embedding, hf_embedding_model), f)
+    if db is not None:
+        embed_info_file = os.path.join(db._persist_directory, 'embed_info')
+        with open(embed_info_file, 'wb') as f:
+            pickle.dump((use_openai_embedding, hf_embedding_model), f)
     return use_openai_embedding, hf_embedding_model
 
 
