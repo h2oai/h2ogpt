@@ -1489,6 +1489,8 @@ def get_existing_db(db, persist_directory, load_db_if_exists, db_type, use_opena
 
 
 def clear_embedding(db):
+    if db is None:
+        return
     # don't keep on GPU, wastes memory, push back onto CPU and only put back on GPU once again embed
     db._embedding_function.client.cpu()
     clear_torch_cache()

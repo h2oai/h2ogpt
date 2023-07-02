@@ -49,7 +49,7 @@ def fix_pydantic_duplicate_validators_error():
 
 fix_pydantic_duplicate_validators_error()
 
-from enums import DocumentChoices, no_model_str, no_lora_str, no_server_str
+from enums import DocumentChoices, no_model_str, no_lora_str, no_server_str, LangChainMode
 from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, get_dark_js, spacing_xsm, radius_xsm, \
     text_xsm
 from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt_type_to_model_lower, non_hf_types, \
@@ -1206,17 +1206,14 @@ def go_gradio(**kwargs):
                            *tuple(args_list),
                            **kwargs_evaluate)
 
-            return history, fun1
+            return history, fun1, langchain_mode1, my_db_state1
 
-        def get_response(*args, retry=False):
+        def get_response(fun1, history):
             """
             bot that consumes history for user input
             instruction (from input_list) itself is not consumed by bot
-            :param args:
-            :param retry:
             :return:
             """
-            history, fun1 = prep_bot(*args, retry=retry)
             if not fun1:
                 yield history, ''
                 return
@@ -1251,9 +1248,23 @@ def go_gradio(**kwargs):
                 clear_torch_cache()
             return
 
+        def clear_embeddings(langchain_mode1, my_db):
+            # clear any use of embedding that sits on GPU, else keeps accumulating GPU usage even if clear torch cache
+            if db_type == 'chroma' and langchain_mode1 not in ['ChatLLM', 'LLM', 'Disabled', None, '']:
+                from gpt_langchain import clear_embedding
+                db = dbs.get('langchain_mode1')
+                if db is not None and not isinstance(db, str):
+                    clear_embedding(db)
+                if langchain_mode1 == LangChainMode.MY_DATA.value:
+                    clear_embedding(my_db[0])
+
         def bot(*args, retry=False):
-            for res in get_response(*args, retry=retry):
-                yield res
+            history, fun1, langchain_mode1, my_db_state1 = prep_bot(*args, retry=retry)
+            try:
+                for res in get_response(fun1, history):
+                    yield res
+            finally:
+                clear_embeddings(langchain_mode1, my_db_state1)
 
         def all_bot(*args, retry=False, model_states1=None):
             args_list = list(args).copy()
@@ -1262,6 +1273,8 @@ def go_gradio(**kwargs):
             exceptions = []
             stream_output1 = args_list[eval_func_param_names.index('stream_output')]
             max_time1 = args_list[eval_func_param_names.index('max_time')]
+            langchain_mode1 = args_list[eval_func_param_names.index('langchain_mode')]
+            my_db_state1 = None  # will be filled below by some bot
             try:
                 gen_list = []
                 for chatbot1, model_state1 in zip(chatbots, model_states1):
@@ -1275,7 +1288,9 @@ def go_gradio(**kwargs):
                     args_list1.append(chatbot1)
                     # so consistent with prep_bot()
                     # with model_state1 at -3, my_db_state1 at -2, and history(chatbot) at -1
-                    gen1 = get_response(*tuple(args_list1), retry=retry)
+                    # langchain_mode1 and my_db_state1 should be same for every bot
+                    history, fun1, langchain_mode1, my_db_state1 = prep_bot(*tuple(args_list1), retry=retry)
+                    gen1 = get_response(fun1, history)
                     if stream_output1:
                         gen1 = TimeoutIterator(gen1, timeout=0.01, sentinel=None, raise_on_exception=False)
                     # else timeout will truncate output for non-streaming case
@@ -1319,6 +1334,7 @@ def go_gradio(**kwargs):
                         print("Generate exceptions: %s" % exceptions, flush=True)
             finally:
                 clear_torch_cache()
+                clear_embeddings(langchain_mode1, my_db_state1)
 
         # NORMAL MODEL
         user_args = dict(fn=functools.partial(user, sanitize_user_prompt=kwargs['sanitize_user_prompt']),
