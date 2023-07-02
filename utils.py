@@ -908,8 +908,11 @@ class FakeTokenizer:
         import tiktoken
         self.encoding = tiktoken.get_encoding(self.encoding_name)
 
-    def encode(self, x, *args, **kwargs):
+    def encode(self, x, *args, return_tensors="pt", **kwargs):
         input_ids = self.encoding.encode(x, disallowed_special=())
+        if return_tensors == 'pt' and isinstance(input_ids, list):
+            import torch
+            input_ids = torch.tensor(input_ids)
         return dict(input_ids=input_ids)
 
     def decode(self, x, *args, **kwargs):
