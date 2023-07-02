@@ -235,7 +235,7 @@ where `use_mlock=True` is default to avoid slowness and `n_ctx=2048` is default 
 ```.env_gpt4all
 n_batch=1024
 ```
-for faster handling.  One some systems this has no strong effect, but on others may increase speed quite a bit.
+for faster handling.  On some systems this has no strong effect, but on others may increase speed quite a bit.
 
 Also, for slow and low-memory systems, we recommend using a smaller embedding by using with `generrate.py`:
 ```bash
