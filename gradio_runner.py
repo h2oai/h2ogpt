@@ -1159,16 +1159,16 @@ def go_gradio(**kwargs):
             model_state1 = args_list[-3]
             my_db_state1 = args_list[-2]
             history = args_list[-1]
+            langchain_mode1 = args_list[eval_func_param_names.index('langchain_mode')]
 
             if model_state1['model'] is None or model_state1['model'] == no_model_str:
-                return history, None
+                return history, None, None, None
 
             args_list = args_list[:-3]  # only keep rest needed for evaluate()
-            langchain_mode1 = args_list[eval_func_param_names.index('langchain_mode')]
             if not history:
                 print("No history", flush=True)
                 history = []
-                return history, None
+                return history, None, None, None
             instruction1 = history[-1][0]
             if retry and history:
                 # if retry, pop history and move onto bot stuff
@@ -1176,11 +1176,11 @@ def go_gradio(**kwargs):
                 history[-1][1] = None
             elif not instruction1:
                 # if not retrying, then reject empty query
-                return history, None
+                return history, None, None, None
             elif len(history) > 0 and history[-1][1] not in [None, '']:
                 # reject submit button if already filled and not retrying
                 # None when not filling with '' to keep client happy
-                return history, None
+                return history, None, None, None
 
             # shouldn't have to specify in API prompt_type if CLI launched model, so prefer global CLI one if have it
             prompt_type1 = kwargs.get('prompt_type', args_list[eval_func_param_names.index('prompt_type')])
@@ -1255,7 +1255,7 @@ def go_gradio(**kwargs):
                 db = dbs.get('langchain_mode1')
                 if db is not None and not isinstance(db, str):
                     clear_embedding(db)
-                if langchain_mode1 == LangChainMode.MY_DATA.value:
+                if langchain_mode1 == LangChainMode.MY_DATA.value and my_db is not None:
                     clear_embedding(my_db[0])
 
         def bot(*args, retry=False):
