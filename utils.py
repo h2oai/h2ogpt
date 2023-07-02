@@ -75,6 +75,17 @@ def ping_gpu():
     except AttributeError:
         # some programs wrap print and will fail with flush passed
         pass
+    try:
+        ping_gpu_memory()
+    except Exception as e:
+        print('Ping_GPU memory failure: %s' % str(e), flush=True)
+
+
+def ping_gpu_memory():
+    from models.gpu_mem_track import MemTracker
+    gpu_tracker = MemTracker()  # define a GPU tracker
+    from torch.cuda import memory_summary
+    gpu_tracker.track()
 
 
 def get_torch_allocated():
