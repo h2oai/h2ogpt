@@ -1856,32 +1856,36 @@ def _run_qa_db(query=None,
                 thread.start()
                 outputs = ""
                 prompt = None  # FIXME
-                try:
-                    for new_text in streamer:
-                        # print("new_text: %s" % new_text, flush=True)
-                        if bucket.qsize() > 0 or thread.exc:
-                            thread.join()
-                        outputs += new_text
-                        if prompter:  # and False:  # FIXME: pipeline can already use prompter
-                            output1 = prompter.get_response(outputs, prompt=prompt,
-                                                            sanitize_bot_response=sanitize_bot_response)
-                            yield output1, ''
-                        else:
-                            yield outputs, ''
-                except BaseException:
-                    # if any exception, raise that exception if was from thread, first
+                while True:
+                    try:
+                        for new_text in streamer:
+                            # print("new_text: %s" % new_text, flush=True)
+                            if bucket.qsize() > 0 or thread.exc:
+                                thread.join()
+                            outputs += new_text
+                            if prompter:  # and False:  # FIXME: pipeline can already use prompter
+                                output1 = prompter.get_response(outputs, prompt=prompt,
+                                                                sanitize_bot_response=sanitize_bot_response)
+                                yield output1, ''
+                            else:
+                                yield outputs, ''
+                    except BaseException:
+                        # if any exception, raise that exception if was from thread, first
+                        if thread.exc:
+                            raise thread.exc
+                        raise
+                    finally:
+                        # in case no exception and didn't join with thread yet, then join
+                        if not thread.exc:
+                            if thread._return is not None and 'output_text' in thread._return:
+                                answer = thread.join()
+                            else:
+                                continue
+                    # in case raise StopIteration or broke queue loop in streamer, but still have exception
                     if thread.exc:
                         raise thread.exc
-                    raise
-                finally:
-                    # in case no exception and didn't join with thread yet, then join
-                    if not thread.exc:
-                        answer = thread.join()
-                # in case raise StopIteration or broke queue loop in streamer, but still have exception
-                if thread.exc:
-                    raise thread.exc
-                # FIXME: answer is not string outputs from streamer.  How to get actual final output?
-                # answer = outputs
+                    # FIXME: answer is not string outputs from streamer.  How to get actual final output?
+                    # answer = outputs
             else:
                 answer = chain()
 
@@ -1988,7 +1992,7 @@ def get_similarity_chain(query=None,
     elif langchain_action == LangChainAction.SUMMARIZE_ALL.value:
         none = ['', '\n', None]
         if query in none and iinput in none:
-            prompt_summary = "Write a concise Summary:\n"
+            prompt_summary = "Using only the text above, write a concise summary:\n"
         elif query not in none:
             prompt_summary = "Focusing on %s, write a concise Summary:\n" % query
         elif iinput not in None:
@@ -1997,7 +2001,7 @@ def get_similarity_chain(query=None,
             prompt_summary = "Focusing on %s, %s:\n" % (query, iinput)
         # don't auto reduce
         auto_reduce_chunks = False
-        template = """In order to write a concise summary, pay attention to the following text:
+        template = """In order to write a concise single-paragraph or bulleted list summary, pay attention to the following text:
 \"\"\"
 {input_documents}
 \"\"\"%s""" % prompt_summary
@@ -2005,6 +2009,7 @@ def get_similarity_chain(query=None,
     elif langchain_action in [LangChainAction.SUMMARIZE_REFINE,
                               LangChainAction.SUMMARIZE_MAP.value]:
         template = ''  # unused
+        template_if_no_docs = ''  # unused
     else:
         raise RuntimeError("No such langchain_action=%s" % langchain_action)
 

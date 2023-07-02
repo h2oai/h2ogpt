@@ -2099,6 +2099,8 @@ class H2OTextIteratorStreamer(TextIteratorStreamer):
                 if self.do_stop:
                     print("hit stop", flush=True)
                     # could raise or break, maybe best to raise and make parent see if any exception in thread
+                    self.clear_queue()
+                    self.do_stop = False
                     raise StopIteration()
                     # break
                 value = self.text_queue.get(block=self.block, timeout=self.timeout)
@@ -2106,10 +2108,16 @@ class H2OTextIteratorStreamer(TextIteratorStreamer):
             except queue.Empty:
                 time.sleep(0.01)
         if value == self.stop_signal:
+            self.clear_queue()
+            self.do_stop = False
             raise StopIteration()
         else:
             return value
 
+    def clear_queue(self):
+        # make sure streamer is reusable after stop hit
+        with self.text_queue.mutex:
+            self.text_queue.queue.clear()
 
 def generate_with_exceptions(func, *args, prompt='', inputs_decoded='', raise_generate_gpu_exceptions=True, **kwargs):
     try:
