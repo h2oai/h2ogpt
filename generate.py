@@ -1473,7 +1473,7 @@ def evaluate(
     # limits are chosen similar to gradio_runner.py sliders/numbers
     top_p = min(max(1e-3, top_p), 1.0 - 1e-3)
     top_k = min(max(1, int(top_k)), 100)
-    temperature = min(max(0.01, temperature), 3.0)
+    temperature = min(max(0.01, temperature), 2.0)
     # FIXME: https://github.com/h2oai/h2ogpt/issues/106
     num_beams = 1 if stream_output else num_beams  # See max_beams in gradio_runner
     max_max_new_tokens = get_max_max_new_tokens(chosen_model_state,
