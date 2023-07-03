@@ -21,7 +21,8 @@ class TimeoutIterator:
     ZERO_TIMEOUT = 0.0
 
     def __init__(self, iterator, timeout=0.0, sentinel=object(), reset_on_next=False, raise_on_exception=True):
-        self._iterator = iterator
+        self._lock = threading.Lock()
+        self._iterator = iter(iterator)
         self._timeout = timeout
         self._sentinel = sentinel
         self._reset_on_next = reset_on_next
@@ -48,7 +49,7 @@ class TimeoutIterator:
     def interrupt(self):
         """
         interrupt and stop the underlying thread.
-        the thread acutally dies only after interrupt has been set and
+        the thread actually dies only after interrupt has been set and
         the underlying iterator yields a value after that.
         """
         self._interrupt = True
@@ -61,37 +62,38 @@ class TimeoutIterator:
         yield the result from iterator
         if timeout > 0:
             yield data if available.
-            otherwise yield sentinal
+            otherwise yield sentinel
         """
-        if self._done:
-            raise StopIteration
+        with self._lock:
+            if self._done:
+                raise StopIteration
 
-        data = self._sentinel
-        try:
-            if self._timeout > self.ZERO_TIMEOUT:
-                data = self._buffer.get(timeout=self._timeout)
-            else:
-                data = self._buffer.get()
-        except queue.Empty:
-            pass
-        finally:
-            # see if timeout needs to be reset
-            if self._reset_on_next:
-                self._timeout = self.ZERO_TIMEOUT
+            data = self._sentinel
+            try:
+                if self._timeout > self.ZERO_TIMEOUT:
+                    data = self._buffer.get(timeout=self._timeout)
+                else:
+                    data = self._buffer.get()
+            except queue.Empty:
+                pass
+            finally:
+                # see if timeout needs to be reset
+                if self._reset_on_next:
+                    self._timeout = self.ZERO_TIMEOUT
 
-        # propagate any exceptions including StopIteration
-        if isinstance(data, BaseException):
-            self._done = True
-            if isinstance(data, StopIteration):
-                raise data
-            ex = ''.join(traceback.format_tb(data.__traceback__))
-            print("Generation Failed: %s %s" % (str(data), str(ex)), flush=True)
-            if self._raise_on_exception:
-                raise data
-            else:
-                return data
+            # propagate any exceptions including StopIteration
+            if isinstance(data, BaseException):
+                self._done = True
+                if isinstance(data, StopIteration):
+                    raise data
+                ex = ''.join(traceback.format_tb(data.__traceback__))
+                print("Generation Failed: %s %s" % (str(data), str(ex)), flush=True)
+                if self._raise_on_exception:
+                    raise data
+                else:
+                    return data
 
-        return data
+            return data
 
     def __lookahead(self):
         try:
