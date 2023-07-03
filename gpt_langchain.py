@@ -2054,7 +2054,7 @@ def get_similarity_chain(query=None,
                 base_path = 'locks'
                 makedirs(base_path)
                 if hasattr(db, '_persist_directory'):
-                    name_path = "sim_%slock" % os.path.basename(db._persist_directory)
+                    name_path = "sim_%s.lock" % os.path.basename(db._persist_directory)
                 else:
                     name_path = "sim.lock"
                 with filelock.FileLock(os.path.join(base_path, name_path)):
