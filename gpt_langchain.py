@@ -145,7 +145,7 @@ def add_to_db(db, sources, db_type='faiss',
             return db, num_new_sources, []
         db.add_documents(documents=sources)
     elif db_type == 'chroma':
-        collection = db.get()
+        collection = get_documents(db)
         # files we already have:
         metadata_files = set([x['source'] for x in collection['metadatas']])
         if avoid_dup_by_file:
@@ -1429,7 +1429,7 @@ def check_update_chroma_embedding(db, use_openai_embedding, hf_embedding_model, 
     if load_embed(db) != (use_openai_embedding, hf_embedding_model):
         print("Detected new embedding, updating db: %s" % langchain_mode, flush=True)
         # handle embedding changes
-        db_get = db.get()
+        db_get = get_documents(db)
         sources = [Document(page_content=result[0], metadata=result[1] or {})
                    for result in zip(db_get['documents'], db_get['metadatas'])]
         # delete index, has to be redone
@@ -1667,7 +1667,7 @@ def get_metadatas(db):
     if isinstance(db, FAISS):
         metadatas = [v.metadata for k, v in db.docstore._dict.items()]
     elif isinstance(db, Chroma):
-        metadatas = db.get()['metadatas']
+        metadatas = get_documents(db)['metadatas']
     else:
         # FIXME: Hack due to https://github.com/weaviate/weaviate/issues/1947
         # seems no way to get all metadata, so need to avoid this approach for weaviate
@@ -1676,6 +1676,16 @@ def get_metadatas(db):
 
 
 def get_documents(db):
+    if hasattr(db, '_persist_directory'):
+        name_path = os.path.basename(db._persist_directory)
+        with filelock.FileLock("getdb_%s.lock" % name_path):
+            # get segfaults and other errors when multiple threads access this
+            return _get_documents(db)
+    else:
+        return _get_documents(db)
+
+
+def _get_documents(db):
     from langchain.vectorstores import FAISS
     if isinstance(db, FAISS):
         documents = [v for k, v in db.docstore._dict.items()]
@@ -1686,6 +1696,33 @@ def get_documents(db):
         # seems no way to get all metadata, so need to avoid this approach for weaviate
         documents = [x for x in db.similarity_search("", k=10000)]
     return documents
+
+
+def get_docs_and_meta(db, top_k_docs, filter_kwargs={}):
+    if hasattr(db, '_persist_directory'):
+        name_path = os.path.basename(db._persist_directory)
+        with filelock.FileLock("getdb_%s.lock" % name_path):
+            return _get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs)
+    else:
+        return _get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs)
+
+
+def _get_docs_and_meta(db, top_k_docs, filter_kwargs={}):
+    from langchain.vectorstores import FAISS
+    if isinstance(db, Chroma):
+        db_get = db._collection.get(where=filter_kwargs.get('filter'))
+        db_metadatas = db_get['metadatas']
+        db_documents = db_get['documents']
+    elif isinstance(db, FAISS):
+        import itertools
+        db_metadatas = get_metadatas(db)
+        # FIXME: FAISS has no filter
+        # slice dict first
+        db_documents = list(dict(itertools.islice(db.docstore._dict.items(), top_k_docs)).values())
+    else:
+        db_metadatas = get_metadatas(db)
+        db_documents = get_documents(db)
+    return db_documents, db_metadatas
 
 
 def get_existing_files(db):
@@ -2000,20 +2037,7 @@ def get_similarity_chain(query=None,
             docs = []
             scores = []
         elif cmd == DocumentChoices.Only_All_Sources.name:
-            from langchain.vectorstores import FAISS
-            if isinstance(db, Chroma):
-                db_get = db._collection.get(where=filter_kwargs.get('filter'))
-                db_metadatas = db_get['metadatas']
-                db_documents = db_get['documents']
-            elif isinstance(db, FAISS):
-                import itertools
-                db_metadatas = get_metadatas(db)
-                # FIXME: FAISS has no filter
-                # slice dict first
-                db_documents = list(dict(itertools.islice(db.docstore._dict.items(), top_k_docs)).values())
-            else:
-                db_metadatas = get_metadatas(db)
-                db_documents = get_documents(db)
+            db_documents, db_metadatas = get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs)
             # similar to langchain's chroma's _results_to_docs_and_scores
             docs_with_score = [(Document(page_content=result[0], metadata=result[1] or {}), 0)
                                for result in zip(db_documents, db_metadatas)][:top_k_docs]
