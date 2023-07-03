@@ -2048,7 +2048,7 @@ def get_similarity_chain(query=None,
                 # docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:top_k_docs]
                 top_k_docs_tokenize = 100
                 if hasattr(db, '_persist_directory'):
-                    name_path = os.path.basename(db._persist_directory)
+                    name_path = "sim_%slock" % os.path.basename(db._persist_directory)
                 else:
                     name_path = "sim.lock"
                 with filelock.FileLock(name_path):
