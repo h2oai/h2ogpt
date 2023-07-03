@@ -2047,7 +2047,11 @@ def get_similarity_chain(query=None,
             if top_k_docs == -1 or auto_reduce_chunks:
                 # docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:top_k_docs]
                 top_k_docs_tokenize = 100
-                with filelock.FileLock("sim.lock"):
+                if hasattr(db, '_persist_directory'):
+                    name_path = os.path.basename(db._persist_directory)
+                else:
+                    name_path = "sim.lock"
+                with filelock.FileLock(name_path):
                     docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[
                                       :top_k_docs_tokenize]
                 if hasattr(llm, 'pipeline') and hasattr(llm.pipeline, 'tokenizer'):
