@@ -464,7 +464,7 @@ def go_gradio(**kwargs):
                             do_sample = gr.Checkbox(label="Sample",
                                                     info="Enable sampler, required for use of temperature, top_p, top_k",
                                                     value=kwargs['do_sample'])
-                            temperature = gr.Slider(minimum=0.01, maximum=3,
+                            temperature = gr.Slider(minimum=0.01, maximum=2,
                                                     value=kwargs['temperature'],
                                                     label="Temperature",
                                                     info="Lower is deterministic (but may lead to repeats), Higher more creative (but may lead to hallucinations)")
