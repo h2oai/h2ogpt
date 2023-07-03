@@ -162,7 +162,7 @@ Note if you download the model yourself and point `--base_model` to that locatio
 ```
 python generate.py --base_model=<user path> --load_8bit=True --prompt_type=human_bot
 ```
-for some user path `<user path>`.
+for some user path `<user path>` and the `prompt_type` must match the model or a new version created in `prompter.py` or added in UI/CLI via `prompt_dict`.
 
 For quickly using a private document collection for Q/A, place documents (PDFs, text, etc.) into a folder called `user_path` and run
 ```bash
