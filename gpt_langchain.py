@@ -1678,7 +1678,9 @@ def get_metadatas(db):
 def get_documents(db):
     if hasattr(db, '_persist_directory'):
         name_path = os.path.basename(db._persist_directory)
-        with filelock.FileLock("getdb_%s.lock" % name_path):
+        base_path = 'locks'
+        makedirs(base_path)
+        with filelock.FileLock(os.path.join(base_path, "getdb_%s.lock" % name_path)):
             # get segfaults and other errors when multiple threads access this
             return _get_documents(db)
     else:
@@ -1701,7 +1703,9 @@ def _get_documents(db):
 def get_docs_and_meta(db, top_k_docs, filter_kwargs={}):
     if hasattr(db, '_persist_directory'):
         name_path = os.path.basename(db._persist_directory)
-        with filelock.FileLock("getdb_%s.lock" % name_path):
+        base_path = 'locks'
+        makedirs(base_path)
+        with filelock.FileLock(os.path.join(base_path, "getdb_%s.lock" % name_path)):
             return _get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs)
     else:
         return _get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs)
@@ -2047,11 +2051,13 @@ def get_similarity_chain(query=None,
             if top_k_docs == -1 or auto_reduce_chunks:
                 # docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:top_k_docs]
                 top_k_docs_tokenize = 100
+                base_path = 'locks'
+                makedirs(base_path)
                 if hasattr(db, '_persist_directory'):
                     name_path = "sim_%slock" % os.path.basename(db._persist_directory)
                 else:
                     name_path = "sim.lock"
-                with filelock.FileLock(name_path):
+                with filelock.FileLock(os.path.join(base_path, name_path)):
                     docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[
                                       :top_k_docs_tokenize]
                 if hasattr(llm, 'pipeline') and hasattr(llm.pipeline, 'tokenizer'):
