@@ -926,3 +926,16 @@ class FakeTokenizer:
 
     def __call__(self, x, *args, **kwargs):
         return self.encode(x, *args, **kwargs)
+
+
+def threadsafe_iter(iterable):
+    lock = threading.Lock()
+    iterator = iter(iterable)
+    while True:
+        with lock:
+            for value in iterator:
+                break
+            else:
+                return
+        yield value
+

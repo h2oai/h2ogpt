@@ -55,7 +55,7 @@ from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, 
 from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt_type_to_model_lower, non_hf_types, \
     get_prompt
 from utils import get_githash, flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
-    ping, get_short_name, get_url, makedirs, get_kwargs, remove, system_info, ping_gpu
+    ping, get_short_name, get_url, makedirs, get_kwargs, remove, system_info, ping_gpu, threadsafe_iter
 from generate import get_model, languages_covered, evaluate, eval_func_param_names, score_qa, langchain_modes, \
     inputs_kwargs_list, scratch_base_dir, evaluate_from_str, no_default_param_names, \
     eval_func_param_names_defaults, get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context
@@ -1726,7 +1726,13 @@ def go_gradio(**kwargs):
             .then(clear_instruct, None, iinput_nochat) \
             .then(clear_torch_cache)
 
-        submit_event_nochat_api = submit_nochat_api.click(fun_with_dict_str,
+        def fun_with_dict_str_safe(*args, **kwargs):
+            gen1 = fun_with_dict_str(*args, **kwargs)
+            gen1_safe = threadsafe_iter(gen1)
+            for res1 in gen1_safe:
+                yield res1
+
+        submit_event_nochat_api = submit_nochat_api.click(fun_with_dict_str_safe,
                                                           inputs=[model_state, my_db_state, inputs_dict_str],
                                                           outputs=text_output_nochat_api,
                                                           queue=True,  # required for generator
