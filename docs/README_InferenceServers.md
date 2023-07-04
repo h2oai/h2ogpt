@@ -225,3 +225,17 @@ print(res['base_model'])
 print(res['hash'])
 ```
 where one should set `ADMIN_PASS` to pass set for that instance and change `HOST` to the desired host.
+
+```bash
+export CUDA_VISIBLE_DEVICES=6,7
+export MODEL=h2oai/h2ogpt-research-oasst1-llama-65b
+docker run -ti --gpus all --shm-size 2g --entrypoint=bash -e CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES -e TRANSFORMERS_CACHE="/.cache/" -p $HF_PORT:80 -v $HOME/.cache:/.cache/ -v $HOME/.cache/huggingface/hub/:/data ghcr.io/huggingface/text-generation-inference:latest
+
+pip install texttable datasets
+text-generation-server quantize h2oai/h2ogpt-research-oasst1-llama-65b h2oai/h2ogpt-research-oasst1-llama-65b.gptq
+exit
+```
+then cache will contain `h2oai/h2ogpt-research-oasst1-llama-65b.gptq` and one can run:
+```bash
+docker run --gpus all --shm-size 2g -e CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES -e TRANSFORMERS_CACHE="/.cache/" -p $HF_PORT:80 -v $HOME/.cache:/.cache/ -v $HOME/.cache/huggingface/hub/:/data ghcr.io/huggingface/text-generation-inference:latest quantize $MODEL $MODEL.gptq
+```
