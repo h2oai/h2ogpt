@@ -28,6 +28,7 @@ dist
 .local
 .bash_history
 .benchmarks
+Dockerfile-runner.dockerfile
 
 # IDEs
 .idea/

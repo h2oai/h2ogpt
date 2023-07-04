@@ -1,0 +1,15 @@
+FROM BASE_DOCKER_IMAGE_SUBST
+
+LABEL imagetype="runtime-h2ogpt"
+LABEL maintainer="H2O.ai <ops@h2o.ai>"
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TRANSFORMERS_CACHE=/h2ogpt_env/.cache
+ENV HF_MODEL=h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v3
+
+COPY run-gpt.sh /run-gpt.sh
+
+EXPOSE 8888
+EXPOSE 7860
+
+ENTRYPOINT ["/run-gpt.sh"]
