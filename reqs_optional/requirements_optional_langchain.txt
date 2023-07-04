@@ -1,14 +1,11 @@
 # optional for chat with PDF
 langchain==0.0.202
 pypdf==3.9.1
-tiktoken==0.4.0
 # avoid textract, requires old six
 #textract==1.6.5
 
 # for HF embeddings
 sentence_transformers==2.2.2
-# for OpenAI embeddings (requires key)
-openai==0.27.8
 
 # local vector db
 chromadb==0.3.25

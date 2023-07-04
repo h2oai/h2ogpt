@@ -71,8 +71,8 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
             # unknown
             model_max_length = None
 
+        num_prompt_tokens = None
         if model_max_length is not None:
-            num_prompt_tokens = None
             # can't wait for "hole" if not plain prompt_type, since would lose prefix like <human>:
             # For https://github.com/h2oai/h2ogpt/issues/192
             for trial in range(0, 3):
@@ -108,10 +108,10 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
                         print("Reduced max_new_tokens from %s -> %s" % (
                         generate_kwargs['max_new_tokens'], max_new_tokens))
                     generate_kwargs['max_new_tokens'] = max_new_tokens
-        return prompt_text
+        return prompt_text, num_prompt_tokens
 
     def preprocess(self, prompt_text, prefix="", handle_long_generation=None, **generate_kwargs):
-        prompt_text = H2OTextGenerationPipeline.limit_prompt(prompt_text, self.tokenizer)
+        prompt_text, num_prompt_tokens = H2OTextGenerationPipeline.limit_prompt(prompt_text, self.tokenizer)
 
         data_point = dict(context='', instruction=prompt_text, input='')
         if self.prompter is not None:
@@ -132,7 +132,7 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
                 outputs = self.prompter.get_response(outputs, prompt=self.prompt_text,
                                                      sanitize_bot_response=self.sanitize_bot_response)
             elif self.bot and self.human:
-                outputs = rec['generated_text'].split(self.bot)[1].strip().split(self.human)[0].strip()
+                outputs = rec['generated_text'].split(self.bot)[1].split(self.human)[0]
             else:
                 outputs = rec['generated_text']
             rec['generated_text'] = outputs

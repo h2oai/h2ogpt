@@ -97,6 +97,8 @@ def get_args(prompt, prompt_type, chat=False, stream_output=False,
                          chunk_size=512,
                          document_choice=[DocumentChoices.All_Relevant.name],
                          )
+    from generate import eval_func_param_names
+    assert len(set(eval_func_param_names).difference(set(list(kwargs.keys())))) == 0
     if chat:
         # add chatbot output on end.  Assumes serialize=False
         kwargs.update(dict(chatbot=[]))
@@ -236,6 +238,7 @@ def run_client_chat(prompt, prompt_type, stream_output, max_new_tokens, langchai
 
 
 def run_client(client, prompt, args, kwargs, do_md_to_text=True, verbose=False):
+    assert kwargs['chat'], "Chat mode only"
     res = client.predict(*tuple(args), api_name='/instruction')
     args[-1] += [res[-1]]
 

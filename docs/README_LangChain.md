@@ -68,6 +68,27 @@ In some cases unstructured by itself cannot handle URL content properly, then we
 pip install -r reqs_optional/requirements_optional_langchain.urls.txt
 ```
 
+For Selenium, one needs to have chrome installed, e.g. on Ubuntu:
+```bash
+sudo bash
+apt install -y unzip xvfb libxi6 libgconf-2-4
+apt install -y default-jdk
+curl -sS -o - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add
+bash -c "echo 'deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main' >> /etc/apt/sources.list.d/google-chrome.list"
+apt -y update
+apt -y install google-chrome-stable  # e.g. Google Chrome 114.0.5735.198
+google-chrome --version  # e.g. Google Chrome 114.0.5735.198
+# visit https://chromedriver.chromium.org/downloads and download matching version
+# E.g.
+wget https://chromedriver.storage.googleapis.com/114.0.5735.90/chromedriver_linux64.zip
+unzip chromedriver_linux64.zip
+sudo mv chromedriver /usr/bin/chromedriver
+sudo chown root:root /usr/bin/chromedriver
+sudo chmod +x /usr/bin/chromedriver
+```
+
+PlayWright is disabled by default as it hangs.
+
 ### Supported Meta Datatypes
 
    - `.zip` : Zip File containing any native datatype,
@@ -154,13 +175,13 @@ You can run Weaviate in 5 ways:
   2. [Install the Docker Compose Plugin](https://docs.docker.com/compose/install/)
   3. Download a `docker-compose.yml` file with this `curl` command:
 
-     ```
-     curl -o docker-compose.yml "https://configuration.weaviate.io/v2/docker-compose/docker-compose.yml?modules=standalone&runtime=docker-compose&weaviate_version=v1.19.6"
-     ```
+```bash
+curl -o docker-compose.yml "https://configuration.weaviate.io/v2/docker-compose/docker-compose.yml?modules=standalone&runtime=docker-compose&weaviate_version=v1.19.6"
+```
 
      Alternatively, you can use Weaviate's docker compose [configuration tool](https://weaviate.io/developers/weaviate/installation/docker-compose) to generate your own `docker-compose.yml` file.
 
-  4. Run `docker compose up -d` to spin up a Weaviate instance.
+4. Run `docker compose up -d` to spin up a Weaviate instance.
 
      > To shut it down, run `docker compose down`.
 
@@ -172,7 +193,7 @@ You can run Weaviate in 5 ways:
    
   This code snippet shows how to instantiate an embedded weaviate instance and upload a document:
 
-  ```python
+```python
   import weaviate
   from weaviate.embedded import EmbeddedOptions
 
@@ -186,7 +207,7 @@ You can run Weaviate in 5 ways:
   }
 
   client.data_object.create(data_obj, "Wine")
-  ```
+```
   
   Refer to the [documentation](https://weaviate.io/developers/weaviate/installation/embedded) for more details about this deployment method.
 ## How To Use
@@ -219,6 +240,14 @@ Notes:
 * Weaviate doesn't support query of all metadata except via similarity search up to 10k documents, so full list of sources is not possible in h2oGPT UI for `get sources` or `show sources`
 
 ## Document Question-Answer FAQ
+
+### What is UserData and MyData?
+
+UserData: Shared with anyone who is on your server.  Persisted across sessions in single location for entire server.  Control upload via allow_upload_to_user_data option.  Useful for collaboration.
+
+MyData: Scratch space that is inaccessible if one goes into a new browser session.  Useful for public demonstrations so that every instance is independent.  Or useful  if user is not allowed to upload to shared UserData and wants to do Q/A.
+
+It's work in progress to add other persistent databases and to have MyData persisted across browser sessions via cookie or other authentication.
 
 #### Why does the source link not work?
 

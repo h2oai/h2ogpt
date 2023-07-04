@@ -9,7 +9,7 @@ See models that are currently supported in this automatic way, and the same dict
 
 For GPU case, a reasonable model for low memory is to run:
 ```bash
-python generate.py --base_model=h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v3 --hf_embedding_model=sentence-transformers/all-MiniLM-L6-v2 --score_model=None --load_8bit=True --langchain_model='MyData'
+python generate.py --base_model=h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v3 --hf_embedding_model=sentence-transformers/all-MiniLM-L6-v2 --score_model=None --load_8bit=True --langchain_mode='MyData'
 ```
 which uses good but smaller base model, embedding model, and no response score model to save GPU memory.  If you can do 4-bit, then do:
 ```bash
@@ -68,7 +68,7 @@ encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
 5) Run generate with transformers in [Offline Mode](https://huggingface.co/docs/transformers/installation#offline-mode)
 
 ```bash
-HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python generate.py --base_model='h2oai/h2ogpt-oasst1-512-12b' --gradio_offline_level=2
+HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python generate.py --base_model='h2oai/h2ogpt-oasst1-512-12b' --gradio_offline_level=2 --share=False
 ```
 
 Some code is always disabled that involves uploads out of user control: Huggingface telemetry, gradio telemetry, chromadb posthog.

@@ -75,6 +75,17 @@ def ping_gpu():
     except AttributeError:
         # some programs wrap print and will fail with flush passed
         pass
+    try:
+        ping_gpu_memory()
+    except Exception as e:
+        print('Ping_GPU memory failure: %s' % str(e), flush=True)
+
+
+def ping_gpu_memory():
+    from models.gpu_mem_track import MemTracker
+    gpu_tracker = MemTracker()  # define a GPU tracker
+    from torch.cuda import memory_summary
+    gpu_tracker.track()
 
 
 def get_torch_allocated():
@@ -106,27 +117,29 @@ def system_info():
             system['CPU_C/%s' % k] = v
 
     # https://github.com/gpuopenanalytics/pynvml/blob/master/help_query_gpu.txt
-    from pynvml.smi import nvidia_smi
-    nvsmi = nvidia_smi.getInstance()
+    try:
+        from pynvml.smi import nvidia_smi
+        nvsmi = nvidia_smi.getInstance()
 
-    gpu_power_dict = {'W_gpu%d' % i: x['power_readings']['power_draw'] for i, x in
-                      enumerate(nvsmi.DeviceQuery('power.draw')['gpu'])}
-    for k, v in gpu_power_dict.items():
-        system['GPU_W/%s' % k] = v
+        gpu_power_dict = {'W_gpu%d' % i: x['power_readings']['power_draw'] for i, x in
+                          enumerate(nvsmi.DeviceQuery('power.draw')['gpu'])}
+        for k, v in gpu_power_dict.items():
+            system['GPU_W/%s' % k] = v
 
-    gpu_temp_dict = {'C_gpu%d' % i: x['temperature']['gpu_temp'] for i, x in
-                     enumerate(nvsmi.DeviceQuery('temperature.gpu')['gpu'])}
-    for k, v in gpu_temp_dict.items():
-        system['GPU_C/%s' % k] = v
+        gpu_temp_dict = {'C_gpu%d' % i: x['temperature']['gpu_temp'] for i, x in
+                         enumerate(nvsmi.DeviceQuery('temperature.gpu')['gpu'])}
+        for k, v in gpu_temp_dict.items():
+            system['GPU_C/%s' % k] = v
 
-    gpu_memory_free_dict = {'MiB_gpu%d' % i: x['fb_memory_usage']['free'] for i, x in
-                            enumerate(nvsmi.DeviceQuery('memory.free')['gpu'])}
-    gpu_memory_total_dict = {'MiB_gpu%d' % i: x['fb_memory_usage']['total'] for i, x in
-                             enumerate(nvsmi.DeviceQuery('memory.total')['gpu'])}
-    gpu_memory_frac_dict = {k: gpu_memory_free_dict[k] / gpu_memory_total_dict[k] for k in gpu_memory_total_dict}
-    for k, v in gpu_memory_frac_dict.items():
-        system[f'GPU_M/%s' % k] = v
-
+        gpu_memory_free_dict = {'MiB_gpu%d' % i: x['fb_memory_usage']['free'] for i, x in
+                                enumerate(nvsmi.DeviceQuery('memory.free')['gpu'])}
+        gpu_memory_total_dict = {'MiB_gpu%d' % i: x['fb_memory_usage']['total'] for i, x in
+                                 enumerate(nvsmi.DeviceQuery('memory.total')['gpu'])}
+        gpu_memory_frac_dict = {k: gpu_memory_free_dict[k] / gpu_memory_total_dict[k] for k in gpu_memory_total_dict}
+        for k, v in gpu_memory_frac_dict.items():
+            system[f'GPU_M/%s' % k] = v
+    except ModuleNotFoundError:
+        pass
     system['hash'] = get_githash()
 
     return system
@@ -888,15 +901,18 @@ class FakeTokenizer:
     """
 
     def __init__(self, model_max_length=2048, encoding_name="cl100k_base"):
-        # dont' push limit, since if using fake tokenizer, only estimate, and seen underestimates by order 200
+        # dont' push limit, since if using fake tokenizer, only estimate, and seen underestimates by order 250
         self.model_max_length = model_max_length - 250
         self.encoding_name = encoding_name
         # The first time this runs, it will require an internet connection to download. Later runs won't need an internet connection.
         import tiktoken
         self.encoding = tiktoken.get_encoding(self.encoding_name)
 
-    def encode(self, x, *args, **kwargs):
+    def encode(self, x, *args, return_tensors="pt", **kwargs):
         input_ids = self.encoding.encode(x, disallowed_special=())
+        if return_tensors == 'pt' and isinstance(input_ids, list):
+            import torch
+            input_ids = torch.tensor(input_ids)
         return dict(input_ids=input_ids)
 
     def decode(self, x, *args, **kwargs):

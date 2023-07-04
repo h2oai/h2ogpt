@@ -1,16 +1,16 @@
 import ast
 import json
-import os
+import os, sys
 
 import pytest
 
-from client_test import get_client, md_to_text, run_client_nochat_api_lean_morestuff
+from client_test import get_client, run_client_chat, run_client, get_args, run_client_gen
 from tests.utils import wrap_test_forked, make_user_path_test, get_llama
+from utils import get_githash
 
 
 @wrap_test_forked
 def test_client1():
-    import os, sys
     os.environ['TEST_LANGCHAIN_IMPORT'] = "1"
     sys.modules.pop('gpt_langchain', None)
     sys.modules.pop('langchain', None)
@@ -29,7 +29,6 @@ def test_client1():
 
 @wrap_test_forked
 def test_client1api():
-    import os, sys
     os.environ['TEST_LANGCHAIN_IMPORT'] = "1"
     sys.modules.pop('gpt_langchain', None)
     sys.modules.pop('langchain', None)
@@ -56,30 +55,50 @@ def test_client1api_lean(admin_pass):
     main(base_model=base_model, prompt_type='human_bot', chat=False,
          stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False)
 
-    api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
-    prompt = 'Who are you?'
-
-    kwargs = dict(instruction_nochat=prompt)
     os.environ['HOST'] = "http://127.0.0.1:%s" % inf_port
-    client = get_client(serialize=True)
-    # pass string of dict.  All entries are optional, but expect at least instruction_nochat to be filled
-    res = client.predict(str(dict(kwargs)), api_name=api_name)
 
-    print("Raw client result: %s" % res, flush=True)
-    response = ast.literal_eval(res)['response']
+    client1 = get_client(serialize=True)
 
-    assert 'I am h2oGPT' in response or "I'm h2oGPT" in response or 'I’m h2oGPT' in response
+    from gradio_utils.grclient import GradioClient
+    client2 = GradioClient(os.environ['HOST'])
+    client2.refresh_client()  # test refresh
 
-    api_name = '/system_info_dict'
-    # pass string of dict.  All entries are optional, but expect at least instruction_nochat to be filled
-    ADMIN_PASS = os.getenv('ADMIN_PASS', admin_pass)
-    res = client.predict(ADMIN_PASS, api_name=api_name)
-    res = json.loads(res)
-    assert isinstance(res, dict)
-    assert res['base_model'] == base_model, "Problem with res=%s" % res
-    assert 'device' in res
+    for client in [client1, client2]:
 
-    print(res)
+        api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
+        prompt = 'Who are you?'
+        kwargs = dict(instruction_nochat=prompt)
+        # pass string of dict.  All entries are optional, but expect at least instruction_nochat to be filled
+        res = client.predict(str(dict(kwargs)), api_name=api_name)
+
+        print("Raw client result: %s" % res, flush=True)
+        response = ast.literal_eval(res)['response']
+
+        assert 'I am h2oGPT' in response or "I'm h2oGPT" in response or 'I’m h2oGPT' in response
+
+        api_name = '/system_info_dict'
+        # pass string of dict.  All entries are optional, but expect at least instruction_nochat to be filled
+        ADMIN_PASS = os.getenv('ADMIN_PASS', admin_pass)
+        res = client.predict(ADMIN_PASS, api_name=api_name)
+        res = json.loads(res)
+        assert isinstance(res, dict)
+        assert res['base_model'] == base_model, "Problem with res=%s" % res
+        assert 'device' in res
+        assert res['hash'] == get_githash()
+
+        api_name = '/system_hash'
+        res = client.predict(api_name=api_name)
+        assert res == get_githash()
+
+        res = client.predict(api_name=api_name)
+        assert res == get_githash()
+
+    client2.refresh_client()  # test refresh
+    res = client.predict(api_name=api_name)
+    assert res == get_githash()
+
+    res = client2.get_server_hash()
+    assert res == get_githash()
 
 
 @wrap_test_forked
@@ -143,7 +162,6 @@ def run_client_chat_with_server(prompt='Who are you?', stream_output=False, max_
                                 langchain_mode='Disabled', user_path=None,
                                 visible_langchain_modes=['UserData', 'MyData'],
                                 reverse_docs=True):
-    import os, sys
     if langchain_mode == 'Disabled':
         os.environ['TEST_LANGCHAIN_IMPORT'] = "1"
         sys.modules.pop('gpt_langchain', None)
@@ -175,7 +193,6 @@ def run_client_nochat_with_server(prompt='Who are you?', stream_output=False, ma
                                   langchain_mode='Disabled', user_path=None,
                                   visible_langchain_modes=['UserData', 'MyData'],
                                   reverse_docs=True):
-    import os, sys
     if langchain_mode == 'Disabled':
         os.environ['TEST_LANGCHAIN_IMPORT'] = "1"
         sys.modules.pop('gpt_langchain', None)
@@ -404,7 +421,6 @@ def test_client_chat_stream_long():
 @pytest.mark.skip(reason="Local file required")
 @wrap_test_forked
 def test_client_long():
-    import os, sys
     os.environ['TEST_LANGCHAIN_IMPORT'] = "1"
     sys.modules.pop('gpt_langchain', None)
     sys.modules.pop('langchain', None)
@@ -428,7 +444,7 @@ def test_fast_up():
 
 
 @pytest.mark.skipif(not os.getenv('STRESS'), reason="Only for stress testing already-running server")
-@pytest.mark.parametrize("repeat", list(range(0, 16)))
+@pytest.mark.parametrize("repeat", list(range(0, 100)))
 @wrap_test_forked
 def test_client_stress(repeat):
     # pip install pytest-repeat  # license issues, don't put with requirements
@@ -436,14 +452,17 @@ def test_client_stress(repeat):
     #
     # CUDA_VISIBLE_DEVICES=0 SCORE_MODEL=None python generate.py --base_model=h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2 --langchain_mode=UserData --user_path=user_path --debug=True --concurrency_count=8
     #
-    # timeout to mimic client disconnecting and generation still going, else too clean and doesn't fail
-    # STRESS=1 pytest -s -v -n 8 --timeout=30 tests/test_client_calls.py::test_client_stress 2> stress1.log
+    # timeout to mimic client disconnecting and generation still going, else too clean and doesn't fail STRESS=1
+    # pytest -s -v -n 8 --timeout=30 tests/test_client_calls.py::test_client_stress 2> stress1.log
+    # HOST=http://192.168.1.46:9999 STRESS=1 pytest -s -v -n 8 --timeout=1000 tests/test_client_calls.py::test_client_stress 2> stress1.log
 
     prompt = "Tell a very long kid's story about birds."
+    #prompt = "Say exactly only one word."
 
+    client = get_client(serialize=True)
     kwargs = dict(
         instruction='',
-        max_new_tokens=1024,
+        max_new_tokens=200,
         min_new_tokens=1,
         max_time=300,
         do_sample=False,
@@ -451,12 +470,33 @@ def test_client_stress(repeat):
     )
 
     api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
-    client = get_client(serialize=True)
     res = client.predict(
         str(dict(kwargs)),
         api_name=api_name,
     )
     print("Raw client result: %s" % res, flush=True)
+    assert isinstance(res, str)
+    res_dict = ast.literal_eval(res)
+    assert 'response' in res_dict and res_dict['response']
+
+
+@pytest.mark.skipif(not os.getenv('STRESS'), reason="Only for stress testing already-running server")
+@pytest.mark.parametrize("repeat", list(range(0, 100)))
+@wrap_test_forked
+def test_client_stress_stream(repeat):
+    prompt = "Tell a very long kid's story about birds."
+    max_new_tokens = 200
+    prompt_type = None
+    langchain_mode = 'Disabled'
+    stream_output = True
+    chat = False
+
+    client = get_client(serialize=True)
+    kwargs, args = get_args(prompt, prompt_type, chat=chat, stream_output=stream_output,
+                            max_new_tokens=max_new_tokens, langchain_mode=langchain_mode)
+    res_dict, client = run_client_gen(client, prompt, args, kwargs, do_md_to_text=False, verbose=False)
+
+    assert 'response' in res_dict and res_dict['response']
 
 
 @pytest.mark.skipif(not os.getenv('SERVER'),

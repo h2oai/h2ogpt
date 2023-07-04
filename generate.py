@@ -4,7 +4,6 @@ import functools
 import glob
 import inspect
 import queue
-import shutil
 import sys
 import os
 import time
@@ -124,7 +123,7 @@ def main(
         max_max_time=None,
         max_max_new_tokens=None,
 
-        sanitize_user_prompt: bool = True,
+        sanitize_user_prompt: bool = False,
         sanitize_bot_response: bool = False,
 
         extra_model_options: typing.List[str] = [],
@@ -235,6 +234,7 @@ def main(
            Note: Some things always disabled include HF telemetry, gradio telemetry, chromadb posthog that involve uploading.
            This option further disables google fonts for downloading, which is less intrusive than uploading,
            but still required in air-gapped case.  The fonts don't look as nice as google fonts, but ensure full offline behavior.
+           Also set --share=False to avoid sharing a gradio live link.
     :param chat: whether to enable chat mode with chat history
     :param chat_context: whether to use extra helpful context if human_bot
     :param stream_output: whether to stream output from generate
@@ -255,7 +255,7 @@ def main(
                  e.g. --auth=[('jon','password')] with no spaces
     :param max_max_time: Maximum max_time for gradio slider
     :param max_max_new_tokens: Maximum max_new_tokens for gradio slider
-    :param sanitize_user_prompt: whether to remove profanity from user input
+    :param sanitize_user_prompt: whether to remove profanity from user input (slows down input processing)
     :param sanitize_bot_response: whether to remove profanity and repeat lines from bot output (about 2x slower generation for long streaming cases due to better_profanity being slow)
     :param extra_model_options: extra models to show in list in gradio
     :param extra_lora_options: extra LORA to show in list in gradio
@@ -369,6 +369,12 @@ def main(
     visible_langchain_modes = ast.literal_eval(os.environ.get("visible_langchain_modes", str(visible_langchain_modes)))
     if langchain_mode not in visible_langchain_modes and langchain_mode in langchain_modes:
         visible_langchain_modes += [langchain_mode]
+
+    # if specifically chose not to show My or User Data, disable upload, so gradio elements are simpler
+    if LangChainMode.MY_DATA.value not in visible_langchain_modes:
+        allow_upload_to_my_data = False
+    if LangChainMode.USER_DATA.value not in visible_langchain_modes:
+        allow_upload_to_user_data = False
 
     if is_public:
         allow_upload_to_user_data = False
@@ -491,11 +497,12 @@ def main(
                             verbose,
                             )
 
+    git_hash = get_githash()
     locals_dict = locals()
     locals_print = '\n'.join(['%s: %s' % (k, v) for k, v in locals_dict.items()])
     if verbose:
         print(f"Generating model with params:\n{locals_print}", flush=True)
-        print("Command: %s\nHash: %s" % (str(' '.join(sys.argv)), get_githash()), flush=True)
+        print("Command: %s\nHash: %s" % (str(' '.join(sys.argv)), git_hash), flush=True)
 
     if langchain_mode != "Disabled":
         # SECOND PLACE where LangChain referenced, but all imports are kept local so not required
@@ -633,13 +640,26 @@ def get_config(base_model,
                triton_attn=False,
                long_sequence=True,
                return_model=False,
+               raise_exception=False,
                ):
     from accelerate import init_empty_weights
     with init_empty_weights():
         from transformers import AutoConfig
-        config = AutoConfig.from_pretrained(base_model, use_auth_token=use_auth_token,
-                                            trust_remote_code=trust_remote_code,
-                                            offload_folder=offload_folder)
+        try:
+            config = AutoConfig.from_pretrained(base_model, use_auth_token=use_auth_token,
+                                                trust_remote_code=trust_remote_code,
+                                                offload_folder=offload_folder)
+        except OSError as e:
+            if raise_exception:
+                raise
+            if 'not a local folder and is not a valid model identifier listed on' in str(
+                    e) or '404 Client Error' in str(e):
+                # e.g. llama, gpjt, etc.
+                # e.g. HF TGI but not model on HF or private etc.
+                # HF TGI server only should really require prompt_type, not HF model state
+                return None, None
+            else:
+                raise
         if triton_attn and 'mpt-' in base_model.lower():
             config.attn_config['attn_impl'] = 'triton'
         if long_sequence:
@@ -731,25 +751,25 @@ def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward
 def get_client_from_inference_server(inference_server, raise_connection_exception=False):
     inference_server, headers = get_hf_server(inference_server)
     # preload client since slow for gradio case especially
-    from gradio_client import Client as GradioClient
+    from gradio_utils.grclient import GradioClient
     gr_client = None
     hf_client = None
     if headers is None:
         try:
-            print("GR Client Begin: %s" % inference_server)
+            print("GR Client Begin: %s" % inference_server, flush=True)
             # first do sanity check if alive, else gradio client takes too long by default
             requests.get(inference_server, timeout=int(os.getenv('REQUEST_TIMEOUT', '30')))
             gr_client = GradioClient(inference_server)
-            print("GR Client End: %s" % inference_server)
+            print("GR Client End: %s" % inference_server, flush=True)
         except (OSError, ValueError) as e:
             # Occurs when wrong endpoint and should have been HF client, so don't hard raise, just move to HF
             gr_client = None
-            print("GR Client Failed %s: %s" % (inference_server, str(e)))
+            print("GR Client Failed %s: %s" % (inference_server, str(e)), flush=True)
         except (ConnectTimeoutError, ConnectTimeout, MaxRetryError, ConnectionError, ConnectionError2,
                 JSONDecodeError, ReadTimeout2, KeyError) as e:
             t, v, tb = sys.exc_info()
             ex = ''.join(traceback.format_exception(t, v, tb))
-            print("GR Client Failed %s: %s" % (inference_server, str(ex)))
+            print("GR Client Failed %s: %s" % (inference_server, str(ex)), flush=True)
             if raise_connection_exception:
                 raise
 
@@ -820,28 +840,53 @@ def get_model(
     """
     if verbose:
         print("Get %s model" % base_model, flush=True)
-    if isinstance(inference_server, str) and inference_server.startswith("http"):
-        tokenizer = FakeTokenizer()
-        try:
-            from transformers import AutoConfig
-            config, _ = get_config(base_model, use_auth_token=use_auth_token,
-                                   trust_remote_code=trust_remote_code,
-                                   offload_folder=offload_folder)
-            # sets raw (no cushion) limit
-            set_model_max_len(config, tokenizer, verbose=False)
-            # if using fake tokenizer, not really accurate when lots of numbers, give a bit of buffer, else get:
-            # Generation Failed: Input validation error: `inputs` must have less than 2048 tokens. Given: 2233
-            tokenizer.model_max_length = tokenizer.model_max_length - 250
-        except OSError as e:
-            t, v, tb = sys.exc_info()
-            ex = ''.join(traceback.format_exception(t, v, tb))
-            if 'not a local folder' in str(ex) or '404 Client Error' in str(ex):
-                # e.g. llama, gpjt, etc.
-                pass
-            else:
-                if base_model not in non_hf_types:
-                    raise
 
+    triton_attn = False
+    long_sequence = True
+    config_kwargs = dict(use_auth_token=use_auth_token,
+                         trust_remote_code=trust_remote_code,
+                         offload_folder=offload_folder,
+                         triton_attn=triton_attn,
+                         long_sequence=long_sequence)
+    config, _ = get_config(base_model, **config_kwargs, raise_exception=False)
+
+    if base_model in non_hf_types:
+        assert config is None, "Expected config None for %s" % base_model
+
+    llama_type_from_config = 'llama' in str(config).lower()
+    llama_type_from_name = "llama" in base_model.lower()
+    llama_type = llama_type_from_config or llama_type_from_name
+    if "xgen" in base_model.lower():
+        llama_type = False
+    if llama_type:
+        if verbose:
+            print("Detected as llama type from"
+                  " config (%s) or name (%s)" % (llama_type_from_config, llama_type_from_name), flush=True)
+
+    model_loader, tokenizer_loader = get_loaders(model_name=base_model, reward_type=reward_type, llama_type=llama_type)
+
+    tokenizer_kwargs = dict(local_files_only=local_files_only,
+                            resume_download=resume_download,
+                            use_auth_token=use_auth_token,
+                            trust_remote_code=trust_remote_code,
+                            offload_folder=offload_folder,
+                            padding_side='left',
+                            config=config,
+                            )
+    if not tokenizer_base_model:
+        tokenizer_base_model = base_model
+
+    if config is not None and tokenizer_loader is not None and not isinstance(tokenizer_loader, str):
+        tokenizer = tokenizer_loader.from_pretrained(tokenizer_base_model, **tokenizer_kwargs)
+        # sets raw (no cushion) limit
+        set_model_max_len(config, tokenizer, verbose=False)
+        # if using fake tokenizer, not really accurate when lots of numbers, give a bit of buffer, else get:
+        # Generation Failed: Input validation error: `inputs` must have less than 2048 tokens. Given: 2233
+        tokenizer.model_max_length = tokenizer.model_max_length - 50
+    else:
+        tokenizer = FakeTokenizer()
+
+    if isinstance(inference_server, str) and inference_server.startswith("http"):
         inference_server, gr_client, hf_client = get_client_from_inference_server(inference_server)
         client = gr_client or hf_client
         # Don't return None, None for model, tokenizer so triggers
@@ -850,13 +895,64 @@ def get_model(
         assert os.getenv('OPENAI_API_KEY'), "Set environment for OPENAI_API_KEY"
         # Don't return None, None for model, tokenizer so triggers
         # include small token cushion
-        tokenizer = FakeTokenizer(model_max_length=model_token_mapping[base_model] - 100)
+        tokenizer = FakeTokenizer(model_max_length=model_token_mapping[base_model] - 50)
         return inference_server, tokenizer, inference_server
     assert not inference_server, "Malformed inference_server=%s" % inference_server
     if base_model in non_hf_types:
         from gpt4all_llm import get_model_tokenizer_gpt4all
         model, tokenizer, device = get_model_tokenizer_gpt4all(base_model)
         return model, tokenizer, device
+
+    # get local torch-HF model
+    return get_hf_model(load_8bit=load_8bit,
+                        load_4bit=load_4bit,
+                        load_half=load_half,
+                        infer_devices=infer_devices,
+                        base_model=base_model,
+                        tokenizer_base_model=tokenizer_base_model,
+                        lora_weights=lora_weights,
+                        gpu_id=gpu_id,
+
+                        reward_type=reward_type,
+                        local_files_only=local_files_only,
+                        resume_download=resume_download,
+                        use_auth_token=use_auth_token,
+                        trust_remote_code=trust_remote_code,
+                        offload_folder=offload_folder,
+                        compile_model=compile_model,
+
+                        llama_type=llama_type,
+                        config_kwargs=config_kwargs,
+                        tokenizer_kwargs=tokenizer_kwargs,
+
+                        verbose=verbose)
+
+
+def get_hf_model(load_8bit: bool = False,
+                 load_4bit: bool = False,
+                 load_half: bool = True,
+                 infer_devices: bool = True,
+                 base_model: str = '',
+                 tokenizer_base_model: str = '',
+                 lora_weights: str = "",
+                 gpu_id: int = 0,
+
+                 reward_type: bool = None,
+                 local_files_only: bool = False,
+                 resume_download: bool = True,
+                 use_auth_token: Union[str, bool] = False,
+                 trust_remote_code: bool = True,
+                 offload_folder: str = None,
+                 compile_model: bool = True,
+
+                 llama_type: bool = False,
+                 config_kwargs=None,
+                 tokenizer_kwargs=None,
+
+                 verbose: bool = False,
+                 ):
+    assert config_kwargs is not None
+    assert tokenizer_kwargs is not None
 
     if lora_weights is not None and lora_weights.strip():
         if verbose:
@@ -872,31 +968,13 @@ def get_model(
         "Please choose a base model with --base_model (CLI) or load one from Models Tab (gradio)"
     )
 
-    from transformers import AutoConfig
-    config = AutoConfig.from_pretrained(base_model, use_auth_token=use_auth_token,
-                                        trust_remote_code=trust_remote_code,
-                                        offload_folder=offload_folder)
-    llama_type_from_config = 'llama' in str(config).lower()
-    llama_type_from_name = "llama" in base_model.lower()
-    llama_type = llama_type_from_config or llama_type_from_name
-    if llama_type:
-        if verbose:
-            print("Detected as llama type from"
-                  " config (%s) or name (%s)" % (llama_type_from_config, llama_type_from_name), flush=True)
+    model_loader, tokenizer_loader = get_loaders(model_name=base_model, reward_type=reward_type, llama_type=llama_type)
 
-    model_loader, tokenizer_loader = get_loaders(llama_type=llama_type, model_name=base_model, reward_type=reward_type)
-    if not tokenizer_base_model:
-        tokenizer_base_model = base_model
+    config, _ = get_config(base_model, return_model=False, raise_exception=True, **config_kwargs)
 
     if tokenizer_loader is not None and not isinstance(tokenizer_loader, str):
         tokenizer = tokenizer_loader.from_pretrained(tokenizer_base_model,
-                                                     local_files_only=local_files_only,
-                                                     resume_download=resume_download,
-                                                     use_auth_token=use_auth_token,
-                                                     trust_remote_code=trust_remote_code,
-                                                     offload_folder=offload_folder,
-                                                     padding_side='left',
-                                                     )
+                                                     **tokenizer_kwargs)
     else:
         tokenizer = tokenizer_loader
 
@@ -920,7 +998,7 @@ def get_model(
                                      load_in_4bit=load_4bit,
                                      device_map={"": 0} if (load_8bit or load_4bit) and device == 'cuda' else "auto",
                                      ))
-        if 'mpt-' in base_model.lower() and gpu_id >= 0:
+        if 'mpt-' in base_model.lower() and gpu_id is not None and gpu_id >= 0:
             model_kwargs.update(dict(device_map={"": gpu_id} if device == 'cuda' else "cpu"))
 
         if 'OpenAssistant/reward-model'.lower() in base_model.lower():
@@ -929,20 +1007,11 @@ def get_model(
             model_kwargs.pop('torch_dtype', None)
         pop_unused_model_kwargs(model_kwargs)
 
-        triton_attn = False
-        long_sequence = True
-
-        config_kwargs = dict(use_auth_token=use_auth_token,
-                             trust_remote_code=trust_remote_code,
-                             offload_folder=offload_folder,
-                             triton_attn=triton_attn,
-                             long_sequence=long_sequence)
-
         if not lora_weights:
             with torch.device(device):
 
                 if infer_devices:
-                    config, model = get_config(base_model, return_model=True, **config_kwargs)
+                    config, model = get_config(base_model, return_model=True, raise_exception=True, **config_kwargs)
                     model = get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward_type,
                                                config, model,
                                                gpu_id=gpu_id,
@@ -980,7 +1049,7 @@ def get_model(
             )
         else:
             with torch.device(device):
-                config, _ = get_config(base_model, **config_kwargs)
+                config, _ = get_config(base_model, raise_exception=True, **config_kwargs)
                 model = model_loader.from_pretrained(
                     base_model,
                     config=config,
@@ -1404,7 +1473,7 @@ def evaluate(
     # limits are chosen similar to gradio_runner.py sliders/numbers
     top_p = min(max(1e-3, top_p), 1.0 - 1e-3)
     top_k = min(max(1, int(top_k)), 100)
-    temperature = min(max(0.01, temperature), 3.0)
+    temperature = min(max(0.01, temperature), 2.0)
     # FIXME: https://github.com/h2oai/h2ogpt/issues/106
     num_beams = 1 if stream_output else num_beams  # See max_beams in gradio_runner
     max_max_new_tokens = get_max_max_new_tokens(chosen_model_state,
@@ -1425,9 +1494,10 @@ def evaluate(
 
     # restrict instruction, typically what has large input
     from h2oai_pipeline import H2OTextGenerationPipeline
-    instruction = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer)
-    context = H2OTextGenerationPipeline.limit_prompt(context, tokenizer)
-    iinput = H2OTextGenerationPipeline.limit_prompt(iinput, tokenizer)
+    instruction, num_prompt_tokens1 = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer)
+    context, num_prompt_tokens2 = H2OTextGenerationPipeline.limit_prompt(context, tokenizer)
+    iinput, num_prompt_tokens3 = H2OTextGenerationPipeline.limit_prompt(iinput, tokenizer)
+    num_prompt_tokens = (num_prompt_tokens1 or 0) + (num_prompt_tokens2 or 0) + (num_prompt_tokens3 or 0)
 
     # get prompt
     prompter = Prompter(prompt_type, prompt_dict, debug=debug, chat=chat, stream_output=stream_output)
@@ -1505,7 +1575,8 @@ def evaluate(
         if save_dir:
             extra_dict = gen_hyper_langchain.copy()
             extra_dict.update(prompt_type=prompt_type, inference_server=inference_server,
-                              langchain_mode=langchain_mode, document_choice=document_choice)
+                              langchain_mode=langchain_mode, document_choice=document_choice,
+                              num_prompt_tokens=num_prompt_tokens)
             save_generate_output(prompt=query, output=outr, base_model=base_model, save_dir=save_dir,
                                  where_from='run_qa_db',
                                  extra_dict=extra_dict)
@@ -1521,242 +1592,250 @@ def evaluate(
             clear_torch_cache()
             return
 
-    if inference_server.startswith('openai'):
-        import openai
+    if inference_server.startswith('openai') or inference_server.startswith('http'):
+        if inference_server.startswith('openai'):
+            import openai
+            where_from = "openai_client"
 
-        openai.api_key = os.getenv("OPENAI_API_KEY")
-        stop_sequences = list(set(prompter.terminate_response + [prompter.PreResponse]))
-        openai_gen_kwargs = dict(temperature=temperature if do_sample else 0,
-                                 max_tokens=max_new_tokens,
-                                 top_p=top_p if do_sample else 1,
-                                 frequency_penalty=0,
-                                 n=num_return_sequences,
-                                 presence_penalty=1.00 - repetition_penalty + 0.6,  # so good default
-                                 )
-        if inference_server == 'openai':
-            response = openai.Completion.create(
-                model=base_model,
-                prompt=prompt,
-                **openai_gen_kwargs,
-                stop=stop_sequences,
-                stream=stream_output,
-            )
-            if not stream_output:
-                text = response['choices'][0]['text']
-                yield dict(response=prompter.get_response(prompt + text, prompt=prompt,
-                                                          sanitize_bot_response=sanitize_bot_response),
-                           sources='')
-            else:
-                collected_events = []
-                text = ''
-                for event in response:
-                    collected_events.append(event)  # save the event response
-                    event_text = event['choices'][0]['text']  # extract the text
-                    text += event_text  # append the text
+            openai.api_key = os.getenv("OPENAI_API_KEY")
+            stop_sequences = list(set(prompter.terminate_response + [prompter.PreResponse]))
+            # OpenAI will complain if ask for too many new tokens, takes it as min in some sense, wrongly so.
+            max_new_tokens_openai = min(max_new_tokens, max_max_new_tokens - num_prompt_tokens)
+            gen_server_kwargs = dict(temperature=temperature if do_sample else 0,
+                                     max_tokens=max_new_tokens,
+                                     top_p=top_p if do_sample else 1,
+                                     frequency_penalty=0,
+                                     n=num_return_sequences,
+                                     presence_penalty=1.07 - repetition_penalty + 0.6,  # so good default
+                                     )
+            if inference_server == 'openai':
+                response = openai.Completion.create(
+                    model=base_model,
+                    prompt=prompt,
+                    **gen_server_kwargs,
+                    stop=stop_sequences,
+                    stream=stream_output,
+                )
+                if not stream_output:
+                    text = response['choices'][0]['text']
                     yield dict(response=prompter.get_response(prompt + text, prompt=prompt,
                                                               sanitize_bot_response=sanitize_bot_response),
                                sources='')
-            return
-        if inference_server == 'openai_chat':
-            response = openai.ChatCompletion.create(
-                model=base_model,
-                messages=[
-                    {"role": "system", "content": "You are a helpful assistant."},
-                    {'role': 'user',
-                     'content': prompt,
-                     }
-                ],
-                stream=stream_output,
-                **openai_gen_kwargs,
-            )
-            if not stream_output:
-                text = response["choices"][0]["message"]["content"]
-                yield dict(response=prompter.get_response(prompt + text, prompt=prompt,
-                                                          sanitize_bot_response=sanitize_bot_response),
-                           sources='')
-            else:
-                text = ""
-                for chunk in response:
-                    delta = chunk["choices"][0]["delta"]
-                    if 'content' in delta:
-                        text += delta['content']
+                else:
+                    collected_events = []
+                    text = ''
+                    for event in response:
+                        collected_events.append(event)  # save the event response
+                        event_text = event['choices'][0]['text']  # extract the text
+                        text += event_text  # append the text
                         yield dict(response=prompter.get_response(prompt + text, prompt=prompt,
                                                                   sanitize_bot_response=sanitize_bot_response),
                                    sources='')
-            return
-    elif inference_server.startswith('http'):
-        inference_server, headers = get_hf_server(inference_server)
-        from gradio_client import Client as GradioClient
-        from text_generation import Client as HFClient
-        if isinstance(model, GradioClient):
-            gr_client = model
-            hf_client = None
-        elif isinstance(model, HFClient):
-            gr_client = None
-            hf_client = model
-        else:
-            inference_server, gr_client, hf_client = get_client_from_inference_server(inference_server)
+            elif inference_server == 'openai_chat':
+                response = openai.ChatCompletion.create(
+                    model=base_model,
+                    messages=[
+                        {"role": "system", "content": "You are a helpful assistant."},
+                        {'role': 'user',
+                         'content': prompt,
+                         }
+                    ],
+                    stream=stream_output,
+                    **gen_server_kwargs,
+                )
+                if not stream_output:
+                    text = response["choices"][0]["message"]["content"]
+                    yield dict(response=prompter.get_response(prompt + text, prompt=prompt,
+                                                              sanitize_bot_response=sanitize_bot_response),
+                               sources='')
+                else:
+                    text = ""
+                    for chunk in response:
+                        delta = chunk["choices"][0]["delta"]
+                        if 'content' in delta:
+                            text += delta['content']
+                            yield dict(response=prompter.get_response(prompt + text, prompt=prompt,
+                                                                      sanitize_bot_response=sanitize_bot_response),
+                                       sources='')
+            else:
+                raise RuntimeError("No such OpenAI mode: %s" % inference_server)
+        elif inference_server.startswith('http'):
+            inference_server, headers = get_hf_server(inference_server)
+            from gradio_utils.grclient import GradioClient
+            from text_generation import Client as HFClient
+            if isinstance(model, GradioClient):
+                gr_client = model
+                hf_client = None
+            elif isinstance(model, HFClient):
+                gr_client = None
+                hf_client = model
+            else:
+                inference_server, gr_client, hf_client = get_client_from_inference_server(inference_server)
 
-        # quick sanity check to avoid long timeouts, just see if can reach server
-        requests.get(inference_server, timeout=int(os.getenv('REQUEST_TIMEOUT_FAST', '10')))
+            # quick sanity check to avoid long timeouts, just see if can reach server
+            requests.get(inference_server, timeout=int(os.getenv('REQUEST_TIMEOUT_FAST', '10')))
 
-        if gr_client is not None:
-            # Note: h2oGPT gradio server could handle input token size issues for prompt,
-            # but best to handle here so send less data to server
+            if gr_client is not None:
+                # Note: h2oGPT gradio server could handle input token size issues for prompt,
+                # but best to handle here so send less data to server
 
-            chat_client = False
-            where_from = "gr_client"
-            client_langchain_mode = 'Disabled'
-            gen_server_kwargs = dict(temperature=temperature,
-                                     top_p=top_p,
-                                     top_k=top_k,
-                                     num_beams=num_beams,
-                                     max_new_tokens=max_new_tokens,
-                                     min_new_tokens=min_new_tokens,
-                                     early_stopping=early_stopping,
-                                     max_time=max_time,
-                                     repetition_penalty=repetition_penalty,
-                                     num_return_sequences=num_return_sequences,
-                                     do_sample=do_sample,
-                                     chat=chat_client,
+                chat_client = False
+                where_from = "gr_client"
+                client_langchain_mode = 'Disabled'
+                gen_server_kwargs = dict(temperature=temperature,
+                                         top_p=top_p,
+                                         top_k=top_k,
+                                         num_beams=num_beams,
+                                         max_new_tokens=max_new_tokens,
+                                         min_new_tokens=min_new_tokens,
+                                         early_stopping=early_stopping,
+                                         max_time=max_time,
+                                         repetition_penalty=repetition_penalty,
+                                         num_return_sequences=num_return_sequences,
+                                         do_sample=do_sample,
+                                         chat=chat_client,
+                                         )
+                # account for gradio into gradio that handles prompting, avoid duplicating prompter prompt injection
+                if prompt_type in [None, '', PromptType.plain.name, PromptType.plain.value, str(PromptType.plain.value)]:
+                    # if our prompt is plain, assume either correct or gradio server knows different prompt type,
+                    # so pass empty prompt_Type
+                    gr_prompt_type = ''
+                    gr_prompt_dict = ''
+                    gr_prompt = prompt  # already prepared prompt
+                    gr_context = ''
+                    gr_iinput = ''
+                else:
+                    # if already have prompt_type that is not plain, None, or '', then already applied some prompting
+                    #  But assume server can handle prompting, and need to avoid double-up.
+                    #  Also assume server can do better job of using stopping.py to stop early, so avoid local prompting, let server handle
+                    #  So avoid "prompt" and let gradio server reconstruct from prompt_type we passed
+                    # Note it's ok that prompter.get_response() has prompt+text, prompt=prompt passed,
+                    #  because just means extra processing and removal of prompt, but that has no human-bot prompting doesn't matter
+                    #  since those won't appear
+                    gr_context = context
+                    gr_prompt = instruction
+                    gr_iinput = iinput
+                    gr_prompt_type = prompt_type
+                    gr_prompt_dict = prompt_dict
+                client_kwargs = dict(instruction=gr_prompt if chat_client else '',  # only for chat=True
+                                     iinput=gr_iinput,  # only for chat=True
+                                     context=gr_context,
+                                     # streaming output is supported, loops over and outputs each generation in streaming mode
+                                     # but leave stream_output=False for simple input/output mode
+                                     stream_output=stream_output,
+
+                                     **gen_server_kwargs,
+
+                                     prompt_type=gr_prompt_type,
+                                     prompt_dict=gr_prompt_dict,
+
+                                     instruction_nochat=gr_prompt if not chat_client else '',
+                                     iinput_nochat=gr_iinput,  # only for chat=False
+                                     langchain_mode=client_langchain_mode,
+                                     top_k_docs=top_k_docs,
+                                     chunk=chunk,
+                                     chunk_size=chunk_size,
+                                     document_choice=[DocumentChoices.All_Relevant.name],
                                      )
-            # account for gradio into gradio that handles prompting, avoid duplicating prompter prompt injection
-            if prompt_type in [None, '', PromptType.plain.name, PromptType.plain.value, str(PromptType.plain.value)]:
-                # if our prompt is plain, assume either correct or gradio server knows different prompt type,
-                # so pass empty prompt_Type
-                gr_prompt_type = ''
-                gr_prompt_dict = ''
-                gr_prompt = prompt  # already prepared prompt
-                gr_context = ''
-                gr_iinput = ''
-            else:
-                # if already have prompt_type that is not plain, None, or '', then already applied some prompting
-                #  But assume server can handle prompting, and need to avoid double-up.
-                #  Also assume server can do better job of using stopping.py to stop early, so avoid local prompting, let server handle
-                #  So avoid "prompt" and let gradio server reconstruct from prompt_type we passed
-                # Note it's ok that prompter.get_response() has prompt+text, prompt=prompt passed,
-                #  because just means extra processing and removal of prompt, but that has no human-bot prompting doesn't matter
-                #  since those won't appear
-                gr_context = context
-                gr_prompt = instruction
-                gr_iinput = iinput
-                gr_prompt_type = prompt_type
-                gr_prompt_dict = prompt_dict
-            client_kwargs = dict(instruction=gr_prompt if chat_client else '',  # only for chat=True
-                                 iinput=gr_iinput,  # only for chat=True
-                                 context=gr_context,
-                                 # streaming output is supported, loops over and outputs each generation in streaming mode
-                                 # but leave stream_output=False for simple input/output mode
-                                 stream_output=stream_output,
-
-                                 **gen_server_kwargs,
-
-                                 prompt_type=gr_prompt_type,
-                                 prompt_dict=gr_prompt_dict,
-
-                                 instruction_nochat=gr_prompt if not chat_client else '',
-                                 iinput_nochat=gr_iinput,  # only for chat=False
-                                 langchain_mode=client_langchain_mode,
-                                 top_k_docs=top_k_docs,
-                                 chunk=chunk,
-                                 chunk_size=chunk_size,
-                                 document_choice=[DocumentChoices.All_Relevant.name],
-                                 )
-            api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
-            if not stream_output:
-                res = gr_client.predict(str(dict(client_kwargs)), api_name=api_name)
-                res_dict = ast.literal_eval(res)
-                text = res_dict['response']
-                sources = res_dict['sources']
-                yield dict(response=prompter.get_response(prompt + text, prompt=prompt,
-                                                          sanitize_bot_response=sanitize_bot_response),
-                           sources=sources)
-            else:
-                job = gr_client.submit(str(dict(client_kwargs)), api_name=api_name)
-                text = ''
-                sources = ''
-                res_dict = dict(response=text, sources=sources)
-                while not job.done():
-                    outputs_list = job.communicator.job.outputs
-                    if outputs_list:
-                        res = job.communicator.job.outputs[-1]
-                        res_dict = ast.literal_eval(res)
-                        text = res_dict['response']
-                        sources = res_dict['sources']
-                        if gr_prompt_type == 'plain':
-                            # then gradio server passes back full prompt + text
-                            prompt_and_text = text
-                        else:
-                            prompt_and_text = prompt + text
-                        yield dict(response=prompter.get_response(prompt_and_text, prompt=prompt,
-                                                                  sanitize_bot_response=sanitize_bot_response),
-                                   sources=sources)
-                    time.sleep(0.01)
-                # ensure get last output to avoid race
-                res_all = job.outputs()
-                if len(res_all) > 0:
-                    res = res_all[-1]
+                api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
+                if not stream_output:
+                    res = gr_client.predict(str(dict(client_kwargs)), api_name=api_name)
                     res_dict = ast.literal_eval(res)
                     text = res_dict['response']
                     sources = res_dict['sources']
+                    yield dict(response=prompter.get_response(prompt + text, prompt=prompt,
+                                                              sanitize_bot_response=sanitize_bot_response),
+                               sources=sources)
                 else:
-                    # go with old text if last call didn't work
-                    print("Bad final response: %s" % res_all, flush=True)
-                if gr_prompt_type == 'plain':
-                    # then gradio server passes back full prompt + text
-                    prompt_and_text = text
-                else:
-                    prompt_and_text = prompt + text
-                yield dict(response=prompter.get_response(prompt_and_text, prompt=prompt,
-                                                          sanitize_bot_response=sanitize_bot_response),
-                           sources=sources)
-        elif hf_client:
-            # HF inference server needs control over input tokens
-            where_from = "hf_client"
+                    job = gr_client.submit(str(dict(client_kwargs)), api_name=api_name)
+                    text = ''
+                    sources = ''
+                    res_dict = dict(response=text, sources=sources)
+                    while not job.done():
+                        outputs_list = job.communicator.job.outputs
+                        if outputs_list:
+                            res = job.communicator.job.outputs[-1]
+                            res_dict = ast.literal_eval(res)
+                            text = res_dict['response']
+                            sources = res_dict['sources']
+                            if gr_prompt_type == 'plain':
+                                # then gradio server passes back full prompt + text
+                                prompt_and_text = text
+                            else:
+                                prompt_and_text = prompt + text
+                            yield dict(response=prompter.get_response(prompt_and_text, prompt=prompt,
+                                                                      sanitize_bot_response=sanitize_bot_response),
+                                       sources=sources)
+                        time.sleep(0.01)
+                    # ensure get last output to avoid race
+                    res_all = job.outputs()
+                    if len(res_all) > 0:
+                        res = res_all[-1]
+                        res_dict = ast.literal_eval(res)
+                        text = res_dict['response']
+                        sources = res_dict['sources']
+                    else:
+                        # go with old text if last call didn't work
+                        print("Bad final response: %s %s %s %s %s" % (base_model, inference_server,
+                                                                      res_all, prompt, text), flush=True)
+                    if gr_prompt_type == 'plain':
+                        # then gradio server passes back full prompt + text
+                        prompt_and_text = text
+                    else:
+                        prompt_and_text = prompt + text
+                    yield dict(response=prompter.get_response(prompt_and_text, prompt=prompt,
+                                                              sanitize_bot_response=sanitize_bot_response),
+                               sources=sources)
+            elif hf_client:
+                # HF inference server needs control over input tokens
+                where_from = "hf_client"
 
-            # prompt must include all human-bot like tokens, already added by prompt
-            # https://github.com/huggingface/text-generation-inference/tree/main/clients/python#types
-            stop_sequences = list(set(prompter.terminate_response + [prompter.PreResponse]))
-            gen_server_kwargs = dict(do_sample=do_sample,
-                                     max_new_tokens=max_new_tokens,
-                                     # best_of=None,
-                                     repetition_penalty=repetition_penalty,
-                                     return_full_text=True,
-                                     seed=SEED,
-                                     stop_sequences=stop_sequences,
-                                     temperature=temperature,
-                                     top_k=top_k,
-                                     top_p=top_p,
-                                     # truncate=False,  # behaves oddly
-                                     # typical_p=top_p,
-                                     # watermark=False,
-                                     # decoder_input_details=False,
-                                     )
-            # work-around for timeout at constructor time, will be issue if multi-threading,
-            # so just do something reasonable or max_time if larger
-            # lower bound because client is re-used if multi-threading
-            hf_client.timeout = max(300, max_time)
-            if not stream_output:
-                text = hf_client.generate(prompt, **gen_server_kwargs).generated_text
-                yield dict(response=prompter.get_response(text, prompt=prompt,
-                                                          sanitize_bot_response=sanitize_bot_response),
-                           sources='')
+                # prompt must include all human-bot like tokens, already added by prompt
+                # https://github.com/huggingface/text-generation-inference/tree/main/clients/python#types
+                stop_sequences = list(set(prompter.terminate_response + [prompter.PreResponse]))
+                gen_server_kwargs = dict(do_sample=do_sample,
+                                         max_new_tokens=max_new_tokens,
+                                         # best_of=None,
+                                         repetition_penalty=repetition_penalty,
+                                         return_full_text=True,
+                                         seed=SEED,
+                                         stop_sequences=stop_sequences,
+                                         temperature=temperature,
+                                         top_k=top_k,
+                                         top_p=top_p,
+                                         # truncate=False,  # behaves oddly
+                                         # typical_p=top_p,
+                                         # watermark=False,
+                                         # decoder_input_details=False,
+                                         )
+                # work-around for timeout at constructor time, will be issue if multi-threading,
+                # so just do something reasonable or max_time if larger
+                # lower bound because client is re-used if multi-threading
+                hf_client.timeout = max(300, max_time)
+                if not stream_output:
+                    text = hf_client.generate(prompt, **gen_server_kwargs).generated_text
+                    yield dict(response=prompter.get_response(text, prompt=prompt,
+                                                              sanitize_bot_response=sanitize_bot_response),
+                               sources='')
+                else:
+                    text = ""
+                    for response in hf_client.generate_stream(prompt, **gen_server_kwargs):
+                        if not response.token.special:
+                            # stop_sequences
+                            text_chunk = response.token.text
+                            text += text_chunk
+                            yield dict(response=prompter.get_response(prompt + text, prompt=prompt,
+                                                                      sanitize_bot_response=sanitize_bot_response),
+                                       sources='')
             else:
-                text = ""
-                for response in hf_client.generate_stream(prompt, **gen_server_kwargs):
-                    if not response.token.special:
-                        # stop_sequences
-                        text_chunk = response.token.text
-                        text += text_chunk
-                        yield dict(response=prompter.get_response(prompt + text, prompt=prompt,
-                                                                  sanitize_bot_response=sanitize_bot_response),
-                                   sources='')
+                raise RuntimeError("Failed to get client: %s" % inference_server)
         else:
-            raise RuntimeError("Failed to get client: %s" % inference_server)
+            raise RuntimeError("No such inference_server  %s" % inference_server)
+
         if save_dir and text:
             # save prompt + new text
             extra_dict = gen_server_kwargs.copy()
-            extra_dict.update(dict(inference_server=inference_server))
+            extra_dict.update(dict(inference_server=inference_server, num_prompt_tokens=num_prompt_tokens))
             save_generate_output(prompt=prompt, output=text, base_model=base_model, save_dir=save_dir,
                                  where_from=where_from, extra_dict=extra_dict)
         return
@@ -1928,6 +2007,8 @@ def evaluate(
                     if outputs and len(outputs) >= 1:
                         decoded_output = prompt + outputs[0]
                 if save_dir and decoded_output:
+                    extra_dict = gen_config_kwargs.copy()
+                    extra_dict.update(dict(num_prompt_tokens=num_prompt_tokens))
                     save_generate_output(prompt=prompt, output=decoded_output, base_model=base_model, save_dir=save_dir,
                                          where_from="evaluate_%s" % str(stream_output),
                                          extra_dict=gen_config_kwargs)
@@ -2141,7 +2222,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         top_k = 40 if top_k is None else top_k
         num_beams = num_beams or 1
         max_new_tokens = max_new_tokens or 128
-        repetition_penalty = repetition_penalty or 1.0
+        repetition_penalty = repetition_penalty or 1.07
         num_return_sequences = min(num_beams, num_return_sequences or 1)
         do_sample = False if do_sample is None else do_sample
     else:
@@ -2150,7 +2231,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         top_k = 40 if top_k is None else top_k
         num_beams = num_beams or 1
         max_new_tokens = max_new_tokens or 256
-        repetition_penalty = repetition_penalty or 1.0
+        repetition_penalty = repetition_penalty or 1.07
         num_return_sequences = min(num_beams, num_return_sequences or 1)
         do_sample = False if do_sample is None else do_sample
     # doesn't include chat, instruction_nochat, iinput_nochat, added later
