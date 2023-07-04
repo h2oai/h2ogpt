@@ -1480,6 +1480,7 @@ def evaluate(
                                                 memory_restriction_level=memory_restriction_level,
                                                 max_new_tokens=max_new_tokens,
                                                 max_max_new_tokens=max_max_new_tokens)
+    model_max_length = get_model_max_length(chosen_model_state)
     max_new_tokens = min(max(1, int(max_new_tokens)), max_max_new_tokens)
     min_new_tokens = min(max(0, int(min_new_tokens)), max_new_tokens)
     max_time = min(max(0, max_time), max_max_time)
@@ -1600,9 +1601,9 @@ def evaluate(
             openai.api_key = os.getenv("OPENAI_API_KEY")
             stop_sequences = list(set(prompter.terminate_response + [prompter.PreResponse]))
             # OpenAI will complain if ask for too many new tokens, takes it as min in some sense, wrongly so.
-            max_new_tokens_openai = min(max_new_tokens, max_max_new_tokens - num_prompt_tokens)
+            max_new_tokens_openai = min(max_new_tokens, model_max_length - num_prompt_tokens)
             gen_server_kwargs = dict(temperature=temperature if do_sample else 0,
-                                     max_tokens=max_new_tokens,
+                                     max_tokens=max_new_tokens_openai,
                                      top_p=top_p if do_sample else 1,
                                      frequency_penalty=0,
                                      n=num_return_sequences,
@@ -2402,6 +2403,13 @@ def check_locals(**kwargs):
         if k in can_skip_because_locally_generated:
             continue
         assert k in kwargs, "Missing %s" % k
+
+
+def get_model_max_length(model_state):
+    if not isinstance(model_state['tokenizer'], (str, types.NoneType)):
+        return model_state['tokenizer'].model_max_length
+    else:
+        return 2048
 
 
 def get_max_max_new_tokens(model_state, **kwargs):
