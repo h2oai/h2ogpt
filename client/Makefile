@@ -1,35 +1,46 @@
-PACKAGE_NAME    := $(firstword $(shell poetry version))
-PACKAGE_DIR     := $(subst -,_,$(PACKAGE_NAME))
-PACKAGE_VERSION := $(shell poetry version --short)
+POETRY_INSTALL_DIR := $(abspath ./.poetry)
+POETRY_BIN         := $(POETRY_INSTALL_DIR)/bin/poetry
 
-generate_sources:
+PACKAGE_NAME    = $(firstword $(shell $(POETRY_BIN) version))
+PACKAGE_DIR     = $(subst -,_,$(PACKAGE_NAME))
+PACKAGE_VERSION = $(shell $(POETRY_BIN) version --short)
+
+$(POETRY_BIN):
+	@echo "Installing Poetry into '$(POETRY_INSTALL_DIR)' ..."
+	curl -sSL https://install.python-poetry.org | POETRY_HOME="$(POETRY_INSTALL_DIR)" python3 - --force --version 1.5.1
+
+.PHONY: _generate_sources
+_generate_sources:
 	cp -f ./../enums.py "$(PACKAGE_DIR)/enums.py"
 
+.PHONY: clean
+clean:
+	rm -rf dist
+
+.PHONY: clean_deep
+clean_deep: clean
+	rm -rf "$(POETRY_INSTALL_DIR)"
+	rm -rf ".venv"
+
 .PHONY: setup
-setup:
-	poetry install
+setup: $(POETRY_BIN)
+	$(POETRY_BIN) install
+
+.PHONY: setup_test
+setup_test:
+	$(POETRY_BIN) install --only=test
 
 .PHONY: lint
-lint: generate_sources
-	poetry run black .
-	poetry run isort .
-	poetry run flake8 "$(PACKAGE_DIR)" "tests" || true
-	poetry run mypy --show-error-codes --pretty .
+lint: _generate_sources
+	$(POETRY_BIN) run black .
+	$(POETRY_BIN) run isort .
+	$(POETRY_BIN) run flake8 "$(PACKAGE_DIR)" "tests" || true
+	$(POETRY_BIN) run mypy --show-error-codes --pretty .
 
 .PHONY: test
-test: generate_sources
-	poetry run pytest -r A
-
-.PHONY: test_with_h2ogpt
-test_with_h2ogpt: H2OGPT_START=python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b --load_8bit=True
-test_with_h2ogpt: H2OGPT_SERVER=http://0.0.0.0:7860
-test_with_h2ogpt:
-	cd .. && . venv/bin/activate && \
-	$(H2OGPT_START) &
-	sleep 20 && wget --retry-connrefused --waitretry=30 --timeout=60 --tries=50 --output-document=/dev/null "$(H2OGPT_SERVER)"
-	$(MAKE) H2OGPT_SERVER="$(H2OGPT_SERVER)" test
-	pkill -f "$(H2OGPT_START)" &
+test: _generate_sources
+	$(POETRY_BIN) run pytest -r=A
 
 .PHONY: build
-build: lint
-	poetry build
+build:
+	$(POETRY_BIN) build
