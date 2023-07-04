@@ -1696,7 +1696,8 @@ def evaluate(
                                          chat=chat_client,
                                          )
                 # account for gradio into gradio that handles prompting, avoid duplicating prompter prompt injection
-                if prompt_type in [None, '', PromptType.plain.name, PromptType.plain.value, str(PromptType.plain.value)]:
+                if prompt_type in [None, '', PromptType.plain.name, PromptType.plain.value,
+                                   str(PromptType.plain.value)]:
                     # if our prompt is plain, assume either correct or gradio server knows different prompt type,
                     # so pass empty prompt_Type
                     gr_prompt_type = ''
@@ -1776,8 +1777,17 @@ def evaluate(
                         sources = res_dict['sources']
                     else:
                         # go with old text if last call didn't work
-                        print("Bad final response: %s %s %s %s %s" % (base_model, inference_server,
-                                                                      res_all, prompt, text), flush=True)
+                        e = job.future._exception
+                        if e is not None:
+                            stre = str(e)
+                            strex = ''.join(traceback.format_tb(e.__traceback__))
+                        else:
+                            stre = ''
+                            strex = ''
+
+                        print("Bad final response: %s %s %s %s %s: %s %s" % (base_model, inference_server,
+                                                                             res_all, prompt, text, stre, strex),
+                              flush=True)
                     if gr_prompt_type == 'plain':
                         # then gradio server passes back full prompt + text
                         prompt_and_text = text
