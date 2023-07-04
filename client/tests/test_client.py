@@ -1,26 +1,26 @@
-import os
+import platform
 
 import pytest
 
 from h2ogpt_client import Client
 
+platform.python_version()
 
-def create_client(server_url: str = "") -> Client:
-    server_url = server_url or os.getenv("H2OGPT_SERVER", "http://0.0.0.0:7860")
+
+@pytest.fixture
+def client(server_url) -> Client:
     return Client(server_url)
 
 
 @pytest.mark.asyncio
-async def test_text_completion():
-    client = create_client()
+async def test_text_completion(client):
     text_completion = client.text_completion.create()
     response = await text_completion.complete(prompt="Hello world")
     assert response
     print(response)
 
 
-def test_text_completion_sync():
-    client = create_client()
+def test_text_completion_sync(client):
     text_completion = client.text_completion.create()
     response = text_completion.complete_sync(prompt="Hello world")
     assert response
@@ -28,8 +28,7 @@ def test_text_completion_sync():
 
 
 @pytest.mark.asyncio
-async def test_chat_completion():
-    client = create_client()
+async def test_chat_completion(client):
     chat_completion = client.chat_completion.create()
 
     chat1 = await chat_completion.chat(prompt="Hey!")
@@ -49,8 +48,7 @@ async def test_chat_completion():
     print(chat_history)
 
 
-def test_chat_completion_sync():
-    client = create_client()
+def test_chat_completion_sync(client):
     chat_completion = client.chat_completion.create()
 
     chat1 = chat_completion.chat_sync(prompt="Hey!")
