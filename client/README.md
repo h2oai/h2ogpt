@@ -26,7 +26,7 @@ chat_history = chat_completion.chat_history()
 - Python 3.8+
 
 ### Setup
-:info: [Poetry](https://python-poetry.org) is used as the build tool.
+:information_source: [Poetry](https://python-poetry.org) is used as the build tool.
 
 :warning: If you already have an activated virtual Python environment then Poetry will use that rather than creating a new one.
 So executing the following command where the h2oGPT Python environment is activated will result in installation of dev, test, and runtime dependencies of the Client into the h2oGPT Python environment.
