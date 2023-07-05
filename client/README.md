@@ -50,7 +50,7 @@ make -C client setup_test
 ```
 2. Run the tests with h2oGPT.
 ```shell
-PYTHONPATH=. pytest -c=. -r=A client/tests/
+pytest -r=A client/tests/
 ```
 #### Test with an existing h2oGPT server
 If you already have a running h2oGPT server, then set the `H2OGPT_SERVER` environment variable to use it for testing.
