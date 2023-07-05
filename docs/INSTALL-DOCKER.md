@@ -49,7 +49,7 @@ docker run --runtime=nvidia --shm-size=64g -p 7860:7860 \
 4. Open `https://localhost:7860` in the browser
 
 ### Run h2oGPT using Docker from a nightly build
-1. Make sure Docker & Nvidia Containers are setup correctly by following step 1 in above instructions.Runtime docker images for h2oGPT are stored in the h2oai GCR vorvan container repository.
+1. Make sure Docker & Nvidia Containers are setup correctly by following step 1 in above instructions. Runtime docker images for h2oGPT are stored in the h2oai GCR vorvan container repository.
 
 2. Specify the required model using `HF_MODEL` parameter.
 All open-source datasets and models are posted on [🤗 H2O.ai's Hugging Face page](https://huggingface.co/h2oai/).
@@ -65,7 +65,7 @@ docker run \
     -v `pwd`/h2ogpt_env:/h2ogpt_env \
     gcr.io/vorvan/h2oai/h2ogpt-runtime:61d6aea6fff3b1190aa42eee7fa10d6c
 ```
-3. Navigate to http://localhost:7860/ start using h2oGPT.
+3. Navigate to http://localhost:7860/  & start using h2oGPT.
 
 __Optional__
 
