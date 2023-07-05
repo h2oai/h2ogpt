@@ -5,7 +5,7 @@ pipeline {
     }
 
     parameters {
-        string(name: 'BRANCH_TAG', defaultValue: 'devops/chathurinda/nightly-pipeline')
+        string(name: 'BRANCH_TAG', defaultValue: 'main')
     }
 
     options {
