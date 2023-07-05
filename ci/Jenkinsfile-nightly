@@ -4,6 +4,10 @@ pipeline {
         label "linux && docker"
     }
 
+    parameters {
+        string(name: 'BRANCH_TAG', defaultValue: 'devops/chathurinda/nightly-pipeline'),
+    }
+
     options {
         ansiColor('xterm')
         timestamps()
@@ -13,10 +17,7 @@ pipeline {
         stage('Init'){
             steps {
                 script {
-                    def shortHash = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
-                    def commitMsg = sh(returnStdout: true, script: 'git log -1 --pretty=format:"[%an] %s"').trim()
-                    currentBuild.displayName = "${env.BUILD_ID} - [${shortHash}]"
-                    currentBuild.description = "${commitMsg}"
+                    currentBuild.displayName = "${env.BUILD_ID} - [${params.BRANCH_TAG}]"
                 }
             }
         }
