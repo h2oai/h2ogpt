@@ -237,5 +237,61 @@ exit
 ```
 then cache will contain `h2oai/h2ogpt-research-oasst1-llama-65b.gptq` and one can run:
 ```bash
-docker run --gpus all --shm-size 2g -e CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES -e TRANSFORMERS_CACHE="/.cache/" -p $HF_PORT:80 -v $HOME/.cache:/.cache/ -v $HOME/.cache/huggingface/hub/:/data ghcr.io/huggingface/text-generation-inference:latest quantize $MODEL $MODEL.gptq
+docker run --gpus all --shm-size 2g -e CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES -e TRANSFORMERS_CACHE="/.cache/" -p $HF_PORT:80 -v $HOME/.cache:/.cache/ -v $HOME/.cache/huggingface/hub/:/data ghcr.io/huggingface/text-generation-inference:latest  --model-id h2oai/h2ogpt-oasst1-512-12b --max-input-length 2048 --max-total-tokens 4096 --sharded=true --num-shard=2 --trust-remote-code --max-stop-sequences=6
+```
+
+Example local run:
+```bash
+export CUDA_VISIBLE_DEVICES=6,7
+CUDA_HOME=/usr/local/cuda-11.8 pip install auto-gptq
+```
+```python
+from transformers import AutoTokenizer, pipeline, logging
+from auto_gptq import AutoGPTQForCausalLM, BaseQuantizeConfig
+import argparse
+model_name_or_path = "TheBloke/h2ogpt-research-oasst1-llama-65B-GPTQ"
+model_basename = "h2ogpt-research-oasst1-llama-65b-GPTQ-4bit--1g.act.order"
+
+use_triton = False
+
+tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, use_fast=True, unk_token="<unk>",
+                                                    bos_token="<s>",
+                                                    eos_token="</s>")
+
+model = AutoGPTQForCausalLM.from_quantized(model_name_or_path,
+        model_basename=model_basename,
+        use_safetensors=True,
+        trust_remote_code=False,
+        device="cuda:0",
+        use_triton=use_triton,
+        quantize_config=None)
+
+prompt = "Tell me about AI"
+prompt_template=f'''<human>: {prompt}
+<bot>:'''
+
+print("\n\n*** Generate:")
+
+input_ids = tokenizer(prompt_template, return_tensors='pt').input_ids.cuda()
+output = model.generate(inputs=input_ids, temperature=0.7, max_new_tokens=512)
+print(tokenizer.decode(output[0]))
+
+
+# Inference can also be done using transformers' pipeline
+
+# Prevent printing spurious transformers error when using pipeline with AutoGPTQ
+logging.set_verbosity(logging.CRITICAL)
+
+print("*** Pipeline:")
+pipe = pipeline(
+    "text-generation",
+    model=model,
+    tokenizer=tokenizer,
+    max_new_tokens=512,
+    temperature=0.7,
+    top_p=0.95,
+    repetition_penalty=1.15
+)
+
+print(pipe(prompt_template)[0]['generated_text'])
 ```
