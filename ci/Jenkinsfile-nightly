@@ -1,0 +1,34 @@
+
+pipeline {
+    agent {
+        label "linux && docker"
+    }
+
+    options {
+        ansiColor('xterm')
+        timestamps()
+    }
+
+    stages {
+        stage('Init'){
+            steps {
+                script {
+                    def shortHash = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
+                    def commitMsg = sh(returnStdout: true, script: 'git log -1 --pretty=format:"[%an] %s"').trim()
+                    currentBuild.displayName = "${env.BUILD_ID} - [${shortHash}]"
+                    currentBuild.description = "${commitMsg}"
+                }
+            }
+        }
+        stage('Build & Push') {
+            steps {
+                script {
+                    withCredentials([file(credentialsId: "MM_GCR_VORVAN_CREDENTIALS", variable: 'GCR_JSON_KEY')]) {
+                        sh "docker login gcr.io -u _json_key --password-stdin < ${GCR_JSON_KEY}"
+                        sh "make docker_build_runner"
+                    }
+                }
+            }
+        }
+    }
+}
