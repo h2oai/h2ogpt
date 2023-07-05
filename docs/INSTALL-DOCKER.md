@@ -48,7 +48,7 @@ docker run --runtime=nvidia --shm-size=64g -p 7860:7860 \
 
 4. Open `https://localhost:7860` in the browser
 
-### Run h2oGPT using Docker from a nightly build
+### Run h2oGPT using Docker runtime
 1. Make sure Docker & Nvidia Containers are setup correctly by following step 1 in above instructions. Runtime docker images for h2oGPT are stored in the h2oai GCR vorvan container repository.
 
 2. Specify the required model using `HF_MODEL` parameter.
