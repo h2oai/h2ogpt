@@ -1,10 +1,9 @@
 import asyncio
-import collections
 from typing import Any, Dict, List, Optional, OrderedDict, Tuple, ValuesView
 
 import gradio_client  # type: ignore
 
-from h2ogpt_client import _enums
+from h2ogpt_client import _enums, _utils
 
 
 class Client:
@@ -88,36 +87,21 @@ class TextCompletionCreator:
         :param number_returns:
         :param system_pre_context: directly pre-appended without prompt processing
         :param langchain_mode: LangChain mode
-        :return: response from the model
         """
-        parameters = collections.OrderedDict(
-            instruction="",  # empty when chat_mode is False
-            input="",  # only chat_mode is True
-            system_pre_context=system_pre_context,
-            stream_output=False,
-            prompt_type=prompt_type.value,
-            prompt_dict="",  # empty as prompt_type cannot be 'custom'
-            temperature=temperature,
-            top_p=top_p,
-            top_k=top_k,
-            beams=beams,
-            max_output_length=max_output_length,
-            min_output_length=min_output_length,
-            early_stopping=early_stopping,
-            max_time=max_time,
-            repetition_penalty=repetition_penalty,
-            number_returns=number_returns,
-            enable_sampler=enable_sampler,
-            chat_mode=False,
-            prompt=None,  # future prompt
-            input_context_for_instruction=input_context_for_instruction,
-            langchain_mode=langchain_mode.value,
-            langchain_top_k_docs=4,  # number of document chunks; not public
-            langchain_enable_chunk=True,  # whether to chunk documents; not public
-            langchain_chunk_size=512,  # chunk size for document chunking; not public
-            langchain_document_choice=["All"],  # not public
-        )
-        return TextCompletion(self._client, parameters)
+        params = _utils.to_h2ogpt_params(locals().copy())
+        params["instruction"] = ""  # empty when chat_mode is False
+        params["iinput"] = ""  # only chat_mode is True
+        params["stream_output"] = False
+        params["prompt_type"] = prompt_type.value  # convert to serializable type
+        params["prompt_dict"] = ""  # empty as prompt_type cannot be 'custom'
+        params["chat"] = False
+        params["instruction_nochat"] = None  # future prompt
+        params["langchain_mode"] = langchain_mode.value  # convert to serializable type
+        params["top_k_docs"] = 4  # langchain: number of document chunks
+        params["chunk"] = True  # langchain: whether to chunk documents
+        params["chunk_size"] = 512  # langchain: chunk size for document chunking
+        params["document_choice"] = [_enums.DocumentChoices.All_Relevant.name]
+        return TextCompletion(self._client, params)
 
 
 class TextCompletion:
@@ -130,7 +114,7 @@ class TextCompletion:
         self._parameters = parameters
 
     def _get_parameters(self, prompt: str) -> ValuesView:
-        self._parameters["prompt"] = prompt
+        self._parameters["instruction_nochat"] = prompt
         return self._parameters.values()
 
     async def complete(self, prompt: str) -> str:
@@ -159,6 +143,20 @@ class TextCompletion:
 
 class ChatCompletionCreator:
     """Chat completion."""
+
+    def _create_completion(self, parameters: OrderedDict) -> "ChatCompletion":
+        parameters["instruction"] = None  # future prompts
+        parameters["iinput"] = ""  # ??
+        parameters["stream_output"] = False
+        parameters["prompt_dict"] = ""  # empty as prompt_type cannot be 'custom'
+        parameters["chat"] = True
+        parameters["instruction_nochat"] = ""  # empty when chat_mode is True
+        parameters["top_k_docs"] = 4  # langchain: number of document chunks
+        parameters["chunk"] = True  # langchain: whether to chunk documents
+        parameters["chunk_size"] = 512  # langchain: chunk size for document chunking
+        parameters["document_choice"] = [_enums.DocumentChoices.All_Relevant.name]
+        parameters["chatbot"] = []  # chat history
+        return ChatCompletion(self._client, parameters)
 
     def __init__(self, client: Client):
         self._client = client
@@ -204,37 +202,22 @@ class ChatCompletionCreator:
         :param number_returns:
         :param system_pre_context: directly pre-appended without prompt processing
         :param langchain_mode: LangChain mode
-        :return: a chat context with given parameters
         """
-        kwargs = collections.OrderedDict(
-            instruction=None,  # future prompts
-            input="",  # ??
-            system_pre_context=system_pre_context,
-            stream_output=False,
-            prompt_type=prompt_type.value,
-            prompt_dict="",  # empty as prompt_type cannot be 'custom'
-            temperature=temperature,
-            top_p=top_p,
-            top_k=top_k,
-            beams=beams,
-            max_output_length=max_output_length,
-            min_output_length=min_output_length,
-            early_stopping=early_stopping,
-            max_time=max_time,
-            repetition_penalty=repetition_penalty,
-            number_returns=number_returns,
-            enable_sampler=enable_sampler,
-            chat_mode=True,
-            instruction_nochat="",  # empty when chat_mode is True
-            input_context_for_instruction=input_context_for_instruction,
-            langchain_mode=langchain_mode.value,
-            langchain_top_k_docs=4,  # number of document chunks; not public
-            langchain_enable_chunk=True,  # whether to chunk documents; not public
-            langchain_chunk_size=512,  # chunk size for document chunking; not public
-            langchain_document_choice=["All"],  # not public
-            chatbot=[],  # chat history
-        )
-        return ChatCompletion(self._client, kwargs)
+        params = _utils.to_h2ogpt_params(locals().copy())
+        params["instruction"] = None  # future prompts
+        params["iinput"] = ""  # ??
+        params["stream_output"] = False
+        params["prompt_type"] = prompt_type.value  # convert to serializable type
+        params["prompt_dict"] = ""  # empty as prompt_type cannot be 'custom'
+        params["chat"] = True
+        params["instruction_nochat"] = ""  # empty when chat_mode is True
+        params["langchain_mode"] = langchain_mode.value  # convert to serializable type
+        params["top_k_docs"] = 4  # langchain: number of document chunks
+        params["chunk"] = True  # langchain: whether to chunk documents
+        params["chunk_size"] = 512  # langchain: chunk size for document chunking
+        params["document_choice"] = [_enums.DocumentChoices.All_Relevant.name]
+        params["chatbot"] = []  # chat history
+        return ChatCompletion(self._client, params)
 
 
 class ChatCompletion:
@@ -242,17 +225,17 @@ class ChatCompletion:
 
     _API_NAME = "/instruction_bot"
 
-    def __init__(self, client: Client, kwargs: OrderedDict[str, Any]):
+    def __init__(self, client: Client, parameters: OrderedDict[str, Any]):
         self._client = client
-        self._kwargs = kwargs
+        self._parameters = parameters
 
     def _get_parameters(self, prompt: str) -> ValuesView:
-        self._kwargs["instruction"] = prompt
-        self._kwargs["chatbot"] += [[prompt, None]]
-        return self._kwargs.values()
+        self._parameters["instruction"] = prompt
+        self._parameters["chatbot"] += [[prompt, None]]
+        return self._parameters.values()
 
     def _get_reply(self, response: Tuple[List[List[str]]]) -> Dict[str, str]:
-        self._kwargs["chatbot"][-1][1] = response[0][-1][1]
+        self._parameters["chatbot"][-1][1] = response[0][-1][1]
         return {"user": response[0][-1][0], "gpt": response[0][-1][1]}
 
     async def chat(self, prompt: str) -> Dict[str, str]:
@@ -281,4 +264,4 @@ class ChatCompletion:
 
     def chat_history(self) -> List[Dict[str, str]]:
         """Returns the full chat history."""
-        return [{"user": i[0], "gpt": i[1]} for i in self._kwargs["chatbot"]]
+        return [{"user": i[0], "gpt": i[1]} for i in self._parameters["chatbot"]]
