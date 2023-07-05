@@ -31,10 +31,19 @@ def server_url():
     return server_url
 
 
+@pytest.fixture(scope="module")
+def eval_func_param_names():
+    generate = _import_module_from_h2ogpt("generate.py")
+    return generate.eval_func_param_names
+
+
 def _import_module_from_h2ogpt(file_name: str) -> ModuleType:
     h2ogpt_dir = Path(__file__).parent.parent.parent
     file_path = (h2ogpt_dir / file_name).absolute()
     module_name = file_path.stem
+
+    if module_name in sys.modules:
+        return sys.modules[module_name]
 
     LOGGER.info(f"Loading module '{module_name}' from '{file_path}'.")
     spec = importlib.util.spec_from_file_location(module_name, file_path)
