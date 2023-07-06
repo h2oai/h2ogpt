@@ -1743,6 +1743,9 @@ def go_gradio(**kwargs):
 
         def load_model(model_name, lora_weights, server_name, model_state_old, prompt_type_old, load_8bit,
                        infer_devices, gpu_id):
+            # ensure no API calls reach here
+            if is_public:
+                raise RuntimeError("Illegal access for %s" % model_name)
             # ensure old model removed from GPU memory
             if kwargs['debug']:
                 print("Pre-switch pre-del GPU memory: %s" % get_torch_allocated(), flush=True)
