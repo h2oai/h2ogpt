@@ -3,7 +3,8 @@ from typing import Any, Dict, List, Optional, OrderedDict, Tuple, ValuesView
 
 import gradio_client  # type: ignore
 
-from h2ogpt_client import _enums, _utils
+from h2ogpt_client import _utils
+from h2ogpt_client._enums import DocumentChoices, LangChainMode, PromptType
 
 
 class Client:
@@ -48,7 +49,7 @@ class TextCompletionCreator:
 
     def create(
         self,
-        prompt_type: _enums.PromptType = _enums.PromptType.plain,
+        prompt_type: PromptType = PromptType.plain,
         input_context_for_instruction: str = "",
         enable_sampler=False,
         temperature: float = 1.0,
@@ -62,7 +63,7 @@ class TextCompletionCreator:
         repetition_penalty: float = 1.07,
         number_returns: int = 1,
         system_pre_context: str = "",
-        langchain_mode: _enums.LangChainMode = _enums.LangChainMode.DISABLED,
+        langchain_mode: LangChainMode = LangChainMode.DISABLED,
     ) -> "TextCompletion":
         """
         Creates a new text completion.
@@ -100,7 +101,7 @@ class TextCompletionCreator:
         params["top_k_docs"] = 4  # langchain: number of document chunks
         params["chunk"] = True  # langchain: whether to chunk documents
         params["chunk_size"] = 512  # langchain: chunk size for document chunking
-        params["document_choice"] = [_enums.DocumentChoices.All_Relevant.name]
+        params["document_choice"] = [DocumentChoices.All_Relevant.name]
         return TextCompletion(self._client, params)
 
 
@@ -154,7 +155,7 @@ class ChatCompletionCreator:
         parameters["top_k_docs"] = 4  # langchain: number of document chunks
         parameters["chunk"] = True  # langchain: whether to chunk documents
         parameters["chunk_size"] = 512  # langchain: chunk size for document chunking
-        parameters["document_choice"] = [_enums.DocumentChoices.All_Relevant.name]
+        parameters["document_choice"] = [DocumentChoices.All_Relevant.name]
         parameters["chatbot"] = []  # chat history
         return ChatCompletion(self._client, parameters)
 
@@ -163,7 +164,7 @@ class ChatCompletionCreator:
 
     def create(
         self,
-        prompt_type: _enums.PromptType = _enums.PromptType.plain,
+        prompt_type: PromptType = PromptType.plain,
         input_context_for_instruction: str = "",
         enable_sampler=False,
         temperature: float = 1.0,
@@ -177,7 +178,7 @@ class ChatCompletionCreator:
         repetition_penalty: float = 1.07,
         number_returns: int = 1,
         system_pre_context: str = "",
-        langchain_mode: _enums.LangChainMode = _enums.LangChainMode.DISABLED,
+        langchain_mode: LangChainMode = LangChainMode.DISABLED,
     ) -> "ChatCompletion":
         """
         Creates a new chat completion.
@@ -215,7 +216,7 @@ class ChatCompletionCreator:
         params["top_k_docs"] = 4  # langchain: number of document chunks
         params["chunk"] = True  # langchain: whether to chunk documents
         params["chunk_size"] = 512  # langchain: chunk size for document chunking
-        params["document_choice"] = [_enums.DocumentChoices.All_Relevant.name]
+        params["document_choice"] = [DocumentChoices.All_Relevant.name]
         params["chatbot"] = []  # chat history
         return ChatCompletion(self._client, params)
 
