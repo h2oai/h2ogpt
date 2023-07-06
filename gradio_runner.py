@@ -1147,11 +1147,13 @@ def go_gradio(**kwargs):
             else:
                 return 2000
 
-        def prep_bot(*args, retry=False):
+        def prep_bot(*args, retry=False, which_model=0):
             """
 
             :param args:
             :param retry:
+            :param which_model: identifies which model if doing model_lock
+                 API only called for which_model=0, default for inputs_list, but rest should ignore inputs_list
             :return: last element is True if should run bot, False if should just yield history
             """
             # don't deepcopy, can contain model itself
@@ -1185,14 +1187,14 @@ def go_gradio(**kwargs):
                 return history, None, None, None
 
             # shouldn't have to specify in API prompt_type if CLI launched model, so prefer global CLI one if have it
-            if not prompt_type1:
+            if not prompt_type1 or which_model != 0:
                 prompt_type1 = kwargs.get('prompt_type', prompt_type1)
                 # prefer model specific prompt type instead of global one
                 prompt_type1 = model_state1.get('prompt_type', prompt_type1)
                 # apply back to args_list for evaluate()
                 args_list[eval_func_param_names.index('prompt_type')] = prompt_type1
 
-            if not prompt_dict1:
+            if not prompt_dict1 or which_model != 0:
                 prompt_dict1 = kwargs.get('prompt_dict', prompt_dict1)
                 prompt_dict1 = model_state1.get('prompt_dict', prompt_dict1)
                 args_list[eval_func_param_names.index('prompt_dict')] = prompt_dict1
@@ -1282,7 +1284,7 @@ def go_gradio(**kwargs):
             my_db_state1 = None  # will be filled below by some bot
             try:
                 gen_list = []
-                for chatbot1, model_state1 in zip(chatbots, model_states1):
+                for chatboti, (chatbot1, model_state1) in enumerate(zip(chatbots, model_states1)):
                     args_list1 = args_list0.copy()
                     args_list1.insert(-1, model_state1)  # insert at -1 so is at -2
                     # if at start, have None in response still, replace with '' so client etc. acts like normal
@@ -1294,7 +1296,8 @@ def go_gradio(**kwargs):
                     # so consistent with prep_bot()
                     # with model_state1 at -3, my_db_state1 at -2, and history(chatbot) at -1
                     # langchain_mode1 and my_db_state1 should be same for every bot
-                    history, fun1, langchain_mode1, my_db_state1 = prep_bot(*tuple(args_list1), retry=retry)
+                    history, fun1, langchain_mode1, my_db_state1 = prep_bot(*tuple(args_list1), retry=retry,
+                                                                            which_model=chatboti)
                     gen1 = get_response(fun1, history)
                     if stream_output1:
                         gen1 = TimeoutIterator(gen1, timeout=0.01, sentinel=None, raise_on_exception=False)
