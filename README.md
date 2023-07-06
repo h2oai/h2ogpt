@@ -138,7 +138,7 @@ UI using GPU with at least 24GB with streaming:
 ```bash
 python generate.py --base_model=h2oai/h2ogpt-oasst1-512-12b --load_8bit=True  --score_model=None --langchain_mode='UserData' --user_path=user_path
 ```
-UI using CPU (streaming not yet supported in UI):
+UI using CPU
 ```bash
 python generate.py --base_model='llama' --prompt_type=wizard2 --score_model=None --langchain_mode='UserData' --user_path=user_path
 ```
