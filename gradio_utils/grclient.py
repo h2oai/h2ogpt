@@ -1,7 +1,5 @@
-import concurrent.futures
-import time
 import traceback
-from typing import Any, Callable
+from typing import Callable
 import os
 
 from gradio_client.client import Job
