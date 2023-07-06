@@ -67,7 +67,7 @@ def get_client(serialize=True):
 def get_args(prompt, prompt_type, chat=False, stream_output=False,
              max_new_tokens=50,
              top_k_docs=3,
-             langchain_mode='Disabled', prompt_dict=''):
+             langchain_mode='Disabled', prompt_dict=None):
     from collections import OrderedDict
     kwargs = OrderedDict(instruction=prompt if chat else '',  # only for chat=True
                          iinput='',  # only for chat=True

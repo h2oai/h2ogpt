@@ -1,3 +1,4 @@
+import ast
 import copy
 import functools
 import inspect
@@ -57,7 +58,7 @@ from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt
 from utils import get_githash, flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping, get_short_name, get_url, makedirs, get_kwargs, remove, system_info, ping_gpu
 from generate import get_model, languages_covered, evaluate, eval_func_param_names, score_qa, langchain_modes, \
-    inputs_kwargs_list, scratch_base_dir, evaluate_from_str, no_default_param_names, \
+    inputs_kwargs_list, scratch_base_dir, no_default_param_names, \
     eval_func_param_names_defaults, get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -213,7 +214,28 @@ def go_gradio(**kwargs):
         'base_model') else no_model_msg
     output_label0_model2 = no_model_msg
 
+    def update_prompt(prompt_type1, prompt_dict1, model_state1, which_model=0):
+        if not prompt_type1 or which_model != 0:
+            # keep prompt_type and prompt_dict in sync if possible
+            prompt_type1 = kwargs.get('prompt_type', prompt_type1)
+            prompt_dict1 = kwargs.get('prompt_dict', prompt_dict1)
+            # prefer model specific prompt type instead of global one
+            if not prompt_type1 or which_model != 0:
+                prompt_type1 = model_state1.get('prompt_type', prompt_type1)
+                prompt_dict1 = model_state1.get('prompt_dict', prompt_dict1)
+
+        if not prompt_dict1 or which_model != 0:
+            # if still not defined, try to get
+            prompt_dict1 = kwargs.get('prompt_dict', prompt_dict1)
+            if not prompt_dict1 or which_model != 0:
+                prompt_dict1 = model_state1.get('prompt_dict', prompt_dict1)
+        return prompt_type1, prompt_dict1
+
     default_kwargs = {k: kwargs[k] for k in eval_func_param_names_defaults}
+    # ensure prompt_type consistent with prep_bot(), so nochat API works same way
+    default_kwargs['prompt_type'], default_kwargs['prompt_dict'] = \
+        update_prompt(default_kwargs['prompt_type'], default_kwargs['prompt_dict'],
+                      model_state1=model_state0, which_model=0)
     for k in no_default_param_names:
         default_kwargs[k] = ''
 
@@ -920,19 +942,52 @@ def go_gradio(**kwargs):
         for k in inputs_kwargs_list:
             assert k in kwargs_evaluate, "Missing %s" % k
 
-        def evaluate_gradio(*args1, **kwargs1):
-            for res_dict in evaluate(*args1, **kwargs1):
-                if kwargs['langchain_mode'] == 'Disabled':
+        def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, **kwargs1):
+            args_list = list(args1)
+            if str_api:
+                user_kwargs = args_list[2]
+                assert isinstance(user_kwargs, str)
+                user_kwargs = ast.literal_eval(user_kwargs)
+            else:
+                user_kwargs = {k: v for k, v in zip(eval_func_param_names, args_list[2:])}
+            # only used for submit_nochat_api
+            user_kwargs['chat'] = False
+            if 'stream_output' not in user_kwargs:
+                user_kwargs['stream_output'] = False
+            if 'langchain_mode' not in user_kwargs:
+                # if user doesn't specify, then assume disabled, not use default
+                user_kwargs['langchain_mode'] = 'Disabled'
+
+            set1 = set(list(default_kwargs1.keys()))
+            set2 = set(eval_func_param_names)
+            assert set1 == set2, "Set diff: %s %s: %s" % (set1, set2, set1.symmetric_difference(set2))
+            # correct ordering.  Note some things may not be in default_kwargs, so can't be default of user_kwargs.get()
+            model_state1 = args_list[0]
+            my_db_state1 = args_list[1]
+            args_list = [user_kwargs[k] if k in user_kwargs and user_kwargs[k] is not None else default_kwargs1[k] for k in eval_func_param_names]
+            assert len(args_list) == len(eval_func_param_names)
+            args_list = [model_state1, my_db_state1] + args_list
+
+            for res_dict in evaluate(*tuple(args_list), **kwargs1):
+                if str_api:
+                    # full return of dict
+                    yield res_dict
+                elif kwargs['langchain_mode'] == 'Disabled':
                     yield fix_text_for_gradio(res_dict['response'])
                 else:
                     yield '<br>' + fix_text_for_gradio(res_dict['response'])
 
-        fun = partial(evaluate_gradio,
+        fun = partial(evaluate_nochat,
+                      default_kwargs1=default_kwargs,
+                      str_api=False,
                       **kwargs_evaluate)
-        fun2 = partial(evaluate_gradio,
+        fun2 = partial(evaluate_nochat,
+                       default_kwargs1=default_kwargs,
+                       str_api=False,
                        **kwargs_evaluate)
-        fun_with_dict_str = partial(evaluate_from_str,
-                                    default_kwargs=default_kwargs,
+        fun_with_dict_str = partial(evaluate_nochat,
+                                    default_kwargs1=default_kwargs,
+                                    str_api=True,
                                     **kwargs_evaluate
                                     )
 
@@ -1073,7 +1128,6 @@ def go_gradio(**kwargs):
             :param args:
             :param undo:
             :param sanitize_user_prompt:
-            :param model2:
             :return:
             """
             args_list = list(args)
@@ -1187,17 +1241,11 @@ def go_gradio(**kwargs):
                 return history, None, None, None
 
             # shouldn't have to specify in API prompt_type if CLI launched model, so prefer global CLI one if have it
-            if not prompt_type1 or which_model != 0:
-                prompt_type1 = kwargs.get('prompt_type', prompt_type1)
-                # prefer model specific prompt type instead of global one
-                prompt_type1 = model_state1.get('prompt_type', prompt_type1)
-                # apply back to args_list for evaluate()
-                args_list[eval_func_param_names.index('prompt_type')] = prompt_type1
-
-            if not prompt_dict1 or which_model != 0:
-                prompt_dict1 = kwargs.get('prompt_dict', prompt_dict1)
-                prompt_dict1 = model_state1.get('prompt_dict', prompt_dict1)
-                args_list[eval_func_param_names.index('prompt_dict')] = prompt_dict1
+            prompt_type1, prompt_dict1 = update_prompt(prompt_type1, prompt_dict1, model_state1,
+                                                       which_model=which_model)
+            # apply back to args_list for evaluate()
+            args_list[eval_func_param_names.index('prompt_type')] = prompt_type1
+            args_list[eval_func_param_names.index('prompt_dict')] = prompt_dict1
 
             chat1 = args_list[eval_func_param_names.index('chat')]
             model_max_length1 = get_model_max_length(model_state1)
@@ -1309,6 +1357,7 @@ def go_gradio(**kwargs):
                 tgen0 = time.time()
                 for res1 in itertools.zip_longest(*gen_list):
                     if time.time() - tgen0 > max_time1:
+                        print("Took too long: %s" % max_time1, flush=True)
                         break
 
                     bots = [x[0] if x is not None and not isinstance(x, BaseException) else y for x, y in
