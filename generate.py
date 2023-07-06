@@ -1461,7 +1461,7 @@ def evaluate(
 
     # in some cases, like lean nochat API, don't want to force sending prompt_type, allow default choice
     model_lower = base_model.lower()
-    if not prompt_type and model_lower in inv_prompt_type_to_model_lower:
+    if not prompt_type and model_lower in inv_prompt_type_to_model_lower and prompt_type != 'custom':
         prompt_type = inv_prompt_type_to_model_lower[model_lower]
         if verbose:
             print("Auto-selecting prompt_type=%s for %s" % (prompt_type, model_lower), flush=True)

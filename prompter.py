@@ -120,7 +120,7 @@ def get_prompt(prompt_type, prompt_dict, chat, context, reduced, making_context,
     elif prompt_type in [PromptType.custom.value, str(PromptType.custom.value),
                          PromptType.custom.name]:
         promptA = prompt_dict.get('promptA', '')
-        promptB = prompt_dict('promptB', '')
+        promptB = prompt_dict.get('promptB', '')
         PreInstruct = prompt_dict.get('PreInstruct', '')
         PreInput = prompt_dict.get('PreInput', '')
         PreResponse = prompt_dict.get('PreResponse', '')

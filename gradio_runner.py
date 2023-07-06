@@ -1160,6 +1160,8 @@ def go_gradio(**kwargs):
             my_db_state1 = args_list[-2]
             history = args_list[-1]
             langchain_mode1 = args_list[eval_func_param_names.index('langchain_mode')]
+            prompt_type1 = args_list[eval_func_param_names.index('prompt_type')]
+            prompt_dict1 = args_list[eval_func_param_names.index('prompt_dict')]
 
             if model_state1['model'] is None or model_state1['model'] == no_model_str:
                 return history, None, None, None
@@ -1183,14 +1185,17 @@ def go_gradio(**kwargs):
                 return history, None, None, None
 
             # shouldn't have to specify in API prompt_type if CLI launched model, so prefer global CLI one if have it
-            prompt_type1 = kwargs.get('prompt_type', args_list[eval_func_param_names.index('prompt_type')])
-            # prefer model specific prompt type instead of global one, and apply back to args_list for evaluate()
-            args_list[eval_func_param_names.index('prompt_type')] = prompt_type1 = \
-                model_state1.get('prompt_type', prompt_type1)
+            if not prompt_type1:
+                prompt_type1 = kwargs.get('prompt_type', prompt_type1)
+                # prefer model specific prompt type instead of global one
+                prompt_type1 = model_state1.get('prompt_type', prompt_type1)
+                # apply back to args_list for evaluate()
+                args_list[eval_func_param_names.index('prompt_type')] = prompt_type1
 
-            prompt_dict1 = kwargs.get('prompt_dict', args_list[eval_func_param_names.index('prompt_dict')])
-            args_list[eval_func_param_names.index('prompt_dict')] = prompt_dict1 = \
-                model_state1.get('prompt_dict', prompt_dict1)
+            if not prompt_dict1:
+                prompt_dict1 = kwargs.get('prompt_dict', prompt_dict1)
+                prompt_dict1 = model_state1.get('prompt_dict', prompt_dict1)
+                args_list[eval_func_param_names.index('prompt_dict')] = prompt_dict1
 
             chat1 = args_list[eval_func_param_names.index('chat')]
             model_max_length1 = get_model_max_length(model_state1)
