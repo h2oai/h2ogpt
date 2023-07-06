@@ -1600,6 +1600,7 @@ def evaluate(
 
             openai.api_key = os.getenv("OPENAI_API_KEY")
             stop_sequences = list(set(prompter.terminate_response + [prompter.PreResponse]))
+            stop_sequences = [x for x in stop_sequences if x]
             # OpenAI will complain if ask for too many new tokens, takes it as min in some sense, wrongly so.
             max_new_tokens_openai = min(max_new_tokens, model_max_length - num_prompt_tokens)
             gen_server_kwargs = dict(temperature=temperature if do_sample else 0,
@@ -1804,6 +1805,7 @@ def evaluate(
                 # prompt must include all human-bot like tokens, already added by prompt
                 # https://github.com/huggingface/text-generation-inference/tree/main/clients/python#types
                 stop_sequences = list(set(prompter.terminate_response + [prompter.PreResponse]))
+                stop_sequences = [x for x in stop_sequences if x]
                 gen_server_kwargs = dict(do_sample=do_sample,
                                          max_new_tokens=max_new_tokens,
                                          # best_of=None,
@@ -2154,7 +2156,7 @@ def get_generate_params(model_lower, chat,
     max_time_defaults = 60 * 3
     max_time = max_time if max_time is not None else max_time_defaults
 
-    if not prompt_type and model_lower in inv_prompt_type_to_model_lower:
+    if not prompt_type and model_lower in inv_prompt_type_to_model_lower and prompt_type != 'custom':
         prompt_type = inv_prompt_type_to_model_lower[model_lower]
         if verbose:
             print("Auto-selecting prompt_type=%s for %s" % (prompt_type, model_lower), flush=True)
@@ -2207,7 +2209,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         else:
             placeholder_instruction = "Give detailed answer for whether Einstein or Newton is smarter."
         placeholder_input = ""
-        if model_lower in inv_prompt_type_to_model_lower:
+        if model_lower in inv_prompt_type_to_model_lower and prompt_type != 'custom':
             prompt_type = inv_prompt_type_to_model_lower[model_lower]
         elif model_lower:
             # default is plain, because might rely upon trust_remote_code to handle prompting
