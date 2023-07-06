@@ -245,6 +245,62 @@ where `...` means any other options one should add like `--base_model` etc.  Thi
 
 See also [Low Memory](docs/FAQ.md#low-memory-mode) for more information about low-memory recommendations.
 
+#### GPU with LLaMa
+
+```bash
+conda install -c "nvidia/label/cuda-12.1.1" cuda-toolkit  # maybe optional
+pip uninstall -y llama-cpp-python
+export LLAMA_CUBLAS=1
+export CMAKE_ARGS=-DLLAMA_CUBLAS=on
+export FORCE_CMAKE=1
+export CUDA_HOME=$HOME/miniconda3/envs/h2ogpt
+CMAKE_ARGS="-DLLAMA_CUBLAS=on" FORCE_CMAKE=1 pip install llama-cpp-python==0.1.68 --no-cache-dir --verbose
+```
+and uncomment `# n_gpu_layers=20` in `.env_gpt4all`.  If see `/usr/bin/nvcc` mentioned in errors, that file needs to be removed as would likely conflict with version installed for conda.  Then run:
+```bash
+python generate.py --base_model='llama' --prompt_type=wizard2 --score_model=None --langchain_mode='UserData' --user_path=user_path
+```
+when loading you should see something like:
+```text
+Using Model llama
+Prep: persist_directory=db_dir_UserData exists, user_path=user_path passed, adding any changed or new documents
+load INSTRUCTOR_Transformer
+max_seq_length  512
+0it [00:00, ?it/s]
+0it [00:00, ?it/s]
+Loaded 0 sources for potentially adding to UserData
+ggml_init_cublas: found 2 CUDA devices:
+  Device 0: NVIDIA GeForce RTX 3090 Ti
+  Device 1: NVIDIA GeForce RTX 2080
+llama.cpp: loading model from WizardLM-7B-uncensored.ggmlv3.q8_0.bin
+llama_model_load_internal: format     = ggjt v3 (latest)
+llama_model_load_internal: n_vocab    = 32001
+llama_model_load_internal: n_ctx      = 1792
+llama_model_load_internal: n_embd     = 4096
+llama_model_load_internal: n_mult     = 256
+llama_model_load_internal: n_head     = 32
+llama_model_load_internal: n_layer    = 32
+llama_model_load_internal: n_rot      = 128
+llama_model_load_internal: ftype      = 7 (mostly Q8_0)
+llama_model_load_internal: n_ff       = 11008
+llama_model_load_internal: model size = 7B
+llama_model_load_internal: ggml ctx size =    0.08 MB
+llama_model_load_internal: using CUDA for GPU acceleration
+ggml_cuda_set_main_device: using device 0 (NVIDIA GeForce RTX 3090 Ti) as main device
+llama_model_load_internal: mem required  = 4518.85 MB (+ 1026.00 MB per state)
+llama_model_load_internal: allocating batch_size x (512 kB + n_ctx x 128 B) = 368 MB VRAM for the scratch buffer
+llama_model_load_internal: offloading 20 repeating layers to GPU
+llama_model_load_internal: offloaded 20/35 layers to GPU
+llama_model_load_internal: total VRAM used: 4470 MB
+llama_new_context_with_model: kv self size  =  896.00 MB
+AVX = 1 | AVX2 = 1 | AVX512 = 0 | AVX512_VBMI = 0 | AVX512_VNNI = 0 | FMA = 1 | NEON = 0 | ARM_FMA = 0 | F16C = 1 | FP16_VA = 0 | WASM_SIMD = 0 | BLAS = 1 | SSE3 = 1 | VSX = 0 | 
+Model {'base_model': 'llama', 'tokenizer_base_model': '', 'lora_weights': '', 'inference_server': '', 'prompt_type': 'wizard2', 'prompt_dict': {'promptA': 'Below is an instruction that describes a task. Write a response that appropriately completes the request.', 'promptB': 'Below is an instruction that describes a task. Write a response that appropriately completes the request.', 'PreInstruct': '\n### Instruction:\n', 'PreInput': None, 'PreResponse': '\n### Response:\n', 'terminate_response': ['\n### Response:\n'], 'chat_sep': '\n', 'chat_turn_sep': '\n', 'humanstr': '\n### Instruction:\n', 'botstr': '\n### Response:\n', 'generates_leading_space': False}}
+Running on local URL:  http://0.0.0.0:7860
+Running on public URL: https://1ccb24d03273a3d085.gradio.live
+```
+and GPU usage when using.  Note that once `llama-cpp-python` is compiled to support cuda, it no longer works for CPU mode,
+so one would have to reinstall it without the above options to recovers CPU mode or have a separate h2oGPT env for CPU mode.
+
 #### MACOS
 
 First install [Rust](https://www.geeksforgeeks.org/how-to-install-rust-in-macos/):
