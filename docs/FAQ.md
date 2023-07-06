@@ -3,7 +3,7 @@
 One can choose any huggingface model, just pass the name after `--base_model=`, but a `prompt_type` is required if we don't already have support.
 E.g. for vicuna models, a typical prompt_type is used and we support that already automatically for specific models,
 but if you pass `--prompt_type=instruct_vicuna` with any other Vicuna model, we'll use it assuming that is the correct prompt type.
-See models that are currently supported in this automatic way, and the same dictionary shows which prompt types are supported: [prompter](prompter.py).
+See models that are currently supported in this automatic way, and the same dictionary shows which prompt types are supported: [prompter](../prompter.py).
 
 ### Low-memory mode
 
@@ -82,7 +82,7 @@ but nothing prevents gradio from working without this.  So a simple firewall blo
 
 ### Isolated LangChain Usage:
 
-See [tests/test_langchain_simple.py](tests/test_langchain_simple.py)
+See [tests/test_langchain_simple.py](../tests/test_langchain_simple.py)
 
 ### ValueError: ...offload....
 
@@ -115,7 +115,7 @@ etc.
 
 For GPT4All based models, require AVX2, unless one recompiles that project on your system.  Until then, use llama.cpp models instead.
 
-So we recommend downloading models from [TheBloke](https://huggingface.co/TheBloke) that are version 3 quantized ggml files to work with latest llama.cpp.  See main [README.md](README.md#cpu).
+So we recommend downloading models from [TheBloke](https://huggingface.co/TheBloke) that are version 3 quantized ggml files to work with latest llama.cpp.  See main [README.md](README_CPU.md).
 
 The below example is for base LLaMa model, not instruct-tuned, so is not recommended for chatting.  It just gives an example of how to quantize if you are an expert.
 

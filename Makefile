@@ -4,6 +4,7 @@ PACKAGE_VERSION       := `cat version.txt | tr -d '\n'`
 BUILD_TAG_FILES       := requirements.txt Dockerfile `ls reqs_optional/*.txt | sort`
 BUILD_TAG             := $(shell md5sum $(BUILD_TAG_FILES) 2> /dev/null | sort | md5sum | cut -d' ' -f1)
 DOCKER_TEST_IMAGE     := harbor.h2o.ai/h2ogpt/test-image:$(BUILD_TAG)
+DOCKER_RUN_IMAGE      := $(DOCKER_TEST_IMAGE)-runtime
 PYTHON_BINARY         ?= `which python`
 DEFAULT_MARKERS       ?= "not need_tokens and not need_gpu"
 
@@ -44,6 +45,19 @@ else
 	DOCKER_BUILDKIT=1 docker build -t $(DOCKER_TEST_IMAGE) -f Dockerfile .
 	docker push $(DOCKER_TEST_IMAGE)
 endif
+
+.PHONY: Dockerfile-runner.dockerfile
+
+Dockerfile-runner.dockerfile: Dockerfile-runner.in
+	cat $< \
+	| sed 's|BASE_DOCKER_IMAGE_SUBST|$(DOCKER_TEST_IMAGE)|g' \
+	> $@
+
+docker_build_runner: docker_build Dockerfile-runner.dockerfile
+	docker pull $(DOCKER_TEST_IMAGE)
+	DOCKER_BUILDKIT=1 docker build -t $(DOCKER_RUN_IMAGE) -f Dockerfile-runner.dockerfile .
+	docker push $(DOCKER_RUN_IMAGE)
+	docker tag $(DOCKER_RUN_IMAGE) gcr.io/vorvan/h2oai/h2ogpt-runtime:$(BUILD_TAG)
 
 print-%:
 	@echo $($*)
