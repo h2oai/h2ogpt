@@ -298,7 +298,8 @@ Model {'base_model': 'llama', 'tokenizer_base_model': '', 'lora_weights': '', 'i
 Running on local URL:  http://0.0.0.0:7860
 Running on public URL: https://1ccb24d03273a3d085.gradio.live
 ```
-and GPU usage when using.
+and GPU usage when using.  Note that once `llama-cpp-python` is compiled to support cuda, it no longer works for CPU mode,
+so one would have to reinstall it without the above options to recovers CPU mode or have a separate h2oGPT env for CPU mode.
 
 #### MACOS
 
