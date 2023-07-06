@@ -225,8 +225,6 @@ For no langchain support (still uses LangChain package as model wrapper), run as
 python generate.py --base_model='llama' --prompt_type=wizard2 --score_model=None
 ```
 
-No streaming is currently supported for these CPU models in UI, but that will be fixed soon.
-
 When using `llama.cpp` based CPU models, for computers with low system RAM or slow CPUs, we recommend adding to `.env_gpt4all`:
 ```.env_gpt4all
 use_mlock=False
