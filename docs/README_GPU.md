@@ -62,7 +62,7 @@ export FORCE_CMAKE=1
 export CUDA_HOME=$HOME/miniconda3/envs/h2ogpt
 CMAKE_ARGS="-DLLAMA_CUBLAS=on" FORCE_CMAKE=1 pip install llama-cpp-python==0.1.68 --no-cache-dir --verbose
 ```
-and uncomment `# n_gpu_layers=20` in `.env_gpt4all`.  If one sees `/usr/bin/nvcc` mentioned in errors, that file needs to be removed as would likely conflict with version installed for conda.  Then run:
+and uncomment `# n_gpu_layers=20` in `.env_gpt4all`, one can try also `40` instead of `20`.  If one sees `/usr/bin/nvcc` mentioned in errors, that file needs to be removed as would likely conflict with version installed for conda.  Then run:
 ```bash
 python generate.py --base_model='llama' --prompt_type=wizard2 --score_model=None --langchain_mode='UserData' --user_path=user_path
 ```
