@@ -16,6 +16,7 @@ _generate_sources:
 .PHONY: clean
 clean:
 	rm -rf dist
+	rm "$(PACKAGE_DIR)/_enums.py"
 
 .PHONY: clean_deep
 clean_deep: clean
@@ -42,5 +43,5 @@ test: _generate_sources
 	$(POETRY_BIN) run pytest -r=A
 
 .PHONY: build
-build:
+build: _generate_sources
 	$(POETRY_BIN) build
