@@ -8,14 +8,11 @@ A Python thin-client for h2oGPT.
 :information_source: [Poetry](https://python-poetry.org) is used as the build tool.
 
 ```bash
-conda create -n h2ogpt_client -y
-conda activate h2ogpt_client
+conda create -n h2ogpt_client_build -y
+conda activate h2ogpt_client_build
 conda install python=3.10 -y
 ```
 
-:warning: If you already have an activated virtual Python environment then Poetry will use that rather than creating a new one.
-So executing the following command where the h2oGPT Python environment is activated will result in installation of dev, test, and runtime dependencies of the Client into the h2oGPT Python environment.
-We recommend maintaining a separate Python environment for the Client.
 ```shell
 make -C client setup
 ```
@@ -30,6 +27,14 @@ pip install client/dist/h2ogpt_client-*-py3-none-any.whl
 ```
 
 ## Usage
+
+Make environment or use some existing environment:
+```bash
+conda create -n h2ogpt_client -y
+conda activate h2ogpt_client
+conda install python=3.10 -y
+```
+
 ```python
 from h2ogpt_client import Client
 
@@ -51,16 +56,19 @@ chat_history = chat_completion.chat_history()
 ## Development Guide
 
 ### Test
-### Test with h2oGPT
+
+In an h2oGPT environment with the client installed, can run tests that test client and server.
+
+### Test with h2oGPT env
 1. Install test dependencies of the Client into the h2oGPT Python environment.
 ```shell
-source venv/bin/activate
 make -C client setup_test
 ```
 2. Run the tests with h2oGPT.
 ```shell
 pytest client/tests/
 ```
+
 #### Test with an existing h2oGPT server
 If you already have a running h2oGPT server, then set the `H2OGPT_SERVER` environment variable to use it for testing.
 ```shell
