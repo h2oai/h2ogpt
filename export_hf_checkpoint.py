@@ -1,11 +1,11 @@
 import os
 import json
 import shutil
+import subprocess
 
 import torch
 from peft import PeftModel
 from transformers import PreTrainedModel
-from loaders import get_loaders
 
 
 def do_export():
@@ -29,6 +29,7 @@ def do_export():
     llama_type = "llama" in BASE_MODEL
     as_pytorch = False  # False -> HF
 
+    from loaders import get_loaders
     model_loader, tokenizer_loader = get_loaders(model_name=BASE_MODEL, reward_type=False, llama_type=llama_type)
 
     tokenizer = tokenizer_loader.from_pretrained(
@@ -205,27 +206,46 @@ def do_export():
 def do_copy(OUTPUT_NAME):
     dest_file = os.path.join(OUTPUT_NAME, "h2oai_pipeline.py")
     shutil.copyfile("h2oai_pipeline.py", dest_file)
+    os.system("""sed -i 's/from enums.*//g' %s""" % dest_file)
     os.system("""sed -i 's/from stopping.*//g' %s""" % dest_file)
     os.system("""sed -i 's/from prompter.*//g' %s""" % dest_file)
-    os.system("""cat %s|grep -v "from prompter import PromptType" >> %s""" % ('stopping.py', dest_file))
     os.system("""cat %s|grep -v "from enums import PromptType" >> %s""" % ('enums.py', dest_file))
-    os.system("""cat %s >> %s""" % ('prompter.py', dest_file))
+    os.system("""cat %s|grep -v "from enums import PromptType" >> %s""" % ('prompter.py', dest_file))
+    os.system("""cat %s|grep -v "from enums import PromptType" >> %s""" % ('stopping.py', dest_file))
+
+
+TEST_OUTPUT_NAME = "test_output"
 
 
 def test_copy():
-    OUTPUT_NAME = "test_output"
-    if os.path.isdir(OUTPUT_NAME):
-        shutil.rmtree(OUTPUT_NAME)
-    os.makedirs(OUTPUT_NAME, exist_ok=False)
-    do_copy(OUTPUT_NAME)
+    if os.path.isdir(TEST_OUTPUT_NAME):
+        shutil.rmtree(TEST_OUTPUT_NAME)
+    os.makedirs(TEST_OUTPUT_NAME, exist_ok=False)
+    do_copy(TEST_OUTPUT_NAME)
+    shutil.copy('export_hf_checkpoint.py', TEST_OUTPUT_NAME)
+    os.environ['DO_COPY_TEST'] = '1'
+    os.chdir(TEST_OUTPUT_NAME)
+    output = subprocess.check_output(['python', 'export_hf_checkpoint.py'])
+    print(output)
+
+
+def inner_test_copy():
+    """
+    pytest -s -v export_hf_checkpoint.py::test_copy
+    :return:
+    """
     # test imports
-    from test_output.h2oai_pipeline import get_stopping, get_prompt, H2OTextGenerationPipeline
+    # below supposed to look bad in pycharm, don't fix!
+    from h2oai_pipeline import get_stopping, get_prompt, H2OTextGenerationPipeline
     assert get_stopping
     assert get_prompt
     assert H2OTextGenerationPipeline
 
 
 if __name__ == '__main__':
-    do_export()
+    if os.getenv('DO_COPY_TEST'):
+        inner_test_copy()
+    else:
+        do_export()
     # uncomment for raw isolated test, but test is done every time for each export now
     # test_copy()

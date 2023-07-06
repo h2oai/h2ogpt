@@ -1,7 +1,7 @@
 import torch
 from transformers import StoppingCriteria, StoppingCriteriaList
 
-from prompter import PromptType
+from enums import PromptType
 
 
 class StoppingCriteriaSub(StoppingCriteria):
