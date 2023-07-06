@@ -38,4 +38,4 @@ git commit -m "Update with h2oGPT hash ${h2ogpt_hash}"
 # ensure write token used and login with git control: huggingface-cli login --token <HUGGINGFACE_API_TOKEN> --add-to-git-credential
 git push
 
-echo "Also change sdk_version: x.xx.xx in README.md in space"
+echo "WARNING: Also change sdk_version: x.xx.xx in README.md in space"
