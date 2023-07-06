@@ -4,7 +4,7 @@ version = "0.1.0"
 description = ""
 authors = []
 readme = "README.md"
-packages = [{include = "h2ogpt_client"}]
+include = ["h2ogpt_client/*.py"]
 
 [tool.poetry.dependencies]
 python = "^3.8"
