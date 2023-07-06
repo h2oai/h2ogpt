@@ -21,6 +21,7 @@ Turn ★ into ⭐ (top-right corner) if you like the project!
    * [TLDR Install & Run](#tldr)
    * [GPU (CUDA)](#gpu-cuda)
    * [CPU](#cpu)
+   * [GPU LLaMa.cpp](#gpu-with-llama)
    * [MACOS](#macos)
    * [Windows 10/11](#windows-1011)
    * [CLI chat](#cli-chat)
