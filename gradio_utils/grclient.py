@@ -61,8 +61,8 @@ class GradioClient(Client):
         result_callbacks: Callable | list[Callable] | None = None,
     ) -> Job:
         # Note predict calls submit
-        self.refresh_client_if_should()
         try:
+            self.refresh_client_if_should()
             job = super().submit(*args, api_name=api_name, fn_index=fn_index)
         except Exception as e:
             print("Hit e=%s" % str(e), flush=True)
