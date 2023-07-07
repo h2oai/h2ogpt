@@ -968,14 +968,18 @@ def go_gradio(**kwargs):
             assert len(args_list) == len(eval_func_param_names)
             args_list = [model_state1, my_db_state1] + args_list
 
-            for res_dict in evaluate(*tuple(args_list), **kwargs1):
-                if str_api:
-                    # full return of dict
-                    yield res_dict
-                elif kwargs['langchain_mode'] == 'Disabled':
-                    yield fix_text_for_gradio(res_dict['response'])
-                else:
-                    yield '<br>' + fix_text_for_gradio(res_dict['response'])
+            try:
+                for res_dict in evaluate(*tuple(args_list), **kwargs1):
+                    if str_api:
+                        # full return of dict
+                        yield res_dict
+                    elif kwargs['langchain_mode'] == 'Disabled':
+                        yield fix_text_for_gradio(res_dict['response'])
+                    else:
+                        yield '<br>' + fix_text_for_gradio(res_dict['response'])
+            finally:
+                clear_torch_cache()
+                clear_embeddings(user_kwargs['langchain_mode'], my_db_state1)
 
         fun = partial(evaluate_nochat,
                       default_kwargs1=default_kwargs,
@@ -1319,6 +1323,7 @@ def go_gradio(**kwargs):
                 for res in get_response(fun1, history):
                     yield res
             finally:
+                clear_torch_cache()
                 clear_embeddings(langchain_mode1, my_db_state1)
 
         def all_bot(*args, retry=False, model_states1=None):
