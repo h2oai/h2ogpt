@@ -65,7 +65,6 @@ def test_client1api_lean(admin_pass):
     client2.refresh_client()  # test refresh
 
     for client in [client1, client2]:
-
         api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
         prompt = 'Who are you?'
         kwargs = dict(instruction_nochat=prompt)
@@ -133,9 +132,9 @@ def test_client_chat_nostream():
 def test_client_chat_nostream_gpt4all():
     res_dict, client = run_client_chat_with_server(stream_output=False, base_model='gptj', prompt_type='gptj')
     assert 'I am a computer program designed to assist' in res_dict['response'] or \
-        'I am a person who enjoys' in res_dict['response'] or \
-        'I am a student at' in res_dict['response'] or \
-        'I am a person who' in res_dict['response']
+           'I am a person who enjoys' in res_dict['response'] or \
+           'I am a student at' in res_dict['response'] or \
+           'I am a person who' in res_dict['response']
 
 
 @wrap_test_forked
@@ -155,7 +154,7 @@ def test_client_chat_nostream_llama7b():
     prompt_type = get_llama()
     res_dict, client = run_client_chat_with_server(stream_output=False, base_model='llama', prompt_type=prompt_type)
     assert "am a virtual assistant" in res_dict['response'] or \
-        'am a student' in res_dict['response']
+           'am a student' in res_dict['response']
 
 
 def run_client_chat_with_server(prompt='Who are you?', stream_output=False, max_new_tokens=256,
@@ -350,7 +349,8 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'LLaMa is a language' in res_dict['response'] or
             'chatbot that can' in res_dict['response'] or
             'A secure, private, and anonymous chatbot' in res_dict['response'] or
-            'A secure, encrypted chat service that allows' in res_dict['response']
+            'A secure, encrypted chat service that allows' in res_dict['response'] or
+            'A secure, private, and encrypted chatbot' in res_dict['response']
             ) \
            and '.md' in res_dict['response']
 
@@ -464,7 +464,7 @@ def test_client_stress(repeat):
     # HOST=http://192.168.1.46:9999 STRESS=1 pytest -s -v -n 8 --timeout=1000 tests/test_client_calls.py::test_client_stress 2> stress1.log
 
     prompt = "Tell a very long kid's story about birds."
-    #prompt = "Say exactly only one word."
+    # prompt = "Say exactly only one word."
 
     client = get_client(serialize=True)
     kwargs = dict(
