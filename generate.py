@@ -391,7 +391,7 @@ def main(
             top_k_docs = 4 if top_k_docs is None else top_k_docs
 
         if memory_restriction_level == 2:
-            if not base_model and not inference_server:
+            if not base_model and not inference_server and not model_lock:
                 base_model = 'h2oai/h2ogpt-oasst1-512-12b'
                 # don't set load_8bit if passed base_model, doesn't always work so can't just override
                 load_8bit = True
@@ -446,7 +446,7 @@ def main(
         torch.backends.cudnn.benchmark = True
         torch.backends.cudnn.enabled = False
         torch.set_default_dtype(torch.float32)
-        if psutil.virtual_memory().available < 94 * 1024 ** 3 and not inference_server:
+        if psutil.virtual_memory().available < 94 * 1024 ** 3 and not inference_server and not model_lock:
             # 12B uses ~94GB
             # 6.9B uses ~47GB
             base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b' if not base_model else base_model
@@ -459,7 +459,14 @@ def main(
             hf_embedding_model = 'hkunlp/instructor-large'
 
     # get defaults
-    model_lower = base_model.lower()
+    if base_model:
+        model_lower = base_model.lower()
+    elif model_lock:
+        # have 0th model be thought of as normal model
+        assert len(model_lock) > 0 and model_lock[0]['base_model']
+        model_lower = model_lock[0]['base_model'].lower()
+    else:
+        model_lower = ''
     if not gradio:
         # force, else not single response like want to look at
         stream_output = False
@@ -484,7 +491,8 @@ def main(
         src_lang, tgt_lang, \
         examples, \
         task_info = \
-        get_generate_params(model_lower, chat,
+        get_generate_params(model_lower,
+                            chat,
                             stream_output, show_examples,
                             prompt_type, prompt_dict,
                             temperature, top_p, top_k, num_beams,
@@ -568,23 +576,29 @@ def main(
         for model_dict in reversed(model_list):
             # do reverse, so first is default base_model etc., so some logic works in go_gradio() more easily
             # handles defaults user didn't have to pass
-            model_dict['base_model'] = base_model = model_dict.get('base_model', '')
-            model_dict['tokenizer_base_model'] = tokenizer_base_model = model_dict.get('tokenizer_base_model', '')
-            model_dict['lora_weights'] = lora_weights = model_dict.get('lora_weights', '')
-            model_dict['inference_server'] = inference_server = model_dict.get('inference_server', '')
-            prompt_type = model_dict.get('prompt_type', model_list0[0]['prompt_type'])  # don't use mutated value
+            model_dict['base_model'] = base_model1 = model_dict.get('base_model', '')
+            model_dict['tokenizer_base_model'] = tokenizer_base_model1 = model_dict.get('tokenizer_base_model', '')
+            model_dict['lora_weights'] = lora_weights1 = model_dict.get('lora_weights', '')
+            model_dict['inference_server'] = inference_server1 = model_dict.get('inference_server', '')
+            prompt_type1 = model_dict.get('prompt_type', model_list0[0]['prompt_type'])  # don't use mutated value
             # try to infer, ignore empty initial state leading to get_generate_params -> 'plain'
             if model_dict.get('prompt_type') is None:
-                model_lower = base_model.lower()
-                if model_lower in inv_prompt_type_to_model_lower:
-                    prompt_type = inv_prompt_type_to_model_lower[model_lower]
-                    prompt_dict, error0 = get_prompt(prompt_type, '',
-                                                     chat=False, context='', reduced=False, making_context=False,
-                                                     return_dict=True)
-            model_dict['prompt_type'] = prompt_type
-            model_dict['prompt_dict'] = prompt_dict = model_dict.get('prompt_dict', prompt_dict)
+                model_lower1 = base_model1.lower()
+                if model_lower1 in inv_prompt_type_to_model_lower:
+                    prompt_type1 = inv_prompt_type_to_model_lower[model_lower1]
+                    prompt_dict1, error0 = get_prompt(prompt_type1, '',
+                                                      chat=False, context='', reduced=False, making_context=False,
+                                                      return_dict=True)
+                else:
+                    prompt_dict1 = prompt_dict
+            else:
+                prompt_dict1 = prompt_dict
+            model_dict['prompt_type'] = prompt_type1
+            model_dict['prompt_dict'] = prompt_dict1 = model_dict.get('prompt_dict', prompt_dict1)
             all_kwargs = locals().copy()
-            if base_model and not login_mode_if_model0:
+            all_kwargs.update(dict(base_model=base_model1, tokenizer_base_model=tokenizer_base_model1,
+                                   lora_weights=lora_weights1, inference_server=inference_server1))
+            if base_model1 and not login_mode_if_model0:
                 model0, tokenizer0, device = get_model(reward_type=False,
                                                        **get_kwargs(get_model, exclude_names=['reward_type'],
                                                                     **all_kwargs))
@@ -1203,111 +1217,6 @@ eval_func_param_names_defaults = eval_func_param_names.copy()
 for k in no_default_param_names:
     if k in eval_func_param_names_defaults:
         eval_func_param_names_defaults.remove(k)
-
-
-def evaluate_from_str(
-        model_state,
-        my_db_state,
-        # START NOTE: Examples must have same order of parameters
-        user_kwargs,
-        # END NOTE: Examples must have same order of parameters
-        default_kwargs=None,
-        src_lang=None,
-        tgt_lang=None,
-        debug=False,
-        concurrency_count=None,
-        save_dir=None,
-        sanitize_bot_response=False,
-        model_state0=None,
-        memory_restriction_level=None,
-        max_max_new_tokens=None,
-        is_public=None,
-        max_max_time=None,
-        raise_generate_gpu_exceptions=None,
-        chat_context=None,
-        lora_weights=None,
-        load_db_if_exists=True,
-        dbs=None,
-        user_path=None,
-        detect_user_path_changes_every_query=None,
-        use_openai_embedding=None,
-        use_openai_model=None,
-        hf_embedding_model=None,
-        db_type=None,
-        n_jobs=None,
-        first_para=None,
-        text_limit=None,
-        verbose=False,
-        cli=False,
-        reverse_docs=True,
-        use_cache=None,
-        auto_reduce_chunks=None,
-        max_chunks=None,
-        model_lock=None,
-        force_langchain_evaluate=None,
-        model_state_none=None,
-):
-    if isinstance(user_kwargs, str):
-        user_kwargs = ast.literal_eval(user_kwargs)
-    # only used for submit_nochat_api
-    user_kwargs['chat'] = False
-    if 'stream_output' not in user_kwargs:
-        user_kwargs['stream_output'] = False
-    if 'langchain_mode' not in user_kwargs:
-        # if user doesn't specify, then assume disabled, not use default
-        user_kwargs['langchain_mode'] = 'Disabled'
-
-    assert set(list(default_kwargs.keys())) == set(eval_func_param_names)
-    # correct ordering.  Note some things may not be in default_kwargs, so can't be default of user_kwargs.get()
-    args_list = [user_kwargs[k] if k in user_kwargs else default_kwargs[k] for k in eval_func_param_names]
-
-    ret = evaluate(
-        model_state,
-        my_db_state,
-        # START NOTE: Examples must have same order of parameters
-        *tuple(args_list),
-        # END NOTE: Examples must have same order of parameters
-        src_lang=src_lang,
-        tgt_lang=tgt_lang,
-        debug=debug,
-        concurrency_count=concurrency_count,
-        save_dir=save_dir,
-        sanitize_bot_response=sanitize_bot_response,
-        model_state0=model_state0,
-        memory_restriction_level=memory_restriction_level,
-        max_max_new_tokens=max_max_new_tokens,
-        is_public=is_public,
-        max_max_time=max_max_time,
-        raise_generate_gpu_exceptions=raise_generate_gpu_exceptions,
-        chat_context=chat_context,
-        lora_weights=lora_weights,
-        load_db_if_exists=load_db_if_exists,
-        dbs=dbs,
-        user_path=user_path,
-        detect_user_path_changes_every_query=detect_user_path_changes_every_query,
-        use_openai_embedding=use_openai_embedding,
-        use_openai_model=use_openai_model,
-        hf_embedding_model=hf_embedding_model,
-        db_type=db_type,
-        n_jobs=n_jobs,
-        first_para=first_para,
-        text_limit=text_limit,
-        verbose=verbose,
-        cli=cli,
-        reverse_docs=reverse_docs,
-        use_cache=use_cache,
-        auto_reduce_chunks=auto_reduce_chunks,
-        max_chunks=max_chunks,
-        model_lock=model_lock,
-        force_langchain_evaluate=force_langchain_evaluate,
-        model_state_none=model_state_none,
-    )
-    try:
-        for ret1 in ret:
-            yield ret1
-    finally:
-        # clear before return, in finally in case GPU OOM exception
-        clear_torch_cache()
 
 
 def evaluate(
@@ -2132,7 +2041,8 @@ def generate_with_exceptions(func, *args, prompt='', inputs_decoded='', raise_ge
                 raise
 
 
-def get_generate_params(model_lower, chat,
+def get_generate_params(model_lower,
+                        chat,
                         stream_output, show_examples,
                         prompt_type, prompt_dict,
                         temperature, top_p, top_k, num_beams,
@@ -2209,8 +2119,9 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         else:
             placeholder_instruction = "Give detailed answer for whether Einstein or Newton is smarter."
         placeholder_input = ""
-        if model_lower in inv_prompt_type_to_model_lower and prompt_type != 'custom':
-            prompt_type = inv_prompt_type_to_model_lower[model_lower]
+        if model_lower in inv_prompt_type_to_model_lower:
+            if prompt_type != 'custom':
+                prompt_type = inv_prompt_type_to_model_lower[model_lower]
         elif model_lower:
             # default is plain, because might rely upon trust_remote_code to handle prompting
             prompt_type = prompt_type or 'plain'

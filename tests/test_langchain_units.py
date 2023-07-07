@@ -549,6 +549,24 @@ def test_docx_add(db_type):
 
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
+def test_xls_add(db_type):
+    from make_db import make_db_main
+    with tempfile.TemporaryDirectory() as tmp_persistent_directory:
+        with tempfile.TemporaryDirectory() as tmp_user_path:
+            test_file1 = os.path.join(tmp_user_path, 'example.xlsx')
+            shutil.copy('data/example.xlsx', tmp_user_path)
+            db, collection_name = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
+                                               fail_any_exception=True, db_type=db_type)
+            assert db is not None
+            docs = db.similarity_search("What is Profit?")
+            assert len(docs) == 4
+            assert '16604.000' in docs[0].page_content
+            assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+
+
+
+@pytest.mark.parametrize("db_type", db_types)
+@wrap_test_forked
 def test_md_add(db_type):
     from make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:

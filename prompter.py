@@ -693,7 +693,9 @@ class Prompter(object):
                 output = clean_response(output)
             elif prompt is None:
                 # then use most basic parsing like pipeline
-                if self.botstr in output:
+                if not self.botstr:
+                    pass
+                elif self.botstr in output:
                     if self.humanstr:
                         output = clean_response(output.split(self.botstr)[1].split(self.humanstr)[0])
                     else:

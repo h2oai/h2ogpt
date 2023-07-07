@@ -43,7 +43,8 @@ from langchain.chains.qa_with_sources import load_qa_with_sources_chain
 from langchain.document_loaders import PyPDFLoader, TextLoader, CSVLoader, PythonLoader, TomlLoader, \
     UnstructuredURLLoader, UnstructuredHTMLLoader, UnstructuredWordDocumentLoader, UnstructuredMarkdownLoader, \
     EverNoteLoader, UnstructuredEmailLoader, UnstructuredODTLoader, UnstructuredPowerPointLoader, \
-    UnstructuredEPubLoader, UnstructuredImageLoader, UnstructuredRTFLoader, ArxivLoader, UnstructuredPDFLoader
+    UnstructuredEPubLoader, UnstructuredImageLoader, UnstructuredRTFLoader, ArxivLoader, UnstructuredPDFLoader, \
+    UnstructuredExcelLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter, Language
 from langchain.chains.question_answering import load_qa_chain
 from langchain.docstore.document import Document
@@ -945,14 +946,16 @@ have_playwright = False
 
 image_types = ["png", "jpg", "jpeg"]
 non_image_types = ["pdf", "txt", "csv", "toml", "py", "rst", "rtf",
-                   "md", "html",
+                   "md",
+                   "html", "mhtml",
                    "enex", "eml", "epub", "odt", "pptx", "ppt",
                    "zip", "urls",
+
                    ]
 # "msg",  GPL3
 
 if have_libreoffice:
-    non_image_types.extend(["docx", "doc"])
+    non_image_types.extend(["docx", "doc", "xls", "xlsx"])
 
 file_types = non_image_types + image_types
 
@@ -1037,6 +1040,10 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size, language=Language.HTML)
     elif (file.lower().endswith('.docx') or file.lower().endswith('.doc')) and have_libreoffice:
         docs1 = UnstructuredWordDocumentLoader(file_path=file).load()
+        add_meta(docs1, file)
+        doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
+    elif (file.lower().endswith('.xlsx') or file.lower().endswith('.xls')) and have_libreoffice:
+        docs1 = UnstructuredExcelLoader(file_path=file).load()
         add_meta(docs1, file)
         doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
     elif file.lower().endswith('.odt'):
