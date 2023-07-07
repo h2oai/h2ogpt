@@ -19,6 +19,15 @@ def get_model_tokenizer_gpt4all(base_model, **kwargs):
                         n_ctx=2048 - 256)
     env_gpt4all_file = ".env_gpt4all"
     model_kwargs.update(dotenv_values(env_gpt4all_file))
+    # make int or float if can to satisfy types for class
+    for k, v in model_kwargs.items():
+        try:
+            if float(v) == int(v):
+                model_kwargs[k] = int(v)
+            else:
+                model_kwargs[k] = float(v)
+        except:
+            pass
 
     if base_model == "llama":
         if 'model_path_llama' not in model_kwargs:

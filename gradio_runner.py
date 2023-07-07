@@ -1,3 +1,4 @@
+import ast
 import copy
 import functools
 import inspect
@@ -57,7 +58,7 @@ from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt
 from utils import get_githash, flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping, get_short_name, get_url, makedirs, get_kwargs, remove, system_info, ping_gpu
 from generate import get_model, languages_covered, evaluate, eval_func_param_names, score_qa, langchain_modes, \
-    inputs_kwargs_list, scratch_base_dir, evaluate_from_str, no_default_param_names, \
+    inputs_kwargs_list, scratch_base_dir, no_default_param_names, \
     eval_func_param_names_defaults, get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -214,7 +215,28 @@ def go_gradio(**kwargs):
         'base_model') else no_model_msg
     output_label0_model2 = no_model_msg
 
+    def update_prompt(prompt_type1, prompt_dict1, model_state1, which_model=0):
+        if not prompt_type1 or which_model != 0:
+            # keep prompt_type and prompt_dict in sync if possible
+            prompt_type1 = kwargs.get('prompt_type', prompt_type1)
+            prompt_dict1 = kwargs.get('prompt_dict', prompt_dict1)
+            # prefer model specific prompt type instead of global one
+            if not prompt_type1 or which_model != 0:
+                prompt_type1 = model_state1.get('prompt_type', prompt_type1)
+                prompt_dict1 = model_state1.get('prompt_dict', prompt_dict1)
+
+        if not prompt_dict1 or which_model != 0:
+            # if still not defined, try to get
+            prompt_dict1 = kwargs.get('prompt_dict', prompt_dict1)
+            if not prompt_dict1 or which_model != 0:
+                prompt_dict1 = model_state1.get('prompt_dict', prompt_dict1)
+        return prompt_type1, prompt_dict1
+
     default_kwargs = {k: kwargs[k] for k in eval_func_param_names_defaults}
+    # ensure prompt_type consistent with prep_bot(), so nochat API works same way
+    default_kwargs['prompt_type'], default_kwargs['prompt_dict'] = \
+        update_prompt(default_kwargs['prompt_type'], default_kwargs['prompt_dict'],
+                      model_state1=model_state0, which_model=0)
     for k in no_default_param_names:
         default_kwargs[k] = ''
 
@@ -471,7 +493,7 @@ def go_gradio(**kwargs):
                             do_sample = gr.Checkbox(label="Sample",
                                                     info="Enable sampler, required for use of temperature, top_p, top_k",
                                                     value=kwargs['do_sample'])
-                            temperature = gr.Slider(minimum=0.01, maximum=3,
+                            temperature = gr.Slider(minimum=0.01, maximum=2,
                                                     value=kwargs['temperature'],
                                                     label="Temperature",
                                                     info="Lower is deterministic (but may lead to repeats), Higher more creative (but may lead to hallucinations)")
@@ -927,19 +949,59 @@ def go_gradio(**kwargs):
         for k in inputs_kwargs_list:
             assert k in kwargs_evaluate, "Missing %s" % k
 
-        def evaluate_gradio(*args1, **kwargs1):
-            for res_dict in evaluate(*args1, **kwargs1):
-                if kwargs['langchain_mode'] == 'Disabled':
-                    yield fix_text_for_gradio(res_dict['response'])
-                else:
-                    yield '<br>' + fix_text_for_gradio(res_dict['response'])
+        def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, **kwargs1):
+            args_list = list(args1)
+            if str_api:
+                user_kwargs = args_list[2]
+                assert isinstance(user_kwargs, str)
+                user_kwargs = ast.literal_eval(user_kwargs)
+            else:
+                user_kwargs = {k: v for k, v in zip(eval_func_param_names, args_list[2:])}
+            # only used for submit_nochat_api
+            user_kwargs['chat'] = False
+            if 'stream_output' not in user_kwargs:
+                user_kwargs['stream_output'] = False
+            if 'langchain_mode' not in user_kwargs:
+                # if user doesn't specify, then assume disabled, not use default
+                user_kwargs['langchain_mode'] = 'Disabled'
+            if 'langchain_action' not in user_kwargs:
+                user_kwargs['langchain_action'] = LangChainAction.QUERY.value
 
-        fun = partial(evaluate_gradio,
+            set1 = set(list(default_kwargs1.keys()))
+            set2 = set(eval_func_param_names)
+            assert set1 == set2, "Set diff: %s %s: %s" % (set1, set2, set1.symmetric_difference(set2))
+            # correct ordering.  Note some things may not be in default_kwargs, so can't be default of user_kwargs.get()
+            model_state1 = args_list[0]
+            my_db_state1 = args_list[1]
+            args_list = [user_kwargs[k] if k in user_kwargs and user_kwargs[k] is not None else default_kwargs1[k] for k
+                         in eval_func_param_names]
+            assert len(args_list) == len(eval_func_param_names)
+            args_list = [model_state1, my_db_state1] + args_list
+
+            try:
+                for res_dict in evaluate(*tuple(args_list), **kwargs1):
+                    if str_api:
+                        # full return of dict
+                        yield res_dict
+                    elif kwargs['langchain_mode'] == 'Disabled':
+                        yield fix_text_for_gradio(res_dict['response'])
+                    else:
+                        yield '<br>' + fix_text_for_gradio(res_dict['response'])
+            finally:
+                clear_torch_cache()
+                clear_embeddings(user_kwargs['langchain_mode'], my_db_state1)
+
+        fun = partial(evaluate_nochat,
+                      default_kwargs1=default_kwargs,
+                      str_api=False,
                       **kwargs_evaluate)
-        fun2 = partial(evaluate_gradio,
+        fun2 = partial(evaluate_nochat,
+                       default_kwargs1=default_kwargs,
+                       str_api=False,
                        **kwargs_evaluate)
-        fun_with_dict_str = partial(evaluate_from_str,
-                                    default_kwargs=default_kwargs,
+        fun_with_dict_str = partial(evaluate_nochat,
+                                    default_kwargs1=default_kwargs,
+                                    str_api=True,
                                     **kwargs_evaluate
                                     )
 
@@ -1157,11 +1219,13 @@ def go_gradio(**kwargs):
             else:
                 return 2000
 
-        def prep_bot(*args, retry=False):
+        def prep_bot(*args, retry=False, which_model=0):
             """
 
             :param args:
             :param retry:
+            :param which_model: identifies which model if doing model_lock
+                 API only called for which_model=0, default for inputs_list, but rest should ignore inputs_list
             :return: last element is True if should run bot, False if should just yield history
             """
             # don't deepcopy, can contain model itself
@@ -1169,9 +1233,12 @@ def go_gradio(**kwargs):
             model_state1 = args_list[-3]
             my_db_state1 = args_list[-2]
             history = args_list[-1]
+            langchain_mode1 = args_list[eval_func_param_names.index('langchain_mode')]
+            prompt_type1 = args_list[eval_func_param_names.index('prompt_type')]
+            prompt_dict1 = args_list[eval_func_param_names.index('prompt_dict')]
 
             if model_state1['model'] is None or model_state1['model'] == no_model_str:
-                return history, None
+                return history, None, None, None
 
             args_list = args_list[:-3]  # only keep rest needed for evaluate()
             langchain_mode1 = args_list[eval_func_param_names.index('langchain_mode')]
@@ -1179,7 +1246,7 @@ def go_gradio(**kwargs):
             if not history:
                 print("No history", flush=True)
                 history = []
-                return history, None
+                return history, None, None, None
             instruction1 = history[-1][0]
             if retry and history:
                 # if retry, pop history and move onto bot stuff
@@ -1189,21 +1256,18 @@ def go_gradio(**kwargs):
                 if langchain_action1 in LangChainAction.QUERY.value or \
                         langchain_mode1 in [LangChainMode.CHAT_LLM.value, LangChainMode.LLM.value]:
                     # if not retrying, then reject empty query
-                    return history, None
+                    return history, None, None, None
             elif len(history) > 0 and history[-1][1] not in [None, '']:
                 # reject submit button if already filled and not retrying
                 # None when not filling with '' to keep client happy
-                return history, None
+                return history, None, None, None
 
             # shouldn't have to specify in API prompt_type if CLI launched model, so prefer global CLI one if have it
-            prompt_type1 = kwargs.get('prompt_type', args_list[eval_func_param_names.index('prompt_type')])
-            # prefer model specific prompt type instead of global one, and apply back to args_list for evaluate()
-            args_list[eval_func_param_names.index('prompt_type')] = prompt_type1 = \
-                model_state1.get('prompt_type', prompt_type1)
-
-            prompt_dict1 = kwargs.get('prompt_dict', args_list[eval_func_param_names.index('prompt_dict')])
-            args_list[eval_func_param_names.index('prompt_dict')] = prompt_dict1 = \
-                model_state1.get('prompt_dict', prompt_dict1)
+            prompt_type1, prompt_dict1 = update_prompt(prompt_type1, prompt_dict1, model_state1,
+                                                       which_model=which_model)
+            # apply back to args_list for evaluate()
+            args_list[eval_func_param_names.index('prompt_type')] = prompt_type1
+            args_list[eval_func_param_names.index('prompt_dict')] = prompt_dict1
 
             chat1 = args_list[eval_func_param_names.index('chat')]
             model_max_length1 = get_model_max_length(model_state1)
@@ -1219,17 +1283,14 @@ def go_gradio(**kwargs):
                            *tuple(args_list),
                            **kwargs_evaluate)
 
-            return history, fun1
+            return history, fun1, langchain_mode1, my_db_state1
 
-        def get_response(*args, retry=False):
+        def get_response(fun1, history):
             """
             bot that consumes history for user input
             instruction (from input_list) itself is not consumed by bot
-            :param args:
-            :param retry:
             :return:
             """
-            history, fun1 = prep_bot(*args, retry=retry)
             if not fun1:
                 yield history, ''
                 return
@@ -1264,9 +1325,24 @@ def go_gradio(**kwargs):
                 clear_torch_cache()
             return
 
+        def clear_embeddings(langchain_mode1, my_db):
+            # clear any use of embedding that sits on GPU, else keeps accumulating GPU usage even if clear torch cache
+            if db_type == 'chroma' and langchain_mode1 not in ['ChatLLM', 'LLM', 'Disabled', None, '']:
+                from gpt_langchain import clear_embedding
+                db = dbs.get('langchain_mode1')
+                if db is not None and not isinstance(db, str):
+                    clear_embedding(db)
+                if langchain_mode1 == LangChainMode.MY_DATA.value and my_db is not None:
+                    clear_embedding(my_db[0])
+
         def bot(*args, retry=False):
-            for res in get_response(*args, retry=retry):
-                yield res
+            history, fun1, langchain_mode1, my_db_state1 = prep_bot(*args, retry=retry)
+            try:
+                for res in get_response(fun1, history):
+                    yield res
+            finally:
+                clear_torch_cache()
+                clear_embeddings(langchain_mode1, my_db_state1)
 
         def all_bot(*args, retry=False, model_states1=None):
             args_list = list(args).copy()
@@ -1275,9 +1351,11 @@ def go_gradio(**kwargs):
             exceptions = []
             stream_output1 = args_list[eval_func_param_names.index('stream_output')]
             max_time1 = args_list[eval_func_param_names.index('max_time')]
+            langchain_mode1 = args_list[eval_func_param_names.index('langchain_mode')]
+            my_db_state1 = None  # will be filled below by some bot
             try:
                 gen_list = []
-                for chatbot1, model_state1 in zip(chatbots, model_states1):
+                for chatboti, (chatbot1, model_state1) in enumerate(zip(chatbots, model_states1)):
                     args_list1 = args_list0.copy()
                     args_list1.insert(-1, model_state1)  # insert at -1 so is at -2
                     # if at start, have None in response still, replace with '' so client etc. acts like normal
@@ -1288,7 +1366,10 @@ def go_gradio(**kwargs):
                     args_list1.append(chatbot1)
                     # so consistent with prep_bot()
                     # with model_state1 at -3, my_db_state1 at -2, and history(chatbot) at -1
-                    gen1 = get_response(*tuple(args_list1), retry=retry)
+                    # langchain_mode1 and my_db_state1 should be same for every bot
+                    history, fun1, langchain_mode1, my_db_state1 = prep_bot(*tuple(args_list1), retry=retry,
+                                                                            which_model=chatboti)
+                    gen1 = get_response(fun1, history)
                     if stream_output1:
                         gen1 = TimeoutIterator(gen1, timeout=0.01, sentinel=None, raise_on_exception=False)
                     # else timeout will truncate output for non-streaming case
@@ -1299,6 +1380,7 @@ def go_gradio(**kwargs):
                 tgen0 = time.time()
                 for res1 in itertools.zip_longest(*gen_list):
                     if time.time() - tgen0 > max_time1:
+                        print("Took too long: %s" % max_time1, flush=True)
                         break
 
                     bots = [x[0] if x is not None and not isinstance(x, BaseException) else y for x, y in
@@ -1332,6 +1414,7 @@ def go_gradio(**kwargs):
                         print("Generate exceptions: %s" % exceptions, flush=True)
             finally:
                 clear_torch_cache()
+                clear_embeddings(langchain_mode1, my_db_state1)
 
         # NORMAL MODEL
         user_args = dict(fn=functools.partial(user, sanitize_user_prompt=kwargs['sanitize_user_prompt']),
@@ -1732,6 +1815,9 @@ def go_gradio(**kwargs):
 
         def load_model(model_name, lora_weights, server_name, model_state_old, prompt_type_old, load_8bit,
                        infer_devices, gpu_id):
+            # ensure no API calls reach here
+            if is_public:
+                raise RuntimeError("Illegal access for %s" % model_name)
             # ensure old model removed from GPU memory
             if kwargs['debug']:
                 print("Pre-switch pre-del GPU memory: %s" % get_torch_allocated(), flush=True)
@@ -2034,6 +2120,9 @@ def go_gradio(**kwargs):
 
     demo.queue(concurrency_count=kwargs['concurrency_count'], api_open=kwargs['api_open'])
     favicon_path = "h2o-logo.svg"
+    if not os.path.isfile(favicon_path):
+        print("favicon_path=%s not found" % favicon_path, flush=True)
+        favicon_path = None
 
     scheduler = BackgroundScheduler()
     scheduler.add_job(func=clear_torch_cache, trigger="interval", seconds=20)

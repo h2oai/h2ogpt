@@ -44,7 +44,8 @@ from langchain.chains.qa_with_sources import load_qa_with_sources_chain
 from langchain.document_loaders import PyPDFLoader, TextLoader, CSVLoader, PythonLoader, TomlLoader, \
     UnstructuredURLLoader, UnstructuredHTMLLoader, UnstructuredWordDocumentLoader, UnstructuredMarkdownLoader, \
     EverNoteLoader, UnstructuredEmailLoader, UnstructuredODTLoader, UnstructuredPowerPointLoader, \
-    UnstructuredEPubLoader, UnstructuredImageLoader, UnstructuredRTFLoader, ArxivLoader, UnstructuredPDFLoader
+    UnstructuredEPubLoader, UnstructuredImageLoader, UnstructuredRTFLoader, ArxivLoader, UnstructuredPDFLoader, \
+    UnstructuredExcelLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter, Language
 from langchain.chains.question_answering import load_qa_chain
 from langchain.docstore.document import Document
@@ -146,7 +147,7 @@ def add_to_db(db, sources, db_type='faiss',
             return db, num_new_sources, []
         db.add_documents(documents=sources)
     elif db_type == 'chroma':
-        collection = db.get()
+        collection = get_documents(db)
         # files we already have:
         metadata_files = set([x['source'] for x in collection['metadatas']])
         if avoid_dup_by_file:
@@ -640,6 +641,7 @@ def get_llm(use_openai_model=False,
         callbacks = [StreamingGradioCallbackHandler()]
         assert prompter is not None
         stop_sequences = list(set(prompter.terminate_response + [prompter.PreResponse]))
+        stop_sequences = [x for x in stop_sequences if x]
 
         if gr_client:
             chat_client = False
@@ -947,14 +949,16 @@ have_playwright = False
 
 image_types = ["png", "jpg", "jpeg"]
 non_image_types = ["pdf", "txt", "csv", "toml", "py", "rst", "rtf",
-                   "md", "html",
+                   "md",
+                   "html", "mhtml",
                    "enex", "eml", "epub", "odt", "pptx", "ppt",
                    "zip", "urls",
+
                    ]
 # "msg",  GPL3
 
 if have_libreoffice:
-    non_image_types.extend(["docx", "doc"])
+    non_image_types.extend(["docx", "doc", "xls", "xlsx"])
 
 file_types = non_image_types + image_types
 
@@ -1039,6 +1043,10 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size, language=Language.HTML)
     elif (file.lower().endswith('.docx') or file.lower().endswith('.doc')) and have_libreoffice:
         docs1 = UnstructuredWordDocumentLoader(file_path=file).load()
+        add_meta(docs1, file)
+        doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
+    elif (file.lower().endswith('.xlsx') or file.lower().endswith('.xls')) and have_libreoffice:
+        docs1 = UnstructuredExcelLoader(file_path=file).load()
         add_meta(docs1, file)
         doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
     elif file.lower().endswith('.odt'):
@@ -1432,7 +1440,7 @@ def check_update_chroma_embedding(db, use_openai_embedding, hf_embedding_model, 
     if load_embed(db) != (use_openai_embedding, hf_embedding_model):
         print("Detected new embedding, updating db: %s" % langchain_mode, flush=True)
         # handle embedding changes
-        db_get = db.get()
+        db_get = get_documents(db)
         sources = [Document(page_content=result[0], metadata=result[1] or {})
                    for result in zip(db_get['documents'], db_get['metadatas'])]
         # delete index, has to be redone
@@ -1492,6 +1500,8 @@ def get_existing_db(db, persist_directory, load_db_if_exists, db_type, use_opena
 
 
 def clear_embedding(db):
+    if db is None:
+        return
     # don't keep on GPU, wastes memory, push back onto CPU and only put back on GPU once again embed
     db._embedding_function.client.cpu()
     clear_torch_cache()
@@ -1513,9 +1523,10 @@ def make_db(**langchain_kwargs):
 
 
 def save_embed(db, use_openai_embedding, hf_embedding_model):
-    embed_info_file = os.path.join(db._persist_directory, 'embed_info')
-    with open(embed_info_file, 'wb') as f:
-        pickle.dump((use_openai_embedding, hf_embedding_model), f)
+    if db is not None:
+        embed_info_file = os.path.join(db._persist_directory, 'embed_info')
+        with open(embed_info_file, 'wb') as f:
+            pickle.dump((use_openai_embedding, hf_embedding_model), f)
     return use_openai_embedding, hf_embedding_model
 
 
@@ -1667,7 +1678,7 @@ def get_metadatas(db):
     if isinstance(db, FAISS):
         metadatas = [v.metadata for k, v in db.docstore._dict.items()]
     elif isinstance(db, Chroma):
-        metadatas = db.get()['metadatas']
+        metadatas = get_documents(db)['metadatas']
     else:
         # FIXME: Hack due to https://github.com/weaviate/weaviate/issues/1947
         # seems no way to get all metadata, so need to avoid this approach for weaviate
@@ -1676,6 +1687,18 @@ def get_metadatas(db):
 
 
 def get_documents(db):
+    if hasattr(db, '_persist_directory'):
+        name_path = os.path.basename(db._persist_directory)
+        base_path = 'locks'
+        makedirs(base_path)
+        with filelock.FileLock(os.path.join(base_path, "getdb_%s.lock" % name_path)):
+            # get segfaults and other errors when multiple threads access this
+            return _get_documents(db)
+    else:
+        return _get_documents(db)
+
+
+def _get_documents(db):
     from langchain.vectorstores import FAISS
     if isinstance(db, FAISS):
         documents = [v for k, v in db.docstore._dict.items()]
@@ -1686,6 +1709,35 @@ def get_documents(db):
         # seems no way to get all metadata, so need to avoid this approach for weaviate
         documents = [x for x in db.similarity_search("", k=10000)]
     return documents
+
+
+def get_docs_and_meta(db, top_k_docs, filter_kwargs={}):
+    if hasattr(db, '_persist_directory'):
+        name_path = os.path.basename(db._persist_directory)
+        base_path = 'locks'
+        makedirs(base_path)
+        with filelock.FileLock(os.path.join(base_path, "getdb_%s.lock" % name_path)):
+            return _get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs)
+    else:
+        return _get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs)
+
+
+def _get_docs_and_meta(db, top_k_docs, filter_kwargs={}):
+    from langchain.vectorstores import FAISS
+    if isinstance(db, Chroma):
+        db_get = db._collection.get(where=filter_kwargs.get('filter'))
+        db_metadatas = db_get['metadatas']
+        db_documents = db_get['documents']
+    elif isinstance(db, FAISS):
+        import itertools
+        db_metadatas = get_metadatas(db)
+        # FIXME: FAISS has no filter
+        # slice dict first
+        db_documents = list(dict(itertools.islice(db.docstore._dict.items(), top_k_docs)).values())
+    else:
+        db_metadatas = get_metadatas(db)
+        db_documents = get_documents(db)
+    return db_documents, db_metadatas
 
 
 def get_existing_files(db):
@@ -2038,20 +2090,7 @@ def get_similarity_chain(query=None,
             docs = []
             scores = []
         elif cmd == DocumentChoices.Only_All_Sources.name or query in [None, '', '\n']:
-            from langchain.vectorstores import FAISS
-            if isinstance(db, Chroma):
-                db_get = db._collection.get(where=filter_kwargs.get('filter'))
-                db_metadatas = db_get['metadatas']
-                db_documents = db_get['documents']
-            elif isinstance(db, FAISS):
-                import itertools
-                db_metadatas = get_metadatas(db)
-                # FIXME: FAISS has no filter
-                # slice dict first
-                db_documents = list(dict(itertools.islice(db.docstore._dict.items(), top_k_docs)).values())
-            else:
-                db_metadatas = get_metadatas(db)
-                db_documents = get_documents(db)
+            db_documents, db_metadatas = get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs)
             # similar to langchain's chroma's _results_to_docs_and_scores
             docs_with_score = [(Document(page_content=result[0], metadata=result[1] or {}), 0)
                                for result in zip(db_documents, db_metadatas)]
@@ -2072,7 +2111,13 @@ def get_similarity_chain(query=None,
             if top_k_docs == -1 or auto_reduce_chunks:
                 # docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:top_k_docs]
                 top_k_docs_tokenize = 100
-                with filelock.FileLock("sim.lock"):
+                base_path = 'locks'
+                makedirs(base_path)
+                if hasattr(db, '_persist_directory'):
+                    name_path = "sim_%s.lock" % os.path.basename(db._persist_directory)
+                else:
+                    name_path = "sim.lock"
+                with filelock.FileLock(os.path.join(base_path, name_path)):
                     docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[
                                       :top_k_docs_tokenize]
                 if hasattr(llm, 'pipeline') and hasattr(llm.pipeline, 'tokenizer'):

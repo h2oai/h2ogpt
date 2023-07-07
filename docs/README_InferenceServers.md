@@ -1,3 +1,7 @@
+# Inference Servers
+
+One can connect to Hugging Face text generation inference server, gradio servers running h2oGPT, or OpenAI servers.  
+
 ## Hugging Face Text Generation Inference Server-Client
 
 ### Local Install
@@ -33,7 +37,8 @@ Use `BUILD_EXTENSIONS=False` instead of have GPUs below A100.
 conda create -n textgen -y
 conda activate textgen
 conda install python=3.10 -y
-CUDA_HOME=/usr/local/cuda-11.7 BUILD_EXTENSIONS=True make install # Install repository and HF/transformer fork with CUDA kernels
+export CUDA_HOME=/usr/local/cuda-11.8
+BUILD_EXTENSIONS=True make install # Install repository and HF/transformer fork with CUDA kernels
 cd server && make install install-flash-attention
 ```
 
@@ -43,7 +48,7 @@ NCCL_SHM_DISABLE=1 CUDA_VISIBLE_DEVICES=0 text-generation-launcher --model-id h2
 
 ### Docker Install
 
-#### **Recommended** (instead of Local Install)
+#### **Recommended**
 
 ```bash
 # https://docs.docker.com/engine/install/ubuntu/
@@ -74,7 +79,7 @@ Reboot or run:
 ```bash
 newgrp docker
 ```
-in order to login to this user.
+in order to log in to this user.
 
 Then run:
 ```bash
@@ -199,7 +204,7 @@ If you run in bash and need to use an authentication for the Hugging Face text g
 ```
 i.e. 4 spaces between each IP, USER, and AUTH.  USER should be the user and AUTH be the token.
 
-When bringing up `generate.py` with any inference server, one can set `REQUEST_TIMEOUT` ENV to smaller value than default of 60 seconds to get server up faster if have many inaccessible endpoints you don't mind skipping.  E.g. set `REQUEST_TIMEOUT=5`.  One can also choose the timeout overall for each chat turn using env `REQUEST_TIMEOUT_FAST` that defaults to 10 seconds.
+When bringing up `generate.py` with any inference server, one can set `REQUEST_TIMEOUT` ENV to smaller value than default of 60 seconds to get server up faster if one has many inaccessible endpoints you don't mind skipping.  E.g. set `REQUEST_TIMEOUT=5`.  One can also choose the timeout overall for each chat turn using env `REQUEST_TIMEOUT_FAST` that defaults to 10 seconds.
 
 Note: The client API calls for chat APIs (i.e. `instruction` type for `instruction`, `instruction_bot`, `instruction_bot_score`, and similar for `submit` and `retry` types) require managing all chat sessions via API.  However, the `nochat` APIs only use the first model in the list of chats or model_lock list.
 
@@ -209,7 +214,6 @@ Note: The client API calls for chat APIs (i.e. `instruction` type for `instructi
 ### System info from gradio server
 
 ```python
-import os
 import json
 from gradio_client import Client
 ADMIN_PASS = ''

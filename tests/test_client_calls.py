@@ -349,7 +349,8 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'A secure, private, and anonymous chat service' in res_dict['response'] or
             'LLaMa is a language' in res_dict['response'] or
             'chatbot that can' in res_dict['response'] or
-            'A secure, private, and anonymous chatbot' in res_dict['response']
+            'A secure, private, and anonymous chatbot' in res_dict['response'] or
+            'A secure, encrypted chat service that allows' in res_dict['response']
             ) \
            and '.md' in res_dict['response']
 

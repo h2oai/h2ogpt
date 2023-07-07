@@ -36,6 +36,8 @@ Open-source data types are supported, .msg is not supported due to GPL-3 require
    - `.html`: HTML File,
    - `.docx`: Word Document (optional),
    - `.doc`: Word Document (optional),
+   - `.xlsx`: Excel Document (optional),
+   - `.xls`: Excel Document (optional),
    - `.enex`: EverNote,
    - `.eml`: Email,
    - `.epub`: EPub,
@@ -58,7 +60,7 @@ sudo apt-get install tesseract-ocr
 ```
 and ensure you `pip install pytesseract`.
 
-To support Microsoft Office docx and doc, on Ubuntu run:
+To support Microsoft Office docx, doc, xls, xlsx, on Ubuntu run:
 ```bash
 sudo apt-get install libreoffice
 ```
@@ -270,7 +272,7 @@ For links to direct to the document and download to your local machine, the orig
   * UI with side-by-side model comparisons against two models at a time with independent chat streams
   * Fine-tuning framework with QLORA 4-bit, 8-bit, 16-bit GPU fine-tuning or CPU fine-tuning
 
-* [localGPT](https://github.com/PromtEngineer/localGPT) .  By comparison, h2oGPT has similar benefits as compared to privateGPT.  Both h2oGPT and localGPT can use GPUs for LLMs and embeddings, including latest Vicuna or WizardLM models.
+* [localGPT](https://github.com/PromtEngineer/localGPT) .  By comparison, h2oGPT has similar benefits as compared to localGPT.  Both h2oGPT and localGPT can use GPUs for LLMs and embeddings, including latest Vicuna or WizardLM models.
 
 * [Vault-AI](https://github.com/pashpashpash/vault-ai) but h2oGPT is fully private and open-source by not using OpenAI or [pinecone](https://www.pinecone.io/).
 

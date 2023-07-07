@@ -86,7 +86,7 @@
 [DataSet Viewer](https://huggingface.co/datasets/viewer/?dataset=squad)<br />
 [Anthropic RLHF](https://huggingface.co/datasets/Anthropic/hh-rlhf)<br />
 [WebGPT_Comparisons](https://huggingface.co/datasets/openai/webgpt_comparisons)<br />
-[Self_instruct](yizhongw/self_instruct)<br />
+[Self_instruct](https://github.com/yizhongw/self-instruct)<br />
 [20BChatModelData](https://github.com/togethercomputer/OpenDataHub)<br />
 
 ### Apache2/MIT/BSD-3 Summarization Data

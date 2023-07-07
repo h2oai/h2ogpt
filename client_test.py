@@ -68,7 +68,8 @@ def get_args(prompt, prompt_type, chat=False, stream_output=False,
              max_new_tokens=50,
              top_k_docs=3,
              langchain_mode='Disabled',
-             langchain_action=LangChainAction.QUERY.value):
+             langchain_action=LangChainAction.QUERY.value,
+             prompt_dict=None):
     from collections import OrderedDict
     kwargs = OrderedDict(instruction=prompt if chat else '',  # only for chat=True
                          iinput='',  # only for chat=True
@@ -77,7 +78,7 @@ def get_args(prompt, prompt_type, chat=False, stream_output=False,
                          # but leave stream_output=False for simple input/output mode
                          stream_output=stream_output,
                          prompt_type=prompt_type,
-                         prompt_dict='',
+                         prompt_dict=prompt_dict,
                          temperature=0.1,
                          top_p=0.75,
                          top_k=40,
@@ -232,12 +233,14 @@ def test_client_chat_stream(prompt_type='human_bot'):
                            langchain_mode='Disabled', langchain_action=LangChainAction.QUERY.value)
 
 
-def run_client_chat(prompt, prompt_type, stream_output, max_new_tokens, langchain_mode, langchain_action):
+def run_client_chat(prompt, prompt_type, stream_output, max_new_tokens, langchain_mode, langchain_action,
+                    prompt_dict=None):
     client = get_client(serialize=False)
 
     kwargs, args = get_args(prompt, prompt_type, chat=True, stream_output=stream_output,
                             max_new_tokens=max_new_tokens, langchain_mode=langchain_mode,
-                            langchain_action=langchain_action)
+                            langchain_action=langchain_action,
+                            prompt_dict=prompt_dict)
     return run_client(client, prompt, args, kwargs)
 
 

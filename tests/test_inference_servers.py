@@ -175,7 +175,7 @@ def run_docker(inf_port, base_model):
                          )
 @pytest.mark.parametrize("force_langchain_evaluate", [False, True])
 @pytest.mark.parametrize("do_langchain", [False, True])
-@pytest.mark.parametrize("pass_prompt_type", [False, True])
+@pytest.mark.parametrize("pass_prompt_type", [False, True, 'custom'])
 @pytest.mark.parametrize("do_model_lock", [False, True])
 @wrap_test_forked
 def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain, pass_prompt_type, do_model_lock,
@@ -203,15 +203,23 @@ def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain,
         prompt_type = PromptType.human_bot.name
     else:
         prompt_type = PromptType.prompt_answer.name
-    if not pass_prompt_type:
-        prompt_type = None
+    if isinstance(pass_prompt_type, str):
+        prompt_type = 'custom'
+        prompt_dict = """{'promptA': None, 'promptB': None, 'PreInstruct': None, 'PreInput': None, 'PreResponse': None, 'terminate_response': [], 'chat_sep': '', 'chat_turn_sep': '', 'humanstr': None, 'botstr': None, 'generates_leading_space': False}"""
+    else:
+        prompt_dict = None
+        if not pass_prompt_type:
+            prompt_type = None
     if do_model_lock:
         model_lock = [{'inference_server': inference_server, 'base_model': base_model}]
         base_model = None
         inference_server = None
     else:
         model_lock = None
-    main_kwargs = dict(base_model=base_model, prompt_type=prompt_type, chat=True,
+    main_kwargs = dict(base_model=base_model,
+                       prompt_type=prompt_type,
+                       prompt_dict=prompt_dict,
+                       chat=True,
                        stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
                        max_new_tokens=max_new_tokens,
                        langchain_mode=langchain_mode,
@@ -232,16 +240,32 @@ def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain,
         # client test to server that only consumes inference server
         from client_test import run_client_chat
         os.environ['HOST'] = "http://127.0.0.1:%s" % client_port
-        res_dict, client = run_client_chat(prompt=prompt, prompt_type=prompt_type, stream_output=stream_output,
+        res_dict, client = run_client_chat(prompt=prompt, prompt_type=prompt_type,
+                                           stream_output=stream_output,
                                            max_new_tokens=max_new_tokens, langchain_mode=langchain_mode,
-                                           langchain_action=langchain_action)
+                                           langchain_action=langchain_action,
+                                           prompt_dict=prompt_dict)
         assert res_dict['prompt'] == prompt
         assert res_dict['iinput'] == ''
 
         # will use HOST from above
         ret1, ret2, ret3, ret4, ret5, ret6, ret7 = run_client_many(prompt_type=None)  # client shouldn't have to specify
         # here docker started with falcon before personalization
-        if base_model == 'h2oai/h2ogpt-oig-oasst1-512-6_9b':
+
+        if isinstance(pass_prompt_type, str):
+            assert 'year old student from the' in ret1['response'] or 'I am a person who is asking you a question' in \
+                   ret1['response']
+            assert 'bird' in ret2['response']
+            assert 'bird' in ret3['response']
+            assert 'year old student from the' in ret4['response'] or 'I am a person who is asking you a question' in \
+                   ret4['response']
+            assert 'year old student from the' in ret5['response'] or 'I am a person who is asking you a question' in \
+                   ret5['response']
+            assert 'year old student from the' in ret6['response'] or 'I am a person who is asking you a question' in \
+                   ret6['response']
+            assert 'year old student from the' in ret7['response'] or 'I am a person who is asking you a question' in \
+                   ret7['response']
+        elif base_model == 'h2oai/h2ogpt-oig-oasst1-512-6_9b':
             assert 'h2oGPT' in ret1['response']
             assert 'Birds' in ret2['response']
             assert 'Birds' in ret3['response']
