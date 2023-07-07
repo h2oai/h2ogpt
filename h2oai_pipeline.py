@@ -136,6 +136,7 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
             else:
                 outputs = rec['generated_text']
             rec['generated_text'] = outputs
+            print("prompt: %s\noutputs: %s\n\n" % (self.prompt_text, outputs), flush=True)
         return records
 
     def _forward(self, model_inputs, **generate_kwargs):

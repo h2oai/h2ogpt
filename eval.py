@@ -35,6 +35,7 @@ def run_eval(  # for local function:
         num_return_sequences=None,
         do_sample=None,
         langchain_mode=None,
+        langchain_action=None,
         top_k_docs=None,
         chunk=None,
         chunk_size=None,
