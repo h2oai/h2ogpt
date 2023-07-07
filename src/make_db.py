@@ -1,8 +1,7 @@
 import os
 import fire
 
-from gpt_langchain import path_to_docs, get_db, get_some_dbs_from_hf, all_db_zips, some_db_zips, \
-    get_embedding, add_to_db, create_or_update_db
+from gpt_langchain import path_to_docs, get_some_dbs_from_hf, all_db_zips, some_db_zips, create_or_update_db
 from utils import get_ngpus_vis
 
 
