@@ -6,7 +6,7 @@ from datetime import datetime
 import pytest
 
 from client_test import run_client_many
-from enums import PromptType
+from enums import PromptType, LangChainAction
 from tests.test_langchain_units import have_openai_key
 from tests.utils import wrap_test_forked
 

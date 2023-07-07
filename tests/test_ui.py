@@ -1,5 +1,3 @@
-import pytest
-
 from tests.utils import wrap_test_forked
 
 

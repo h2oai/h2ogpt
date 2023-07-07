@@ -4,7 +4,8 @@ import os, sys
 
 import pytest
 
-from client_test import get_client, run_client_chat, run_client, get_args, run_client_gen
+from client_test import get_client, get_args, run_client_gen
+from enums import LangChainAction
 from tests.utils import wrap_test_forked, make_user_path_test, get_llama
 from utils import get_githash
 
