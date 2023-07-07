@@ -1150,6 +1150,7 @@ def go_gradio(**kwargs):
             prompt_type1 = args_list[eval_func_param_names.index('prompt_type')]
             langchain_mode1 = args_list[eval_func_param_names.index('langchain_mode')]
             langchain_action1 = args_list[eval_func_param_names.index('langchain_action')]
+            document_choice1 = args_list[eval_func_param_names.index('document_choice')]
             if not prompt_type1:
                 # shouldn't have to specify if CLI launched model
                 prompt_type1 = kwargs['prompt_type']
@@ -1180,7 +1181,9 @@ def go_gradio(**kwargs):
                     history[-1][1] = None
                 return history
             if user_message1 in ['', None, '\n']:
-                if langchain_action1 in LangChainAction.QUERY.value or \
+                if langchain_action1 in LangChainAction.QUERY.value and \
+                        DocumentChoices.Only_All_Sources.name not in document_choice1 \
+                        or \
                         langchain_mode1 in [LangChainMode.CHAT_LLM.value, LangChainMode.LLM.value]:
                     # reject non-retry submit/enter
                     return history
@@ -1233,7 +1236,6 @@ def go_gradio(**kwargs):
             model_state1 = args_list[-3]
             my_db_state1 = args_list[-2]
             history = args_list[-1]
-            langchain_mode1 = args_list[eval_func_param_names.index('langchain_mode')]
             prompt_type1 = args_list[eval_func_param_names.index('prompt_type')]
             prompt_dict1 = args_list[eval_func_param_names.index('prompt_dict')]
 
@@ -1243,6 +1245,7 @@ def go_gradio(**kwargs):
             args_list = args_list[:-3]  # only keep rest needed for evaluate()
             langchain_mode1 = args_list[eval_func_param_names.index('langchain_mode')]
             langchain_action1 = args_list[eval_func_param_names.index('langchain_action')]
+            document_choice1 = args_list[eval_func_param_names.index('document_choice')]
             if not history:
                 print("No history", flush=True)
                 history = []
@@ -1253,7 +1256,9 @@ def go_gradio(**kwargs):
                 instruction1 = history[-1][0]
                 history[-1][1] = None
             elif not instruction1:
-                if langchain_action1 in LangChainAction.QUERY.value or \
+                if langchain_action1 in LangChainAction.QUERY.value and \
+                        DocumentChoices.Only_All_Sources.name not in document_choice1 \
+                        or \
                         langchain_mode1 in [LangChainMode.CHAT_LLM.value, LangChainMode.LLM.value]:
                     # if not retrying, then reject empty query
                     return history, None, None, None
