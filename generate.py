@@ -461,10 +461,12 @@ def main(
     # get defaults
     if base_model:
         model_lower = base_model.lower()
-    else:
+    elif model_lock:
         # have 0th model be thought of as normal model
         assert len(model_lock) > 0 and model_lock[0]['base_model']
         model_lower = model_lock[0]['base_model'].lower()
+    else:
+        model_lower = ''
     if not gradio:
         # force, else not single response like want to look at
         stream_output = False
