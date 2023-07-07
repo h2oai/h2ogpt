@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional, OrderedDict, Tuple, ValuesView
 import gradio_client  # type: ignore
 
 from h2ogpt_client import _utils
-from h2ogpt_client._enums import DocumentChoices, LangChainMode, PromptType
+from h2ogpt_client._h2ogpt_enums import DocumentChoices, LangChainMode, PromptType
 
 
 class Client:

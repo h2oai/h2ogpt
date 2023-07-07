@@ -1,5 +1,5 @@
-### Generated files ###
-_enums.py
+### Copied files ###
+h2ogpt_client/_h2ogpt_*.py
 
 ### Poetry ###
 .poetry

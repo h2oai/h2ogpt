@@ -5,34 +5,26 @@ PACKAGE_NAME    = $(firstword $(shell $(POETRY_BIN) version))
 PACKAGE_DIR     = $(subst -,_,$(PACKAGE_NAME))
 PACKAGE_VERSION = $(shell $(POETRY_BIN) version --short)
 
-H2OGPT_FILE_TO_CLIENT := enums.py:_enums.py
-
-define CREATE_COPY_FILE_TARGET
-$(eval TARGET_CLIENT_DIR := h2ogpt_client)
-
-.PHONY: copy_$(1)_to_$(2)
-copy_$(1)_to_$(2):
-	cp -f "./../$(1)" "$(TARGET_CLIENT_DIR)/$(2)"
-
-copy_files_from_h2ogpt: copy_$(1)_to_$(2)
-
-.PHONY: clean_$(2)
-clean_$(2):
-	rm "$(TARGET_CLIENT_DIR)/$(2)"
-
-clean: clean_$(2)
-endef
-$(foreach i,$(H2OGPT_FILE_TO_CLIENT),$(eval $(call CREATE_COPY_FILE_TARGET,$(word 1,$(subst :, ,$i)),$(word 2,$(subst :, ,$i)))))
-
-copy_files_from_h2ogpt: ;
+# Space separated list of file path that needs to be copied from h2oGPT.
+FILES_FROM_H2OGPT := enums.py
+NAME_PREFIX_FOR_FILES_COPIED_FROM_H2OGPT = _h2ogpt_
 
 $(POETRY_BIN):
 	@echo "Installing Poetry into '$(POETRY_INSTALL_DIR)' ..."
 	curl -sSL https://install.python-poetry.org | POETRY_HOME="$(POETRY_INSTALL_DIR)" python3 - --force --version 1.5.1
 
+.PHONY: copy_files_from_h2ogpt
+copy_files_from_h2ogpt:
+	for file in $(FILES_FROM_H2OGPT); do \
+		dst="$(PACKAGE_DIR)/$(NAME_PREFIX_FOR_FILES_COPIED_FROM_H2OGPT)$(notdir $$file)"; \
+		echo "Copying '$$file' to '$$dst' ..."; \
+		cp -f "./../$$file" "$$dst"; \
+	done
+
 .PHONY: clean
 clean:
 	rm -rf dist
+	find "$(PACKAGE_DIR)" -name "$(NAME_PREFIX_FOR_FILES_COPIED_FROM_H2OGPT)*" -delete
 
 .PHONY: clean_deep
 clean_deep: clean
