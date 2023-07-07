@@ -28,7 +28,7 @@ os.environ['BITSANDBYTES_NOWELCOME'] = '1'
 warnings.filterwarnings('ignore', category=UserWarning, message='TypedStorage is deprecated')
 
 from enums import DocumentChoices, LangChainMode, no_lora_str, model_token_mapping, no_model_str, source_prefix, \
-    source_postfix
+    source_postfix, LangChainAction
 from parameters import eval_func_param_names, no_default_param_names
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial, EThread, get_githash, \
@@ -52,6 +52,8 @@ from stopping import get_stopping
 eval_extra_columns = ['prompt', 'response', 'score']
 
 langchain_modes = [x.value for x in list(LangChainMode)]
+
+langchain_actions = [x.value for x in list(LangChainAction)]
 
 scratch_base_dir = '/tmp/'
 
@@ -139,8 +141,12 @@ def main(
         eval_as_output: bool = False,
 
         langchain_mode: str = 'Disabled',
+        langchain_action: str = LangChainAction.QUERY.value,
         force_langchain_evaluate: bool = False,
         visible_langchain_modes: list = ['UserData', 'MyData'],
+        # WIP:
+        # visible_langchain_actions: list = langchain_actions.copy(),
+        visible_langchain_actions: list = [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value],
         document_choice: list = [DocumentChoices.All_Relevant.name],
         user_path: str = None,
         detect_user_path_changes_every_query: bool = False,
@@ -268,6 +274,11 @@ def main(
     :param eval_as_output: for no gradio benchmark, whether to test eval_filename output itself
     :param langchain_mode: Data source to include.  Choose "UserData" to only consume files from make_db.py.
            WARNING: wiki_full requires extra data processing via read_wiki_full.py and requires really good workstation to generate db, unless already present.
+    :param langchain_action: Mode langchain operations in on documents.
+            Query: Make query of document(s)
+            Summarize or Summarize_map_reduce: Summarize document(s) via map_reduce
+            Summarize_all: Summarize document(s) using entire document at once
+            Summarize_refine: Summarize document(s) using entire document, and try to refine before returning summary
     :param force_langchain_evaluate: Whether to force langchain LLM use even if not doing langchain, mostly for testing.
     :param user_path: user path to glob from to generate db for vector search, for 'UserData' langchain mode.
            If already have db, any new/changed files are added automatically if path set, does not have to be same path used for prior db sources
@@ -279,6 +290,7 @@ def main(
            To allow scratch space only live in session, add 'MyData' to list
            Default: If only want to consume local files, e.g. prepared by make_db.py, only include ['UserData']
            FIXME: Avoid 'All' for now, not implemented
+    :param visible_langchain_actions: Which actions to allow
     :param document_choice: Default document choice when taking subset of collection
     :param load_db_if_exists: Whether to load chroma db if exists or re-generate db
     :param keep_sources_in_context: Whether to keep url sources in context, not helpful usually
@@ -370,6 +382,8 @@ def main(
     visible_langchain_modes = ast.literal_eval(os.environ.get("visible_langchain_modes", str(visible_langchain_modes)))
     if langchain_mode not in visible_langchain_modes and langchain_mode in langchain_modes:
         visible_langchain_modes += [langchain_mode]
+
+    assert langchain_action in langchain_actions, "Invalid langchain_action %s" % langchain_action
 
     # if specifically chose not to show My or User Data, disable upload, so gradio elements are simpler
     if LangChainMode.MY_DATA.value not in visible_langchain_modes:
@@ -1174,6 +1188,55 @@ def get_score_model(score_model: str = None,
         smodel, stokenizer, sdevice = None, None, None
     return smodel, stokenizer, sdevice
 
+<< << << < HEAD
+== == == =
+no_default_param_names = [
+    'instruction',
+    'iinput',
+    'context',
+    'instruction_nochat',
+    'iinput_nochat',
+]
+
+gen_hyper = ['temperature',
+             'top_p',
+             'top_k',
+             'num_beams',
+             'max_new_tokens',
+             'min_new_tokens',
+             'early_stopping',
+             'max_time',
+             'repetition_penalty',
+             'num_return_sequences',
+             'do_sample',
+             ]
+
+eval_func_param_names = ['instruction',
+                         'iinput',
+                         'context',
+                         'stream_output',
+                         'prompt_type',
+                         'prompt_dict'] + \
+                        gen_hyper + \
+                        ['chat',
+                         'instruction_nochat',
+                         'iinput_nochat',
+                         'langchain_mode',
+                         'langchain_action',
+                         'top_k_docs',
+                         'chunk',
+                         'chunk_size',
+                         'document_choice',
+                         ]
+
+# form evaluate defaults for submit_nochat_api
+eval_func_param_names_defaults = eval_func_param_names.copy()
+for k in no_default_param_names:
+    if k in eval_func_param_names_defaults:
+        eval_func_param_names_defaults.remove(k)
+
+>> >> >> > main
+
 
 def evaluate(
         model_state,
@@ -1200,6 +1263,7 @@ def evaluate(
         instruction_nochat,
         iinput_nochat,
         langchain_mode,
+        langchain_action,
         top_k_docs,
         chunk,
         chunk_size,
@@ -1372,18 +1436,17 @@ def evaluate(
 
     # THIRD PLACE where LangChain referenced, but imports only occur if enabled and have db to use
     assert langchain_mode in langchain_modes, "Invalid langchain_mode %s" % langchain_mode
+    assert langchain_action in langchain_actions, "Invalid langchain_action %s" % langchain_action
     if langchain_mode in ['MyData'] and my_db_state is not None and len(my_db_state) > 0 and my_db_state[0] is not None:
         db1 = my_db_state[0]
     elif dbs is not None and langchain_mode in dbs:
         db1 = dbs[langchain_mode]
     else:
         db1 = None
-    do_langchain_path = langchain_mode not in [False, 'Disabled', 'ChatLLM', 'LLM'] and \
-                        db1 is not None or \
+    do_langchain_path = langchain_mode not in [False, 'Disabled', 'ChatLLM', 'LLM'] or \
                         base_model in non_hf_types or \
                         force_langchain_evaluate
     if do_langchain_path:
-        query = instruction if not iinput else "%s\n%s" % (instruction, iinput)
         outr = ""
         # use smaller cut_distanct for wiki_full since so many matches could be obtained, and often irrelevant unless close
         from gpt_langchain import run_qa_db
@@ -1399,7 +1462,9 @@ def evaluate(
                                    max_time=max_time,
                                    num_return_sequences=num_return_sequences,
                                    )
-        for r in run_qa_db(query=query,
+        for r in run_qa_db(query=instruction,
+                           iinput=iinput,
+                           context=context,
                            model_name=base_model, model=model, tokenizer=tokenizer,
                            inference_server=inference_server,
                            stream_output=stream_output,
@@ -1417,6 +1482,7 @@ def evaluate(
                            chunk=chunk,
                            chunk_size=chunk_size,
                            langchain_mode=langchain_mode,
+                           langchain_action=langchain_action,
                            document_choice=document_choice,
                            db_type=db_type,
                            top_k_docs=top_k_docs,
@@ -1440,10 +1506,18 @@ def evaluate(
             yield dict(response=outr, sources=extra)
         if save_dir:
             extra_dict = gen_hyper_langchain.copy()
-            extra_dict.update(prompt_type=prompt_type, inference_server=inference_server,
-                              langchain_mode=langchain_mode, document_choice=document_choice,
-                              num_prompt_tokens=num_prompt_tokens)
-            save_generate_output(prompt=query, output=outr, base_model=base_model, save_dir=save_dir,
+            extra_dict.update(prompt_type=prompt_type,
+                              inference_server=inference_server,
+                              langchain_mode=langchain_mode,
+                              langchain_action=langchain_action,
+                              document_choice=document_choice,
+                              num_prompt_tokens=num_prompt_tokens,
+                              instruction=instruction,
+                              iinput=iinput,
+                              context=context,
+                              )
+            save_generate_output(prompt=prompt,
+                                 output=outr, base_model=base_model, save_dir=save_dir,
                                  where_from='run_qa_db',
                                  extra_dict=extra_dict)
             if verbose:
@@ -1549,6 +1623,7 @@ def evaluate(
                 chat_client = False
                 where_from = "gr_client"
                 client_langchain_mode = 'Disabled'
+                client_langchain_action = LangChainAction.QUERY.value
                 gen_server_kwargs = dict(temperature=temperature,
                                          top_p=top_p,
                                          top_k=top_k,
@@ -1600,6 +1675,7 @@ def evaluate(
                                      instruction_nochat=gr_prompt if not chat_client else '',
                                      iinput_nochat=gr_iinput,  # only for chat=False
                                      langchain_mode=client_langchain_mode,
+                                     langchain_action=client_langchain_action,
                                      top_k_docs=top_k_docs,
                                      chunk=chunk,
                                      chunk_size=chunk_size,
@@ -1952,6 +2028,8 @@ class H2OTextIteratorStreamer(TextIteratorStreamer):
                 if self.do_stop:
                     print("hit stop", flush=True)
                     # could raise or break, maybe best to raise and make parent see if any exception in thread
+                    self.clear_queue()
+                    self.do_stop = False
                     raise StopIteration()
                     # break
                 value = self.text_queue.get(block=self.block, timeout=self.timeout)
@@ -1959,9 +2037,16 @@ class H2OTextIteratorStreamer(TextIteratorStreamer):
             except queue.Empty:
                 time.sleep(0.01)
         if value == self.stop_signal:
+            self.clear_queue()
+            self.do_stop = False
             raise StopIteration()
         else:
             return value
+
+    def clear_queue(self):
+        # make sure streamer is reusable after stop hit
+        with self.text_queue.mutex:
+            self.text_queue.queue.clear()
 
 
 def generate_with_exceptions(func, *args, prompt='', inputs_decoded='', raise_generate_gpu_exceptions=True, **kwargs):
@@ -2170,7 +2255,9 @@ y = np.random.randint(0, 1, 100)
 
     # move to correct position
     for example in examples:
-        example += [chat, '', '', 'Disabled', top_k_docs, chunk, chunk_size, [DocumentChoices.All_Relevant.name]]
+        example += [chat, '', '', 'Disabled', LangChainAction.QUERY.value,
+                    top_k_docs, chunk, chunk_size, [DocumentChoices.All_Relevant.name]
+                    ]
         # adjust examples if non-chat mode
         if not chat:
             example[eval_func_param_names.index('instruction_nochat')] = example[

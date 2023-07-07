@@ -50,15 +50,16 @@ def fix_pydantic_duplicate_validators_error():
 
 fix_pydantic_duplicate_validators_error()
 
-from enums import DocumentChoices, no_model_str, no_lora_str, no_server_str, LangChainMode
+from enums import DocumentChoices, no_model_str, no_lora_str, no_server_str, LangChainAction, LangChainMode
 from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, get_dark_js, spacing_xsm, radius_xsm, \
     text_xsm
 from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt_type_to_model_lower, non_hf_types, \
     get_prompt
 from utils import get_githash, flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping, get_short_name, get_url, makedirs, get_kwargs, remove, system_info, ping_gpu
-from generate import get_model, languages_covered, evaluate, score_qa, langchain_modes, \
-    inputs_kwargs_list, scratch_base_dir, get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context
+from generate import get_model, languages_covered, evaluate, eval_func_param_names, score_qa, langchain_modes, \
+    inputs_kwargs_list, scratch_base_dir, get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, \
+    langchain_actions
 from parameters import eval_func_param_names, no_default_param_names, eval_func_param_names_defaults
 from apscheduler.schedulers.background import BackgroundScheduler
 
@@ -99,6 +100,7 @@ def go_gradio(**kwargs):
     dbs = kwargs['dbs']
     db_type = kwargs['db_type']
     visible_langchain_modes = kwargs['visible_langchain_modes']
+    visible_langchain_actions = kwargs['visible_langchain_actions']
     allow_upload_to_user_data = kwargs['allow_upload_to_user_data']
     allow_upload_to_my_data = kwargs['allow_upload_to_my_data']
     enable_sources_list = kwargs['enable_sources_list']
@@ -353,6 +355,12 @@ def go_gradio(**kwargs):
                             value=kwargs['langchain_mode'],
                             label="Data Collection of Sources",
                             visible=kwargs['langchain_mode'] != 'Disabled')
+                        allowed_actions = [x for x in langchain_actions if x in visible_langchain_actions]
+                        langchain_action = gr.Radio(
+                            allowed_actions,
+                            value=allowed_actions[0] if len(allowed_actions) > 0 else None,
+                            label="Data Action",
+                            visible=True)
                     data_row2 = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled')
                     with data_row2:
                         with gr.Column(scale=50):
@@ -956,6 +964,8 @@ def go_gradio(**kwargs):
             if 'langchain_mode' not in user_kwargs:
                 # if user doesn't specify, then assume disabled, not use default
                 user_kwargs['langchain_mode'] = 'Disabled'
+            if 'langchain_action' not in user_kwargs:
+                user_kwargs['langchain_action'] = LangChainAction.QUERY.value
 
             set1 = set(list(default_kwargs1.keys()))
             set2 = set(eval_func_param_names)
@@ -963,7 +973,8 @@ def go_gradio(**kwargs):
             # correct ordering.  Note some things may not be in default_kwargs, so can't be default of user_kwargs.get()
             model_state1 = args_list[0]
             my_db_state1 = args_list[1]
-            args_list = [user_kwargs[k] if k in user_kwargs and user_kwargs[k] is not None else default_kwargs1[k] for k in eval_func_param_names]
+            args_list = [user_kwargs[k] if k in user_kwargs and user_kwargs[k] is not None else default_kwargs1[k] for k
+                         in eval_func_param_names]
             assert len(args_list) == len(eval_func_param_names)
             args_list = [model_state1, my_db_state1] + args_list
 
@@ -1137,6 +1148,9 @@ def go_gradio(**kwargs):
             user_message = args_list[eval_func_param_names.index('instruction')]  # chat only
             input1 = args_list[eval_func_param_names.index('iinput')]  # chat only
             prompt_type1 = args_list[eval_func_param_names.index('prompt_type')]
+            langchain_mode1 = args_list[eval_func_param_names.index('langchain_mode')]
+            langchain_action1 = args_list[eval_func_param_names.index('langchain_action')]
+            document_choice1 = args_list[eval_func_param_names.index('document_choice')]
             if not prompt_type1:
                 # shouldn't have to specify if CLI launched model
                 prompt_type1 = kwargs['prompt_type']
@@ -1167,8 +1181,12 @@ def go_gradio(**kwargs):
                     history[-1][1] = None
                 return history
             if user_message1 in ['', None, '\n']:
-                # reject non-retry submit/enter
-                return history
+                if langchain_action1 in LangChainAction.QUERY.value and \
+                        DocumentChoices.Only_All_Sources.name not in document_choice1 \
+                        or \
+                        langchain_mode1 in [LangChainMode.CHAT_LLM.value, LangChainMode.LLM.value]:
+                    # reject non-retry submit/enter
+                    return history
             user_message1 = fix_text_for_gradio(user_message1)
             return history + [[user_message1, None]]
 
@@ -1218,7 +1236,6 @@ def go_gradio(**kwargs):
             model_state1 = args_list[-3]
             my_db_state1 = args_list[-2]
             history = args_list[-1]
-            langchain_mode1 = args_list[eval_func_param_names.index('langchain_mode')]
             prompt_type1 = args_list[eval_func_param_names.index('prompt_type')]
             prompt_dict1 = args_list[eval_func_param_names.index('prompt_dict')]
 
@@ -1226,6 +1243,9 @@ def go_gradio(**kwargs):
                 return history, None, None, None
 
             args_list = args_list[:-3]  # only keep rest needed for evaluate()
+            langchain_mode1 = args_list[eval_func_param_names.index('langchain_mode')]
+            langchain_action1 = args_list[eval_func_param_names.index('langchain_action')]
+            document_choice1 = args_list[eval_func_param_names.index('document_choice')]
             if not history:
                 print("No history", flush=True)
                 history = []
@@ -1236,8 +1256,12 @@ def go_gradio(**kwargs):
                 instruction1 = history[-1][0]
                 history[-1][1] = None
             elif not instruction1:
-                # if not retrying, then reject empty query
-                return history, None, None, None
+                if langchain_action1 in LangChainAction.QUERY.value and \
+                        DocumentChoices.Only_All_Sources.name not in document_choice1 \
+                        or \
+                        langchain_mode1 in [LangChainMode.CHAT_LLM.value, LangChainMode.LLM.value]:
+                    # if not retrying, then reject empty query
+                    return history, None, None, None
             elif len(history) > 0 and history[-1][1] not in [None, '']:
                 # reject submit button if already filled and not retrying
                 # None when not filling with '' to keep client happy

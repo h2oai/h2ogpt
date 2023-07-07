@@ -37,6 +37,9 @@ class DocumentChoices(Enum):
     Just_LLM = 3
 
 
+non_query_commands = [DocumentChoices.All_Relevant_Only_Sources.name, DocumentChoices.Only_All_Sources.name]
+
+
 class LangChainMode(Enum):
     """LangChain mode"""
 
@@ -50,6 +53,17 @@ class LangChainMode(Enum):
     MY_DATA = "MyData"
     GITHUB_H2OGPT = "github h2oGPT"
     H2O_DAI_DOCS = "DriverlessAI docs"
+
+
+class LangChainAction(Enum):
+    """LangChain action"""
+
+    QUERY = "Query"
+    # WIP:
+    #SUMMARIZE_MAP = "Summarize_map_reduce"
+    SUMMARIZE_MAP = "Summarize"
+    SUMMARIZE_ALL = "Summarize_all"
+    SUMMARIZE_REFINE = "Summarize_refine"
 
 
 no_server_str = no_lora_str = no_model_str = '[None/Remove]'
