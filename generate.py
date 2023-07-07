@@ -2043,6 +2043,7 @@ class H2OTextIteratorStreamer(TextIteratorStreamer):
         with self.text_queue.mutex:
             self.text_queue.queue.clear()
 
+
 def generate_with_exceptions(func, *args, prompt='', inputs_decoded='', raise_generate_gpu_exceptions=True, **kwargs):
     try:
         func(*args, **kwargs)
