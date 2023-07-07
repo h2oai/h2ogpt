@@ -68,6 +68,6 @@ def test_chat_completion_sync(client):
     print(chat_history)
 
 
-def test_parameter_order(client, eval_func_param_names):
+def test_parameters_order(client, eval_func_param_names):
     text_completion = client.text_completion.create()
     assert eval_func_param_names == list(text_completion._parameters.keys())
