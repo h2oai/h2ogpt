@@ -24,7 +24,7 @@ from langchain.embeddings import HuggingFaceInstructEmbeddings
 from tqdm import tqdm
 
 from enums import DocumentChoices, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
-    LangChainAction
+    LangChainAction, LangChainMode
 from generate import gen_hyper, get_model, SEED
 from prompter import non_hf_types, PromptType, Prompter
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
@@ -1883,11 +1883,26 @@ def _run_qa_db(query=None,
     sim_kwargs = {k: v for k, v in locals().items() if k in func_names}
     missing_kwargs = [x for x in func_names if x not in sim_kwargs]
     assert not missing_kwargs, "Missing: %s" % missing_kwargs
-    docs, chain, scores, use_context = get_similarity_chain(**sim_kwargs)
+    docs, chain, scores, use_context, have_any_docs = get_similarity_chain(**sim_kwargs)
     if cmd in non_query_commands:
         formatted_doc_chunks = '\n\n'.join([get_url(x) + '\n\n' + x.page_content for x in docs])
         yield formatted_doc_chunks, ''
         return
+    if not docs and langchain_action in [LangChainAction.SUMMARIZE_MAP.value,
+                                         LangChainAction.SUMMARIZE_ALL.value,
+                                         LangChainAction.SUMMARIZE_REFINE.value]:
+        ret = 'No relevant documents to summarize.' if have_any_docs else 'No documents to summarize.'
+        extra = ''
+        yield ret, extra
+        return
+    if not docs and langchain_mode not in [LangChainMode.DISABLED.value,
+                                           LangChainMode.CHAT_LLM.value,
+                                           LangChainMode.LLM.value]:
+        ret = 'No relevant documents to query.' if have_any_docs else 'No documents to query.'
+        extra = ''
+        yield ret, extra
+        return
+
     if chain is None and model_name not in non_hf_types:
         # here if no docs at all and not HF type
         # can only return if HF type
@@ -2014,7 +2029,7 @@ def get_similarity_chain(query=None,
                                                         db=db,
                                                         n_jobs=n_jobs,
                                                         verbose=verbose)
-
+    have_any_docs = db is not None
     if langchain_action == LangChainAction.QUERY.value:
         if iinput:
             query = "%s\n%s" % (query, iinput)
@@ -2104,6 +2119,7 @@ def get_similarity_chain(query=None,
             docs_with_score = docs_with_score[:top_k_docs]
             docs = [x[0] for x in docs_with_score]
             scores = [x[1] for x in docs_with_score]
+            have_any_docs |= len(docs) > 0
         else:
             # FIXME: if langchain_action == LangChainAction.SUMMARIZE_MAP.value
             # if map_reduce, then no need to auto reduce chunks
@@ -2179,6 +2195,7 @@ def get_similarity_chain(query=None,
             if reverse_docs:
                 docs_with_score.reverse()
             # cut off so no high distance docs/sources considered
+            have_any_docs |= len(docs_with_score) > 0  # before cut
             docs = [x[0] for x in docs_with_score if x[1] < cut_distanct]
             scores = [x[1] for x in docs_with_score if x[1] < cut_distanct]
             if len(scores) > 0 and verbose:
@@ -2190,11 +2207,11 @@ def get_similarity_chain(query=None,
 
     if not docs and use_context and model_name not in non_hf_types:
         # if HF type and have no docs, can bail out
-        return docs, None, [], False
+        return docs, None, [], False, have_any_docs
 
     if cmd in non_query_commands:
         # no LLM use
-        return docs, None, [], False
+        return docs, None, [], False, have_any_docs
 
     common_words_file = "data/NGSL_1.2_stats.csv.zip"
     if os.path.isfile(common_words_file) and langchain_mode == LangChainAction.QUERY.value:
@@ -2254,7 +2271,7 @@ def get_similarity_chain(query=None,
     else:
         raise RuntimeError("No such langchain_action=%s" % langchain_action)
 
-    return docs, target, scores, use_context
+    return docs, target, scores, use_context, have_any_docs
 
 
 def get_sources_answer(query, answer, scores, show_rank, answer_with_sources, verbose=False):

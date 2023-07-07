@@ -59,7 +59,9 @@ class LangChainAction(Enum):
     """LangChain action"""
 
     QUERY = "Query"
-    SUMMARIZE_MAP = "Summarize_map_reduce"
+    # WIP:
+    #SUMMARIZE_MAP = "Summarize_map_reduce"
+    SUMMARIZE_MAP = "Summarize"
     SUMMARIZE_ALL = "Summarize_all"
     SUMMARIZE_REFINE = "Summarize_refine"
 

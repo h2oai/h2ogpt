@@ -143,7 +143,9 @@ def main(
         langchain_action: str = LangChainAction.QUERY.value,
         force_langchain_evaluate: bool = False,
         visible_langchain_modes: list = ['UserData', 'MyData'],
-        visible_langchain_actions: list = langchain_actions.copy(),
+        # WIP:
+        #visible_langchain_actions: list = langchain_actions.copy(),
+        visible_langchain_actions: list = [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value],
         document_choice: list = [DocumentChoices.All_Relevant.name],
         user_path: str = None,
         detect_user_path_changes_every_query: bool = False,
@@ -273,7 +275,7 @@ def main(
            WARNING: wiki_full requires extra data processing via read_wiki_full.py and requires really good workstation to generate db, unless already present.
     :param langchain_action: Mode langchain operations in on documents.
             Query: Make query of document(s)
-            Summarize_map_reduce: Summarize document(s) via map_reduce
+            Summarize or Summarize_map_reduce: Summarize document(s) via map_reduce
             Summarize_all: Summarize document(s) using entire document at once
             Summarize_refine: Summarize document(s) using entire document, and try to refine before returning summary
     :param force_langchain_evaluate: Whether to force langchain LLM use even if not doing langchain, mostly for testing.
@@ -1437,8 +1439,7 @@ def evaluate(
         db1 = dbs[langchain_mode]
     else:
         db1 = None
-    do_langchain_path = langchain_mode not in [False, 'Disabled', 'ChatLLM', 'LLM'] and \
-                        db1 is not None or \
+    do_langchain_path = langchain_mode not in [False, 'Disabled', 'ChatLLM', 'LLM'] or \
                         base_model in non_hf_types or \
                         force_langchain_evaluate
     if do_langchain_path:
