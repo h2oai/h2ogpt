@@ -2037,25 +2037,28 @@ def get_similarity_chain(query=None,
     \"\"\"
     %s{question}""" % (prefix, extra)
             template_if_no_docs = """%s{context}%s{question}""" % (prefix, extra)
-    elif langchain_action == LangChainAction.SUMMARIZE_ALL.value:
+    elif langchain_action in [LangChainAction.SUMMARIZE_ALL.value, LangChainAction.SUMMARIZE_MAP.value]:
         none = ['', '\n', None]
         if query in none and iinput in none:
-            prompt_summary = "Using only the text above, write a concise summary:\n"
+            prompt_summary = "Using only the text above, write a condensed and concise summary:\n"
         elif query not in none:
-            prompt_summary = "Focusing on %s, write a concise Summary:\n" % query
+            prompt_summary = "Focusing on %s, write a condensed and concise Summary:\n" % query
         elif iinput not in None:
             prompt_summary = iinput
         else:
             prompt_summary = "Focusing on %s, %s:\n" % (query, iinput)
         # don't auto reduce
         auto_reduce_chunks = False
+        if langchain_action == LangChainAction.SUMMARIZE_MAP.value:
+            fstring = '{text}'
+        else:
+            fstring = '{input_documents}'
         template = """In order to write a concise single-paragraph or bulleted list summary, pay attention to the following text:
 \"\"\"
-{input_documents}
-\"\"\"%s""" % prompt_summary
+%s
+\"\"\"\n%s""" % (fstring, prompt_summary)
         template_if_no_docs = "Exactly only say: There are no documents to summarize."
-    elif langchain_action in [LangChainAction.SUMMARIZE_REFINE,
-                              LangChainAction.SUMMARIZE_MAP.value]:
+    elif langchain_action in [LangChainAction.SUMMARIZE_REFINE]:
         template = ''  # unused
         template_if_no_docs = ''  # unused
     else:
@@ -2234,7 +2237,9 @@ def get_similarity_chain(query=None,
                               LangChainAction.SUMMARIZE_ALL.value]:
         from langchain.chains.summarize import load_summarize_chain
         if langchain_action == LangChainAction.SUMMARIZE_MAP.value:
-            chain = load_summarize_chain(llm, chain_type="map_reduce", return_intermediate_steps=True)
+            prompt = PromptTemplate(input_variables=["text"], template=template)
+            chain = load_summarize_chain(llm, chain_type="map_reduce",
+                                         map_prompt=prompt, combine_prompt=prompt, return_intermediate_steps=True)
             target = wrapped_partial(chain, {"input_documents": docs})  # , return_only_outputs=True)
         elif langchain_action == LangChainAction.SUMMARIZE_ALL.value:
             assert use_template
