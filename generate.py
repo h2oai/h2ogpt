@@ -29,6 +29,7 @@ warnings.filterwarnings('ignore', category=UserWarning, message='TypedStorage is
 
 from enums import DocumentChoices, LangChainMode, no_lora_str, model_token_mapping, no_model_str, source_prefix, \
     source_postfix
+from parameters import eval_func_param_names, no_default_param_names
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, remove
@@ -1172,51 +1173,6 @@ def get_score_model(score_model: str = None,
     else:
         smodel, stokenizer, sdevice = None, None, None
     return smodel, stokenizer, sdevice
-
-
-no_default_param_names = [
-    'instruction',
-    'iinput',
-    'context',
-    'instruction_nochat',
-    'iinput_nochat',
-]
-
-gen_hyper = ['temperature',
-             'top_p',
-             'top_k',
-             'num_beams',
-             'max_new_tokens',
-             'min_new_tokens',
-             'early_stopping',
-             'max_time',
-             'repetition_penalty',
-             'num_return_sequences',
-             'do_sample',
-             ]
-
-eval_func_param_names = ['instruction',
-                         'iinput',
-                         'context',
-                         'stream_output',
-                         'prompt_type',
-                         'prompt_dict'] + \
-                        gen_hyper + \
-                        ['chat',
-                         'instruction_nochat',
-                         'iinput_nochat',
-                         'langchain_mode',
-                         'top_k_docs',
-                         'chunk',
-                         'chunk_size',
-                         'document_choice',
-                         ]
-
-# form evaluate defaults for submit_nochat_api
-eval_func_param_names_defaults = eval_func_param_names.copy()
-for k in no_default_param_names:
-    if k in eval_func_param_names_defaults:
-        eval_func_param_names_defaults.remove(k)
 
 
 def evaluate(

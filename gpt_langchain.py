@@ -24,7 +24,8 @@ from langchain.embeddings import HuggingFaceInstructEmbeddings
 from tqdm import tqdm
 
 from enums import DocumentChoices, no_lora_str, model_token_mapping, source_prefix, source_postfix
-from generate import gen_hyper, get_model, SEED
+from generate import get_model, SEED
+from parameters import gen_hyper
 from prompter import non_hf_types, PromptType, Prompter
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
     get_device, ProgressParallel, remove, hash_file, clear_torch_cache, NullContext, get_hf_server, FakeTokenizer

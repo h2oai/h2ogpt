@@ -97,7 +97,7 @@ def get_args(prompt, prompt_type, chat=False, stream_output=False,
                          chunk_size=512,
                          document_choice=[DocumentChoices.All_Relevant.name],
                          )
-    from generate import eval_func_param_names
+    from parameters import eval_func_param_names
     assert len(set(eval_func_param_names).difference(set(list(kwargs.keys())))) == 0
     if chat:
         # add chatbot output on end.  Assumes serialize=False

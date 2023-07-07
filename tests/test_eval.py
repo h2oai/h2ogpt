@@ -64,7 +64,8 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
         import os
         os.environ['CUDA_VISIBLE_DEVICES'] = ''
     import pandas as pd
-    from generate import eval_func_param_names, eval_extra_columns
+    from generate import eval_extra_columns
+    from parameters import eval_func_param_names
     from generate import main
     kwargs = dict(
         stream_output=False, prompt_type=prompt_type, prompt_dict='',
