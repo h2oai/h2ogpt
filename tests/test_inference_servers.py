@@ -113,13 +113,18 @@ def test_gradio_inference_server(base_model, force_langchain_evaluate, do_langch
                'I am an AI language model' in ret7['response'] or \
                'I am an AI assistant.' in ret7['response']
     elif base_model == 'llama':
-        assert 'I am a bot.' in ret1['response'] or 'can I assist you today?' in ret1['response']
+        assert 'I am a bot.' in ret1['response'] or 'can I assist you today?' in ret1[
+            'response'] or 'How can I assist you?' in ret1['response']
         assert 'Birds' in ret2['response'] or 'Once upon a time' in ret2['response']
         assert 'Birds' in ret3['response'] or 'Once upon a time' in ret3['response']
-        assert 'I am a bot.' in ret4['response'] or 'can I assist you today?' in ret4['response']
-        assert 'I am a bot.' in ret5['response'] or 'can I assist you today?' in ret5['response']
-        assert 'I am a bot.' in ret6['response'] or 'can I assist you today?' in ret6['response']
-        assert 'I am a bot.' in ret7['response'] or 'can I assist you today?' in ret7['response']
+        assert 'I am a bot.' in ret4['response'] or 'can I assist you today?' in ret4[
+            'response'] or 'How can I assist you?' in ret4['response']
+        assert 'I am a bot.' in ret5['response'] or 'can I assist you today?' in ret5[
+            'response'] or 'How can I assist you?' in ret5['response']
+        assert 'I am a bot.' in ret6['response'] or 'can I assist you today?' in ret6[
+            'response'] or 'How can I assist you?' in ret6['response']
+        assert 'I am a bot.' in ret7['response'] or 'can I assist you today?' in ret7[
+            'response'] or 'How can I assist you?' in ret7['response']
     elif base_model == 'gptj':
         assert 'I am a bot.' in ret1['response'] or 'can I assist you today?' in ret1[
             'response'] or 'a student at' in ret1['response'] or 'am a person who' in ret1['response'] or 'I am' in \

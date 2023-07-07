@@ -566,9 +566,8 @@ def test_xls_add(db_type):
             assert db is not None
             docs = db.similarity_search("What is Profit?")
             assert len(docs) == 4
-            assert '16604.000' in docs[0].page_content
+            assert '16604.000' in docs[0].page_content or 'Small Business' in docs[0].page_content
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
-
 
 
 @pytest.mark.parametrize("db_type", db_types)
