@@ -489,7 +489,7 @@ def main(
         src_lang, tgt_lang, \
         examples, \
         task_info = \
-        get_generate_params(model_lower, model_lock,
+        get_generate_params(model_lower,
                             chat,
                             stream_output, show_examples,
                             prompt_type, prompt_dict,
@@ -2039,7 +2039,7 @@ def generate_with_exceptions(func, *args, prompt='', inputs_decoded='', raise_ge
                 raise
 
 
-def get_generate_params(model_lower, model_lock,
+def get_generate_params(model_lower,
                         chat,
                         stream_output, show_examples,
                         prompt_type, prompt_dict,
