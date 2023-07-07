@@ -4,15 +4,15 @@ A Python thin-client for h2oGPT.
 ### Prerequisites
 - Python 3.8+
 
-### Setup
-:information_source: [Poetry](https://python-poetry.org) is used as the build tool.
-
+If you don't have Python 3.8 in your system, you can use [Conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html).
 ```bash
 conda create -n h2ogpt_client_build -y
 conda activate h2ogpt_client_build
-conda install python=3.10 -y
+conda install python=3.8 -y
 ```
 
+### Setup
+:information_source: [Poetry](https://python-poetry.org) is used as the build tool.
 ```shell
 make -C client setup
 ```
@@ -27,29 +27,25 @@ pip install client/dist/h2ogpt_client-*-py3-none-any.whl
 ```
 
 ## Usage
-
-Make environment or use some existing environment:
-```bash
-conda create -n h2ogpt_client -y
-conda activate h2ogpt_client
-conda install python=3.10 -y
-```
-
 ```python
 from h2ogpt_client import Client
 
 client = Client("http://0.0.0.0:7860")
 
-# text completion
+# Text completion
 text_completion = client.text_completion.create()
 response = await text_completion.complete("Hello world")
+# Text completion: synchronous
+response = text_completion.complete_sync("Hello world")
 
-# chat completion
+# Chat completion
 chat_completion = client.chat_completion.create()
 reply = await chat_completion.chat("Hey!")
 print(reply["user"])  # prints user prompt, i.e. "Hey!"
 print(reply["gpt"])   # prints reply from h2oGPT
 chat_history = chat_completion.chat_history()
+# Chat completion: synchronous
+reply = chat_completion.chat_sync("Hey!")
 ```
 :warning: **Note**: Client APIs are still evolving. Hence, APIs can be changed without prior warnings.
 
