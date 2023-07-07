@@ -1429,8 +1429,8 @@ def evaluate(
     prompt = prompter.generate_prompt(data_point)
 
     # THIRD PLACE where LangChain referenced, but imports only occur if enabled and have db to use
-    assert langchain_action in langchain_actions, "Invalid langchain_action %s" % langchain_action
     assert langchain_mode in langchain_modes, "Invalid langchain_mode %s" % langchain_mode
+    assert langchain_action in langchain_actions, "Invalid langchain_action %s" % langchain_action
     if langchain_mode in ['MyData'] and my_db_state is not None and len(my_db_state) > 0 and my_db_state[0] is not None:
         db1 = my_db_state[0]
     elif dbs is not None and langchain_mode in dbs:

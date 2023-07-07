@@ -1908,36 +1908,32 @@ def _run_qa_db(query=None,
                 thread.start()
                 outputs = ""
                 prompt = None  # FIXME
-                while True:
-                    try:
-                        for new_text in streamer:
-                            # print("new_text: %s" % new_text, flush=True)
-                            if bucket.qsize() > 0 or thread.exc:
-                                thread.join()
-                            outputs += new_text
-                            if prompter:  # and False:  # FIXME: pipeline can already use prompter
-                                output1 = prompter.get_response(outputs, prompt=prompt,
-                                                                sanitize_bot_response=sanitize_bot_response)
-                                yield output1, ''
-                            else:
-                                yield outputs, ''
-                    except BaseException:
-                        # if any exception, raise that exception if was from thread, first
-                        if thread.exc:
-                            raise thread.exc
-                        raise
-                    finally:
-                        # in case no exception and didn't join with thread yet, then join
-                        if not thread.exc:
-                            if thread._return is not None and 'output_text' in thread._return:
-                                answer = thread.join()
-                            else:
-                                continue
-                    # in case raise StopIteration or broke queue loop in streamer, but still have exception
+                try:
+                    for new_text in streamer:
+                        # print("new_text: %s" % new_text, flush=True)
+                        if bucket.qsize() > 0 or thread.exc:
+                            thread.join()
+                        outputs += new_text
+                        if prompter:  # and False:  # FIXME: pipeline can already use prompter
+                            output1 = prompter.get_response(outputs, prompt=prompt,
+                                                            sanitize_bot_response=sanitize_bot_response)
+                            yield output1, ''
+                        else:
+                            yield outputs, ''
+                except BaseException:
+                    # if any exception, raise that exception if was from thread, first
                     if thread.exc:
                         raise thread.exc
-                    # FIXME: answer is not string outputs from streamer.  How to get actual final output?
-                    # answer = outputs
+                    raise
+                finally:
+                    # in case no exception and didn't join with thread yet, then join
+                    if not thread.exc:
+                        answer = thread.join()
+                # in case raise StopIteration or broke queue loop in streamer, but still have exception
+                if thread.exc:
+                    raise thread.exc
+                # FIXME: answer is not string outputs from streamer.  How to get actual final output?
+                # answer = outputs
             else:
                 answer = chain()
 

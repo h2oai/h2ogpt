@@ -120,7 +120,6 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
         if handle_long_generation is None:
             # forces truncation of inputs to avoid critical failure
             handle_long_generation = None  # disable with new approaches
-        print(prompt_text, flush=True)
         return super().preprocess(prompt_text, prefix=prefix, handle_long_generation=handle_long_generation,
                                   **generate_kwargs)
 
