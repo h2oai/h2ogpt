@@ -9,7 +9,7 @@ def test_cli(monkeypatch):
     query = "What is the Earth?"
     monkeypatch.setattr('builtins.input', lambda _: query)
 
-    from generate import main
+    from src.gen import main
     all_generations = main(base_model='gptj', cli=True, cli_loop=False, score_model='None')
 
     assert len(all_generations) == 1
@@ -24,7 +24,7 @@ def test_cli_langchain(monkeypatch):
     query = "What is the cat doing?"
     monkeypatch.setattr('builtins.input', lambda _: query)
 
-    from generate import main
+    from src.gen import main
     all_generations = main(base_model='gptj', cli=True, cli_loop=False, score_model='None',
                            langchain_mode='UserData',
                            user_path=user_path,
@@ -51,7 +51,7 @@ def test_cli_langchain_llamacpp(monkeypatch):
     query = "What is the cat doing?"
     monkeypatch.setattr('builtins.input', lambda _: query)
 
-    from generate import main
+    from src.gen import main
     all_generations = main(base_model='llama', cli=True, cli_loop=False, score_model='None',
                            langchain_mode='UserData',
                            prompt_type=prompt_type,
@@ -78,7 +78,7 @@ def test_cli_llamacpp(monkeypatch):
     query = "Who are you?"
     monkeypatch.setattr('builtins.input', lambda _: query)
 
-    from generate import main
+    from src.gen import main
     all_generations = main(base_model='llama', cli=True, cli_loop=False, score_model='None',
                            langchain_mode='Disabled',
                            prompt_type=prompt_type,
@@ -99,7 +99,7 @@ def test_cli_h2ogpt(monkeypatch):
     query = "What is the Earth?"
     monkeypatch.setattr('builtins.input', lambda _: query)
 
-    from generate import main
+    from src.gen import main
     all_generations = main(base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b', cli=True, cli_loop=False, score_model='None')
 
     assert len(all_generations) == 1
@@ -115,7 +115,7 @@ def test_cli_langchain_h2ogpt(monkeypatch):
     query = "What is the cat doing?"
     monkeypatch.setattr('builtins.input', lambda _: query)
 
-    from generate import main
+    from src.gen import main
     all_generations = main(base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b',
                            cli=True, cli_loop=False, score_model='None',
                            langchain_mode='UserData',

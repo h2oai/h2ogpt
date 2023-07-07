@@ -8,9 +8,9 @@ import numpy as np
 if os.path.dirname(os.path.abspath(__file__)) not in sys.path:
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from loaders import get_loaders, get_tokenizer
-from prompter import generate_prompt, prompt_types, PromptType
-from utils import get_githash, copy_code
+from src.loaders import get_loaders, get_tokenizer
+from src.prompter import generate_prompt, prompt_types, PromptType
+from src.utils import get_githash, copy_code
 import torch
 
 
@@ -109,7 +109,7 @@ def train(
 ):
     if llama_flash_attn:
         # Need to call this before importing transformers.
-        from llama_flash_attn_monkey_patch import replace_llama_attn_with_flash_attn
+        from src.llama_flash_attn_monkey_patch import replace_llama_attn_with_flash_attn
         replace_llama_attn_with_flash_attn()
 
     # allow set token directly

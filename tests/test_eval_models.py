@@ -32,7 +32,7 @@ from tests.utils import wrap_test_forked
 )
 @wrap_test_forked
 def test_score_eval(base_model):
-    from generate import main
+    from src.gen import main
     main(
         base_model=base_model,
         chat=False,

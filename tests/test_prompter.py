@@ -71,7 +71,7 @@ def test_prompt_with_context(prompt_type, expected):
     debug = False
 
     from prompter import Prompter
-    from generate import history_to_context
+    from src.gen import history_to_context
 
     t0 = time.time()
     history = [["Hello!", "Hi!"],

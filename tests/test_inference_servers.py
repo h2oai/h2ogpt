@@ -56,12 +56,12 @@ def test_gradio_inference_server(base_model, force_langchain_evaluate, do_langch
 
     # inference server
     inf_port = os.environ['GRADIO_SERVER_PORT'] = "7860"
-    from generate import main
+    from src.gen import main
     main(**main_kwargs)
 
     # server that consumes inference server
     client_port = os.environ['GRADIO_SERVER_PORT'] = "7861"
-    from generate import main
+    from src.gen import main
     main(**main_kwargs, inference_server='http://127.0.0.1:%s' % inf_port)
 
     # client test to server that only consumes inference server
@@ -239,7 +239,7 @@ def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain,
     try:
         # server that consumes inference server
         client_port = os.environ['GRADIO_SERVER_PORT'] = "7861"
-        from generate import main
+        from src.gen import main
         main(**main_kwargs)
 
         # client test to server that only consumes inference server
@@ -334,7 +334,7 @@ def test_openai_inference_server(force_langchain_evaluate,
 
     # server that consumes inference server
     client_port = os.environ['GRADIO_SERVER_PORT'] = "7861"
-    from generate import main
+    from src.gen import main
     main(**main_kwargs, inference_server='openai_chat')
 
     # client test to server that only consumes inference server

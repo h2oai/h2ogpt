@@ -16,7 +16,7 @@ def test_client1():
     sys.modules.pop('gpt_langchain', None)
     sys.modules.pop('langchain', None)
 
-    from generate import main
+    from src.gen import main
     main(base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b', prompt_type='human_bot', chat=False,
          stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False)
 
@@ -34,7 +34,7 @@ def test_client1api():
     sys.modules.pop('gpt_langchain', None)
     sys.modules.pop('langchain', None)
 
-    from generate import main
+    from src.gen import main
     main(base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b', prompt_type='human_bot', chat=False,
          stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False)
 
@@ -49,7 +49,7 @@ def test_client1api():
 @pytest.mark.parametrize("admin_pass", ['', 'foodoo1234'])
 @wrap_test_forked
 def test_client1api_lean(admin_pass):
-    from generate import main
+    from src.gen import main
     base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
     os.environ['ADMIN_PASS'] = admin_pass
     inf_port = os.environ['GRADIO_SERVER_PORT'] = "9999"
@@ -103,7 +103,7 @@ def test_client1api_lean(admin_pass):
 
 @wrap_test_forked
 def test_client1api_lean_chat_server():
-    from generate import main
+    from src.gen import main
     main(base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b', prompt_type='human_bot', chat=True,
          stream_output=True, gradio=True, num_beams=1, block_gradio_exit=False)
 
@@ -168,7 +168,7 @@ def run_client_chat_with_server(prompt='Who are you?', stream_output=False, max_
         sys.modules.pop('gpt_langchain', None)
         sys.modules.pop('langchain', None)
 
-    from generate import main
+    from src.gen import main
     main(base_model=base_model, prompt_type=prompt_type, chat=True,
          stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
          max_new_tokens=max_new_tokens,
@@ -201,7 +201,7 @@ def run_client_nochat_with_server(prompt='Who are you?', stream_output=False, ma
         sys.modules.pop('gpt_langchain', None)
         sys.modules.pop('langchain', None)
 
-    from generate import main
+    from src.gen import main
     main(base_model=base_model, prompt_type=prompt_type, chat=True,
          stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
          max_new_tokens=max_new_tokens,
@@ -256,7 +256,7 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
     langchain_mode = 'UserData'
     visible_langchain_modes = ['UserData', 'MyData']
 
-    from generate import main
+    from src.gen import main
     main(base_model=base_model, prompt_type=prompt_type, chat=True,
          stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
          max_new_tokens=max_new_tokens,
@@ -373,7 +373,7 @@ def test_client_chat_stream_langchain_steps2(max_new_tokens, top_k_docs):
     langchain_mode = 'UserData'
     visible_langchain_modes = ['UserData', 'MyData', 'github h2oGPT']
 
-    from generate import main
+    from src.gen import main
     main(base_model=base_model, prompt_type=prompt_type, chat=True,
          stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
          max_new_tokens=max_new_tokens,
@@ -432,7 +432,7 @@ def test_client_long():
     sys.modules.pop('gpt_langchain', None)
     sys.modules.pop('langchain', None)
 
-    from generate import main
+    from src.gen import main
     main(base_model='mosaicml/mpt-7b-storywriter', prompt_type='plain', chat=False,
          stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False)
 
@@ -446,7 +446,7 @@ def test_client_long():
 
 @wrap_test_forked
 def test_fast_up():
-    from generate import main
+    from src.gen import main
     main(gradio=True, block_gradio_exit=False)
 
 

@@ -243,7 +243,7 @@ def main(
            Also set --share=False to avoid sharing a gradio live link.
     :param chat: whether to enable chat mode with chat history
     :param chat_context: whether to use extra helpful context if human_bot
-    :param stream_output: whether to stream output from generate
+    :param stream_output: whether to stream output from src.gen 
     :param show_examples: whether to show clickable examples in gradio
     :param verbose: whether to show verbose prints
     :param h2ocolors: whether to use H2O.ai theme

@@ -193,7 +193,7 @@ def test_qa_daidocs_db_chunk_hf_dbs(db_type, top_k_docs):
 @wrap_test_forked
 def test_qa_daidocs_db_chunk_hf_dbs_switch_embedding(db_type):
     # need to get model externally, so don't OOM
-    from generate import get_model
+    from src.gen import get_model
     base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
     prompt_type = 'human_bot'
     all_kwargs = dict(load_8bit=False,
