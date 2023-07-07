@@ -1,5 +1,8 @@
 ### Generated files ###
-enums.py
+_enums.py
+
+### Poetry ###
+.poetry
 
 ### Python template
 # Byte-compiled / optimized / DLL files

@@ -4,14 +4,14 @@ version = "0.1.0"
 description = ""
 authors = []
 readme = "README.md"
-packages = [{include = "h2ogpt_client"}]
+include = ["h2ogpt_client/*.py"]
 
 [tool.poetry.dependencies]
 python = "^3.8"
-gradio-client = "^0.2.2"
+gradio-client = "^0.2.7"
 
 [tool.poetry.group.test.dependencies]
-pytest = "^7.3.1"
+pytest = "7.2.2"
 pytest-asyncio = "^0.21.0"
 
 [tool.poetry.group.dev.dependencies]
@@ -37,3 +37,5 @@ python_version = "3.8"
 
 [tool.pytest.ini_options]
 pythonpath = "h2ogpt_client"
+log_cli = true
+log_cli_level = "INFO"

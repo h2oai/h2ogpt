@@ -147,6 +147,7 @@ python generate.py --base_model='llama' --prompt_type=wizard2 --score_model=None
 - To create a development environment for training and generation, follow the [installation instructions](docs/INSTALL.md).
 - To fine-tune any LLM models on your data, follow the [fine-tuning instructions](docs/FINETUNE.md).
 - To create a container for deployment, follow the [Docker instructions](docs/INSTALL-DOCKER.md).
+- To run h2oGPT tests, run `pytest -s -v tests client/tests`.
 
 ### Help
 
