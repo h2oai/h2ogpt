@@ -36,6 +36,8 @@ Open-source data types are supported, .msg is not supported due to GPL-3 require
    - `.html`: HTML File,
    - `.docx`: Word Document (optional),
    - `.doc`: Word Document (optional),
+   - `.xlsx`: Excel Document (optional),
+   - `.xls`: Excel Document (optional),
    - `.enex`: EverNote,
    - `.eml`: Email,
    - `.epub`: EPub,
@@ -58,7 +60,7 @@ sudo apt-get install tesseract-ocr
 ```
 and ensure you `pip install pytesseract`.
 
-To support Microsoft Office docx and doc, on Ubuntu run:
+To support Microsoft Office docx, doc, xls, xlsx, on Ubuntu run:
 ```bash
 sudo apt-get install libreoffice
 ```
