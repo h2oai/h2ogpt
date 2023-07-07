@@ -1,7 +1,7 @@
 import pytest
 
 from tests.utils import wrap_test_forked, get_llama
-from enums import DocumentChoices
+from src.enums import DocumentChoices
 
 
 @wrap_test_forked

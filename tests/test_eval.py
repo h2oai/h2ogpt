@@ -2,8 +2,8 @@ import pandas as pd
 import pytest
 
 from tests.utils import wrap_test_forked
-from enums import DocumentChoices, LangChainAction
-from utils import remove
+from src.enums import DocumentChoices, LangChainAction
+from src.utils import remove
 
 
 @pytest.mark.parametrize("base_model", ['h2oai/h2ogpt-oig-oasst1-512-6_9b', 'junelee/wizard-vicuna-13b'])

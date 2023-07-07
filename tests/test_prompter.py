@@ -2,8 +2,8 @@ import time
 
 import pytest
 
-from enums import source_prefix, source_postfix
-from prompter import generate_prompt
+from src.enums import source_prefix, source_postfix
+from src.prompter import generate_prompt
 from tests.utils import wrap_test_forked
 
 example_data_point0 = dict(instruction="Summarize",
@@ -70,7 +70,7 @@ def test_prompt_with_context(prompt_type, expected):
     stream_output = False
     debug = False
 
-    from prompter import Prompter
+    from src.prompter import Prompter
     from src.gen import history_to_context
 
     t0 = time.time()
@@ -124,7 +124,7 @@ def test_prompt_with_no_context(prompt_type, expected):
     stream_output = False
     debug = False
 
-    from prompter import Prompter
+    from src.prompter import Prompter
     context = ''
     instruction = "Go to the market?"
 

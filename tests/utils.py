@@ -2,7 +2,7 @@ import os
 import shutil
 from functools import wraps, partial
 
-from utils import call_subprocess_onetask, makedirs
+from src.utils import call_subprocess_onetask, makedirs
 
 
 def wrap_test_forked(func):

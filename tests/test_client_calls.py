@@ -4,10 +4,10 @@ import os, sys
 
 import pytest
 
-from client_test import get_client, get_args, run_client_gen
-from enums import LangChainAction
+from src.client_test import get_client, get_args, run_client_gen
+from src.enums import LangChainAction
 from tests.utils import wrap_test_forked, make_user_path_test, get_llama
-from utils import get_githash
+from src.utils import get_githash
 
 
 @wrap_test_forked
@@ -20,7 +20,7 @@ def test_client1():
     main(base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b', prompt_type='human_bot', chat=False,
          stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False)
 
-    from client_test import test_client_basic
+    from src.client_test import test_client_basic
     res_dict, _ = test_client_basic()
     assert res_dict['prompt'] == 'Who are you?'
     assert res_dict['iinput'] == ''
@@ -38,7 +38,7 @@ def test_client1api():
     main(base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b', prompt_type='human_bot', chat=False,
          stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False)
 
-    from client_test import test_client_basic_api
+    from src.client_test import test_client_basic_api
     res_dict, _ = test_client_basic_api()
     assert res_dict['prompt'] == 'Who are you?'
     assert res_dict['iinput'] == ''
@@ -176,7 +176,7 @@ def run_client_chat_with_server(prompt='Who are you?', stream_output=False, max_
          visible_langchain_modes=visible_langchain_modes,
          reverse_docs=reverse_docs)
 
-    from client_test import run_client_chat
+    from src.client_test import run_client_chat
     res_dict, client = run_client_chat(prompt=prompt, prompt_type=prompt_type, stream_output=stream_output,
                                        max_new_tokens=max_new_tokens, langchain_mode=langchain_mode,
                                        langchain_action=langchain_action)
@@ -210,7 +210,7 @@ def run_client_nochat_with_server(prompt='Who are you?', stream_output=False, ma
          visible_langchain_modes=visible_langchain_modes,
          reverse_docs=reverse_docs)
 
-    from client_test import run_client_nochat_gen
+    from src.client_test import run_client_nochat_gen
     res_dict, client = run_client_nochat_gen(prompt=prompt, prompt_type=prompt_type,
                                              stream_output=stream_output,
                                              max_new_tokens=max_new_tokens, langchain_mode=langchain_mode,
@@ -266,7 +266,7 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
          reverse_docs=False,  # for 6_9
          )
 
-    from client_test import get_client, get_args, run_client
+    from src.client_test import get_client, get_args, run_client
     client = get_client(serialize=False)
 
     # QUERY1
@@ -362,7 +362,7 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
 def test_client_chat_stream_langchain_steps2(max_new_tokens, top_k_docs):
     os.environ['VERBOSE_PIPELINE'] = '1'
     # full user data
-    from make_db import make_db_main
+    from src.make_db import make_db_main
     make_db_main(download_some=True)
     user_path = None  # shouldn't be necessary, db already made
 
@@ -381,7 +381,7 @@ def test_client_chat_stream_langchain_steps2(max_new_tokens, top_k_docs):
          visible_langchain_modes=visible_langchain_modes,
          verbose=True)
 
-    from client_test import get_client, get_args, run_client
+    from src.client_test import get_client, get_args, run_client
     client = get_client(serialize=False)
 
     # QUERY1
@@ -439,7 +439,7 @@ def test_client_long():
     with open("/home/jon/Downloads/Gatsby_PDF_FullText.txt") as f:
         prompt = f.readlines()
 
-    from client_test import run_client_nochat
+    from src.client_test import run_client_nochat
     res_dict, _ = run_client_nochat(prompt=prompt, prompt_type='plain', max_new_tokens=86000)
     print(res_dict['response'])
 
