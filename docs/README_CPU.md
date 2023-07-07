@@ -48,7 +48,7 @@ n_batch=1024
 ```
 for faster handling.  On some systems this has no strong effect, but on others may increase speed quite a bit.
 
-Also, for slow and low-memory systems, we recommend using a smaller embedding by using with `generrate.py`:
+Also, for slow and low-memory systems, we recommend using a smaller embedding by using with `generate.py`:
 ```bash
 python generate.py ... --hf_embedding_model=sentence-transformers/all-MiniLM-L6-v2
 ```
