@@ -27,6 +27,7 @@ os.environ['HF_HUB_DISABLE_TELEMETRY'] = '1'
 os.environ['BITSANDBYTES_NOWELCOME'] = '1'
 warnings.filterwarnings('ignore', category=UserWarning, message='TypedStorage is deprecated')
 
+from evaluate_params import eval_func_param_names, no_default_param_names
 from enums import DocumentChoices, LangChainMode, no_lora_str, model_token_mapping, no_model_str, source_prefix, \
     source_postfix, LangChainAction
 from loaders import get_loaders
@@ -47,8 +48,6 @@ from transformers import GenerationConfig, AutoModel, TextIteratorStreamer
 
 from prompter import Prompter, inv_prompt_type_to_model_lower, non_hf_types, PromptType, get_prompt, generate_prompt
 from stopping import get_stopping
-
-eval_extra_columns = ['prompt', 'response', 'score']
 
 langchain_modes = [x.value for x in list(LangChainMode)]
 
@@ -144,7 +143,7 @@ def main(
         force_langchain_evaluate: bool = False,
         visible_langchain_modes: list = ['UserData', 'MyData'],
         # WIP:
-        #visible_langchain_actions: list = langchain_actions.copy(),
+        # visible_langchain_actions: list = langchain_actions.copy(),
         visible_langchain_actions: list = [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value],
         document_choice: list = [DocumentChoices.All_Relevant.name],
         user_path: str = None,
@@ -1189,52 +1188,6 @@ def get_score_model(score_model: str = None,
     else:
         smodel, stokenizer, sdevice = None, None, None
     return smodel, stokenizer, sdevice
-
-
-no_default_param_names = [
-    'instruction',
-    'iinput',
-    'context',
-    'instruction_nochat',
-    'iinput_nochat',
-]
-
-gen_hyper = ['temperature',
-             'top_p',
-             'top_k',
-             'num_beams',
-             'max_new_tokens',
-             'min_new_tokens',
-             'early_stopping',
-             'max_time',
-             'repetition_penalty',
-             'num_return_sequences',
-             'do_sample',
-             ]
-
-eval_func_param_names = ['instruction',
-                         'iinput',
-                         'context',
-                         'stream_output',
-                         'prompt_type',
-                         'prompt_dict'] + \
-                        gen_hyper + \
-                        ['chat',
-                         'instruction_nochat',
-                         'iinput_nochat',
-                         'langchain_mode',
-                         'langchain_action',
-                         'top_k_docs',
-                         'chunk',
-                         'chunk_size',
-                         'document_choice',
-                         ]
-
-# form evaluate defaults for submit_nochat_api
-eval_func_param_names_defaults = eval_func_param_names.copy()
-for k in no_default_param_names:
-    if k in eval_func_param_names_defaults:
-        eval_func_param_names_defaults.remove(k)
 
 
 def evaluate(

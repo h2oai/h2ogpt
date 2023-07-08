@@ -6,8 +6,8 @@ import pandas as pd
 import torch
 from matplotlib import pyplot as plt
 
-from gen import eval_func_param_names, eval_extra_columns, get_context, get_score_model, get_model, evaluate, \
-    check_locals
+from evaluate_params import eval_func_param_names, eval_extra_columns
+from gen import get_context, get_score_model, get_model, evaluate, check_locals
 from prompter import Prompter
 from utils import clear_torch_cache, NullContext, get_kwargs
 

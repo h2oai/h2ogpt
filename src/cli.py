@@ -1,7 +1,8 @@
 import copy
 import torch
 
-from gen import eval_func_param_names, get_score_model, get_model, evaluate, check_locals
+from evaluate_params import eval_func_param_names
+from gen import get_score_model, get_model, evaluate, check_locals
 from prompter import non_hf_types
 from utils import clear_torch_cache, NullContext, get_kwargs
 
