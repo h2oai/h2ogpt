@@ -205,13 +205,13 @@ def do_export():
 
 def do_copy(OUTPUT_NAME):
     dest_file = os.path.join(OUTPUT_NAME, "h2oai_pipeline.py")
-    shutil.copyfile("h2oai_pipeline.py", dest_file)
+    shutil.copyfile("src/h2oai_pipeline.py", dest_file)
     os.system("""sed -i 's/from enums.*//g' %s""" % dest_file)
     os.system("""sed -i 's/from stopping.*//g' %s""" % dest_file)
     os.system("""sed -i 's/from prompter.*//g' %s""" % dest_file)
-    os.system("""cat %s|grep -v "from enums import PromptType" >> %s""" % ('enums.py', dest_file))
-    os.system("""cat %s|grep -v "from enums import PromptType" >> %s""" % ('prompter.py', dest_file))
-    os.system("""cat %s|grep -v "from enums import PromptType" >> %s""" % ('stopping.py', dest_file))
+    os.system("""cat %s|grep -v "from enums import PromptType" >> %s""" % ('src/enums.py', dest_file))
+    os.system("""cat %s|grep -v "from enums import PromptType" >> %s""" % ('src/prompter.py', dest_file))
+    os.system("""cat %s|grep -v "from enums import PromptType" >> %s""" % ('src/stopping.py', dest_file))
 
 
 TEST_OUTPUT_NAME = "test_output"
@@ -222,7 +222,7 @@ def test_copy():
         shutil.rmtree(TEST_OUTPUT_NAME)
     os.makedirs(TEST_OUTPUT_NAME, exist_ok=False)
     do_copy(TEST_OUTPUT_NAME)
-    shutil.copy('export_hf_checkpoint.py', TEST_OUTPUT_NAME)
+    shutil.copy('src/export_hf_checkpoint.py', TEST_OUTPUT_NAME)
     os.environ['DO_COPY_TEST'] = '1'
     os.chdir(TEST_OUTPUT_NAME)
     output = subprocess.check_output(['python', 'export_hf_checkpoint.py'])

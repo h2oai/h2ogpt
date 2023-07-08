@@ -12,13 +12,13 @@ Currently, this will force model to be on a single GPU.
 
 Then run this client as:
 
-python client_test.py
+python src/client_test.py
 
 
 
 For HF spaces:
 
-HOST="https://h2oai-h2ogpt-chatbot.hf.space" python client_test.py
+HOST="https://h2oai-h2ogpt-chatbot.hf.space" python src/client_test.py
 
 Result:
 
@@ -28,7 +28,7 @@ Loaded as API: https://h2oai-h2ogpt-chatbot.hf.space ✔
 
 For demo:
 
-HOST="https://gpt.h2o.ai" python client_test.py
+HOST="https://gpt.h2o.ai" python src/client_test.py
 
 Result:
 

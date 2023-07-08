@@ -1142,6 +1142,7 @@ def go_gradio(**kwargs):
             User that fills history for bot
             :param args:
             :param undo:
+            :param retry:
             :param sanitize_user_prompt:
             :return:
             """
