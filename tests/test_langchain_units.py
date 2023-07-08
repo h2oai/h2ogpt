@@ -1,12 +1,11 @@
 import os
 import shutil
 import tempfile
-
 import pytest
 
+from tests.utils import wrap_test_forked
 from src.enums import DocumentChoices, LangChainAction
 from src.gpt_langchain import get_persist_directory
-from tests.utils import wrap_test_forked
 from src.utils import zip_data, download_simple, get_ngpus_vis, get_mem_gpus, have_faiss, remove, get_kwargs
 
 have_openai_key = os.environ.get('OPENAI_API_KEY') is not None
@@ -363,9 +362,9 @@ def test_make_add_db(repeat, db_type):
                     # some db testing for gradio UI/client
                     get_source_files(db=db)
                     get_source_files(db=dbmy)
-                    get_source_files_given_langchain_mode(None, langchain_mode=langchain_mode, dbs={langchain_mode: db})
+                    get_source_files_given_langchain_mode(db1, langchain_mode=langchain_mode, dbs={langchain_mode: db})
                     get_source_files_given_langchain_mode(db1, langchain_mode='MyData', dbs=None)
-                    get_db(None, langchain_mode='UserData', dbs={langchain_mode: db})
+                    get_db(db1, langchain_mode='UserData', dbs={langchain_mode: db})
                     get_db(db1, langchain_mode='MyDatta', dbs=None)
 
                     msg1up = "Beefy Chicken"
@@ -391,7 +390,7 @@ def test_make_add_db(repeat, db_type):
                     assert 'test2my' in str(source_files_added)
                     assert 'MyData' == z2
                     assert z1 is None
-                    z1, z2, x, y, source_files_added = update_user_db(test_file2, None, 'foo', 'bar', chunk, chunk_size,
+                    z1, z2, x, y, source_files_added = update_user_db(test_file2, db1, 'foo', 'bar', chunk, chunk_size,
                                                                       dbs={langchain_mode: db},
                                                                       db_type=db_type,
                                                                       langchain_mode=langchain_mode,
@@ -407,7 +406,7 @@ def test_make_add_db(repeat, db_type):
                                    user_path=tmp_user_path, db_type=db_type,
                                    load_db_if_exists=True,
                                    n_jobs=-1, verbose=False)
-                    update_and_get_source_files_given_langchain_mode(None, langchain_mode, dbs={langchain_mode: db},
+                    update_and_get_source_files_given_langchain_mode(db1, langchain_mode, dbs={langchain_mode: db},
                                                                      **kwargs2)
                     update_and_get_source_files_given_langchain_mode(db1, 'MyData', dbs=None, **kwargs2)
 

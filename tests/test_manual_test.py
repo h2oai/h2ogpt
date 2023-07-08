@@ -1,5 +1,6 @@
 import os
 import pytest
+from tests.utils import wrap_test_forked
 
 
 pytestmark = pytest.mark.skipif(os.getenv('SKIP_MANUAL_TESTS', None) is not None, reason="manual tests.")

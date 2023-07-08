@@ -1,10 +1,9 @@
 import time
-
 import pytest
 
+from tests.utils import wrap_test_forked
 from src.enums import source_prefix, source_postfix
 from src.prompter import generate_prompt
-from tests.utils import wrap_test_forked
 
 example_data_point0 = dict(instruction="Summarize",
                            input="Ducks eat seeds by the lake, then swim in the lake where fish eat small animals.",

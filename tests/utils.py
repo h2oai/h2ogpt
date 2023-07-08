@@ -1,6 +1,10 @@
 import os
+import sys
 import shutil
 from functools import wraps, partial
+
+if os.path.dirname('src') not in sys.path:
+    sys.path.append('src')
 
 from src.utils import call_subprocess_onetask, makedirs
 

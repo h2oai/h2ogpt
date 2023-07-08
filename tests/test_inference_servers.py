@@ -2,13 +2,12 @@ import os
 import subprocess
 import time
 from datetime import datetime
-
 import pytest
 
+from tests.utils import wrap_test_forked
+from tests.test_langchain_units import have_openai_key
 from src.client_test import run_client_many
 from src.enums import PromptType, LangChainAction
-from tests.test_langchain_units import have_openai_key
-from tests.utils import wrap_test_forked
 
 
 @pytest.mark.parametrize("base_model",
