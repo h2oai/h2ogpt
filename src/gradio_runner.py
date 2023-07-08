@@ -307,7 +307,7 @@ def go_gradio(**kwargs):
 
                     col_chat = gr.Column(visible=kwargs['chat'])
                     with col_chat:
-                        instruction, submit, stop_btn = make_prompt_form(kwargs)
+                        instruction, submit, stop_btn = make_prompt_form(kwargs, LangChainMode)
                         text_output, text_output2, text_outputs = make_chatbots(output_label0, output_label0_model2,
                                                                                 **kwargs)
 
