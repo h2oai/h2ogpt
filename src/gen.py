@@ -354,6 +354,7 @@ def main(
         # assert not prompt_type, "Don't specify model_lock and prompt_type"
         # assert not prompt_dict, "Don't specify model_lock and prompt_dict"
 
+    n_jobs = int(os.getenv('n_jobs', str(n_jobs)))
     is_hf = bool(int(os.getenv("HUGGINGFACE_SPACES", '0')))
     is_gpth2oai = bool(int(os.getenv("GPT_H2O_AI", '0')))
     is_public = is_hf or is_gpth2oai  # multi-user case with fixed model and disclaimer
@@ -361,6 +362,8 @@ def main(
         memory_restriction_level = 2 if is_hf else 0  # 2 assumes run on 24GB consumer GPU
     else:
         assert 0 <= memory_restriction_level <= 3, "Bad memory_restriction_level=%s" % memory_restriction_level
+    if is_public:
+        n_jobs = max(1, min(os.cpu_count() // 2, 8))
     admin_pass = os.getenv("ADMIN_PASS")
     # will sometimes appear in UI or sometimes actual generation, but maybe better than empty result
     # but becomes unrecoverable sometimes if raise, so just be silent for now

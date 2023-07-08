@@ -1182,7 +1182,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             # so just extract in path where
             zip_ref.extractall(base_path)
             # recurse
-            doc1 = path_to_docs(base_path, verbose=verbose, fail_any_exception=fail_any_exception)
+            doc1 = path_to_docs(base_path, verbose=verbose, fail_any_exception=fail_any_exception, n_jobs=n_jobs)
     else:
         raise RuntimeError("No file handler for %s" % os.path.basename(file))
 

@@ -756,6 +756,7 @@ def go_gradio(**kwargs):
                                                 caption_loader=caption_loader,
                                                 verbose=kwargs['verbose'],
                                                 user_path=kwargs['user_path'],
+                                                n_jobs=kwargs['n_jobs'],
                                                 )
         add_file_outputs = [fileup_output, langchain_mode, add_to_shared_db_btn, add_to_my_db_btn]
         add_file_kwargs = dict(fn=update_user_db_func,
@@ -834,6 +835,7 @@ def go_gradio(**kwargs):
                                               caption_loader=caption_loader,
                                               verbose=kwargs['verbose'],
                                               user_path=kwargs['user_path'],
+                                              n_jobs=kwargs['n_jobs'],
                                               )
 
         add_my_file_outputs = [fileup_output, langchain_mode, my_db_state, add_to_shared_db_btn, add_to_my_db_btn]
@@ -2269,7 +2271,8 @@ def _update_user_db(file, db1, x, y, chunk, chunk_size, dbs=None, db_type=None, 
                     captions_model=None,
                     enable_ocr=None,
                     verbose=None,
-                    is_url=None, is_txt=None):
+                    is_url=None, is_txt=None,
+                    n_jobs=-1):
     assert use_openai_embedding is not None
     assert hf_embedding_model is not None
     assert caption_loader is not None
@@ -2310,6 +2313,7 @@ def _update_user_db(file, db1, x, y, chunk, chunk_size, dbs=None, db_type=None, 
         print("Adding %s" % file, flush=True)
     sources = path_to_docs(file if not is_url and not is_txt else None,
                            verbose=verbose,
+                           n_jobs=n_jobs,
                            chunk=chunk, chunk_size=chunk_size,
                            url=file if is_url else None,
                            text=file if is_txt else None,
