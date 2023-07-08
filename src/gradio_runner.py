@@ -262,7 +262,8 @@ def go_gradio(**kwargs):
         model_options_state = gr.State([model_options])
         lora_options_state = gr.State([lora_options])
         server_options_state = gr.State([server_options])
-        my_db_state = gr.State([None, None])
+        # uuid in db is used as user ID
+        my_db_state = gr.State([None, str(uuid.uuid4())])
         chat_state = gr.State({})
         # make user default first and default choice, dedup
         docs_state00 = kwargs['document_choice'] + [x.name for x in list(DocumentChoices)]
@@ -2249,6 +2250,15 @@ def update_user_db(file, db1, x, y, *args, dbs=None, langchain_mode='UserData', 
         clear_torch_cache()
 
 
+def get_lock_file(db1, langchain_mode):
+    assert len(db1) == 2 and db1[1] is not None and isinstance(db1[1], str)
+    user_id = db1[1]
+    base_path = 'locks'
+    makedirs(base_path)
+    lock_file = "db_%s_%s.lock" % (langchain_mode.replace(' ', '_'), user_id)
+    return lock_file
+
+
 def _update_user_db(file, db1, x, y, chunk, chunk_size, dbs=None, db_type=None, langchain_mode='UserData',
                     user_path=None,
                     use_openai_embedding=None,
@@ -2310,7 +2320,8 @@ def _update_user_db(file, db1, x, y, chunk, chunk_size, dbs=None, db_type=None, 
     exceptions = [x for x in sources if x.metadata.get('exception')]
     sources = [x for x in sources if 'exception' not in x.metadata]
 
-    with filelock.FileLock("db_%s.lock" % langchain_mode.replace(' ', '_')):
+    lock_file = get_lock_file(db1, langchain_mode)
+    with filelock.FileLock(lock_file):
         if langchain_mode == 'MyData':
             if db1[0] is not None:
                 # then add
@@ -2323,18 +2334,14 @@ def _update_user_db(file, db1, x, y, chunk, chunk_size, dbs=None, db_type=None, 
                 # for production hit, when user gets clicky:
                 assert len(db1) == 2, "Bad MyData db: %s" % db1
                 # then create
-                # assign fresh hash for this user session, so not shared
                 # if added has to original state and didn't change, then would be shared db for all users
-                db1[1] = str(uuid.uuid4())
                 persist_directory = os.path.join(scratch_base_dir, 'db_dir_%s_%s' % (langchain_mode, db1[1]))
                 db = get_db(sources, use_openai_embedding=use_openai_embedding,
                             db_type=db_type,
                             persist_directory=persist_directory,
                             langchain_mode=langchain_mode,
                             hf_embedding_model=hf_embedding_model)
-            if db is None:
-                db1[1] = None
-            else:
+            if db is not None:
                 db1[0] = db
             source_files_added = get_source_files(db=db1[0], exceptions=exceptions)
             return None, langchain_mode, db1, x, y, source_files_added
@@ -2362,7 +2369,9 @@ def _update_user_db(file, db1, x, y, chunk, chunk_size, dbs=None, db_type=None, 
 
 
 def get_db(db1, langchain_mode, dbs=None):
-    with filelock.FileLock("db_%s.lock" % langchain_mode.replace(' ', '_')):
+    lock_file = get_lock_file(db1, langchain_mode)
+
+    with filelock.FileLock(lock_file):
         if langchain_mode in ['wiki_full']:
             # NOTE: avoid showing full wiki.  Takes about 30 seconds over about 90k entries, but not useful for now
             db = None
