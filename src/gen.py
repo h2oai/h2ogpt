@@ -362,7 +362,7 @@ def main(
         memory_restriction_level = 2 if is_hf else 0  # 2 assumes run on 24GB consumer GPU
     else:
         assert 0 <= memory_restriction_level <= 3, "Bad memory_restriction_level=%s" % memory_restriction_level
-    if is_public:
+    if is_public and os.getenv('n_jobs') is None:
         n_jobs = max(1, min(os.cpu_count() // 2, 8))
     admin_pass = os.getenv("ADMIN_PASS")
     # will sometimes appear in UI or sometimes actual generation, but maybe better than empty result
