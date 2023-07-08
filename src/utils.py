@@ -97,6 +97,8 @@ def get_device():
     import torch
     if torch.cuda.is_available():
         device = "cuda"
+    elif torch.backends.mps.is_built():
+        device = "mps"
     else:
         device = "cpu"
 
