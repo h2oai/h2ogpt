@@ -1,5 +1,7 @@
 ## h2oGPT
 
+Turn ★ into ⭐ (top-right corner) if you like the project!
+
 - [![img-small.png](docs/img-small.png) Live h2oGPT Document Q/A Demo](https://gpt.h2o.ai/)
 - [🤗 Live h2oGPT Chat Demo 1](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot)
 - [🤗 Live h2oGPT Chat Demo 2](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot2)
@@ -16,8 +18,6 @@ Technical Paper: [https://arxiv.org/pdf/2306.08161.pdf](https://arxiv.org/pdf/23
 h2oGPT is a large language model (LLM) fine-tuning framework and chatbot UI with document(s) question-answer capabilities.  Documents help to **ground** LLMs against hallucinations by providing them context relevant to the instruction.  h2oGPT is fully permissive Apache V2 open-source project for 100% private and secure use of LLMs and document embeddings for document question-answer.
 
 Welcome!  Join us and make an issue or a PR, and contribute to making the best fine-tuned LLMs, chatbot UI, and document question-answer framework!
-
-Turn ★ into ⭐ (top-right corner) if you like the project!
 
 <!--  cat README.md | ./gh-md-toc  -  But Help is heavily processed -->
 * [Supported OS and Hardware](#supported-os-and-hardware)
