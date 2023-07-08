@@ -2086,6 +2086,14 @@ def get_similarity_chain(query=None,
         use_template = False
 
     if db and use_context:
+        base_path = 'locks'
+        makedirs(base_path)
+        if hasattr(db, '_persist_directory'):
+            name_path = "sim_%s.lock" % os.path.basename(db._persist_directory)
+        else:
+            name_path = "sim.lock"
+        lock_file = os.path.join(base_path, name_path)
+
         if not isinstance(db, Chroma):
             # only chroma supports filtering
             filter_kwargs = {}
@@ -2127,13 +2135,7 @@ def get_similarity_chain(query=None,
             if top_k_docs == -1 or auto_reduce_chunks:
                 # docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:top_k_docs]
                 top_k_docs_tokenize = 100
-                base_path = 'locks'
-                makedirs(base_path)
-                if hasattr(db, '_persist_directory'):
-                    name_path = "sim_%s.lock" % os.path.basename(db._persist_directory)
-                else:
-                    name_path = "sim.lock"
-                with filelock.FileLock(os.path.join(base_path, name_path)):
+                with filelock.FileLock(lock_file):
                     docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[
                                       :top_k_docs_tokenize]
                 if hasattr(llm, 'pipeline') and hasattr(llm.pipeline, 'tokenizer'):
@@ -2189,7 +2191,8 @@ def get_similarity_chain(query=None,
                     top_k_docs = 1
                 docs_with_score = docs_with_score[:top_k_docs]
             else:
-                docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:top_k_docs]
+                with filelock.FileLock(lock_file):
+                    docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:top_k_docs]
             # put most relevant chunks closest to question,
             # esp. if truncation occurs will be "oldest" or "farthest from response" text that is truncated
             # BUT: for small models, e.g. 6_9 pythia, if sees some stuff related to h2oGPT first, it can connect that and not listen to rest
