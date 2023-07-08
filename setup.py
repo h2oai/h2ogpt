@@ -50,11 +50,17 @@ setuptools.setup(
     },
     package_data={
         'h2ogpt': [
+            'src/**',
             'data/**',
             'docs/**',
             'models/**',
             'spaces/**',
             'tests/**',
+        ],
+    },
+    exclude_package_data={
+        'h2ogpt': [
+            '**/__pycache__/**',
         ],
     },
     version=version,

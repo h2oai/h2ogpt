@@ -57,7 +57,7 @@ from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt
     get_prompt
 from utils import get_githash, flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping, get_short_name, get_url, makedirs, get_kwargs, remove, system_info, ping_gpu
-from generate import get_model, languages_covered, evaluate, eval_func_param_names, score_qa, langchain_modes, \
+from gen import get_model, languages_covered, evaluate, eval_func_param_names, score_qa, langchain_modes, \
     inputs_kwargs_list, scratch_base_dir, no_default_param_names, \
     eval_func_param_names_defaults, get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions
 
@@ -262,7 +262,8 @@ def go_gradio(**kwargs):
         model_options_state = gr.State([model_options])
         lora_options_state = gr.State([lora_options])
         server_options_state = gr.State([server_options])
-        my_db_state = gr.State([None, None])
+        # uuid in db is used as user ID
+        my_db_state = gr.State([None, str(uuid.uuid4())])
         chat_state = gr.State({})
         # make user default first and default choice, dedup
         docs_state00 = kwargs['document_choice'] + [x.name for x in list(DocumentChoices)]
@@ -306,7 +307,7 @@ def go_gradio(**kwargs):
 
                     col_chat = gr.Column(visible=kwargs['chat'])
                     with col_chat:
-                        instruction, submit, stop_btn = make_prompt_form(kwargs)
+                        instruction, submit, stop_btn = make_prompt_form(kwargs, LangChainMode)
                         text_output, text_output2, text_outputs = make_chatbots(output_label0, output_label0_model2,
                                                                                 **kwargs)
 
@@ -755,6 +756,7 @@ def go_gradio(**kwargs):
                                                 caption_loader=caption_loader,
                                                 verbose=kwargs['verbose'],
                                                 user_path=kwargs['user_path'],
+                                                n_jobs=kwargs['n_jobs'],
                                                 )
         add_file_outputs = [fileup_output, langchain_mode, add_to_shared_db_btn, add_to_my_db_btn]
         add_file_kwargs = dict(fn=update_user_db_func,
@@ -833,6 +835,7 @@ def go_gradio(**kwargs):
                                               caption_loader=caption_loader,
                                               verbose=kwargs['verbose'],
                                               user_path=kwargs['user_path'],
+                                              n_jobs=kwargs['n_jobs'],
                                               )
 
         add_my_file_outputs = [fileup_output, langchain_mode, my_db_state, add_to_shared_db_btn, add_to_my_db_btn]
@@ -1141,6 +1144,7 @@ def go_gradio(**kwargs):
             User that fills history for bot
             :param args:
             :param undo:
+            :param retry:
             :param sanitize_user_prompt:
             :return:
             """
@@ -2249,6 +2253,15 @@ def update_user_db(file, db1, x, y, *args, dbs=None, langchain_mode='UserData', 
         clear_torch_cache()
 
 
+def get_lock_file(db1, langchain_mode):
+    assert len(db1) == 2 and db1[1] is not None and isinstance(db1[1], str)
+    user_id = db1[1]
+    base_path = 'locks'
+    makedirs(base_path)
+    lock_file = "db_%s_%s.lock" % (langchain_mode.replace(' ', '_'), user_id)
+    return lock_file
+
+
 def _update_user_db(file, db1, x, y, chunk, chunk_size, dbs=None, db_type=None, langchain_mode='UserData',
                     user_path=None,
                     use_openai_embedding=None,
@@ -2258,7 +2271,8 @@ def _update_user_db(file, db1, x, y, chunk, chunk_size, dbs=None, db_type=None, 
                     captions_model=None,
                     enable_ocr=None,
                     verbose=None,
-                    is_url=None, is_txt=None):
+                    is_url=None, is_txt=None,
+                    n_jobs=-1):
     assert use_openai_embedding is not None
     assert hf_embedding_model is not None
     assert caption_loader is not None
@@ -2299,6 +2313,7 @@ def _update_user_db(file, db1, x, y, chunk, chunk_size, dbs=None, db_type=None, 
         print("Adding %s" % file, flush=True)
     sources = path_to_docs(file if not is_url and not is_txt else None,
                            verbose=verbose,
+                           n_jobs=n_jobs,
                            chunk=chunk, chunk_size=chunk_size,
                            url=file if is_url else None,
                            text=file if is_txt else None,
@@ -2310,7 +2325,8 @@ def _update_user_db(file, db1, x, y, chunk, chunk_size, dbs=None, db_type=None, 
     exceptions = [x for x in sources if x.metadata.get('exception')]
     sources = [x for x in sources if 'exception' not in x.metadata]
 
-    with filelock.FileLock("db_%s.lock" % langchain_mode.replace(' ', '_')):
+    lock_file = get_lock_file(db1, langchain_mode)
+    with filelock.FileLock(lock_file):
         if langchain_mode == 'MyData':
             if db1[0] is not None:
                 # then add
@@ -2323,18 +2339,14 @@ def _update_user_db(file, db1, x, y, chunk, chunk_size, dbs=None, db_type=None, 
                 # for production hit, when user gets clicky:
                 assert len(db1) == 2, "Bad MyData db: %s" % db1
                 # then create
-                # assign fresh hash for this user session, so not shared
                 # if added has to original state and didn't change, then would be shared db for all users
-                db1[1] = str(uuid.uuid4())
                 persist_directory = os.path.join(scratch_base_dir, 'db_dir_%s_%s' % (langchain_mode, db1[1]))
                 db = get_db(sources, use_openai_embedding=use_openai_embedding,
                             db_type=db_type,
                             persist_directory=persist_directory,
                             langchain_mode=langchain_mode,
                             hf_embedding_model=hf_embedding_model)
-            if db is None:
-                db1[1] = None
-            else:
+            if db is not None:
                 db1[0] = db
             source_files_added = get_source_files(db=db1[0], exceptions=exceptions)
             return None, langchain_mode, db1, x, y, source_files_added
@@ -2362,7 +2374,9 @@ def _update_user_db(file, db1, x, y, chunk, chunk_size, dbs=None, db_type=None, 
 
 
 def get_db(db1, langchain_mode, dbs=None):
-    with filelock.FileLock("db_%s.lock" % langchain_mode.replace(' ', '_')):
+    lock_file = get_lock_file(db1, langchain_mode)
+
+    with filelock.FileLock(lock_file):
         if langchain_mode in ['wiki_full']:
             # NOTE: avoid showing full wiki.  Takes about 30 seconds over about 90k entries, but not useful for now
             db = None

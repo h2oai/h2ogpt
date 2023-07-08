@@ -22,7 +22,7 @@ def run_langchain_simple(base_model='h2oai/h2ogpt-oasst1-512-12b', prompt_type='
     """
     import torch
     from transformers import AutoModelForCausalLM, AutoTokenizer
-    from h2oai_pipeline import H2OTextGenerationPipeline
+    from src.h2oai_pipeline import H2OTextGenerationPipeline
 
     model_name = base_model
 

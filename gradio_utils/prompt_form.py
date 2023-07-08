@@ -3,8 +3,6 @@ import math
 
 import gradio as gr
 
-from enums import LangChainMode
-
 
 def make_chatbots(output_label0, output_label0_model2, **kwargs):
     text_outputs = []
@@ -97,7 +95,7 @@ def make_chatbots(output_label0, output_label0_model2, **kwargs):
     return text_output, text_output2, text_outputs
 
 
-def make_prompt_form(kwargs):
+def make_prompt_form(kwargs, LangChainMode):
     if kwargs['langchain_mode'] != LangChainMode.DISABLED.value:
         extra_prompt_form = ".  For summarization, empty submission uses first top_k_docs documents."
     else:

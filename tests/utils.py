@@ -1,8 +1,12 @@
 import os
+import sys
 import shutil
 from functools import wraps, partial
 
-from utils import call_subprocess_onetask, makedirs
+if os.path.dirname('src') not in sys.path:
+    sys.path.append('src')
+
+from src.utils import call_subprocess_onetask, makedirs
 
 
 def wrap_test_forked(func):

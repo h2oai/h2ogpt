@@ -11,7 +11,7 @@ $(POETRY_BIN):
 
 .PHONY: _generate_sources
 _generate_sources:
-	cp -f ./../enums.py "$(PACKAGE_DIR)/_enums.py"
+	cp -f ./../src/enums.py "$(PACKAGE_DIR)/_enums.py"
 
 .PHONY: clean
 clean:

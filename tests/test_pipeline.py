@@ -1,11 +1,11 @@
 import pytest
 from tests.utils import wrap_test_forked
-from utils import set_seed
+from src.utils import set_seed
 
 
 @wrap_test_forked
 def test_export_copy():
-    from export_hf_checkpoint import test_copy
+    from src.export_hf_checkpoint import test_copy
     test_copy()
     from test_output.h2oai_pipeline import H2OTextGenerationPipeline, PromptType, DocumentChoices, LangChainMode, \
         prompt_type_to_model_name, get_prompt, generate_prompt, inject_chatsep, Prompter
@@ -51,7 +51,7 @@ def test_pipeline1():
     set_seed(SEED)
 
     import torch
-    from h2oai_pipeline import H2OTextGenerationPipeline
+    from src.h2oai_pipeline import H2OTextGenerationPipeline
     from transformers import AutoModelForCausalLM, AutoTokenizer
     import textwrap as tr
 
@@ -85,7 +85,7 @@ def test_pipeline2():
     set_seed(SEED)
 
     import torch
-    from h2oai_pipeline import H2OTextGenerationPipeline
+    from src.h2oai_pipeline import H2OTextGenerationPipeline
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
     model_name = "h2oai/h2ogpt-oig-oasst1-512-6_9b"

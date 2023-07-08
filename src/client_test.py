@@ -12,13 +12,13 @@ Currently, this will force model to be on a single GPU.
 
 Then run this client as:
 
-python client_test.py
+python src/client_test.py
 
 
 
 For HF spaces:
 
-HOST="https://h2oai-h2ogpt-chatbot.hf.space" python client_test.py
+HOST="https://h2oai-h2ogpt-chatbot.hf.space" python src/client_test.py
 
 Result:
 
@@ -28,7 +28,7 @@ Loaded as API: https://h2oai-h2ogpt-chatbot.hf.space ✔
 
 For demo:
 
-HOST="https://gpt.h2o.ai" python client_test.py
+HOST="https://gpt.h2o.ai" python src/client_test.py
 
 Result:
 
@@ -100,7 +100,7 @@ def get_args(prompt, prompt_type, chat=False, stream_output=False,
                          chunk_size=512,
                          document_choice=[DocumentChoices.All_Relevant.name],
                          )
-    from generate import eval_func_param_names
+    from gen import eval_func_param_names
     assert len(set(eval_func_param_names).difference(set(list(kwargs.keys())))) == 0
     if chat:
         # add chatbot output on end.  Assumes serialize=False

@@ -2,8 +2,8 @@ import pandas as pd
 import pytest
 
 from tests.utils import wrap_test_forked
-from enums import DocumentChoices, LangChainAction
-from utils import remove
+from src.enums import DocumentChoices, LangChainAction
+from src.utils import remove
 
 
 @pytest.mark.parametrize("base_model", ['h2oai/h2ogpt-oig-oasst1-512-6_9b', 'junelee/wizard-vicuna-13b'])
@@ -64,8 +64,8 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
         import os
         os.environ['CUDA_VISIBLE_DEVICES'] = ''
     import pandas as pd
-    from generate import eval_func_param_names, eval_extra_columns
-    from generate import main
+    from src.gen import eval_func_param_names, eval_extra_columns
+    from src.gen import main
     kwargs = dict(
         stream_output=False, prompt_type=prompt_type, prompt_dict='',
         temperature=0.4, top_p=0.85, top_k=70, num_beams=1, max_new_tokens=256,

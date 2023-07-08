@@ -2,13 +2,12 @@ import os
 import subprocess
 import time
 from datetime import datetime
-
 import pytest
 
-from client_test import run_client_many
-from enums import PromptType, LangChainAction
-from tests.test_langchain_units import have_openai_key
 from tests.utils import wrap_test_forked
+from tests.test_langchain_units import have_openai_key
+from src.client_test import run_client_many
+from src.enums import PromptType, LangChainAction
 
 
 @pytest.mark.parametrize("base_model",
@@ -31,7 +30,7 @@ def test_gradio_inference_server(base_model, force_langchain_evaluate, do_langch
         langchain_mode = 'UserData'
         from tests.utils import make_user_path_test
         user_path = make_user_path_test()
-        # from gpt_langchain import get_some_dbs_from_hf
+        # from src.gpt_langchain import get_some_dbs_from_hf
         # get_some_dbs_from_hf()
 
     if base_model in ['h2oai/h2ogpt-oig-oasst1-512-6_9b', 'h2oai/h2ogpt-oasst1-512-12b']:
@@ -56,16 +55,16 @@ def test_gradio_inference_server(base_model, force_langchain_evaluate, do_langch
 
     # inference server
     inf_port = os.environ['GRADIO_SERVER_PORT'] = "7860"
-    from generate import main
+    from src.gen import main
     main(**main_kwargs)
 
     # server that consumes inference server
     client_port = os.environ['GRADIO_SERVER_PORT'] = "7861"
-    from generate import main
+    from src.gen import main
     main(**main_kwargs, inference_server='http://127.0.0.1:%s' % inf_port)
 
     # client test to server that only consumes inference server
-    from client_test import run_client_chat
+    from src.client_test import run_client_chat
     os.environ['HOST'] = "http://127.0.0.1:%s" % client_port
     res_dict, client = run_client_chat(prompt=prompt, prompt_type=prompt_type, stream_output=stream_output,
                                        max_new_tokens=max_new_tokens, langchain_mode=langchain_mode,
@@ -201,7 +200,7 @@ def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain,
         langchain_mode = 'UserData'
         from tests.utils import make_user_path_test
         user_path = make_user_path_test()
-        # from gpt_langchain import get_some_dbs_from_hf
+        # from src.gpt_langchain import get_some_dbs_from_hf
         # get_some_dbs_from_hf()
 
     if base_model in ['h2oai/h2ogpt-oig-oasst1-512-6_9b', 'h2oai/h2ogpt-oasst1-512-12b']:
@@ -239,11 +238,11 @@ def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain,
     try:
         # server that consumes inference server
         client_port = os.environ['GRADIO_SERVER_PORT'] = "7861"
-        from generate import main
+        from src.gen import main
         main(**main_kwargs)
 
         # client test to server that only consumes inference server
-        from client_test import run_client_chat
+        from src.client_test import run_client_chat
         os.environ['HOST'] = "http://127.0.0.1:%s" % client_port
         res_dict, client = run_client_chat(prompt=prompt, prompt_type=prompt_type,
                                            stream_output=stream_output,
@@ -334,11 +333,11 @@ def test_openai_inference_server(force_langchain_evaluate,
 
     # server that consumes inference server
     client_port = os.environ['GRADIO_SERVER_PORT'] = "7861"
-    from generate import main
+    from src.gen import main
     main(**main_kwargs, inference_server='openai_chat')
 
     # client test to server that only consumes inference server
-    from client_test import run_client_chat
+    from src.client_test import run_client_chat
     os.environ['HOST'] = "http://127.0.0.1:%s" % client_port
     res_dict, client = run_client_chat(prompt=prompt, prompt_type='openai_chat', stream_output=stream_output,
                                        max_new_tokens=max_new_tokens, langchain_mode=langchain_mode,

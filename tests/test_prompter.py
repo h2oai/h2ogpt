@@ -1,10 +1,9 @@
 import time
-
 import pytest
 
-from enums import source_prefix, source_postfix
-from prompter import generate_prompt
 from tests.utils import wrap_test_forked
+from src.enums import source_prefix, source_postfix
+from src.prompter import generate_prompt
 
 example_data_point0 = dict(instruction="Summarize",
                            input="Ducks eat seeds by the lake, then swim in the lake where fish eat small animals.",
@@ -70,8 +69,8 @@ def test_prompt_with_context(prompt_type, expected):
     stream_output = False
     debug = False
 
-    from prompter import Prompter
-    from generate import history_to_context
+    from src.prompter import Prompter
+    from src.gen import history_to_context
 
     t0 = time.time()
     history = [["Hello!", "Hi!"],
@@ -124,7 +123,7 @@ def test_prompt_with_no_context(prompt_type, expected):
     stream_output = False
     debug = False
 
-    from prompter import Prompter
+    from src.prompter import Prompter
     context = ''
     instruction = "Go to the market?"
 
