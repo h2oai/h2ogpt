@@ -80,6 +80,14 @@ If the front-end can still access internet, but just backend should not, then on
 Note that gradio attempts to download [iframeResizer.contentWindow.min.js](https://cdnjs.cloudflare.com/ajax/libs/iframe-resizer/4.3.1/iframeResizer.contentWindow.min.js),
 but nothing prevents gradio from working without this.  So a simple firewall block is sufficient.  For more details, see: https://github.com/AUTOMATIC1111/stable-diffusion-webui/pull/10324.
 
+6. Disable access or port
+
+To ensure nobody can access your gradio server, disable the port via firewall.  If that is a hassle, then one can enable authentication by adding to CLI when running `python generate.py`:
+```
+--auth=[('jon','password')]
+```
+with no spaces.  Run `python generate.py --help` for more details.
+
 ### Isolated LangChain Usage:
 
 See [tests/test_langchain_simple.py](../tests/test_langchain_simple.py)
