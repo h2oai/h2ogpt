@@ -151,20 +151,6 @@ class TextCompletion:
 class ChatCompletionCreator:
     """Chat completion."""
 
-    def _create_completion(self, parameters: OrderedDict) -> "ChatCompletion":
-        parameters["instruction"] = None  # future prompts
-        parameters["iinput"] = ""  # ??
-        parameters["stream_output"] = False
-        parameters["prompt_dict"] = ""  # empty as prompt_type cannot be 'custom'
-        parameters["chat"] = True
-        parameters["instruction_nochat"] = ""  # empty when chat_mode is True
-        parameters["top_k_docs"] = 4  # langchain: number of document chunks
-        parameters["chunk"] = True  # langchain: whether to chunk documents
-        parameters["chunk_size"] = 512  # langchain: chunk size for document chunking
-        parameters["document_choice"] = [DocumentChoices.All_Relevant.name]
-        parameters["chatbot"] = []  # chat history
-        return ChatCompletion(self._client, parameters)
-
     def __init__(self, client: Client):
         self._client = client
 
