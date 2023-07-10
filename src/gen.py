@@ -91,7 +91,7 @@ def main(
         memory_restriction_level: int = None,
         debug: bool = False,
         save_dir: str = None,
-        share: bool = True,
+        share: bool = False,
         local_files_only: bool = False,
         resume_download: bool = True,
         use_auth_token: Union[str, bool] = False,
