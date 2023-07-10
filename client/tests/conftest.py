@@ -31,6 +31,12 @@ def server_url():
     return server_url
 
 
+@pytest.fixture(scope="module")
+def eval_func_param_names():
+    parameters = _import_module_from_h2ogpt("src/evaluate_params.py")
+    return parameters.eval_func_param_names
+
+
 def _import_module_from_h2ogpt(file_name: str) -> ModuleType:
     h2ogpt_dir = Path(__file__).parent.parent.parent
     file_path = (h2ogpt_dir / file_name).absolute()

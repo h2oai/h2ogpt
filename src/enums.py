@@ -37,7 +37,10 @@ class DocumentChoices(Enum):
     Just_LLM = 3
 
 
-non_query_commands = [DocumentChoices.All_Relevant_Only_Sources.name, DocumentChoices.Only_All_Sources.name]
+non_query_commands = [
+    DocumentChoices.All_Relevant_Only_Sources.name,
+    DocumentChoices.Only_All_Sources.name
+]
 
 
 class LangChainMode(Enum):
@@ -60,7 +63,7 @@ class LangChainAction(Enum):
 
     QUERY = "Query"
     # WIP:
-    #SUMMARIZE_MAP = "Summarize_map_reduce"
+    # SUMMARIZE_MAP = "Summarize_map_reduce"
     SUMMARIZE_MAP = "Summarize"
     SUMMARIZE_ALL = "Summarize_all"
     SUMMARIZE_REFINE = "Summarize_refine"
