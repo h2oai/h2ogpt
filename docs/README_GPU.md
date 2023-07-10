@@ -9,7 +9,11 @@ For help installing cuda toolkit, see [CUDA Toolkit](INSTALL.md#installing-cuda-
 ```bash
 git clone https://github.com/h2oai/h2ogpt.git
 cd h2ogpt
-pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cu117
+for fil in requirements.txt reqs_optional/requirements_optional_langchain.txt reqs_optional/requirements_optional_gpt4all.txt reqs_optional/requirements_optional_langchain.gpllike.txt reqs_optional/requirements_optional_langchain.urls.txt --extra-index-url https://download.pytorch.org/whl/cu118 ; do pip install -r $fil ; done
+# Optional: support docx, pptx, ArXiv, etc.
+sudo apt-get install -y libmagic-dev poppler-utils tesseract-ocr libreoffice
+# Optional: for supporting unstructured package
+python -m nltk.downloader all
 ```
 then check that can see CUDA from Torch:
 ```python
@@ -36,22 +40,11 @@ for some user path `<user path>` and the `prompt_type` must match the model or a
 
 For quickly using a private document collection for Q/A, place documents (PDFs, text, etc.) into a folder called `user_path` and run
 ```bash
-pip install -r reqs_optional/requirements_optional_langchain.txt
-python -m nltk.downloader all  # for supporting unstructured package
 python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b  --load_8bit=True --langchain_mode=UserData --user_path=user_path
 ```
-For more ways to ingest on CLI and control see [LangChain Readme](README_LangChain.md).  For example, for improved pdf handling via pymupdf (GPL) and support for docx, ppt, OCR, and ArXiV run:
-```bash
-sudo apt-get install -y libmagic-dev poppler-utils tesseract-ocr tesseract-ocr libreoffice
-pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt
-```
+For more details about document Q/A, see [LangChain Readme](README_LangChain.md).
 
-For 4-bit support, the latest dev versions of transformers, accelerate, and peft are required, which can be installed by running:
-```bash
-pip uninstall peft transformers accelerate -y
-pip install -r reqs_optional/requirements_optional_4bit.txt
-```
-where uninstall is required in case, e.g., peft was installed from GitHub previously.  Then when running generate pass `--load_4bit=True`, which is only supported for certain [architectures](https://github.com/huggingface/peft#models-support-matrix) like GPT-NeoX-20B, GPT-J, LLaMa, etc.
+For 4-bit support, when running generate pass `--load_4bit=True`, which is only supported for certain [architectures](https://github.com/huggingface/peft#models-support-matrix) like GPT-NeoX-20B, GPT-J, LLaMa, etc.
 
 Any other instruct-tuned base models can be used, including non-h2oGPT ones.  [Larger models require more GPU memory](FAQ.md#larger-models-require-more-gpu-memory).
 

@@ -115,6 +115,12 @@ sudo apt-get install -y build-essential gcc python3.10-dev
 virtualenv -p python3 h2ogpt
 source h2ogpt/bin/activate
 ```
+or use conda:
+```bash
+conda create -n h2ogpt -y
+conda activate h2ogpt
+conda install python=3.10 -c conda-forge -y
+```
 Check your installation by doing:
 ```bash
 python --version # should say 3.10.xx

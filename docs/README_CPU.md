@@ -6,10 +6,11 @@ CPU support is obtained after installing two optional requirements.txt files.  T
 ```bash
 git clone https://github.com/h2oai/h2ogpt.git
 cd h2ogpt
-pip install -r requirements.txt  # only do if didn't already do for GPU support, since windows needs --extra-index-url line
-pip install -r reqs_optional/requirements_optional_langchain.txt
-python -m nltk.downloader all  # for supporting unstructured package
-pip install -r reqs_optional/requirements_optional_gpt4all.txt
+for fil in requirements.txt reqs_optional/requirements_optional_langchain.txt reqs_optional/requirements_optional_gpt4all.txt reqs_optional/requirements_optional_langchain.gpllike.txt reqs_optional/requirements_optional_langchain.urls.txt ; do pip install -r $fil ; done
+# Optional: support docx, pptx, ArXiv, etc.
+sudo apt-get install -y libmagic-dev poppler-utils tesseract-ocr libreoffice
+# Optional: for supporting unstructured package
+python -m nltk.downloader all
 ```
 See [GPT4All](https://github.com/nomic-ai/gpt4all) for details on installation instructions if any issues encountered.
 
@@ -23,7 +24,11 @@ For `gptj` and `gpt4all_llama`, you can choose a different model than our defaul
 
 So, for chatting, a better instruct fine-tuned LLaMa-based model for llama.cpp can be downloaded from [TheBloke](https://huggingface.co/TheBloke).  For example, [13B WizardLM Quantized](https://huggingface.co/TheBloke/wizardLM-13B-1.0-GGML) or [7B WizardLM Quantized](https://huggingface.co/TheBloke/WizardLM-7B-uncensored-GGML).  TheBloke has a variety of model types, quantization bit depths, and memory consumption.  Choose what is best for your system's specs.  However, be aware that LLaMa-based models are not [commercially viable](FAQ.md#commercial-viability).
 
-For 7B case, download [WizardLM-7B-uncensored.ggmlv3.q8_0.bin](https://huggingface.co/TheBloke/WizardLM-7B-uncensored-GGML/blob/main/WizardLM-7B-uncensored.ggmlv3.q8_0.bin) into local path.  Then one sets `model_path_llama` in `.env_gpt4all`, which is currently the default.
+For 7B case, download [WizardLM-7B-uncensored.ggmlv3.q8_0.bin](https://huggingface.co/TheBloke/WizardLM-7B-uncensored-GGML/resolve/main/WizardLM-7B-uncensored.ggmlv3.q8_0.bin) into local path:
+```bash
+wget https://huggingface.co/TheBloke/WizardLM-7B-uncensored-GGML/resolve/main/WizardLM-7B-uncensored.ggmlv3.q8_0.bin
+```
+Then one sets `model_path_llama` in `.env_gpt4all`, which is currently the default.
 
 * Run generate.py
 
