@@ -288,6 +288,8 @@ For links to direct to the document and download to your local machine, the orig
 
 * [ChatDoc](https://chatdoc.com/) but h2oGPT is open-source and private. ChatDoc shows nice side-by-side view with doc on one side and chat in other.  Select specific doc or text in doc for question/summary.
 
+* [Casalioy](https://github.com/su77ungr/casalioy) with focus on air-gap with docker, otherwise like older privateGPT.
+
 * [Perplexity](https://www.perplexity.ai/) but h2oGPT is open-source and private, similar control over sources.
 
 * [HayStack](https://github.com/deepset-ai/haystack) but h2oGPT is open-source and private.  Haystack is pivot to LLMs from NLP tasks, so well-developed documentation etc.  But mostly LangChain clone.
