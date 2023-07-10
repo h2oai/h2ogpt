@@ -4,22 +4,32 @@ GPU via CUDA is supported via Hugging Face type models and LLaMa.cpp models.
 
 #### GPU (CUDA)
 
-For help installing cuda toolkit, see [CUDA Toolkit](INSTALL.md#installing-cuda-toolkit)
+For help installing cuda toolkit, see [CUDA Toolkit](INSTALL.md#installing-cuda-toolkit).
 
 ```bash
 git clone https://github.com/h2oai/h2ogpt.git
 cd h2ogpt
 pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cu117
+```
+then check that can see CUDA from Torch:
+```python
+import torch
+print(torch.cuda.is_available())
+```
+should print True.
+
+To run in ChatBot mode, do:
+```bash
 python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b --load_8bit=True
 ```
 Then point browser at http://0.0.0.0:7860 (linux) or http://localhost:7860 (windows/mac) or the public live URL printed by the server (disable shared link with `--share=False`).  For 4-bit or 8-bit support, older GPUs may require older bitsandbytes installed as `pip uninstall bitsandbytes -y ; pip install bitsandbytes==0.38.1`.  For production uses, we recommend at least the 12B model, ran as:
-```
+```bash
 python generate.py --base_model=h2oai/h2ogpt-oasst1-512-12b --load_8bit=True
 ```
 and one can use `--h2ocolors=False` to get soft blue-gray colors instead of H2O.ai colors.  [Here](FAQ.md#what-envs-can-i-pass-to-control-h2ogpt) is a list of environment variables that can control some things in `generate.py`.
 
 Note if you download the model yourself and point `--base_model` to that location, you'll need to specify the prompt_type as well by running:
-```
+```bash
 python generate.py --base_model=<user path> --load_8bit=True --prompt_type=human_bot
 ```
 for some user path `<user path>` and the `prompt_type` must match the model or a new version created in `prompter.py` or added in UI/CLI via `prompt_dict`.
