@@ -124,7 +124,9 @@ On some systems, `pip` still refers back to the system one, then one can use `py
 
 #### TLDR
 
-After Python 3.10 environment installed:
+For [MACOS](docs/README_MACOS.md#macos) and [Windows 10/11](docs/README_WINDOWS.md) please follow their instructions.
+
+On Ubuntu, after Python 3.10 environment installed do:
 ```bash
 git clone https://github.com/h2oai/h2ogpt.git
 cd h2ogpt
