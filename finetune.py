@@ -8,6 +8,9 @@ import numpy as np
 if os.path.dirname(os.path.abspath(__file__)) not in sys.path:
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+if os.path.dirname('src') not in sys.path:
+    sys.path.append('src')
+
 from src.loaders import get_loaders, get_tokenizer
 from src.prompter import generate_prompt, prompt_types, PromptType
 from src.utils import get_githash, copy_code
