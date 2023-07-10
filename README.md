@@ -151,6 +151,15 @@ UI using CPU
 python generate.py --base_model='llama' --prompt_type=wizard2 --score_model=None --langchain_mode='UserData' --user_path=user_path
 ```
 
+If using OpenAI for the LLM is ok, but you want documents to be parsed and embedded locally, then do:
+```bash
+python generate.py  --inference_server=openai_chat --base_model=gpt-3.5-turbo --score_model=None
+```
+and perhaps you want better image caption performance and focus local GPU on that, then do:
+```bash
+python generate.py  --inference_server=openai_chat --base_model=gpt-3.5-turbo --score_model=None --captions_model=Salesforce/blip2-flan-t5-xl
+```
+
 ### Development
 
 - To create a development environment for training and generation, follow the [installation instructions](docs/INSTALL.md).

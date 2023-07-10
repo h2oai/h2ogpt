@@ -138,6 +138,15 @@ python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b --langchain_mod
 ```
 which will avoid using `user_path` since it is no longer passed.  Otherwise when passed, any new files will be added or changed (by hash) files will be updated (delete old sources and add new sources).
 
+If you have enough GPU memory for embedding, but not the LLM as well, then a less private mode is to use OpenAI model.
+```bash
+python generate.py  --inference_server=openai_chat --base_model=gpt-3.5-turbo --score_model=None --langchain_mode=ChatLLM --visible_langchain_modes="['ChatLLM', 'UserData', 'MyData']"
+```
+and if you want to push image caption model to get better captions, this can be done if have enough GPU memory or if use OpenAI:
+```bash
+python generate.py  --inference_server=openai_chat --base_model=gpt-3.5-turbo --score_model=None --langchain_mode=ChatLLM --visible_langchain_modes="['ChatLLM', 'UserData', 'MyData']" --captions_model=Salesforce/blip2-flan-t5-xl
+```
+
 ### Note about FAISS
 
 FAISS filtering is not supported in h2oGPT yet, ask if this is desired to be added.  So subset by document does not function for FAISS.
