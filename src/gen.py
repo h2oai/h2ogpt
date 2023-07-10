@@ -1015,7 +1015,7 @@ def get_hf_model(load_8bit: bool = False,
                              device=0 if device == "cuda" else -1,
                              torch_dtype=torch.float16 if device == 'cuda' else torch.float32)
     else:
-        assert device in ["cuda", "cpu"], "Unsupported device %s" % device
+        assert device in ["cuda", "cpu", "mps"], "Unsupported device %s" % device
         model_kwargs = dict(local_files_only=local_files_only,
                             torch_dtype=torch.float16 if device == 'cuda' else torch.float32,
                             resume_download=resume_download,
@@ -1830,7 +1830,7 @@ def evaluate(
 
     with torch.no_grad():
         have_lora_weights = lora_weights not in [no_lora_str, '', None]
-        context_class_cast = NullContext if device == 'cpu' or have_lora_weights else torch.autocast
+        context_class_cast = NullContext if device == 'cpu' or have_lora_weights or device == 'mps' else torch.autocast
         with context_class_cast(device):
             # protection for gradio not keeping track of closed users,
             # else hit bitsandbytes lack of thread safety:
