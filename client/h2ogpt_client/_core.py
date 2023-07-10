@@ -4,7 +4,12 @@ from typing import Any, Dict, List, Optional, OrderedDict, Tuple, ValuesView
 import gradio_client  # type: ignore
 
 from h2ogpt_client import _utils
-from h2ogpt_client._h2ogpt_enums import DocumentChoices, LangChainMode, PromptType
+from h2ogpt_client._h2ogpt_enums import (
+    DocumentChoices,
+    LangChainAction,
+    LangChainMode,
+    PromptType,
+)
 
 
 class Client:
@@ -98,6 +103,7 @@ class TextCompletionCreator:
         params["chat"] = False
         params["instruction_nochat"] = None  # future prompt
         params["langchain_mode"] = langchain_mode.value  # convert to serializable type
+        params["langchain_action"] = LangChainAction.QUERY.value
         params["top_k_docs"] = 4  # langchain: number of document chunks
         params["chunk"] = True  # langchain: whether to chunk documents
         params["chunk_size"] = 512  # langchain: chunk size for document chunking
@@ -213,6 +219,7 @@ class ChatCompletionCreator:
         params["chat"] = True
         params["instruction_nochat"] = ""  # empty when chat_mode is True
         params["langchain_mode"] = langchain_mode.value  # convert to serializable type
+        params["langchain_action"] = LangChainAction.QUERY.value
         params["top_k_docs"] = 4  # langchain: number of document chunks
         params["chunk"] = True  # langchain: whether to chunk documents
         params["chunk_size"] = 512  # langchain: chunk size for document chunking

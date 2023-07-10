@@ -23,6 +23,7 @@ H2OGPT_PARAMETERS_TO_CLIENT = collections.OrderedDict(
     instruction_nochat="instruction_nochat",
     iinput_nochat="input_context_for_instruction",
     langchain_mode="langchain_mode",
+    langchain_action="langchain_action",
     top_k_docs="langchain_top_k_docs",
     chunk="langchain_enable_chunk",
     chunk_size="langchain_chunk_size",
