@@ -45,7 +45,7 @@ because, otherwise, the generation will be much slower even if uses GPU.  If you
 ```bash
 pip uninstall -y auto-gptq ; CUDA_HOME=/usr/local/cuda-11.7 GITHUB_ACTIONS=true pip install auto-gptq --no-cache-dir
 ```
-If one used conda cudatoolkit:
+or use cuda-11.8 if one has that installed, etc.  If one used conda cudatoolkit:
 ```bash
 conda install -c conda-forge cudatoolkit-dev
 ```
