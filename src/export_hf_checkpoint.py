@@ -26,6 +26,13 @@ def do_export():
     # LORA_WEIGHTS = 'llama-65b-hf.h2oaiopenassistant_oasst1_h2ogpt_graded.1_epochs.113510499324f0f007cbec9d9f1f8091441f2469.3'
     # OUTPUT_NAME = "h2ogpt-research-oasst1-llama-65b"
 
+    model = os.getenv('MODEL')
+    # for testing
+    if model:
+        BASE_MODEL = 'tiiuae/falcon-7b'
+        LORA_WEIGHTS = model + ".lora"
+        OUTPUT_NAME = model
+
     llama_type = "llama" in BASE_MODEL
     as_pytorch = False  # False -> HF
 
