@@ -1,6 +1,10 @@
-def get_loaders(model_name, reward_type, llama_type=None):
+def get_loaders(model_name, reward_type, llama_type=None, load_gptq=''):
     # NOTE: Some models need specific new prompt_type
     # E.g. t5_xxl_true_nli_mixture has input format: "premise: PREMISE_TEXT hypothesis: HYPOTHESIS_TEXT".)
+    if load_gptq:
+        from transformers import AutoTokenizer
+        from auto_gptq import AutoGPTQForCausalLM
+        return AutoGPTQForCausalLM, AutoTokenizer
     if llama_type is None:
         llama_type = "llama" in model_name.lower()
     if llama_type:

@@ -1,0 +1,4 @@
+# Linux:
+pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.2.2/auto_gptq-0.2.2+cu118-cp310-cp310-linux_x86_64.whl
+# Windows:
+# https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.2.2/auto_gptq-0.2.2+cu118-cp310-cp310-win_amd64.whl

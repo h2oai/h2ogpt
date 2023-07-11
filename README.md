@@ -146,7 +146,10 @@ for fil in requirements.txt reqs_optional/requirements_optional_langchain.txt re
 sudo apt-get install -y libmagic-dev poppler-utils tesseract-ocr libreoffice
 # Optional: for supporting unstructured package
 python -m nltk.downloader all
-````
+# Optional: For AutoGPTQ support on x86_64 linux
+pip install -r reqs_optional/requirements_optional_gptq.txt
+```
+See [AutoGPTQ](docs/README_GPU.md#gpu-cuda) for more details for AutoGPTQ and other GPU installation aspects.
 
 Place all documents in `user_path` or upload in UI.
 

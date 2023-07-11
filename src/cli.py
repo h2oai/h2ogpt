@@ -12,7 +12,9 @@ def run_cli(  # for local function:
         debug=None, chat_context=None,
         examples=None, memory_restriction_level=None,
         # for get_model:
-        score_model=None, load_8bit=None, load_4bit=None, load_half=None, infer_devices=None, tokenizer_base_model=None,
+        score_model=None, load_8bit=None, load_4bit=None, load_half=None,
+        load_gptq=None, use_safetensors=None,
+        infer_devices=None, tokenizer_base_model=None,
         gpu_id=None, local_files_only=None, resume_download=None, use_auth_token=None,
         trust_remote_code=None, offload_folder=None, compile_model=None,
         # for some evaluate args

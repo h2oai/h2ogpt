@@ -54,7 +54,11 @@ Follow these steps:
     python -m nltk.downloader all
     ```
     For supporting Word and Excel documents download and install libreoffice: https://www.libreoffice.org/download/download-libreoffice/ . To support OCR, downnload and install [tesseract](https://github.com/UB-Mannheim/tesseract/wiki).
-12. Run h2oGPT for chat only:
+12. Install optional AutoGPTQ dependency:
+    ```bash
+    pip install -r https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.2.2/auto_gptq-0.2.2+cu118-cp310-cp310-win_amd64.whl
+    ```
+14. Run h2oGPT for chat only:
     ```bash
     python generate.py --base_model=h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b --score_model=None
     ```
