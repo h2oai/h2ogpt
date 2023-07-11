@@ -47,7 +47,7 @@ prompt_type_to_model_name = {
         'h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b',
         'h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-13b',
     ],
-    'instruct': [],
+    'instruct': ['TheBloke/llama-30b-supercot-SuperHOT-8K-fp16'],  # https://huggingface.co/TheBloke/llama-30b-supercot-SuperHOT-8K-fp16#prompting
     'instruct_with_end': ['databricks/dolly-v2-12b'],
     'quality': [],
     'human_bot': [
