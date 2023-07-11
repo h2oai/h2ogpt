@@ -28,6 +28,8 @@ class PromptType(Enum):
     gptj = 22
     prompt_answer_openllama = 23
     vicuna11 = 24
+    mptinstruct = 25
+    mptchat = 26
 
 
 class DocumentChoices(Enum):
@@ -71,7 +73,6 @@ class LangChainAction(Enum):
 
 no_server_str = no_lora_str = no_model_str = '[None/Remove]'
 
-
 # from site-packages/langchain/llms/openai.py
 # but needed since ChatOpenAI doesn't have this information
 model_token_mapping = {
@@ -80,7 +81,7 @@ model_token_mapping = {
     "gpt-4-32k": 32768,
     "gpt-4-32k-0314": 32768,
     "gpt-3.5-turbo": 4096,
-    "gpt-3.5-turbo-16k": 16*1024,
+    "gpt-3.5-turbo-16k": 16 * 1024,
     "gpt-3.5-turbo-0301": 4096,
     "text-ada-001": 2049,
     "ada": 2049,
@@ -96,7 +97,6 @@ model_token_mapping = {
     "code-cushman-002": 2048,
     "code-cushman-001": 2048,
 }
-
 
 source_prefix = "Sources [Score | Link]:"
 source_postfix = "End Sources<p>"

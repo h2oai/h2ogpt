@@ -23,9 +23,6 @@ prompt_type_to_model_name = {
         'gpt2',
         'distilgpt2',
         'mosaicml/mpt-7b-storywriter',
-        'mosaicml/mpt-7b-instruct',  # internal code handles instruct
-        'mosaicml/mpt-7b-chat',  # NC, internal code handles instruct
-        'mosaicml/mpt-30b-instruct',  # internal code handles instruct
     ],
     'gptj': ['gptj', 'gpt4all_llama'],
     'prompt_answer': [
@@ -75,7 +72,9 @@ prompt_type_to_model_name = {
     "wizard_mega": ['openaccess-ai-collective/wizard-mega-13b'],
     "instruct_simple": ['JosephusCheung/Guanaco'],
     "wizard_vicuna": ['ehartford/Wizard-Vicuna-13B-Uncensored'],
-    "wizard2": ['llama', 'mosaicml/mpt-30b-instruct'],
+    "wizard2": ['llama'],
+    "mptinstruct": ['mosaicml/mpt-30b-instruct', 'mosaicml/mpt-7b-instruct', 'mosaicml/mpt-30b-instruct'],
+    "mptchat": ['mosaicml/mpt-7b-chat'],
     "vicuna11": ['lmsys/vicuna-33b-v1.3'],
     # could be plain, but default is correct prompt_type for default TheBloke model ggml-wizardLM-7B.q4_2.bin
 }
@@ -521,6 +520,47 @@ ASSISTANT:
             # normally LLM adds space after this, because was how trained.
             # if add space here, non-unique tokenization will often make LLM produce wrong output
             PreResponse = PreResponse
+    elif prompt_type in [PromptType.mptinstruct.value, str(PromptType.mptinstruct.value),
+                         PromptType.mptinstruct.name]:
+        # https://huggingface.co/mosaicml/mpt-30b-instruct#formatting
+        promptA = promptB = 'Below is an instruction that describes a task. Write a response that appropriately completes the request.\n' if not (
+                chat and reduced) else ''
+
+        PreInstruct = """
+### Instruction
+"""
+
+        PreInput = """
+### Input
+"""
+
+        PreResponse = """
+### Response
+"""
+        terminate_response = None
+        chat_turn_sep = chat_sep = '\n'
+        humanstr = PreInstruct
+        botstr = PreResponse
+    elif prompt_type in [PromptType.mptchat.value, str(PromptType.mptchat.value),
+                         PromptType.mptchat.name]:
+        # https://huggingface.co/TheBloke/mpt-30B-chat-GGML#prompt-template
+        promptA = promptB = """<|im_start|>system\nA conversation between a user and an LLM-based AI assistant. The assistant gives helpful and honest answers.\n<|im_end|>""" if not (
+                chat and reduced) else ''
+
+        PreInstruct = """<|im_start|>user
+"""
+
+        PreInput = None
+
+        PreResponse = """<|im_end|><|im_start|>assistant
+"""
+        terminate_response = None
+        chat_sep = ''
+        chat_turn_sep = '<|im_end|>'
+        humanstr = PreInstruct
+        botstr = PreResponse
+
+
     else:
         raise RuntimeError("No such prompt_type=%s" % prompt_type)
 

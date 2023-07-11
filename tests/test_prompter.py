@@ -48,6 +48,36 @@ prompt_prompt_answer = "<|prompt|>Hello!<|endoftext|><|answer|>Hi!<|endoftext|><
 
 prompt_prompt_answer_openllama = "<|prompt|>Hello!</s><|answer|>Hi!</s><|prompt|>How are you?</s><|answer|>I'm good</s><|prompt|>Go to the market?</s><|answer|>"
 
+prompt_mpt_instruct = """Below is an instruction that describes a task. Write a response that appropriately completes the request.
+
+### Instruction
+Hello!
+
+### Response
+Hi!
+
+### Instruction
+How are you?
+
+### Response
+I'm good
+
+### Instruction
+Go to the market?
+
+### Response
+"""
+
+prompt_mpt_chat = """<|im_start|>system
+A conversation between a user and an LLM-based AI assistant. The assistant gives helpful and honest answers.
+<|im_end|><|im_start|>user
+Hello!<|im_end|><|im_start|>assistant
+Hi!<|im_end|><|im_start|>user
+How are you?<|im_end|><|im_start|>assistant
+I'm good<|im_end|><|im_start|>user
+Go to the market?<|im_end|><|im_start|>assistant
+"""
+
 
 @wrap_test_forked
 @pytest.mark.parametrize("prompt_type,expected",
@@ -56,6 +86,8 @@ prompt_prompt_answer_openllama = "<|prompt|>Hello!</s><|answer|>Hi!</s><|prompt|
                              ('human_bot', prompt_humanbot),
                              ('prompt_answer', prompt_prompt_answer),
                              ('prompt_answer_openllama', prompt_prompt_answer_openllama),
+                             ('mptinstruct', prompt_mpt_instruct),
+                             ('mptchat', prompt_mpt_chat),
                          ]
                          )
 def test_prompt_with_context(prompt_type, expected):
@@ -106,6 +138,20 @@ prompt_prompt_answer1 = "<|prompt|>Go to the market?<|endoftext|><|answer|>"
 
 prompt_prompt_answer_openllama1 = "<|prompt|>Go to the market?</s><|answer|>"
 
+prompt_mpt_instruct1 = """Below is an instruction that describes a task. Write a response that appropriately completes the request.
+
+### Instruction
+Go to the market?
+
+### Response
+"""
+
+prompt_mpt_chat1 = """<|im_start|>system
+A conversation between a user and an LLM-based AI assistant. The assistant gives helpful and honest answers.
+<|im_end|><|im_start|>user
+Go to the market?<|im_end|><|im_start|>assistant
+"""
+
 
 @pytest.mark.parametrize("prompt_type,expected",
                          [
@@ -113,6 +159,8 @@ prompt_prompt_answer_openllama1 = "<|prompt|>Go to the market?</s><|answer|>"
                              ('human_bot', prompt_humanbot1),
                              ('prompt_answer', prompt_prompt_answer1),
                              ('prompt_answer_openllama', prompt_prompt_answer_openllama1),
+                             ('mptinstruct', prompt_mpt_instruct1),
+                             ('mptchat', prompt_mpt_chat1),
                          ]
                          )
 @wrap_test_forked
