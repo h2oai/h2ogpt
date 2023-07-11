@@ -109,4 +109,4 @@ or MPS:
 python generate.py --base_model=h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b --langchain_mode=MyData --score_model=None
 ```
 
-See [CPU](README.md#cpu) and [GPU](README_CPU.md) for some other general aspects about using h2oGPT on CPU or GPU, such as which models to try.
+See [CPU](README_CPU.md) and [GPU](README_GPU.md) for some other general aspects about using h2oGPT on CPU or GPU, such as which models to try.
