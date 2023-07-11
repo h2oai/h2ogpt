@@ -795,7 +795,7 @@ def get_non_lora_model(base_model, model_loader, load_half,
     return model
 
 
-def get_client_from_inference_server(inference_server, raise_connection_exception=False):
+def get_client_from_inference_server(inference_server, base_model=None, raise_connection_exception=False):
     inference_server, headers = get_hf_server(inference_server)
     # preload client since slow for gradio case especially
     from gradio_utils.grclient import GradioClient
@@ -803,7 +803,7 @@ def get_client_from_inference_server(inference_server, raise_connection_exceptio
     hf_client = None
     if headers is None:
         try:
-            print("GR Client Begin: %s" % inference_server, flush=True)
+            print("GR Client Begin: %s %s" % (inference_server, base_model), flush=True)
             # first do sanity check if alive, else gradio client takes too long by default
             requests.get(inference_server, timeout=int(os.getenv('REQUEST_TIMEOUT', '30')))
             gr_client = GradioClient(inference_server)
@@ -811,19 +811,19 @@ def get_client_from_inference_server(inference_server, raise_connection_exceptio
         except (OSError, ValueError) as e:
             # Occurs when wrong endpoint and should have been HF client, so don't hard raise, just move to HF
             gr_client = None
-            print("GR Client Failed %s: %s" % (inference_server, str(e)), flush=True)
+            print("GR Client Failed %s %s: %s" % (inference_server, base_model, str(e)), flush=True)
         except (ConnectTimeoutError, ConnectTimeout, MaxRetryError, ConnectionError, ConnectionError2,
                 JSONDecodeError, ReadTimeout2, KeyError) as e:
             t, v, tb = sys.exc_info()
             ex = ''.join(traceback.format_exception(t, v, tb))
-            print("GR Client Failed %s: %s" % (inference_server, str(ex)), flush=True)
+            print("GR Client Failed %s %s: %s" % (inference_server, base_model, str(ex)), flush=True)
             if raise_connection_exception:
                 raise
 
     if gr_client is None:
         res = None
         from text_generation import Client as HFClient
-        print("HF Client Begin: %s" % inference_server)
+        print("HF Client Begin: %s %s" % (inference_server, base_model))
         try:
             hf_client = HFClient(inference_server, headers=headers, timeout=int(os.getenv('REQUEST_TIMEOUT', '30')))
             # quick check valid TGI endpoint
@@ -834,10 +834,10 @@ def get_client_from_inference_server(inference_server, raise_connection_exceptio
             hf_client = None
             t, v, tb = sys.exc_info()
             ex = ''.join(traceback.format_exception(t, v, tb))
-            print("HF Client Failed %s: %s" % (inference_server, str(ex)))
+            print("HF Client Failed %s %s: %s" % (inference_server, base_model, str(ex)))
             if raise_connection_exception:
                 raise
-        print("HF Client End: %s %s" % (inference_server, res))
+        print("HF Client End: %s %s : %s" % (inference_server, base_model, res))
     return inference_server, gr_client, hf_client
 
 
@@ -939,7 +939,8 @@ def get_model(
         tokenizer = FakeTokenizer()
 
     if isinstance(inference_server, str) and inference_server.startswith("http"):
-        inference_server, gr_client, hf_client = get_client_from_inference_server(inference_server)
+        inference_server, gr_client, hf_client = get_client_from_inference_server(inference_server,
+                                                                                  base_model=base_model)
         client = gr_client or hf_client
         # Don't return None, None for model, tokenizer so triggers
         return client, tokenizer, 'http'
@@ -1601,7 +1602,8 @@ def evaluate(
                 gr_client = None
                 hf_client = model
             else:
-                inference_server, gr_client, hf_client = get_client_from_inference_server(inference_server)
+                inference_server, gr_client, hf_client = get_client_from_inference_server(inference_server,
+                                                                                          base_model=base_model)
 
             # quick sanity check to avoid long timeouts, just see if can reach server
             requests.get(inference_server, timeout=int(os.getenv('REQUEST_TIMEOUT_FAST', '10')))
