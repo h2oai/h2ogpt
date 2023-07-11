@@ -78,6 +78,18 @@ I'm good<|im_end|><|im_start|>user
 Go to the market?<|im_end|><|im_start|>assistant
 """
 
+prompt_falcon = """User: Hello!
+
+Assistant: Hi!
+
+User: How are you?
+
+Assistant: I'm good
+
+User: Go to the market?
+
+Assistant:"""
+
 
 @wrap_test_forked
 @pytest.mark.parametrize("prompt_type,expected",
@@ -88,6 +100,7 @@ Go to the market?<|im_end|><|im_start|>assistant
                              ('prompt_answer_openllama', prompt_prompt_answer_openllama),
                              ('mptinstruct', prompt_mpt_instruct),
                              ('mptchat', prompt_mpt_chat),
+                             ('falcon', prompt_falcon),
                          ]
                          )
 def test_prompt_with_context(prompt_type, expected):
@@ -152,6 +165,10 @@ A conversation between a user and an LLM-based AI assistant. The assistant gives
 Go to the market?<|im_end|><|im_start|>assistant
 """
 
+prompt_falcon1 = """User: Go to the market?
+
+Assistant:"""
+
 
 @pytest.mark.parametrize("prompt_type,expected",
                          [
@@ -161,6 +178,7 @@ Go to the market?<|im_end|><|im_start|>assistant
                              ('prompt_answer_openllama', prompt_prompt_answer_openllama1),
                              ('mptinstruct', prompt_mpt_instruct1),
                              ('mptchat', prompt_mpt_chat1),
+                             ('falcon', prompt_falcon1),
                          ]
                          )
 @wrap_test_forked
