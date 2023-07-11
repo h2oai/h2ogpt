@@ -168,7 +168,10 @@ and perhaps you want better image caption performance and focus local GPU on tha
 python generate.py  --inference_server=openai_chat --base_model=gpt-3.5-turbo --score_model=None --captions_model=Salesforce/blip2-flan-t5-xl
 ```
 
-Add `--share=True` to make gradio server visible via sharable URL.
+Add `--share=True` to make gradio server visible via sharable URL.  If you see an error about protobuf, try:
+```bash
+pip install protobuf==3.20.0
+```
 
 ### Development
 
