@@ -1050,11 +1050,16 @@ def get_hf_model(load_8bit: bool = False,
                             offload_folder=offload_folder,
                             )
         if 'mbart-' not in base_model.lower() and 'mpt-' not in base_model.lower():
+            if infer_devices and gpu_id is not None and gpu_id >= 0 and device == 'cuda':
+                device_map = {"": gpu_id}
+            else:
+                device_map = "auto"
             model_kwargs.update(dict(load_in_8bit=load_8bit,
                                      load_in_4bit=load_4bit,
-                                     device_map={"": 0} if (load_8bit or load_4bit) and device == 'cuda' else "auto",
+                                     device_map=device_map,
                                      ))
         if 'mpt-' in base_model.lower() and gpu_id is not None and gpu_id >= 0:
+            # MPT doesn't support spreading over GPUs
             model_kwargs.update(dict(device_map={"": gpu_id} if device == 'cuda' else "cpu"))
 
         if 'OpenAssistant/reward-model'.lower() in base_model.lower():
