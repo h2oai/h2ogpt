@@ -74,7 +74,7 @@ prompt_type_to_model_name = {
     "wizard_vicuna": ['ehartford/Wizard-Vicuna-13B-Uncensored'],
     "wizard2": ['llama'],
     "mptinstruct": ['mosaicml/mpt-30b-instruct', 'mosaicml/mpt-7b-instruct', 'mosaicml/mpt-30b-instruct'],
-    "mptchat": ['mosaicml/mpt-7b-chat'],
+    "mptchat": ['mosaicml/mpt-7b-chat', 'mosaicml/mpt-30b-chat', 'TheBloke/mpt-30B-chat-GGML'],
     "vicuna11": ['lmsys/vicuna-33b-v1.3'],
     # could be plain, but default is correct prompt_type for default TheBloke model ggml-wizardLM-7B.q4_2.bin
 }
