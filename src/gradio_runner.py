@@ -262,8 +262,7 @@ def go_gradio(**kwargs):
         model_options_state = gr.State([model_options])
         lora_options_state = gr.State([lora_options])
         server_options_state = gr.State([server_options])
-        # uuid in db is used as user ID
-        my_db_state = gr.State([None, str(uuid.uuid4())])
+        my_db_state = gr.State([None, None])
         chat_state = gr.State({})
         # make user default first and default choice, dedup
         docs_state00 = kwargs['document_choice'] + [x.name for x in list(DocumentChoices)]
@@ -2196,6 +2195,8 @@ def get_inputs_list(inputs_dict, model_lower, model_id=1):
 
 
 def get_sources(db1, langchain_mode, dbs=None, docs_state0=None):
+    set_userid(db1)
+
     if langchain_mode in ['ChatLLM', 'LLM']:
         source_files_added = "NA"
         source_list = []
@@ -2226,7 +2227,17 @@ def get_sources(db1, langchain_mode, dbs=None, docs_state0=None):
     return sources_file, source_list
 
 
+def set_userid(db1):
+    # can only call this after function called so for specific userr, not in gr.State() that occurs during app init
+    assert db1 is not None and len(db1) == 2
+    if db1[1] is None:
+        #  uuid in db is used as user ID
+        db1[1] = str(uuid.uuid4())
+
+
 def update_user_db(file, db1, x, y, *args, dbs=None, langchain_mode='UserData', **kwargs):
+    set_userid(db1)
+
     try:
         return _update_user_db(file, db1, x, y, *args, dbs=dbs, langchain_mode=langchain_mode, **kwargs)
     except BaseException as e:
@@ -2254,6 +2265,7 @@ def update_user_db(file, db1, x, y, *args, dbs=None, langchain_mode='UserData', 
 
 
 def get_lock_file(db1, langchain_mode):
+    set_userid(db1)
     assert len(db1) == 2 and db1[1] is not None and isinstance(db1[1], str)
     user_id = db1[1]
     base_path = 'locks'
@@ -2280,6 +2292,8 @@ def _update_user_db(file, db1, x, y, chunk, chunk_size, dbs=None, db_type=None, 
     assert captions_model is not None
     assert enable_ocr is not None
     assert verbose is not None
+
+    set_userid(db1)
 
     if dbs is None:
         dbs = {}
