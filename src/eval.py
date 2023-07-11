@@ -19,7 +19,8 @@ def run_eval(  # for local function:
         eval_filename=None, eval_prompts_only_num=None, eval_prompts_only_seed=None, eval_as_output=None,
         examples=None, memory_restriction_level=None,
         # for get_model:
-        score_model=None, load_8bit=None, load_4bit=None, load_half=None, infer_devices=None, tokenizer_base_model=None,
+        score_model=None, load_8bit=None, load_4bit=None, load_half=None, load_gptq=None, use_safetensors=None,
+        infer_devices=None, tokenizer_base_model=None,
         gpu_id=None, local_files_only=None, resume_download=None, use_auth_token=None,
         trust_remote_code=None, offload_folder=None, compile_model=None,
         # for evaluate args beyond what's already above, or things that are always dynamic and locally created

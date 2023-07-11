@@ -32,6 +32,28 @@ print(torch.cuda.is_available())
 ```
 should print True.
 
+To support [AutoGPTQ](https://github.com/PanQiWei/AutoGPTQ) models, run:
+```bash
+pip install auto-gptq[triton]
+```
+although to avoid building the package you can run the [specific version](https://github.com/PanQiWei/AutoGPTQ/releases), e.g.
+```bash
+pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.2.2/auto_gptq-0.2.2+cu118-cp310-cp310-linux_x86_64.whl
+```
+However, if one sees issues like `CUDA extension not installed.` mentioned during loading of model, need to recompile,
+because, otherwise, the generation will be much slower even if uses GPU.  If you have CUDA 11.7 installed from NVIDIA, run:
+```bash
+pip uninstall -y auto-gptq ; CUDA_HOME=/usr/local/cuda-11.7 GITHUB_ACTIONS=true pip install auto-gptq --no-cache-dir
+```
+or use cuda-11.8 if one has that installed, etc.  If one used conda cudatoolkit:
+```bash
+conda install -c conda-forge cudatoolkit-dev
+```
+then use that location instead:
+```bash
+pip uninstall -y auto-gptq ; CUDA_HOME=$CONDA_PREFIX GITHUB_ACTIONS=true pip install auto-gptq --no-cache-dir
+```
+
 To run in ChatBot mode, do:
 ```bash
 python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b --load_8bit=True
@@ -57,6 +79,16 @@ For more details about document Q/A, see [LangChain Readme](README_LangChain.md)
 For 4-bit support, when running generate pass `--load_4bit=True`, which is only supported for certain [architectures](https://github.com/huggingface/peft#models-support-matrix) like GPT-NeoX-20B, GPT-J, LLaMa, etc.
 
 Any other instruct-tuned base models can be used, including non-h2oGPT ones.  [Larger models require more GPU memory](FAQ.md#larger-models-require-more-gpu-memory).
+
+---
+
+#### AutoGPTQ
+
+An example with AutoGPTQ is:
+```bash
+python generate.py --base_model=TheBloke/Nous-Hermes-13B-GPTQ --score_model=None --load_gptq=nous-hermes-13b-GPTQ-4bit-128g.no-act.order --use_safetensors=True --prompt_type=instruct --langchain_mode=MyData
+```
+This will use about 9800MB.  You can also add `--hf_embedding_model=sentence-transformers/all-MiniLM-L6-v2` to save some memory on embedding to reach 9340MB.
 
 ---
 

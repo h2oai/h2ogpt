@@ -424,6 +424,39 @@ def test_client_chat_stream_long():
     assert 'Once upon a time' in res_dict['response']
 
 
+@wrap_test_forked
+def test_autogptq():
+    prompt = 'Who are you?'
+    stream_output = False
+    max_new_tokens = 256
+    base_model = 'TheBloke/Nous-Hermes-13B-GPTQ'
+    load_gptq = 'nous-hermes-13b-GPTQ-4bit-128g.no-act.order'
+    use_safetensors = True
+    prompt_type = 'instruct'
+    langchain_mode = 'Disabled'
+    langchain_action = LangChainAction.QUERY.value
+    user_path = None
+    visible_langchain_modes = ['UserData', 'MyData']
+    reverse_docs = True
+    from src.gen import main
+    main(base_model=base_model, load_gptq=load_gptq,
+         use_safetensors=use_safetensors,
+         prompt_type=prompt_type, chat=True,
+         stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
+         max_new_tokens=max_new_tokens,
+         langchain_mode=langchain_mode, user_path=user_path,
+         visible_langchain_modes=visible_langchain_modes,
+         reverse_docs=reverse_docs)
+
+    from src.client_test import run_client_chat
+    res_dict, client = run_client_chat(prompt=prompt, prompt_type=prompt_type, stream_output=stream_output,
+                                       max_new_tokens=max_new_tokens, langchain_mode=langchain_mode,
+                                       langchain_action=langchain_action)
+    assert res_dict['prompt'] == prompt
+    assert res_dict['iinput'] == ''
+    assert "am a virtual assistant" in res_dict['response']
+
+
 @pytest.mark.skip(reason="Local file required")
 @wrap_test_forked
 def test_client_long():

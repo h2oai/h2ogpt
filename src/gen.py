@@ -60,6 +60,8 @@ def main(
         load_8bit: bool = False,
         load_4bit: bool = False,
         load_half: bool = True,
+        load_gptq: str = '',
+        use_safetensors: bool = False,
         infer_devices: bool = True,
         base_model: str = '',
         tokenizer_base_model: str = '',
@@ -177,6 +179,8 @@ def main(
     :param load_8bit: load model in 8-bit using bitsandbytes
     :param load_4bit: load model in 4-bit using bitsandbytes
     :param load_half: load model in float16
+    :param load_gptq: to load model with GPTQ, put model_basename here, e.g. gptq_model-4bit--1g
+    :param use_safetensors: to use safetensors version (assumes file/HF points to safe tensors version)
     :param infer_devices: whether to control devices with gpu_id.  If False, then spread across GPUs
     :param base_model: model HF-type name.  If use --base_model to preload model, cannot unload in gradio in models tab
     :param tokenizer_base_model: tokenizer HF-type name.  Usually not required, inferred from base_model.
@@ -458,6 +462,8 @@ def main(
         load_8bit = False
         load_4bit = False
         load_half = False
+        load_gptq = ''
+        use_safetensors = False
         infer_devices = False
         torch.backends.cudnn.benchmark = True
         torch.backends.cudnn.enabled = False
@@ -714,7 +720,9 @@ def get_config(base_model,
     return config, model
 
 
-def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward_type,
+def get_non_lora_model(base_model, model_loader, load_half,
+                       load_gptq, use_safetensors,
+                       model_kwargs, reward_type,
                        config, model,
                        gpu_id=0,
                        ):
@@ -761,16 +769,25 @@ def get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward
     load_in_8bit = model_kwargs.get('load_in_8bit', False)
     load_in_4bit = model_kwargs.get('load_in_4bit', False)
     model_kwargs['device_map'] = device_map
+    model_kwargs['use_safetensors'] = use_safetensors
     pop_unused_model_kwargs(model_kwargs)
 
-    if load_in_8bit or load_in_4bit or not load_half:
-        model = model_loader.from_pretrained(
+    if load_gptq:
+        model_kwargs.pop('torch_dtype', None)
+        model_kwargs.pop('device_map')
+        model = model_loader(
+            model_name_or_path=base_model,
+            model_basename=load_gptq,
+            **model_kwargs,
+        )
+    elif load_in_8bit or load_in_4bit or not load_half:
+        model = model_loader(
             base_model,
             config=config,
             **model_kwargs,
         )
     else:
-        model = model_loader.from_pretrained(
+        model = model_loader(
             base_model,
             config=config,
             **model_kwargs,
@@ -828,6 +845,8 @@ def get_model(
         load_8bit: bool = False,
         load_4bit: bool = False,
         load_half: bool = True,
+        load_gptq: str = '',
+        use_safetensors: bool = False,
         infer_devices: bool = True,
         base_model: str = '',
         inference_server: str = "",
@@ -850,6 +869,8 @@ def get_model(
     :param load_8bit: load model in 8-bit, not supported by all models
     :param load_4bit: load model in 4-bit, not supported by all models
     :param load_half: load model in 16-bit
+    :param load_gptq: GPTQ model_basename
+    :param use_safetensors: use safetensors file
     :param infer_devices: Use torch infer of optimal placement of layers on devices (for non-lora case)
            For non-LORA case, False will spread shards across multiple GPUs, but this can lead to cuda:x cuda:y mismatches
            So it is not the default
@@ -893,7 +914,8 @@ def get_model(
             print("Detected as llama type from"
                   " config (%s) or name (%s)" % (llama_type_from_config, llama_type_from_name), flush=True)
 
-    model_loader, tokenizer_loader = get_loaders(model_name=base_model, reward_type=reward_type, llama_type=llama_type)
+    model_loader, tokenizer_loader = get_loaders(model_name=base_model, reward_type=reward_type, llama_type=llama_type,
+                                                 load_gptq=load_gptq)
 
     tokenizer_kwargs = dict(local_files_only=local_files_only,
                             resume_download=resume_download,
@@ -937,6 +959,8 @@ def get_model(
     return get_hf_model(load_8bit=load_8bit,
                         load_4bit=load_4bit,
                         load_half=load_half,
+                        load_gptq=load_gptq,
+                        use_safetensors=use_safetensors,
                         infer_devices=infer_devices,
                         base_model=base_model,
                         tokenizer_base_model=tokenizer_base_model,
@@ -961,6 +985,8 @@ def get_model(
 def get_hf_model(load_8bit: bool = False,
                  load_4bit: bool = False,
                  load_half: bool = True,
+                 load_gptq: str = '',
+                 use_safetensors: bool = False,
                  infer_devices: bool = True,
                  base_model: str = '',
                  tokenizer_base_model: str = '',
@@ -998,7 +1024,8 @@ def get_hf_model(load_8bit: bool = False,
         "Please choose a base model with --base_model (CLI) or load one from Models Tab (gradio)"
     )
 
-    model_loader, tokenizer_loader = get_loaders(model_name=base_model, reward_type=reward_type, llama_type=llama_type)
+    model_loader, tokenizer_loader = get_loaders(model_name=base_model, reward_type=reward_type, llama_type=llama_type,
+                                                 load_gptq=load_gptq)
 
     config, _ = get_config(base_model, return_model=False, raise_exception=True, **config_kwargs)
 
@@ -1024,11 +1051,16 @@ def get_hf_model(load_8bit: bool = False,
                             offload_folder=offload_folder,
                             )
         if 'mbart-' not in base_model.lower() and 'mpt-' not in base_model.lower():
+            if infer_devices and gpu_id is not None and gpu_id >= 0 and device == 'cuda':
+                device_map = {"": gpu_id}
+            else:
+                device_map = "auto"
             model_kwargs.update(dict(load_in_8bit=load_8bit,
                                      load_in_4bit=load_4bit,
-                                     device_map={"": 0} if (load_8bit or load_4bit) and device == 'cuda' else "auto",
+                                     device_map=device_map,
                                      ))
         if 'mpt-' in base_model.lower() and gpu_id is not None and gpu_id >= 0:
+            # MPT doesn't support spreading over GPUs
             model_kwargs.update(dict(device_map={"": gpu_id} if device == 'cuda' else "cpu"))
 
         if 'OpenAssistant/reward-model'.lower() in base_model.lower():
@@ -1038,29 +1070,32 @@ def get_hf_model(load_8bit: bool = False,
         pop_unused_model_kwargs(model_kwargs)
 
         if not lora_weights:
-            with torch.device(device):
+            # torch.device context uses twice memory for AutoGPTQ
+            context = NullContext if load_gptq else torch.device
+            with context(device):
 
                 if infer_devices:
                     config, model = get_config(base_model, return_model=True, raise_exception=True, **config_kwargs)
-                    model = get_non_lora_model(base_model, model_loader, load_half, model_kwargs, reward_type,
+                    model = get_non_lora_model(base_model, model_loader, load_half, load_gptq, use_safetensors,
+                                               model_kwargs, reward_type,
                                                config, model,
                                                gpu_id=gpu_id,
                                                )
                 else:
                     config, _ = get_config(base_model, **config_kwargs)
-                    if load_half and not (load_8bit or load_4bit):
-                        model = model_loader.from_pretrained(
+                    if load_half and not (load_8bit or load_4bit or load_gptq):
+                        model = model_loader(
                             base_model,
                             config=config,
                             **model_kwargs).half()
                     else:
-                        model = model_loader.from_pretrained(
+                        model = model_loader(
                             base_model,
                             config=config,
                             **model_kwargs)
         elif load_8bit or load_4bit:
             config, _ = get_config(base_model, **config_kwargs)
-            model = model_loader.from_pretrained(
+            model = model_loader(
                 base_model,
                 config=config,
                 **model_kwargs
@@ -1080,7 +1115,7 @@ def get_hf_model(load_8bit: bool = False,
         else:
             with torch.device(device):
                 config, _ = get_config(base_model, raise_exception=True, **config_kwargs)
-                model = model_loader.from_pretrained(
+                model = model_loader(
                     base_model,
                     config=config,
                     **model_kwargs
@@ -1097,7 +1132,7 @@ def get_hf_model(load_8bit: bool = False,
                     offload_folder=offload_folder,
                     device_map="auto",
                 )
-                if load_half:
+                if load_half and not load_gptq:
                     model.half()
 
     # unwind broken decapoda-research config
@@ -1156,6 +1191,7 @@ def get_score_model(score_model: str = None,
                     load_8bit: bool = False,
                     load_4bit: bool = False,
                     load_half: bool = True,
+                    load_gptq: str = '',
                     infer_devices: bool = True,
                     base_model: str = '',
                     inference_server: str = '',
@@ -1177,6 +1213,8 @@ def get_score_model(score_model: str = None,
         load_8bit = False
         load_4bit = False
         load_half = False
+        load_gptq = ''
+        use_safetensors = False
         base_model = score_model.strip()
         tokenizer_base_model = ''
         lora_weights = ''

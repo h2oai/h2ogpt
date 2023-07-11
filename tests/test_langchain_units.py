@@ -198,6 +198,8 @@ def test_qa_daidocs_db_chunk_hf_dbs_switch_embedding(db_type):
     all_kwargs = dict(load_8bit=False,
                       load_4bit=False,
                       load_half=True,
+                      load_gptq=False,
+                      use_safetensors=False,
                       infer_devices=True,
                       base_model=base_model,
                       tokenizer_base_model=base_model,
