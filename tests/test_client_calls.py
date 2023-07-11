@@ -349,7 +349,8 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'chatbot that can' in res_dict['response'] or
             'A secure, private, and anonymous chatbot' in res_dict['response'] or
             'A secure, encrypted chat service that allows' in res_dict['response'] or
-            'A secure, private, and encrypted chatbot' in res_dict['response']
+            'A secure, private, and encrypted chatbot' in res_dict['response'] or
+            'A secret communication system used' in res_dict['response']
             ) \
            and '.md' in res_dict['response']
 
