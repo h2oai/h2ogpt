@@ -555,7 +555,7 @@ ASSISTANT:
 
         PreResponse = """<|im_end|><|im_start|>assistant
 """
-        terminate_response = None
+        terminate_response = ['<|im_end|>']
         chat_sep = ''
         chat_turn_sep = '<|im_end|>'
         humanstr = PreInstruct
