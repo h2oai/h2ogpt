@@ -1,0 +1,614 @@
+
+#1
+A solo dice game is played where, on each turn, a normal pair of dice is rolled. The score is calculated by taking the product, rather than the sum, of the two numbers shown on the dice.
+
+On a particular game, the score for the second roll is five more than the score for the first; the score for the third roll is six less than that of the second; the score for the fourth roll is eleven more than that of the third; and the score for the fifth roll is eight less than that of the fourth. What was the score for each of these five throws?
+
+Solution
+
+#2
+A high school has a strange principal. On the first day, he has his students perform an odd opening day ceremony:
+
+There are one thousand lockers and one thousand students in the school. The principal asks the first student to go to every locker and open it. Then he has the second student go to every second locker and close it. The third goes to every third locker and, if it is closed, he opens it, and if it is open, he closes it. The fourth student does this to every fourth locker, and so on. After the process is completed with the thousandth student, how many lockers are open?
+
+Solution
+
+#3
+You must cut a birthday cake into exactly eight pieces, but you're only allowed to make three straight cuts, and you can't move pieces of the cake as you cut. How can you do it?
+
+Solution
+
+#4
+Can you place six X's on a Tic Tac Toe board without making three-in-a-row in any direction?
+
+Tic Tac Toe Board
+Solution
+
+#5
+Nine dots are arranged in a three by three square. Connect each of the nine dots using only four straight lines and without lifting your pen from the paper.
+
+Nine Dots
+Solution
+
+#6
+You want to hire a temporary employee for one month. You offer him reasonable wages, but the employee suggests an alternative. For the first day of work, he will be paid a penny. For the second day, two pennies. For the third day, four pennies. The salary for each subsequent day will be double the previous day's, until the one month term is over. Ignoring the legalities of such a situation, would it be a good idea to accept the potential employee's proposal?
+
+Solution
+
+#7
+You drive to the store at 20 mph and return by the same route at 30 mph. Discounting the time spent at the store, what was your average speed?
+
+Solution
+
+#8
+If you drive to the store at 20 mph, how fast must you go (again returning by the same route) for your average speed to be 40 mph?
+
+Solution
+
+#9
+Arrange the numbers 1 through 9 on a tic tac toe board such that the numbers in each row, column, and diagonal add up to 15.
+
+Solution
+
+#10
+Two trains travel toward each other on the same track, beginning 100 miles apart. One train travels at 40 miles per hour; the other travels at 60 miles an hour. A bird starts flight at the same location as the faster train, flying at a speed of 90 miles per hour. When it reaches the slower train, it turns around, flying the other direction at the same speed. When it reaches the faster train again, it turns around -- and so on. When the trains collide, how far will the bird have flown?
+
+
+#11
+The following is what seems to be a mathematical proof that two equals one. What's wrong with it?
+
+                a = b
+               aa = ab
+          aa - bb = ab - bb
+   (a + b)(a - b) = b(a - b)
+            a + b = b
+            a + a = a
+               2a = a
+                2 = 1
+Solution
+
+#12
+The following is what seems to be a mathematical proof that ten equals 9.999999.... What's wrong with it?
+
+                a =  9.999999...
+              10a = 99.999999...
+          10a - a = 90
+               9a = 90
+                a = 10
+Solution
+
+#13
+Two mathematicians, Albert and Isaac, chat. Isaac says he has three children who all have the same birthday (but who weren't necessarily born in the same year). Albert asks their ages. Isaac replies, "The product of the ages of my children is 72." Albert points out that this is not enough information to determine their ages. Isaac responds with another clue -- he tells Albert the sum of the ages of his children. But Albert again points out that there is not enough information. Finally Isaac says, "My youngest child is named Galileo." At last, Albert correctly determines the ages of Isaac's children. What are the ages?
+
+Solution
+
+#14
+Tough one!
+A clock is observed. The hour hand is exactly at the minute mark, and the minute hand is six minutes ahead of it. Later, the clock is observed again. This time, the hour hand is exactly on a different minute mark, and the minute hand is seven minutes ahead of it. How much time elapsed between the first and second observations?
+
+Solution
+
+#15
+There are several chickens and rabbits in a cage (with no other types of animals). There are 72 heads and 200 feet inside the cage. How many chickens are there, and how many rabbits?
+
+Solution
+
+#16
+Grass grows in a field at some rate r, where r is the units of grass grown per day. It is known that if 10 sheep are turned out in the field, the grass will be gone in 20 days. On the other hand, if 15 sheep are turned out in the field, the grass will be gone in 10 days. If 25 sheep are turned out in the field, when will the grass be gone?
+
+Solution
+
+#17
+Tough one!
+You've been asked to buy 100 squeegies, using 100 dollars to do so. You may buy no more or less than 100 squeegies, and the total price must be exactly 100 dollars. There is no sales tax. Red squeegies cost $6.00. Yellow squeegies cost $3.00. Blue squeegies cost $0.10. How many of each must you buy?
+
+Solution
+
+#18
+On a man's tombstone, it is said that one sixth of his life was spent in childhood and one twelfth as a teenager. One seventh of his life passed between the time he became an adult and the time he married; five years later, his son was born. Alas, the son died four years before he did. He lived to be twice as old as his son did. How old did the man live to be?
+
+Solution
+
+#19
+Isaac and Albert wanted to take a vacation. They were debating how they could get to their hotel in the fastest manner. Isaac said, "We should go by train." But Albert said, "No, the train reaches the end of the line half way to the hotel -- we would have to walk the rest of the way. We should bike to the hotel instead." Isaac disagreed. So Albert biked the whole way to the hotel, while Isaac took the train for the first half of the journey and walked for the remainder.
+
+The speed of the train turned out to be four times that of the bike's speed. The bike's speed turned out to be two times faster than walking speed. Who got to the hotel first?
+
+Solution
+
+#20
+At McDonald's you can order Chicken McNuggets in boxes of 6, 9, and 20. What is the largest number of nuggets that it is not possible to obtain by purchasing some combination of boxes?
+
+
+#21
+A toy store ordered 7 small bags and 18 large bags of identical marbles. When the marbles arrived, it was discovered that the bags had broken during shipping, and all 233 of the marbles were rolling around loose in the box. How was the store's manager was able to determine how many marbles were supposed to go in each of the small bags and how many were supposed to go in each of the large bags?
+
+Solution
+
+#22
+A box contains two quarters. One is a double-headed coin, and the other is an ordinary coin, heads on one side, and tails on the other. You draw one of the coins from a box and look at one of the sides. Assuming it is heads, what is the probability that the other side shows heads also?
+
+Solution
+
+#23
+Tough one!
+You're a cook in a restaurant in a quaint country where clocks are outlawed. You have a four minute hourglass, a seven minute hourglass, and a pot of boiling water. A regular customer orders a nine-minute egg, and you know this person to be extremely picky and will not like it if you overcook or undercook the egg, even by a few seconds. What is the least amount of time it will take to prepare the egg, and how will you do it?
+
+Solution
+
+#24
+I'm going to buy one-cent, two-cent, three-cent, five-cent, and ten-cent stamps. I'm going to buy four of each of two sorts, and three of each of the rest, and I have exactly enough to buy them -- just this handful of dimes. How many of each type am I going to buy?
+
+Solution
+
+#25
+If a boy and a half can eat a hot dog and a half in a minute and a half, how many hot dogs can six boys eat in six minutes?
+
+Solution
+
+#26
+Five pirates raid the ship of a wealthy bureaucrat and steal his trunk of gold pieces. By the time they get the trunk aboard, dusk has fallen, so they agree to split the gold the next morning.
+
+But the pirates are all very greedy. During the night one of the pirates decides to take some of the gold pieces for himself. He sneaks to the trunk and divides the gold pieces into five equal piles, with one gold piece left over. He puts the gold piece in his pile, hides it, puts the other four piles back in the trunk, and sneaks back to bed.
+
+One by one, the remaining pirates do the same. They sneak to the trunk, divide the coins into five piles, with always one coin left over. Each pirate puts the gold coin in his own pile, hides it, and puts the remaining four piles back in the trunk.
+
+What is the smallest number of coins there could have been in the trunk originally?
+
+Solution
+
+#27
+Reason why 30414093201713378043612608166064768844377641568960512078291027000 cannot possibly be the value of 50 factorial, without actually performing the calculation.
+
+Solution
+
+#28
+What two numbers have a product of 48 and, when the larger number is divided by the smaller, a quotient of 3?
+
+Solution
+
+#29
+A man has $1.15 in six coins. He can't make change for a dollar, a half dollar, a quarter, a dime, or a nickel. What coins did he have?
+
+Solution
+
+#30
+Two boys sell apples. Each sells thirty apples a day. The first boy sells his apples at two for fifty cents (and therefore earns $7.50 per day). The second boy sells his apples at three for fifty cents (and therefore earns $5.00 per day). The total received by both boys each day is therefore $12.50.
+
+One day, the first boy is sick, and the second boy takes over his apple selling duties. To accommodate the differing rates, the boy sells the sixty apples at five for a dollar. But selling sixty apples at five for a dollar yields only $12.00 earnings at the end of the day. What happened to the other fifty cents?
+
+
+#31
+The expression, "Six of one, half a dozen of another," is commonly used to indicate that two alternatives are essentially equivalent, because six and a half dozen are equal quantities. But are "six dozen dozen dozen" and "a half dozen dozen dozen" equal?
+
+Solution
+
+#32
+Two alligator breeders were talking one day, and in the course of their conversation they noticed a curious coincidence. If alligator breeder #1 were to sell alligator breeder #2 seven alligators, then breeder #1 would have exactly as many alligators as breeder #2. On the other hand, if alligator breeder #2 were to sell alligator breeder #1 seven alligators, then breeder #1 would have exactly twice as many alligators as breeder #2. How many alligators did each breeder have?
+
+Solution
+
+#33
+How can you express the number 100 using six nines and no other digits?
+
+Solution
+
+#34
+A drove of sheep and chickens have a total of 99 heads and feet. There are twice as many chickens as sheep. How many of each are there?
+
+Solution
+
+#35
+An eccentric individual makes it is life's work to tie a rope around the earth's equator. He buys a lot of rope and makes the attempt. A rival of his, not to be outdone, decides he wants to tie a rope around the earth's equator that is elevated from the ground by one yard at all points along the rope. How much more rope does he need? Assume the earth is perfectly spherical.
+
+Solution
+
+#36
+A fish is fifteen inches long. Its head is as long as its tail. If the head were twice as long as it really is, the head and tail would together be as long as what's in between. How long is each part of the fish?
+
+Solution
+
+#37
+A man has 100 coins (there are no quarters or nickels) that add up to $5.00. How many coins did he have of each denomination?
+
+Solution
+
+#38
+One boy can eat 100 chocolates in half a minute, and another can eat half as many in twice the length of time. How many chocolates can both boys eat in 15 seconds?
+
+Solution
+
+#39
+Potatoes are made up of 99% water and 1% "potato matter." Jack bought 100 pounds of potatoes and left them outside in the sun for a while. When he returned, he discovered that the potatoes had dehydrated and were now only made up of 98% water. How much did the potatoes now weigh?
+
+Solution
+
+#40
+You own a pet store. If you put in one canary per cage, you have one canary too many. If you put in two canaries per cage, you have one cage too many. How many canaries and cages do you have?
+
+#41
+A farmer went to his banker to borrow money to buy livestock. The banker made a deal with the farmer. He told the farmer that he would give him $100.00, and that the farmer would not have to pay back the money if he could buy exactly 100 head of livestock for exactly $100.00.
+
+The only rule was that at least one of each kind of livestock -- cows, pigs, and sheep -- had to be purchased. Each cow cost $10. Each pig cost $3. And each sheep cost $0.50. How many of each kind of livestock did the farmer buy?
+===============
+
+Solution for #1
+10 is the score for the first roll.
+15 is the score for the second roll.
+9 is the score for the third roll.
+20 is the score for the fourth roll.
+12 is the score for the fifth roll.
+
+Solution for #2
+The only lockers that remain open are perfect squares (1, 4, 9, 16, etc) because they are the only numbers divisible by an odd number of whole numbers; every factor other than the number's square root is paired up with another. Thus, these lockers will be "changed" an odd number of times, which means they will be left open. All the other numbers are divisible by an even number of factors and will consequently end up closed.
+
+So the number of open lockers is the number of perfect squares less than or equal to one thousand. These numbers are one squared, two squared, three squared, four squared, and so on, up to thirty one squared. (Thirty two squared is greater than one thousand, and therefore out of range.) So the answer is thirty one.
+
+Solution for #3
+Use the first two cuts to cut an 'X' in the top of the cake. Now you have four pieces. Make the third cut horizontal, which will divide the four pieces into eight. Think of a two by two by two Rubik's cube. There's four pieces on the top tier and four more just underneath it.
+
+Solution for #4
+Picture of the Solution
+
+Solution for #5
+Picture of the Solution
+
+Solution for #6
+Not at all. He'll earn $5,368,709.12 on the thirtieth day alone.
+
+Solution for #7
+Let d be the distance to the store, T be the time it gets to get there, t be the time it takes to get back, and A be the average speed (which is what we want to find out). As we know from elementary mathematics, distance equals rate times time:
+
+      d = 20T
+      T = d/20
+
+      d = 30t
+      t = d/30
+Now that we have expressions for T and t, we can come up with an equation that describes the round trip:
+
+     2d = A(T + t)
+     2d = A(d/20 + d/30)
+     2d = A(3d/60 + 2d/60)
+     2d = A(5d/60)
+      A = 120d/5d
+      A = 24
+So the average speed is 24 mph. If this seems strange to you, consider that more time is spent traveling at 20 mph than time spent at 30 mph, so the "20 mph" figure should count more toward the average.
+
+Solution for #8
+Let d be the distance to the store, T be the time it gets to get there, t be the time it takes to get back, and R be the speed you travel on the return trip (which is what we want to find out). As we know from elementary mathematics, distance equals rate times time:
+
+      d = 20T
+      T = d/20
+
+      d = Rt
+      t = d/R
+Now that we have expressions for T and t, we can come up with an equation that describes the round trip:
+
+     2d = 40(T + t)
+     2d = 40(d/20 + d/R)
+     2d = 40d(1/20 + 1/R)
+      1 = 20(R/20R + 20/20R)
+    20R = 20(R+20)
+      R = R + 20
+Here we have worked our way into a paradox. The reason, simply, is that you have to travel back at an infinite speed to make your average speed 40 mph. This may seem strange, but consider that, the faster your return trip, the quicker you make it, and consequently, this faster speed has a lesser impact on the average speed.
+
+If you traveled the return trip instantaneously, this would be equivalent to traveling double the distance in the same amount of time as the one-way trip. So if the rate of speed of the return trip is infinite, you do indeed get an average speed of 40 mph.
+
+Solution for #9
+There is only one solution, discounting mirror image solutions and rotations:
+
+Picture of the Solution
+
+Solution for #10
+Since the trains are 100 miles apart, and the trains are traveling toward each other at 40 and 60 mph, the trains will collide in one hour. The bird will have been flying for an hour at 90 miles per hour at that point, so the bird will have traveled 90 miles.
+
+Solution for #11
+The problem is with the division that takes place between the fourth and fifth equations. Since a = b, a - b is zero, and you can't divide by zero.
+
+Solution for #12
+Actually there's nothing wrong with it. Ten does equal 9.99999..., as this proof clearly shows.
+
+Solution for #13
+If the product of his three children's ages is 72, there are the following possibilities:
+
+         1 *  1 * 72 = 72
+         1 *  2 * 36 = 72
+         1 *  3 * 24 = 72
+         1 *  4 * 18 = 72
+         1 *  6 * 12 = 72
+         1 *  8 *  9 = 72
+         2 *  2 * 18 = 72
+         2 *  3 * 12 = 72
+         2 *  4 *  9 = 72
+         2 *  6 *  6 = 72
+         3 *  3 *  8 = 72
+         3 *  4 *  6 = 72
+Isaac later gives Albert the sum of their ages, but we don't know what number he says. We do, however, know that Albert can't figure it out from that information. So, we take the possibilities listed above and add them up:
+
+         1 +  1 + 72 = 74
+         1 +  2 + 36 = 39
+         1 +  3 + 24 = 28
+         1 +  4 + 18 = 23
+         1 +  6 + 12 = 19
+         1 +  8 +  9 = 18
+         2 +  2 + 18 = 22
+         2 +  3 + 12 = 17
+         2 +  4 +  9 = 15
+         2 +  6 +  6 = 14
+         3 +  3 +  8 = 14
+         3 +  4 +  6 = 13
+The only way Albert wouldn't be able to figure out Isaac children's ages by knowing the sum is if the sum was 14, because there are two possibilities. So either the children's ages are 2, 6, and 6, or 3, 3, and 8. But Isaac points out that he has a youngest child. So the ages must be 2, 6, and 6.
+
+Solution for #14
+The hour hand is exactly on a minute mark five times per hour -- on the hour, twelve minutes past the hour, twenty four minutes past, thirty six minutes past, and forty eight minutes past.
+
+Let X be the number of hours, and Y be the number of minutes past the hour. When the hour hand is on a minute mark, the position of the hour hand is 5X + Y/12, and the position of the minute hand is Y. On the first occasion, Y = 5X + Y/12 + 6. This is equivalent to 60X = 11Y - 72. Since Y can only take one of the values in the set { 0, 12, 24, 36, 48 }, it can be determined that the only legal values for the equation are X = 1 and Y = 12. So the time is 1:12.
+
+Similarly, the second occasion's equation is 60X = 11Y - 84. The only legal values here are X = 3 and Y = 24. So the time is 3:24.
+
+Between 1:12 and 3:24, two hours and twelve minutes have elapsed.
+
+Solution for #15
+Let c be the number of chickens, and r be the number of rabbits.
+
+          r + c = 72
+        4r + 2c = 200
+To solve the equations, we multiply the first by two, then subtract the second.
+
+        2r + 2c = 144
+             2r = 56
+              r = 28
+              c = 44
+So there are 44 chickens and 28 rabbits in the cage.
+
+Solution for #16
+Let g be the total units of grass in the field before the sheep are turned out. Let s be the number of units of grass each sheep eats per day. We must determine the constant values of g and r from the information given in the problem. The total number of grass units eaten equals the number of days times the amount of grass the sheep eat per day. From this, we can construct two equations:
+
+        g + 20r = 20(10s)
+        g + 10r = 10(15s)
+Reducing the equations, we obtain:
+
+        g + 20r = 200s
+        g + 10r = 150s
+Subtract one equation from the other:
+
+        10r = 50s
+So r equals 5s. Substituting back, we discover g equals 100s. Now we construct an equation for the case of having 25 sheep turned out in the field, where x is the number of days it takes the sheep to eat all the grass:
+
+        g + xr = x(25s)
+        100s + x(5s) = x(25s)
+        20sx = 100s
+        x = 5
+So 25 sheep would consume all the grass in the field in 5 days.
+
+Solution for #17
+Let a be the number of red squeegies you buy. Let b be the number of yellow squeegies you buy. Let c be the number of blue squeegies you buy. We know two equations:
+
+             a + b + c = 100
+        6a + 3b + 0.1c = 100
+By multiplying the first equation by 6 and then 3, then subtracting these two equations from the second, we can come up with two more equations:
+
+        6a + 6b + 6c = 600
+        3a + 3b + 3c = 300
+                  3b = 500 - 5.9c
+                  3a = 2.9c - 200
+Normally, two equations isn't enough to solve for three variables. But we know that a and b are nonnegative integers. So, if 3b ≥ 0, then 500 - 5.9c ≥ 0. This means c ≤ 84.75. Also, if 3a ≥ 0, then 2.9c - 200 > 0. This means c ≥ 68.97.
+
+However, since buying blue squeegies is the only way to spend a fraction of a dollar, the number of blue squeegies we buy must cost an even dollar amount. The only two numbers of blue squeegies we can buy between 68.97 and 84.75 that satisfy this condition are 70 and 80.
+
+If we substitute 80 for c in the last two equations listed above, we can solve for a, which equals 10.67, and b, which equals 9.33. But the values of a and b must be integers, so we know this is not the solution.
+
+If we substitute 70 for c in the last two equations listed above, we can solve for a, which equals 1, and b, which equals 29.
+
+So one red squeegie must be bought for $6.00, 29 yellow squeegies must be bought for $87.00, and 70 blue squeegies must be bought for $7.00.
+
+Solution for #18
+Alternate Solution #1
+
+Let x be the age of the man at the time of his death. His age consists of the number of years he spent as a child plus the number of years he spent as a teenager plus the number of years between his coming of age and his marriage plus five plus his son's age (half his own) plus four. In mathematical terms, this is:
+
+                      x = x/6 + x/12 + x/7 + 5 + x/2 + 4
+                      x = 14x/84 + 7x/84 + 12x/84 + 42x/84 + 9
+                      x = 75x/84 + 9
+        84x/84 - 75x/84 = 9
+                  9x/84 = 9
+                   x/84 = 1
+                      x = 84
+So the man lived to be 84 years old.
+
+Alternate Solution #2
+
+The man lived 1/12 of his life as a teenager. There are seven teen years. 7 × 12 = 84.
+
+Solution for #19
+Alternate Solution #1
+
+Let s be the total distance of the journey to the hotel. Let v be walking speed. So 2v is the bike's speed, and 8v is the train's speed. Let I be the time it took for Isaac to complete the journey, and A be the time it took for Albert to complete the journey. Since distance equals rate times time, we have two equations, one for I and one for A:
+
+        I = (s/2)/8v + (s/2)/v = s/16v + s/2v
+        A = s/2v
+Note that I exceeds A by s/16v. Albert will reach the hotel first.
+
+Alternate Solution #2
+
+The problem may be solved more easily with simple logic. If the bicycle is twice as fast as walking, the time it takes to bike the whole way is equal to the time it takes to walk half the way. So if the train's speed is anything shy of infinite, biking will still be faster.
+
+Solution for #20
+You can buy any number of nuggets that is evenly divisible by three except for three just by using combinations of boxes of 6 and boxes of 9. (Use at most one box of 9, then multiples of boxes of 6.) If the number is not divisible by three, use a box of 20. If, after a box of 20 is purchased, the remaining number is divisible by three, you're all set. Otherwise, use a second box of 20. The remaining number will necessarily be divisible by 3, and you're all set.
+
+So the largest number that cannot be purchased would be one that requires two boxes of 20 before the remainder is reduced to a number divisible by three. Since three is the only number evenly divisible by three that cannot be purchased, the largest impossible number is 3 + 20 + 20 = 43.
+
+Solution for #21
+Let x equal the number of marbles in a small bag, and y represent the number of marbles in a large bag. We know that the following equation holds:
+
+        7x + 18y = 233
+Ordinarily, it is not possible to solve for two unknowns with a single equation; however, we also know that x and y are positive integers and that x is less than y. We can narrow the search by solving for the highest and lowest possible values for y:
+
+     Assume y = x:
+
+        7y + 18y = 233
+             25y = 233
+               y = 9.32
+Since y must be an integer, y ≥ 10.
+
+     Assume y = 1:
+
+        7 + 18y = 233
+            18y = 226
+              y = 12.555
+Since y must be an integer, y ≤ 12.
+
+So the only possible values for y are 10, 11, and 12. Substituting each of these values into the original equation, we can find the corresponding values of x. Respectively, they are 7.57, 5, and 2.42. Since x must be an integer, the correct solution is x = 5 and y = 11. So the small bags of marbles contained five each, and the large bags contained eleven each.
+
+Solution for #22
+For starters, the answer is not 1/2. When the coin is drawn, there are four possibilities, each of which is equally likely:
+
+Coin Drawn	Side Shown	Other Side
+Double-Headed Coin	Heads	Heads
+Double-Headed Coin	Heads (the other heads)	Heads
+Ordinary Coin	Heads	Tails
+Ordinary Coin	Tails	Heads
+The problem tells us that the last possibility did not occur. Therefore, there are three remaining possibilities, each of which is equally likely. Of the three, two of the possibilities will show heads on the other side; only one will show tails on the other side. So the probability that the other side of the coin is heads is two thirds.
+
+Solution for #23
+It should only take nine minutes to cook the egg. If you want to try to figure out how it is done in this short amount of time before seeing the answer, stop reading now. To start, flip both hourglasses over and put the egg in the water. When the four minute hourglass runs out, flip it back over immediately. When the seven minute hourglass runs out, flip that back over immediately too. One minute later, the four minute hourglass will run out again. At this point, flip the seven minute hourglass back over. The seven minute hourglass had only been running for a minute, so when it is flipped over again it will only run for a minute more before running out. When it does, exactly nine minutes will have passed, and the egg is done.
+
+Solution for #24
+First figure out how much three of each time of stamp costs (63 cents). Now you need to figure out which two stamps to get a fourth of that will make the total cost some number of cents divisible by ten. You can't get enough to make 80 cents with two stamps, so the total cost must be 70 cents and the cost of the two extra stamps must be 7 cents. So the two extra stamps are a two-cent stamp and a five-cent stamp.
+
+Solution for #25
+Let's break the question down into steps. We know that a boy and a half can eat a hot dog and a half in a minute and a half. So how many hot dogs could six boys eat in a minute and a half? We have the same amount of time, but four times as many boys, so the answer is four times as many hot dogs -- six, to be precise.
+
+But now let's consider what six boys could eat in six minutes. We now have four times as much time, so the answer is four times as many hot dogs -- specifically, 24.
+
+Solution for #26
+The original number of coins must be a number such that you can subtract one and multiply by four fifths and get an integer. These numbers are 6, 11, 16, 21, 26, and so on.
+
+But the pile remaining after the first pirate has taken his gold must also have this property. So the possibilities for the original number are 16, 36, 56, 76, 96, and so on.
+
+The pile remaining after the second pirate has taken his gold must also have this property. So the possibilities for the original number are 76, 156, 236, 316, 396, and so on.
+
+The pile remaining after the third pirate has taken his gold must also have this property. So the possibilities for the original number are 316, 636, 956, 1276, 1596, and so on.
+
+The pile remaining after the fourth pirate has taken his gold must also have this property. The smallest possibility for this is 1276.
+
+This number is the number of gold pieces in the chest the fourth pirate left behind (for the fifth pirate to divide). The fourth pirate hid a quarter of this number, plus one extra, just before the fifth pirate got there. So the third pirate left behind 1276 + 1276/4 + 1 = 1596 gold pieces.
+
+The third pirate hid a quarter of this number, plus one extra, just before the fourth pirate got there. So the second pirate left behind 1596 + 1596/4 + 1 = 1996 gold pieces.
+
+The second pirate hid a quarter of this number, plus one extra, just before the third pirate got there. So the first pirate left behind 1996 + 1996/4 + 1 = 2496 gold pieces.
+
+The first pirate hid a quarter of this number, plus one extra. So the original number of coins must have been 2496 + 2496/4 + 1 = 3121 gold pieces.
+
+Solution for #27
+50 factorial includes, as factors, 10, 20, 30, 40, and 50. Therefore, the value of 50 factorial must end in at least five zeroes. The number given only ends in three zeroes. The correct value of 50 factorial is close to this, however. It's 30414093201713378043612608166064768844377641568960512000000000000.
+
+Solution for #28
+4 and 12.
+
+Solution for #29
+A half dollar, a quarter, and four dimes.
+
+Solution for #30
+After ten sales of five apples, all the three-for-fifty-cents apples are sold; the remainder is still sold at five for a dollar when they should be sold at two for fifty cents.
+
+Solution for #31
+No. Six dozen dozen dozen is 6 × 12 × 12 × 12. A half dozen dozen dozen is just 6 × 12 × 12.
+
+Solution for #32
+Alligator breeder #1 had 49 alligators, and alligator breeder #2 had 35.
+
+Solution for #33
+99 99/99
+
+Solution for #34
+Let S be the number of sheep and C be the number of chickens. So:
+
+           2S = C
+      5S + 3C = 99
+We can rephrase the first equation thusly:
+
+      6S - 3C = 0
+And then we can add this to the second equation, which yields:
+
+          11S = 99
+By solving for S, we find that S equals 9. By substituting back in one of the original equations, we find that C equals 18. So there are nine sheep and eighteen chickens.
+
+Solution for #35
+The circumference of a circle is 2πr, where r is the radius of the circle. If you want a rope that is one yard above the ground, this radius is larger by one yard. Let R be this new radius. So R = r + 1.
+
+Let x be the amount of extra rope required by the eccentric's rival. So:
+
+     x = (2π(r + 1)) - (2πr)
+     x = (2πr) + (2π) - (2πr)
+     x = 2π
+So x is about 6.2832 yards. Note that this answer does not depend on the radius of the circle. If the eccentric and his rival were attempting to tie up a baseball rather than the earth, the amount of additional required rope would be the same amount.
+
+Solution for #36
+The head and tail are each three inches long; the rest is nine.
+
+Solution for #37
+Alternate Solution #1
+
+A half dollar, 39 dimes, and 60 pennies.
+
+Alternate Solution #2
+
+A dollar coin, a half dollar, 28 dimes, and 70 pennies.
+
+Alternate Solution #3
+
+Two dollar coins, a half dollar, 17 dimes, and 80 pennies.
+
+Solution for #38
+62.5 chocolates.
+
+Solution for #39
+If 100 pounds of potatoes is 1% potato matter, then that means there is one pound of potato matter. After the potatoes dehydrated somewhat, this one pound accounted for 2% of the total mass (with the remaining 98% being water). One pound is 2% of 50 pounds, so the total mass of the potatoes after sitting out in the sun is 50 pounds.
+
+Solution for #40
+Let b be the number of birds, and c be the number of cages. The problem gives us two equations, which we can merge together to solve for c:
+
+           b = c + 1
+           c = b/2 + 1
+       c - 1 = b/2
+      2c - 2 = b
+      2c - 2 = c + 1
+      2c - c = 1 + 2
+           c = 3
+Now we substitute 3 for c in one of the original equations to discover that b equals 4. So there are four canaries and three cages.
+
+Solution for #41
+Let c be the number of cows purchased, p be the number of pigs purchased, and s be the number of sheep purchased. We know that the total number of animals purchased is 100. Moreover, we know that the total cost of each one adds up to $100. This gives us two equations:
+
+ c + p + s = 100
+ 10c + 3p + 0.5s = 100
+
+If we multiply the second equation by two, that gives us:
+
+ 20c + 6p + s = 200
+
+If we take this equation and subtract the first equation, we eliminate s entirely and wind up with:
+
+ 19c + 5p = 100
+
+We can rewrite this equation like so:
+
+ 100 - 19c = 5p
+
+Since c and p are constrained to positive integers, we can narrow down the possible solutions pretty quickly. We know that c cannot be 6 or higher, because then p would have to be negative for the equation to hold. So we only need to consider 1, 2, 3, 4, and 5 as possible values for c. Substituting 1, 2, 3, or 4 for c, however, results in the left-hand side of the equation being unevenly divisible by 5, which means p would have to be a non-integer for the equation to hold. So c must be 5. Substituting c allows us to solve for p:
+
+ 100 - 19c = 5p
+ 100 - 95 = 5p
+ 5 = 5p
+ p = 1
+
+Now we can substitute the values for c and p in one of the two original equations (the first is easiest) and solve for s:
+
+ c + p + s = 100
+ 5 + 1 + s = 100
+ 6 + s = 100
+ s = 100 - 6
+ s = 94
+
+The farmer purchased five cows ($50), one pig ($3), and 94 sheep ($47).

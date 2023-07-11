@@ -1,0 +1,1591 @@
+
+Logi-Number Puzzles are a cross between logic problems and mathematical puzzles. In each, you must determine what values the variables are equal to, using the rules of the game and the given clues. The rules are: (1) all the variables are equal to integer values between one and the number of variables in the puzzle, and (2) none of the variables are equal to each other. For example, if there are six variables, each will equal a number from 1 to 6. Since no variable equals another, all six values will be used.
+
+You may find it convenient to solve the puzzles with the aid of the grids provided. Click on a square to turn it red when you know something to be false (for example, if you know that A is not equal to 3, turn box A3 red); click on a square a second time to turn it green to denote something that's true. (Clicking a third time turns the box white again.) Clicking on a clue will turn it gray; this is useful when you are finished with a clue. If you would prefer to solve these puzzles on paper, simply print them out and use a pencil to fill in the grid.
+
+#1
+A ≠ 2
+A + B = F
+C - D = G
+D + E = 2F
+E + G = F
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+#2
+G + C < 6
+C + D < 5
+D + G = E
+A + C = G
+B < F
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+#3
+A + E = C
+B + G = D
+C + E = D
+B + F = A
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+#4
+Tough one!
+B + G = D
+B + C = A
+C + E + G = F
+if D < A then C = 2
+if D > A then E = 2
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+#5
+A + C = E
+C + E = B
+A + E = F
+G > C > D
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+#6
+Tough one!
+A + C + G = B + E
+B + E = F + 1
+A + E = D + 1
+D + 2G = F
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+#7
+Tough one!
+C + D = A + E
+C + F = E
+B + D = C
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+#8
+Tough one!
+2B + G = 2D - 1
+A + D = E + G
+F + 1 = EG
+C + D = A + B
+if G = 1 then C ≠ 2
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+#9
+E + G = F
+A + E = 6
+B + D = 8
+D + E = 9
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+#10
+Tough one!
+B + C = A + D + G
+E + F = B + 2G
+E = A + F
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+Next Page
+
+
+
+
+Logi-Number Puzzles are a cross between logic problems and mathematical puzzles. In each, you must determine what values the variables are equal to, using the rules of the game and the given clues. The rules are: (1) all the variables are equal to integer values between one and the number of variables in the puzzle, and (2) none of the variables are equal to each other. For example, if there are six variables, each will equal a number from 1 to 6. Since no variable equals another, all six values will be used.
+
+You may find it convenient to solve the puzzles with the aid of the grids provided. Click on a square to turn it red when you know something to be false (for example, if you know that A is not equal to 3, turn box A3 red); click on a square a second time to turn it green to denote something that's true. (Clicking a third time turns the box white again.) Clicking on a clue will turn it gray; this is useful when you are finished with a clue. If you would prefer to solve these puzzles on paper, simply print them out and use a pencil to fill in the grid.
+
+#11
+F > D + 2
+A + B = G
+C + F = E
+B + C = F
+A + C = B
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+#12
+F + G = 6
+B + E = 7
+C + D = 8
+A + G = 9
+B + D + F = 10
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+#13
+A + B = C + E = D + F = G
+A + E = C + D = F + G
+A ≠ 6
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+#14
+A + C = F
+B + G = C
+A + E = B
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+#15
+Tough one!
+E + F = B + C + G
+E + F = A + B + F
+E + F = D + F + G
+E + F = A + B + C + D
+A ≠ 3
+if G = 4 then E ≠ 7
+if D = 2 then F ≠ 7
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+#16
+B + C = E + 2
+D + F = G + 3
+B + D = E + 3
+A + G = C + 4
+if B ≠ 1 then C > G
+if C ≠ 1 then A > C
+if D ≠ 1 then A < E
+if E ≠ 1 then A < B
+if F ≠ 1 then D < E
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+#17
+CF = 2E
+C + D = G
+B + E = 7
+E + 2 = F
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+#18
+Tough one!
+D + G = B + C
+E + F = A + G
+F + 2 < E
+A + B < G
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+#19
+D + F = B
+B + D + 1 = G
+A + G = 2E
+B < C < A
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+#20
+3F + 1 = 2C
+A + E = G + 1
+C + E = B + G
+B + D = C
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+Previous Page Next Page
+
+
+
+Logi-Number Puzzles are a cross between logic problems and mathematical puzzles. In each, you must determine what values the variables are equal to, using the rules of the game and the given clues. The rules are: (1) all the variables are equal to integer values between one and the number of variables in the puzzle, and (2) none of the variables are equal to each other. For example, if there are six variables, each will equal a number from 1 to 6. Since no variable equals another, all six values will be used.
+
+You may find it convenient to solve the puzzles with the aid of the grids provided. Click on a square to turn it red when you know something to be false (for example, if you know that A is not equal to 3, turn box A3 red); click on a square a second time to turn it green to denote something that's true. (Clicking a third time turns the box white again.) Clicking on a clue will turn it gray; this is useful when you are finished with a clue. If you would prefer to solve these puzzles on paper, simply print them out and use a pencil to fill in the grid.
+
+#21
+B < E < C
+D + F + 2 = C
+A + G = B
+F + 1 = G
+if A ≠ 2 then D ≠ 4
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+#22
+Tough one!
+A + B = C + D = F + G
+C + E = D
+D + F = 7
+A + G = 10
+B ≠ 5
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+#23
+C - G = E
+E + B = F + G
+F > D
+A > C
+D - G = A
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+#24
+2C = E - 1
+F + C = G
+E + F = C + B
+2G = D - 1
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+#25
+F + C = D
+E + B = C
+E + F = G
+D + F = 7
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+#26
+G > E
+C + D = F
+A + F = E
+D + F = B
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+#27
+2C = D - 5
+E - 1 = F
+G + C = B
+E + F = B + D
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+#28
+C + F = 10
+A + 3 = F
+G + B = D
+E + 1 = G
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+#29
+Tough one!
+E + B = C + G
+B + G = D
+D + B = 8
+A + 2 = F
+G > E
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+#30
+B + C = 6
+ED = 2G
+E + C = G
+B + A + G = 14
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+Previous Page Next Page
+
+
+Logi-Number Puzzles are a cross between logic problems and mathematical puzzles. In each, you must determine what values the variables are equal to, using the rules of the game and the given clues. The rules are: (1) all the variables are equal to integer values between one and the number of variables in the puzzle, and (2) none of the variables are equal to each other. For example, if there are six variables, each will equal a number from 1 to 6. Since no variable equals another, all six values will be used.
+
+You may find it convenient to solve the puzzles with the aid of the grids provided. Click on a square to turn it red when you know something to be false (for example, if you know that A is not equal to 3, turn box A3 red); click on a square a second time to turn it green to denote something that's true. (Clicking a third time turns the box white again.) Clicking on a clue will turn it gray; this is useful when you are finished with a clue. If you would prefer to solve these puzzles on paper, simply print them out and use a pencil to fill in the grid.
+
+#31
+A + 2 = F
+E + A = C
+2D = G - 4
+F < B
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+#32
+Tough one!
+C - F = G
+C + E + D = 11
+D + A = B + 3
+C + F = E
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+#33
+Tough one!
+C + E = 8
+2C = G + 9
+E + A = B
+2C = D + 10
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+#34
+A + B + 1 = F
+B + F + 1 = G
+D + 2 = C
+A + C = E
+A ≠ 2
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+#35
+2G = C - 2
+C + 1 = F
+E + D = B
+D + A = E
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+#36
+Tough one!
+C + G = B
+A > E
+C + 2 = G
+A < F
+G + E = D + 2
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+#37
+C - D = A - 1
+E + D = G
+GF = 2A
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+#38
+A + 1 = D
+B - F = G
+F + E = 8
+2D = F + 7
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+#39
+D - 3 = C
+F + B = 9
+E > C
+E + F = 6
+A - 3 = F
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+#40
+Tough one!
+A + 1 = D
+A + B = F + 6
+BE = F + A
+C - A = D
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+Previous Page Next Page
+
+
+Logi-Number Puzzles are a cross between logic problems and mathematical puzzles. In each, you must determine what values the variables are equal to, using the rules of the game and the given clues. The rules are: (1) all the variables are equal to integer values between one and the number of variables in the puzzle, and (2) none of the variables are equal to each other. For example, if there are six variables, each will equal a number from 1 to 6. Since no variable equals another, all six values will be used.
+
+You may find it convenient to solve the puzzles with the aid of the grids provided. Click on a square to turn it red when you know something to be false (for example, if you know that A is not equal to 3, turn box A3 red); click on a square a second time to turn it green to denote something that's true. (Clicking a third time turns the box white again.) Clicking on a clue will turn it gray; this is useful when you are finished with a clue. If you would prefer to solve these puzzles on paper, simply print them out and use a pencil to fill in the grid.
+
+#41
+4D = E + 17
+B < A
+E + G = F
+G + 1 = C
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+#42
+Tough one!
+GC = G + A
+E - C = G
+A + C = F
+E + A + B = 12
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+#43
+Tough one!
+E + F = A
+B + A = 9
+D + E = G
+B + D = 10
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+#44
+G + D = A + 8
+E + D = F + 6
+2G = B + 7
+2G = F + 11
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+#45
+B + E + F = 9
+3G = E + 7
+B + A = E
+4E = D + 13
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+#46
+Tough one!
+C + 1 = A
+FE = D + G
+FD = E + D
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+#47
+E + 1 = F
+A + C = 13
+E + G = A
+B + E = D
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+#48
+Tough one!
+G - 2 = B
+G + F = A
+D - B = E
+E + F = G
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+#49
+D + A = B + G
+B - E = F
+B < C
+F + D = G
+F + G = A + E
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+#50
+2E = B + 8
+D + C = G
+G + E = A + B
+C + F = 6
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+Previous Page Next Page
+
+
+Logi-Number Puzzles are a cross between logic problems and mathematical puzzles. In each, you must determine what values the variables are equal to, using the rules of the game and the given clues. The rules are: (1) all the variables are equal to integer values between one and the number of variables in the puzzle, and (2) none of the variables are equal to each other. For example, if there are six variables, each will equal a number from 1 to 6. Since no variable equals another, all six values will be used.
+
+You may find it convenient to solve the puzzles with the aid of the grids provided. Click on a square to turn it red when you know something to be false (for example, if you know that A is not equal to 3, turn box A3 red); click on a square a second time to turn it green to denote something that's true. (Clicking a third time turns the box white again.) Clicking on a clue will turn it gray; this is useful when you are finished with a clue. If you would prefer to solve these puzzles on paper, simply print them out and use a pencil to fill in the grid.
+
+#51
+D - G = C
+E + B = D
+3G = B + 11
+D + B = C + A
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+#52
+G - F = D - 8
+E + F = D + C
+G + B = D
+A + F = E + G
+1	2	3	4	5	6	7
+A
+B
+C
+D
+E
+F
+G
+Check
+
+Clear
+
+Hint
+
+Solution
+
+Previous Page
+
+
+
+=================================================
+
+Solution for #1
+A	=	3
+B	=	2
+C	=	7
+D	=	6
+E	=	4
+F	=	5
+G	=	1
+Solution for #2
+A	=	3
+B	=	5
+C	=	1
+D	=	2
+E	=	6
+F	=	7
+G	=	4
+Solution for #3
+A	=	5
+B	=	3
+C	=	6
+D	=	7
+E	=	1
+F	=	2
+G	=	4
+Solution for #4
+A	=	5
+B	=	4
+C	=	1
+D	=	7
+E	=	2
+F	=	6
+G	=	3
+Solution for #5
+A	=	1
+B	=	7
+C	=	3
+D	=	2
+E	=	4
+F	=	5
+G	=	6
+Solution for #6
+A	=	4
+B	=	6
+C	=	3
+D	=	5
+E	=	2
+F	=	7
+G	=	1
+Solution for #7
+A	=	3
+B	=	2
+C	=	6
+D	=	4
+E	=	7
+F	=	1
+G	=	5
+Solution for #8
+A	=	5
+B	=	2
+C	=	4
+D	=	3
+E	=	7
+F	=	6
+G	=	1
+Solution for #9
+A	=	4
+B	=	1
+C	=	6
+D	=	7
+E	=	2
+F	=	5
+G	=	3
+Solution for #10
+A	=	2
+B	=	6
+C	=	4
+D	=	7
+E	=	5
+F	=	3
+G	=	1
+Solution for #11
+A	=	3
+B	=	4
+C	=	1
+D	=	2
+E	=	6
+F	=	5
+G	=	7
+Solution for #12
+A	=	7
+B	=	1
+C	=	3
+D	=	5
+E	=	6
+F	=	4
+G	=	2
+Solution for #13
+A	=	3
+B	=	4
+C	=	2
+D	=	6
+E	=	5
+F	=	1
+G	=	7
+Solution for #14
+A	=	1
+B	=	4
+C	=	6
+D	=	5
+E	=	3
+F	=	7
+G	=	2
+Solution for #15
+A	=	5
+B	=	2
+C	=	3
+D	=	1
+E	=	7
+F	=	4
+G	=	6
+Solution for #16
+A	=	5
+B	=	6
+C	=	3
+D	=	4
+E	=	7
+F	=	1
+G	=	2
+Solution for #17
+A	=	3
+B	=	5
+C	=	1
+D	=	6
+E	=	2
+F	=	4
+G	=	7
+Solution for #18
+A	=	1
+B	=	3
+C	=	7
+D	=	4
+E	=	5
+F	=	2
+G	=	6
+Solution for #19
+A	=	7
+B	=	3
+C	=	4
+D	=	1
+E	=	6
+F	=	2
+G	=	5
+Solution for #20
+A	=	2
+B	=	4
+C	=	5
+D	=	1
+E	=	6
+F	=	3
+G	=	7
+Solution for #21
+A	=	1
+B	=	5
+C	=	7
+D	=	2
+E	=	6
+F	=	3
+G	=	4
+Solution for #22
+A	=	3
+B	=	6
+C	=	4
+D	=	5
+E	=	1
+F	=	2
+G	=	7
+Solution for #23
+A	=	4
+B	=	6
+C	=	3
+D	=	5
+E	=	2
+F	=	7
+G	=	1
+Solution for #24
+A	=	6
+B	=	4
+C	=	2
+D	=	7
+E	=	5
+F	=	1
+G	=	3
+Solution for #25
+A	=	7
+B	=	2
+C	=	5
+D	=	6
+E	=	3
+F	=	1
+G	=	4
+Solution for #26
+A	=	2
+B	=	5
+C	=	3
+D	=	1
+E	=	6
+F	=	4
+G	=	7
+Solution for #27
+A	=	2
+B	=	4
+C	=	1
+D	=	7
+E	=	6
+F	=	5
+G	=	3
+Solution for #28
+A	=	3
+B	=	5
+C	=	4
+D	=	7
+E	=	1
+F	=	6
+G	=	2
+Solution for #29
+A	=	5
+B	=	2
+C	=	1
+D	=	6
+E	=	3
+F	=	7
+G	=	4
+Solution for #30
+A	=	7
+B	=	4
+C	=	2
+D	=	6
+E	=	1
+F	=	5
+G	=	3
+Solution for #31
+A	=	2
+B	=	7
+C	=	5
+D	=	1
+E	=	3
+F	=	4
+G	=	6
+Solution for #32
+A	=	7
+B	=	6
+C	=	4
+D	=	2
+E	=	5
+F	=	1
+G	=	3
+Solution for #33
+A	=	2
+B	=	3
+C	=	7
+D	=	4
+E	=	1
+F	=	6
+G	=	5
+Solution for #34
+A	=	1
+B	=	2
+C	=	5
+D	=	3
+E	=	6
+F	=	4
+G	=	7
+Solution for #35
+A	=	3
+B	=	5
+C	=	6
+D	=	1
+E	=	4
+F	=	7
+G	=	2
+Solution for #36
+A	=	5
+B	=	6
+C	=	2
+D	=	3
+E	=	1
+F	=	7
+G	=	4
+Solution for #37
+A	=	6
+B	=	5
+C	=	7
+D	=	2
+E	=	1
+F	=	4
+G	=	3
+Solution for #38
+A	=	3
+B	=	6
+C	=	2
+D	=	4
+E	=	7
+F	=	1
+G	=	5
+Solution for #39
+A	=	5
+B	=	7
+C	=	3
+D	=	6
+E	=	4
+F	=	2
+G	=	1
+Solution for #40
+A	=	3
+B	=	5
+C	=	7
+D	=	4
+E	=	1
+F	=	2
+G	=	6
+Solution for #41
+A	=	7
+B	=	6
+C	=	2
+D	=	5
+E	=	3
+F	=	4
+G	=	1
+Solution for #42
+A	=	2
+B	=	6
+C	=	3
+D	=	7
+E	=	4
+F	=	5
+G	=	1
+Solution for #43
+A	=	3
+B	=	6
+C	=	7
+D	=	4
+E	=	1
+F	=	2
+G	=	5
+Solution for #44
+A	=	2
+B	=	5
+C	=	7
+D	=	4
+E	=	3
+F	=	1
+G	=	6
+Solution for #45
+A	=	2
+B	=	3
+C	=	6
+D	=	7
+E	=	5
+F	=	1
+G	=	4
+Solution for #46
+A	=	7
+B	=	4
+C	=	6
+D	=	1
+E	=	2
+F	=	3
+G	=	5
+Solution for #47
+A	=	6
+B	=	3
+C	=	7
+D	=	4
+E	=	1
+F	=	2
+G	=	5
+Solution for #48
+A	=	6
+B	=	3
+C	=	2
+D	=	7
+E	=	4
+F	=	1
+G	=	5
+Solution for #49
+A	=	7
+B	=	4
+C	=	6
+D	=	2
+E	=	1
+F	=	3
+G	=	5
+Solution for #50
+A	=	4
+B	=	6
+C	=	1
+D	=	2
+E	=	7
+F	=	5
+G	=	3
+Solution for #51
+A	=	5
+B	=	1
+C	=	3
+D	=	7
+E	=	6
+F	=	2
+G	=	4
+Solution for #52
+A	=	2
+B	=	3
+C	=	7
+D	=	4
+E	=	6
+F	=	5
+G	=	1
+Back to 7×7 Logi-Number Puzzles

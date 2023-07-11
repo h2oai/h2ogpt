@@ -1,0 +1,640 @@
+[
+  {
+    "instruction": "Of those numbers whose English representation in capital letters consists only of straight lines, only one number has a value equal to the number of straight line segments required to write it out. What number is this?",
+    "output": "TWENTY NINE."
+  },
+  {
+    "instruction": "What word is pronounced differently when the first letter is capitalized?",
+    "output": "Herb",
+    "output2":"Job",
+    "output2":"Nice",
+    "output2":"Polish",
+    "output2":"Differently"
+  },
+  {
+    "instruction": "Punctuate the following so it makes sense: \"That that is is that that is not is not is not that it it is.\"",
+    "output": "That that is, is; that that is not, is not. Is not that it? It is."
+  },
+  {
+    "instruction": "What word begins with 'h', ends with 'n', contains six letters, and contains eight words besides itself without transposing a single letter?",
+    "output": "\"Herein.\" The words it contains are: \"he,\" \"her,\" \"here,\" \"ere,\" \"re,\" \"rein,\" \"I,\" and \"in.\""
+  }
+]
+
+
+
+
+
+
+Isaac and Albert were excitedly describing the result of the Third Annual International Science Fair Extravaganza in Sweden. There were three contestants, Louis, Rene, and Johannes. Isaac reported that Louis won the fair, while Rene came in second. Albert, on the other hand, reported that Johannes won the fair, while Louis came in second.
+
+In fact, neither Isaac nor Albert had given a correct report of the results of the science fair. Each of them had given one correct statement and one false statement. What was the actual placing of the three contestants?
+
+Solution
+
+#2
+At a family reunion were the following people: one grandfather, one grandmother, two fathers, two mothers, four children, three grandchildren, one brother, two sisters, two sons, two daughters, one father-in-law, one mother-in-law, and one daughter-in-law. But not as many people attended as it sounds. How many were there, and who were they?
+
+Solution
+
+#3
+97 baseball teams participate in an annual state tournament. The champion is chosen for this tournament by the usual elimination scheme. That is, the 97 teams are divided into pairs, and the two teams of each pair play against each other. The loser of each pair is eliminated, and the remaining teams are paired up again, etc. How many games must be played to determine a champion?
+
+Solution
+
+#4
+Your sock drawer contains ten pairs of white socks and ten pairs of black socks. If you're only allowed to take one sock from the drawer at a time and you can't see what color sock you're taking until you've taken it, how many socks do you have to take before you're guaranteed to have at least one matching pair?
+
+Solution
+
+#5
+A man is the owner of a winery who recently passed away. In his will, he left 21 barrels (seven of which are filled with wine, seven of which are half full, and seven of which are empty) to his three sons. However, the wine and barrels must be split so that each son has the same number of full barrels, the same number of half-full barrels, and the same number of empty barrels. Note that there are no measuring devices handy. How can the barrels and wine be evenly divided?
+
+Solution
+
+#6
+What's the largest amount of money you can have in change and still not have change for a dollar?
+
+Solution
+
+#7
+What's the largest number of U.S. coins you can have without having even change for a dollar?
+
+Solution
+
+#8
+A man goes out for a walk. He walks south one mile, east one mile, and north one mile, and ends up in the same place he started. He didn't start out at the north pole -- so where did he?
+
+Solution
+
+#9
+A mountain goat attempts to scale a cliff sixty feet high. Every minute, the goat bounds upward three feet but slips back two. How long does it take for the goat to reach the top?
+
+Solution
+
+#10
+You have three boxes of fruit. One contains just apples, one contains just oranges, and one contains a mixture of both. Each box is labeled -- one says "apples," one says "oranges," and one says "apples and oranges." However, it is known that none of the boxes are labeled correctly. How can you label the boxes correctly if you are only allowed to take and look at just one piece of fruit from just one of the boxes?
+
+#11
+An Arab sheikh is old and must will his fortune to one of his two sons. He makes a proposition. His two sons will ride their camels in a race, and whichever camel crosses the finish line last will win the fortune for its owner. During the race, the two brothers wander aimlessly for days, neither willing to cross the finish line. In desperation, they ask a wise man for advice. He tells them something; then the brothers leap onto the camels and charge toward the finish line. What did the wise man say?
+
+Solution
+
+#12
+You have a jug that holds five gallons, and a jug that holds three gallons. You have no other containers, and there are no markings on the jugs. You need to obtain exactly seven gallons of water from a faucet. How can you do it?
+
+Second Problem: You need exactly four gallons. How do you do it?
+
+Solution
+
+#13
+You are on a game show. You are shown three closed doors. A prize is hidden behind one, and the game show host knows where it is. You are asked to select a door. You do. Before you open it, the host opens one of the other doors, showing that it is empty, then asks you if you'd like to change your guess. Should you, should you not, or doesn't it matter?
+
+Solution
+
+#14
+A farmer is taking a fox, a chicken, and a bag of grain home. To get there, he must cross a river, but he's only allowed to take one item across the bridge with them at a time. If the fox is left alone with the chicken, the fox will eat the chicken. If the chicken is left alone with the grain, the chicken will eat the grain. How can the farmer cross the river without any of his possessions being eaten?
+
+Solution
+
+#15
+Travelling to a city, an old man lost his way. He came to a fork in the road and did not know which road to take. Standing at the fork were two men. Next to the men was a sign, which you may assume is correct, which stated that one of the two men always told the truth and one of the men always told lies (but it was not known which was which). The sign went on to say that travellers could only ask one of the men one question.
+
+What question could the old man pose that would give him the information he needs to choose the correct route?
+
+Solution
+
+#16
+You are given eight jelly doughnuts. The doughnuts all weigh the same amount except for one which is heavier. You have a balancing scale at your disposal. What's the minimum number of weighings required for you to pick out the heavy doughnut every time?
+
+Solution
+
+#17
+Three men stay at a hotel for the night. The innkeeper charges thirty dollars per room per night. The men rent one room; each pays ten dollars. The bellhop leads the men to their room. Later, the innkeeper discovers he has overcharged the men and asks the bellhop to return five dollars to them. On the way upstairs, the bellhop realizes that five dollars can't be evenly split among three men, so he decides to keep two dollars for himself and return one dollar to each man.
+
+At this point, the men have paid nine dollars each, totalling 27. The bellhop has two, which adds up to 29. Where did the thirtieth dollar go?
+
+Solution
+
+#18
+Three men, members of a safari, are captured by cannibals in the jungle. The men are given one chance to escape with their lives. The men are lined up and bound to stakes such that one man can see the backs of the other two, the middle man can see the back of the front man, and the front man can't see anybody. The men are shown five hats, three of which are black and two of which are white. Then the men are blindfolded, and one of the five hats is placed on each man's head. The remaining two hats are hidden away. The blindfolds are removed. The men are told that if just one of the men can guess what hat he's wearing, they may all go free. Time passes. Finally, the front man, who can't see anyone, correctly guesses the color of his hat. What color was it, and how did he guess correctly?
+
+Solution
+
+#19
+One day a girl celebrated her birthday. Two days later, her older twin brother celebrated his. How is this possible?
+
+Solution
+
+#20
+Tough one!
+You and your spouse invite four other couples to a party. During the course of the conversation, it is discovered that, prior to the party, each person except you was acquainted with a different number of the people present. Assuming the acquaintance relationship is symmetric (i.e., if you are acquainted with someone, that person is also acquainted with you), then how many people did your spouse know prior to the party? How many people did you know?
+
+Solution
+
+Previous Page Next Page
+
+#21
+A man is looking at a photograph of someone. His friend asks who it is. The man replies, "Brothers and sisters, I have none. But that man's father is my father's son." Who was in the photograph?
+
+Solution
+
+#22
+You have a 12 liter jug, an 8 liter jug, and a 5 liter jug. None of the jugs have any markings on them. The 12 liter jug is full, and the other two are empty. How can you divide the 12 liters of water equally (i.e., so two of the jugs have exactly 6 liters of water in them, and the third is empty)?
+
+Solution
+
+#23
+A gambler bet on a horse race, but the bookee wouldn't tell him the results of the race. The bookee gave clues as to how the five horses finished -- which may have included some ties -- and wouldn't pay the gambler off unless the gambler could determine how the five horses finished based on the following clues:
+
+Penuche Fudge finished before Near Miss and after Whispered Promises.
+Whispered Promises tied with Penuche Fudge if and only if Happy Go Lucky did not tie with Skipper's Gal.
+Penuche Fudge finished as many places after Skipper's Gal as Skipper's Gal finished after Whispered Promises if and only if Whispered Promises finished before Near Miss.
+The gambler thought for a moment, then answered correctly. How did the five horses finish the race?
+
+Solution
+
+#24
+In a rectangular array of people, who will be taller: the tallest of the shortest people in each column, or the shortest of the tallest people in each row?
+
+Solution
+
+#25
+You have two cups, one containing orange juice and one containing and equal amount of lemonade. One teaspoon of the orange juice is taken and mixed with the lemonade. Then a teaspoon of this mixture is mixed back into the orange juice. Is there more lemonade in the orange juice or more orange juice in the lemonade?
+
+Solution
+
+#26
+All of my flowers except two are roses. All of my flowers except two are tulips. All of my flowers except two are daisies. How many flowers do I have?
+
+Solution
+
+#27
+Three humans and three monkeys (one big, two small) need to cross a river. But there is only one boat, and it can only hold two bodies (regardless of their size), and only the humans or the big monkey are strong enough to row the boat. Furthermore, the number of monkeys can never outnumber the number of humans on the same side of the river, or the monkeys will attack the humans. How can all six get across the river without anyone getting hurt?
+
+Solution
+
+#28
+A computer cable has seven connectors, arranged in a perfect circle -- so by rotating the plug, it can be connected to the outlet in any of seven different ways. Each of the connectors is numbered from one to seven, each number being used exactly once. The same is true for the holes in the outlet. The device that uses this cable only requires that one of the connectors match up to its corresponding hole in order to operate. How should you number the connectors on the plug and the holes in the outlet so that, no matter how the cable is rotated and plugged in, at least one connector matches up?
+
+Solution
+
+#29
+Tough one!
+Five men and five dogs (each man owned a dog) went hiking. They encountered a river that was swift and deep. The only way to cross it was an abandoned boat, left ashore on their side. But it would only hold three living things. Unfortunately, the dogs were edgy and could not be near another person (not even momentarily) unless its owner was present. One of the dogs attended a highly advanced, highly specialized obedience school and therefore knew how to operate the boat -- the other dogs lack this skill. How did the five men and the five dogs cross the river?
+
+Solution
+
+#30
+On your travels, three men stand at a fork in the road. You're not sure which fork you need to take, but each of the three men do. One of these people tells the truth, one always lies, and the third tells the truth sometimes and lies the other times. Each of the three men know each of the others, but you don't know who is who. If you could ask only one of the men (chosen at random, since you don't know which man is which) one yes/no question, what question would you ask to determine the road you wish to take?
+
+
+#31
+Abel, Mabel, and Caleb went bird watching. Each of them saw one bird that none of the others did. Each pair saw one bird that the third did not. And one bird was seen by all three. Of the birds Abel saw, two were yellow. Of the birds Mabel saw, three were yellow. Of the birds Caleb saw, four were yellow. How many yellow birds were seen in all? How many non-yellow birds were seen in all?
+
+Solution
+
+#32
+Four gentlemen (Adam, Bill, Chuck, and Dan) went to an expensive restaurant to dine. They checked their coats, hats, gloves, and canes at the door (each of the gentlemen had one of each). But when they checked out, there was a mix up, and each of the men ended up with exactly one article of clothing (a pair of gloves is considered a single article of clothing) belonging to each one of the four. Adam and Bill ended up with their own coats, Chuck ended up with his own hat, and Dan ended up with his own gloves. Adam did not end up with Chuck's cane. State whose coat, hat, gloves, and cane each of the gentlemen ended up with.
+
+Solution
+
+#33
+You have ten boxes, each of which contains nine balls. The balls in one box each weigh 0.9 pounds; the balls in all the other boxes weigh exactly one pound each. You have an accurate scale in front of you, with which you can determine the exact weight, in pounds, of any given set of balls. How can you determine which of the ten boxes contains the lighter balls with only one weighing?
+
+Solution
+
+#34
+A card-shuffling machine always rearranges cards in the same way relative to the original order of the cards. All of the hearts, arranged in order from ace to king, were put into the machine. The cards were shuffled and then put into the machine again. After this second shuffling, the cards were in the following order: 10, 9, Q, 8, K, 3, 4, A, 5, J, 6, 2, 7. What order were the cards in after the first shuffle?
+
+Solution
+
+#35
+A father is four times as old as his son. In twenty years, he'll be twice as old. How old are they now?
+
+Solution
+
+#36
+Four intellectuals are lined up so that each intellectual can see the ones in front of him but not the ones behind him. (The back one can see the other three, and the front one can't see anybody.) One hat is placed on the heads of each of the intellectuals. (None of them may see the color of their own hat, but each may see the color of the hats on the intellectuals in front of him.) Each of the four hats are one of three different colors (red, white, and blue), and there is at least one hat of each color (so there's one duplicate). Each of the intellectuals, starting with the back and ending with the front, is asked the color of the hat he is wearing. Each of the intellectuals is able to deduce and give a correct answer out loud, in turn. What arrangement of the hats permits this to be possible without guessing (since the specific colors chosen are arbitrary, just indicate which two intellectuals must be wearing hats of the same color), and how did they do it?
+
+Solution
+
+#37
+There are four men (call them 1, 2, 3, and 4) standing in front of a firing squad in a line. They are all facing the same direction such that 1 is at the back of the line, and 4 is at the front. 1 and 3 are wearing black hats, and 2 and 4 are wearing white hats. Between 3 and 4 is a brick wall. So 1, at the back of the line, can see 2 and 3. 2 can see 3. Neither 3 and 4 can see anybody. The men know that two of them are wearing black hats and two of them are wearing white hats. The commander of the firing squad offers a challenge. The challenge is that he will let all of them go if only one of them correctly names the color of his own hat. The men are not allowed to talk amongst themselves. Which of the men know for sure the color of his hat?
+
+Solution
+
+#38
+How can you build pig pens so you can put nine pigs in four pens such that each pen has an odd number of pigs?
+
+Solution
+
+#39
+Tough one!
+Of three men, one always tells the truth, one always tells lies, and one answers "yes" or "no" randomly. Each man knows which one each of the others are. You may ask three yes/no questions, each of which may only be answered by one of the three men, after which you must be able to identify which man is which. How can you do it?
+
+Solution
+
+#40
+An explorer was trekking through a remote jungle when he was captured by logic-loving cannibals. He was brought before the chief and told, "You may now speak your last words. If your statement is true, then we will burn you at the stake. If your statement is false, we will boil you in oil." The man thought for a moment, then made his statement. Perplexed, the clever cannibals realized they could do nothing but let him go. What did the explorer tell them?
+
+#41
+Three people go fishing -- two fathers and two sons. How is this possible?
+
+Solution
+
+#42
+Mr. Slow, Mr. Medium, Mr. Fast, and Mr. Speed must cross a rickety rope bridge in 17 minutes. The bridge can carry at most two people at a time. Furthermore, it's dark, and there is only one flashlight; any single person or pair of people crossing the bridge must have the flashlight with them. (The bridge is too wide for the flashlight to be thrown; it must be carried across.)
+
+Each man walks at a different speed. A pair travelling together must walk at the rate of the slower man. Mr. Slow can cross the bridge in at most 10 minutes; Mr. Medium can cross in 5 minutes; Mr. Fast can cross in 2 minutes; Mr. Speed can cross in 1 minute. How do all four men get across in the bridge in 17 minutes?
+
+Solution
+
+#43
+Tough one!
+You have twelve marbles. Eleven of the marbles are of equal weight, but one is heavier or lighter. You have a balancing scale you can use to find this marble and figure out if it weighs more or less than the others. What is the minimum number of weighings required to do this?
+
+Solution
+
+#44
+You have two slow-burning fuses, each of which will burn up in exactly one hour. They are not necessarily of the same length and width as each other, nor even necessarily of uniform width, so you can't measure a half hour by noting when one fuse is half burned. Using these two fuses, how can you measure 45 minutes?
+
+Solution
+
+#45
+You have an eight-gallon tank of water, which is completely full, an empty five-gallon tank, and an empty three-gallon tank. Without throwing any water away, can you put exactly four gallons in the eight-gallon tank and four gallons in the five-gallon tank?
+
+Solution
+
+#46
+Five competitors -- A, B, C, D, and E -- enter a swimming race that awards gold, silver, and bronze medals to the first three to complete it. Each of the following compound statements about the race is false, although one of the two clauses in each may be true.
+
+A didn't win the gold, and B didn't win the silver.
+D didn't win the silver, and E didn't win the bronze.
+C won a medal, and D didn't.
+A won a medal, and C didn't.
+D and E both won medals.
+Who won each of the medals?
+
+Solution
+
+#47
+Two days ago, Suzy was 8. Next year, she'll be 11. How is this possible?
+
+Solution
+
+#48
+A man leaves home for a mountain at 1pm and reaches the top at 3pm. The following day he departs from the top at 1pm and gets home at 3pm, by following the same path as the day before. Was he necessarily ever at the same point on the path at the same time on both days?
+
+
+Solution for #1
+Johannes won; Rene came in second; Louis came in third.
+
+Solution for #2
+There were two little girls and a boy, their parents, and their father's parents, totaling seven people.
+
+Solution for #3
+96. All teams but the champion team will lose a game exactly once.
+
+Solution for #4
+Three. In the worst case, the first two socks you take out will consist of one black sock and one white sock. The next sock you take out is guaranteed to match one or the other.
+
+Solution for #5
+Two half-full barrels are dumped into one of the empty barrels. Two more half-full barrels are dumped into another one of the empty barrels. This results in nine full barrels, three half-full barrels, and nine empty barrels. Each son gets three full barrels, one half-full barrel, and three empty barrels.
+
+Solution for #6
+$1.19. Three quarters, four dimes, and four pennies.
+
+Solution for #7
+Alternate Solution #1
+
+Ninety nine -- if they're all pennies.
+
+Alternate Solution #2
+
+Actually, you can have any number. At one time, a U.S. $10 gold coin called the Eagle was minted, and you could have any number of these without having change for a dollar. It is no longer minted, but it's still legal tender.
+
+Solution for #8
+Alternate Solution #1
+
+Assuming a perfectly spherical Earth, somewhere one mile north of the latitude (in the southern hemisphere) that is one mile in circumference. The man walks south one mile to this latitude and walks one mile east, which takes him all the way around and back to where he started. The last step (one mile north) retraces the first step he took (one mile south).
+
+Alternate Solution #2
+
+The man could also be one mile north of the latitude that is one half mile in circumference -- on second leg of the journey, he'd go around twice instead of once. He could also be one mile north of the latitude that is one third of a mile in circumference, or one mile north of the latitude that is one quarter of a mile in circumference, and so on.
+
+Solution for #9
+Fifty eight minutes. Although his net progress each minute is one foot, he reaches the top on the fifty-eighth minute just before he would normally slip back two feet.
+
+Solution for #10
+Take a piece of fruit from the box marked "apples and oranges." Suppose the fruit you take is an apple. Then that box must be the box containing just apples. Therefore, the box marked "oranges" can't be the box containing just apples, and it can't be the box containing just oranges either -- so it must be the box containing apples and oranges. The remaining box is therefore the box containing just oranges.
+
+If the fruit you take out is an orange, the solution is derived in a similar fashion: the box marked "apples and oranges" is the box containing just oranges; the box marked "apples" is the box containing both apples and oranges; and the box marked "oranges" is the one containing just apples.
+
+Solution for #11
+The rules of the race were that the owner of the camel that crosses the finish line last wins the fortune. The wise man simply told them to switch camels.
+
+Solution for #12
+To get seven gallons, fill the five gallon jug and dump what you can into the three gallon jug, filling it. There are now two gallons in the five gallon jug. Dump out the three gallon jug, and put the two gallons from the five gallon jug into the three gallon jug. Then fill the five gallon jug. The total is seven gallons.
+
+To get four gallons, fill the three gallon jug, and dump it into the five gallon jug. Fill the three gallon jug again, and dump what you can into the five gallon jug. Now there is one gallon in the three gallon jug. Dump out the five gallon jug, and put the one gallon from the three gallon jug into the five gallon jug. Now fill the three gallon jug. The total is four gallons.
+
+Solution for #13
+Remember that the host knows where the prize is. When you pick a door, there's a 66.7% chance you're wrong. If you're wrong, the host will always open the one door left that doesn't contain the prize. So if you were wrong (66.7% chance), you're better off switching to the door that the host leaves closed.
+
+What you are really being asked here is whether the odds are better with your first choice, or with both of the other two. All the host really does is prove that it isn't in one of the remaining two -- but we knew that anyway, because there's only one prize.
+
+Another way to look at it is this: consider that there are 1000 doors. You pick one. Before you open it, the host opens 998 of the 999 remaining doors. There's a 0.1% chance you guessed correctly -- if you guessed wrong (99.9% chance), then you know the prize is in the one door the host left shut. So you're better off changing your guess.
+
+Still not convinced? This is Brain Food's most contested answer, but it is correct! Let's break it down a little more explicitly:
+
+There are nine possible scenarios:
+
+Prize is behind door A. You pick door A.
+Prize is behind door A. You pick door B.
+Prize is behind door A. You pick door C.
+Prize is behind door B. You pick door A.
+Prize is behind door B. You pick door B.
+Prize is behind door B. You pick door C.
+Prize is behind door C. You pick door A.
+Prize is behind door C. You pick door B.
+Prize is behind door C. You pick door C.
+Now the host, who knows which door the prize is behind, deliberately chooses a door that the prize is not behind. For the three cases where you chose correctly in the beginning, the host has the choice of which other door to open. It doesn't matter which one he picks. But for the six cases where you chose wrong, he deliberately chooses the wrong guess of the remaining two choices, revealing it to be a wrong guess. It all breaks down as follows:
+
+Prize is behind door A. You pick door A. Host reveals door B or C as empty.
+Prize is behind door A. You pick door B. Host reveals door C as empty.
+Prize is behind door A. You pick door C. Host reveals door B as empty.
+Prize is behind door B. You pick door A. Host reveals door C as empty.
+Prize is behind door B. You pick door B. Host reveals door A or C as empty.
+Prize is behind door B. You pick door C. Host reveals door A as empty.
+Prize is behind door C. You pick door A. Host reveals door B as empty.
+Prize is behind door C. You pick door B. Host reveals door A as empty.
+Prize is behind door C. You pick door C. Host reveals door A or B as empty.
+(We've had several complaints that the above listing is incorrect because scenarios 1, 5, and 9 should be broken out. In fact, it is incorrect to break them out, because what's important here is that each listed scenario have an equal probability of occurring, not that each scenario be broken down to irreducible terms.)
+
+Now we come to the point where we must decide whether to stick to the original guess or to switch:
+
+Prize is behind door A. You pick door A. Host reveals door B or C as empty. Switching loses.
+Prize is behind door A. You pick door B. Host reveals door C as empty. Switching wins.
+Prize is behind door A. You pick door C. Host reveals door B as empty. Switching wins.
+Prize is behind door B. You pick door A. Host reveals door C as empty. Switching wins.
+Prize is behind door B. You pick door B. Host reveals door A or C as empty. Switching loses.
+Prize is behind door B. You pick door C. Host reveals door A as empty. Switching wins.
+Prize is behind door C. You pick door A. Host reveals door B as empty. Switching wins.
+Prize is behind door C. You pick door B. Host reveals door A as empty. Switching wins.
+Prize is behind door C. You pick door C. Host reveals door A or B as empty. Switching loses.
+Final conclusion: switching wins six out of nine times, which is equal to two thirds of the time, or about 66.7%.
+
+Still not convinced? Check out Wikipedia's page on the Monty Hall Paradox.
+
+Solution for #14
+Take the chicken across and leave it on the other side. Then go back. Get the fox and bring it to the other side and take the chicken back with you. Take the grain to the other side and leave it there. Then go back and get the chicken.
+
+Solution for #15
+Alternate Solution #1
+
+Ask one of the men what the other man would answer to the question, "Is the left road the correct road?" Then assume the answer you are given is false and act on that knowledge.
+
+If the man you ask is the liar, he'll incorrectly give you the truthful man's answer. If the man you ask is the truthful man, he'll correctly give you the liar's wrong answer.
+
+Alternate Solution #2
+
+Ask one of the men, "If I had asked you which path was the correct path ten minutes ago, what would you have said?" Regardless of which man is asked this question, the answer will be the correct path.
+
+Solution for #16
+Two. Weigh three of the doughnuts against three others and leave the remaining two on the table. If the scales are even, the heavy doughnut is one of the two on the table -- weigh them to find out. If the scales are uneven, take the three doughnuts on the heavy end, weigh one of them against another, and leave the third on the table. If the scales are uneven, you've found the heavy one. If not, the heavy one is the one on the table.
+
+Solution for #17
+The mistake is in how the thirty dollars are accounted for. The two dollars that the bellhop has are part of the 27 the men have paid. A correct accounting of the money is that 27 dollars were paid and three dollars were not, totaling 30 dollars.
+
+Solution for #18
+The back man can see the hats worn by the two men in front of him. So, if both of those hats were white, he would know that the hat he wore was black. But, since he doesn't answer, he must see at least one black hat ahead of him.
+
+After it becomes apparent to the middle man that the back man can't figure out what he's wearing, he knows that there is at least one black hat worn by himself and the front man. Knowing this, if the middle man saw a white hat in front of him, he'd know that his own hat was black, and could answer the question correctly. But, since he doesn't answer, he must see a black hat on the front man.
+
+After it becomes apparent to the front man that neither of the men behind him can answer the question, he realizes the middle man saw a black hat in front of him. So he says, correctly, "My hat is black."
+
+Solution for #19
+The boy, the older twin, was born early on March 1st. Then the boat crossed the International Date Line, and the girl was born on February 28th. In a leap year, the younger twin celebrates her birthday two days before her older brother.
+
+Solution for #20
+Start with the assumption that everybody knows their own spouses -- which means that everybody there knew at least one person. Discounting yourself, everyone knows a different number of people, which means that (again, discounting yourself) one person knows one, one person knows two, one person knows three, etc., up to one person who knows nine people (everybody else). Number the people (besides yourself) according to how many people they know, so that person 1 is the one who knows one person, person 2 is the one who knows two people, etc.
+
+Now pair up people with their spouses. If person 9 knows everybody else, s/he must be the only person who knows person 1, because person 1 only knows one person. So they must be married. Person 8 knows everybody except for person 1. Person 2 therefore knows person 8 and person 9. Person 9 is married to person 1, so person 2's spouse must be person 8. Person 7 knows everybody except for persons 1 and 2. Person 3 therefore knows persons 7, 8, and 9. Persons 8 and 9 are married to persons 2 and 1 respectively, so person 3's spouse must be person 7. Person 6 knows everybody except for persons 1, 2, and 3. Person 4 therefore knows persons 6, 7, 8, and 9. The only one of those not yet paired up is person 6, so person 4 and person 6 must be married.
+
+This leaves person 5, who knows everyone except persons 1, 2, 3, and 4. These five people, therefore, must be persons 6, 7, 8, 9, and you. Since you are the only one of these five not yet paired up, person 5 must be your spouse. So your spouse knew five people prior to the party.
+
+The above also determines that the people who know you are persons 5, 6, 7, 8, and 9. So you knew five people prior to the party also.
+
+Solution for #21
+His son.
+
+Solution for #22
+Fill the 8 liter jug with the 12 liter jug, leaving 4 liters remaining. Fill the 5 liter jug with the 8 liter jug, leaving 3 liters remaining. Empty the 5 liter jug into the 12 liter jug. Now there are 9 liters in the 12 liter jug and 3 liters in the 8 liter jug. Pour the 3 liters from the 8 liter jug into the 5 liter jug. Now fill the 8 liter jug with water from the 12 liter jug, leaving 1 liter in the 12 liter jug. Fill the 5 liter jug (which already has 3 liters in it) from the 8 liter jug, leaving 6 liters in the 8 liter jug. Empty the 5 liter jug into the 12 liter jug. Now there are 6 liters in the 12 liter jug, 6 liters in the 8 liter jug, and the 5 liter jug is empty.
+
+Solution for #23
+Whispered Promises came in first. Skipper's Gal and Happy Go Lucky tied for second place. Penuche Fudge came in fourth. Near Miss came in fifth.
+
+Solution for #24
+This is a tongue twister of an explanation, but bear with me.
+
+The shortest of the tallest people in each row will be taller than, or the same height as, the tallest of the shortest people in each column. There are four cases. The first is that the shortest of the tallest and the tallest of the shortest are the same person, so obviously in this case the shortest of the tallest and the tallest of the shortest would be the same height.
+
+The second case is that the shortest of the tallest and the tallest of the shortest are in the same row. The shortest of the tallest people in each row is obviously the tallest person in his row, so he's taller than the tallest of the shortest, who is also in his row.
+
+The third case is that the shortest of the tallest and the tallest of the shortest are in the same column. The tallest of the shortest people in each column is obviously the shortest person in his row, so he's shorter than the shortest of the tallest, who is also in his column.
+
+The fourth case is that the shortest of the tallest is neither in the same column nor the same row as the tallest of the shortest. For this case, consider the person X who is standing in the intersection of the row containing the shortest of the tallest and the column containing the tallest of the shortest. X must be taller than the tallest of the shortest, since the tallest of the shortest is the shortest in his column, and X must also be shorter than the shortest of the tallest, since the shortest of the tallest is the tallest in his row. So TofS < X < SofT.
+
+So the shortest of the tallest in each row is always taller than, or the same height as, the tallest of the shortest in each column.
+
+Solution for #25
+There's the same amount of lemonade in the orange juice as orange juice in the lemonade. Each cup ends with the same volume of liquid that it started with, and there's still an equal amount of each juice between the two cups.
+
+Solution for #26
+Alternate Solution #1
+
+Three: one rose, one tulip, and one daisy.
+
+Alternate Solution #2
+
+Two, neither of which are roses, tulips, or daisies.
+
+Solution for #27
+The big monkey rows a small monkey over; the big monkey comes back. The big monkey rows the other small monkey over; the big monkey comes back. Two humans row over; a human and a small monkey come back. (Now two humans, the big monkey, and a small monkey are on the starting side of the river, and the third human and the second small monkey are on the destination side.) human and the big monkey row over; the human and a small monkey come back. Two humans row over; the big monkey rows back. (Now all the monkeys are on the starting side of the river, and all the humans are on the destination side.) The big monkey rows a small monkey over; the big monkey comes back. Then the big monkey rows the other small monkey over.
+
+Solution for #28
+Alternate Solution #1
+
+Number the connectors clockwise, with consecutive numbers: 1, 2, 3, 4, 5, 6, 7. Number the holes clockwise, with every other number, then wrapping back around: 1, 3, 5, 7, 2, 4, 6.
+
+Alternate Solution #2
+
+Number the connectors clockwise, with consecutive numbers: 1, 2, 3, 4, 5, 6, 7. Number the holes clockwise, skipping every other hole. The end result will be: 1, 5, 2, 6, 3, 7, 4.
+
+Solution for #29
+Let the five men be represented by A, B, C, D, and E. Let the five dogs be represented by a, b, c, d, and e. Let the dog that can operate the boat be dog a.
+
+a, b, and c cross the river. a comes back alone and takes back d. a goes back and says behind while B, C, and D cross the river. Now A, a, E, and e are on the starting shore, and B, b, C, c, D, and d are on the destination shore. D and d return; A and a cross. C and c go back, and C, D, and E cross. Now dogs c, d, and e are on the starting shore, and everyone else is on the destination shore. a goes back and returns with c and d, then goes back and returns with e.
+
+Solution for #30
+Pick one of the men and ask, "If I were to ask you whether the left fork leads to where I'm going, and you chose to answer that question with the same degree of truth as you answer this question, would you then answer 'yes'?"
+
+The truthteller will say "yes" if the left fork leads to where you're going and "no" otherwise. The liar will answer the same, since he will lie about where the left fork leads, and he will lie about lying. The third man may either lie or tell the truth about this one question, but either way he is behaving like either the truthteller or the liar and thus must correctly report the road to your destination.
+
+Solution for #31
+Three birds were seen by one person each, three were seen by each unique pair (Abel-Mabel, Abel-Caleb, and Mabel-Caleb), and one was seen by all three. So seven birds were seen in all, and each person saw a total of four. Hence, all of the birds Caleb saw were yellow. These four birds are: (1) the one Caleb saw alone, (2) the one Caleb saw with Abel, (3) the one Caleb saw with Mabel, and (4) the one all three saw together. This accounts for both of the yellow birds Abel saw, and two of the three yellow birds Mabel saw. The third yellow bird Mabel saw could not have been the one Abel and Mabel saw together, because Abel only saw two yellow birds; so the third yellow bird Mabel saw must have been the one she saw alone.
+
+So five yellow birds were seen (the one Mabel saw, the one Caleb saw, the one Abel and Caleb saw, the one Mabel and Caleb saw, and the one all three saw), and two non-yellow birds were seen (the one Abel saw and the one Abel and Mabel saw) by the group.
+
+Solution for #32
+Adam had his own coat, Bill's hat, Chuck's gloves, and Dan's cane. Bill had his own coat, Dan's hat, Adam's gloves, and Chuck's cane. Chuck had Dan's coat, his own hat, Bill's gloves, and Adam's cane. Dan had Chuck's coat, Adam's hat, his own gloves, and Bill's cane.
+
+Solution for #33
+Number the boxes 0 through 9. Take zero balls from box 0, one ball from box 1, two balls from box 2, and so on. Weigh all these balls. Then determine which box has the lighter balls with the chart below:
+
+Total Weight	Box Containing the Lighter Balls
+45.0 pounds	0
+44.9 pounds	1
+44.8 pounds	2
+44.7 pounds	3
+44.6 pounds	4
+44.5 pounds	5
+44.4 pounds	6
+44.3 pounds	7
+44.2 pounds	8
+44.1 pounds	9
+Solution for #34
+The problem is solved by assuming positions for the ace, determining what the order for the first shuffle would be based on those assumptions, until one such assumption does not produce a conflict. Consider:
+
+Initial Order	A	2	3	4	5	6	7	8	9	10	J	Q	K
+Second Shuffle Order	10	9	Q	8	K	3	4	A	5	J	6	2	7
+We will first assume the ace was in the second slot after the first shuffle. So the shuffling algorithm would always place the card in the first slot into the second slot. Therefore, the 9 must have been the first card after the first shuffle, or it couldn't have ended up as the second card after the second shuffle.
+
+Now that we know that the 9 must have been the first card after the first shuffle, we know that the shuffling algorithm takes the card in the ninth slot and puts it into the first slot. So after the first shuffle, the 10 must have been in the ninth slot, or the 10 would never have ended up as the first card after the second shuffle.
+
+We follow this logic pattern until our knowledge of the order of the cards after the first shuffle is complete. It turns out that this is the correct answer. If we assume the ace to be in any other position other than the second, then we will eventually encounter a contradiction, where two cards must go into the same slot.
+
+So the final ordering is: 9, A, 4, Q, J, 7, 3, 2, 10, 5, K, 8, 6.
+
+Solution for #35
+The father is 40, and the son is 10.
+
+Solution for #36
+The two intellectuals in front must be wearing hats of the same color. Let's suppose the front two were wearing red hats, the third was wearing a white hat, and the fourth (in back) was wearing a blue hat. The intellectual in back must be the first to answer. If he saw one hat of each color on the three intellectuals in front of him, he would not be able to guess the color of his own hat, since the duplicate color could be any of them. Therefore, he must see two hats of the same color (red) and one hat of a second color (white), and he can state conclusively that he must be wearing the hat of the third color (blue).
+
+Since the back person can say what color hat he's wearing, the other intellectuals must realize that no one else is wearing a hat of that color. So each of the others can narrow down the color of their own hats to the remaining two colors.
+
+The next intellectual knows his hat isn't blue, and he knows there is only one hat that's blue. If he saw a hat of each of the two remaining colors on the two intellectuals in front of him, he wouldn't be able to determine the color of his own hat, since the duplicate color could be either of them. He must, therefore, see two hats of the same color (red), and can conclude that his own hat is of the color he does not see (white).
+
+The next intellectual realizes that the only way the two intellectuals behind him could guess the colors of their hats would be if he and the front intellectual were wearing hats of the same color. He sees the color of the front intellectual's hat (red) and states that this is the color of his.
+
+The front intellectual realizes this too and repeats the color stated by the intellectual behind him.
+
+Solution for #37
+1 sees 2 and 3. If 1 saw two black hats or two white hats, then he would be able to guess the color of his hat. But in this case, he doesn't -- he sees a white hat and a black hat. Some time passes, and 2 realizes that 1 is not sure what color hat he's wearing. The only way 1 wouldn't be sure is if 2 and 3 are wearing differently colored hats. 2, who sees what color hat 3 is wearing (black), correctly names the opposite color as the color of his own hat.
+
+Solution for #38
+Build three pens and put three pigs in each. Then build a fourth pen around the other three.
+
+Solution for #39
+There are six possible scenarios. Let's call the first man A, the second man B, and the third man C. The six scenarios, then, are:
+
+Scenario	A	B	C
+I	Truthteller	Liar	Random Man
+II	Truthteller	Random Man	Liar
+III	Liar	Truthteller	Random Man
+IV	Liar	Random Man	Truthteller
+V	Random Man	Truthteller	Liar
+VI	Random Man	Liar	Truthteller
+Follow these steps to determine which possibility listed above is correct:
+
+Ask A, "Is B more likely to tell the truth than C?"
+If yes, go to step 2.
+If no, go to step 5.
+Ask C, "Are you the random man?"
+If yes, go to step 3.
+If no, go to step 4.
+Ask C, "Is A the truthteller?"
+If yes, then scenario V is the case.
+If no, then scenario II is the case.
+Ask C, "Is A the liar?"
+If yes, then scenario IV is the case.
+If no, then scenario VI is the case.
+Ask B, "Are you the random man?"
+If yes, go to step 6.
+If no, go to step 7.
+Ask B, "Is A the truthteller?"
+If yes, then scenario VI is the case.
+If no, then scenario I is the case.
+Ask B, "Is A the liar?"
+If yes, then scenario III is the case.
+If no, then scenario V is the case.
+By following the steps above, you will only ever ask three questions in all, and the answers will determine the identities of the three men.
+
+Solution for #40
+"You will boil me in oil."
+
+Solution for #41
+The three people are a grandfather, father, and son.
+
+Solution for #42
+Mr. Fast and Mr. Speed cross first, taking two minutes.
+Mr. Fast returns with the flashlight, taking two minutes.
+Mr. Slow and Mr. Medium cross, taking ten minutes.
+Mr. Speed returns with the flashlight, taking one minute.
+Mr. Fast and Mr. Speed cross again, taking two minutes.
+Solution for #43
+The problem can be solved in three weighings.
+
+Weigh four marbles against four others, leaving four on the table.
+If both sides are equal, all eight marbles on the scale can be eliminated. Put three of the four from the table onto one side and three from the eliminated batch on the other.
+If both sides are equal, the odd marble is the last one; weigh it with any other marble to see if it's heavier or lighter.
+If the side with the marbles still under consideration moves up or down, weigh one of those three marbles against one of the others, and the third marble is set aside.
+If both sides are equal, the third marble is the odd one, and it is heavier or lighter depending on whether or not the scales moved down or up in the previous weighing.
+If the scales move, the odd marble is the one that moves in the same direction that the three marbles under consideration moved in the previous weighing. If it moves up, it's lighter; if it moves down, it's heavier.
+If the scales move, take one marble from each side and switch them. One one side only, remove the other three and set them aside for later. Replace them with three marbles from the four left on the table (now known not to be the odd one).
+If the two sides are equal, the odd marble is among the three set aside. Weigh one against another, and set the third aside.
+If the sides are equal, the odd marble is the third one, and it is heavier or lighter depending on which way the scales moved in the first weighing.
+If the scales move, the odd marble is the one that moved in the same direction as it did in the first weighing, and it is heavier or lighter depending on whether it went down or up.
+If the two sides move in different directions as in the first weighing, the odd marble is one of the two that switched places. Weigh one of the two against any of the other ten.
+If both sides are equal, the odd marble is the one left out. It's heavier or lighter depending on which way the scales moved in the second weighing.
+If the scales move, the marble on the scales that's under consideration is the odd one, and it is heavier or lighter depending on whether it went down or up.
+If the two sides move in the same direction as in the first weighing, the odd marble is one of the three that hadn't moved from its side. Weigh one of the three against another, and set the third aside.
+If the sides are equal, the odd marble is the third one, and it is heavier or lighter depending on which way the scales moved in the previous weighings.
+If the scales move, the odd marble is the one that moved in the same direction as it did in the previous weighings, and it is heavier or lighter depending on whether it went down or up.
+Solution for #44
+Light one fuse at both ends and, at the same time, light the second fuse at one end. When the first fuse has completely burned, you know that a half hour has elapsed, and, more relevantly, that the second fuse has a half hour left to go. At this time, light the second fuse from the other end. This will cause it to burn out in 15 more minutes. At that point, exactly 45 minutes will have elapsed.
+
+Solution for #45
+Alternate Solution #1
+
+Fill the three-gallon tank from the eight-gallon. Dump the three-gallon tank into the five-gallon. Fill the three-gallon tank from the eight-gallon again and use that to fill the five-gallon. Now you've got two gallons in the eight-gallon tank, five gallons in the five-gallon tank, and one gallon in the three-gallon tank.
+
+Dump the five-gallon tank into the eight-gallon tank. Put the gallon from the three-gallon tank into the five-gallon tank. Now you've got seven gallons in the eight-gallon tank and one in the five-gallon tank.
+
+Fill the three-gallon tank from the eight-gallon tank. Dump the three-gallon tank into the five-gallon tank. You should now have four gallons in the eight-gallon tank and four gallons in the five-gallon tank.
+
+Alternate Solution #2
+
+Fill the five-gallon tank from the eight-gallon. Fill the three-gallon tank from the five-gallon. Pour the three-gallon tank back into the eight-gallon tank. Now you should have six gallons in the eight-gallon tank and two gallons in the five-gallon tank.
+
+Dump the two gallons in the five-gallon tank into the three-gallon tank. Pour what you can from the eight-gallon tank into the five-gallon tank. Now you should have one gallon in the eight-gallon tank, five gallons in the five-gallon tank, and two gallons in the three-gallon tank.
+
+Top off the three-gallon tank from the five-gallon, and dump the three-gallon tank into the eight-gallon tank.
+
+Solution for #46
+A won the gold medal; D won the silver medal; C won the bronze medal.
+
+Solution for #47
+Suzy's birthday must be on December 31 of some year. Let's say she was born on December 31, 2000. That means Suzy's ninth birthday is December 31, 2009. And let's say "today" is January 1, 2010.
+
+If we suppose these things, then two days earlier would be December 30, 2009, the day before Suzy's ninth birthday. She was 8.
+
+Now let's get back to today's date, January 1, 2010. "Next year" is 2011. On January 1, 2011, she'll only be 10, but on December 31 that same year, she'll be 11.
+
+Solution for #48
+Yes. No matter how he varies his travel speed within the two trips, there must indeed be such a point somewhere along the path. An easy way to visualize this is to imagine, instead of one man making one trip and then making the return trip, two men making the trip at the same time. One man leaves the bottom at 1pm and heads toward the top. The other leaves the top at 1pm and heads toward the bottom. Regardless of their rate of travel over the course of the trip, they must pass each other on their respective journeys -- or, in other words, that at some point they must be at the same place at the same time.
+
+=========================
+
