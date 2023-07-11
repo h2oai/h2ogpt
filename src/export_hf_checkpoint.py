@@ -39,7 +39,7 @@ def do_export():
     )
     tokenizer.save_pretrained(OUTPUT_NAME)
 
-    base_model = from_pretrained(
+    base_model = model_loader(
         BASE_MODEL,
         load_in_8bit=False,
         trust_remote_code=True,
