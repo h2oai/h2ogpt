@@ -190,7 +190,7 @@ def train(
 
     model_loader, tokenizer_loader = get_loaders(model_name=base_model, reward_type=False, llama_type=llama_type)
 
-    model = model_loader.from_pretrained(
+    model = model_loader(
         base_model,
         load_in_8bit=train_8bit,
         load_in_4bit=train_4bit,

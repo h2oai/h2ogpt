@@ -147,7 +147,7 @@ sudo apt-get install -y libmagic-dev poppler-utils tesseract-ocr libreoffice
 # Optional: for supporting unstructured package
 python -m nltk.downloader all
 # Optional: For AutoGPTQ support on x86_64 linux
-pip install -r reqs_optional/requirements_optional_gptq.txt
+pip uninstall -y auto-gptq ; CUDA_HOME=/usr/local/cuda-11.7  GITHUB_ACTIONS=true pip install auto-gptq --no-cache-dir
 ```
 See [AutoGPTQ](docs/README_GPU.md#gpu-cuda) for more details for AutoGPTQ and other GPU installation aspects.
 

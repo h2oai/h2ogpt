@@ -768,29 +768,25 @@ def get_non_lora_model(base_model, model_loader, load_half,
     load_in_8bit = model_kwargs.get('load_in_8bit', False)
     load_in_4bit = model_kwargs.get('load_in_4bit', False)
     model_kwargs['device_map'] = device_map
+    model_kwargs['use_safetensors'] = use_safetensors
     pop_unused_model_kwargs(model_kwargs)
 
     if load_gptq:
-        use_triton = False
         model_kwargs.pop('torch_dtype', None)
         model_kwargs.pop('device_map')
-        model = model_loader.from_quantized(
+        model = model_loader(
             model_name_or_path=base_model,
             model_basename=load_gptq,
-            use_safetensors=use_safetensors,
-            use_triton=use_triton,
-            quantize_config=None,
-            device="cuda:0",
-            #**model_kwargs,
+            **model_kwargs,
         )
     elif load_in_8bit or load_in_4bit or not load_half:
-        model = model_loader.from_pretrained(
+        model = model_loader(
             base_model,
             config=config,
             **model_kwargs,
         )
     else:
-        model = model_loader.from_pretrained(
+        model = model_loader(
             base_model,
             config=config,
             **model_kwargs,
@@ -1082,18 +1078,18 @@ def get_hf_model(load_8bit: bool = False,
                 else:
                     config, _ = get_config(base_model, **config_kwargs)
                     if load_half and not (load_8bit or load_4bit or load_gptq):
-                        model = model_loader.from_pretrained(
+                        model = model_loader(
                             base_model,
                             config=config,
                             **model_kwargs).half()
                     else:
-                        model = model_loader.from_pretrained(
+                        model = model_loader(
                             base_model,
                             config=config,
                             **model_kwargs)
         elif load_8bit or load_4bit:
             config, _ = get_config(base_model, **config_kwargs)
-            model = model_loader.from_pretrained(
+            model = model_loader(
                 base_model,
                 config=config,
                 **model_kwargs
@@ -1113,7 +1109,7 @@ def get_hf_model(load_8bit: bool = False,
         else:
             with torch.device(device):
                 config, _ = get_config(base_model, raise_exception=True, **config_kwargs)
-                model = model_loader.from_pretrained(
+                model = model_loader(
                     base_model,
                     config=config,
                     **model_kwargs

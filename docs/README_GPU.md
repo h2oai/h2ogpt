@@ -40,6 +40,19 @@ although to avoid building the package you can run the [specific version](https:
 ```bash
 pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.2.2/auto_gptq-0.2.2+cu118-cp310-cp310-linux_x86_64.whl
 ```
+However, if one sees issues like `CUDA extension not installed.` mentioned during loading of model, need to recompile,
+because, otherwise, the generation will be much slower even if uses GPU.  If you have CUDA 11.7 installed from NVIDIA, run:
+```bash
+pip uninstall -y auto-gptq ; CUDA_HOME=/usr/local/cuda-11.7 GITHUB_ACTIONS=true pip install auto-gptq --no-cache-dir
+```
+If one used conda cudatoolkit:
+```bash
+conda install -c conda-forge cudatoolkit-dev
+```
+then use that location instead:
+```bash
+pip uninstall -y auto-gptq ; CUDA_HOME=$CONDA_PREFIX GITHUB_ACTIONS=true pip install auto-gptq --no-cache-dir
+```
 
 To run in ChatBot mode, do:
 ```bash
