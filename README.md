@@ -5,6 +5,7 @@ Turn ★ into ⭐ (top-right corner) if you like the project!
 - [![img-small.png](docs/img-small.png) Live h2oGPT Document Q/A Demo](https://gpt.h2o.ai/)
 - [🤗 Live h2oGPT Chat Demo 1](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot)
 - [🤗 Live h2oGPT Chat Demo 2](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot2)
+- [![](https://colab.research.google.com/assets/colab-badge.svg) h2oGPT CPU](https://colab.research.google.com/drive/13RiBdAFZ6xqDwDKfW6BG_-tXfXiqPNQe?usp=sharing)
 
 Watch these YouTube Videos:
 - [100% Offline ChatGPT Alternative?](https://www.youtube.com/watch?v=Coj72EzmX20)
@@ -154,6 +155,7 @@ python generate.py --base_model=h2oai/h2ogpt-oasst1-512-12b --load_8bit=True  --
 ```
 UI using CPU
 ```bash
+wget https://huggingface.co/TheBloke/WizardLM-7B-uncensored-GGML/resolve/main/WizardLM-7B-uncensored.ggmlv3.q8_0.bin
 python generate.py --base_model='llama' --prompt_type=wizard2 --score_model=None --langchain_mode='UserData' --user_path=user_path
 ```
 
