@@ -294,7 +294,7 @@ Current Time: {}
         humanstr = prompt_tokens
         botstr = answer_tokens
         terminate_response = [humanstr, PreResponse, eos]
-        chat_sep = ''
+        chat_sep = eos
         chat_turn_sep = eos
     elif prompt_type in [PromptType.prompt_answer_openllama.value, str(PromptType.prompt_answer_openllama.value),
                          PromptType.prompt_answer_openllama.name]:
@@ -310,7 +310,7 @@ Current Time: {}
         humanstr = prompt_tokens
         botstr = answer_tokens
         terminate_response = [humanstr, PreResponse, eos]
-        chat_sep = ''
+        chat_sep = eos
         chat_turn_sep = eos
     elif prompt_type in [PromptType.open_assistant.value, str(PromptType.open_assistant.value),
                          PromptType.open_assistant.name]:
