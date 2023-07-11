@@ -44,9 +44,9 @@ prompt_fastchat = """A chat between a curious user and an artificial intelligenc
 
 prompt_humanbot = """<human>: Hello!\n<bot>: Hi!\n<human>: How are you?\n<bot>: I'm good\n<human>: Go to the market?\n<bot>:"""
 
-prompt_prompt_answer = "<|prompt|>Hello!<|answer|>Hi!<|endoftext|><|prompt|>How are you?<|answer|>I'm good<|endoftext|><|prompt|>Go to the market?<|answer|>"
+prompt_prompt_answer = "<|prompt|>Hello!<|endoftext|><|answer|>Hi!<|endoftext|><|prompt|>How are you?<|endoftext|><|answer|>I'm good<|endoftext|><|prompt|>Go to the market?<|endoftext|><|answer|>"
 
-prompt_prompt_answer_openllama = "<|prompt|>Hello!<|answer|>Hi!</s><|prompt|>How are you?<|answer|>I'm good</s><|prompt|>Go to the market?<|answer|>"
+prompt_prompt_answer_openllama = "<|prompt|>Hello!</s><|answer|>Hi!</s><|prompt|>How are you?</s><|answer|>I'm good</s><|prompt|>Go to the market?</s><|answer|>"
 
 
 @wrap_test_forked
@@ -102,9 +102,9 @@ prompt_fastchat1 = """A chat between a curious user and an artificial intelligen
 
 prompt_humanbot1 = """<human>: Go to the market?\n<bot>:"""
 
-prompt_prompt_answer1 = "<|prompt|>Go to the market?<|answer|>"
+prompt_prompt_answer1 = "<|prompt|>Go to the market?<|endoftext|><|answer|>"
 
-prompt_prompt_answer_openllama1 = "<|prompt|>Go to the market?<|answer|>"
+prompt_prompt_answer_openllama1 = "<|prompt|>Go to the market?</s><|answer|>"
 
 
 @pytest.mark.parametrize("prompt_type,expected",
