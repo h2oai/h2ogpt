@@ -2,6 +2,16 @@
 
 GPU via CUDA is supported via Hugging Face type models and LLaMa.cpp models.
 
+#### Google Colab
+
+A Google Colab version of a 3B GPU model is at:
+
+[![](https://colab.research.google.com/assets/colab-badge.svg) h2oGPT GPU](https://colab.research.google.com/drive/143-KFHs2iCqXTQLI2pFCDiR69z0dR8iE?usp=sharing)
+
+A local copy of that GPU Google Colab is [h2oGPT_GPU.ipynb](h2oGPT_GPU.ipynb).
+
+---
+
 #### GPU (CUDA)
 
 For help installing cuda toolkit, see [CUDA Toolkit](INSTALL.md#installing-cuda-toolkit).
@@ -47,6 +57,8 @@ For more details about document Q/A, see [LangChain Readme](README_LangChain.md)
 For 4-bit support, when running generate pass `--load_4bit=True`, which is only supported for certain [architectures](https://github.com/huggingface/peft#models-support-matrix) like GPT-NeoX-20B, GPT-J, LLaMa, etc.
 
 Any other instruct-tuned base models can be used, including non-h2oGPT ones.  [Larger models require more GPU memory](FAQ.md#larger-models-require-more-gpu-memory).
+
+---
 
 #### GPU with LLaMa
 

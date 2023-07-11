@@ -1,5 +1,17 @@
 ### CPU
 
+#### Google Colab
+
+A Google Colab version of a 7B LLaMa CPU model is at:
+
+[![](https://colab.research.google.com/assets/colab-badge.svg) h2oGPT CPU](https://colab.research.google.com/drive/13RiBdAFZ6xqDwDKfW6BG_-tXfXiqPNQe?usp=sharing)
+
+A local copy of that CPU Google Colab is [h2oGPT_CPU.ipynb](h2oGPT_CPU.ipynb).
+
+---
+
+#### Local
+
 CPU support is obtained after installing two optional requirements.txt files.  This does not preclude GPU support, just adds CPU support:
 
 * Install base, langchain, and GPT4All, and python LLaMa dependencies:
@@ -60,5 +72,4 @@ python generate.py ... --hf_embedding_model=sentence-transformers/all-MiniLM-L6-
 where `...` means any other options one should add like `--base_model` etc.  This simpler embedding is about half the size as default `instruct-large` and so uses less disk, CPU memory, and GPU memory if using GPUs.
 
 See also [Low Memory](FAQ.md#low-memory-mode) for more information about low-memory recommendations.
-
 
