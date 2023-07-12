@@ -81,27 +81,54 @@ newgrp docker
 ```
 in order to log in to this user.
 
-Then run:
+Then for falcon 7b run:
 ```bash
 export CUDA_VISIBLE_DEVICES=0
 docker run --gpus device=0 --shm-size 2g -e CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES -e TRANSFORMERS_CACHE="/.cache/" -p 6112:80 -v $HOME/.cache:/.cache/ -v $HOME/.cache/huggingface/hub/:/data  ghcr.io/huggingface/text-generation-inference:0.8.2 --model-id h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2 --max-input-length 2048 --max-total-tokens 4096 --sharded=false --disable-custom-kernels --trust-remote-code --max-stop-sequences=6
 ```
-or
+or Pythia 12b:
 ```bash
 export CUDA_VISIBLE_DEVICES=0,1,2,3
 docker run --gpus all --shm-size 2g -e CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES -e TRANSFORMERS_CACHE="/.cache/" -p 6112:80 -v $HOME/.cache:/.cache/ -v $HOME/.cache/huggingface/hub/:/data  ghcr.io/huggingface/text-generation-inference:0.8.2 --model-id h2oai/h2ogpt-oasst1-512-12b --max-input-length 2048 --max-total-tokens 4096 --sharded=true --num-shard=4 --disable-custom-kernels --trust-remote-code --max-stop-sequences=6
 ```
-or for 20B NeoX on 4 GPUs
+or for 20B NeoX on 4 GPUs:
 ```bash
 export CUDA_VISIBLE_DEVICES=0,1,2,3
 docker run --gpus all --shm-size 2g -e CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES -e TRANSFORMERS_CACHE="/.cache/" -p 6112:80 -v $HOME/.cache:/.cache/ -v $HOME/.cache/huggingface/hub/:/data  ghcr.io/huggingface/text-generation-inference:0.8.2 --model-id h2oai/h2ogpt-oasst1-512-20b --max-input-length 2048 --max-total-tokens 4096 --sharded=true --num-shard=4 --disable-custom-kernels --trust-remote-code --max-stop-sequences=6
 ```
-or for Falcon 40B on 2 GPUs
+or for Falcon 40B on 2 GPUs and some HF token `$HUGGING_FACE_HUB_TOKEN`:
 ```bash
 export CUDA_VISIBLE_DEVICES=1,2
 sudo docker run --gpus all --shm-size 1g -e CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN -e TRANSFORMERS_CACHE="/.cache/" -p 6112:80 -v $HOME/.cache:/.cache/ -v $HOME/.cache/huggingface/hub/:/data ghcr.io/huggingface/text-generation-inference:0.8.2 --model-id h2oai/h2ogpt-gm-oasst1-en-2048-falcon-40b-v2 --max-input-length 2048 --max-total-tokens 4096 --max-stop-sequences 6 --sharded true --num-shard 2
 ```
+Or for MosaicML Chat 30b (careful with docker GPU and TGI version, and one can increase the token counts since has 8k input context):
+```bash
+docker run -d --gpus '"device=0,3"' --shm-size 2g -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN -e TRANSFORMERS_CACHE="/.cache/" -p 6112:80 -v $HOME/.cache:/.cache/ -v $HOME/.cache/huggingface/hub/:/data ghcr.io/huggingface/text-generation-inference:0.9.1 --model-id mosaicml/mpt-30b-chat --max-batch-prefill-tokens=2048 --max-input-length 2048 --max-total-tokens 4096 --max-stop-sequences 6 --trust-remote-code
+```
+or for Falcon 40B instruct:
+```bash
+export CUDA_VISIBLE_DEVICES=6,7
+docker run -d --gpus all --shm-size 1g -e CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN -e TRANSFORMERS_CACHE="/.cache/" -p 6112:80 -v $HOME/.cache:/.cache/ -v $HOME/.cache/huggingface/hub/:/data ghcr.io/huggingface/text-generation-inference:0.8.2 --model-id tiiuae/falcon-40b-instruct --max-input-length 2048 --max-total-tokens 4096 --max-stop-sequences 6 --sharded true --num-shard 2
+```
+or for Vicuna33b:
+```bash
+export CUDA_VISIBLE_DEVICES=4,5
+docker run -d --gpus all --shm-size 2g -e CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES -e TRANSFORMERS_CACHE="/.cache/" -p 6112:80 -v $HOME/.cache:/.cache/ -v $HOME/.cache/huggingface/hub/:/data ghcr.io/huggingface/text-generation-inference:0.8.2 --model-id lmsys/vicuna-33b-v1.3 --max-input-length 2048 --max-total-tokens 4096 --sharded true --num-shard 2
+```
 If one changes the port `6112` for each docker run command, any number of inference servers with any models can be added.
+
+On isolated system, one might want to script start-up, and start with a kill sequence like this if one is using ngrok to map a local system to some domain name:
+```bash
+pkill -f generate --signal 9
+pkill -f gradio --signal 9
+pkill -f ngrok --signal 9
+pkill -f text-generation-server --signal 9
+sudo killall -9 generate
+sudo killall -9 ngrok
+sudo killall -9 text-generation-server
+docker kill $(docker ps -q)
+```
+then create a run script to launch all dockers or other gradio servers, sleep a bit, and then launch all generates to connect to any TGI or other servers.
 
 ### Testing
 
@@ -131,11 +158,11 @@ For example, server at IP `192.168.1.46` on docker for 4 GPU system running 12B 
 export CUDA_VISIBLE_DEVICES=0,1,2,3
 docker run --gpus all --shm-size 2g -e CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES -e TRANSFORMERS_CACHE="/.cache/" -p 6112:80 -v $HOME/.cache:/.cache/ -v $HOME/.cache/huggingface/hub/:/data  ghcr.io/huggingface/text-generation-inference:0.8.2 --model-id h2oai/h2ogpt-oasst1-512-12b --max-input-length 2048 --max-total-tokens 4096 --sharded=true --num-shard=4 --disable-custom-kernels --trust-remote-code --max-stop-sequences=6
 ```
-
-Then generate in h2oGPT environment:
+then generate in h2oGPT environment:
 ```bash
 SAVE_DIR=./save/ python generate.py --inference_server="http://192.168.1.46:6112" --base_model=h2oai/h2ogpt-oasst1-512-12b
 ```
+One can pass, e.g., `--max_max_new_tokens=2048 --max_new_tokens=512` to generate.py to control tokens, along with `--max-batch-prefill-tokens=2048 --max-input-length 2048 --max-total-tokens 4096 --max-stop-sequences 6 --trust-remote-code` for TGI server to match.
 
 ## Gradio Inference Server-Client
 
