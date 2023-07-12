@@ -17,4 +17,4 @@ rm -rf $MODEL
 python src/export_hf_checkpoint.py
 
 # Load model with TGI
-docker run --gpus all --shm-size 1g -e CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES -e TRANSFORMERS_CACHE="/.cache/" -p $HF_PORT:80 -v $HOME/.cache:/.cache/ -v $MODEL:/$MODEL ghcr.io/huggingface/text-generation-inference:latest --model-id /$MODEL --max-input-length 2048 --max-total-tokens 4096 --max-stop-sequences 6 --sharded false
+docker run --gpus all --shm-size 1g -e CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES -e TRANSFORMERS_CACHE="/.cache/" -p $HF_PORT:80 -v $HOME/.cache:/.cache/ -v $PWD/$MODEL:/$MODEL ghcr.io/huggingface/text-generation-inference:latest --model-id /$MODEL --max-input-length 2048 --max-total-tokens 4096 --max-stop-sequences 6 --sharded false
