@@ -18,7 +18,7 @@ CPU support is obtained after installing two optional requirements.txt files.  T
 ```bash
 git clone https://github.com/h2oai/h2ogpt.git
 cd h2ogpt
-for fil in requirements.txt reqs_optional/requirements_optional_langchain.txt reqs_optional/requirements_optional_gpt4all.txt reqs_optional/requirements_optional_langchain.gpllike.txt reqs_optional/requirements_optional_langchain.urls.txt ; do pip install -r $fil ; done
+for fil in requirements.txt reqs_optional/requirements_optional_langchain.txt reqs_optional/requirements_optional_gpt4all.txt reqs_optional/requirements_optional_langchain.gpllike.txt reqs_optional/requirements_optional_langchain.urls.txt ; do pip install -r $fil --extra-index https://download.pytorch.org/whl/cpu ; done
 # Optional: support docx, pptx, ArXiv, etc.
 sudo apt-get install -y libmagic-dev poppler-utils tesseract-ocr libreoffice
 # Optional: for supporting unstructured package
