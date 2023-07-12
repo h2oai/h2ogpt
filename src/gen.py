@@ -147,7 +147,7 @@ def main(
         # WIP:
         # visible_langchain_actions: list = langchain_actions.copy(),
         visible_langchain_actions: list = [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value],
-        document_choice: list = [DocumentChoices.All_Relevant.name],
+        document_choice: list = [DocumentChoices.Relevant.name],
         user_path: str = None,
         detect_user_path_changes_every_query: bool = False,
         load_db_if_exists: bool = True,
@@ -1671,7 +1671,7 @@ def evaluate(
                                      top_k_docs=top_k_docs,
                                      chunk=chunk,
                                      chunk_size=chunk_size,
-                                     document_choice=[DocumentChoices.All_Relevant.name],
+                                     document_choice=[DocumentChoices.Relevant.name],
                                      )
                 api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
                 if not stream_output:
@@ -2248,7 +2248,7 @@ y = np.random.randint(0, 1, 100)
     # move to correct position
     for example in examples:
         example += [chat, '', '', 'Disabled', LangChainAction.QUERY.value,
-                    top_k_docs, chunk, chunk_size, [DocumentChoices.All_Relevant.name]
+                    top_k_docs, chunk, chunk_size, [DocumentChoices.Relevant.name]
                     ]
         # adjust examples if non-chat mode
         if not chat:

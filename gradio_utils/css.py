@@ -12,7 +12,10 @@ def get_css(kwargs) -> str:
 
 
 def make_css_base() -> str:
-    return """
+    css1 = """
+        #col_container {margin-left: auto; margin-right: auto; text-align: left;}
+        """
+    return css1 + """
     @import url('https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;600&display=swap');
     
     body.dark{#warning {background-color: #555555};}

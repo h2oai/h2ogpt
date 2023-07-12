@@ -20,7 +20,7 @@ import tabulate
 from iterators import TimeoutIterator
 
 from gradio_utils.css import get_css
-from gradio_utils.prompt_form import make_prompt_form, make_chatbots
+from gradio_utils.prompt_form import make_chatbots
 
 # This is a hack to prevent Gradio from phoning home when it gets imported
 os.environ['GRADIO_ANALYTICS_ENABLED'] = 'False'
@@ -118,6 +118,13 @@ def go_gradio(**kwargs):
     allow_upload = allow_upload_to_user_data or allow_upload_to_my_data
     kwargs.update(locals())
 
+    # import control
+    if kwargs['langchain_mode'] != 'Disabled':
+        from gpt_langchain import file_types, have_arxiv
+    else:
+        have_arxiv = False
+        file_types = []
+
     if 'mbart-' in kwargs['model_lower']:
         instruction_label_nochat = "Text to translate"
     else:
@@ -135,7 +142,6 @@ def go_gradio(**kwargs):
     else:
         description = more_info
     description_bottom = "If this host is busy, try [LLaMa 65B](https://llama.h2o.ai), [Falcon 40B](https://gpt.h2o.ai), [Falcon 40B](http://falcon.h2o.ai), [HF Spaces1 12B](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot) or [HF Spaces2 12B](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot2)<br>"
-    description_bottom += """<p>By using h2oGPT, you accept our [Terms of Service](https://github.com/h2oai/h2ogpt/blob/main/docs/tos.md)</p>"""
     if is_hf:
         description_bottom += '''<a href="https://huggingface.co/spaces/h2oai/h2ogpt-chatbot?duplicate=true"><img src="https://bit.ly/3gLdBN6" style="white-space: nowrap" alt="Duplicate Space"></a>'''
 
@@ -160,7 +166,7 @@ def go_gradio(**kwargs):
         theme_kwargs = dict()
     if kwargs['gradio_size'] == 'xsmall':
         theme_kwargs.update(dict(spacing_size=spacing_xsm, text_size=text_xsm, radius_size=radius_xsm))
-    elif kwargs['gradio_size'] == 'small':
+    elif kwargs['gradio_size'] in [None, 'small']:
         theme_kwargs.update(dict(spacing_size=gr.themes.sizes.spacing_sm, text_size=gr.themes.sizes.text_sm,
                                  radius_size=gr.themes.sizes.spacing_sm))
     elif kwargs['gradio_size'] == 'large':
@@ -281,169 +287,146 @@ def go_gradio(**kwargs):
         res_value = "Response Score: NA" if not kwargs[
             'model_lock'] else "Response Scores: %s" % nas
 
-        normal_block = gr.Row(visible=not base_wanted)
+        if kwargs['langchain_mode'] != LangChainMode.DISABLED.value:
+            extra_prompt_form = ".  For summarization, empty submission uses first top_k_docs documents."
+        else:
+            extra_prompt_form = ""
+        if kwargs['input_lines'] > 1:
+            instruction_label = "Shift-Enter to Submit, Enter for more lines%s" % extra_prompt_form
+        else:
+            instruction_label = "Enter to Submit, Shift-Enter for more lines%s" % extra_prompt_form
+
+        normal_block = gr.Row(visible=not base_wanted, equal_height=False)
         with normal_block:
-            with gr.Tabs():
-                with gr.Row():
-                    col_nochat = gr.Column(visible=not kwargs['chat'])
-                    with col_nochat:  # FIXME: for model comparison, and check rest
-                        if kwargs['langchain_mode'] == 'Disabled':
-                            text_output_nochat = gr.Textbox(lines=5, label=output_label0, show_copy_button=True)
-                        else:
-                            # text looks a bit worse, but HTML links work
-                            text_output_nochat = gr.HTML(label=output_label0)
+            with gr.Column(elem_id="col_container", scale=1, min_width=100):
+                upload_visible = kwargs['langchain_mode'] != 'Disabled' and allow_upload
+                with gr.Accordion("Upload", open=False, visible=upload_visible):
+                    with gr.Column():
+                        with gr.Row(equal_height=False):
+                            file_types_str = '[' + ' '.join(file_types) + ']'
+                            fileup_output = gr.File(label=f'Upload {file_types_str}',
+                                                    show_label=False,
+                                                    file_types=file_types,
+                                                    file_count="multiple",
+                                                    scale=1,
+                                                    min_width=0,
+                                                    elem_id="warning", elem_classes="feedback")
+                    url_visible = kwargs['langchain_mode'] != 'Disabled' and allow_upload and enable_url_upload
+                    url_label = 'URL/ArXiv' if have_arxiv else 'URL'
+                    url_text = gr.Textbox(label=url_label,
+                                          # placeholder="Enter Submits",
+                                          max_lines=1,
+                                          interactive=True)
+                    text_visible = kwargs['langchain_mode'] != 'Disabled' and allow_upload and enable_text_upload
+                    user_text_text = gr.Textbox(label='Paste Text',
+                                                # placeholder="Enter Submits",
+                                                interactive=True,
+                                                visible=text_visible)
+                    github_textbox = gr.Textbox(label="Github URL", visible=False)  # FIXME WIP
+                database_visible = kwargs['langchain_mode'] != 'Disabled'
+                with gr.Accordion("Database", open=False, visible=database_visible):
+                    if is_hf:
+                        # don't show 'wiki' since only usually useful for internal testing at moment
+                        no_show_modes = ['Disabled', 'wiki']
+                    else:
+                        no_show_modes = ['Disabled']
+                    allowed_modes = visible_langchain_modes.copy()
+                    allowed_modes = [x for x in allowed_modes if x in dbs]
+                    allowed_modes += ['ChatLLM', 'LLM']
+                    if allow_upload_to_my_data and 'MyData' not in allowed_modes:
+                        allowed_modes += ['MyData']
+                    if allow_upload_to_user_data and 'UserData' not in allowed_modes:
+                        allowed_modes += ['UserData']
+                    langchain_mode = gr.Radio(
+                        [x for x in langchain_modes if x in allowed_modes and x not in no_show_modes],
+                        value=kwargs['langchain_mode'],
+                        label="Collections",
+                        show_label=False,
+                        visible=kwargs['langchain_mode'] != 'Disabled',
+                        min_width=100)
+                    allowed_actions = [x for x in langchain_actions if x in visible_langchain_actions]
+                    langchain_action = gr.Radio(
+                        allowed_actions,
+                        value=allowed_actions[0] if len(allowed_actions) > 0 else None,
+                        label="Data Action",
+                        visible=True)
+                    document_choice = gr.Dropdown(docs_state.value,
+                                                  label="Subset",
+                                                  value=docs_state.value[0],
+                                                  interactive=True,
+                                                  multiselect=True,
+                                                  )
+                    sources_visible = kwargs['langchain_mode'] != 'Disabled' and enable_sources_list
+                    get_sources_btn = gr.Button(value="Get Sources", scale=0, size='sm', visible=sources_visible)
+                    show_sources_btn = gr.Button(value="Show Sources", scale=0, size='sm', visible=sources_visible)
+                    refresh_sources_btn = gr.Button(value="Refresh Sources", scale=0, size='sm',
+                                                    visible=sources_visible)
+            with (gr.Column(elem_id="col_container", scale=10), gr.Tabs()):
+                with gr.TabItem("Chat"):
+                    if kwargs['langchain_mode'] == 'Disabled':
+                        text_output_nochat = gr.Textbox(lines=5, label=output_label0, show_copy_button=True,
+                                                        visible=not kwargs['chat'])
+                    else:
+                        # text looks a bit worse, but HTML links work
+                        text_output_nochat = gr.HTML(label=output_label0, visible=not kwargs['chat'])
+                    with gr.Row():
+                        # NOCHAT
                         instruction_nochat = gr.Textbox(
                             lines=kwargs['input_lines'],
                             label=instruction_label_nochat,
                             placeholder=kwargs['placeholder_instruction'],
+                            visible=not kwargs['chat'],
                         )
                         iinput_nochat = gr.Textbox(lines=4, label="Input context for Instruction",
-                                                   placeholder=kwargs['placeholder_input'])
-                        submit_nochat = gr.Button("Submit")
-                        flag_btn_nochat = gr.Button("Flag")
-                        with gr.Column(visible=kwargs['score_model']):
-                            score_text_nochat = gr.Textbox("Response Score: NA", show_label=False)
+                                                   placeholder=kwargs['placeholder_input'],
+                                                   visible=not kwargs['chat'])
+                        submit_nochat = gr.Button("Submit", size='sm', visible=not kwargs['chat'])
+                        flag_btn_nochat = gr.Button("Flag", size='sm', visible=not kwargs['chat'])
+                        score_text_nochat = gr.Textbox("Response Score: NA", show_label=False,
+                                                       visible=not kwargs['chat'])
+                        submit_nochat_api = gr.Button("Submit nochat API", visible=False)
+                        inputs_dict_str = gr.Textbox(label='API input for nochat', show_label=False, visible=False)
+                        text_output_nochat_api = gr.Textbox(lines=5, label='API nochat output', visible=False,
+                                                            show_copy_button=True)
 
-                    col_chat = gr.Column(visible=kwargs['chat'])
-                    with col_chat:
-                        instruction, submit, stop_btn = make_prompt_form(kwargs, LangChainMode)
-                        text_output, text_output2, text_outputs = make_chatbots(output_label0, output_label0_model2,
-                                                                                **kwargs)
+                        # CHAT
+                        col_chat = gr.Column(visible=kwargs['chat'])
+                        with col_chat:
+                            with gr.Row():  # elem_id='prompt-form-area'):
+                                with gr.Column(scale=50):
+                                    instruction = gr.Textbox(
+                                        lines=kwargs['input_lines'],
+                                        label='Ask anything',
+                                        placeholder=instruction_label,
+                                        info=None,
+                                        elem_id='prompt-form',
+                                        container=True,
+                                    )
+                                with gr.Row(equal_height=False):
+                                    mw1 = 50
+                                    mw2 = 50
+                                    with gr.Column(min_width=mw1):
+                                        submit = gr.Button(value='Submit', variant='primary', scale=0, size='sm',
+                                                           min_width=mw1)
+                                        stop_btn = gr.Button(value="Stop", variant='secondary', scale=0, size='sm',
+                                                             min_width=mw1)
+                                        clear = gr.Button("Save", size='sm', min_width=mw1)
+                                    with gr.Column(min_width=mw2):
+                                        retry_btn = gr.Button("Redo", size='sm', min_width=mw2)
+                                        undo = gr.Button("Undo", size='sm', min_width=mw2)
+                                        flag_btn = gr.Button("Flag", size='sm', min_width=mw2)
+                            text_output, text_output2, text_outputs = make_chatbots(output_label0, output_label0_model2,
+                                                                                    **kwargs)
 
-                        with gr.Row():
-                            clear = gr.Button("Save Chat / New Chat")
-                            flag_btn = gr.Button("Flag")
-                            with gr.Column(visible=kwargs['score_model']):
-                                score_text = gr.Textbox(res_value,
-                                                        show_label=False,
-                                                        visible=True)
-                                score_text2 = gr.Textbox("Response Score2: NA", show_label=False,
-                                                         visible=False and not kwargs['model_lock'])
-                            retry_btn = gr.Button("Regenerate")
-                            undo = gr.Button("Undo")
-                    submit_nochat_api = gr.Button("Submit nochat API", visible=False)
-                    inputs_dict_str = gr.Textbox(label='API input for nochat', show_label=False, visible=False)
-                    text_output_nochat_api = gr.Textbox(lines=5, label='API nochat output', visible=False,
-                                                        show_copy_button=True)
-                with gr.TabItem("Documents"):
-                    langchain_readme = get_url('https://github.com/h2oai/h2ogpt/blob/main/docs/README_LangChain.md',
-                                               from_str=True)
-                    gr.HTML(value=f"""LangChain Support Disabled<p>
-                            Run:<p>
-                            <code>
-                            python generate.py --langchain_mode=MyData
-                            </code>
-                            <p>
-                            For more options see: {langchain_readme}""",
-                            visible=kwargs['langchain_mode'] == 'Disabled', interactive=False)
-                    data_row1 = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled')
-                    with data_row1:
-                        if is_hf:
-                            # don't show 'wiki' since only usually useful for internal testing at moment
-                            no_show_modes = ['Disabled', 'wiki']
-                        else:
-                            no_show_modes = ['Disabled']
-                        allowed_modes = visible_langchain_modes.copy()
-                        allowed_modes = [x for x in allowed_modes if x in dbs]
-                        allowed_modes += ['ChatLLM', 'LLM']
-                        if allow_upload_to_my_data and 'MyData' not in allowed_modes:
-                            allowed_modes += ['MyData']
-                        if allow_upload_to_user_data and 'UserData' not in allowed_modes:
-                            allowed_modes += ['UserData']
-                        langchain_mode = gr.Radio(
-                            [x for x in langchain_modes if x in allowed_modes and x not in no_show_modes],
-                            value=kwargs['langchain_mode'],
-                            label="Data Collection of Sources",
-                            visible=kwargs['langchain_mode'] != 'Disabled')
-                        allowed_actions = [x for x in langchain_actions if x in visible_langchain_actions]
-                        langchain_action = gr.Radio(
-                            allowed_actions,
-                            value=allowed_actions[0] if len(allowed_actions) > 0 else None,
-                            label="Data Action",
-                            visible=True)
-                    data_row2 = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled')
-                    with data_row2:
-                        with gr.Column(scale=50):
-                            document_choice = gr.Dropdown(docs_state.value,
-                                                          label="Choose Subset of Doc(s) in Collection [click get sources to update]",
-                                                          value=docs_state.value[0],
-                                                          interactive=True,
-                                                          multiselect=True,
-                                                          )
-                        with gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and enable_sources_list):
-                            get_sources_btn = gr.Button(value="Get Sources", scale=0, size='sm')
-                            show_sources_btn = gr.Button(value="Show Sources", scale=0, size='sm')
-                            refresh_sources_btn = gr.Button(value="Refresh Sources", scale=0, size='sm')
-
-                    # import control
-                    if kwargs['langchain_mode'] != 'Disabled':
-                        from gpt_langchain import file_types, have_arxiv
-                    else:
-                        have_arxiv = False
-                        file_types = []
-
-                    upload_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and allow_upload,
-                                        equal_height=False)
-                    with upload_row:
-                        with gr.Column():
-                            file_types_str = '[' + ' '.join(file_types) + ']'
-                            fileup_output = gr.File(label=f'Upload {file_types_str}',
-                                                    file_types=file_types,
-                                                    file_count="multiple",
-                                                    elem_id="warning", elem_classes="feedback")
                             with gr.Row():
-                                add_to_shared_db_btn = gr.Button("Add File(s) to UserData",
-                                                                 visible=allow_upload_to_user_data,
-                                                                 elem_id='small_btn')
-                                add_to_my_db_btn = gr.Button("Add File(s) to Scratch MyData",
-                                                             visible=allow_upload_to_my_data and
-                                                                     allow_upload_to_user_data,
-                                                             elem_id='small_btn' if allow_upload_to_user_data else None,
-                                                             size='sm' if not allow_upload_to_user_data else None)
-                        with gr.Column(
-                                visible=kwargs['langchain_mode'] != 'Disabled' and allow_upload and enable_url_upload):
-                            url_label = 'URL (http/https) or ArXiv:' if have_arxiv else 'URL (http/https)'
-                            url_text = gr.Textbox(label=url_label,
-                                                  placeholder="Click Add to Submit" if
-                                                  allow_upload_to_my_data and
-                                                  allow_upload_to_user_data else
-                                                  "Enter to Submit",
-                                                  max_lines=1,
-                                                  interactive=True)
-                            with gr.Row():
-                                url_user_btn = gr.Button(value='Add URL content to Shared UserData',
-                                                         visible=allow_upload_to_user_data and allow_upload_to_my_data,
-                                                         elem_id='small_btn')
-                                url_my_btn = gr.Button(value='Add URL content to Scratch MyData',
-                                                       visible=allow_upload_to_my_data and allow_upload_to_user_data,
-                                                       elem_id='small_btn' if allow_upload_to_user_data else None,
-                                                       size='sm' if not allow_upload_to_user_data else None)
-                        with gr.Column(
-                                visible=kwargs['langchain_mode'] != 'Disabled' and allow_upload and enable_text_upload):
-                            user_text_text = gr.Textbox(label='Paste Text [Shift-Enter more lines]',
-                                                        placeholder="Click Add to Submit" if
-                                                        allow_upload_to_my_data and
-                                                        allow_upload_to_user_data else
-                                                        "Enter to Submit, Shift-Enter for more lines",
-                                                        interactive=True)
-                            with gr.Row():
-                                user_text_user_btn = gr.Button(value='Add Text to Shared UserData',
-                                                               visible=allow_upload_to_user_data and allow_upload_to_my_data,
-                                                               elem_id='small_btn')
-                                user_text_my_btn = gr.Button(value='Add Text to Scratch MyData',
-                                                             visible=allow_upload_to_my_data and allow_upload_to_user_data,
-                                                             elem_id='small_btn' if allow_upload_to_user_data else None,
-                                                             size='sm' if not allow_upload_to_user_data else None)
-                        with gr.Column(visible=False):
-                            # WIP:
-                            with gr.Row(visible=False, equal_height=False):
-                                github_textbox = gr.Textbox(label="Github URL")
-                                with gr.Row(visible=True):
-                                    github_shared_btn = gr.Button(value="Add Github to Shared UserData",
-                                                                  visible=allow_upload_to_user_data,
-                                                                  elem_id='small_btn')
-                                    github_my_btn = gr.Button(value="Add Github to Scratch MyData",
-                                                              visible=allow_upload_to_my_data, elem_id='small_btn')
+                                with gr.Column(visible=kwargs['score_model']):
+                                    score_text = gr.Textbox(res_value,
+                                                            show_label=False,
+                                                            visible=True)
+                                    score_text2 = gr.Textbox("Response Score2: NA", show_label=False,
+                                                             visible=False and not kwargs['model_lock'])
+
+                with gr.TabItem("Document Listing"):
                     sources_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and enable_sources_list,
                                          equal_height=False)
                     with sources_row:
@@ -706,7 +689,13 @@ def go_gradio(**kwargs):
                             with gr.Row():
                                 s3up_btn = gr.Button("S3UP")
                                 s3up_text = gr.Textbox(label='S3UP result', interactive=False)
-                with gr.TabItem("Disclaimers"):
+
+                    dark_mode_btn = gr.Button("Dark Mode", variant="primary", size="sm")
+                    # FIXME: Could add exceptions for non-chat but still streaming
+                    exception_text = gr.Textbox(value="", visible=kwargs['chat'], label='Chat Exceptions',
+                                                interactive=False)
+
+                with gr.TabItem("Terms of Service"):
                     description = ""
                     description += """<p><b> DISCLAIMERS: </b><ul><i><li>The model was trained on The Pile and other data, which may contain objectionable content.  Use at own risk.</i></li>"""
                     if kwargs['load_8bit']:
@@ -717,10 +706,11 @@ def go_gradio(**kwargs):
                     description += """<i><li>By using h2oGPT, you accept our <a href="https://github.com/h2oai/h2ogpt/blob/main/docs/tos.md">Terms of Service</a></i></li></ul></p>"""
                     gr.Markdown(value=description, show_label=False, interactive=False)
 
-        gr.Markdown(f"""
-            {description_bottom}
-            {task_info_md}
-            """)
+                with gr.TabItem("Hosts"):
+                    gr.Markdown(f"""
+                        {description_bottom}
+                        {task_info_md}
+                        """)
 
         # Get flagged data
         zip_data1 = functools.partial(zip_data, root_dirs=['flagged_data_points', kwargs['save_dir']])
@@ -745,34 +735,29 @@ def go_gradio(**kwargs):
                 return tuple([gr.update(interactive=True)] * len(args))
 
         # Add to UserData
-        update_user_db_func = functools.partial(update_user_db,
-                                                dbs=dbs, db_type=db_type, langchain_mode='UserData',
-                                                use_openai_embedding=use_openai_embedding,
-                                                hf_embedding_model=hf_embedding_model,
-                                                enable_captions=enable_captions,
-                                                captions_model=captions_model,
-                                                enable_ocr=enable_ocr,
-                                                caption_loader=caption_loader,
-                                                verbose=kwargs['verbose'],
-                                                user_path=kwargs['user_path'],
-                                                n_jobs=kwargs['n_jobs'],
-                                                )
-        add_file_outputs = [fileup_output, langchain_mode, add_to_shared_db_btn, add_to_my_db_btn]
-        add_file_kwargs = dict(fn=update_user_db_func,
-                               inputs=[fileup_output, my_db_state, add_to_shared_db_btn,
-                                       add_to_my_db_btn,
-                                       chunk, chunk_size],
+        update_db_func = functools.partial(update_user_db,
+                                           dbs=dbs,
+                                           db_type=db_type,
+                                           use_openai_embedding=use_openai_embedding,
+                                           hf_embedding_model=hf_embedding_model,
+                                           enable_captions=enable_captions,
+                                           captions_model=captions_model,
+                                           enable_ocr=enable_ocr,
+                                           caption_loader=caption_loader,
+                                           verbose=kwargs['verbose'],
+                                           user_path=kwargs['user_path'],
+                                           n_jobs=kwargs['n_jobs'],
+                                           )
+        add_file_outputs = [fileup_output, langchain_mode]
+        add_file_kwargs = dict(fn=update_db_func,
+                               inputs=[fileup_output, my_db_state, chunk, chunk_size, langchain_mode],
                                outputs=add_file_outputs + [sources_text],
                                queue=queue,
-                               api_name='add_to_shared' if allow_api and allow_upload_to_user_data else None)
+                               api_name='add_file' if allow_api and allow_upload_to_user_data else None)
 
-        if allow_upload_to_user_data and not allow_upload_to_my_data:
-            func1 = fileup_output.change
-        else:
-            func1 = add_to_shared_db_btn.click
         # then no need for add buttons, only single changeable db
-        eventdb1a = func1(make_non_interactive, inputs=add_file_outputs, outputs=add_file_outputs,
-                          show_progress='minimal')
+        eventdb1a = fileup_output.change(make_non_interactive, inputs=add_file_outputs, outputs=add_file_outputs,
+                                         show_progress='minimal')
         eventdb1 = eventdb1a.then(**add_file_kwargs, show_progress='minimal')
         eventdb1.then(make_interactive, inputs=add_file_outputs, outputs=add_file_outputs, show_progress='minimal')
 
@@ -781,123 +766,37 @@ def go_gradio(**kwargs):
         def clear_textbox():
             return gr.Textbox.update(value='')
 
-        update_user_db_url_func = functools.partial(update_user_db_func, is_url=True)
+        update_user_db_url_func = functools.partial(update_db_func, is_url=True)
 
-        add_url_outputs = [url_text, langchain_mode, url_user_btn, url_my_btn]
+        add_url_outputs = [url_text, langchain_mode]
         add_url_kwargs = dict(fn=update_user_db_url_func,
-                              inputs=[url_text, my_db_state, url_user_btn, url_my_btn,
-                                      chunk, chunk_size],
+                              inputs=[url_text, my_db_state, chunk, chunk_size, langchain_mode],
                               outputs=add_url_outputs + [sources_text],
                               queue=queue,
-                              api_name='add_url_to_shared' if allow_api and allow_upload_to_user_data else None)
+                              api_name='add_url' if allow_api and allow_upload_to_user_data else None)
 
-        if allow_upload_to_user_data and not allow_upload_to_my_data:
-            func2 = url_text.submit
-        else:
-            func2 = url_user_btn.click
-        eventdb2a = func2(fn=dummy_fun, inputs=url_text, outputs=url_text, queue=queue,
-                          show_progress='minimal')
+        eventdb2a = url_text.submit(fn=dummy_fun, inputs=url_text, outputs=url_text, queue=queue,
+                                    show_progress='minimal')
         # work around https://github.com/gradio-app/gradio/issues/4733
         eventdb2b = eventdb2a.then(make_non_interactive, inputs=add_url_outputs, outputs=add_url_outputs,
                                    show_progress='minimal')
         eventdb2 = eventdb2b.then(**add_url_kwargs, show_progress='minimal')
         eventdb2.then(make_interactive, inputs=add_url_outputs, outputs=add_url_outputs, show_progress='minimal')
 
-        update_user_db_txt_func = functools.partial(update_user_db_func, is_txt=True)
-        add_text_outputs = [user_text_text, langchain_mode, user_text_user_btn, user_text_my_btn]
+        update_user_db_txt_func = functools.partial(update_db_func, is_txt=True)
+        add_text_outputs = [user_text_text, langchain_mode]
         add_text_kwargs = dict(fn=update_user_db_txt_func,
-                               inputs=[user_text_text, my_db_state, user_text_user_btn, user_text_my_btn,
-                                       chunk, chunk_size],
+                               inputs=[user_text_text, my_db_state, chunk, chunk_size, langchain_mode],
                                outputs=add_text_outputs + [sources_text],
                                queue=queue,
-                               api_name='add_text_to_shared' if allow_api and allow_upload_to_user_data else None
+                               api_name='add_text' if allow_api and allow_upload_to_user_data else None
                                )
-        if allow_upload_to_user_data and not allow_upload_to_my_data:
-            func3 = user_text_text.submit
-        else:
-            func3 = user_text_user_btn.click
-
-        eventdb3a = func3(fn=dummy_fun, inputs=user_text_text, outputs=user_text_text, queue=queue,
-                          show_progress='minimal')
+        eventdb3a = user_text_text.submit(fn=dummy_fun, inputs=user_text_text, outputs=user_text_text, queue=queue,
+                                          show_progress='minimal')
         eventdb3b = eventdb3a.then(make_non_interactive, inputs=add_text_outputs, outputs=add_text_outputs,
                                    show_progress='minimal')
         eventdb3 = eventdb3b.then(**add_text_kwargs, show_progress='minimal')
         eventdb3.then(make_interactive, inputs=add_text_outputs, outputs=add_text_outputs,
-                      show_progress='minimal')
-
-        update_my_db_func = functools.partial(update_user_db, dbs=dbs, db_type=db_type, langchain_mode='MyData',
-                                              use_openai_embedding=use_openai_embedding,
-                                              hf_embedding_model=hf_embedding_model,
-                                              enable_captions=enable_captions,
-                                              captions_model=captions_model,
-                                              enable_ocr=enable_ocr,
-                                              caption_loader=caption_loader,
-                                              verbose=kwargs['verbose'],
-                                              user_path=kwargs['user_path'],
-                                              n_jobs=kwargs['n_jobs'],
-                                              )
-
-        add_my_file_outputs = [fileup_output, langchain_mode, my_db_state, add_to_shared_db_btn, add_to_my_db_btn]
-        add_my_file_kwargs = dict(fn=update_my_db_func,
-                                  inputs=[fileup_output, my_db_state, add_to_shared_db_btn, add_to_my_db_btn,
-                                          chunk, chunk_size],
-                                  outputs=add_my_file_outputs + [sources_text],
-                                  queue=queue,
-                                  api_name='add_to_my' if allow_api and allow_upload_to_my_data else None)
-
-        if not allow_upload_to_user_data and allow_upload_to_my_data:
-            func4 = fileup_output.change
-        else:
-            func4 = add_to_my_db_btn.click
-
-        eventdb4a = func4(make_non_interactive, inputs=add_my_file_outputs,
-                          outputs=add_my_file_outputs,
-                          show_progress='minimal')
-        eventdb4 = eventdb4a.then(**add_my_file_kwargs, show_progress='minimal')
-        eventdb4.then(make_interactive, inputs=add_my_file_outputs, outputs=add_my_file_outputs,
-                      show_progress='minimal')
-
-        update_my_db_url_func = functools.partial(update_my_db_func, is_url=True)
-        add_my_url_outputs = [url_text, langchain_mode, my_db_state, url_user_btn, url_my_btn]
-        add_my_url_kwargs = dict(fn=update_my_db_url_func,
-                                 inputs=[url_text, my_db_state, url_user_btn, url_my_btn,
-                                         chunk, chunk_size],
-                                 outputs=add_my_url_outputs + [sources_text],
-                                 queue=queue,
-                                 api_name='add_url_to_my' if allow_api and allow_upload_to_my_data else None)
-        if not allow_upload_to_user_data and allow_upload_to_my_data:
-            func5 = url_text.submit
-        else:
-            func5 = url_my_btn.click
-        eventdb5a = func5(fn=dummy_fun, inputs=url_text, outputs=url_text, queue=queue,
-                          show_progress='minimal')
-        eventdb5b = eventdb5a.then(make_non_interactive, inputs=add_my_url_outputs, outputs=add_my_url_outputs,
-                                   show_progress='minimal')
-        eventdb5 = eventdb5b.then(**add_my_url_kwargs, show_progress='minimal')
-        eventdb5.then(make_interactive, inputs=add_my_url_outputs, outputs=add_my_url_outputs,
-                      show_progress='minimal')
-
-        update_my_db_txt_func = functools.partial(update_my_db_func, is_txt=True)
-
-        add_my_text_outputs = [user_text_text, langchain_mode, my_db_state, user_text_user_btn,
-                               user_text_my_btn]
-        add_my_text_kwargs = dict(fn=update_my_db_txt_func,
-                                  inputs=[user_text_text, my_db_state, user_text_user_btn, user_text_my_btn,
-                                          chunk, chunk_size],
-                                  outputs=add_my_text_outputs + [sources_text],
-                                  queue=queue,
-                                  api_name='add_txt_to_my' if allow_api and allow_upload_to_my_data else None)
-        if not allow_upload_to_user_data and allow_upload_to_my_data:
-            func6 = user_text_text.submit
-        else:
-            func6 = user_text_my_btn.click
-
-        eventdb6a = func6(fn=dummy_fun, inputs=user_text_text, outputs=user_text_text, queue=queue,
-                          show_progress='minimal')
-        eventdb6b = eventdb6a.then(make_non_interactive, inputs=add_my_text_outputs, outputs=add_my_text_outputs,
-                                   show_progress='minimal')
-        eventdb6 = eventdb6b.then(**add_my_text_kwargs, show_progress='minimal')
-        eventdb6.then(make_interactive, inputs=add_my_text_outputs, outputs=add_my_text_outputs,
                       show_progress='minimal')
 
         get_sources1 = functools.partial(get_sources, dbs=dbs, docs_state0=docs_state0)
@@ -911,10 +810,12 @@ def go_gradio(**kwargs):
         def update_dropdown(x):
             return gr.Dropdown.update(choices=x, value=[docs_state0[0]])
 
-        eventdb7 = get_sources_btn.click(get_sources1, inputs=[my_db_state, langchain_mode],
-                                         outputs=[file_source, docs_state],
-                                         queue=queue,
-                                         api_name='get_sources' if allow_api else None) \
+        get_sources_args = dict(fn=get_sources1, inputs=[my_db_state, langchain_mode],
+                                outputs=[file_source, docs_state],
+                                queue=queue,
+                                api_name='get_sources' if allow_api else None)
+
+        eventdb7 = get_sources_btn.click(**get_sources_args) \
             .then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
         # show button, else only show when add.  Could add to above get_sources for download/dropdown, but bit much maybe
         show_sources1 = functools.partial(get_source_files_given_langchain_mode, dbs=dbs)
@@ -1007,9 +908,6 @@ def go_gradio(**kwargs):
                                     **kwargs_evaluate
                                     )
 
-        dark_mode_btn = gr.Button("Dark Mode", variant="primary", size="sm")
-        # FIXME: Could add exceptions for non-chat but still streaming
-        exception_text = gr.Textbox(value="", visible=kwargs['chat'], label='Chat Exceptions', interactive=False)
         dark_mode_btn.click(
             None,
             None,
@@ -1028,11 +926,6 @@ def go_gradio(**kwargs):
 
         def context_fun(x):
             return gr.Textbox.update(visible=not x)
-
-        chat.select(col_nochat_fun, chat, col_nochat, api_name="chat_checkbox" if allow_api else None) \
-            .then(col_chat_fun, chat, col_chat) \
-            .then(context_fun, chat, context) \
-            .then(col_chat_fun, chat, exception_text)
 
         # examples after submit or any other buttons for chat or no chat
         if kwargs['examples'] is not None and kwargs['show_examples']:
@@ -1702,9 +1595,6 @@ def go_gradio(**kwargs):
             ret_list = chat_list + [chat_state1]
             return tuple(ret_list)
 
-        def update_radio_chats(chat_state1):
-            return gr.update(choices=list(chat_state1.keys()), value=None)
-
         def switch_chat(chat_key, chat_state1, num_model_lock=0):
             chosen_chat = chat_state1[chat_key]
             # deal with possible different size of chat list vs. current list
@@ -1731,6 +1621,8 @@ def go_gradio(**kwargs):
             chat_state1.pop(chat_key, None)
             return chat_state1
 
+        def update_radio_chats(chat_state1):
+            return gr.update(choices=list(chat_state1.keys()), value=None)
         remove_chat_btn.click(remove_chat, inputs=[radio_chats, chat_state], outputs=chat_state) \
             .then(update_radio_chats, inputs=chat_state, outputs=radio_chats)
 
@@ -1745,15 +1637,15 @@ def go_gradio(**kwargs):
         export_chats_btn.click(get_chats1, inputs=chat_state, outputs=chats_file, queue=False,
                                api_name='export_chats' if allow_api else None)
 
-        def add_chats_from_file(file, chat_state1, add_btn):
+        def add_chats_from_file(file, chat_state1, radio_chats1):
             if not file:
-                return chat_state1, add_btn
+                return chat_state1
             if isinstance(file, str):
                 files = [file]
             else:
                 files = file
             if not files:
-                return chat_state1, add_btn
+                return chat_state1
             for file1 in files:
                 try:
                     if hasattr(file1, 'name'):
@@ -1767,15 +1659,14 @@ def go_gradio(**kwargs):
                     t, v, tb = sys.exc_info()
                     ex = ''.join(traceback.format_exception(t, v, tb))
                     print("Add chats exception: %s" % str(ex), flush=True)
-            return chat_state1, add_btn
+            return None, chat_state1, gr.update(choices=list(chat_state1.keys()), value=None)
 
         # note for update_user_db_func output is ignored for db
-        add_to_chats_btn.click(add_chats_from_file,
-                               inputs=[chatsup_output, chat_state, add_to_chats_btn],
-                               outputs=[chat_state, add_to_my_db_btn], queue=False,
-                               api_name='add_to_chats' if allow_api else None) \
-            .then(clear_file_list, outputs=chatsup_output, queue=False) \
-            .then(update_radio_chats, inputs=chat_state, outputs=radio_chats, queue=False)
+        chatsup_output.change(add_chats_from_file,
+                              inputs=[chatsup_output, chat_state, radio_chats],
+                              outputs=[chatsup_output, chat_state, radio_chats],
+                              queue=False,
+                              api_name='add_to_chats' if allow_api else None)
 
         clear_chat_btn.click(fn=clear_texts,
                              inputs=[text_output, text_output2] + text_outputs,
@@ -2088,8 +1979,7 @@ def go_gradio(**kwargs):
                        cancels=submits1 + submits2 + submits3 +
                                submits4 +
                                [submit_event_nochat, submit_event_nochat2] +
-                               [eventdb1, eventdb2, eventdb3,
-                                eventdb4, eventdb5, eventdb6] +
+                               [eventdb1, eventdb2, eventdb3] +
                                [eventdb7, eventdb8, eventdb9]
                        ,
                        queue=False, api_name='stop' if allow_api else None).then(clear_torch_cache, queue=False)
@@ -2235,11 +2125,13 @@ def set_userid(db1):
         db1[1] = str(uuid.uuid4())
 
 
-def update_user_db(file, db1, x, y, *args, dbs=None, langchain_mode='UserData', **kwargs):
+def update_user_db(file, db1, chunk, chunk_size, langchain_mode='UserData', dbs=None, **kwargs):
     set_userid(db1)
 
     try:
-        return _update_user_db(file, db1, x, y, *args, dbs=dbs, langchain_mode=langchain_mode, **kwargs)
+        return _update_user_db(file, db1=db1, chunk=chunk, chunk_size=chunk_size,
+                               langchain_mode=langchain_mode, dbs=dbs,
+                               **kwargs)
     except BaseException as e:
         print(traceback.format_exc(), flush=True)
         # gradio has issues if except, so fail semi-gracefully, else would hang forever in processing textbox
@@ -2257,9 +2149,9 @@ def update_user_db(file, db1, x, y, *args, dbs=None, langchain_mode='UserData', 
         </html>
         """.format(ex_str)
         if langchain_mode == 'MyData':
-            return None, langchain_mode, db1, x, y, source_files_added
+            return None, langchain_mode, db1, source_files_added
         else:
-            return None, langchain_mode, x, y, source_files_added
+            return None, langchain_mode, source_files_added
     finally:
         clear_torch_cache()
 
@@ -2274,7 +2166,10 @@ def get_lock_file(db1, langchain_mode):
     return lock_file
 
 
-def _update_user_db(file, db1, x, y, chunk, chunk_size, dbs=None, db_type=None, langchain_mode='UserData',
+def _update_user_db(file,
+                    db1=None,
+                    chunk=None, chunk_size=None,
+                    dbs=None, db_type=None, langchain_mode='UserData',
                     user_path=None,
                     use_openai_embedding=None,
                     hf_embedding_model=None,
@@ -2285,6 +2180,9 @@ def _update_user_db(file, db1, x, y, chunk, chunk_size, dbs=None, db_type=None, 
                     verbose=None,
                     is_url=None, is_txt=None,
                     n_jobs=-1):
+    assert db1 is not None
+    assert chunk is not None
+    assert chunk_size is not None
     assert use_openai_embedding is not None
     assert hf_embedding_model is not None
     assert caption_loader is not None
@@ -2363,7 +2261,7 @@ def _update_user_db(file, db1, x, y, chunk, chunk_size, dbs=None, db_type=None, 
             if db is not None:
                 db1[0] = db
             source_files_added = get_source_files(db=db1[0], exceptions=exceptions)
-            return None, langchain_mode, db1, x, y, source_files_added
+            return None, langchain_mode, db1, source_files_added
         else:
             from gpt_langchain import get_persist_directory
             persist_directory = get_persist_directory(langchain_mode)
@@ -2381,10 +2279,10 @@ def _update_user_db(file, db1, x, y, chunk, chunk_size, dbs=None, db_type=None, 
                             hf_embedding_model=hf_embedding_model)
             dbs[langchain_mode] = db
             # NOTE we do not return db, because function call always same code path
-            # return dbs[langchain_mode], x, y
+            # return dbs[langchain_mode]
             # db in this code path is updated in place
             source_files_added = get_source_files(db=dbs[langchain_mode], exceptions=exceptions)
-            return None, langchain_mode, x, y, source_files_added
+            return None, langchain_mode, source_files_added
 
 
 def get_db(db1, langchain_mode, dbs=None):

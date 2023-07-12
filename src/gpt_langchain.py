@@ -387,7 +387,7 @@ class GradioInference(LLM):
                              top_k_docs=top_k_docs,
                              chunk=chunk,
                              chunk_size=chunk_size,
-                             document_choice=[DocumentChoices.All_Relevant.name],
+                             document_choice=[DocumentChoices.Relevant.name],
                              )
         api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
         if not stream_output:
@@ -1802,7 +1802,7 @@ def _run_qa_db(query=None,
                num_return_sequences=1,
                langchain_mode=None,
                langchain_action=None,
-               document_choice=[DocumentChoices.All_Relevant.name],
+               document_choice=[DocumentChoices.Relevant.name],
                n_jobs=-1,
                verbose=False,
                cli=False,
@@ -1980,7 +1980,7 @@ def get_similarity_chain(query=None,
                          db=None,
                          langchain_mode=None,
                          langchain_action=None,
-                         document_choice=[DocumentChoices.All_Relevant.name],
+                         document_choice=[DocumentChoices.Relevant.name],
                          n_jobs=-1,
                          # beyond run_db_query:
                          llm=None,
