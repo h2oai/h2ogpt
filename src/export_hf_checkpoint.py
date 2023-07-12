@@ -80,7 +80,7 @@ def do_export():
 
     # merge weights TODO: include all lora_target_modules, not just default ones
     if llama_type:
-        lora_model = lora_model.merge_and_unload()
+        merged_model = lora_model.merge_and_unload()
         # for layer in lora_model.base_model.model.model.layers:
         #     layer.self_attn.q_proj.merge_weights = True
         #     layer.self_attn.k_proj.merge_weights = True
@@ -90,18 +90,19 @@ def do_export():
         if any([x in BASE_MODEL.lower() for x in ["pythia", "h2ogpt", "gpt-neox"]]):
             for layer in lora_model.base_model.gpt_neox.base_model.layers:
                 layer.attention.query_key_value.merge_weights = True
+            merged_model = lora_model
         else:
-            lora_model.merge_and_unload()
+            merged_model = lora_model.merge_and_unload()
             # for layer in lora_model.base_model.transformer.base_model.h:
             #     layer.attn.q_proj.merge_weights = True
             #     layer.attn.v_proj.merge_weights = True
 
-    lora_model.train(False)
+    merged_model.train(False)
 
     # did we do anything?
     assert not torch.allclose(first_weight_old, first_weight)
 
-    lora_model_sd = lora_model.state_dict()
+    merged_model_sd = merged_model.state_dict()
 
     if as_pytorch:
         # FIXME - might not be generic enough still
@@ -173,7 +174,7 @@ def do_export():
 
 
         new_state_dict = {}
-        for k, v in lora_model_sd.items():
+        for k, v in merged_model_sd.items():
             new_k = translate_state_dict_key(k)
             if new_k is not None:
                 if "wq" in new_k or "wk" in new_k:
@@ -190,7 +191,7 @@ def do_export():
     else:
         deloreanized_sd = {
             k.replace("base_model.model.", ""): v
-            for k, v in lora_model_sd.items()
+            for k, v in merged_model_sd.items()
             if "lora" not in k
         }
         base_model.config.custom_pipelines = {
