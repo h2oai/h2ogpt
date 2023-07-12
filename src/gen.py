@@ -147,7 +147,8 @@ def main(
         # WIP:
         # visible_langchain_actions: list = langchain_actions.copy(),
         visible_langchain_actions: list = [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value],
-        document_choice: list = [DocumentChoices.Relevant.name],
+        document_subset: str = DocumentChoices.Relevant.name,
+        document_choice: list = [],
         user_path: str = None,
         detect_user_path_changes_every_query: bool = False,
         load_db_if_exists: bool = True,
@@ -293,7 +294,8 @@ def main(
            Default: If only want to consume local files, e.g. prepared by make_db.py, only include ['UserData']
            FIXME: Avoid 'All' for now, not implemented
     :param visible_langchain_actions: Which actions to allow
-    :param document_choice: Default document choice when taking subset of collection
+    :param document_subset: Default document choice when taking subset of collection
+    :param document_choice: Chosen document(s) by internal name
     :param load_db_if_exists: Whether to load chroma db if exists or re-generate db
     :param keep_sources_in_context: Whether to keep url sources in context, not helpful usually
     :param db_type: 'faiss' for in-memory or 'chroma' or 'weaviate' for persisted on disk
@@ -1258,6 +1260,7 @@ def evaluate(
         top_k_docs,
         chunk,
         chunk_size,
+        document_subset,
         document_choice,
         # END NOTE: Examples must have same order of parameters
         src_lang=None,
@@ -1474,6 +1477,7 @@ def evaluate(
                            chunk_size=chunk_size,
                            langchain_mode=langchain_mode,
                            langchain_action=langchain_action,
+                           document_subset=document_subset,
                            document_choice=document_choice,
                            db_type=db_type,
                            top_k_docs=top_k_docs,
@@ -1501,6 +1505,7 @@ def evaluate(
                               inference_server=inference_server,
                               langchain_mode=langchain_mode,
                               langchain_action=langchain_action,
+                              document_subset=document_subset,
                               document_choice=document_choice,
                               num_prompt_tokens=num_prompt_tokens,
                               instruction=instruction,
@@ -1671,7 +1676,8 @@ def evaluate(
                                      top_k_docs=top_k_docs,
                                      chunk=chunk,
                                      chunk_size=chunk_size,
-                                     document_choice=[DocumentChoices.Relevant.name],
+                                     document_subset=DocumentChoices.Relevant.name,
+                                     document_choice=[],
                                      )
                 api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
                 if not stream_output:
@@ -2247,7 +2253,7 @@ y = np.random.randint(0, 1, 100)
 
     # move to correct position
     for example in examples:
-        example += [chat, '', '', 'Disabled', LangChainAction.QUERY.value,
+        example += [chat, '', '', LangChainMode.DISABLED.value, LangChainAction.QUERY.value, [],
                     top_k_docs, chunk, chunk_size, [DocumentChoices.Relevant.name]
                     ]
         # adjust examples if non-chat mode

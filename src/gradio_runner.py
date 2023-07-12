@@ -270,11 +270,8 @@ def go_gradio(**kwargs):
         server_options_state = gr.State([server_options])
         my_db_state = gr.State([None, None])
         chat_state = gr.State({})
-        # make user default first and default choice, dedup
-        docs_state00 = kwargs['document_choice'] + [x.name for x in list(DocumentChoices)]
-        docs_state0 = []
-        [docs_state0.append(x) for x in docs_state00 if x not in docs_state0]
-        docs_state = gr.State(docs_state0)  # first is chosen as default
+        docs_state0 = kwargs['document_choice'] + ['All']
+        docs_state = gr.State(docs_state0)
         gr.Markdown(f"""
             {get_h2o_title(title, description) if kwargs['h2ocolors'] else get_simple_title(title, description)}
             """)
@@ -298,7 +295,12 @@ def go_gradio(**kwargs):
 
         normal_block = gr.Row(visible=not base_wanted, equal_height=False)
         with normal_block:
-            with gr.Column(elem_id="col_container", scale=1, min_width=100):
+            side_bar = gr.Column(elem_id="col_container", scale=1, min_width=100)
+            with side_bar:
+                with gr.Accordion("Chats", open=False, visible=True):
+                    radio_chats = gr.Radio(value=None, label="Saved Chats", show_label=False,
+                                           visible=True, interactive=True,
+                                           type='value')
                 upload_visible = kwargs['langchain_mode'] != 'Disabled' and allow_upload
                 with gr.Accordion("Upload", open=False, visible=upload_visible):
                     with gr.Column():
@@ -341,7 +343,7 @@ def go_gradio(**kwargs):
                         [x for x in langchain_modes if x in allowed_modes and x not in no_show_modes],
                         value=kwargs['langchain_mode'],
                         label="Collections",
-                        show_label=False,
+                        show_label=True,
                         visible=kwargs['langchain_mode'] != 'Disabled',
                         min_width=100)
                     allowed_actions = [x for x in langchain_actions if x in visible_langchain_actions]
@@ -350,17 +352,11 @@ def go_gradio(**kwargs):
                         value=allowed_actions[0] if len(allowed_actions) > 0 else None,
                         label="Data Action",
                         visible=True)
-                    document_choice = gr.Dropdown(docs_state.value,
-                                                  label="Subset",
-                                                  value=docs_state.value[0],
-                                                  interactive=True,
-                                                  multiselect=True,
-                                                  )
-                    sources_visible = kwargs['langchain_mode'] != 'Disabled' and enable_sources_list
-                    get_sources_btn = gr.Button(value="Get Sources", scale=0, size='sm', visible=sources_visible)
-                    show_sources_btn = gr.Button(value="Show Sources", scale=0, size='sm', visible=sources_visible)
-                    refresh_sources_btn = gr.Button(value="Refresh Sources", scale=0, size='sm',
-                                                    visible=sources_visible)
+                    document_subset = gr.Radio([x.name for x in DocumentChoices],
+                                               label="Subset",
+                                               value=DocumentChoices.Relevant.name,
+                                               interactive=True,
+                                               )
             with (gr.Column(elem_id="col_container", scale=10), gr.Tabs()):
                 with gr.TabItem("Chat"):
                     if kwargs['langchain_mode'] == 'Disabled':
@@ -402,7 +398,8 @@ def go_gradio(**kwargs):
                                         elem_id='prompt-form',
                                         container=True,
                                     )
-                                with gr.Row(equal_height=False):
+                                submit_buttons = gr.Row(equal_height=False)
+                                with submit_buttons:
                                     mw1 = 50
                                     mw2 = 50
                                     with gr.Column(min_width=mw1):
@@ -414,7 +411,7 @@ def go_gradio(**kwargs):
                                     with gr.Column(min_width=mw2):
                                         retry_btn = gr.Button("Redo", size='sm', min_width=mw2)
                                         undo = gr.Button("Undo", size='sm', min_width=mw2)
-                                        flag_btn = gr.Button("Flag", size='sm', min_width=mw2)
+                                        clear_chat_btn = gr.Button(value="Clear", size='sm', min_width=mw2)
                             text_output, text_output2, text_outputs = make_chatbots(output_label0, output_label0_model2,
                                                                                     **kwargs)
 
@@ -426,7 +423,21 @@ def go_gradio(**kwargs):
                                     score_text2 = gr.Textbox("Response Score2: NA", show_label=False,
                                                              visible=False and not kwargs['model_lock'])
 
-                with gr.TabItem("Document Listing"):
+                with gr.TabItem("Document Selection"):
+                    document_choice = gr.Dropdown(docs_state0,
+                                                  label="Document(s)",
+                                                  value='All',
+                                                  interactive=True,
+                                                  multiselect=True,
+                                                  )
+                    sources_visible = kwargs['langchain_mode'] != 'Disabled' and enable_sources_list
+                    with gr.Row():
+                        get_sources_btn = gr.Button(value="Update Document(s) from DB", scale=0, size='sm',
+                                                    visible=sources_visible)
+                        show_sources_btn = gr.Button(value="Show Listing", scale=0, size='sm', visible=sources_visible)
+                        refresh_sources_btn = gr.Button(value="Refresh UserData from Disk", scale=0, size='sm',
+                                                        visible=sources_visible and allow_upload_to_user_data)
+
                     sources_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and enable_sources_list,
                                          equal_height=False)
                     with sources_row:
@@ -438,19 +449,13 @@ def go_gradio(**kwargs):
 
                 with gr.TabItem("Chat History"):
                     with gr.Row():
-                        if 'mbart-' in kwargs['model_lower']:
-                            src_lang = gr.Dropdown(list(languages_covered().keys()),
-                                                   value=kwargs['src_lang'],
-                                                   label="Input Language")
-                            tgt_lang = gr.Dropdown(list(languages_covered().keys()),
-                                                   value=kwargs['tgt_lang'],
-                                                   label="Output Language")
-                    radio_chats = gr.Radio(value=None, label="Saved Chats", visible=True, interactive=True,
-                                           type='value')
+                        with gr.Column(scale=1):
+                            remove_chat_btn = gr.Button(value="Remove Selected Saved Chats", visible=True, size='sm')
+                            flag_btn = gr.Button("Flag Current Chat", size='sm')
+                        with gr.Column(scale=4):
+                            pass
                     with gr.Row():
-                        clear_chat_btn = gr.Button(value="Clear Chat", visible=True, size='sm')
                         export_chats_btn = gr.Button(value="Export Chats to Download", size='sm')
-                        remove_chat_btn = gr.Button(value="Remove Selected Chat", visible=True, size='sm')
                         add_to_chats_btn = gr.Button("Import Chats from Upload", size='sm')
                     with gr.Row():
                         chats_file = gr.File(interactive=False, label="Download Exported Chats")
@@ -458,6 +463,14 @@ def go_gradio(**kwargs):
                                                  file_types=['.json'],
                                                  file_count='multiple',
                                                  elem_id="warning", elem_classes="feedback")
+                    with gr.Row():
+                        if 'mbart-' in kwargs['model_lower']:
+                            src_lang = gr.Dropdown(list(languages_covered().keys()),
+                                                   value=kwargs['src_lang'],
+                                                   label="Input Language")
+                            tgt_lang = gr.Dropdown(list(languages_covered().keys()),
+                                                   value=kwargs['tgt_lang'],
+                                                   label="Output Language")
 
                 with gr.TabItem("Expert"):
                     with gr.Row():
@@ -537,7 +550,7 @@ def go_gradio(**kwargs):
                                                  info="Directly pre-appended without prompt processing",
                                                  interactive=not is_public)
                             chat = gr.components.Checkbox(label="Chat mode", value=kwargs['chat'],
-                                                          visible=not kwargs['model_lock'],
+                                                          visible=False,  # no longer support nochat in UI
                                                           interactive=not is_public,
                                                           )
                             count_chat_tokens_btn = gr.Button(value="Count Chat Tokens",
@@ -663,8 +676,17 @@ def go_gradio(**kwargs):
                 with gr.TabItem("System"):
                     admin_row = gr.Row()
                     with admin_row:
-                        admin_pass_textbox = gr.Textbox(label="Admin Password", type='password', visible=is_public)
-                        admin_btn = gr.Button(value="Admin Access", visible=is_public)
+                        with gr.Column(scale=1):
+                            side_bar_text = gr.Textbox('on', visible=False, interactive=False)
+                            submit_buttons_text = gr.Textbox('on', visible=False, interactive=False)
+
+                            side_bar_btn = gr.Button("Toggle SideBar", variant="secondary", size="sm")
+                            submit_buttons_btn = gr.Button("Toggle Submit Buttons", variant="secondary", size="sm")
+                            dark_mode_btn = gr.Button("Dark Mode", variant="secondary", size="sm")
+                            admin_pass_textbox = gr.Textbox(label="Admin Password", type='password', visible=is_public)
+                            admin_btn = gr.Button(value="Admin Access", visible=is_public, size='sm')
+                        with gr.Column(scale=4):
+                            pass
                     system_row = gr.Row(visible=not is_public)
                     with system_row:
                         with gr.Column():
@@ -690,7 +712,6 @@ def go_gradio(**kwargs):
                                 s3up_btn = gr.Button("S3UP")
                                 s3up_text = gr.Textbox(label='S3UP result', interactive=False)
 
-                    dark_mode_btn = gr.Button("Dark Mode", variant="primary", size="sm")
                     # FIXME: Could add exceptions for non-chat but still streaming
                     exception_text = gr.Textbox(value="", visible=kwargs['chat'], label='Chat Exceptions',
                                                 interactive=False)
@@ -803,7 +824,7 @@ def go_gradio(**kwargs):
 
         # if change collection source, must clear doc selections from it to avoid inconsistency
         def clear_doc_choice():
-            return gr.Dropdown.update(choices=docs_state0, value=[docs_state0[0]])
+            return gr.Dropdown.update(choices=[], value=None)
 
         langchain_mode.change(clear_doc_choice, inputs=None, outputs=document_choice)
 
@@ -917,15 +938,19 @@ def go_gradio(**kwargs):
             queue=False,
         )
 
-        # Control chat and non-chat blocks, which can be independently used by chat checkbox swap
-        def col_nochat_fun(x):
-            return gr.Column.update(visible=not x)
+        def visible_toggle(x):
+            x = 'off' if x == 'on' else 'on'
+            return x, gr.Column.update(visible=True if x == 'on' else False)
 
-        def col_chat_fun(x):
-            return gr.Column.update(visible=bool(x))
+        side_bar_btn.click(fn=visible_toggle,
+                           inputs=side_bar_text,
+                           outputs=[side_bar_text, side_bar],
+                           queue=False)
 
-        def context_fun(x):
-            return gr.Textbox.update(visible=not x)
+        submit_buttons_btn.click(fn=visible_toggle,
+                                 inputs=submit_buttons_text,
+                                 outputs=[submit_buttons_text, submit_buttons],
+                                 queue=False)
 
         # examples after submit or any other buttons for chat or no chat
         if kwargs['examples'] is not None and kwargs['show_examples']:
@@ -1046,6 +1071,7 @@ def go_gradio(**kwargs):
             prompt_type1 = args_list[eval_func_param_names.index('prompt_type')]
             langchain_mode1 = args_list[eval_func_param_names.index('langchain_mode')]
             langchain_action1 = args_list[eval_func_param_names.index('langchain_action')]
+            document_subset1 = args_list[eval_func_param_names.index('document_subset')]
             document_choice1 = args_list[eval_func_param_names.index('document_choice')]
             if not prompt_type1:
                 # shouldn't have to specify if CLI launched model
@@ -1078,7 +1104,7 @@ def go_gradio(**kwargs):
                 return history
             if user_message1 in ['', None, '\n']:
                 if langchain_action1 in LangChainAction.QUERY.value and \
-                        DocumentChoices.Only_All_Sources.name not in document_choice1 \
+                        DocumentChoices.All.name != document_subset1 \
                         or \
                         langchain_mode1 in [LangChainMode.CHAT_LLM.value, LangChainMode.LLM.value]:
                     # reject non-retry submit/enter
@@ -1141,6 +1167,7 @@ def go_gradio(**kwargs):
             args_list = args_list[:-3]  # only keep rest needed for evaluate()
             langchain_mode1 = args_list[eval_func_param_names.index('langchain_mode')]
             langchain_action1 = args_list[eval_func_param_names.index('langchain_action')]
+            document_subset1 = args_list[eval_func_param_names.index('document_subset')]
             document_choice1 = args_list[eval_func_param_names.index('document_choice')]
             if not history:
                 print("No history", flush=True)
@@ -1153,7 +1180,7 @@ def go_gradio(**kwargs):
                 history[-1][1] = None
             elif not instruction1:
                 if langchain_action1 in LangChainAction.QUERY.value and \
-                        DocumentChoices.Only_All_Sources.name not in document_choice1 \
+                        DocumentChoices.All.name != document_choice1 \
                         or \
                         langchain_mode1 in [LangChainMode.CHAT_LLM.value, LangChainMode.LLM.value]:
                     # if not retrying, then reject empty query
@@ -1623,6 +1650,7 @@ def go_gradio(**kwargs):
 
         def update_radio_chats(chat_state1):
             return gr.update(choices=list(chat_state1.keys()), value=None)
+
         remove_chat_btn.click(remove_chat, inputs=[radio_chats, chat_state], outputs=chat_state) \
             .then(update_radio_chats, inputs=chat_state, outputs=radio_chats)
 

@@ -387,7 +387,8 @@ class GradioInference(LLM):
                              top_k_docs=top_k_docs,
                              chunk=chunk,
                              chunk_size=chunk_size,
-                             document_choice=[DocumentChoices.Relevant.name],
+                             document_subset=DocumentChoices.Relevant.name,
+                             document_choice=[],
                              )
         api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
         if not stream_output:
@@ -1802,7 +1803,8 @@ def _run_qa_db(query=None,
                num_return_sequences=1,
                langchain_mode=None,
                langchain_action=None,
-               document_choice=[DocumentChoices.Relevant.name],
+               document_subset=DocumentChoices.Relevant.name,
+               document_choice=[],
                n_jobs=-1,
                verbose=False,
                cli=False,
@@ -1873,19 +1875,13 @@ def _run_qa_db(query=None,
     if isinstance(document_choice, str):
         # support string as well
         document_choice = [document_choice]
-    # get first DocumentChoices as command to use, ignore others
-    doc_choices_set = set([x.name for x in list(DocumentChoices)])
-    cmd = [x for x in document_choice if x in doc_choices_set]
-    cmd = None if len(cmd) == 0 else cmd[0]
-    # now have cmd, filter out for only docs
-    document_choice = [x for x in document_choice if x not in doc_choices_set]
 
     func_names = list(inspect.signature(get_similarity_chain).parameters)
     sim_kwargs = {k: v for k, v in locals().items() if k in func_names}
     missing_kwargs = [x for x in func_names if x not in sim_kwargs]
     assert not missing_kwargs, "Missing: %s" % missing_kwargs
     docs, chain, scores, use_context, have_any_docs = get_similarity_chain(**sim_kwargs)
-    if cmd in non_query_commands:
+    if document_subset in non_query_commands:
         formatted_doc_chunks = '\n\n'.join([get_url(x) + '\n\n' + x.page_content for x in docs])
         yield formatted_doc_chunks, ''
         return
@@ -1980,7 +1976,8 @@ def get_similarity_chain(query=None,
                          db=None,
                          langchain_mode=None,
                          langchain_action=None,
-                         document_choice=[DocumentChoices.Relevant.name],
+                         document_subset=DocumentChoices.Relevant.name,
+                         document_choice=[],
                          n_jobs=-1,
                          # beyond run_db_query:
                          llm=None,
@@ -2109,10 +2106,10 @@ def get_similarity_chain(query=None,
             else:
                 # shouldn't reach
                 filter_kwargs = {}
-        if cmd == DocumentChoices.Just_LLM.name:
+        if langchain_mode in [LangChainMode.LLM.value, LangChainMode.CHAT_LLM.value]:
             docs = []
             scores = []
-        elif cmd == DocumentChoices.Only_All_Sources.name or query in [None, '', '\n']:
+        elif cmd == DocumentChoices.All.name or query in [None, '', '\n']:
             db_documents, db_metadatas = get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs)
             # similar to langchain's chroma's _results_to_docs_and_scores
             docs_with_score = [(Document(page_content=result[0], metadata=result[1] or {}), 0)

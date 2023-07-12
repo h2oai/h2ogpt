@@ -23,7 +23,8 @@ def run_cli(  # for local function:
         max_new_tokens=None, min_new_tokens=None, early_stopping=None, max_time=None, repetition_penalty=None,
         num_return_sequences=None, do_sample=None, chat=None,
         langchain_mode=None, langchain_action=None,
-        document_choice=None, top_k_docs=None, chunk=None, chunk_size=None,
+        document_subset=None, document_choice=None,
+        top_k_docs=None, chunk=None, chunk_size=None,
         # for evaluate kwargs
         src_lang=None, tgt_lang=None, concurrency_count=None, save_dir=None, sanitize_bot_response=None,
         model_state0=None,

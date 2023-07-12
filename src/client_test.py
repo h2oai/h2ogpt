@@ -98,7 +98,8 @@ def get_args(prompt, prompt_type, chat=False, stream_output=False,
                          top_k_docs=top_k_docs,
                          chunk=True,
                          chunk_size=512,
-                         document_choice=[DocumentChoices.Relevant.name],
+                         document_subset=DocumentChoices.Relevant.name,
+                         document_choice=[],
                          )
     from evaluate_params import eval_func_param_names
     assert len(set(eval_func_param_names).difference(set(list(kwargs.keys())))) == 0
@@ -203,7 +204,8 @@ def run_client_nochat_api_lean_morestuff(prompt, prompt_type='human_bot', max_ne
         langchain_mode='Disabled',
         langchain_action=LangChainAction.QUERY.value,
         top_k_docs=4,
-        document_choice=['All'],
+        document_subset=DocumentChoices.Relevant.name,
+        document_choice=[],
     )
 
     api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
