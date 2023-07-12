@@ -974,7 +974,7 @@ def add_meta(docs1, file):
 
 
 def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
-                chunk=True, chunk_size=512,
+                chunk=True, chunk_size=512, n_jobs=-1,
                 is_url=False, is_txt=False,
                 enable_captions=True,
                 captions_model=None,
@@ -1209,6 +1209,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
 
 def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True,
                  chunk=True, chunk_size=512,
+                 n_jobs=-1,
                  is_url=False, is_txt=False,
                  enable_captions=True,
                  captions_model=None,
@@ -1225,6 +1226,7 @@ def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True
         # don't pass base_path=path, would infinitely recurse
         res = file_to_doc(file, base_path=None, verbose=verbose, fail_any_exception=fail_any_exception,
                           chunk=chunk, chunk_size=chunk_size,
+                          n_jobs=n_jobs,
                           is_url=is_url, is_txt=is_txt,
                           enable_captions=enable_captions,
                           captions_model=captions_model,
@@ -1327,6 +1329,7 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
     kwargs = dict(verbose=verbose, fail_any_exception=fail_any_exception,
                   return_file=return_file,
                   chunk=chunk, chunk_size=chunk_size,
+                  n_jobs=n_jobs,
                   is_url=is_url,
                   is_txt=is_txt,
                   enable_captions=enable_captions,
@@ -2094,6 +2097,7 @@ def get_chain(query=None,
             # only chroma supports filtering
             filter_kwargs = {}
         else:
+            assert document_choice is not None, "Document choice was None"
             # if here then some cmd + documents selected or just documents selected
             if len(document_choice) >= 2:
                 or_filter = [{"source": {"$eq": x}} for x in document_choice]
