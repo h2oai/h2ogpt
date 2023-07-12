@@ -305,7 +305,7 @@ def go_gradio(**kwargs):
                 with gr.Accordion("Upload", open=False, visible=upload_visible):
                     with gr.Column():
                         with gr.Row(equal_height=False):
-                            file_types_str = '[' + ' '.join(file_types) + ']'
+                            file_types_str = '[' + ' '.join(file_types) + ' URL TEXT' + ']'
                             fileup_output = gr.File(label=f'Upload {file_types_str}',
                                                     show_label=False,
                                                     file_types=file_types,
@@ -425,7 +425,7 @@ def go_gradio(**kwargs):
 
                 with gr.TabItem("Document Selection"):
                     document_choice = gr.Dropdown(docs_state0,
-                                                  label="Document(s)",
+                                                  label="Document(s) %s" % file_types_str,
                                                   value='All',
                                                   interactive=True,
                                                   multiselect=True,
@@ -735,10 +735,10 @@ def go_gradio(**kwargs):
 
         # Get flagged data
         zip_data1 = functools.partial(zip_data, root_dirs=['flagged_data_points', kwargs['save_dir']])
-        zip_btn.click(zip_data1, inputs=None, outputs=[file_output, zip_text], queue=False,
-                      api_name='zip_data' if allow_api else None)
-        s3up_btn.click(s3up, inputs=zip_text, outputs=s3up_text, queue=False,
-                       api_name='s3up_data' if allow_api else None)
+        zip_event = zip_btn.click(zip_data1, inputs=None, outputs=[file_output, zip_text], queue=False,
+                                  api_name='zip_data' if allow_api else None)
+        s3up_event = s3up_btn.click(s3up, inputs=zip_text, outputs=s3up_text, queue=False,
+                                    api_name='s3up_data' if allow_api else None)
 
         def clear_file_list():
             return None
@@ -780,7 +780,8 @@ def go_gradio(**kwargs):
         eventdb1a = fileup_output.change(make_non_interactive, inputs=add_file_outputs, outputs=add_file_outputs,
                                          show_progress='minimal')
         eventdb1 = eventdb1a.then(**add_file_kwargs, show_progress='full')
-        eventdb1.then(make_interactive, inputs=add_file_outputs, outputs=add_file_outputs, show_progress='minimal')
+        eventdb1b = eventdb1.then(make_interactive, inputs=add_file_outputs, outputs=add_file_outputs,
+                                  show_progress='minimal')
 
         # note for update_user_db_func output is ignored for db
 
@@ -802,7 +803,8 @@ def go_gradio(**kwargs):
         eventdb2b = eventdb2a.then(make_non_interactive, inputs=add_url_outputs, outputs=add_url_outputs,
                                    show_progress='minimal')
         eventdb2 = eventdb2b.then(**add_url_kwargs, show_progress='minimal')
-        eventdb2.then(make_interactive, inputs=add_url_outputs, outputs=add_url_outputs, show_progress='minimal')
+        eventdb2c = eventdb2.then(make_interactive, inputs=add_url_outputs, outputs=add_url_outputs,
+                                  show_progress='minimal')
 
         update_user_db_txt_func = functools.partial(update_db_func, is_txt=True)
         add_text_outputs = [user_text_text, langchain_mode]
@@ -817,8 +819,11 @@ def go_gradio(**kwargs):
         eventdb3b = eventdb3a.then(make_non_interactive, inputs=add_text_outputs, outputs=add_text_outputs,
                                    show_progress='minimal')
         eventdb3 = eventdb3b.then(**add_text_kwargs, show_progress='minimal')
-        eventdb3.then(make_interactive, inputs=add_text_outputs, outputs=add_text_outputs,
-                      show_progress='minimal')
+        eventdb3c = eventdb3.then(make_interactive, inputs=add_text_outputs, outputs=add_text_outputs,
+                                  show_progress='minimal')
+        db_events = [eventdb1a, eventdb1, eventdb1b,
+                     eventdb2a, eventdb2, eventdb2b, eventdb2c,
+                     eventdb3a, eventdb3b, eventdb3, eventdb3c]
 
         get_sources1 = functools.partial(get_sources, dbs=dbs, docs_state0=docs_state0)
 
@@ -826,7 +831,7 @@ def go_gradio(**kwargs):
         def clear_doc_choice():
             return gr.Dropdown.update(choices=[], value=None)
 
-        langchain_mode.change(clear_doc_choice, inputs=None, outputs=document_choice)
+        langchain_mode.change(clear_doc_choice, inputs=None, outputs=document_choice, queue=False)
 
         def update_dropdown(x):
             return gr.Dropdown.update(choices=x, value=[docs_state0[0]])
@@ -1646,13 +1651,11 @@ def go_gradio(**kwargs):
 
         def remove_chat(chat_key, chat_state1):
             chat_state1.pop(chat_key, None)
-            return chat_state1
+            return chat_state1, gr.update(choices=list(chat_state1.keys()), value=None)
 
-        def update_radio_chats(chat_state1):
-            return gr.update(choices=list(chat_state1.keys()), value=None)
-
-        remove_chat_btn.click(remove_chat, inputs=[radio_chats, chat_state], outputs=chat_state) \
-            .then(update_radio_chats, inputs=chat_state, outputs=radio_chats)
+        remove_chat_event = remove_chat_btn.click(remove_chat,
+                                                  inputs=[radio_chats, chat_state], outputs=[radio_chats, chat_state],
+                                                  queue=False)
 
         def get_chats1(chat_state1):
             base = 'chats'
@@ -1662,8 +1665,8 @@ def go_gradio(**kwargs):
                 f.write(json.dumps(chat_state1, indent=2))
             return filename
 
-        export_chats_btn.click(get_chats1, inputs=chat_state, outputs=chats_file, queue=False,
-                               api_name='export_chats' if allow_api else None)
+        export_chat_event = export_chats_btn.click(get_chats1, inputs=chat_state, outputs=chats_file, queue=False,
+                                                   api_name='export_chats' if allow_api else None)
 
         def add_chats_from_file(file, chat_state1, radio_chats1):
             if not file:
@@ -1690,24 +1693,26 @@ def go_gradio(**kwargs):
             return None, chat_state1, gr.update(choices=list(chat_state1.keys()), value=None)
 
         # note for update_user_db_func output is ignored for db
-        chatsup_output.change(add_chats_from_file,
-                              inputs=[chatsup_output, chat_state, radio_chats],
-                              outputs=[chatsup_output, chat_state, radio_chats],
-                              queue=False,
-                              api_name='add_to_chats' if allow_api else None)
+        chatup_change_event = chatsup_output.change(add_chats_from_file,
+                                                    inputs=[chatsup_output, chat_state, radio_chats],
+                                                    outputs=[chatsup_output, chat_state, radio_chats],
+                                                    queue=False,
+                                                    api_name='add_to_chats' if allow_api else None)
 
-        clear_chat_btn.click(fn=clear_texts,
-                             inputs=[text_output, text_output2] + text_outputs,
-                             outputs=[text_output, text_output2] + text_outputs,
-                             queue=False, api_name='clear' if allow_api else None) \
+        clear_chat_event = clear_chat_btn.click(fn=clear_texts,
+                                                inputs=[text_output, text_output2] + text_outputs,
+                                                outputs=[text_output, text_output2] + text_outputs,
+                                                queue=False, api_name='clear' if allow_api else None) \
             .then(deselect_radio_chats, inputs=None, outputs=radio_chats, queue=False) \
             .then(clear_scores, outputs=[score_text, score_text2, score_text_nochat])
 
-        # does both models
-        clear.click(save_chat,
-                    inputs=[text_output, text_output2] + text_outputs + [chat_state],
-                    outputs=[text_output, text_output2] + text_outputs + [chat_state],
-                    api_name='save_chat' if allow_api else None) \
+        def update_radio_chats(chat_state1):
+            return gr.update(choices=list(chat_state1.keys()), value=None)
+
+        clear_event = clear.click(save_chat,
+                                  inputs=[text_output, text_output2] + text_outputs + [chat_state],
+                                  outputs=[text_output, text_output2] + text_outputs + [chat_state],
+                                  api_name='save_chat' if allow_api else None) \
             .then(update_radio_chats, inputs=chat_state, outputs=radio_chats,
                   api_name='update_chats' if allow_api else None) \
             .then(clear_scores, outputs=[score_text, score_text2, score_text_nochat])
@@ -1838,8 +1843,8 @@ def go_gradio(**kwargs):
 
         get_prompt_str_func1 = functools.partial(get_prompt_str, which=1)
         get_prompt_str_func2 = functools.partial(get_prompt_str, which=2)
-        prompt_type.change(fn=get_prompt_str_func1, inputs=[prompt_type, prompt_dict], outputs=prompt_dict)
-        prompt_type2.change(fn=get_prompt_str_func2, inputs=[prompt_type2, prompt_dict2], outputs=prompt_dict2)
+        prompt_type.change(fn=get_prompt_str_func1, inputs=[prompt_type, prompt_dict], outputs=prompt_dict, queue=False)
+        prompt_type2.change(fn=get_prompt_str_func2, inputs=[prompt_type2, prompt_dict2], outputs=prompt_dict2, queue=False)
 
         def dropdown_prompt_type_list(x):
             return gr.Dropdown.update(value=x)
@@ -1857,12 +1862,12 @@ def go_gradio(**kwargs):
         prompt_update_args = dict(fn=dropdown_prompt_type_list, inputs=prompt_type, outputs=prompt_type)
         chatbot_update_args = dict(fn=chatbot_list, inputs=[text_output, model_used], outputs=text_output)
         nochat_update_args = dict(fn=chatbot_list, inputs=[text_output_nochat, model_used], outputs=text_output_nochat)
-        if not is_public:
-            load_model_event = load_model_button.click(**load_model_args, api_name='load_model' if allow_api else None) \
-                .then(**prompt_update_args) \
-                .then(**chatbot_update_args) \
-                .then(**nochat_update_args) \
-                .then(clear_torch_cache)
+        load_model_event = load_model_button.click(**load_model_args,
+                                                   api_name='load_model' if allow_api and is_public else None) \
+            .then(**prompt_update_args) \
+            .then(**chatbot_update_args) \
+            .then(**nochat_update_args) \
+            .then(clear_torch_cache)
 
         load_model_args2 = dict(fn=load_model,
                                 inputs=[model_choice2, lora_choice2, server_choice2, model_state2, prompt_type2,
@@ -1873,12 +1878,11 @@ def go_gradio(**kwargs):
                                          ])
         prompt_update_args2 = dict(fn=dropdown_prompt_type_list, inputs=prompt_type2, outputs=prompt_type2)
         chatbot_update_args2 = dict(fn=chatbot_list, inputs=[text_output2, model_used2], outputs=text_output2)
-        if not is_public:
-            load_model_event2 = load_model_button2.click(**load_model_args2,
-                                                         api_name='load_model2' if allow_api else None) \
-                .then(**prompt_update_args2) \
-                .then(**chatbot_update_args2) \
-                .then(clear_torch_cache)
+        load_model_event2 = load_model_button2.click(**load_model_args2,
+                                                     api_name='load_model2' if allow_api and is_public else None) \
+            .then(**prompt_update_args2) \
+            .then(**chatbot_update_args2) \
+            .then(clear_torch_cache)
 
         def dropdown_model_lora_server_list(model_list0, model_x,
                                             lora_list0, lora_x,
@@ -1927,7 +1931,8 @@ def go_gradio(**kwargs):
                                                         server_options_state],
                                                queue=False)
 
-        go_btn.click(lambda: gr.update(visible=False), None, go_btn, api_name="go" if allow_api else None, queue=False) \
+        go_event = go_btn.click(lambda: gr.update(visible=False), None, go_btn, api_name="go" if allow_api else None,
+                                queue=False) \
             .then(lambda: gr.update(visible=True), None, normal_block, queue=False) \
             .then(**load_model_args, queue=False).then(**prompt_update_args, queue=False)
 
@@ -1995,22 +2000,11 @@ def go_gradio(**kwargs):
         def get_hash():
             return kwargs['git_hash']
 
-        system_btn3.click(get_hash,
-                          outputs=system_text3,
-                          api_name='system_hash' if allow_api else None,
-                          queue=False,
-                          )
-
-        # don't pass text_output, don't want to clear output, just stop it
-        # cancel only stops outer generation, not inner generation or non-generation
-        stop_btn.click(lambda: None, None, None,
-                       cancels=submits1 + submits2 + submits3 +
-                               submits4 +
-                               [submit_event_nochat, submit_event_nochat2] +
-                               [eventdb1, eventdb2, eventdb3] +
-                               [eventdb7, eventdb8, eventdb9]
-                       ,
-                       queue=False, api_name='stop' if allow_api else None).then(clear_torch_cache, queue=False)
+        system_event = system_btn3.click(get_hash,
+                                         outputs=system_text3,
+                                         api_name='system_hash' if allow_api else None,
+                                         queue=False,
+                                         )
 
         def count_chat_tokens(model_state1, chat1, prompt_type1, prompt_dict1,
                               memory_restriction_level1=0,
@@ -2038,9 +2032,25 @@ def go_gradio(**kwargs):
         count_chat_tokens_func = functools.partial(count_chat_tokens,
                                                    memory_restriction_level1=memory_restriction_level,
                                                    keep_sources_in_context1=kwargs['keep_sources_in_context'])
-        count_chat_tokens_btn.click(fn=count_chat_tokens,
-                                    inputs=[model_state, text_output, prompt_type, prompt_dict],
-                                    outputs=chat_token_count, api_name='count_tokens' if allow_api else None)
+        count_tokens_event = count_chat_tokens_btn.click(fn=count_chat_tokens,
+                                                         inputs=[model_state, text_output, prompt_type, prompt_dict],
+                                                         outputs=chat_token_count,
+                                                         api_name='count_tokens' if allow_api else None)
+
+        # don't pass text_output, don't want to clear output, just stop it
+        # cancel only stops outer generation, not inner generation or non-generation
+        stop_btn.click(lambda: None, None, None,
+                       cancels=submits1 + submits2 + submits3 + submits4 +
+                               [submit_event_nochat, submit_event_nochat2] +
+                               [eventdb1, eventdb2, eventdb3] +
+                               [eventdb7, eventdb8, eventdb9] +
+                               db_events +
+                               [clear_event] +
+                               [submit_event_nochat_api, submit_event_nochat] +
+                               [load_model_event, load_model_event2] +
+                               [count_tokens_event]
+                       ,
+                       queue=False, api_name='stop' if allow_api else None).then(clear_torch_cache, queue=False)
 
         demo.load(None, None, None, _js=get_dark_js() if kwargs['h2ocolors'] and False else None)  # light best
 
