@@ -4,34 +4,24 @@ import shutil
 import subprocess
 
 import torch
+from accelerate import infer_auto_device_map, dispatch_model
+from accelerate.utils import get_balanced_memory
 from peft import PeftModel
 from transformers import PreTrainedModel
 
 
 def do_export():
-
-    BASE_MODEL = 'h2oai/h2ogpt-oasst1-512-12b'
-    LORA_WEIGHTS = 'h2ogpt-oasst1-512-12b.h2oaih2ogpt-oig-oasst1-instruct-cleaned-v3.1_epochs.805b8e8eff369207340a5a6f90f3c833f9731254.2'
-    OUTPUT_NAME = "h2ogpt-oig-oasst1-512-12b"
-
-    BASE_MODEL = 'EleutherAI/pythia-12b-deduped'
-    LORA_WEIGHTS = 'pythia-12b-deduped.h2oaiopenassistant_oasst1_h2ogpt_graded.3_epochs.2ccf687ea3f3f3775a501838e81c1a0066430455.4'
-    OUTPUT_NAME = "h2ogpt-oasst1-512-12b"
-
     BASE_MODEL = 'tiiuae/falcon-40b'
     LORA_WEIGHTS = 'falcon-40b.h2oaiopenassistant_oasst1_h2ogpt.1_epochs.894d8450d35c180cd03222a45658d04c15b78d4b.9'
     OUTPUT_NAME = "h2ogpt-oasst1-2048-falcon-40b"
 
-    # BASE_MODEL = 'decapoda-research/llama-65b-hf'
-    # LORA_WEIGHTS = 'llama-65b-hf.h2oaiopenassistant_oasst1_h2ogpt_graded.1_epochs.113510499324f0f007cbec9d9f1f8091441f2469.3'
-    # OUTPUT_NAME = "h2ogpt-research-oasst1-llama-65b"
-
-    model = os.getenv('MODEL')
+    base_model = os.getenv('BASE_MODEL')
+    output = os.getenv('MODEL')
     # for testing
-    if model:
-        BASE_MODEL = 'tiiuae/falcon-7b'
-        LORA_WEIGHTS = model + ".lora"
-        OUTPUT_NAME = model
+    if base_model and output:
+        BASE_MODEL = base_model
+        LORA_WEIGHTS = output + ".lora"
+        OUTPUT_NAME = output
 
     llama_type = "llama" in BASE_MODEL
     as_pytorch = False  # False -> HF
@@ -87,7 +77,7 @@ def do_export():
         #     layer.self_attn.v_proj.merge_weights = True
         #     layer.self_attn.o_proj.merge_weights = True
     else:
-        if any([x in BASE_MODEL.lower() for x in ["pythia", "h2ogpt", "gpt-neox"]]):
+        if any([x in BASE_MODEL.lower() for x in ["pythia", "gpt-neox"]]):
             for layer in lora_model.base_model.gpt_neox.base_model.layers:
                 layer.attention.query_key_value.merge_weights = True
             merged_model = lora_model
@@ -97,7 +87,14 @@ def do_export():
             #     layer.attn.q_proj.merge_weights = True
             #     layer.attn.v_proj.merge_weights = True
 
-    merged_model.train(False)
+    # max_memory = get_balanced_memory(merged_model)
+    # device_map = infer_auto_device_map(merged_model, max_memory=max_memory)
+    # merged_model = dispatch_model(
+    #     merged_model,
+    #     device_map=device_map,
+    # )
+    merged_model.eval()
+    print(merged_model)
 
     # did we do anything?
     assert not torch.allclose(first_weight_old, first_weight)
@@ -189,21 +186,21 @@ def do_export():
         with open("./ckpt/params.json", "w") as f:
             json.dump(params, f)
     else:
-        deloreanized_sd = {
-            k.replace("base_model.model.", ""): v
-            for k, v in merged_model_sd.items()
-            if "lora" not in k
-        }
-        base_model.config.custom_pipelines = {
+        # deloreanized_sd = {
+        #     k.replace("base_model.model.", ""): v
+        #     for k, v in merged_model_sd.items()
+        #     if "lora" not in k
+        # }
+        merged_model.config.custom_pipelines = {
             "text-generation": {
               "impl": "h2oai_pipeline.H2OTextGenerationPipeline",
               "pt": "AutoModelForCausalLM"
             }
         }
         PreTrainedModel.save_pretrained(
-            base_model,
+            merged_model,
             OUTPUT_NAME,
-            state_dict=deloreanized_sd,
+            # state_dict=deloreanized_sd,
             # max_shard_size="5GB",
         )
 
