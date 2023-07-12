@@ -1876,11 +1876,11 @@ def _run_qa_db(query=None,
         # support string as well
         document_choice = [document_choice]
 
-    func_names = list(inspect.signature(get_similarity_chain).parameters)
+    func_names = list(inspect.signature(get_chain).parameters)
     sim_kwargs = {k: v for k, v in locals().items() if k in func_names}
     missing_kwargs = [x for x in func_names if x not in sim_kwargs]
     assert not missing_kwargs, "Missing: %s" % missing_kwargs
-    docs, chain, scores, use_context, have_any_docs = get_similarity_chain(**sim_kwargs)
+    docs, chain, scores, use_context, have_any_docs = get_chain(**sim_kwargs)
     if document_subset in non_query_commands:
         formatted_doc_chunks = '\n\n'.join([get_url(x) + '\n\n' + x.page_content for x in docs])
         yield formatted_doc_chunks, ''
@@ -1959,37 +1959,36 @@ def _run_qa_db(query=None,
     return
 
 
-def get_similarity_chain(query=None,
-                         iinput=None,
-                         use_openai_model=False, use_openai_embedding=False,
-                         first_para=False, text_limit=None, top_k_docs=4, chunk=True, chunk_size=512,
-                         user_path=None,
-                         detect_user_path_changes_every_query=False,
-                         db_type='faiss',
-                         model_name=None,
-                         inference_server='',
-                         hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
-                         prompt_type=None,
-                         prompt_dict=None,
-                         cut_distanct=1.1,
-                         load_db_if_exists=False,
-                         db=None,
-                         langchain_mode=None,
-                         langchain_action=None,
-                         document_subset=DocumentChoices.Relevant.name,
-                         document_choice=[],
-                         n_jobs=-1,
-                         # beyond run_db_query:
-                         llm=None,
-                         tokenizer=None,
-                         verbose=False,
-                         cmd=None,
-                         reverse_docs=True,
+def get_chain(query=None,
+              iinput=None,
+              use_openai_model=False, use_openai_embedding=False,
+              first_para=False, text_limit=None, top_k_docs=4, chunk=True, chunk_size=512,
+              user_path=None,
+              detect_user_path_changes_every_query=False,
+              db_type='faiss',
+              model_name=None,
+              inference_server='',
+              hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
+              prompt_type=None,
+              prompt_dict=None,
+              cut_distanct=1.1,
+              load_db_if_exists=False,
+              db=None,
+              langchain_mode=None,
+              langchain_action=None,
+              document_subset=DocumentChoices.Relevant.name,
+              document_choice=[],
+              n_jobs=-1,
+              # beyond run_db_query:
+              llm=None,
+              tokenizer=None,
+              verbose=False,
+              reverse_docs=True,
 
-                         # local
-                         auto_reduce_chunks=True,
-                         max_chunks=100,
-                         ):
+              # local
+              auto_reduce_chunks=True,
+              max_chunks=100,
+              ):
     # determine whether use of context out of docs is planned
     if not use_openai_model and prompt_type not in ['plain'] or model_name in non_hf_types:
         if langchain_mode in ['Disabled', 'ChatLLM', 'LLM']:
@@ -2109,7 +2108,7 @@ def get_similarity_chain(query=None,
         if langchain_mode in [LangChainMode.LLM.value, LangChainMode.CHAT_LLM.value]:
             docs = []
             scores = []
-        elif cmd == DocumentChoices.All.name or query in [None, '', '\n']:
+        elif document_subset == DocumentChoices.All.name or query in [None, '', '\n']:
             db_documents, db_metadatas = get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs)
             # similar to langchain's chroma's _results_to_docs_and_scores
             docs_with_score = [(Document(page_content=result[0], metadata=result[1] or {}), 0)
@@ -2210,7 +2209,7 @@ def get_similarity_chain(query=None,
         # if HF type and have no docs, can bail out
         return docs, None, [], False, have_any_docs
 
-    if cmd in non_query_commands:
+    if document_subset in non_query_commands:
         # no LLM use
         return docs, None, [], False, have_any_docs
 
