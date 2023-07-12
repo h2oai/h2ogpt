@@ -346,17 +346,17 @@ def go_gradio(**kwargs):
                         show_label=True,
                         visible=kwargs['langchain_mode'] != 'Disabled',
                         min_width=100)
+                    document_subset = gr.Radio([x.name for x in DocumentChoices],
+                                               label="Subset",
+                                               value=DocumentChoices.Relevant.name,
+                                               interactive=True,
+                                               )
                     allowed_actions = [x for x in langchain_actions if x in visible_langchain_actions]
                     langchain_action = gr.Radio(
                         allowed_actions,
                         value=allowed_actions[0] if len(allowed_actions) > 0 else None,
                         label="Data Action",
                         visible=True)
-                    document_subset = gr.Radio([x.name for x in DocumentChoices],
-                                               label="Subset",
-                                               value=DocumentChoices.Relevant.name,
-                                               interactive=True,
-                                               )
             with (gr.Column(elem_id="col_container", scale=10), gr.Tabs()):
                 with gr.TabItem("Chat"):
                     if kwargs['langchain_mode'] == 'Disabled':
