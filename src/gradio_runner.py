@@ -56,7 +56,7 @@ from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, 
 from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt_type_to_model_lower, non_hf_types, \
     get_prompt
 from utils import get_githash, flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
-    ping, get_short_name, get_url, makedirs, get_kwargs, remove, system_info, ping_gpu
+    ping, get_short_name, makedirs, get_kwargs, remove, system_info, ping_gpu
 from gen import get_model, languages_covered, evaluate, score_qa, langchain_modes, inputs_kwargs_list, scratch_base_dir, \
     get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions
 from evaluate_params import eval_func_param_names, no_default_param_names, eval_func_param_names_defaults
@@ -407,7 +407,7 @@ def go_gradio(**kwargs):
                                                            min_width=mw1)
                                         stop_btn = gr.Button(value="Stop", variant='secondary', scale=0, size='sm',
                                                              min_width=mw1)
-                                        clear = gr.Button("Save", size='sm', min_width=mw1)
+                                        save_chat_btn = gr.Button("Save", size='sm', min_width=mw1)
                                     with gr.Column(min_width=mw2):
                                         retry_btn = gr.Button("Redo", size='sm', min_width=mw2)
                                         undo = gr.Button("Undo", size='sm', min_width=mw2)
@@ -1623,7 +1623,8 @@ def go_gradio(**kwargs):
                     if not already_exists:
                         chat_state1[short_chat] = chat_list.copy()
                 # clear chat_list so saved and then new conversation starts
-                chat_list = [[]] * len(chat_list)
+                # FIXME: seems less confusing to clear, since have clear button right next
+                # chat_list = [[]] * len(chat_list)
             ret_list = chat_list + [chat_state1]
             return tuple(ret_list)
 
@@ -1650,8 +1651,9 @@ def go_gradio(**kwargs):
             .then(clear_scores, outputs=[score_text, score_text2, score_text_nochat])
 
         def remove_chat(chat_key, chat_state1):
-            chat_state1.pop(chat_key, None)
-            return chat_state1, gr.update(choices=list(chat_state1.keys()), value=None)
+            if isinstance(chat_key, str):
+                chat_state1.pop(chat_key, None)
+            return gr.update(choices=list(chat_state1.keys()), value=None), chat_state1
 
         remove_chat_event = remove_chat_btn.click(remove_chat,
                                                   inputs=[radio_chats, chat_state], outputs=[radio_chats, chat_state],
@@ -1709,10 +1711,10 @@ def go_gradio(**kwargs):
         def update_radio_chats(chat_state1):
             return gr.update(choices=list(chat_state1.keys()), value=None)
 
-        clear_event = clear.click(save_chat,
-                                  inputs=[text_output, text_output2] + text_outputs + [chat_state],
-                                  outputs=[text_output, text_output2] + text_outputs + [chat_state],
-                                  api_name='save_chat' if allow_api else None) \
+        clear_event = save_chat_btn.click(save_chat,
+                                          inputs=[text_output, text_output2] + text_outputs + [chat_state],
+                                          outputs=[text_output, text_output2] + text_outputs + [chat_state],
+                                          api_name='save_chat' if allow_api else None) \
             .then(update_radio_chats, inputs=chat_state, outputs=radio_chats,
                   api_name='update_chats' if allow_api else None) \
             .then(clear_scores, outputs=[score_text, score_text2, score_text_nochat])
@@ -1844,7 +1846,8 @@ def go_gradio(**kwargs):
         get_prompt_str_func1 = functools.partial(get_prompt_str, which=1)
         get_prompt_str_func2 = functools.partial(get_prompt_str, which=2)
         prompt_type.change(fn=get_prompt_str_func1, inputs=[prompt_type, prompt_dict], outputs=prompt_dict, queue=False)
-        prompt_type2.change(fn=get_prompt_str_func2, inputs=[prompt_type2, prompt_dict2], outputs=prompt_dict2, queue=False)
+        prompt_type2.change(fn=get_prompt_str_func2, inputs=[prompt_type2, prompt_dict2], outputs=prompt_dict2,
+                            queue=False)
 
         def dropdown_prompt_type_list(x):
             return gr.Dropdown.update(value=x)
