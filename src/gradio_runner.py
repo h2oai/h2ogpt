@@ -779,7 +779,7 @@ def go_gradio(**kwargs):
         # then no need for add buttons, only single changeable db
         eventdb1a = fileup_output.change(make_non_interactive, inputs=add_file_outputs, outputs=add_file_outputs,
                                          show_progress='minimal')
-        eventdb1 = eventdb1a.then(**add_file_kwargs, show_progress='minimal')
+        eventdb1 = eventdb1a.then(**add_file_kwargs, show_progress='full')
         eventdb1.then(make_interactive, inputs=add_file_outputs, outputs=add_file_outputs, show_progress='minimal')
 
         # note for update_user_db_func output is ignored for db
