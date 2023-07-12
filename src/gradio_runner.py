@@ -2153,7 +2153,7 @@ def set_userid(db1):
         db1[1] = str(uuid.uuid4())
 
 
-def update_user_db(file, db1, chunk, chunk_size, langchain_mode='UserData', dbs=None, **kwargs):
+def update_user_db(file, db1, chunk, chunk_size, langchain_mode, dbs=None, **kwargs):
     set_userid(db1)
 
     try:
@@ -2176,10 +2176,7 @@ def update_user_db(file, db1, chunk, chunk_size, langchain_mode='UserData', dbs=
           </body>
         </html>
         """.format(ex_str)
-        if langchain_mode == 'MyData':
-            return None, langchain_mode, db1, source_files_added
-        else:
-            return None, langchain_mode, source_files_added
+        return None, langchain_mode, source_files_added
     finally:
         clear_torch_cache()
 
@@ -2235,6 +2232,14 @@ def _update_user_db(file,
     if not isinstance(file, (list, tuple, typing.Generator)) and isinstance(file, str):
         file = [file]
 
+    if langchain_mode == LangChainMode.DISABLED.value:
+        return None, langchain_mode, get_source_files()
+
+    if langchain_mode in [LangChainMode.CHAT_LLM.value, LangChainMode.CHAT_LLM.value]:
+        # then switch to MyData, so langchain_mode also becomes way to select where upload goes
+        # but default to mydata if nothing chosen, since safest
+        langchain_mode = LangChainMode.MY_DATA.value
+
     if langchain_mode == 'UserData' and user_path is not None:
         # move temp files from gradio upload to stable location
         for fili, fil in enumerate(file):
@@ -2289,7 +2294,7 @@ def _update_user_db(file,
             if db is not None:
                 db1[0] = db
             source_files_added = get_source_files(db=db1[0], exceptions=exceptions)
-            return None, langchain_mode, db1, source_files_added
+            return None, langchain_mode, source_files_added
         else:
             from gpt_langchain import get_persist_directory
             persist_directory = get_persist_directory(langchain_mode)
