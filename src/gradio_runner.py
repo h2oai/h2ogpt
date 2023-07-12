@@ -1605,13 +1605,19 @@ def go_gradio(**kwargs):
                         return False
             return is_same
 
-        def save_chat(*args):
+        def save_chat(*args, chat_is_list=False):
             args_list = list(args)
-            chat_list = args_list[:-1]  # list of chatbot histories
+            if not chat_is_list:
+                # list of chatbot histories,
+                # can't pass in list with list of chatbot histories and state due to gradio limits
+                chat_list = args_list[:-1]
+            else:
+                assert len(args_list) == 2
+                chat_list = args_list[0]
             # remove None histories
             chat_list_not_none = [x for x in chat_list if x and len(x) > 0 and len(x[0]) == 2 and x[0][1] is not None]
-            chat_state1 = args_list[
-                -1]  # dict with keys of short chat names, values of list of list of chatbot histories
+            # dict with keys of short chat names, values of list of list of chatbot histories
+            chat_state1 = args_list[-1]
             short_chats = list(chat_state1.keys())
             if len(chat_list_not_none) > 0:
                 # make short_chat key from only first history, based upon question that is same anyways
@@ -1625,7 +1631,7 @@ def go_gradio(**kwargs):
                 # clear chat_list so saved and then new conversation starts
                 # FIXME: seems less confusing to clear, since have clear button right next
                 # chat_list = [[]] * len(chat_list)
-            ret_list = chat_list + [chat_state1]
+            ret_list = [chat_list] + [chat_state1]
             return tuple(ret_list)
 
         def switch_chat(chat_key, chat_state1, num_model_lock=0):
@@ -1672,13 +1678,13 @@ def go_gradio(**kwargs):
 
         def add_chats_from_file(file, chat_state1, radio_chats1):
             if not file:
-                return chat_state1
+                return None, chat_state1, gr.update(choices=list(chat_state1.keys()), value=None)
             if isinstance(file, str):
                 files = [file]
             else:
                 files = file
             if not files:
-                return chat_state1
+                return None, chat_state1, gr.update(choices=list(chat_state1.keys()), value=None)
             for file1 in files:
                 try:
                     if hasattr(file1, 'name'):
@@ -1687,7 +1693,7 @@ def go_gradio(**kwargs):
                         new_chats = json.loads(f.read())
                         for chat1_k, chat1_v in new_chats.items():
                             # ignore chat1_k, regenerate and de-dup to avoid loss
-                            _, chat_state1 = save_chat(chat1_v, chat_state1)
+                            _, chat_state1 = save_chat(chat1_v, chat_state1, chat_is_list=True)
                 except BaseException as e:
                     t, v, tb = sys.exc_info()
                     ex = ''.join(traceback.format_exception(t, v, tb))
