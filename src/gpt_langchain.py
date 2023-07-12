@@ -2098,8 +2098,9 @@ def get_chain(query=None,
             filter_kwargs = {}
         else:
             assert document_choice is not None, "Document choice was None"
-            # if here then some cmd + documents selected or just documents selected
-            if len(document_choice) >= 2:
+            if len(document_choice) >= 1 and document_choice[0] == DocumentChoices.All.name:
+                filter_kwargs = {}
+            elif len(document_choice) >= 2:
                 or_filter = [{"source": {"$eq": x}} for x in document_choice]
                 filter_kwargs = dict(filter={"$or": or_filter})
             elif len(document_choice) == 1:
