@@ -270,7 +270,9 @@ def go_gradio(**kwargs):
         server_options_state = gr.State([server_options])
         my_db_state = gr.State([None, None])
         chat_state = gr.State({})
-        docs_state0 = kwargs['document_choice'] + ['All']
+        docs_state00 = kwargs['document_choice'] + [DocumentChoices.All.name]
+        docs_state0 = []
+        [docs_state0.append(x) for x in docs_state00 if x not in docs_state0]
         docs_state = gr.State(docs_state0)
         gr.Markdown(f"""
             {get_h2o_title(title, description) if kwargs['h2ocolors'] else get_simple_title(title, description)}
@@ -425,17 +427,19 @@ def go_gradio(**kwargs):
 
                 with gr.TabItem("Document Selection"):
                     document_choice = gr.Dropdown(docs_state0,
-                                                  label="Document(s) %s" % file_types_str,
+                                                  label="Select Subset of Document(s) %s" % file_types_str,
                                                   value='All',
                                                   interactive=True,
                                                   multiselect=True,
                                                   )
                     sources_visible = kwargs['langchain_mode'] != 'Disabled' and enable_sources_list
                     with gr.Row():
-                        get_sources_btn = gr.Button(value="Update Document(s) from DB", scale=0, size='sm',
+                        get_sources_btn = gr.Button(value="Update Above Document(s) from DB", scale=0, size='sm',
                                                     visible=sources_visible)
-                        show_sources_btn = gr.Button(value="Show Listing", scale=0, size='sm', visible=sources_visible)
-                        refresh_sources_btn = gr.Button(value="Refresh UserData from Disk", scale=0, size='sm',
+                        show_sources_btn = gr.Button(value="Show Sources in DB", scale=0, size='sm',
+                                                     visible=sources_visible)
+                        refresh_sources_btn = gr.Button(value="Update DB with new/changed files on disk", scale=0,
+                                                        size='sm',
                                                         visible=sources_visible and allow_upload_to_user_data)
 
                     sources_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and enable_sources_list,
@@ -446,6 +450,9 @@ def go_gradio(**kwargs):
                                                   label="Download File w/Sources [click get sources to make file]")
                         with gr.Column(scale=2):
                             sources_text = gr.HTML(label='Sources Added', interactive=False)
+
+                    doc_exception_text = gr.Textbox(value="", visible=True, label='Document Exceptions',
+                                                    interactive=False)
 
                 with gr.TabItem("Chat History"):
                     with gr.Row():
@@ -472,6 +479,8 @@ def go_gradio(**kwargs):
                                                    value=kwargs['tgt_lang'],
                                                    label="Output Language")
 
+                    chat_exception_text = gr.Textbox(value="", visible=True, label='Chat Exceptions',
+                                                     interactive=False)
                 with gr.TabItem("Expert"):
                     with gr.Row():
                         with gr.Column():
@@ -712,10 +721,6 @@ def go_gradio(**kwargs):
                                 s3up_btn = gr.Button("S3UP")
                                 s3up_text = gr.Textbox(label='S3UP result', interactive=False)
 
-                    # FIXME: Could add exceptions for non-chat but still streaming
-                    exception_text = gr.Textbox(value="", visible=kwargs['chat'], label='Chat Exceptions',
-                                                interactive=False)
-
                 with gr.TabItem("Terms of Service"):
                     description = ""
                     description += """<p><b> DISCLAIMERS: </b><ul><i><li>The model was trained on The Pile and other data, which may contain objectionable content.  Use at own risk.</i></li>"""
@@ -772,12 +777,12 @@ def go_gradio(**kwargs):
         add_file_outputs = [fileup_output, langchain_mode]
         add_file_kwargs = dict(fn=update_db_func,
                                inputs=[fileup_output, my_db_state, chunk, chunk_size, langchain_mode],
-                               outputs=add_file_outputs + [sources_text],
+                               outputs=add_file_outputs + [sources_text, doc_exception_text],
                                queue=queue,
                                api_name='add_file' if allow_api and allow_upload_to_user_data else None)
 
         # then no need for add buttons, only single changeable db
-        eventdb1a = fileup_output.change(make_non_interactive, inputs=add_file_outputs, outputs=add_file_outputs,
+        eventdb1a = fileup_output.upload(make_non_interactive, inputs=add_file_outputs, outputs=add_file_outputs,
                                          show_progress='minimal')
         eventdb1 = eventdb1a.then(**add_file_kwargs, show_progress='full')
         eventdb1b = eventdb1.then(make_interactive, inputs=add_file_outputs, outputs=add_file_outputs,
@@ -793,7 +798,7 @@ def go_gradio(**kwargs):
         add_url_outputs = [url_text, langchain_mode]
         add_url_kwargs = dict(fn=update_user_db_url_func,
                               inputs=[url_text, my_db_state, chunk, chunk_size, langchain_mode],
-                              outputs=add_url_outputs + [sources_text],
+                              outputs=add_url_outputs + [sources_text, doc_exception_text],
                               queue=queue,
                               api_name='add_url' if allow_api and allow_upload_to_user_data else None)
 
@@ -810,7 +815,7 @@ def go_gradio(**kwargs):
         add_text_outputs = [user_text_text, langchain_mode]
         add_text_kwargs = dict(fn=update_user_db_txt_func,
                                inputs=[user_text_text, my_db_state, chunk, chunk_size, langchain_mode],
-                               outputs=add_text_outputs + [sources_text],
+                               outputs=add_text_outputs + [sources_text, doc_exception_text],
                                queue=queue,
                                api_name='add_text' if allow_api and allow_upload_to_user_data else None
                                )
@@ -829,7 +834,7 @@ def go_gradio(**kwargs):
 
         # if change collection source, must clear doc selections from it to avoid inconsistency
         def clear_doc_choice():
-            return gr.Dropdown.update(choices=[], value=None)
+            return gr.Dropdown.update(choices=docs_state0, value=DocumentChoices.All.name)
 
         langchain_mode.change(clear_doc_choice, inputs=None, outputs=document_choice, queue=False)
 
@@ -1356,11 +1361,11 @@ def go_gradio(**kwargs):
                          )
         bot_args = dict(fn=bot,
                         inputs=inputs_list + [model_state, my_db_state] + [text_output],
-                        outputs=[text_output, exception_text],
+                        outputs=[text_output, chat_exception_text],
                         )
         retry_bot_args = dict(fn=functools.partial(bot, retry=True),
                               inputs=inputs_list + [model_state, my_db_state] + [text_output],
-                              outputs=[text_output, exception_text],
+                              outputs=[text_output, chat_exception_text],
                               )
         retry_user_args = dict(fn=functools.partial(user, retry=True),
                                inputs=inputs_list + [text_output],
@@ -1378,11 +1383,11 @@ def go_gradio(**kwargs):
                           )
         bot_args2 = dict(fn=bot,
                          inputs=inputs_list2 + [model_state2, my_db_state] + [text_output2],
-                         outputs=[text_output2, exception_text],
+                         outputs=[text_output2, chat_exception_text],
                          )
         retry_bot_args2 = dict(fn=functools.partial(bot, retry=True),
                                inputs=inputs_list2 + [model_state2, my_db_state] + [text_output2],
-                               outputs=[text_output2, exception_text],
+                               outputs=[text_output2, chat_exception_text],
                                )
         retry_user_args2 = dict(fn=functools.partial(user, retry=True),
                                 inputs=inputs_list2 + [text_output2],
@@ -1403,11 +1408,11 @@ def go_gradio(**kwargs):
                              )
         all_bot_args = dict(fn=functools.partial(all_bot, model_states1=model_states),
                             inputs=inputs_list + [my_db_state] + text_outputs,
-                            outputs=text_outputs + [exception_text],
+                            outputs=text_outputs + [chat_exception_text],
                             )
         all_retry_bot_args = dict(fn=functools.partial(all_bot, model_states1=model_states, retry=True),
                                   inputs=inputs_list + [my_db_state] + text_outputs,
-                                  outputs=text_outputs + [exception_text],
+                                  outputs=text_outputs + [chat_exception_text],
                                   )
         all_retry_user_args = dict(fn=functools.partial(all_user, retry=True,
                                                         sanitize_user_prompt=kwargs['sanitize_user_prompt'],
@@ -1631,7 +1636,10 @@ def go_gradio(**kwargs):
                 # clear chat_list so saved and then new conversation starts
                 # FIXME: seems less confusing to clear, since have clear button right next
                 # chat_list = [[]] * len(chat_list)
-            ret_list = [chat_list] + [chat_state1]
+            if not chat_is_list:
+                ret_list = chat_list + [chat_state1]
+            else:
+                ret_list = [chat_list] + [chat_state1]
             return tuple(ret_list)
 
         def switch_chat(chat_key, chat_state1, num_model_lock=0):
@@ -1676,15 +1684,16 @@ def go_gradio(**kwargs):
         export_chat_event = export_chats_btn.click(get_chats1, inputs=chat_state, outputs=chats_file, queue=False,
                                                    api_name='export_chats' if allow_api else None)
 
-        def add_chats_from_file(file, chat_state1, radio_chats1):
+        def add_chats_from_file(file, chat_state1, radio_chats1, chat_exception_text1):
             if not file:
-                return None, chat_state1, gr.update(choices=list(chat_state1.keys()), value=None)
+                return None, chat_state1, gr.update(choices=list(chat_state1.keys()), value=None), chat_exception_text1
             if isinstance(file, str):
                 files = [file]
             else:
                 files = file
             if not files:
-                return None, chat_state1, gr.update(choices=list(chat_state1.keys()), value=None)
+                return None, chat_state1, gr.update(choices=list(chat_state1.keys()), value=None), chat_exception_text1
+            chat_exception_list = []
             for file1 in files:
                 try:
                     if hasattr(file1, 'name'):
@@ -1698,12 +1707,16 @@ def go_gradio(**kwargs):
                     t, v, tb = sys.exc_info()
                     ex = ''.join(traceback.format_exception(t, v, tb))
                     print("Add chats exception: %s" % str(ex), flush=True)
-            return None, chat_state1, gr.update(choices=list(chat_state1.keys()), value=None)
+                    chat_exception_list.append(str(e))
+                    chat_exception_text1 = '\n'.join(chat_exception_list)
+            return None, chat_state1, gr.update(choices=list(chat_state1.keys()), value=None), chat_exception_text1
 
         # note for update_user_db_func output is ignored for db
         chatup_change_event = chatsup_output.change(add_chats_from_file,
-                                                    inputs=[chatsup_output, chat_state, radio_chats],
-                                                    outputs=[chatsup_output, chat_state, radio_chats],
+                                                    inputs=[chatsup_output, chat_state, radio_chats,
+                                                            chat_exception_text],
+                                                    outputs=[chatsup_output, chat_state, radio_chats,
+                                                             chat_exception_text],
                                                     queue=False,
                                                     api_name='add_to_chats' if allow_api else None)
 
@@ -2175,6 +2188,9 @@ def set_userid(db1):
 def update_user_db(file, db1, chunk, chunk_size, langchain_mode, dbs=None, **kwargs):
     set_userid(db1)
 
+    if file is None:
+        raise RuntimeError("Don't use change, use input")
+
     try:
         return _update_user_db(file, db1=db1, chunk=chunk, chunk_size=chunk_size,
                                langchain_mode=langchain_mode, dbs=dbs,
@@ -2195,7 +2211,8 @@ def update_user_db(file, db1, chunk, chunk_size, langchain_mode, dbs=None, **kwa
           </body>
         </html>
         """.format(ex_str)
-        return None, langchain_mode, source_files_added
+        doc_exception_text = str(e)
+        return None, langchain_mode, source_files_added, doc_exception_text
     finally:
         clear_torch_cache()
 
@@ -2252,7 +2269,7 @@ def _update_user_db(file,
         file = [file]
 
     if langchain_mode == LangChainMode.DISABLED.value:
-        return None, langchain_mode, get_source_files()
+        return None, langchain_mode, get_source_files(), ""
 
     if langchain_mode in [LangChainMode.CHAT_LLM.value, LangChainMode.CHAT_LLM.value]:
         # then switch to MyData, so langchain_mode also becomes way to select where upload goes
@@ -2287,6 +2304,7 @@ def _update_user_db(file,
                            caption_loader=caption_loader,
                            )
     exceptions = [x for x in sources if x.metadata.get('exception')]
+    exceptions_strs = [x.metadata['exception'] for x in exceptions]
     sources = [x for x in sources if 'exception' not in x.metadata]
 
     lock_file = get_lock_file(db1, langchain_mode)
@@ -2313,7 +2331,7 @@ def _update_user_db(file,
             if db is not None:
                 db1[0] = db
             source_files_added = get_source_files(db=db1[0], exceptions=exceptions)
-            return None, langchain_mode, source_files_added
+            return None, langchain_mode, source_files_added, '\n'.join(exceptions_strs)
         else:
             from gpt_langchain import get_persist_directory
             persist_directory = get_persist_directory(langchain_mode)
@@ -2334,7 +2352,7 @@ def _update_user_db(file,
             # return dbs[langchain_mode]
             # db in this code path is updated in place
             source_files_added = get_source_files(db=dbs[langchain_mode], exceptions=exceptions)
-            return None, langchain_mode, source_files_added
+            return None, langchain_mode, source_files_added, '\n'.join(exceptions_strs)
 
 
 def get_db(db1, langchain_mode, dbs=None):
