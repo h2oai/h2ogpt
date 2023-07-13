@@ -20,8 +20,8 @@ Welcome!  Join us and make an issue or a PR, and contribute to making the best f
 - [YouTube: Blazing Fast Falcon 40b 🚀 Uncensored, Open-Source, Fully Hosted, Chat With Your Docs](https://www.youtube.com/watch?v=H8Dx-iUY49s)
 - [Technical Paper: https://arxiv.org/pdf/2306.08161.pdf](https://arxiv.org/pdf/2306.08161.pdf)
 
-### Demo:
-https://www.youtube.com/watch?v=_iktbj4obAI
+### Video Demo:
+[![h2oGPT Quick Demo](data/demo.png)](https://www.youtube.com/watch?v=_iktbj4obAI)
 
 ### Guide:
 <!--  cat README.md | ./gh-md-toc  -  But Help is heavily processed -->
