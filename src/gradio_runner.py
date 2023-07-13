@@ -307,7 +307,7 @@ def go_gradio(**kwargs):
                 with gr.Accordion("Upload", open=False, visible=upload_visible):
                     with gr.Column():
                         with gr.Row(equal_height=False):
-                            file_types_str = '[' + ' '.join(file_types) + ' URL TEXT' + ']'
+                            file_types_str = '[' + ' '.join(file_types) + ' URL ArXiv TEXT' + ']'
                             fileup_output = gr.File(label=f'Upload {file_types_str}',
                                                     show_label=False,
                                                     file_types=file_types,
@@ -855,6 +855,7 @@ def go_gradio(**kwargs):
             else:
                 num_model_lock = 2 + num_model_lock
             return tuple([gr.update(height=x)] * num_model_lock)
+
         resize_chatbots_func = functools.partial(resize_chatbots, num_model_lock=len(text_outputs))
         text_outputs_height.change(fn=resize_chatbots, inputs=text_outputs_height,
                                    outputs=[text_output, text_output2] + text_outputs)
@@ -1641,7 +1642,8 @@ def go_gradio(**kwargs):
                 assert len(args_list) == 2
                 chat_list = args_list[0]
             # if old chat file with single chatbot, get into shape
-            if isinstance(chat_list, list) and len(chat_list) > 0 and isinstance(chat_list[0], list) and len(chat_list[0]) == 2 and isinstance(chat_list[0][0], str) and isinstance(chat_list[0][1], str):
+            if isinstance(chat_list, list) and len(chat_list) > 0 and isinstance(chat_list[0], list) and len(
+                    chat_list[0]) == 2 and isinstance(chat_list[0][0], str) and isinstance(chat_list[0][1], str):
                 chat_list = [chat_list]
             # remove None histories
             chat_list_not_none = [x for x in chat_list if x and len(x) > 0 and len(x[0]) == 2 and x[0][1] is not None]

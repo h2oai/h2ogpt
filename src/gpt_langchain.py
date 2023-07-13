@@ -1239,7 +1239,8 @@ def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True
         else:
             exception_doc = Document(
                 page_content='',
-                metadata={"source": file, "exception": str(e), "traceback": traceback.format_exc()})
+                metadata={"source": file, "exception": '%s hit %s' % (file, str(e)),
+                          "traceback": traceback.format_exc()})
             res = [exception_doc]
     if return_file:
         base_tmp = "temp_path_to_doc1"
