@@ -141,7 +141,7 @@ def go_gradio(**kwargs):
                       """
     else:
         description = more_info
-    description_bottom = "If this host is busy, try [LLaMa 65B](https://llama.h2o.ai), [Falcon 40B](https://gpt.h2o.ai), [Falcon 40B](http://falcon.h2o.ai), [HF Spaces1 12B](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot) or [HF Spaces2 12B](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot2)<br>"
+    description_bottom = "If this host is busy, try [Multi-Model](https://gpt.h2o.ai), [Falcon 40B](http://falcon.h2o.ai), [HF Spaces1](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot) or [HF Spaces2](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot2)<br>"
     if is_hf:
         description_bottom += '''<a href="https://huggingface.co/spaces/h2oai/h2ogpt-chatbot?duplicate=true"><img src="https://bit.ly/3gLdBN6" style="white-space: nowrap" alt="Duplicate Space"></a>'''
 
@@ -693,6 +693,8 @@ def go_gradio(**kwargs):
                             text_outputs_height = gr.Slider(minimum=100, maximum=1000, value=kwargs['height'] or 400,
                                                             step=100, label='Chat Height')
                             dark_mode_btn = gr.Button("Dark Mode", variant="secondary", size="sm")
+                        with gr.Column(scale=4):
+                            pass
                     admin_row = gr.Row()
                     with admin_row:
                         with gr.Column(scale=1):
