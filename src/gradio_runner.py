@@ -1636,8 +1636,14 @@ def go_gradio(**kwargs):
             else:
                 assert len(args_list) == 2
                 chat_list = args_list[0]
+            # if old chat file with single chatbot, get into shape
+            if isinstance(chat_list, list) and len(chat_list) > 0 and isinstance(chat_list[0], list) and len(chat_list[0]) == 2 and isinstance(chat_list[0][0], str) and isinstance(chat_list[0][1], str):
+                chat_list = [chat_list]
             # remove None histories
             chat_list_not_none = [x for x in chat_list if x and len(x) > 0 and len(x[0]) == 2 and x[0][1] is not None]
+            chat_list_none = [x for x in chat_list if x not in chat_list_not_none]
+            if len(chat_list_none) > 0 and len(chat_list_not_none) == 0:
+                raise ValueError("Invalid chat file")
             # dict with keys of short chat names, values of list of list of chatbot histories
             chat_state1 = args_list[-1]
             short_chats = list(chat_state1.keys())
@@ -1723,8 +1729,9 @@ def go_gradio(**kwargs):
                 except BaseException as e:
                     t, v, tb = sys.exc_info()
                     ex = ''.join(traceback.format_exception(t, v, tb))
-                    print("Add chats exception: %s" % str(ex), flush=True)
-                    chat_exception_list.append(str(e))
+                    ex_str = "File %s exception: %s" % (file1, str(e))
+                    print(ex_str, flush=True)
+                    chat_exception_list.append(ex_str)
                     chat_exception_text1 = '\n'.join(chat_exception_list)
             return None, chat_state1, gr.update(choices=list(chat_state1.keys()), value=None), chat_exception_text1
 
