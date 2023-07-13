@@ -21,7 +21,7 @@ Welcome!  Join us and make an issue or a PR, and contribute to making the best f
 - [Technical Paper: https://arxiv.org/pdf/2306.08161.pdf](https://arxiv.org/pdf/2306.08161.pdf)
 
 ### Video Demo:
-[![h2oGPT Quick Demo](data/demo.png)](https://www.youtube.com/watch?v=_iktbj4obAI)
+<iframe width="560" height="315" src="https://www.youtube.com/embed/_iktbj4obAI" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
 
 ### Guide:
 <!--  cat README.md | ./gh-md-toc  -  But Help is heavily processed -->
