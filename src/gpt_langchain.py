@@ -387,7 +387,8 @@ class GradioInference(LLM):
                              top_k_docs=top_k_docs,
                              chunk=chunk,
                              chunk_size=chunk_size,
-                             document_choice=[DocumentChoices.All_Relevant.name],
+                             document_subset=DocumentChoices.Relevant.name,
+                             document_choice=[],
                              )
         api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
         if not stream_output:
@@ -973,7 +974,7 @@ def add_meta(docs1, file):
 
 
 def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
-                chunk=True, chunk_size=512,
+                chunk=True, chunk_size=512, n_jobs=-1,
                 is_url=False, is_txt=False,
                 enable_captions=True,
                 captions_model=None,
@@ -1208,6 +1209,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
 
 def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True,
                  chunk=True, chunk_size=512,
+                 n_jobs=-1,
                  is_url=False, is_txt=False,
                  enable_captions=True,
                  captions_model=None,
@@ -1224,6 +1226,7 @@ def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True
         # don't pass base_path=path, would infinitely recurse
         res = file_to_doc(file, base_path=None, verbose=verbose, fail_any_exception=fail_any_exception,
                           chunk=chunk, chunk_size=chunk_size,
+                          n_jobs=n_jobs,
                           is_url=is_url, is_txt=is_txt,
                           enable_captions=enable_captions,
                           captions_model=captions_model,
@@ -1236,7 +1239,8 @@ def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True
         else:
             exception_doc = Document(
                 page_content='',
-                metadata={"source": file, "exception": str(e), "traceback": traceback.format_exc()})
+                metadata={"source": file, "exception": '%s hit %s' % (file, str(e)),
+                          "traceback": traceback.format_exc()})
             res = [exception_doc]
     if return_file:
         base_tmp = "temp_path_to_doc1"
@@ -1326,6 +1330,7 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
     kwargs = dict(verbose=verbose, fail_any_exception=fail_any_exception,
                   return_file=return_file,
                   chunk=chunk, chunk_size=chunk_size,
+                  n_jobs=n_jobs,
                   is_url=is_url,
                   is_txt=is_txt,
                   enable_captions=enable_captions,
@@ -1802,7 +1807,8 @@ def _run_qa_db(query=None,
                num_return_sequences=1,
                langchain_mode=None,
                langchain_action=None,
-               document_choice=[DocumentChoices.All_Relevant.name],
+               document_subset=DocumentChoices.Relevant.name,
+               document_choice=[],
                n_jobs=-1,
                verbose=False,
                cli=False,
@@ -1873,19 +1879,13 @@ def _run_qa_db(query=None,
     if isinstance(document_choice, str):
         # support string as well
         document_choice = [document_choice]
-    # get first DocumentChoices as command to use, ignore others
-    doc_choices_set = set([x.name for x in list(DocumentChoices)])
-    cmd = [x for x in document_choice if x in doc_choices_set]
-    cmd = None if len(cmd) == 0 else cmd[0]
-    # now have cmd, filter out for only docs
-    document_choice = [x for x in document_choice if x not in doc_choices_set]
 
-    func_names = list(inspect.signature(get_similarity_chain).parameters)
+    func_names = list(inspect.signature(get_chain).parameters)
     sim_kwargs = {k: v for k, v in locals().items() if k in func_names}
     missing_kwargs = [x for x in func_names if x not in sim_kwargs]
     assert not missing_kwargs, "Missing: %s" % missing_kwargs
-    docs, chain, scores, use_context, have_any_docs = get_similarity_chain(**sim_kwargs)
-    if cmd in non_query_commands:
+    docs, chain, scores, use_context, have_any_docs = get_chain(**sim_kwargs)
+    if document_subset in non_query_commands:
         formatted_doc_chunks = '\n\n'.join([get_url(x) + '\n\n' + x.page_content for x in docs])
         yield formatted_doc_chunks, ''
         return
@@ -1963,36 +1963,36 @@ def _run_qa_db(query=None,
     return
 
 
-def get_similarity_chain(query=None,
-                         iinput=None,
-                         use_openai_model=False, use_openai_embedding=False,
-                         first_para=False, text_limit=None, top_k_docs=4, chunk=True, chunk_size=512,
-                         user_path=None,
-                         detect_user_path_changes_every_query=False,
-                         db_type='faiss',
-                         model_name=None,
-                         inference_server='',
-                         hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
-                         prompt_type=None,
-                         prompt_dict=None,
-                         cut_distanct=1.1,
-                         load_db_if_exists=False,
-                         db=None,
-                         langchain_mode=None,
-                         langchain_action=None,
-                         document_choice=[DocumentChoices.All_Relevant.name],
-                         n_jobs=-1,
-                         # beyond run_db_query:
-                         llm=None,
-                         tokenizer=None,
-                         verbose=False,
-                         cmd=None,
-                         reverse_docs=True,
+def get_chain(query=None,
+              iinput=None,
+              use_openai_model=False, use_openai_embedding=False,
+              first_para=False, text_limit=None, top_k_docs=4, chunk=True, chunk_size=512,
+              user_path=None,
+              detect_user_path_changes_every_query=False,
+              db_type='faiss',
+              model_name=None,
+              inference_server='',
+              hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
+              prompt_type=None,
+              prompt_dict=None,
+              cut_distanct=1.1,
+              load_db_if_exists=False,
+              db=None,
+              langchain_mode=None,
+              langchain_action=None,
+              document_subset=DocumentChoices.Relevant.name,
+              document_choice=[],
+              n_jobs=-1,
+              # beyond run_db_query:
+              llm=None,
+              tokenizer=None,
+              verbose=False,
+              reverse_docs=True,
 
-                         # local
-                         auto_reduce_chunks=True,
-                         max_chunks=100,
-                         ):
+              # local
+              auto_reduce_chunks=True,
+              max_chunks=100,
+              ):
     # determine whether use of context out of docs is planned
     if not use_openai_model and prompt_type not in ['plain'] or model_name in non_hf_types:
         if langchain_mode in ['Disabled', 'ChatLLM', 'LLM']:
@@ -2098,8 +2098,13 @@ def get_similarity_chain(query=None,
             # only chroma supports filtering
             filter_kwargs = {}
         else:
-            # if here then some cmd + documents selected or just documents selected
-            if len(document_choice) >= 2:
+            assert document_choice is not None, "Document choice was None"
+            if len(document_choice) >= 1 and document_choice[0] == DocumentChoices.All.name:
+                filter_kwargs = {}
+            elif len(document_choice) >= 2:
+                if document_choice[0] == DocumentChoices.All.name:
+                    # remove 'All'
+                    document_choice = document_choice[1:]
                 or_filter = [{"source": {"$eq": x}} for x in document_choice]
                 filter_kwargs = dict(filter={"$or": or_filter})
             elif len(document_choice) == 1:
@@ -2109,10 +2114,10 @@ def get_similarity_chain(query=None,
             else:
                 # shouldn't reach
                 filter_kwargs = {}
-        if cmd == DocumentChoices.Just_LLM.name:
+        if langchain_mode in [LangChainMode.LLM.value, LangChainMode.CHAT_LLM.value]:
             docs = []
             scores = []
-        elif cmd == DocumentChoices.Only_All_Sources.name or query in [None, '', '\n']:
+        elif document_subset == DocumentChoices.All.name or query in [None, '', '\n']:
             db_documents, db_metadatas = get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs)
             # similar to langchain's chroma's _results_to_docs_and_scores
             docs_with_score = [(Document(page_content=result[0], metadata=result[1] or {}), 0)
@@ -2213,7 +2218,7 @@ def get_similarity_chain(query=None,
         # if HF type and have no docs, can bail out
         return docs, None, [], False, have_any_docs
 
-    if cmd in non_query_commands:
+    if document_subset in non_query_commands:
         # no LLM use
         return docs, None, [], False, have_any_docs
 

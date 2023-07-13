@@ -27,6 +27,7 @@ H2OGPT_PARAMETERS_TO_CLIENT = collections.OrderedDict(
     top_k_docs="langchain_top_k_docs",
     chunk="langchain_enable_chunk",
     chunk_size="langchain_chunk_size",
+    document_subset="langchain_document_subset",
     document_choice="langchain_document_choice",
 )
 

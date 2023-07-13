@@ -20,7 +20,7 @@ def run_eval(  # for local function:
         examples=None, memory_restriction_level=None,
         # for get_model:
         score_model=None, load_8bit=None, load_4bit=None, load_half=None, load_gptq=None, use_safetensors=None,
-        infer_devices=None, tokenizer_base_model=None,
+        use_gpu_id=None, tokenizer_base_model=None,
         gpu_id=None, local_files_only=None, resume_download=None, use_auth_token=None,
         trust_remote_code=None, offload_folder=None, compile_model=None,
         # for evaluate args beyond what's already above, or things that are always dynamic and locally created
@@ -40,6 +40,7 @@ def run_eval(  # for local function:
         top_k_docs=None,
         chunk=None,
         chunk_size=None,
+        document_subset=None,
         document_choice=None,
         # for evaluate kwargs:
         src_lang=None, tgt_lang=None, concurrency_count=None, save_dir=None, sanitize_bot_response=None,

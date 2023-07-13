@@ -34,7 +34,7 @@ def test_export_copy():
     assert 'human_bot' in prompt_types and len(prompt_types) >= 20
 
     subset_types = [x.name for x in list(DocumentChoices)]
-    assert 'All_Relevant' in subset_types and len(prompt_types) >= 4
+    assert 'Relevant' in subset_types and len(prompt_types) >= 4
 
     langchain_types = [x.name for x in list(LangChainMode)]
     langchain_types_v = [x.value for x in list(LangChainMode)]

@@ -29,7 +29,7 @@ def test_cli_langchain(monkeypatch):
                            langchain_mode='UserData',
                            user_path=user_path,
                            visible_langchain_modes=['UserData', 'MyData'],
-                           document_choice=[DocumentChoices.All_Relevant.name],
+                           document_subset=DocumentChoices.Relevant.name,
                            verbose=True)
 
     print(all_generations)
@@ -58,7 +58,7 @@ def test_cli_langchain_llamacpp(monkeypatch):
                            prompt_type=prompt_type,
                            user_path=user_path,
                            visible_langchain_modes=['UserData', 'MyData'],
-                           document_choice=[DocumentChoices.All_Relevant.name],
+                           document_subset=DocumentChoices.Relevant.name,
                            verbose=True)
 
     print(all_generations)
@@ -85,7 +85,7 @@ def test_cli_llamacpp(monkeypatch):
                            prompt_type=prompt_type,
                            user_path=None,
                            visible_langchain_modes=[],
-                           document_choice=[DocumentChoices.All_Relevant.name],
+                           document_subset=DocumentChoices.Relevant.name,
                            verbose=True)
 
     print(all_generations)
@@ -122,7 +122,7 @@ def test_cli_langchain_h2ogpt(monkeypatch):
                            langchain_mode='UserData',
                            user_path=user_path,
                            visible_langchain_modes=['UserData', 'MyData'],
-                           document_choice=[DocumentChoices.All_Relevant.name],
+                           document_subset=DocumentChoices.Relevant.name,
                            verbose=True)
 
     print(all_generations)

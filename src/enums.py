@@ -34,15 +34,14 @@ class PromptType(Enum):
 
 
 class DocumentChoices(Enum):
-    All_Relevant = 0
-    All_Relevant_Only_Sources = 1
-    Only_All_Sources = 2
-    Just_LLM = 3
+    Relevant = 0
+    Sources = 1
+    All = 2
 
 
 non_query_commands = [
-    DocumentChoices.All_Relevant_Only_Sources.name,
-    DocumentChoices.Only_All_Sources.name
+    DocumentChoices.Sources.name,
+    DocumentChoices.All.name
 ]
 
 

@@ -1,26 +1,32 @@
-## h2oGPT
+# h2oGPT
 
 Turn ★ into ⭐ (top-right corner) if you like the project!
 
+h2oGPT is a large language model (LLM) fine-tuning framework and chatbot UI with document(s) question-answer capabilities.  Documents help to **ground** LLMs against hallucinations by providing them context relevant to the instruction.  h2oGPT is fully permissive Apache V2 open-source project for 100% private and secure use of LLMs and document embeddings for document question-answer.
+
+Welcome!  Join us and make an issue or a PR, and contribute to making the best fine-tuned LLMs, chatbot UI, and document question-answer framework!
+
+### Live Demos
 - [![img-small.png](docs/img-small.png) Live h2oGPT Document Q/A Demo](https://gpt.h2o.ai/)
 - [🤗 Live h2oGPT Chat Demo 1](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot)
 - [🤗 Live h2oGPT Chat Demo 2](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot2)
 - [![](https://colab.research.google.com/assets/colab-badge.svg) h2oGPT CPU](https://colab.research.google.com/drive/13RiBdAFZ6xqDwDKfW6BG_-tXfXiqPNQe?usp=sharing)
 - [![](https://colab.research.google.com/assets/colab-badge.svg) h2oGPT GPU](https://colab.research.google.com/drive/143-KFHs2iCqXTQLI2pFCDiR69z0dR8iE?usp=sharing)
 
-Watch these YouTube Videos:
-- [100% Offline ChatGPT Alternative?](https://www.youtube.com/watch?v=Coj72EzmX20)
-- [Ultimate Open-Source LLM Showdown (6 Models Tested) - Surprising Results!](https://www.youtube.com/watch?v=FTm5C_vV_EY)
-- [Blazing Fast Falcon 40b 🚀 Uncensored, Open-Source, Fully Hosted, Chat With Your Docs](https://www.youtube.com/watch?v=H8Dx-iUY49s)
+### Resources:
+- [Discord](https://discord.gg/WKhYMWcVbq)
+- [YouTube: 100% Offline ChatGPT Alternative?](https://www.youtube.com/watch?v=Coj72EzmX20)
+- [YouTube: Ultimate Open-Source LLM Showdown (6 Models Tested) - Surprising Results!](https://www.youtube.com/watch?v=FTm5C_vV_EY)
+- [YouTube: Blazing Fast Falcon 40b 🚀 Uncensored, Open-Source, Fully Hosted, Chat With Your Docs](https://www.youtube.com/watch?v=H8Dx-iUY49s)
+- [Technical Paper: https://arxiv.org/pdf/2306.08161.pdf](https://arxiv.org/pdf/2306.08161.pdf)
 
-For questions, discussing, or just hanging out, come and join our <a href="https://discord.gg/WKhYMWcVbq"><b>Discord</b></a>!
+### Video Demo:
 
-Technical Paper: [https://arxiv.org/pdf/2306.08161.pdf](https://arxiv.org/pdf/2306.08161.pdf)
+https://github.com/h2oai/h2ogpt/assets/2249614/619449ab-40ab-46d1-8b17-270c503f7275
 
-h2oGPT is a large language model (LLM) fine-tuning framework and chatbot UI with document(s) question-answer capabilities.  Documents help to **ground** LLMs against hallucinations by providing them context relevant to the instruction.  h2oGPT is fully permissive Apache V2 open-source project for 100% private and secure use of LLMs and document embeddings for document question-answer.
+YouTube 4K version: https://www.youtube.com/watch?v=_iktbj4obAI
 
-Welcome!  Join us and make an issue or a PR, and contribute to making the best fine-tuned LLMs, chatbot UI, and document question-answer framework!
-
+### Guide:
 <!--  cat README.md | ./gh-md-toc  -  But Help is heavily processed -->
 * [Supported OS and Hardware](#supported-os-and-hardware)
 * [Apache V2 ChatBot with LangChain Integration](#apache-v2-chatbot-with-langchain-integration)
@@ -78,13 +84,6 @@ GPU and CPU mode tested on variety of NVIDIA GPUs in Ubuntu 18-22, but any moder
 - **CPU and GPU** support from variety of HF models, and CPU support using GPT4ALL and LLaMa cpp
 - **Linux, MAC, and Windows** support
 
-Light mode with soft colors talking to cat image:
-
-![Talk to Cat](docs/ui_talk_to_images.png)
-
-Dark mode with H2O.ai colors:
-<img src="docs/langchain.png" alt="VectorDB" title="VectorDB via LangChain">
-
 ### Apache V2 Data Preparation code, Training code, and Models
 
 - **Variety** of models (h2oGPT, WizardLM, Vicuna, OpenAssistant, etc.) supported
@@ -93,10 +92,7 @@ Dark mode with H2O.ai colors:
 - **LoRA** and **QLoRA** (low-rank approximation) efficient 4-bit, 8-bit and 16-bit fine-tuning and generation
 - **Large** (up to 65B parameters) models built on commodity or enterprise GPUs (single or multi node)
 - **Evaluate** performance using RLHF-based reward models
-
-https://user-images.githubusercontent.com/6147661/232924684-6c0e2dfb-2f24-4098-848a-c3e4396f29f6.mov
-
-All open-source datasets and models are posted on [🤗 H2O.ai's Hugging Face page](https://huggingface.co/h2oai/).
+- **Hugging Face** models and datasets on [🤗 H2O.ai's Hugging Face page](https://huggingface.co/h2oai/).
 
 Also check out [H2O LLM Studio](https://github.com/h2oai/h2o-llmstudio) for our no-code LLM fine-tuning framework!
 
@@ -109,7 +105,7 @@ Also check out [H2O LLM Studio](https://github.com/h2oai/h2o-llmstudio) for our 
 - Add other tools like search
 - Add agents for SQL and CSV question/answer
 
-### Getting Started
+## Getting Started
 
 First one needs a Python 3.10 environment.  For help installing a Python 3.10 environment, see [Install Python 3.10 Environment](docs/INSTALL.md#install-python-environment).  On newer Ubuntu systems and environment may be installed by just doing:
 ```bash
@@ -130,7 +126,7 @@ pip --version  # should say pip 23.x.y ... (python 3.10)
 ```
 On some systems, `pip` still refers back to the system one, then one can use `python -m pip` or `pip3` instead of `pip` or try `python3` instead of `python`.
 
-#### TLDR
+### TLDR
 
 For [MACOS](docs/README_MACOS.md#macos) and [Windows 10/11](docs/README_WINDOWS.md) please follow their instructions.
 
