@@ -1752,7 +1752,10 @@ def go_gradio(**kwargs):
             .then(clear_scores, outputs=[score_text, score_text2, score_text_nochat])
 
         def update_radio_chats(chat_state1):
-            return gr.update(choices=list(chat_state1.keys()), value=None)
+            # reverse so newest at top
+            choices = list(chat_state1.keys()).copy()
+            choices.reverse()
+            return gr.update(choices=choices, value=None)
 
         clear_event = save_chat_btn.click(save_chat,
                                           inputs=[text_output, text_output2] + text_outputs + [chat_state],
