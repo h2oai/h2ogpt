@@ -228,10 +228,6 @@ Ignore this warning.
 
 These can be usful on HuggingFace spaces, where one sets secret tokens because CLI options cannot be used.
 
-### h2oGPT LLM not producing output.
-
-To be fixed soon: https://github.com/h2oai/h2ogpt/issues/192
-
 ### GPT4All not producing output.
 
 Please contact GPT4All team.  Even a basic test can give empty result.
