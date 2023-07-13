@@ -310,11 +310,13 @@ To Chat with your docs, choose, e.g. UserData.  To avoid including docs, and jus
 
 If you add document to, e.g., MyData, if you want to query that document, ensure to select collection MyData before submitting the query.
 
-##### Choose Subset of Doc(s) in Collection (click to get sources to update)
+##### Choose Subset of Doc(s) in Collection
+
+Click to `Update UI with Document(s) from DB` to update
 Commands:
 * All_Relevant: Choose to include all docs in chosen collection when chatting
-* All_Relevant_Only_Sources: Ignore the LLM, just return sources the vector database similarity search
-* Only_All_Sources: Ignore LLM and similarity search, just show top_k_docs sources from selected (or all) documents
+* Sources: Ignore the LLM, just return sources the vector database similarity search
+* All: Ignore LLM and similarity search, just show top_k_docs sources from selected (or all) documents
 * Just_LLM: Similar to choosing ChatLLM instead of the chosen collection
 
 The most normal task is keep it on `All_Relevant` and just make a query, which will query all documents in the chosen collection.  Another normal task is to subset on just 1-2 documents, and make a query on those:
@@ -323,25 +325,25 @@ The most normal task is keep it on `All_Relevant` and just make a query, which w
 
 If one selects nothing, the default of `All_Relevant` is chosen.  Can choose any command with any number of user documents to chat with.
 
-E.g. one can click `get sources` to ensure subset list is up to date, choose `Only_All_Sources`, pick a single PDF, click submit, and one will get back `top_k_docs` first entries in collection for that PDF.
+E.g. one can click `Update UI with Document(s) from DB` to ensure subset list is up to date, choose `All`, pick a single PDF, click submit, and one will get back `top_k_docs` first entries in collection for that PDF.
 
-![Only_All_Sources](only_all_sources.png)
+![All](only_all_sources.png)
 
-| Button                       | Purpose                                                                                            |
--------------------------------|----------------------------------------------------------------------------------------------------|
-| Get Sources                  | For chosen collection, get all sources and place list into drop-down for choosing subset           |
-| Show Sources                 | For chosen collection, get and show (in HTML with links to source docs) at bottom of page          |
-| Refresh Sources              | For chosen collection, updaet any changed or new files and show new sources at bottom of page      |
-| Upload Box                   | Drag-n-drop or select from user's system one or more files                                         |
-| Add File(s) to UserData      | After using Upload box and seeing files listed there, add those files to UserData collection       |
-| Add File(s) to MyData        | After using Upload box and seeing files listed there, add those files to MyData collection         |
-| Download File w/Sources      | After clicking Get Sources, downloadable file will appear here that lists all sources in text file |
-| URL                          | Enter text URL link or arxiv:<paper id> to download text content of web page or download           |
-| Add URL Content to UserData  | After entering text into URL box, download into UserData collection                                |
-| Add URL Content to MyData    | After entering text into URL box, download into MyData collection                                  |
-| Paste Text                   | Enter raw text for adding to collection                                                            |
-| Add Text Content to UserData | After entering text Text box, add into UserData collection                                         |
-| Add Text Content to MyData   | After entering text Text box, add into MyData collection                                           |
+| Button                                   | Purpose                                                                                            |
+|------------------------------------------|----------------------------------------------------------------------------------------------------|
+| Update UI with Document(s) from DB       | For chosen collection, get all sources and place list into drop-down for choosing subset           |
+| Show Sources from DB                     | For chosen collection, get and show (in HTML with links to source docs) at bottom of page          |
+| Update DB with new/changed files on disk | For chosen collection, updaet any changed or new files and show new sources at bottom of page      |
+| Upload Box                               | Drag-n-drop or select from user's system one or more files                                         |
+| Add File(s) to UserData                  | After using Upload box and seeing files listed there, add those files to UserData collection       |
+| Add File(s) to MyData                    | After using Upload box and seeing files listed there, add those files to MyData collection         |
+| Download File w/Sources                  | After clicking Get Sources, downloadable file will appear here that lists all sources in text file |
+| URL                                      | Enter text URL link or arxiv:<paper id> to download text content of web page or download           |
+| Add URL Content to UserData              | After entering text into URL box, download into UserData collection                                |
+| Add URL Content to MyData                | After entering text into URL box, download into MyData collection                                  |
+| Paste Text                               | Enter raw text for adding to collection                                                            |
+| Add Text Content to UserData             | After entering text Text box, add into UserData collection                                         |
+| Add Text Content to MyData               | After entering text Text box, add into MyData collection                                           |
 
 #### Expert Tab
 

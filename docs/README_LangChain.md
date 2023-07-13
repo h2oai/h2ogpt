@@ -248,7 +248,7 @@ Notes:
 
 * Since h2oGPT is focused on privacy, connecting to weaviate via WCS is not supported as that will expose your data to a 3rd party
 * Weaviate doesn't know about persistent directory throughout code, and maintains locations based upon collection name
-* Weaviate doesn't support query of all metadata except via similarity search up to 10k documents, so full list of sources is not possible in h2oGPT UI for `get sources` or `show sources`
+* Weaviate doesn't support query of all metadata except via similarity search up to 10k documents, so full list of sources is not possible in h2oGPT UI for `Update UI with Document(s) from DB` or `Show Sources from DB`
 
 ## Document Question-Answer FAQ
 
