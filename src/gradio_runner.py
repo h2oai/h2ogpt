@@ -617,9 +617,9 @@ def go_gradio(**kwargs):
                                     model_load8bit_checkbox = gr.components.Checkbox(
                                         label="Load 8-bit [requires support]",
                                         value=kwargs['load_8bit'], interactive=not is_public)
-                                    model_infer_devices_checkbox = gr.components.Checkbox(
+                                    model_use_gpu_id_checkbox = gr.components.Checkbox(
                                         label="Choose Devices [If not Checked, use all GPUs]",
-                                        value=kwargs['infer_devices'], interactive=not is_public)
+                                        value=kwargs['use_gpu_id'], interactive=not is_public)
                                     model_gpu = gr.Dropdown(n_gpus_list,
                                                             label="GPU ID [-1 = all GPUs, if Choose is enabled]",
                                                             value=kwargs['gpu_id'], interactive=not is_public)
@@ -652,10 +652,10 @@ def go_gradio(**kwargs):
                                     model_load8bit_checkbox2 = gr.components.Checkbox(
                                         label="Load 8-bit 2 [requires support]",
                                         value=kwargs['load_8bit'], interactive=not is_public)
-                                    model_infer_devices_checkbox2 = gr.components.Checkbox(
+                                    model_use_gpu_id_checkbox2 = gr.components.Checkbox(
                                         label="Choose Devices 2 [If not Checked, use all GPUs]",
                                         value=kwargs[
-                                            'infer_devices'], interactive=not is_public)
+                                            'use_gpu_id'], interactive=not is_public)
                                     model_gpu2 = gr.Dropdown(n_gpus_list,
                                                              label="GPU ID 2 [-1 = all GPUs, if choose is enabled]",
                                                              value=kwargs['gpu_id'], interactive=not is_public)
@@ -1800,7 +1800,7 @@ def go_gradio(**kwargs):
             .then(clear_torch_cache)
 
         def load_model(model_name, lora_weights, server_name, model_state_old, prompt_type_old, load_8bit,
-                       infer_devices, gpu_id):
+                       use_gpu_id, gpu_id):
             # ensure no API calls reach here
             if is_public:
                 raise RuntimeError("Illegal access for %s" % model_name)
@@ -1844,7 +1844,7 @@ def go_gradio(**kwargs):
             all_kwargs1 = all_kwargs.copy()
             all_kwargs1['base_model'] = model_name.strip()
             all_kwargs1['load_8bit'] = load_8bit
-            all_kwargs1['infer_devices'] = infer_devices
+            all_kwargs1['use_gpu_id'] = use_gpu_id
             all_kwargs1['gpu_id'] = int(gpu_id)  # detranscribe
             model_lower = model_name.strip().lower()
             if model_lower in inv_prompt_type_to_model_lower:
@@ -1909,7 +1909,7 @@ def go_gradio(**kwargs):
 
         load_model_args = dict(fn=load_model,
                                inputs=[model_choice, lora_choice, server_choice, model_state, prompt_type,
-                                       model_load8bit_checkbox, model_infer_devices_checkbox, model_gpu],
+                                       model_load8bit_checkbox, model_use_gpu_id_checkbox, model_gpu],
                                outputs=[model_state, model_used, lora_used, server_used,
                                         # if prompt_type changes, prompt_dict will change via change rule
                                         prompt_type, max_new_tokens, min_new_tokens,
@@ -1926,7 +1926,7 @@ def go_gradio(**kwargs):
 
         load_model_args2 = dict(fn=load_model,
                                 inputs=[model_choice2, lora_choice2, server_choice2, model_state2, prompt_type2,
-                                        model_load8bit_checkbox2, model_infer_devices_checkbox2, model_gpu2],
+                                        model_load8bit_checkbox2, model_use_gpu_id_checkbox2, model_gpu2],
                                 outputs=[model_state2, model_used2, lora_used2, server_used2,
                                          # if prompt_type2 changes, prompt_dict2 will change via change rule
                                          prompt_type2, max_new_tokens2, min_new_tokens2

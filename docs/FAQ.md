@@ -103,7 +103,7 @@ If you see this error, then you either have insufficient GPU memory or insuffici
 
 ### Larger models require more GPU memory
 
-Depending on available GPU memory, you can load differently sized models. For multiple GPUs, automatic sharding can be enabled with `--infer_devices=False`, but this is disabled by default since cuda:x cuda:y mismatches can occur.
+Depending on available GPU memory, you can load differently sized models. For multiple GPUs, automatic sharding can be enabled with `--use_gpu_id=False`, but this is disabled by default since cuda:x cuda:y mismatches can occur.
 
 For GPUs with at least 24GB of memory, we recommend:
 ```bash

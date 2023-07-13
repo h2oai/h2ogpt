@@ -62,7 +62,7 @@ def main(
         load_half: bool = True,
         load_gptq: str = '',
         use_safetensors: bool = False,
-        infer_devices: bool = True,
+        use_gpu_id: bool = True,
         base_model: str = '',
         tokenizer_base_model: str = '',
         lora_weights: str = "",
@@ -182,11 +182,11 @@ def main(
     :param load_half: load model in float16
     :param load_gptq: to load model with GPTQ, put model_basename here, e.g. gptq_model-4bit--1g
     :param use_safetensors: to use safetensors version (assumes file/HF points to safe tensors version)
-    :param infer_devices: whether to control devices with gpu_id.  If False, then spread across GPUs
+    :param use_gpu_id: whether to control devices with gpu_id.  If False, then spread across GPUs
     :param base_model: model HF-type name.  If use --base_model to preload model, cannot unload in gradio in models tab
     :param tokenizer_base_model: tokenizer HF-type name.  Usually not required, inferred from base_model.
     :param lora_weights: LORA weights path/HF link
-    :param gpu_id: if infer_devices, then use gpu_id for cuda device ID, or auto mode if gpu_id != -1
+    :param gpu_id: if use_gpu_id, then use gpu_id for cuda device ID, or auto mode if gpu_id != -1
     :param compile_model Whether to compile the model
     :param use_cache: Whether to use caching in model (some models fail when multiple threads use)
     :param inference_server: Consume base_model as type of model at this address
@@ -466,7 +466,7 @@ def main(
         load_half = False
         load_gptq = ''
         use_safetensors = False
-        infer_devices = False
+        use_gpu_id = False
         torch.backends.cudnn.benchmark = True
         torch.backends.cudnn.enabled = False
         torch.set_default_dtype(torch.float32)
@@ -849,7 +849,7 @@ def get_model(
         load_half: bool = True,
         load_gptq: str = '',
         use_safetensors: bool = False,
-        infer_devices: bool = True,
+        use_gpu_id: bool = True,
         base_model: str = '',
         inference_server: str = "",
         tokenizer_base_model: str = '',
@@ -873,7 +873,7 @@ def get_model(
     :param load_half: load model in 16-bit
     :param load_gptq: GPTQ model_basename
     :param use_safetensors: use safetensors file
-    :param infer_devices: Use torch infer of optimal placement of layers on devices (for non-lora case)
+    :param use_gpu_id: Use torch infer of optimal placement of layers on devices (for non-lora case)
            For non-LORA case, False will spread shards across multiple GPUs, but this can lead to cuda:x cuda:y mismatches
            So it is not the default
     :param base_model: name/path of base model
@@ -963,7 +963,7 @@ def get_model(
                         load_half=load_half,
                         load_gptq=load_gptq,
                         use_safetensors=use_safetensors,
-                        infer_devices=infer_devices,
+                        use_gpu_id=use_gpu_id,
                         base_model=base_model,
                         tokenizer_base_model=tokenizer_base_model,
                         lora_weights=lora_weights,
@@ -989,7 +989,7 @@ def get_hf_model(load_8bit: bool = False,
                  load_half: bool = True,
                  load_gptq: str = '',
                  use_safetensors: bool = False,
-                 infer_devices: bool = True,
+                 use_gpu_id: bool = True,
                  base_model: str = '',
                  tokenizer_base_model: str = '',
                  lora_weights: str = "",
@@ -1053,7 +1053,7 @@ def get_hf_model(load_8bit: bool = False,
                             offload_folder=offload_folder,
                             )
         if 'mbart-' not in base_model.lower() and 'mpt-' not in base_model.lower():
-            if infer_devices and gpu_id is not None and gpu_id >= 0 and device == 'cuda':
+            if use_gpu_id and gpu_id is not None and gpu_id >= 0 and device == 'cuda':
                 device_map = {"": gpu_id}
             else:
                 device_map = "auto"
@@ -1076,7 +1076,7 @@ def get_hf_model(load_8bit: bool = False,
             context = NullContext if load_gptq else torch.device
             with context(device):
 
-                if infer_devices:
+                if use_gpu_id:
                     config, model = get_config(base_model, return_model=True, raise_exception=True, **config_kwargs)
                     model = get_non_lora_model(base_model, model_loader, load_half, load_gptq, use_safetensors,
                                                model_kwargs, reward_type,
@@ -1194,7 +1194,7 @@ def get_score_model(score_model: str = None,
                     load_4bit: bool = False,
                     load_half: bool = True,
                     load_gptq: str = '',
-                    infer_devices: bool = True,
+                    use_gpu_id: bool = True,
                     base_model: str = '',
                     inference_server: str = '',
                     tokenizer_base_model: str = '',
@@ -2476,9 +2476,9 @@ def entrypoint_main():
 
     python generate.py --base_model='togethercomputer/GPT-NeoXT-Chat-Base-20B' --prompt_type='human_bot' --lora_weights='GPT-NeoXT-Chat-Base-20B.merged.json.8_epochs.57b2892c53df5b8cefac45f84d019cace803ef26.28'
 
-    must have 4*48GB GPU and run without 8bit in order for sharding to work with infer_devices=False
+    must have 4*48GB GPU and run without 8bit in order for sharding to work with use_gpu_id=False
     can also pass --prompt_type='human_bot' and model can somewhat handle instructions without being instruct tuned
-    python generate.py --base_model=decapoda-research/llama-65b-hf --load_8bit=False --infer_devices=False --prompt_type='human_bot'
+    python generate.py --base_model=decapoda-research/llama-65b-hf --load_8bit=False --use_gpu_id=False --prompt_type='human_bot'
 
     python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b
     """
