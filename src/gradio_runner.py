@@ -435,9 +435,9 @@ def go_gradio(**kwargs):
                                                   )
                     sources_visible = kwargs['langchain_mode'] != 'Disabled' and enable_sources_list
                     with gr.Row():
-                        get_sources_btn = gr.Button(value="Update Above Document(s) from DB", scale=0, size='sm',
+                        get_sources_btn = gr.Button(value="Update UI with Document(s) from DB", scale=0, size='sm',
                                                     visible=sources_visible)
-                        show_sources_btn = gr.Button(value="Show Sources in DB", scale=0, size='sm',
+                        show_sources_btn = gr.Button(value="Show Sources from DB", scale=0, size='sm',
                                                      visible=sources_visible)
                         refresh_sources_btn = gr.Button(value="Update DB with new/changed files on disk", scale=0,
                                                         size='sm',
@@ -448,7 +448,7 @@ def go_gradio(**kwargs):
                     with sources_row:
                         with gr.Column(scale=1):
                             file_source = gr.File(interactive=False,
-                                                  label="Download File w/Sources [click get sources to make file]")
+                                                  label="Download File w/Sources")
                         with gr.Column(scale=2):
                             sources_text = gr.HTML(label='Sources Added', interactive=False)
 
@@ -460,11 +460,9 @@ def go_gradio(**kwargs):
                         with gr.Column(scale=1):
                             remove_chat_btn = gr.Button(value="Remove Selected Saved Chats", visible=True, size='sm')
                             flag_btn = gr.Button("Flag Current Chat", size='sm')
+                            export_chats_btn = gr.Button(value="Export Chats to Download", size='sm')
                         with gr.Column(scale=4):
                             pass
-                    with gr.Row():
-                        export_chats_btn = gr.Button(value="Export Chats to Download", size='sm')
-                        add_to_chats_btn = gr.Button("Import Chats from Upload", size='sm')
                     with gr.Row():
                         chats_file = gr.File(interactive=False, label="Download Exported Chats")
                         chatsup_output = gr.File(label="Upload Chat File(s)",
