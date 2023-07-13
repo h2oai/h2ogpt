@@ -133,6 +133,7 @@ class H2oTheme(Soft):
             background_fill_primary_dark="*block_background_fill",
             block_radius="0 0 8px 8px",
             checkbox_label_text_color_selected_dark='#000000',
+            checkbox_label_text_size="*text_sm",
         )
 
 
@@ -172,6 +173,9 @@ class SoftTheme(Soft):
             text_size=text_size,
             font=font,
             font_mono=font_mono,
+        )
+        super().set(
+            checkbox_label_text_size="*text_sm",
         )
 
 
