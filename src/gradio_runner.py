@@ -359,7 +359,8 @@ def go_gradio(**kwargs):
                         value=allowed_actions[0] if len(allowed_actions) > 0 else None,
                         label="Data Action",
                         visible=True)
-            with (gr.Column(elem_id="col_container", scale=10), gr.Tabs()):
+            col_tabs = gr.Column(elem_id="col_container", scale=10)
+            with (col_tabs, gr.Tabs()):
                 with gr.TabItem("Chat"):
                     if kwargs['langchain_mode'] == 'Disabled':
                         text_output_nochat = gr.Textbox(lines=5, label=output_label0, show_copy_button=True,
@@ -691,6 +692,9 @@ def go_gradio(**kwargs):
 
                             side_bar_btn = gr.Button("Toggle SideBar", variant="secondary", size="sm")
                             submit_buttons_btn = gr.Button("Toggle Submit Buttons", variant="secondary", size="sm")
+                            col_tabs_scale = gr.Slider(minimum=1, maximum=20, value=10, step=1, label='Window Size')
+                            text_outputs_height = gr.Slider(minimum=100, maximum=1000, value=kwargs['height'] or 400,
+                                                            step=100, label='Chat Height')
                             dark_mode_btn = gr.Button("Dark Mode", variant="secondary", size="sm")
                             admin_pass_textbox = gr.Textbox(label="Admin Password", type='password', visible=is_public)
                             admin_btn = gr.Button(value="Admin Access", visible=is_public, size='sm')
@@ -837,6 +841,21 @@ def go_gradio(**kwargs):
             return gr.Dropdown.update(choices=docs_state0, value=DocumentChoices.All.name)
 
         langchain_mode.change(clear_doc_choice, inputs=None, outputs=document_choice, queue=False)
+
+        def resize_col_tabs(x):
+            return gr.Dropdown.update(scale=x)
+
+        col_tabs_scale.change(fn=resize_col_tabs, inputs=col_tabs_scale, outputs=col_tabs)
+
+        def resize_chatbots(x, num_model_lock=0):
+            if num_model_lock == 0:
+                num_model_lock = 3  # 2 + 1 (which is dup of first)
+            else:
+                num_model_lock = 2 + num_model_lock
+            return tuple([gr.update(height=x)] * num_model_lock)
+        resize_chatbots_func = functools.partial(resize_chatbots, num_model_lock=len(text_outputs))
+        text_outputs_height.change(fn=resize_chatbots, inputs=text_outputs_height,
+                                   outputs=[text_output, text_output2] + text_outputs)
 
         def update_dropdown(x):
             return gr.Dropdown.update(choices=x, value=[docs_state0[0]])
