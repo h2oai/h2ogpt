@@ -1,9 +1,11 @@
 ### Other models
 
-One can choose any huggingface model, just pass the name after `--base_model=`, but a `prompt_type` is required if we don't already have support.
+One can choose any huggingface model. 
+
+Just pass the name after `--base_model=`, but a `prompt_type` is required if we don't already have support.
 E.g. for vicuna models, a typical prompt_type is used and we support that already automatically for specific models,
 but if you pass `--prompt_type=instruct_vicuna` with any other Vicuna model, we'll use it assuming that is the correct prompt type.
-See models that are currently supported in this automatic way, and the same dictionary shows which prompt types are supported: [prompter](../prompter.py).
+See models that are currently supported in this automatic way, and the same dictionary shows which prompt types are supported: [prompter](../src/prompter.py).
 
 ### Low-memory mode
 
@@ -225,10 +227,6 @@ Ignore this warning.
    - `CUDA_VISIBLE_DEVICES`: Standard list of CUDA devices to make visible.
 
 These can be usful on HuggingFace spaces, where one sets secret tokens because CLI options cannot be used.
-
-### h2oGPT LLM not producing output.
-
-To be fixed soon: https://github.com/h2oai/h2ogpt/issues/192
 
 ### GPT4All not producing output.
 
