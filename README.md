@@ -22,7 +22,7 @@ Welcome!  Join us and make an issue or a PR, and contribute to making the best f
 
 ### Video Demo:
 
-
+https://github.com/h2oai/h2ogpt/assets/2249614/619449ab-40ab-46d1-8b17-270c503f7275
 
 ### Guide:
 <!--  cat README.md | ./gh-md-toc  -  But Help is heavily processed -->
