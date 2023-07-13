@@ -22,7 +22,7 @@ Welcome!  Join us and make an issue or a PR, and contribute to making the best f
 
 ### Video Demo:
 
-[YouTube Video](docs/demo.html)
+
 
 ### Guide:
 <!--  cat README.md | ./gh-md-toc  -  But Help is heavily processed -->
