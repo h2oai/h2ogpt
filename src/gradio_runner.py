@@ -857,7 +857,7 @@ def go_gradio(**kwargs):
             return tuple([gr.update(height=x)] * num_model_lock)
 
         resize_chatbots_func = functools.partial(resize_chatbots, num_model_lock=len(text_outputs))
-        text_outputs_height.change(fn=resize_chatbots, inputs=text_outputs_height,
+        text_outputs_height.change(fn=resize_chatbots_func, inputs=text_outputs_height,
                                    outputs=[text_output, text_output2] + text_outputs)
 
         def update_dropdown(x):
