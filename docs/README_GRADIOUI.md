@@ -1,6 +1,6 @@
 ### Gradio UI
 
-`generate.py` by default runs a gradio server with a [UI (click for help with UI)](FAQ.md#explain-things-in-ui).  Key benefits of the UI include:
+`generate.py` by default runs a gradio server with a [UI (click for help with UI)](UI.md).  Key benefits of the UI include:
 * Save, export, import chat histories and undo or regenerate last query-response pair
 * Upload and control documents of various kinds for document Q/A
 * Choose which specific collection to query, or just chat with LLM

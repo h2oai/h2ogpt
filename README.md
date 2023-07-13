@@ -163,7 +163,7 @@ pip uninstall -y auto-gptq ; CUDA_HOME=/usr/local/cuda-11.7  GITHUB_ACTIONS=true
 ```
 See [AutoGPTQ](docs/README_GPU.md#gpu-cuda) for more details for AutoGPTQ and other GPU installation aspects.
 
-Place all documents in `user_path` or upload in UI.
+Place all documents in `user_path` or upload in UI ([Help with UI](docs/UI.md)).
 
 UI using GPU with at least 24GB with streaming:
 ```bash
