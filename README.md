@@ -22,7 +22,7 @@ Welcome!  Join us and make an issue or a PR, and contribute to making the best f
 
 ### Video Demo:
 
-https://github.com/h2oai/h2ogpt/assets/2249614/619449ab-40ab-46d1-8b17-270c503f7275
+https://github.com/h2oai/h2ogpt/assets/2249614/2f805035-2c85-42fb-807f-fd0bca79abc6
 
 YouTube 4K version: https://www.youtube.com/watch?v=_iktbj4obAI
 
