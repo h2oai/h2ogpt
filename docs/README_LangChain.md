@@ -285,6 +285,8 @@ For links to direct to the document and download to your local machine, the orig
 
 * [Quiver](https://github.com/StanGirard/quivr). By comparison, Quiver requires docker but also supports audio and video and currently only supports OpenAI models and embeddings.
 
+* [GPT4-PDF-Chatbot-LangChain](https://github.com/mayooear/gpt4-pdf-chatbot-langchain).  Uses OpenAI, pinecone, etc. No longer maintained.
+
 * [Vault-AI](https://github.com/pashpashpash/vault-ai) but h2oGPT is fully private and open-source by not using OpenAI or [pinecone](https://www.pinecone.io/).
 
 * [DB-GPT](https://github.com/csunny/DB-GPT) but h2oGPT is fully commercially viable by not using [Vicuna](https://lmsys.org/blog/2023-03-30-vicuna/) (LLaMa based with GPT3.5 training data).
@@ -292,6 +294,10 @@ For links to direct to the document and download to your local machine, the orig
 * [ChatBox](https://github.com/Bin-Huang/chatbox) has ability to collaborate.
 
 * [Chat2GB](https://github.com/alibaba/Chat2DB) like DB-GPT by Alibaba.
+
+* [pdfGPT](https://github.com/bhaskatripathi/pdfGPT) like PrivateGPT but no longer maintained.
+
+* [docquery](https://github.com/impira/docquery) like PrivateGPT but uses LayoutLM.
 
 * [ChatPDF](https://www.chatpdf.com/) but h2oGPT is open-source and private and many more data types.
 
@@ -314,6 +320,8 @@ For links to direct to the document and download to your local machine, the orig
 * [Bard](https://bard.google.com/) but h2oGPT is open-source and private.  Bard has better automatic link and image use.
 
 * [ChatGPT](https://chat.openai.com/) but h2oGPT is open-source and private.  ChatGPT code interpreter has better image, video, etc. handling.
+
+* [ChatGPT-Next-Web](https://github.com/Yidadaa/ChatGPT-Next-Web) like local ChatGPT.
 
 * [Bing](https://www.bing.com/) but h2oGPT is open-source and private.  Bing has excellent search queries and handling of results.
 

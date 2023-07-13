@@ -56,7 +56,7 @@ from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, 
 from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt_type_to_model_lower, non_hf_types, \
     get_prompt
 from utils import get_githash, flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
-    ping, get_short_name, makedirs, get_kwargs, remove, system_info, ping_gpu
+    ping, get_short_name, makedirs, get_kwargs, remove, system_info, ping_gpu, get_url, get_local_ip
 from gen import get_model, languages_covered, evaluate, score_qa, langchain_modes, inputs_kwargs_list, scratch_base_dir, \
     get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions
 from evaluate_params import eval_func_param_names, no_default_param_names, eval_func_param_names_defaults
@@ -274,6 +274,8 @@ def go_gradio(**kwargs):
         docs_state0 = []
         [docs_state0.append(x) for x in docs_state00 if x not in docs_state0]
         docs_state = gr.State(docs_state0)
+        viewable_docs_state0 = []
+        viewable_docs_state = gr.State(viewable_docs_state0)
         gr.Markdown(f"""
             {get_h2o_title(title, description) if kwargs['h2ocolors'] else get_simple_title(title, description)}
             """)
@@ -454,6 +456,25 @@ def go_gradio(**kwargs):
 
                     doc_exception_text = gr.Textbox(value="", visible=True, label='Document Exceptions',
                                                     interactive=False)
+                with gr.TabItem("Document Viewer"):
+                    with gr.Row():
+                        with gr.Column(scale=2):
+                            get_viewable_sources_btn = gr.Button(value="Update UI with Document(s) from DB", scale=0,
+                                                                 size='sm',
+                                                                 visible=sources_visible)
+                            view_document_choice = gr.Dropdown(viewable_docs_state0,
+                                                               label="Select Single Document",
+                                                               value=None,
+                                                               interactive=True,
+                                                               multiselect=False,
+                                                               )
+                        with gr.Column(scale=4):
+                            pass
+                    document = 'http://infolab.stanford.edu/pub/papers/google.pdf'
+                    doc_view = gr.HTML(visible=False)
+                    doc_view2 = gr.Dataframe(visible=False)
+                    doc_view3 = gr.JSON(visible=False)
+                    doc_view4 = gr.Markdown(visible=False)
 
                 with gr.TabItem("Chat History"):
                     with gr.Row():
@@ -813,7 +834,7 @@ def go_gradio(**kwargs):
         # work around https://github.com/gradio-app/gradio/issues/4733
         eventdb2b = eventdb2a.then(make_non_interactive, inputs=add_url_outputs, outputs=add_url_outputs,
                                    show_progress='minimal')
-        eventdb2 = eventdb2b.then(**add_url_kwargs, show_progress='minimal')
+        eventdb2 = eventdb2b.then(**add_url_kwargs, show_progress='full')
         eventdb2c = eventdb2.then(make_interactive, inputs=add_url_outputs, outputs=add_url_outputs,
                                   show_progress='minimal')
 
@@ -829,7 +850,7 @@ def go_gradio(**kwargs):
                                           show_progress='minimal')
         eventdb3b = eventdb3a.then(make_non_interactive, inputs=add_text_outputs, outputs=add_text_outputs,
                                    show_progress='minimal')
-        eventdb3 = eventdb3b.then(**add_text_kwargs, show_progress='minimal')
+        eventdb3 = eventdb3b.then(**add_text_kwargs, show_progress='full')
         eventdb3c = eventdb3.then(make_interactive, inputs=add_text_outputs, outputs=add_text_outputs,
                                   show_progress='minimal')
         db_events = [eventdb1a, eventdb1, eventdb1b,
@@ -874,6 +895,96 @@ def go_gradio(**kwargs):
         show_sources1 = functools.partial(get_source_files_given_langchain_mode, dbs=dbs)
         eventdb8 = show_sources_btn.click(fn=show_sources1, inputs=[my_db_state, langchain_mode], outputs=sources_text,
                                           api_name='show_sources' if allow_api else None)
+
+        def update_viewable_dropdown(x):
+            return gr.Dropdown.update(choices=x,
+                                      value=viewable_docs_state0[0] if len(viewable_docs_state0) > 0 else None)
+
+        get_viewable_sources1 = functools.partial(get_sources, dbs=dbs, docs_state0=viewable_docs_state0)
+        get_viewable_sources_args = dict(fn=get_viewable_sources1, inputs=[my_db_state, langchain_mode],
+                                         outputs=[file_source, viewable_docs_state],
+                                         queue=queue,
+                                         api_name='get_viewable_sources' if allow_api else None)
+        eventdb12 = get_viewable_sources_btn.click(**get_viewable_sources_args) \
+            .then(fn=update_viewable_dropdown, inputs=viewable_docs_state,
+                  outputs=view_document_choice)
+
+        def show_doc(file):
+            dummy1 = gr.update(visible=False, value=None)
+            dummy_ret = dummy1, dummy1, dummy1, dummy1
+            if not isinstance(file, str):
+                return dummy_ret
+
+            if file.endswith('.md'):
+                try:
+                    with open(file, 'rt') as f:
+                        content = f.read()
+                    return dummy1, dummy1, dummy1, gr.update(visible=True, value=content)
+                except:
+                    return dummy_ret
+
+            if file.endswith('.py'):
+                try:
+                    with open(file, 'rt') as f:
+                        content = f.read()
+                    content = f"```python\n{content}\n```"
+                    return dummy1, dummy1, dummy1, gr.update(visible=True, value=content)
+                except:
+                    return dummy_ret
+
+            if file.endswith('.txt') or file.endswith('.rst') or file.endswith('.rtf') or file.endswith('.toml'):
+                try:
+                    with open(file, 'rt') as f:
+                        content = f.read()
+                    content = f"```text\n{content}\n```"
+                    return dummy1, dummy1, dummy1, gr.update(visible=True, value=content)
+                except:
+                    return dummy_ret
+
+            func = None
+            if file.endswith(".csv"):
+                func = pd.read_csv
+            elif file.endswith(".pickle"):
+                func = pd.read_pickle
+            elif file.endswith(".xls") or file.endswith("xlsx"):
+                func = pd.read_excel
+            elif file.endswith('.json'):
+                func = pd.read_json
+            elif file.endswith('.xml'):
+                func = pd.read_xml
+            if func is not None:
+                try:
+                    df = func(file).head(100)
+                except:
+                    return dummy_ret
+                return dummy1, gr.update(visible=True, value=df), dummy1, dummy1
+            port = int(os.getenv('GRADIO_SERVER_PORT', '7860'))
+            import pathlib
+            absolute_path_string = os.path.abspath(file)
+            url_path = pathlib.Path(absolute_path_string).as_uri()
+            url = get_url(absolute_path_string, from_str=True)
+            img_url = url.replace("""<a href=""", """<img src=""")
+            if file.endswith('.png') or file.endswith('.jpg') or file.endswith('.jpeg'):
+                return gr.update(visible=True, value=img_url), dummy1, dummy1, dummy1
+            elif file.endswith('.pdf') or 'arxiv.org/pdf' in file:
+                if file.startswith('http') or file.startswith('https'):
+                    # if file is online, then might as well use google(?)
+                    document1 = file
+                    return gr.update(visible=True, value=f"""<iframe width="1000" height="800" src="https://docs.google.com/viewerng/viewer?url={document1}&embedded=true" frameborder="0" height="100%" width="100%">
+</iframe>
+"""), dummy1, dummy1, dummy1
+                else:
+                    ip = get_local_ip()
+                    document1 = url_path.replace('file://', f'http://{ip}:{port}/')
+                    # document1 = url
+                    return gr.update(visible=True, value=f"""<object data="{document1}" type="application/pdf">
+    <iframe src="https://docs.google.com/viewer?url={document1}&embedded=true"></iframe>
+</object>"""), dummy1, dummy1, dummy1
+            else:
+                return dummy_ret
+
+        view_document_choice.select(fn=show_doc, inputs=view_document_choice,
+                                    outputs=[doc_view, doc_view2, doc_view3, doc_view4])
 
         # Get inputs to evaluate() and make_db()
         # don't deepcopy, can contain model itself
@@ -2098,7 +2209,7 @@ def go_gradio(**kwargs):
                        cancels=submits1 + submits2 + submits3 + submits4 +
                                [submit_event_nochat, submit_event_nochat2] +
                                [eventdb1, eventdb2, eventdb3] +
-                               [eventdb7, eventdb8, eventdb9] +
+                               [eventdb7, eventdb8, eventdb9, eventdb12] +
                                db_events +
                                [clear_event] +
                                [submit_event_nochat_api, submit_event_nochat] +
