@@ -682,8 +682,7 @@ def go_gradio(**kwargs):
                             add_model_lora_server_button = gr.Button("Add new Model, Lora, Server url:port", scale=0,
                                                                      size='sm', interactive=not is_public)
                 with gr.TabItem("System"):
-                    admin_row = gr.Row()
-                    with admin_row:
+                    with gr.Row():
                         with gr.Column(scale=1):
                             side_bar_text = gr.Textbox('on', visible=False, interactive=False)
                             submit_buttons_text = gr.Textbox('on', visible=False, interactive=False)
@@ -694,6 +693,9 @@ def go_gradio(**kwargs):
                             text_outputs_height = gr.Slider(minimum=100, maximum=1000, value=kwargs['height'] or 400,
                                                             step=100, label='Chat Height')
                             dark_mode_btn = gr.Button("Dark Mode", variant="secondary", size="sm")
+                    admin_row = gr.Row()
+                    with admin_row:
+                        with gr.Column(scale=1):
                             admin_pass_textbox = gr.Textbox(label="Admin Password", type='password', visible=is_public)
                             admin_btn = gr.Button(value="Admin Access", visible=is_public, size='sm')
                         with gr.Column(scale=4):
@@ -702,25 +704,25 @@ def go_gradio(**kwargs):
                     with system_row:
                         with gr.Column():
                             with gr.Row():
-                                system_btn = gr.Button(value='Get System Info')
+                                system_btn = gr.Button(value='Get System Info', size='sm')
                                 system_text = gr.Textbox(label='System Info', interactive=False, show_copy_button=True)
                             with gr.Row():
                                 system_input = gr.Textbox(label='System Info Dict Password', interactive=True,
                                                           visible=not is_public)
-                                system_btn2 = gr.Button(value='Get System Info Dict', visible=not is_public)
+                                system_btn2 = gr.Button(value='Get System Info Dict', visible=not is_public, size='sm')
                                 system_text2 = gr.Textbox(label='System Info Dict', interactive=False,
                                                           visible=not is_public, show_copy_button=True)
                             with gr.Row():
-                                system_btn3 = gr.Button(value='Get Hash', visible=not is_public)
+                                system_btn3 = gr.Button(value='Get Hash', visible=not is_public, size='sm')
                                 system_text3 = gr.Textbox(label='Hash', interactive=False,
                                                           visible=not is_public, show_copy_button=True)
 
                             with gr.Row():
-                                zip_btn = gr.Button("Zip")
+                                zip_btn = gr.Button("Zip", size='sm')
                                 zip_text = gr.Textbox(label="Zip file name", interactive=False)
                                 file_output = gr.File(interactive=False, label="Zip file to Download")
                             with gr.Row():
-                                s3up_btn = gr.Button("S3UP")
+                                s3up_btn = gr.Button("S3UP", size='sm')
                                 s3up_text = gr.Textbox(label='S3UP result', interactive=False)
 
                 with gr.TabItem("Terms of Service"):
