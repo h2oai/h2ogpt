@@ -357,7 +357,7 @@ def go_gradio(**kwargs):
                     langchain_action = gr.Radio(
                         allowed_actions,
                         value=allowed_actions[0] if len(allowed_actions) > 0 else None,
-                        label="Data Action",
+                        label="Action",
                         visible=True)
             col_tabs = gr.Column(elem_id="col_container", scale=10)
             with (col_tabs, gr.Tabs()):
