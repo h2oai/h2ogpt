@@ -141,8 +141,24 @@ cd h2ogpt
 # fix any bad env
 pip uninstall -y pandoc pypandoc pypandoc-binary
 # broad support, but no training-time or data creation dependencies
-for fil in requirements.txt reqs_optional/requirements_optional_langchain.txt reqs_optional/requirements_optional_gpt4all.txt reqs_optional/requirements_optional_langchain.gpllike.txt reqs_optional/requirements_optional_langchain.urls.txt ; do pip install -r $fil ; done
-# Optional: support docx, pptx, ArXiv, etc.
+
+# CPU only:
+pip install -r requirements.txt --extra-index https://download.pytorch.org/whl/cpu
+
+# GPU only:
+pip install -r requirements.txt --extra-index https://download.pytorch.org/whl/cu117
+```
+Then run:
+```bash
+# Required for Doc Q/A: LangChain:
+pip install -r reqs_optional/requirements_optional_langchain.txt
+# Required for CPU: LLaMa/GPT4All:
+pip install -r reqs_optional/requirements_optional_gpt4all.txt
+# Optional: PyMuPDF/ArXiv:
+pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt
+# Optional: Selenium/PlayWright:
+pip install -r reqs_optional/requirements_optional_langchain.urls.txt
+# Optional: support docx, pptx, ArXiv, etc. required by some python packages
 sudo apt-get install -y libmagic-dev poppler-utils tesseract-ocr libreoffice
 # Optional: for supporting unstructured package
 python -m nltk.downloader all

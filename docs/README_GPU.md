@@ -19,7 +19,7 @@ For help installing cuda toolkit, see [CUDA Toolkit](INSTALL.md#installing-cuda-
 ```bash
 git clone https://github.com/h2oai/h2ogpt.git
 cd h2ogpt
-for fil in requirements.txt reqs_optional/requirements_optional_langchain.txt reqs_optional/requirements_optional_gpt4all.txt reqs_optional/requirements_optional_langchain.gpllike.txt reqs_optional/requirements_optional_langchain.urls.txt --extra-index-url https://download.pytorch.org/whl/cu118 ; do pip install -r $fil ; done
+for fil in requirements.txt reqs_optional/requirements_optional_langchain.txt reqs_optional/requirements_optional_gpt4all.txt reqs_optional/requirements_optional_langchain.gpllike.txt reqs_optional/requirements_optional_langchain.urls.txt --extra-index-url https://download.pytorch.org/whl/cu118 ; do pip install -r $fil--extra-index https://download.pytorch.org/whl/cu117 ; done
 # Optional: support docx, pptx, ArXiv, etc.
 sudo apt-get install -y libmagic-dev poppler-utils tesseract-ocr libreoffice
 # Optional: for supporting unstructured package
