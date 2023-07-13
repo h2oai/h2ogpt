@@ -384,24 +384,25 @@ def test_make_add_db(repeat, db_type):
                                   enable_ocr=False,
                                   verbose=False,
                                   is_url=False, is_txt=False)
-                    z1, z2, db1out, x, y, source_files_added = update_user_db(test_file2_my, db1, 'foo', 'bar', chunk,
-                                                                              chunk_size,
-                                                                              dbs=None, db_type=db_type,
-                                                                              langchain_mode='MyData',
-                                                                              **kwargs)
-                    assert 'test2my' in str(source_files_added)
-                    assert 'MyData' == z2
+                    z1, z2, source_files_added, exceptions = update_user_db(test_file2_my, db1, chunk,
+                                                                            chunk_size,
+                                                                            'MyData',
+                                                                            dbs=None, db_type=db_type,
+                                                                            **kwargs)
                     assert z1 is None
-                    z1, z2, x, y, source_files_added = update_user_db(test_file2, db1, 'foo', 'bar', chunk, chunk_size,
-                                                                      dbs={langchain_mode: db},
-                                                                      db_type=db_type,
-                                                                      langchain_mode=langchain_mode,
-                                                                      **kwargs)
+                    assert 'MyData' == z2
+                    assert 'test2my' in str(source_files_added)
+                    assert len(exceptions) == 0
+                    z1, z2, source_files_added, exceptions = update_user_db(test_file2, db1, chunk, chunk_size,
+                                                                            langchain_mode,
+                                                                            dbs={langchain_mode: db},
+                                                                            db_type=db_type,
+                                                                            **kwargs)
                     assert 'test2' in str(source_files_added)
                     assert langchain_mode == z2
                     assert z1 is None
                     docs_state0 = [x.name for x in list(DocumentChoices)]
-                    get_sources(None, langchain_mode, dbs={langchain_mode: db}, docs_state0=docs_state0)
+                    get_sources(db1, langchain_mode, dbs={langchain_mode: db}, docs_state0=docs_state0)
                     get_sources(db1, 'MyData', dbs=None, docs_state0=docs_state0)
                     kwargs2 = dict(first_para=False,
                                    text_limit=None, chunk=chunk, chunk_size=chunk_size,
