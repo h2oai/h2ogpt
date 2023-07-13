@@ -891,8 +891,7 @@ def get_model(
     :param verbose:
     :return:
     """
-    if verbose:
-        print("Get %s model" % base_model, flush=True)
+    print("Starting get_model: %s %s" % (base_model, inference_server), flush=True)
 
     triton_attn = False
     long_sequence = True
