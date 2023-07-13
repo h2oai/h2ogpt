@@ -1,5 +1,18 @@
 # Explain things in UI
 
+`generate.py` by default runs a gradio server with a UI.  Key benefits of the UI include:
+* Save, export, import chat histories and undo or regenerate last query-response pair
+* Upload and control documents of various kinds for document Q/A
+* Choose which specific collection to query, or just chat with LLM
+* Choose specific documents out of collection for asking questions
+* Multi-model or side-by-side 2-model comparison view
+* RLHF response score evaluation for every query-response
+
+
+We disable background uploads by disabling telemetry for Hugging Face, gradio, and chroma, and one can additionally avoid downloads (of fonts) by running `generate.py` with `--gradio_offline_level=2`.  See [Offline Documentation](offline.md) for details.
+
+
+
 All the buttons are also accessible via gradio client API.
 
 ![ui_4.png](ui_4.png)

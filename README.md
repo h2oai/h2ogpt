@@ -39,7 +39,7 @@ YouTube 4K version: https://www.youtube.com/watch?v=_iktbj4obAI
    * [MACOS](docs/README_MACOS.md#macos)
    * [Windows 10/11](docs/README_WINDOWS.md)
    * [CLI chat](docs/README_CLI.md)
-   * [Gradio UI](docs/README_GRADIOUI.md)
+   * [Gradio UI](docs/README_ui.md)
    * [Client API](docs/README_CLIENT.md)
    * [Connect to Inference Servers](docs/README_InferenceServers.md)
    * [Python Wheel](docs/README_WHEEL.md)
@@ -73,8 +73,10 @@ GPU and CPU mode tested on variety of NVIDIA GPUs in Ubuntu 18-22, but any moder
 
 ### Apache V2 ChatBot with LangChain Integration
 
+See how we compare to other tools like PrivateGPT, see our [comparisons](docs/README_LangChain.md#what-is-h2ogpts-langchain-integration-like).
+
 - [**LangChain**](docs/README_LangChain.md) equipped Chatbot integration and streaming responses
-- **Persistent** database using Chroma or in-memory with FAISS
+- **Persistent** database using Chroma and Weaviate or in-memory with FAISS
 - **Original** content url links and scores to rank content against query
 - **Private** offline database of any documents ([PDFs, Images, and many more](docs/README_LangChain.md#supported-datatypes))
 - **Upload** documents via chatbot into shared space or only allow scratch space
@@ -163,7 +165,7 @@ pip uninstall -y auto-gptq ; CUDA_HOME=/usr/local/cuda-11.7  GITHUB_ACTIONS=true
 ```
 See [AutoGPTQ](docs/README_GPU.md#gpu-cuda) for more details for AutoGPTQ and other GPU installation aspects.
 
-Place all documents in `user_path` or upload in UI ([Help with UI](docs/UI.md)).
+Place all documents in `user_path` or upload in UI ([Help with UI](docs/README_ui.md)).
 
 UI using GPU with at least 24GB with streaming:
 ```bash
@@ -188,6 +190,8 @@ Add `--share=True` to make gradio server visible via sharable URL.  If you see a
 ```bash
 pip install protobuf==3.20.0
 ```
+
+Once all files are downloaded, the CLI and UI can be run in offline mode, see [offline mode](docs/README_offline.md).
 
 ### Development
 
@@ -253,4 +257,3 @@ By using the large language model provided in this repository, you agree to acce
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=h2oai/h2ogpt&type=Timeline)](https://star-history.com/#h2oai/h2ogpt&Timeline)
-

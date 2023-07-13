@@ -58,7 +58,7 @@ Follow these steps:
     ```bash
     pip install -r https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.2.2/auto_gptq-0.2.2+cu118-cp310-cp310-win_amd64.whl
     ```
-14. Run h2oGPT for chat only:
+13. Run h2oGPT for chat only:
     ```bash
     python generate.py --base_model=h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b --score_model=None
     ```
