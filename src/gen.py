@@ -2252,8 +2252,8 @@ y = np.random.randint(0, 1, 100)
 
     # move to correct position
     for example in examples:
-        example += [chat, '', '', LangChainMode.DISABLED.value, LangChainAction.QUERY.value, [],
-                    top_k_docs, chunk, chunk_size, [DocumentChoices.Relevant.name]
+        example += [chat, '', '', LangChainMode.DISABLED.value, LangChainAction.QUERY.value,
+                    top_k_docs, chunk, chunk_size, [DocumentChoices.Relevant.name], []
                     ]
         # adjust examples if non-chat mode
         if not chat:
