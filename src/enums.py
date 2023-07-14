@@ -31,6 +31,7 @@ class PromptType(Enum):
     mptinstruct = 25
     mptchat = 26
     falcon = 27
+    guanaco = 28
 
 
 class DocumentChoices(Enum):

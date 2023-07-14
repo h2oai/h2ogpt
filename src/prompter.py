@@ -582,6 +582,20 @@ ASSISTANT:
             # if add space here, non-unique tokenization will often make LLM produce wrong output
             PreResponse = PreResponse
         # generates_leading_space = True
+    elif prompt_type in [PromptType.guanaco.value, str(PromptType.guanaco.value),
+                         PromptType.guanaco.name]:
+        # https://huggingface.co/TheBloke/guanaco-65B-GPTQ
+        promptA = promptB = "" if not (chat and reduced) else ''
+
+        PreInstruct = """### Human: """
+
+        PreInput = None
+
+        PreResponse = """### Assistant:"""
+        terminate_response = ['### Human:']  # but only allow terminate after prompt is found correctly, else can't terminate
+        chat_turn_sep = chat_sep = '\n'
+        humanstr = PreInstruct
+        botstr = PreResponse
     else:
         raise RuntimeError("No such prompt_type=%s" % prompt_type)
 
