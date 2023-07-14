@@ -369,7 +369,7 @@ def go_gradio(**kwargs):
                         label="Agents",
                         multiselect=True,
                         interactive=True,
-                        visible=True)
+                        visible=False)  # WIP
             col_tabs = gr.Column(elem_id="col_container", scale=10)
             with (col_tabs, gr.Tabs()):
                 with gr.TabItem("Chat"):
@@ -478,7 +478,7 @@ def go_gradio(**kwargs):
                                                                value=None,
                                                                interactive=True,
                                                                multiselect=False,
-                                                               visible=False,  # WIP
+                                                               visible=True,
                                                                )
                         with gr.Column(scale=4):
                             pass
