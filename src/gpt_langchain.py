@@ -921,7 +921,8 @@ non_image_types = ["pdf", "txt", "csv", "toml", "py", "rst", "rtf",
                    ]
 # "msg",  GPL3
 
-if have_libreoffice:
+if have_libreoffice or True:
+    # or True so it tries to load, e.g. on MAC/Windows, even if don't have libreoffice since works without that
     non_image_types.extend(["docx", "doc", "xls", "xlsx"])
 
 file_types = non_image_types + image_types
@@ -1005,11 +1006,11 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         add_meta(docs1, file)
         docs1 = clean_doc(docs1)
         doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size, language=Language.HTML)
-    elif (file.lower().endswith('.docx') or file.lower().endswith('.doc')) and have_libreoffice:
+    elif (file.lower().endswith('.docx') or file.lower().endswith('.doc')) and (have_libreoffice or True):
         docs1 = UnstructuredWordDocumentLoader(file_path=file).load()
         add_meta(docs1, file)
         doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
-    elif (file.lower().endswith('.xlsx') or file.lower().endswith('.xls')) and have_libreoffice:
+    elif (file.lower().endswith('.xlsx') or file.lower().endswith('.xls')) and (have_libreoffice or True):
         docs1 = UnstructuredExcelLoader(file_path=file).load()
         add_meta(docs1, file)
         doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
