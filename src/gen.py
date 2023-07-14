@@ -136,7 +136,7 @@ def main(
         extra_lora_options: typing.List[str] = [],
         extra_server_options: typing.List[str] = [],
 
-        score_model: str = 'OpenAssistant/reward-model-deberta-v3-large-v2',
+        score_model: str = None,
 
         eval_filename: str = None,
         eval_prompts_only_num: int = 0,
@@ -276,6 +276,8 @@ def main(
     :param extra_lora_options: extra LORA to show in list in gradio
     :param extra_server_options: extra servers to show in list in gradio
     :param score_model: which model to score responses (None means no scoring)
+           '' (no model) is default for CPU, 'OpenAssistant/reward-model-deberta-v3-large-v2' for GPU unless specified,
+            because on CPU takes too much compute just for scoring response
     :param eval_filename: json file to use for evaluation, if None is sharegpt
     :param eval_prompts_only_num: for no gradio benchmark, if using eval_filename prompts for eval instead of examples
     :param eval_prompts_only_seed: for no gradio benchmark, seed for eval_filename sampling
@@ -481,8 +483,8 @@ def main(
         # HF accounted for later in get_max_max_new_tokens()
     save_dir = os.getenv('SAVE_DIR', save_dir)
     score_model = os.getenv('SCORE_MODEL', score_model)
-    if score_model == 'None' or score_model is None:
-        score_model = ''
+    if score_model == 'None':
+        score_model = None
     concurrency_count = int(os.getenv('CONCURRENCY_COUNT', concurrency_count))
     api_open = bool(int(os.getenv('API_OPEN', str(int(api_open)))))
     allow_api = bool(int(os.getenv('ALLOW_API', str(int(allow_api)))))
@@ -506,7 +508,11 @@ def main(
         if hf_embedding_model is None:
             # if no GPUs, use simpler embedding model to avoid cost in time
             hf_embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
+        if score_model is None:
+            score_model = ''
     else:
+        if score_model is None:
+            score_model = 'OpenAssistant/reward-model-deberta-v3-large-v2'
         if hf_embedding_model is None:
             # if still None, then set default
             hf_embedding_model = 'hkunlp/instructor-large'
