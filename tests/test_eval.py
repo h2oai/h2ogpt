@@ -111,6 +111,7 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
                  'top_k_docs': 3,
                  'document_subset': DocumentChoices.Relevant.name,  # matches return
                  'document_choice': np.array([]),  # matches return
+                 'langchain_agents': np.array([]),  # matches return
                  }
     expected1.update({k: v for k, v in kwargs.items() if k not in ['load_half', 'load_4bit', 'load_8bit', 'load_gptq', 'use_safetensors']})
     assert actual1 == expected1
