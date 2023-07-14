@@ -29,7 +29,7 @@ warnings.filterwarnings('ignore', category=UserWarning, message='TypedStorage is
 
 from evaluate_params import eval_func_param_names, no_default_param_names
 from enums import DocumentChoices, LangChainMode, no_lora_str, model_token_mapping, no_model_str, source_prefix, \
-    source_postfix, LangChainAction
+    source_postfix, LangChainAction, LangChainAgent
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, remove, \
@@ -53,6 +53,8 @@ from stopping import get_stopping
 langchain_modes = [x.value for x in list(LangChainMode)]
 
 langchain_actions = [x.value for x in list(LangChainAction)]
+
+langchain_agents_list = [x.value for x in list(LangChainAgent)]
 
 scratch_base_dir = '/tmp/'
 
@@ -143,11 +145,13 @@ def main(
 
         langchain_mode: str = None,
         langchain_action: str = LangChainAction.QUERY.value,
+        langchain_agents: list = [],
         force_langchain_evaluate: bool = False,
         visible_langchain_modes: list = ['UserData', 'MyData'],
         # WIP:
         # visible_langchain_actions: list = langchain_actions.copy(),
         visible_langchain_actions: list = [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value],
+        visible_langchain_agents: list = langchain_agents_list.copy(),
         document_subset: str = DocumentChoices.Relevant.name,
         document_choice: list = [],
         user_path: str = None,
@@ -283,6 +287,8 @@ def main(
             Summarize or Summarize_map_reduce: Summarize document(s) via map_reduce
             Summarize_all: Summarize document(s) using entire document at once
             Summarize_refine: Summarize document(s) using entire document, and try to refine before returning summary
+    :param langchain_agents: Which agents to use
+            'search': Use Web Search as context for LLM response, e.g. SERP if have SERPAPI_API_KEY in env
     :param force_langchain_evaluate: Whether to force langchain LLM use even if not doing langchain, mostly for testing.
     :param user_path: user path to glob from to generate db for vector search, for 'UserData' langchain mode.
            If already have db, any new/changed files are added automatically if path set, does not have to be same path used for prior db sources
@@ -293,8 +299,8 @@ def main(
            But wiki_full is expensive and requires preparation
            To allow scratch space only live in session, add 'MyData' to list
            Default: If only want to consume local files, e.g. prepared by make_db.py, only include ['UserData']
-           FIXME: Avoid 'All' for now, not implemented
     :param visible_langchain_actions: Which actions to allow
+    :param visible_langchain_agents: Which agents to allow
     :param document_subset: Default document choice when taking subset of collection
     :param document_choice: Chosen document(s) by internal name
     :param load_db_if_exists: Whether to load chroma db if exists or re-generate db
@@ -394,6 +400,7 @@ def main(
             visible_langchain_modes += [langchain_mode]
 
     assert langchain_action in langchain_actions, "Invalid langchain_action %s" % langchain_action
+    assert len(set(langchain_agents_list).difference(langchain_agents)) == 0, "Invalid langchain_agents %s" % langchain_agents
 
     # if specifically chose not to show My or User Data, disable upload, so gradio elements are simpler
     if LangChainMode.MY_DATA.value not in visible_langchain_modes:
@@ -1278,6 +1285,7 @@ def evaluate(
         iinput_nochat,
         langchain_mode,
         langchain_action,
+        langchain_agents,
         top_k_docs,
         chunk,
         chunk_size,
@@ -1452,6 +1460,7 @@ def evaluate(
     # THIRD PLACE where LangChain referenced, but imports only occur if enabled and have db to use
     assert langchain_mode in langchain_modes, "Invalid langchain_mode %s" % langchain_mode
     assert langchain_action in langchain_actions, "Invalid langchain_action %s" % langchain_action
+    assert len(set(langchain_agents_list).difference(langchain_agents)) == 0, "Invalid langchain_agents %s" % langchain_agents
     if langchain_mode in ['MyData'] and my_db_state is not None and len(my_db_state) > 0 and my_db_state[0] is not None:
         db1 = my_db_state[0]
     elif dbs is not None and langchain_mode in dbs:
@@ -1498,6 +1507,7 @@ def evaluate(
                            chunk_size=chunk_size,
                            langchain_mode=langchain_mode,
                            langchain_action=langchain_action,
+                           langchain_agents=langchain_agents,
                            document_subset=document_subset,
                            document_choice=document_choice,
                            db_type=db_type,
@@ -1526,6 +1536,7 @@ def evaluate(
                               inference_server=inference_server,
                               langchain_mode=langchain_mode,
                               langchain_action=langchain_action,
+                              langchain_agents=langchain_agents,
                               document_subset=document_subset,
                               document_choice=document_choice,
                               num_prompt_tokens=num_prompt_tokens,
@@ -1643,6 +1654,7 @@ def evaluate(
                 where_from = "gr_client"
                 client_langchain_mode = 'Disabled'
                 client_langchain_action = LangChainAction.QUERY.value
+                client_langchain_agents = []
                 gen_server_kwargs = dict(temperature=temperature,
                                          top_p=top_p,
                                          top_k=top_k,
@@ -1695,6 +1707,7 @@ def evaluate(
                                      iinput_nochat=gr_iinput,  # only for chat=False
                                      langchain_mode=client_langchain_mode,
                                      langchain_action=client_langchain_action,
+                                     langchain_agents=client_langchain_agents,
                                      top_k_docs=top_k_docs,
                                      chunk=chunk,
                                      chunk_size=chunk_size,

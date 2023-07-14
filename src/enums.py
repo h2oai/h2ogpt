@@ -71,6 +71,13 @@ class LangChainAction(Enum):
     SUMMARIZE_REFINE = "Summarize_refine"
 
 
+class LangChainAgent(Enum):
+    """LangChain agents"""
+
+    SEARCH = "Search"
+    # CSV = "csv"  # WIP
+
+
 no_server_str = no_lora_str = no_model_str = '[None/Remove]'
 
 # from site-packages/langchain/llms/openai.py

@@ -58,7 +58,7 @@ from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt
 from utils import get_githash, flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping, get_short_name, makedirs, get_kwargs, remove, system_info, ping_gpu, get_url, get_local_ip
 from gen import get_model, languages_covered, evaluate, score_qa, langchain_modes, inputs_kwargs_list, scratch_base_dir, \
-    get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions
+    get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list
 from evaluate_params import eval_func_param_names, no_default_param_names, eval_func_param_names_defaults
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -101,6 +101,7 @@ def go_gradio(**kwargs):
     db_type = kwargs['db_type']
     visible_langchain_modes = kwargs['visible_langchain_modes']
     visible_langchain_actions = kwargs['visible_langchain_actions']
+    visible_langchain_agents = kwargs['visible_langchain_agents']
     allow_upload_to_user_data = kwargs['allow_upload_to_user_data']
     allow_upload_to_my_data = kwargs['allow_upload_to_my_data']
     enable_sources_list = kwargs['enable_sources_list']
@@ -361,6 +362,14 @@ def go_gradio(**kwargs):
                         value=allowed_actions[0] if len(allowed_actions) > 0 else None,
                         label="Action",
                         visible=True)
+                    allowed_agents = [x for x in langchain_agents_list if x in visible_langchain_agents]
+                    langchain_agents = gr.Dropdown(
+                        langchain_agents_list,
+                        value=kwargs['langchain_agents'],
+                        label="Agents",
+                        multiselect=True,
+                        interactive=True,
+                        visible=True)
             col_tabs = gr.Column(elem_id="col_container", scale=10)
             with (col_tabs, gr.Tabs()):
                 with gr.TabItem("Chat"):
@@ -469,6 +478,7 @@ def go_gradio(**kwargs):
                                                                value=None,
                                                                interactive=True,
                                                                multiselect=False,
+                                                               visible=False,  # WIP
                                                                )
                         with gr.Column(scale=4):
                             pass
@@ -1035,6 +1045,8 @@ def go_gradio(**kwargs):
                 user_kwargs['langchain_mode'] = 'Disabled'
             if 'langchain_action' not in user_kwargs:
                 user_kwargs['langchain_action'] = LangChainAction.QUERY.value
+            if 'langchain_agents' not in user_kwargs:
+                user_kwargs['langchain_agents'] = []
 
             set1 = set(list(default_kwargs1.keys()))
             set2 = set(eval_func_param_names)
@@ -1216,6 +1228,7 @@ def go_gradio(**kwargs):
             prompt_type1 = args_list[eval_func_param_names.index('prompt_type')]
             langchain_mode1 = args_list[eval_func_param_names.index('langchain_mode')]
             langchain_action1 = args_list[eval_func_param_names.index('langchain_action')]
+            langchain_agents1 = args_list[eval_func_param_names.index('langchain_agents')]
             document_subset1 = args_list[eval_func_param_names.index('document_subset')]
             document_choice1 = args_list[eval_func_param_names.index('document_choice')]
             if not prompt_type1:
@@ -1312,6 +1325,7 @@ def go_gradio(**kwargs):
             args_list = args_list[:-3]  # only keep rest needed for evaluate()
             langchain_mode1 = args_list[eval_func_param_names.index('langchain_mode')]
             langchain_action1 = args_list[eval_func_param_names.index('langchain_action')]
+            langchain_agents1 = args_list[eval_func_param_names.index('langchain_agents')]
             document_subset1 = args_list[eval_func_param_names.index('document_subset')]
             document_choice1 = args_list[eval_func_param_names.index('document_choice')]
             if not history:

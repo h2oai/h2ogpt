@@ -356,6 +356,7 @@ class GradioInference(LLM):
         gr_client = self.client
         client_langchain_mode = 'Disabled'
         client_langchain_action = LangChainAction.QUERY.value
+        client_langchain_agents = []
         top_k_docs = 1
         chunk = True
         chunk_size = 512
@@ -385,6 +386,7 @@ class GradioInference(LLM):
                              iinput_nochat='',  # only for chat=False
                              langchain_mode=client_langchain_mode,
                              langchain_action=client_langchain_action,
+                             langchain_agents=client_langchain_agents,
                              top_k_docs=top_k_docs,
                              chunk=chunk,
                              chunk_size=chunk_size,
@@ -1775,6 +1777,7 @@ def _run_qa_db(query=None,
                num_return_sequences=1,
                langchain_mode=None,
                langchain_action=None,
+               langchain_agents=None,
                document_subset=DocumentChoices.Relevant.name,
                document_choice=[],
                n_jobs=-1,
@@ -1948,6 +1951,7 @@ def get_chain(query=None,
               db=None,
               langchain_mode=None,
               langchain_action=None,
+              langchain_agents=None,
               document_subset=DocumentChoices.Relevant.name,
               document_choice=[],
               n_jobs=-1,
@@ -1961,6 +1965,7 @@ def get_chain(query=None,
               auto_reduce_chunks=True,
               max_chunks=100,
               ):
+    assert langchain_agents is not None  # should be at least []
     # determine whether use of context out of docs is planned
     if not use_openai_model and prompt_type not in ['plain'] or model_name in non_hf_types:
         if langchain_mode in ['Disabled', 'ChatLLM', 'LLM']:

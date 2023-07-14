@@ -22,7 +22,7 @@ def run_cli(  # for local function:
         temperature=None, top_p=None, top_k=None, num_beams=None,
         max_new_tokens=None, min_new_tokens=None, early_stopping=None, max_time=None, repetition_penalty=None,
         num_return_sequences=None, do_sample=None, chat=None,
-        langchain_mode=None, langchain_action=None,
+        langchain_mode=None, langchain_action=None, langchain_agents=None,
         document_subset=None, document_choice=None,
         top_k_docs=None, chunk=None, chunk_size=None,
         # for evaluate kwargs
