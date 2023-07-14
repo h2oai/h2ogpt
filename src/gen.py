@@ -32,7 +32,8 @@ from enums import DocumentChoices, LangChainMode, no_lora_str, model_token_mappi
     source_postfix, LangChainAction
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial, EThread, get_githash, \
-    import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, remove
+    import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, remove, \
+    have_langchain
 
 start_faulthandler()
 import_matplotlib()
@@ -140,7 +141,7 @@ def main(
         eval_prompts_only_seed: int = 1234,
         eval_as_output: bool = False,
 
-        langchain_mode: str = 'Disabled',
+        langchain_mode: str = None,
         langchain_action: str = LangChainAction.QUERY.value,
         force_langchain_evaluate: bool = False,
         visible_langchain_modes: list = ['UserData', 'MyData'],
@@ -385,10 +386,12 @@ def main(
     # allow enabling langchain via ENV
     # FIRST PLACE where LangChain referenced, but no imports related to it
     langchain_mode = os.environ.get("LANGCHAIN_MODE", langchain_mode)
-    assert langchain_mode in langchain_modes, "Invalid langchain_mode %s" % langchain_mode
+    if langchain_mode is not None:
+        assert langchain_mode in langchain_modes, "Invalid langchain_mode %s" % langchain_mode
     visible_langchain_modes = ast.literal_eval(os.environ.get("visible_langchain_modes", str(visible_langchain_modes)))
     if langchain_mode not in visible_langchain_modes and langchain_mode in langchain_modes:
-        visible_langchain_modes += [langchain_mode]
+        if langchain_mode is not None:
+            visible_langchain_modes += [langchain_mode]
 
     assert langchain_action in langchain_actions, "Invalid langchain_action %s" % langchain_action
 
@@ -397,6 +400,23 @@ def main(
         allow_upload_to_my_data = False
     if LangChainMode.USER_DATA.value not in visible_langchain_modes:
         allow_upload_to_user_data = False
+
+    # auto-set langchain_mode
+    if have_langchain and langchain_mode is None:
+        if allow_upload_to_user_data and not is_public:
+            langchain_mode = 'UserData'
+            print("Auto set langchain_mode=%s" % langchain_mode, flush=True)
+        elif allow_upload_to_my_data:
+            langchain_mode = 'MyData'
+            print("Auto set langchain_mode=%s" % langchain_mode, flush=True)
+        else:
+            raise RuntimeError("Please pass --langchain_mode=<chosen mode> out of %s" % langchain_modes)
+    if not have_langchain and langchain_mode not in [None, LangChainMode.DISABLED.value, LangChainMode.LLM.value, LangChainMode.CHAT_LLM.value]:
+        raise RuntimeError("Asked for LangChain mode but langchain python package cannot be found.")
+    if langchain_mode is None:
+        # if not set yet, disable
+        langchain_mode = LangChainMode.DISABLED.value
+        print("Auto set langchain_mode=%s" % langchain_mode, flush=True)
 
     if is_public:
         allow_upload_to_user_data = False
