@@ -1555,7 +1555,8 @@ def evaluate(
             where_from = "openai_client"
 
             openai.api_key = os.getenv("OPENAI_API_KEY")
-            stop_sequences = list(set(prompter.terminate_response + [prompter.PreResponse]))
+            terminate_response = prompter.terminate_response or []
+            stop_sequences = list(set(terminate_response + [prompter.PreResponse]))
             stop_sequences = [x for x in stop_sequences if x]
             # OpenAI will complain if ask for too many new tokens, takes it as min in some sense, wrongly so.
             max_new_tokens_openai = min(max_new_tokens, model_max_length - num_prompt_tokens)
@@ -1764,7 +1765,8 @@ def evaluate(
 
                 # prompt must include all human-bot like tokens, already added by prompt
                 # https://github.com/huggingface/text-generation-inference/tree/main/clients/python#types
-                stop_sequences = list(set(prompter.terminate_response + [prompter.PreResponse]))
+                terminate_response = prompter.terminate_response or []
+                stop_sequences = list(set(terminate_response + [prompter.PreResponse]))
                 stop_sequences = [x for x in stop_sequences if x]
                 gen_server_kwargs = dict(do_sample=do_sample,
                                          max_new_tokens=max_new_tokens,

@@ -643,7 +643,8 @@ def get_llm(use_openai_model=False,
 
         callbacks = [StreamingGradioCallbackHandler()]
         assert prompter is not None
-        stop_sequences = list(set(prompter.terminate_response + [prompter.PreResponse]))
+        terminate_response = prompter.terminate_response or []
+        stop_sequences = list(set(terminate_response + [prompter.PreResponse]))
         stop_sequences = [x for x in stop_sequences if x]
 
         if gr_client:
