@@ -140,7 +140,7 @@ def system_info():
         gpu_memory_frac_dict = {k: gpu_memory_free_dict[k] / gpu_memory_total_dict[k] for k in gpu_memory_total_dict}
         for k, v in gpu_memory_frac_dict.items():
             system[f'GPU_M/%s' % k] = v
-    except ModuleNotFoundError:
+    except (KeyError, ModuleNotFoundError):
         pass
     system['hash'] = get_githash()
 
