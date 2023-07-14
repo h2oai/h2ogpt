@@ -58,7 +58,7 @@ def test_requirements():
         print('Wrong version of packages: %s' % packages_version, flush=True)
         print("Can't determine (e.g. http) packages: %s" % packages_unkn, flush=True)
         print('\n\nRUN THIS:\n\n', flush=True)
-        print('pip uninstall peft transformers accelerate -y ; CUDA_HOME=/usr/local/cuda-11.7 pip install %s --upgrade' % str(' '.join(packages_all)), flush=True)
+        print('pip uninstall peft transformers accelerate -y ; CUDA_HOME=/usr/local/cuda-11.8 pip install %s --upgrade' % str(' '.join(packages_all)), flush=True)
         print('\n\n', flush=True)
 
         raise ValueError(packages_all)

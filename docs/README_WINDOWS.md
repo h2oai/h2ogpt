@@ -47,7 +47,10 @@ Follow these steps:
     ```
 11. Install optional document Q/A dependencies
     ```bash
-    for fil in reqs_optional/requirements_optional_langchain.txt reqs_optional/requirements_optional_gpt4all.txt reqs_optional/requirements_optional_langchain.gpllike.txt reqs_optional/requirements_optional_langchain.urls.txt ; do pip install -r $fil --extra-index-url https://download.pytorch.org/whl/cu118 ; done
+    pip install -r reqs_optional/requirements_optional_langchain.txt
+    pip install -r reqs_optional/requirements_optional_gpt4all.txt
+    pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt
+    pip install -r reqs_optional/requirements_optional_langchain.urls.txt
     ```
     Optional dependencies for supporting unstructured package
     ```bash

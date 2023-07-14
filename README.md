@@ -142,7 +142,7 @@ pip uninstall -y pandoc pypandoc pypandoc-binary
 pip install -r requirements.txt --extra-index https://download.pytorch.org/whl/cpu
 
 # GPU only:
-pip install -r requirements.txt --extra-index https://download.pytorch.org/whl/cu117
+pip install -r requirements.txt --extra-index https://download.pytorch.org/whl/cu118
 ```
 Then run:
 ```bash
@@ -159,7 +159,7 @@ sudo apt-get install -y libmagic-dev poppler-utils tesseract-ocr libreoffice
 # Optional: for supporting unstructured package
 python -m nltk.downloader all
 # Optional: For AutoGPTQ support on x86_64 linux
-pip uninstall -y auto-gptq ; CUDA_HOME=/usr/local/cuda-11.7  GITHUB_ACTIONS=true pip install auto-gptq --no-cache-dir
+pip uninstall -y auto-gptq ; CUDA_HOME=/usr/local/cuda-11.8  GITHUB_ACTIONS=true pip install auto-gptq --no-cache-dir
 ```
 See [AutoGPTQ](docs/README_GPU.md#gpu-cuda) for more details for AutoGPTQ and other GPU installation aspects.
 
