@@ -2,9 +2,7 @@
 
 Turn ★ into ⭐ (top-right corner) if you like the project!
 
-h2oGPT is a large language model (LLM) fine-tuning framework and chatbot UI with document(s) question-answer capabilities.  Documents help to **ground** LLMs against hallucinations by providing them context relevant to the instruction.  h2oGPT is fully permissive Apache V2 open-source project for 100% private and secure use of LLMs and document embeddings for document question-answer.
-
-Welcome!  Join us and make an issue or a PR, and contribute to making the best fine-tuned LLMs, chatbot UI, and document question-answer framework!
+Query and summarize your documents (PDFs, Excel, Word, Images, Code, Text, MarkDown, etc.) or just chat using local private GPT LLMs (Falcon, Vicuna, WizardLM including AutoGPTQ) sourced from vector database (Chroma, FAISS, Weaviate) using accurate embeddings (instruct-large, all-MiniLM-L6-v1, etc.).  Supports Linux, Windows, or MAC for both CPU and GPU.  Clean UI or CLI supported with LLM streaming, with bake-off mode against any number of models in UI.  OpenAI-compliant Python client access to the server.    
 
 ### Live Demos
 - [![img-small.png](docs/img-small.png) Live h2oGPT Document Q/A Demo](https://gpt.h2o.ai/)
