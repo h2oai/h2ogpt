@@ -136,7 +136,7 @@ def main(
         extra_lora_options: typing.List[str] = [],
         extra_server_options: typing.List[str] = [],
 
-        score_model: str = None,
+        score_model: str = 'auto',
 
         eval_filename: str = None,
         eval_prompts_only_num: int = 0,
@@ -276,14 +276,16 @@ def main(
     :param extra_model_options: extra models to show in list in gradio
     :param extra_lora_options: extra LORA to show in list in gradio
     :param extra_server_options: extra servers to show in list in gradio
-    :param score_model: which model to score responses (None means no scoring)
-           '' (no model) is default for CPU, 'OpenAssistant/reward-model-deberta-v3-large-v2' for GPU unless specified,
+    :param score_model: which model to score responses
+           None: no response scoring
+           'auto': auto mode, '' (no model) for CPU, 'OpenAssistant/reward-model-deberta-v3-large-v2' for GPU,
             because on CPU takes too much compute just for scoring response
     :param eval_filename: json file to use for evaluation, if None is sharegpt
     :param eval_prompts_only_num: for no gradio benchmark, if using eval_filename prompts for eval instead of examples
     :param eval_prompts_only_seed: for no gradio benchmark, seed for eval_filename sampling
     :param eval_as_output: for no gradio benchmark, whether to test eval_filename output itself
     :param langchain_mode: Data source to include.  Choose "UserData" to only consume files from make_db.py.
+           None: auto mode, check if langchain package exists, at least do ChatLLM if so, else Disabled
            WARNING: wiki_full requires extra data processing via read_wiki_full.py and requires really good workstation to generate db, unless already present.
     :param langchain_action: Mode langchain operations in on documents.
             Query: Make query of document(s)
@@ -486,8 +488,8 @@ def main(
         # HF accounted for later in get_max_max_new_tokens()
     save_dir = os.getenv('SAVE_DIR', save_dir)
     score_model = os.getenv('SCORE_MODEL', score_model)
-    if score_model == 'None':
-        score_model = None
+    if str(score_model) == 'None':
+        score_model = ''
     concurrency_count = int(os.getenv('CONCURRENCY_COUNT', concurrency_count))
     api_open = bool(int(os.getenv('API_OPEN', str(int(api_open)))))
     allow_api = bool(int(os.getenv('ALLOW_API', str(int(allow_api)))))
@@ -512,10 +514,10 @@ def main(
         if hf_embedding_model is None:
             # if no GPUs, use simpler embedding model to avoid cost in time
             hf_embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
-        if score_model is None:
+        if score_model == 'auto':
             score_model = ''
     else:
-        if score_model is None:
+        if score_model == 'auto':
             score_model = 'OpenAssistant/reward-model-deberta-v3-large-v2'
         if hf_embedding_model is None:
             # if still None, then set default
