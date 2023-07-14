@@ -2408,14 +2408,14 @@ def check_locals(**kwargs):
 
 
 def get_model_max_length(model_state):
-    if not isinstance(model_state['tokenizer'], (str, types.NoneType)):
+    if not isinstance(model_state['tokenizer'], (str, type(None))):
         return model_state['tokenizer'].model_max_length
     else:
         return 2048
 
 
 def get_max_max_new_tokens(model_state, **kwargs):
-    if not isinstance(model_state['tokenizer'], (str, types.NoneType)):
+    if not isinstance(model_state['tokenizer'], (str, type(None))):
         max_max_new_tokens = model_state['tokenizer'].model_max_length
     else:
         max_max_new_tokens = None
