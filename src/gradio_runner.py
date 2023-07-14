@@ -434,6 +434,7 @@ def go_gradio(**kwargs):
                                                   value='All',
                                                   interactive=True,
                                                   multiselect=True,
+                                                  visible=kwargs['langchain_mode'] != 'Disabled',
                                                   )
                     sources_visible = kwargs['langchain_mode'] != 'Disabled' and enable_sources_list
                     with gr.Row():
@@ -454,10 +455,11 @@ def go_gradio(**kwargs):
                         with gr.Column(scale=2):
                             sources_text = gr.HTML(label='Sources Added', interactive=False)
 
-                    doc_exception_text = gr.Textbox(value="", visible=True, label='Document Exceptions',
-                                                    interactive=False)
+                    doc_exception_text = gr.Textbox(value="", label='Document Exceptions',
+                                                    interactive=False,
+                                                    visible=kwargs['langchain_mode'] != 'Disabled')
                 with gr.TabItem("Document Viewer"):
-                    with gr.Row():
+                    with gr.Row(visible=kwargs['langchain_mode'] != 'Disabled'):
                         with gr.Column(scale=2):
                             get_viewable_sources_btn = gr.Button(value="Update UI with Document(s) from DB", scale=0,
                                                                  size='sm',
