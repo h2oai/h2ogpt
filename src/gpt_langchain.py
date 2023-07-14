@@ -931,9 +931,10 @@ file_types = non_image_types + image_types
 def add_meta(docs1, file):
     file_extension = pathlib.Path(file).suffix
     hashid = hash_file(file)
+    doc_hash = str(uuid.uuid4())[:10]
     if not isinstance(docs1, (list, tuple, types.GeneratorType)):
         docs1 = [docs1]
-    [x.metadata.update(dict(input_type=file_extension, date=str(datetime.now()), hashid=hashid)) for x in docs1]
+    [x.metadata.update(dict(input_type=file_extension, date=str(datetime.now()), hashid=hashid, doc_hash=doc_hash)) for x in docs1]
 
 
 def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
@@ -2092,8 +2093,8 @@ def get_chain(query=None,
                                for result in zip(db_documents, db_metadatas)]
 
             # order documents
-            doc_hashes = [x['doc_hash'] for x in db_metadatas]
-            doc_chunk_ids = [x['chunk_id'] for x in db_metadatas]
+            doc_hashes = [x.get('doc_hash', 'None') for x in db_metadatas]
+            doc_chunk_ids = [x.get('chunk_id', 0) for x in db_metadatas]
             docs_with_score = [x for _, _, x in
                                sorted(zip(doc_hashes, doc_chunk_ids, docs_with_score), key=lambda x: (x[0], x[1]))
                                ]
@@ -2302,6 +2303,7 @@ def clean_doc(docs1):
 
 def chunk_sources(sources, chunk=True, chunk_size=512, language=None):
     if not chunk:
+        [x.metadata.update(dict(chunk_id=chunk_id)) for chunk_id, x in enumerate(sources)]
         return sources
     if not isinstance(sources, (list, tuple, types.GeneratorType)) and not callable(sources):
         # if just one document
@@ -2320,8 +2322,7 @@ def chunk_sources(sources, chunk=True, chunk_size=512, language=None):
     source_chunks = splitter.split_documents(sources)
 
     # currently in order, but when pull from db won't be, so mark order and document by hash
-    doc_hash = str(uuid.uuid4())[:10]
-    [x.metadata.update(dict(doc_hash=doc_hash, chunk_id=chunk_id)) for chunk_id, x in enumerate(source_chunks)]
+    [x.metadata.update(dict(chunk_id=chunk_id)) for chunk_id, x in enumerate(source_chunks)]
 
     return source_chunks
 
