@@ -1755,6 +1755,7 @@ def _run_qa_db(query=None,
                cut_distanct=1.1,
                sanitize_bot_response=False,
                show_rank=False,
+               use_llm_if_no_docs=False,
                load_db_if_exists=False,
                db=None,
                do_sample=False,
@@ -1853,20 +1854,21 @@ def _run_qa_db(query=None,
         formatted_doc_chunks = '\n\n'.join([get_url(x) + '\n\n' + x.page_content for x in docs])
         yield formatted_doc_chunks, ''
         return
-    if not docs and langchain_action in [LangChainAction.SUMMARIZE_MAP.value,
-                                         LangChainAction.SUMMARIZE_ALL.value,
-                                         LangChainAction.SUMMARIZE_REFINE.value]:
-        ret = 'No relevant documents to summarize.' if have_any_docs else 'No documents to summarize.'
-        extra = ''
-        yield ret, extra
-        return
-    if not docs and langchain_mode not in [LangChainMode.DISABLED.value,
-                                           LangChainMode.CHAT_LLM.value,
-                                           LangChainMode.LLM.value]:
-        ret = 'No relevant documents to query.' if have_any_docs else 'No documents to query.'
-        extra = ''
-        yield ret, extra
-        return
+    if not use_llm_if_no_docs:
+        if not docs and langchain_action in [LangChainAction.SUMMARIZE_MAP.value,
+                                             LangChainAction.SUMMARIZE_ALL.value,
+                                             LangChainAction.SUMMARIZE_REFINE.value]:
+            ret = 'No relevant documents to summarize.' if have_any_docs else 'No documents to summarize.'
+            extra = ''
+            yield ret, extra
+            return
+        if not docs and langchain_mode not in [LangChainMode.DISABLED.value,
+                                               LangChainMode.CHAT_LLM.value,
+                                               LangChainMode.LLM.value]:
+            ret = 'No relevant documents to query.' if have_any_docs else 'No documents to query.'
+            extra = ''
+            yield ret, extra
+            return
 
     if chain is None and model_name not in non_hf_types:
         # here if no docs at all and not HF type

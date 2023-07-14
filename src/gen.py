@@ -156,6 +156,7 @@ def main(
         document_choice: list = [],
         user_path: str = None,
         detect_user_path_changes_every_query: bool = False,
+        use_llm_if_no_docs: bool = False,
         load_db_if_exists: bool = True,
         keep_sources_in_context: bool = False,
         db_type: str = 'chroma',
@@ -305,6 +306,7 @@ def main(
     :param visible_langchain_agents: Which agents to allow
     :param document_subset: Default document choice when taking subset of collection
     :param document_choice: Chosen document(s) by internal name
+    :param use_llm_if_no_docs: Whether to use LLM even if no documents, when langchain_mode=UserData or MyData
     :param load_db_if_exists: Whether to load chroma db if exists or re-generate db
     :param keep_sources_in_context: Whether to keep url sources in context, not helpful usually
     :param db_type: 'faiss' for in-memory or 'chroma' or 'weaviate' for persisted on disk
@@ -1314,6 +1316,7 @@ def evaluate(
         raise_generate_gpu_exceptions=None,
         chat_context=None,
         lora_weights=None,
+        use_llm_if_no_docs=False,
         load_db_if_exists=True,
         dbs=None,
         user_path=None,
@@ -1501,6 +1504,7 @@ def evaluate(
                            inference_server=inference_server,
                            stream_output=stream_output,
                            prompter=prompter,
+                           use_llm_if_no_docs=use_llm_if_no_docs,
                            load_db_if_exists=load_db_if_exists,
                            db=db1,
                            user_path=user_path,
