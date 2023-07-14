@@ -403,13 +403,13 @@ def main(
 
     # auto-set langchain_mode
     if have_langchain and langchain_mode is None:
+        # start in chat mode, in case just want to chat and don't want to get "No documents to query" by default.
+        langchain_mode = LangChainMode.CHAT_LLM.value
         if allow_upload_to_user_data and not is_public and user_path:
-            langchain_mode = 'UserData'
-            print("Auto set langchain_mode=%s" % langchain_mode, flush=True)
+            print("Auto set langchain_mode=%s.  Could use UserData instead." % langchain_mode, flush=True)
         elif allow_upload_to_my_data:
-            langchain_mode = 'MyData'
-            print("Auto set langchain_mode=%s."
-                  "  To use UserData to pull files from disk,"
+            print("Auto set langchain_mode=%s.  Could use MyData instead."
+                  "  To allow UserData to pull files from disk,"
                   " set user_path and ensure allow_upload_to_user_data=True" % langchain_mode, flush=True)
         else:
             raise RuntimeError("Please pass --langchain_mode=<chosen mode> out of %s" % langchain_modes)
