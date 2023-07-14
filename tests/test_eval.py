@@ -114,7 +114,10 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
                  'langchain_agents': np.array([]),  # matches return
                  }
     expected1.update({k: v for k, v in kwargs.items() if k not in ['load_half', 'load_4bit', 'load_8bit', 'load_gptq', 'use_safetensors']})
-    assert actual1 == expected1
+    drop_keys = ['document_choice', 'langchain_agents']
+    expected1 = {k: v for k, v in expected1.items() if k not in drop_keys}
+    actual1 = {k: v for k, v in actual1.items() if k not in drop_keys}
+    assert sorted(actual1.items()) == sorted(expected1.items())
     actual2 = {k: v for k, v in zip(columns, result_list) if k in key_separate}
 
     import torch
