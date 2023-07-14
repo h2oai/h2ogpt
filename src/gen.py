@@ -335,6 +335,7 @@ def main(
            captions_model: str = "Salesforce/blip2-flan-t5-xl",   # question/answer capable, 16GB state
            captions_model: str = "Salesforce/blip2-flan-t5-xxl",  # question/answer capable, 60GB state
            Note: opt-based blip2 are not permissive license due to opt and Meta license restrictions
+           Disabled for CPU since BLIP requires CUDA
     :param pre_load_caption_model: Whether to preload caption model, or load after forking parallel doc loader
            parallel loading disabled if preload and have images, to prevent deadlocking on cuda context
            Recommended if using larger caption model
@@ -491,6 +492,7 @@ def main(
 
     n_gpus = torch.cuda.device_count() if torch.cuda.is_available else 0
     if n_gpus == 0:
+        enable_captions = False
         gpu_id = None
         load_8bit = False
         load_4bit = False
