@@ -400,7 +400,7 @@ def main(
             visible_langchain_modes += [langchain_mode]
 
     assert langchain_action in langchain_actions, "Invalid langchain_action %s" % langchain_action
-    assert len(set(langchain_agents_list).difference(langchain_agents)) == 0, "Invalid langchain_agents %s" % langchain_agents
+    assert len(set(langchain_agents).difference(langchain_agents_list)) == 0, "Invalid langchain_agents %s" % langchain_agents
 
     # if specifically chose not to show My or User Data, disable upload, so gradio elements are simpler
     if LangChainMode.MY_DATA.value not in visible_langchain_modes:
@@ -1460,7 +1460,7 @@ def evaluate(
     # THIRD PLACE where LangChain referenced, but imports only occur if enabled and have db to use
     assert langchain_mode in langchain_modes, "Invalid langchain_mode %s" % langchain_mode
     assert langchain_action in langchain_actions, "Invalid langchain_action %s" % langchain_action
-    assert len(set(langchain_agents_list).difference(langchain_agents)) == 0, "Invalid langchain_agents %s" % langchain_agents
+    assert len(set(langchain_agents).difference(langchain_agents_list)) == 0, "Invalid langchain_agents %s" % langchain_agents
     if langchain_mode in ['MyData'] and my_db_state is not None and len(my_db_state) > 0 and my_db_state[0] is not None:
         db1 = my_db_state[0]
     elif dbs is not None and langchain_mode in dbs:
@@ -2289,8 +2289,8 @@ y = np.random.randint(0, 1, 100)
 
     # move to correct position
     for example in examples:
-        example += [chat, '', '', LangChainMode.DISABLED.value, LangChainAction.QUERY.value,
-                    top_k_docs, chunk, chunk_size, [DocumentChoices.Relevant.name], []
+        example += [chat, '', '', LangChainMode.DISABLED.value, LangChainAction.QUERY.value, [],
+                    top_k_docs, chunk, chunk_size, DocumentChoices.Relevant.name, []
                     ]
         # adjust examples if non-chat mode
         if not chat:
