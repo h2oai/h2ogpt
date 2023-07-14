@@ -1,3 +1,5 @@
+## Frequently asked questions
+
 ### Other models
 
 One can choose any huggingface model. 
@@ -57,7 +59,7 @@ For GPT4All based models, require AVX2, unless one recompiles that project on yo
 
 So we recommend downloading models from [TheBloke](https://huggingface.co/TheBloke) that are version 3 quantized ggml files to work with latest llama.cpp.  See main [README.md](README_CPU.md).
 
-The below example is for base LLaMa model, not instruct-tuned, so is not recommended for chatting.  It just gives an example of how to quantize if you are an expert.
+The following example is for the base LLaMa model, not instruct-tuned, so it is not recommended for chatting.  It just gives an example of how to quantize if you are an expert.
 
 Compile the llama model on your system by following the [instructions](https://github.com/ggerganov/llama.cpp#build) and [llama-cpp-python](https://github.com/abetlen/llama-cpp-python), e.g. for Linux:
 ```bash
@@ -110,7 +112,7 @@ then run h2oGPT like:
 python generate.py --base_model='llama' --langchain_mode=UserData --user_path=user_path
 ```
 
-### is this really a GGML file? Or Using version 2 quantization files from GPT4All that are LLaMa based
+### Is this really a GGML file? Or Using version 2 quantization files from GPT4All that are LLaMa based
 
 If hit error:
 ```text
@@ -132,12 +134,12 @@ assuming that file is from version 2 quantization.
 
 ### I get the error: `The model 'OptimizedModule' is not supported for . Supported models are ...`
 
-Ignore this warning.
+This warning can be safely ignored.
 
 ### What ENVs can I pass to control h2oGPT?
 
    - `SAVE_DIR`: Local directory to save logs to,
-   - `ADMIN_PASS`: Password to acces system info, logs, or push to aws s3 bucket,
+   - `ADMIN_PASS`: Password to access system info, logs, or push to aws s3 bucket,
    - `AWS_BUCKET`: AWS bucket name to push logs to when have admin access,
    - `AWS_SERVER_PUBLIC_KEY`: AWS public key for pushing logs to when have admin access,
    - `AWS_SERVER_SECRET_KEY`: AWS secret key for pushing logs to when have admin access,
@@ -156,7 +158,7 @@ Ignore this warning.
    - `ALLOW_API`: Whether to allow API access,
    - `CUDA_VISIBLE_DEVICES`: Standard list of CUDA devices to make visible.
 
-These can be usful on HuggingFace spaces, where one sets secret tokens because CLI options cannot be used.
+These can be useful on HuggingFace spaces, where one sets secret tokens because CLI options cannot be used.
 
 ### GPT4All not producing output.
 
@@ -197,19 +199,18 @@ Overall, we have done a significant amount of due diligence regarding data and m
 
 #### Disclaimers
 
-Disclaimers and ToS link to show to protect creator of app.
+Disclaimers and a ToS link are displayed to protect the app creators.
 
 ### What are the different prompt types? How does prompt engineering work for h2oGPT?
 
 In general, all LLMs use strings as inputs for training/fine-tuning and generation/inference.
-To manage a variety of possible language task types, we divide any such string into three parts:
+To manage a variety of possible language task types, we divide any such string into the following three parts:
 
 - Instruction
 - Input
 - Response
 
-Each of these three parts can be empty or non-empty strings, such as titles or newlines. In the end, all
-these prompt parts are concatenated into one string. The magic is in the content of those sub-strings. This is called **prompt engineering**.
+Each of these three parts can be empty or non-empty strings, such as titles or newlines. In the end, all of these prompt parts are concatenated into one string. The magic is in the content of those substrings. This is called **prompt engineering**.
 
 #### Summarization
 
@@ -228,7 +229,7 @@ as the continuation of the prompt.
 
 #### ChatBot
 
-For a conversational chatbot use case, we use the following 3 parts:
+For a conversational chatbot use case, we use the following three parts:
 
 - Instruction = `<INSTRUCTION>`
 - Input = `'<human>: '` + `<INPUT>`
@@ -238,17 +239,17 @@ And a training string could look like this: `'<human>: hi, how are you?<bot>: Hi
 At inference time, the model input would be like this: `'<human>: Tell me a joke about snow flakes.<bot>: '`, and the model would generate the bot part.
 
 
-### How to prepare training data?
+### How should training data be prepared?
 
 Training data (in `JSON` format) must contain at least one column that maps to `instruction`, `input` or `output`.
-Their content will be placed into the `<INSTRUCTION>`, `<INPUT>` and `<OUTPUT>` placeholders mentioned above.
+Their content will be placed into the `<INSTRUCTION>`, `<INPUT>`, and `<OUTPUT>` placeholders mentioned above.
 The chosen `prompt_type` will fill in the strings in between to form the actual input into the model.
 Any missing columns will lead to empty strings. Optional `--data_col_dict={'A': 'input', 'B': 'output'}` argument can
 be used to map different column names into the required ones.
 
 #### Examples
 
-Below are examples of training records in `JSON` format.
+The following are examples of training records in `JSON` format.
 
 - `human_bot` prompt type
 ```json
@@ -279,7 +280,7 @@ Below are examples of training records in `JSON` format.
 
 ### Context length
 
-Note that the total length of the text (i.e., input and output) the LLM can handle is limited by the so-called *context length*. For our current models, the context length is 2048 tokens. Longer context lengths are computationally more expensive due to the interactions between all tokens in the sequence.
+Note that the total length of the text (that is, the input and output) the LLM can handle is limited by the so-called *context length*. For our current models, the context length is 2048 tokens. Longer context lengths are computationally more expensive due to the interactions between all tokens in the sequence.
 A context length of 2048 means that for an input of, for example, 1900 tokens, the model will be able to create no more than 148 new tokens as part of the output.
 
 For fine-tuning, if the average length of inputs is less than the context length, one can provide a `cutoff_len` of less than the context length to truncate inputs to this amount of tokens. For most instruction-type datasets, a cutoff length of 512 seems reasonable and provides nice memory and time savings.
@@ -287,7 +288,7 @@ For example, the `h2oai/h2ogpt-oasst1-512-20b` model was trained with a cutoff l
 
 ### Tokens
 
-Here are some example tokens (from a total of ~50k), each of which is assigned a number:
+The following are some example tokens (from a total of ~50k), each of which is assigned a number:
 ```text
 "osed": 1700,
 "ised": 1701,
@@ -304,13 +305,13 @@ Here are some example tokens (from a total of ~50k), each of which is assigned a
 "Ġ{#": 1712,
 ```
 The model is trained with these specific numbers, so the tokenizer must be kept the same for training and inference/generation.
-The input format doesn't change whether the model is in pretraining, fine-tuning or inference mode, but the text itself can change slightly for better results, and that's called prompt engineering.
+The input format doesn't change whether the model is in pretraining, fine-tuning, or inference mode, but the text itself can change slightly for better results, and that's called prompt engineering.
 
-### Is h2oGPT multi-lingual?
+### Is h2oGPT multilingual?
 
 Yes. Try it in your preferred language.
 
-### What does 512 mean in model name?
+### What does 512 mean in the model name?
 
 The number `512` in the model names indicates the cutoff lengths (in tokens) used for fine-tuning. Shorter values generally result in faster training and more focus on the last part of the provided input text (consisting of prompt and answer).
 
@@ -329,13 +330,15 @@ All done.
 
 ### Heterogeneous GPU systems
 
-In case you get peer to peer related errors on non-homogeneous GPU systems, set this env var:
+In case you get peer-to-peer related errors on non-homogeneous GPU systems, set this env var:
 ```
 export NCCL_P2P_LEVEL=LOC
 ```
 
 
-### Use Wiki Data
+### Use Wiki data
+
+The following example demonstrates how to use Wiki data:
 
 ```python
 >>> from datasets import load_dataset
