@@ -403,12 +403,14 @@ def main(
 
     # auto-set langchain_mode
     if have_langchain and langchain_mode is None:
-        if allow_upload_to_user_data and not is_public:
+        if allow_upload_to_user_data and not is_public and user_path:
             langchain_mode = 'UserData'
             print("Auto set langchain_mode=%s" % langchain_mode, flush=True)
         elif allow_upload_to_my_data:
             langchain_mode = 'MyData'
-            print("Auto set langchain_mode=%s" % langchain_mode, flush=True)
+            print("Auto set langchain_mode=%s."
+                  "  To use UserData to pull files from disk,"
+                  " set user_path and ensure allow_upload_to_user_data=True" % langchain_mode, flush=True)
         else:
             raise RuntimeError("Please pass --langchain_mode=<chosen mode> out of %s" % langchain_modes)
     if not have_langchain and langchain_mode not in [None, LangChainMode.DISABLED.value, LangChainMode.LLM.value, LangChainMode.CHAT_LLM.value]:
