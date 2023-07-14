@@ -277,14 +277,6 @@ from typing import Any, Dict, List, Optional, Set
 from pydantic import Extra, Field, root_validator
 
 from langchain.callbacks.manager import CallbackManagerForLLMRun
-
-"""Wrapper around Huggingface text generation inference API."""
-from functools import partial
-from typing import Any, Dict, List, Optional
-
-from pydantic import Extra, Field, root_validator
-
-from langchain.callbacks.manager import CallbackManagerForLLMRun
 from langchain.llms.base import LLM
 
 
