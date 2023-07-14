@@ -69,6 +69,7 @@ def get_args(prompt, prompt_type, chat=False, stream_output=False,
              top_k_docs=3,
              langchain_mode='Disabled',
              langchain_action=LangChainAction.QUERY.value,
+             langchain_agents=[],
              prompt_dict=None):
     from collections import OrderedDict
     kwargs = OrderedDict(instruction=prompt if chat else '',  # only for chat=True
@@ -95,6 +96,7 @@ def get_args(prompt, prompt_type, chat=False, stream_output=False,
                          iinput_nochat='',  # only for chat=False
                          langchain_mode=langchain_mode,
                          langchain_action=langchain_action,
+                         langchain_agents=langchain_agents,
                          top_k_docs=top_k_docs,
                          chunk=True,
                          chunk_size=512,
@@ -203,6 +205,7 @@ def run_client_nochat_api_lean_morestuff(prompt, prompt_type='human_bot', max_ne
         iinput_nochat='',
         langchain_mode='Disabled',
         langchain_action=LangChainAction.QUERY.value,
+        langchain_agents=[],
         top_k_docs=4,
         document_subset=DocumentChoices.Relevant.name,
         document_choice=[],
@@ -225,23 +228,30 @@ def run_client_nochat_api_lean_morestuff(prompt, prompt_type='human_bot', max_ne
 @pytest.mark.skip(reason="For manual use against some server, no server launched")
 def test_client_chat(prompt_type='human_bot'):
     return run_client_chat(prompt='Who are you?', prompt_type=prompt_type, stream_output=False, max_new_tokens=50,
-                           langchain_mode='Disabled', langchain_action=LangChainAction.QUERY.value)
+                           langchain_mode='Disabled',
+                           langchain_action=LangChainAction.QUERY.value,
+                           langchain_agents=[])
 
 
 @pytest.mark.skip(reason="For manual use against some server, no server launched")
 def test_client_chat_stream(prompt_type='human_bot'):
     return run_client_chat(prompt="Tell a very long kid's story about birds.", prompt_type=prompt_type,
                            stream_output=True, max_new_tokens=512,
-                           langchain_mode='Disabled', langchain_action=LangChainAction.QUERY.value)
+                           langchain_mode='Disabled',
+                           langchain_action=LangChainAction.QUERY.value,
+                           langchain_agents=[])
 
 
-def run_client_chat(prompt, prompt_type, stream_output, max_new_tokens, langchain_mode, langchain_action,
+def run_client_chat(prompt, prompt_type, stream_output, max_new_tokens,
+                    langchain_mode, langchain_action, langchain_agents,
                     prompt_dict=None):
     client = get_client(serialize=False)
 
     kwargs, args = get_args(prompt, prompt_type, chat=True, stream_output=stream_output,
-                            max_new_tokens=max_new_tokens, langchain_mode=langchain_mode,
+                            max_new_tokens=max_new_tokens,
+                            langchain_mode=langchain_mode,
                             langchain_action=langchain_action,
+                            langchain_agents=langchain_agents,
                             prompt_dict=prompt_dict)
     return run_client(client, prompt, args, kwargs)
 
@@ -285,15 +295,18 @@ def run_client(client, prompt, args, kwargs, do_md_to_text=True, verbose=False):
 def test_client_nochat_stream(prompt_type='human_bot'):
     return run_client_nochat_gen(prompt="Tell a very long kid's story about birds.", prompt_type=prompt_type,
                                  stream_output=True, max_new_tokens=512,
-                                 langchain_mode='Disabled', langchain_action=LangChainAction.QUERY.value)
+                                 langchain_mode='Disabled',
+                                 langchain_action=LangChainAction.QUERY.value,
+                                 langchain_agents=[])
 
 
-def run_client_nochat_gen(prompt, prompt_type, stream_output, max_new_tokens, langchain_mode, langchain_action):
+def run_client_nochat_gen(prompt, prompt_type, stream_output, max_new_tokens,
+                          langchain_mode, langchain_action, langchain_agents):
     client = get_client(serialize=False)
 
     kwargs, args = get_args(prompt, prompt_type, chat=False, stream_output=stream_output,
                             max_new_tokens=max_new_tokens, langchain_mode=langchain_mode,
-                            langchain_action=langchain_action)
+                            langchain_action=langchain_action, langchain_agents=langchain_agents)
     return run_client_gen(client, prompt, args, kwargs)
 
 

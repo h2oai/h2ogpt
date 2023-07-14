@@ -37,6 +37,7 @@ def run_eval(  # for local function:
         do_sample=None,
         langchain_mode=None,
         langchain_action=None,
+        langchain_agents=[],
         top_k_docs=None,
         chunk=None,
         chunk_size=None,
