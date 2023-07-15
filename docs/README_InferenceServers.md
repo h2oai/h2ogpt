@@ -202,6 +202,17 @@ conda create -n vllm -y
 conda activate vllm
 conda install python=3.10 -y
 ```
+then ensure openai global key/base are not changed in race if used together:
+```bash
+cd $HOME/miniconda3/envs/h2ogpt/lib/python3.10/site-packages/
+rm -rf openai_vllm*
+cp -a openai openai_vllm
+cp -a openai-0.27.8.dist-info openai_vllm-0.27.8.dist-info
+find openai_vllm -name '*.py' | xargs sed -i 's/from openai /from openai_vllm /g'
+find openai_vllm -name '*.py' | xargs sed -i 's/openai\./openai_vllm./g'
+find openai_vllm -name '*.py' | xargs sed -i 's/from openai\./from openai_vllm./g'
+find openai_vllm -name '*.py' | xargs sed -i 's/import openai/import openai_vllm/g'
+```
 
 Assuming torch was installed with CUDA 11.8, and you have installed cuda locally in `/usr/local/cuda-11.8`, then can start in OpenAI compliant mode.  E.g. for LLaMa 65B on 2 GPUs:
 ```bash

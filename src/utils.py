@@ -988,17 +988,13 @@ have_playwright = False
 
 def set_openai(inference_server):
     if inference_server.startswith('vllm'):
-        import importlib
-        spec = importlib.util.find_spec('openai')
-        openai1 = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(openai1)
-        sys.modules['openai1'] = openai1
-        openai1.api_key = "EMPTY"
+        import openai_vllm
+        openai_vllm.api_key = "EMPTY"
         inf_type = inference_server.split(':')[0]
         ip_vllm = inference_server.split(':')[1]
         port_vllm = inference_server.split(':')[2]
-        openai1.api_base = f"http://{ip_vllm}:{port_vllm}/v1"
-        return openai1, inf_type
+        openai_vllm.api_base = f"http://{ip_vllm}:{port_vllm}/v1"
+        return openai_vllm, inf_type
     else:
         import openai
         openai.api_key = os.getenv("OPENAI_API_KEY")
