@@ -194,6 +194,132 @@ OPENAI_API_KEY=<key> python generate.py --inference_server="openai_chat" --base_
 ```
 where `<key>` should be replaced by your OpenAI key that probably starts with `sk-`.  OpenAI is **not** recommended for private document question-answer, but it can be a good reference for testing purposes or when privacy is not required.
 
+## vLLM Inference Server-Client
+
+Create separate environment
+```bash
+conda create -n vllm -y
+conda activate vllm
+conda install python=3.10 -y
+```
+then ensure openai global key/base are not changed in race if used together:
+```bash
+cd $HOME/miniconda3/envs/h2ogpt/lib/python3.10/site-packages/
+rm -rf openai_vllm*
+cp -a openai openai_vllm
+cp -a openai-0.27.8.dist-info openai_vllm-0.27.8.dist-info
+find openai_vllm -name '*.py' | xargs sed -i 's/from openai /from openai_vllm /g'
+find openai_vllm -name '*.py' | xargs sed -i 's/openai\./openai_vllm./g'
+find openai_vllm -name '*.py' | xargs sed -i 's/from openai\./from openai_vllm./g'
+find openai_vllm -name '*.py' | xargs sed -i 's/import openai/import openai_vllm/g'
+```
+
+Assuming torch was installed with CUDA 11.8, and you have installed cuda locally in `/usr/local/cuda-11.8`, then can start in OpenAI compliant mode.  E.g. for LLaMa 65B on 2 GPUs:
+```bash
+CUDA_HOME=/usr/local/cuda-11.8 pip install vllm ray
+export NCCL_IGNORE_DISABLED_P2P=1
+export CUDA_VISIBLE_DEVICESs=0,1
+python -m vllm.entrypoints.openai.api_server --port=5000 --host=0.0.0.0 --model h2oai/h2ogpt-research-oasst1-llama-65b --tokenizer=hf-internal-testing/llama-tokenizer --tensor-parallel-size=2 --seed 1234
+```
+which takes about 3 minutes until Uvicorn starts entirely so endpoint is fully ready, when one sees:
+```text
+INFO 07-15 02:56:41 llm_engine.py:131] # GPU blocks: 496, # CPU blocks: 204
+INFO 07-15 02:56:43 tokenizer.py:28] For some LLaMA-based models, initializing the fast tokenizer may take a long time. To eliminate the initialization time, consider using 'hf-internal-testing/llama-tokenizer' instead of the original tokenizer.
+INFO:     Started server process [2442339]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:5000 (Press CTRL+C to quit)
+```
+Open port if want to allow access outside the server:
+```bash
+sudo ufw allow 5000
+```
+
+To run in interactive mode, if don't have P2P (check `nvidia-smi topo -m`) then set this env:
+```bash
+export NCCL_IGNORE_DISABLED_P2P=1
+```
+Then in python
+```python
+from vllm import LLM
+llm = LLM(model='h2oai/h2ogpt-research-oasst1-llama-65b', tokenizer='hf-internal-testing/llama-tokenizer', tensor_parallel_size=2)
+output = llm.generate("San Franciso is a")
+```
+See [vLLM docs](https://vllm.readthedocs.io/en/latest/getting_started/quickstart.html).
+```text
+(h2ollm) ubuntu@cloudvm:~/h2ogpt$ python -m vllm.entrypoints.openai.api_server --help
+usage: api_server.py [-h] [--host HOST] [--port PORT] [--allow-credentials] [--allowed-origins ALLOWED_ORIGINS] [--allowed-methods ALLOWED_METHODS] [--allowed-headers ALLOWED_HEADERS] [--served-model-name SERVED_MODEL_NAME] [--model MODEL] [--tokenizer TOKENIZER]
+                     [--tokenizer-mode {auto,slow}] [--download-dir DOWNLOAD_DIR] [--use-np-weights] [--use-dummy-weights] [--dtype {auto,half,bfloat16,float}] [--worker-use-ray] [--pipeline-parallel-size PIPELINE_PARALLEL_SIZE]
+                     [--tensor-parallel-size TENSOR_PARALLEL_SIZE] [--block-size {8,16,32}] [--seed SEED] [--swap-space SWAP_SPACE] [--gpu-memory-utilization GPU_MEMORY_UTILIZATION] [--max-num-batched-tokens MAX_NUM_BATCHED_TOKENS] [--max-num-seqs MAX_NUM_SEQS]
+                     [--disable-log-stats] [--engine-use-ray] [--disable-log-requests]
+
+vLLM OpenAI-Compatible RESTful API server.
+
+options:
+  -h, --help            show this help message and exit
+  --host HOST           host name
+  --port PORT           port number
+  --allow-credentials   allow credentials
+  --allowed-origins ALLOWED_ORIGINS
+                        allowed origins
+  --allowed-methods ALLOWED_METHODS
+                        allowed methods
+  --allowed-headers ALLOWED_HEADERS
+                        allowed headers
+  --served-model-name SERVED_MODEL_NAME
+                        The model name used in the API. If not specified, the model name will be the same as the huggingface name.
+  --model MODEL         name or path of the huggingface model to use
+  --tokenizer TOKENIZER
+                        name or path of the huggingface tokenizer to use
+  --tokenizer-mode {auto,slow}
+                        tokenizer mode. "auto" will use the fast tokenizer if available, and "slow" will always use the slow tokenizer.
+  --download-dir DOWNLOAD_DIR
+                        directory to download and load the weights, default to the default cache dir of huggingface
+  --use-np-weights      save a numpy copy of model weights for faster loading. This can increase the disk usage by up to 2x.
+  --use-dummy-weights   use dummy values for model weights
+  --dtype {auto,half,bfloat16,float}
+                        data type for model weights and activations. The "auto" option will use FP16 precision for FP32 and FP16 models, and BF16 precision for BF16 models.
+  --worker-use-ray      use Ray for distributed serving, will be automatically set when using more than 1 GPU
+  --pipeline-parallel-size PIPELINE_PARALLEL_SIZE, -pp PIPELINE_PARALLEL_SIZE
+                        number of pipeline stages
+  --tensor-parallel-size TENSOR_PARALLEL_SIZE, -tp TENSOR_PARALLEL_SIZE
+                        number of tensor parallel replicas
+  --block-size {8,16,32}
+                        token block size
+  --seed SEED           random seed
+  --swap-space SWAP_SPACE
+                        CPU swap space size (GiB) per GPU
+  --gpu-memory-utilization GPU_MEMORY_UTILIZATION
+                        the percentage of GPU memory to be used forthe model executor
+  --max-num-batched-tokens MAX_NUM_BATCHED_TOKENS
+                        maximum number of batched tokens per iteration
+  --max-num-seqs MAX_NUM_SEQS
+                        maximum number of sequences per iteration
+  --disable-log-stats   disable logging statistics
+  --engine-use-ray      use Ray to start the LLM engine in a separate process as the server process.
+  --disable-log-requests
+                        disable logging requests
+```
+
+CURL test:
+```bash
+curl http://localhost:5000/v1/completions \
+-H "Content-Type: application/json" \
+-d '{
+"model": "h2oai/h2ogpt-research-oasst1-llama-65b",
+"prompt": "San Francisco is a",
+"max_tokens": 7,
+"temperature": 0
+}'
+```
+
+If started OpenAI-compliant server, then run h2oGPT:
+```bash
+python generate.py --inference_server="vllm:0.0.0.0:5000" --base_model=h2oai/h2ogpt-oasst1-falcon-40b --langchain_mode=MyData
+```
+Note: `vllm_chat` ChatCompletion is not supported by vLLM project.
+
+Note vLLM has bug in stopping sequence that is does not return the last token, unlike OpenAI, so a hack is in place for `prompt_type=human_bot`, and other prompts may need similar hacks.
 
 ## h2oGPT start-up vs. in-app selection
 

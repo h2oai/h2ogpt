@@ -33,7 +33,7 @@ from enums import DocumentChoices, LangChainMode, no_lora_str, model_token_mappi
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, remove, \
-    have_langchain
+    have_langchain, set_openai
 
 start_faulthandler()
 import_matplotlib()
@@ -201,6 +201,8 @@ def main(
                              Or Address can be "openai_chat" or "openai" for OpenAI API
                              e.g. python generate.py --inference_server="openai_chat" --base_model=gpt-3.5-turbo
                              e.g. python generate.py --inference_server="openai" --base_model=text-davinci-003
+                             Or Address can be "vllm:IP:port" or "vllm:IP:port" for OpenAI-compliant vLLM endpoint
+                             Note: vllm_chat not supported by vLLM project.
     :param prompt_type: type of prompt, usually matched to fine-tuned model or plain for foundational model
     :param prompt_dict: If prompt_type=custom, then expects (some) items returned by get_prompt(..., return_dict=True)
     :param model_lock: Lock models to specific combinations, for ease of use and extending to many models
@@ -407,7 +409,8 @@ def main(
             visible_langchain_modes += [langchain_mode]
 
     assert langchain_action in langchain_actions, "Invalid langchain_action %s" % langchain_action
-    assert len(set(langchain_agents).difference(langchain_agents_list)) == 0, "Invalid langchain_agents %s" % langchain_agents
+    assert len(
+        set(langchain_agents).difference(langchain_agents_list)) == 0, "Invalid langchain_agents %s" % langchain_agents
 
     # if specifically chose not to show My or User Data, disable upload, so gradio elements are simpler
     if LangChainMode.MY_DATA.value not in visible_langchain_modes:
@@ -427,7 +430,8 @@ def main(
                   " set user_path and ensure allow_upload_to_user_data=True" % langchain_mode, flush=True)
         else:
             raise RuntimeError("Please pass --langchain_mode=<chosen mode> out of %s" % langchain_modes)
-    if not have_langchain and langchain_mode not in [None, LangChainMode.DISABLED.value, LangChainMode.LLM.value, LangChainMode.CHAT_LLM.value]:
+    if not have_langchain and langchain_mode not in [None, LangChainMode.DISABLED.value, LangChainMode.LLM.value,
+                                                     LangChainMode.CHAT_LLM.value]:
         raise RuntimeError("Asked for LangChain mode but langchain python package cannot be found.")
     if langchain_mode is None:
         # if not set yet, disable
@@ -986,11 +990,13 @@ def get_model(
         client = gr_client or hf_client
         # Don't return None, None for model, tokenizer so triggers
         return client, tokenizer, 'http'
-    if isinstance(inference_server, str) and inference_server.startswith('openai'):
-        assert os.getenv('OPENAI_API_KEY'), "Set environment for OPENAI_API_KEY"
-        # Don't return None, None for model, tokenizer so triggers
-        # include small token cushion
-        tokenizer = FakeTokenizer(model_max_length=model_token_mapping[base_model] - 50)
+    if isinstance(inference_server, str) and (
+            inference_server.startswith('openai') or inference_server.startswith('vllm')):
+        if inference_server.startswith('openai'):
+            assert os.getenv('OPENAI_API_KEY'), "Set environment for OPENAI_API_KEY"
+            # Don't return None, None for model, tokenizer so triggers
+            # include small token cushion
+            tokenizer = FakeTokenizer(model_max_length=model_token_mapping[base_model] - 50)
         return inference_server, tokenizer, inference_server
     assert not inference_server, "Malformed inference_server=%s" % inference_server
     if base_model in non_hf_types:
@@ -1473,7 +1479,8 @@ def evaluate(
     # THIRD PLACE where LangChain referenced, but imports only occur if enabled and have db to use
     assert langchain_mode in langchain_modes, "Invalid langchain_mode %s" % langchain_mode
     assert langchain_action in langchain_actions, "Invalid langchain_action %s" % langchain_action
-    assert len(set(langchain_agents).difference(langchain_agents_list)) == 0, "Invalid langchain_agents %s" % langchain_agents
+    assert len(
+        set(langchain_agents).difference(langchain_agents_list)) == 0, "Invalid langchain_agents %s" % langchain_agents
     if langchain_mode in ['MyData'] and my_db_state is not None and len(my_db_state) > 0 and my_db_state[0] is not None:
         db1 = my_db_state[0]
     elif dbs is not None and langchain_mode in dbs:
@@ -1574,12 +1581,12 @@ def evaluate(
             clear_torch_cache()
             return
 
-    if inference_server.startswith('openai') or inference_server.startswith('http'):
-        if inference_server.startswith('openai'):
-            import openai
+    if inference_server.startswith('vllm') or inference_server.startswith('openai') or inference_server.startswith(
+            'http'):
+        if inference_server.startswith('vllm') or inference_server.startswith('openai'):
             where_from = "openai_client"
+            openai, inf_type = set_openai(inference_server)
 
-            openai.api_key = os.getenv("OPENAI_API_KEY")
             terminate_response = prompter.terminate_response or []
             stop_sequences = list(set(terminate_response + [prompter.PreResponse]))
             stop_sequences = [x for x in stop_sequences if x]
@@ -1592,7 +1599,7 @@ def evaluate(
                                      n=num_return_sequences,
                                      presence_penalty=1.07 - repetition_penalty + 0.6,  # so good default
                                      )
-            if inference_server == 'openai':
+            if inf_type == 'vllm' or inference_server == 'openai':
                 response = openai.Completion.create(
                     model=base_model,
                     prompt=prompt,
@@ -1615,7 +1622,9 @@ def evaluate(
                         yield dict(response=prompter.get_response(prompt + text, prompt=prompt,
                                                                   sanitize_bot_response=sanitize_bot_response),
                                    sources='')
-            elif inference_server == 'openai_chat':
+            elif inf_type == 'vllm_chat' or inference_server == 'openai_chat':
+                if inf_type == 'vllm_chat':
+                    raise NotImplementedError('%s not supported by vLLM' % inf_type)
                 response = openai.ChatCompletion.create(
                     model=base_model,
                     messages=[
