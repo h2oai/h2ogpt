@@ -319,7 +319,7 @@ python generate.py --inference_server="vllm:0.0.0.0:5000" --base_model=h2oai/h2o
 ```
 Note: `vllm_chat` ChatCompletion is not supported by vLLM project.
 
-Note vLLM has bug in stopping sequence that is does not return the last token, unlike OpenAI, so a hack is in place for `prompt_type=human_bot`, and other prompts may need similar hacks.
+Note vLLM has bug in stopping sequence that is does not return the last token, unlike OpenAI, so a hack is in place for `prompt_type=human_bot`, and other prompts may need similar hacks.  See `fix_text()` in `src/prompter.py`.
 
 ## h2oGPT start-up vs. in-app selection
 
