@@ -156,11 +156,12 @@ UI using GPU with at least 24GB with streaming:
 ```bash
 python generate.py --base_model=h2oai/h2ogpt-oasst1-512-12b --load_8bit=True  --score_model=None --langchain_mode='UserData' --user_path=user_path
 ```
-UI using CPU
+UI using LLaMa.cpp model:
 ```bash
 wget https://huggingface.co/TheBloke/WizardLM-7B-uncensored-GGML/resolve/main/WizardLM-7B-uncensored.ggmlv3.q8_0.bin
 python generate.py --base_model='llama' --prompt_type=wizard2 --score_model=None --langchain_mode='UserData' --user_path=user_path
 ```
+which works on CPU or GPU (assuming llama cpp python package compiled against CUDA or Metal).
 
 If using OpenAI for the LLM is ok, but you want documents to be parsed and embedded locally, then do:
 ```bash
