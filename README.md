@@ -12,7 +12,8 @@ Query and summarize your documents or just chat using local private GPT LLMs usi
 - **Bake-off** UI mode against many models at same time
 - **Variety** of models supported (Falcon, Vicuna, WizardLM including AutoGPTQ, 4-bit/8-bit, LORA)
 - **GPU** support from HF models, and **CPU** support using LLaMa cpp and GPT4ALL
-- **Linux, MAC, and Windows** support
+- **Linux, Docker, MAC, and Windows** support
+- **Inference Servers** support (HF TGI server, vLLM, Gradio, OpenAI)
 - **OpenAI-compliant Python client API** for client-server control
 - **Evaluate** performance using reward models
 
@@ -46,13 +47,14 @@ YouTube 4K version: https://www.youtube.com/watch?v=_iktbj4obAI
    * [TLDR Install & Run](#tldr)
    * [GPU (CUDA)](docs/README_GPU.md)
    * [CPU](docs/README_CPU.md)
-   * [MACOS](docs/README_MACOS.md#macos)
+   * [MACOS](docs/README_MACOS.md)
    * [Windows 10/11](docs/README_WINDOWS.md)
    * [CLI chat](docs/README_CLI.md)
    * [Gradio UI](docs/README_ui.md)
    * [Client API](docs/README_CLIENT.md)
-   * [Connect to Inference Servers](docs/README_InferenceServers.md)
+   * [Inference Servers](docs/README_InferenceServers.md)
    * [Python Wheel](docs/README_WHEEL.md)
+   * [Offline Mode](docs/README_offline.md)
 * [Development](#development)
 * [Help](#help)
    * [LangChain file types supported](docs/README_LangChain.md#supported-datatypes)
