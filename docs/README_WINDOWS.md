@@ -38,12 +38,7 @@ Follow these steps:
 10. For GPU, install bitsandbytes 4-bit and 8-bit:
     ```bash
     pip uninstall bitsandbytes
-    pip install https://github.com/jllllll/bitsandbytes-windows-webui/raw/main/bitsandbytes-0.39.0-py3-none-any.whl
-    ```
-    unless you have compute capability <7.0, then your GPU only supports 8-bit (not 4-bit) and you should install older bitsandbytes:
-    ```bash
-    pip uninstall bitsandbytes
-    pip install https://github.com/jllllll/bitsandbytes-windows-webui/raw/main/bitsandbytes-0.38.1-py3-none-any.whl
+    pip install https://github.com/jllllll/bitsandbytes-windows-webui/releases/download/wheels/bitsandbytes-0.40.1.post1-py3-none-win_amd64.whl
     ```
 11. Install optional document Q/A dependencies
     ```bash
