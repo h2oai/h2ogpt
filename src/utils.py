@@ -950,7 +950,6 @@ try:
 except (pkg_resources.DistributionNotFound, AssertionError):
     have_langchain = False
 
-
 import distutils.spawn
 
 have_tesseract = distutils.spawn.find_executable("tesseract")
@@ -985,3 +984,17 @@ except (pkg_resources.DistributionNotFound, AssertionError):
 
 # disable, hangs too often
 have_playwright = False
+
+
+def set_openai(inference_server):
+    import openai
+    if inference_server.startswith('vllm'):
+        openai.api_key = "EMPTY"
+        inf_type = inference_server.split(':')[0]
+        ip_vllm = inference_server.split(':')[1]
+        port_vllm = inference_server.split(':')[2]
+        openai.api_base = f"http://{ip_vllm}:{port_vllm}/v1"
+    else:
+        openai.api_key = os.getenv("OPENAI_API_KEY")
+        inf_type = inference_server
+    return openai, inf_type

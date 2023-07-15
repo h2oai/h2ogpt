@@ -824,9 +824,20 @@ class Prompter(object):
                 if oi > 0:
                     # post fix outputs with seperator
                     output += '\n'
+            output = self.fix_text(self.prompt_type, output)
             outputs[oi] = output
         # join all outputs, only one extra new line between outputs
         output = '\n'.join(outputs)
         if self.debug:
             print("outputclean:\n%s" % '\n\n'.join(outputs), flush=True)
         return output
+
+    @staticmethod
+    def fix_text(prompt_type1, text1):
+        if prompt_type1 == 'human_bot':
+            # hack bug in vLLM with stopping, stops right, but doesn't return last token
+            hfix = '<human'
+            if text1.endswith(hfix):
+                text1= text1[:-len(hfix)]
+        return text1
+

@@ -30,7 +30,7 @@ from gen import get_model, SEED
 from prompter import non_hf_types, PromptType, Prompter
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
     get_device, ProgressParallel, remove, hash_file, clear_torch_cache, NullContext, get_hf_server, FakeTokenizer, \
-    have_libreoffice, have_arxiv, have_playwright, have_selenium, have_tesseract, have_pymupdf
+    have_libreoffice, have_arxiv, have_playwright, have_selenium, have_tesseract, have_pymupdf, set_openai
 from utils_langchain import StreamingGradioCallbackHandler
 
 import_matplotlib()
@@ -593,14 +593,16 @@ def get_llm(use_openai_model=False,
             sanitize_bot_response=False,
             verbose=False,
             ):
-    if use_openai_model or inference_server in ['openai', 'openai_chat']:
+    if use_openai_model or inference_server in ['openai', 'openai_chat', 'vllm', 'vllm_chat']:
         if use_openai_model and model_name is None:
             model_name = "gpt-3.5-turbo"
-        if inference_server == 'openai':
+        openai, inf_type = set_openai(
+            inference_server)  # FIXME: Will later import be ignored?  I think so, so should be fine
+        if inference_server == 'openai_chat' or inf_type == 'vllm_chat':
+            cls = H2OChatOpenAI
+        else:
             from langchain.llms import OpenAI
             cls = OpenAI
-        else:
-            cls = H2OChatOpenAI
         callbacks = [StreamingGradioCallbackHandler()]
         llm = cls(model_name=model_name,
                   temperature=temperature if do_sample else 0,
@@ -615,6 +617,7 @@ def get_llm(use_openai_model=False,
         if inference_server in ['openai', 'openai_chat']:
             prompt_type = inference_server
         else:
+            # vllm goes here
             prompt_type = prompt_type or 'plain'
     elif inference_server:
         assert inference_server.startswith(
@@ -910,7 +913,6 @@ def get_dai_docs(from_hf=False, get_pickle=True):
     return sources
 
 
-
 image_types = ["png", "jpg", "jpeg"]
 non_image_types = ["pdf", "txt", "csv", "toml", "py", "rst", "rtf",
                    "md",
@@ -934,7 +936,8 @@ def add_meta(docs1, file):
     doc_hash = str(uuid.uuid4())[:10]
     if not isinstance(docs1, (list, tuple, types.GeneratorType)):
         docs1 = [docs1]
-    [x.metadata.update(dict(input_type=file_extension, date=str(datetime.now()), hashid=hashid, doc_hash=doc_hash)) for x in docs1]
+    [x.metadata.update(dict(input_type=file_extension, date=str(datetime.now()), hashid=hashid, doc_hash=doc_hash)) for
+     x in docs1]
 
 
 def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
