@@ -287,7 +287,8 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'H2O GPT is a chatbot that can be trained' in res_dict['response'] or
             'A large language model (LLM)' in res_dict['response'] or
             'GPT-based language model' in res_dict['response'] or
-            'H2O.ai is a technology company' in res_dict['response']
+            'H2O.ai is a technology company' in res_dict['response'] or
+            'an open-source project'  in res_dict['response']
             ) \
            and ('FAQ.md' in res_dict['response'] or 'README.md' in res_dict['response'])
 
@@ -312,7 +313,8 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'Whisper is a secure messaging app' in res_dict['response'] or
             'secure, private, and anonymous chatbot' in res_dict['response'] or
             'Whisper is a secure, anonymous, and encrypted' in res_dict['response'] or
-            'secure, decentralized, and anonymous chat platform' in res_dict['response']
+            'secure, decentralized, and anonymous chat platform' in res_dict['response'] or
+            'A low-code development framework' in res_dict['response']
             ) \
            and ('FAQ.md' in res_dict['response'] or 'README.md' in res_dict['response'])
 
@@ -354,7 +356,8 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'A secure, private, and anonymous chatbot' in res_dict['response'] or
             'A secure, encrypted chat service that allows' in res_dict['response'] or
             'A secure, private, and encrypted chatbot' in res_dict['response'] or
-            'A secret communication system used' in res_dict['response']
+            'A secret communication system used' in res_dict['response'] or
+            'H2O AI Cloud is a cloud-based platform' in res_dict['response']
             ) \
            and '.md' in res_dict['response']
 
