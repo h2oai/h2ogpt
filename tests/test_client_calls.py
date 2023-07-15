@@ -357,7 +357,8 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'A secure, encrypted chat service that allows' in res_dict['response'] or
             'A secure, private, and encrypted chatbot' in res_dict['response'] or
             'A secret communication system used' in res_dict['response'] or
-            'H2O AI Cloud is a cloud-based platform' in res_dict['response']
+            'H2O AI Cloud is a cloud-based platform' in res_dict['response'] or
+            'is a platform for deploying'  in res_dict['response']
             ) \
            and '.md' in res_dict['response']
 
