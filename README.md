@@ -2,7 +2,19 @@
 
 Turn ★ into ⭐ (top-right corner) if you like the project!
 
-Query and summarize your documents (PDFs, Excel, Word, Images, Code, Text, MarkDown, etc.) or just chat using local private GPT LLMs (Falcon, Vicuna, WizardLM including AutoGPTQ) sourced from vector database (Chroma, FAISS, Weaviate) using accurate embeddings (instruct-large, all-MiniLM-L6-v1, etc.).  Supports Linux, Windows, or MAC for both CPU and GPU.  Clean UI or CLI supported with LLM streaming, with bake-off mode against any number of models in UI.  OpenAI-compliant Python client access to the server.    
+Query and summarize your documents or just chat using local private GPT LLMs.  Apache V2 open-source project.
+
+- **Private** offline database of any documents ([(PDFs, Excel, Word, Images, Code, Text, MarkDown, etc.)](docs/README_LangChain.md#supported-datatypes))
+- **Persistent** database (Chroma, Weaviate, or in-memory FAISS) using accurate embeddings (instructor-large, all-MiniLM-L6-v2, etc.)
+- **Efficient** use of context using instruct-tuned LLMs (no need for LangChain's few-shot approach)
+- **Upload** and **View** documents via UI (collaborative space or scratch space)
+- **UI** or CLI with streaming of all models
+- **Bake-off** UI mode against many models at same time
+- **Variety** of models supported (Falcon, Vicuna, WizardLM including AutoGPTQ, 4-bit/8-bit, LORA)
+- **GPU** support from HF models, and **CPU** support using LLaMa cpp and GPT4ALL
+- **Linux, MAC, and Windows** support
+- **OpenAI-compliant Python client API** for client-server control
+- **Evaluate** performance using reward models
 
 ### Live Demos
 - [![img-small.png](docs/img-small.png) Live h2oGPT Document Q/A Demo](https://gpt.h2o.ai/)
@@ -13,6 +25,7 @@ Query and summarize your documents (PDFs, Excel, Word, Images, Code, Text, MarkD
 
 ### Resources:
 - [Discord](https://discord.gg/WKhYMWcVbq)
+- [Apache V2 models (Falcon 40, etc.) at 🤗](https://huggingface.co/h2oai/)
 - [YouTube: 100% Offline ChatGPT Alternative?](https://www.youtube.com/watch?v=Coj72EzmX20)
 - [YouTube: Ultimate Open-Source LLM Showdown (6 Models Tested) - Surprising Results!](https://www.youtube.com/watch?v=FTm5C_vV_EY)
 - [YouTube: Blazing Fast Falcon 40b 🚀 Uncensored, Open-Source, Fully Hosted, Chat With Your Docs](https://www.youtube.com/watch?v=H8Dx-iUY49s)
@@ -27,8 +40,7 @@ YouTube 4K version: https://www.youtube.com/watch?v=_iktbj4obAI
 ### Guide:
 <!--  cat README.md | ./gh-md-toc  -  But Help is heavily processed -->
 * [Supported OS and Hardware](#supported-os-and-hardware)
-* [Apache V2 ChatBot with LangChain Integration](#apache-v2-chatbot-with-langchain-integration)
-* [Apache V2 Data Preparation code, Training code, and Models](#apache-v2-data-preparation-code-training-code-and-models)
+* [Compare to PrivateGPT et al.](docs/README_LangChain.md#what-is-h2ogpts-langchain-integration-like)
 * [Roadmap](#roadmap)
 * [Getting Started](#getting-started)
    * [TLDR Install & Run](#tldr)
@@ -68,33 +80,6 @@ YouTube 4K version: https://www.youtube.com/watch?v=_iktbj4obAI
 **CPU** mode uses GPT4ALL and LLaMa.cpp, e.g. gpt4all-j, requiring about 14GB of system RAM in typical use.
 
 GPU and CPU mode tested on variety of NVIDIA GPUs in Ubuntu 18-22, but any modern Linux variant should work.  MACOS support tested on Macbook Pro running Monterey v12.3.1 using CPU mode, as well as MAC M1 using MPS.
-
-### Apache V2 ChatBot with LangChain Integration
-
-See how we compare to other tools like PrivateGPT, see our [comparisons](docs/README_LangChain.md#what-is-h2ogpts-langchain-integration-like).
-
-- [**LangChain**](docs/README_LangChain.md) equipped Chatbot integration and streaming responses
-- **Persistent** database using Chroma and Weaviate or in-memory with FAISS
-- **Original** content url links and scores to rank content against query
-- **Private** offline database of any documents ([PDFs, Images, and many more](docs/README_LangChain.md#supported-datatypes))
-- **Upload** documents via chatbot into shared space or only allow scratch space
-- **Control** data sources and the context provided to LLM
-- **Efficient** use of context using instruct-tuned LLMs (no need for many examples)
-- **API** for client-server control
-- **CPU and GPU** support from variety of HF models, and CPU support using GPT4ALL and LLaMa cpp
-- **Linux, MAC, and Windows** support
-
-### Apache V2 Data Preparation code, Training code, and Models
-
-- **Variety** of models (h2oGPT, WizardLM, Vicuna, OpenAssistant, etc.) supported
-- **Fully Commercially** Apache V2 code, data and models
-- **High-Quality** data cleaning of large open-source instruction datasets
-- **LoRA** and **QLoRA** (low-rank approximation) efficient 4-bit, 8-bit and 16-bit fine-tuning and generation
-- **Large** (up to 65B parameters) models built on commodity or enterprise GPUs (single or multi node)
-- **Evaluate** performance using RLHF-based reward models
-- **Hugging Face** models and datasets on [🤗 H2O.ai's Hugging Face page](https://huggingface.co/h2oai/).
-
-Also check out [H2O LLM Studio](https://github.com/h2oai/h2o-llmstudio) for our no-code LLM fine-tuning framework!
 
 ### Roadmap
 
@@ -200,9 +185,11 @@ Once all files are downloaded, the CLI and UI can be run in offline mode, see [o
 
 ### Help
 
+- For advanced fine-tuning, also check out [H2O LLM Studio](https://github.com/h2oai/h2o-llmstudio)
+
 - Flash attention support, see [Flash Attention](docs/INSTALL.md#flash-attention)
 
-- [Docker](docs/INSTALL-DOCKER.md#containerized-installation-for-inference-on-linux-gpu-servers) for inference.
+- [Docker](docs/INSTALL-DOCKER.md#containerized-installation-for-inference-on-linux-gpu-servers) for inference
 
 - [FAQs](docs/FAQ.md)
 
