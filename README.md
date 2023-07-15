@@ -2,7 +2,7 @@
 
 Turn ★ into ⭐ (top-right corner) if you like the project!
 
-Query and summarize your documents or just chat using local private GPT LLMs.  Apache V2 open-source project.
+Query and summarize your documents or just chat using local private GPT LLMs using h2oGPT, an Apache V2 open-source project.
 
 - **Private** offline database of any documents ([(PDFs, Excel, Word, Images, Code, Text, MarkDown, etc.)](docs/README_LangChain.md#supported-datatypes))
 - **Persistent** database (Chroma, Weaviate, or in-memory FAISS) using accurate embeddings (instructor-large, all-MiniLM-L6-v2, etc.)
