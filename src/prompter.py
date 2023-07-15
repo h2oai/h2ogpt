@@ -838,6 +838,6 @@ class Prompter(object):
             # hack bug in vLLM with stopping, stops right, but doesn't return last token
             hfix = '<human'
             if text1.endswith(hfix):
-                text1= text1[:-len(hfix)]
+                text1 = text1[:-len(hfix)]
         return text1
 

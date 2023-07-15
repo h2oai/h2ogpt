@@ -21,6 +21,7 @@ import filelock
 from joblib import delayed
 from langchain.callbacks import streaming_stdout
 from langchain.embeddings import HuggingFaceInstructEmbeddings
+from langchain.schema import LLMResult
 from tqdm import tqdm
 
 from enums import DocumentChoices, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
@@ -276,7 +277,7 @@ from typing import Any, Dict, List, Optional, Set
 
 from pydantic import Extra, Field, root_validator
 
-from langchain.callbacks.manager import CallbackManagerForLLMRun
+from langchain.callbacks.manager import CallbackManagerForLLMRun, Callbacks
 from langchain.llms.base import LLM
 
 
@@ -560,6 +561,92 @@ class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
 
 
 from langchain.chat_models import ChatOpenAI
+from langchain.llms import OpenAI
+from langchain.llms.openai import _streaming_response_template, completion_with_retry, _update_response, \
+    update_token_usage
+
+
+class H2OOpenAI(OpenAI):
+    """
+    New class to handle vLLM's use of OpenAI, no vllm_chat supported, so only need here
+    Handles prompting that OpenAI doesn't need, stopping as well
+    """
+    stop_sequences: Any = None
+    sanitize_bot_response: bool = False
+    prompter: Any = None
+    tokenizer: Any = None
+
+    @classmethod
+    def all_required_field_names(cls) -> Set:
+        all_required_field_names = super(OpenAI, cls).all_required_field_names()
+        all_required_field_names.update(
+            {'top_p', 'frequency_penalty', 'presence_penalty', 'stop_sequences', 'sanitize_bot_response', 'prompter',
+             'tokenizer'})
+        return all_required_field_names
+
+    def _generate(
+            self,
+            prompts: List[str],
+            stop: Optional[List[str]] = None,
+            run_manager: Optional[CallbackManagerForLLMRun] = None,
+            **kwargs: Any,
+    ) -> LLMResult:
+        stop = self.stop_sequences if not stop else self.stop_sequences + stop
+
+        # HF inference server needs control over input tokens
+        assert self.tokenizer is not None
+        from h2oai_pipeline import H2OTextGenerationPipeline
+        for prompti, prompt in enumerate(prompts):
+            prompt, num_prompt_tokens = H2OTextGenerationPipeline.limit_prompt(prompt, self.tokenizer)
+            # NOTE: OpenAI/vLLM server does not add prompting, so must do here
+            data_point = dict(context='', instruction=prompt, input='')
+            prompt = self.prompter.generate_prompt(data_point)
+            prompts[prompti] = prompt
+
+        params = self._invocation_params
+        params = {**params, **kwargs}
+        sub_prompts = self.get_sub_prompts(params, prompts, stop)
+        choices = []
+        token_usage: Dict[str, int] = {}
+        # Get the token usage from the response.
+        # Includes prompt, completion, and total tokens used.
+        _keys = {"completion_tokens", "prompt_tokens", "total_tokens"}
+        text = ''
+        for _prompts in sub_prompts:
+            if self.streaming:
+                text_with_prompt = ""
+                prompt = _prompts[0]
+                if len(_prompts) > 1:
+                    raise ValueError("Cannot stream results with multiple prompts.")
+                params["stream"] = True
+                response = _streaming_response_template()
+                first = True
+                for stream_resp in completion_with_retry(
+                        self, prompt=_prompts, **params
+                ):
+                    if first:
+                        stream_resp["choices"][0]["text"] = prompt + stream_resp["choices"][0]["text"]
+                        first = False
+                    text_chunk = stream_resp["choices"][0]["text"]
+                    text_with_prompt += text_chunk
+                    text = self.prompter.get_response(text_with_prompt, prompt=prompt,
+                                                      sanitize_bot_response=self.sanitize_bot_response)
+                    if run_manager:
+                        run_manager.on_llm_new_token(
+                            text_chunk,
+                            verbose=self.verbose,
+                            logprobs=stream_resp["choices"][0]["logprobs"],
+                        )
+                    _update_response(response, stream_resp)
+                choices.extend(response["choices"])
+            else:
+                response = completion_with_retry(self, prompt=_prompts, **params)
+                choices.extend(response["choices"])
+            if not self.streaming:
+                # Can't update token usage if streaming
+                update_token_usage(_keys, response, token_usage)
+        choices[0]['text'] = text
+        return self.create_llm_result(choices, prompts, token_usage)
 
 
 class H2OChatOpenAI(ChatOpenAI):
@@ -593,16 +680,26 @@ def get_llm(use_openai_model=False,
             sanitize_bot_response=False,
             verbose=False,
             ):
-    if use_openai_model or inference_server in ['openai', 'openai_chat', 'vllm', 'vllm_chat']:
+    if use_openai_model or inference_server.startswith('openai') or inference_server.startswith('vllm'):
         if use_openai_model and model_name is None:
             model_name = "gpt-3.5-turbo"
         openai, inf_type = set_openai(
             inference_server)  # FIXME: Will later import be ignored?  I think so, so should be fine
+        kwargs_extra = {}
         if inference_server == 'openai_chat' or inf_type == 'vllm_chat':
             cls = H2OChatOpenAI
         else:
-            from langchain.llms import OpenAI
-            cls = OpenAI
+            cls = H2OOpenAI
+            if inf_type == 'vllm':
+                terminate_response = prompter.terminate_response or []
+                stop_sequences = list(set(terminate_response + [prompter.PreResponse]))
+                stop_sequences = [x for x in stop_sequences if x]
+                kwargs_extra = dict(stop_sequences=stop_sequences,
+                                    sanitize_bot_response=sanitize_bot_response,
+                                    prompter=prompter,
+                                    tokenizer=tokenizer,
+                                    client=None)
+
         callbacks = [StreamingGradioCallbackHandler()]
         llm = cls(model_name=model_name,
                   temperature=temperature if do_sample else 0,
@@ -612,6 +709,12 @@ def get_llm(use_openai_model=False,
                   frequency_penalty=0,
                   presence_penalty=1.07 - repetition_penalty + 0.6,  # so good default
                   callbacks=callbacks if stream_output else None,
+                  openai_api_key=openai.api_key,
+                  openai_api_base=openai.api_base,
+                  logit_bias=None if inf_type =='vllm' else {},
+                  max_retries=2,
+                  streaming=stream_output,
+                  **kwargs_extra
                   )
         streamer = callbacks[0] if stream_output else None
         if inference_server in ['openai', 'openai_chat']:
