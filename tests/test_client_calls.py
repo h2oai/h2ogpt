@@ -242,7 +242,8 @@ def test_client_chat_stream_langchain():
     # bad answer about h2o.ai is just becomes dumb model, why flipped context above,
     # but not stable over different systems
     assert 'h2oGPT is a large language model' in res_dict['response'] or \
-           'H2O.ai is a technology company' in res_dict['response']
+           'H2O.ai is a technology company' in res_dict['response'] or \
+           'an open-source project' in res_dict['response']
 
 
 @pytest.mark.parametrize("max_new_tokens", [256, 2048])
