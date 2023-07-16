@@ -680,11 +680,13 @@ def get_llm(use_openai_model=False,
             sanitize_bot_response=False,
             verbose=False,
             ):
+    if inference_server is None:
+        inference_server = ''
     if use_openai_model or inference_server.startswith('openai') or inference_server.startswith('vllm'):
         if use_openai_model and model_name is None:
             model_name = "gpt-3.5-turbo"
-        openai, inf_type = set_openai(
-            inference_server)  # FIXME: Will later import be ignored?  I think so, so should be fine
+        # FIXME: Will later import be ignored?  I think so, so should be fine
+        openai, inf_type = set_openai(inference_server)
         kwargs_extra = {}
         if inference_server == 'openai_chat' or inf_type == 'vllm_chat':
             cls = H2OChatOpenAI
