@@ -122,7 +122,7 @@ See [CPU](README_CPU.md) and [GPU](README_GPU.md) for some other general aspects
 
 #### GPU with LLaMa
 
-**Note**: Currently `llama-cpp-python` only supports v3 ggml 4 bit quantized models, so use llama models ends with `ggmlv3` & `q4_x.bin`.
+**Note**: Currently `llama-cpp-python` only supports v3 ggml 4 bit quantized models for MPS, so use llama models ends with `ggmlv3` & `q4_x.bin`.
 
 1. Install dependencies
     ```bash
