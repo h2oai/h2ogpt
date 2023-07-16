@@ -133,25 +133,11 @@ def go_gradio(**kwargs):
                                    " use Enter for multiple input lines)"
 
     title = 'h2oGPT'
-    more_info = """<iframe src="https://ghbtns.com/github-btn.html?user=h2oai&repo=h2ogpt&type=star&count=true&size=small" frameborder="0" scrolling="0" width="250" height="20" title="GitHub"></iframe><small><a href="https://github.com/h2oai/h2ogpt">h2oGPT</a>  <a href="https://github.com/h2oai/h2o-llmstudio">H2O LLM Studio</a><br><a href="https://huggingface.co/h2oai">🤗 Models</a>"""
-    if kwargs['verbose']:
-        description = f"""Model {kwargs['base_model']} Instruct dataset.
-                      For more information, visit our GitHub pages: [h2oGPT](https://github.com/h2oai/h2ogpt) and [H2O LLM Studio](https://github.com/h2oai/h2o-llmstudio).
-                      Command: {str(' '.join(sys.argv))}
-                      Hash: {get_githash()}
-                      """
-    else:
-        description = more_info
+    description = """<iframe src="https://ghbtns.com/github-btn.html?user=h2oai&repo=h2ogpt&type=star&count=true&size=small" frameborder="0" scrolling="0" width="250" height="20" title="GitHub"></iframe><small><a href="https://github.com/h2oai/h2ogpt">h2oGPT</a>  <a href="https://github.com/h2oai/h2o-llmstudio">H2O LLM Studio</a><br><a href="https://huggingface.co/h2oai">🤗 Models</a>"""
     description_bottom = "If this host is busy, try [Multi-Model](https://gpt.h2o.ai), [Falcon 40B](http://falcon.h2o.ai), [HF Spaces1](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot) or [HF Spaces2](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot2)<br>"
     if is_hf:
         description_bottom += '''<a href="https://huggingface.co/spaces/h2oai/h2ogpt-chatbot?duplicate=true"><img src="https://bit.ly/3gLdBN6" style="white-space: nowrap" alt="Duplicate Space"></a>'''
-
-    if kwargs['verbose']:
-        task_info_md = f"""
-        ### Task: {kwargs['task_info']}"""
-    else:
-        task_info_md = ''
-
+    task_info_md = ''
     css_code = get_css(kwargs)
 
     if kwargs['gradio_offline_level'] >= 0:
@@ -2173,6 +2159,8 @@ def go_gradio(**kwargs):
                 print("Exception: %s" % str(e), flush=True)
             return json.dumps(sys_dict)
 
+        system_kwargs = all_kwargs.copy()
+        system_kwargs.update(dict(command=str(' '.join(sys.argv))))
         get_system_info_dict_func = functools.partial(get_system_info_dict, **all_kwargs)
 
         system_dict_event = system_btn2.click(get_system_info_dict_func,
