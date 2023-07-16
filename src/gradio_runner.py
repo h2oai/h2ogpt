@@ -982,7 +982,8 @@ def go_gradio(**kwargs):
                 if file.startswith('http') or file.startswith('https'):
                     # if file is online, then might as well use google(?)
                     document1 = file
-                    return gr.update(visible=True, value=f"""<iframe width="1000" height="800" src="https://docs.google.com/viewerng/viewer?url={document1}&embedded=true" frameborder="0" height="100%" width="100%">
+                    return gr.update(visible=True,
+                                     value=f"""<iframe width="1000" height="800" src="https://docs.google.com/viewerng/viewer?url={document1}&embedded=true" frameborder="0" height="100%" width="100%">
 </iframe>
 """), dummy1, dummy1, dummy1
                 else:
@@ -1005,9 +1006,11 @@ def go_gradio(**kwargs):
 
         refresh_sources1 = functools.partial(update_and_get_source_files_given_langchain_mode,
                                              **get_kwargs(update_and_get_source_files_given_langchain_mode,
-                                                          exclude_names=['db1', 'langchain_mode'],
+                                                          exclude_names=['db1', 'langchain_mode', 'chunk',
+                                                                         'chunk_size'],
                                                           **all_kwargs))
-        eventdb9 = refresh_sources_btn.click(fn=refresh_sources1, inputs=[my_db_state, langchain_mode],
+        eventdb9 = refresh_sources_btn.click(fn=refresh_sources1,
+                                             inputs=[my_db_state, langchain_mode, chunk, chunk_size],
                                              outputs=sources_text,
                                              api_name='refresh_sources' if allow_api else None)
 
@@ -2631,10 +2634,15 @@ def get_source_files(db=None, exceptions=None, metadatas=None):
     return source_files_added
 
 
-def update_and_get_source_files_given_langchain_mode(db1, langchain_mode, dbs=None, first_para=None,
-                                                     text_limit=None, chunk=None, chunk_size=None,
+def update_and_get_source_files_given_langchain_mode(db1, langchain_mode, chunk, chunk_size,
+                                                     dbs=None, first_para=None,
+                                                     text_limit=None,
                                                      user_path=None, db_type=None, load_db_if_exists=None,
                                                      n_jobs=None, verbose=None):
+    if langchain_mode in [LangChainMode.LLM.value, LangChainMode.CHAT_LLM.value, LangChainMode.MY_DATA.value]:
+        # then assume user really meant UserData, to avoid extra clicks in UI, since others can't be on disk
+        langchain_mode = LangChainMode.USER_DATA.value
+
     db = get_db(db1, langchain_mode, dbs=dbs)
 
     from gpt_langchain import make_db
