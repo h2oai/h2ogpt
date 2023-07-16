@@ -73,7 +73,7 @@ For the above, ignore the CLI output saying `0.0.0.0`, and instead point browser
     ```bash
    pip install -r requirements.txt
     ```
-5. Run h2oGPT
+5. Run h2oGPT (without document Q/A):
     ```bash
     python generate.py --base_model=h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b --cli=True
     ```
@@ -86,10 +86,15 @@ To support document Q/A jump to [Install Optional Dependencies](#document-qa-dep
 #### Document Q/A dependencies
 
 ```bash
-for fil in reqs_optional/requirements_optional_langchain.txt reqs_optional/requirements_optional_gpt4all.txt reqs_optional/requirements_optional_langchain.gpllike.txt reqs_optional/requirements_optional_langchain.urls.txt ; do pip install -r $fil ; done
-```
-Optional dependencies for supporting unstructured package
-```bash
+# Required for Doc Q/A: LangChain:
+pip install -r reqs_optional/requirements_optional_langchain.txt
+# Required for CPU: LLaMa/GPT4All:
+pip install -r reqs_optional/requirements_optional_gpt4all.txt
+# Optional: PyMuPDF/ArXiv:
+pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt
+# Optional: Selenium/PlayWright:
+pip install -r reqs_optional/requirements_optional_langchain.urls.txt
+# Optional: for supporting unstructured package
 python -m nltk.downloader all
 ```
 and for supporting Word and Excel documents, download libreoffice: https://www.libreoffice.org/download/download-libreoffice/ .
