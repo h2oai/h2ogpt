@@ -117,3 +117,29 @@ python generate.py --base_model=h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b --l
 For the above, ignore the CLI output saying `0.0.0.0`, and instead point browser at http://localhost:7860 (for windows/mac) or the public live URL printed by the server (disable shared link with `--share=False`).
 
 See [CPU](README_CPU.md) and [GPU](README_GPU.md) for some other general aspects about using h2oGPT on CPU or GPU, such as which models to try.
+
+---
+
+#### GPU with LLaMa
+
+**Note**: Currently `llama-cpp-python` only supports v3 ggml 4 bit quantized models, so use llama models ends with `ggmlv3` & `q4_x.bin`.
+
+1. Install dependencies
+    ```bash
+    # Required for Doc Q/A: LangChain:
+    pip install -r reqs_optional/requirements_optional_langchain.txt
+    # Required for CPU: LLaMa/GPT4All:
+    pip install -r reqs_optional/requirements_optional_gpt4all.txt
+    ```
+2. Install the LATEST llama-cpp-python...which happily supports MacOS Metal GPU as of version 0.1.62 (you should now have llama-cpp-python v0.1.62 or higher installed)
+    ```bash
+    pip uninstall llama-cpp-python -y
+    CMAKE_ARGS="-DLLAMA_METAL=on" FORCE_CMAKE=1 pip install -U llama-cpp-python --no-cache-dir
+    ```
+3. Edit below settings in `.env_gpt4all`
+    - Uncomment line with `n_gpu_layers=20`
+    - Change model name with your preferred model at line with `model_path_llama=WizardLM-7B-uncensored.ggmlv3.q8_0.bin`
+4. Run LLaMa model
+    ```bash
+    python generate.py --base_model='llama' --cli==True
+    ```
