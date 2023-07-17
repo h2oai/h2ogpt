@@ -1011,8 +1011,9 @@ visible_langchain_modes_file = 'visible_langchain_modes.pkl'
 
 
 def save_collection_enum(langchain_modes, visible_langchain_modes, langchain_mode_paths):
-    with open(visible_langchain_modes_file, 'wb') as f:
-        pickle.dump((langchain_modes, visible_langchain_modes, langchain_mode_paths), f)
+    with filelock.FileLock("%s.lock" % visible_langchain_modes_file):
+        with open(visible_langchain_modes_file, 'wb') as f:
+            pickle.dump((langchain_modes, visible_langchain_modes, langchain_mode_paths), f)
 
 
 def load_collection_enum():
