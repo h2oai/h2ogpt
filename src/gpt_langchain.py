@@ -1475,7 +1475,7 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
 
 def prep_langchain(persist_directory,
                    load_db_if_exists,
-                   db_type, use_openai_embedding, langchain_mode, user_path,
+                   db_type, use_openai_embedding, langchain_mode, langchain_mode_paths,
                    hf_embedding_model, n_jobs=-1, kwargs_make_db={}):
     """
     do prep first time, involving downloads
@@ -1485,6 +1485,7 @@ def prep_langchain(persist_directory,
     assert langchain_mode not in ['MyData'], "Should not prep scratch data"
 
     db_dir_exists = os.path.isdir(persist_directory)
+    user_path = langchain_mode_paths.get(langchain_mode)
 
     if db_dir_exists and user_path is None:
         print("Prep: persist_directory=%s exists, using" % persist_directory, flush=True)
@@ -1654,13 +1655,14 @@ def _make_db(use_openai_embedding=False,
              first_para=False, text_limit=None,
              chunk=True, chunk_size=512,
              langchain_mode=None,
-             user_path=None,
+             langchain_mode_paths=None,
              db_type='faiss',
              load_db_if_exists=True,
              db=None,
              n_jobs=-1,
              verbose=False):
     persist_directory = get_persist_directory(langchain_mode)
+    user_path = langchain_mode_paths.get(langchain_mode)
     # see if can get persistent chroma db
     db_trial = get_existing_db(db, persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
                                hf_embedding_model, verbose=verbose)
@@ -1877,7 +1879,7 @@ def _run_qa_db(query=None,
                context=None,
                use_openai_model=False, use_openai_embedding=False,
                first_para=False, text_limit=None, top_k_docs=4, chunk=True, chunk_size=512,
-               user_path=None,
+               langchain_mode_paths=None,
                detect_user_path_changes_every_query=False,
                db_type='faiss',
                model_name=None, model=None, tokenizer=None, inference_server=None,
@@ -1927,7 +1929,7 @@ def _run_qa_db(query=None,
     :param top_k_docs:
     :param chunk:
     :param chunk_size:
-    :param user_path: user path to glob recursively from
+    :param langchain_mode_paths: dict of langchain_mode -> user path to glob recursively from
     :param db_type: 'faiss' for in-memory db or 'chroma' or 'weaviate' for persistent db
     :param model_name: model name, used to switch behaviors
     :param model: pre-initialized model, else will make new one
@@ -2068,7 +2070,7 @@ def get_chain(query=None,
               iinput=None,
               use_openai_model=False, use_openai_embedding=False,
               first_para=False, text_limit=None, top_k_docs=4, chunk=True, chunk_size=512,
-              user_path=None,
+              langchain_mode_paths=None,
               detect_user_path_changes_every_query=False,
               db_type='faiss',
               model_name=None,
@@ -2121,6 +2123,8 @@ def get_chain(query=None,
         # if already have db and not updating from user_path every query
         # but if db is None, no db yet loaded (e.g. from prep), so allow user_path to be whatever it was
         user_path = None
+    else:
+        user_path = langchain_mode_paths.get(langchain_mode)
     db, num_new_sources, new_sources_metadata = make_db(use_openai_embedding=use_openai_embedding,
                                                         hf_embedding_model=hf_embedding_model,
                                                         first_para=first_para, text_limit=text_limit,

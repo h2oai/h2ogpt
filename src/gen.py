@@ -32,7 +32,7 @@ from enums import DocumentChoices, LangChainMode, no_lora_str, model_token_mappi
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, remove, \
-    have_langchain, set_openai
+    have_langchain, set_openai, load_collection_enum
 
 start_faulthandler()
 import_matplotlib()
@@ -49,13 +49,27 @@ from transformers import GenerationConfig, AutoModel, TextIteratorStreamer
 from prompter import Prompter, inv_prompt_type_to_model_lower, non_hf_types, PromptType, get_prompt, generate_prompt
 from stopping import get_stopping
 
-langchain_modes = [x.value for x in list(LangChainMode)]
-
 langchain_actions = [x.value for x in list(LangChainAction)]
 
 langchain_agents_list = [x.value for x in list(LangChainAgent)]
 
 scratch_base_dir = '/tmp/'
+
+
+def update_langchain(langchain_modes, visible_langchain_modes, langchain_mode_paths):
+    # update from saved state on disk
+    langchain_modes_from_file, visible_langchain_modes_from_file, langchain_mode_paths_from_file = \
+        load_collection_enum()
+
+    visible_langchain_modes_temp = visible_langchain_modes.copy() + visible_langchain_modes_from_file
+    visible_langchain_modes.clear()  # don't lose original reference
+    [visible_langchain_modes.append(x) for x in visible_langchain_modes_temp if x not in visible_langchain_modes]
+
+    langchain_mode_paths.update(langchain_mode_paths_from_file)
+
+    langchain_modes_temp = langchain_modes.copy() + langchain_modes_from_file
+    langchain_modes.clear()  # don't lose original reference
+    [langchain_modes.append(x) for x in langchain_modes_temp if x not in langchain_modes]
 
 
 def main(
@@ -146,6 +160,7 @@ def main(
         langchain_action: str = LangChainAction.QUERY.value,
         langchain_agents: list = [],
         force_langchain_evaluate: bool = False,
+        langchain_modes: list = [x.value for x in list(LangChainMode)],
         visible_langchain_modes: list = ['UserData', 'MyData'],
         # WIP:
         # visible_langchain_actions: list = langchain_actions.copy(),
@@ -154,6 +169,7 @@ def main(
         document_subset: str = DocumentChoices.Relevant.name,
         document_choice: list = [],
         user_path: str = None,
+        langchain_mode_paths: dict = {'UserData': None},
         detect_user_path_changes_every_query: bool = False,
         use_llm_if_no_docs: bool = False,
         load_db_if_exists: bool = True,
@@ -299,18 +315,24 @@ def main(
     :param force_langchain_evaluate: Whether to force langchain LLM use even if not doing langchain, mostly for testing.
     :param user_path: user path to glob from to generate db for vector search, for 'UserData' langchain mode.
            If already have db, any new/changed files are added automatically if path set, does not have to be same path used for prior db sources
+    :param langchain_mode_paths: dict of langchain_mode keys and disk path values to use for source of documents
+           E.g. "{'UserData2': 'userpath2'}"
+           Can be None even if existing DB, to avoid new documents being added from that path, source links that are on disk still work.
+           If user_path is not None, that path is used for 'UserData' instead of the value in this dict
     :param detect_user_path_changes_every_query: whether to detect if any files changed or added every similarity search (by file hashes).
            Expensive for large number of files, so not done by default.  By default only detect changes during db loading.
+    :param langchain_modes: names of collections/dbs to potentially have
     :param visible_langchain_modes: dbs to generate at launch to be ready for LLM
            Can be up to ['wiki', 'wiki_full', 'UserData', 'MyData', 'github h2oGPT', 'DriverlessAI docs']
            But wiki_full is expensive and requires preparation
            To allow scratch space only live in session, add 'MyData' to list
            Default: If only want to consume local files, e.g. prepared by make_db.py, only include ['UserData']
+           If have own user modes, need to add these here or add in UI.
     :param visible_langchain_actions: Which actions to allow
     :param visible_langchain_agents: Which agents to allow
     :param document_subset: Default document choice when taking subset of collection
     :param document_choice: Chosen document(s) by internal name
-    :param use_llm_if_no_docs: Whether to use LLM even if no documents, when langchain_mode=UserData or MyData
+    :param use_llm_if_no_docs: Whether to use LLM even if no documents, when langchain_mode=UserData or MyData or custom
     :param load_db_if_exists: Whether to load chroma db if exists or re-generate db
     :param keep_sources_in_context: Whether to keep url sources in context, not helpful usually
     :param db_type: 'faiss' for in-memory or 'chroma' or 'weaviate' for persisted on disk
@@ -411,6 +433,17 @@ def main(
         if langchain_mode is not None:
             visible_langchain_modes += [langchain_mode]
 
+    # update
+    if isinstance(langchain_mode_paths, str):
+        langchain_mode_paths = ast.literal_eval(langchain_mode_paths)
+        assert isinstance(langchain_mode_paths, dict)
+    if user_path:
+        langchain_mode_paths['UserData'] = user_path
+        makedirs(user_path)
+
+    # in-place
+    update_langchain(langchain_modes, visible_langchain_modes, langchain_mode_paths)
+
     assert langchain_action in langchain_actions, "Invalid langchain_action %s" % langchain_action
     assert len(
         set(langchain_agents).difference(langchain_agents_list)) == 0, "Invalid langchain_agents %s" % langchain_agents
@@ -425,12 +458,13 @@ def main(
     if have_langchain and langchain_mode is None:
         # start in chat mode, in case just want to chat and don't want to get "No documents to query" by default.
         langchain_mode = LangChainMode.CHAT_LLM.value
-        if allow_upload_to_user_data and not is_public and user_path:
+        if allow_upload_to_user_data and not is_public and langchain_mode_paths['UserData']:
             print("Auto set langchain_mode=%s.  Could use UserData instead." % langchain_mode, flush=True)
         elif allow_upload_to_my_data:
             print("Auto set langchain_mode=%s.  Could use MyData instead."
                   "  To allow UserData to pull files from disk,"
-                  " set user_path and ensure allow_upload_to_user_data=True" % langchain_mode, flush=True)
+                  " set user_path or langchain_mode_paths, and ensure allow_upload_to_user_data=True" % langchain_mode,
+                  flush=True)
         else:
             raise RuntimeError("Please pass --langchain_mode=<chosen mode> out of %s" % langchain_modes)
     if not have_langchain and langchain_mode not in [None, LangChainMode.DISABLED.value, LangChainMode.LLM.value,
@@ -550,8 +584,6 @@ def main(
 
     if offload_folder:
         makedirs(offload_folder)
-    if user_path:
-        makedirs(user_path)
 
     placeholder_instruction, placeholder_input, \
         stream_output, show_examples, \
@@ -606,7 +638,7 @@ def main(
                 db = prep_langchain(persist_directory1,
                                     load_db_if_exists,
                                     db_type, use_openai_embedding,
-                                    langchain_mode1, user_path,
+                                    langchain_mode1, langchain_mode_paths,
                                     hf_embedding_model,
                                     kwargs_make_db=locals())
             finally:
@@ -1330,7 +1362,7 @@ def evaluate(
         use_llm_if_no_docs=False,
         load_db_if_exists=True,
         dbs=None,
-        user_path=None,
+        langchain_mode_paths=None,
         detect_user_path_changes_every_query=None,
         use_openai_embedding=None,
         use_openai_model=None,
@@ -1520,7 +1552,7 @@ def evaluate(
                            use_llm_if_no_docs=use_llm_if_no_docs,
                            load_db_if_exists=load_db_if_exists,
                            db=db1,
-                           user_path=user_path,
+                           langchain_mode_paths=langchain_mode_paths,
                            detect_user_path_changes_every_query=detect_user_path_changes_every_query,
                            cut_distance=1.1 if langchain_mode in ['wiki_full'] else cut_distance,
                            use_openai_embedding=use_openai_embedding,

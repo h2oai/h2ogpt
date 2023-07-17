@@ -56,9 +56,11 @@ from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, 
 from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt_type_to_model_lower, non_hf_types, \
     get_prompt
 from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
-    ping, get_short_name, makedirs, get_kwargs, remove, system_info, ping_gpu, get_url, get_local_ip
-from gen import get_model, languages_covered, evaluate, score_qa, langchain_modes, inputs_kwargs_list, scratch_base_dir, \
-    get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list
+    ping, get_short_name, makedirs, get_kwargs, remove, system_info, ping_gpu, get_url, get_local_ip, \
+    save_collection_enum
+from gen import get_model, languages_covered, evaluate, score_qa, inputs_kwargs_list, scratch_base_dir, \
+    get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list, \
+    update_langchain
 from evaluate_params import eval_func_param_names, no_default_param_names, eval_func_param_names_defaults
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -99,6 +101,7 @@ def go_gradio(**kwargs):
     score_model_state0 = kwargs['score_model_state0']
     dbs = kwargs['dbs']
     db_type = kwargs['db_type']
+    langchain_modes = kwargs['langchain_modes']
     visible_langchain_modes = kwargs['visible_langchain_modes']
     visible_langchain_actions = kwargs['visible_langchain_actions']
     visible_langchain_agents = kwargs['visible_langchain_agents']
@@ -276,13 +279,34 @@ def go_gradio(**kwargs):
             'model_lock'] else "Response Scores: %s" % nas
 
         if kwargs['langchain_mode'] != LangChainMode.DISABLED.value:
-            extra_prompt_form = ".  For summarization, empty submission uses first top_k_docs documents."
+            extra_prompt_form = ".  For summarization, no query required, just click submit"
         else:
             extra_prompt_form = ""
         if kwargs['input_lines'] > 1:
             instruction_label = "Shift-Enter to Submit, Enter for more lines%s" % extra_prompt_form
         else:
             instruction_label = "Enter to Submit, Shift-Enter for more lines%s" % extra_prompt_form
+
+        def get_langchain_choices():
+            if is_hf:
+                # don't show 'wiki' since only usually useful for internal testing at moment
+                no_show_modes = ['Disabled', 'wiki']
+            else:
+                no_show_modes = ['Disabled']
+            allowed_modes = visible_langchain_modes.copy()
+            # allowed_modes = [x for x in allowed_modes if x in dbs]
+            allowed_modes += ['ChatLLM', 'LLM']
+            if allow_upload_to_my_data and 'MyData' not in allowed_modes:
+                allowed_modes += ['MyData']
+            if allow_upload_to_user_data and 'UserData' not in allowed_modes:
+                allowed_modes += ['UserData']
+            choices = [x for x in langchain_modes if x in allowed_modes and x not in no_show_modes]
+            return choices
+
+        def get_df_langchain_mode_paths():
+            df = pd.DataFrame.from_dict(kwargs['langchain_mode_paths'].items(), orient='columns')
+            df.columns = ['LangChainMode', 'Path']
+            return df
 
         normal_block = gr.Row(visible=not base_wanted, equal_height=False)
         with normal_block:
@@ -318,20 +342,9 @@ def go_gradio(**kwargs):
                     github_textbox = gr.Textbox(label="Github URL", visible=False)  # FIXME WIP
                 database_visible = kwargs['langchain_mode'] != 'Disabled'
                 with gr.Accordion("Database", open=False, visible=database_visible):
-                    if is_hf:
-                        # don't show 'wiki' since only usually useful for internal testing at moment
-                        no_show_modes = ['Disabled', 'wiki']
-                    else:
-                        no_show_modes = ['Disabled']
-                    allowed_modes = visible_langchain_modes.copy()
-                    allowed_modes = [x for x in allowed_modes if x in dbs]
-                    allowed_modes += ['ChatLLM', 'LLM']
-                    if allow_upload_to_my_data and 'MyData' not in allowed_modes:
-                        allowed_modes += ['MyData']
-                    if allow_upload_to_user_data and 'UserData' not in allowed_modes:
-                        allowed_modes += ['UserData']
+                    langchain_choices = get_langchain_choices()
                     langchain_mode = gr.Radio(
-                        [x for x in langchain_modes if x in allowed_modes and x not in no_show_modes],
+                        langchain_choices,
                         value=kwargs['langchain_mode'],
                         label="Collections",
                         show_label=True,
@@ -433,13 +446,36 @@ def go_gradio(**kwargs):
                                                   )
                     sources_visible = kwargs['langchain_mode'] != 'Disabled' and enable_sources_list
                     with gr.Row():
-                        get_sources_btn = gr.Button(value="Update UI with Document(s) from DB", scale=0, size='sm',
-                                                    visible=sources_visible)
-                        show_sources_btn = gr.Button(value="Show Sources from DB", scale=0, size='sm',
-                                                     visible=sources_visible)
-                        refresh_sources_btn = gr.Button(value="Update DB with new/changed files on disk", scale=0,
-                                                        size='sm',
-                                                        visible=sources_visible and allow_upload_to_user_data)
+                        with gr.Column(scale=1):
+                            get_sources_btn = gr.Button(value="Update UI with Document(s) from DB", scale=0, size='sm',
+                                                        visible=sources_visible)
+                            show_sources_btn = gr.Button(value="Show Sources from DB", scale=0, size='sm',
+                                                         visible=sources_visible)
+                            refresh_sources_btn = gr.Button(value="Update DB with new/changed files on disk", scale=0,
+                                                            size='sm',
+                                                            visible=sources_visible and allow_upload_to_user_data)
+                        with gr.Column(scale=4):
+                            pass
+                    with gr.Row():
+                        with gr.Column(scale=1):
+                            new_langchain_mode_text = gr.Textbox(value="", visible=allow_upload_to_user_data,
+                                                                 label='Add LangChain Mode',
+                                                                 placeholder="e.g. UserData2, user_path2",
+                                                                 interactive=True)
+                            remove_langchain_mode_text = gr.Textbox(value="", visible=allow_upload_to_user_data,
+                                                                    label='Remove LangChain Mode',
+                                                                    placeholder="e.g. UserData2",
+                                                                    interactive=True)
+                            load_langchain = gr.Button(value="Load LangChain State", scale=0, size='sm',
+                                                       visible=allow_upload_to_user_data)
+                        with gr.Column(scale=1):
+                            langchain_mode_path_text = gr.Dataframe(value=get_df_langchain_mode_paths(),
+                                                                    visible=allow_upload_to_user_data,
+                                                                    label='LangChain Mode-Path',
+                                                                    show_label=False,
+                                                                    interactive=False)
+                        with gr.Column(scale=4):
+                            pass
 
                     sources_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and enable_sources_list,
                                          equal_height=False)
@@ -718,7 +754,6 @@ def go_gradio(**kwargs):
                     with admin_row:
                         with gr.Column(scale=1):
                             admin_pass_textbox = gr.Textbox(label="Admin Password", type='password', visible=is_public)
-                            admin_btn = gr.Button(value="Admin Access", visible=is_public, size='sm')
                         with gr.Column(scale=4):
                             pass
                     system_row = gr.Row(visible=not is_public)
@@ -785,7 +820,7 @@ def go_gradio(**kwargs):
             else:
                 return tuple([gr.update(interactive=True)] * len(args))
 
-        # Add to UserData
+        # Add to UserData or custom user db
         update_db_func = functools.partial(update_user_db,
                                            dbs=dbs,
                                            db_type=db_type,
@@ -796,7 +831,7 @@ def go_gradio(**kwargs):
                                            enable_ocr=enable_ocr,
                                            caption_loader=caption_loader,
                                            verbose=kwargs['verbose'],
-                                           user_path=kwargs['user_path'],
+                                           langchain_mode_paths=kwargs['langchain_mode_paths'],
                                            n_jobs=kwargs['n_jobs'],
                                            )
         add_file_outputs = [fileup_output, langchain_mode]
@@ -1006,8 +1041,65 @@ def go_gradio(**kwargs):
         def close_admin(x):
             return gr.update(visible=not (x == admin_pass))
 
-        admin_btn.click(check_admin_pass, inputs=admin_pass_textbox, outputs=system_row, queue=False) \
+        admin_pass_textbox.submit(check_admin_pass, inputs=admin_pass_textbox, outputs=system_row, queue=False) \
             .then(close_admin, inputs=admin_pass_textbox, outputs=admin_row, queue=False)
+
+        def add_langchain_mode(y0, y):
+            y2 = y.strip().replace(' ', '').split(',')
+            if len(y2) == 2:
+                x = y2[0]
+                if len(x) >= 3 and x.isalnum():
+                    # real restriction is:
+                    # ValueError: Expected collection name that (1) contains 3-63 characters, (2) starts and ends with an alphanumeric character, (3) otherwise contains only alphanumeric characters, underscores or hyphens (-), (4) contains no two consecutive periods (..) and (5) is not a valid IPv4 address, got me
+                    # but just make simpler
+                    user_path = y2[1]
+                    kwargs['langchain_mode_paths'].update({x: user_path})
+                    if x not in visible_langchain_modes:
+                        visible_langchain_modes.append(x)
+                    if x not in langchain_modes:
+                        langchain_modes.append(x)
+                    textbox = ''
+                    makedirs(user_path, exist_ok=True)
+                else:
+                    x = y0
+                    textbox = "Invalid, collection must be >=3 characters and alphanumeric"
+            else:
+                x = y0
+                textbox = "Invalid, must be like UserData2, user_path2"
+            df_langchain_mode_paths1 = get_df_langchain_mode_paths()
+            choices = get_langchain_choices()
+            save_collection_enum(langchain_modes, visible_langchain_modes, kwargs['langchain_mode_paths'])
+            return gr.update(choices=choices, value=x), textbox, df_langchain_mode_paths1
+
+        def remove_langchain_mode(x):
+            # change global variables
+            if x in visible_langchain_modes:
+                visible_langchain_modes.remove(x)
+                textbox = ""
+            else:
+                textbox = "%s was not visible" % x
+            if x in langchain_modes:
+                langchain_modes.remove(x)
+            if x in kwargs['langchain_mode_paths']:
+                kwargs['langchain_mode_paths'].pop(x)
+            df_langchain_mode_paths1 = get_df_langchain_mode_paths()
+            return gr.update(choices=get_langchain_choices(), value=x), textbox, df_langchain_mode_paths1
+
+        new_langchain_mode_text.submit(fn=add_langchain_mode, inputs=[langchain_mode, new_langchain_mode_text],
+                                       outputs=[langchain_mode, new_langchain_mode_text,
+                                                langchain_mode_path_text])
+        remove_langchain_mode_text.submit(fn=remove_langchain_mode, inputs=remove_langchain_mode_text,
+                                          outputs=[langchain_mode, remove_langchain_mode_text,
+                                                   langchain_mode_path_text])
+
+        def update_langchain_gr(langchain_mode1):
+            # in-place
+            update_langchain(langchain_modes, visible_langchain_modes, kwargs['langchain_mode_paths'])
+            df_langchain_mode_paths1 = get_df_langchain_mode_paths()
+            return gr.update(choices=get_langchain_choices(), value=langchain_mode1), df_langchain_mode_paths1
+
+        load_langchain.click(fn=update_langchain_gr, inputs=langchain_mode,
+                             outputs=[langchain_mode, langchain_mode_path_text])
 
         inputs_list, inputs_dict = get_inputs_list(all_kwargs, kwargs['model_lower'], model_id=1)
         inputs_list2, inputs_dict2 = get_inputs_list(all_kwargs, kwargs['model_lower'], model_id=2)
@@ -2383,7 +2475,7 @@ def _update_user_db(file,
                     db1=None,
                     chunk=None, chunk_size=None,
                     dbs=None, db_type=None, langchain_mode='UserData',
-                    user_path=None,
+                    langchain_mode_paths=None,
                     use_openai_embedding=None,
                     hf_embedding_model=None,
                     caption_loader=None,
@@ -2428,7 +2520,11 @@ def _update_user_db(file,
         # but default to mydata if nothing chosen, since safest
         langchain_mode = LangChainMode.MY_DATA.value
 
-    if langchain_mode == 'UserData' and user_path is not None:
+    user_path = langchain_mode_paths.get(langchain_mode)
+    dict_LangChainMode = {i.name: i.value for i in LangChainMode}
+    # UserData or custom, which has to be from user's disk
+    if (langchain_mode == 'UserData' or langchain_mode not in list(dict_LangChainMode.values())) and \
+            user_path is not None:
         # move temp files from gradio upload to stable location
         for fili, fil in enumerate(file):
             if isinstance(fil, str):
@@ -2626,10 +2722,11 @@ def get_source_files(db=None, exceptions=None, metadatas=None):
 def update_and_get_source_files_given_langchain_mode(db1, langchain_mode, chunk, chunk_size,
                                                      dbs=None, first_para=None,
                                                      text_limit=None,
-                                                     user_path=None, db_type=None, load_db_if_exists=None,
+                                                     langchain_mode_paths=None, db_type=None, load_db_if_exists=None,
                                                      n_jobs=None, verbose=None):
     if langchain_mode in [LangChainMode.LLM.value, LangChainMode.CHAT_LLM.value, LangChainMode.MY_DATA.value]:
-        # then assume user really meant UserData, to avoid extra clicks in UI, since others can't be on disk
+        # then assume user really meant UserData, to avoid extra clicks in UI,
+        # since others can't be on disk, except custom user modes, which they should then select to query it
         langchain_mode = LangChainMode.USER_DATA.value
 
     db = get_db(db1, langchain_mode, dbs=dbs)
@@ -2641,7 +2738,7 @@ def update_and_get_source_files_given_langchain_mode(db1, langchain_mode, chunk,
                                                         chunk=chunk,
                                                         chunk_size=chunk_size,
                                                         langchain_mode=langchain_mode,
-                                                        user_path=user_path,
+                                                        langchain_mode_paths=langchain_mode_paths,
                                                         db_type=db_type,
                                                         load_db_if_exists=load_db_if_exists,
                                                         db=db,
