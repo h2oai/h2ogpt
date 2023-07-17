@@ -441,8 +441,12 @@ def main(
         langchain_mode_paths['UserData'] = user_path
         makedirs(user_path)
 
+    if is_public:
+        allow_upload_to_user_data = False
+
     # in-place
-    update_langchain(langchain_modes, visible_langchain_modes, langchain_mode_paths)
+    if allow_upload_to_user_data:
+        update_langchain(langchain_modes, visible_langchain_modes, langchain_mode_paths)
 
     assert langchain_action in langchain_actions, "Invalid langchain_action %s" % langchain_action
     assert len(
