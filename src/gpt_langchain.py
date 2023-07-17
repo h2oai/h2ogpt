@@ -1445,7 +1445,7 @@ def get_existing_db(db, persist_directory, load_db_if_exists, db_type, use_opena
             embedding = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model)
             from chromadb.config import Settings
             client_settings = Settings(anonymized_telemetry=False,
-                                       chroma_db_impl="duckdb+parquet",
+                                       is_persistent=True,
                                        persist_directory=persist_directory)
             db = Chroma(persist_directory=persist_directory, embedding_function=embedding,
                         collection_name=langchain_mode.replace(' ', '_'),
