@@ -1,42 +1,60 @@
-## h2oGPT
+# h2oGPT
 
 Turn ★ into ⭐ (top-right corner) if you like the project!
 
+Query and summarize your documents or just chat with local private GPT LLMs using h2oGPT, an Apache V2 open-source project.
+
+- **Private** offline database of any documents [(PDFs, Excel, Word, Images, Code, Text, MarkDown, etc.)](docs/README_LangChain.md#supported-datatypes)
+- **Persistent** database (Chroma, Weaviate, or in-memory FAISS) using accurate embeddings (instructor-large, all-MiniLM-L6-v2, etc.)
+- **Efficient** use of context using instruct-tuned LLMs (no need for LangChain's few-shot approach)
+- **Upload** and **View** documents via UI (collaborative space or scratch space)
+- **UI** or CLI with streaming of all models
+- **Bake-off** UI mode against many models at same time
+- **Variety** of models supported (Falcon, Vicuna, WizardLM including AutoGPTQ, 4-bit/8-bit, LORA)
+- **GPU** support from HF models, and **CPU** support using LLaMa cpp and GPT4ALL
+- **Linux, Docker, MAC, and Windows** support
+- **Inference Servers** support (HF TGI server, vLLM, Gradio, OpenAI)
+- **OpenAI-compliant Python client API** for client-server control
+- **Evaluate** performance using reward models
+
+### Live Demos
 - [![img-small.png](docs/img-small.png) Live h2oGPT Document Q/A Demo](https://gpt.h2o.ai/)
 - [🤗 Live h2oGPT Chat Demo 1](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot)
 - [🤗 Live h2oGPT Chat Demo 2](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot2)
 - [![](https://colab.research.google.com/assets/colab-badge.svg) h2oGPT CPU](https://colab.research.google.com/drive/13RiBdAFZ6xqDwDKfW6BG_-tXfXiqPNQe?usp=sharing)
 - [![](https://colab.research.google.com/assets/colab-badge.svg) h2oGPT GPU](https://colab.research.google.com/drive/143-KFHs2iCqXTQLI2pFCDiR69z0dR8iE?usp=sharing)
 
-Watch these YouTube Videos:
-- [100% Offline ChatGPT Alternative?](https://www.youtube.com/watch?v=Coj72EzmX20)
-- [Ultimate Open-Source LLM Showdown (6 Models Tested) - Surprising Results!](https://www.youtube.com/watch?v=FTm5C_vV_EY)
-- [Blazing Fast Falcon 40b 🚀 Uncensored, Open-Source, Fully Hosted, Chat With Your Docs](https://www.youtube.com/watch?v=H8Dx-iUY49s)
+### Resources:
+- [Discord](https://discord.gg/WKhYMWcVbq)
+- [Apache V2 models (Falcon 40, etc.) at 🤗](https://huggingface.co/h2oai/)
+- [YouTube: 100% Offline ChatGPT Alternative?](https://www.youtube.com/watch?v=Coj72EzmX20)
+- [YouTube: Ultimate Open-Source LLM Showdown (6 Models Tested) - Surprising Results!](https://www.youtube.com/watch?v=FTm5C_vV_EY)
+- [YouTube: Blazing Fast Falcon 40b 🚀 Uncensored, Open-Source, Fully Hosted, Chat With Your Docs](https://www.youtube.com/watch?v=H8Dx-iUY49s)
+- [Technical Paper: https://arxiv.org/pdf/2306.08161.pdf](https://arxiv.org/pdf/2306.08161.pdf)
 
-For questions, discussing, or just hanging out, come and join our <a href="https://discord.gg/WKhYMWcVbq"><b>Discord</b></a>!
+### Video Demo:
 
-Technical Paper: [https://arxiv.org/pdf/2306.08161.pdf](https://arxiv.org/pdf/2306.08161.pdf)
+https://github.com/h2oai/h2ogpt/assets/2249614/2f805035-2c85-42fb-807f-fd0bca79abc6
 
-h2oGPT is a large language model (LLM) fine-tuning framework and chatbot UI with document(s) question-answer capabilities.  Documents help to **ground** LLMs against hallucinations by providing them context relevant to the instruction.  h2oGPT is fully permissive Apache V2 open-source project for 100% private and secure use of LLMs and document embeddings for document question-answer.
+YouTube 4K version: https://www.youtube.com/watch?v=_iktbj4obAI
 
-Welcome!  Join us and make an issue or a PR, and contribute to making the best fine-tuned LLMs, chatbot UI, and document question-answer framework!
-
+### Guide:
 <!--  cat README.md | ./gh-md-toc  -  But Help is heavily processed -->
 * [Supported OS and Hardware](#supported-os-and-hardware)
-* [Apache V2 ChatBot with LangChain Integration](#apache-v2-chatbot-with-langchain-integration)
-* [Apache V2 Data Preparation code, Training code, and Models](#apache-v2-data-preparation-code-training-code-and-models)
+* [Compare to PrivateGPT et al.](docs/README_LangChain.md#what-is-h2ogpts-langchain-integration-like)
 * [Roadmap](#roadmap)
 * [Getting Started](#getting-started)
    * [TLDR Install & Run](#tldr)
    * [GPU (CUDA)](docs/README_GPU.md)
    * [CPU](docs/README_CPU.md)
-   * [MACOS](docs/README_MACOS.md#macos)
+   * [MACOS](docs/README_MACOS.md)
    * [Windows 10/11](docs/README_WINDOWS.md)
    * [CLI chat](docs/README_CLI.md)
-   * [Gradio UI](docs/README_GRADIOUI.md)
+   * [Gradio UI](docs/README_ui.md)
    * [Client API](docs/README_CLIENT.md)
-   * [Connect to Inference Servers](docs/README_InferenceServers.md)
+   * [Inference Servers](docs/README_InferenceServers.md)
    * [Python Wheel](docs/README_WHEEL.md)
+   * [Offline Mode](docs/README_offline.md)
 * [Development](#development)
 * [Help](#help)
    * [LangChain file types supported](docs/README_LangChain.md#supported-datatypes)
@@ -59,46 +77,11 @@ Welcome!  Join us and make an issue or a PR, and contribute to making the best f
 ![Windows](https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white)
 ![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)
 
-**GPU** mode requires CUDA support via torch and transformers.  A 6.9B (or 12GB) model in 8-bit uses 8GB (or 13GB) of GPU memory. 8-bit or 4-bit precision can further reduce memory requirements down no more than about 6.5GB when asking a question about your documents (see [low-memory mode](docs/FAQ.md#low-memory-mode)).
+**GPU** mode requires CUDA support via torch and transformers.  A 6.9B (or 12GB) model in 8-bit uses 8GB (or 13GB) of GPU memory. 8-bit precision, 4-bit precision, and AutoGPTQ can further reduce memory requirements down no more than about 6.5GB when asking a question about your documents (see [low-memory mode](docs/FAQ.md#low-memory-mode)).
 
 **CPU** mode uses GPT4ALL and LLaMa.cpp, e.g. gpt4all-j, requiring about 14GB of system RAM in typical use.
 
-GPU and CPU mode tested on variety of NVIDIA GPUs in Ubuntu 18-22, but any modern Linux variant should work.  MACOS support tested on Macbook Pro running Monterey v12.3.1 using CPU mode.
-
-### Apache V2 ChatBot with LangChain Integration
-
-- [**LangChain**](docs/README_LangChain.md) equipped Chatbot integration and streaming responses
-- **Persistent** database using Chroma or in-memory with FAISS
-- **Original** content url links and scores to rank content against query
-- **Private** offline database of any documents ([PDFs, Images, and many more](docs/README_LangChain.md#supported-datatypes))
-- **Upload** documents via chatbot into shared space or only allow scratch space
-- **Control** data sources and the context provided to LLM
-- **Efficient** use of context using instruct-tuned LLMs (no need for many examples)
-- **API** for client-server control
-- **CPU and GPU** support from variety of HF models, and CPU support using GPT4ALL and LLaMa cpp
-- **Linux, MAC, and Windows** support
-
-Light mode with soft colors talking to cat image:
-
-![Talk to Cat](docs/ui_talk_to_images.png)
-
-Dark mode with H2O.ai colors:
-<img src="docs/langchain.png" alt="VectorDB" title="VectorDB via LangChain">
-
-### Apache V2 Data Preparation code, Training code, and Models
-
-- **Variety** of models (h2oGPT, WizardLM, Vicuna, OpenAssistant, etc.) supported
-- **Fully Commercially** Apache V2 code, data and models
-- **High-Quality** data cleaning of large open-source instruction datasets
-- **LoRA** and **QLoRA** (low-rank approximation) efficient 4-bit, 8-bit and 16-bit fine-tuning and generation
-- **Large** (up to 65B parameters) models built on commodity or enterprise GPUs (single or multi node)
-- **Evaluate** performance using RLHF-based reward models
-
-https://user-images.githubusercontent.com/6147661/232924684-6c0e2dfb-2f24-4098-848a-c3e4396f29f6.mov
-
-All open-source datasets and models are posted on [🤗 H2O.ai's Hugging Face page](https://huggingface.co/h2oai/).
-
-Also check out [H2O LLM Studio](https://github.com/h2oai/h2o-llmstudio) for our no-code LLM fine-tuning framework!
+GPU and CPU mode tested on variety of NVIDIA GPUs in Ubuntu 18-22, but any modern Linux variant should work.  MACOS support tested on Macbook Pro running Monterey v12.3.1 using CPU mode, as well as MAC M1 using MPS.
 
 ### Roadmap
 
@@ -109,7 +92,7 @@ Also check out [H2O LLM Studio](https://github.com/h2oai/h2o-llmstudio) for our 
 - Add other tools like search
 - Add agents for SQL and CSV question/answer
 
-### Getting Started
+## Getting Started
 
 First one needs a Python 3.10 environment.  For help installing a Python 3.10 environment, see [Install Python 3.10 Environment](docs/INSTALL.md#install-python-environment).  On newer Ubuntu systems and environment may be installed by just doing:
 ```bash
@@ -130,7 +113,7 @@ pip --version  # should say pip 23.x.y ... (python 3.10)
 ```
 On some systems, `pip` still refers back to the system one, then one can use `python -m pip` or `pip3` instead of `pip` or try `python3` instead of `python`.
 
-#### TLDR
+### TLDR
 
 For [MACOS](docs/README_MACOS.md#macos) and [Windows 10/11](docs/README_WINDOWS.md) please follow their instructions.
 
@@ -141,27 +124,44 @@ cd h2ogpt
 # fix any bad env
 pip uninstall -y pandoc pypandoc pypandoc-binary
 # broad support, but no training-time or data creation dependencies
-for fil in requirements.txt reqs_optional/requirements_optional_langchain.txt reqs_optional/requirements_optional_gpt4all.txt reqs_optional/requirements_optional_langchain.gpllike.txt reqs_optional/requirements_optional_langchain.urls.txt ; do pip install -r $fil ; done
-# Optional: support docx, pptx, ArXiv, etc.
+
+# CPU only:
+pip install -r requirements.txt --extra-index https://download.pytorch.org/whl/cpu
+
+# GPU only:
+pip install -r requirements.txt --extra-index https://download.pytorch.org/whl/cu118
+```
+Then run:
+```bash
+# Required for Doc Q/A: LangChain:
+pip install -r reqs_optional/requirements_optional_langchain.txt
+# Required for CPU: LLaMa/GPT4All:
+pip install -r reqs_optional/requirements_optional_gpt4all.txt
+# Optional: PyMuPDF/ArXiv:
+pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt
+# Optional: Selenium/PlayWright:
+pip install -r reqs_optional/requirements_optional_langchain.urls.txt
+# Optional: support docx, pptx, ArXiv, etc. required by some python packages
 sudo apt-get install -y libmagic-dev poppler-utils tesseract-ocr libreoffice
 # Optional: for supporting unstructured package
 python -m nltk.downloader all
 # Optional: For AutoGPTQ support on x86_64 linux
-pip uninstall -y auto-gptq ; CUDA_HOME=/usr/local/cuda-11.7  GITHUB_ACTIONS=true pip install auto-gptq --no-cache-dir
+pip uninstall -y auto-gptq ; CUDA_HOME=/usr/local/cuda-11.8  GITHUB_ACTIONS=true pip install auto-gptq --no-cache-dir
 ```
 See [AutoGPTQ](docs/README_GPU.md#gpu-cuda) for more details for AutoGPTQ and other GPU installation aspects.
 
-Place all documents in `user_path` or upload in UI.
+Place all documents in `user_path` or upload in UI ([Help with UI](docs/README_ui.md)).
 
 UI using GPU with at least 24GB with streaming:
 ```bash
 python generate.py --base_model=h2oai/h2ogpt-oasst1-512-12b --load_8bit=True  --score_model=None --langchain_mode='UserData' --user_path=user_path
 ```
-UI using CPU
+UI using LLaMa.cpp model:
 ```bash
 wget https://huggingface.co/TheBloke/WizardLM-7B-uncensored-GGML/resolve/main/WizardLM-7B-uncensored.ggmlv3.q8_0.bin
 python generate.py --base_model='llama' --prompt_type=wizard2 --score_model=None --langchain_mode='UserData' --user_path=user_path
 ```
+which works on CPU or GPU (assuming llama cpp python package compiled against CUDA or Metal).
 
 If using OpenAI for the LLM is ok, but you want documents to be parsed and embedded locally, then do:
 ```bash
@@ -177,6 +177,8 @@ Add `--share=True` to make gradio server visible via sharable URL.  If you see a
 pip install protobuf==3.20.0
 ```
 
+Once all files are downloaded, the CLI and UI can be run in offline mode, see [offline mode](docs/README_offline.md).
+
 ### Development
 
 - To create a development environment for training and generation, follow the [installation instructions](docs/INSTALL.md).
@@ -186,9 +188,11 @@ pip install protobuf==3.20.0
 
 ### Help
 
+- For advanced fine-tuning, also check out [H2O LLM Studio](https://github.com/h2oai/h2o-llmstudio)
+
 - Flash attention support, see [Flash Attention](docs/INSTALL.md#flash-attention)
 
-- [Docker](docs/INSTALL-DOCKER.md#containerized-installation-for-inference-on-linux-gpu-servers) for inference.
+- [Docker](docs/INSTALL-DOCKER.md#containerized-installation-for-inference-on-linux-gpu-servers) for inference
 
 - [FAQs](docs/FAQ.md)
 
@@ -241,4 +245,3 @@ By using the large language model provided in this repository, you agree to acce
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=h2oai/h2ogpt&type=Timeline)](https://star-history.com/#h2oai/h2ogpt&Timeline)
-

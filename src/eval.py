@@ -20,7 +20,7 @@ def run_eval(  # for local function:
         examples=None, memory_restriction_level=None,
         # for get_model:
         score_model=None, load_8bit=None, load_4bit=None, load_half=None, load_gptq=None, use_safetensors=None,
-        infer_devices=None, tokenizer_base_model=None,
+        use_gpu_id=None, tokenizer_base_model=None,
         gpu_id=None, local_files_only=None, resume_download=None, use_auth_token=None,
         trust_remote_code=None, offload_folder=None, compile_model=None,
         # for evaluate args beyond what's already above, or things that are always dynamic and locally created
@@ -37,9 +37,11 @@ def run_eval(  # for local function:
         do_sample=None,
         langchain_mode=None,
         langchain_action=None,
+        langchain_agents=[],
         top_k_docs=None,
         chunk=None,
         chunk_size=None,
+        document_subset=None,
         document_choice=None,
         # for evaluate kwargs:
         src_lang=None, tgt_lang=None, concurrency_count=None, save_dir=None, sanitize_bot_response=None,
@@ -47,9 +49,10 @@ def run_eval(  # for local function:
         max_max_new_tokens=None,
         is_public=None,
         max_max_time=None,
-        raise_generate_gpu_exceptions=None, load_db_if_exists=None, dbs=None, user_path=None,
+        raise_generate_gpu_exceptions=None, load_db_if_exists=None, use_llm_if_no_docs=None,
+        dbs=None, user_path=None,
         detect_user_path_changes_every_query=None,
-        use_openai_embedding=None, use_openai_model=None, hf_embedding_model=None,
+        use_openai_embedding=None, use_openai_model=None, hf_embedding_model=None, cut_distance=None,
         db_type=None, n_jobs=None, first_para=None, text_limit=None, verbose=None, cli=None, reverse_docs=None,
         use_cache=None,
         auto_reduce_chunks=None, max_chunks=None,

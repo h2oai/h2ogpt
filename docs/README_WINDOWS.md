@@ -38,16 +38,14 @@ Follow these steps:
 10. For GPU, install bitsandbytes 4-bit and 8-bit:
     ```bash
     pip uninstall bitsandbytes
-    pip install https://github.com/jllllll/bitsandbytes-windows-webui/raw/main/bitsandbytes-0.39.0-py3-none-any.whl
-    ```
-    unless you have compute capability <7.0, then your GPU only supports 8-bit (not 4-bit) and you should install older bitsandbytes:
-    ```bash
-    pip uninstall bitsandbytes
-    pip install https://github.com/jllllll/bitsandbytes-windows-webui/raw/main/bitsandbytes-0.38.1-py3-none-any.whl
+    pip install https://github.com/jllllll/bitsandbytes-windows-webui/releases/download/wheels/bitsandbytes-0.40.1.post1-py3-none-win_amd64.whl
     ```
 11. Install optional document Q/A dependencies
     ```bash
-    for fil in reqs_optional/requirements_optional_langchain.txt reqs_optional/requirements_optional_gpt4all.txt reqs_optional/requirements_optional_langchain.gpllike.txt reqs_optional/requirements_optional_langchain.urls.txt ; do pip install -r $fil --extra-index-url https://download.pytorch.org/whl/cu118 ; done
+    pip install -r reqs_optional/requirements_optional_langchain.txt
+    pip install -r reqs_optional/requirements_optional_gpt4all.txt
+    pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt
+    pip install -r reqs_optional/requirements_optional_langchain.urls.txt
     ```
     Optional dependencies for supporting unstructured package
     ```bash
@@ -58,7 +56,7 @@ Follow these steps:
     ```bash
     pip install -r https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.2.2/auto_gptq-0.2.2+cu118-cp310-cp310-win_amd64.whl
     ```
-14. Run h2oGPT for chat only:
+13. Run h2oGPT for chat only:
     ```bash
     python generate.py --base_model=h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b --score_model=None
     ```
@@ -70,6 +68,7 @@ Follow these steps:
     ```bash
     python generate.py --base_model=h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b --langchain_mode=MyData --score_model=None
     ```
+For the above, ignore the CLI output saying `0.0.0.0`, and instead point browser at http://localhost:7860 (for windows/mac) or the public live URL printed by the server (disable shared link with `--share=False`).
 
 See [CPU](README_CPU.md) and [GPU](README_GPU.md) for some other general aspects about using h2oGPT on CPU or GPU, such as which models to try.
 

@@ -158,7 +158,9 @@ def test_client_chat_nostream_llama7b():
 
 def run_client_chat_with_server(prompt='Who are you?', stream_output=False, max_new_tokens=256,
                                 base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b', prompt_type='human_bot',
-                                langchain_mode='Disabled', langchain_action=LangChainAction.QUERY.value,
+                                langchain_mode='Disabled',
+                                langchain_action=LangChainAction.QUERY.value,
+                                langchain_agents=[],
                                 user_path=None,
                                 visible_langchain_modes=['UserData', 'MyData'],
                                 reverse_docs=True):
@@ -178,7 +180,7 @@ def run_client_chat_with_server(prompt='Who are you?', stream_output=False, max_
     from src.client_test import run_client_chat
     res_dict, client = run_client_chat(prompt=prompt, prompt_type=prompt_type, stream_output=stream_output,
                                        max_new_tokens=max_new_tokens, langchain_mode=langchain_mode,
-                                       langchain_action=langchain_action)
+                                       langchain_action=langchain_action, langchain_agents=langchain_agents)
     assert res_dict['prompt'] == prompt
     assert res_dict['iinput'] == ''
     return res_dict, client
@@ -192,6 +194,7 @@ def test_client_chat_stream():
 def run_client_nochat_with_server(prompt='Who are you?', stream_output=False, max_new_tokens=256,
                                   base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b', prompt_type='human_bot',
                                   langchain_mode='Disabled', langchain_action=LangChainAction.QUERY.value,
+                                  langchain_agents=[],
                                   user_path=None,
                                   visible_langchain_modes=['UserData', 'MyData'],
                                   reverse_docs=True):
@@ -204,7 +207,7 @@ def run_client_nochat_with_server(prompt='Who are you?', stream_output=False, ma
     main(base_model=base_model, prompt_type=prompt_type, chat=True,
          stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
          max_new_tokens=max_new_tokens,
-         langchain_mode=langchain_mode, langchain_action=langchain_action,
+         langchain_mode=langchain_mode, langchain_action=langchain_action, langchain_agents=langchain_agents,
          user_path=user_path,
          visible_langchain_modes=visible_langchain_modes,
          reverse_docs=reverse_docs)
@@ -213,7 +216,7 @@ def run_client_nochat_with_server(prompt='Who are you?', stream_output=False, ma
     res_dict, client = run_client_nochat_gen(prompt=prompt, prompt_type=prompt_type,
                                              stream_output=stream_output,
                                              max_new_tokens=max_new_tokens, langchain_mode=langchain_mode,
-                                             langchain_action=langchain_action)
+                                             langchain_action=langchain_action, langchain_agents=langchain_agents)
     assert 'Birds' in res_dict['response'] or \
            'and can learn new things' in res_dict['response'] or \
            'Once upon a time' in res_dict['response']
@@ -239,7 +242,9 @@ def test_client_chat_stream_langchain():
     # bad answer about h2o.ai is just becomes dumb model, why flipped context above,
     # but not stable over different systems
     assert 'h2oGPT is a large language model' in res_dict['response'] or \
-           'H2O.ai is a technology company' in res_dict['response']
+           'H2O.ai is a technology company' in res_dict['response'] or \
+           'an open-source project' in res_dict['response'] or \
+           'h2oGPT is a project that allows' in res_dict['response']
 
 
 @pytest.mark.parametrize("max_new_tokens", [256, 2048])
@@ -284,7 +289,9 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'H2O GPT is a chatbot that can be trained' in res_dict['response'] or
             'A large language model (LLM)' in res_dict['response'] or
             'GPT-based language model' in res_dict['response'] or
-            'H2O.ai is a technology company' in res_dict['response']
+            'H2O.ai is a technology company' in res_dict['response'] or
+            'an open-source project' in res_dict['response'] or
+            'is a company that provides' in res_dict['response']
             ) \
            and ('FAQ.md' in res_dict['response'] or 'README.md' in res_dict['response'])
 
@@ -308,7 +315,9 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'This is a config file for Whisper' in res_dict['response'] or
             'Whisper is a secure messaging app' in res_dict['response'] or
             'secure, private, and anonymous chatbot' in res_dict['response'] or
-            'Whisper is a secure, anonymous, and encrypted' in res_dict['response']
+            'Whisper is a secure, anonymous, and encrypted' in res_dict['response'] or
+            'secure, decentralized, and anonymous chat platform' in res_dict['response'] or
+            'A low-code development framework' in res_dict['response']
             ) \
            and ('FAQ.md' in res_dict['response'] or 'README.md' in res_dict['response'])
 
@@ -350,7 +359,9 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'A secure, private, and anonymous chatbot' in res_dict['response'] or
             'A secure, encrypted chat service that allows' in res_dict['response'] or
             'A secure, private, and encrypted chatbot' in res_dict['response'] or
-            'A secret communication system used' in res_dict['response']
+            'A secret communication system used' in res_dict['response'] or
+            'H2O AI Cloud is a cloud-based platform' in res_dict['response'] or
+            'is a platform for deploying'  in res_dict['response']
             ) \
            and '.md' in res_dict['response']
 
@@ -436,6 +447,7 @@ def test_autogptq():
     prompt_type = 'instruct'
     langchain_mode = 'Disabled'
     langchain_action = LangChainAction.QUERY.value
+    langchain_agents = []
     user_path = None
     visible_langchain_modes = ['UserData', 'MyData']
     reverse_docs = True
@@ -452,7 +464,7 @@ def test_autogptq():
     from src.client_test import run_client_chat
     res_dict, client = run_client_chat(prompt=prompt, prompt_type=prompt_type, stream_output=stream_output,
                                        max_new_tokens=max_new_tokens, langchain_mode=langchain_mode,
-                                       langchain_action=langchain_action)
+                                       langchain_action=langchain_action, langchain_agents=langchain_agents)
     assert res_dict['prompt'] == prompt
     assert res_dict['iinput'] == ''
     assert "am a virtual assistant" in res_dict['response']

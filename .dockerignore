@@ -1,0 +1,12 @@
+.git
+.npm
+.dockerignore
+.pytest_cache
+.cache
+.github
+.nv
+.benchmarks
+h2ogpt.egg-info
+venv
+build
+dist

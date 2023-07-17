@@ -133,6 +133,11 @@ class H2oTheme(Soft):
             background_fill_primary_dark="*block_background_fill",
             block_radius="0 0 8px 8px",
             checkbox_label_text_color_selected_dark='#000000',
+            #checkbox_label_text_size="*text_xs",  # too small for iPhone etc. but good if full large screen zoomed to fit
+            checkbox_label_text_size="*text_sm",
+            #radio_circle="""url("data:image/svg+xml,%3csvg viewBox='0 0 32 32' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3ccircle cx='32' cy='32' r='1'/%3e%3c/svg%3e")""",
+            #checkbox_border_width=1,
+            #heckbox_border_width_dark=1,
         )
 
 
@@ -172,6 +177,9 @@ class SoftTheme(Soft):
             text_size=text_size,
             font=font,
             font_mono=font_mono,
+        )
+        super().set(
+            checkbox_label_text_size="*text_sm",
         )
 
 

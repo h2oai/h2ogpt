@@ -31,9 +31,11 @@ eval_func_param_names = ['instruction',
                          'iinput_nochat',
                          'langchain_mode',
                          'langchain_action',
+                         'langchain_agents',
                          'top_k_docs',
                          'chunk',
                          'chunk_size',
+                         'document_subset',
                          'document_choice',
                          ]
 
@@ -42,6 +44,5 @@ eval_func_param_names_defaults = eval_func_param_names.copy()
 for k in no_default_param_names:
     if k in eval_func_param_names_defaults:
         eval_func_param_names_defaults.remove(k)
-
 
 eval_extra_columns = ['prompt', 'response', 'score']
