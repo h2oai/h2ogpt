@@ -2541,7 +2541,7 @@ def _update_user_db(file,
         # move temp files from gradio upload to stable location
         for fili, fil in enumerate(file):
             if isinstance(fil, str):
-                new_fil = os.path.join(user_path, os.path.basename(fil))
+                new_fil = os.path.normpath(os.path.join(user_path, os.path.basename(fil)))
                 if os.path.normpath(os.path.abspath(fil)) != os.path.normpath(os.path.abspath(new_fil)):
                     if os.path.isfile(new_fil):
                         remove(new_fil)
@@ -2757,5 +2757,12 @@ def update_and_get_source_files_given_langchain_mode(db1, langchain_mode, chunk,
                                                         db=db,
                                                         n_jobs=n_jobs,
                                                         verbose=verbose)
+    # during refreshing, might have "created" new db since not in dbs[] yet, so insert back just in case
+    # so even if persisted, not kept up-to-date with dbs memory
+    if langchain_mode == LangChainMode.MY_DATA.value:
+        db1[0] = db
+    else:
+        dbs[langchain_mode] = db
+
     # return only new sources with text saying such
     return get_source_files(db=None, exceptions=None, metadatas=new_sources_metadata)

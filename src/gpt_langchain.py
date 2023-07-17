@@ -1712,7 +1712,10 @@ def _make_db(use_openai_embedding=False,
             if chunk and False:  # FIXME: DAI docs are already chunked well, should only chunk more if over limit
                 sources1 = chunk_sources(sources1, chunk=chunk, chunk_size=chunk_size)
             sources.extend(sources1)
-        if langchain_mode in ['All', 'UserData']:
+        dict_LangChainMode = {i.name: i.value for i in LangChainMode}
+        # UserData or custom, which has to be from user's disk
+        user_type_db = langchain_mode == 'UserData' or langchain_mode not in list(dict_LangChainMode.values())
+        if langchain_mode in ['All', 'UserData'] or user_type_db:
             if user_path:
                 if db is not None:
                     # NOTE: Ignore file names for now, only go by hash ids

@@ -1,6 +1,8 @@
 import ast
 import json
 import os, sys
+import shutil
+
 import pytest
 
 from tests.utils import wrap_test_forked, make_user_path_test, get_llama
@@ -679,3 +681,27 @@ def test_client_chat_stream_langchain_steps3():
     with open(res['name'], 'rb') as f:
         sources = f.read().decode()
     assert sources == """%s/pdf-sample.pdf""" % user_path2
+
+    # check sources, and do after so would detect leakage
+    res = client.predict(langchain_mode, api_name='/get_viewable_sources')
+    # is not actual data!
+    with open(res['name'], 'rb') as f:
+        sources = f.read().decode()
+    assert sources == f'{user_path}/./FAQ.md\n{user_path}/./README.md\n{user_path}/./pexels-evg-kowalievska-1170986_small.jpg\n{user_path}/sample1.pdf'
+
+    res = client.predict(langchain_mode2, api_name='/get_viewable_sources')
+    with open(res['name'], 'rb') as f:
+        sources = f.read().decode()
+    assert sources == """%s/pdf-sample.pdf""" % user_path2
+
+    # refresh
+    shutil.copy('tests/next.txt', user_path)
+    res = client.predict(langchain_mode, True, 512, api_name='/refresh_sources')
+    assert 'file/user_path_test/./next.txt' in res
+
+    # check sources, and do after so would detect leakage
+    res = client.predict(langchain_mode, api_name='/get_sources')
+    # is not actual data!
+    with open(res['name'], 'rb') as f:
+        sources = f.read().decode()
+    assert sources == f'{user_path}/./FAQ.md\n{user_path}/./README.md\n{user_path}/./next.txt\n{user_path}/./pexels-evg-kowalievska-1170986_small.jpg\n{user_path}/sample1.pdf'
