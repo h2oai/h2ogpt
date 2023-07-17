@@ -2126,6 +2126,8 @@ def get_chain(query=None,
         # avoid looking at user_path during similarity search db handling,
         # if already have db and not updating from user_path every query
         # but if db is None, no db yet loaded (e.g. from prep), so allow user_path to be whatever it was
+        if langchain_mode_paths is None:
+            langchain_mode_paths = {}
         langchain_mode_paths = langchain_mode_paths.copy()
         langchain_mode_paths[langchain_mode] = None
     db, num_new_sources, new_sources_metadata = make_db(use_openai_embedding=use_openai_embedding,

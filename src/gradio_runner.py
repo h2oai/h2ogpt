@@ -2533,6 +2533,8 @@ def _update_user_db(file,
         # but default to mydata if nothing chosen, since safest
         langchain_mode = LangChainMode.MY_DATA.value
 
+    if langchain_mode_paths is None:
+        langchain_mode_paths = {}
     user_path = langchain_mode_paths.get(langchain_mode)
     dict_LangChainMode = {i.name: i.value for i in LangChainMode}
     # UserData or custom, which has to be from user's disk
