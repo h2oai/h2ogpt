@@ -1921,7 +1921,7 @@ def go_gradio(**kwargs):
 
         remove_chat_event = remove_chat_btn.click(remove_chat,
                                                   inputs=[radio_chats, chat_state], outputs=[radio_chats, chat_state],
-                                                  queue=False)
+                                                  queue=False, api_name='remove_chat')
 
         def get_chats1(chat_state1):
             base = 'chats'
@@ -2540,7 +2540,7 @@ def _update_user_db(file,
             user_path is not None:
         # move temp files from gradio upload to stable location
         for fili, fil in enumerate(file):
-            if isinstance(fil, str):
+            if isinstance(fil, str) and os.path.isfile(fil):  # not url, text
                 new_fil = os.path.normpath(os.path.join(user_path, os.path.basename(fil)))
                 if os.path.normpath(os.path.abspath(fil)) != os.path.normpath(os.path.abspath(new_fil)):
                     if os.path.isfile(new_fil):

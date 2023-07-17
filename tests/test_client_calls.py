@@ -705,3 +705,30 @@ def test_client_chat_stream_langchain_steps3():
     with open(res['name'], 'rb') as f:
         sources = f.read().decode()
     assert sources == f'{user_path}/./FAQ.md\n{user_path}/./README.md\n{user_path}/./next.txt\n{user_path}/./pexels-evg-kowalievska-1170986_small.jpg\n{user_path}/sample1.pdf'
+
+    # even normal langchain_mode  passed to this should get the other langchain_mode2
+    res = client.predict(langchain_mode, api_name='/load_langchain')
+    assert res[0]['choices'] == ['ChatLLM', 'LLM', langchain_mode, 'MyData', 'github h2oGPT', langchain_mode2]
+    assert res[0]['value'] == langchain_mode
+    assert res[1]['headers'] == ['Collection', 'Path']
+    assert res[1]['data'] == [['UserData', user_path], [langchain_mode2, user_path2]]
+
+    # for pure-UI things where just input -> output often, just make sure no failure, if can
+    res = client.predict(api_name='/export_chats')
+    assert res is not None
+
+    url = 'https://research.google/pubs/pub334.pdf'
+    res = client.predict(url, True, 512, langchain_mode, api_name='/add_url')
+    assert res[0] is None
+    assert res[1] == langchain_mode
+    assert url in res[2]
+    assert res[3] == ''
+
+    text = "Yufuu is a wonderful place and you should really visit because there is lots of sun."
+    res = client.predict(text, True, 512, langchain_mode, api_name='/add_text')
+    assert res[0] is None
+    assert res[1] == langchain_mode
+    assert 'file/user_paste/' in res[2]
+    assert res[3] == ''
+
+    # FIXME: Add load_model, unload_model, etc.
