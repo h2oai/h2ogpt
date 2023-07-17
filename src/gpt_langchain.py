@@ -1218,21 +1218,47 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         from dotenv import dotenv_values
         env_kwargs = dotenv_values(env_gpt4all_file)
         pdf_class_name = env_kwargs.get('PDF_CLASS_NAME', 'PyMuPDFParser')
+        doc1 = []
+        handled = False
         if have_pymupdf and pdf_class_name == 'PyMuPDFParser':
             # GPL, only use if installed
             from langchain.document_loaders import PyMuPDFLoader
             # load() still chunks by pages, but every page has title at start to help
             doc1 = PyMuPDFLoader(file).load()
+            # remove empty documents
+            handled |= len(doc1) > 0
+            doc1 = [x for x in doc1 if x.page_content]
             doc1 = clean_doc(doc1)
-        elif pdf_class_name == 'UnstructuredPDFLoader':
+        if len(doc1) == 0 or pdf_class_name == 'UnstructuredPDFLoader':
             doc1 = UnstructuredPDFLoader(file).load()
+            handled |= len(doc1) > 0
+            # remove empty documents
+            doc1 = [x for x in doc1 if x.page_content]
             # seems to not need cleaning in most cases
-        else:
+        if len(doc1) == 0:
             # open-source fallback
             # load() still chunks by pages, but every page has title at start to help
             doc1 = PyPDFLoader(file).load()
+            handled |= len(doc1) > 0
+            # remove empty documents
+            doc1 = [x for x in doc1 if x.page_content]
+            doc1 = clean_doc(doc1)
+        if have_pymupdf or len(doc1) == 0:
+            # GPL, only use if installed
+            from langchain.document_loaders import PyMuPDFLoader
+            # load() still chunks by pages, but every page has title at start to help
+            doc1 = PyMuPDFLoader(file).load()
+            handled |= len(doc1) > 0
+            # remove empty documents
+            doc1 = [x for x in doc1 if x.page_content]
             doc1 = clean_doc(doc1)
         # Some PDFs return nothing or junk from PDFMinerLoader
+        if len(doc1) == 0:
+            # if literally nothing, show failed to parse so user knows, since unlikely nothing in PDF at all.
+            if handled:
+                raise ValueError("%s had no valid text, but meta data was parsed" % file)
+            else:
+                raise ValueError("%s had no valid text and no meta data was parsed" % file)
         doc1 = chunk_sources(doc1, chunk=chunk, chunk_size=chunk_size)
         add_meta(doc1, file)
     elif file.lower().endswith('.csv'):
