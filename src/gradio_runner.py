@@ -305,7 +305,7 @@ def go_gradio(**kwargs):
 
         def get_df_langchain_mode_paths():
             df = pd.DataFrame.from_dict(kwargs['langchain_mode_paths'].items(), orient='columns')
-            df.columns = ['LangChainMode', 'Path']
+            df.columns = ['Collection', 'Path']
             return df
 
         normal_block = gr.Row(visible=not base_wanted, equal_height=False)
