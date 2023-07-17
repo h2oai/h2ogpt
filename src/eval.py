@@ -50,7 +50,7 @@ def run_eval(  # for local function:
         is_public=None,
         max_max_time=None,
         raise_generate_gpu_exceptions=None, load_db_if_exists=None, use_llm_if_no_docs=None,
-        dbs=None, langchain_mode_paths=None,
+        dbs=None, langchain_mode=None, langchain_mode_paths=None,
         detect_user_path_changes_every_query=None,
         use_openai_embedding=None, use_openai_model=None, hf_embedding_model=None, cut_distance=None,
         db_type=None, n_jobs=None, first_para=None, text_limit=None, verbose=None, cli=None, reverse_docs=None,

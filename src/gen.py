@@ -1362,6 +1362,7 @@ def evaluate(
         use_llm_if_no_docs=False,
         load_db_if_exists=True,
         dbs=None,
+        langchain_modes=None,
         langchain_mode_paths=None,
         detect_user_path_changes_every_query=None,
         use_openai_embedding=None,
