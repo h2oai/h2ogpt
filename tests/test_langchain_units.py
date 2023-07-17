@@ -394,7 +394,7 @@ def test_make_add_db(repeat, db_type):
                     get_source_files_given_langchain_mode(db1, langchain_mode=langchain_mode, dbs={langchain_mode: db})
                     get_source_files_given_langchain_mode(db1, langchain_mode='MyData', dbs={})
                     get_db(db1, langchain_mode='UserData', dbs={langchain_mode: db})
-                    get_db(db1, langchain_mode='MyDatta', dbs={})
+                    get_db(db1, langchain_mode='MyData', dbs={})
 
                     msg1up = "Beefy Chicken"
                     test_file2 = os.path.join(tmp_user_path, 'test2.txt')
