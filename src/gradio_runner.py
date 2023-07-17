@@ -55,7 +55,7 @@ from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, 
     text_xsm
 from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt_type_to_model_lower, non_hf_types, \
     get_prompt
-from utils import get_githash, flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
+from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping, get_short_name, makedirs, get_kwargs, remove, system_info, ping_gpu, get_url, get_local_ip
 from gen import get_model, languages_covered, evaluate, score_qa, langchain_modes, inputs_kwargs_list, scratch_base_dir, \
     get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list
@@ -2240,7 +2240,7 @@ def go_gradio(**kwargs):
         # FIXME: disable for gptj, langchain or gpt4all modify print itself
         # FIXME: and any multi-threaded/async print will enter model output!
         scheduler.add_job(func=ping, trigger="interval", seconds=60)
-    if is_public:
+    if is_public or os.getenv('PING_GPU'):
         scheduler.add_job(func=ping_gpu, trigger="interval", seconds=60 * 10)
     scheduler.start()
 

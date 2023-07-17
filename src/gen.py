@@ -8,7 +8,6 @@ import sys
 import os
 import time
 import traceback
-import types
 import typing
 import warnings
 from datetime import datetime
@@ -574,7 +573,7 @@ def main(
                             verbose,
                             )
 
-    git_hash = get_githash()
+    git_hash = get_githash() if is_public or os.getenv('GET_GITHASH') else "GET_GITHASH"
     locals_dict = locals()
     locals_print = '\n'.join(['%s: %s' % (k, v) for k, v in locals_dict.items()])
     if verbose:
