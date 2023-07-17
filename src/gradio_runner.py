@@ -2240,7 +2240,8 @@ def go_gradio(**kwargs):
         # FIXME: disable for gptj, langchain or gpt4all modify print itself
         # FIXME: and any multi-threaded/async print will enter model output!
         scheduler.add_job(func=ping, trigger="interval", seconds=60)
-    scheduler.add_job(func=ping_gpu, trigger="interval", seconds=60 * 10)
+    if is_public:
+        scheduler.add_job(func=ping_gpu, trigger="interval", seconds=60 * 10)
     scheduler.start()
 
     # import control
