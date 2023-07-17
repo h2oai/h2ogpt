@@ -56,22 +56,6 @@ langchain_agents_list = [x.value for x in list(LangChainAgent)]
 scratch_base_dir = '/tmp/'
 
 
-def update_langchain(langchain_modes, visible_langchain_modes, langchain_mode_paths):
-    # update from saved state on disk
-    langchain_modes_from_file, visible_langchain_modes_from_file, langchain_mode_paths_from_file = \
-        load_collection_enum()
-
-    visible_langchain_modes_temp = visible_langchain_modes.copy() + visible_langchain_modes_from_file
-    visible_langchain_modes.clear()  # don't lose original reference
-    [visible_langchain_modes.append(x) for x in visible_langchain_modes_temp if x not in visible_langchain_modes]
-
-    langchain_mode_paths.update(langchain_mode_paths_from_file)
-
-    langchain_modes_temp = langchain_modes.copy() + langchain_modes_from_file
-    langchain_modes.clear()  # don't lose original reference
-    [langchain_modes.append(x) for x in langchain_modes_temp if x not in langchain_modes]
-
-
 def main(
         load_8bit: bool = False,
         load_4bit: bool = False,
@@ -2551,6 +2535,22 @@ def history_to_context(history, langchain_mode1, prompt_type1, prompt_dict1, cha
         if context1 and not context1.endswith(chat_turn_sep):
             context1 += chat_turn_sep  # ensure if terminates abruptly, then human continues on next line
     return context1
+
+
+def update_langchain(langchain_modes, visible_langchain_modes, langchain_mode_paths):
+    # update from saved state on disk
+    langchain_modes_from_file, visible_langchain_modes_from_file, langchain_mode_paths_from_file = \
+        load_collection_enum()
+
+    visible_langchain_modes_temp = visible_langchain_modes.copy() + visible_langchain_modes_from_file
+    visible_langchain_modes.clear()  # don't lose original reference
+    [visible_langchain_modes.append(x) for x in visible_langchain_modes_temp if x not in visible_langchain_modes]
+
+    langchain_mode_paths.update(langchain_mode_paths_from_file)
+
+    langchain_modes_temp = langchain_modes.copy() + langchain_modes_from_file
+    langchain_modes.clear()  # don't lose original reference
+    [langchain_modes.append(x) for x in langchain_modes_temp if x not in langchain_modes]
 
 
 def entrypoint_main():
