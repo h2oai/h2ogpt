@@ -1,7 +1,7 @@
 from apscheduler.schedulers.background import BackgroundScheduler
 from evaluate_params import eval_func_param_names, no_default_param_names, eval_func_param_names_defaults
 from gen import get_model, languages_covered, evaluate, score_qa, langchain_modes, inputs_kwargs_list, scratch_base_dir, \
-    get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions
+    get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list
 from utils import get_githash, flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping, get_short_name, makedirs, get_kwargs, remove, system_info, ping_gpu, get_url, get_local_ip
 from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt_type_to_model_lower, non_hf_types, \
@@ -131,19 +131,18 @@ def go_gradio(**kwargs):
         instruction_label_nochat = "Instruction (Shift-Enter or push Submit to send message," \
                                    " use Enter for multiple input lines)"
 
-    title = 'HPE ChatMate'
-    more_info = """<iframe src="https://ghbtns.com/github-btn.html?user=h2oai&repo=h2ogpt&type=star&count=true&size=small" frameborder="0" scrolling="0" width="250" height="20" title="GitHub"></iframe><small><a href="https://github.com/h2oai/h2ogpt">h2oGPT</a>  <a href="https://github.com/h2oai/h2o-llmstudio">H2O LLM Studio</a><br><a href="https://huggingface.co/h2oai">🤗 Models</a>"""
+    title = 'MyChatMate'
+    more_info = ''  # """<iframe src="https://ghbtns.com/github-btn.html?user=h2oai&repo=h2ogpt&type=star&count=true&size=small" frameborder="0" scrolling="0" width="250" height="20" title="GitHub"></iframe><small><a href="https://github.com/h2oai/h2ogpt">h2oGPT</a>  <a href="https://github.com/h2oai/h2o-llmstudio">H2O LLM Studio</a><br><a href="https://huggingface.co/h2oai">🤗 Models</a>"""
     if kwargs['verbose']:
         description = f"""Model {kwargs['base_model']} Instruct dataset.
-                      For more information, visit our GitHub pages: [h2oGPT](https://github.com/h2oai/h2ogpt) and [H2O LLM Studio](https://github.com/h2oai/h2o-llmstudio).
                       Command: {str(' '.join(sys.argv))}
                       Hash: {get_githash()}
                       """
     else:
         description = more_info
-    description_bottom = "If this host is busy, try [Multi-Model](https://gpt.h2o.ai), [Falcon 40B](http://falcon.h2o.ai), [HF Spaces1](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot) or [HF Spaces2](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot2)<br>"
+    description_bottom = "If this host is busy, "
     if is_hf:
-        description_bottom += '''<a href="https://huggingface.co/spaces/h2oai/h2ogpt-chatbot?duplicate=true"><img src="https://bit.ly/3gLdBN6" style="white-space: nowrap" alt="Duplicate Space"></a>'''
+        description_bottom += ''
 
     if kwargs['verbose']:
         task_info_md = f"""
@@ -180,7 +179,7 @@ def go_gradio(**kwargs):
     theme = H2oTheme(
         **theme_kwargs) if kwargs['h2ocolors'] else SoftTheme(**theme_kwargs)
     demo = gr.Blocks(theme=theme, css=css_code,
-                     title="h2oGPT", analytics_enabled=False)
+                     title="ChatMate", analytics_enabled=False)
     callback = gr.CSVLogger()
 
     model_options = flatten_list(
@@ -220,8 +219,8 @@ def go_gradio(**kwargs):
     # transcribe for gradio
     kwargs['gpu_id'] = str(kwargs['gpu_id'])
 
-    no_model_msg = 'h2oGPT [   !!! Please Load Model in Models Tab !!!   ]'
-    output_label0 = f'h2oGPT [Model: {kwargs.get("base_model")}]' if kwargs.get(
+    no_model_msg = 'myGPT [   !!! Please Load Model in Models Tab !!!   ]'
+    output_label0 = f'myGPT [Model: {kwargs.get("base_model")}]' if kwargs.get(
         'base_model') else no_model_msg
     output_label0_model2 = no_model_msg
 
@@ -812,10 +811,10 @@ def go_gradio(**kwargs):
                     description += """<p><b> DISCLAIMERS: </b><ul><i><li>The model was trained on The Pile and other data, which may contain objectionable content.  Use at own risk.</i></li>"""
                     if kwargs['load_8bit']:
                         description += """<i><li> Model is loaded in 8-bit and has other restrictions on this host. UX can be worse than non-hosted version.</i></li>"""
-                    description += """<i><li>Conversations may be used to improve h2oGPT.  Do not share sensitive information.</i></li>"""
-                    if 'h2ogpt-research' in kwargs['base_model']:
+                    description += """<i><li>Conversations may be used to improve myGPT.  Do not share sensitive information.</i></li>"""
+                    if 'myGPT-research' in kwargs['base_model']:
                         description += """<i><li>Research demonstration only, not used for commercial purposes.</i></li>"""
-                    description += """<i><li>By using h2oGPT, you accept our <a href="https://github.com/h2oai/h2ogpt/blob/main/docs/tos.md">Terms of Service</a></i></li></ul></p>"""
+                    description += """<i><li>By using myGPT, you accept our <a href="https://github.com/h2oai/h2ogpt/blob/main/docs/tos.md">Terms of Service</a></i></li></ul></p>"""
                     gr.Markdown(value=description,
                                 show_label=False, interactive=False)
 
@@ -2176,7 +2175,7 @@ def go_gradio(**kwargs):
             return gr.Dropdown.update(value=x)
 
         def chatbot_list(x, model_used_in):
-            return gr.Textbox.update(label=f'h2oGPT [Model: {model_used_in}]')
+            return gr.Textbox.update(label=f'myGPT [Model: {model_used_in}]')
 
         load_model_args = dict(fn=load_model,
                                inputs=[model_choice, lora_choice, server_choice, model_state, prompt_type,
@@ -2391,7 +2390,7 @@ def go_gradio(**kwargs):
 
     demo.queue(
         concurrency_count=kwargs['concurrency_count'], api_open=kwargs['api_open'])
-    favicon_path = "h2o-logo.svg"
+    favicon_path = "https://cdn2.hubspot.net/hubfs/494075/images/favicon.png"
     if not os.path.isfile(favicon_path):
         print("favicon_path=%s not found" % favicon_path, flush=True)
         favicon_path = None

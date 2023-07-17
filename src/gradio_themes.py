@@ -268,7 +268,7 @@ def get_h2o_title(title, description):
     # NOTE: Check full width desktop, smallest width browser desktop, iPhone browsers to ensure no overlap etc.
     return f"""
                 <div style="display:flex; float:center; justify-content:center; margin-bottom:30px; margin-right:50px;">
-                    <div style="height: 70px; width: 70px; margin-right:20px;">{hpe_logo}</div>
+                    <div style="height: 70px; width: 70px; margin-right:20px;">{chatmate_logo}</div>
                     <h1 style="line-height:60px">{title}</h1>
                 </div>
                 """
