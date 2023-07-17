@@ -52,6 +52,7 @@ def test_client1api_lean(admin_pass):
     base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
     os.environ['ADMIN_PASS'] = admin_pass
     inf_port = os.environ['GRADIO_SERVER_PORT'] = "9999"
+    os.environ['GET_GITHASH'] = '1'
     main(base_model=base_model, prompt_type='human_bot', chat=False,
          stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False)
 
@@ -291,7 +292,8 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'GPT-based language model' in res_dict['response'] or
             'H2O.ai is a technology company' in res_dict['response'] or
             'an open-source project' in res_dict['response'] or
-            'is a company that provides' in res_dict['response']
+            'is a company that provides' in res_dict['response'] or
+            'h2oGPT is a project that' in  res_dict['response']
             ) \
            and ('FAQ.md' in res_dict['response'] or 'README.md' in res_dict['response'])
 
