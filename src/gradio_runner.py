@@ -750,13 +750,15 @@ def go_gradio(**kwargs):
                             dark_mode_btn = gr.Button("Dark Mode", variant="secondary", size="sm")
                         with gr.Column(scale=4):
                             pass
+                    system_visible0 = not is_public and not admin_pass
                     admin_row = gr.Row()
                     with admin_row:
                         with gr.Column(scale=1):
-                            admin_pass_textbox = gr.Textbox(label="Admin Password", type='password', visible=is_public)
+                            admin_pass_textbox = gr.Textbox(label="Admin Password", type='password',
+                                                            visible=not system_visible0)
                         with gr.Column(scale=4):
                             pass
-                    system_row = gr.Row(visible=not is_public)
+                    system_row = gr.Row(visible=system_visible0)
                     with system_row:
                         with gr.Column():
                             with gr.Row():
@@ -1087,10 +1089,12 @@ def go_gradio(**kwargs):
 
         new_langchain_mode_text.submit(fn=add_langchain_mode, inputs=[langchain_mode, new_langchain_mode_text],
                                        outputs=[langchain_mode, new_langchain_mode_text,
-                                                langchain_mode_path_text])
+                                                langchain_mode_path_text],
+                                       api_name='new_langchain_mode_text' if allow_api and allow_upload_to_user_data else None)
         remove_langchain_mode_text.submit(fn=remove_langchain_mode, inputs=remove_langchain_mode_text,
                                           outputs=[langchain_mode, remove_langchain_mode_text,
-                                                   langchain_mode_path_text])
+                                                   langchain_mode_path_text],
+                                          api_name='remove_langchain_mode_text' if allow_api and allow_upload_to_user_data else None)
 
         def update_langchain_gr(langchain_mode1):
             # in-place
@@ -1099,7 +1103,8 @@ def go_gradio(**kwargs):
             return gr.update(choices=get_langchain_choices(), value=langchain_mode1), df_langchain_mode_paths1
 
         load_langchain.click(fn=update_langchain_gr, inputs=langchain_mode,
-                             outputs=[langchain_mode, langchain_mode_path_text])
+                             outputs=[langchain_mode, langchain_mode_path_text],
+                                          api_name='load_langchain' if allow_api and allow_upload_to_user_data else None)
 
         inputs_list, inputs_dict = get_inputs_list(all_kwargs, kwargs['model_lower'], model_id=1)
         inputs_list2, inputs_dict2 = get_inputs_list(all_kwargs, kwargs['model_lower'], model_id=2)
