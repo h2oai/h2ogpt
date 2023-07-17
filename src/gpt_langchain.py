@@ -1861,7 +1861,7 @@ def _run_qa_db(query=None,
                prompt_type=None,
                prompt_dict=None,
                answer_with_sources=True,
-               cut_distanct=1.1,
+               cut_distance=1.64,
                sanitize_bot_response=False,
                show_rank=False,
                use_llm_if_no_docs=False,
@@ -2050,7 +2050,7 @@ def get_chain(query=None,
               hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
               prompt_type=None,
               prompt_dict=None,
-              cut_distanct=1.1,
+              cut_distance=1.1,
               load_db_if_exists=False,
               db=None,
               langchain_mode=None,
@@ -2282,8 +2282,8 @@ def get_chain(query=None,
                 docs_with_score.reverse()
             # cut off so no high distance docs/sources considered
             have_any_docs |= len(docs_with_score) > 0  # before cut
-            docs = [x[0] for x in docs_with_score if x[1] < cut_distanct]
-            scores = [x[1] for x in docs_with_score if x[1] < cut_distanct]
+            docs = [x[0] for x in docs_with_score if x[1] < cut_distance]
+            scores = [x[1] for x in docs_with_score if x[1] < cut_distance]
             if len(scores) > 0 and verbose:
                 print("Distance: min: %s max: %s mean: %s median: %s" %
                       (scores[0], scores[-1], np.mean(scores), np.median(scores)), flush=True)

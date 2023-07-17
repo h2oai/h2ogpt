@@ -147,6 +147,10 @@ and if you want to push image caption model to get better captions, this can be 
 python generate.py  --inference_server=openai_chat --base_model=gpt-3.5-turbo --score_model=None --langchain_mode=ChatLLM --visible_langchain_modes="['ChatLLM', 'UserData', 'MyData']" --captions_model=Salesforce/blip2-flan-t5-xl
 ```
 
+### Note about Embeddings
+
+The default embedding for GPU is `instructor-large` since most accurate, however it leads to excessively high scores for references due to its flat score distribution.  For CPU the default embedding is `all-MiniLM-L6-v2`, and it has a sharp distribution of scores, so references make sense, but it is less accurate.
+
 ### Note about FAISS
 
 FAISS filtering is not supported in h2oGPT yet, ask if this is desired to be added.  So subset by document does not function for FAISS.

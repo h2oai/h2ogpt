@@ -162,6 +162,7 @@ def main(
         use_openai_embedding: bool = False,
         use_openai_model: bool = False,
         hf_embedding_model: str = None,
+        cut_distance: float = 1.64,
         allow_upload_to_user_data: bool = True,
         allow_upload_to_my_data: bool = True,
         enable_url_upload: bool = True,
@@ -320,6 +321,9 @@ def main(
            Can also choose simpler model with 384 parameters per embedding: "sentence-transformers/all-MiniLM-L6-v2"
            Can also choose even better embedding with 1024 parameters: 'hkunlp/instructor-xl'
            We support automatically changing of embeddings for chroma, with a backup of db made if this is done
+    :param cut_distance: Distance to cut off references with larger distances when showing references.
+           1.64 is good to avoid dropping references for all-MiniLM-L6-v2, but instructor-large will always show excessive references.
+           For all-MiniLM-L6-v2, a value of 1.5 can push out even more references, or a large value of 100 can avoid any loss of references.
     :param allow_upload_to_user_data: Whether to allow file uploads to update shared vector db
     :param allow_upload_to_my_data: Whether to allow file uploads to update scratch vector db
     :param enable_url_upload: Whether to allow upload from URL
@@ -1331,6 +1335,7 @@ def evaluate(
         use_openai_embedding=None,
         use_openai_model=None,
         hf_embedding_model=None,
+        cut_distance=None,
         db_type=None,
         n_jobs=None,
         first_para=None,
@@ -1491,7 +1496,7 @@ def evaluate(
                         force_langchain_evaluate
     if do_langchain_path:
         outr = ""
-        # use smaller cut_distanct for wiki_full since so many matches could be obtained, and often irrelevant unless close
+        # use smaller cut_distance for wiki_full since so many matches could be obtained, and often irrelevant unless close
         from gpt_langchain import run_qa_db
         gen_hyper_langchain = dict(do_sample=do_sample,
                                    temperature=temperature,
@@ -1517,7 +1522,7 @@ def evaluate(
                            db=db1,
                            user_path=user_path,
                            detect_user_path_changes_every_query=detect_user_path_changes_every_query,
-                           cut_distanct=1.1 if langchain_mode in ['wiki_full'] else 1.64,  # FIXME, too arbitrary
+                           cut_distance=1.1 if langchain_mode in ['wiki_full'] else cut_distance,
                            use_openai_embedding=use_openai_embedding,
                            use_openai_model=use_openai_model,
                            hf_embedding_model=hf_embedding_model,
