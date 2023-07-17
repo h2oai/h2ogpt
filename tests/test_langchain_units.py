@@ -711,6 +711,25 @@ def test_pptx_add(db_type):
 
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
+def test_pdf_add(db_type):
+    from src.make_db import make_db_main
+    with tempfile.TemporaryDirectory() as tmp_persistent_directory:
+        with tempfile.TemporaryDirectory() as tmp_user_path:
+            url = 'https://www.africau.edu/images/default/sample.pdf'
+            test_file1 = os.path.join(tmp_user_path, 'sample.pdf')
+            download_simple(url, dest=test_file1)
+            db, collection_name = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
+                                               fail_any_exception=True, db_type=db_type,
+                                               add_if_exists=False)
+            assert db is not None
+            docs = db.similarity_search("Suggestions")
+            assert len(docs) == 3
+            assert 'And more text. And more text.' in docs[0].page_content
+            assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+
+
+@pytest.mark.parametrize("db_type", db_types)
+@wrap_test_forked
 def test_simple_pptx_add(db_type):
     from src.make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:

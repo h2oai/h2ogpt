@@ -6,7 +6,7 @@ import pytest
 from tests.utils import wrap_test_forked, make_user_path_test, get_llama
 from src.client_test import get_client, get_args, run_client_gen
 from src.enums import LangChainAction
-from src.utils import get_githash
+from src.utils import get_githash, remove, remove_collection_enum, download_simple
 
 
 @wrap_test_forked
@@ -293,7 +293,7 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'H2O.ai is a technology company' in res_dict['response'] or
             'an open-source project' in res_dict['response'] or
             'is a company that provides' in res_dict['response'] or
-            'h2oGPT is a project that' in  res_dict['response']
+            'h2oGPT is a project that' in res_dict['response']
             ) \
            and ('FAQ.md' in res_dict['response'] or 'README.md' in res_dict['response'])
 
@@ -363,7 +363,7 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'A secure, private, and encrypted chatbot' in res_dict['response'] or
             'A secret communication system used' in res_dict['response'] or
             'H2O AI Cloud is a cloud-based platform' in res_dict['response'] or
-            'is a platform for deploying'  in res_dict['response']
+            'is a platform for deploying' in res_dict['response']
             ) \
            and '.md' in res_dict['response']
 
@@ -591,3 +591,91 @@ def test_text_generation_inference_server1():
     text = ast.literal_eval(output)['generated_text']
     assert 'Deep learning is a subfield of machine learning' in text or \
            'Deep learning refers to a class of machine learning' in text
+
+
+@pytest.mark.need_tokens
+@wrap_test_forked
+def test_client_chat_stream_langchain_steps3():
+    os.environ['VERBOSE_PIPELINE'] = '1'
+    remove_collection_enum()
+    user_path = make_user_path_test()
+
+    stream_output = True
+    max_new_tokens = 256
+    base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
+    prompt_type = 'human_bot'
+    langchain_mode = 'UserData'
+    visible_langchain_modes = ['UserData', 'MyData', 'github h2oGPT']
+
+    from src.gen import main
+    main(base_model=base_model, prompt_type=prompt_type, chat=True,
+         stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
+         max_new_tokens=max_new_tokens,
+         langchain_mode=langchain_mode, user_path=user_path,
+         visible_langchain_modes=visible_langchain_modes,
+         verbose=True)
+
+    from src.client_test import get_client, get_args, run_client
+    # serialize=False would lead to returning dict for some objects or files for get_sources
+    client = get_client(serialize=False)
+
+    url = 'https://www.africau.edu/images/default/sample.pdf'
+    test_file1 = os.path.join('/tmp/', 'sample1.pdf')
+    download_simple(url, dest=test_file1)
+    res = client.predict(test_file1, True, 512, langchain_mode, api_name='/add_file_api')
+    assert res[0] is None
+    assert res[1] == langchain_mode
+    # note moves from /tmp to stable path, even though not /tmp/gradio upload from UI
+    assert 'file/user_path_test/sample1.pdf' in res[2]
+    assert res[3] == ''
+
+    # control langchain_mode
+    user_path2 = 'user_path2'
+    langchain_mode2 = 'UserData2'
+    remove(user_path2)
+    remove('db_dir_%s' % langchain_mode2)
+    new_langchain_mode_text = '%s, %s' % (langchain_mode2, user_path2)
+    res = client.predict(langchain_mode, new_langchain_mode_text, api_name='/new_langchain_mode_text')
+    assert res[0]['value'] == langchain_mode2
+    assert langchain_mode2 in res[0]['choices']
+    assert res[1] == ''
+    assert res[2]['headers'] == ['Collection', 'Path']
+    assert res[2]['data'] == [['UserData', user_path], [langchain_mode2, user_path2]]
+
+    url = 'https://unec.edu.az/application/uploads/2014/12/pdf-sample.pdf'
+    test_file1 = os.path.join('/tmp/', 'pdf-sample.pdf')
+    download_simple(url, dest=test_file1)
+    res = client.predict(test_file1, True, 512, langchain_mode2, api_name='/add_file_api')
+    assert res[0] is None
+    assert res[1] == langchain_mode2
+    assert 'file/%s/pdf-sample.pdf' % user_path2 in res[2]
+    assert 'sample1.pdf' not in res[2]  # ensure no leakage
+    assert res[3] == ''
+
+    # QUERY1
+    prompt = "Is more text boring?"
+    kwargs, args = get_args(prompt, prompt_type, chat=True, stream_output=stream_output,
+                            max_new_tokens=max_new_tokens, langchain_mode=langchain_mode)
+
+    res_dict, client = run_client(client, prompt, args, kwargs)
+    assert 'Yes, it is.' in res_dict['response'] and 'sample1.pdf' in res_dict['response']
+
+    # QUERY2
+    prompt = "What is a universal file format?"
+    kwargs, args = get_args(prompt, prompt_type, chat=True, stream_output=stream_output,
+                            max_new_tokens=max_new_tokens, langchain_mode=langchain_mode2)
+
+    res_dict, client = run_client(client, prompt, args, kwargs)
+    assert 'PDF' in res_dict['response'] and 'pdf-sample.pdf' in res_dict['response']
+
+    # check sources, and do after so would detect leakage
+    res = client.predict(langchain_mode, api_name='/get_sources')
+    # is not actual data!
+    with open(res['name'], 'rb') as f:
+        sources = f.read().decode()
+    assert sources == f'{user_path}/./FAQ.md\n{user_path}/./README.md\n{user_path}/./pexels-evg-kowalievska-1170986_small.jpg\n{user_path}/sample1.pdf'
+
+    res = client.predict(langchain_mode2, api_name='/get_sources')
+    with open(res['name'], 'rb') as f:
+        sources = f.read().decode()
+    assert sources == """%s/pdf-sample.pdf""" % user_path2

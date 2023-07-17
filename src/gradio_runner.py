@@ -328,6 +328,7 @@ def go_gradio(**kwargs):
                                                     scale=1,
                                                     min_width=0,
                                                     elem_id="warning", elem_classes="feedback")
+                            fileup_output_text = gr.Textbox(visible=False)
                     url_visible = kwargs['langchain_mode'] != 'Disabled' and allow_upload and enable_url_upload
                     url_label = 'URL/ArXiv' if have_arxiv else 'URL'
                     url_text = gr.Textbox(label=url_label,
@@ -850,6 +851,13 @@ def go_gradio(**kwargs):
         eventdb1b = eventdb1.then(make_interactive, inputs=add_file_outputs, outputs=add_file_outputs,
                                   show_progress='minimal')
 
+        add_file_kwargs2 = dict(fn=update_db_func,
+                                inputs=[fileup_output_text, my_db_state, chunk, chunk_size, langchain_mode],
+                                outputs=add_file_outputs + [sources_text, doc_exception_text],
+                                queue=queue,
+                                api_name='add_file_api' if allow_api and allow_upload_to_user_data else None)
+        eventdb1 = fileup_output_text.submit(**add_file_kwargs2, show_progress='full')
+
         # note for update_user_db_func output is ignored for db
 
         def clear_textbox():
@@ -1104,7 +1112,7 @@ def go_gradio(**kwargs):
 
         load_langchain.click(fn=update_langchain_gr, inputs=langchain_mode,
                              outputs=[langchain_mode, langchain_mode_path_text],
-                                          api_name='load_langchain' if allow_api and allow_upload_to_user_data else None)
+                             api_name='load_langchain' if allow_api and allow_upload_to_user_data else None)
 
         inputs_list, inputs_dict = get_inputs_list(all_kwargs, kwargs['model_lower'], model_id=1)
         inputs_list2, inputs_dict2 = get_inputs_list(all_kwargs, kwargs['model_lower'], model_id=2)
@@ -2533,8 +2541,8 @@ def _update_user_db(file,
         # move temp files from gradio upload to stable location
         for fili, fil in enumerate(file):
             if isinstance(fil, str):
-                if fil.startswith('/tmp/gradio/'):
-                    new_fil = os.path.join(user_path, os.path.basename(fil))
+                new_fil = os.path.join(user_path, os.path.basename(fil))
+                if os.path.normpath(os.path.abspath(fil)) != os.path.normpath(os.path.abspath(new_fil)):
                     if os.path.isfile(new_fil):
                         remove(new_fil)
                     try:
@@ -2594,7 +2602,7 @@ def _update_user_db(file,
                                                                       use_openai_embedding=use_openai_embedding,
                                                                       hf_embedding_model=hf_embedding_model)
             else:
-                # then create
+                # then create.  Or might just be that dbs is unfilled, then it will fill, then add
                 db = get_db(sources, use_openai_embedding=use_openai_embedding,
                             db_type=db_type,
                             persist_directory=persist_directory,

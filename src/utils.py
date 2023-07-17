@@ -1027,3 +1027,7 @@ def load_collection_enum():
         except BaseException as e:
             print("Cannot load %s, ignoring error: %s" % (visible_langchain_modes_file, str(e)), flush=True)
     return langchain_modes_from_file, visible_langchain_modes_from_file, langchain_mode_paths_from_file
+
+
+def remove_collection_enum():
+    remove(visible_langchain_modes_file)
