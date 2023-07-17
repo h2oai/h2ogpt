@@ -100,6 +100,7 @@ def go_gradio(**kwargs):
     db_type = kwargs['db_type']
     visible_langchain_modes = kwargs['visible_langchain_modes']
     visible_langchain_actions = kwargs['visible_langchain_actions']
+    visible_langchain_agents = kwargs['visible_langchain_agents']
     allow_upload_to_user_data = kwargs['allow_upload_to_user_data']
     allow_upload_to_my_data = kwargs['allow_upload_to_my_data']
     enable_sources_list = kwargs['enable_sources_list']
@@ -370,6 +371,15 @@ def go_gradio(**kwargs):
                             allowed_actions) > 0 else None,
                         label="Action",
                         visible=True)
+                    allowed_agents = [
+                        x for x in langchain_agents_list if x in visible_langchain_agents]
+                    langchain_agents = gr.Dropdown(
+                        langchain_agents_list,
+                        value=kwargs['langchain_agents'],
+                        label="Agents",
+                        multiselect=True,
+                        interactive=True,
+                        visible=False)  # WIP
             col_tabs = gr.Column(elem_id="col_container", scale=10)
             with (col_tabs, gr.Tabs()):
                 with gr.TabItem("Chat"):
@@ -452,6 +462,7 @@ def go_gradio(**kwargs):
                                                   value='All',
                                                   interactive=True,
                                                   multiselect=True,
+                                                  visible=kwargs['langchain_mode'] != 'Disabled',
                                                   )
                     sources_visible = kwargs['langchain_mode'] != 'Disabled' and enable_sources_list
                     with gr.Row():
@@ -473,10 +484,11 @@ def go_gradio(**kwargs):
                             sources_text = gr.HTML(
                                 label='Sources Added', interactive=False)
 
-                    doc_exception_text = gr.Textbox(value="", visible=True, label='Document Exceptions',
-                                                    interactive=False)
+                    doc_exception_text = gr.Textbox(value="", label='Document Exceptions',
+                                                    interactive=False,
+                                                    visible=kwargs['langchain_mode'] != 'Disabled')
                 with gr.TabItem("Document Viewer"):
-                    with gr.Row():
+                    with gr.Row(visible=kwargs['langchain_mode'] != 'Disabled'):
                         with gr.Column(scale=2):
                             get_viewable_sources_btn = gr.Button(value="Update UI with Document(s) from DB", scale=0,
                                                                  size='sm',
@@ -486,6 +498,7 @@ def go_gradio(**kwargs):
                                                                value=None,
                                                                interactive=True,
                                                                multiselect=False,
+                                                               visible=True,
                                                                )
                         with gr.Column(scale=4):
                             pass
@@ -1102,6 +1115,8 @@ def go_gradio(**kwargs):
                 user_kwargs['langchain_mode'] = 'Disabled'
             if 'langchain_action' not in user_kwargs:
                 user_kwargs['langchain_action'] = LangChainAction.QUERY.value
+            if 'langchain_agents' not in user_kwargs:
+                user_kwargs['langchain_agents'] = []
 
             set1 = set(list(default_kwargs1.keys()))
             set2 = set(eval_func_param_names)
@@ -1292,6 +1307,8 @@ def go_gradio(**kwargs):
                 'langchain_mode')]
             langchain_action1 = args_list[eval_func_param_names.index(
                 'langchain_action')]
+            langchain_agents1 = args_list[eval_func_param_names.index(
+                'langchain_agents')]
             document_subset1 = args_list[eval_func_param_names.index(
                 'document_subset')]
             document_choice1 = args_list[eval_func_param_names.index(
@@ -1395,6 +1412,8 @@ def go_gradio(**kwargs):
                 'langchain_mode')]
             langchain_action1 = args_list[eval_func_param_names.index(
                 'langchain_action')]
+            langchain_agents1 = args_list[eval_func_param_names.index(
+                'langchain_agents')]
             document_subset1 = args_list[eval_func_param_names.index(
                 'document_subset')]
             document_choice1 = args_list[eval_func_param_names.index(

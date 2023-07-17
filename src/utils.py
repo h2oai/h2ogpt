@@ -140,7 +140,7 @@ def system_info():
         gpu_memory_frac_dict = {k: gpu_memory_free_dict[k] / gpu_memory_total_dict[k] for k in gpu_memory_total_dict}
         for k, v in gpu_memory_frac_dict.items():
             system[f'GPU_M/%s' % k] = v
-    except ModuleNotFoundError:
+    except (KeyError, ModuleNotFoundError):
         pass
     system['hash'] = get_githash()
 
@@ -942,3 +942,62 @@ def get_local_ip():
     finally:
         s.close()
     return IP
+
+
+try:
+    assert pkg_resources.get_distribution('langchain') is not None
+    have_langchain = True
+except (pkg_resources.DistributionNotFound, AssertionError):
+    have_langchain = False
+
+import distutils.spawn
+
+have_tesseract = distutils.spawn.find_executable("tesseract")
+have_libreoffice = distutils.spawn.find_executable("libreoffice")
+
+import pkg_resources
+
+try:
+    assert pkg_resources.get_distribution('arxiv') is not None
+    assert pkg_resources.get_distribution('pymupdf') is not None
+    have_arxiv = True
+except (pkg_resources.DistributionNotFound, AssertionError):
+    have_arxiv = False
+
+try:
+    assert pkg_resources.get_distribution('pymupdf') is not None
+    have_pymupdf = True
+except (pkg_resources.DistributionNotFound, AssertionError):
+    have_pymupdf = False
+
+try:
+    assert pkg_resources.get_distribution('selenium') is not None
+    have_selenium = True
+except (pkg_resources.DistributionNotFound, AssertionError):
+    have_selenium = False
+
+try:
+    assert pkg_resources.get_distribution('playwright') is not None
+    have_playwright = True
+except (pkg_resources.DistributionNotFound, AssertionError):
+    have_playwright = False
+
+# disable, hangs too often
+have_playwright = False
+
+
+def set_openai(inference_server):
+    if inference_server.startswith('vllm'):
+        import openai_vllm
+        openai_vllm.api_key = "EMPTY"
+        inf_type = inference_server.split(':')[0]
+        ip_vllm = inference_server.split(':')[1]
+        port_vllm = inference_server.split(':')[2]
+        openai_vllm.api_base = f"http://{ip_vllm}:{port_vllm}/v1"
+        return openai_vllm, inf_type
+    else:
+        import openai
+        openai.api_key = os.getenv("OPENAI_API_KEY")
+        openai.api_base = os.environ.get("OPENAI_API_BASE", "https://api.openai.com/v1")
+        inf_type = inference_server
+        return openai, inf_type

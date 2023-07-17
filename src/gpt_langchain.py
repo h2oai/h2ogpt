@@ -29,7 +29,8 @@ from evaluate_params import gen_hyper
 from gen import get_model, SEED
 from prompter import non_hf_types, PromptType, Prompter
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
-    get_device, ProgressParallel, remove, hash_file, clear_torch_cache, NullContext, get_hf_server, FakeTokenizer
+    get_device, ProgressParallel, remove, hash_file, clear_torch_cache, NullContext, get_hf_server, FakeTokenizer, \
+    have_libreoffice, have_arxiv, have_playwright, have_selenium, have_tesseract, have_pymupdf, set_openai
 from utils_langchain import StreamingGradioCallbackHandler
 
 import_matplotlib()
@@ -276,14 +277,6 @@ from typing import Any, Dict, List, Optional, Set
 from pydantic import Extra, Field, root_validator
 
 from langchain.callbacks.manager import CallbackManagerForLLMRun
-
-"""Wrapper around Huggingface text generation inference API."""
-from functools import partial
-from typing import Any, Dict, List, Optional
-
-from pydantic import Extra, Field, root_validator
-
-from langchain.callbacks.manager import CallbackManagerForLLMRun
 from langchain.llms.base import LLM
 
 
@@ -355,6 +348,7 @@ class GradioInference(LLM):
         gr_client = self.client
         client_langchain_mode = 'Disabled'
         client_langchain_action = LangChainAction.QUERY.value
+        client_langchain_agents = []
         top_k_docs = 1
         chunk = True
         chunk_size = 512
@@ -384,6 +378,7 @@ class GradioInference(LLM):
                              iinput_nochat='',  # only for chat=False
                              langchain_mode=client_langchain_mode,
                              langchain_action=client_langchain_action,
+                             langchain_agents=client_langchain_agents,
                              top_k_docs=top_k_docs,
                              chunk=chunk,
                              chunk_size=chunk_size,
@@ -598,14 +593,16 @@ def get_llm(use_openai_model=False,
             sanitize_bot_response=False,
             verbose=False,
             ):
-    if use_openai_model or inference_server in ['openai', 'openai_chat']:
+    if use_openai_model or inference_server in ['openai', 'openai_chat', 'vllm', 'vllm_chat']:
         if use_openai_model and model_name is None:
             model_name = "gpt-3.5-turbo"
-        if inference_server == 'openai':
+        openai, inf_type = set_openai(
+            inference_server)  # FIXME: Will later import be ignored?  I think so, so should be fine
+        if inference_server == 'openai_chat' or inf_type == 'vllm_chat':
+            cls = H2OChatOpenAI
+        else:
             from langchain.llms import OpenAI
             cls = OpenAI
-        else:
-            cls = H2OChatOpenAI
         callbacks = [StreamingGradioCallbackHandler()]
         llm = cls(model_name=model_name,
                   temperature=temperature if do_sample else 0,
@@ -620,6 +617,7 @@ def get_llm(use_openai_model=False,
         if inference_server in ['openai', 'openai_chat']:
             prompt_type = inference_server
         else:
+            # vllm goes here
             prompt_type = prompt_type or 'plain'
     elif inference_server:
         assert inference_server.startswith(
@@ -642,7 +640,8 @@ def get_llm(use_openai_model=False,
 
         callbacks = [StreamingGradioCallbackHandler()]
         assert prompter is not None
-        stop_sequences = list(set(prompter.terminate_response + [prompter.PreResponse]))
+        terminate_response = prompter.terminate_response or []
+        stop_sequences = list(set(terminate_response + [prompter.PreResponse]))
         stop_sequences = [x for x in stop_sequences if x]
 
         if gr_client:
@@ -914,41 +913,6 @@ def get_dai_docs(from_hf=False, get_pickle=True):
     return sources
 
 
-import distutils.spawn
-
-have_tesseract = distutils.spawn.find_executable("tesseract")
-have_libreoffice = distutils.spawn.find_executable("libreoffice")
-
-import pkg_resources
-
-try:
-    assert pkg_resources.get_distribution('arxiv') is not None
-    assert pkg_resources.get_distribution('pymupdf') is not None
-    have_arxiv = True
-except (pkg_resources.DistributionNotFound, AssertionError):
-    have_arxiv = False
-
-try:
-    assert pkg_resources.get_distribution('pymupdf') is not None
-    have_pymupdf = True
-except (pkg_resources.DistributionNotFound, AssertionError):
-    have_pymupdf = False
-
-try:
-    assert pkg_resources.get_distribution('selenium') is not None
-    have_selenium = True
-except (pkg_resources.DistributionNotFound, AssertionError):
-    have_selenium = False
-
-try:
-    assert pkg_resources.get_distribution('playwright') is not None
-    have_playwright = True
-except (pkg_resources.DistributionNotFound, AssertionError):
-    have_playwright = False
-
-# disable, hangs too often
-have_playwright = False
-
 image_types = ["png", "jpg", "jpeg"]
 non_image_types = ["pdf", "txt", "csv", "toml", "py", "rst", "rtf",
                    "md",
@@ -959,7 +923,8 @@ non_image_types = ["pdf", "txt", "csv", "toml", "py", "rst", "rtf",
                    ]
 # "msg",  GPL3
 
-if have_libreoffice:
+if have_libreoffice or True:
+    # or True so it tries to load, e.g. on MAC/Windows, even if don't have libreoffice since works without that
     non_image_types.extend(["docx", "doc", "xls", "xlsx"])
 
 file_types = non_image_types + image_types
@@ -968,9 +933,11 @@ file_types = non_image_types + image_types
 def add_meta(docs1, file):
     file_extension = pathlib.Path(file).suffix
     hashid = hash_file(file)
+    doc_hash = str(uuid.uuid4())[:10]
     if not isinstance(docs1, (list, tuple, types.GeneratorType)):
         docs1 = [docs1]
-    [x.metadata.update(dict(input_type=file_extension, date=str(datetime.now()), hashid=hashid)) for x in docs1]
+    [x.metadata.update(dict(input_type=file_extension, date=str(datetime.now()), hashid=hashid, doc_hash=doc_hash)) for
+     x in docs1]
 
 
 def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
@@ -1043,11 +1010,11 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         add_meta(docs1, file)
         docs1 = clean_doc(docs1)
         doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size, language=Language.HTML)
-    elif (file.lower().endswith('.docx') or file.lower().endswith('.doc')) and have_libreoffice:
+    elif (file.lower().endswith('.docx') or file.lower().endswith('.doc')) and (have_libreoffice or True):
         docs1 = UnstructuredWordDocumentLoader(file_path=file).load()
         add_meta(docs1, file)
         doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
-    elif (file.lower().endswith('.xlsx') or file.lower().endswith('.xls')) and have_libreoffice:
+    elif (file.lower().endswith('.xlsx') or file.lower().endswith('.xls')) and (have_libreoffice or True):
         docs1 = UnstructuredExcelLoader(file_path=file).load()
         add_meta(docs1, file)
         doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
@@ -1792,6 +1759,7 @@ def _run_qa_db(query=None,
                cut_distanct=1.1,
                sanitize_bot_response=False,
                show_rank=False,
+               use_llm_if_no_docs=False,
                load_db_if_exists=False,
                db=None,
                do_sample=False,
@@ -1807,6 +1775,7 @@ def _run_qa_db(query=None,
                num_return_sequences=1,
                langchain_mode=None,
                langchain_action=None,
+               langchain_agents=None,
                document_subset=DocumentChoices.Relevant.name,
                document_choice=[],
                n_jobs=-1,
@@ -1889,20 +1858,21 @@ def _run_qa_db(query=None,
         formatted_doc_chunks = '\n\n'.join([get_url(x) + '\n\n' + x.page_content for x in docs])
         yield formatted_doc_chunks, ''
         return
-    if not docs and langchain_action in [LangChainAction.SUMMARIZE_MAP.value,
-                                         LangChainAction.SUMMARIZE_ALL.value,
-                                         LangChainAction.SUMMARIZE_REFINE.value]:
-        ret = 'No relevant documents to summarize.' if have_any_docs else 'No documents to summarize.'
-        extra = ''
-        yield ret, extra
-        return
-    if not docs and langchain_mode not in [LangChainMode.DISABLED.value,
-                                           LangChainMode.CHAT_LLM.value,
-                                           LangChainMode.LLM.value]:
-        ret = 'No relevant documents to query.' if have_any_docs else 'No documents to query.'
-        extra = ''
-        yield ret, extra
-        return
+    if not use_llm_if_no_docs:
+        if not docs and langchain_action in [LangChainAction.SUMMARIZE_MAP.value,
+                                             LangChainAction.SUMMARIZE_ALL.value,
+                                             LangChainAction.SUMMARIZE_REFINE.value]:
+            ret = 'No relevant documents to summarize.' if have_any_docs else 'No documents to summarize.'
+            extra = ''
+            yield ret, extra
+            return
+        if not docs and langchain_mode not in [LangChainMode.DISABLED.value,
+                                               LangChainMode.CHAT_LLM.value,
+                                               LangChainMode.LLM.value]:
+            ret = 'No relevant documents to query.' if have_any_docs else 'No documents to query.'
+            extra = ''
+            yield ret, extra
+            return
 
     if chain is None and model_name not in non_hf_types:
         # here if no docs at all and not HF type
@@ -1980,6 +1950,7 @@ def get_chain(query=None,
               db=None,
               langchain_mode=None,
               langchain_action=None,
+              langchain_agents=None,
               document_subset=DocumentChoices.Relevant.name,
               document_choice=[],
               n_jobs=-1,
@@ -1993,6 +1964,7 @@ def get_chain(query=None,
               auto_reduce_chunks=True,
               max_chunks=100,
               ):
+    assert langchain_agents is not None  # should be at least []
     # determine whether use of context out of docs is planned
     if not use_openai_model and prompt_type not in ['plain'] or model_name in non_hf_types:
         if langchain_mode in ['Disabled', 'ChatLLM', 'LLM']:
@@ -2124,8 +2096,8 @@ def get_chain(query=None,
                                for result in zip(db_documents, db_metadatas)]
 
             # order documents
-            doc_hashes = [x['doc_hash'] for x in db_metadatas]
-            doc_chunk_ids = [x['chunk_id'] for x in db_metadatas]
+            doc_hashes = [x.get('doc_hash', 'None') for x in db_metadatas]
+            doc_chunk_ids = [x.get('chunk_id', 0) for x in db_metadatas]
             docs_with_score = [x for _, _, x in
                                sorted(zip(doc_hashes, doc_chunk_ids, docs_with_score), key=lambda x: (x[0], x[1]))
                                ]
@@ -2334,6 +2306,7 @@ def clean_doc(docs1):
 
 def chunk_sources(sources, chunk=True, chunk_size=512, language=None):
     if not chunk:
+        [x.metadata.update(dict(chunk_id=chunk_id)) for chunk_id, x in enumerate(sources)]
         return sources
     if not isinstance(sources, (list, tuple, types.GeneratorType)) and not callable(sources):
         # if just one document
@@ -2352,8 +2325,7 @@ def chunk_sources(sources, chunk=True, chunk_size=512, language=None):
     source_chunks = splitter.split_documents(sources)
 
     # currently in order, but when pull from db won't be, so mark order and document by hash
-    doc_hash = str(uuid.uuid4())[:10]
-    [x.metadata.update(dict(doc_hash=doc_hash, chunk_id=chunk_id)) for chunk_id, x in enumerate(source_chunks)]
+    [x.metadata.update(dict(chunk_id=chunk_id)) for chunk_id, x in enumerate(source_chunks)]
 
     return source_chunks
 

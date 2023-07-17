@@ -31,6 +31,7 @@ class PromptType(Enum):
     mptinstruct = 25
     mptchat = 26
     falcon = 27
+    guanaco = 28
 
 
 class DocumentChoices(Enum):
@@ -69,6 +70,13 @@ class LangChainAction(Enum):
     SUMMARIZE_MAP = "Summarize"
     SUMMARIZE_ALL = "Summarize_all"
     SUMMARIZE_REFINE = "Summarize_refine"
+
+
+class LangChainAgent(Enum):
+    """LangChain agents"""
+
+    SEARCH = "Search"
+    # CSV = "csv"  # WIP
 
 
 no_server_str = no_lora_str = no_model_str = '[None/Remove]'

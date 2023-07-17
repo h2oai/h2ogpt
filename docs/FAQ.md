@@ -1,9 +1,13 @@
+## Frequently asked questions
+
 ### Other models
 
-One can choose any huggingface model, just pass the name after `--base_model=`, but a `prompt_type` is required if we don't already have support.
+One can choose any huggingface model. 
+
+Just pass the name after `--base_model=`, but a `prompt_type` is required if we don't already have support.
 E.g. for vicuna models, a typical prompt_type is used and we support that already automatically for specific models,
 but if you pass `--prompt_type=instruct_vicuna` with any other Vicuna model, we'll use it assuming that is the correct prompt type.
-See models that are currently supported in this automatic way, and the same dictionary shows which prompt types are supported: [prompter](../prompter.py).
+See models that are currently supported in this automatic way, and the same dictionary shows which prompt types are supported: [prompter](../src/prompter.py).
 
 ### Low-memory mode
 
@@ -21,76 +25,6 @@ On CPU case, a good model that's still low memory is to run:
 ```bash
 python generate.py --base_model='llama' --prompt_type=wizard2 --hf_embedding_model=sentence-transformers/all-MiniLM-L6-v2 --langchain_mode=MyData --user_path=user_path
 ```
-
-### Offline Mode:
-
-Note, when running `generate.py` and asking your first question, it will download the model(s), which for the 6.9B model takes about 15 minutes per 3 pytorch bin files if have 10MB/s download.
-
-If all data has been put into `~/.cache` by HF transformers, then these following steps (those related to downloading HF models) are not required.
-
-1) Download model and tokenizer of choice
-
-```python
-from transformers import AutoTokenizer, AutoModelForCausalLM
-model_name = 'h2oai/h2ogpt-oasst1-512-12b'
-model = AutoModelForCausalLM.from_pretrained(model_name)
-model.save_pretrained(model_name)
-tokenizer = AutoTokenizer.from_pretrained(model_name)
-tokenizer.save_pretrained(model_name)
-```
-
-2) Download reward model, unless pass `--score_model='None'` to `generate.py`
-```python
-# and reward model
-reward_model = 'OpenAssistant/reward-model-deberta-v3-large-v2'
-from transformers import AutoModelForSequenceClassification, AutoTokenizer
-model = AutoModelForSequenceClassification.from_pretrained(reward_model)
-model.save_pretrained(reward_model)
-tokenizer = AutoTokenizer.from_pretrained(reward_model)
-tokenizer.save_pretrained(reward_model)
-```
-
-3) For LangChain support, download embedding model:
-```python
-hf_embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
-model_kwargs = 'cpu'
-from langchain.embeddings import HuggingFaceEmbeddings
-embedding = HuggingFaceEmbeddings(model_name=hf_embedding_model, model_kwargs=model_kwargs)
-```
-
-4) For HF inference server and OpenAI, this downloads the tokenizers used for Hugging Face text generation inference server and gpt-3.5-turbo:
-```python
-import tiktoken
-encoding = tiktoken.get_encoding("cl100k_base")
-encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
-```
-
-5) Run generate with transformers in [Offline Mode](https://huggingface.co/docs/transformers/installation#offline-mode)
-
-```bash
-HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python generate.py --base_model='h2oai/h2ogpt-oasst1-512-12b' --gradio_offline_level=2 --share=False
-```
-
-Some code is always disabled that involves uploads out of user control: Huggingface telemetry, gradio telemetry, chromadb posthog.
-
-The additional option `--gradio_offline_level=2` changes fonts to avoid download of google fonts. This option disables google fonts for downloading, which is less intrusive than uploading, but still required in air-gapped case.  The fonts don't look as nice as google fonts, but ensure full offline behavior.
-
-If the front-end can still access internet, but just backend should not, then one can use `--gradio_offline_level=1` for slightly better-looking fonts.
-
-Note that gradio attempts to download [iframeResizer.contentWindow.min.js](https://cdnjs.cloudflare.com/ajax/libs/iframe-resizer/4.3.1/iframeResizer.contentWindow.min.js),
-but nothing prevents gradio from working without this.  So a simple firewall block is sufficient.  For more details, see: https://github.com/AUTOMATIC1111/stable-diffusion-webui/pull/10324.
-
-6. Disable access or port
-
-To ensure nobody can access your gradio server, disable the port via firewall.  If that is a hassle, then one can enable authentication by adding to CLI when running `python generate.py`:
-```
---auth=[('jon','password')]
-```
-with no spaces.  Run `python generate.py --help` for more details.
-
-### Isolated LangChain Usage:
-
-See [tests/test_langchain_simple.py](../tests/test_langchain_simple.py)
 
 ### ValueError: ...offload....
 
@@ -125,7 +59,7 @@ For GPT4All based models, require AVX2, unless one recompiles that project on yo
 
 So we recommend downloading models from [TheBloke](https://huggingface.co/TheBloke) that are version 3 quantized ggml files to work with latest llama.cpp.  See main [README.md](README_CPU.md).
 
-The below example is for base LLaMa model, not instruct-tuned, so is not recommended for chatting.  It just gives an example of how to quantize if you are an expert.
+The following example is for the base LLaMa model, not instruct-tuned, so it is not recommended for chatting.  It just gives an example of how to quantize if you are an expert.
 
 Compile the llama model on your system by following the [instructions](https://github.com/ggerganov/llama.cpp#build) and [llama-cpp-python](https://github.com/abetlen/llama-cpp-python), e.g. for Linux:
 ```bash
@@ -178,7 +112,7 @@ then run h2oGPT like:
 python generate.py --base_model='llama' --langchain_mode=UserData --user_path=user_path
 ```
 
-### is this really a GGML file? Or Using version 2 quantization files from GPT4All that are LLaMa based
+### Is this really a GGML file? Or Using version 2 quantization files from GPT4All that are LLaMa based
 
 If hit error:
 ```text
@@ -200,12 +134,12 @@ assuming that file is from version 2 quantization.
 
 ### I get the error: `The model 'OptimizedModule' is not supported for . Supported models are ...`
 
-Ignore this warning.
+This warning can be safely ignored.
 
 ### What ENVs can I pass to control h2oGPT?
 
    - `SAVE_DIR`: Local directory to save logs to,
-   - `ADMIN_PASS`: Password to acces system info, logs, or push to aws s3 bucket,
+   - `ADMIN_PASS`: Password to access system info, logs, or push to aws s3 bucket,
    - `AWS_BUCKET`: AWS bucket name to push logs to when have admin access,
    - `AWS_SERVER_PUBLIC_KEY`: AWS public key for pushing logs to when have admin access,
    - `AWS_SERVER_SECRET_KEY`: AWS secret key for pushing logs to when have admin access,
@@ -224,11 +158,7 @@ Ignore this warning.
    - `ALLOW_API`: Whether to allow API access,
    - `CUDA_VISIBLE_DEVICES`: Standard list of CUDA devices to make visible.
 
-These can be usful on HuggingFace spaces, where one sets secret tokens because CLI options cannot be used.
-
-### h2oGPT LLM not producing output.
-
-To be fixed soon: https://github.com/h2oai/h2ogpt/issues/192
+These can be useful on HuggingFace spaces, where one sets secret tokens because CLI options cannot be used.
 
 ### GPT4All not producing output.
 
@@ -267,152 +197,20 @@ Data used to fine-tune are provided on the huggingface pages for each model.  Da
 
 Overall, we have done a significant amount of due diligence regarding data and model licenses to carefully select only fully permissive data and models for our models we license as Apache V2.  Outside our models, some "open-source" models like Vicuna, Koala, WizardLM, etc. are based upon Meta's weights for LLaMa, which is not commercially usable due to ToS violations w.r.t. non-competitive clauses well as research-only clauses.  Such models tend to also use data from GPT3.5 (ChatGPT), which is also not commercially usable due to ToS violations w.r.t. non-competitive clauses.  E.g. Alpaca data, ShareGPT data, WizardLM data, etc. all fall under that category. All open-source foundational models consume data from the internet, including the Pile or C4 (web crawl) that may contain objectionable material.  Future licenses w.r.t. new web crawls may change, but it is our understanding that existing data crawls would not be affected by any new licenses.  However, some web crawl data may contain pirated books.
 
-### Explain things in UI
-
-All the buttons are also accessible via gradio client API.
-
-#### All Tabs
-
-| Button               | Purpose                                                                                                                       |
-----------------------|-------------------------------------------------------------------------------------------------------------------------------|
-| Save Chat / New Chat | Save the chat into "Saved Chats" and clear the chat history                                                                   |
-| Flag                 | Tell owner of app (you if you ran locally) something is odd by logging chat history to disk                                   |
-| Regenerate           | Re-run the query with (potentially) new settings or re-sample if sampling is enabled.  Turn on sampling if want new sampling. |
-| Undo                 | Remove last query-reponse pair                                                                                                |
-| Submit               | Same as hitting enter (in chat mode) so submit question or imperitive                                                         |
-| Stop                 | Stop generation, although LLM may continue in background until completed even if chat view stopped                            |
-| Dark Mode            | Enable/Disable Dark Mode                                                                                                      |
-| Chat Exceptions      | Any exceptions during chatting go here, due to gradio bug that does not handle them well                                      |
-
-#### Chat Tab
-
-| Button                   | Purpose                                                                                      |
----------------------------|----------------------------------------------------------------------------------------------|
-| Saved Chats              | When saved, will show radio button for selectable restoring of that specific chat history    |
-| Clear Chat               | Clear current (not saved) chat history without saving                                        |
-| Export Chats to Download | Export chats as file for downloading in Download Exported Chats box                          |
-| Remove Selected Chats    | Remove the saved chat that is currently selected (if any)                                    |
-| Import Chats from Upload | After selecting Upload Chat Files box and selecting files or drag-n-drop, import those files |
-
-![Saved Chats](saved_chats.png)
-
-#### Data Source Tab
-
-##### Data Collection of Sources
-Defaults to value set by `--langchain_mode=` and visible items set by `--visible_langchain_modes`.
-* LLM: Single query-response, no chat context or docs used
-* ChatLLM: Chat context used (if any) but no docs used
-* UserData: Shared and persistent. Writable if `--allow_upload_to_user_data=True`. Rebuilt from path `--user_path` if set.
-* MyData: Private and non-persistent.  Writable if `--allow_upload_to_my_data=True`
-* ... Other collections can be added via code, but not currently addable from UI
-
-To Chat with your docs, choose, e.g. UserData.  To avoid including docs, and just chat with LLM, choose ChatLLM.
-
-If you add document to, e.g., MyData, if you want to query that document, ensure to select collection MyData before submitting the query.
-
-##### Choose Subset of Doc(s) in Collection
-
-Click to `Update UI with Document(s) from DB` to update
-Commands:
-* All_Relevant: Choose to include all docs in chosen collection when chatting
-* Sources: Ignore the LLM, just return sources the vector database similarity search
-* All: Ignore LLM and similarity search, just show top_k_docs sources from selected (or all) documents
-* Just_LLM: Similar to choosing ChatLLM instead of the chosen collection
-
-The most normal task is keep it on `All_Relevant` and just make a query, which will query all documents in the chosen collection.  Another normal task is to subset on just 1-2 documents, and make a query on those:
-
-![One Document Selected](onedocselected.png)
-
-If one selects nothing, the default of `All_Relevant` is chosen.  Can choose any command with any number of user documents to chat with.
-
-E.g. one can click `Update UI with Document(s) from DB` to ensure subset list is up to date, choose `All`, pick a single PDF, click submit, and one will get back `top_k_docs` first entries in collection for that PDF.
-
-![All](only_all_sources.png)
-
-| Button                                   | Purpose                                                                                            |
-|------------------------------------------|----------------------------------------------------------------------------------------------------|
-| Update UI with Document(s) from DB       | For chosen collection, get all sources and place list into drop-down for choosing subset           |
-| Show Sources from DB                     | For chosen collection, get and show (in HTML with links to source docs) at bottom of page          |
-| Update DB with new/changed files on disk | For chosen collection, updaet any changed or new files and show new sources at bottom of page      |
-| Upload Box                               | Drag-n-drop or select from user's system one or more files                                         |
-| Add File(s) to UserData                  | After using Upload box and seeing files listed there, add those files to UserData collection       |
-| Add File(s) to MyData                    | After using Upload box and seeing files listed there, add those files to MyData collection         |
-| Download File w/Sources                  | After clicking Get Sources, downloadable file will appear here that lists all sources in text file |
-| URL                                      | Enter text URL link or arxiv:<paper id> to download text content of web page or download           |
-| Add URL Content to UserData              | After entering text into URL box, download into UserData collection                                |
-| Add URL Content to MyData                | After entering text into URL box, download into MyData collection                                  |
-| Paste Text                               | Enter raw text for adding to collection                                                            |
-| Add Text Content to UserData             | After entering text Text box, add into UserData collection                                         |
-| Add Text Content to MyData               | After entering text Text box, add into MyData collection                                           |
-
-#### Expert Tab
-
-Control various LLM options.
-
-* Stream output: Whether to stream output.  Not currently supported for GPT4All/llama.cpp models except via CLI.
-* Prompt Type: Prompt format to use, see prompter.py for list of models we automatically choose prompt type for
-* Sample: Whether to enable sampling (required for use of temperature, top_p, top_k, beams)
-  * Temperature, top_p, top_k: See [HF](https://huggingface.co/docs/transformers/main_classes/text_generation#transformers.GenerationConfig)
-  * Beams: Number of beams for beam search.  Currently disabled for HF version of streaming to work.
-* Max output length: Maximum number of new tokens in LLM response
-* Min output length: Minimum number of new tokens in LLM response
-* Early stopping: When doing beam search, whether to stop early
-* Max. Time: Maximum number of seconds to run LLM
-* Repetition Penalty: See [HF](https://huggingface.co/docs/transformers/main_classes/text_generation#transformers.GenerationConfig)
-* Number Returns: Only relevant for non-chat case to see multiple drafts if sampling
-* Input: Additional input to LLM, in order of prompt, new line, then input
-* System Pre-Context: Additional input to LLM, without any prompt format, pre-appended before prompt or input.
-* Chat Mode: Whether to use chat mode or simple single query-response format
-  * Count Chat Tokens: Button, to count all tokens in chat, useful for issues regarding long context
-  * Chat Token Count: number of tokens after clicking count button
-* Number of document chunks: How many chunks of data to pass to LLM when doing chat with docs
-
-
-#### Models Tab
-
-To unload a model, use "Choose Model" and select "[None/Remove]".
-
-**Important**: Unloading only works properly if did not pre-load model with `--base_model` and only selected model and clicked load.
-
-Note: Compare Mode uses memory for both models, and currently streaming is done for each instead of simultaneously.
-
-* Compare Mode: Select to have 2 models in same window for simultaneous comparison of two LLMs.
-* Choose Model: Drop-down to select model.
-* Choose LORA: Drop-down to select LORA.  Only applicable if trained chosen base model using PEFT LORA
-  * Load-Unload Model/LORA: Button to load model (and LORA if selected)
-  * Load 8-bit: For some [HF models](https://github.com/huggingface/peft#causal-language-modeling), whether to use bitsandbytes and 8-bit mode.
-* Choose Devices: Whether to use GPU ID and place LLM on that GPU, or if not selected try to place LLM on all devices.
-  * GPU ID: GPU ID to load LLM onto
-* Current Model: Which model is currently loaded
-* Current LORA: Which LORA is currently loaded
-* New Model HF name/path: Enter text, e.g. HF model name like h2oai/h2ogpt-oig-oasst1-512-6_9b, or local path to model
-  * Add new model name: Click to add the new model to list in "Choose Model"
-* New LORA name/path
-  * Add new LORA name: Click to add the new LORA to list in "Choose LORA"
-
-#### System Tab
-
-Requires admin password if in public mode (i.e. env HUGGINGFACE_SPACES=1 or GPT_H2O_AI=1)
-
-* Get System Info: Show GPU memory usage, etc. in System Info text box.
-* Zip: Zip logs and show file name in Zip file name box.  Can download in Zip file to Download box.
-* S3UP: If bucket, public, and private keys set up via ENV, then can push button to send logs to S3.  Show result in S3UP result text box.
-
 #### Disclaimers
 
-Disclaimers and ToS link to show to protect creator of app.
+Disclaimers and a ToS link are displayed to protect the app creators.
 
 ### What are the different prompt types? How does prompt engineering work for h2oGPT?
 
 In general, all LLMs use strings as inputs for training/fine-tuning and generation/inference.
-To manage a variety of possible language task types, we divide any such string into three parts:
+To manage a variety of possible language task types, we divide any such string into the following three parts:
 
 - Instruction
 - Input
 - Response
 
-Each of these three parts can be empty or non-empty strings, such as titles or newlines. In the end, all
-these prompt parts are concatenated into one string. The magic is in the content of those sub-strings. This is called **prompt engineering**.
+Each of these three parts can be empty or non-empty strings, such as titles or newlines. In the end, all of these prompt parts are concatenated into one string. The magic is in the content of those substrings. This is called **prompt engineering**.
 
 #### Summarization
 
@@ -431,7 +229,7 @@ as the continuation of the prompt.
 
 #### ChatBot
 
-For a conversational chatbot use case, we use the following 3 parts:
+For a conversational chatbot use case, we use the following three parts:
 
 - Instruction = `<INSTRUCTION>`
 - Input = `'<human>: '` + `<INPUT>`
@@ -441,17 +239,17 @@ And a training string could look like this: `'<human>: hi, how are you?<bot>: Hi
 At inference time, the model input would be like this: `'<human>: Tell me a joke about snow flakes.<bot>: '`, and the model would generate the bot part.
 
 
-### How to prepare training data?
+### How should training data be prepared?
 
 Training data (in `JSON` format) must contain at least one column that maps to `instruction`, `input` or `output`.
-Their content will be placed into the `<INSTRUCTION>`, `<INPUT>` and `<OUTPUT>` placeholders mentioned above.
+Their content will be placed into the `<INSTRUCTION>`, `<INPUT>`, and `<OUTPUT>` placeholders mentioned above.
 The chosen `prompt_type` will fill in the strings in between to form the actual input into the model.
 Any missing columns will lead to empty strings. Optional `--data_col_dict={'A': 'input', 'B': 'output'}` argument can
 be used to map different column names into the required ones.
 
 #### Examples
 
-Below are examples of training records in `JSON` format.
+The following are examples of training records in `JSON` format.
 
 - `human_bot` prompt type
 ```json
@@ -482,7 +280,7 @@ Below are examples of training records in `JSON` format.
 
 ### Context length
 
-Note that the total length of the text (i.e., input and output) the LLM can handle is limited by the so-called *context length*. For our current models, the context length is 2048 tokens. Longer context lengths are computationally more expensive due to the interactions between all tokens in the sequence.
+Note that the total length of the text (that is, the input and output) the LLM can handle is limited by the so-called *context length*. For our current models, the context length is 2048 tokens. Longer context lengths are computationally more expensive due to the interactions between all tokens in the sequence.
 A context length of 2048 means that for an input of, for example, 1900 tokens, the model will be able to create no more than 148 new tokens as part of the output.
 
 For fine-tuning, if the average length of inputs is less than the context length, one can provide a `cutoff_len` of less than the context length to truncate inputs to this amount of tokens. For most instruction-type datasets, a cutoff length of 512 seems reasonable and provides nice memory and time savings.
@@ -490,7 +288,7 @@ For example, the `h2oai/h2ogpt-oasst1-512-20b` model was trained with a cutoff l
 
 ### Tokens
 
-Here are some example tokens (from a total of ~50k), each of which is assigned a number:
+The following are some example tokens (from a total of ~50k), each of which is assigned a number:
 ```text
 "osed": 1700,
 "ised": 1701,
@@ -507,13 +305,13 @@ Here are some example tokens (from a total of ~50k), each of which is assigned a
 "Ġ{#": 1712,
 ```
 The model is trained with these specific numbers, so the tokenizer must be kept the same for training and inference/generation.
-The input format doesn't change whether the model is in pretraining, fine-tuning or inference mode, but the text itself can change slightly for better results, and that's called prompt engineering.
+The input format doesn't change whether the model is in pretraining, fine-tuning, or inference mode, but the text itself can change slightly for better results, and that's called prompt engineering.
 
-### Is h2oGPT multi-lingual?
+### Is h2oGPT multilingual?
 
 Yes. Try it in your preferred language.
 
-### What does 512 mean in model name?
+### What does 512 mean in the model name?
 
 The number `512` in the model names indicates the cutoff lengths (in tokens) used for fine-tuning. Shorter values generally result in faster training and more focus on the last part of the provided input text (consisting of prompt and answer).
 
@@ -532,13 +330,15 @@ All done.
 
 ### Heterogeneous GPU systems
 
-In case you get peer to peer related errors on non-homogeneous GPU systems, set this env var:
+In case you get peer-to-peer related errors on non-homogeneous GPU systems, set this env var:
 ```
 export NCCL_P2P_LEVEL=LOC
 ```
 
 
-### Use Wiki Data
+### Use Wiki data
+
+The following example demonstrates how to use Wiki data:
 
 ```python
 >>> from datasets import load_dataset

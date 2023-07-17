@@ -19,7 +19,11 @@ For help installing cuda toolkit, see [CUDA Toolkit](INSTALL.md#installing-cuda-
 ```bash
 git clone https://github.com/h2oai/h2ogpt.git
 cd h2ogpt
-for fil in requirements.txt reqs_optional/requirements_optional_langchain.txt reqs_optional/requirements_optional_gpt4all.txt reqs_optional/requirements_optional_langchain.gpllike.txt reqs_optional/requirements_optional_langchain.urls.txt --extra-index-url https://download.pytorch.org/whl/cu118 ; do pip install -r $fil--extra-index https://download.pytorch.org/whl/cu117 ; done
+pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cu118
+pip install -r reqs_optional/requirements_optional_langchain.txt
+pip install -r reqs_optional/requirements_optional_gpt4all.txt
+pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt
+pip install -r reqs_optional/requirements_optional_langchain.urls.txt
 # Optional: support docx, pptx, ArXiv, etc.
 sudo apt-get install -y libmagic-dev poppler-utils tesseract-ocr libreoffice
 # Optional: for supporting unstructured package
@@ -43,7 +47,7 @@ pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.2.2/auto_g
 However, if one sees issues like `CUDA extension not installed.` mentioned during loading of model, need to recompile,
 because, otherwise, the generation will be much slower even if uses GPU.  If you have CUDA 11.7 installed from NVIDIA, run:
 ```bash
-pip uninstall -y auto-gptq ; CUDA_HOME=/usr/local/cuda-11.7 GITHUB_ACTIONS=true pip install auto-gptq --no-cache-dir
+pip uninstall -y auto-gptq ; CUDA_HOME=/usr/local/cuda-11.8 GITHUB_ACTIONS=true pip install auto-gptq --no-cache-dir
 ```
 or use cuda-11.8 if one has that installed, etc.  If one used conda cudatoolkit:
 ```bash

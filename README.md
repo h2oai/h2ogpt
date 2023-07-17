@@ -2,9 +2,7 @@
 
 Turn ★ into ⭐ (top-right corner) if you like the project!
 
-h2oGPT is a large language model (LLM) fine-tuning framework and chatbot UI with document(s) question-answer capabilities.  Documents help to **ground** LLMs against hallucinations by providing them context relevant to the instruction.  h2oGPT is fully permissive Apache V2 open-source project for 100% private and secure use of LLMs and document embeddings for document question-answer.
-
-Welcome!  Join us and make an issue or a PR, and contribute to making the best fine-tuned LLMs, chatbot UI, and document question-answer framework!
+Query and summarize your documents (PDFs, Excel, Word, Images, Code, Text, MarkDown, etc.) or just chat using local private GPT LLMs (Falcon, Vicuna, WizardLM including AutoGPTQ) sourced from vector database (Chroma, FAISS, Weaviate) using accurate embeddings (instruct-large, all-MiniLM-L6-v1, etc.).  Supports Linux, Windows, or MAC for both CPU and GPU.  Clean UI or CLI supported with LLM streaming, with bake-off mode against any number of models in UI.  OpenAI-compliant Python client access to the server.    
 
 ### Live Demos
 - [![img-small.png](docs/img-small.png) Live h2oGPT Document Q/A Demo](https://gpt.h2o.ai/)
@@ -39,7 +37,7 @@ YouTube 4K version: https://www.youtube.com/watch?v=_iktbj4obAI
    * [MACOS](docs/README_MACOS.md#macos)
    * [Windows 10/11](docs/README_WINDOWS.md)
    * [CLI chat](docs/README_CLI.md)
-   * [Gradio UI](docs/README_GRADIOUI.md)
+   * [Gradio UI](docs/README_ui.md)
    * [Client API](docs/README_CLIENT.md)
    * [Connect to Inference Servers](docs/README_InferenceServers.md)
    * [Python Wheel](docs/README_WHEEL.md)
@@ -73,8 +71,10 @@ GPU and CPU mode tested on variety of NVIDIA GPUs in Ubuntu 18-22, but any moder
 
 ### Apache V2 ChatBot with LangChain Integration
 
+See how we compare to other tools like PrivateGPT, see our [comparisons](docs/README_LangChain.md#what-is-h2ogpts-langchain-integration-like).
+
 - [**LangChain**](docs/README_LangChain.md) equipped Chatbot integration and streaming responses
-- **Persistent** database using Chroma or in-memory with FAISS
+- **Persistent** database using Chroma and Weaviate or in-memory with FAISS
 - **Original** content url links and scores to rank content against query
 - **Private** offline database of any documents ([PDFs, Images, and many more](docs/README_LangChain.md#supported-datatypes))
 - **Upload** documents via chatbot into shared space or only allow scratch space
@@ -142,7 +142,7 @@ pip uninstall -y pandoc pypandoc pypandoc-binary
 pip install -r requirements.txt --extra-index https://download.pytorch.org/whl/cpu
 
 # GPU only:
-pip install -r requirements.txt --extra-index https://download.pytorch.org/whl/cu117
+pip install -r requirements.txt --extra-index https://download.pytorch.org/whl/cu118
 ```
 Then run:
 ```bash
@@ -159,11 +159,11 @@ sudo apt-get install -y libmagic-dev poppler-utils tesseract-ocr libreoffice
 # Optional: for supporting unstructured package
 python -m nltk.downloader all
 # Optional: For AutoGPTQ support on x86_64 linux
-pip uninstall -y auto-gptq ; CUDA_HOME=/usr/local/cuda-11.7  GITHUB_ACTIONS=true pip install auto-gptq --no-cache-dir
+pip uninstall -y auto-gptq ; CUDA_HOME=/usr/local/cuda-11.8  GITHUB_ACTIONS=true pip install auto-gptq --no-cache-dir
 ```
 See [AutoGPTQ](docs/README_GPU.md#gpu-cuda) for more details for AutoGPTQ and other GPU installation aspects.
 
-Place all documents in `user_path` or upload in UI.
+Place all documents in `user_path` or upload in UI ([Help with UI](docs/README_ui.md)).
 
 UI using GPU with at least 24GB with streaming:
 ```bash
@@ -188,6 +188,8 @@ Add `--share=True` to make gradio server visible via sharable URL.  If you see a
 ```bash
 pip install protobuf==3.20.0
 ```
+
+Once all files are downloaded, the CLI and UI can be run in offline mode, see [offline mode](docs/README_offline.md).
 
 ### Development
 
@@ -253,4 +255,3 @@ By using the large language model provided in this repository, you agree to acce
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=h2oai/h2ogpt&type=Timeline)](https://star-history.com/#h2oai/h2ogpt&Timeline)
-

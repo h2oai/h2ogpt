@@ -29,10 +29,11 @@ warnings.filterwarnings('ignore', category=UserWarning, message='TypedStorage is
 
 from evaluate_params import eval_func_param_names, no_default_param_names
 from enums import DocumentChoices, LangChainMode, no_lora_str, model_token_mapping, no_model_str, source_prefix, \
-    source_postfix, LangChainAction
+    source_postfix, LangChainAction, LangChainAgent
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial, EThread, get_githash, \
-    import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, remove
+    import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, remove, \
+    have_langchain, set_openai
 
 start_faulthandler()
 import_matplotlib()
@@ -52,6 +53,8 @@ from stopping import get_stopping
 langchain_modes = [x.value for x in list(LangChainMode)]
 
 langchain_actions = [x.value for x in list(LangChainAction)]
+
+langchain_agents_list = [x.value for x in list(LangChainAgent)]
 
 scratch_base_dir = '/tmp/'
 
@@ -133,24 +136,27 @@ def main(
         extra_lora_options: typing.List[str] = [],
         extra_server_options: typing.List[str] = [],
 
-        score_model: str = 'OpenAssistant/reward-model-deberta-v3-large-v2',
+        score_model: str = 'auto',
 
         eval_filename: str = None,
         eval_prompts_only_num: int = 0,
         eval_prompts_only_seed: int = 1234,
         eval_as_output: bool = False,
 
-        langchain_mode: str = 'Disabled',
+        langchain_mode: str = None,
         langchain_action: str = LangChainAction.QUERY.value,
+        langchain_agents: list = [],
         force_langchain_evaluate: bool = False,
         visible_langchain_modes: list = ['UserData', 'MyData'],
         # WIP:
         # visible_langchain_actions: list = langchain_actions.copy(),
         visible_langchain_actions: list = [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value],
+        visible_langchain_agents: list = langchain_agents_list.copy(),
         document_subset: str = DocumentChoices.Relevant.name,
         document_choice: list = [],
         user_path: str = None,
         detect_user_path_changes_every_query: bool = False,
+        use_llm_if_no_docs: bool = False,
         load_db_if_exists: bool = True,
         keep_sources_in_context: bool = False,
         db_type: str = 'chroma',
@@ -195,6 +201,8 @@ def main(
                              Or Address can be "openai_chat" or "openai" for OpenAI API
                              e.g. python generate.py --inference_server="openai_chat" --base_model=gpt-3.5-turbo
                              e.g. python generate.py --inference_server="openai" --base_model=text-davinci-003
+                             Or Address can be "vllm:IP:port" or "vllm:IP:port" for OpenAI-compliant vLLM endpoint
+                             Note: vllm_chat not supported by vLLM project.
     :param prompt_type: type of prompt, usually matched to fine-tuned model or plain for foundational model
     :param prompt_dict: If prompt_type=custom, then expects (some) items returned by get_prompt(..., return_dict=True)
     :param model_lock: Lock models to specific combinations, for ease of use and extending to many models
@@ -270,18 +278,24 @@ def main(
     :param extra_model_options: extra models to show in list in gradio
     :param extra_lora_options: extra LORA to show in list in gradio
     :param extra_server_options: extra servers to show in list in gradio
-    :param score_model: which model to score responses (None means no scoring)
+    :param score_model: which model to score responses
+           None: no response scoring
+           'auto': auto mode, '' (no model) for CPU, 'OpenAssistant/reward-model-deberta-v3-large-v2' for GPU,
+            because on CPU takes too much compute just for scoring response
     :param eval_filename: json file to use for evaluation, if None is sharegpt
     :param eval_prompts_only_num: for no gradio benchmark, if using eval_filename prompts for eval instead of examples
     :param eval_prompts_only_seed: for no gradio benchmark, seed for eval_filename sampling
     :param eval_as_output: for no gradio benchmark, whether to test eval_filename output itself
     :param langchain_mode: Data source to include.  Choose "UserData" to only consume files from make_db.py.
+           None: auto mode, check if langchain package exists, at least do ChatLLM if so, else Disabled
            WARNING: wiki_full requires extra data processing via read_wiki_full.py and requires really good workstation to generate db, unless already present.
     :param langchain_action: Mode langchain operations in on documents.
             Query: Make query of document(s)
             Summarize or Summarize_map_reduce: Summarize document(s) via map_reduce
             Summarize_all: Summarize document(s) using entire document at once
             Summarize_refine: Summarize document(s) using entire document, and try to refine before returning summary
+    :param langchain_agents: Which agents to use
+            'search': Use Web Search as context for LLM response, e.g. SERP if have SERPAPI_API_KEY in env
     :param force_langchain_evaluate: Whether to force langchain LLM use even if not doing langchain, mostly for testing.
     :param user_path: user path to glob from to generate db for vector search, for 'UserData' langchain mode.
            If already have db, any new/changed files are added automatically if path set, does not have to be same path used for prior db sources
@@ -292,10 +306,11 @@ def main(
            But wiki_full is expensive and requires preparation
            To allow scratch space only live in session, add 'MyData' to list
            Default: If only want to consume local files, e.g. prepared by make_db.py, only include ['UserData']
-           FIXME: Avoid 'All' for now, not implemented
     :param visible_langchain_actions: Which actions to allow
+    :param visible_langchain_agents: Which agents to allow
     :param document_subset: Default document choice when taking subset of collection
     :param document_choice: Chosen document(s) by internal name
+    :param use_llm_if_no_docs: Whether to use LLM even if no documents, when langchain_mode=UserData or MyData
     :param load_db_if_exists: Whether to load chroma db if exists or re-generate db
     :param keep_sources_in_context: Whether to keep url sources in context, not helpful usually
     :param db_type: 'faiss' for in-memory or 'chroma' or 'weaviate' for persisted on disk
@@ -326,6 +341,7 @@ def main(
            captions_model: str = "Salesforce/blip2-flan-t5-xl",   # question/answer capable, 16GB state
            captions_model: str = "Salesforce/blip2-flan-t5-xxl",  # question/answer capable, 60GB state
            Note: opt-based blip2 are not permissive license due to opt and Meta license restrictions
+           Disabled for CPU since BLIP requires CUDA
     :param pre_load_caption_model: Whether to preload caption model, or load after forking parallel doc loader
            parallel loading disabled if preload and have images, to prevent deadlocking on cuda context
            Recommended if using larger caption model
@@ -385,18 +401,42 @@ def main(
     # allow enabling langchain via ENV
     # FIRST PLACE where LangChain referenced, but no imports related to it
     langchain_mode = os.environ.get("LANGCHAIN_MODE", langchain_mode)
-    assert langchain_mode in langchain_modes, "Invalid langchain_mode %s" % langchain_mode
+    if langchain_mode is not None:
+        assert langchain_mode in langchain_modes, "Invalid langchain_mode %s" % langchain_mode
     visible_langchain_modes = ast.literal_eval(os.environ.get("visible_langchain_modes", str(visible_langchain_modes)))
     if langchain_mode not in visible_langchain_modes and langchain_mode in langchain_modes:
-        visible_langchain_modes += [langchain_mode]
+        if langchain_mode is not None:
+            visible_langchain_modes += [langchain_mode]
 
     assert langchain_action in langchain_actions, "Invalid langchain_action %s" % langchain_action
+    assert len(
+        set(langchain_agents).difference(langchain_agents_list)) == 0, "Invalid langchain_agents %s" % langchain_agents
 
     # if specifically chose not to show My or User Data, disable upload, so gradio elements are simpler
     if LangChainMode.MY_DATA.value not in visible_langchain_modes:
         allow_upload_to_my_data = False
     if LangChainMode.USER_DATA.value not in visible_langchain_modes:
         allow_upload_to_user_data = False
+
+    # auto-set langchain_mode
+    if have_langchain and langchain_mode is None:
+        # start in chat mode, in case just want to chat and don't want to get "No documents to query" by default.
+        langchain_mode = LangChainMode.CHAT_LLM.value
+        if allow_upload_to_user_data and not is_public and user_path:
+            print("Auto set langchain_mode=%s.  Could use UserData instead." % langchain_mode, flush=True)
+        elif allow_upload_to_my_data:
+            print("Auto set langchain_mode=%s.  Could use MyData instead."
+                  "  To allow UserData to pull files from disk,"
+                  " set user_path and ensure allow_upload_to_user_data=True" % langchain_mode, flush=True)
+        else:
+            raise RuntimeError("Please pass --langchain_mode=<chosen mode> out of %s" % langchain_modes)
+    if not have_langchain and langchain_mode not in [None, LangChainMode.DISABLED.value, LangChainMode.LLM.value,
+                                                     LangChainMode.CHAT_LLM.value]:
+        raise RuntimeError("Asked for LangChain mode but langchain python package cannot be found.")
+    if langchain_mode is None:
+        # if not set yet, disable
+        langchain_mode = LangChainMode.DISABLED.value
+        print("Auto set langchain_mode=%s" % langchain_mode, flush=True)
 
     if is_public:
         allow_upload_to_user_data = False
@@ -452,7 +492,7 @@ def main(
         # HF accounted for later in get_max_max_new_tokens()
     save_dir = os.getenv('SAVE_DIR', save_dir)
     score_model = os.getenv('SCORE_MODEL', score_model)
-    if score_model == 'None' or score_model is None:
+    if str(score_model) == 'None':
         score_model = ''
     concurrency_count = int(os.getenv('CONCURRENCY_COUNT', concurrency_count))
     api_open = bool(int(os.getenv('API_OPEN', str(int(api_open)))))
@@ -460,6 +500,7 @@ def main(
 
     n_gpus = torch.cuda.device_count() if torch.cuda.is_available else 0
     if n_gpus == 0:
+        enable_captions = False
         gpu_id = None
         load_8bit = False
         load_4bit = False
@@ -477,7 +518,11 @@ def main(
         if hf_embedding_model is None:
             # if no GPUs, use simpler embedding model to avoid cost in time
             hf_embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
+        if score_model == 'auto':
+            score_model = ''
     else:
+        if score_model == 'auto':
+            score_model = 'OpenAssistant/reward-model-deberta-v3-large-v2'
         if hf_embedding_model is None:
             # if still None, then set default
             hf_embedding_model = 'hkunlp/instructor-large'
@@ -945,11 +990,13 @@ def get_model(
         client = gr_client or hf_client
         # Don't return None, None for model, tokenizer so triggers
         return client, tokenizer, 'http'
-    if isinstance(inference_server, str) and inference_server.startswith('openai'):
-        assert os.getenv('OPENAI_API_KEY'), "Set environment for OPENAI_API_KEY"
-        # Don't return None, None for model, tokenizer so triggers
-        # include small token cushion
-        tokenizer = FakeTokenizer(model_max_length=model_token_mapping[base_model] - 50)
+    if isinstance(inference_server, str) and (
+            inference_server.startswith('openai') or inference_server.startswith('vllm')):
+        if inference_server.startswith('openai'):
+            assert os.getenv('OPENAI_API_KEY'), "Set environment for OPENAI_API_KEY"
+            # Don't return None, None for model, tokenizer so triggers
+            # include small token cushion
+            tokenizer = FakeTokenizer(model_max_length=model_token_mapping[base_model] - 50)
         return inference_server, tokenizer, inference_server
     assert not inference_server, "Malformed inference_server=%s" % inference_server
     if base_model in non_hf_types:
@@ -1256,6 +1303,7 @@ def evaluate(
         iinput_nochat,
         langchain_mode,
         langchain_action,
+        langchain_agents,
         top_k_docs,
         chunk,
         chunk_size,
@@ -1276,6 +1324,7 @@ def evaluate(
         raise_generate_gpu_exceptions=None,
         chat_context=None,
         lora_weights=None,
+        use_llm_if_no_docs=False,
         load_db_if_exists=True,
         dbs=None,
         user_path=None,
@@ -1430,6 +1479,8 @@ def evaluate(
     # THIRD PLACE where LangChain referenced, but imports only occur if enabled and have db to use
     assert langchain_mode in langchain_modes, "Invalid langchain_mode %s" % langchain_mode
     assert langchain_action in langchain_actions, "Invalid langchain_action %s" % langchain_action
+    assert len(
+        set(langchain_agents).difference(langchain_agents_list)) == 0, "Invalid langchain_agents %s" % langchain_agents
     if langchain_mode in ['MyData'] and my_db_state is not None and len(my_db_state) > 0 and my_db_state[0] is not None:
         db1 = my_db_state[0]
     elif dbs is not None and langchain_mode in dbs:
@@ -1462,6 +1513,7 @@ def evaluate(
                            inference_server=inference_server,
                            stream_output=stream_output,
                            prompter=prompter,
+                           use_llm_if_no_docs=use_llm_if_no_docs,
                            load_db_if_exists=load_db_if_exists,
                            db=db1,
                            user_path=user_path,
@@ -1476,6 +1528,7 @@ def evaluate(
                            chunk_size=chunk_size,
                            langchain_mode=langchain_mode,
                            langchain_action=langchain_action,
+                           langchain_agents=langchain_agents,
                            document_subset=document_subset,
                            document_choice=document_choice,
                            db_type=db_type,
@@ -1504,6 +1557,7 @@ def evaluate(
                               inference_server=inference_server,
                               langchain_mode=langchain_mode,
                               langchain_action=langchain_action,
+                              langchain_agents=langchain_agents,
                               document_subset=document_subset,
                               document_choice=document_choice,
                               num_prompt_tokens=num_prompt_tokens,
@@ -1527,13 +1581,14 @@ def evaluate(
             clear_torch_cache()
             return
 
-    if inference_server.startswith('openai') or inference_server.startswith('http'):
-        if inference_server.startswith('openai'):
-            import openai
+    if inference_server.startswith('vllm') or inference_server.startswith('openai') or inference_server.startswith(
+            'http'):
+        if inference_server.startswith('vllm') or inference_server.startswith('openai'):
             where_from = "openai_client"
+            openai, inf_type = set_openai(inference_server)
 
-            openai.api_key = os.getenv("OPENAI_API_KEY")
-            stop_sequences = list(set(prompter.terminate_response + [prompter.PreResponse]))
+            terminate_response = prompter.terminate_response or []
+            stop_sequences = list(set(terminate_response + [prompter.PreResponse]))
             stop_sequences = [x for x in stop_sequences if x]
             # OpenAI will complain if ask for too many new tokens, takes it as min in some sense, wrongly so.
             max_new_tokens_openai = min(max_new_tokens, model_max_length - num_prompt_tokens)
@@ -1544,7 +1599,7 @@ def evaluate(
                                      n=num_return_sequences,
                                      presence_penalty=1.07 - repetition_penalty + 0.6,  # so good default
                                      )
-            if inference_server == 'openai':
+            if inf_type == 'vllm' or inference_server == 'openai':
                 response = openai.Completion.create(
                     model=base_model,
                     prompt=prompt,
@@ -1567,7 +1622,9 @@ def evaluate(
                         yield dict(response=prompter.get_response(prompt + text, prompt=prompt,
                                                                   sanitize_bot_response=sanitize_bot_response),
                                    sources='')
-            elif inference_server == 'openai_chat':
+            elif inf_type == 'vllm_chat' or inference_server == 'openai_chat':
+                if inf_type == 'vllm_chat':
+                    raise NotImplementedError('%s not supported by vLLM' % inf_type)
                 response = openai.ChatCompletion.create(
                     model=base_model,
                     messages=[
@@ -1620,6 +1677,7 @@ def evaluate(
                 where_from = "gr_client"
                 client_langchain_mode = 'Disabled'
                 client_langchain_action = LangChainAction.QUERY.value
+                client_langchain_agents = []
                 gen_server_kwargs = dict(temperature=temperature,
                                          top_p=top_p,
                                          top_k=top_k,
@@ -1672,6 +1730,7 @@ def evaluate(
                                      iinput_nochat=gr_iinput,  # only for chat=False
                                      langchain_mode=client_langchain_mode,
                                      langchain_action=client_langchain_action,
+                                     langchain_agents=client_langchain_agents,
                                      top_k_docs=top_k_docs,
                                      chunk=chunk,
                                      chunk_size=chunk_size,
@@ -1742,7 +1801,8 @@ def evaluate(
 
                 # prompt must include all human-bot like tokens, already added by prompt
                 # https://github.com/huggingface/text-generation-inference/tree/main/clients/python#types
-                stop_sequences = list(set(prompter.terminate_response + [prompter.PreResponse]))
+                terminate_response = prompter.terminate_response or []
+                stop_sequences = list(set(terminate_response + [prompter.PreResponse]))
                 stop_sequences = [x for x in stop_sequences if x]
                 gen_server_kwargs = dict(do_sample=do_sample,
                                          max_new_tokens=max_new_tokens,
@@ -2252,8 +2312,8 @@ y = np.random.randint(0, 1, 100)
 
     # move to correct position
     for example in examples:
-        example += [chat, '', '', LangChainMode.DISABLED.value, LangChainAction.QUERY.value,
-                    top_k_docs, chunk, chunk_size, [DocumentChoices.Relevant.name], []
+        example += [chat, '', '', LangChainMode.DISABLED.value, LangChainAction.QUERY.value, [],
+                    top_k_docs, chunk, chunk_size, DocumentChoices.Relevant.name, []
                     ]
         # adjust examples if non-chat mode
         if not chat:
@@ -2359,14 +2419,14 @@ def check_locals(**kwargs):
 
 
 def get_model_max_length(model_state):
-    if not isinstance(model_state['tokenizer'], (str, types.NoneType)):
+    if not isinstance(model_state['tokenizer'], (str, type(None))):
         return model_state['tokenizer'].model_max_length
     else:
         return 2048
 
 
 def get_max_max_new_tokens(model_state, **kwargs):
-    if not isinstance(model_state['tokenizer'], (str, types.NoneType)):
+    if not isinstance(model_state['tokenizer'], (str, type(None))):
         max_max_new_tokens = model_state['tokenizer'].model_max_length
     else:
         max_max_new_tokens = None

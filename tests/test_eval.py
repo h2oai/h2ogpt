@@ -71,7 +71,7 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
         temperature=0.4, top_p=0.85, top_k=70, num_beams=1, max_new_tokens=256,
         min_new_tokens=0, early_stopping=False, max_time=180, repetition_penalty=1.07,
         num_return_sequences=1, do_sample=True, chat=False,
-        langchain_mode='Disabled', langchain_action=LangChainAction.QUERY.value,
+        langchain_mode='Disabled', langchain_action=LangChainAction.QUERY.value, langchain_agents=[],
         chunk=True, chunk_size=512,
         load_half=False, load_4bit=False, load_8bit=False, load_gptq=False, use_safetensors=False)
     if bits == 4:
@@ -111,9 +111,13 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
                  'top_k_docs': 3,
                  'document_subset': DocumentChoices.Relevant.name,  # matches return
                  'document_choice': np.array([]),  # matches return
+                 'langchain_agents': np.array([]),  # matches return
                  }
     expected1.update({k: v for k, v in kwargs.items() if k not in ['load_half', 'load_4bit', 'load_8bit', 'load_gptq', 'use_safetensors']})
-    assert actual1 == expected1
+    drop_keys = ['document_choice', 'langchain_agents']
+    expected1 = {k: v for k, v in expected1.items() if k not in drop_keys}
+    actual1 = {k: v for k, v in actual1.items() if k not in drop_keys}
+    assert sorted(actual1.items()) == sorted(expected1.items())
     actual2 = {k: v for k, v in zip(columns, result_list) if k in key_separate}
 
     import torch

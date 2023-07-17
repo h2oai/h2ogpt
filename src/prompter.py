@@ -582,6 +582,20 @@ ASSISTANT:
             # if add space here, non-unique tokenization will often make LLM produce wrong output
             PreResponse = PreResponse
         # generates_leading_space = True
+    elif prompt_type in [PromptType.guanaco.value, str(PromptType.guanaco.value),
+                         PromptType.guanaco.name]:
+        # https://huggingface.co/TheBloke/guanaco-65B-GPTQ
+        promptA = promptB = "" if not (chat and reduced) else ''
+
+        PreInstruct = """### Human: """
+
+        PreInput = None
+
+        PreResponse = """### Assistant:"""
+        terminate_response = ['### Human:']  # but only allow terminate after prompt is found correctly, else can't terminate
+        chat_turn_sep = chat_sep = '\n'
+        humanstr = PreInstruct
+        botstr = PreResponse
     else:
         raise RuntimeError("No such prompt_type=%s" % prompt_type)
 
@@ -810,9 +824,20 @@ class Prompter(object):
                 if oi > 0:
                     # post fix outputs with seperator
                     output += '\n'
+            output = self.fix_text(self.prompt_type, output)
             outputs[oi] = output
         # join all outputs, only one extra new line between outputs
         output = '\n'.join(outputs)
         if self.debug:
             print("outputclean:\n%s" % '\n\n'.join(outputs), flush=True)
         return output
+
+    @staticmethod
+    def fix_text(prompt_type1, text1):
+        if prompt_type1 == 'human_bot':
+            # hack bug in vLLM with stopping, stops right, but doesn't return last token
+            hfix = '<human'
+            if text1.endswith(hfix):
+                text1= text1[:-len(hfix)]
+        return text1
+
