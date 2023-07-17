@@ -779,6 +779,9 @@ def _traced_func(func, *args, **kwargs):
 
 
 def call_subprocess_onetask(func, args=None, kwargs=None):
+    import platform
+    if platform.system() in ['Darwin', 'Windows']:
+        return func(*args, **kwargs)
     if isinstance(args, list):
         args = tuple(args)
     if args is None:
