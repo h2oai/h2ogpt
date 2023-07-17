@@ -48,7 +48,7 @@ class TimeoutIterator:
     def interrupt(self):
         """
         interrupt and stop the underlying thread.
-        the thread acutally dies only after interrupt has been set and
+        the thread actually dies only after interrupt has been set and
         the underlying iterator yields a value after that.
         """
         self._interrupt = True
