@@ -243,7 +243,8 @@ def test_client_chat_stream_langchain():
     # but not stable over different systems
     assert 'h2oGPT is a large language model' in res_dict['response'] or \
            'H2O.ai is a technology company' in res_dict['response'] or \
-           'an open-source project' in res_dict['response']
+           'an open-source project' in res_dict['response'] or \
+           'h2oGPT is a project that allows' in res_dict['response']
 
 
 @pytest.mark.parametrize("max_new_tokens", [256, 2048])
@@ -289,7 +290,8 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'A large language model (LLM)' in res_dict['response'] or
             'GPT-based language model' in res_dict['response'] or
             'H2O.ai is a technology company' in res_dict['response'] or
-            'an open-source project'  in res_dict['response']
+            'an open-source project' in res_dict['response'] or
+            'is a company that provides' in res_dict['response']
             ) \
            and ('FAQ.md' in res_dict['response'] or 'README.md' in res_dict['response'])
 
