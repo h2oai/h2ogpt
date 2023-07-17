@@ -35,6 +35,10 @@ the weights in this format.
 
 If you see this error, then you either have insufficient GPU memory or insufficient CPU memory.  E.g. for 6.9B model one needs minimum of 27GB free memory.
 
+### TypeError: Chroma.init() got an unexpected keyword argument 'anonymized_telemetry'
+
+Please check your version of langchain vs. the one in requirements.txt.  Somehow the wrong version is installed.  Try to install the correct one.
+
 ### Larger models require more GPU memory
 
 Depending on available GPU memory, you can load differently sized models. For multiple GPUs, automatic sharding can be enabled with `--use_gpu_id=False`, but this is disabled by default since cuda:x cuda:y mismatches can occur.
