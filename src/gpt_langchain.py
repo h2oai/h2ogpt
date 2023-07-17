@@ -1621,7 +1621,7 @@ def make_db(**langchain_kwargs):
             langchain_kwargs[k] = defaults_db[k]
     # final check for missing
     missing_kwargs = [x for x in func_names if x not in langchain_kwargs]
-    assert not missing_kwargs, "Missing kwargs: %s" % missing_kwargs
+    assert not missing_kwargs, "Missing kwargs for make_db: %s" % missing_kwargs
     # only keep actual used
     langchain_kwargs = {k: v for k, v in langchain_kwargs.items() if k in func_names}
     return _make_db(**langchain_kwargs)
@@ -1865,7 +1865,7 @@ def run_qa_db(**kwargs):
     kwargs['answer_with_sources'] = True
     kwargs['show_rank'] = False
     missing_kwargs = [x for x in func_names if x not in kwargs]
-    assert not missing_kwargs, "Missing kwargs: %s" % missing_kwargs
+    assert not missing_kwargs, "Missing kwargs for run_qa_db: %s" % missing_kwargs
     # only keep actual used
     kwargs = {k: v for k, v in kwargs.items() if k in func_names}
     try:
@@ -1879,7 +1879,7 @@ def _run_qa_db(query=None,
                context=None,
                use_openai_model=False, use_openai_embedding=False,
                first_para=False, text_limit=None, top_k_docs=4, chunk=True, chunk_size=512,
-               langchain_mode_paths=None,
+               langchain_mode_paths={},
                detect_user_path_changes_every_query=False,
                db_type='faiss',
                model_name=None, model=None, tokenizer=None, inference_server=None,
@@ -1937,6 +1937,7 @@ def _run_qa_db(query=None,
     :param answer_with_sources
     :return:
     """
+    assert langchain_mode_paths is not None
     if model is not None:
         assert model_name is not None  # require so can make decisions
     assert query is not None
@@ -2122,16 +2123,15 @@ def get_chain(query=None,
         # avoid looking at user_path during similarity search db handling,
         # if already have db and not updating from user_path every query
         # but if db is None, no db yet loaded (e.g. from prep), so allow user_path to be whatever it was
-        user_path = None
-    else:
-        user_path = langchain_mode_paths.get(langchain_mode)
+        langchain_mode_paths = langchain_mode_paths.copy()
+        langchain_mode_paths[langchain_mode] = None
     db, num_new_sources, new_sources_metadata = make_db(use_openai_embedding=use_openai_embedding,
                                                         hf_embedding_model=hf_embedding_model,
                                                         first_para=first_para, text_limit=text_limit,
                                                         chunk=chunk,
                                                         chunk_size=chunk_size,
                                                         langchain_mode=langchain_mode,
-                                                        user_path=user_path,
+                                                        langchain_mode_paths=langchain_mode_paths,
                                                         db_type=db_type,
                                                         load_db_if_exists=load_db_if_exists,
                                                         db=db,
