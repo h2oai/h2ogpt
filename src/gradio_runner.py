@@ -1138,13 +1138,10 @@ def go_gradio(**kwargs):
             return db1s, gr.update(choices=choices, value=langchain_mode2), textbox, df_langchain_mode_paths1
 
         def remove_langchain_mode(db1s, langchain_mode1, langchain_mode2, dbs={}):
-            if langchain_mode2 in db1s and not allow_upload_to_my_data:
-                textbox = "Invalid access, cannot remove %s" % langchain_mode2
-                df_langchain_mode_paths1 = get_df_langchain_mode_paths()
-                return db1s, gr.update(choices=get_langchain_choices(),
-                                       value=langchain_mode1), textbox, df_langchain_mode_paths1
-
-            if dbs is not None and langchain_mode2 in dbs and not allow_upload_to_user_data:
+            if langchain_mode2 in db1s and not allow_upload_to_my_data or \
+                    dbs is not None and langchain_mode2 in dbs and not allow_upload_to_user_data or \
+                    langchain_mode2 in [LangChainMode.LLM.value, LangChainMode.CHAT_LLM.value, LangChainMode.MY_DATA.value]:
+                # NOTE: Doesn't fail if remove MyData, but didn't debug odd behavior seen with upload after gone
                 textbox = "Invalid access, cannot remove %s" % langchain_mode2
                 df_langchain_mode_paths1 = get_df_langchain_mode_paths()
                 return db1s, gr.update(choices=get_langchain_choices(),
