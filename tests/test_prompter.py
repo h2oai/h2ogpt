@@ -97,7 +97,7 @@ You are a helpful, respectful and honest assistant. Always answer as helpfully a
 If a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.
 <</SYS>>
 
-<s>[INST] Hello![/INST] Hi! [INST] How are you? [/INST] I'm good [INST] Go to the market? [/INST]</s>
+<s>[INST] Hello! [/INST] Hi! </s><s>[INST] How are you? [/INST] I'm good </s><s>[INST] Go to the market? [/INST]</s>
 """
 
 @wrap_test_forked
