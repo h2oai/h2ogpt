@@ -1067,6 +1067,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         base_name = sanitize_filename(base_name) + "_" + str(uuid.uuid4())[:10]
         base_path = os.path.join(dir_name, base_name)
     if is_url:
+        file = file.strip()  # in case accidental spaces in front or at end
         if file.lower().startswith('arxiv:'):
             query = file.lower().split('arxiv:')
             if len(query) == 2 and have_arxiv:
@@ -1337,7 +1338,7 @@ def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True
         else:
             exception_doc = Document(
                 page_content='',
-                metadata={"source": file, "exception": '%s hit %s' % (file, str(e)),
+                metadata={"source": file, "exception": '%s Exception: %s' % (file, str(e)),
                           "traceback": traceback.format_exc()})
             res = [exception_doc]
     if return_file:
