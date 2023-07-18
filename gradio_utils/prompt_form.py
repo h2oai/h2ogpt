@@ -88,8 +88,8 @@ def make_chatbots(output_label0, output_label0_model2, **kwargs):
                     continue
                 text_outputs.append(gr.Chatbot(**chat_kwargs1))
 
-    with gr.Row():
-        text_output = gr.Chatbot(label=output_label0, visible=not kwargs['model_lock'], height=kwargs['height'] or 400)
+    with gr.Row(elem_id='chatbox-row'):
+        text_output = gr.Chatbot(label=output_label0, visible=not kwargs['model_lock'], elem_id='chatbox1')
         text_output2 = gr.Chatbot(label=output_label0_model2,
-                                  visible=False and not kwargs['model_lock'], height=kwargs['height'] or 400)
+                                  visible=False and not kwargs['model_lock'], elem_id='chatbox2')
     return text_output, text_output2, text_outputs

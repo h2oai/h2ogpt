@@ -386,9 +386,9 @@ def go_gradio(**kwargs):
                                                             show_copy_button=True)
 
                         # CHAT
-                        col_chat = gr.Column(visible=kwargs['chat'])
+                        col_chat = gr.Column(visible=kwargs['chat'], elem_id='gpt-text-content')
                         with col_chat:
-                            with gr.Row():  # elem_id='prompt-form-area'):
+                            with gr.Row(elem_id='prompt-form-area'):
                                 with gr.Column(scale=50):
                                     instruction = gr.Textbox(
                                         lines=kwargs['input_lines'],

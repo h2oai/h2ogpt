@@ -49,12 +49,22 @@ def make_css_base() -> str:
         transition: .2s;
     }
     
-    #prompt-form-area {
-        margin-bottom: 2.5rem;
-    }
     .chatsmall chatbot {font-size: 10px !important}
     
     .gradio-container {
         max-width: none !important;
+    }
+    
+    #gpt-text-content {
+        height: 85vh;
+        flex-wrap: nowrap !important;
+    }
+    
+    #chatbox-row {
+        height: 100% !important;
+    }
+    
+    #chatbox1 #chatbox2 {
+        height: 100% !important;
     }
     """
