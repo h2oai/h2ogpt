@@ -96,11 +96,15 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
         db = get_existing_db(None, persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
                              hf_embedding_model, verbose=False)
         if db is None:
+            from chromadb.config import Settings
+            client_settings = Settings(anonymized_telemetry=False,
+                                       chroma_db_impl="duckdb+parquet",
+                                       persist_directory=persist_directory)
             db = Chroma.from_documents(documents=sources,
                                        embedding=embedding,
                                        persist_directory=persist_directory,
                                        collection_name=collection_name,
-                                       anonymized_telemetry=False)
+                                       client_settings=client_settings)
             db.persist()
             clear_embedding(db)
             save_embed(db, use_openai_embedding, hf_embedding_model)
