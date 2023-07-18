@@ -179,6 +179,24 @@ pip install protobuf==3.20.0
 
 Once all files are downloaded, the CLI and UI can be run in offline mode, see [offline mode](docs/README_offline.md).
 
+### Run h2oGPT using Docker
+1. Make sure Docker & Nvidia Containers are setup correctly by following instructions [here](docs/INSTALL-DOCKER.md).
+
+2. Specify the required model using `HF_MODEL` parameter.
+All open-source models are posted on [🤗 H2O.ai's Hugging Face page](https://huggingface.co/h2oai/).
+```bash
+docker run \
+    --runtime=nvidia --shm-size=64g \
+    -e HF_MODEL=h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b \
+    -p 8888:8888 -p 7860:7860 \
+    --rm --init \
+    -v `pwd`/h2ogpt_env:/h2ogpt_env \
+    gcr.io/vorvan/h2oai/h2ogpt-runtime:61d6aea6fff3b1190aa42eee7fa10d6c
+```
+3. Navigate to http://localhost:7860/  & start using h2oGPT.
+
+To run h2oGPT with custom entrypoint, refer [here](docs/INSTALL-DOCKER.md).
+
 ### Development
 
 - To create a development environment for training and generation, follow the [installation instructions](docs/INSTALL.md).
