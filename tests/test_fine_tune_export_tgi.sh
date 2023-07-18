@@ -1,5 +1,9 @@
 export DATA=h2oai/openassistant_oasst1_h2ogpt
-export BASE_MODEL=tiiuae/falcon-7b
+
+export BASE_MODEL=tiiuae/falcon-7b  # confirmed working with 0.9.2
+# export BASE_MODEL=openlm-research/open_llama_3b  # fails with OOM on 48GB card??
+# export BASE_MODEL=Salesforce/xgen-7b-8k-base  # fails since tokenizer not yet supported (have to hack to force LLaMa tokenizer)
+
 export CUDA_VISIBLE_DEVICES=0
 
 export MODEL=model-test
