@@ -2,6 +2,7 @@ import os
 import re
 import setuptools
 from typing import List
+from setuptools import find_packages
 
 
 def parse_requirements(file_name: str) -> List[str]:
@@ -42,6 +43,9 @@ with open(os.path.join(current_directory, 'README.md'), encoding='utf-8') as f:
 with open(os.path.join(current_directory, 'version.txt'), encoding='utf-8') as f:
     version = f.read().strip()
 
+# Data to include
+packages = [p + '/**' for p in find_packages(include='*')]
+
 setuptools.setup(
     name='h2ogpt',
     packages=['h2ogpt'],
@@ -49,14 +53,11 @@ setuptools.setup(
         'h2ogpt': '',
     },
     package_data={
-        'h2ogpt': [
-            'src/**',
+        'h2ogpt': list(set([
             'data/**',
             'docs/**',
-            'models/**',
             'spaces/**',
-            'tests/**',
-        ],
+        ] + packages)),
     },
     exclude_package_data={
         'h2ogpt': [
