@@ -482,19 +482,25 @@ def go_gradio(**kwargs):
                             pass
                     with gr.Row():
                         with gr.Column(scale=1):
-                            new_langchain_mode_text = gr.Textbox(value="", visible=allow_upload_to_user_data,
+                            add_placeholder = "e.g. UserData2, user_path2 ('' for scratch)" \
+                                if not is_public else "e.g. MyData2"
+                            remove_placeholder = "e.g. UserData2" if not is_public else "e.g. MyData2"
+                            new_langchain_mode_text = gr.Textbox(value="", visible=allow_upload_to_user_data or
+                                                                                   allow_upload_to_my_data,
                                                                  label='Add LangChain Mode',
-                                                                 placeholder="e.g. UserData2, user_path2 ('' for scratch)",
+                                                                 placeholder=add_placeholder,
                                                                  interactive=True)
-                            remove_langchain_mode_text = gr.Textbox(value="", visible=allow_upload_to_user_data,
+                            remove_langchain_mode_text = gr.Textbox(value="", visible=allow_upload_to_user_data or
+                                                                                      allow_upload_to_my_data,
                                                                     label='Remove LangChain Mode',
-                                                                    placeholder="e.g. UserData2",
+                                                                    placeholder=remove_placeholder,
                                                                     interactive=True)
                             load_langchain = gr.Button(value="Load LangChain State", scale=0, size='sm',
                                                        visible=allow_upload_to_user_data)
                         with gr.Column(scale=1):
                             langchain_mode_path_text = gr.Dataframe(value=get_df_langchain_mode_paths(),
-                                                                    visible=allow_upload_to_user_data,
+                                                                    visible=allow_upload_to_user_data or
+                                                                            allow_upload_to_my_data,
                                                                     label='LangChain Mode-Path',
                                                                     show_label=False,
                                                                     interactive=False)
@@ -1083,24 +1089,29 @@ def go_gradio(**kwargs):
                 set_userid(db1s[k])
 
             y2 = y.strip().replace(' ', '').split(',')
-            if len(y2) == 2:
+            if len(y2) >= 1:
                 langchain_mode2 = y2[0]
                 if len(langchain_mode2) >= 3 and langchain_mode2.isalnum():
                     # real restriction is:
                     # ValueError: Expected collection name that (1) contains 3-63 characters, (2) starts and ends with an alphanumeric character, (3) otherwise contains only alphanumeric characters, underscores or hyphens (-), (4) contains no two consecutive periods (..) and (5) is not a valid IPv4 address, got me
                     # but just make simpler
-                    user_path = y2[1]
+                    user_path = y2[1] if len(y2) > 1 else None  # assume scratch if don't have user_path
                     if user_path in ['', "''"]:
                         # for scratch spaces
                         user_path = None
-                    kwargs['langchain_mode_paths'].update({langchain_mode2: user_path})
-                    if langchain_mode2 not in visible_langchain_modes:
-                        visible_langchain_modes.append(langchain_mode2)
-                    if langchain_mode2 not in langchain_modes:
-                        langchain_modes.append(langchain_mode2)
-                    textbox = ''
-                    if user_path:
-                        makedirs(user_path, exist_ok=True)
+                    if user_path and allow_upload_to_user_data or not user_path and allow_upload_to_my_data:
+                        kwargs['langchain_mode_paths'].update({langchain_mode2: user_path})
+                        if langchain_mode2 not in visible_langchain_modes:
+                            visible_langchain_modes.append(langchain_mode2)
+                        if langchain_mode2 not in langchain_modes:
+                            langchain_modes.append(langchain_mode2)
+                        textbox = ''
+                        if user_path:
+                            makedirs(user_path, exist_ok=True)
+                    else:
+                        langchain_mode2 = langchain_mode1
+                        textbox = "Invalid access.  user allowed: %s " \
+                                  "scratch allowed: %s" % (allow_upload_to_user_data, allow_upload_to_my_data)
                 else:
                     langchain_mode2 = langchain_mode1
                     textbox = "Invalid, collection must be >=3 characters and alphanumeric"
@@ -1126,34 +1137,49 @@ def go_gradio(**kwargs):
                                      user_hash)
             return db1s, gr.update(choices=choices, value=langchain_mode2), textbox, df_langchain_mode_paths1
 
-        def remove_langchain_mode(db1s, x):
+        def remove_langchain_mode(db1s, langchain_mode1, langchain_mode2, dbs={}):
+            if langchain_mode2 in db1s and not allow_upload_to_my_data:
+                textbox = "Invalid access, cannot remove %s" % langchain_mode2
+                df_langchain_mode_paths1 = get_df_langchain_mode_paths()
+                return db1s, gr.update(choices=get_langchain_choices(),
+                                       value=langchain_mode1), textbox, df_langchain_mode_paths1
+
+            if dbs is not None and langchain_mode2 in dbs and not allow_upload_to_user_data:
+                textbox = "Invalid access, cannot remove %s" % langchain_mode2
+                df_langchain_mode_paths1 = get_df_langchain_mode_paths()
+                return db1s, gr.update(choices=get_langchain_choices(),
+                                       value=langchain_mode1), textbox, df_langchain_mode_paths1
+
             # change global variables
-            if x in visible_langchain_modes:
-                visible_langchain_modes.remove(x)
+            if langchain_mode2 in visible_langchain_modes:
+                visible_langchain_modes.remove(langchain_mode2)
                 textbox = ""
             else:
-                textbox = "%s was not visible" % x
-            if x in langchain_modes:
-                langchain_modes.remove(x)
-            if x in kwargs['langchain_mode_paths']:
-                kwargs['langchain_mode_paths'].pop(x)
-            if x in db1s:
+                textbox = "%s was not visible" % langchain_mode2
+            if langchain_mode2 in langchain_modes:
+                langchain_modes.remove(langchain_mode2)
+            if langchain_mode2 in kwargs['langchain_mode_paths']:
+                kwargs['langchain_mode_paths'].pop(langchain_mode2)
+            if langchain_mode2 in db1s:
                 # remove db entirely, so not in list, else need to manage visible list in update_langchain_mode_paths()
                 # FIXME: Remove location?
-                if x != LangChainMode.MY_DATA.value:
+                if langchain_mode2 != LangChainMode.MY_DATA.value:
                     # don't remove last MyData, used as user hash
-                    db1s.pop(x)
+                    db1s.pop(langchain_mode2)
             # only show
             update_langchain_mode_paths(db1s)
             df_langchain_mode_paths1 = get_df_langchain_mode_paths()
-            return db1s, gr.update(choices=get_langchain_choices(), value=x), textbox, df_langchain_mode_paths1
+            return db1s, gr.update(choices=get_langchain_choices(),
+                                   value=langchain_mode2), textbox, df_langchain_mode_paths1
 
         new_langchain_mode_text.submit(fn=add_langchain_mode,
                                        inputs=[my_db_state, langchain_mode, new_langchain_mode_text],
                                        outputs=[my_db_state, langchain_mode, new_langchain_mode_text,
                                                 langchain_mode_path_text],
                                        api_name='new_langchain_mode_text' if allow_api and allow_upload_to_user_data else None)
-        remove_langchain_mode_text.submit(fn=remove_langchain_mode, inputs=[my_db_state, remove_langchain_mode_text],
+        remove_langchain_mode_func = functools.partial(remove_langchain_mode, dbs=dbs)
+        remove_langchain_mode_text.submit(fn=remove_langchain_mode_func,
+                                          inputs=[my_db_state, langchain_mode, remove_langchain_mode_text],
                                           outputs=[my_db_state, langchain_mode, remove_langchain_mode_text,
                                                    langchain_mode_path_text],
                                           api_name='remove_langchain_mode_text' if allow_api and allow_upload_to_user_data else None)

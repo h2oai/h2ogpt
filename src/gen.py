@@ -427,6 +427,8 @@ def main(
 
     if is_public:
         allow_upload_to_user_data = False
+        if LangChainMode.USER_DATA.value in visible_langchain_modes:
+            visible_langchain_modes.remove(LangChainMode.USER_DATA.value)
 
     # in-place, for non-scratch dbs
     if allow_upload_to_user_data:
