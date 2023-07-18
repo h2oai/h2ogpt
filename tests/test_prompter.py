@@ -90,6 +90,15 @@ User: Go to the market?
 
 Assistant:"""
 
+prompt_llama2 = """<<SYS>>
+\
+You are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe.  Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.
+
+If a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.
+<</SYS>>
+
+<s>[INST] Hello![/INST] Hi! [INST] How are you? [/INST] I'm good [INST] Go to the market? [/INST]</s>
+"""
 
 @wrap_test_forked
 @pytest.mark.parametrize("prompt_type,expected",
@@ -101,6 +110,7 @@ Assistant:"""
                              ('mptinstruct', prompt_mpt_instruct),
                              ('mptchat', prompt_mpt_chat),
                              ('falcon', prompt_falcon),
+                             ('llama2', prompt_llama2),
                          ]
                          )
 def test_prompt_with_context(prompt_type, expected):
