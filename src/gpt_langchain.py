@@ -1675,18 +1675,8 @@ def _make_db(use_openai_embedding=False,
         db = db_trial
 
     sources = []
-    if not db or user_path is not None:
-        # Should not make MyData db this way, why avoided, only upload from UI
-        assert langchain_mode not in ['MyData'], "Should not make MyData db this way"
-        if verbose:
-            if user_path is not None:
-                print("Checking if changed or new sources in %s, and generating sources them" % user_path,
-                      flush=True)
-            elif db is None:
-                print("user_path not passed and no db, no sources", flush=True)
-            else:
-                print("user_path not passed, using only existing db, no new sources", flush=True)
-        if langchain_mode in ['wiki_full', 'All', "'All'"]:
+    if not db:
+        if langchain_mode in ['wiki_full']:
             from read_wiki_full import get_all_documents
             small_test = None
             print("Generating new wiki", flush=True)
@@ -1696,56 +1686,47 @@ def _make_db(use_openai_embedding=False,
                 sources1 = chunk_sources(sources1, chunk=chunk, chunk_size=chunk_size)
                 print("Chunked new wiki", flush=True)
             sources.extend(sources1)
-        if langchain_mode in ['wiki', 'All', "'All'"]:
+        elif langchain_mode in ['wiki']:
             sources1 = get_wiki_sources(first_para=first_para, text_limit=text_limit)
             if chunk:
                 sources1 = chunk_sources(sources1, chunk=chunk, chunk_size=chunk_size)
             sources.extend(sources1)
-        if langchain_mode in ['github h2oGPT', 'All', "'All'"]:
+        elif langchain_mode in ['github h2oGPT']:
             # sources = get_github_docs("dagster-io", "dagster")
             sources1 = get_github_docs("h2oai", "h2ogpt")
             # FIXME: always chunk for now
             sources1 = chunk_sources(sources1, chunk=chunk, chunk_size=chunk_size)
             sources.extend(sources1)
-        if langchain_mode in ['DriverlessAI docs', 'All', "'All'"]:
+        elif langchain_mode in ['DriverlessAI docs']:
             sources1 = get_dai_docs(from_hf=True)
             if chunk and False:  # FIXME: DAI docs are already chunked well, should only chunk more if over limit
                 sources1 = chunk_sources(sources1, chunk=chunk, chunk_size=chunk_size)
             sources.extend(sources1)
-        # UserData or custom, which has to be from user's disk
-        if langchain_mode in ['All'] or is_user_type_db(langchain_mode):
-            if user_path:
-                if db is not None:
-                    # NOTE: Ignore file names for now, only go by hash ids
-                    # existing_files = get_existing_files(db)
-                    existing_files = []
-                    existing_hash_ids = get_existing_hash_ids(db)
-                else:
-                    # pretend no existing files so won't filter
-                    existing_files = []
-                    existing_hash_ids = []
-                # chunk internally for speed over multiple docs
-                # FIXME: If first had old Hash=None and switch embeddings,
-                #  then re-embed, and then hit here and reload so have hash, and then re-embed.
-                sources1 = path_to_docs(user_path, n_jobs=n_jobs, chunk=chunk, chunk_size=chunk_size,
-                                        existing_files=existing_files, existing_hash_ids=existing_hash_ids)
-                new_metadata_sources = set([x.metadata['source'] for x in sources1])
-                if new_metadata_sources:
-                    print("Loaded %s new files as sources to add to UserData" % len(new_metadata_sources), flush=True)
-                    if verbose:
-                        print("Files added: %s" % '\n'.join(new_metadata_sources), flush=True)
-                sources.extend(sources1)
-                print("Loaded %s sources for potentially adding to UserData" % len(sources), flush=True)
+        elif user_path:
+            # UserData or custom, which has to be from user's disk
+            if db is not None:
+                # NOTE: Ignore file names for now, only go by hash ids
+                # existing_files = get_existing_files(db)
+                existing_files = []
+                existing_hash_ids = get_existing_hash_ids(db)
             else:
-                print("Chose UserData but user_path is empty/None", flush=True)
-        if False and langchain_mode in ['urls', 'All', "'All'"]:
-            # from langchain.document_loaders import UnstructuredURLLoader
-            # loader = UnstructuredURLLoader(urls=urls)
-            urls = ["https://www.birdsongsf.com/who-we-are/"]
-            from langchain.document_loaders import PlaywrightURLLoader
-            loader = PlaywrightURLLoader(urls=urls, remove_selectors=["header", "footer"])
-            sources1 = loader.load()
+                # pretend no existing files so won't filter
+                existing_files = []
+                existing_hash_ids = []
+            # chunk internally for speed over multiple docs
+            # FIXME: If first had old Hash=None and switch embeddings,
+            #  then re-embed, and then hit here and reload so have hash, and then re-embed.
+            sources1 = path_to_docs(user_path, n_jobs=n_jobs, chunk=chunk, chunk_size=chunk_size,
+                                    existing_files=existing_files, existing_hash_ids=existing_hash_ids)
+            new_metadata_sources = set([x.metadata['source'] for x in sources1])
+            if new_metadata_sources:
+                print("Loaded %s new files as sources to add to UserData" % len(new_metadata_sources), flush=True)
+                if verbose:
+                    print("Files added: %s" % '\n'.join(new_metadata_sources), flush=True)
             sources.extend(sources1)
+            print("Loaded %s sources for potentially adding to UserData" % len(sources), flush=True)
+
+        # see if got sources
         if not sources:
             if verbose:
                 if db is not None:
@@ -1768,7 +1749,7 @@ def _make_db(use_openai_embedding=False,
         else:
             print("Did not generate db since no sources", flush=True)
         new_sources_metadata = [x.metadata for x in sources]
-    elif user_path is not None and langchain_mode in ['UserData']:
+    elif user_path is not None:
         print("Existing db, potentially adding %s sources from user_path=%s" % (len(sources), user_path), flush=True)
         db, num_new_sources, new_sources_metadata = add_to_db(db, sources, db_type=db_type,
                                                               use_openai_embedding=use_openai_embedding,
@@ -2526,14 +2507,6 @@ def _create_local_weaviate_client():
     except Exception as e:
         print(f"Failed to create Weaviate client: {e}")
         return None
-
-
-def is_user_type_db(langchain_mode):
-    # UserData or custom, which has to be from user's disk
-    dict_LangChainMode = {i.name: i.value for i in LangChainMode}
-    user_type_db = langchain_mode != LangChainMode.MY_DATA.value and \
-                   (langchain_mode == 'UserData' or langchain_mode not in list(dict_LangChainMode.values()))
-    return user_type_db
 
 
 if __name__ == '__main__':

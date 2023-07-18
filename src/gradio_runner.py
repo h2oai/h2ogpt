@@ -1109,6 +1109,7 @@ def go_gradio(**kwargs):
             langchain_mode_paths = selection_docs_state1['langchain_mode_paths']
             visible_langchain_modes = selection_docs_state1['visible_langchain_modes']
 
+            user_path = None
             y2 = y.strip().replace(' ', '').split(',')
             if len(y2) >= 1:
                 langchain_mode2 = y2[0]
@@ -1143,10 +1144,7 @@ def go_gradio(**kwargs):
             df_langchain_mode_paths1 = get_df_langchain_mode_paths(selection_docs_state1)
             choices = get_langchain_choices(selection_docs_state1)
 
-            from src.gpt_langchain import is_user_type_db
-            user_types = [x for x in visible_langchain_modes if
-                          is_user_type_db(x) and langchain_mode_paths.get(x)]
-            if langchain_mode2 not in user_types:
+            if not user_path:
                 # needs to have key for it to make it known different from userdata case in _update_user_db()
                 db1s[langchain_mode2] = [None, None]
 
@@ -2671,8 +2669,7 @@ def _update_user_db(file,
         langchain_mode_paths = {}
     user_path = langchain_mode_paths.get(langchain_mode)
     # UserData or custom, which has to be from user's disk
-    from src.gpt_langchain import is_user_type_db
-    if is_user_type_db(langchain_mode) and user_path is not None:
+    if user_path is not None:
         # move temp files from gradio upload to stable location
         for fili, fil in enumerate(file):
             if isinstance(fil, str) and os.path.isfile(fil):  # not url, text
