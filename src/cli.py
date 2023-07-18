@@ -33,7 +33,7 @@ def run_cli(  # for local function:
         is_public=None,
         max_max_time=None,
         raise_generate_gpu_exceptions=None, load_db_if_exists=None, use_llm_if_no_docs=None,
-        dbs=None, langchain_modes=None, langchain_mode_paths=None,
+        my_db_state0=None, dbs=None, langchain_modes=None, langchain_mode_paths=None,
         detect_user_path_changes_every_query=None,
         use_openai_embedding=None, use_openai_model=None, hf_embedding_model=None, cut_distance=None,
         db_type=None, n_jobs=None, first_para=None, text_limit=None, verbose=None, cli=None, reverse_docs=None,
@@ -64,8 +64,7 @@ def run_cli(  # for local function:
                           inference_server=inference_server, prompt_type=prompt_type, prompt_dict=prompt_dict)
         model_state = dict(model=model, tokenizer=tokenizer, device=device)
         model_state.update(model_dict)
-        my_db_state = {LangChainMode.MY_DATA.value: [None, None]}
-        fun = partial(evaluate, model_state, my_db_state,
+        fun = partial(evaluate, model_state, my_db_state0,
                       **get_kwargs(evaluate, exclude_names=['model_state', 'my_db_state'] + eval_func_param_names,
                                    **locals()))
 

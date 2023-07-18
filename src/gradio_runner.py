@@ -100,6 +100,7 @@ def go_gradio(**kwargs):
     model_states = kwargs['model_states']
     score_model_state0 = kwargs['score_model_state0']
     dbs = kwargs['dbs']
+    my_db_state0 = kwargs['my_db_state0']
     db_type = kwargs['db_type']
     langchain_modes = kwargs['langchain_modes']
     visible_langchain_modes = kwargs['visible_langchain_modes']
@@ -267,7 +268,7 @@ def go_gradio(**kwargs):
         model_options_state = gr.State([model_options])
         lora_options_state = gr.State([lora_options])
         server_options_state = gr.State([server_options])
-        my_db_state = gr.State({LangChainMode.MY_DATA.value: [None, None]})
+        my_db_state = gr.State(my_db_state0)
         update_langchain_mode_paths(my_db_state.value)
         chat_state = gr.State({})
         docs_state00 = kwargs['document_choice'] + [DocumentChoices.All.name]

@@ -645,6 +645,7 @@ def main(
     model_state_none = dict(model=None, tokenizer=None, device=None,
                             base_model=None, tokenizer_base_model=None, lora_weights=None,
                             inference_server=None, prompt_type=None, prompt_dict=None)
+    my_db_state0 = {LangChainMode.MY_DATA.value: [None, None]}
 
     if cli:
         from cli import run_cli
@@ -2058,7 +2059,7 @@ def evaluate(
 
 
 inputs_list_names = list(inspect.signature(evaluate).parameters)
-state_names = ['model_state', 'db1']
+state_names = ['model_state', 'my_db_state']
 inputs_kwargs_list = [x for x in inputs_list_names if x not in eval_func_param_names + state_names]
 
 
