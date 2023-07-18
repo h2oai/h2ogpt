@@ -1191,6 +1191,9 @@ def go_gradio(**kwargs):
             # only show
             selection_docs_state1 = update_langchain_mode_paths(db1s, selection_docs_state1)
             df_langchain_mode_paths1 = get_df_langchain_mode_paths(langchain_mode_paths)
+            user_hash = db1s.get(LangChainMode.MY_DATA.value, '')[1]
+            save_collection_enum(langchain_modes, visible_langchain_modes, langchain_mode_paths,
+                                 user_hash)
             return db1s, gr.update(choices=get_langchain_choices(langchain_modes, visible_langchain_modes),
                                    value=langchain_mode2), textbox, df_langchain_mode_paths1, selection_docs_state1
 
