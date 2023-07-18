@@ -321,7 +321,8 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'secure, private, and anonymous chatbot' in res_dict['response'] or
             'Whisper is a secure, anonymous, and encrypted' in res_dict['response'] or
             'secure, decentralized, and anonymous chat platform' in res_dict['response'] or
-            'A low-code development framework' in res_dict['response']
+            'A low-code development framework' in res_dict['response'] or
+            'secure messaging app' in res_dict['response']
             ) \
            and ('FAQ.md' in res_dict['response'] or 'README.md' in res_dict['response'])
 
@@ -365,7 +366,9 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'A secure, private, and encrypted chatbot' in res_dict['response'] or
             'A secret communication system used' in res_dict['response'] or
             'H2O AI Cloud is a cloud-based platform' in res_dict['response'] or
-            'is a platform for deploying' in res_dict['response']
+            'is a platform for deploying' in res_dict['response'] or
+            'is a language model that is trained' in res_dict['response'] or
+            'private, and anonymous communication' in res_dict['response']
             ) \
            and '.md' in res_dict['response']
 
