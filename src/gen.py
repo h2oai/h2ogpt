@@ -1306,6 +1306,7 @@ def get_score_model(score_model: str = None,
 def evaluate(
         model_state,
         my_db_state,
+        selection_docs_state,
         # START NOTE: Examples must have same order of parameters
         instruction,
         iinput,
@@ -1343,6 +1344,9 @@ def evaluate(
         save_dir=None,
         sanitize_bot_response=False,
         model_state0=None,
+        langchain_modes0=None,
+        langchain_mode_paths0=None,
+        visible_langchain_modes0=None,
         memory_restriction_level=None,
         max_max_new_tokens=None,
         is_public=None,
@@ -1353,8 +1357,6 @@ def evaluate(
         use_llm_if_no_docs=False,
         load_db_if_exists=True,
         dbs=None,
-        langchain_modes=None,
-        langchain_mode_paths=None,
         detect_user_path_changes_every_query=None,
         use_openai_embedding=None,
         use_openai_model=None,
@@ -1388,6 +1390,15 @@ def evaluate(
     assert chunk_size is not None and isinstance(chunk_size, int)
     assert n_jobs is not None
     assert first_para is not None
+
+    if selection_docs_state is not None:
+        langchain_modes = selection_docs_state.get('langchain_modes', langchain_modes0)
+        langchain_mode_paths = selection_docs_state.get('langchain_mode_paths', langchain_mode_paths0)
+        visible_langchain_modes = selection_docs_state.get('visible_langchain_modes', visible_langchain_modes0)
+    else:
+        langchain_modes = langchain_modes0
+        langchain_mode_paths = langchain_mode_paths0
+        visible_langchain_modes = visible_langchain_modes0
 
     if debug:
         locals_dict = locals().copy()
@@ -2061,7 +2072,7 @@ def evaluate(
 
 
 inputs_list_names = list(inspect.signature(evaluate).parameters)
-state_names = ['model_state', 'my_db_state']
+state_names = ['model_state', 'my_db_state', 'selection_docs_state']
 inputs_kwargs_list = [x for x in inputs_list_names if x not in eval_func_param_names + state_names]
 
 

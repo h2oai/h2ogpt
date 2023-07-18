@@ -62,7 +62,8 @@ from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_all
 from gen import get_model, languages_covered, evaluate, score_qa, inputs_kwargs_list, scratch_base_dir, \
     get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list, \
     update_langchain
-from evaluate_params import eval_func_param_names, no_default_param_names, eval_func_param_names_defaults
+from evaluate_params import eval_func_param_names, no_default_param_names, eval_func_param_names_defaults, \
+    input_args_list
 
 from apscheduler.schedulers.background import BackgroundScheduler
 
@@ -878,8 +879,8 @@ def go_gradio(**kwargs):
                                            )
         add_file_outputs = [fileup_output, langchain_mode]
         add_file_kwargs = dict(fn=update_db_func,
-                               inputs=[fileup_output, my_db_state, chunk, chunk_size,
-                                       langchain_mode, selection_docs_state],
+                               inputs=[fileup_output, my_db_state, selection_docs_state, chunk, chunk_size,
+                                       langchain_mode],
                                outputs=add_file_outputs + [sources_text, doc_exception_text],
                                queue=queue,
                                api_name='add_file' if allow_api and allow_upload_to_user_data else None)
@@ -893,8 +894,8 @@ def go_gradio(**kwargs):
 
         # deal with challenge to have fileup_output itself as input
         add_file_kwargs2 = dict(fn=update_db_func,
-                                inputs=[fileup_output_text, my_db_state, chunk, chunk_size,
-                                        langchain_mode, selection_docs_state],
+                                inputs=[fileup_output_text, my_db_state, selection_docs_state, chunk, chunk_size,
+                                        langchain_mode],
                                 outputs=add_file_outputs + [sources_text, doc_exception_text],
                                 queue=queue,
                                 api_name='add_file_api' if allow_api and allow_upload_to_user_data else None)
@@ -909,8 +910,8 @@ def go_gradio(**kwargs):
 
         add_url_outputs = [url_text, langchain_mode]
         add_url_kwargs = dict(fn=update_user_db_url_func,
-                              inputs=[url_text, my_db_state, chunk, chunk_size,
-                                      langchain_mode, selection_docs_state],
+                              inputs=[url_text, my_db_state, selection_docs_state, chunk, chunk_size,
+                                      langchain_mode],
                               outputs=add_url_outputs + [sources_text, doc_exception_text],
                               queue=queue,
                               api_name='add_url' if allow_api and allow_upload_to_user_data else None)
@@ -927,8 +928,8 @@ def go_gradio(**kwargs):
         update_user_db_txt_func = functools.partial(update_db_func, is_txt=True)
         add_text_outputs = [user_text_text, langchain_mode]
         add_text_kwargs = dict(fn=update_user_db_txt_func,
-                               inputs=[user_text_text, my_db_state, chunk, chunk_size,
-                                       langchain_mode, selection_docs_state],
+                               inputs=[user_text_text, my_db_state, selection_docs_state, chunk, chunk_size,
+                                       langchain_mode],
                                outputs=add_text_outputs + [sources_text, doc_exception_text],
                                queue=queue,
                                api_name='add_text' if allow_api and allow_upload_to_user_data else None
@@ -1098,7 +1099,7 @@ def go_gradio(**kwargs):
         admin_pass_textbox.submit(check_admin_pass, inputs=admin_pass_textbox, outputs=system_row, queue=False) \
             .then(close_admin, inputs=admin_pass_textbox, outputs=admin_row, queue=False)
 
-        def add_langchain_mode(db1s, langchain_mode1, y, selection_docs_state1):
+        def add_langchain_mode(db1s, selection_docs_state1, langchain_mode1, y):
             for k in db1s:
                 set_userid(db1s[k])
             langchain_modes = selection_docs_state1['langchain_modes']
@@ -1148,10 +1149,10 @@ def go_gradio(**kwargs):
 
             save_collection_names(langchain_modes, visible_langchain_modes, langchain_mode_paths, LangChainMode, db1s)
 
-            return db1s, gr.update(choices=choices,
-                                   value=langchain_mode2), textbox, df_langchain_mode_paths1, selection_docs_state1
+            return db1s, selection_docs_state1, gr.update(choices=choices,
+                                   value=langchain_mode2), textbox, df_langchain_mode_paths1
 
-        def remove_langchain_mode(db1s, langchain_mode1, langchain_mode2, selection_docs_state1, dbsu=None):
+        def remove_langchain_mode(db1s, selection_docs_state1, langchain_mode1, langchain_mode2, dbsu=None):
             for k in db1s:
                 set_userid(db1s[k])
             assert dbsu is not None
@@ -1191,24 +1192,27 @@ def go_gradio(**kwargs):
 
             save_collection_names(langchain_modes, visible_langchain_modes, langchain_mode_paths, LangChainMode, db1s)
 
-            return db1s, gr.update(choices=get_langchain_choices(langchain_modes, visible_langchain_modes),
-                                   value=langchain_mode2), textbox, df_langchain_mode_paths1, selection_docs_state1
+            return db1s, selection_docs_state1, \
+                gr.update(choices=get_langchain_choices(langchain_modes, visible_langchain_modes),
+                                   value=langchain_mode2), textbox, df_langchain_mode_paths1
 
         new_langchain_mode_text.submit(fn=add_langchain_mode,
-                                       inputs=[my_db_state, langchain_mode, new_langchain_mode_text,
-                                               selection_docs_state],
-                                       outputs=[my_db_state, langchain_mode, new_langchain_mode_text,
-                                                langchain_mode_path_text, selection_docs_state],
+                                       inputs=[my_db_state, selection_docs_state, langchain_mode,
+                                               new_langchain_mode_text],
+                                       outputs=[my_db_state, selection_docs_state, langchain_mode,
+                                                new_langchain_mode_text,
+                                                langchain_mode_path_text],
                                        api_name='new_langchain_mode_text' if allow_api and allow_upload_to_user_data else None)
         remove_langchain_mode_func = functools.partial(remove_langchain_mode, dbsu=dbs)
         remove_langchain_mode_text.submit(fn=remove_langchain_mode_func,
-                                          inputs=[my_db_state, langchain_mode, remove_langchain_mode_text,
-                                                  selection_docs_state],
-                                          outputs=[my_db_state, langchain_mode, remove_langchain_mode_text,
-                                                   langchain_mode_path_text, selection_docs_state],
+                                          inputs=[my_db_state, selection_docs_state, langchain_mode,
+                                                  remove_langchain_mode_text],
+                                          outputs=[my_db_state, selection_docs_state, langchain_mode,
+                                                   remove_langchain_mode_text,
+                                                   langchain_mode_path_text],
                                           api_name='remove_langchain_mode_text' if allow_api and allow_upload_to_user_data else None)
 
-        def update_langchain_gr(db1s, langchain_mode1, selection_docs_state1):
+        def update_langchain_gr(db1s, selection_docs_state1, langchain_mode1):
             for k in db1s:
                 set_userid(db1s[k])
             langchain_modes = selection_docs_state1['langchain_modes']
@@ -1224,12 +1228,13 @@ def go_gradio(**kwargs):
 
             selection_docs_state1 = update_langchain_mode_paths(db1s, selection_docs_state1)
             df_langchain_mode_paths1 = get_df_langchain_mode_paths(langchain_mode_paths)
-            return gr.update(choices=get_langchain_choices(langchain_modes, visible_langchain_modes),
-                             value=langchain_mode1), df_langchain_mode_paths1, selection_docs_state1
+            return selection_docs_state1, \
+                gr.update(choices=get_langchain_choices(langchain_modes, visible_langchain_modes),
+                             value=langchain_mode1), df_langchain_mode_paths1
 
         load_langchain.click(fn=update_langchain_gr,
-                             inputs=[my_db_state, langchain_mode, selection_docs_state],
-                             outputs=[langchain_mode, langchain_mode_path_text, selection_docs_state],
+                             inputs=[my_db_state, selection_docs_state, langchain_mode],
+                             outputs=[selection_docs_state, langchain_mode, langchain_mode_path_text],
                              api_name='load_langchain' if allow_api and allow_upload_to_user_data else None)
 
         inputs_list, inputs_dict = get_inputs_list(all_kwargs, kwargs['model_lower'], model_id=1)
@@ -1266,10 +1271,11 @@ def go_gradio(**kwargs):
             # correct ordering.  Note some things may not be in default_kwargs, so can't be default of user_kwargs.get()
             model_state1 = args_list[0]
             my_db_state1 = args_list[1]
+            selection_docs_state1 = args_list[2]
             args_list = [user_kwargs[k] if k in user_kwargs and user_kwargs[k] is not None else default_kwargs1[k] for k
                          in eval_func_param_names]
             assert len(args_list) == len(eval_func_param_names)
-            args_list = [model_state1, my_db_state1] + args_list
+            args_list = [model_state1, my_db_state1, selection_docs_state1] + args_list
 
             try:
                 for res_dict in evaluate(*tuple(args_list), **kwargs1):
@@ -1520,10 +1526,12 @@ def go_gradio(**kwargs):
                  API only called for which_model=0, default for inputs_list, but rest should ignore inputs_list
             :return: last element is True if should run bot, False if should just yield history
             """
+            isize = len(input_args_list) + 1  # states + chat history
             # don't deepcopy, can contain model itself
             args_list = list(args).copy()
-            model_state1 = args_list[-3]
-            my_db_state1 = args_list[-2]
+            model_state1 = args_list[-isize]
+            my_db_state1 = args_list[-isize + 1]
+            selection_docs_state1 = args_list[-isize + 2]
             history = args_list[-1]
             prompt_type1 = args_list[eval_func_param_names.index('prompt_type')]
             prompt_dict1 = args_list[eval_func_param_names.index('prompt_dict')]
@@ -1531,7 +1539,7 @@ def go_gradio(**kwargs):
             if model_state1['model'] is None or model_state1['model'] == no_model_str:
                 return history, None, None, None
 
-            args_list = args_list[:-3]  # only keep rest needed for evaluate()
+            args_list = args_list[:-isize]  # only keep rest needed for evaluate()
             langchain_mode1 = args_list[eval_func_param_names.index('langchain_mode')]
             langchain_action1 = args_list[eval_func_param_names.index('langchain_action')]
             langchain_agents1 = args_list[eval_func_param_names.index('langchain_agents')]
@@ -1573,6 +1581,7 @@ def go_gradio(**kwargs):
             fun1 = partial(evaluate,
                            model_state1,
                            my_db_state1,
+                           selection_docs_state1,
                            *tuple(args_list),
                            **kwargs_evaluate)
 
@@ -1647,12 +1656,13 @@ def go_gradio(**kwargs):
             stream_output1 = args_list[eval_func_param_names.index('stream_output')]
             max_time1 = args_list[eval_func_param_names.index('max_time')]
             langchain_mode1 = args_list[eval_func_param_names.index('langchain_mode')]
+            isize = len(input_args_list) + 1  # states + chat history
             db1s = None
             try:
                 gen_list = []
                 for chatboti, (chatbot1, model_state1) in enumerate(zip(chatbots, model_states1)):
                     args_list1 = args_list0.copy()
-                    args_list1.insert(-1, model_state1)  # insert at -1 so is at -2
+                    args_list1.insert(-isize + 2, model_state1)  # insert at -2 so is at -3, and after chatbot1 added, at -4
                     # if at start, have None in response still, replace with '' so client etc. acts like normal
                     # assumes other parts of code treat '' and None as if no response yet from bot
                     # can't do this later in bot code as racy with threaded generators
@@ -1717,11 +1727,11 @@ def go_gradio(**kwargs):
                          outputs=text_output,
                          )
         bot_args = dict(fn=bot,
-                        inputs=inputs_list + [model_state, my_db_state] + [text_output],
+                        inputs=inputs_list + [model_state, my_db_state, selection_docs_state] + [text_output],
                         outputs=[text_output, chat_exception_text],
                         )
         retry_bot_args = dict(fn=functools.partial(bot, retry=True),
-                              inputs=inputs_list + [model_state, my_db_state] + [text_output],
+                              inputs=inputs_list + [model_state, my_db_state, selection_docs_state] + [text_output],
                               outputs=[text_output, chat_exception_text],
                               )
         retry_user_args = dict(fn=functools.partial(user, retry=True),
@@ -1739,11 +1749,11 @@ def go_gradio(**kwargs):
                           outputs=text_output2,
                           )
         bot_args2 = dict(fn=bot,
-                         inputs=inputs_list2 + [model_state2, my_db_state] + [text_output2],
+                         inputs=inputs_list2 + [model_state2, my_db_state, selection_docs_state] + [text_output2],
                          outputs=[text_output2, chat_exception_text],
                          )
         retry_bot_args2 = dict(fn=functools.partial(bot, retry=True),
-                               inputs=inputs_list2 + [model_state2, my_db_state] + [text_output2],
+                               inputs=inputs_list2 + [model_state2, my_db_state, selection_docs_state] + [text_output2],
                                outputs=[text_output2, chat_exception_text],
                                )
         retry_user_args2 = dict(fn=functools.partial(user, retry=True),
@@ -1764,11 +1774,11 @@ def go_gradio(**kwargs):
                              outputs=text_outputs,
                              )
         all_bot_args = dict(fn=functools.partial(all_bot, model_states1=model_states),
-                            inputs=inputs_list + [my_db_state] + text_outputs,
+                            inputs=inputs_list + [my_db_state, selection_docs_state] + text_outputs,
                             outputs=text_outputs + [chat_exception_text],
                             )
         all_retry_bot_args = dict(fn=functools.partial(all_bot, model_states1=model_states, retry=True),
-                                  inputs=inputs_list + [my_db_state] + text_outputs,
+                                  inputs=inputs_list + [my_db_state, selection_docs_state] + text_outputs,
                                   outputs=text_outputs + [chat_exception_text],
                                   )
         all_retry_user_args = dict(fn=functools.partial(all_user, retry=True,
@@ -2109,7 +2119,7 @@ def go_gradio(**kwargs):
         # NOTE: clear of instruction/iinput for nochat has to come after score,
         # because score for nochat consumes actual textbox, while chat consumes chat history filled by user()
         no_chat_args = dict(fn=fun,
-                            inputs=[model_state, my_db_state] + inputs_list,
+                            inputs=[model_state, my_db_state, selection_docs_state] + inputs_list,
                             outputs=text_output_nochat,
                             queue=queue,
                             )
@@ -2128,7 +2138,8 @@ def go_gradio(**kwargs):
             .then(clear_torch_cache)
 
         submit_event_nochat_api = submit_nochat_api.click(fun_with_dict_str,
-                                                          inputs=[model_state, my_db_state, inputs_dict_str],
+                                                          inputs=[model_state, my_db_state, selection_docs_state,
+                                                                  inputs_dict_str],
                                                           outputs=text_output_nochat_api,
                                                           queue=True,  # required for generator
                                                           api_name='submit_nochat_api' if allow_api else None) \
@@ -2479,9 +2490,6 @@ def go_gradio(**kwargs):
         demo.block_thread()
 
 
-input_args_list = ['model_state', 'my_db_state']
-
-
 def get_inputs_list(inputs_dict, model_lower, model_id=1):
     """
     map gradio objects in locals() to inputs for evaluate().
@@ -2558,7 +2566,7 @@ def set_userid(db1):
         db1[1] = str(uuid.uuid4())
 
 
-def update_user_db(file, db1s, chunk, chunk_size, langchain_mode, selection_docs_state1, dbs=None, **kwargs):
+def update_user_db(file, db1s, selection_docs_state1, chunk, chunk_size, langchain_mode, dbs=None, **kwargs):
     kwargs.update(selection_docs_state1)
     if file is None:
         raise RuntimeError("Don't use change, use input")

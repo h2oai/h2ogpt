@@ -51,7 +51,7 @@ def run_eval(  # for local function:
         is_public=None,
         max_max_time=None,
         raise_generate_gpu_exceptions=None, load_db_if_exists=None, use_llm_if_no_docs=None,
-        my_db_state0=None, dbs=None, langchain_modes=None, langchain_mode_paths=None,
+        my_db_state0=None, selection_docs_state0=None, dbs=None, langchain_modes=None, langchain_mode_paths=None,
         detect_user_path_changes_every_query=None,
         use_openai_embedding=None, use_openai_model=None, hf_embedding_model=None, cut_distance=None,
         db_type=None, n_jobs=None, first_para=None, text_limit=None, verbose=None, cli=None, reverse_docs=None,
@@ -152,8 +152,9 @@ def run_eval(  # for local function:
                               inference_server=inference_server, prompt_type=prompt_type, prompt_dict=prompt_dict)
             model_state = dict(model=model, tokenizer=tokenizer, device=device)
             model_state.update(model_dict)
-            fun = partial(evaluate, model_state, my_db_state0,
-                          **get_kwargs(evaluate, exclude_names=['model_state', 'my_db_state'] + eval_func_param_names,
+            fun = partial(evaluate, model_state, my_db_state0, selection_docs_state0,
+                          **get_kwargs(evaluate, exclude_names=['model_state', 'my_db_state', 'selection_docs_state']
+                                                               + eval_func_param_names,
                                        **locals()))
         else:
             assert eval_prompts_only_num > 0
@@ -211,7 +212,8 @@ def run_eval(  # for local function:
                                         truncation=True,
                                         max_length=cutoff_len)
                     try:
-                        score = torch.sigmoid(smodel(**inputs.to(smodel.device)).logits[0].float()).cpu().detach().numpy()[0]
+                        score = \
+                        torch.sigmoid(smodel(**inputs.to(smodel.device)).logits[0].float()).cpu().detach().numpy()[0]
                     except torch.cuda.OutOfMemoryError as e:
                         print("GPU OOM 1: question: %s answer: %s exception: %s" % (prompt, res, str(e)),
                               flush=True)
