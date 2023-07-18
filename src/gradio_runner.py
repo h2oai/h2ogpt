@@ -865,12 +865,13 @@ def go_gradio(**kwargs):
         eventdb1b = eventdb1.then(make_interactive, inputs=add_file_outputs, outputs=add_file_outputs,
                                   show_progress='minimal')
 
+        # deal with challenge to have fileup_output itself as input
         add_file_kwargs2 = dict(fn=update_db_func,
                                 inputs=[fileup_output_text, my_db_state, chunk, chunk_size, langchain_mode],
                                 outputs=add_file_outputs + [sources_text, doc_exception_text],
                                 queue=queue,
                                 api_name='add_file_api' if allow_api and allow_upload_to_user_data else None)
-        eventdb1 = fileup_output_text.submit(**add_file_kwargs2, show_progress='full')
+        eventdb1_api = fileup_output_text.submit(**add_file_kwargs2, show_progress='full')
 
         # note for update_user_db_func output is ignored for db
 
@@ -910,7 +911,7 @@ def go_gradio(**kwargs):
         eventdb3 = eventdb3b.then(**add_text_kwargs, show_progress='full')
         eventdb3c = eventdb3.then(make_interactive, inputs=add_text_outputs, outputs=add_text_outputs,
                                   show_progress='minimal')
-        db_events = [eventdb1a, eventdb1, eventdb1b,
+        db_events = [eventdb1a, eventdb1, eventdb1b, eventdb1_api,
                      eventdb2a, eventdb2, eventdb2b, eventdb2c,
                      eventdb3a, eventdb3b, eventdb3, eventdb3c]
 
