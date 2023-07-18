@@ -1010,14 +1010,37 @@ def set_openai(inference_server):
 visible_langchain_modes_file = 'visible_langchain_modes.pkl'
 
 
-def save_collection_enum(langchain_modes, visible_langchain_modes, langchain_mode_paths, extra):
+def save_collection_names(langchain_modes, visible_langchain_modes, langchain_mode_paths, LangChainMode, db1s):
     """
     extra controls if UserData type of MyData type
     """
+
+    # use first default MyData hash as general user hash to maintain file
+    # if user moves MyData from langchain modes, db will still survive, so can still use hash
+    scratch_collection_names = list(db1s.keys())
+    user_hash = db1s.get(LangChainMode.MY_DATA.value, '')[1]
+
+    scratch_langchain_modes = [x for x in langchain_modes if x in scratch_collection_names]
+    scratch_visible_langchain_modes = [x for x in visible_langchain_modes if x in scratch_collection_names]
+    scratch_langchain_mode_paths = {k: v for k, v in langchain_mode_paths.items() if k in scratch_collection_names}
+
+    user_langchain_modes = [x for x in langchain_modes if x not in scratch_collection_names]
+    user_visible_langchain_modes = [x for x in visible_langchain_modes if x not in scratch_collection_names]
+    user_langchain_mode_paths = {k: v for k, v in langchain_mode_paths.items() if k not in scratch_collection_names}
+
+    # user
+    extra = ''
     file = "%s%s" % (visible_langchain_modes_file, extra)
     with filelock.FileLock("%s.lock" % file):
         with open(file, 'wb') as f:
-            pickle.dump((langchain_modes, visible_langchain_modes, langchain_mode_paths), f)
+            pickle.dump((user_langchain_modes, user_visible_langchain_modes, user_langchain_mode_paths), f)
+
+    # scratch
+    extra = user_hash
+    file = "%s%s" % (visible_langchain_modes_file, extra)
+    with filelock.FileLock("%s.lock" % file):
+        with open(file, 'wb') as f:
+            pickle.dump((scratch_langchain_modes, scratch_visible_langchain_modes, scratch_langchain_mode_paths), f)
 
 
 def load_collection_enum(extra):
@@ -1030,9 +1053,10 @@ def load_collection_enum(extra):
     langchain_mode_paths_from_file = {}
     if os.path.isfile(visible_langchain_modes_file):
         try:
-            with open(file, 'rb') as f:
-                langchain_modes_from_file, visible_langchain_modes_from_file, langchain_mode_paths_from_file = pickle.load(
-                    f)
+            with filelock.FileLock("%s.lock" % file):
+                with open(file, 'rb') as f:
+                    langchain_modes_from_file, visible_langchain_modes_from_file, langchain_mode_paths_from_file = pickle.load(
+                        f)
         except BaseException as e:
             print("Cannot load %s, ignoring error: %s" % (file, str(e)), flush=True)
     return langchain_modes_from_file, visible_langchain_modes_from_file, langchain_mode_paths_from_file

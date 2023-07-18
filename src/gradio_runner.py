@@ -58,7 +58,7 @@ from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt
     get_prompt
 from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping, get_short_name, makedirs, get_kwargs, remove, system_info, ping_gpu, get_url, get_local_ip, \
-    save_collection_enum
+    save_collection_names
 from gen import get_model, languages_covered, evaluate, score_qa, inputs_kwargs_list, scratch_base_dir, \
     get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list, \
     update_langchain
@@ -1099,12 +1099,11 @@ def go_gradio(**kwargs):
             .then(close_admin, inputs=admin_pass_textbox, outputs=admin_row, queue=False)
 
         def add_langchain_mode(db1s, langchain_mode1, y, selection_docs_state1):
+            for k in db1s:
+                set_userid(db1s[k])
             langchain_modes = selection_docs_state1['langchain_modes']
             langchain_mode_paths = selection_docs_state1['langchain_mode_paths']
             visible_langchain_modes = selection_docs_state1['visible_langchain_modes']
-
-            for k in db1s:
-                set_userid(db1s[k])
 
             y2 = y.strip().replace(' ', '').split(',')
             if len(y2) >= 1:
@@ -1139,24 +1138,22 @@ def go_gradio(**kwargs):
             selection_docs_state1 = update_langchain_mode_paths(db1s, selection_docs_state1)
             df_langchain_mode_paths1 = get_df_langchain_mode_paths(langchain_mode_paths)
             choices = get_langchain_choices(langchain_modes, visible_langchain_modes)
+
             from src.gpt_langchain import is_user_type_db
             user_types = [x for x in visible_langchain_modes if
                           is_user_type_db(x) and langchain_mode_paths.get(x)]
-            if langchain_mode2 in user_types:
-                save_collection_enum(langchain_modes, visible_langchain_modes, langchain_mode_paths, '')
-            else:
+            if langchain_mode2 not in user_types:
                 # needs to have key for it to make it known different from userdata case in _update_user_db()
                 db1s[langchain_mode2] = [None, None]
-                # then scratch and for this user only using their user hash
-                # use first default MyData hash as general user hash to maintain file
-                # if user moves MyData from langchain modes, db will still survive, so can still use hash
-                user_hash = db1s.get(LangChainMode.MY_DATA.value, '')[1]
-                save_collection_enum(langchain_modes, visible_langchain_modes, langchain_mode_paths,
-                                     user_hash)
+
+            save_collection_names(langchain_modes, visible_langchain_modes, langchain_mode_paths, LangChainMode, db1s)
+
             return db1s, gr.update(choices=choices,
                                    value=langchain_mode2), textbox, df_langchain_mode_paths1, selection_docs_state1
 
         def remove_langchain_mode(db1s, langchain_mode1, langchain_mode2, selection_docs_state1, dbsu=None):
+            for k in db1s:
+                set_userid(db1s[k])
             assert dbsu is not None
             langchain_modes = selection_docs_state1['langchain_modes']
             langchain_mode_paths = selection_docs_state1['langchain_mode_paths']
@@ -1191,9 +1188,9 @@ def go_gradio(**kwargs):
             # only show
             selection_docs_state1 = update_langchain_mode_paths(db1s, selection_docs_state1)
             df_langchain_mode_paths1 = get_df_langchain_mode_paths(langchain_mode_paths)
-            user_hash = db1s.get(LangChainMode.MY_DATA.value, '')[1]
-            save_collection_enum(langchain_modes, visible_langchain_modes, langchain_mode_paths,
-                                 user_hash)
+
+            save_collection_names(langchain_modes, visible_langchain_modes, langchain_mode_paths, LangChainMode, db1s)
+
             return db1s, gr.update(choices=get_langchain_choices(langchain_modes, visible_langchain_modes),
                                    value=langchain_mode2), textbox, df_langchain_mode_paths1, selection_docs_state1
 
@@ -1212,11 +1209,19 @@ def go_gradio(**kwargs):
                                           api_name='remove_langchain_mode_text' if allow_api and allow_upload_to_user_data else None)
 
         def update_langchain_gr(db1s, langchain_mode1, selection_docs_state1):
+            for k in db1s:
+                set_userid(db1s[k])
             langchain_modes = selection_docs_state1['langchain_modes']
             langchain_mode_paths = selection_docs_state1['langchain_mode_paths']
             visible_langchain_modes = selection_docs_state1['visible_langchain_modes']
             # in-place
-            update_langchain(langchain_modes, visible_langchain_modes, langchain_mode_paths)
+
+            # update user collaborative collections
+            update_langchain(langchain_modes, visible_langchain_modes, langchain_mode_paths, '')
+            # update scratch single-user collections
+            user_hash = db1s.get(LangChainMode.MY_DATA.value, '')[1]
+            update_langchain(langchain_modes, visible_langchain_modes, langchain_mode_paths, user_hash)
+
             selection_docs_state1 = update_langchain_mode_paths(db1s, selection_docs_state1)
             df_langchain_mode_paths1 = get_df_langchain_mode_paths(langchain_mode_paths)
             return gr.update(choices=get_langchain_choices(langchain_modes, visible_langchain_modes),

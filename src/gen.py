@@ -432,7 +432,7 @@ def main(
 
     # in-place, for non-scratch dbs
     if allow_upload_to_user_data:
-        update_langchain(langchain_modes, visible_langchain_modes, langchain_mode_paths)
+        update_langchain(langchain_modes, visible_langchain_modes, langchain_mode_paths, '')
 
     assert langchain_action in langchain_actions, "Invalid langchain_action %s" % langchain_action
     assert len(
@@ -2544,10 +2544,10 @@ def history_to_context(history, langchain_mode1, prompt_type1, prompt_dict1, cha
     return context1
 
 
-def update_langchain(langchain_modes, visible_langchain_modes, langchain_mode_paths):
+def update_langchain(langchain_modes, visible_langchain_modes, langchain_mode_paths, extra):
     # update from saved state on disk
     langchain_modes_from_file, visible_langchain_modes_from_file, langchain_mode_paths_from_file = \
-        load_collection_enum('')
+        load_collection_enum(extra)
 
     visible_langchain_modes_temp = visible_langchain_modes.copy() + visible_langchain_modes_from_file
     visible_langchain_modes.clear()  # don't lose original reference
