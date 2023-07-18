@@ -2602,7 +2602,9 @@ def get_lock_file(db1, langchain_mode):
 def _update_user_db(file,
                     db1s=None,
                     chunk=None, chunk_size=None,
-                    dbs=None, db_type=None, langchain_mode='UserData',
+                    dbs=None, db_type=None,
+                    langchain_mode='UserData',
+                    langchain_modes=None,  # unused but required as part of selection_docs_state1
                     langchain_mode_paths=None,
                     visible_langchain_modes=None,
                     use_openai_embedding=None,
