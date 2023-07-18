@@ -2403,7 +2403,7 @@ def score_qa(smodel, stokenizer, max_length_tokenize, question, answer, cutoff_l
                         truncation=True,
                         max_length=max_length_tokenize).to(smodel.device)
     try:
-        score = torch.sigmoid(smodel(**inputs).logits[0]).cpu().detach().numpy()[0]
+        score = torch.sigmoid(smodel(**inputs.to(smodel.device)).logits[0].float()).cpu().detach().numpy()[0]
     except torch.cuda.OutOfMemoryError as e:
         print("GPU OOM 3: question: %s answer: %s exception: %s" % (question, answer, str(e)), flush=True)
         del inputs
