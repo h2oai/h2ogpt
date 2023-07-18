@@ -90,16 +90,13 @@ User: Go to the market?
 
 Assistant:"""
 
-prompt_llama2 = """<<SYS>>
-\
+prompt_llama2 = """<s>[INST] <<SYS>>
 You are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe.  Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.
 
 If a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.
 <</SYS>>
 
-<s>[INST] Hello! [/INST] Hi! </s><s>[INST] How are you? [/INST] I'm good </s><s>[INST] Go to the market? [/INST]</s>
-"""
-
+Hello! [/INST] Hi! </s><s>[INST] How are you? [/INST] I'm good </s><s>[INST] Go to the market? [/INST]"""
 @wrap_test_forked
 @pytest.mark.parametrize("prompt_type,expected",
                          [
@@ -179,6 +176,13 @@ prompt_falcon1 = """User: Go to the market?
 
 Assistant:"""
 
+prompt_llama21 = """<s>[INST] <<SYS>>
+You are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe.  Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.
+
+If a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.
+<</SYS>>
+
+Go to the market? [/INST]"""
 
 @pytest.mark.parametrize("prompt_type,expected",
                          [
@@ -189,6 +193,7 @@ Assistant:"""
                              ('mptinstruct', prompt_mpt_instruct1),
                              ('mptchat', prompt_mpt_chat1),
                              ('falcon', prompt_falcon1),
+                             ('llama2', prompt_llama21),
                          ]
                          )
 @wrap_test_forked
