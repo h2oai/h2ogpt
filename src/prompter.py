@@ -615,14 +615,6 @@ ASSISTANT:
         chat_turn_sep = ''
         humanstr = PreInstruct
         botstr = PreResponse
-        if making_context:
-            # when making context, want it to appear as-if LLM generated, which starts with space after :
-            PreResponse = 'Assistant: '
-        else:
-            # normally LLM adds space after this, because was how trained.
-            # if add space here, non-unique tokenization will often make LLM produce wrong output
-            PreResponse = PreResponse
-        # generates_leading_space = True
     else:
         raise RuntimeError("No such prompt_type=%s" % prompt_type)
 
