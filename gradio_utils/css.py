@@ -53,4 +53,8 @@ def make_css_base() -> str:
         margin-bottom: 2.5rem;
     }
     .chatsmall chatbot {font-size: 10px !important}
+    
+    .gradio-container {
+        max-width: none !important;
+    }
     """
