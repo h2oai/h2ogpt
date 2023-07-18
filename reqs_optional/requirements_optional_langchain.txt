@@ -1,6 +1,6 @@
 # optional for chat with PDF
-langchain==0.0.202
-pypdf==3.9.1
+langchain==0.0.235
+pypdf==3.12.2
 # avoid textract, requires old six
 #textract==1.6.5
 
@@ -8,12 +8,12 @@ pypdf==3.9.1
 sentence_transformers==2.2.2
 
 # local vector db
-chromadb==0.3.25
+chromadb==0.4.0
 # server vector db
 #pymilvus==2.2.8
 
 # weak url support, if can't install opencv etc. If comment-in this one, then comment-out unstructured[local-inference]==0.6.6
-# unstructured==0.6.6
+# unstructured==0.8.1
 
 # strong support for images
 # Requires on Ubuntu: sudo apt-get install libmagic-dev poppler-utils tesseract-ocr libreoffice
@@ -39,4 +39,4 @@ tabulate==0.9.0
 pip-licenses==4.3.0
 
 # weaviate vector db
-weaviate-client==3.20.0
+weaviate-client==3.22.1
