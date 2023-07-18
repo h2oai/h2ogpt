@@ -50,7 +50,8 @@ def fix_pydantic_duplicate_validators_error():
 
 fix_pydantic_duplicate_validators_error()
 
-from enums import DocumentChoices, no_model_str, no_lora_str, no_server_str, LangChainAction, LangChainMode
+from enums import DocumentSubset, no_model_str, no_lora_str, no_server_str, LangChainAction, LangChainMode, \
+    DocumentChoice
 from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, get_dark_js, spacing_xsm, radius_xsm, \
     text_xsm
 from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt_type_to_model_lower, non_hf_types, \
@@ -245,7 +246,7 @@ def go_gradio(**kwargs):
     def allow_empty_instruction(langchain_mode1, document_subset1, langchain_action1):
         allow = False
         allow |= langchain_action1 not in LangChainAction.QUERY.value
-        allow |= document_subset1 in DocumentChoices.kSources.name
+        allow |= document_subset1 in DocumentSubset.kSources.name
         if langchain_mode1 in [LangChainMode.CHAT_LLM.value, LangChainMode.LLM.value]:
             allow = False
         return allow
@@ -279,7 +280,7 @@ def go_gradio(**kwargs):
         my_db_state = gr.State(my_db_state0)
         update_langchain_mode_paths(my_db_state.value)
         chat_state = gr.State({})
-        docs_state00 = kwargs['document_choice'] + [DocumentChoices.kSources.name]
+        docs_state00 = kwargs['document_choice'] + [DocumentChoice.ALL.value]
         docs_state0 = []
         [docs_state0.append(x) for x in docs_state00 if x not in docs_state0]
         docs_state = gr.State(docs_state0)
@@ -373,9 +374,9 @@ def go_gradio(**kwargs):
                         show_label=True,
                         visible=kwargs['langchain_mode'] != 'Disabled',
                         min_width=100)
-                    document_subset = gr.Radio([x.name for x in DocumentChoices],
+                    document_subset = gr.Radio([x.name for x in DocumentSubset],
                                                label="Subset",
-                                               value=DocumentChoices.Relevant.name,
+                                               value=DocumentSubset.Relevant.name,
                                                interactive=True,
                                                )
                     allowed_actions = [x for x in langchain_actions if x in visible_langchain_actions]
@@ -462,7 +463,7 @@ def go_gradio(**kwargs):
                 with gr.TabItem("Document Selection"):
                     document_choice = gr.Dropdown(docs_state0,
                                                   label="Select Subset of Document(s) %s" % file_types_str,
-                                                  value='All',
+                                                  value=[DocumentChoice.ALL.value],
                                                   interactive=True,
                                                   multiselect=True,
                                                   visible=kwargs['langchain_mode'] != 'Disabled',
@@ -927,7 +928,7 @@ def go_gradio(**kwargs):
 
         # if change collection source, must clear doc selections from it to avoid inconsistency
         def clear_doc_choice():
-            return gr.Dropdown.update(choices=docs_state0, value=DocumentChoices.kSources.name)
+            return gr.Dropdown.update(choices=docs_state0, value=DocumentChoice.ALL.value)
 
         langchain_mode.change(clear_doc_choice, inputs=None, outputs=document_choice, queue=False)
 

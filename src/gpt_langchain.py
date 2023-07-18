@@ -24,8 +24,8 @@ from langchain.embeddings import HuggingFaceInstructEmbeddings
 from langchain.schema import LLMResult
 from tqdm import tqdm
 
-from enums import DocumentChoices, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
-    LangChainAction, LangChainMode
+from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
+    LangChainAction, LangChainMode, DocumentChoice
 from evaluate_params import gen_hyper
 from gen import get_model, SEED
 from prompter import non_hf_types, PromptType, Prompter
@@ -383,8 +383,8 @@ class GradioInference(LLM):
                              top_k_docs=top_k_docs,
                              chunk=chunk,
                              chunk_size=chunk_size,
-                             document_subset=DocumentChoices.Relevant.name,
-                             document_choice=[],
+                             document_subset=DocumentSubset.Relevant.name,
+                             document_choice=[DocumentChoice.ALL.value],
                              )
         api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
         if not stream_output:
@@ -1905,8 +1905,8 @@ def _run_qa_db(query=None,
                langchain_mode=None,
                langchain_action=None,
                langchain_agents=None,
-               document_subset=DocumentChoices.Relevant.name,
-               document_choice=[],
+               document_subset=DocumentSubset.Relevant.name,
+               document_choice=[DocumentChoice.ALL.value],
                n_jobs=-1,
                verbose=False,
                cli=False,
@@ -2081,8 +2081,8 @@ def get_chain(query=None,
               langchain_mode=None,
               langchain_action=None,
               langchain_agents=None,
-              document_subset=DocumentChoices.Relevant.name,
-              document_choice=[],
+              document_subset=DocumentSubset.Relevant.name,
+              document_choice=[DocumentChoice.ALL.value],
               n_jobs=-1,
               # beyond run_db_query:
               llm=None,
@@ -2204,10 +2204,10 @@ def get_chain(query=None,
             filter_kwargs = {}
         else:
             assert document_choice is not None, "Document choice was None"
-            if len(document_choice) >= 1 and document_choice[0] == DocumentChoices.kSources.name:
+            if len(document_choice) >= 1 and document_choice[0] == DocumentChoice.ALL.value:
                 filter_kwargs = {}
             elif len(document_choice) >= 2:
-                if document_choice[0] == DocumentChoices.kSources.name:
+                if document_choice[0] == DocumentChoice.ALL.value:
                     # remove 'All'
                     document_choice = document_choice[1:]
                 or_filter = [{"source": {"$eq": x}} for x in document_choice]
@@ -2222,7 +2222,7 @@ def get_chain(query=None,
         if langchain_mode in [LangChainMode.LLM.value, LangChainMode.CHAT_LLM.value]:
             docs = []
             scores = []
-        elif document_subset == DocumentChoices.kSources.name or query in [None, '', '\n']:
+        elif document_subset == DocumentSubset.kSources.name or query in [None, '', '\n']:
             db_documents, db_metadatas = get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs)
             # similar to langchain's chroma's _results_to_docs_and_scores
             docs_with_score = [(Document(page_content=result[0], metadata=result[1] or {}), 0)

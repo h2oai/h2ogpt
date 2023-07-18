@@ -27,8 +27,8 @@ os.environ['BITSANDBYTES_NOWELCOME'] = '1'
 warnings.filterwarnings('ignore', category=UserWarning, message='TypedStorage is deprecated')
 
 from evaluate_params import eval_func_param_names, no_default_param_names
-from enums import DocumentChoices, LangChainMode, no_lora_str, model_token_mapping, no_model_str, source_prefix, \
-    source_postfix, LangChainAction, LangChainAgent
+from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mapping, no_model_str, source_prefix, \
+    source_postfix, LangChainAction, LangChainAgent, DocumentChoice
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, remove, \
@@ -150,8 +150,8 @@ def main(
         # visible_langchain_actions: list = langchain_actions.copy(),
         visible_langchain_actions: list = [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value],
         visible_langchain_agents: list = langchain_agents_list.copy(),
-        document_subset: str = DocumentChoices.Relevant.name,
-        document_choice: list = [],
+        document_subset: str = DocumentSubset.Relevant.name,
+        document_choice: list = [DocumentChoice.ALL.value],
         user_path: str = None,
         langchain_mode_paths: dict = {'UserData': None},
         detect_user_path_changes_every_query: bool = False,
@@ -315,7 +315,7 @@ def main(
     :param visible_langchain_actions: Which actions to allow
     :param visible_langchain_agents: Which agents to allow
     :param document_subset: Default document choice when taking subset of collection
-    :param document_choice: Chosen document(s) by internal name
+    :param document_choice: Chosen document(s) by internal name, 'All' means use all docs
     :param use_llm_if_no_docs: Whether to use LLM even if no documents, when langchain_mode=UserData or MyData or custom
     :param load_db_if_exists: Whether to load chroma db if exists or re-generate db
     :param keep_sources_in_context: Whether to keep url sources in context, not helpful usually
@@ -1764,8 +1764,8 @@ def evaluate(
                                      top_k_docs=top_k_docs,
                                      chunk=chunk,
                                      chunk_size=chunk_size,
-                                     document_subset=DocumentChoices.Relevant.name,
-                                     document_choice=[],
+                                     document_subset=DocumentSubset.Relevant.name,
+                                     document_choice=[DocumentChoice.ALL.value],
                                      )
                 api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
                 if not stream_output:
@@ -2343,7 +2343,7 @@ y = np.random.randint(0, 1, 100)
     # move to correct position
     for example in examples:
         example += [chat, '', '', LangChainMode.DISABLED.value, LangChainAction.QUERY.value, [],
-                    top_k_docs, chunk, chunk_size, DocumentChoices.Relevant.name, []
+                    top_k_docs, chunk, chunk_size, DocumentSubset.Relevant.name, []
                     ]
         # adjust examples if non-chat mode
         if not chat:

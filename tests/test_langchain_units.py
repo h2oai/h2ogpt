@@ -4,7 +4,7 @@ import tempfile
 import pytest
 
 from tests.utils import wrap_test_forked
-from src.enums import DocumentChoices, LangChainAction, LangChainMode
+from src.enums import DocumentSubset, LangChainAction, LangChainMode
 from src.gpt_langchain import get_persist_directory
 from src.utils import zip_data, download_simple, get_ngpus_vis, get_mem_gpus, have_faiss, remove, get_kwargs
 
@@ -428,7 +428,7 @@ def test_make_add_db(repeat, db_type):
                     assert 'test2' in str(source_files_added)
                     assert langchain_mode == z2
                     assert z1 is None
-                    docs_state0 = [x.name for x in list(DocumentChoices)]
+                    docs_state0 = [x.name for x in list(DocumentSubset)]
                     get_sources(db1, langchain_mode, dbs={langchain_mode: db}, docs_state0=docs_state0)
                     get_sources(db1, 'MyData', dbs={}, docs_state0=docs_state0)
                     kwargs2 = dict(first_para=False,

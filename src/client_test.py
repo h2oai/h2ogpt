@@ -48,7 +48,7 @@ import markdown  # pip install markdown
 import pytest
 from bs4 import BeautifulSoup  # pip install beautifulsoup4
 
-from enums import DocumentChoices, LangChainAction
+from enums import DocumentSubset, LangChainAction
 
 debug = False
 
@@ -100,7 +100,7 @@ def get_args(prompt, prompt_type, chat=False, stream_output=False,
                          top_k_docs=top_k_docs,
                          chunk=True,
                          chunk_size=512,
-                         document_subset=DocumentChoices.Relevant.name,
+                         document_subset=DocumentSubset.Relevant.name,
                          document_choice=[],
                          )
     from evaluate_params import eval_func_param_names
@@ -207,7 +207,7 @@ def run_client_nochat_api_lean_morestuff(prompt, prompt_type='human_bot', max_ne
         langchain_action=LangChainAction.QUERY.value,
         langchain_agents=[],
         top_k_docs=4,
-        document_subset=DocumentChoices.Relevant.name,
+        document_subset=DocumentSubset.Relevant.name,
         document_choice=[],
     )
 

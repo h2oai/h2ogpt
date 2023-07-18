@@ -34,16 +34,20 @@ class PromptType(Enum):
     guanaco = 28
 
 
-class DocumentChoices(Enum):
+class DocumentSubset(Enum):
     Relevant = 0
     rSources = 1
     kSources = 2
 
 
 non_query_commands = [
-    DocumentChoices.rSources.name,
-    DocumentChoices.kSources.name
+    DocumentSubset.rSources.name,
+    DocumentSubset.kSources.name
 ]
+
+
+class DocumentChoice(Enum):
+    ALL = 'All'
 
 
 class LangChainMode(Enum):
