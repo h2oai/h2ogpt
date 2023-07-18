@@ -46,6 +46,8 @@ For the above, ignore the CLI output saying `0.0.0.0`, and instead point browser
 
 #### GPU (MPS Mac M1)
 
+**Note:** Few fixes required for MPS support are not available in `torch 2.0`, make sure to install `torch 2.1` from nightly as shown below. 
+
 1. Create conda environment with Python 3.10 and Rust.
    ```bash
    conda create -n h2ogpt python=3.10 rust
