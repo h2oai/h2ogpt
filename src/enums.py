@@ -32,6 +32,7 @@ class PromptType(Enum):
     mptchat = 26
     falcon = 27
     guanaco = 28
+    llama2 = 29
 
 
 class DocumentChoices(Enum):
