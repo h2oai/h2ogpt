@@ -7,7 +7,7 @@ import pytest
 
 from tests.utils import wrap_test_forked, make_user_path_test, get_llama
 from src.client_test import get_client, get_args, run_client_gen
-from src.enums import LangChainAction
+from src.enums import LangChainAction, LangChainMode
 from src.utils import get_githash, remove, remove_collection_enum, download_simple
 
 
@@ -729,6 +729,39 @@ def test_client_chat_stream_langchain_steps3():
     assert res[0] is None
     assert res[1] == langchain_mode
     assert 'file/user_paste/' in res[2]
+    assert res[3] == ''
+
+    langchain_mode = LangChainMode.MY_DATA.value
+    url = 'https://www.africau.edu/images/default/sample.pdf'
+    test_file1 = os.path.join('/tmp/', 'sample1.pdf')
+    download_simple(url, dest=test_file1)
+    res = client.predict(test_file1, True, 512, langchain_mode, api_name='/add_file_api')
+    assert res[0] is None
+    assert res[1] == langchain_mode
+    # will just use source location, e.g. for UI will be /tmp/gradio
+    assert 'file//tmp/sample1.pdf' in res[2]
+    assert res[3] == ''
+
+    # control langchain_mode
+    user_path2 = ''
+    langchain_mode2 = 'MyData2'
+    new_langchain_mode_text = '%s, %s' % (langchain_mode2, user_path2)
+    res = client.predict(langchain_mode, new_langchain_mode_text, api_name='/new_langchain_mode_text')
+    assert res[0]['value'] == langchain_mode2
+    assert langchain_mode2 in res[0]['choices']
+    assert res[1] == ''
+    assert res[2]['headers'] == ['Collection', 'Path']
+    assert res[2]['data'] == [['UserData', user_path], ['MyData', None], ['UserData2', 'user_path2'],
+                              [langchain_mode2, None]]
+
+    url = 'https://unec.edu.az/application/uploads/2014/12/pdf-sample.pdf'
+    test_file1 = os.path.join('/tmp/', 'pdf-sample.pdf')
+    download_simple(url, dest=test_file1)
+    res = client.predict(test_file1, True, 512, langchain_mode2, api_name='/add_file_api')
+    assert res[0] is None
+    assert res[1] == langchain_mode2
+    assert 'file//tmp/pdf-sample.pdf' in res[2]
+    assert 'sample1.pdf' not in res[2]  # ensure no leakage
     assert res[3] == ''
 
     # FIXME: Add load_model, unload_model, etc.
