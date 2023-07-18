@@ -491,7 +491,7 @@ def go_gradio(**kwargs):
                             pass
                     with gr.Row():
                         with gr.Column(scale=1):
-                            add_placeholder = "e.g. UserData2, user_path2 ('' for scratch)" \
+                            add_placeholder = "e.g. UserData2, user_path2 (optional)" \
                                 if not is_public else "e.g. MyData2"
                             remove_placeholder = "e.g. UserData2" if not is_public else "e.g. MyData2"
                             new_langchain_mode_text = gr.Textbox(value="", visible=allow_upload_to_user_data or
