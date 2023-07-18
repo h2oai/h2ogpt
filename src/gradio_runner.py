@@ -1251,11 +1251,11 @@ def go_gradio(**kwargs):
         def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, **kwargs1):
             args_list = list(args1)
             if str_api:
-                user_kwargs = args_list[2]
+                user_kwargs = args_list[len(input_args_list)]
                 assert isinstance(user_kwargs, str)
                 user_kwargs = ast.literal_eval(user_kwargs)
             else:
-                user_kwargs = {k: v for k, v in zip(eval_func_param_names, args_list[2:])}
+                user_kwargs = {k: v for k, v in zip(eval_func_param_names, args_list[len(input_args_list):])}
             # only used for submit_nochat_api
             user_kwargs['chat'] = False
             if 'stream_output' not in user_kwargs:
