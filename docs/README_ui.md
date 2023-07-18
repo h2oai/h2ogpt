@@ -56,8 +56,8 @@ Choose a collection, and uploaded docs go there.  Or choose a collection to quer
 
 ### Document Subset:
 * Relevant: Choose to include all docs in chosen collection when chatting
-* Sources: Ignore the LLM, just return sources the vector database similarity search
-* All: Ignore LLM and similarity search, just show top_k_docs sources from selected (or all) documents
+* rSources: Ignore the LLM, just return sources the vector database similarity search (i.e. relevant Sources)
+* kSources: Ignore LLM and similarity search, just show top_k_docs sources from selected (or all) documents (i.e. top_k_docs Sources)
 
 The most normal task is keep it on `Relevant` and just make a query, which will query all documents in the chosen collection.
 

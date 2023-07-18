@@ -242,6 +242,14 @@ def go_gradio(**kwargs):
         # else gets input_list at time of submit that is old, and shows up as truncated in chatbot
         return x
 
+    def allow_empty_instruction(langchain_mode1, document_subset1, langchain_action1):
+        allow = False
+        allow |= langchain_action1 not in LangChainAction.QUERY.value
+        allow |= document_subset1 in DocumentChoices.kSources.name
+        if langchain_mode1 in [LangChainMode.CHAT_LLM.value, LangChainMode.LLM.value]:
+            allow = False
+        return allow
+
     with demo:
         # avoid actual model/tokenizer here or anything that would be bad to deepcopy
         # https://github.com/gradio-app/gradio/issues/3558
@@ -271,7 +279,7 @@ def go_gradio(**kwargs):
         my_db_state = gr.State(my_db_state0)
         update_langchain_mode_paths(my_db_state.value)
         chat_state = gr.State({})
-        docs_state00 = kwargs['document_choice'] + [DocumentChoices.All.name]
+        docs_state00 = kwargs['document_choice'] + [DocumentChoices.kSources.name]
         docs_state0 = []
         [docs_state0.append(x) for x in docs_state00 if x not in docs_state0]
         docs_state = gr.State(docs_state0)
@@ -919,7 +927,7 @@ def go_gradio(**kwargs):
 
         # if change collection source, must clear doc selections from it to avoid inconsistency
         def clear_doc_choice():
-            return gr.Dropdown.update(choices=docs_state0, value=DocumentChoices.All.name)
+            return gr.Dropdown.update(choices=docs_state0, value=DocumentChoices.kSources.name)
 
         langchain_mode.change(clear_doc_choice, inputs=None, outputs=document_choice, queue=False)
 
@@ -1402,10 +1410,7 @@ def go_gradio(**kwargs):
                     history[-1][1] = None
                 return history
             if user_message1 in ['', None, '\n']:
-                if langchain_action1 in LangChainAction.QUERY.value and \
-                        DocumentChoices.All.name != document_subset1 \
-                        or \
-                        langchain_mode1 in [LangChainMode.CHAT_LLM.value, LangChainMode.LLM.value]:
+                if not allow_empty_instruction(langchain_mode1, document_subset1, langchain_action1):
                     # reject non-retry submit/enter
                     return history
             user_message1 = fix_text_for_gradio(user_message1)
@@ -1479,10 +1484,7 @@ def go_gradio(**kwargs):
                 instruction1 = history[-1][0]
                 history[-1][1] = None
             elif not instruction1:
-                if langchain_action1 in LangChainAction.QUERY.value and \
-                        DocumentChoices.All.name != document_choice1 \
-                        or \
-                        langchain_mode1 in [LangChainMode.CHAT_LLM.value, LangChainMode.LLM.value]:
+                if not allow_empty_instruction(langchain_mode1, document_subset1, langchain_action1):
                     # if not retrying, then reject empty query
                     return history, None, None, None
             elif len(history) > 0 and history[-1][1] not in [None, '']:

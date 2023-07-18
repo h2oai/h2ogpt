@@ -36,13 +36,13 @@ class PromptType(Enum):
 
 class DocumentChoices(Enum):
     Relevant = 0
-    Sources = 1
-    All = 2
+    rSources = 1
+    kSources = 2
 
 
 non_query_commands = [
-    DocumentChoices.Sources.name,
-    DocumentChoices.All.name
+    DocumentChoices.rSources.name,
+    DocumentChoices.kSources.name
 ]
 
 

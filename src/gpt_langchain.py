@@ -2204,10 +2204,10 @@ def get_chain(query=None,
             filter_kwargs = {}
         else:
             assert document_choice is not None, "Document choice was None"
-            if len(document_choice) >= 1 and document_choice[0] == DocumentChoices.All.name:
+            if len(document_choice) >= 1 and document_choice[0] == DocumentChoices.kSources.name:
                 filter_kwargs = {}
             elif len(document_choice) >= 2:
-                if document_choice[0] == DocumentChoices.All.name:
+                if document_choice[0] == DocumentChoices.kSources.name:
                     # remove 'All'
                     document_choice = document_choice[1:]
                 or_filter = [{"source": {"$eq": x}} for x in document_choice]
@@ -2222,7 +2222,7 @@ def get_chain(query=None,
         if langchain_mode in [LangChainMode.LLM.value, LangChainMode.CHAT_LLM.value]:
             docs = []
             scores = []
-        elif document_subset == DocumentChoices.All.name or query in [None, '', '\n']:
+        elif document_subset == DocumentChoices.kSources.name or query in [None, '', '\n']:
             db_documents, db_metadatas = get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs)
             # similar to langchain's chroma's _results_to_docs_and_scores
             docs_with_score = [(Document(page_content=result[0], metadata=result[1] or {}), 0)
