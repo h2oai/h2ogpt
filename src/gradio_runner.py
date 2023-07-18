@@ -120,6 +120,10 @@ def go_gradio(**kwargs):
     score_model_state0 = kwargs['score_model_state0']
     my_db_state0 = kwargs['my_db_state0']
     selection_docs_state0 = kwargs['selection_docs_state0']
+    # for evaluate defaults
+    langchain_modes0 = kwargs['langchain_modes']
+    visible_langchain_modes0 = kwargs['visible_langchain_modes']
+    langchain_mode_paths0 = kwargs['langchain_mode_paths']
 
     # easy update of kwargs needed for evaluate() etc.
     queue = True
