@@ -17,9 +17,9 @@ numpy==1.24.3
 pandas==2.0.2
 matplotlib==3.7.1
 loralib==0.1.1
-bitsandbytes==0.40.0
-accelerate==0.21.0
-https://h2o-release.s3.amazonaws.com/h2ogpt/peft-0.4.0.dev0-py3-none-any.whl
+bitsandbytes==0.39.0
+accelerate==0.20.3
+peft==0.4.0
 transformers==4.30.2
 tokenizers==0.13.3
 APScheduler==3.10.1
