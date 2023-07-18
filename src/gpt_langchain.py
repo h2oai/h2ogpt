@@ -1972,6 +1972,9 @@ def _run_qa_db(query=None,
     docs, chain, scores, use_context, have_any_docs = get_chain(**sim_kwargs)
     if document_subset in non_query_commands:
         formatted_doc_chunks = '\n\n'.join([get_url(x) + '\n\n' + x.page_content for x in docs])
+        if not formatted_doc_chunks and not use_llm_if_no_docs:
+            yield "No sources", ''
+            return
         yield formatted_doc_chunks, ''
         return
     if not use_llm_if_no_docs:
