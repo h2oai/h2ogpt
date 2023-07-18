@@ -4,7 +4,7 @@ import tempfile
 import pytest
 
 from tests.utils import wrap_test_forked
-from src.enums import DocumentChoices, LangChainAction
+from src.enums import DocumentChoices, LangChainAction, LangChainMode
 from src.gpt_langchain import get_persist_directory
 from src.utils import zip_data, download_simple, get_ngpus_vis, get_mem_gpus, have_faiss, remove, get_kwargs
 
@@ -381,7 +381,7 @@ def test_make_add_db(repeat, db_type):
                                                            add_if_exists=False,
                                                            collection_name='MyData',
                                                            fail_any_exception=True, db_type=db_type)
-                    db1 = [dbmy, 'foouuid']
+                    db1 = {LangChainMode.MY_DATA.value: [dbmy, 'foouuid']}
                     assert dbmy is not None
                     docs1 = dbmy.similarity_search("World")
                     assert len(docs1) == 1

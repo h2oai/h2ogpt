@@ -254,11 +254,21 @@ def go_gradio(**kwargs):
                  prompt_dict=kwargs['prompt_dict'],
                  )
         )
+
+        def update_langchain_mode_paths(db1s):
+            if allow_upload_to_my_data:
+                kwargs['langchain_mode_paths'].update({k: None for k in db1s})
+            dup = kwargs['langchain_mode_paths'].copy()
+            for k, v in dup.items():
+                if k not in visible_langchain_modes:
+                    kwargs['langchain_mode_paths'].pop(k)
+
         model_state2 = gr.State(kwargs['model_state_none'].copy())
         model_options_state = gr.State([model_options])
         lora_options_state = gr.State([lora_options])
         server_options_state = gr.State([server_options])
-        my_db_state = gr.State([None, None])
+        my_db_state = gr.State({LangChainMode.MY_DATA.value: [None, None]})
+        update_langchain_mode_paths(my_db_state.value)
         chat_state = gr.State({})
         docs_state00 = kwargs['document_choice'] + [DocumentChoices.All.name]
         docs_state0 = []
@@ -304,8 +314,11 @@ def go_gradio(**kwargs):
             return choices
 
         def get_df_langchain_mode_paths():
-            df = pd.DataFrame.from_dict(kwargs['langchain_mode_paths'].items(), orient='columns')
-            df.columns = ['Collection', 'Path']
+            if kwargs['langchain_mode_paths']:
+                df = pd.DataFrame.from_dict(kwargs['langchain_mode_paths'].items(), orient='columns')
+                df.columns = ['Collection', 'Path']
+            else:
+                df = pd.DataFrame(None)
             return df
 
         normal_block = gr.Row(visible=not base_wanted, equal_height=False)
@@ -461,7 +474,7 @@ def go_gradio(**kwargs):
                         with gr.Column(scale=1):
                             new_langchain_mode_text = gr.Textbox(value="", visible=allow_upload_to_user_data,
                                                                  label='Add LangChain Mode',
-                                                                 placeholder="e.g. UserData2, user_path2",
+                                                                 placeholder="e.g. UserData2, user_path2 ('' for scratch)",
                                                                  interactive=True)
                             remove_langchain_mode_text = gr.Textbox(value="", visible=allow_upload_to_user_data,
                                                                     label='Remove LangChain Mode',
@@ -1037,7 +1050,7 @@ def go_gradio(**kwargs):
 
         refresh_sources1 = functools.partial(update_and_get_source_files_given_langchain_mode,
                                              **get_kwargs(update_and_get_source_files_given_langchain_mode,
-                                                          exclude_names=['db1', 'langchain_mode', 'chunk',
+                                                          exclude_names=['db1s', 'langchain_mode', 'chunk',
                                                                          'chunk_size'],
                                                           **all_kwargs))
         eventdb9 = refresh_sources_btn.click(fn=refresh_sources1,
@@ -1054,34 +1067,55 @@ def go_gradio(**kwargs):
         admin_pass_textbox.submit(check_admin_pass, inputs=admin_pass_textbox, outputs=system_row, queue=False) \
             .then(close_admin, inputs=admin_pass_textbox, outputs=admin_row, queue=False)
 
-        def add_langchain_mode(y0, y):
+        def add_langchain_mode(db1s, langchain_mode1, y):
+            for k in db1s:
+                set_userid(db1s[k])
+
             y2 = y.strip().replace(' ', '').split(',')
             if len(y2) == 2:
-                x = y2[0]
-                if len(x) >= 3 and x.isalnum():
+                langchain_mode2 = y2[0]
+                if len(langchain_mode2) >= 3 and langchain_mode2.isalnum():
                     # real restriction is:
                     # ValueError: Expected collection name that (1) contains 3-63 characters, (2) starts and ends with an alphanumeric character, (3) otherwise contains only alphanumeric characters, underscores or hyphens (-), (4) contains no two consecutive periods (..) and (5) is not a valid IPv4 address, got me
                     # but just make simpler
                     user_path = y2[1]
-                    kwargs['langchain_mode_paths'].update({x: user_path})
-                    if x not in visible_langchain_modes:
-                        visible_langchain_modes.append(x)
-                    if x not in langchain_modes:
-                        langchain_modes.append(x)
+                    if user_path in ['', "''"]:
+                        # for scratch spaces
+                        user_path = None
+                    kwargs['langchain_mode_paths'].update({langchain_mode2: user_path})
+                    if langchain_mode2 not in visible_langchain_modes:
+                        visible_langchain_modes.append(langchain_mode2)
+                    if langchain_mode2 not in langchain_modes:
+                        langchain_modes.append(langchain_mode2)
                     textbox = ''
-                    makedirs(user_path, exist_ok=True)
+                    if user_path:
+                        makedirs(user_path, exist_ok=True)
                 else:
-                    x = y0
+                    langchain_mode2 = langchain_mode1
                     textbox = "Invalid, collection must be >=3 characters and alphanumeric"
             else:
-                x = y0
+                langchain_mode2 = langchain_mode1
                 textbox = "Invalid, must be like UserData2, user_path2"
+            update_langchain_mode_paths(db1s)
             df_langchain_mode_paths1 = get_df_langchain_mode_paths()
             choices = get_langchain_choices()
-            save_collection_enum(langchain_modes, visible_langchain_modes, kwargs['langchain_mode_paths'])
-            return gr.update(choices=choices, value=x), textbox, df_langchain_mode_paths1
+            from src.gpt_langchain import is_user_type_db
+            user_types = [x for x in visible_langchain_modes if
+                          is_user_type_db(x) and kwargs['langchain_mode_paths'].get(x)]
+            if langchain_mode2 in user_types:
+                save_collection_enum(langchain_modes, visible_langchain_modes, kwargs['langchain_mode_paths'], '')
+            else:
+                # needs to have key for it to make it known different from userdata case in _update_user_db()
+                db1s[langchain_mode2] = [None, None]
+                # then scratch and for this user only using their user hash
+                # use first default MyData hash as general user hash to maintain file
+                # if user moves MyData from langchain modes, db will still survive, so can still use hash
+                user_hash = db1s.get(LangChainMode.MY_DATA.value, '')[1]
+                save_collection_enum(langchain_modes, visible_langchain_modes, kwargs['langchain_mode_paths'],
+                                     user_hash)
+            return db1s, gr.update(choices=choices, value=langchain_mode2), textbox, df_langchain_mode_paths1
 
-        def remove_langchain_mode(x):
+        def remove_langchain_mode(db1s, x):
             # change global variables
             if x in visible_langchain_modes:
                 visible_langchain_modes.remove(x)
@@ -1092,25 +1126,36 @@ def go_gradio(**kwargs):
                 langchain_modes.remove(x)
             if x in kwargs['langchain_mode_paths']:
                 kwargs['langchain_mode_paths'].pop(x)
+            if x in db1s:
+                # remove db entirely, so not in list, else need to manage visible list in update_langchain_mode_paths()
+                # FIXME: Remove location?
+                if x != LangChainMode.MY_DATA.value:
+                    # don't remove last MyData, used as user hash
+                    db1s.pop(x)
+            # only show
+            update_langchain_mode_paths(db1s)
             df_langchain_mode_paths1 = get_df_langchain_mode_paths()
-            return gr.update(choices=get_langchain_choices(), value=x), textbox, df_langchain_mode_paths1
+            return db1s, gr.update(choices=get_langchain_choices(), value=x), textbox, df_langchain_mode_paths1
 
-        new_langchain_mode_text.submit(fn=add_langchain_mode, inputs=[langchain_mode, new_langchain_mode_text],
-                                       outputs=[langchain_mode, new_langchain_mode_text,
+        new_langchain_mode_text.submit(fn=add_langchain_mode,
+                                       inputs=[my_db_state, langchain_mode, new_langchain_mode_text],
+                                       outputs=[my_db_state, langchain_mode, new_langchain_mode_text,
                                                 langchain_mode_path_text],
                                        api_name='new_langchain_mode_text' if allow_api and allow_upload_to_user_data else None)
-        remove_langchain_mode_text.submit(fn=remove_langchain_mode, inputs=remove_langchain_mode_text,
-                                          outputs=[langchain_mode, remove_langchain_mode_text,
+        remove_langchain_mode_text.submit(fn=remove_langchain_mode, inputs=[my_db_state, remove_langchain_mode_text],
+                                          outputs=[my_db_state, langchain_mode, remove_langchain_mode_text,
                                                    langchain_mode_path_text],
                                           api_name='remove_langchain_mode_text' if allow_api and allow_upload_to_user_data else None)
 
-        def update_langchain_gr(langchain_mode1):
+        def update_langchain_gr(db1s, langchain_mode1):
             # in-place
             update_langchain(langchain_modes, visible_langchain_modes, kwargs['langchain_mode_paths'])
+            update_langchain_mode_paths(db1s)
             df_langchain_mode_paths1 = get_df_langchain_mode_paths()
             return gr.update(choices=get_langchain_choices(), value=langchain_mode1), df_langchain_mode_paths1
 
-        load_langchain.click(fn=update_langchain_gr, inputs=langchain_mode,
+        load_langchain.click(fn=update_langchain_gr,
+                             inputs=[my_db_state, langchain_mode],
                              outputs=[langchain_mode, langchain_mode_path_text],
                              api_name='load_langchain' if allow_api and allow_upload_to_user_data else None)
 
@@ -1506,24 +1551,26 @@ def go_gradio(**kwargs):
                 clear_torch_cache()
             return
 
-        def clear_embeddings(langchain_mode1, my_db):
+        def clear_embeddings(langchain_mode1, db1s):
             # clear any use of embedding that sits on GPU, else keeps accumulating GPU usage even if clear torch cache
             if db_type == 'chroma' and langchain_mode1 not in ['ChatLLM', 'LLM', 'Disabled', None, '']:
                 from gpt_langchain import clear_embedding
                 db = dbs.get('langchain_mode1')
                 if db is not None and not isinstance(db, str):
                     clear_embedding(db)
-                if langchain_mode1 == LangChainMode.MY_DATA.value and my_db is not None:
-                    clear_embedding(my_db[0])
+                if db1s is not None and langchain_mode1 in db1s:
+                    db1 = db1s[langchain_mode1]
+                    if len(db1) == 2:
+                        clear_embedding(db1[0])
 
         def bot(*args, retry=False):
-            history, fun1, langchain_mode1, my_db_state1 = prep_bot(*args, retry=retry)
+            history, fun1, langchain_mode1, db1 = prep_bot(*args, retry=retry)
             try:
                 for res in get_response(fun1, history):
                     yield res
             finally:
                 clear_torch_cache()
-                clear_embeddings(langchain_mode1, my_db_state1)
+                clear_embeddings(langchain_mode1, db1)
 
         def all_bot(*args, retry=False, model_states1=None):
             args_list = list(args).copy()
@@ -1533,7 +1580,7 @@ def go_gradio(**kwargs):
             stream_output1 = args_list[eval_func_param_names.index('stream_output')]
             max_time1 = args_list[eval_func_param_names.index('max_time')]
             langchain_mode1 = args_list[eval_func_param_names.index('langchain_mode')]
-            my_db_state1 = None  # will be filled below by some bot
+            db1s = None
             try:
                 gen_list = []
                 for chatboti, (chatbot1, model_state1) in enumerate(zip(chatbots, model_states1)):
@@ -1548,8 +1595,8 @@ def go_gradio(**kwargs):
                     # so consistent with prep_bot()
                     # with model_state1 at -3, my_db_state1 at -2, and history(chatbot) at -1
                     # langchain_mode1 and my_db_state1 should be same for every bot
-                    history, fun1, langchain_mode1, my_db_state1 = prep_bot(*tuple(args_list1), retry=retry,
-                                                                            which_model=chatboti)
+                    history, fun1, langchain_mode1, db1s = prep_bot(*tuple(args_list1), retry=retry,
+                                                                    which_model=chatboti)
                     gen1 = get_response(fun1, history)
                     if stream_output1:
                         gen1 = TimeoutIterator(gen1, timeout=0.01, sentinel=None, raise_on_exception=False)
@@ -1595,7 +1642,7 @@ def go_gradio(**kwargs):
                         print("Generate exceptions: %s" % exceptions, flush=True)
             finally:
                 clear_torch_cache()
-                clear_embeddings(langchain_mode1, my_db_state1)
+                clear_embeddings(langchain_mode1, db1s)
 
         # NORMAL MODEL
         user_args = dict(fn=functools.partial(user, sanitize_user_prompt=kwargs['sanitize_user_prompt']),
@@ -2401,8 +2448,9 @@ def get_inputs_list(inputs_dict, model_lower, model_id=1):
     return inputs_list, inputs_dict_out
 
 
-def get_sources(db1, langchain_mode, dbs=None, docs_state0=None):
-    set_userid(db1)
+def get_sources(db1s, langchain_mode, dbs=None, docs_state0=None):
+    for k in db1s:
+        set_userid(db1s[k])
 
     if langchain_mode in ['ChatLLM', 'LLM']:
         source_files_added = "NA"
@@ -2411,7 +2459,8 @@ def get_sources(db1, langchain_mode, dbs=None, docs_state0=None):
         source_files_added = "Not showing wiki_full, takes about 20 seconds and makes 4MB file." \
                              "  Ask jon.mckinney@h2o.ai for file if required."
         source_list = []
-    elif langchain_mode == 'MyData' and len(db1) > 0 and db1[0] is not None:
+    elif langchain_mode in db1s and len(db1s[langchain_mode]) == 2 and db1s[langchain_mode][0] is not None:
+        db1 = db1s[langchain_mode]
         from gpt_langchain import get_metadatas
         metadatas = get_metadatas(db1[0])
         source_list = sorted(set([x['source'] for x in metadatas]))
@@ -2442,14 +2491,12 @@ def set_userid(db1):
         db1[1] = str(uuid.uuid4())
 
 
-def update_user_db(file, db1, chunk, chunk_size, langchain_mode, dbs=None, **kwargs):
-    set_userid(db1)
-
+def update_user_db(file, db1s, chunk, chunk_size, langchain_mode, dbs=None, **kwargs):
     if file is None:
         raise RuntimeError("Don't use change, use input")
 
     try:
-        return _update_user_db(file, db1=db1, chunk=chunk, chunk_size=chunk_size,
+        return _update_user_db(file, db1s=db1s, chunk=chunk, chunk_size=chunk_size,
                                langchain_mode=langchain_mode, dbs=dbs,
                                **kwargs)
     except BaseException as e:
@@ -2485,10 +2532,11 @@ def get_lock_file(db1, langchain_mode):
 
 
 def _update_user_db(file,
-                    db1=None,
+                    db1s=None,
                     chunk=None, chunk_size=None,
                     dbs=None, db_type=None, langchain_mode='UserData',
                     langchain_mode_paths=None,
+                    visible_langchain_modes=None,
                     use_openai_embedding=None,
                     hf_embedding_model=None,
                     caption_loader=None,
@@ -2498,7 +2546,7 @@ def _update_user_db(file,
                     verbose=None,
                     is_url=None, is_txt=None,
                     n_jobs=-1):
-    assert db1 is not None
+    assert db1s is not None
     assert chunk is not None
     assert chunk_size is not None
     assert use_openai_embedding is not None
@@ -2509,7 +2557,9 @@ def _update_user_db(file,
     assert enable_ocr is not None
     assert verbose is not None
 
-    set_userid(db1)
+    for k in db1s:
+        set_userid(db1s[k])
+    db1 = get_db1(db1s, langchain_mode)
 
     if dbs is None:
         dbs = {}
@@ -2531,15 +2581,15 @@ def _update_user_db(file,
     if langchain_mode in [LangChainMode.CHAT_LLM.value, LangChainMode.CHAT_LLM.value]:
         # then switch to MyData, so langchain_mode also becomes way to select where upload goes
         # but default to mydata if nothing chosen, since safest
-        langchain_mode = LangChainMode.MY_DATA.value
+        if LangChainMode.MY_DATA.value in visible_langchain_modes:
+            langchain_mode = LangChainMode.MY_DATA.value
 
     if langchain_mode_paths is None:
         langchain_mode_paths = {}
     user_path = langchain_mode_paths.get(langchain_mode)
-    dict_LangChainMode = {i.name: i.value for i in LangChainMode}
     # UserData or custom, which has to be from user's disk
-    if (langchain_mode == 'UserData' or langchain_mode not in list(dict_LangChainMode.values())) and \
-            user_path is not None:
+    from src.gpt_langchain import is_user_type_db
+    if is_user_type_db(langchain_mode) and user_path is not None:
         # move temp files from gradio upload to stable location
         for fili, fil in enumerate(file):
             if isinstance(fil, str) and os.path.isfile(fil):  # not url, text
@@ -2570,9 +2620,9 @@ def _update_user_db(file,
     exceptions_strs = [x.metadata['exception'] for x in exceptions]
     sources = [x for x in sources if 'exception' not in x.metadata]
 
-    lock_file = get_lock_file(db1, langchain_mode)
+    lock_file = get_lock_file(db1s[LangChainMode.MY_DATA.value], langchain_mode)  # user-level lock, not db-level lock
     with filelock.FileLock(lock_file):
-        if langchain_mode == 'MyData':
+        if langchain_mode in db1s:
             if db1[0] is not None:
                 # then add
                 db, num_new_sources, new_sources_metadata = add_to_db(db1[0], sources, db_type=db_type,
@@ -2582,7 +2632,7 @@ def _update_user_db(file,
                 # in testing expect:
                 # assert len(db1) == 2 and db1[1] is None, "Bad MyData db: %s" % db1
                 # for production hit, when user gets clicky:
-                assert len(db1) == 2, "Bad MyData db: %s" % db1
+                assert len(db1) == 2, "Bad %s db: %s" % (langchain_mode, db1)
                 # then create
                 # if added has to original state and didn't change, then would be shared db for all users
                 persist_directory = os.path.join(scratch_base_dir, 'db_dir_%s_%s' % (langchain_mode, db1[1]))
@@ -2618,14 +2668,15 @@ def _update_user_db(file,
             return None, langchain_mode, source_files_added, '\n'.join(exceptions_strs)
 
 
-def get_db(db1, langchain_mode, dbs=None):
-    lock_file = get_lock_file(db1, langchain_mode)
+def get_db(db1s, langchain_mode, dbs=None):
+    db1 = get_db1(db1s, langchain_mode)
+    lock_file = get_lock_file(db1s[LangChainMode.MY_DATA.value], langchain_mode)
 
     with filelock.FileLock(lock_file):
         if langchain_mode in ['wiki_full']:
             # NOTE: avoid showing full wiki.  Takes about 30 seconds over about 90k entries, but not useful for now
             db = None
-        elif langchain_mode == 'MyData' and len(db1) > 0 and db1[0] is not None:
+        elif langchain_mode in db1s and len(db1) == 2 and db1[0] is not None:
             db = db1[0]
         elif dbs is not None and langchain_mode in dbs and dbs[langchain_mode] is not None:
             db = dbs[langchain_mode]
@@ -2634,8 +2685,8 @@ def get_db(db1, langchain_mode, dbs=None):
     return db
 
 
-def get_source_files_given_langchain_mode(db1, langchain_mode='UserData', dbs=None):
-    db = get_db(db1, langchain_mode, dbs=dbs)
+def get_source_files_given_langchain_mode(db1s, langchain_mode='UserData', dbs=None):
+    db = get_db(db1s, langchain_mode, dbs=dbs)
     if langchain_mode in ['ChatLLM', 'LLM'] or db is None:
         return "Sources: N/A"
     return get_source_files(db=db, exceptions=None)
@@ -2734,17 +2785,19 @@ def get_source_files(db=None, exceptions=None, metadatas=None):
     return source_files_added
 
 
-def update_and_get_source_files_given_langchain_mode(db1, langchain_mode, chunk, chunk_size,
+def update_and_get_source_files_given_langchain_mode(db1s, langchain_mode, chunk, chunk_size,
                                                      dbs=None, first_para=None,
                                                      text_limit=None,
                                                      langchain_mode_paths=None, db_type=None, load_db_if_exists=None,
                                                      n_jobs=None, verbose=None):
+    has_path = {k: v for k, v in langchain_mode_paths.items() if v}
     if langchain_mode in [LangChainMode.LLM.value, LangChainMode.CHAT_LLM.value, LangChainMode.MY_DATA.value]:
         # then assume user really meant UserData, to avoid extra clicks in UI,
         # since others can't be on disk, except custom user modes, which they should then select to query it
-        langchain_mode = LangChainMode.USER_DATA.value
+        if LangChainMode.USER_DATA.value in has_path:
+            langchain_mode = LangChainMode.USER_DATA.value
 
-    db = get_db(db1, langchain_mode, dbs=dbs)
+    db = get_db(db1s, langchain_mode, dbs=dbs)
 
     from gpt_langchain import make_db
     db, num_new_sources, new_sources_metadata = make_db(use_openai_embedding=False,
@@ -2761,10 +2814,19 @@ def update_and_get_source_files_given_langchain_mode(db1, langchain_mode, chunk,
                                                         verbose=verbose)
     # during refreshing, might have "created" new db since not in dbs[] yet, so insert back just in case
     # so even if persisted, not kept up-to-date with dbs memory
-    if langchain_mode == LangChainMode.MY_DATA.value:
-        db1[0] = db
+    if langchain_mode in db1s:
+        db1s[langchain_mode][0] = db
     else:
         dbs[langchain_mode] = db
 
     # return only new sources with text saying such
     return get_source_files(db=None, exceptions=None, metadatas=new_sources_metadata)
+
+
+def get_db1(db1s, langchain_mode1):
+    if langchain_mode1 in db1s:
+        db1 = db1s[langchain_mode1]
+    else:
+        # indicates to code that not scratch database
+        db1 = [None, None]
+    return db1

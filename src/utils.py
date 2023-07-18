@@ -1010,22 +1010,31 @@ def set_openai(inference_server):
 visible_langchain_modes_file = 'visible_langchain_modes.pkl'
 
 
-def save_collection_enum(langchain_modes, visible_langchain_modes, langchain_mode_paths):
-    with filelock.FileLock("%s.lock" % visible_langchain_modes_file):
-        with open(visible_langchain_modes_file, 'wb') as f:
+def save_collection_enum(langchain_modes, visible_langchain_modes, langchain_mode_paths, extra):
+    """
+    extra controls if UserData type of MyData type
+    """
+    file = "%s%s" % (visible_langchain_modes_file, extra)
+    with filelock.FileLock("%s.lock" % file):
+        with open(file, 'wb') as f:
             pickle.dump((langchain_modes, visible_langchain_modes, langchain_mode_paths), f)
 
 
-def load_collection_enum():
+def load_collection_enum(extra):
+    """
+    extra controls if UserData type of MyData type
+    """
+    file = "%s%s" % (visible_langchain_modes_file, extra)
     langchain_modes_from_file = []
     visible_langchain_modes_from_file = []
     langchain_mode_paths_from_file = {}
     if os.path.isfile(visible_langchain_modes_file):
         try:
-            with open(visible_langchain_modes_file, 'rb') as f:
-                langchain_modes_from_file, visible_langchain_modes_from_file, langchain_mode_paths_from_file = pickle.load(f)
+            with open(file, 'rb') as f:
+                langchain_modes_from_file, visible_langchain_modes_from_file, langchain_mode_paths_from_file = pickle.load(
+                    f)
         except BaseException as e:
-            print("Cannot load %s, ignoring error: %s" % (visible_langchain_modes_file, str(e)), flush=True)
+            print("Cannot load %s, ignoring error: %s" % (file, str(e)), flush=True)
     return langchain_modes_from_file, visible_langchain_modes_from_file, langchain_mode_paths_from_file
 
 

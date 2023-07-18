@@ -428,7 +428,7 @@ def main(
     if is_public:
         allow_upload_to_user_data = False
 
-    # in-place
+    # in-place, for non-scratch dbs
     if allow_upload_to_user_data:
         update_langchain(langchain_modes, visible_langchain_modes, langchain_mode_paths)
 
@@ -611,7 +611,7 @@ def main(
             get_some_dbs_from_hf()
         dbs = {}
         for langchain_mode1 in visible_langchain_modes:
-            if langchain_mode1 in ['MyData']:
+            if langchain_mode1 in ['MyData']:  # FIXME: Remove other custom temp dbs
                 # don't use what is on disk, remove it instead
                 for gpath1 in glob.glob(os.path.join(scratch_base_dir, 'db_dir_%s*' % langchain_mode1)):
                     if os.path.isdir(gpath1):
@@ -1506,12 +1506,16 @@ def evaluate(
     assert langchain_action in langchain_actions, "Invalid langchain_action %s" % langchain_action
     assert len(
         set(langchain_agents).difference(langchain_agents_list)) == 0, "Invalid langchain_agents %s" % langchain_agents
-    if langchain_mode in ['MyData'] and my_db_state is not None and len(my_db_state) > 0 and my_db_state[0] is not None:
-        db1 = my_db_state[0]
-    elif dbs is not None and langchain_mode in dbs:
-        db1 = dbs[langchain_mode]
+    if dbs is not None and langchain_mode in dbs:
+        db = dbs[langchain_mode]
+    elif my_db_state is not None and langchain_mode in my_db_state:
+        db1 = my_db_state[langchain_mode]
+        if db1 is not None and len(db1) == 2:
+            db = db1[0]
+        else:
+            db = None
     else:
-        db1 = None
+        db = None
     do_langchain_path = langchain_mode not in [False, 'Disabled', 'ChatLLM', 'LLM'] or \
                         base_model in non_hf_types or \
                         force_langchain_evaluate
@@ -1540,7 +1544,7 @@ def evaluate(
                            prompter=prompter,
                            use_llm_if_no_docs=use_llm_if_no_docs,
                            load_db_if_exists=load_db_if_exists,
-                           db=db1,
+                           db=db,
                            langchain_mode_paths=langchain_mode_paths,
                            detect_user_path_changes_every_query=detect_user_path_changes_every_query,
                            cut_distance=1.1 if langchain_mode in ['wiki_full'] else cut_distance,
@@ -2054,7 +2058,7 @@ def evaluate(
 
 
 inputs_list_names = list(inspect.signature(evaluate).parameters)
-state_names = ['model_state', 'my_db_state']
+state_names = ['model_state', 'db1']
 inputs_kwargs_list = [x for x in inputs_list_names if x not in eval_func_param_names + state_names]
 
 
@@ -2540,7 +2544,7 @@ def history_to_context(history, langchain_mode1, prompt_type1, prompt_dict1, cha
 def update_langchain(langchain_modes, visible_langchain_modes, langchain_mode_paths):
     # update from saved state on disk
     langchain_modes_from_file, visible_langchain_modes_from_file, langchain_mode_paths_from_file = \
-        load_collection_enum()
+        load_collection_enum('')
 
     visible_langchain_modes_temp = visible_langchain_modes.copy() + visible_langchain_modes_from_file
     visible_langchain_modes.clear()  # don't lose original reference

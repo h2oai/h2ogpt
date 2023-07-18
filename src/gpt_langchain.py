@@ -713,7 +713,7 @@ def get_llm(use_openai_model=False,
                   callbacks=callbacks if stream_output else None,
                   openai_api_key=openai.api_key,
                   openai_api_base=openai.api_base,
-                  logit_bias=None if inf_type =='vllm' else {},
+                  logit_bias=None if inf_type == 'vllm' else {},
                   max_retries=2,
                   streaming=stream_output,
                   **kwargs_extra
@@ -1670,22 +1670,17 @@ def _make_db(use_openai_embedding=False,
         db = db_trial
 
     sources = []
-    if not db and langchain_mode not in ['MyData'] or \
-            user_path is not None and \
-            langchain_mode in ['UserData']:
+    if not db or user_path is not None:
         # Should not make MyData db this way, why avoided, only upload from UI
         assert langchain_mode not in ['MyData'], "Should not make MyData db this way"
         if verbose:
-            if langchain_mode in ['UserData']:
-                if user_path is not None:
-                    print("Checking if changed or new sources in %s, and generating sources them" % user_path,
-                          flush=True)
-                elif db is None:
-                    print("user_path not passed and no db, no sources", flush=True)
-                else:
-                    print("user_path not passed, using only existing db, no new sources", flush=True)
+            if user_path is not None:
+                print("Checking if changed or new sources in %s, and generating sources them" % user_path,
+                      flush=True)
+            elif db is None:
+                print("user_path not passed and no db, no sources", flush=True)
             else:
-                print("Generating %s sources" % langchain_mode, flush=True)
+                print("user_path not passed, using only existing db, no new sources", flush=True)
         if langchain_mode in ['wiki_full', 'All', "'All'"]:
             from read_wiki_full import get_all_documents
             small_test = None
@@ -1712,10 +1707,8 @@ def _make_db(use_openai_embedding=False,
             if chunk and False:  # FIXME: DAI docs are already chunked well, should only chunk more if over limit
                 sources1 = chunk_sources(sources1, chunk=chunk, chunk_size=chunk_size)
             sources.extend(sources1)
-        dict_LangChainMode = {i.name: i.value for i in LangChainMode}
         # UserData or custom, which has to be from user's disk
-        user_type_db = langchain_mode == 'UserData' or langchain_mode not in list(dict_LangChainMode.values())
-        if langchain_mode in ['All', 'UserData'] or user_type_db:
+        if langchain_mode in ['All'] or is_user_type_db(langchain_mode):
             if user_path:
                 if db is not None:
                     # NOTE: Ignore file names for now, only go by hash ids
@@ -2528,6 +2521,14 @@ def _create_local_weaviate_client():
     except Exception as e:
         print(f"Failed to create Weaviate client: {e}")
         return None
+
+
+def is_user_type_db(langchain_mode):
+    dict_LangChainMode = {i.name: i.value for i in LangChainMode}
+    # UserData or custom, which has to be from user's disk
+    user_type_db = langchain_mode != LangChainMode.MY_DATA.value and \
+                   (langchain_mode == 'UserData' or langchain_mode not in list(dict_LangChainMode.values()))
+    return user_type_db
 
 
 if __name__ == '__main__':

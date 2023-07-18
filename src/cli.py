@@ -4,6 +4,7 @@ import torch
 from evaluate_params import eval_func_param_names
 from gen import get_score_model, get_model, evaluate, check_locals
 from prompter import non_hf_types
+from src.enums import LangChainMode
 from utils import clear_torch_cache, NullContext, get_kwargs
 
 
@@ -63,7 +64,7 @@ def run_cli(  # for local function:
                           inference_server=inference_server, prompt_type=prompt_type, prompt_dict=prompt_dict)
         model_state = dict(model=model, tokenizer=tokenizer, device=device)
         model_state.update(model_dict)
-        my_db_state = [None]
+        my_db_state = {LangChainMode.MY_DATA.value: [None, None]}
         fun = partial(evaluate, model_state, my_db_state,
                       **get_kwargs(evaluate, exclude_names=['model_state', 'my_db_state'] + eval_func_param_names,
                                    **locals()))
