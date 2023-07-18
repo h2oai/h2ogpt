@@ -113,7 +113,8 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
                  'document_choice': np.array([]),  # matches return
                  'langchain_agents': np.array([]),  # matches return
                  }
-    expected1.update({k: v for k, v in kwargs.items() if k not in ['load_half', 'load_4bit', 'load_8bit', 'load_gptq', 'use_safetensors']})
+    expected1.update({k: v for k, v in kwargs.items() if
+                      k not in ['load_half', 'load_4bit', 'load_8bit', 'load_gptq', 'use_safetensors']})
     drop_keys = ['document_choice', 'langchain_agents']
     expected1 = {k: v for k, v in expected1.items() if k not in drop_keys}
     actual1 = {k: v for k, v in actual1.items() if k not in drop_keys}
@@ -143,6 +144,10 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
     else:
         expected2 = {
             'response': 'The ligaments that support the spine are called the “spinal ligaments.” They are there to help keep the spine straight and upright. They are made up of tough fibers that run from the pelvis to the skull. They are like the stays on a sailboat, except that they are much thicker and stronger. \nThe spinal ligaments are divided into two groups: anterior and posterior. The anterior ligaments are attached to the front of the vertebrae, while the posterior ligaments are attached to the back. The anterior ligaments are called the “anterior longitudinal ligaments”',
+            'score': 0.77}
+    if bits == 32 and cpu:
+        expected2 = {
+            'response': 'The ligaments are the bands of tissue that connect the vertebrae together. The ligaments help to stabilize the spine and protect the spinal cord. Ligament tears are common in people who have poor posture or repetitive strain injuries.',
             'score': 0.77}
 
     assert np.isclose(actual2['score'], expected2['score'], rtol=0.3), "Score is not as expected: %s %s" % (
