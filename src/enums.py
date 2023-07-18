@@ -36,13 +36,13 @@ class PromptType(Enum):
 
 class DocumentSubset(Enum):
     Relevant = 0
-    rSources = 1
-    kSources = 2
+    RelSources = 1
+    TopKSources = 2
 
 
 non_query_commands = [
-    DocumentSubset.rSources.name,
-    DocumentSubset.kSources.name
+    DocumentSubset.RelSources.name,
+    DocumentSubset.TopKSources.name
 ]
 
 

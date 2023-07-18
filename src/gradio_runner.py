@@ -246,7 +246,7 @@ def go_gradio(**kwargs):
     def allow_empty_instruction(langchain_mode1, document_subset1, langchain_action1):
         allow = False
         allow |= langchain_action1 not in LangChainAction.QUERY.value
-        allow |= document_subset1 in DocumentSubset.kSources.name
+        allow |= document_subset1 in DocumentSubset.TopKSources.name
         if langchain_mode1 in [LangChainMode.CHAT_LLM.value, LangChainMode.LLM.value]:
             allow = False
         return allow

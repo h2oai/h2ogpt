@@ -2223,7 +2223,7 @@ def get_chain(query=None,
         if langchain_mode in [LangChainMode.LLM.value, LangChainMode.CHAT_LLM.value]:
             docs = []
             scores = []
-        elif document_subset == DocumentSubset.kSources.name or query in [None, '', '\n']:
+        elif document_subset == DocumentSubset.TopKSources.name or query in [None, '', '\n']:
             db_documents, db_metadatas = get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs)
             # similar to langchain's chroma's _results_to_docs_and_scores
             docs_with_score = [(Document(page_content=result[0], metadata=result[1] or {}), 0)
