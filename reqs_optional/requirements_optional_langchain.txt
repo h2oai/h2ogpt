@@ -8,7 +8,7 @@ pypdf==3.12.2
 sentence_transformers==2.2.2
 
 # local vector db
-chromadb==0.4.0
+chromadb==0.3.25
 # server vector db
 #pymilvus==2.2.8
 
