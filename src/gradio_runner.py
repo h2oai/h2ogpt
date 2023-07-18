@@ -97,14 +97,9 @@ def go_gradio(**kwargs):
     memory_restriction_level = kwargs['memory_restriction_level']
     n_gpus = kwargs['n_gpus']
     admin_pass = kwargs['admin_pass']
-    model_state0 = kwargs['model_state0']
     model_states = kwargs['model_states']
-    score_model_state0 = kwargs['score_model_state0']
     dbs = kwargs['dbs']
-    my_db_state0 = kwargs['my_db_state0']
     db_type = kwargs['db_type']
-    langchain_modes = kwargs['langchain_modes']
-    visible_langchain_modes = kwargs['visible_langchain_modes']
     visible_langchain_actions = kwargs['visible_langchain_actions']
     visible_langchain_agents = kwargs['visible_langchain_agents']
     allow_upload_to_user_data = kwargs['allow_upload_to_user_data']
@@ -118,6 +113,14 @@ def go_gradio(**kwargs):
     captions_model = kwargs['captions_model']
     enable_ocr = kwargs['enable_ocr']
     caption_loader = kwargs['caption_loader']
+
+    # for dynamic state per user session in gradio
+    model_state0 = kwargs['model_state0']
+    score_model_state0 = kwargs['score_model_state0']
+    my_db_state0 = kwargs['my_db_state0']
+    langchain_modes0 = kwargs['langchain_modes']
+    visible_langchain_modes0 = kwargs['visible_langchain_modes']
+    langchain_mode_paths0 = kwargs['langchain_mode_paths']
 
     # easy update of kwargs needed for evaluate() etc.
     queue = True
@@ -172,9 +175,9 @@ def go_gradio(**kwargs):
     demo = gr.Blocks(theme=theme, css=css_code, title="h2oGPT", analytics_enabled=False)
     callback = gr.CSVLogger()
 
-    model_options = flatten_list(list(prompt_type_to_model_name.values())) + kwargs['extra_model_options']
-    if kwargs['base_model'].strip() not in model_options:
-        model_options = [kwargs['base_model'].strip()] + model_options
+    model_options0 = flatten_list(list(prompt_type_to_model_name.values())) + kwargs['extra_model_options']
+    if kwargs['base_model'].strip() not in model_options0:
+        model_options0 = [kwargs['base_model'].strip()] + model_options0
     lora_options = kwargs['extra_lora_options']
     if kwargs['lora_weights'].strip() not in lora_options:
         lora_options = [kwargs['lora_weights'].strip()] + lora_options
@@ -189,7 +192,7 @@ def go_gradio(**kwargs):
 
     # always add in no lora case
     # add fake space so doesn't go away in gradio dropdown
-    model_options = [no_model_str] + model_options
+    model_options0 = [no_model_str] + model_options0
     lora_options = [no_lora_str] + lora_options
     server_options = [no_server_str] + server_options
     # always add in no model case so can free memory
@@ -265,20 +268,20 @@ def go_gradio(**kwargs):
                  )
         )
 
-        def update_langchain_mode_paths(db1s):
+        def update_langchain_mode_paths(db1s, selection_docs_state1):
             if allow_upload_to_my_data:
-                kwargs['langchain_mode_paths'].update({k: None for k in db1s})
-            dup = kwargs['langchain_mode_paths'].copy()
+                selection_docs_state1['langchain_mode_paths'].update({k: None for k in db1s})
+            dup = selection_docs_state1['langchain_mode_paths'].copy()
             for k, v in dup.items():
-                if k not in visible_langchain_modes:
-                    kwargs['langchain_mode_paths'].pop(k)
+                if k not in selection_docs_state1['visible_langchain_modes']:
+                    selection_docs_state1['langchain_mode_paths'].pop(k)
 
+        # Setup some gradio states for per-user dynamic state
         model_state2 = gr.State(kwargs['model_state_none'].copy())
-        model_options_state = gr.State([model_options])
+        model_options_state = gr.State([model_options0])
         lora_options_state = gr.State([lora_options])
         server_options_state = gr.State([server_options])
         my_db_state = gr.State(my_db_state0)
-        update_langchain_mode_paths(my_db_state.value)
         chat_state = gr.State({})
         docs_state00 = kwargs['document_choice'] + [DocumentChoice.ALL.value]
         docs_state0 = []
@@ -286,6 +289,12 @@ def go_gradio(**kwargs):
         docs_state = gr.State(docs_state0)
         viewable_docs_state0 = []
         viewable_docs_state = gr.State(viewable_docs_state0)
+        selection_docs_state0 = dict(visible_langchain_modes=visible_langchain_modes0,
+                                     langchain_mode_paths=langchain_mode_paths0,
+                                     langchain_modes=langchain_modes0)
+        selection_docs_state = gr.State(selection_docs_state0)
+        update_langchain_mode_paths(my_db_state.value, selection_docs_state.value)
+
         gr.Markdown(f"""
             {get_h2o_title(title, description) if kwargs['h2ocolors'] else get_simple_title(title, description)}
             """)
@@ -307,7 +316,7 @@ def go_gradio(**kwargs):
         else:
             instruction_label = "Enter to Submit, Shift-Enter for more lines%s" % extra_prompt_form
 
-        def get_langchain_choices():
+        def get_langchain_choices(langchain_modes, visible_langchain_modes):
             if is_hf:
                 # don't show 'wiki' since only usually useful for internal testing at moment
                 no_show_modes = ['Disabled', 'wiki']
@@ -323,9 +332,9 @@ def go_gradio(**kwargs):
             choices = [x for x in langchain_modes if x in allowed_modes and x not in no_show_modes]
             return choices
 
-        def get_df_langchain_mode_paths():
-            if kwargs['langchain_mode_paths']:
-                df = pd.DataFrame.from_dict(kwargs['langchain_mode_paths'].items(), orient='columns')
+        def get_df_langchain_mode_paths(langchain_mode_paths):
+            if langchain_mode_paths:
+                df = pd.DataFrame.from_dict(langchain_mode_paths.items(), orient='columns')
                 df.columns = ['Collection', 'Path']
             else:
                 df = pd.DataFrame(None)
@@ -366,9 +375,9 @@ def go_gradio(**kwargs):
                     github_textbox = gr.Textbox(label="Github URL", visible=False)  # FIXME WIP
                 database_visible = kwargs['langchain_mode'] != 'Disabled'
                 with gr.Accordion("Database", open=False, visible=database_visible):
-                    langchain_choices = get_langchain_choices()
+                    langchain_choices0 = get_langchain_choices(langchain_modes0, visible_langchain_modes0)
                     langchain_mode = gr.Radio(
-                        langchain_choices,
+                        langchain_choices0,
                         value=kwargs['langchain_mode'],
                         label="Collections",
                         show_label=True,
@@ -498,7 +507,8 @@ def go_gradio(**kwargs):
                             load_langchain = gr.Button(value="Load LangChain State", scale=0, size='sm',
                                                        visible=allow_upload_to_user_data)
                         with gr.Column(scale=1):
-                            langchain_mode_path_text = gr.Dataframe(value=get_df_langchain_mode_paths(),
+                            df0 = get_df_langchain_mode_paths(langchain_mode_paths0)
+                            langchain_mode_path_text = gr.Dataframe(value=df0,
                                                                     visible=allow_upload_to_user_data or
                                                                             allow_upload_to_my_data,
                                                                     label='LangChain Mode-Path',
@@ -856,8 +866,6 @@ def go_gradio(**kwargs):
         update_db_func = functools.partial(update_user_db,
                                            dbs=dbs,
                                            db_type=db_type,
-                                           langchain_mode_paths=kwargs['langchain_mode_paths'],
-                                           visible_langchain_modes=visible_langchain_modes,
                                            use_openai_embedding=use_openai_embedding,
                                            hf_embedding_model=hf_embedding_model,
                                            captions_model=captions_model,
@@ -869,7 +877,8 @@ def go_gradio(**kwargs):
                                            )
         add_file_outputs = [fileup_output, langchain_mode]
         add_file_kwargs = dict(fn=update_db_func,
-                               inputs=[fileup_output, my_db_state, chunk, chunk_size, langchain_mode],
+                               inputs=[fileup_output, my_db_state, chunk, chunk_size,
+                                       langchain_mode, selection_docs_state],
                                outputs=add_file_outputs + [sources_text, doc_exception_text],
                                queue=queue,
                                api_name='add_file' if allow_api and allow_upload_to_user_data else None)
@@ -883,7 +892,8 @@ def go_gradio(**kwargs):
 
         # deal with challenge to have fileup_output itself as input
         add_file_kwargs2 = dict(fn=update_db_func,
-                                inputs=[fileup_output_text, my_db_state, chunk, chunk_size, langchain_mode],
+                                inputs=[fileup_output_text, my_db_state, chunk, chunk_size,
+                                        langchain_mode, selection_docs_state],
                                 outputs=add_file_outputs + [sources_text, doc_exception_text],
                                 queue=queue,
                                 api_name='add_file_api' if allow_api and allow_upload_to_user_data else None)
@@ -898,7 +908,8 @@ def go_gradio(**kwargs):
 
         add_url_outputs = [url_text, langchain_mode]
         add_url_kwargs = dict(fn=update_user_db_url_func,
-                              inputs=[url_text, my_db_state, chunk, chunk_size, langchain_mode],
+                              inputs=[url_text, my_db_state, chunk, chunk_size,
+                                      langchain_mode, selection_docs_state],
                               outputs=add_url_outputs + [sources_text, doc_exception_text],
                               queue=queue,
                               api_name='add_url' if allow_api and allow_upload_to_user_data else None)
@@ -915,7 +926,8 @@ def go_gradio(**kwargs):
         update_user_db_txt_func = functools.partial(update_db_func, is_txt=True)
         add_text_outputs = [user_text_text, langchain_mode]
         add_text_kwargs = dict(fn=update_user_db_txt_func,
-                               inputs=[user_text_text, my_db_state, chunk, chunk_size, langchain_mode],
+                               inputs=[user_text_text, my_db_state, chunk, chunk_size,
+                                       langchain_mode, selection_docs_state],
                                outputs=add_text_outputs + [sources_text, doc_exception_text],
                                queue=queue,
                                api_name='add_text' if allow_api and allow_upload_to_user_data else None
@@ -1085,7 +1097,11 @@ def go_gradio(**kwargs):
         admin_pass_textbox.submit(check_admin_pass, inputs=admin_pass_textbox, outputs=system_row, queue=False) \
             .then(close_admin, inputs=admin_pass_textbox, outputs=admin_row, queue=False)
 
-        def add_langchain_mode(db1s, langchain_mode1, y):
+        def add_langchain_mode(db1s, langchain_mode1, y, selection_docs_state1):
+            langchain_modes = selection_docs_state1['langchain_modes']
+            langchain_mode_paths = selection_docs_state1['langchain_mode_paths']
+            visible_langchain_modes = selection_docs_state1['visible_langchain_modes']
+
             for k in db1s:
                 set_userid(db1s[k])
 
@@ -1101,7 +1117,7 @@ def go_gradio(**kwargs):
                         # for scratch spaces
                         user_path = None
                     if user_path and allow_upload_to_user_data or not user_path and allow_upload_to_my_data:
-                        kwargs['langchain_mode_paths'].update({langchain_mode2: user_path})
+                        langchain_mode_paths.update({langchain_mode2: user_path})
                         if langchain_mode2 not in visible_langchain_modes:
                             visible_langchain_modes.append(langchain_mode2)
                         if langchain_mode2 not in langchain_modes:
@@ -1119,14 +1135,14 @@ def go_gradio(**kwargs):
             else:
                 langchain_mode2 = langchain_mode1
                 textbox = "Invalid, must be like UserData2, user_path2"
-            update_langchain_mode_paths(db1s)
-            df_langchain_mode_paths1 = get_df_langchain_mode_paths()
-            choices = get_langchain_choices()
+            update_langchain_mode_paths(db1s, selection_docs_state1)
+            df_langchain_mode_paths1 = get_df_langchain_mode_paths(langchain_mode_paths)
+            choices = get_langchain_choices(langchain_modes, visible_langchain_modes)
             from src.gpt_langchain import is_user_type_db
             user_types = [x for x in visible_langchain_modes if
-                          is_user_type_db(x) and kwargs['langchain_mode_paths'].get(x)]
+                          is_user_type_db(x) and langchain_mode_paths.get(x)]
             if langchain_mode2 in user_types:
-                save_collection_enum(langchain_modes, visible_langchain_modes, kwargs['langchain_mode_paths'], '')
+                save_collection_enum(langchain_modes, visible_langchain_modes, langchain_mode_paths, '')
             else:
                 # needs to have key for it to make it known different from userdata case in _update_user_db()
                 db1s[langchain_mode2] = [None, None]
@@ -1134,18 +1150,25 @@ def go_gradio(**kwargs):
                 # use first default MyData hash as general user hash to maintain file
                 # if user moves MyData from langchain modes, db will still survive, so can still use hash
                 user_hash = db1s.get(LangChainMode.MY_DATA.value, '')[1]
-                save_collection_enum(langchain_modes, visible_langchain_modes, kwargs['langchain_mode_paths'],
+                save_collection_enum(langchain_modes, visible_langchain_modes, langchain_mode_paths,
                                      user_hash)
-            return db1s, gr.update(choices=choices, value=langchain_mode2), textbox, df_langchain_mode_paths1
+            return db1s, gr.update(choices=choices,
+                                   value=langchain_mode2), textbox, df_langchain_mode_paths1, selection_docs_state1
 
-        def remove_langchain_mode(db1s, langchain_mode1, langchain_mode2, dbs={}):
+        def remove_langchain_mode(db1s, langchain_mode1, langchain_mode2, selection_docs_state1, dbsu=None):
+            assert dbsu is not None
+            langchain_modes = selection_docs_state1['langchain_modes']
+            langchain_mode_paths = selection_docs_state1['langchain_mode_paths']
+            visible_langchain_modes = selection_docs_state1['visible_langchain_modes']
+
             if langchain_mode2 in db1s and not allow_upload_to_my_data or \
-                    dbs is not None and langchain_mode2 in dbs and not allow_upload_to_user_data or \
-                    langchain_mode2 in [LangChainMode.LLM.value, LangChainMode.CHAT_LLM.value, LangChainMode.MY_DATA.value]:
+                    dbsu is not None and langchain_mode2 in dbsu and not allow_upload_to_user_data or \
+                    langchain_mode2 in [LangChainMode.LLM.value, LangChainMode.CHAT_LLM.value,
+                                        LangChainMode.MY_DATA.value]:
                 # NOTE: Doesn't fail if remove MyData, but didn't debug odd behavior seen with upload after gone
                 textbox = "Invalid access, cannot remove %s" % langchain_mode2
-                df_langchain_mode_paths1 = get_df_langchain_mode_paths()
-                return db1s, gr.update(choices=get_langchain_choices(),
+                df_langchain_mode_paths1 = get_df_langchain_mode_paths(langchain_mode_paths)
+                return db1s, gr.update(choices=get_langchain_choices(langchain_modes, visible_langchain_modes),
                                        value=langchain_mode1), textbox, df_langchain_mode_paths1
 
             # change global variables
@@ -1156,8 +1179,8 @@ def go_gradio(**kwargs):
                 textbox = "%s was not visible" % langchain_mode2
             if langchain_mode2 in langchain_modes:
                 langchain_modes.remove(langchain_mode2)
-            if langchain_mode2 in kwargs['langchain_mode_paths']:
-                kwargs['langchain_mode_paths'].pop(langchain_mode2)
+            if langchain_mode2 in langchain_mode_paths:
+                langchain_mode_paths.pop(langchain_mode2)
             if langchain_mode2 in db1s:
                 # remove db entirely, so not in list, else need to manage visible list in update_langchain_mode_paths()
                 # FIXME: Remove location?
@@ -1165,33 +1188,39 @@ def go_gradio(**kwargs):
                     # don't remove last MyData, used as user hash
                     db1s.pop(langchain_mode2)
             # only show
-            update_langchain_mode_paths(db1s)
-            df_langchain_mode_paths1 = get_df_langchain_mode_paths()
-            return db1s, gr.update(choices=get_langchain_choices(),
-                                   value=langchain_mode2), textbox, df_langchain_mode_paths1
+            update_langchain_mode_paths(db1s, selection_docs_state1)
+            df_langchain_mode_paths1 = get_df_langchain_mode_paths(langchain_mode_paths)
+            return db1s, gr.update(choices=get_langchain_choices(langchain_modes, visible_langchain_modes),
+                                   value=langchain_mode2), textbox, df_langchain_mode_paths1, selection_docs_state1
 
         new_langchain_mode_text.submit(fn=add_langchain_mode,
-                                       inputs=[my_db_state, langchain_mode, new_langchain_mode_text],
+                                       inputs=[my_db_state, langchain_mode, new_langchain_mode_text,
+                                               selection_docs_state],
                                        outputs=[my_db_state, langchain_mode, new_langchain_mode_text,
-                                                langchain_mode_path_text],
+                                                langchain_mode_path_text, selection_docs_state],
                                        api_name='new_langchain_mode_text' if allow_api and allow_upload_to_user_data else None)
-        remove_langchain_mode_func = functools.partial(remove_langchain_mode, dbs=dbs)
+        remove_langchain_mode_func = functools.partial(remove_langchain_mode, dbsu=dbs)
         remove_langchain_mode_text.submit(fn=remove_langchain_mode_func,
-                                          inputs=[my_db_state, langchain_mode, remove_langchain_mode_text],
+                                          inputs=[my_db_state, langchain_mode, remove_langchain_mode_text,
+                                                  selection_docs_state],
                                           outputs=[my_db_state, langchain_mode, remove_langchain_mode_text,
-                                                   langchain_mode_path_text],
+                                                   langchain_mode_path_text, selection_docs_state],
                                           api_name='remove_langchain_mode_text' if allow_api and allow_upload_to_user_data else None)
 
-        def update_langchain_gr(db1s, langchain_mode1):
+        def update_langchain_gr(db1s, langchain_mode1, selection_docs_state1):
+            langchain_modes = selection_docs_state1['langchain_modes']
+            langchain_mode_paths = selection_docs_state1['langchain_mode_paths']
+            visible_langchain_modes = selection_docs_state1['visible_langchain_modes']
             # in-place
-            update_langchain(langchain_modes, visible_langchain_modes, kwargs['langchain_mode_paths'])
-            update_langchain_mode_paths(db1s)
-            df_langchain_mode_paths1 = get_df_langchain_mode_paths()
-            return gr.update(choices=get_langchain_choices(), value=langchain_mode1), df_langchain_mode_paths1
+            update_langchain(langchain_modes, visible_langchain_modes, langchain_mode_paths)
+            update_langchain_mode_paths(db1s, selection_docs_state1)
+            df_langchain_mode_paths1 = get_df_langchain_mode_paths(langchain_mode_paths)
+            return gr.update(choices=get_langchain_choices(langchain_modes, visible_langchain_modes),
+                             value=langchain_mode1), df_langchain_mode_paths1
 
         load_langchain.click(fn=update_langchain_gr,
-                             inputs=[my_db_state, langchain_mode],
-                             outputs=[langchain_mode, langchain_mode_path_text],
+                             inputs=[my_db_state, langchain_mode, selection_docs_state],
+                             outputs=[langchain_mode, langchain_mode_path_text, selection_docs_state],
                              api_name='load_langchain' if allow_api and allow_upload_to_user_data else None)
 
         inputs_list, inputs_dict = get_inputs_list(all_kwargs, kwargs['model_lower'], model_id=1)
@@ -2520,7 +2549,8 @@ def set_userid(db1):
         db1[1] = str(uuid.uuid4())
 
 
-def update_user_db(file, db1s, chunk, chunk_size, langchain_mode, dbs=None, **kwargs):
+def update_user_db(file, db1s, chunk, chunk_size, langchain_mode, selection_docs_state1, dbs=None, **kwargs):
+    kwargs.update(selection_docs_state1)
     if file is None:
         raise RuntimeError("Don't use change, use input")
 
