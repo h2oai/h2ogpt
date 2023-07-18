@@ -787,7 +787,7 @@ def go_gradio(**kwargs):
                             side_bar_btn = gr.Button("Toggle SideBar", variant="secondary", size="sm")
                             submit_buttons_btn = gr.Button("Toggle Submit Buttons", variant="secondary", size="sm")
                             col_tabs_scale = gr.Slider(minimum=1, maximum=20, value=10, step=1, label='Window Size')
-                            text_outputs_height = gr.Slider(minimum=100, maximum=1000, value=kwargs['height'] or 400,
+                            text_outputs_height = gr.Slider(minimum=100, maximum=2000, value=kwargs['height'] or 400,
                                                             step=100, label='Chat Height')
                             dark_mode_btn = gr.Button("Dark Mode", variant="secondary", size="sm")
                         with gr.Column(scale=4):
@@ -956,7 +956,7 @@ def go_gradio(**kwargs):
         def resize_col_tabs(x):
             return gr.Dropdown.update(scale=x)
 
-        col_tabs_scale.change(fn=resize_col_tabs, inputs=col_tabs_scale, outputs=col_tabs)
+        col_tabs_scale.change(fn=resize_col_tabs, inputs=col_tabs_scale, outputs=col_tabs, queue=False)
 
         def resize_chatbots(x, num_model_lock=0):
             if num_model_lock == 0:
@@ -967,7 +967,7 @@ def go_gradio(**kwargs):
 
         resize_chatbots_func = functools.partial(resize_chatbots, num_model_lock=len(text_outputs))
         text_outputs_height.change(fn=resize_chatbots_func, inputs=text_outputs_height,
-                                   outputs=[text_output, text_output2] + text_outputs)
+                                   outputs=[text_output, text_output2] + text_outputs, queue=False)
 
         def update_dropdown(x):
             return gr.Dropdown.update(choices=x, value=[docs_state0[0]])
