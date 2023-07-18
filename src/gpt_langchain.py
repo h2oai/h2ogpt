@@ -1975,6 +1975,7 @@ def _run_qa_db(query=None,
         if not formatted_doc_chunks and not use_llm_if_no_docs:
             yield "No sources", ''
             return
+        # if no souces, outside gpt_langchain, LLM will be used with '' input
         yield formatted_doc_chunks, ''
         return
     if not use_llm_if_no_docs:
