@@ -1140,8 +1140,8 @@ def go_gradio(**kwargs):
                 langchain_mode2 = langchain_mode1
                 textbox = "Invalid, must be like UserData2, user_path2"
             selection_docs_state1 = update_langchain_mode_paths(db1s, selection_docs_state1)
-            df_langchain_mode_paths1 = get_df_langchain_mode_paths(langchain_mode_paths)
-            choices = get_langchain_choices(langchain_modes, visible_langchain_modes)
+            df_langchain_mode_paths1 = get_df_langchain_mode_paths(selection_docs_state1)
+            choices = get_langchain_choices(selection_docs_state1)
 
             from src.gpt_langchain import is_user_type_db
             user_types = [x for x in visible_langchain_modes if
@@ -1153,7 +1153,7 @@ def go_gradio(**kwargs):
             save_collection_names(langchain_modes, visible_langchain_modes, langchain_mode_paths, LangChainMode, db1s)
 
             return db1s, selection_docs_state1, gr.update(choices=choices,
-                                   value=langchain_mode2), textbox, df_langchain_mode_paths1
+                                                          value=langchain_mode2), textbox, df_langchain_mode_paths1
 
         def remove_langchain_mode(db1s, selection_docs_state1, langchain_mode1, langchain_mode2, dbsu=None):
             for k in db1s:
@@ -1169,8 +1169,8 @@ def go_gradio(**kwargs):
                                         LangChainMode.MY_DATA.value]:
                 # NOTE: Doesn't fail if remove MyData, but didn't debug odd behavior seen with upload after gone
                 textbox = "Invalid access, cannot remove %s" % langchain_mode2
-                df_langchain_mode_paths1 = get_df_langchain_mode_paths(langchain_mode_paths)
-                return db1s, gr.update(choices=get_langchain_choices(langchain_modes, visible_langchain_modes),
+                df_langchain_mode_paths1 = get_df_langchain_mode_paths(selection_docs_state1)
+                return db1s, gr.update(choices=get_langchain_choices(selection_docs_state1),
                                        value=langchain_mode1), textbox, df_langchain_mode_paths1
 
             # change global variables
@@ -1191,13 +1191,13 @@ def go_gradio(**kwargs):
                     db1s.pop(langchain_mode2)
             # only show
             selection_docs_state1 = update_langchain_mode_paths(db1s, selection_docs_state1)
-            df_langchain_mode_paths1 = get_df_langchain_mode_paths(langchain_mode_paths)
+            df_langchain_mode_paths1 = get_df_langchain_mode_paths(selection_docs_state1)
 
             save_collection_names(langchain_modes, visible_langchain_modes, langchain_mode_paths, LangChainMode, db1s)
 
             return db1s, selection_docs_state1, \
-                gr.update(choices=get_langchain_choices(langchain_modes, visible_langchain_modes),
-                                   value=langchain_mode2), textbox, df_langchain_mode_paths1
+                gr.update(choices=get_langchain_choices(selection_docs_state1),
+                          value=langchain_mode2), textbox, df_langchain_mode_paths1
 
         new_langchain_mode_text.submit(fn=add_langchain_mode,
                                        inputs=[my_db_state, selection_docs_state, langchain_mode,
@@ -1230,10 +1230,10 @@ def go_gradio(**kwargs):
             update_langchain(langchain_modes, visible_langchain_modes, langchain_mode_paths, user_hash)
 
             selection_docs_state1 = update_langchain_mode_paths(db1s, selection_docs_state1)
-            df_langchain_mode_paths1 = get_df_langchain_mode_paths(langchain_mode_paths)
+            df_langchain_mode_paths1 = get_df_langchain_mode_paths(selection_docs_state1)
             return selection_docs_state1, \
-                gr.update(choices=get_langchain_choices(langchain_modes, visible_langchain_modes),
-                             value=langchain_mode1), df_langchain_mode_paths1
+                gr.update(choices=get_langchain_choices(selection_docs_state1),
+                          value=langchain_mode1), df_langchain_mode_paths1
 
         load_langchain.click(fn=update_langchain_gr,
                              inputs=[my_db_state, selection_docs_state, langchain_mode],
@@ -1665,7 +1665,8 @@ def go_gradio(**kwargs):
                 gen_list = []
                 for chatboti, (chatbot1, model_state1) in enumerate(zip(chatbots, model_states1)):
                     args_list1 = args_list0.copy()
-                    args_list1.insert(-isize + 2, model_state1)  # insert at -2 so is at -3, and after chatbot1 added, at -4
+                    args_list1.insert(-isize + 2,
+                                      model_state1)  # insert at -2 so is at -3, and after chatbot1 added, at -4
                     # if at start, have None in response still, replace with '' so client etc. acts like normal
                     # assumes other parts of code treat '' and None as if no response yet from bot
                     # can't do this later in bot code as racy with threaded generators
