@@ -856,14 +856,15 @@ def go_gradio(**kwargs):
         update_db_func = functools.partial(update_user_db,
                                            dbs=dbs,
                                            db_type=db_type,
+                                           langchain_mode_paths=kwargs['langchain_mode_paths'],
+                                           visible_langchain_modes=visible_langchain_modes,
                                            use_openai_embedding=use_openai_embedding,
                                            hf_embedding_model=hf_embedding_model,
-                                           enable_captions=enable_captions,
                                            captions_model=captions_model,
-                                           enable_ocr=enable_ocr,
+                                           enable_captions=enable_captions,
                                            caption_loader=caption_loader,
+                                           enable_ocr=enable_ocr,
                                            verbose=kwargs['verbose'],
-                                           langchain_mode_paths=kwargs['langchain_mode_paths'],
                                            n_jobs=kwargs['n_jobs'],
                                            )
         add_file_outputs = [fileup_output, langchain_mode]
@@ -2572,8 +2573,9 @@ def _update_user_db(file,
                     captions_model=None,
                     enable_ocr=None,
                     verbose=None,
+                    n_jobs=-1,
                     is_url=None, is_txt=None,
-                    n_jobs=-1):
+                    ):
     assert db1s is not None
     assert chunk is not None
     assert chunk_size is not None
