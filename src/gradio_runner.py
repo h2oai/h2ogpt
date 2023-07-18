@@ -119,9 +119,7 @@ def go_gradio(**kwargs):
     model_state0 = kwargs['model_state0']
     score_model_state0 = kwargs['score_model_state0']
     my_db_state0 = kwargs['my_db_state0']
-    langchain_modes0 = kwargs['langchain_modes']
-    visible_langchain_modes0 = kwargs['visible_langchain_modes']
-    langchain_mode_paths0 = kwargs['langchain_mode_paths']
+    selection_docs_state0 = kwargs['selection_docs_state0']
 
     # easy update of kwargs needed for evaluate() etc.
     queue = True
@@ -291,9 +289,6 @@ def go_gradio(**kwargs):
         docs_state = gr.State(docs_state0)
         viewable_docs_state0 = []
         viewable_docs_state = gr.State(viewable_docs_state0)
-        selection_docs_state0 = dict(visible_langchain_modes=visible_langchain_modes0,
-                                     langchain_mode_paths=langchain_mode_paths0,
-                                     langchain_modes=langchain_modes0)
         selection_docs_state0 = update_langchain_mode_paths(my_db_state0, selection_docs_state0)
         selection_docs_state = gr.State(selection_docs_state0)
 
@@ -318,7 +313,10 @@ def go_gradio(**kwargs):
         else:
             instruction_label = "Enter to Submit, Shift-Enter for more lines%s" % extra_prompt_form
 
-        def get_langchain_choices(langchain_modes, visible_langchain_modes):
+        def get_langchain_choices(selection_docs_state1):
+            langchain_modes = selection_docs_state1['langchain_modes']
+            visible_langchain_modes = selection_docs_state1['visible_langchain_modes']
+
             if is_hf:
                 # don't show 'wiki' since only usually useful for internal testing at moment
                 no_show_modes = ['Disabled', 'wiki']
@@ -334,7 +332,8 @@ def go_gradio(**kwargs):
             choices = [x for x in langchain_modes if x in allowed_modes and x not in no_show_modes]
             return choices
 
-        def get_df_langchain_mode_paths(langchain_mode_paths):
+        def get_df_langchain_mode_paths(selection_docs_state1):
+            langchain_mode_paths = selection_docs_state1['langchain_mode_paths']
             if langchain_mode_paths:
                 df = pd.DataFrame.from_dict(langchain_mode_paths.items(), orient='columns')
                 df.columns = ['Collection', 'Path']
@@ -377,7 +376,7 @@ def go_gradio(**kwargs):
                     github_textbox = gr.Textbox(label="Github URL", visible=False)  # FIXME WIP
                 database_visible = kwargs['langchain_mode'] != 'Disabled'
                 with gr.Accordion("Database", open=False, visible=database_visible):
-                    langchain_choices0 = get_langchain_choices(langchain_modes0, visible_langchain_modes0)
+                    langchain_choices0 = get_langchain_choices(selection_docs_state0)
                     langchain_mode = gr.Radio(
                         langchain_choices0,
                         value=kwargs['langchain_mode'],
@@ -509,7 +508,7 @@ def go_gradio(**kwargs):
                             load_langchain = gr.Button(value="Load LangChain State", scale=0, size='sm',
                                                        visible=allow_upload_to_user_data)
                         with gr.Column(scale=1):
-                            df0 = get_df_langchain_mode_paths(langchain_mode_paths0)
+                            df0 = get_df_langchain_mode_paths(selection_docs_state0)
                             langchain_mode_path_text = gr.Dataframe(value=df0,
                                                                     visible=allow_upload_to_user_data or
                                                                             allow_upload_to_my_data,

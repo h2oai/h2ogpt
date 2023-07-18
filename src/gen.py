@@ -648,6 +648,9 @@ def main(
                             base_model=None, tokenizer_base_model=None, lora_weights=None,
                             inference_server=None, prompt_type=None, prompt_dict=None)
     my_db_state0 = {LangChainMode.MY_DATA.value: [None, None]}
+    selection_docs_state0 = dict(visible_langchain_modes=visible_langchain_modes,
+                                 langchain_mode_paths=langchain_mode_paths,
+                                 langchain_modes=langchain_modes)
 
     if cli:
         from cli import run_cli
