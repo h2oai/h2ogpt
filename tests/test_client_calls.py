@@ -642,7 +642,7 @@ def test_client_chat_stream_langchain_steps3():
     assert langchain_mode2 in res[0]['choices']
     assert res[1] == ''
     assert res[2]['headers'] == ['Collection', 'Path']
-    assert res[2]['data'] == [['UserData', user_path], [langchain_mode2, user_path2]]
+    assert res[2]['data'] == [['UserData', user_path], ['MyData', None], [langchain_mode2, user_path2]]
 
     url = 'https://unec.edu.az/application/uploads/2014/12/pdf-sample.pdf'
     test_file1 = os.path.join('/tmp/', 'pdf-sample.pdf')
@@ -711,7 +711,7 @@ def test_client_chat_stream_langchain_steps3():
     assert res[0]['choices'] == ['ChatLLM', 'LLM', langchain_mode, 'MyData', 'github h2oGPT', langchain_mode2]
     assert res[0]['value'] == langchain_mode
     assert res[1]['headers'] == ['Collection', 'Path']
-    assert res[1]['data'] == [['UserData', user_path], [langchain_mode2, user_path2]]
+    assert res[1]['data'] == [['UserData', user_path], ['MyData', None], [langchain_mode2, user_path2]]
 
     # for pure-UI things where just input -> output often, just make sure no failure, if can
     res = client.predict(api_name='/export_chats')

@@ -2524,8 +2524,8 @@ def _create_local_weaviate_client():
 
 
 def is_user_type_db(langchain_mode):
-    dict_LangChainMode = {i.name: i.value for i in LangChainMode}
     # UserData or custom, which has to be from user's disk
+    dict_LangChainMode = {i.name: i.value for i in LangChainMode}
     user_type_db = langchain_mode != LangChainMode.MY_DATA.value and \
                    (langchain_mode == 'UserData' or langchain_mode not in list(dict_LangChainMode.values()))
     return user_type_db
