@@ -275,6 +275,7 @@ def go_gradio(**kwargs):
             for k, v in dup.items():
                 if k not in selection_docs_state1['visible_langchain_modes']:
                     selection_docs_state1['langchain_mode_paths'].pop(k)
+            return selection_docs_state1
 
         # Setup some gradio states for per-user dynamic state
         model_state2 = gr.State(kwargs['model_state_none'].copy())
@@ -292,8 +293,8 @@ def go_gradio(**kwargs):
         selection_docs_state0 = dict(visible_langchain_modes=visible_langchain_modes0,
                                      langchain_mode_paths=langchain_mode_paths0,
                                      langchain_modes=langchain_modes0)
+        selection_docs_state0 = update_langchain_mode_paths(my_db_state0, selection_docs_state0)
         selection_docs_state = gr.State(selection_docs_state0)
-        update_langchain_mode_paths(my_db_state.value, selection_docs_state.value)
 
         gr.Markdown(f"""
             {get_h2o_title(title, description) if kwargs['h2ocolors'] else get_simple_title(title, description)}
@@ -1135,7 +1136,7 @@ def go_gradio(**kwargs):
             else:
                 langchain_mode2 = langchain_mode1
                 textbox = "Invalid, must be like UserData2, user_path2"
-            update_langchain_mode_paths(db1s, selection_docs_state1)
+            selection_docs_state1 = update_langchain_mode_paths(db1s, selection_docs_state1)
             df_langchain_mode_paths1 = get_df_langchain_mode_paths(langchain_mode_paths)
             choices = get_langchain_choices(langchain_modes, visible_langchain_modes)
             from src.gpt_langchain import is_user_type_db
@@ -1188,7 +1189,7 @@ def go_gradio(**kwargs):
                     # don't remove last MyData, used as user hash
                     db1s.pop(langchain_mode2)
             # only show
-            update_langchain_mode_paths(db1s, selection_docs_state1)
+            selection_docs_state1 = update_langchain_mode_paths(db1s, selection_docs_state1)
             df_langchain_mode_paths1 = get_df_langchain_mode_paths(langchain_mode_paths)
             return db1s, gr.update(choices=get_langchain_choices(langchain_modes, visible_langchain_modes),
                                    value=langchain_mode2), textbox, df_langchain_mode_paths1, selection_docs_state1
@@ -1213,10 +1214,10 @@ def go_gradio(**kwargs):
             visible_langchain_modes = selection_docs_state1['visible_langchain_modes']
             # in-place
             update_langchain(langchain_modes, visible_langchain_modes, langchain_mode_paths)
-            update_langchain_mode_paths(db1s, selection_docs_state1)
+            selection_docs_state1 = update_langchain_mode_paths(db1s, selection_docs_state1)
             df_langchain_mode_paths1 = get_df_langchain_mode_paths(langchain_mode_paths)
             return gr.update(choices=get_langchain_choices(langchain_modes, visible_langchain_modes),
-                             value=langchain_mode1), df_langchain_mode_paths1
+                             value=langchain_mode1), df_langchain_mode_paths1, selection_docs_state1
 
         load_langchain.click(fn=update_langchain_gr,
                              inputs=[my_db_state, langchain_mode, selection_docs_state],
