@@ -1942,6 +1942,11 @@ def go_gradio(**kwargs):
         def get_short_chat(x, short_chats, short_len=20, words=4):
             if x and len(x[0]) == 2 and x[0][0] is not None:
                 short_chat = ' '.join(x[0][0][:short_len].split(' ')[:words]).strip()
+                if not short_chat:
+                    # e.g.summarization, try using answer
+                    short_chat = ' '.join(x[0][1][:short_len].split(' ')[:words]).strip()
+                    if not short_chat:
+                        short_chat = 'Unk'
                 short_chat = dedup(short_chat, short_chats)
             else:
                 short_chat = None
