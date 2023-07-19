@@ -7,7 +7,7 @@ Query and summarize your documents or just chat with local private GPT LLMs usin
 - **Private** offline database of any documents [(PDFs, Excel, Word, Images, Code, Text, MarkDown, etc.)](docs/README_LangChain.md#supported-datatypes)
 - **Persistent** database (Chroma, Weaviate, or in-memory FAISS) using accurate embeddings (instructor-large, all-MiniLM-L6-v2, etc.)
 - **Efficient** use of context using instruct-tuned LLMs (no need for LangChain's few-shot approach)
-- **Upload** and **View** documents via UI (collaborative space or scratch space)
+- **Upload** and **View** documents via UI (control multiple collaborative or scratch collections)
 - **UI** or CLI with streaming of all models
 - **Bake-off** UI mode against many models at same time
 - **Variety** of models supported (Falcon, Vicuna, WizardLM including AutoGPTQ, 4-bit/8-bit, LORA)
