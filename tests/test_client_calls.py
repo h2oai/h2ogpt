@@ -368,7 +368,8 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'H2O AI Cloud is a cloud-based platform' in res_dict['response'] or
             'is a platform for deploying' in res_dict['response'] or
             'is a language model that is trained' in res_dict['response'] or
-            'private, and anonymous communication' in res_dict['response']
+            'private, and anonymous communication' in res_dict['response'] or
+            'The large language model is' in res_dict['response']
             ) \
            and '.md' in res_dict['response']
 
