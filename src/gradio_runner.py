@@ -1112,6 +1112,7 @@ def go_gradio(**kwargs):
             visible_langchain_modes = selection_docs_state1['visible_langchain_modes']
 
             user_path = None
+            valid = True
             y2 = y.strip().replace(' ', '').split(',')
             if len(y2) >= 1:
                 langchain_mode2 = y2[0]
@@ -1125,7 +1126,8 @@ def go_gradio(**kwargs):
                         user_path = None
                     if langchain_mode2 in langchain_modes_intrinsic:
                         user_path = None
-                        textbox = "Invalid to use internal name: %s" % langchain_mode2
+                        textbox = "Invalid access to use internal name: %s" % langchain_mode2
+                        valid = False
                         langchain_mode2 = langchain_mode1
                     elif user_path and allow_upload_to_user_data or not user_path and allow_upload_to_my_data:
                         langchain_mode_paths.update({langchain_mode2: user_path})
@@ -1137,27 +1139,27 @@ def go_gradio(**kwargs):
                         if user_path:
                             makedirs(user_path, exist_ok=True)
                     else:
-                        user_path = None
+                        valid = False
                         langchain_mode2 = langchain_mode1
                         textbox = "Invalid access.  user allowed: %s " \
                                   "scratch allowed: %s" % (allow_upload_to_user_data, allow_upload_to_my_data)
                 else:
-                    user_path = None
+                    valid = False
                     langchain_mode2 = langchain_mode1
                     textbox = "Invalid, collection must be >=3 characters and alphanumeric"
             else:
-                user_path = None
+                valid = False
                 langchain_mode2 = langchain_mode1
                 textbox = "Invalid, must be like UserData2, user_path2"
             selection_docs_state1 = update_langchain_mode_paths(db1s, selection_docs_state1)
             df_langchain_mode_paths1 = get_df_langchain_mode_paths(selection_docs_state1)
             choices = get_langchain_choices(selection_docs_state1)
 
-            if not user_path:
+            if valid and not user_path:
                 # needs to have key for it to make it known different from userdata case in _update_user_db()
                 db1s[langchain_mode2] = [None, None]
-
-            save_collection_names(langchain_modes, visible_langchain_modes, langchain_mode_paths, LangChainMode, db1s)
+            if valid:
+                save_collection_names(langchain_modes, visible_langchain_modes, langchain_mode_paths, LangChainMode, db1s)
 
             return db1s, selection_docs_state1, gr.update(choices=choices,
                                                           value=langchain_mode2), textbox, df_langchain_mode_paths1
