@@ -71,7 +71,8 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
         temperature=0.4, top_p=0.85, top_k=70, num_beams=1, max_new_tokens=256,
         min_new_tokens=0, early_stopping=False, max_time=180, repetition_penalty=1.07,
         num_return_sequences=1, do_sample=True, chat=False,
-        langchain_mode='Disabled', langchain_action=LangChainAction.QUERY.value, langchain_agents=[],
+        langchain_mode='Disabled', add_chat_history_to_context=True,
+        langchain_action=LangChainAction.QUERY.value, langchain_agents=[],
         chunk=True, chunk_size=512,
         load_half=False, load_4bit=False, load_8bit=False, load_gptq=False, use_safetensors=False)
     if bits == 4:

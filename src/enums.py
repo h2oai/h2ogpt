@@ -55,7 +55,6 @@ class LangChainMode(Enum):
     """LangChain mode"""
 
     DISABLED = "Disabled"
-    CHAT_LLM = "ChatLLM"
     LLM = "LLM"
     ALL = "All"
     WIKI = "wiki"
@@ -68,7 +67,6 @@ class LangChainMode(Enum):
 
 # modes should not be removed from visible list or added by name
 langchain_modes_intrinsic = [LangChainMode.DISABLED.value,
-                             LangChainMode.CHAT_LLM.value,
                              LangChainMode.LLM.value,
                              LangChainMode.MY_DATA.value]
 

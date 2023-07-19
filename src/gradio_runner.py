@@ -254,7 +254,7 @@ def go_gradio(**kwargs):
         allow = False
         allow |= langchain_action1 not in LangChainAction.QUERY.value
         allow |= document_subset1 in DocumentSubset.TopKSources.name
-        if langchain_mode1 in [LangChainMode.CHAT_LLM.value, LangChainMode.LLM.value]:
+        if langchain_mode1 in [LangChainMode.LLM.value]:
             allow = False
         return allow
 
@@ -329,7 +329,7 @@ def go_gradio(**kwargs):
                 no_show_modes = ['Disabled']
             allowed_modes = visible_langchain_modes.copy()
             # allowed_modes = [x for x in allowed_modes if x in dbs]
-            allowed_modes += ['ChatLLM', 'LLM']
+            allowed_modes += ['LLM']
             if allow_upload_to_my_data and 'MyData' not in allowed_modes:
                 allowed_modes += ['MyData']
             if allow_upload_to_user_data and 'UserData' not in allowed_modes:
@@ -380,7 +380,7 @@ def go_gradio(**kwargs):
                                                 visible=text_visible)
                     github_textbox = gr.Textbox(label="Github URL", visible=False)  # FIXME WIP
                 database_visible = kwargs['langchain_mode'] != 'Disabled'
-                with gr.Accordion("Database", open=False, visible=database_visible):
+                with gr.Accordion("Resources", open=False, visible=database_visible):
                     langchain_choices0 = get_langchain_choices(selection_docs_state0)
                     langchain_mode = gr.Radio(
                         langchain_choices0,
@@ -389,6 +389,8 @@ def go_gradio(**kwargs):
                         show_label=True,
                         visible=kwargs['langchain_mode'] != 'Disabled',
                         min_width=100)
+                    add_chat_history_to_context = gr.Checkbox(label="Chat History",
+                                                              value=kwargs['add_chat_history_to_context'])
                     document_subset = gr.Radio([x.name for x in DocumentSubset],
                                                label="Subset",
                                                value=DocumentSubset.Relevant.name,
@@ -1159,7 +1161,8 @@ def go_gradio(**kwargs):
                 # needs to have key for it to make it known different from userdata case in _update_user_db()
                 db1s[langchain_mode2] = [None, None]
             if valid:
-                save_collection_names(langchain_modes, visible_langchain_modes, langchain_mode_paths, LangChainMode, db1s)
+                save_collection_names(langchain_modes, visible_langchain_modes, langchain_mode_paths, LangChainMode,
+                                      db1s)
 
             return db1s, selection_docs_state1, gr.update(choices=choices,
                                                           value=langchain_mode2), textbox, df_langchain_mode_paths1
@@ -1199,7 +1202,8 @@ def go_gradio(**kwargs):
                 selection_docs_state1 = update_langchain_mode_paths(db1s, selection_docs_state1)
                 df_langchain_mode_paths1 = get_df_langchain_mode_paths(selection_docs_state1)
 
-                save_collection_names(langchain_modes, visible_langchain_modes, langchain_mode_paths, LangChainMode, db1s)
+                save_collection_names(langchain_modes, visible_langchain_modes, langchain_mode_paths, LangChainMode,
+                                      db1s)
 
             return db1s, selection_docs_state1, \
                 gr.update(choices=get_langchain_choices(selection_docs_state1),
@@ -1550,6 +1554,7 @@ def go_gradio(**kwargs):
 
             args_list = args_list[:-isize]  # only keep rest needed for evaluate()
             langchain_mode1 = args_list[eval_func_param_names.index('langchain_mode')]
+            add_chat_history_to_context1 = args_list[eval_func_param_names.index('add_chat_history_to_context')]
             langchain_action1 = args_list[eval_func_param_names.index('langchain_action')]
             langchain_agents1 = args_list[eval_func_param_names.index('langchain_agents')]
             document_subset1 = args_list[eval_func_param_names.index('document_subset')]
@@ -1581,7 +1586,9 @@ def go_gradio(**kwargs):
 
             chat1 = args_list[eval_func_param_names.index('chat')]
             model_max_length1 = get_model_max_length(model_state1)
-            context1 = history_to_context(history, langchain_mode1, prompt_type1, prompt_dict1, chat1,
+            context1 = history_to_context(history, langchain_mode1,
+                                          add_chat_history_to_context1,
+                                          prompt_type1, prompt_dict1, chat1,
                                           model_max_length1, memory_restriction_level,
                                           kwargs['keep_sources_in_context'])
             args_list[0] = instruction1  # override original instruction with history from user
@@ -1638,7 +1645,7 @@ def go_gradio(**kwargs):
 
         def clear_embeddings(langchain_mode1, db1s):
             # clear any use of embedding that sits on GPU, else keeps accumulating GPU usage even if clear torch cache
-            if db_type == 'chroma' and langchain_mode1 not in ['ChatLLM', 'LLM', 'Disabled', None, '']:
+            if db_type == 'chroma' and langchain_mode1 not in ['LLM', 'Disabled', None, '']:
                 from gpt_langchain import clear_embedding
                 db = dbs.get('langchain_mode1')
                 if db is not None and not isinstance(db, str):
@@ -2426,12 +2433,15 @@ def go_gradio(**kwargs):
             else:
                 tokenizer = None
             if tokenizer is not None:
-                langchain_mode1 = 'ChatLLM'
+                langchain_mode1 = 'LLM'
+                add_chat_history_to_context1 = True
                 # fake user message to mimic bot()
                 chat1 = copy.deepcopy(chat1)
                 chat1 = chat1 + [['user_message1', None]]
                 model_max_length1 = tokenizer.model_max_length
-                context1 = history_to_context(chat1, langchain_mode1, prompt_type1, prompt_dict1, chat1,
+                context1 = history_to_context(chat1, langchain_mode1,
+                                              add_chat_history_to_context1,
+                                              prompt_type1, prompt_dict1, chat1,
                                               model_max_length1,
                                               memory_restriction_level1, keep_sources_in_context1)
                 return str(tokenizer(context1, return_tensors="pt")['input_ids'].shape[1])
@@ -2661,7 +2671,7 @@ def _update_user_db(file,
     if langchain_mode == LangChainMode.DISABLED.value:
         return None, langchain_mode, get_source_files(), ""
 
-    if langchain_mode in [LangChainMode.CHAT_LLM.value, LangChainMode.CHAT_LLM.value]:
+    if langchain_mode in [LangChainMode.LLM.value]:
         # then switch to MyData, so langchain_mode also becomes way to select where upload goes
         # but default to mydata if nothing chosen, since safest
         if LangChainMode.MY_DATA.value in visible_langchain_modes:
@@ -2703,7 +2713,7 @@ def _update_user_db(file,
     exceptions_strs = [x.metadata['exception'] for x in exceptions]
     sources = [x for x in sources if 'exception' not in x.metadata]
 
-    # below must at least come after langchain_mode is modified in case was ChatLLM -> MyData,
+    # below must at least come after langchain_mode is modified in case was LLM -> MyData,
     # so original langchain mode changed
     for k in db1s:
         set_userid(db1s[k])
@@ -2881,7 +2891,7 @@ def update_and_get_source_files_given_langchain_mode(db1s, langchain_mode, chunk
                                                      langchain_mode_paths=None, db_type=None, load_db_if_exists=None,
                                                      n_jobs=None, verbose=None):
     has_path = {k: v for k, v in langchain_mode_paths.items() if v}
-    if langchain_mode in [LangChainMode.LLM.value, LangChainMode.CHAT_LLM.value, LangChainMode.MY_DATA.value]:
+    if langchain_mode in [LangChainMode.LLM.value, LangChainMode.MY_DATA.value]:
         # then assume user really meant UserData, to avoid extra clicks in UI,
         # since others can't be on disk, except custom user modes, which they should then select to query it
         if LangChainMode.USER_DATA.value in has_path:
