@@ -1706,30 +1706,30 @@ def _make_db(use_openai_embedding=False,
             if chunk and False:  # FIXME: DAI docs are already chunked well, should only chunk more if over limit
                 sources1 = chunk_sources(sources1, chunk=chunk, chunk_size=chunk_size)
             sources.extend(sources1)
-        elif user_path:
-            # UserData or custom, which has to be from user's disk
-            if db is not None:
-                # NOTE: Ignore file names for now, only go by hash ids
-                # existing_files = get_existing_files(db)
-                existing_files = []
-                existing_hash_ids = get_existing_hash_ids(db)
-            else:
-                # pretend no existing files so won't filter
-                existing_files = []
-                existing_hash_ids = []
-            # chunk internally for speed over multiple docs
-            # FIXME: If first had old Hash=None and switch embeddings,
-            #  then re-embed, and then hit here and reload so have hash, and then re-embed.
-            sources1 = path_to_docs(user_path, n_jobs=n_jobs, chunk=chunk, chunk_size=chunk_size,
-                                    existing_files=existing_files, existing_hash_ids=existing_hash_ids)
-            new_metadata_sources = set([x.metadata['source'] for x in sources1])
-            if new_metadata_sources:
-                print("Loaded %s new files as sources to add to %s" % (len(new_metadata_sources), langchain_mode),
-                      flush=True)
-                if verbose:
-                    print("Files added: %s" % '\n'.join(new_metadata_sources), flush=True)
-            sources.extend(sources1)
-            print("Loaded %s sources for potentially adding to %s" % (len(sources), langchain_mode), flush=True)
+    if user_path:
+        # UserData or custom, which has to be from user's disk
+        if db is not None:
+            # NOTE: Ignore file names for now, only go by hash ids
+            # existing_files = get_existing_files(db)
+            existing_files = []
+            existing_hash_ids = get_existing_hash_ids(db)
+        else:
+            # pretend no existing files so won't filter
+            existing_files = []
+            existing_hash_ids = []
+        # chunk internally for speed over multiple docs
+        # FIXME: If first had old Hash=None and switch embeddings,
+        #  then re-embed, and then hit here and reload so have hash, and then re-embed.
+        sources1 = path_to_docs(user_path, n_jobs=n_jobs, chunk=chunk, chunk_size=chunk_size,
+                                existing_files=existing_files, existing_hash_ids=existing_hash_ids)
+        new_metadata_sources = set([x.metadata['source'] for x in sources1])
+        if new_metadata_sources:
+            print("Loaded %s new files as sources to add to %s" % (len(new_metadata_sources), langchain_mode),
+                  flush=True)
+            if verbose:
+                print("Files added: %s" % '\n'.join(new_metadata_sources), flush=True)
+        sources.extend(sources1)
+        print("Loaded %s sources for potentially adding to %s" % (len(sources), langchain_mode), flush=True)
 
         # see if got sources
         if not sources:
