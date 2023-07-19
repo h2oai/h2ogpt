@@ -651,6 +651,10 @@ def main(
     selection_docs_state0 = dict(visible_langchain_modes=visible_langchain_modes,
                                  langchain_mode_paths=langchain_mode_paths,
                                  langchain_modes=langchain_modes)
+    selection_docs_state = selection_docs_state0
+    langchain_modes0 = langchain_modes
+    langchain_mode_paths0 = langchain_mode_paths
+    visible_langchain_modes0 = visible_langchain_modes
 
     if cli:
         from cli import run_cli

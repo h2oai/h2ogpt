@@ -29,6 +29,9 @@ def run_cli(  # for local function:
         # for evaluate kwargs
         src_lang=None, tgt_lang=None, concurrency_count=None, save_dir=None, sanitize_bot_response=None,
         model_state0=None,
+        langchain_modes0=None,
+        langchain_mode_paths0=None,
+        visible_langchain_modes0=None,
         max_max_new_tokens=None,
         is_public=None,
         max_max_time=None,
@@ -65,7 +68,8 @@ def run_cli(  # for local function:
         model_state = dict(model=model, tokenizer=tokenizer, device=device)
         model_state.update(model_dict)
         fun = partial(evaluate, model_state, my_db_state0, selection_docs_state0,
-                      **get_kwargs(evaluate, exclude_names=['model_state', 'my_db_state'] + eval_func_param_names,
+                      **get_kwargs(evaluate, exclude_names=['model_state', 'my_db_state',
+                                                            'selection_docs_state'] + eval_func_param_names,
                                    **locals()))
 
         example1 = examples[-1]  # pick reference example

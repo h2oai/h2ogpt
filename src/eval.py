@@ -47,6 +47,9 @@ def run_eval(  # for local function:
         # for evaluate kwargs:
         src_lang=None, tgt_lang=None, concurrency_count=None, save_dir=None, sanitize_bot_response=None,
         model_state0=None,
+        langchain_modes0=None,
+        langchain_mode_paths0=None,
+        visible_langchain_modes0=None,
         max_max_new_tokens=None,
         is_public=None,
         max_max_time=None,
@@ -213,7 +216,8 @@ def run_eval(  # for local function:
                                         max_length=cutoff_len)
                     try:
                         score = \
-                        torch.sigmoid(smodel(**inputs.to(smodel.device)).logits[0].float()).cpu().detach().numpy()[0]
+                            torch.sigmoid(smodel(**inputs.to(smodel.device)).logits[0].float()).cpu().detach().numpy()[
+                                0]
                     except torch.cuda.OutOfMemoryError as e:
                         print("GPU OOM 1: question: %s answer: %s exception: %s" % (prompt, res, str(e)),
                               flush=True)
