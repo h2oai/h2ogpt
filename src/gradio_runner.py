@@ -454,9 +454,9 @@ def go_gradio(**kwargs):
                                     mw1 = 50
                                     mw2 = 50
                                     with gr.Column(min_width=mw1):
-                                        submit = gr.Button(value='Submit', variant='primary', scale=0, size='sm',
+                                        submit = gr.Button(value='Submit', variant='primary', size='sm',
                                                            min_width=mw1)
-                                        stop_btn = gr.Button(value="Stop", variant='secondary', scale=0, size='sm',
+                                        stop_btn = gr.Button(value="Stop", variant='secondary', size='sm',
                                                              min_width=mw1)
                                         save_chat_btn = gr.Button("Save", size='sm', min_width=mw1)
                                     with gr.Column(min_width=mw2):
