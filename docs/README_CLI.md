@@ -6,7 +6,7 @@ python generate.py --base_model=gptj --cli=True
 ```
 and for LangChain run:
 ```bash
-python make_db.py --user_path=user_path --collection_name=UserData
+python src/make_db.py --user_path=user_path --collection_name=UserData
 python generate.py --base_model=gptj --cli=True --langchain_mode=UserData
 ```
 with documents in `user_path` folder, or directly run:

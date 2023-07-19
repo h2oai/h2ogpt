@@ -115,20 +115,20 @@ When pymupdf is installed, we will use `PyMuPDFLoader` by default to parse PDFs 
 
 To use some example databases (will overwrite UserData make above unless change options) and run generate after, do:
 ```bash
-python make_db.py --download_some=True
+python src/make_db.py --download_some=True
 python generate.py --base_model=h2oai/h2ogpt-oasst1-512-12b --load_8bit=True --langchain_mode=UserData --visible_langchain_modes="['UserData', 'wiki', 'MyData', 'github h2oGPT', 'DriverlessAI docs']"
 ```
 which downloads example databases.  This obtains files from some [pre-generated databases](https://huggingface.co/datasets/h2oai/db_dirs).  A large Wikipedia database is also available.
 
 To build the database first outside chatbot, then run generate after, do:
 ```bash
-python make_db.py
+python src/make_db.py
 python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b --langchain_mode=UserData
 ```
 
 To add data to the existing database, then run generate after, do:
 ```bash
-python make_db.py --add_if_exists=True
+python src/make_db.py --add_if_exists=True
 python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b --langchain_mode=UserData
 ```
 
@@ -227,8 +227,8 @@ curl -o docker-compose.yml "https://configuration.weaviate.io/v2/docker-compose/
   Refer to the [documentation](https://weaviate.io/developers/weaviate/installation/embedded) for more details about this deployment method.
 ## How To Use
 Simply pass the `--db_type=weaviate` argument. For example:
-```
-python make_db.py --db_type=weaviate
+```bash
+python src/make_db.py --db_type=weaviate
 python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b \
    --langchain_mode=UserData \
    --db_type=weaviate
@@ -237,7 +237,7 @@ will use an embedded weaviate instance.
 
 If you have a weaviate instance hosted at say http://localhost:8080, then you need to define the `WEAVIATE_URL` environment variable before running the scripts:
 ```
-WEAVIATE_URL=http://localhost:8080 python make_db.py --db_type=weaviate
+WEAVIATE_URL=http://localhost:8080 python src/make_db.py --db_type=weaviate
 WEAVIATE_URL=http://localhost:8080 python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b \
    --langchain_mode=UserData \
    --db_type=weaviate

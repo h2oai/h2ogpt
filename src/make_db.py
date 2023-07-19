@@ -47,7 +47,7 @@ def make_db_main(use_openai_embedding: bool = False,
                  ):
     """
     # To make UserData db for generate.py, put pdfs, etc. into path user_path and run:
-    python make_db.py
+    python src/make_db.py
 
     # once db is made, can use in generate.py like:
 
@@ -58,10 +58,10 @@ def make_db_main(use_openai_embedding: bool = False,
     zip -r db_dir_UserData.zip db_dir_UserData
 
     # To get all db files (except large wiki_full) do:
-    python make_db.py --download_some=True
+    python src/make_db.py --download_some=True
 
     # To get a single db file from HF:
-    python make_db.py --download_one=db_dir_DriverlessAI_docs.zip
+    python src/make_db.py --download_one=db_dir_DriverlessAI_docs.zip
 
     :param use_openai_embedding: Whether to use OpenAI embedding
     :param hf_embedding_model: HF embedding model to use. Like generate.py, uses 'hkunlp/instructor-large' if have GPUs, else "sentence-transformers/all-MiniLM-L6-v2"
