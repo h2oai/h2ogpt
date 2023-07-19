@@ -77,6 +77,12 @@ prompt_type_to_model_name = {
     "mptchat": ['mosaicml/mpt-7b-chat', 'mosaicml/mpt-30b-chat', 'TheBloke/mpt-30B-chat-GGML'],
     "vicuna11": ['lmsys/vicuna-33b-v1.3'],
     "falcon": ['tiiuae/falcon-40b-instruct', 'tiiuae/falcon-40b', 'tiiuae/falcon-7b-instruct', 'tiiuae/falcon-7b'],
+    "llama2": [
+        'meta-llama/Llama-2-7b-chat-hf',
+        'meta-llama/Llama-2-13b-chat-hf',
+        'meta-llama/Llama-2-34b-chat-hf',
+        'meta-llama/Llama-2-70b-chat-hf',
+    ],
     # could be plain, but default is correct prompt_type for default TheBloke model ggml-wizardLM-7B.q4_2.bin
 }
 if os.getenv('OPENAI_API_KEY'):
@@ -596,6 +602,19 @@ ASSISTANT:
         chat_turn_sep = chat_sep = '\n'
         humanstr = PreInstruct
         botstr = PreResponse
+    elif prompt_type in [PromptType.llama2.value, str(PromptType.llama2.value),
+                         PromptType.llama2.name]:
+        PreInstruct = ""
+        promptA = promptB = "<s>[INST] <<SYS>>\nYou are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe.  Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.\n\nIf a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.\n<</SYS>>\n\n" if not (chat and reduced) else ''
+        PreInput = None
+        PreResponse = ""
+        terminate_response = ["[INST]", "</s>"]
+        chat_sep = ' [/INST]'
+        chat_turn_sep = ' </s><s>[INST] '
+        humanstr = PreInstruct
+        botstr = PreResponse
+        if making_context:
+            PreResponse += " "
     else:
         raise RuntimeError("No such prompt_type=%s" % prompt_type)
 
