@@ -1063,6 +1063,10 @@ def load_collection_enum(extra):
                         f)
         except BaseException as e:
             print("Cannot load %s, ignoring error: %s" % (file, str(e)), flush=True)
+    for k, v in langchain_mode_paths_from_file.items():
+        if v is not None and not os.path.isdir(v) and isinstance(v, str):
+            # assume was deleted, but need to make again to avoid extra code elsewhere
+            makedirs(v)
     return langchain_modes_from_file, visible_langchain_modes_from_file, langchain_mode_paths_from_file
 
 

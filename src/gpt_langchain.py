@@ -1384,11 +1384,15 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
         [globs_non_image_types.extend(glob.glob(os.path.join(path, "./**/*.%s" % ftype), recursive=True))
          for ftype in non_image_types]
     else:
-        if isinstance(path_or_paths, str) and (os.path.isfile(path_or_paths) or os.path.isdir(path_or_paths)):
-            path_or_paths = [path_or_paths]
+        if isinstance(path_or_paths, str):
+            if os.path.isfile(path_or_paths) or os.path.isdir(path_or_paths):
+                path_or_paths = [path_or_paths]
+            else:
+                # path was deleted etc.
+                return []
         # list/tuple of files (consume what can, and exception those that selected but cannot consume so user knows)
-        assert isinstance(path_or_paths, (list, tuple, types.GeneratorType)), "Wrong type for path_or_paths: %s" % type(
-            path_or_paths)
+        assert isinstance(path_or_paths, (list, tuple, types.GeneratorType)), \
+            "Wrong type for path_or_paths: %s %s" % (path_or_paths, type(path_or_paths))
         # reform out of allowed types
         globs_image_types.extend(flatten_list([[x for x in path_or_paths if x.endswith(y)] for y in image_types]))
         # could do below:
@@ -1720,11 +1724,12 @@ def _make_db(use_openai_embedding=False,
                                     existing_files=existing_files, existing_hash_ids=existing_hash_ids)
             new_metadata_sources = set([x.metadata['source'] for x in sources1])
             if new_metadata_sources:
-                print("Loaded %s new files as sources to add to UserData" % len(new_metadata_sources), flush=True)
+                print("Loaded %s new files as sources to add to %s" % (len(new_metadata_sources), langchain_mode),
+                      flush=True)
                 if verbose:
                     print("Files added: %s" % '\n'.join(new_metadata_sources), flush=True)
             sources.extend(sources1)
-            print("Loaded %s sources for potentially adding to UserData" % len(sources), flush=True)
+            print("Loaded %s sources for potentially adding to %s" % (len(sources), langchain_mode), flush=True)
 
         # see if got sources
         if not sources:
