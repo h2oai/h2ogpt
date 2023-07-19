@@ -2016,14 +2016,12 @@ def go_gradio(**kwargs):
                     already_exists = any([is_chat_same(chat_list, x) for x in old_chat_lists])
                     if not already_exists:
                         chat_state1[short_chat] = chat_list.copy()
-                # clear chat_list so saved and then new conversation starts
-                # FIXME: seems less confusing to clear, since have clear button right next
-                # chat_list = [[]] * len(chat_list)
-            if not chat_is_list:
-                ret_list = chat_list + [chat_state1]
-            else:
-                ret_list = [chat_list] + [chat_state1]
-            return tuple(ret_list)
+
+            # reverse so newest at top
+            choices = list(chat_state1.keys()).copy()
+            choices.reverse()
+
+            return chat_state1, gr.update(choices=choices, value=None)
 
         def switch_chat(chat_key, chat_state1, num_model_lock=0):
             chosen_chat = chat_state1[chat_key]
@@ -2085,7 +2083,7 @@ def go_gradio(**kwargs):
                         new_chats = json.loads(f.read())
                         for chat1_k, chat1_v in new_chats.items():
                             # ignore chat1_k, regenerate and de-dup to avoid loss
-                            _, chat_state1 = save_chat(chat1_v, chat_state1, chat_is_list=True)
+                            chat_state1, _ = save_chat(chat1_v, chat_state1, chat_is_list=True)
                 except BaseException as e:
                     t, v, tb = sys.exc_info()
                     ex = ''.join(traceback.format_exception(t, v, tb))
@@ -2111,19 +2109,12 @@ def go_gradio(**kwargs):
             .then(deselect_radio_chats, inputs=None, outputs=radio_chats, queue=False) \
             .then(clear_scores, outputs=[score_text, score_text2, score_text_nochat])
 
-        def update_radio_chats(chat_state1):
-            # reverse so newest at top
-            choices = list(chat_state1.keys()).copy()
-            choices.reverse()
-            return gr.update(choices=choices, value=None)
-
         clear_event = save_chat_btn.click(save_chat,
                                           inputs=[text_output, text_output2] + text_outputs + [chat_state],
-                                          outputs=[text_output, text_output2] + text_outputs + [chat_state],
-                                          api_name='save_chat' if allow_api else None) \
-            .then(update_radio_chats, inputs=chat_state, outputs=radio_chats,
-                  api_name='update_chats' if allow_api else None) \
-            .then(clear_scores, outputs=[score_text, score_text2, score_text_nochat])
+                                          outputs=[chat_state, radio_chats],
+                                          api_name='save_chat' if allow_api else None)
+        if kwargs['score_model']:
+            clear_event2 = clear_event.then(clear_scores, outputs=[score_text, score_text2, score_text_nochat])
 
         # NOTE: clear of instruction/iinput for nochat has to come after score,
         # because score for nochat consumes actual textbox, while chat consumes chat history filled by user()
