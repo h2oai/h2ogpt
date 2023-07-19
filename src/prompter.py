@@ -610,7 +610,7 @@ ASSISTANT:
         PreInput = None
 
         PreResponse = ""
-        terminate_response = [" [INST]", "</s>"]
+        terminate_response = ["[INST]", "</s>"]
         chat_sep = ' [/INST]'
         chat_turn_sep = ' </s><s>[INST] '
         humanstr = PreInstruct
