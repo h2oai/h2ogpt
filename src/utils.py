@@ -1032,17 +1032,20 @@ def save_collection_names(langchain_modes, visible_langchain_modes, langchain_mo
     user_langchain_mode_paths = {k: v for k, v in langchain_mode_paths.items() if
                                  k not in scratch_collection_names and k not in llms}
 
+    base_path = 'locks'
+    makedirs(base_path)
+
     # user
     extra = ''
     file = "%s%s" % (visible_langchain_modes_file, extra)
-    with filelock.FileLock("%s.lock" % file):
+    with filelock.FileLock(os.path.join(base_path, "%s.lock" % file)):
         with open(file, 'wb') as f:
             pickle.dump((user_langchain_modes, user_visible_langchain_modes, user_langchain_mode_paths), f)
 
     # scratch
     extra = user_hash
     file = "%s%s" % (visible_langchain_modes_file, extra)
-    with filelock.FileLock("%s.lock" % file):
+    with filelock.FileLock(os.path.join(base_path, "%s.lock" % file)):
         with open(file, 'wb') as f:
             pickle.dump((scratch_langchain_modes, scratch_visible_langchain_modes, scratch_langchain_mode_paths), f)
 

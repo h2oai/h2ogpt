@@ -164,6 +164,7 @@ def main(
         hf_embedding_model: str = None,
         cut_distance: float = 1.64,
         allow_upload_to_user_data: bool = True,
+        reload_langchain_state: bool = True,
         allow_upload_to_my_data: bool = True,
         enable_url_upload: bool = True,
         enable_text_upload: bool = True,
@@ -335,6 +336,7 @@ def main(
            1.64 is good to avoid dropping references for all-MiniLM-L6-v2, but instructor-large will always show excessive references.
            For all-MiniLM-L6-v2, a value of 1.5 can push out even more references, or a large value of 100 can avoid any loss of references.
     :param allow_upload_to_user_data: Whether to allow file uploads to update shared vector db (UserData or custom user dbs)
+    :param reload_langchain_state: Whether to reload visible_langchain_modes.pkl file that contains any new user collections.
     :param allow_upload_to_my_data: Whether to allow file uploads to update scratch vector db
     :param enable_url_upload: Whether to allow upload from URL
     :param enable_text_upload: Whether to allow upload of text
