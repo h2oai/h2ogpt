@@ -312,6 +312,10 @@ def main(
            To allow scratch space only live in session, add 'MyData' to list
            Default: If only want to consume local files, e.g. prepared by make_db.py, only include ['UserData']
            If have own user modes, need to add these here or add in UI.
+           A state file is stored in visible_langchain_modes.pkl containing last UI-selected values of:
+              langchain_modes, visible_langchain_modes, and langchain_mode_paths
+              Delete the file if you want to start fresh,
+              but in any case the user_path passed in CLI is used for UserData even if was None or different
     :param visible_langchain_actions: Which actions to allow
     :param visible_langchain_agents: Which agents to allow
     :param document_subset: Default document choice when taking subset of collection
@@ -433,6 +437,9 @@ def main(
     # in-place, for non-scratch dbs
     if allow_upload_to_user_data:
         update_langchain(langchain_modes, visible_langchain_modes, langchain_mode_paths, '')
+        # always listen to CLI-passed user_path if passed
+        if user_path:
+            langchain_mode_paths['UserData'] = user_path
 
     assert langchain_action in langchain_actions, "Invalid langchain_action %s" % langchain_action
     assert len(
