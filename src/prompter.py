@@ -606,9 +606,7 @@ ASSISTANT:
                          PromptType.llama2.name]:
         PreInstruct = ""
         promptA = promptB = "<s>[INST] <<SYS>>\nYou are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe.  Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.\n\nIf a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.\n<</SYS>>\n\n" if not (chat and reduced) else ''
-
         PreInput = None
-
         PreResponse = ""
         terminate_response = ["[INST]", "</s>"]
         chat_sep = ' [/INST]'
@@ -616,12 +614,7 @@ ASSISTANT:
         humanstr = PreInstruct
         botstr = PreResponse
         if making_context:
-            # when making context, want it to appear as-if LLM generated, which starts with space after :
-            PreResponse = PreResponse + " "
-        else:
-            # normally LLM adds space after this, because was how trained.
-            # if add space here, non-unique tokenization will often make LLM produce wrong output
-            PreResponse = PreResponse
+            PreResponse += " "
     else:
         raise RuntimeError("No such prompt_type=%s" % prompt_type)
 
