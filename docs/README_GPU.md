@@ -25,7 +25,7 @@ pip install -r reqs_optional/requirements_optional_gpt4all.txt
 pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt
 pip install -r reqs_optional/requirements_optional_langchain.urls.txt
 # Optional: support docx, pptx, ArXiv, etc.
-sudo apt-get install -y libmagic-dev poppler-utils tesseract-ocr libreoffice
+sudo apt-get install -y libmagic-dev poppler-utils tesseract-ocr libtesseract-dev libreoffice
 # Optional: for supporting unstructured package
 python -m nltk.downloader all
 ```

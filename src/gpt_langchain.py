@@ -1234,7 +1234,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             handled |= len(doc1) > 0
             doc1 = [x for x in doc1 if x.page_content]
             doc1 = clean_doc(doc1)
-        if len(doc1) == 0 or pdf_class_name == 'UnstructuredPDFLoader':
+        if len(doc1) == 0:
             doc1 = UnstructuredPDFLoader(file).load()
             handled |= len(doc1) > 0
             # remove empty documents
@@ -1248,7 +1248,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             # remove empty documents
             doc1 = [x for x in doc1 if x.page_content]
             doc1 = clean_doc(doc1)
-        if have_pymupdf or len(doc1) == 0:
+        if have_pymupdf and len(doc1) == 0:
             # GPL, only use if installed
             from langchain.document_loaders import PyMuPDFLoader
             # load() still chunks by pages, but every page has title at start to help
@@ -1257,6 +1257,13 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             # remove empty documents
             doc1 = [x for x in doc1 if x.page_content]
             doc1 = clean_doc(doc1)
+        if len(doc1) == 0:
+            # try OCR in end since slowest, but works on pure image pages well
+            doc1 = UnstructuredPDFLoader(file, strategy='ocr_only').load()
+            handled |= len(doc1) > 0
+            # remove empty documents
+            doc1 = [x for x in doc1 if x.page_content]
+            # seems to not need cleaning in most cases
         # Some PDFs return nothing or junk from PDFMinerLoader
         if len(doc1) == 0:
             # if literally nothing, show failed to parse so user knows, since unlikely nothing in PDF at all.

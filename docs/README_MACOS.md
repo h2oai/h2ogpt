@@ -107,6 +107,7 @@ brew link libmagic
 brew install poppler
 brew install tesseract --all-languages
 ```
+i.e. see [Tesseract Documentation](https://tesseract-ocr.github.io/tessdoc/Installation.html).
 
 Then for document Q/A with UI using CPU:
 ```bash

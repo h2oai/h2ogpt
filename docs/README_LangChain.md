@@ -50,15 +50,15 @@ Open-source data types are supported, .msg is not supported due to GPL-3 require
 
 To support image captioning, on Ubuntu run:
 ```bash
-sudo apt-get install libmagic-dev poppler-utils tesseract-ocr
+sudo apt-get install libmagic-dev poppler-utils tesseract-ocr libtesseract-dev
 ```
 and ensure in `requirements_optional_langchain.txt` that `unstructured[local-inference]` and `pdf2image` are installed.  Otherwise, for no image support just `unstructured` is sufficient.
 
 OCR is disabled by default, but can be enabled if making database via `make_db.py`, and then on Ubuntu run:
 ```bash
-sudo apt-get install tesseract-ocr
+sudo apt-get install tesseract-ocr libtesseract-dev
 ```
-and ensure you `pip install pytesseract`.
+and ensure you `pip install pytesseract`.  See [Tesseract documentation](https://tesseract-ocr.github.io/tessdoc/Installation.html).
 
 To support Microsoft Office docx, doc, xls, xlsx, on Ubuntu run:
 ```bash
