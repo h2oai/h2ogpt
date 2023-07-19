@@ -1486,7 +1486,7 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
             with open(fil, 'rb') as f:
                 documents.extend(pickle.load(f))
             # remove temp pickle
-            os.remove(fil)
+            remove(fil)
     else:
         documents = reduce(concat, documents)
     return documents

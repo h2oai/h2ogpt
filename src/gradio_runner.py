@@ -51,7 +51,7 @@ def fix_pydantic_duplicate_validators_error():
 fix_pydantic_duplicate_validators_error()
 
 from enums import DocumentSubset, no_model_str, no_lora_str, no_server_str, LangChainAction, LangChainMode, \
-    DocumentChoice
+    DocumentChoice, langchain_modes_intrinsic
 from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, get_dark_js, spacing_xsm, radius_xsm, \
     text_xsm
 from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt_type_to_model_lower, non_hf_types, \
@@ -1123,7 +1123,11 @@ def go_gradio(**kwargs):
                     if user_path in ['', "''"]:
                         # for scratch spaces
                         user_path = None
-                    if user_path and allow_upload_to_user_data or not user_path and allow_upload_to_my_data:
+                    if langchain_mode2 in langchain_modes_intrinsic:
+                        user_path = None
+                        textbox = "Invalid to use internal name: %s" % langchain_mode2
+                        langchain_mode2 = langchain_mode1
+                    elif user_path and allow_upload_to_user_data or not user_path and allow_upload_to_my_data:
                         langchain_mode_paths.update({langchain_mode2: user_path})
                         if langchain_mode2 not in visible_langchain_modes:
                             visible_langchain_modes.append(langchain_mode2)
@@ -1133,13 +1137,16 @@ def go_gradio(**kwargs):
                         if user_path:
                             makedirs(user_path, exist_ok=True)
                     else:
+                        user_path = None
                         langchain_mode2 = langchain_mode1
                         textbox = "Invalid access.  user allowed: %s " \
                                   "scratch allowed: %s" % (allow_upload_to_user_data, allow_upload_to_my_data)
                 else:
+                    user_path = None
                     langchain_mode2 = langchain_mode1
                     textbox = "Invalid, collection must be >=3 characters and alphanumeric"
             else:
+                user_path = None
                 langchain_mode2 = langchain_mode1
                 textbox = "Invalid, must be like UserData2, user_path2"
             selection_docs_state1 = update_langchain_mode_paths(db1s, selection_docs_state1)
@@ -1165,35 +1172,32 @@ def go_gradio(**kwargs):
 
             if langchain_mode2 in db1s and not allow_upload_to_my_data or \
                     dbsu is not None and langchain_mode2 in dbsu and not allow_upload_to_user_data or \
-                    langchain_mode2 in [LangChainMode.LLM.value, LangChainMode.CHAT_LLM.value,
-                                        LangChainMode.MY_DATA.value]:
+                    langchain_mode2 in langchain_modes_intrinsic:
                 # NOTE: Doesn't fail if remove MyData, but didn't debug odd behavior seen with upload after gone
                 textbox = "Invalid access, cannot remove %s" % langchain_mode2
                 df_langchain_mode_paths1 = get_df_langchain_mode_paths(selection_docs_state1)
-                return db1s, gr.update(choices=get_langchain_choices(selection_docs_state1),
-                                       value=langchain_mode1), textbox, df_langchain_mode_paths1
-
-            # change global variables
-            if langchain_mode2 in visible_langchain_modes:
-                visible_langchain_modes.remove(langchain_mode2)
-                textbox = ""
             else:
-                textbox = "%s was not visible" % langchain_mode2
-            if langchain_mode2 in langchain_modes:
-                langchain_modes.remove(langchain_mode2)
-            if langchain_mode2 in langchain_mode_paths:
-                langchain_mode_paths.pop(langchain_mode2)
-            if langchain_mode2 in db1s:
-                # remove db entirely, so not in list, else need to manage visible list in update_langchain_mode_paths()
-                # FIXME: Remove location?
-                if langchain_mode2 != LangChainMode.MY_DATA.value:
-                    # don't remove last MyData, used as user hash
-                    db1s.pop(langchain_mode2)
-            # only show
-            selection_docs_state1 = update_langchain_mode_paths(db1s, selection_docs_state1)
-            df_langchain_mode_paths1 = get_df_langchain_mode_paths(selection_docs_state1)
+                # change global variables
+                if langchain_mode2 in visible_langchain_modes:
+                    visible_langchain_modes.remove(langchain_mode2)
+                    textbox = ""
+                else:
+                    textbox = "%s was not visible" % langchain_mode2
+                if langchain_mode2 in langchain_modes:
+                    langchain_modes.remove(langchain_mode2)
+                if langchain_mode2 in langchain_mode_paths:
+                    langchain_mode_paths.pop(langchain_mode2)
+                if langchain_mode2 in db1s:
+                    # remove db entirely, so not in list, else need to manage visible list in update_langchain_mode_paths()
+                    # FIXME: Remove location?
+                    if langchain_mode2 != LangChainMode.MY_DATA.value:
+                        # don't remove last MyData, used as user hash
+                        db1s.pop(langchain_mode2)
+                # only show
+                selection_docs_state1 = update_langchain_mode_paths(db1s, selection_docs_state1)
+                df_langchain_mode_paths1 = get_df_langchain_mode_paths(selection_docs_state1)
 
-            save_collection_names(langchain_modes, visible_langchain_modes, langchain_mode_paths, LangChainMode, db1s)
+                save_collection_names(langchain_modes, visible_langchain_modes, langchain_mode_paths, LangChainMode, db1s)
 
             return db1s, selection_docs_state1, \
                 gr.update(choices=get_langchain_choices(selection_docs_state1),
@@ -2603,7 +2607,7 @@ def get_lock_file(db1, langchain_mode):
     user_id = db1[1]
     base_path = 'locks'
     makedirs(base_path)
-    lock_file = "db_%s_%s.lock" % (langchain_mode.replace(' ', '_'), user_id)
+    lock_file = os.path.join(base_path, "db_%s_%s.lock" % (langchain_mode.replace(' ', '_'), user_id))
     return lock_file
 
 
@@ -2637,10 +2641,6 @@ def _update_user_db(file,
     assert enable_ocr is not None
     assert enable_pdf_ocr is not None
     assert verbose is not None
-
-    for k in db1s:
-        set_userid(db1s[k])
-    db1 = get_db1(db1s, langchain_mode)
 
     if dbs is None:
         dbs = {}
@@ -2701,6 +2701,12 @@ def _update_user_db(file,
     exceptions_strs = [x.metadata['exception'] for x in exceptions]
     sources = [x for x in sources if 'exception' not in x.metadata]
 
+    # below must at least come after langchain_mode is modified in case was ChatLLM -> MyData,
+    # so original langchain mode changed
+    for k in db1s:
+        set_userid(db1s[k])
+    db1 = get_db1(db1s, langchain_mode)
+
     lock_file = get_lock_file(db1s[LangChainMode.MY_DATA.value], langchain_mode)  # user-level lock, not db-level lock
     with filelock.FileLock(lock_file):
         if langchain_mode in db1s:
@@ -2714,6 +2720,7 @@ def _update_user_db(file,
                 # assert len(db1) == 2 and db1[1] is None, "Bad MyData db: %s" % db1
                 # for production hit, when user gets clicky:
                 assert len(db1) == 2, "Bad %s db: %s" % (langchain_mode, db1)
+                assert db1[1] is not None, "db hash was None, not allowed"
                 # then create
                 # if added has to original state and didn't change, then would be shared db for all users
                 persist_directory = os.path.join(scratch_base_dir, 'db_dir_%s_%s' % (langchain_mode, db1[1]))
