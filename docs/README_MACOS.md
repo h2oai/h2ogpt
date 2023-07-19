@@ -114,7 +114,7 @@ python generate.py --base_model='llama' --prompt_type=wizard2 --score_model=None
 ```
 or MPS:
 ```bash
-python generate.py --base_model=h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b --langchain_mode=MyData --score_model=None
+python generate.py --base_model=h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b --langchain_mode=UserData --score_model=None
 ```
 For the above, ignore the CLI output saying `0.0.0.0`, and instead point browser at http://localhost:7860 (for windows/mac) or the public live URL printed by the server (disable shared link with `--share=False`).
 

@@ -23,7 +23,7 @@ This uses 5800MB to startup, then soon drops to 5075MB after torch cache is clea
 
 On CPU case, a good model that's still low memory is to run:
 ```bash
-python generate.py --base_model='llama' --prompt_type=wizard2 --hf_embedding_model=sentence-transformers/all-MiniLM-L6-v2 --langchain_mode=MyData --user_path=user_path
+python generate.py --base_model='llama' --prompt_type=wizard2 --hf_embedding_model=sentence-transformers/all-MiniLM-L6-v2 --langchain_mode=UserData --user_path=user_path
 ```
 
 ### ValueError: ...offload....

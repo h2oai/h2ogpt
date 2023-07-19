@@ -190,7 +190,7 @@ which is just an example for the `human_bot` prompt type.
 
 If you have an OpenAI key and set an ENV `OPENAI_API_KEY`, then you can access OpenAI models via gradio by running:
 ```bash
-OPENAI_API_KEY=<key> python generate.py --inference_server="openai_chat" --base_model=gpt-3.5-turbo --h2ocolors=False --langchain_mode=MyData
+OPENAI_API_KEY=<key> python generate.py --inference_server="openai_chat" --base_model=gpt-3.5-turbo --h2ocolors=False --langchain_mode=UserData
 ```
 where `<key>` should be replaced by your OpenAI key that probably starts with `sk-`.  OpenAI is **not** recommended for private document question-answer, but it can be a good reference for testing purposes or when privacy is not required.
 
@@ -315,7 +315,7 @@ curl http://localhost:5000/v1/completions \
 
 If started OpenAI-compliant server, then run h2oGPT:
 ```bash
-python generate.py --inference_server="vllm:0.0.0.0:5000" --base_model=h2oai/h2ogpt-oasst1-falcon-40b --langchain_mode=MyData
+python generate.py --inference_server="vllm:0.0.0.0:5000" --base_model=h2oai/h2ogpt-oasst1-falcon-40b --langchain_mode=UserData
 ```
 Note: `vllm_chat` ChatCompletion is not supported by vLLM project.
 

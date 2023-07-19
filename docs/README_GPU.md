@@ -90,7 +90,7 @@ Any other instruct-tuned base models can be used, including non-h2oGPT ones.  [L
 
 An example with AutoGPTQ is:
 ```bash
-python generate.py --base_model=TheBloke/Nous-Hermes-13B-GPTQ --score_model=None --load_gptq=nous-hermes-13b-GPTQ-4bit-128g.no-act.order --use_safetensors=True --prompt_type=instruct --langchain_mode=MyData
+python generate.py --base_model=TheBloke/Nous-Hermes-13B-GPTQ --score_model=None --load_gptq=nous-hermes-13b-GPTQ-4bit-128g.no-act.order --use_safetensors=True --prompt_type=instruct --langchain_mode=UserData
 ```
 This will use about 9800MB.  You can also add `--hf_embedding_model=sentence-transformers/all-MiniLM-L6-v2` to save some memory on embedding to reach 9340MB.
 
