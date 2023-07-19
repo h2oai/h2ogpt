@@ -411,16 +411,29 @@ def test_make_add_db(repeat, db_type):
                                   enable_ocr=False,
                                   verbose=False,
                                   is_url=False, is_txt=False)
-                    z1, z2, source_files_added, exceptions = update_user_db(test_file2_my, db1, chunk,
+                    langchain_mode2 = 'MyData'
+                    selection_docs_state1 = dict(langchain_modes=[langchain_mode2],
+                                                 langchain_mode_paths={},
+                                                 visible_langchain_modes=[langchain_mode2])
+                    z1, z2, source_files_added, exceptions = update_user_db(test_file2_my, db1,
+                                                                            selection_docs_state1,
+                                                                            chunk,
                                                                             chunk_size,
-                                                                            'MyData',
+                                                                            langchain_mode2,
                                                                             dbs={}, db_type=db_type,
                                                                             **kwargs)
                     assert z1 is None
                     assert 'MyData' == z2
                     assert 'test2my' in str(source_files_added)
                     assert len(exceptions) == 0
-                    z1, z2, source_files_added, exceptions = update_user_db(test_file2, db1, chunk, chunk_size,
+
+                    langchain_mode = 'UserData'
+                    selection_docs_state2 = dict(langchain_modes=[langchain_mode],
+                                                 langchain_mode_paths={langchain_mode: tmp_user_path},
+                                                 visible_langchain_modes=[langchain_mode])
+                    z1, z2, source_files_added, exceptions = update_user_db(test_file2, db1,
+                                                                            selection_docs_state2,
+                                                                            chunk, chunk_size,
                                                                             langchain_mode,
                                                                             dbs={langchain_mode: db},
                                                                             db_type=db_type,
