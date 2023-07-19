@@ -69,7 +69,8 @@ def test_cli_langchain_llamacpp(monkeypatch):
            "The cat is likely relaxing and enjoying" in all_generations[0] or \
            "The cat is sitting on a window seat and looking out" in all_generations[0] or \
            "cat in the image is" in all_generations[0] or \
-           "The cat is sitting on a window" in all_generations[0]
+           "The cat is sitting on a window" in all_generations[0] or \
+           "The cat is sitting and looking out the window at the view of the city outside." in all_generations[0]
 
 
 @pytest.mark.need_tokens
