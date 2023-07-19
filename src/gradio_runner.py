@@ -501,12 +501,12 @@ def go_gradio(**kwargs):
                             remove_placeholder = "e.g. UserData2" if not is_public else "e.g. MyData2"
                             new_langchain_mode_text = gr.Textbox(value="", visible=allow_upload_to_user_data or
                                                                                    allow_upload_to_my_data,
-                                                                 label='Add LangChain Mode',
+                                                                 label='Add Collection',
                                                                  placeholder=add_placeholder,
                                                                  interactive=True)
                             remove_langchain_mode_text = gr.Textbox(value="", visible=allow_upload_to_user_data or
                                                                                       allow_upload_to_my_data,
-                                                                    label='Remove LangChain Mode',
+                                                                    label='Remove Collection',
                                                                     placeholder=remove_placeholder,
                                                                     interactive=True)
                             load_langchain = gr.Button(value="Load LangChain State", scale=0, size='sm',
