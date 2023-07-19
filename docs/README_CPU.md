@@ -12,13 +12,17 @@ A local copy of that CPU Google Colab is [h2oGPT_CPU.ipynb](h2oGPT_CPU.ipynb).
 
 #### Local
 
-CPU support is obtained after installing two optional requirements.txt files.  This does not preclude GPU support, just adds CPU support:
+CPU support is obtained after installing the `gpt4all` optional requirements.txt files.  This does not preclude GPU support, just adds CPU support, except that for MAC (no M1/M2) it is important to use the `--extra-index` that limits to CPU mode for torch:
 
 * Install base, langchain, and GPT4All, and python LLaMa dependencies:
 ```bash
 git clone https://github.com/h2oai/h2ogpt.git
 cd h2ogpt
-for fil in requirements.txt reqs_optional/requirements_optional_langchain.txt reqs_optional/requirements_optional_gpt4all.txt reqs_optional/requirements_optional_langchain.gpllike.txt reqs_optional/requirements_optional_langchain.urls.txt ; do pip install -r $fil --extra-index https://download.pytorch.org/whl/cpu ; done
+pip install -r requirements.txt --extra-index https://download.pytorch.org/whl/cpu
+pip install -r reqs_optional/requirements_optional_langchain.txt
+pip install -r reqs_optional/requirements_optional_gpt4all.txt
+pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt
+pip install -r reqs_optional/requirements_optional_langchain.urls.txt
 # Optional: support docx, pptx, ArXiv, etc.
 sudo apt-get install -y libmagic-dev poppler-utils tesseract-ocr libreoffice
 # Optional: for supporting unstructured package
