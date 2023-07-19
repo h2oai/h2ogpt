@@ -9,9 +9,9 @@ export CUDA_VISIBLE_DEVICES=0
 export MODEL=model-test
 export MODEL_NAME=`echo $MODEL | sed 's@/@_@g'`
 export HF_PORT=1000
-#export TGI_VERSION=0.8.2  # works
+#export TGI_VERSION=latest  # works
 #export TGI_VERSION=0.9.1  # fails
-export TGI_VERSION=0.9.2  # works
+export TGI_VERSION=0.9.3  # works
 
 
 # Train LoRA

@@ -160,7 +160,7 @@ def run_docker(inf_port, base_model):
                         '-p', '%s:80' % inf_port,
                         '-v', '%s/.cache:/.cache/' % home_dir,
                         '-v', '%s:/data' % data_dir,
-                        'ghcr.io/huggingface/text-generation-inference:0.8.2',
+                        'ghcr.io/huggingface/text-generation-inference:latest',
                         '--model-id', base_model,
                         '--max-input-length', '2048',
                         '--max-total-tokens', '4096',
