@@ -605,7 +605,16 @@ ASSISTANT:
     elif prompt_type in [PromptType.llama2.value, str(PromptType.llama2.value),
                          PromptType.llama2.name]:
         PreInstruct = ""
-        promptA = promptB = "<s>[INST] <<SYS>>\nYou are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe.  Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.\n\nIf a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.\n<</SYS>>\n\n" if not (chat and reduced) else ''
+        llama2_sys = "<<SYS>>\nYou are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe.  Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.\n\nIf a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.\n<</SYS>>\n\n"
+        prompt = "<s>[INST] "
+        enable_sys = False  # too much safety, hurts accuracy
+        if not (chat and reduced):
+            if enable_sys:
+                promptA = promptB = prompt + llama2_sys
+            else:
+                promptA = promptB = prompt
+        else:
+            promptA = promptB = ''
         PreInput = None
         PreResponse = ""
         terminate_response = ["[INST]", "</s>"]
