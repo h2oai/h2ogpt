@@ -10,7 +10,6 @@ conda create -n gradioclient -y
 conda activate gradioclient
 conda install python=3.10 -y
 pip install gradio_client
-python checkclient.py
 ```
 then running client code:
 ```python
