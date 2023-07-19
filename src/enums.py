@@ -35,16 +35,20 @@ class PromptType(Enum):
     llama2 = 29
 
 
-class DocumentChoices(Enum):
+class DocumentSubset(Enum):
     Relevant = 0
-    Sources = 1
-    All = 2
+    RelSources = 1
+    TopKSources = 2
 
 
 non_query_commands = [
-    DocumentChoices.Sources.name,
-    DocumentChoices.All.name
+    DocumentSubset.RelSources.name,
+    DocumentSubset.TopKSources.name
 ]
+
+
+class DocumentChoice(Enum):
+    ALL = 'All'
 
 
 class LangChainMode(Enum):

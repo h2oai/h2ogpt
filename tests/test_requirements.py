@@ -97,8 +97,12 @@ def test_what_latest_packages():
         print("\n File: %s" % req_name, flush=True)
         with open(req_name, 'rt') as fd:
             for req in requirements.parse(fd):
+                from importlib.metadata import version
                 try:
-                    print("%s==%s" % (req.name, get_version(req.name)), flush=True)
+                    current_version = version(req.name)
+                    latest_version = get_version(req.name)
+                    if str(current_version) != str(latest_version):
+                        print("%s: %s -> %s" % (req.name, current_version, latest_version), flush=True)
                 except Exception as e:
                     print("Exception: %s" % str(e), flush=True)
 

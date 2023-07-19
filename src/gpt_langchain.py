@@ -24,8 +24,8 @@ from langchain.embeddings import HuggingFaceInstructEmbeddings
 from langchain.schema import LLMResult
 from tqdm import tqdm
 
-from enums import DocumentChoices, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
-    LangChainAction, LangChainMode
+from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
+    LangChainAction, LangChainMode, DocumentChoice
 from evaluate_params import gen_hyper
 from gen import get_model, SEED
 from prompter import non_hf_types, PromptType, Prompter
@@ -96,11 +96,15 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
         db = get_existing_db(None, persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
                              hf_embedding_model, verbose=False)
         if db is None:
+            from chromadb.config import Settings
+            client_settings = Settings(anonymized_telemetry=False,
+                                       chroma_db_impl="duckdb+parquet",
+                                       persist_directory=persist_directory)
             db = Chroma.from_documents(documents=sources,
                                        embedding=embedding,
                                        persist_directory=persist_directory,
                                        collection_name=collection_name,
-                                       anonymized_telemetry=False)
+                                       client_settings=client_settings)
             db.persist()
             clear_embedding(db)
             save_embed(db, use_openai_embedding, hf_embedding_model)
@@ -383,8 +387,8 @@ class GradioInference(LLM):
                              top_k_docs=top_k_docs,
                              chunk=chunk,
                              chunk_size=chunk_size,
-                             document_subset=DocumentChoices.Relevant.name,
-                             document_choice=[],
+                             document_subset=DocumentSubset.Relevant.name,
+                             document_choice=[DocumentChoice.ALL.value],
                              )
         api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
         if not stream_output:
@@ -713,7 +717,7 @@ def get_llm(use_openai_model=False,
                   callbacks=callbacks if stream_output else None,
                   openai_api_key=openai.api_key,
                   openai_api_base=openai.api_base,
-                  logit_bias=None if inf_type =='vllm' else {},
+                  logit_bias=None if inf_type == 'vllm' else {},
                   max_retries=2,
                   streaming=stream_output,
                   **kwargs_extra
@@ -1067,6 +1071,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         base_name = sanitize_filename(base_name) + "_" + str(uuid.uuid4())[:10]
         base_path = os.path.join(dir_name, base_name)
     if is_url:
+        file = file.strip()  # in case accidental spaces in front or at end
         if file.lower().startswith('arxiv:'):
             query = file.lower().split('arxiv:')
             if len(query) == 2 and have_arxiv:
@@ -1337,7 +1342,7 @@ def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True
         else:
             exception_doc = Document(
                 page_content='',
-                metadata={"source": file, "exception": '%s hit %s' % (file, str(e)),
+                metadata={"source": file, "exception": '%s Exception: %s' % (file, str(e)),
                           "traceback": traceback.format_exc()})
             res = [exception_doc]
     if return_file:
@@ -1379,11 +1384,15 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
         [globs_non_image_types.extend(glob.glob(os.path.join(path, "./**/*.%s" % ftype), recursive=True))
          for ftype in non_image_types]
     else:
-        if isinstance(path_or_paths, str) and (os.path.isfile(path_or_paths) or os.path.isdir(path_or_paths)):
-            path_or_paths = [path_or_paths]
+        if isinstance(path_or_paths, str):
+            if os.path.isfile(path_or_paths) or os.path.isdir(path_or_paths):
+                path_or_paths = [path_or_paths]
+            else:
+                # path was deleted etc.
+                return []
         # list/tuple of files (consume what can, and exception those that selected but cannot consume so user knows)
-        assert isinstance(path_or_paths, (list, tuple, types.GeneratorType)), "Wrong type for path_or_paths: %s" % type(
-            path_or_paths)
+        assert isinstance(path_or_paths, (list, tuple, types.GeneratorType)), \
+            "Wrong type for path_or_paths: %s %s" % (path_or_paths, type(path_or_paths))
         # reform out of allowed types
         globs_image_types.extend(flatten_list([[x for x in path_or_paths if x.endswith(y)] for y in image_types]))
         # could do below:
@@ -1475,7 +1484,7 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
 
 def prep_langchain(persist_directory,
                    load_db_if_exists,
-                   db_type, use_openai_embedding, langchain_mode, user_path,
+                   db_type, use_openai_embedding, langchain_mode, langchain_mode_paths,
                    hf_embedding_model, n_jobs=-1, kwargs_make_db={}):
     """
     do prep first time, involving downloads
@@ -1485,6 +1494,7 @@ def prep_langchain(persist_directory,
     assert langchain_mode not in ['MyData'], "Should not prep scratch data"
 
     db_dir_exists = os.path.isdir(persist_directory)
+    user_path = langchain_mode_paths.get(langchain_mode)
 
     if db_dir_exists and user_path is None:
         print("Prep: persist_directory=%s exists, using" % persist_directory, flush=True)
@@ -1620,7 +1630,7 @@ def make_db(**langchain_kwargs):
             langchain_kwargs[k] = defaults_db[k]
     # final check for missing
     missing_kwargs = [x for x in func_names if x not in langchain_kwargs]
-    assert not missing_kwargs, "Missing kwargs: %s" % missing_kwargs
+    assert not missing_kwargs, "Missing kwargs for make_db: %s" % missing_kwargs
     # only keep actual used
     langchain_kwargs = {k: v for k, v in langchain_kwargs.items() if k in func_names}
     return _make_db(**langchain_kwargs)
@@ -1654,13 +1664,14 @@ def _make_db(use_openai_embedding=False,
              first_para=False, text_limit=None,
              chunk=True, chunk_size=512,
              langchain_mode=None,
-             user_path=None,
+             langchain_mode_paths=None,
              db_type='faiss',
              load_db_if_exists=True,
              db=None,
              n_jobs=-1,
              verbose=False):
     persist_directory = get_persist_directory(langchain_mode)
+    user_path = langchain_mode_paths.get(langchain_mode)
     # see if can get persistent chroma db
     db_trial = get_existing_db(db, persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
                                hf_embedding_model, verbose=verbose)
@@ -1668,23 +1679,8 @@ def _make_db(use_openai_embedding=False,
         db = db_trial
 
     sources = []
-    if not db and langchain_mode not in ['MyData'] or \
-            user_path is not None and \
-            langchain_mode in ['UserData']:
-        # Should not make MyData db this way, why avoided, only upload from UI
-        assert langchain_mode not in ['MyData'], "Should not make MyData db this way"
-        if verbose:
-            if langchain_mode in ['UserData']:
-                if user_path is not None:
-                    print("Checking if changed or new sources in %s, and generating sources them" % user_path,
-                          flush=True)
-                elif db is None:
-                    print("user_path not passed and no db, no sources", flush=True)
-                else:
-                    print("user_path not passed, using only existing db, no new sources", flush=True)
-            else:
-                print("Generating %s sources" % langchain_mode, flush=True)
-        if langchain_mode in ['wiki_full', 'All', "'All'"]:
+    if not db:
+        if langchain_mode in ['wiki_full']:
             from read_wiki_full import get_all_documents
             small_test = None
             print("Generating new wiki", flush=True)
@@ -1694,55 +1690,48 @@ def _make_db(use_openai_embedding=False,
                 sources1 = chunk_sources(sources1, chunk=chunk, chunk_size=chunk_size)
                 print("Chunked new wiki", flush=True)
             sources.extend(sources1)
-        if langchain_mode in ['wiki', 'All', "'All'"]:
+        elif langchain_mode in ['wiki']:
             sources1 = get_wiki_sources(first_para=first_para, text_limit=text_limit)
             if chunk:
                 sources1 = chunk_sources(sources1, chunk=chunk, chunk_size=chunk_size)
             sources.extend(sources1)
-        if langchain_mode in ['github h2oGPT', 'All', "'All'"]:
+        elif langchain_mode in ['github h2oGPT']:
             # sources = get_github_docs("dagster-io", "dagster")
             sources1 = get_github_docs("h2oai", "h2ogpt")
             # FIXME: always chunk for now
             sources1 = chunk_sources(sources1, chunk=chunk, chunk_size=chunk_size)
             sources.extend(sources1)
-        if langchain_mode in ['DriverlessAI docs', 'All', "'All'"]:
+        elif langchain_mode in ['DriverlessAI docs']:
             sources1 = get_dai_docs(from_hf=True)
             if chunk and False:  # FIXME: DAI docs are already chunked well, should only chunk more if over limit
                 sources1 = chunk_sources(sources1, chunk=chunk, chunk_size=chunk_size)
             sources.extend(sources1)
-        if langchain_mode in ['All', 'UserData']:
-            if user_path:
-                if db is not None:
-                    # NOTE: Ignore file names for now, only go by hash ids
-                    # existing_files = get_existing_files(db)
-                    existing_files = []
-                    existing_hash_ids = get_existing_hash_ids(db)
-                else:
-                    # pretend no existing files so won't filter
-                    existing_files = []
-                    existing_hash_ids = []
-                # chunk internally for speed over multiple docs
-                # FIXME: If first had old Hash=None and switch embeddings,
-                #  then re-embed, and then hit here and reload so have hash, and then re-embed.
-                sources1 = path_to_docs(user_path, n_jobs=n_jobs, chunk=chunk, chunk_size=chunk_size,
-                                        existing_files=existing_files, existing_hash_ids=existing_hash_ids)
-                new_metadata_sources = set([x.metadata['source'] for x in sources1])
-                if new_metadata_sources:
-                    print("Loaded %s new files as sources to add to UserData" % len(new_metadata_sources), flush=True)
-                    if verbose:
-                        print("Files added: %s" % '\n'.join(new_metadata_sources), flush=True)
-                sources.extend(sources1)
-                print("Loaded %s sources for potentially adding to UserData" % len(sources), flush=True)
-            else:
-                print("Chose UserData but user_path is empty/None", flush=True)
-        if False and langchain_mode in ['urls', 'All', "'All'"]:
-            # from langchain.document_loaders import UnstructuredURLLoader
-            # loader = UnstructuredURLLoader(urls=urls)
-            urls = ["https://www.birdsongsf.com/who-we-are/"]
-            from langchain.document_loaders import PlaywrightURLLoader
-            loader = PlaywrightURLLoader(urls=urls, remove_selectors=["header", "footer"])
-            sources1 = loader.load()
-            sources.extend(sources1)
+    if user_path:
+        # UserData or custom, which has to be from user's disk
+        if db is not None:
+            # NOTE: Ignore file names for now, only go by hash ids
+            # existing_files = get_existing_files(db)
+            existing_files = []
+            existing_hash_ids = get_existing_hash_ids(db)
+        else:
+            # pretend no existing files so won't filter
+            existing_files = []
+            existing_hash_ids = []
+        # chunk internally for speed over multiple docs
+        # FIXME: If first had old Hash=None and switch embeddings,
+        #  then re-embed, and then hit here and reload so have hash, and then re-embed.
+        sources1 = path_to_docs(user_path, n_jobs=n_jobs, chunk=chunk, chunk_size=chunk_size,
+                                existing_files=existing_files, existing_hash_ids=existing_hash_ids)
+        new_metadata_sources = set([x.metadata['source'] for x in sources1])
+        if new_metadata_sources:
+            print("Loaded %s new files as sources to add to %s" % (len(new_metadata_sources), langchain_mode),
+                  flush=True)
+            if verbose:
+                print("Files added: %s" % '\n'.join(new_metadata_sources), flush=True)
+        sources.extend(sources1)
+        print("Loaded %s sources for potentially adding to %s" % (len(sources), langchain_mode), flush=True)
+
+        # see if got sources
         if not sources:
             if verbose:
                 if db is not None:
@@ -1765,7 +1754,7 @@ def _make_db(use_openai_embedding=False,
         else:
             print("Did not generate db since no sources", flush=True)
         new_sources_metadata = [x.metadata for x in sources]
-    elif user_path is not None and langchain_mode in ['UserData']:
+    elif user_path is not None:
         print("Existing db, potentially adding %s sources from user_path=%s" % (len(sources), user_path), flush=True)
         db, num_new_sources, new_sources_metadata = add_to_db(db, sources, db_type=db_type,
                                                               use_openai_embedding=use_openai_embedding,
@@ -1863,7 +1852,7 @@ def run_qa_db(**kwargs):
     kwargs['answer_with_sources'] = True
     kwargs['show_rank'] = False
     missing_kwargs = [x for x in func_names if x not in kwargs]
-    assert not missing_kwargs, "Missing kwargs: %s" % missing_kwargs
+    assert not missing_kwargs, "Missing kwargs for run_qa_db: %s" % missing_kwargs
     # only keep actual used
     kwargs = {k: v for k, v in kwargs.items() if k in func_names}
     try:
@@ -1877,7 +1866,7 @@ def _run_qa_db(query=None,
                context=None,
                use_openai_model=False, use_openai_embedding=False,
                first_para=False, text_limit=None, top_k_docs=4, chunk=True, chunk_size=512,
-               user_path=None,
+               langchain_mode_paths={},
                detect_user_path_changes_every_query=False,
                db_type='faiss',
                model_name=None, model=None, tokenizer=None, inference_server=None,
@@ -1907,8 +1896,8 @@ def _run_qa_db(query=None,
                langchain_mode=None,
                langchain_action=None,
                langchain_agents=None,
-               document_subset=DocumentChoices.Relevant.name,
-               document_choice=[],
+               document_subset=DocumentSubset.Relevant.name,
+               document_choice=[DocumentChoice.ALL.value],
                n_jobs=-1,
                verbose=False,
                cli=False,
@@ -1927,7 +1916,7 @@ def _run_qa_db(query=None,
     :param top_k_docs:
     :param chunk:
     :param chunk_size:
-    :param user_path: user path to glob recursively from
+    :param langchain_mode_paths: dict of langchain_mode -> user path to glob recursively from
     :param db_type: 'faiss' for in-memory db or 'chroma' or 'weaviate' for persistent db
     :param model_name: model name, used to switch behaviors
     :param model: pre-initialized model, else will make new one
@@ -1935,6 +1924,7 @@ def _run_qa_db(query=None,
     :param answer_with_sources
     :return:
     """
+    assert langchain_mode_paths is not None
     if model is not None:
         assert model_name is not None  # require so can make decisions
     assert query is not None
@@ -1987,6 +1977,10 @@ def _run_qa_db(query=None,
     docs, chain, scores, use_context, have_any_docs = get_chain(**sim_kwargs)
     if document_subset in non_query_commands:
         formatted_doc_chunks = '\n\n'.join([get_url(x) + '\n\n' + x.page_content for x in docs])
+        if not formatted_doc_chunks and not use_llm_if_no_docs:
+            yield "No sources", ''
+            return
+        # if no souces, outside gpt_langchain, LLM will be used with '' input
         yield formatted_doc_chunks, ''
         return
     if not use_llm_if_no_docs:
@@ -2068,7 +2062,7 @@ def get_chain(query=None,
               iinput=None,
               use_openai_model=False, use_openai_embedding=False,
               first_para=False, text_limit=None, top_k_docs=4, chunk=True, chunk_size=512,
-              user_path=None,
+              langchain_mode_paths=None,
               detect_user_path_changes_every_query=False,
               db_type='faiss',
               model_name=None,
@@ -2082,8 +2076,8 @@ def get_chain(query=None,
               langchain_mode=None,
               langchain_action=None,
               langchain_agents=None,
-              document_subset=DocumentChoices.Relevant.name,
-              document_choice=[],
+              document_subset=DocumentSubset.Relevant.name,
+              document_choice=[DocumentChoice.ALL.value],
               n_jobs=-1,
               # beyond run_db_query:
               llm=None,
@@ -2120,14 +2114,17 @@ def get_chain(query=None,
         # avoid looking at user_path during similarity search db handling,
         # if already have db and not updating from user_path every query
         # but if db is None, no db yet loaded (e.g. from prep), so allow user_path to be whatever it was
-        user_path = None
+        if langchain_mode_paths is None:
+            langchain_mode_paths = {}
+        langchain_mode_paths = langchain_mode_paths.copy()
+        langchain_mode_paths[langchain_mode] = None
     db, num_new_sources, new_sources_metadata = make_db(use_openai_embedding=use_openai_embedding,
                                                         hf_embedding_model=hf_embedding_model,
                                                         first_para=first_para, text_limit=text_limit,
                                                         chunk=chunk,
                                                         chunk_size=chunk_size,
                                                         langchain_mode=langchain_mode,
-                                                        user_path=user_path,
+                                                        langchain_mode_paths=langchain_mode_paths,
                                                         db_type=db_type,
                                                         load_db_if_exists=load_db_if_exists,
                                                         db=db,
@@ -2202,10 +2199,10 @@ def get_chain(query=None,
             filter_kwargs = {}
         else:
             assert document_choice is not None, "Document choice was None"
-            if len(document_choice) >= 1 and document_choice[0] == DocumentChoices.All.name:
+            if len(document_choice) >= 1 and document_choice[0] == DocumentChoice.ALL.value:
                 filter_kwargs = {}
             elif len(document_choice) >= 2:
-                if document_choice[0] == DocumentChoices.All.name:
+                if document_choice[0] == DocumentChoice.ALL.value:
                     # remove 'All'
                     document_choice = document_choice[1:]
                 or_filter = [{"source": {"$eq": x}} for x in document_choice]
@@ -2220,7 +2217,7 @@ def get_chain(query=None,
         if langchain_mode in [LangChainMode.LLM.value, LangChainMode.CHAT_LLM.value]:
             docs = []
             scores = []
-        elif document_subset == DocumentChoices.All.name or query in [None, '', '\n']:
+        elif document_subset == DocumentSubset.TopKSources.name or query in [None, '', '\n']:
             db_documents, db_metadatas = get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs)
             # similar to langchain's chroma's _results_to_docs_and_scores
             docs_with_score = [(Document(page_content=result[0], metadata=result[1] or {}), 0)

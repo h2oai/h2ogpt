@@ -5,7 +5,7 @@ import gradio_client  # type: ignore
 
 from h2ogpt_client import _utils
 from h2ogpt_client._h2ogpt_enums import (
-    DocumentChoices,
+    DocumentSubset,
     LangChainAction,
     LangChainMode,
     PromptType,
@@ -108,7 +108,7 @@ class TextCompletionCreator:
         params["top_k_docs"] = 4  # langchain: number of document chunks
         params["chunk"] = True  # langchain: whether to chunk documents
         params["chunk_size"] = 512  # langchain: chunk size for document chunking
-        params["document_subset"] = DocumentChoices.Relevant.name
+        params["document_subset"] = DocumentSubset.Relevant.name
         params["document_choice"] = []
         return TextCompletion(self._client, params)
 
@@ -212,7 +212,7 @@ class ChatCompletionCreator:
         params["top_k_docs"] = 4  # langchain: number of document chunks
         params["chunk"] = True  # langchain: whether to chunk documents
         params["chunk_size"] = 512  # langchain: chunk size for document chunking
-        params["document_subset"] = DocumentChoices.Relevant.name
+        params["document_subset"] = DocumentSubset.Relevant.name
         params["document_choice"] = []
         params["chatbot"] = []  # chat history
         return ChatCompletion(self._client, params)

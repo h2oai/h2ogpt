@@ -7,7 +7,7 @@ from src.utils import set_seed
 def test_export_copy():
     from src.export_hf_checkpoint import test_copy
     test_copy()
-    from test_output.h2oai_pipeline import H2OTextGenerationPipeline, PromptType, DocumentChoices, LangChainMode, \
+    from test_output.h2oai_pipeline import H2OTextGenerationPipeline, PromptType, DocumentSubset, LangChainMode, \
         prompt_type_to_model_name, get_prompt, generate_prompt, inject_chatsep, Prompter
     assert prompt_type_to_model_name is not None
     assert get_prompt is not None
@@ -33,7 +33,7 @@ def test_export_copy():
     prompt_types = [x.name for x in list(PromptType)]
     assert 'human_bot' in prompt_types and len(prompt_types) >= 20
 
-    subset_types = [x.name for x in list(DocumentChoices)]
+    subset_types = [x.name for x in list(DocumentSubset)]
     assert 'Relevant' in subset_types and len(prompt_types) >= 4
 
     langchain_types = [x.name for x in list(LangChainMode)]

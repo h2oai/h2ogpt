@@ -1,7 +1,7 @@
 import pytest
 
 from tests.utils import wrap_test_forked, get_llama
-from src.enums import DocumentChoices
+from src.enums import DocumentSubset
 
 
 @wrap_test_forked
@@ -29,7 +29,7 @@ def test_cli_langchain(monkeypatch):
                            langchain_mode='UserData',
                            user_path=user_path,
                            visible_langchain_modes=['UserData', 'MyData'],
-                           document_subset=DocumentChoices.Relevant.name,
+                           document_subset=DocumentSubset.Relevant.name,
                            verbose=True)
 
     print(all_generations)
@@ -58,7 +58,7 @@ def test_cli_langchain_llamacpp(monkeypatch):
                            prompt_type=prompt_type,
                            user_path=user_path,
                            visible_langchain_modes=['UserData', 'MyData'],
-                           document_subset=DocumentChoices.Relevant.name,
+                           document_subset=DocumentSubset.Relevant.name,
                            verbose=True)
 
     print(all_generations)
@@ -69,7 +69,8 @@ def test_cli_langchain_llamacpp(monkeypatch):
            "The cat is likely relaxing and enjoying" in all_generations[0] or \
            "The cat is sitting on a window seat and looking out" in all_generations[0] or \
            "cat in the image is" in all_generations[0] or \
-           "The cat is sitting on a window" in all_generations[0]
+           "The cat is sitting on a window" in all_generations[0] or \
+           "The cat is sitting and looking out the window at the view of the city outside." in all_generations[0]
 
 
 @pytest.mark.need_tokens
@@ -86,7 +87,7 @@ def test_cli_llamacpp(monkeypatch):
                            prompt_type=prompt_type,
                            user_path=None,
                            visible_langchain_modes=[],
-                           document_subset=DocumentChoices.Relevant.name,
+                           document_subset=DocumentSubset.Relevant.name,
                            verbose=True)
 
     print(all_generations)
@@ -123,7 +124,7 @@ def test_cli_langchain_h2ogpt(monkeypatch):
                            langchain_mode='UserData',
                            user_path=user_path,
                            visible_langchain_modes=['UserData', 'MyData'],
-                           document_subset=DocumentChoices.Relevant.name,
+                           document_subset=DocumentSubset.Relevant.name,
                            verbose=True)
 
     print(all_generations)

@@ -100,10 +100,10 @@ def get_llm_gpt4all(model_name,
     assert prompter is not None
     env_gpt4all_file = ".env_gpt4all"
     env_kwargs = dotenv_values(env_gpt4all_file)
-    n_ctx = env_kwargs.pop('n_ctx', 2048 - max_new_tokens)
+    max_tokens = env_kwargs.pop('max_tokens', 2048 - max_new_tokens)
     default_kwargs = dict(context_erase=0.5,
                           n_batch=1,
-                          n_ctx=n_ctx,
+                          max_tokens=max_tokens,
                           n_predict=max_new_tokens,
                           repeat_last_n=64 if repetition_penalty != 1.0 else 0,
                           repeat_penalty=repetition_penalty,
@@ -187,7 +187,8 @@ class H2OGPT4All(gpt4all.GPT4All):
             **kwargs,
     ) -> str:
         # Roughly 4 chars per token if natural language
-        prompt = prompt[-self.n_ctx * 4:]
+        n_ctx = 2048
+        prompt = prompt[-self.max_tokens * 4:]
 
         # use instruct prompting
         data_point = dict(context='', instruction=prompt, input='')

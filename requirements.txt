@@ -1,8 +1,8 @@
 # for generate (gradio server) and finetune
 datasets==2.13.0
 sentencepiece==0.1.99
-gradio==3.35.2
-huggingface_hub==0.15.1
+gradio==3.37.0
+huggingface_hub==0.16.4
 appdirs==1.4.4
 fire==0.5.0
 docutils==0.20.1
@@ -35,7 +35,7 @@ tensorboard==2.13.0
 neptune==1.2.0
 
 # for gradio client
-gradio_client==0.2.7
+gradio_client==0.2.10
 beautifulsoup4==4.12.2
 markdown==3.4.3
 

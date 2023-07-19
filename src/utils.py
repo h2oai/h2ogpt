@@ -5,6 +5,7 @@ import inspect
 import os
 import gc
 import pathlib
+import pickle
 import random
 import shutil
 import subprocess
@@ -1004,3 +1005,70 @@ def set_openai(inference_server):
         openai.api_base = os.environ.get("OPENAI_API_BASE", "https://api.openai.com/v1")
         inf_type = inference_server
         return openai, inf_type
+
+
+visible_langchain_modes_file = 'visible_langchain_modes.pkl'
+
+
+def save_collection_names(langchain_modes, visible_langchain_modes, langchain_mode_paths, LangChainMode, db1s):
+    """
+    extra controls if UserData type of MyData type
+    """
+
+    # use first default MyData hash as general user hash to maintain file
+    # if user moves MyData from langchain modes, db will still survive, so can still use hash
+    scratch_collection_names = list(db1s.keys())
+    user_hash = db1s.get(LangChainMode.MY_DATA.value, '')[1]
+
+    llms = ['ChatLLM', 'LLM', 'Disabled']
+
+    scratch_langchain_modes = [x for x in langchain_modes if x in scratch_collection_names]
+    scratch_visible_langchain_modes = [x for x in visible_langchain_modes if x in scratch_collection_names]
+    scratch_langchain_mode_paths = {k: v for k, v in langchain_mode_paths.items() if
+                                    k in scratch_collection_names and k not in llms}
+
+    user_langchain_modes = [x for x in langchain_modes if x not in scratch_collection_names]
+    user_visible_langchain_modes = [x for x in visible_langchain_modes if x not in scratch_collection_names]
+    user_langchain_mode_paths = {k: v for k, v in langchain_mode_paths.items() if
+                                 k not in scratch_collection_names and k not in llms}
+
+    # user
+    extra = ''
+    file = "%s%s" % (visible_langchain_modes_file, extra)
+    with filelock.FileLock("%s.lock" % file):
+        with open(file, 'wb') as f:
+            pickle.dump((user_langchain_modes, user_visible_langchain_modes, user_langchain_mode_paths), f)
+
+    # scratch
+    extra = user_hash
+    file = "%s%s" % (visible_langchain_modes_file, extra)
+    with filelock.FileLock("%s.lock" % file):
+        with open(file, 'wb') as f:
+            pickle.dump((scratch_langchain_modes, scratch_visible_langchain_modes, scratch_langchain_mode_paths), f)
+
+
+def load_collection_enum(extra):
+    """
+    extra controls if UserData type of MyData type
+    """
+    file = "%s%s" % (visible_langchain_modes_file, extra)
+    langchain_modes_from_file = []
+    visible_langchain_modes_from_file = []
+    langchain_mode_paths_from_file = {}
+    if os.path.isfile(visible_langchain_modes_file):
+        try:
+            with filelock.FileLock("%s.lock" % file):
+                with open(file, 'rb') as f:
+                    langchain_modes_from_file, visible_langchain_modes_from_file, langchain_mode_paths_from_file = pickle.load(
+                        f)
+        except BaseException as e:
+            print("Cannot load %s, ignoring error: %s" % (file, str(e)), flush=True)
+    for k, v in langchain_mode_paths_from_file.items():
+        if v is not None and not os.path.isdir(v) and isinstance(v, str):
+            # assume was deleted, but need to make again to avoid extra code elsewhere
+            makedirs(v)
+    return langchain_modes_from_file, visible_langchain_modes_from_file, langchain_mode_paths_from_file
+
+
+def remove_collection_enum():
+    remove(visible_langchain_modes_file)
