@@ -1054,7 +1054,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                 is_url=False, is_txt=False,
                 enable_captions=True,
                 captions_model=None,
-                enable_ocr=False, caption_loader=None,
+                enable_ocr=False, enable_pdf_ocr='auto', caption_loader=None,
                 headsize=50):
     if file is None:
         if fail_any_exception:
@@ -1257,7 +1257,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             # remove empty documents
             doc1 = [x for x in doc1 if x.page_content]
             doc1 = clean_doc(doc1)
-        if len(doc1) == 0:
+        if len(doc1) == 0 and enable_pdf_ocr == 'auto' or enable_pdf_ocr == 'on':
             # try OCR in end since slowest, but works on pure image pages well
             doc1 = UnstructuredPDFLoader(file, strategy='ocr_only').load()
             handled |= len(doc1) > 0
@@ -1323,7 +1323,7 @@ def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True
                  is_url=False, is_txt=False,
                  enable_captions=True,
                  captions_model=None,
-                 enable_ocr=False, caption_loader=None):
+                 enable_ocr=False, enable_pdf_ocr='auto', caption_loader=None):
     if verbose:
         if is_url:
             print("Ingesting URL: %s" % file, flush=True)
@@ -1341,6 +1341,7 @@ def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True
                           enable_captions=enable_captions,
                           captions_model=captions_model,
                           enable_ocr=enable_ocr,
+                          enable_pdf_ocr=enable_pdf_ocr,
                           caption_loader=caption_loader)
     except BaseException as e:
         print("Failed to ingest %s due to %s" % (file, traceback.format_exc()))
@@ -1370,6 +1371,7 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
                  captions_model=None,
                  caption_loader=None,
                  enable_ocr=False,
+                 enable_pdf_ocr='auto',
                  existing_files=[],
                  existing_hash_ids={},
                  ):
@@ -1451,6 +1453,7 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
                   captions_model=captions_model,
                   caption_loader=caption_loader,
                   enable_ocr=enable_ocr,
+                  enable_pdf_ocr=enable_pdf_ocr,
                   )
 
     if n_jobs != 1 and len(globs_non_image_types) > 1:

@@ -113,6 +113,7 @@ def go_gradio(**kwargs):
     enable_captions = kwargs['enable_captions']
     captions_model = kwargs['captions_model']
     enable_ocr = kwargs['enable_ocr']
+    enable_pdf_ocr = kwargs['enable_pdf_ocr']
     caption_loader = kwargs['caption_loader']
 
     # for dynamic state per user session in gradio
@@ -877,6 +878,7 @@ def go_gradio(**kwargs):
                                            enable_captions=enable_captions,
                                            caption_loader=caption_loader,
                                            enable_ocr=enable_ocr,
+                                           enable_pdf_ocr=enable_pdf_ocr,
                                            verbose=kwargs['verbose'],
                                            n_jobs=kwargs['n_jobs'],
                                            )
@@ -2628,6 +2630,7 @@ def _update_user_db(file,
                     enable_captions=None,
                     captions_model=None,
                     enable_ocr=None,
+                    enable_pdf_ocr=None,
                     verbose=None,
                     n_jobs=-1,
                     is_url=None, is_txt=None,
@@ -2641,6 +2644,7 @@ def _update_user_db(file,
     assert enable_captions is not None
     assert captions_model is not None
     assert enable_ocr is not None
+    assert enable_pdf_ocr is not None
     assert verbose is not None
 
     for k in db1s:
@@ -2699,6 +2703,7 @@ def _update_user_db(file,
                            enable_captions=enable_captions,
                            captions_model=captions_model,
                            enable_ocr=enable_ocr,
+                           enable_pdf_ocr=enable_pdf_ocr,
                            caption_loader=caption_loader,
                            )
     exceptions = [x for x in sources if x.metadata.get('exception')]

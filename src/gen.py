@@ -181,6 +181,7 @@ def main(
         pre_load_caption_model: bool = False,
         caption_gpu: bool = True,
         enable_ocr: bool = False,
+        enable_pdf_ocr: str = 'auto',
 ):
     """
 
@@ -362,6 +363,9 @@ def main(
            Recommended if using larger caption model
     :param caption_gpu: If support caption, then use GPU if exists
     :param enable_ocr: Whether to support OCR on images
+    :param enable_pdf_ocr: 'auto' means only use OCR if normal text extraction fails.  Useful for pure image-based PDFs with text
+                            'on' means always do OCR as additional parsing of same documents
+                            'off' means don't do OCR (e.g. because it's slow even if 'auto' only would trigger if nothing else worked)
     :return:
     """
     if base_model is None:

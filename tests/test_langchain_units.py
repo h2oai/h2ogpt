@@ -409,6 +409,7 @@ def test_make_add_db(repeat, db_type):
                                   enable_captions=False,
                                   captions_model="Salesforce/blip-image-captioning-base",
                                   enable_ocr=False,
+                                  enable_pdf_ocr='auto',
                                   verbose=False,
                                   is_url=False, is_txt=False)
                     langchain_mode2 = 'MyData'
@@ -727,6 +728,27 @@ def test_pdf_add(db_type):
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
 
+@pytest.mark.parametrize("enable_pdf_ocr", ['auto', 'on'])
+@pytest.mark.parametrize("db_type", db_types)
+@wrap_test_forked
+def test_image_pdf_add(db_type, enable_pdf_ocr):
+    from src.make_db import make_db_main
+    with tempfile.TemporaryDirectory() as tmp_persistent_directory:
+        with tempfile.TemporaryDirectory() as tmp_user_path:
+            test_file1 = os.path.join('tests', 'CityofTshwaneWater.pdf')
+            shutil.copy(test_file1, tmp_user_path)
+            test_file1 = os.path.join(tmp_user_path, 'CityofTshwaneWater.pdf')
+            db, collection_name = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
+                                               fail_any_exception=True, db_type=db_type,
+                                               enable_pdf_ocr=enable_pdf_ocr,
+                                               add_if_exists=False)
+            assert db is not None
+            docs = db.similarity_search("List Tshwane's concerns about water.")
+            assert len(docs) == 4
+            assert 'we appeal to residents that do have water to please use it sparingly.' in docs[1].page_content
+            assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+
+
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
 def test_simple_pptx_add(db_type):
@@ -826,7 +848,8 @@ def run_png_add(captions_model=None, caption_gpu=False, pre_load_caption_model=F
             shutil.copy(test_file1, tmp_user_path)
             test_file1 = os.path.join(tmp_user_path, os.path.basename(test_file1))
             db, collection_name = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
-                                               fail_any_exception=True, enable_ocr=False, caption_gpu=caption_gpu,
+                                               fail_any_exception=True, enable_ocr=False, enable_pdf_ocr='auto',
+                                               caption_gpu=caption_gpu,
                                                pre_load_caption_model=pre_load_caption_model,
                                                captions_model=captions_model, db_type=db_type,
                                                add_if_exists=False)
