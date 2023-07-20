@@ -58,6 +58,7 @@ docker_build_runner: docker_build Dockerfile-runner.dockerfile
 	DOCKER_BUILDKIT=1 docker build -t $(DOCKER_RUN_IMAGE) -f Dockerfile-runner.dockerfile .
 	docker push $(DOCKER_RUN_IMAGE)
 	docker tag $(DOCKER_RUN_IMAGE) gcr.io/vorvan/h2oai/h2ogpt-runtime:$(BUILD_TAG)
+	docker tag $(DOCKER_RUN_IMAGE) gcr.io/vorvan/h2oai/h2ogpt-runtime:$(PACKAGE_VERSION)
 
 print-%:
 	@echo $($*)
