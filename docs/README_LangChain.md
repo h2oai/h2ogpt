@@ -111,6 +111,12 @@ but pymupdf is AGPL, requiring any source code be made available, which is not a
 
 When pymupdf is installed, we will use `PyMuPDFLoader` by default to parse PDFs since better than `PyPDFLoader` and much better than `PDFMinerLoader`.  This can be overridden by setting `PDF_CLASS_NAME=PyPDFLoader` in `.env_gpt4all`.
 
+### Adding new file types
+
+The function `file_to_doc` controls the ingestion, with [allowed ones listed](https://github.com/h2oai/h2ogpt/blob/1184f057088743599e2d5241329551b8f7f5320d/src/gpt_langchain.py#L1021-L1035).   If one wants to add a new file type, add it to the list `file_types`, and then add an entry in `file_to_doc()` function.
+
+Metadata is added using `add_meta` function, and other metadata, like chunk_id, is added after chunking.  One could add a new step to add meta data to `page_content` to each langchain `Document`.
+
 ## Database creation
 
 To use some example databases (will overwrite UserData make above unless change options) and run generate after, do:
