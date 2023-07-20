@@ -543,8 +543,9 @@ def main(
     api_open = bool(int(os.getenv('API_OPEN', str(int(api_open)))))
     allow_api = bool(int(os.getenv('ALLOW_API', str(int(allow_api)))))
 
-    n_gpus = torch.cuda.device_count() if torch.cuda.is_available else 0
+    n_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 0
     if n_gpus == 0:
+        print("No GPUs detected", flush=True)
         enable_captions = False
         gpu_id = None
         load_8bit = False
