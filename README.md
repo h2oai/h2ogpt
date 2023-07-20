@@ -191,7 +191,7 @@ docker run \
     -p 8888:8888 -p 7860:7860 \
     --rm --init \
     -v `pwd`/h2ogpt_env:/h2ogpt_env \
-    gcr.io/vorvan/h2oai/h2ogpt-runtime:61d6aea6fff3b1190aa42eee7fa10d6c
+    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0
 ```
 3. Navigate to http://localhost:7860/  & start using h2oGPT.
 
