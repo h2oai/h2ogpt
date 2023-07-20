@@ -8,12 +8,10 @@ def get_loaders(model_name, reward_type, llama_type=None, load_gptq=''):
         from transformers import AutoTokenizer
         from auto_gptq import AutoGPTQForCausalLM
         use_triton = False
-        functools.partial(AutoGPTQForCausalLM.from_quantized,
-                          quantize_config=None, use_triton=use_triton,
-                          inject_fused_attention=False,  # Required for Llama 2 70B model at this time.
-                          use_fast=True,
-                          )
-        return AutoGPTQForCausalLM.from_quantized, AutoTokenizer
+        model_loader = functools.partial(AutoGPTQForCausalLM.from_quantized,
+                                         quantize_config=None, use_triton=use_triton,
+                                        )
+        return model_loader, AutoTokenizer
     if llama_type is None:
         llama_type = "llama" in model_name.lower()
     if llama_type:

@@ -872,6 +872,8 @@ def get_non_lora_model(base_model, model_loader, load_half,
     pop_unused_model_kwargs(model_kwargs)
 
     if load_gptq:
+        if 'Llama-2-70B-chat-GPTQ' in base_model:
+            model_kwargs.update(dict(inject_fused_attention=False))
         model_kwargs.pop('torch_dtype', None)
         model_kwargs.pop('device_map')
         model = model_loader(
