@@ -46,13 +46,14 @@ All the buttons are also accessible via gradio client API.
 
 ### Data Collection of Sources
 Collections (defaults to value set by `--langchain_mode=` and visible items set by `--visible_langchain_modes`):
-* ChatLLM: Chat context used (if any) but no docs used
 * LLM: Single query-response, no chat context or docs used
 * UserData: Shared and persistent. Writable if `--allow_upload_to_user_data=True`. Rebuilt from path `--user_path` if set.
 * MyData: Private and non-persistent.  Writable if `--allow_upload_to_my_data=True`
 * ... Other collections can be added via code, but not currently addable from UI
 
-Choose a collection, and uploaded docs go there.  Or choose a collection to query it.  To ignore any docs, choose ChatLLM to include chat history, or LLM to ignore chat history too.  If you add document to, e.g., MyData, if you want to query that document, ensure to select collection MyData before submitting the query.
+* Chat History Checkbox: If selected, h2oGPT passes the chat history to the LLM (for LLM and document collections) 
+
+Choose a collection, and uploaded docs go there.  Or choose a collection to query it.  To ignore any docs, select "LLM".  If you add document to, e.g., MyData, if you want to query that document, ensure to select collection MyData before submitting the query.
 
 ### Document Subset:
 * Relevant: Choose to include all docs in chosen collection when chatting

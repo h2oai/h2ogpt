@@ -328,7 +328,7 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
 
     # QUERY2
     prompt = "What is h2oGPT?"
-    langchain_mode = 'ChatLLM'
+    langchain_mode = 'LLM'
     kwargs, args = get_args(prompt, prompt_type, chat=True, stream_output=stream_output,
                             max_new_tokens=max_new_tokens,
                             top_k_docs=top_k_docs,
@@ -405,7 +405,7 @@ def test_client_chat_stream_langchain_steps2(max_new_tokens, top_k_docs):
 
     # QUERY1
     prompt = "Who are you?"
-    langchain_mode = 'ChatLLM'
+    langchain_mode = 'LLM'
     kwargs, args = get_args(prompt, prompt_type, chat=True, stream_output=stream_output,
                             max_new_tokens=max_new_tokens, langchain_mode=langchain_mode)
 
@@ -712,7 +712,7 @@ def test_client_chat_stream_langchain_steps3():
 
     # even normal langchain_mode  passed to this should get the other langchain_mode2
     res = client.predict(langchain_mode, api_name='/load_langchain')
-    assert res[0]['choices'] == ['ChatLLM', 'LLM', langchain_mode, 'MyData', 'github h2oGPT', langchain_mode2]
+    assert res[0]['choices'] == ['LLM', langchain_mode, 'MyData', 'github h2oGPT', langchain_mode2]
     assert res[0]['value'] == langchain_mode
     assert res[1]['headers'] == ['Collection', 'Path']
     assert res[1]['data'] == [['UserData', user_path], ['MyData', None], [langchain_mode2, user_path2]]

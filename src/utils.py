@@ -1023,7 +1023,7 @@ def save_collection_names(langchain_modes, visible_langchain_modes, langchain_mo
     scratch_collection_names = list(db1s.keys())
     user_hash = db1s.get(LangChainMode.MY_DATA.value, '')[1]
 
-    llms = ['ChatLLM', 'LLM', 'Disabled']
+    llms = ['LLM', 'Disabled']
 
     scratch_langchain_modes = [x for x in langchain_modes if x in scratch_collection_names]
     scratch_visible_langchain_modes = [x for x in visible_langchain_modes if x in scratch_collection_names]

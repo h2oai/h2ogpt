@@ -2543,7 +2543,7 @@ def get_sources(db1s, langchain_mode, dbs=None, docs_state0=None):
     for k in db1s:
         set_userid(db1s[k])
 
-    if langchain_mode in ['ChatLLM', 'LLM']:
+    if langchain_mode in ['LLM']:
         source_files_added = "NA"
         source_list = []
     elif langchain_mode in ['wiki_full']:
@@ -2787,7 +2787,7 @@ def get_db(db1s, langchain_mode, dbs=None):
 
 def get_source_files_given_langchain_mode(db1s, langchain_mode='UserData', dbs=None):
     db = get_db(db1s, langchain_mode, dbs=dbs)
-    if langchain_mode in ['ChatLLM', 'LLM'] or db is None:
+    if langchain_mode in ['LLM'] or db is None:
         return "Sources: N/A"
     return get_source_files(db=db, exceptions=None)
 
