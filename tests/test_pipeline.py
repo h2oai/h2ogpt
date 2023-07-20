@@ -38,7 +38,7 @@ def test_export_copy():
 
     langchain_types = [x.name for x in list(LangChainMode)]
     langchain_types_v = [x.value for x in list(LangChainMode)]
-    assert 'UserData' in langchain_types_v and "USER_DATA" in langchain_types and len(langchain_types) >= 10
+    assert 'UserData' in langchain_types_v and "USER_DATA" in langchain_types and len(langchain_types) >= 9
 
     prompter = Prompter(prompt_type, prompt_dict)
     assert prompter is not None

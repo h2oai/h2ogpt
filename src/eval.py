@@ -57,6 +57,7 @@ def run_eval(  # for local function:
         my_db_state0=None, selection_docs_state0=None, dbs=None, langchain_modes=None, langchain_mode_paths=None,
         detect_user_path_changes_every_query=None,
         use_openai_embedding=None, use_openai_model=None, hf_embedding_model=None, cut_distance=None,
+        add_chat_history_to_context=None,
         db_type=None, n_jobs=None, first_para=None, text_limit=None, verbose=None, cli=None, reverse_docs=None,
         use_cache=None,
         auto_reduce_chunks=None, max_chunks=None,

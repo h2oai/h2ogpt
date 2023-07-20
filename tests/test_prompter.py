@@ -116,6 +116,7 @@ prompt_llama2 = """<s>[INST] Hello! [/INST] Hi! </s><s>[INST] How are you? [/INS
 def test_prompt_with_context(prompt_type, expected):
     prompt_dict = None  # not used unless prompt_type='custom'
     langchain_mode = 'Disabled'
+    add_chat_history_to_context = True
     chat = True
     model_max_length = 2048
     memory_restriction_level = 0
@@ -134,7 +135,9 @@ def test_prompt_with_context(prompt_type, expected):
                ]
     print("duration1: %s %s" % (prompt_type, time.time() - t0), flush=True)
     t0 = time.time()
-    context = history_to_context(history, langchain_mode, prompt_type, prompt_dict, chat,
+    context = history_to_context(history, langchain_mode,
+                                 add_chat_history_to_context,
+                                 prompt_type, prompt_dict, chat,
                                  model_max_length, memory_restriction_level,
                                  keep_sources_in_context1)
     print("duration2: %s %s" % (prompt_type, time.time() - t0), flush=True)

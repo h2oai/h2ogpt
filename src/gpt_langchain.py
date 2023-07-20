@@ -309,6 +309,8 @@ class GradioInference(LLM):
     sanitize_bot_response: bool = False
 
     prompter: Any = None
+    context: Any = ''
+    iinput: Any = ''
     client: Any = None
 
     class Config:
@@ -352,14 +354,15 @@ class GradioInference(LLM):
         stream_output = self.stream
         gr_client = self.client
         client_langchain_mode = 'Disabled'
+        client_add_chat_history_to_context = True
         client_langchain_action = LangChainAction.QUERY.value
         client_langchain_agents = []
         top_k_docs = 1
         chunk = True
         chunk_size = 512
         client_kwargs = dict(instruction=prompt if self.chat_client else '',  # only for chat=True
-                             iinput='',  # only for chat=True
-                             context='',
+                             iinput=self.iinput if self.chat_client else '',  # only for chat=True
+                             context=self.context,
                              # streaming output is supported, loops over and outputs each generation in streaming mode
                              # but leave stream_output=False for simple input/output mode
                              stream_output=stream_output,
@@ -380,8 +383,9 @@ class GradioInference(LLM):
                              chat=self.chat_client,
 
                              instruction_nochat=prompt if not self.chat_client else '',
-                             iinput_nochat='',  # only for chat=False
+                             iinput_nochat=self.iinput if not self.chat_client else '',
                              langchain_mode=client_langchain_mode,
+                             add_chat_history_to_context=client_add_chat_history_to_context,
                              langchain_action=client_langchain_action,
                              langchain_agents=client_langchain_agents,
                              top_k_docs=top_k_docs,
@@ -458,6 +462,8 @@ class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
     stream: bool = False
     sanitize_bot_response: bool = False
     prompter: Any = None
+    context: Any = ''
+    iinput: Any = ''
     tokenizer: Any = None
     client: Any = None
 
@@ -499,7 +505,7 @@ class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
         prompt, num_prompt_tokens = H2OTextGenerationPipeline.limit_prompt(prompt, self.tokenizer)
 
         # NOTE: TGI server does not add prompting, so must do here
-        data_point = dict(context='', instruction=prompt, input='')
+        data_point = dict(context=self.context, instruction=prompt, input=self.iinput)
         prompt = self.prompter.generate_prompt(data_point)
 
         gen_server_kwargs = dict(do_sample=self.do_sample,
@@ -578,6 +584,8 @@ class H2OOpenAI(OpenAI):
     stop_sequences: Any = None
     sanitize_bot_response: bool = False
     prompter: Any = None
+    context: Any = ''
+    iinput: Any = ''
     tokenizer: Any = None
 
     @classmethod
@@ -603,7 +611,7 @@ class H2OOpenAI(OpenAI):
         for prompti, prompt in enumerate(prompts):
             prompt, num_prompt_tokens = H2OTextGenerationPipeline.limit_prompt(prompt, self.tokenizer)
             # NOTE: OpenAI/vLLM server does not add prompting, so must do here
-            data_point = dict(context='', instruction=prompt, input='')
+            data_point = dict(context=self.context, instruction=prompt, input=self.iinput)
             prompt = self.prompter.generate_prompt(data_point)
             prompts[prompti] = prompt
 
@@ -681,6 +689,8 @@ def get_llm(use_openai_model=False,
             prompt_type=None,
             prompt_dict=None,
             prompter=None,
+            context=None,
+            iinput=None,
             sanitize_bot_response=False,
             verbose=False,
             ):
@@ -694,6 +704,7 @@ def get_llm(use_openai_model=False,
         kwargs_extra = {}
         if inference_server == 'openai_chat' or inf_type == 'vllm_chat':
             cls = H2OChatOpenAI
+            # FIXME: Support context, iinput
         else:
             cls = H2OOpenAI
             if inf_type == 'vllm':
@@ -703,6 +714,8 @@ def get_llm(use_openai_model=False,
                 kwargs_extra = dict(stop_sequences=stop_sequences,
                                     sanitize_bot_response=sanitize_bot_response,
                                     prompter=prompter,
+                                    context=context,
+                                    iinput=iinput,
                                     tokenizer=tokenizer,
                                     client=None)
 
@@ -775,6 +788,8 @@ def get_llm(use_openai_model=False,
                 callbacks=callbacks if stream_output else None,
                 stream=stream_output,
                 prompter=prompter,
+                context=context,
+                iinput=iinput,
                 client=gr_client,
                 sanitize_bot_response=sanitize_bot_response,
             )
@@ -795,6 +810,8 @@ def get_llm(use_openai_model=False,
                 callbacks=callbacks if stream_output else None,
                 stream=stream_output,
                 prompter=prompter,
+                context=context,
+                iinput=iinput,
                 tokenizer=tokenizer,
                 client=hf_client,
                 timeout=max_time,
@@ -827,6 +844,8 @@ def get_llm(use_openai_model=False,
                               verbose=verbose,
                               streaming=stream_output,
                               prompter=prompter,
+                              context=context,
+                              iinput=iinput,
                               )
     else:
         if model is None:
@@ -869,6 +888,8 @@ def get_llm(use_openai_model=False,
         from h2oai_pipeline import H2OTextGenerationPipeline
         pipe = H2OTextGenerationPipeline(model=model, use_prompter=True,
                                          prompter=prompter,
+                                         context=context,
+                                         iinput=iinput,
                                          prompt_type=prompt_type,
                                          prompt_dict=prompt_dict,
                                          sanitize_bot_response=sanitize_bot_response,
@@ -1887,6 +1908,7 @@ def _run_qa_db(query=None,
                prompt_dict=None,
                answer_with_sources=True,
                cut_distance=1.64,
+               add_chat_history_to_context=True,
                sanitize_bot_response=False,
                show_rank=False,
                use_llm_if_no_docs=False,
@@ -1949,6 +1971,8 @@ def _run_qa_db(query=None,
         else:
             prompt_dict = ''
     assert len(set(gen_hyper).difference(inspect.signature(get_llm).parameters)) == 0
+    # pass in context to LLM directly, since already has prompt_type structure
+    # can't pass through langchain in get_chain() to LLM: https://github.com/hwchase17/langchain/issues/6638
     llm, model_name, streamer, prompt_type_out = get_llm(use_openai_model=use_openai_model, model_name=model_name,
                                                          model=model,
                                                          tokenizer=tokenizer,
@@ -1968,11 +1992,13 @@ def _run_qa_db(query=None,
                                                          prompt_type=prompt_type,
                                                          prompt_dict=prompt_dict,
                                                          prompter=prompter,
+                                                         context=context if add_chat_history_to_context else '',
+                                                         iinput=iinput if add_chat_history_to_context else '',
                                                          sanitize_bot_response=sanitize_bot_response,
                                                          verbose=verbose,
                                                          )
 
-    use_context = False
+    use_docs_planned = False
     scores = []
     chain = None
 
@@ -1984,7 +2010,7 @@ def _run_qa_db(query=None,
     sim_kwargs = {k: v for k, v in locals().items() if k in func_names}
     missing_kwargs = [x for x in func_names if x not in sim_kwargs]
     assert not missing_kwargs, "Missing: %s" % missing_kwargs
-    docs, chain, scores, use_context, have_any_docs = get_chain(**sim_kwargs)
+    docs, chain, scores, use_docs_planned, have_any_docs = get_chain(**sim_kwargs)
     if document_subset in non_query_commands:
         formatted_doc_chunks = '\n\n'.join([get_url(x) + '\n\n' + x.page_content for x in docs])
         if not formatted_doc_chunks and not use_llm_if_no_docs:
@@ -2002,7 +2028,6 @@ def _run_qa_db(query=None,
             yield ret, extra
             return
         if not docs and langchain_mode not in [LangChainMode.DISABLED.value,
-                                               LangChainMode.CHAT_LLM.value,
                                                LangChainMode.LLM.value]:
             ret = 'No relevant documents to query.' if have_any_docs else 'No documents to query.'
             extra = ''
@@ -2058,7 +2083,7 @@ def _run_qa_db(query=None,
             else:
                 answer = chain()
 
-    if not use_context:
+    if not use_docs_planned:
         ret = answer['output_text']
         extra = ''
         yield ret, extra
@@ -2070,6 +2095,7 @@ def _run_qa_db(query=None,
 
 def get_chain(query=None,
               iinput=None,
+              context=None,  # FIXME: https://github.com/hwchase17/langchain/issues/6638
               use_openai_model=False, use_openai_embedding=False,
               first_para=False, text_limit=None, top_k_docs=4, chunk=True, chunk_size=512,
               langchain_mode_paths=None,
@@ -2081,6 +2107,7 @@ def get_chain(query=None,
               prompt_type=None,
               prompt_dict=None,
               cut_distance=1.1,
+              add_chat_history_to_context=True,  # FIXME: https://github.com/hwchase17/langchain/issues/6638
               load_db_if_exists=False,
               db=None,
               langchain_mode=None,
@@ -2102,12 +2129,12 @@ def get_chain(query=None,
     assert langchain_agents is not None  # should be at least []
     # determine whether use of context out of docs is planned
     if not use_openai_model and prompt_type not in ['plain'] or model_name in non_hf_types:
-        if langchain_mode in ['Disabled', 'ChatLLM', 'LLM']:
-            use_context = False
+        if langchain_mode in ['Disabled', 'LLM']:
+            use_docs_planned = False
         else:
-            use_context = True
+            use_docs_planned = True
     else:
-        use_context = True
+        use_docs_planned = True
 
     # https://github.com/hwchase17/langchain/issues/1946
     # FIXME: Seems to way to get size of chroma db to limit top_k_docs to avoid
@@ -2154,7 +2181,7 @@ def get_chain(query=None,
         else:
             extra = ""
             prefix = ""
-        if langchain_mode in ['Disabled', 'ChatLLM', 'LLM'] or not use_context:
+        if langchain_mode in ['Disabled', 'LLM'] or not use_docs_planned:
             template_if_no_docs = template = """%s{context}{question}""" % prefix
         else:
             template = """%s
@@ -2195,7 +2222,7 @@ def get_chain(query=None,
     else:
         use_template = False
 
-    if db and use_context:
+    if db and use_docs_planned:
         base_path = 'locks'
         makedirs(base_path)
         if hasattr(db, '_persist_directory'):
@@ -2224,7 +2251,7 @@ def get_chain(query=None,
             else:
                 # shouldn't reach
                 filter_kwargs = {}
-        if langchain_mode in [LangChainMode.LLM.value, LangChainMode.CHAT_LLM.value]:
+        if langchain_mode in [LangChainMode.LLM.value]:
             docs = []
             scores = []
         elif document_subset == DocumentSubset.TopKSources.name or query in [None, '', '\n']:
@@ -2324,7 +2351,7 @@ def get_chain(query=None,
         docs = []
         scores = []
 
-    if not docs and use_context and model_name not in non_hf_types:
+    if not docs and use_docs_planned and model_name not in non_hf_types:
         # if HF type and have no docs, can bail out
         return docs, None, [], False, have_any_docs
 
@@ -2347,7 +2374,7 @@ def get_chain(query=None,
 
     if len(docs) == 0:
         # avoid context == in prompt then
-        use_context = False
+        use_docs_planned = False
         template = template_if_no_docs
 
     if langchain_action == LangChainAction.QUERY.value:
@@ -2363,7 +2390,7 @@ def get_chain(query=None,
         else:
             # only if use_openai_model = True, unused normally except in testing
             chain = load_qa_with_sources_chain(llm)
-        if not use_context:
+        if not use_docs_planned:
             chain_kwargs = dict(input_documents=[], question=query)
         else:
             chain_kwargs = dict(input_documents=docs, question=query)
@@ -2390,7 +2417,7 @@ def get_chain(query=None,
     else:
         raise RuntimeError("No such langchain_action=%s" % langchain_action)
 
-    return docs, target, scores, use_context, have_any_docs
+    return docs, target, scores, use_docs_planned, have_any_docs
 
 
 def get_sources_answer(query, answer, scores, show_rank, answer_with_sources, verbose=False):

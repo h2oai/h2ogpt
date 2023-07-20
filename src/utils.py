@@ -112,12 +112,15 @@ def system_info():
     system = {}
     # https://stackoverflow.com/questions/48951136/plot-multiple-graphs-in-one-plot-using-tensorboard
     # https://arshren.medium.com/monitoring-your-devices-in-python-5191d672f749
-    temps = psutil.sensors_temperatures(fahrenheit=False)
-    if 'coretemp' in temps:
-        coretemp = temps['coretemp']
-        temp_dict = {k.label: k.current for k in coretemp}
-        for k, v in temp_dict.items():
-            system['CPU_C/%s' % k] = v
+    try:
+        temps = psutil.sensors_temperatures(fahrenheit=False)
+        if 'coretemp' in temps:
+            coretemp = temps['coretemp']
+            temp_dict = {k.label: k.current for k in coretemp}
+            for k, v in temp_dict.items():
+                system['CPU_C/%s' % k] = v
+    except AttributeError:
+        pass
 
     # https://github.com/gpuopenanalytics/pynvml/blob/master/help_query_gpu.txt
     try:
@@ -1020,7 +1023,7 @@ def save_collection_names(langchain_modes, visible_langchain_modes, langchain_mo
     scratch_collection_names = list(db1s.keys())
     user_hash = db1s.get(LangChainMode.MY_DATA.value, '')[1]
 
-    llms = ['ChatLLM', 'LLM', 'Disabled']
+    llms = ['LLM', 'Disabled']
 
     scratch_langchain_modes = [x for x in langchain_modes if x in scratch_collection_names]
     scratch_visible_langchain_modes = [x for x in visible_langchain_modes if x in scratch_collection_names]

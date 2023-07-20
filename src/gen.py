@@ -113,6 +113,7 @@ def main(
         show_examples: bool = None,
         verbose: bool = False,
         h2ocolors: bool = True,
+        dark: bool = False,  # light tends to be best
         height: int = 600,
         show_lora: bool = True,
         login_mode_if_model0: bool = False,
@@ -163,6 +164,7 @@ def main(
         use_openai_model: bool = False,
         hf_embedding_model: str = None,
         cut_distance: float = 1.64,
+        add_chat_history_to_context: bool = True,
         allow_upload_to_user_data: bool = True,
         reload_langchain_state: bool = True,
         allow_upload_to_my_data: bool = True,
@@ -261,6 +263,7 @@ def main(
     :param show_examples: whether to show clickable examples in gradio
     :param verbose: whether to show verbose prints
     :param h2ocolors: whether to use H2O.ai theme
+    :param dark: whether to use dark mode for UI by default (still controlled in UI)
     :param height: height of chat window
     :param show_lora: whether to show LORA options in UI (expert so can be hard to understand)
     :param login_mode_if_model0: set to True to load --base_model after client logs in, to be able to free GPU memory when model is swapped
@@ -289,7 +292,7 @@ def main(
     :param eval_prompts_only_seed: for no gradio benchmark, seed for eval_filename sampling
     :param eval_as_output: for no gradio benchmark, whether to test eval_filename output itself
     :param langchain_mode: Data source to include.  Choose "UserData" to only consume files from make_db.py.
-           None: auto mode, check if langchain package exists, at least do ChatLLM if so, else Disabled
+           None: auto mode, check if langchain package exists, at least do LLM if so, else Disabled
            WARNING: wiki_full requires extra data processing via read_wiki_full.py and requires really good workstation to generate db, unless already present.
     :param langchain_action: Mode langchain operations in on documents.
             Query: Make query of document(s)
@@ -336,6 +339,9 @@ def main(
     :param cut_distance: Distance to cut off references with larger distances when showing references.
            1.64 is good to avoid dropping references for all-MiniLM-L6-v2, but instructor-large will always show excessive references.
            For all-MiniLM-L6-v2, a value of 1.5 can push out even more references, or a large value of 100 can avoid any loss of references.
+    :param add_chat_history_to_context: Include chat context when performing action
+           Not supported yet for openai_chat when using document collection instead of LLM
+           Also not supported when using CLI mode
     :param allow_upload_to_user_data: Whether to allow file uploads to update shared vector db (UserData or custom user dbs)
     :param reload_langchain_state: Whether to reload visible_langchain_modes.pkl file that contains any new user collections.
     :param allow_upload_to_my_data: Whether to allow file uploads to update scratch vector db
@@ -343,7 +349,7 @@ def main(
     :param enable_text_upload: Whether to allow upload of text
     :param enable_sources_list: Whether to allow list (or download for non-shared db) of list of sources for chosen db
     :param chunk: Whether to chunk data (True unless know data is already optimally chunked)
-    :param chunk_size: Size of chunks, with typically top-4 passed to LLM, so neesd to be in context length
+    :param chunk_size: Size of chunks, with typically top-4 passed to LLM, so needs to be in context length
     :param top_k_docs: number of chunks to give LLM
     :param reverse_docs: whether to reverse docs order so most relevant is closest to question.
            Best choice for sufficiently smart model, and truncation occurs for oldest context, so best then too.
@@ -460,7 +466,7 @@ def main(
     # auto-set langchain_mode
     if have_langchain and langchain_mode is None:
         # start in chat mode, in case just want to chat and don't want to get "No documents to query" by default.
-        langchain_mode = LangChainMode.CHAT_LLM.value
+        langchain_mode = LangChainMode.LLM.value
         if allow_upload_to_user_data and not is_public and langchain_mode_paths['UserData']:
             print("Auto set langchain_mode=%s.  Could use UserData instead." % langchain_mode, flush=True)
         elif allow_upload_to_my_data:
@@ -470,13 +476,12 @@ def main(
                   flush=True)
         else:
             raise RuntimeError("Please pass --langchain_mode=<chosen mode> out of %s" % langchain_modes)
-    if not have_langchain and langchain_mode not in [None, LangChainMode.DISABLED.value, LangChainMode.LLM.value,
-                                                     LangChainMode.CHAT_LLM.value]:
+    if not have_langchain and langchain_mode not in [None, LangChainMode.DISABLED.value, LangChainMode.LLM.value]:
         raise RuntimeError("Asked for LangChain mode but langchain python package cannot be found.")
     if langchain_mode is None:
         # if not set yet, disable
         langchain_mode = LangChainMode.DISABLED.value
-        print("Auto set langchain_mode=%s" % langchain_mode, flush=True)
+        print("Auto set langchain_mode=%s  Have langchain package: %s" % (langchain_mode, have_langchain), flush=True)
 
     if is_public:
         allow_upload_to_user_data = False
@@ -1349,6 +1354,7 @@ def evaluate(
         instruction_nochat,
         iinput_nochat,
         langchain_mode,
+        add_chat_history_to_context,
         langchain_action,
         langchain_agents,
         top_k_docs,
@@ -1410,6 +1416,7 @@ def evaluate(
     assert chunk_size is not None and isinstance(chunk_size, int)
     assert n_jobs is not None
     assert first_para is not None
+    assert isinstance(add_chat_history_to_context, bool)
 
     if selection_docs_state is not None:
         langchain_modes = selection_docs_state.get('langchain_modes', langchain_modes0)
@@ -1550,7 +1557,7 @@ def evaluate(
             db = None
     else:
         db = None
-    do_langchain_path = langchain_mode not in [False, 'Disabled', 'ChatLLM', 'LLM'] or \
+    do_langchain_path = langchain_mode not in [False, 'Disabled', 'LLM'] or \
                         base_model in non_hf_types or \
                         force_langchain_evaluate
     if do_langchain_path:
@@ -1582,6 +1589,7 @@ def evaluate(
                            langchain_mode_paths=langchain_mode_paths,
                            detect_user_path_changes_every_query=detect_user_path_changes_every_query,
                            cut_distance=1.1 if langchain_mode in ['wiki_full'] else cut_distance,
+                           add_chat_history_to_context=add_chat_history_to_context,
                            use_openai_embedding=use_openai_embedding,
                            use_openai_model=use_openai_model,
                            hf_embedding_model=hf_embedding_model,
@@ -1739,6 +1747,7 @@ def evaluate(
                 chat_client = False
                 where_from = "gr_client"
                 client_langchain_mode = 'Disabled'
+                client_add_chat_history_to_context = True
                 client_langchain_action = LangChainAction.QUERY.value
                 client_langchain_agents = []
                 gen_server_kwargs = dict(temperature=temperature,
@@ -1792,6 +1801,7 @@ def evaluate(
                                      instruction_nochat=gr_prompt if not chat_client else '',
                                      iinput_nochat=gr_iinput,  # only for chat=False
                                      langchain_mode=client_langchain_mode,
+                                     add_chat_history_to_context=client_add_chat_history_to_context,
                                      langchain_action=client_langchain_action,
                                      langchain_agents=client_langchain_agents,
                                      top_k_docs=top_k_docs,
@@ -2375,7 +2385,7 @@ y = np.random.randint(0, 1, 100)
 
     # move to correct position
     for example in examples:
-        example += [chat, '', '', LangChainMode.DISABLED.value, LangChainAction.QUERY.value, [],
+        example += [chat, '', '', LangChainMode.DISABLED.value, True, LangChainAction.QUERY.value, [],
                     top_k_docs, chunk, chunk_size, DocumentSubset.Relevant.name, []
                     ]
         # adjust examples if non-chat mode
@@ -2521,12 +2531,15 @@ def get_minmax_top_k_docs(is_public):
     return min_top_k_docs, max_top_k_docs, label_top_k_docs
 
 
-def history_to_context(history, langchain_mode1, prompt_type1, prompt_dict1, chat1, model_max_length1,
+def history_to_context(history, langchain_mode1,
+                       add_chat_history_to_context,
+                       prompt_type1, prompt_dict1, chat1, model_max_length1,
                        memory_restriction_level1, keep_sources_in_context1):
     """
     consumes all history up to (but not including) latest history item that is presumed to be an [instruction, None] pair
     :param history:
     :param langchain_mode1:
+    :param add_chat_history_to_context:
     :param prompt_type1:
     :param prompt_dict1:
     :param chat1:
@@ -2539,7 +2552,7 @@ def history_to_context(history, langchain_mode1, prompt_type1, prompt_dict1, cha
     _, _, _, max_prompt_length = get_cutoffs(memory_restriction_level1,
                                              for_context=True, model_max_length=model_max_length1)
     context1 = ''
-    if max_prompt_length is not None and langchain_mode1 not in ['LLM']:
+    if max_prompt_length is not None and add_chat_history_to_context:
         context1 = ''
         # - 1 below because current instruction already in history from user()
         for histi in range(0, len(history) - 1):

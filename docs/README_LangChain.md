@@ -111,6 +111,12 @@ but pymupdf is AGPL, requiring any source code be made available, which is not a
 
 When pymupdf is installed, we will use `PyMuPDFLoader` by default to parse PDFs since better than `PyPDFLoader` and much better than `PDFMinerLoader`.  This can be overridden by setting `PDF_CLASS_NAME=PyPDFLoader` in `.env_gpt4all`.
 
+### Adding new file types
+
+The function `file_to_doc` controls the ingestion, with [allowed ones listed](https://github.com/h2oai/h2ogpt/blob/1184f057088743599e2d5241329551b8f7f5320d/src/gpt_langchain.py#L1021-L1035).   If one wants to add a new file type, add it to the list `file_types`, and then add an entry in `file_to_doc()` function.
+
+Metadata is added using `add_meta` function, and other metadata, like chunk_id, is added after chunking.  One could add a new step to add meta data to `page_content` to each langchain `Document`.
+
 ## Database creation
 
 To use some example databases (will overwrite UserData make above unless change options) and run generate after, do:
@@ -140,12 +146,27 @@ which will avoid using `user_path` since it is no longer passed.  Otherwise when
 
 If you have enough GPU memory for embedding, but not the LLM as well, then a less private mode is to use OpenAI model.
 ```bash
-python generate.py  --inference_server=openai_chat --base_model=gpt-3.5-turbo --score_model=None --langchain_mode=ChatLLM --visible_langchain_modes="['ChatLLM', 'UserData', 'MyData']"
+python generate.py  --inference_server=openai_chat --base_model=gpt-3.5-turbo --score_model=None --langchain_mode=LLM --visible_langchain_modes="['LLM', 'UserData', 'MyData']"
 ```
 and if you want to push image caption model to get better captions, this can be done if have enough GPU memory or if use OpenAI:
 ```bash
-python generate.py  --inference_server=openai_chat --base_model=gpt-3.5-turbo --score_model=None --langchain_mode=ChatLLM --visible_langchain_modes="['ChatLLM', 'UserData', 'MyData']" --captions_model=Salesforce/blip2-flan-t5-xl
+python generate.py  --inference_server=openai_chat --base_model=gpt-3.5-turbo --score_model=None --langchain_mode=LLM --visible_langchain_modes="['LLM', 'UserData', 'MyData']" --captions_model=Salesforce/blip2-flan-t5-xl
 ```
+
+### Multiple embeddings and sources
+
+We only support one embedding at a time for each database.
+
+So you could use src/make_db.py to make the db for different embeddings (`--hf_embedding_model` like gen.py, any HF model) for each collection (e.g. UserData, UserData2) for each source folders (e.g. user_path, user_path2), and then at generate.py time you can specify those different collection names in `--langchain_modes` and `--visible_langchain_modes` and `--langchain_mode_paths`.  For example:
+```bash
+python src/make_db.py --user_path=user_path --collection_name=UserData --hf_embedding_model=hkunlp/instructor-large
+python src/make_db.py --user_path=user_path2 --collection_name=UserData2 --hf_embedding_model=sentence-transformers/all-MiniLM-L6-v2
+```
+then
+```bash
+python generate.py --base_model='llama' --prompt_type=wizard2 --score_model=None --langchain_mode='UserData' --langchain_modes=['UserData','UserData2'] --visible_langchain_modes=['UserData','UserData2'] --langchain_mode_paths={'UserData':'user_path','UserData2':'user_path2'}
+```
+and watch-out for use of whitespace.  For `langchain_mode_paths` you can pass surrounded by "'s and have spaces.
 
 ### Note about Embeddings
 

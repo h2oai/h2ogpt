@@ -90,6 +90,13 @@ To support document Q/A jump to [Install Optional Dependencies](#document-qa-dep
 ```bash
 # Required for Doc Q/A: LangChain:
 pip install -r reqs_optional/requirements_optional_langchain.txt
+```
+and if you see `ld: library not found for -lSystem` then ensure you do first:
+```bash
+export LDFLAGS=-L/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib`
+```
+then retry above `pip install`.  Once successful, then continue installation:
+```bash
 # Required for CPU: LLaMa/GPT4All:
 pip install -r reqs_optional/requirements_optional_gpt4all.txt
 # Optional: PyMuPDF/ArXiv:

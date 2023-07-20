@@ -19,7 +19,7 @@ Follow these steps:
     conda create -n h2ogpt -y
     conda activate h2ogpt
     conda install python=3.10 -c conda-forge -y
-    conda install cudatoolkit -c conda-forge -y  # required for bitsandbytes
+    conda install cudatoolkit -c conda-forge -y  # cuda toolkit for 4-bit/8-bit bitsandbytes using GPU, not needed for CPU
     python --version  # should say python 3.10.xx
     python -c "import os, sys ; print('hello world')"  # should print "hello world"
     git clone https://github.com/h2oai/h2ogpt.git
@@ -51,10 +51,10 @@ Follow these steps:
     ```bash
     python -m nltk.downloader all
     ```
-    For supporting Word and Excel documents download and install libreoffice: https://www.libreoffice.org/download/download-libreoffice/ . To support OCR, download and install [tesseract](https://github.com/UB-Mannheim/tesseract/wiki), see also: [Tesseract Documentation](https://tesseract-ocr.github.io/tessdoc/Installation.html).
+    For supporting Word and Excel documents, if you don't have Word/Excel already, then download and install libreoffice: https://www.libreoffice.org/download/download-libreoffice/ . To support OCR, download and install [tesseract](https://github.com/UB-Mannheim/tesseract/wiki), see also: [Tesseract Documentation](https://tesseract-ocr.github.io/tessdoc/Installation.html).
 12. Install optional AutoGPTQ dependency:
     ```bash
-    pip install -r https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.2.2/auto_gptq-0.2.2+cu118-cp310-cp310-win_amd64.whl
+    pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.2.2/auto_gptq-0.2.2+cu118-cp310-cp310-win_amd64.whl
     ```
 13. Run h2oGPT for chat only:
     ```bash

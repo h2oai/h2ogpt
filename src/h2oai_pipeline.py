@@ -11,6 +11,7 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
     def __init__(self, *args, debug=False, chat=False, stream_output=False,
                  sanitize_bot_response=False,
                  use_prompter=True, prompter=None,
+                 context='', iinput='',
                  prompt_type=None, prompt_dict=None,
                  max_input_tokens=2048 - 256, **kwargs):
         """
@@ -34,6 +35,8 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
         self.prompt_type = prompt_type
         self.prompt_dict = prompt_dict
         self.prompter = prompter
+        self.context = context
+        self.iinput = iinput
         if self.use_prompter:
             if self.prompter is not None:
                 assert self.prompter.prompt_type is not None
@@ -113,7 +116,7 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
     def preprocess(self, prompt_text, prefix="", handle_long_generation=None, **generate_kwargs):
         prompt_text, num_prompt_tokens = H2OTextGenerationPipeline.limit_prompt(prompt_text, self.tokenizer)
 
-        data_point = dict(context='', instruction=prompt_text, input='')
+        data_point = dict(context=self.context, instruction=prompt_text, input=self.iinput)
         if self.prompter is not None:
             prompt_text = self.prompter.generate_prompt(data_point)
         self.prompt_text = prompt_text
