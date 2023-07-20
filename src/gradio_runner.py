@@ -499,26 +499,27 @@ def go_gradio(**kwargs):
                             pass
                     with gr.Row():
                         with gr.Column(scale=1):
+                            visible_add_remove_collection = (allow_upload_to_user_data or
+                                                             allow_upload_to_my_data) and \
+                                                            kwargs['langchain_mode'] != 'Disabled'
                             add_placeholder = "e.g. UserData2, user_path2 (optional)" \
                                 if not is_public else "e.g. MyData2"
                             remove_placeholder = "e.g. UserData2" if not is_public else "e.g. MyData2"
-                            new_langchain_mode_text = gr.Textbox(value="", visible=allow_upload_to_user_data or
-                                                                                   allow_upload_to_my_data,
+                            new_langchain_mode_text = gr.Textbox(value="", visible=visible_add_remove_collection,
                                                                  label='Add Collection',
                                                                  placeholder=add_placeholder,
                                                                  interactive=True)
-                            remove_langchain_mode_text = gr.Textbox(value="", visible=allow_upload_to_user_data or
-                                                                                      allow_upload_to_my_data,
+                            remove_langchain_mode_text = gr.Textbox(value="", visible=visible_add_remove_collection,
                                                                     label='Remove Collection',
                                                                     placeholder=remove_placeholder,
                                                                     interactive=True)
                             load_langchain = gr.Button(value="Load LangChain State", scale=0, size='sm',
-                                                       visible=allow_upload_to_user_data)
+                                                       visible=allow_upload_to_user_data and
+                                                               kwargs['langchain_mode'] != 'Disabled')
                         with gr.Column(scale=1):
                             df0 = get_df_langchain_mode_paths(selection_docs_state0)
                             langchain_mode_path_text = gr.Dataframe(value=df0,
-                                                                    visible=allow_upload_to_user_data or
-                                                                            allow_upload_to_my_data,
+                                                                    visible=visible_add_remove_collection,
                                                                     label='LangChain Mode-Path',
                                                                     show_label=False,
                                                                     interactive=False)
