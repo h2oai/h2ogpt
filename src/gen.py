@@ -2084,13 +2084,14 @@ def evaluate(
                     if thread.exc:
                         raise thread.exc
                     decoded_output = outputs
+                    ntokens = len(outputs)//4  # hack for now
                 else:
                     try:
                         outputs = model.generate(**gen_kwargs)
                     finally:
                         clear_torch_cache()  # has to be here for API submit_nochat_api since.then() not called
-                    outputs = [decoder(s) for s in outputs.sequences]
                     ntokens = sum([len(s) for s in outputs.sequences]) if save_dir else -1
+                    outputs = [decoder(s) for s in outputs.sequences]
 
                     yield dict(response=prompter.get_response(outputs, prompt=inputs_decoded,
                                                               sanitize_bot_response=sanitize_bot_response), sources='')
