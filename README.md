@@ -150,6 +150,8 @@ pip uninstall -y auto-gptq ; CUDA_HOME=/usr/local/cuda-11.8  GITHUB_ACTIONS=true
 ```
 See [AutoGPTQ](docs/README_GPU.md#gpu-cuda) for more details for AutoGPTQ and other GPU installation aspects.
 
+#### Run h2oGPT
+
 Place all documents in `user_path` or upload in UI ([Help with UI](docs/README_ui.md)).
 
 UI using GPU with at least 24GB with streaming:
@@ -179,7 +181,7 @@ pip install protobuf==3.20.0
 
 Once all files are downloaded, the CLI and UI can be run in offline mode, see [offline mode](docs/README_offline.md).
 
-### Run h2oGPT using Docker
+#### Run h2oGPT using Docker
 1. Make sure Docker & Nvidia Containers are setup correctly by following instructions [here](docs/INSTALL-DOCKER.md).
 
 2. Specify the required model using `HF_MODEL` parameter.
