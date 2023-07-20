@@ -2471,7 +2471,7 @@ def go_gradio(**kwargs):
                        ,
                        queue=False, api_name='stop' if allow_api else None).then(clear_torch_cache, queue=False)
 
-        demo.load(None, None, None, _js=get_dark_js() if kwargs['h2ocolors'] and False else None)  # light best
+        demo.load(None, None, None, _js=get_dark_js() if kwargs['dark'] else None)
 
     demo.queue(concurrency_count=kwargs['concurrency_count'], api_open=kwargs['api_open'])
     favicon_path = "h2o-logo.svg"

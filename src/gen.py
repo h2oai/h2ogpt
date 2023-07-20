@@ -113,6 +113,7 @@ def main(
         show_examples: bool = None,
         verbose: bool = False,
         h2ocolors: bool = True,
+        dark: bool = False,  # light tends to be best
         height: int = 600,
         show_lora: bool = True,
         login_mode_if_model0: bool = False,
@@ -262,6 +263,7 @@ def main(
     :param show_examples: whether to show clickable examples in gradio
     :param verbose: whether to show verbose prints
     :param h2ocolors: whether to use H2O.ai theme
+    :param dark: whether to use dark mode for UI by default (still controlled in UI)
     :param height: height of chat window
     :param show_lora: whether to show LORA options in UI (expert so can be hard to understand)
     :param login_mode_if_model0: set to True to load --base_model after client logs in, to be able to free GPU memory when model is swapped
