@@ -479,7 +479,7 @@ def main(
     if langchain_mode is None:
         # if not set yet, disable
         langchain_mode = LangChainMode.DISABLED.value
-        print("Auto set langchain_mode=%s" % langchain_mode, flush=True)
+        print("Auto set langchain_mode=%s  Have langchain package: %s" % (langchain_mode, have_langchain), flush=True)
 
     if is_public:
         allow_upload_to_user_data = False
