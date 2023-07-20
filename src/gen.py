@@ -2006,6 +2006,7 @@ def evaluate(
                                     **decoder_raw_kwargs
                                     )
 
+    t_generate = time.time()
     with torch.no_grad():
         have_lora_weights = lora_weights not in [no_lora_str, '', None]
         context_class_cast = NullContext if device == 'cpu' or have_lora_weights or device == 'mps' else torch.autocast
@@ -2086,13 +2087,19 @@ def evaluate(
                     finally:
                         clear_torch_cache()  # has to be here for API submit_nochat_api since.then() not called
                     outputs = [decoder(s) for s in outputs.sequences]
+                    ntokens = sum([len(s) for s in outputs.sequences]) if save_dir else -1
+
                     yield dict(response=prompter.get_response(outputs, prompt=inputs_decoded,
                                                               sanitize_bot_response=sanitize_bot_response), sources='')
                     if outputs and len(outputs) >= 1:
                         decoded_output = prompt + outputs[0]
                 if save_dir and decoded_output:
                     extra_dict = gen_config_kwargs.copy()
-                    extra_dict.update(dict(num_prompt_tokens=num_prompt_tokens))
+                    extra_dict.update(dict(num_prompt_tokens=num_prompt_tokens,
+                                           t_generate=time.time() - t_generate,
+                                           ntokens=ntokens,
+                                           tokens_persecond=ntokens / (time.time() - t_generate),
+                                           ))
                     save_generate_output(prompt=prompt, output=decoded_output, base_model=base_model, save_dir=save_dir,
                                          where_from="evaluate_%s" % str(stream_output),
                                          extra_dict=gen_config_kwargs)
