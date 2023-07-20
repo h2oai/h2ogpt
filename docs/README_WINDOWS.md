@@ -54,7 +54,7 @@ Follow these steps:
     For supporting Word and Excel documents, if you don't have Word/Excel already, then download and install libreoffice: https://www.libreoffice.org/download/download-libreoffice/ . To support OCR, download and install [tesseract](https://github.com/UB-Mannheim/tesseract/wiki), see also: [Tesseract Documentation](https://tesseract-ocr.github.io/tessdoc/Installation.html).
 12. Install optional AutoGPTQ dependency:
     ```bash
-    pip install -r https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.2.2/auto_gptq-0.2.2+cu118-cp310-cp310-win_amd64.whl
+    pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.2.2/auto_gptq-0.2.2+cu118-cp310-cp310-win_amd64.whl
     ```
 13. Run h2oGPT for chat only:
     ```bash
