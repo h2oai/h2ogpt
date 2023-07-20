@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # NOTE: start in h2ogpt repo base directory
 # i.e. can run below to update both spaces (assumes repos already existed, else will have to login HF for each)
@@ -9,12 +9,12 @@ echo "Space name: $spacename"
 
 # NOTE: start in h2ogpt repo base directory
 
-h2ogpt_hash=`git rev-parse HEAD`
+h2ogpt_hash="$(git rev-parse HEAD)"
 
 ln -sr src/gen.py src/evaluate_params.py src/gradio_runner.py src/gradio_themes.py h2o-logo.svg LICENSE src/stopping.py src/prompter.py src/enums.py src/utils.py src/utils_langchain.py src/client_test.py src/gpt_langchain.py src/create_data.py src/h2oai_pipeline.py src/gpt4all_llm.py src/loaders.py requirements.txt iterators reqs_optional gradio_utils spaces/chatbot/
 cd ..
 
-rm -rf ${spacename}
+rm -rf "${spacename}"
 git clone https://huggingface.co/spaces/h2oai/"${spacename}"
 cd "${spacename}"
 git reset --hard origin/main
