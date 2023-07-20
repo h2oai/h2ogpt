@@ -2106,7 +2106,7 @@ def evaluate(
                                            ))
                     save_generate_output(prompt=prompt, output=decoded_output, base_model=base_model, save_dir=save_dir,
                                          where_from="evaluate_%s" % str(stream_output),
-                                         extra_dict=gen_config_kwargs)
+                                         extra_dict=extra_dict)
             if verbose:
                 print('Post-Generate: %s decoded_output: %s' % (
                     str(datetime.now()), len(decoded_output) if decoded_output else -1), flush=True)
