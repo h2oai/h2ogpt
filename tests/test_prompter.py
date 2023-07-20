@@ -116,7 +116,7 @@ prompt_llama2 = """<s>[INST] Hello! [/INST] Hi! </s><s>[INST] How are you? [/INS
 def test_prompt_with_context(prompt_type, expected):
     prompt_dict = None  # not used unless prompt_type='custom'
     langchain_mode = 'Disabled'
-    add_chat_history_to_context = False
+    add_chat_history_to_context = True
     chat = True
     model_max_length = 2048
     memory_restriction_level = 0
