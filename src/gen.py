@@ -160,6 +160,7 @@ def main(
         use_llm_if_no_docs: bool = False,
         load_db_if_exists: bool = True,
         keep_sources_in_context: bool = False,
+        use_system_prompt: bool = False,
         db_type: str = 'chroma',
         use_openai_embedding: bool = False,
         use_openai_model: bool = False,
@@ -330,6 +331,7 @@ def main(
     :param use_llm_if_no_docs: Whether to use LLM even if no documents, when langchain_mode=UserData or MyData or custom
     :param load_db_if_exists: Whether to load chroma db if exists or re-generate db
     :param keep_sources_in_context: Whether to keep url sources in context, not helpful usually
+    :param use_system_prompt: Whether to use system prompt (e.g. llama2 safe system prompt)
     :param db_type: 'faiss' for in-memory or 'chroma' or 'weaviate' for persisted on disk
     :param use_openai_embedding: Whether to use OpenAI embeddings for vector db
     :param use_openai_model: Whether to use OpenAI model for use with vector db
@@ -2100,7 +2102,7 @@ def evaluate(
                     if thread.exc:
                         raise thread.exc
                     decoded_output = outputs
-                    ntokens = len(outputs)//4  # hack for now
+                    ntokens = len(outputs) // 4  # hack for now
                 else:
                     try:
                         outputs = model.generate(**gen_kwargs)
@@ -2561,7 +2563,8 @@ def get_minmax_top_k_docs(is_public):
 def history_to_context(history, langchain_mode1,
                        add_chat_history_to_context,
                        prompt_type1, prompt_dict1, chat1, model_max_length1,
-                       memory_restriction_level1, keep_sources_in_context1):
+                       memory_restriction_level1, keep_sources_in_context1,
+                       use_system_prompt1):
     """
     consumes all history up to (but not including) latest history item that is presumed to be an [instruction, None] pair
     :param history:
@@ -2573,6 +2576,7 @@ def history_to_context(history, langchain_mode1,
     :param model_max_length1:
     :param memory_restriction_level1:
     :param keep_sources_in_context1:
+    :param use_system_prompt1:
     :return:
     """
     # ensure output will be unique to models
@@ -2584,12 +2588,15 @@ def history_to_context(history, langchain_mode1,
         # - 1 below because current instruction already in history from user()
         for histi in range(0, len(history) - 1):
             data_point = dict(instruction=history[histi][0], input='', output=history[histi][1])
-            prompt, pre_response, terminate_response, chat_sep, chat_turn_sep = generate_prompt(data_point,
-                                                                                                prompt_type1,
-                                                                                                prompt_dict1,
-                                                                                                chat1,
-                                                                                                reduced=True,
-                                                                                                making_context=True)
+            prompt, pre_response, terminate_response, chat_sep, chat_turn_sep = \
+                generate_prompt(data_point,
+                                prompt_type1,
+                                prompt_dict1,
+                                chat1,
+                                reduced=True,
+                                making_context=True,
+                                use_system_prompt=use_system_prompt1,
+                                histi=histi)
             # md -> back to text, maybe not super important if model trained enough
             if not keep_sources_in_context1 and langchain_mode1 != 'Disabled' and prompt.find(source_prefix) >= 0:
                 # FIXME: This is relatively slow even for small amount of text, like 0.3s each history item
@@ -2607,9 +2614,12 @@ def history_to_context(history, langchain_mode1,
                 break
             context1 += prompt
 
-        _, pre_response, terminate_response, chat_sep, chat_turn_sep = generate_prompt({}, prompt_type1, prompt_dict1,
-                                                                                       chat1, reduced=True,
-                                                                                       making_context=True)
+        _, pre_response, terminate_response, chat_sep, chat_turn_sep = \
+            generate_prompt({}, prompt_type1, prompt_dict1,
+                            chat1, reduced=True,
+                            making_context=True,
+                            use_system_prompt=use_system_prompt1,
+                            histi=-1)
         if context1 and not context1.endswith(chat_turn_sep):
             context1 += chat_turn_sep  # ensure if terminates abruptly, then human continues on next line
     return context1

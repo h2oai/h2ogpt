@@ -47,7 +47,8 @@ prompt_type_to_model_name = {
         'h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b',
         'h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-13b',
     ],
-    'instruct': ['TheBloke/llama-30b-supercot-SuperHOT-8K-fp16'],  # https://huggingface.co/TheBloke/llama-30b-supercot-SuperHOT-8K-fp16#prompting
+    'instruct': ['TheBloke/llama-30b-supercot-SuperHOT-8K-fp16'],
+    # https://huggingface.co/TheBloke/llama-30b-supercot-SuperHOT-8K-fp16#prompting
     'instruct_with_end': ['databricks/dolly-v2-12b'],
     'quality': [],
     'human_bot': [
@@ -103,7 +104,8 @@ for p in PromptType:
     prompt_types.extend([p.name, p.value, str(p.value)])
 
 
-def get_prompt(prompt_type, prompt_dict, chat, context, reduced, making_context, return_dict=False):
+def get_prompt(prompt_type, prompt_dict, chat, context, reduced, making_context, return_dict=False,
+               use_system_prompt=False, histi=-1):
     prompt_dict_error = ''
     generates_leading_space = False
 
@@ -598,30 +600,33 @@ ASSISTANT:
         PreInput = None
 
         PreResponse = """### Assistant:"""
-        terminate_response = ['### Human:']  # but only allow terminate after prompt is found correctly, else can't terminate
+        terminate_response = [
+            '### Human:']  # but only allow terminate after prompt is found correctly, else can't terminate
         chat_turn_sep = chat_sep = '\n'
         humanstr = PreInstruct
         botstr = PreResponse
     elif prompt_type in [PromptType.llama2.value, str(PromptType.llama2.value),
                          PromptType.llama2.name]:
-        PreInstruct = ""
-        llama2_sys = "<<SYS>>\nYou are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe.  Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.\n\nIf a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.\n<</SYS>>\n\n"
-        prompt = "<s>[INST] "
-        enable_sys = False  # too much safety, hurts accuracy
-        if not (chat and reduced):
-            if enable_sys:
-                promptA = promptB = prompt + llama2_sys
-            else:
-                promptA = promptB = prompt
+        if use_system_prompt:
+            # too much safety, hurts accuracy
+            sys_msg = """<<SYS>>\nYou are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe. Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.\n\nIf a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.\n<</SYS>>\n\n"""
         else:
+            sys_msg = ""
+        if not (chat and reduced):
+            promptA = promptB = ''
+        else:
+            #
             promptA = promptB = ''
         PreInput = None
-        PreResponse = ""
+        PreInstruct = "<s>[INST] "
+        if making_context and histi == 0 or not making_context and not (chat and reduced):
+            PreInstruct += sys_msg
+        PreResponse = "[/INST]"
         terminate_response = ["[INST]", "</s>"]
-        chat_sep = ' [/INST]'
-        chat_turn_sep = ' </s><s>[INST] '
-        humanstr = PreInstruct
-        botstr = PreResponse
+        chat_sep = ' '
+        chat_turn_sep = ' </s>'
+        humanstr = '[INST]'
+        botstr = '[/INST]'
         if making_context:
             PreResponse += " "
     else:
@@ -642,7 +647,8 @@ ASSISTANT:
         return tuple(list(ret_dict.values()))
 
 
-def generate_prompt(data_point, prompt_type, prompt_dict, chat, reduced, making_context):
+def generate_prompt(data_point, prompt_type, prompt_dict, chat, reduced, making_context, use_system_prompt=False,
+                    histi=-1):
     context = data_point.get('context')
     if context is None:
         context = ''
@@ -655,7 +661,9 @@ def generate_prompt(data_point, prompt_type, prompt_dict, chat, reduced, making_
     promptA, promptB, PreInstruct, PreInput, PreResponse, \
         terminate_response, chat_sep, chat_turn_sep, humanstr, botstr, \
         generates_leading_space = get_prompt(prompt_type, prompt_dict, chat,
-                                             context, reduced, making_context)
+                                             context, reduced, making_context,
+                                             use_system_prompt=use_system_prompt,
+                                             histi=histi)
 
     # could avoid if reduce=True, but too complex for parent functions to handle
     prompt = context
@@ -720,7 +728,7 @@ def inject_chatsep(prompt_type, prompt, chat_sep=None):
 
 class Prompter(object):
     def __init__(self, prompt_type, prompt_dict, debug=False, chat=False, stream_output=False, repeat_penalty=True,
-                 allowed_repeat_line_length=10):
+                 allowed_repeat_line_length=10, use_system_prompt=False):
         self.prompt_type = prompt_type
         self.prompt_dict = prompt_dict
         self.debug = debug
@@ -729,13 +737,15 @@ class Prompter(object):
         self.repeat_penalty = repeat_penalty
         self.allowed_repeat_line_length = allowed_repeat_line_length
         self.prompt = None
+        self.use_system_prompt = use_system_prompt
         context = ""  # not for chat context
         reduced = False  # not for chat context
         making_context = False  # not for chat context
         self.promptA, self.promptB, self.PreInstruct, self.PreInput, self.PreResponse, \
             self.terminate_response, self.chat_sep, self.chat_turn_sep, self.humanstr, self.botstr, \
             self.generates_leading_space = \
-            get_prompt(self.prompt_type, self.prompt_dict, chat, context, reduced, making_context)
+            get_prompt(self.prompt_type, self.prompt_dict, chat, context, reduced, making_context,
+                       use_system_prompt=use_system_prompt)
         self.pre_response = self.PreResponse
 
     def generate_prompt(self, data_point, reduced=None):
@@ -748,7 +758,7 @@ class Prompter(object):
         reduced = data_point.get('context') not in ['', None] if reduced is None else reduced
         making_context = False  # whether really making final prompt or just generating context
         prompt, _, _, _, _ = generate_prompt(data_point, self.prompt_type, self.prompt_dict, self.chat, reduced,
-                                             making_context)
+                                             making_context, histi=-1, use_system_prompt=self.use_system_prompt)
         if self.debug:
             print("prompt: %s" % prompt, flush=True)
         # if have context, should have always reduced and only preappend promptA/B here
@@ -868,4 +878,3 @@ class Prompter(object):
             if text1.endswith(hfix):
                 text1 = text1[:-len(hfix)]
         return text1
-
