@@ -37,6 +37,7 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
         self.prompter = prompter
         self.context = context
         self.iinput = iinput
+        self.debug = debug
         if self.use_prompter:
             if self.prompter is not None:
                 assert self.prompter.prompt_type is not None
@@ -139,7 +140,8 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
             else:
                 outputs = rec['generated_text']
             rec['generated_text'] = outputs
-            print("prompt: %s\noutputs: %s\n\n" % (self.prompt_text, outputs), flush=True)
+            if self.debug:
+                print("prompt: %s\noutputs: %s\n\n" % (self.prompt_text, outputs), flush=True)
         return records
 
     def _forward(self, model_inputs, **generate_kwargs):
