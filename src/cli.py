@@ -17,7 +17,7 @@ def run_cli(  # for local function:
         load_gptq=None, use_safetensors=None,
         use_gpu_id=None, tokenizer_base_model=None,
         gpu_id=None, local_files_only=None, resume_download=None, use_auth_token=None,
-        trust_remote_code=None, offload_folder=None, compile_model=None,
+        trust_remote_code=None, offload_folder=None, rope_scaling=None, compile_model=None,
         # for some evaluate args
         stream_output=None, prompt_type=None, prompt_dict=None,
         temperature=None, top_p=None, top_k=None, num_beams=None,
