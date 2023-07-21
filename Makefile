@@ -46,17 +46,7 @@ else
 	docker push $(DOCKER_TEST_IMAGE)
 endif
 
-.PHONY: Dockerfile-runner.dockerfile
-
-Dockerfile-runner.dockerfile: Dockerfile-runner.in
-	cat $< \
-	| sed 's|BASE_DOCKER_IMAGE_SUBST|$(DOCKER_TEST_IMAGE)|g' \
-	> $@
-
-docker_build_runner: docker_build Dockerfile-runner.dockerfile
-	docker pull $(DOCKER_TEST_IMAGE)
-	DOCKER_BUILDKIT=1 docker build -t $(DOCKER_RUN_IMAGE) -f Dockerfile-runner.dockerfile .
-	docker push $(DOCKER_RUN_IMAGE)
+docker_build_runner: docker_build
 	docker tag $(DOCKER_RUN_IMAGE) gcr.io/vorvan/h2oai/h2ogpt-runtime:$(BUILD_TAG)
 	docker tag $(DOCKER_RUN_IMAGE) gcr.io/vorvan/h2oai/h2ogpt-runtime:$(PACKAGE_VERSION)
 

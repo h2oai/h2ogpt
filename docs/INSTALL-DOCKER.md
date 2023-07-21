@@ -25,7 +25,7 @@
     For the fine-tuned h2oGPT with 20 billion parameters:
     ```bash
     docker run --runtime=nvidia --shm-size=64g -p 7860:7860 \
-        -v ${HOME}/.cache:/root/.cache --rm h2ogpt -it generate.py \
+        -v ${HOME}/.cache:/workspace/.cache --rm h2ogpt -it generate.py \
         --base_model=h2oai/h2ogpt-oasst1-512-20b
     ```
     
@@ -33,14 +33,14 @@
     ```bash
     docker run --runtime=nvidia --shm-size=64g --entrypoint=bash -p 7860:7860 \
     -e HUGGINGFACE_API_TOKEN=<HUGGINGFACE_API_TOKEN> \
-    -v ${HOME}/.cache:/root/.cache --rm h2ogpt -it \
+    -v ${HOME}/.cache:/workspace/.cache --rm h2ogpt -it \
      -c 'huggingface-cli login --token $HUGGINGFACE_API_TOKEN && python3.10 generate.py --base_model=h2oai/h2ogpt-oasst1-512-20b --use_auth_token=True'
     ```
    
     For your own fine-tuned model starting from the gpt-neox-20b foundation model for example:
     ```bash
     docker run --runtime=nvidia --shm-size=64g -p 7860:7860 \
-        -v ${HOME}/.cache:/root/.cache --rm h2ogpt -it generate.py \
+        -v ${HOME}/.cache:/workspace/.cache --rm h2ogpt -it generate.py \
         --base_model=EleutherAI/gpt-neox-20b \
         --lora_weights=h2ogpt_lora_weights --prompt_type=human_bot
     ```
@@ -50,20 +50,18 @@
 
 
 ### Run h2oGPT using Docker
-__Optional: Running with a custom entrypoint__
-
-To run with a custom entrypoint, modify the local [`run-gpt.sh`](https://github.com/h2oai/h2ogpt/blob/76947c009a82d7a4a871548e68a60ce0a28b75d1/run-gpt.sh) & mount it.
+__Optional: Example of running an h2oGPT model using a publicly available docker image__
 
 ```bash
 docker run \
     --runtime=nvidia --shm-size=64g \
-    -e HF_MODEL=h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b \
     -p 8888:8888 -p 7860:7860 \
     --rm --init \
-    -v `pwd`/h2ogpt_env:/h2ogpt_env \
-    -v `pwd`/run-gpt.sh:/run-gpt.sh \
-    gcr.io/vorvan/h2oai/h2ogpt-runtime:61d6aea6fff3b1190aa42eee7fa10d6c
+    -v ${HOME}/.cache:/workspace/.cache \
+    gcr.io/vorvan/h2oai/h2ogpt-runtime:61d6aea6fff3b1190aa42eee7fa10d6c /workspace/generate.py --base_model=h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b
 ```
+
+The directory `/workspace/.cache` denotes where the transformers cache data will be saved, it can be mounted for quick re-loading of models.
 
 ### Docker Compose Setup & Inference
 
