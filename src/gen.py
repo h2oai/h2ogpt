@@ -98,6 +98,7 @@ def main(
         resume_download: bool = True,
         use_auth_token: Union[str, bool] = False,
         trust_remote_code: Union[str, bool] = True,
+        rope_scaling: dict = None,
         offload_folder: str = "offline_folder",
 
         src_lang: str = "English",
@@ -244,6 +245,7 @@ def main(
     :param resume_download: whether to resume downloads from HF for models
     :param use_auth_token: whether to use HF auth token (requires CLI did huggingface-cli login before)
     :param trust_remote_code: whether to use trust any code needed for HF model
+    :param rope_scaling: scaling for rope-based models, e.g. "{'type'='linear', 'factor'=4}"
     :param offload_folder: path for spilling model onto disk
     :param src_lang: source languages to include if doing translation (None = all)
     :param tgt_lang: target languages to include if doing translation (None = all)
@@ -414,6 +416,9 @@ def main(
     # will sometimes appear in UI or sometimes actual generation, but maybe better than empty result
     # but becomes unrecoverable sometimes if raise, so just be silent for now
     raise_generate_gpu_exceptions = True
+
+    if isinstance(rope_scaling, str):
+        rope_scaling = ast.literal_eval(rope_scaling)
 
     # allow set token directly
     use_auth_token = os.environ.get("HUGGINGFACE_API_TOKEN", use_auth_token)
@@ -772,6 +777,7 @@ def get_config(base_model,
                use_auth_token=False,
                trust_remote_code=True,
                offload_folder=None,
+               rope_scaling=None,
                triton_attn=False,
                long_sequence=True,
                return_model=False,
@@ -783,7 +789,8 @@ def get_config(base_model,
         try:
             config = AutoConfig.from_pretrained(base_model, use_auth_token=use_auth_token,
                                                 trust_remote_code=trust_remote_code,
-                                                offload_folder=offload_folder)
+                                                offload_folder=offload_folder,
+                                                rope_scaling=rope_scaling)
         except OSError as e:
             if raise_exception:
                 raise
@@ -961,6 +968,7 @@ def get_model(
         use_auth_token: Union[str, bool] = False,
         trust_remote_code: bool = True,
         offload_folder: str = None,
+        rope_scaling: dict = None,
         compile_model: bool = True,
 
         verbose: bool = False,
@@ -986,6 +994,7 @@ def get_model(
     :param use_auth_token: assumes user did on CLI `huggingface-cli login` to access private repo
     :param trust_remote_code: trust code needed by model
     :param offload_folder: offload folder
+    :param rope_scaling: scaling for rope-based models, e.g. "{'type'='linear', 'factor'=4}"
     :param compile_model: whether to compile torch model
     :param verbose:
     :return:
@@ -997,6 +1006,7 @@ def get_model(
     config_kwargs = dict(use_auth_token=use_auth_token,
                          trust_remote_code=trust_remote_code,
                          offload_folder=offload_folder,
+                         rope_scaling=rope_scaling,
                          triton_attn=triton_attn,
                          long_sequence=long_sequence)
     config, _ = get_config(base_model, **config_kwargs, raise_exception=False)
@@ -1007,7 +1017,7 @@ def get_model(
     llama_type_from_config = 'llama' in str(config).lower()
     llama_type_from_name = "llama" in base_model.lower()
     llama_type = llama_type_from_config or llama_type_from_name
-    if "xgen" in base_model.lower():
+    if "xgen" in base_model.lower() or 'llama2' in base_model.lower() or 'llama-2' in base_model.lower():
         llama_type = False
     if llama_type:
         if verbose:
@@ -1076,6 +1086,7 @@ def get_model(
                         use_auth_token=use_auth_token,
                         trust_remote_code=trust_remote_code,
                         offload_folder=offload_folder,
+                        rope_scaling=rope_scaling,
                         compile_model=compile_model,
 
                         llama_type=llama_type,
@@ -1102,6 +1113,7 @@ def get_hf_model(load_8bit: bool = False,
                  use_auth_token: Union[str, bool] = False,
                  trust_remote_code: bool = True,
                  offload_folder: str = None,
+                 rope_scaling: dict = None,
                  compile_model: bool = True,
 
                  llama_type: bool = False,
@@ -1152,6 +1164,7 @@ def get_hf_model(load_8bit: bool = False,
                             use_auth_token=use_auth_token,
                             trust_remote_code=trust_remote_code,
                             offload_folder=offload_folder,
+                            # rope_scaling=rope_scaling,  # only put into config
                             )
         if 'mbart-' not in base_model.lower() and 'mpt-' not in base_model.lower():
             if use_gpu_id and gpu_id is not None and gpu_id >= 0 and device == 'cuda':
@@ -1213,6 +1226,7 @@ def get_hf_model(load_8bit: bool = False,
                 use_auth_token=use_auth_token,
                 trust_remote_code=trust_remote_code,
                 offload_folder=offload_folder,
+                rope_scaling=rope_scaling,
                 device_map={"": 0} if device == 'cuda' else {"": 'cpu'},  # seems to be required
             )
         else:
@@ -1233,6 +1247,7 @@ def get_hf_model(load_8bit: bool = False,
                     use_auth_token=use_auth_token,
                     trust_remote_code=trust_remote_code,
                     offload_folder=offload_folder,
+                    rope_scaling=rope_scaling,
                     device_map="auto",
                 )
                 if load_half and not load_gptq:
@@ -1308,6 +1323,7 @@ def get_score_model(score_model: str = None,
                     use_auth_token: Union[str, bool] = False,
                     trust_remote_code: bool = True,
                     offload_folder: str = None,
+                    rope_scaling: dict = None,
                     compile_model: bool = True,
 
                     verbose: bool = False,

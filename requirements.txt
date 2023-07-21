@@ -20,7 +20,7 @@ loralib==0.1.1
 bitsandbytes==0.39.0
 accelerate==0.20.3
 peft==0.4.0
-transformers==4.30.2
+transformers==4.31.0
 tokenizers==0.13.3
 APScheduler==3.10.1
 
