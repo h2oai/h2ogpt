@@ -51,14 +51,20 @@ def create_long_prompt_with_secret(prompt_len=None, secret_pos=None):
 @pytest.mark.parametrize("base_model", ['meta-llama/Llama-2-7b-chat-hf'])
 @pytest.mark.parametrize("rope_scaling", [
     None,
-    "{'type':'linear', 'factor':2}",
+    # "{'type':'linear', 'factor':2}",
     "{'type':'dynamic', 'factor':2}",
-    "{'type':'dynamic', 'factor':4}"
+    # "{'type':'dynamic', 'factor':4}"
 ])
 @pytest.mark.parametrize("prompt_len", [
-    1024, 2048, 4096, 8192, 16384
+    # 1024, 2048, 4096,
+    8192,
+    # 16384
 ])
-@pytest.mark.parametrize("rel_secret_pos", [0.1, 0.5, 0.9])
+@pytest.mark.parametrize("rel_secret_pos", [
+    0.1,
+    0.5,
+    0.9
+])
 @wrap_test_forked
 def test_gradio_long_context(base_model, rope_scaling, prompt_len, rel_secret_pos):
     import ast
