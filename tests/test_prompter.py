@@ -161,6 +161,11 @@ def test_prompt_with_context(prompt_type, use_system_prompt, expected):
     # get prompt
     prompter = Prompter(prompt_type, prompt_dict, debug=debug, chat=chat, stream_output=stream_output,
                         use_system_prompt=use_system_prompt)
+    # for instruction-tuned models, expect this:
+    assert prompter.PreResponse
+    assert prompter.PreInstruct
+    assert prompter.botstr
+    assert prompter.humanstr
     print("duration3: %s %s" % (prompt_type, time.time() - t0), flush=True)
     t0 = time.time()
     data_point = dict(context=context, instruction=instruction, input=iinput)
@@ -247,6 +252,11 @@ def test_prompt_with_no_context(prompt_type, use_system_prompt, expected):
     # get prompt
     prompter = Prompter(prompt_type, prompt_dict, debug=debug, chat=chat, stream_output=stream_output,
                         use_system_prompt=use_system_prompt)
+    # for instruction-tuned models, expect this:
+    assert prompter.PreResponse
+    assert prompter.PreInstruct
+    assert prompter.botstr
+    assert prompter.humanstr
     data_point = dict(context=context, instruction=instruction, input=iinput)
     prompt = prompter.generate_prompt(data_point)
     print(prompt)
