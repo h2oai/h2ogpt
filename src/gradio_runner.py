@@ -1591,7 +1591,8 @@ def go_gradio(**kwargs):
                                           add_chat_history_to_context1,
                                           prompt_type1, prompt_dict1, chat1,
                                           model_max_length1, memory_restriction_level,
-                                          kwargs['keep_sources_in_context'])
+                                          kwargs['keep_sources_in_context'],
+                                          kwargs['use_system_prompt'])
             args_list[0] = instruction1  # override original instruction with history from user
             args_list[2] = context1
 
@@ -2426,6 +2427,7 @@ def go_gradio(**kwargs):
         def count_chat_tokens(model_state1, chat1, prompt_type1, prompt_dict1,
                               memory_restriction_level1=0,
                               keep_sources_in_context1=False,
+                              use_system_prompt1=False,
                               ):
             if model_state1 and not isinstance(model_state1['tokenizer'], str):
                 tokenizer = model_state1['tokenizer']
@@ -2444,14 +2446,16 @@ def go_gradio(**kwargs):
                                               add_chat_history_to_context1,
                                               prompt_type1, prompt_dict1, chat1,
                                               model_max_length1,
-                                              memory_restriction_level1, keep_sources_in_context1)
+                                              memory_restriction_level1, keep_sources_in_context1,
+                                              use_system_prompt1)
                 return str(tokenizer(context1, return_tensors="pt")['input_ids'].shape[1])
             else:
                 return "N/A"
 
         count_chat_tokens_func = functools.partial(count_chat_tokens,
                                                    memory_restriction_level1=memory_restriction_level,
-                                                   keep_sources_in_context1=kwargs['keep_sources_in_context'])
+                                                   keep_sources_in_context1=kwargs['keep_sources_in_context'],
+                                                   use_system_prompt1=kwargs['use_system_prompt'])
         count_tokens_event = count_chat_tokens_btn.click(fn=count_chat_tokens,
                                                          inputs=[model_state, text_output, prompt_type, prompt_dict],
                                                          outputs=chat_token_count,
