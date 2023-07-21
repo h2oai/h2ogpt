@@ -115,9 +115,9 @@ On some systems, `pip` still refers back to the system one, then one can use `py
 
 ### TLDR
 
-For [MACOS](docs/README_MACOS.md#macos) and [Windows 10/11](docs/README_WINDOWS.md) please follow their instructions.
+These instructions are for Ubuntu x86_64 (other linux would be similar with different command instead of apt-get) after Python 3.10 environment is installed.  See [MACOS Instructions](docs/README_MACOS.md#macos) and [Windows 10/11 Instructions](docs/README_WINDOWS.md) for those systems.
 
-On Ubuntu, after Python 3.10 environment installed do:
+For Ubuntu:
 ```bash
 git clone https://github.com/h2oai/h2ogpt.git
 cd h2ogpt
