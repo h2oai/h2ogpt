@@ -68,7 +68,7 @@ def test_gradio_long_context(base_model, rope_scaling, prompt_len, rel_secret_po
     if prompt_len > 4096 * rope_scaling_factor:
         # FIXME - hardcoded 4K for llama2
         # no chance, speed up tests
-        return
+        pytest.xfail("no chance")
     secret_pos = int(prompt_len * rel_secret_pos)
     # from transformers import AutoConfig
     # config = AutoConfig.from_pretrained(base_model, use_auth_token=True,
