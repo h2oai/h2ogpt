@@ -57,6 +57,14 @@ then use that location instead:
 ```bash
 pip uninstall -y auto-gptq ; CUDA_HOME=$CONDA_PREFIX GITHUB_ACTIONS=true pip install auto-gptq --no-cache-dir
 ```
+For LLaMa2 70B model quantized in 4-bit AutoGPTQ, can run:
+```bash
+CUDA_VISIBLE_DEVICES=0 python generate.py --base_model=TheBloke/Llama-2-70B-chat-GPTQ --load_gptq="gptq_model-4bit--1g" --use_safetensors=True --prompt_type=llama2 --save_dir='70bgptq4bit`
+```
+or for full 16-bit run:
+```bash
+python generate.py --base_model=meta-llama/Llama-2-70b-chat-hf --prompt_type=llama2 --rope_scaling="{'type': 'linear', 'factor': 4}" --use_gpu_id=False --save_dir=savemeta70b
+```
 
 To run in ChatBot mode, do:
 ```bash
