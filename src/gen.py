@@ -245,7 +245,7 @@ def main(
     :param resume_download: whether to resume downloads from HF for models
     :param use_auth_token: whether to use HF auth token (requires CLI did huggingface-cli login before)
     :param trust_remote_code: whether to use trust any code needed for HF model
-    :param rope_scaling: scaling for rope-based models, e.g. "{'type'='linear', 'factor'=4}"
+    :param rope_scaling: scaling for rope-based models, e.g. "{'type'='dynamic', 'factor'=4}"
     :param offload_folder: path for spilling model onto disk
     :param src_lang: source languages to include if doing translation (None = all)
     :param tgt_lang: target languages to include if doing translation (None = all)
@@ -994,7 +994,7 @@ def get_model(
     :param use_auth_token: assumes user did on CLI `huggingface-cli login` to access private repo
     :param trust_remote_code: trust code needed by model
     :param offload_folder: offload folder
-    :param rope_scaling: scaling for rope-based models, e.g. "{'type'='linear', 'factor'=4}"
+    :param rope_scaling: scaling for rope-based models, e.g. "{'type'='dynamic', 'factor'=4}"
     :param compile_model: whether to compile torch model
     :param verbose:
     :return:
