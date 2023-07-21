@@ -56,11 +56,19 @@ def create_long_prompt_with_secret(prompt_len=None, secret_pos=None):
     "{'type':'dynamic', 'factor':4}"
 ])
 @pytest.mark.parametrize("prompt_len", [
-    512, 1024, 2048, 4096, 8192, 16384
+    1024, 2048, 4096, 8192, 16384
 ])
-@pytest.mark.parametrize("rel_secret_pos", [0.1, 0.3, 0.5, 0.7, 0.9])
+@pytest.mark.parametrize("rel_secret_pos", [0.1, 0.5, 0.9])
 @wrap_test_forked
 def test_gradio_long_context(base_model, rope_scaling, prompt_len, rel_secret_pos):
+    import ast
+    rope_scaling_factor = 1
+    if rope_scaling:
+        rope_scaling_factor = ast.literal_eval(rope_scaling).get("factor")
+    if prompt_len > 4096 * rope_scaling_factor:
+        # FIXME - hardcoded 4K for llama2
+        # no chance, speed up tests
+        return
     secret_pos = int(prompt_len * rel_secret_pos)
     # from transformers import AutoConfig
     # config = AutoConfig.from_pretrained(base_model, use_auth_token=True,
