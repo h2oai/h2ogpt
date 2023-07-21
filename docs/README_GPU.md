@@ -93,9 +93,13 @@ This will use about 9800MB.  You can also add `--hf_embedding_model=sentence-tra
 
 For LLaMa2 70B model quantized in 4-bit AutoGPTQ, can run:
 ```bash
-CUDA_VISIBLE_DEVICES=0 python generate.py --base_model=TheBloke/Llama-2-70B-chat-GPTQ --load_gptq="gptq_model-4bit--1g" --use_safetensors=True --prompt_type=llama2 --save_dir='70bgptq4bit`
+CUDA_VISIBLE_DEVICES=0 python generate.py --base_model=Llama-2-70B-chat-GPTQ --load_gptq="gptq_model-4bit--1g" --use_safetensors=True --prompt_type=llama2 --save_dir='70bgptq4bit`
 ```
-which gives about 12 tokens/sec.  For full 16-bit with 16k context across all GPUs:
+which gives about 12 tokens/sec.  For 7b run:
+```bash
+python generate.py --base_model=TheBloke/Llama-2-7b-Chat-GPTQ --load_gptq="gptq_model-4bit-128g" --use_safetensors=True --prompt_type=llama2 --save_dir='7bgptq4bit`
+```
+For full 16-bit with 16k context across all GPUs:
 ```bash
 python generate.py --base_model=meta-llama/Llama-2-70b-chat-hf --prompt_type=llama2 --rope_scaling="{'type': 'linear', 'factor': 4}" --use_gpu_id=False --save_dir=savemeta70b
 ```
