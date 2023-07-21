@@ -1041,7 +1041,7 @@ def get_model(
     if config is not None and tokenizer_loader is not None and not isinstance(tokenizer_loader, str):
         tokenizer = tokenizer_loader.from_pretrained(tokenizer_base_model, **tokenizer_kwargs)
         # sets raw (no cushion) limit
-        set_model_max_len(config, tokenizer, verbose=False)
+        set_model_max_len(config, tokenizer, verbose=False, rope_scaling=rope_scaling)
         # if using fake tokenizer, not really accurate when lots of numbers, give a bit of buffer, else get:
         # Generation Failed: Input validation error: `inputs` must have less than 2048 tokens. Given: 2233
         tokenizer.model_max_length = tokenizer.model_max_length - 50
@@ -1269,27 +1269,33 @@ def get_hf_model(load_8bit: bool = False,
         if torch.__version__ >= "2" and sys.platform != "win32" and compile_model:
             model = torch.compile(model)
 
-    set_model_max_len(config, tokenizer, verbose=False, reward_type=reward_type)
+    set_model_max_len(config, tokenizer, verbose=False, reward_type=reward_type, rope_scaling=rope_scaling)
 
     return model, tokenizer, device
 
 
-def set_model_max_len(config, tokenizer, verbose=False, reward_type=False):
+def set_model_max_len(config, tokenizer, verbose=False, reward_type=False, rope_scaling=None):
+    rope_scaling_factor = 1
+    if rope_scaling:
+        rope_scaling_factor = rope_scaling.get('factor')
+        assert isinstance(rope_scaling_factor, int)
     if reward_type:
         # limit deberta, else uses too much memory and not worth response score
         tokenizer.model_max_length = 512
     if hasattr(config, 'max_seq_len') and isinstance(config.max_seq_len, int):
-        tokenizer.model_max_length = config.max_seq_len
+        tokenizer.model_max_length = config.max_seq_len * rope_scaling_factor
     elif hasattr(config, 'max_position_embeddings') and isinstance(config.max_position_embeddings, int):
         # help automatically limit inputs to generate
-        tokenizer.model_max_length = config.max_position_embeddings
+        tokenizer.model_max_length = config.max_position_embeddings * rope_scaling_factor
     else:
         if verbose:
-            print("Could not determine model_max_length, setting to 2048", flush=True)
-        tokenizer.model_max_length = 2048
+            print(f"Could not determine model_max_length, setting to {2048 * rope_scaling_factor}", flush=True)
+        # hopefully not for Llama2 models
+        tokenizer.model_max_length = 2048 * rope_scaling_factor
     # for bug in HF transformers
     if tokenizer.model_max_length > 100000000:
-        tokenizer.model_max_length = 2048
+        # hopefully not for Llama2 models
+        tokenizer.model_max_length = 2048 * rope_scaling_factor
 
 
 def pop_unused_model_kwargs(model_kwargs):
