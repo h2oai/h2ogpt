@@ -483,7 +483,8 @@ def test_exllama():
     prompt = 'Who are you?'
     stream_output = False
     max_new_tokens = 256
-    base_model = 'TheBloke/Llama-2-70B-chat-GPTQ'
+    #base_model = 'TheBloke/Llama-2-70B-chat-GPTQ'
+    base_model = 'TheBloke/Llama-2-7B-chat-GPTQ'
     load_exllama = True
     prompt_type = 'llama2'
     langchain_mode = 'Disabled'
