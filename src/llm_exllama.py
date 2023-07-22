@@ -1,13 +1,14 @@
+from functools import partial
+
 from langchain.llms.base import LLM
 from langchain.callbacks.manager import CallbackManagerForLLMRun
-from typing import Any, Dict, Generator, List, Optional
+from typing import Any, Dict, List, Optional
 from pydantic import Field, root_validator
 from exllama.model import ExLlama, ExLlamaCache, ExLlamaConfig
 from exllama.tokenizer import ExLlamaTokenizer
 from exllama.generator import ExLlamaGenerator
 from exllama.lora import ExLlamaLora
 import os, glob
-from langchain.callbacks.base import BaseCallbackHandler
 
 
 class H2OExLlamaTokenizer(ExLlamaTokenizer):
@@ -283,12 +284,19 @@ class Exllama(LLM):
             token_getter = generator.gen_single_token
 
         last_newline_pos = 0
-        text = ""
-
         seq_length = len(generator.tokenizer.decode(generator.sequence_actual[0]))
         response_start = seq_length
         cursor_head = response_start
 
+        text_callback = None
+        if run_manager:
+            text_callback = partial(
+                run_manager.on_llm_new_token, verbose=self.verbose
+            )
+        # parent handler of streamer expects to see prompt first else output="" and lose if prompt=None in prompter
+        if text_callback:
+            text_callback(prompt)
+        text = ""
         while (generator.gen_num_tokens() <= (
                 self.max_seq_len - 4)):  # Slight extra padding space as we seem to occassionally get a few more than 1-2 tokens
             # Fetch a token
@@ -332,10 +340,8 @@ class Exllama(LLM):
                 # Partially matched a stop, continue buffering but don't yield.
                 continue
             elif status == self.MatchStatus.NO_MATCH:
-                if run_manager:
-                    run_manager.on_llm_new_token(
-                        token=text, verbose=self.verbose,
-                    )
+                if text_callback:
+                    text_callback(text_chunk)
                 yield text  # Not a stop, yield the match buffer.
                 text = ""
 
