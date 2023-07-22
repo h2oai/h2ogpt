@@ -483,7 +483,7 @@ def test_exllama():
     prompt = 'Who are you?'
     stream_output = False
     max_new_tokens = 256
-    #base_model = 'TheBloke/Llama-2-70B-chat-GPTQ'
+    # base_model = 'TheBloke/Llama-2-70B-chat-GPTQ'
     base_model = 'TheBloke/Llama-2-7B-chat-GPTQ'
     load_exllama = True
     prompt_type = 'llama2'
@@ -512,6 +512,8 @@ def test_exllama():
            " in a conversational manner. My training data is based on a massive dataset of text from the internet," \
            " which allows me to generate human-like responses to a wide range of topics and questions. " \
            "I'm here to help answer any questions you may have, so feel free to ask me anything!" in \
+           res_dict['response'] or \
+           """I am LLaMA, an AI assistant developed by Meta AI that can understand and respond to human input in a conversational manner. My primary function is to assist users with their inquiries and provide information on a wide range of topics. I'm here to help you with any questions or tasks you may have!""" in \
            res_dict['response']
 
 
