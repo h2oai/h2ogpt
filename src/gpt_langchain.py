@@ -559,14 +559,14 @@ class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
                 # stream part
                 is_stop = False
                 for stop_seq in stop:
-                    if stop_seq in response.token.text:
+                    if stop_seq in text_chunk:
                         is_stop = True
                         break
                 if is_stop:
                     break
                 if not response.token.special:
                     if text_callback:
-                        text_callback(response.token.text)
+                        text_callback(text_chunk)
         return text
 
 
