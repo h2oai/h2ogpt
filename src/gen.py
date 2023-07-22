@@ -63,6 +63,7 @@ def main(
         load_gptq: str = '',
         load_exllama: bool = False,
         use_safetensors: bool = False,
+        revision: str = None,
         use_gpu_id: bool = True,
         base_model: str = '',
         tokenizer_base_model: str = '',
@@ -196,6 +197,7 @@ def main(
     :param load_gptq: to load model with GPTQ, put model_basename here, e.g. gptq_model-4bit--1g
     :param load_exllama: whether to use exllama (only applicable to LLaMa1/2 models with 16-bit or GPTQ
     :param use_safetensors: to use safetensors version (assumes file/HF points to safe tensors version)
+    :param revision: Which HF revision to use
     :param use_gpu_id: whether to control devices with gpu_id.  If False, then spread across GPUs
     :param base_model: model HF-type name.  If use --base_model to preload model, cannot unload in gradio in models tab
     :param tokenizer_base_model: tokenizer HF-type name.  Usually not required, inferred from base_model.
@@ -248,7 +250,9 @@ def main(
     :param resume_download: whether to resume downloads from HF for models
     :param use_auth_token: whether to use HF auth token (requires CLI did huggingface-cli login before)
     :param trust_remote_code: whether to use trust any code needed for HF model
-    :param rope_scaling: scaling for rope-based models, e.g. "{'type':'dynamic', 'factor':4}"
+    :param rope_scaling:
+           For HF transformers model: scaling for rope-based models, e.g. --rope_scaling="{'type':'dynamic', 'factor':4}"
+           For exllama model: --rope_scaling="{'alpha_value':4}" .  This automatically scales max_seq_len for exllama
     :param offload_folder: path for spilling model onto disk
     :param src_lang: source languages to include if doing translation (None = all)
     :param tgt_lang: target languages to include if doing translation (None = all)
@@ -563,6 +567,7 @@ def main(
         load_gptq = ''
         load_exllama = False
         use_safetensors = False
+        revision = None
         use_gpu_id = False
         torch.backends.cudnn.benchmark = True
         torch.backends.cudnn.enabled = False
@@ -782,6 +787,7 @@ def get_config(base_model,
                use_auth_token=False,
                trust_remote_code=True,
                offload_folder=None,
+               revision=None,
                rope_scaling=None,
                triton_attn=False,
                long_sequence=True,
@@ -795,6 +801,7 @@ def get_config(base_model,
             config = AutoConfig.from_pretrained(base_model, use_auth_token=use_auth_token,
                                                 trust_remote_code=trust_remote_code,
                                                 offload_folder=offload_folder,
+                                                revision=revision,
                                                 rope_scaling=rope_scaling)
         except OSError as e:
             if raise_exception:
@@ -835,6 +842,7 @@ def get_non_lora_model(base_model, model_loader, load_half,
                        load_gptq,
                        load_exllama,
                        use_safetensors,
+                       revision,
                        model_kwargs, reward_type,
                        config, model,
                        gpu_id=0,
@@ -883,6 +891,7 @@ def get_non_lora_model(base_model, model_loader, load_half,
     load_in_4bit = model_kwargs.get('load_in_4bit', False)
     model_kwargs['device_map'] = device_map
     model_kwargs['use_safetensors'] = use_safetensors
+    model_kwargs['revision'] = revision
     pop_unused_model_kwargs(model_kwargs)
 
     if load_exllama:
@@ -965,6 +974,7 @@ def get_model(
         load_gptq: str = '',
         load_exllama: bool = False,
         use_safetensors: bool = False,
+        revision: str = None,
         use_gpu_id: bool = True,
         base_model: str = '',
         inference_server: str = "",
@@ -991,6 +1001,7 @@ def get_model(
     :param load_gptq: GPTQ model_basename
     :param load_exllama: whether to use exllama
     :param use_safetensors: use safetensors file
+    :param revision:
     :param use_gpu_id: Use torch infer of optimal placement of layers on devices (for non-lora case)
            For non-LORA case, False will spread shards across multiple GPUs, but this can lead to cuda:x cuda:y mismatches
            So it is not the default
@@ -1019,7 +1030,8 @@ def get_model(
                          offload_folder=offload_folder,
                          rope_scaling=rope_scaling,
                          triton_attn=triton_attn,
-                         long_sequence=long_sequence)
+                         long_sequence=long_sequence,
+                         revision=revision)
     config, _ = get_config(base_model, **config_kwargs, raise_exception=False)
 
     if base_model in non_hf_types:
@@ -1036,13 +1048,15 @@ def get_model(
                   " config (%s) or name (%s)" % (llama_type_from_config, llama_type_from_name), flush=True)
 
     model_loader, tokenizer_loader = get_loaders(model_name=base_model, reward_type=reward_type, llama_type=llama_type,
-                                                 load_gptq=load_gptq, load_exllama=load_exllama)
+                                                 load_gptq=load_gptq, load_exllama=load_exllama, config=config,
+                                                 rope_scaling=rope_scaling)
 
     tokenizer_kwargs = dict(local_files_only=local_files_only,
                             resume_download=resume_download,
                             use_auth_token=use_auth_token,
                             trust_remote_code=trust_remote_code,
                             offload_folder=offload_folder,
+                            revision=revision,
                             padding_side='left',
                             config=config,
                             )
@@ -1092,6 +1106,7 @@ def get_model(
                         load_half=load_half,
                         load_gptq=load_gptq,
                         use_safetensors=use_safetensors,
+                        revision=revision,
                         use_gpu_id=use_gpu_id,
                         base_model=base_model,
                         tokenizer_base_model=tokenizer_base_model,
@@ -1119,6 +1134,7 @@ def get_hf_model(load_8bit: bool = False,
                  load_half: bool = True,
                  load_gptq: str = '',
                  use_safetensors: bool = False,
+                 revision: str = None,
                  use_gpu_id: bool = True,
                  base_model: str = '',
                  tokenizer_base_model: str = '',
@@ -1187,6 +1203,7 @@ def get_hf_model(load_8bit: bool = False,
                             use_auth_token=use_auth_token,
                             trust_remote_code=trust_remote_code,
                             offload_folder=offload_folder,
+                            revision=revision,
                             # rope_scaling=rope_scaling,  # only put into config
                             )
         if 'mbart-' not in base_model.lower() and 'mpt-' not in base_model.lower():
@@ -1218,6 +1235,7 @@ def get_hf_model(load_8bit: bool = False,
                     model = get_non_lora_model(base_model, model_loader, load_half, load_gptq,
                                                load_exllama,
                                                use_safetensors,
+                                               revision,
                                                model_kwargs, reward_type,
                                                config, model,
                                                gpu_id=gpu_id,
@@ -1252,6 +1270,7 @@ def get_hf_model(load_8bit: bool = False,
                 trust_remote_code=trust_remote_code,
                 offload_folder=offload_folder,
                 rope_scaling=rope_scaling,
+                revision=revision,
                 device_map={"": 0} if device == 'cuda' else {"": 'cpu'},  # seems to be required
             )
         else:
@@ -1361,6 +1380,7 @@ def get_score_model(score_model: str = None,
         load_gptq = ''
         load_exllama = False
         use_safetensors = False
+        revision = None
         base_model = score_model.strip()
         tokenizer_base_model = ''
         lora_weights = ''

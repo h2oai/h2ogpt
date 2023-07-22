@@ -130,16 +130,20 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
     def postprocess(self, model_outputs, return_type=ReturnType.FULL_TEXT, clean_up_tokenization_spaces=True):
         records = super().postprocess(model_outputs, return_type=return_type,
                                       clean_up_tokenization_spaces=clean_up_tokenization_spaces)
+        key = 'generated_text'
         for rec in records:
             if self.use_prompter:
-                outputs = rec['generated_text']
+                outputs = rec[key]
                 outputs = self.prompter.get_response(outputs, prompt=self.prompt_text,
                                                      sanitize_bot_response=self.sanitize_bot_response)
-            elif self.bot and self.human:
-                outputs = rec['generated_text'].split(self.bot)[1].split(self.human)[0]
+            elif self.bot in rec[key]:
+                if self.human:
+                    outputs = rec[key].split(self.bot)[-1].split(self.human)[0]
+                else:
+                    outputs = rec[key].split(self.bot)[-1].split(self.bot)[0]
             else:
-                outputs = rec['generated_text']
-            rec['generated_text'] = outputs
+                outputs = rec[key]
+            rec[key] = outputs
             if self.debug:
                 print("prompt: %s\noutputs: %s\n\n" % (self.prompt_text, outputs), flush=True)
         return records

@@ -240,11 +240,9 @@ class Exllama(LLM):
         data_point = dict(context=self.context, instruction=prompt, input=self.iinput)
         prompt = self.prompter.generate_prompt(data_point)
 
-        text = ""
-        for token in self.stream(prompt=prompt, stop=stop, run_manager=run_manager):
-            text += token
-        text = self.prompter.get_response(prompt + text, prompt=prompt,
-                                          sanitize_bot_response=self.sanitize_bot_response)
+        text = ''
+        for text1 in self.stream(prompt=prompt, stop=stop, run_manager=run_manager):
+            text = text1
         return text
 
     from enum import Enum
@@ -332,7 +330,7 @@ class Exllama(LLM):
                 # Encountered a stop, rewind our generator to before we hit the match and end generation.
                 rewind_length = generator.tokenizer.encode(text).shape[-1]
                 generator.gen_rewind(rewind_length)
-                gen = generator.tokenizer.decode(generator.sequence_actual[0][response_start:])
+                #gen = generator.tokenizer.decode(generator.sequence_actual[0][response_start:])
                 if beam_search:
                     generator.end_beam_search()
                 return
@@ -343,6 +341,5 @@ class Exllama(LLM):
                 if text_callback:
                     text_callback(text_chunk)
                 yield text  # Not a stop, yield the match buffer.
-                text = ""
 
         return

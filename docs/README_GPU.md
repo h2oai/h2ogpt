@@ -112,6 +112,16 @@ Currently, only [exllama](https://github.com/turboderp/exllama) supports AutoGPT
 ```bash
 pip uninstall -y exllama ; pip install https://github.com/jllllll/exllama/releases/download/0.0.7/exllama-0.0.7+cu118-cp310-cp310-linux_x86_64.whl
 ```
+And then run with RoPE scaling the LLaMa-2 7B model for 16k context:
+```bash
+python generate.py --base_model=TheBloke/Llama-2-7b-Chat-GPTQ --load_gptq="gptq_model-4bit-128g" --use_safetensors=True --prompt_type=llama2 --save_dir='7bgptq4bit' --load_exllama=True --revision=gptq-4bit-32g-actorder_True --rope_scaling="{'alpha_value':4}"
+```
+which shows how to control `alpha_value` and the `revision` for a given model on [TheBloke/Llama-2-7b-Chat-GPTQ](https://huggingface.co/TheBloke/Llama-2-7b-Chat-GPTQ).  Be careful as setting `alpha_value` higher consumes substantially more GPU memory.  Also, some models have wrong config values for `max_position_embeddings` or `max_sequence_length`, and we try to fix those for LLaMa2 if `llama-2` appears in the lower-case version of the model name.
+Another type of model is
+```bash
+python generate.py --base_model=TheBloke/Nous-Hermes-Llama2-GPTQ --load_gptq="gptq_model-4bit-128g" --use_safetensors=True --prompt_type=wizard2 --save_dir='7bgptq4bit' --load_exllama=True --revision=gptq-4bit-32g-actorder_True --rope_scaling="{'alpha_value':4}"
+```
+and note the different `prompt_type`.
 
 ---
 

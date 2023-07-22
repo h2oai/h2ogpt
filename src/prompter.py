@@ -811,10 +811,10 @@ class Prompter(object):
                     pass
                 elif self.botstr in output:
                     if self.humanstr:
-                        output = clean_response(output.split(self.botstr)[1].split(self.humanstr)[0])
+                        output = clean_response(output.split(self.botstr)[-1].split(self.humanstr)[0])
                     else:
                         # i.e. use after bot but only up to next bot
-                        output = clean_response(output.split(self.botstr)[1].split(self.botstr)[0])
+                        output = clean_response(output.split(self.botstr)[-1].split(self.botstr)[0])
                 else:
                     # output = clean_response(output)
                     # assume just not printed yet
