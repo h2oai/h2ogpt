@@ -216,6 +216,7 @@ def test_qa_daidocs_db_chunk_hf_dbs_switch_embedding(db_type):
                       load_4bit=False,
                       load_half=True,
                       load_gptq=False,
+                      load_exllama=False,
                       use_safetensors=False,
                       use_gpu_id=True,
                       base_model=base_model,

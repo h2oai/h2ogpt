@@ -1,9 +1,38 @@
 import functools
 
 
-def get_loaders(model_name, reward_type, llama_type=None, load_gptq=''):
+def get_loaders(model_name, reward_type, llama_type=None, load_gptq='', load_exllama=False):
     # NOTE: Some models need specific new prompt_type
     # E.g. t5_xxl_true_nli_mixture has input format: "premise: PREMISE_TEXT hypothesis: HYPOTHESIS_TEXT".)
+    if load_exllama:
+        from src.llm_exllama import H2OExLlamaTokenizer, H2OExLlamaGenerator
+        from exllama.model import ExLlama, ExLlamaCache, ExLlamaConfig
+        import os, glob
+
+        # Directory containing model, tokenizer, generator
+        model_directory = "Llama-2-7b-Chat-GPTQ/"  # FIXME:
+
+        # Locate files we need within that directory
+        tokenizer_path = os.path.join(model_directory, "tokenizer.model")
+        model_config_path = os.path.join(model_directory, "config.json")
+        st_pattern = os.path.join(model_directory, "*.safetensors")
+        model_path = glob.glob(st_pattern)[0]
+
+        # Create config, model, tokenizer and generator
+
+        config = ExLlamaConfig(model_config_path)               # create config from config.json
+        # FIXME:
+        config.alpha_value = 1.0  # rope
+        config.compress_pos_emb = 1.0  # related rope
+        config.model_path = model_path                          # supply path to model weights file
+
+        model = ExLlama(config)                                 # create ExLlama instance and load the weights
+        tokenizer = H2OExLlamaTokenizer(tokenizer_path)            # create tokenizer from tokenizer model file
+        tokenizer.model_max_length = int(config.max_seq_len * config.alpha_value)
+
+        cache = ExLlamaCache(model)                             # create cache for inference
+        generator = H2OExLlamaGenerator(model, tokenizer, cache)   # create generator
+        return generator, tokenizer
     if load_gptq:
         from transformers import AutoTokenizer
         from auto_gptq import AutoGPTQForCausalLM

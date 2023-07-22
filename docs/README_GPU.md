@@ -106,6 +106,13 @@ python generate.py --base_model=meta-llama/Llama-2-70b-chat-hf --prompt_type=lla
 and running on 4xA6000 gives about 4tokens/sec consuming about 35GB per GPU of 4 GPUs when idle.
 Currently, Hugging Face transformers does not support GPTQ directly except in text-generation-inference (TGI) server, but TGI does not support RoPE scaling.  Also, vLLM supports LLaMa2 and AutoGPTQ but not RoPE scaling.  Only exllama supports AutoGPTQ with RoPE scaling.
 
+##### exllama
+
+Currently, only [exllama](https://github.com/turboderp/exllama) supports AutoGPTQ with RoPE scaling.  To install run:
+```bash
+pip uninstall -y exllama ; pip install https://github.com/jllllll/exllama/releases/download/0.0.7/exllama-0.0.7+cu118-cp310-cp310-linux_x86_64.whl
+```
+
 ---
 
 #### GPU with LLaMa

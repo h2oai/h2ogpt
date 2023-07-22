@@ -674,6 +674,7 @@ def get_llm(use_openai_model=False,
             model=None,
             tokenizer=None,
             inference_server=None,
+            langchain_only_model=None,
             stream_output=False,
             do_sample=False,
             temperature=0.1,
@@ -694,6 +695,11 @@ def get_llm(use_openai_model=False,
             sanitize_bot_response=False,
             verbose=False,
             ):
+    assert prompter is not None
+    terminate_response = prompter.terminate_response or []
+    stop_sequences = list(set(terminate_response + [prompter.PreResponse]))
+    stop_sequences = [x for x in stop_sequences if x]
+
     if inference_server is None:
         inference_server = ''
     if use_openai_model or inference_server.startswith('openai') or inference_server.startswith('vllm'):
@@ -708,9 +714,6 @@ def get_llm(use_openai_model=False,
         else:
             cls = H2OOpenAI
             if inf_type == 'vllm':
-                terminate_response = prompter.terminate_response or []
-                stop_sequences = list(set(terminate_response + [prompter.PreResponse]))
-                stop_sequences = [x for x in stop_sequences if x]
                 kwargs_extra = dict(stop_sequences=stop_sequences,
                                     sanitize_bot_response=sanitize_bot_response,
                                     prompter=prompter,
@@ -759,12 +762,7 @@ def get_llm(use_openai_model=False,
 
         # quick sanity check to avoid long timeouts, just see if can reach server
         requests.get(inference_server, timeout=int(os.getenv('REQUEST_TIMEOUT_FAST', '10')))
-
         callbacks = [StreamingGradioCallbackHandler()]
-        assert prompter is not None
-        terminate_response = prompter.terminate_response or []
-        stop_sequences = list(set(terminate_response + [prompter.PreResponse]))
-        stop_sequences = [x for x in stop_sequences if x]
 
         if gr_client:
             chat_client = False
@@ -821,6 +819,7 @@ def get_llm(use_openai_model=False,
             raise RuntimeError("No defined client")
         streamer = callbacks[0] if stream_output else None
     elif model_name in non_hf_types:
+        assert langchain_only_model
         if model_name == 'llama':
             callbacks = [StreamingGradioCallbackHandler()]
             streamer = callbacks[0] if stream_output else None
@@ -847,6 +846,35 @@ def get_llm(use_openai_model=False,
                               context=context,
                               iinput=iinput,
                               )
+    elif hasattr(model, 'is_exlama') and model.is_exlama():
+        assert langchain_only_model
+        callbacks = [StreamingGradioCallbackHandler()]
+        streamer = callbacks[0] if stream_output else None
+        max_max_tokens = tokenizer.model_max_length
+
+        from src.llm_exllama import Exllama
+        llm = Exllama(streaming=stream_output,
+                      model_path=None,
+                      model=model,
+                      lora_path=None,
+                      temperature=temperature,
+                      top_k=top_k,
+                      top_p=top_p,
+                      typical=.7,
+                      beams=1,
+                      # beam_length = 40,
+                      stop_sequences=stop_sequences,
+                      callbacks=callbacks,
+                      verbose=verbose,
+                      max_seq_len=max_max_tokens,
+                      fused_attn=False,
+                      # alpha_value = 1.0, #For use with any models
+                      # compress_pos_emb = 4.0, #For use with superhot
+                      # set_auto_map = "3, 2" #Gpu split, this will split 3gigs/2gigs
+                      prompter=prompter,
+                      context=context,
+                      iinput=iinput,
+                      )
     else:
         if model is None:
             # only used if didn't pass model in
@@ -1901,6 +1929,7 @@ def _run_qa_db(query=None,
                detect_user_path_changes_every_query=False,
                db_type='faiss',
                model_name=None, model=None, tokenizer=None, inference_server=None,
+               langchain_only_model=False,
                hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
                stream_output=False,
                prompter=None,
@@ -1977,6 +2006,7 @@ def _run_qa_db(query=None,
                                                          model=model,
                                                          tokenizer=tokenizer,
                                                          inference_server=inference_server,
+                                                         langchain_only_model=langchain_only_model,
                                                          stream_output=stream_output,
                                                          do_sample=do_sample,
                                                          temperature=temperature,
@@ -2034,7 +2064,7 @@ def _run_qa_db(query=None,
             yield ret, extra
             return
 
-    if chain is None and model_name not in non_hf_types:
+    if chain is None and model_name not in langchain_only_model:
         # here if no docs at all and not HF type
         # can only return if HF type
         return
@@ -2103,6 +2133,7 @@ def get_chain(query=None,
               db_type='faiss',
               model_name=None,
               inference_server='',
+              langchain_only_model=False,
               hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
               prompt_type=None,
               prompt_dict=None,
@@ -2128,7 +2159,7 @@ def get_chain(query=None,
               ):
     assert langchain_agents is not None  # should be at least []
     # determine whether use of context out of docs is planned
-    if not use_openai_model and prompt_type not in ['plain'] or model_name in non_hf_types:
+    if not use_openai_model and prompt_type not in ['plain'] or langchain_only_model:
         if langchain_mode in ['Disabled', 'LLM']:
             use_docs_planned = False
         else:
@@ -2217,7 +2248,7 @@ def get_chain(query=None,
     else:
         raise RuntimeError("No such langchain_action=%s" % langchain_action)
 
-    if not use_openai_model and prompt_type not in ['plain'] or model_name in non_hf_types:
+    if not use_openai_model and prompt_type not in ['plain'] or langchain_only_model:
         use_template = True
     else:
         use_template = False
@@ -2351,7 +2382,7 @@ def get_chain(query=None,
         docs = []
         scores = []
 
-    if not docs and use_docs_planned and model_name not in non_hf_types:
+    if not docs and use_docs_planned and not langchain_only_model:
         # if HF type and have no docs, can bail out
         return docs, None, [], False, have_any_docs
 

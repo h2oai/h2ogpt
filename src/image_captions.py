@@ -35,6 +35,7 @@ class H2OImageCaptionLoader(ImageCaptionLoader):
                  # True doesn't seem to work, even though https://huggingface.co/Salesforce/blip2-flan-t5-xxl#in-8-bit-precision-int8
                  load_half=False,
                  load_gptq='',
+                 load_exllama=False,
                  use_safetensors=False,
                  min_new_tokens=20,
                  max_tokens=50):
@@ -53,6 +54,7 @@ class H2OImageCaptionLoader(ImageCaptionLoader):
         self.load_in_8bit = load_in_8bit and have_bitsandbytes  # only for blip2
         self.load_half = load_half
         self.load_gptq = load_gptq
+        self.load_exllama = load_exllama
         self.use_safetensors = use_safetensors
         self.gpu_id = 'auto'
         # default prompt

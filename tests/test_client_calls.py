@@ -478,6 +478,42 @@ def test_autogptq():
     assert "am a virtual assistant" in res_dict['response']
 
 
+@wrap_test_forked
+def test_exllama():
+    prompt = 'Who are you?'
+    stream_output = False
+    max_new_tokens = 256
+    base_model = 'TheBloke/Llama-2-70B-chat-GPTQ'
+    load_exllama = True
+    prompt_type = 'llama2'
+    langchain_mode = 'Disabled'
+    langchain_action = LangChainAction.QUERY.value
+    langchain_agents = []
+    user_path = None
+    visible_langchain_modes = ['UserData', 'MyData']
+    reverse_docs = True
+    from src.gen import main
+    main(base_model=base_model, load_exllama=load_exllama,
+         prompt_type=prompt_type, chat=True,
+         stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
+         max_new_tokens=max_new_tokens,
+         langchain_mode=langchain_mode, user_path=user_path,
+         visible_langchain_modes=visible_langchain_modes,
+         reverse_docs=reverse_docs)
+
+    from src.client_test import run_client_chat
+    res_dict, client = run_client_chat(prompt=prompt, prompt_type=prompt_type, stream_output=stream_output,
+                                       max_new_tokens=max_new_tokens, langchain_mode=langchain_mode,
+                                       langchain_action=langchain_action, langchain_agents=langchain_agents)
+    assert res_dict['prompt'] == prompt
+    assert res_dict['iinput'] == ''
+    assert "Hello! I'm LLaMA, an AI assistant developed by Meta AI that can understand and respond to human input" \
+           " in a conversational manner. My training data is based on a massive dataset of text from the internet," \
+           " which allows me to generate human-like responses to a wide range of topics and questions. " \
+           "I'm here to help answer any questions you may have, so feel free to ask me anything!" in \
+           res_dict['response']
+
+
 @pytest.mark.skip(reason="Local file required")
 @wrap_test_forked
 def test_client_long():

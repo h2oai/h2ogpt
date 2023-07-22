@@ -147,8 +147,10 @@ sudo apt-get install -y libmagic-dev poppler-utils tesseract-ocr libtesseract-de
 python -m nltk.downloader all
 # Optional: For AutoGPTQ support on x86_64 linux
 pip uninstall -y auto-gptq ; CUDA_HOME=/usr/local/cuda-11.8  GITHUB_ACTIONS=true pip install auto-gptq --no-cache-dir
+# Optional: For exllama support on x86_64 linux
+pip uninstall -y exllama ; pip install https://github.com/jllllll/exllama/releases/download/0.0.7/exllama-0.0.7+cu118-cp310-cp310-linux_x86_64.whl --no-cache-dir
 ```
-See [AutoGPTQ](docs/README_GPU.md#autogptq) for more details for AutoGPTQ and other GPU installation aspects.
+See [AutoGPTQ](docs/README_GPU.md#autogptq) for more details for AutoGPTQ and other GPU installation aspects.  See [exllama](docs/README_GPU.md#) for more details for AutoGPTQ and other GPU installation aspects.
 #### Run h2oGPT
 
 Place all documents in `user_path` or upload in UI ([Help with UI](docs/README_ui.md)).

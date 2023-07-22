@@ -61,6 +61,7 @@ def main(
         load_4bit: bool = False,
         load_half: bool = True,
         load_gptq: str = '',
+        load_exllama: bool = False,
         use_safetensors: bool = False,
         use_gpu_id: bool = True,
         base_model: str = '',
@@ -193,6 +194,7 @@ def main(
     :param load_4bit: load model in 4-bit using bitsandbytes
     :param load_half: load model in float16
     :param load_gptq: to load model with GPTQ, put model_basename here, e.g. gptq_model-4bit--1g
+    :param load_exllama: whether to use exllama (only applicable to LLaMa1/2 models with 16-bit or GPTQ
     :param use_safetensors: to use safetensors version (assumes file/HF points to safe tensors version)
     :param use_gpu_id: whether to control devices with gpu_id.  If False, then spread across GPUs
     :param base_model: model HF-type name.  If use --base_model to preload model, cannot unload in gradio in models tab
@@ -559,6 +561,7 @@ def main(
         load_4bit = False
         load_half = False
         load_gptq = ''
+        load_exllama = False
         use_safetensors = False
         use_gpu_id = False
         torch.backends.cudnn.benchmark = True
@@ -829,7 +832,9 @@ def get_config(base_model,
 
 
 def get_non_lora_model(base_model, model_loader, load_half,
-                       load_gptq, use_safetensors,
+                       load_gptq,
+                       load_exllama,
+                       use_safetensors,
                        model_kwargs, reward_type,
                        config, model,
                        gpu_id=0,
@@ -880,7 +885,9 @@ def get_non_lora_model(base_model, model_loader, load_half,
     model_kwargs['use_safetensors'] = use_safetensors
     pop_unused_model_kwargs(model_kwargs)
 
-    if load_gptq:
+    if load_exllama:
+        model = model_loader
+    elif load_gptq:
         if 'Llama-2-70B-chat-GPTQ' in base_model:
             model_kwargs.update(dict(inject_fused_attention=False))
         model_kwargs.pop('torch_dtype', None)
@@ -956,6 +963,7 @@ def get_model(
         load_4bit: bool = False,
         load_half: bool = True,
         load_gptq: str = '',
+        load_exllama: bool = False,
         use_safetensors: bool = False,
         use_gpu_id: bool = True,
         base_model: str = '',
@@ -981,6 +989,7 @@ def get_model(
     :param load_4bit: load model in 4-bit, not supported by all models
     :param load_half: load model in 16-bit
     :param load_gptq: GPTQ model_basename
+    :param load_exllama: whether to use exllama
     :param use_safetensors: use safetensors file
     :param use_gpu_id: Use torch infer of optimal placement of layers on devices (for non-lora case)
            For non-LORA case, False will spread shards across multiple GPUs, but this can lead to cuda:x cuda:y mismatches
@@ -1027,7 +1036,7 @@ def get_model(
                   " config (%s) or name (%s)" % (llama_type_from_config, llama_type_from_name), flush=True)
 
     model_loader, tokenizer_loader = get_loaders(model_name=base_model, reward_type=reward_type, llama_type=llama_type,
-                                                 load_gptq=load_gptq)
+                                                 load_gptq=load_gptq, load_exllama=load_exllama)
 
     tokenizer_kwargs = dict(local_files_only=local_files_only,
                             resume_download=resume_download,
@@ -1040,13 +1049,18 @@ def get_model(
     if not tokenizer_base_model:
         tokenizer_base_model = base_model
 
-    if config is not None and tokenizer_loader is not None and not isinstance(tokenizer_loader, str):
-        tokenizer = tokenizer_loader.from_pretrained(tokenizer_base_model, **tokenizer_kwargs)
-        # sets raw (no cushion) limit
-        set_model_max_len(config, tokenizer, verbose=False)
-        # if using fake tokenizer, not really accurate when lots of numbers, give a bit of buffer, else get:
-        # Generation Failed: Input validation error: `inputs` must have less than 2048 tokens. Given: 2233
-        tokenizer.model_max_length = tokenizer.model_max_length - 50
+    if load_exllama:
+        tokenizer = tokenizer_loader
+    elif config is not None and tokenizer_loader is not None and not isinstance(tokenizer_loader, str):
+        if load_exllama:
+            tokenizer = tokenizer_loader
+        else:
+            tokenizer = tokenizer_loader.from_pretrained(tokenizer_base_model, **tokenizer_kwargs)
+            # sets raw (no cushion) limit
+            set_model_max_len(config, tokenizer, verbose=False)
+            # if using fake tokenizer, not really accurate when lots of numbers, give a bit of buffer, else get:
+            # Generation Failed: Input validation error: `inputs` must have less than 2048 tokens. Given: 2233
+            tokenizer.model_max_length = tokenizer.model_max_length - 50
     else:
         tokenizer = FakeTokenizer()
 
@@ -1069,6 +1083,8 @@ def get_model(
         from gpt4all_llm import get_model_tokenizer_gpt4all
         model, tokenizer, device = get_model_tokenizer_gpt4all(base_model)
         return model, tokenizer, device
+    if load_exllama:
+        return model_loader, tokenizer, 'cuda'
 
     # get local torch-HF model
     return get_hf_model(load_8bit=load_8bit,
@@ -1127,6 +1143,8 @@ def get_hf_model(load_8bit: bool = False,
     assert config_kwargs is not None
     assert tokenizer_kwargs is not None
 
+    load_exllama = False  # Never should be in HF code for exllama
+
     if lora_weights is not None and lora_weights.strip():
         if verbose:
             print("Get %s lora weights" % lora_weights, flush=True)
@@ -1142,13 +1160,16 @@ def get_hf_model(load_8bit: bool = False,
     )
 
     model_loader, tokenizer_loader = get_loaders(model_name=base_model, reward_type=reward_type, llama_type=llama_type,
-                                                 load_gptq=load_gptq)
+                                                 load_gptq=load_gptq, load_exllama=load_exllama)
 
     config, _ = get_config(base_model, return_model=False, raise_exception=True, **config_kwargs)
 
     if tokenizer_loader is not None and not isinstance(tokenizer_loader, str):
-        tokenizer = tokenizer_loader.from_pretrained(tokenizer_base_model,
-                                                     **tokenizer_kwargs)
+        if load_exllama:
+            tokenizer = tokenizer_loader
+        else:
+            tokenizer = tokenizer_loader.from_pretrained(tokenizer_base_model,
+                                                         **tokenizer_kwargs)
     else:
         tokenizer = tokenizer_loader
 
@@ -1194,7 +1215,9 @@ def get_hf_model(load_8bit: bool = False,
 
                 if use_gpu_id:
                     config, model = get_config(base_model, return_model=True, raise_exception=True, **config_kwargs)
-                    model = get_non_lora_model(base_model, model_loader, load_half, load_gptq, use_safetensors,
+                    model = get_non_lora_model(base_model, model_loader, load_half, load_gptq,
+                                               load_exllama,
+                                               use_safetensors,
                                                model_kwargs, reward_type,
                                                config, model,
                                                gpu_id=gpu_id,
@@ -1312,6 +1335,7 @@ def get_score_model(score_model: str = None,
                     load_4bit: bool = False,
                     load_half: bool = True,
                     load_gptq: str = '',
+                    load_exllama: bool = False,
                     use_gpu_id: bool = True,
                     base_model: str = '',
                     inference_server: str = '',
@@ -1335,6 +1359,7 @@ def get_score_model(score_model: str = None,
         load_4bit = False
         load_half = False
         load_gptq = ''
+        load_exllama = False
         use_safetensors = False
         base_model = score_model.strip()
         tokenizer_base_model = ''
@@ -1422,6 +1447,7 @@ def evaluate(
         model_lock=None,
         force_langchain_evaluate=None,
         model_state_none=None,
+        load_exllama=None,
 ):
     # ensure passed these
     assert concurrency_count is not None
@@ -1438,6 +1464,7 @@ def evaluate(
     assert n_jobs is not None
     assert first_para is not None
     assert isinstance(add_chat_history_to_context, bool)
+    assert load_exllama is not None
 
     if selection_docs_state is not None:
         langchain_modes = selection_docs_state.get('langchain_modes', langchain_modes0)
@@ -1578,8 +1605,9 @@ def evaluate(
             db = None
     else:
         db = None
+    langchain_only_model = base_model in non_hf_types or load_exllama
     do_langchain_path = langchain_mode not in [False, 'Disabled', 'LLM'] or \
-                        base_model in non_hf_types or \
+                        langchain_only_model or \
                         force_langchain_evaluate
     if do_langchain_path:
         outr = ""
@@ -1602,6 +1630,7 @@ def evaluate(
                            context=context,
                            model_name=base_model, model=model, tokenizer=tokenizer,
                            inference_server=inference_server,
+                           langchain_only_model=langchain_only_model,
                            stream_output=stream_output,
                            prompter=prompter,
                            use_llm_if_no_docs=use_llm_if_no_docs,
@@ -1665,7 +1694,7 @@ def evaluate(
                 print(
                     'Post-Generate Langchain: %s decoded_output: %s' % (str(datetime.now()), len(outr) if outr else -1),
                     flush=True)
-        if outr or base_model in non_hf_types:
+        if outr or base_model in langchain_only_model:
             # if got no response (e.g. not showing sources and got no sources,
             # so nothing to give to LLM), then slip through and ask LLM
             # Or if llama/gptj, then just return since they had no response and can't go down below code path
