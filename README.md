@@ -151,7 +151,13 @@ pip uninstall -y auto-gptq ; CUDA_HOME=/usr/local/cuda-11.8  GITHUB_ACTIONS=true
 pip uninstall -y exllama ; pip install https://github.com/jllllll/exllama/releases/download/0.0.7/exllama-0.0.7+cu118-cp310-cp310-linux_x86_64.whl --no-cache-dir
 ```
 See [AutoGPTQ](docs/README_GPU.md#autogptq) for more details for AutoGPTQ and other GPU installation aspects.  See [exllama](docs/README_GPU.md#) for more details for AutoGPTQ and other GPU installation aspects.
+
 #### Run h2oGPT
+To avoid unauthorized telemetry, which document options still do not disable, run:
+```bash
+sp=`python -c 'import site; print(site.getsitepackages()[0])'`
+sed -i 's/posthog\.capture/return\n            posthog.capture/' $sp/chromadb/telemetry/posthog.py
+```
 
 Place all documents in `user_path` or upload in UI ([Help with UI](docs/README_ui.md)).
 
