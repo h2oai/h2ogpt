@@ -47,6 +47,7 @@ textstat==0.7.3
 # pandoc==2.3
 pypandoc==1.11; sys_platform == "darwin" and platform_machine == "arm64"
 pypandoc_binary==1.11; platform_machine == "x86_64"
+pypandoc_binary==1.11; sys_platform == "win32"
 openpyxl==3.1.2
 lm_dataformat==0.0.20
 bioc==2.0
