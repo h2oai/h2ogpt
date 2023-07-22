@@ -64,7 +64,7 @@ def get_client(serialize=True):
     return client
 
 
-def get_args(prompt, prompt_type, chat=False, stream_output=False,
+def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
              max_new_tokens=50,
              top_k_docs=3,
              langchain_mode='Disabled',
@@ -245,9 +245,9 @@ def test_client_chat_stream(prompt_type='human_bot'):
                            langchain_agents=[])
 
 
-def run_client_chat(prompt, prompt_type, stream_output, max_new_tokens,
+def run_client_chat(prompt, stream_output, max_new_tokens,
                     langchain_mode, langchain_action, langchain_agents,
-                    prompt_dict=None):
+                    prompt_type=None, prompt_dict=None):
     client = get_client(serialize=False)
 
     kwargs, args = get_args(prompt, prompt_type, chat=True, stream_output=stream_output,

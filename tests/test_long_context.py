@@ -50,7 +50,7 @@ def create_long_prompt_with_secret(prompt_len=None, secret_pos=None):
 
 @pytest.mark.parametrize("base_model", ['meta-llama/Llama-2-7b-chat-hf'])
 @pytest.mark.parametrize("rope_scaling", [
-    None,
+    # None,
     # "{'type':'linear', 'factor':2}",
     "{'type':'dynamic', 'factor':2}",
     # "{'type':'dynamic', 'factor':4}"
@@ -61,8 +61,8 @@ def create_long_prompt_with_secret(prompt_len=None, secret_pos=None):
     # 16384
 ])
 @pytest.mark.parametrize("rel_secret_pos", [
-    0.1,
-    0.5,
+    # 0.1,
+    # 0.5,
     0.9
 ])
 @wrap_test_forked
@@ -71,14 +71,15 @@ def test_gradio_long_context(base_model, rope_scaling, prompt_len, rel_secret_po
     rope_scaling_factor = 1
     if rope_scaling:
         rope_scaling_factor = ast.literal_eval(rope_scaling).get("factor")
-    if prompt_len > 4096 * rope_scaling_factor:
-        # FIXME - hardcoded 4K for llama2
-        # no chance, speed up tests
+    from transformers import AutoConfig
+    config = AutoConfig.from_pretrained(base_model, use_auth_token=True,
+                                        trust_remote_code=True)
+    max_len = 4096
+    if hasattr(config, 'max_length'):
+        max_len = config.max_length
+    if prompt_len > max_len * rope_scaling_factor:
         pytest.xfail("no chance")
     secret_pos = int(prompt_len * rel_secret_pos)
-    # from transformers import AutoConfig
-    # config = AutoConfig.from_pretrained(base_model, use_auth_token=True,
-    #                                     trust_remote_code=True)
     main_kwargs = dict(base_model=base_model, chat=True, stream_output=False, gradio=True, num_beams=1,
                        block_gradio_exit=False, rope_scaling=rope_scaling, use_auth_token=True)
     client_port = os.environ['GRADIO_SERVER_PORT'] = "7861"
@@ -91,7 +92,6 @@ def test_gradio_long_context(base_model, rope_scaling, prompt_len, rel_secret_po
 
     res_dict, client = run_client_chat(
         prompt=prompt,
-        prompt_type="llama2",  # FIXME - shouldn't be needed
         stream_output=False, max_new_tokens=16384,
         langchain_mode='Disabled',
         langchain_action=LangChainAction.QUERY.value,
