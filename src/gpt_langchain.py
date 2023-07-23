@@ -2219,7 +2219,7 @@ def get_chain(query=None,
     elif langchain_action in [LangChainAction.SUMMARIZE_ALL.value, LangChainAction.SUMMARIZE_MAP.value]:
         none = ['', '\n', None]
         if query in none and iinput in none:
-            prompt_summary = "Using only the text above, write a condensed and concise summary:\n"
+            prompt_summary = "Using only the text above, write a condensed and concise summary (preferably as bullet points):\n"
         elif query not in none:
             prompt_summary = "Focusing on %s, write a condensed and concise Summary:\n" % query
         elif iinput not in None:
