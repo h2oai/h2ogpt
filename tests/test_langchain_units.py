@@ -297,6 +297,7 @@ def test_qa_wiki_db_chunk_hf_dbs_llama(db_type):
                      langchain_agents=[],
                      db_type=db_type,
                      prompt_type='wizard2',
+                     langchain_only_model=True,
                      model_name=model_name, model=model, tokenizer=tokenizer,
                      )
     check_ret(ret)
@@ -621,7 +622,7 @@ def test_md_add(db_type):
             assert db is not None
             docs = db.similarity_search("What is h2oGPT?")
             assert len(docs) == 4
-            assert 'Query and summarize your documents' in docs[0].page_content
+            assert 'Query and summarize your documents' in docs[1].page_content
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
 

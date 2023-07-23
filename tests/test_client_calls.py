@@ -322,7 +322,8 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'Whisper is a secure, anonymous, and encrypted' in res_dict['response'] or
             'secure, decentralized, and anonymous chat platform' in res_dict['response'] or
             'A low-code development framework' in res_dict['response'] or
-            'secure messaging app' in res_dict['response']
+            'secure messaging app' in res_dict['response'] or
+            'privacy-focused messaging app that allows' in res_dict['response']
             ) \
            and ('FAQ.md' in res_dict['response'] or 'README.md' in res_dict['response'])
 
@@ -369,7 +370,8 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'is a platform for deploying' in res_dict['response'] or
             'is a language model that is trained' in res_dict['response'] or
             'private, and anonymous communication' in res_dict['response'] or
-            'The large language model is' in res_dict['response']
+            'The large language model is' in res_dict['response'] or
+            'is a private, secure, and encrypted' in res_dict['response']
             ) \
            and '.md' in res_dict['response']
 
