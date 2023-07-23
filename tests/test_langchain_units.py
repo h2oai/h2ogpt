@@ -218,6 +218,7 @@ def test_qa_daidocs_db_chunk_hf_dbs_switch_embedding(db_type):
                       load_gptq=False,
                       load_exllama=False,
                       use_safetensors=False,
+                      revision=None,
                       use_gpu_id=True,
                       base_model=base_model,
                       tokenizer_base_model=base_model,
