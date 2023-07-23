@@ -748,7 +748,7 @@ class Prompter(object):
                        use_system_prompt=use_system_prompt)
         self.pre_response = self.PreResponse
 
-    def get_stop_sequences(self):
+    def stop_sequences(self):
         terminate_response = self.terminate_response or []
         stop_sequences = list(set(terminate_response + [self.PreResponse]))
         stop_sequences = [x for x in stop_sequences if x]
