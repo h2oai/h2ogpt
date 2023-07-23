@@ -2312,7 +2312,8 @@ def get_chain(query=None,
                                 docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[
                                                   :top_k_docs_tokenize]
                                 break
-                            except RuntimeError as e:
+                            except (RuntimeError, AttributeError) as e:
+                                # AttributeError is for people with wrong version of langchain
                                 if verbose:
                                     print("chroma bug: %s" % str(e), flush=True)
                                 if k_db == 1:
