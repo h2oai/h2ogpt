@@ -695,11 +695,6 @@ def get_llm(use_openai_model=False,
             sanitize_bot_response=False,
             verbose=False,
             ):
-    assert prompter is not None
-    terminate_response = prompter.terminate_response or []
-    stop_sequences = list(set(terminate_response + [prompter.PreResponse]))
-    stop_sequences = [x for x in stop_sequences if x]
-
     if inference_server is None:
         inference_server = ''
     if use_openai_model or inference_server.startswith('openai') or inference_server.startswith('vllm'):
@@ -714,7 +709,7 @@ def get_llm(use_openai_model=False,
         else:
             cls = H2OOpenAI
             if inf_type == 'vllm':
-                kwargs_extra = dict(stop_sequences=stop_sequences,
+                kwargs_extra = dict(stop_sequences=prompter.stop_sequences,
                                     sanitize_bot_response=sanitize_bot_response,
                                     prompter=prompter,
                                     context=context,
@@ -800,7 +795,7 @@ def get_llm(use_openai_model=False,
                 return_full_text=True,
                 seed=SEED,
 
-                stop_sequences=stop_sequences,
+                stop_sequences=prompter.stop_sequences,
                 temperature=temperature,
                 top_k=top_k,
                 top_p=top_p,
@@ -863,7 +858,7 @@ def get_llm(use_openai_model=False,
                       typical=.7,
                       beams=1,
                       # beam_length = 40,
-                      stop_sequences=stop_sequences,
+                      stop_sequences=prompter.stop_sequences,
                       callbacks=callbacks,
                       verbose=verbose,
                       max_seq_len=max_max_tokens,
