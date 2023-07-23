@@ -748,6 +748,13 @@ class Prompter(object):
                        use_system_prompt=use_system_prompt)
         self.pre_response = self.PreResponse
 
+    @property
+    def stop_sequences(self):
+        terminate_response = self.terminate_response or []
+        stop_sequences = list(set(terminate_response + [self.PreResponse]))
+        stop_sequences = [x for x in stop_sequences if x]
+        return stop_sequences
+
     def generate_prompt(self, data_point, reduced=None):
         """
         data_point['context'] is assumed to be like a system prompt or pre-conversation, not inserted after user prompt
@@ -811,10 +818,10 @@ class Prompter(object):
                     pass
                 elif self.botstr in output:
                     if self.humanstr:
-                        output = clean_response(output.split(self.botstr)[1].split(self.humanstr)[0])
+                        output = clean_response(output.split(self.botstr)[-1].split(self.humanstr)[0])
                     else:
                         # i.e. use after bot but only up to next bot
-                        output = clean_response(output.split(self.botstr)[1].split(self.botstr)[0])
+                        output = clean_response(output.split(self.botstr)[-1].split(self.botstr)[0])
                 else:
                     # output = clean_response(output)
                     # assume just not printed yet

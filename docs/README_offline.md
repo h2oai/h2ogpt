@@ -63,3 +63,10 @@ To ensure nobody can access your gradio server, disable the port via firewall.  
 --auth=[('jon','password')]
 ```
 with no spaces.  Run `python generate.py --help` for more details.
+
+7. To avoid unauthorized telemetry, which document options still do not disable, run:
+```bash
+sp=`python -c 'import site; print(site.getsitepackages()[0])'`
+sed -i 's/posthog\.capture/return\n            posthog.capture/' $sp/chromadb/telemetry/posthog.py
+```
+or the equivalent for windows/mac using.  Or edit the file manually to just return in the `capture` function.

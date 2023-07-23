@@ -19,3 +19,14 @@ once `whl` file is installed, two new scripts will be added to the current envir
 The wheel is not required to use h2oGPT locally from repo, but makes it portable with all required dependencies.
 
 See [setup.py](../setup.py) for controlling other options via `extras_require`.
+
+Once the wheel is built, if you do:
+```bash
+python -m pip check
+```
+you may see:
+```text
+h2ogpt 0.1.0 has requirement numpy==1.24.3, but you have numpy 1.23.5.
+h2ogpt 0.1.0 has requirement pandas==2.0.2, but you have pandas 1.5.3.
+```
+but that is expected.
