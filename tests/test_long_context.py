@@ -52,7 +52,7 @@ def create_long_prompt_with_secret(prompt_len=None, secret_pos=None):
 @pytest.mark.parametrize("rope_scaling", [
     # None,
     # "{'type':'linear', 'factor':2}",
-    "{'type':'dynamic', 'factor':2, 'alpha_value': 2}",
+    "{'type':'dynamic', 'factor':2}",
     # "{'type':'dynamic', 'factor':4}"
 ])
 @pytest.mark.parametrize("prompt_len", [
