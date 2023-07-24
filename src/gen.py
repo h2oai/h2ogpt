@@ -1645,6 +1645,7 @@ def evaluate(
                                    max_time=max_time,
                                    num_return_sequences=num_return_sequences,
                                    )
+        t_generate = time.time()
         for r in run_qa_db(query=instruction,
                            iinput=iinput,
                            context=context,
@@ -1693,6 +1694,8 @@ def evaluate(
             outr, extra = r  # doesn't accumulate, new answer every yield, so only save that full answer
             yield dict(response=outr, sources=extra)
         if save_dir:
+            # estimate using tiktoken
+            ntokens = FakeTokenizer().num_tokens_from_string(outr)
             extra_dict = gen_hyper_langchain.copy()
             extra_dict.update(prompt_type=prompt_type,
                               inference_server=inference_server,
@@ -1705,6 +1708,9 @@ def evaluate(
                               instruction=instruction,
                               iinput=iinput,
                               context=context,
+                              t_generate=time.time() - t_generate,
+                              ntokens=ntokens,
+                              tokens_persecond=ntokens / (time.time() - t_generate),
                               )
             save_generate_output(prompt=prompt,
                                  output=outr, base_model=base_model, save_dir=save_dir,
