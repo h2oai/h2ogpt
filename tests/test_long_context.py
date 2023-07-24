@@ -52,7 +52,7 @@ def create_long_prompt_with_secret(prompt_len=None, secret_pos=None):
 @pytest.mark.parametrize("rope_scaling", [
     # None,
     # "{'type':'linear', 'factor':2}",
-    "{'type':'dynamic', 'factor':2}",
+    "{'type':'dynamic', 'factor':2, 'alpha_value': 2}",
     # "{'type':'dynamic', 'factor':4}"
 ])
 @pytest.mark.parametrize("prompt_len", [
@@ -75,8 +75,8 @@ def test_gradio_long_context(base_model, rope_scaling, prompt_len, rel_secret_po
     config = AutoConfig.from_pretrained(base_model, use_auth_token=True,
                                         trust_remote_code=True)
     max_len = 4096
-    if hasattr(config, 'max_length'):
-        max_len = config.max_length
+    if hasattr(config, 'max_position_embeddings'):
+        max_len = config.max_position_embeddings
     if prompt_len > max_len * rope_scaling_factor:
         pytest.xfail("no chance")
     secret_pos = int(prompt_len * rel_secret_pos)
