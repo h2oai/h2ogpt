@@ -2118,6 +2118,30 @@ def _run_qa_db(query=None,
     return
 
 
+def get_docs_with_score(query, k_db, filter_kwargs, db, db_type, verbose=False):
+    # deal with bug in chroma where if (say) 234 doc chunks and ask for 233+ then fails due to reduction misbehavior
+    docs_with_score = []
+    if db_type == 'chroma':
+        while True:
+            try:
+                docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)
+                break
+            except (RuntimeError, AttributeError) as e:
+                # AttributeError is for people with wrong version of langchain
+                if verbose:
+                    print("chroma bug: %s" % str(e), flush=True)
+                if k_db == 1:
+                    raise
+                if k_db > 10:
+                    k_db -= 10
+                else:
+                    k_db -= 1
+                k_db = max(1, k_db)
+    else:
+        docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)
+    return docs_with_score
+
+
 def get_chain(query=None,
               iinput=None,
               context=None,  # FIXME: https://github.com/hwchase17/langchain/issues/6638
@@ -2301,31 +2325,10 @@ def get_chain(query=None,
             # FIXME: if langchain_action == LangChainAction.SUMMARIZE_MAP.value
             # if map_reduce, then no need to auto reduce chunks
             if top_k_docs == -1 or auto_reduce_chunks:
-                # docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:top_k_docs]
                 top_k_docs_tokenize = 100
                 with filelock.FileLock(lock_file):
-                    docs_with_score = []
-                    if db_type == 'chroma':
-                        # deal with bug in chroma where if (say) 234 doc chunks and ask for 233+ then fails due to reduction misbehavior
-                        while True:
-                            try:
-                                docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[
-                                                  :top_k_docs_tokenize]
-                                break
-                            except (RuntimeError, AttributeError) as e:
-                                # AttributeError is for people with wrong version of langchain
-                                if verbose:
-                                    print("chroma bug: %s" % str(e), flush=True)
-                                if k_db == 1:
-                                    raise
-                                if k_db > 10:
-                                    k_db -= 10
-                                else:
-                                    k_db -= 1
-                                k_db = max(1, k_db)
-                    else:
-                        docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[
-                                                  :top_k_docs_tokenize]
+                    docs_with_score = get_docs_with_score(query, k_db, filter_kwargs, db, db_type, verbose=verbose)[
+                                      :top_k_docs_tokenize]
                 if hasattr(llm, 'pipeline') and hasattr(llm.pipeline, 'tokenizer'):
                     # more accurate
                     tokens = [len(llm.pipeline.tokenizer(x[0].page_content)['input_ids']) for x in docs_with_score]
@@ -2380,7 +2383,8 @@ def get_chain(query=None,
                 docs_with_score = docs_with_score[:top_k_docs]
             else:
                 with filelock.FileLock(lock_file):
-                    docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:top_k_docs]
+                    docs_with_score = get_docs_with_score(query, k_db, filter_kwargs, db, db_type, verbose=verbose)[
+                                      :top_k_docs]
             # put most relevant chunks closest to question,
             # esp. if truncation occurs will be "oldest" or "farthest from response" text that is truncated
             # BUT: for small models, e.g. 6_9 pythia, if sees some stuff related to h2oGPT first, it can connect that and not listen to rest
