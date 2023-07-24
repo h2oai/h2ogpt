@@ -46,7 +46,7 @@ def get_loaders(model_name, reward_type, llama_type=None, load_gptq='', load_exl
             exconfig.max_seq_len = int(config.max_position_embeddings * exconfig.alpha_value)
         else:
             exconfig.max_seq_len = int(config.max_sequence_length * exconfig.alpha_value)
-        if 'Llama-2'.lower() in model_name:
+        if 'Llama-2'.lower() in model_name.lower():
             # override bad defaults
             exconfig.max_seq_len = int(4096 * exconfig.alpha_value)
 
