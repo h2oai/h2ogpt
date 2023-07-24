@@ -23,8 +23,8 @@ def truncate_to_num_tokens(string: str, num_tokens) -> str:
     return string
 
 
-SECRET_KEY = 'BLAH_BOO_FOO_12'  # cannot contain TOP SECRET etc. otherwise safety will kick in
-SECRET_VALUE = 'A13B12'
+SECRET_KEY = 'UR-LB-AB-DA'  # cannot contain TOP SECRET etc. otherwise safety will kick in
+SECRET_VALUE = '42-ABC-33'
 
 ANSWER_LEN = 100  # give the model some tokens to answer
 
@@ -51,19 +51,18 @@ def create_long_prompt_with_secret(prompt_len=None, secret_pos=None):
 
 @pytest.mark.parametrize("base_model", ['meta-llama/Llama-2-7b-chat-hf'])
 @pytest.mark.parametrize("rope_scaling", [
-    # None,
+    None,
     # "{'type':'linear', 'factor':2}",
-    "{'type':'dynamic', 'factor':2}",
+    # "{'type':'dynamic', 'factor':2}",
     # "{'type':'dynamic', 'factor':4}"
 ])
 @pytest.mark.parametrize("prompt_len", [
-    1024, 2048, 4096,
-    8192,
-    16384
+    1000, 2000, 3000,
+    4000, 5000, 6000, 10000
 ])
 @pytest.mark.parametrize("rel_secret_pos", [
-    # 0.2,
-    # 0.5,
+    0.2,
+    0.5,
     0.8
 ])
 @wrap_test_forked
