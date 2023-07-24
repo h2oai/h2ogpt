@@ -411,7 +411,7 @@ def go_gradio(**kwargs):
                         interactive=True,
                         visible=False)  # WIP
             col_tabs = gr.Column(elem_id="col_container", scale=10)
-            with (col_tabs, gr.Tabs()):
+            with col_tabs, gr.Tabs():
                 with gr.TabItem("Chat"):
                     if kwargs['langchain_mode'] == 'Disabled':
                         text_output_nochat = gr.Textbox(lines=5, label=output_label0, show_copy_button=True,
