@@ -559,14 +559,14 @@ class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
                 # stream part
                 is_stop = False
                 for stop_seq in stop:
-                    if stop_seq in response.token.text:
+                    if stop_seq in text_chunk:
                         is_stop = True
                         break
                 if is_stop:
                     break
                 if not response.token.special:
                     if text_callback:
-                        text_callback(response.token.text)
+                        text_callback(text_chunk)
         return text
 
 
@@ -674,6 +674,7 @@ def get_llm(use_openai_model=False,
             model=None,
             tokenizer=None,
             inference_server=None,
+            langchain_only_model=None,
             stream_output=False,
             do_sample=False,
             temperature=0.1,
@@ -708,10 +709,7 @@ def get_llm(use_openai_model=False,
         else:
             cls = H2OOpenAI
             if inf_type == 'vllm':
-                terminate_response = prompter.terminate_response or []
-                stop_sequences = list(set(terminate_response + [prompter.PreResponse]))
-                stop_sequences = [x for x in stop_sequences if x]
-                kwargs_extra = dict(stop_sequences=stop_sequences,
+                kwargs_extra = dict(stop_sequences=prompter.stop_sequences,
                                     sanitize_bot_response=sanitize_bot_response,
                                     prompter=prompter,
                                     context=context,
@@ -759,12 +757,7 @@ def get_llm(use_openai_model=False,
 
         # quick sanity check to avoid long timeouts, just see if can reach server
         requests.get(inference_server, timeout=int(os.getenv('REQUEST_TIMEOUT_FAST', '10')))
-
         callbacks = [StreamingGradioCallbackHandler()]
-        assert prompter is not None
-        terminate_response = prompter.terminate_response or []
-        stop_sequences = list(set(terminate_response + [prompter.PreResponse]))
-        stop_sequences = [x for x in stop_sequences if x]
 
         if gr_client:
             chat_client = False
@@ -802,7 +795,7 @@ def get_llm(use_openai_model=False,
                 return_full_text=True,
                 seed=SEED,
 
-                stop_sequences=stop_sequences,
+                stop_sequences=prompter.stop_sequences,
                 temperature=temperature,
                 top_k=top_k,
                 top_p=top_p,
@@ -821,6 +814,7 @@ def get_llm(use_openai_model=False,
             raise RuntimeError("No defined client")
         streamer = callbacks[0] if stream_output else None
     elif model_name in non_hf_types:
+        assert langchain_only_model
         if model_name == 'llama':
             callbacks = [StreamingGradioCallbackHandler()]
             streamer = callbacks[0] if stream_output else None
@@ -847,6 +841,35 @@ def get_llm(use_openai_model=False,
                               context=context,
                               iinput=iinput,
                               )
+    elif hasattr(model, 'is_exlama') and model.is_exlama():
+        assert langchain_only_model
+        callbacks = [StreamingGradioCallbackHandler()]
+        streamer = callbacks[0] if stream_output else None
+        max_max_tokens = tokenizer.model_max_length
+
+        from src.llm_exllama import Exllama
+        llm = Exllama(streaming=stream_output,
+                      model_path=None,
+                      model=model,
+                      lora_path=None,
+                      temperature=temperature,
+                      top_k=top_k,
+                      top_p=top_p,
+                      typical=.7,
+                      beams=1,
+                      # beam_length = 40,
+                      stop_sequences=prompter.stop_sequences,
+                      callbacks=callbacks,
+                      verbose=verbose,
+                      max_seq_len=max_max_tokens,
+                      fused_attn=False,
+                      # alpha_value = 1.0, #For use with any models
+                      # compress_pos_emb = 4.0, #For use with superhot
+                      # set_auto_map = "3, 2" #Gpu split, this will split 3gigs/2gigs
+                      prompter=prompter,
+                      context=context,
+                      iinput=iinput,
+                      )
     else:
         if model is None:
             # only used if didn't pass model in
@@ -1901,6 +1924,7 @@ def _run_qa_db(query=None,
                detect_user_path_changes_every_query=False,
                db_type='faiss',
                model_name=None, model=None, tokenizer=None, inference_server=None,
+               langchain_only_model=False,
                hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
                stream_output=False,
                prompter=None,
@@ -1977,6 +2001,7 @@ def _run_qa_db(query=None,
                                                          model=model,
                                                          tokenizer=tokenizer,
                                                          inference_server=inference_server,
+                                                         langchain_only_model=langchain_only_model,
                                                          stream_output=stream_output,
                                                          do_sample=do_sample,
                                                          temperature=temperature,
@@ -2034,7 +2059,7 @@ def _run_qa_db(query=None,
             yield ret, extra
             return
 
-    if chain is None and model_name not in non_hf_types:
+    if chain is None and model_name not in langchain_only_model:
         # here if no docs at all and not HF type
         # can only return if HF type
         return
@@ -2093,6 +2118,30 @@ def _run_qa_db(query=None,
     return
 
 
+def get_docs_with_score(query, k_db, filter_kwargs, db, db_type, verbose=False):
+    # deal with bug in chroma where if (say) 234 doc chunks and ask for 233+ then fails due to reduction misbehavior
+    docs_with_score = []
+    if db_type == 'chroma':
+        while True:
+            try:
+                docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)
+                break
+            except (RuntimeError, AttributeError) as e:
+                # AttributeError is for people with wrong version of langchain
+                if verbose:
+                    print("chroma bug: %s" % str(e), flush=True)
+                if k_db == 1:
+                    raise
+                if k_db > 10:
+                    k_db -= 10
+                else:
+                    k_db -= 1
+                k_db = max(1, k_db)
+    else:
+        docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)
+    return docs_with_score
+
+
 def get_chain(query=None,
               iinput=None,
               context=None,  # FIXME: https://github.com/hwchase17/langchain/issues/6638
@@ -2103,6 +2152,7 @@ def get_chain(query=None,
               db_type='faiss',
               model_name=None,
               inference_server='',
+              langchain_only_model=False,
               hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
               prompt_type=None,
               prompt_dict=None,
@@ -2128,7 +2178,7 @@ def get_chain(query=None,
               ):
     assert langchain_agents is not None  # should be at least []
     # determine whether use of context out of docs is planned
-    if not use_openai_model and prompt_type not in ['plain'] or model_name in non_hf_types:
+    if not use_openai_model and prompt_type not in ['plain'] or langchain_only_model:
         if langchain_mode in ['Disabled', 'LLM']:
             use_docs_planned = False
         else:
@@ -2193,7 +2243,7 @@ def get_chain(query=None,
     elif langchain_action in [LangChainAction.SUMMARIZE_ALL.value, LangChainAction.SUMMARIZE_MAP.value]:
         none = ['', '\n', None]
         if query in none and iinput in none:
-            prompt_summary = "Using only the text above, write a condensed and concise summary:\n"
+            prompt_summary = "Using only the text above, write a condensed and concise summary of key results (preferably as bullet points):\n"
         elif query not in none:
             prompt_summary = "Focusing on %s, write a condensed and concise Summary:\n" % query
         elif iinput not in None:
@@ -2217,7 +2267,7 @@ def get_chain(query=None,
     else:
         raise RuntimeError("No such langchain_action=%s" % langchain_action)
 
-    if not use_openai_model and prompt_type not in ['plain'] or model_name in non_hf_types:
+    if not use_openai_model and prompt_type not in ['plain'] or langchain_only_model:
         use_template = True
     else:
         use_template = False
@@ -2275,10 +2325,9 @@ def get_chain(query=None,
             # FIXME: if langchain_action == LangChainAction.SUMMARIZE_MAP.value
             # if map_reduce, then no need to auto reduce chunks
             if top_k_docs == -1 or auto_reduce_chunks:
-                # docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:top_k_docs]
                 top_k_docs_tokenize = 100
                 with filelock.FileLock(lock_file):
-                    docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[
+                    docs_with_score = get_docs_with_score(query, k_db, filter_kwargs, db, db_type, verbose=verbose)[
                                       :top_k_docs_tokenize]
                 if hasattr(llm, 'pipeline') and hasattr(llm.pipeline, 'tokenizer'):
                     # more accurate
@@ -2334,7 +2383,8 @@ def get_chain(query=None,
                 docs_with_score = docs_with_score[:top_k_docs]
             else:
                 with filelock.FileLock(lock_file):
-                    docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)[:top_k_docs]
+                    docs_with_score = get_docs_with_score(query, k_db, filter_kwargs, db, db_type, verbose=verbose)[
+                                      :top_k_docs]
             # put most relevant chunks closest to question,
             # esp. if truncation occurs will be "oldest" or "farthest from response" text that is truncated
             # BUT: for small models, e.g. 6_9 pythia, if sees some stuff related to h2oGPT first, it can connect that and not listen to rest
@@ -2351,7 +2401,7 @@ def get_chain(query=None,
         docs = []
         scores = []
 
-    if not docs and use_docs_planned and model_name not in non_hf_types:
+    if not docs and use_docs_planned and not langchain_only_model:
         # if HF type and have no docs, can bail out
         return docs, None, [], False, have_any_docs
 

@@ -20,7 +20,8 @@ loralib==0.1.1
 bitsandbytes==0.39.0
 accelerate==0.20.3
 peft==0.4.0
-transformers==4.31.0
+# 4.31.0+ breaks load_in_8bit=True (https://github.com/huggingface/transformers/issues/25026)
+transformers==4.30.2
 tokenizers==0.13.3
 APScheduler==3.10.1
 
@@ -47,6 +48,7 @@ textstat==0.7.3
 # pandoc==2.3
 pypandoc==1.11; sys_platform == "darwin" and platform_machine == "arm64"
 pypandoc_binary==1.11; platform_machine == "x86_64"
+pypandoc_binary==1.11; sys_platform == "win32"
 openpyxl==3.1.2
 lm_dataformat==0.0.20
 bioc==2.0

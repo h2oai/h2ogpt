@@ -170,7 +170,7 @@ def run_docker(inf_port, base_model):
     p = subprocess.Popen(cmd,
                          stdout=None, stderr=subprocess.STDOUT,
                          )
-    print("Done starting autoviz server", flush=True)
+    print("Done starting TGI server", flush=True)
     return p.pid
 
 
