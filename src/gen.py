@@ -1736,6 +1736,7 @@ def evaluate(
 
     if inference_server.startswith('vllm') or inference_server.startswith('openai') or inference_server.startswith(
             'http'):
+        t_generate = time.time()
         if inference_server.startswith('vllm') or inference_server.startswith('openai'):
             where_from = "openai_client"
             openai, inf_type = set_openai(inference_server)
@@ -1999,9 +2000,15 @@ def evaluate(
             raise RuntimeError("No such inference_server  %s" % inference_server)
 
         if save_dir and text:
+            # estimate using tiktoken
+            ntokens = FakeTokenizer().num_tokens_from_string(text)
             # save prompt + new text
             extra_dict = gen_server_kwargs.copy()
-            extra_dict.update(dict(inference_server=inference_server, num_prompt_tokens=num_prompt_tokens))
+            extra_dict.update(dict(inference_server=inference_server, num_prompt_tokens=num_prompt_tokens,
+                                   t_generate=time.time() - t_generate,
+                                   ntokens=ntokens,
+                                   tokens_persecond=ntokens / (time.time() - t_generate),
+                                   ))
             save_generate_output(prompt=prompt, output=text, base_model=base_model, save_dir=save_dir,
                                  where_from=where_from, extra_dict=extra_dict)
         return
