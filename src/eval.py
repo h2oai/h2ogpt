@@ -10,7 +10,7 @@ from evaluate_params import eval_func_param_names, eval_extra_columns
 from gen import get_context, get_score_model, get_model, evaluate, check_locals
 from prompter import Prompter
 from src.enums import LangChainMode
-from utils import clear_torch_cache, NullContext, get_kwargs
+from utils import clear_torch_cache, NullContext, get_kwargs, makedirs
 
 
 def run_eval(  # for local function:
@@ -115,7 +115,8 @@ def run_eval(  # for local function:
 
     num_examples = len(examples)
     scoring_path = 'scoring'
-    os.makedirs(scoring_path, exist_ok=True)
+    # if no permissions, assume may not want files, put into temp
+    scoring_path = makedirs(scoring_path, tmp_ok=True)
     if eval_as_output:
         used_base_model = 'gpt35'
         used_lora_weights = ''

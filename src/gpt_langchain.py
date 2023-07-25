@@ -90,7 +90,7 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
                                      index_name=index_name)
     elif db_type == 'chroma':
         assert persist_directory is not None
-        os.makedirs(persist_directory, exist_ok=True)
+        makedirs(persist_directory, exist_ok=True)
 
         # see if already actually have persistent db, and deal with possible changes in embedding
         db = get_existing_db(None, persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
@@ -1152,8 +1152,8 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
     elif is_txt:
         base_path = "user_paste"
+        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True)
         source_file = os.path.join(base_path, "_%s" % str(uuid.uuid4())[:10])
-        makedirs(os.path.dirname(source_file), exist_ok=True)
         with open(source_file, "wt") as f:
             f.write(file)
         metadata = dict(source=source_file, date=str(datetime.now()), input_type='pasted txt')
@@ -1400,7 +1400,7 @@ def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True
     if return_file:
         base_tmp = "temp_path_to_doc1"
         if not os.path.isdir(base_tmp):
-            os.makedirs(base_tmp, exist_ok=True)
+            base_tmp = makedirs(base_tmp, exist_ok=True, tmp_ok=True)
         filename = os.path.join(base_tmp, str(uuid.uuid4()) + ".tmp.pickle")
         with open(filename, 'wb') as f:
             pickle.dump(res, f)
@@ -1837,7 +1837,7 @@ def get_documents(db):
     if hasattr(db, '_persist_directory'):
         name_path = os.path.basename(db._persist_directory)
         base_path = 'locks'
-        makedirs(base_path)
+        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True)
         with filelock.FileLock(os.path.join(base_path, "getdb_%s.lock" % name_path)):
             # get segfaults and other errors when multiple threads access this
             return _get_documents(db)
@@ -1862,7 +1862,7 @@ def get_docs_and_meta(db, top_k_docs, filter_kwargs={}):
     if hasattr(db, '_persist_directory'):
         name_path = os.path.basename(db._persist_directory)
         base_path = 'locks'
-        makedirs(base_path)
+        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True)
         with filelock.FileLock(os.path.join(base_path, "getdb_%s.lock" % name_path)):
             return _get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs)
     else:
@@ -2274,7 +2274,7 @@ def get_chain(query=None,
 
     if db and use_docs_planned:
         base_path = 'locks'
-        makedirs(base_path)
+        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True)
         if hasattr(db, '_persist_directory'):
             name_path = "sim_%s.lock" % os.path.basename(db._persist_directory)
         else:

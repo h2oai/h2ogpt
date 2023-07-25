@@ -607,7 +607,7 @@ def main(
     text_limit = None
 
     if offload_folder:
-        makedirs(offload_folder)
+        offload_folder = makedirs(offload_folder, exist_ok=True, tmp_ok=True)
 
     placeholder_instruction, placeholder_input, \
         stream_output, show_examples, \
