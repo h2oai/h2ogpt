@@ -1671,8 +1671,11 @@ def clear_embedding(db):
     if db is None:
         return
     # don't keep on GPU, wastes memory, push back onto CPU and only put back on GPU once again embed
-    db._embedding_function.client.cpu()
-    clear_torch_cache()
+    try:
+        db._embedding_function.client.cpu()
+        clear_torch_cache()
+    except RuntimeError as e:
+        print("clear_embedding error: %s" % ''.join(traceback.format_tb(e.__traceback__)), flush=True)
 
 
 def make_db(**langchain_kwargs):
