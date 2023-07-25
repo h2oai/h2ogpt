@@ -60,6 +60,9 @@ setuptools.setup(
     exclude_package_data={
         'h2ogpt': [
             '**/__pycache__/**',
+            'models/modelling_RW_falcon40b.py',
+            'models/modelling_RW_falcon7b.py',
+            'models/README-template.md'
         ],
     },
     version=version,
