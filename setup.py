@@ -44,7 +44,7 @@ with open(os.path.join(current_directory, 'version.txt'), encoding='utf-8') as f
     version = f.read().strip()
 
 # Data to include
-packages = [p + '/**' for p in find_packages(include='*')]
+packages = [p + '/**' for p in find_packages(include='*',exclude=['tests'])]
 
 setuptools.setup(
     name='h2ogpt',
@@ -54,8 +54,6 @@ setuptools.setup(
     },
     package_data={
         'h2ogpt': list(set([
-            'data/**',
-            'docs/**',
             'spaces/**',
         ] + packages)),
     },
