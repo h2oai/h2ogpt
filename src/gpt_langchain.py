@@ -589,12 +589,12 @@ class H2OOpenAI(OpenAI):
     tokenizer: Any = None
 
     @classmethod
-    def all_required_field_names(cls) -> Set:
-        all_required_field_names = super(OpenAI, cls).all_required_field_names()
-        all_required_field_names.update(
+    def _all_required_field_names(cls) -> Set:
+        _all_required_field_names = super(OpenAI, cls)._all_required_field_names()
+        _all_required_field_names.update(
             {'top_p', 'frequency_penalty', 'presence_penalty', 'stop_sequences', 'sanitize_bot_response', 'prompter',
              'tokenizer'})
-        return all_required_field_names
+        return _all_required_field_names
 
     def _generate(
             self,
@@ -663,10 +663,10 @@ class H2OOpenAI(OpenAI):
 
 class H2OChatOpenAI(ChatOpenAI):
     @classmethod
-    def all_required_field_names(cls) -> Set:
-        all_required_field_names = super(ChatOpenAI, cls).all_required_field_names()
-        all_required_field_names.update({'top_p', 'frequency_penalty', 'presence_penalty'})
-        return all_required_field_names
+    def _all_required_field_names(cls) -> Set:
+        _all_required_field_names = super(ChatOpenAI, cls)._all_required_field_names()
+        _all_required_field_names.update({'top_p', 'frequency_penalty', 'presence_penalty'})
+        return _all_required_field_names
 
 
 def get_llm(use_openai_model=False,
