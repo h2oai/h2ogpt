@@ -593,7 +593,7 @@ class H2OOpenAI(OpenAI):
         _all_required_field_names = super(OpenAI, cls)._all_required_field_names()
         _all_required_field_names.update(
             {'top_p', 'frequency_penalty', 'presence_penalty', 'stop_sequences', 'sanitize_bot_response', 'prompter',
-             'tokenizer'})
+             'tokenizer', 'logit_bias'})
         return _all_required_field_names
 
     def _generate(
@@ -665,7 +665,7 @@ class H2OChatOpenAI(ChatOpenAI):
     @classmethod
     def _all_required_field_names(cls) -> Set:
         _all_required_field_names = super(ChatOpenAI, cls)._all_required_field_names()
-        _all_required_field_names.update({'top_p', 'frequency_penalty', 'presence_penalty'})
+        _all_required_field_names.update({'top_p', 'frequency_penalty', 'presence_penalty', 'logit_bias'})
         return _all_required_field_names
 
 
