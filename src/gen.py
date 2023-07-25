@@ -2013,7 +2013,7 @@ def evaluate(
                                  where_from=where_from, extra_dict=extra_dict)
         return
     else:
-        assert not inference_server, "inferene_server=%s not supported" % inference_server
+        assert not inference_server, "inference_server=%s not supported" % inference_server
 
     if isinstance(tokenizer, str):
         # pipeline

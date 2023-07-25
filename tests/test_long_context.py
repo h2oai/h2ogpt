@@ -1,55 +1,51 @@
 import os
 import pytest
+from transformers import AutoTokenizer
 
 from tests.utils import wrap_test_forked
 from src.enums import LangChainAction
-import tiktoken
+
+encoding = None
 
 
-def num_tokens_from_string(string: str, encoding_name="cl100k_base") -> int:
+def num_tokens_from_string(string: str, model_name=None) -> int:
     """Returns the number of tokens in a text string."""
-    encoding = tiktoken.get_encoding(encoding_name)
+    global encoding
+    if encoding is None:
+        encoding = AutoTokenizer.from_pretrained(model_name)
     num_tokens = len(encoding.encode(string))
     return num_tokens
 
 
-def truncate_to_num_tokens(string: str, num_tokens) -> str:
-    assert num_tokens >= 0
-    assert num_tokens_from_string(string) >= num_tokens, "too short"
-    while num_tokens_from_string(string) > num_tokens:
-        # stupid way, could do bisect etc., but should be fast enough
-        string = string[:-1]
-    assert num_tokens_from_string(string) == num_tokens
-    return string
+import uuid
+SECRET_KEY = str(uuid.uuid4())
+SECRET_VALUE = str(uuid.uuid4())
 
-
-SECRET_KEY = 'UR-LB-AB-DA'  # cannot contain TOP SECRET etc. otherwise safety will kick in
-SECRET_VALUE = '42-ABC-33'
-
-ANSWER_LEN = 100  # give the model some tokens to answer
+ANSWER_LEN = 256  # allow space for answer (same as
 
 
 def get_prompt(before, after):
-    return f"{before}. The value of '{SECRET_KEY}' is '{SECRET_VALUE}'. {after}.\n\nWhat is the value of '{SECRET_KEY}'?"
+    return f"{before}'{SECRET_KEY}' = '{SECRET_VALUE}'\n{after}\n\nWhat is the value of the key '{SECRET_KEY}'?"
 
 
-def create_long_prompt_with_secret(prompt_len=None, secret_pos=None):
+def create_long_prompt_with_secret(prompt_len=None, secret_pos=None, model_name=None):
     import time
     t0 = time.time()
-    extra_len = num_tokens_from_string(get_prompt('', ''))
-    before = "blah " * secret_pos
-    before = truncate_to_num_tokens(before, secret_pos)
-    after = "blah " * (prompt_len - secret_pos - extra_len)
-    after = truncate_to_num_tokens(after, prompt_len - secret_pos - extra_len - ANSWER_LEN)
+    before = "## UUID key/value pairs to remember:\n\n"
+    while num_tokens_from_string(before, model_name) < secret_pos:
+        before += f"'{str(uuid.uuid4())}' = '{str(uuid.uuid4())}'\n"
+    after = ""
+    while num_tokens_from_string(after, model_name) < (prompt_len - secret_pos - ANSWER_LEN):
+        after += f"'{str(uuid.uuid4())}' = '{str(uuid.uuid4())}'\n"
     prompt = get_prompt(before, after)
     assert SECRET_VALUE in prompt
-    assert num_tokens_from_string(prompt) == prompt_len - ANSWER_LEN
+    assert num_tokens_from_string(prompt, model_name) <= prompt_len
     t1 = time.time()
     print("time to create long prompt: %.4f" % (t1-t0))
     return prompt
 
 
-@pytest.mark.parametrize("base_model", ['meta-llama/Llama-2-7b-chat-hf'])
+@pytest.mark.parametrize("base_model", ['meta-llama/Llama-2-13b-chat-hf'])
 @pytest.mark.parametrize("rope_scaling", [
     None,
     # "{'type':'linear', 'factor':2}",
@@ -81,14 +77,14 @@ def test_gradio_long_context(base_model, rope_scaling, prompt_len, rel_secret_po
         pytest.xfail("no chance")
     secret_pos = int(prompt_len * rel_secret_pos)
     main_kwargs = dict(base_model=base_model, chat=True, stream_output=False, gradio=True, num_beams=1,
-                       block_gradio_exit=False, rope_scaling=rope_scaling, use_auth_token=True)
+                       block_gradio_exit=False, rope_scaling=rope_scaling, use_auth_token=True, save_dir="long_context")
     client_port = os.environ['GRADIO_SERVER_PORT'] = "7861"
     from src.gen import main
     main(**main_kwargs)
     from src.client_test import run_client_chat
     os.environ['HOST'] = "http://127.0.0.1:%s" % client_port
 
-    prompt = create_long_prompt_with_secret(prompt_len=prompt_len, secret_pos=secret_pos)
+    prompt = create_long_prompt_with_secret(prompt_len=prompt_len, secret_pos=secret_pos, model_name=base_model)
 
     res_dict, client = run_client_chat(
         prompt=prompt,
