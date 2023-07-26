@@ -38,23 +38,26 @@ https://github.com/h2oai/h2ogpt/assets/2249614/2f805035-2c85-42fb-807f-fd0bca79a
 
 YouTube 4K version: https://www.youtube.com/watch?v=_iktbj4obAI
 
-### Guide:
+### Docs Guide:
 <!--  cat README.md | ./gh-md-toc  -  But Help is heavily processed -->
 * [Supported OS and Hardware](#supported-os-and-hardware)
-* [Compare to PrivateGPT et al.](docs/README_LangChain.md#what-is-h2ogpts-langchain-integration-like)
-* [Roadmap](#roadmap)
-* [Getting Started](#getting-started)
+* Getting Started
    * [Linux (CPU or CUDA)](docs/README_LINUX.md)
    * [MACOS (CPU or M1/M2)](docs/README_MACOS.md)
    * [Windows 10/11 (CPU or CUDA)](docs/README_WINDOWS.md)
-   * [GPU (CUDA, AutoGPTQ, exllama)](docs/README_GPU.md)
-   * [CPU](docs/README_CPU.md)
+   * [GPU (CUDA, AutoGPTQ, exllama) Details](docs/README_GPU.md)
+   * [CPU Details](docs/README_CPU.md)
    * [CLI chat](docs/README_CLI.md)
    * [Gradio UI](docs/README_ui.md)
    * [Client API (Gradio, OpenAI-Compliant)](docs/README_CLIENT.md)
    * [Inference Servers (TGI, vLLM, Gradio)](docs/README_InferenceServers.md)
    * [Python Wheel](docs/README_WHEEL.md)
-   * [Offline Mode](docs/README_offline.md)
+   * [Offline Installation](docs/README_offline.md)
+   * [Low Memory](docs/FAQ.md#low-memory-mode)
+   * [Docker](docs/README_DOCKER.md)
+* [LangChain Document Support](docs/README_LangChain.md)
+* [Compare to PrivateGPT et al.](docs/README_LangChain.md#what-is-h2ogpts-langchain-integration-like)
+* [Roadmap](#roadmap)
 * [Development](#development)
 * [Help](#help)
    * [LangChain file types supported](docs/README_LangChain.md#supported-datatypes)
@@ -65,6 +68,7 @@ YouTube 4K version: https://www.youtube.com/watch?v=_iktbj4obAI
    * [Fine-Tuning](docs/FINETUNE.md)
    * [Docker](docs/INSTALL-DOCKER.md)
    * [Triton](docs/TRITON.md)
+   * [commercially viability](docs/FAQ.md#commercial-viability).
 * [Acknowledgements](#acknowledgements)
 * [Why H2O.ai?](#why-h2oai)
 * [Disclaimer](#disclaimer)
@@ -91,36 +95,6 @@ GPU and CPU mode tested on variety of NVIDIA GPUs in Ubuntu 18-22, but any moder
 - Enhance the model's code completion, reasoning, and mathematical capabilities, ensure factual correctness, minimize hallucinations, and avoid repetitive output
 - Add other tools like search
 - Add agents for SQL and CSV question/answer
-
-## Getting Started
-
-See [Linux Instructions](docs/README_LINUX.md) for Linux x86_64 on Ubuntu.
-
-See [Windows 10/11 Instructions](docs/README_WINDOWS.md) for Windows 10/11.
-
-See [MACOS Instructions](docs/README_MACOS.md#macos) for MACOS.
-
-Once all files are downloaded, the CLI and UI can be run in [offline mode](docs/README_offline.md).
-
-See [Help with UI](docs/README_ui.md) to get get help with the UI.
-
-#### Run h2oGPT using Docker
-1. Make sure Docker & Nvidia Containers are setup correctly by following instructions [here](docs/INSTALL-DOCKER.md).
-
-2. Specify the required model using `HF_MODEL` parameter.
-    All open-source models are posted on [🤗 H2O.ai's Hugging Face page](https://huggingface.co/h2oai/).
-    ```bash
-    docker run \
-      --runtime=nvidia --shm-size=64g \
-      -e HF_MODEL=h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b \
-      -p 8888:8888 -p 7860:7860 \
-      --rm --init \
-      -v `pwd`/h2ogpt_env:/h2ogpt_env \
-      gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0
-    ```
-3. Navigate to http://localhost:7860/  & start using h2oGPT.
-
-To run h2oGPT with custom entrypoint, refer [here](docs/INSTALL-DOCKER.md).
 
 ### Development
 
