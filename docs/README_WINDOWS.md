@@ -1,20 +1,19 @@
-### Windows 10/11
+# Windows 10/11
 
-Follow these steps:
-1. Install Visual Studio 2022 (requires newer windows versions of 10/11) with following selected:
+## Installation
+* Install Visual Studio 2022 (requires newer windows versions of 10/11) with following selected:
    * Windows 11 SDK
    * C++ Universal Windows Platform support for development
    * MSVC VS 2022 C++ x64/x86 build tools
    * C++ CMake tools for Windows
-2. Download the MinGW installer from the [MinGW website](https://sourceforge.net/projects/mingw/) and select, go to installation tab, then apply changes:
+* Download the MinGW installer from the [MinGW website](https://sourceforge.net/projects/mingw/) and select, go to installation tab, then apply changes:
    * minigw32-base
    * mingw32-gcc-g++
-3. Download and install [Miniconda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/windows.html) and Run Miniconda shell (not power shell) as administrator
-4. Run: `set path=%path%;c:\MinGW\msys\1.0\bin\` to get C++ in path
-5. Download latest nvidia driver for windows
-6. Confirm can run `nvidia-smi` and see driver version
-7. Run: `wsl --install`
-8. Setup Conda Environment:
+* Download and install [Miniconda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/windows.html) and Run Miniconda shell (not power shell) as administrator
+* Run: `set path=%path%;c:\MinGW\msys\1.0\bin\` to get C++ in path
+* Download latest nvidia driver for windows
+* Confirm can run `nvidia-smi` and see driver version
+* Setup Conda Environment:
    ```bash
     conda create -n h2ogpt -y
     conda activate h2ogpt
@@ -25,7 +24,7 @@ Follow these steps:
     git clone https://github.com/h2oai/h2ogpt.git
     cd h2ogpt
     ```
-9. Install dependencies.
+* Install dependencies.
 
     For CPU:
     ```bash
@@ -35,12 +34,12 @@ Follow these steps:
     ```bash
    pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cu118
     ```
-10. For GPU, install bitsandbytes 4-bit and 8-bit:
+* For GPU, install bitsandbytes 4-bit and 8-bit:
     ```bash
     pip uninstall bitsandbytes
     pip install https://github.com/jllllll/bitsandbytes-windows-webui/releases/download/wheels/bitsandbytes-0.40.1.post1-py3-none-win_amd64.whl
     ```
-11. Install optional document Q/A dependencies
+* Install optional document Q/A dependencies
     ```bash
     pip install -r reqs_optional/requirements_optional_langchain.txt
     pip install -r reqs_optional/requirements_optional_gpt4all.txt
@@ -51,28 +50,41 @@ Follow these steps:
     ```bash
     python -m nltk.downloader all
     ```
-12. For supporting Word and Excel documents, if you don't have Word/Excel already, then download and install libreoffice: https://www.libreoffice.org/download/download-libreoffice/ . To support OCR, download and install [tesseract](https://github.com/UB-Mannheim/tesseract/wiki), see also: [Tesseract Documentation](https://tesseract-ocr.github.io/tessdoc/Installation.html).  Please add the installation directories to your PATH.
-13. Install optional AutoGPTQ dependency:
+* For supporting Word and Excel documents, if you don't have Word/Excel already, then download and install libreoffice: https://www.libreoffice.org/download/download-libreoffice/ . To support OCR, download and install [tesseract](https://github.com/UB-Mannheim/tesseract/wiki), see also: [Tesseract Documentation](https://tesseract-ocr.github.io/tessdoc/Installation.html).  Please add the installation directories to your PATH.
+* Install optional AutoGPTQ dependency:
     ```bash
     pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.3.0/auto_gptq-0.3.0+cu118-cp310-cp310-win_amd64.whl
     ```
-14. Run h2oGPT for chat only:
-    ```bash
-    python generate.py --base_model=h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b --score_model=None
-    ```
-    For document Q/A with UI using CPU:
-    ```bash
-    python generate.py --base_model='llama' --prompt_type=wizard2 --score_model=None --langchain_mode='UserData' --user_path=user_path
-    ```
-    For document Q/A with UI using GPU:
-    ```bash
-    python generate.py --base_model=h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b --langchain_mode=UserData --score_model=None
-    ```
+* GPU Only: Compile llama-cpp-python with CUDA support:
+  ```bash
+  pip uninstall -y llama-cpp-python
+  export LLAMA_CUBLAS=1
+  export CMAKE_ARGS=-DLLAMA_CUBLAS=on
+  export FORCE_CMAKE=1
+  CMAKE_ARGS="-DLLAMA_CUBLAS=on" FORCE_CMAKE=1 pip install llama-cpp-python==0.1.68 --no-cache-dir --verbose
+  ```
+   and uncomment `# n_gpu_layers=20` in `.env_gpt4all`.  One can try also `40` instead of `20`.  If one sees `/usr/bin/nvcc` mentioned in errors, that file needs to be removed as would likely conflict with version installed for conda.  
+   Note that once `llama-cpp-python` is compiled to support CUDA, it no longer works for CPU mode,
+   so one would have to reinstall it without the above options to recovers CPU mode or have a separate h2oGPT env for CPU mode.
+
+---
+
+## Run
+   For document Q/A with UI using CPU:
+   ```bash
+   python generate.py --base_model='llama' --prompt_type=wizard2 --score_model=None --langchain_mode='UserData' --user_path=user_path
+   ```
+   For document Q/A with UI using GPU:
+   ```bash
+   python generate.py --base_model=h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b --langchain_mode=UserData --score_model=None
+   ```
 For the above, ignore the CLI output saying `0.0.0.0`, and instead point browser at http://localhost:7860 (for windows/mac) or the public live URL printed by the server (disable shared link with `--share=False`).
 
 See [CPU](README_CPU.md) and [GPU](README_GPU.md) for some other general aspects about using h2oGPT on CPU or GPU, such as which models to try.
 
 ---
+
+## Issues
 
 When running windows on GPUs with bitsandbytes you should see something like:
 ```bash

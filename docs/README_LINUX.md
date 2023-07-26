@@ -41,6 +41,17 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
   ```
   On some systems, `pip` still refers back to the system one, then one can use `python -m pip` or `pip3` instead of `pip` or try `python3` instead of `python`.
 
+* For GPU: Install CUDA ToolKit with ability to compile using nvcc for some packages like llama-cpp-python, AutoGPTQ, and exllama:
+  ```bash
+  conda install -c "nvidia/label/cuda-12.1.1" cuda-toolkit
+  conda install cudatoolkit-dev
+  export CUDA_HOME=$CONDA_PREFIX 
+  ```
+  or if you prefer follow [CUDA Toolkit](INSTALL.md#installing-cuda-toolkit), then do:
+  ```bash
+  export CUDA_HOME=/usr/local/cuda-11.8 
+  ```
+
 * Install dependencies:
     ```bash
     git clone https://github.com/h2oai/h2ogpt.git
@@ -70,57 +81,83 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     # Optional: for supporting unstructured package
     python -m nltk.downloader all
     # Optional: For AutoGPTQ support on x86_64 linux
-    pip uninstall -y auto-gptq ; CUDA_HOME=/usr/local/cuda-11.8  GITHUB_ACTIONS=true pip install auto-gptq --no-cache-dir
+    pip uninstall -y auto-gptq ; GITHUB_ACTIONS=true pip install auto-gptq --no-cache-dir
     # Optional: For exllama support on x86_64 linux
     pip uninstall -y exllama ; pip install https://github.com/jllllll/exllama/releases/download/0.0.8/exllama-0.0.8+cu118-cp310-cp310-linux_x86_64.whl --no-cache-dir
     ```
-    See [AutoGPTQ](docs/README_GPU.md#autogptq) for more details for AutoGPTQ and other GPU installation aspects.
+    See [AutoGPTQ](README_GPU.md#autogptq) for more details for AutoGPTQ and other GPU installation aspects.
     
-    See [exllama](docs/README_GPU.md#) for more details for AutoGPTQ and other GPU installation aspects.
+    See [exllama](README_GPU.md#exllama) for more details for AutoGPTQ and other GPU installation aspects.
 
 * To avoid unauthorized telemetry, which document options still do not disable, run:
     ```bash
     sp=`python -c 'import site; print(site.getsitepackages()[0])'`
     sed -i 's/posthog\.capture/return\n            posthog.capture/' $sp/chromadb/telemetry/posthog.py
     ```
+* GPU Only: Compile llama-cpp-python with CUDA support:
+  ```bash
+  pip uninstall -y llama-cpp-python
+  export LLAMA_CUBLAS=1
+  export CMAKE_ARGS=-DLLAMA_CUBLAS=on
+  export FORCE_CMAKE=1
+  CMAKE_ARGS="-DLLAMA_CUBLAS=on" FORCE_CMAKE=1 pip install llama-cpp-python==0.1.68 --no-cache-dir --verbose
+  ```
+   and uncomment `# n_gpu_layers=20` in `.env_gpt4all`.  One can try also `40` instead of `20`.  If one sees `/usr/bin/nvcc` mentioned in errors, that file needs to be removed as would likely conflict with version installed for conda.  
+   Note that once `llama-cpp-python` is compiled to support CUDA, it no longer works for CPU mode,
+   so one would have to reinstall it without the above options to recovers CPU mode or have a separate h2oGPT env for CPU mode.
 
 ---
 
 ## Run
 
-Place all documents in `user_path` or upload in UI ([Help with UI](docs/README_ui.md)).
+* Check that can see CUDA from Torch:
+   ```python
+   import torch
+   print(torch.cuda.is_available())
+   ```
+    should print True.
 
-UI using GPU with at least 24GB with streaming:
-```bash
-python generate.py --base_model=h2oai/h2ogpt-oasst1-512-12b --load_8bit=True  --score_model=None --langchain_mode='UserData' --user_path=user_path
-```
-UI using LLaMa.cpp model:
-```bash
-wget https://huggingface.co/TheBloke/WizardLM-7B-uncensored-GGML/resolve/main/WizardLM-7B-uncensored.ggmlv3.q8_0.bin
-python generate.py --base_model='llama' --prompt_type=wizard2 --score_model=None --langchain_mode='UserData' --user_path=user_path
-```
-which works on CPU or GPU (assuming llama cpp python package compiled against CUDA or Metal).
+* Place all documents in `user_path` or upload in UI ([Help with UI](docs/README_ui.md)).
 
-If using OpenAI for the LLM is ok, but you want documents to be parsed and embedded locally, then do:
-```bash
-python generate.py  --inference_server=openai_chat --base_model=gpt-3.5-turbo --score_model=None
-```
-and perhaps you want better image caption performance and focus local GPU on that, then do:
-```bash
-python generate.py  --inference_server=openai_chat --base_model=gpt-3.5-turbo --score_model=None --captions_model=Salesforce/blip2-flan-t5-xl
-```
+  UI using GPU with at least 24GB with streaming:
+  ```bash
+  python generate.py --base_model=h2oai/h2ogpt-oasst1-512-12b --load_8bit=True  --score_model=None --langchain_mode='UserData' --user_path=user_path
+  ```
+  UI using LLaMa.cpp model:
+  ```bash
+  wget https://huggingface.co/TheBloke/WizardLM-7B-uncensored-GGML/resolve/main/WizardLM-7B-uncensored.ggmlv3.q8_0.bin
+  python generate.py --base_model='llama' --prompt_type=wizard2 --score_model=None --langchain_mode='UserData' --user_path=user_path
+  ```
+  which works on CPU or GPU (assuming llama cpp python package compiled against CUDA or Metal).
 
-Add `--share=True` to make gradio server visible via sharable URL.  If you see an error about protobuf, try:
-```bash
-pip install protobuf==3.20.0
-```
+  If using OpenAI for the LLM is ok, but you want documents to be parsed and embedded locally, then do:
+  ```bash
+  python generate.py  --inference_server=openai_chat --base_model=gpt-3.5-turbo --score_model=None
+  ```
+  and perhaps you want better image caption performance and focus local GPU on that, then do:
+  ```bash
+  python generate.py  --inference_server=openai_chat --base_model=gpt-3.5-turbo --score_model=None --captions_model=Salesforce/blip2-flan-t5-xl
+  ```
+  
+  Add `--share=True` to make gradio server visible via sharable URL.
+ 
+  If you see an error about protobuf, try:
+  ```bash
+  pip install protobuf==3.20.0
+  ```
 
 See [CPU](README_CPU.md) and [GPU](README_GPU.md) for some other general aspects about using h2oGPT on CPU or GPU, such as which models to try.
 
 #### Google Colab
 
-A Google Colab version of a 7B LLaMa CPU model is at:
+* A Google Colab version of a 3B GPU model is at:
 
-[![](https://colab.research.google.com/assets/colab-badge.svg) h2oGPT CPU](https://colab.research.google.com/drive/13RiBdAFZ6xqDwDKfW6BG_-tXfXiqPNQe?usp=sharing)
+  [![](https://colab.research.google.com/assets/colab-badge.svg) h2oGPT GPU](https://colab.research.google.com/drive/143-KFHs2iCqXTQLI2pFCDiR69z0dR8iE?usp=sharing)
 
-A local copy of that CPU Google Colab is [h2oGPT_CPU.ipynb](h2oGPT_CPU.ipynb).
+  A local copy of that GPU Google Colab is [h2oGPT_GPU.ipynb](h2oGPT_GPU.ipynb).
+
+* A Google Colab version of a 7B LLaMa CPU model is at:
+
+  [![](https://colab.research.google.com/assets/colab-badge.svg) h2oGPT CPU](https://colab.research.google.com/drive/13RiBdAFZ6xqDwDKfW6BG_-tXfXiqPNQe?usp=sharing)
+
+  A local copy of that CPU Google Colab is [h2oGPT_CPU.ipynb](h2oGPT_CPU.ipynb).

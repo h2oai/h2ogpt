@@ -1,42 +1,8 @@
-### GPU
+# GPU Details
 
-GPU via CUDA is supported via Hugging Face type models and LLaMa.cpp models.
+Hugging Face type models and LLaMa.cpp models are supported via CUDA on linux and via MPS on MACOS. 
 
-#### Google Colab
-
-A Google Colab version of a 3B GPU model is at:
-
-[![](https://colab.research.google.com/assets/colab-badge.svg) h2oGPT GPU](https://colab.research.google.com/drive/143-KFHs2iCqXTQLI2pFCDiR69z0dR8iE?usp=sharing)
-
-A local copy of that GPU Google Colab is [h2oGPT_GPU.ipynb](h2oGPT_GPU.ipynb).
-
----
-
-#### GPU (CUDA)
-
-For help installing cuda toolkit, see [CUDA Toolkit](INSTALL.md#installing-cuda-toolkit).
-
-```bash
-git clone https://github.com/h2oai/h2ogpt.git
-cd h2ogpt
-pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cu118
-pip install -r reqs_optional/requirements_optional_langchain.txt
-pip install -r reqs_optional/requirements_optional_gpt4all.txt
-pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt
-pip install -r reqs_optional/requirements_optional_langchain.urls.txt
-# Optional: support docx, pptx, ArXiv, etc.
-sudo apt-get install -y libmagic-dev poppler-utils tesseract-ocr libtesseract-dev libreoffice
-# Optional: for supporting unstructured package
-python -m nltk.downloader all
-```
-then check that can see CUDA from Torch:
-```python
-import torch
-print(torch.cuda.is_available())
-```
-should print True.
-
-To run in ChatBot mode, do:
+To run in ChatBot mode using bitsandbytes in 8-bit, do:
 ```bash
 python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b --load_8bit=True
 ```
@@ -124,38 +90,12 @@ python generate.py --base_model=TheBloke/Nous-Hermes-Llama2-GPTQ --load_gptq="gp
 ```
 and note the different `prompt_type`.
 
----
-
-#### GPU with LLaMa
-
-* Install langchain, and GPT4All, and python LLaMa dependencies:
-```bash
-pip install -r reqs_optional/requirements_optional_langchain.txt
-pip install -r reqs_optional/requirements_optional_gpt4all.txt
-```
-then compile llama-cpp-python with CUDA support:
-```bash
-conda install -c "nvidia/label/cuda-12.1.1" cuda-toolkit  # maybe optional
-pip uninstall -y llama-cpp-python
-export LLAMA_CUBLAS=1
-export CMAKE_ARGS=-DLLAMA_CUBLAS=on
-export FORCE_CMAKE=1
-export CUDA_HOME=$HOME/miniconda3/envs/h2ogpt
-CMAKE_ARGS="-DLLAMA_CUBLAS=on" FORCE_CMAKE=1 pip install llama-cpp-python==0.1.68 --no-cache-dir --verbose
-```
-and uncomment `# n_gpu_layers=20` in `.env_gpt4all`, one can try also `40` instead of `20`.  If one sees `/usr/bin/nvcc` mentioned in errors, that file needs to be removed as would likely conflict with version installed for conda.  Then run:
+For LLaMa.cpp on GPU run:
 ```bash
 python generate.py --base_model='llama' --prompt_type=wizard2 --score_model=None --langchain_mode='UserData' --user_path=user_path
 ```
-when loading you should see something like:
+and ensure output shows:
 ```text
-Using Model llama
-Prep: persist_directory=db_dir_UserData exists, user_path=user_path passed, adding any changed or new documents
-load INSTRUCTOR_Transformer
-max_seq_length  512
-0it [00:00, ?it/s]
-0it [00:00, ?it/s]
-Loaded 0 sources for potentially adding to UserData
 ggml_init_cublas: found 2 CUDA devices:
   Device 0: NVIDIA GeForce RTX 3090 Ti
   Device 1: NVIDIA GeForce RTX 2080
@@ -180,10 +120,4 @@ llama_model_load_internal: offloading 20 repeating layers to GPU
 llama_model_load_internal: offloaded 20/35 layers to GPU
 llama_model_load_internal: total VRAM used: 4470 MB
 llama_new_context_with_model: kv self size  =  896.00 MB
-AVX = 1 | AVX2 = 1 | AVX512 = 0 | AVX512_VBMI = 0 | AVX512_VNNI = 0 | FMA = 1 | NEON = 0 | ARM_FMA = 0 | F16C = 1 | FP16_VA = 0 | WASM_SIMD = 0 | BLAS = 1 | SSE3 = 1 | VSX = 0 | 
-Model {'base_model': 'llama', 'tokenizer_base_model': '', 'lora_weights': '', 'inference_server': '', 'prompt_type': 'wizard2', 'prompt_dict': {'promptA': 'Below is an instruction that describes a task. Write a response that appropriately completes the request.', 'promptB': 'Below is an instruction that describes a task. Write a response that appropriately completes the request.', 'PreInstruct': '\n### Instruction:\n', 'PreInput': None, 'PreResponse': '\n### Response:\n', 'terminate_response': ['\n### Response:\n'], 'chat_sep': '\n', 'chat_turn_sep': '\n', 'humanstr': '\n### Instruction:\n', 'botstr': '\n### Response:\n', 'generates_leading_space': False}}
-Running on local URL:  http://0.0.0.0:7860
-Running on public URL: https://1ccb24d03273a3d085.gradio.live
 ```
-and GPU usage when using.  Note that once `llama-cpp-python` is compiled to support CUDA, it no longer works for CPU mode,
-so one would have to reinstall it without the above options to recovers CPU mode or have a separate h2oGPT env for CPU mode.
