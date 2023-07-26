@@ -1,19 +1,32 @@
 # Windows 10/11
 
+For newer builds of windows versions of 10/11.
+
 ## Installation
-* Install Visual Studio 2022 (requires newer windows versions of 10/11) with following selected:
-   * Windows 11 SDK
-   * C++ Universal Windows Platform support for development
-   * MSVC VS 2022 C++ x64/x86 build tools
-   * C++ CMake tools for Windows
-* Download the MinGW installer from the [MinGW website](https://sourceforge.net/projects/mingw/) and select, go to installation tab, then apply changes:
-   * minigw32-base
-   * mingw32-gcc-g++
-* Download and install [Miniconda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/windows.html) and Run Miniconda shell (not power shell) as administrator
+* Download Visual Studio 2022: [Download Link](https://visualstudio.microsoft.com/vs/community/)
+  * Run Installer, click ok to run, click Continue
+  * Click on `Individual Components`
+  * Search for these ins earch bar and click on them
+     * `Windows 11 SDK` (e.g. 10.0.22000.0)
+     * `C++ Universal Windows Platform support` (e.g. for v143 build tools)
+     * `MSVC VS 2022 C++ x64/x86 build tools` (latest)
+     * `C++ CMake tools for Windows`
+     * ![vs2022small.png](vs2022small.png)
+  * Click Install, and follow through installation, and do not need to launch VS 2022 at end.
+* Download the MinGW installer: [MiniGW](https://sourceforge.net/projects/mingw/)
+  * Run Installer, Click Install, Continue, Install/Run to launch installation manager.
+  * Select packages to install:
+     * minigw32-base
+     * mingw32-gcc-g++
+     * ![minigw32small.png](minigw32small.png)
+  * Go to installation tab, then apply changes.
+* Download and install [Miniconda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/windows.html)
+* Run Miniconda shell (not power shell!) as Administrator
 * Run: `set path=%path%;c:\MinGW\msys\1.0\bin\` to get C++ in path
-* Download latest nvidia driver for windows
+* Download latest nvidia driver for windows if have old drivers before CUDA 11.7 supported
 * Confirm can run `nvidia-smi` and see driver version
 * Setup Conda Environment:
+    * ![minicondashellsmall.png](minicondashellsmall.png)
    ```bash
     conda create -n h2ogpt -y
     conda activate h2ogpt
@@ -141,33 +154,22 @@
     n_gqa=8
     ```
     See [LLaMa.cpp Instructions](https://pypi.org/project/llama-cpp-python/) for more details.
-
 * To use Hugging Face type models (faster on GPU than LLaMa.cpp if one has a powerful GPU with enough memory):
    ```bash
    python generate.py --base_model=h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v3 --langchain_mode=UserData --score_model=None
    ```
+* To use Hugging Face type models in 8-bit do:
+   ```bash
+   python generate.py --base_model=h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v3 --langchain_mode=UserData --score_model=None --load_8bit=True
+   ```
+  When running windows on GPUs with bitsandbytes in 8-bit you should see something like the below in output:
+  ```bash
+  bin C:\Users\pseud\.conda\envs\h2ogpt\lib\site-packages\bitsandbytes\libbitsandbytes_cuda117.dll
+  ```
+  * You can confirm GPU use via `nvidia-smi` showing GPU memory consumed.
+
+  * Note 8-bit inference is about twice slower than 16-bit inference, and the only use of 8-bit is to keep memory profile low.
+
+  * Bitsandbytes can be uninstalled (`pip uninstall bitsandbytes`) and still h2oGPT can be used if one does not pass `--load_8bit=True`.
 
 See [CPU](README_CPU.md) and [GPU](README_GPU.md) for some other general aspects about using h2oGPT on CPU or GPU, such as which models to try, quantization, etc.
-
----
-
-## Issues
-
-When running windows on GPUs with bitsandbytes you should see something like:
-```bash
-(h2ogpt) c:\Users\pseud\h2ogpt>python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b --load_8bit=True
-bin C:\Users\pseud\.conda\envs\h2ogpt\lib\site-packages\bitsandbytes\libbitsandbytes_cuda118.dll
-Using Model h2oai/h2ogpt-oig-oasst1-512-6_9b
-device_map: {'': 0}
-Loading checkpoint shards: 100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 3/3 [00:06<00:00,  2.16s/it]
-device_map: {'': 1}
-Running on local URL:  http://0.0.0.0:7860
-Running on public URL: https://f8fa95f123416c72dc.gradio.live
-
-This share link expires in 72 hours. For free permanent hosting and GPU upgrades (NEW!), check out Spaces: https://huggingface.co/spaces
-```
-where bitsandbytes cuda118 was used because conda cuda toolkit is cuda 11.7.  You can confirm GPU use via `nvidia-smi` showing GPU memory consumed.
-
-Note 8-bit inference is about twice slower than 16-bit inference, and the only use of 8-bit is to keep memory profile low.
-
-Bitsandbytes can be uninstalled (`pip uninstall bitsandbytes`) and still h2oGPT can be used if one does not pass `--load_8bit=True`.
