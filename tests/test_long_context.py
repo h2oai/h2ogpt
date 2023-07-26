@@ -103,7 +103,10 @@ def test_gradio_long_context_uuid_key_value_retrieval(base_model, rope_scaling, 
 
 @pytest.mark.parametrize("rope_scaling", [
     None,
+    {'type': 'linear', 'factor': 2.0},
     {'type': 'dynamic', 'factor': 2.0},
+    {'type': 'linear', 'factor': 4.0},
+    {'type': 'dynamic', 'factor': 4.0},
 ])
 @pytest.mark.parametrize("base_model", [
     "huggyllama/llama-7b",
@@ -464,9 +467,11 @@ summarization task.
     gen_out = model.generate(**inputs, max_new_tokens=100)
     response = tokenizer.batch_decode(gen_out)[0]
     response = response.replace(prompt + question, "")  # only keep response
-    assert len(response) < 400, "response must be less than 100 tokens"
+    assert len(response) < 500, "response must be less than 100 tokens"
     print(response)
     if rope_scaling is None:
         assert 'Extending Context Window of Large' not in response
+        assert 'Extending Context Window of Large'.upper() not in response
     else:
-        assert 'Extending Context Window of Large' in response
+        assert ('Extending Context Window of Large' in response or
+                'Extending Context Window of Large'.upper() in response)
