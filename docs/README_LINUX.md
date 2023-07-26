@@ -105,11 +105,6 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     ```
     See [exllama](README_GPU.md#exllama) about running exllama models.
 
-* To avoid unauthorized telemetry, which document options still do not disable, run:
-    ```bash
-    sp=`python -c 'import site; print(site.getsitepackages()[0])'`
-    sed -i 's/posthog\.capture/return\n            posthog.capture/' $sp/chromadb/telemetry/posthog.py
-    ```
 * GPU Optional: Support LLaMa.cpp with CUDA:
   * Download/Install [CUDA llama-cpp-python wheel](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels), E.g.:
     ```bash

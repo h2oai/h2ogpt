@@ -52,8 +52,9 @@ fix_pydantic_duplicate_validators_error()
 
 from enums import DocumentSubset, no_model_str, no_lora_str, no_server_str, LangChainAction, LangChainMode, \
     DocumentChoice, langchain_modes_intrinsic
-from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, get_dark_js, spacing_xsm, radius_xsm, \
-    text_xsm
+from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title,\
+    get_dark_js, get_heap_js, wrap_js_to_lambda,\
+    spacing_xsm, radius_xsm, text_xsm
 from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt_type_to_model_lower, non_hf_types, \
     get_prompt
 from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
@@ -128,6 +129,9 @@ def go_gradio(**kwargs):
     langchain_modes0 = kwargs['langchain_modes']
     visible_langchain_modes0 = kwargs['visible_langchain_modes']
     langchain_mode_paths0 = kwargs['langchain_mode_paths']
+    # For Heap analytics
+    is_heap_analytics_enabled = kwargs['enable_heap_analytics']
+    heap_app_id = kwargs['heap_app_id']
 
     # easy update of kwargs needed for evaluate() etc.
     queue = True
@@ -1368,7 +1372,7 @@ def go_gradio(**kwargs):
             None,
             None,
             None,
-            _js=get_dark_js(),
+            _js=wrap_js_to_lambda(get_dark_js()),
             api_name="dark" if allow_api else None,
             queue=False,
         )
@@ -2567,7 +2571,10 @@ def go_gradio(**kwargs):
                        ,
                        queue=False, api_name='stop' if allow_api else None).then(clear_torch_cache, queue=False)
 
-        demo.load(None, None, None, _js=get_dark_js() if kwargs['dark'] else None)
+        app_js = wrap_js_to_lambda(
+            get_dark_js(),
+            get_heap_js(heap_app_id) if is_heap_analytics_enabled else None)
+        demo.load(None, None, None, _js=app_js)
 
     demo.queue(concurrency_count=kwargs['concurrency_count'], api_open=kwargs['api_open'])
     favicon_path = "h2o-logo.svg"
