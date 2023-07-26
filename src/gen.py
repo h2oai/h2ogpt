@@ -288,6 +288,8 @@ def main(
     :param max_max_time: Maximum max_time for gradio slider
     :param max_max_new_tokens: Maximum max_new_tokens for gradio slider
     :param sanitize_user_prompt: whether to remove profanity from user input (slows down input processing)
+      Requires optional packages:
+      pip install alt-profanity-check==1.2.2 better-profanity==0.7.0
     :param sanitize_bot_response: whether to remove profanity and repeat lines from bot output (about 2x slower generation for long streaming cases due to better_profanity being slow)
     :param extra_model_options: extra models to show in list in gradio
     :param extra_lora_options: extra LORA to show in list in gradio
