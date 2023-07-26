@@ -30,27 +30,8 @@ Any other instruct-tuned base models can be used, including non-h2oGPT ones.  [L
 
 ##### AutoGPTQ
 
-To support [AutoGPTQ](https://github.com/PanQiWei/AutoGPTQ) models, run:
-```bash
-pip install auto-gptq[triton]
-```
-although to avoid building the package you can run the [specific version](https://github.com/PanQiWei/AutoGPTQ/releases), e.g.
-```bash
-pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.3.0/auto_gptq-0.3.0+cu117-cp310-cp310-linux_x86_64.whl
-```
-However, if one sees issues like `CUDA extension not installed.` mentioned during loading of model, need to recompile,
-because, otherwise, the generation will be much slower even if uses GPU.  If you have CUDA 11.7 installed from NVIDIA, run:
-```bash
-pip uninstall -y auto-gptq ; CUDA_HOME=/usr/local/cuda-11.7 GITHUB_ACTIONS=true pip install auto-gptq --no-cache-dir
-```
-If one used conda cudatoolkit:
-```bash
-conda install -c conda-forge cudatoolkit-dev
-```
-then use that location instead:
-```bash
-pip uninstall -y auto-gptq ; CUDA_HOME=$CONDA_PREFIX GITHUB_ACTIONS=true pip install auto-gptq --no-cache-dir
-```
+Important: If run below commands and see `CUDA extension not installed` mentioned during loading of model, need to recompile, because, otherwise, the generation will be much slower even if it uses GPU.
+
 An example with AutoGPTQ is:
 ```bash
 python generate.py --base_model=TheBloke/Nous-Hermes-13B-GPTQ --score_model=None --load_gptq=nous-hermes-13b-GPTQ-4bit-128g.no-act.order --use_safetensors=True --prompt_type=instruct --langchain_mode=UserData

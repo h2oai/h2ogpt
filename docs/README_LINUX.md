@@ -84,15 +84,21 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     sudo apt-get install -y libmagic-dev poppler-utils tesseract-ocr libtesseract-dev libreoffice
     # Optional: for supporting unstructured package
     python -m nltk.downloader all
-    # Optional: For AutoGPTQ support on x86_64 linux
-    # Recommend to install from source to avoid warnings and inefficient memory usage
+* GPU Optional: For AutoGPTQ support on x86_64 linux
+    ```bash
     pip uninstall -y auto-gptq ; GITHUB_ACTIONS=true pip install auto-gptq --no-cache-dir
-    # Optional: For exllama support on x86_64 linux
+    ```
+   We recommend to install like the above in order to avoid warnings and inefficient memory usage. If one has trouble installing AutoGPTQ, can try:
+   ```bash
+   pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.3.0/auto_gptq-0.3.0+cu117-cp310-cp310-linux_x86_64.whl
+   ```
+    However, if one sees `CUDA extension not installed` in output after loading model, one needs to compile it, else will use double memory and be slower on GPU.
+    See [AutoGPTQ](README_GPU.md#autogptq) about running AutoGPT models.
+* GPU Optional: For exllama support on x86_64 linux
+    ```bash
     pip uninstall -y exllama ; pip install https://github.com/jllllll/exllama/releases/download/0.0.8/exllama-0.0.8+cu118-cp310-cp310-linux_x86_64.whl --no-cache-dir
     ```
-    See [AutoGPTQ](README_GPU.md#autogptq) for more details for AutoGPTQ and other GPU installation aspects.
-    
-    See [exllama](README_GPU.md#exllama) for more details for AutoGPTQ and other GPU installation aspects.
+    See [exllama](README_GPU.md#exllama) about running exllama models.
 
 * To avoid unauthorized telemetry, which document options still do not disable, run:
     ```bash
