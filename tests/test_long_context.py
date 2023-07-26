@@ -101,19 +101,24 @@ def test_gradio_long_context_uuid_key_value_retrieval(base_model, rope_scaling, 
     print("DONE", flush=True)
 
 
-@pytest.mark.parametrize("rope_scaling", [
-    None,
-    {'type': 'linear', 'factor': 2.0},
-    {'type': 'dynamic', 'factor': 2.0},
-    {'type': 'linear', 'factor': 4.0},
-    {'type': 'dynamic', 'factor': 4.0},
+@pytest.mark.parametrize("type", [
+    None, 'linear', 'dynamic',
+])
+@pytest.mark.parametrize("factor", [
+    1.0, 2.0, 4.0
 ])
 @pytest.mark.parametrize("base_model", [
     "huggyllama/llama-7b",
     "meta-llama/Llama-2-7b-chat-hf"
 ])
 @wrap_test_forked
-def test_huggyllama_transformers_pr(base_model, rope_scaling):
+def test_huggyllama_transformers_pr(base_model, type, factor):
+    if type is None and factor > 1.0:
+        pytest.xfail('no point')
+    if type and factor == 1.0:
+        pytest.xfail('no point')
+    rope_scaling = {'type': type, 'factor': factor} if type else None
+
     # https://github.com/huggingface/transformers/pull/24653#issue-1788278122
     from transformers import AutoModelForCausalLM, AutoTokenizer
     tokenizer = AutoTokenizer.from_pretrained(base_model)
