@@ -1,8 +1,8 @@
-## MACOS
+# MACOS
 
 Supports CPU and MPS (Metal M1/M2).
 
-## Install:
+## Install
 * Download and Install [Miniconda](https://docs.conda.io/en/latest/miniconda.html#macos-installers) for Python 3.10.
 * Run Miniconda
 * Setup environment with Conda Rust:
@@ -74,7 +74,7 @@ Supports CPU and MPS (Metal M1/M2).
 
 ---
 
-## Run:
+## Run
 
 * To run LLaMa.cpp model in CPU or GPU mode:
     ```bash
@@ -96,7 +96,8 @@ See [CPU](README_CPU.md) and [GPU](README_GPU.md) for some other general aspects
 
 ---
 
-## Issues:
+## Issues
+
 * If you see `ld: library not found for -lSystem` then ensure you do below and then retry from scratch to do `pip install` commands:
     ```bash
     export LDFLAGS=-L/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib`
