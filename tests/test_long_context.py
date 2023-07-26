@@ -109,6 +109,7 @@ def test_gradio_long_context_uuid_key_value_retrieval(base_model, rope_scaling, 
     "huggyllama/llama-7b",
     "meta-llama/Llama-2-7b-chat-hf"
 ])
+@wrap_test_forked
 def test_huggyllama_transformers_pr(base_model, rope_scaling):
     # https://github.com/huggingface/transformers/pull/24653#issue-1788278122
     from transformers import AutoModelForCausalLM, AutoTokenizer
