@@ -1,6 +1,7 @@
-#### Python Wheel
+# Python Wheel
 
-The wheel adds all dependencies including optional dependencies like 4-bit and flash-attention. To build do:
+## Build
+The wheel adds dependencies including optional dependencies, except flash-attention, wiki-processing, metric, and training. To build do:
 ```bash
 python setup.py sdist bdist_wheel
 ```
@@ -20,6 +21,14 @@ The wheel is not required to use h2oGPT locally from repo, but makes it portable
 
 See [setup.py](../setup.py) for controlling other options via `extras_require`.
 
+## Run
+```python
+from h2ogpt.generate import main
+main()
+```
+See `src/gen.py` for all documented options one can pass to `main()`.
+
+## Checks
 Once the wheel is built, if you do:
 ```bash
 python -m pip check
