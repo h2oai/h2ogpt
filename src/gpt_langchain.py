@@ -2057,7 +2057,7 @@ def _run_qa_db(query=None,
             return
         if not docs and langchain_mode not in [LangChainMode.DISABLED.value,
                                                LangChainMode.LLM.value]:
-            ret = 'No relevant documents to query.' if have_any_docs else 'No documents to query.'
+            ret = 'No relevant documents to query (for chatting with LLM, pick Resources->Collections->LLM).' if have_any_docs else 'No documents to query (for chatting with LLM, pick Resources->Collections->LLM).'
             extra = ''
             yield ret, extra
             return
