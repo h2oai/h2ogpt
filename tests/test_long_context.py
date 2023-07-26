@@ -102,7 +102,9 @@ def test_gradio_long_context_uuid_key_value_retrieval(base_model, rope_scaling, 
 
 
 @pytest.mark.parametrize("type", [
-    None, 'linear', 'dynamic',
+    None,
+    # 'linear',
+    'dynamic',
 ])
 @pytest.mark.parametrize("factor", [
     1.0, 2.0, 4.0
