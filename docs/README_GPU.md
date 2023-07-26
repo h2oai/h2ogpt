@@ -75,11 +75,8 @@ Currently, Hugging Face transformers does not support GPTQ directly except in te
 
 ##### exllama
 
-Currently, only [exllama](https://github.com/turboderp/exllama) supports AutoGPTQ with RoPE scaling.  To install run:
-```bash
-pip uninstall -y exllama ; pip install https://github.com/jllllll/exllama/releases/download/0.0.7/exllama-0.0.7+cu117-cp310-cp310-linux_x86_64.whl
-```
-And then run with RoPE scaling the LLaMa-2 7B model for 16k context:
+Currently, only [exllama](https://github.com/turboderp/exllama) supports AutoGPTQ with RoPE scaling.
+To run RoPE scaling the LLaMa-2 7B model for 16k context:
 ```bash
 python generate.py --base_model=TheBloke/Llama-2-7b-Chat-GPTQ --load_gptq="gptq_model-4bit-128g" --use_safetensors=True --prompt_type=llama2 --save_dir='7bgptq4bit' --load_exllama=True --revision=gptq-4bit-32g-actorder_True --rope_scaling="{'alpha_value':4}"
 ```
@@ -88,9 +85,12 @@ Another type of model is
 ```bash
 python generate.py --base_model=TheBloke/Nous-Hermes-Llama2-GPTQ --load_gptq="gptq_model-4bit-128g" --use_safetensors=True --prompt_type=wizard2 --save_dir='7bgptq4bit' --load_exllama=True --revision=gptq-4bit-32g-actorder_True --rope_scaling="{'alpha_value':4}"
 ```
-and note the different `prompt_type`.
+and note the different `prompt_type`.  For LLaMa2 70B run:
+```bash
+python generate.py --base_model=TheBloke/Llama-2-70B-chat-GPTQ --load_gptq=gptq_model-4bit-128g --use_safetensors=True --prompt_type=llama2 --load_exllama=True --revision=main
+```
 
-For LLaMa.cpp on GPU run:
+##### For LLaMa.cpp on GPU run:
 ```bash
 python generate.py --base_model='llama' --prompt_type=wizard2 --score_model=None --langchain_mode='UserData' --user_path=user_path
 ```
