@@ -22,15 +22,10 @@
     python -c "import os, sys ; print('hello world')"  # should print "hello world"
     ```
 * GPU Only: Install CUDA
-   If you plan to install GPU versions of bitsandbytes, llama-cpp-python, AutoGPTQ, exllama, or flash attention, then do:
-   ```bash
-    conda install cudatoolkit-dev=11.7 -c conda-forge -y
-    ```
-  or if you only need CUDA support otherwise, do:
    ```bash
     conda install cudatoolkit=11.7 -c conda-forge -y
+    export CUDA_HOME=$CONDA_PREFIX
     ```
-  You do not need to isntall both.
 * Install h2oGPT:
    ```bash
     git clone https://github.com/h2oai/h2ogpt.git
@@ -40,7 +35,7 @@
 
   * For CPU Only:
       ```bash
-      pip install -r requirements.txt
+      pip install -r requirements.txt --extra-index https://download.pytorch.org/whl/cpu
        ```
   * For GPU:
       ```bash
@@ -48,36 +43,44 @@
        ```
     Optional: for bitsandbytes 4-bit and 8-bit:
        ```bash
-       pip uninstall bitsandbytes
+       pip uninstall bitsandbytes -y
        pip install https://github.com/jllllll/bitsandbytes-windows-webui/releases/download/wheels/bitsandbytes-0.40.1.post1-py3-none-win_amd64.whl
        ```
-* Install optional document Q/A dependencies
+* Install document question-answer dependencies:
     ```bash
+    # Required for Doc Q/A: LangChain:
     pip install -r reqs_optional/requirements_optional_langchain.txt
+    # Required for CPU: LLaMa/GPT4All:
     pip install -r reqs_optional/requirements_optional_gpt4all.txt
+    # Optional: PyMuPDF/ArXiv:
     pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt
+    # Optional: Selenium/PlayWright:
     pip install -r reqs_optional/requirements_optional_langchain.urls.txt
-    ```
-    Optional dependencies for supporting unstructured package
-    ```bash
+    # Optional: for supporting unstructured package
     python -m nltk.downloader all
+   ```
+* GPU Only: For optional AutoGPTQ support:
+   ```bash
+    pip uninstall -y auto-gptq
+    pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.3.0/auto_gptq-0.3.0+cu118-cp310-cp310-win_amd64.whl
+* GPU Only: For optional exllama support:
+   ```bash
+    pip uninstall -y exllama
+    pip install https://github.com/jllllll/exllama/releases/download/0.0.8/exllama-0.0.8+cu118-cp310-cp310-win_amd64.whl --no-cache-dir
     ```
-* For supporting Word and Excel documents, if you don't have Word/Excel already, then download and install libreoffice: https://www.libreoffice.org/download/download-libreoffice/ . To support OCR, download and install [tesseract](https://github.com/UB-Mannheim/tesseract/wiki), see also: [Tesseract Documentation](https://tesseract-ocr.github.io/tessdoc/Installation.html).  Please add the installation directories to your PATH.
-* Install optional AutoGPTQ dependency:
-    ```bash
-    pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.3.0/auto_gptq-0.3.0+cu117-cp310-cp310-win_amd64.whl
-    ```
-* GPU Only: Compile llama-cpp-python with CUDA support:
+* GPU Only: For optional llama-cpp-python CUDA support:
   ```bash
   pip uninstall -y llama-cpp-python
-  export LLAMA_CUBLAS=1
-  export CMAKE_ARGS=-DLLAMA_CUBLAS=on
-  export FORCE_CMAKE=1
-  CMAKE_ARGS="-DLLAMA_CUBLAS=on" FORCE_CMAKE=1 pip install llama-cpp-python==0.1.68 --no-cache-dir --verbose
+  set LLAMA_CUBLAS=1
+  set CMAKE_ARGS=-DLLAMA_CUBLAS=on
+  set FORCE_CMAKE=1
+  pip install llama-cpp-python==0.1.68 --no-cache-dir --verbose
   ```
    and uncomment `# n_gpu_layers=20` in `.env_gpt4all`.  One can try also `40` instead of `20`.  If one sees `/usr/bin/nvcc` mentioned in errors, that file needs to be removed as would likely conflict with version installed for conda.  
    Note that once `llama-cpp-python` is compiled to support CUDA, it no longer works for CPU mode,
    so one would have to reinstall it without the above options to recovers CPU mode or have a separate h2oGPT env for CPU mode.
+* For supporting Word and Excel documents, if you don't have Word/Excel already, then download and install libreoffice: https://www.libreoffice.org/download/download-libreoffice/ .
+* To support OCR, download and install [tesseract](https://github.com/UB-Mannheim/tesseract/wiki), see also: [Tesseract Documentation](https://tesseract-ocr.github.io/tessdoc/Installation.html).  Please add the installation directories to your PATH.
 
 ---
 
