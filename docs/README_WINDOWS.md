@@ -178,3 +178,10 @@ For newer builds of windows versions of 10/11.
   * On an i9 with 3090Ti, one gets about 4 tokens/second, so still about half 16-bit speed.  Memory use is about 6.6GB.
 
 See [CPU](README_CPU.md) and [GPU](README_GPU.md) for some other general aspects about using h2oGPT on CPU or GPU, such as which models to try, quantization, etc.
+
+## Issues
+* SSL Certification failure when connecting to Hugging Face.
+  * Your org may be blocking HF
+  * Try: https://stackoverflow.com/a/75111104
+  * Or try: https://github.com/huggingface/transformers/issues/17611#issuecomment-1619582900
+  * Try using proxy.
