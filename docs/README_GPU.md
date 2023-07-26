@@ -90,6 +90,8 @@ and note the different `prompt_type`.  For LLaMa2 70B run:
 python generate.py --base_model=TheBloke/Llama-2-70B-chat-GPTQ --load_gptq=gptq_model-4bit-128g --use_safetensors=True --prompt_type=llama2 --load_exllama=True --revision=main
 ```
 
+With exllama, ensure `--concurrency_count=1` else the model will share states and mix-up concurrent requests.
+
 ##### For LLaMa.cpp on GPU run:
 ```bash
 python generate.py --base_model='llama' --prompt_type=wizard2 --score_model=None --langchain_mode='UserData' --user_path=user_path
