@@ -37,7 +37,7 @@ test:
 	$(PYTHON_BINARY) -m pytest tests/test_inference_servers.py --disable-warnings --junit-xml=test_inference_servers_report.xml -m "$(DEFAULT_MARKERS)"
 
 test_imports:
-	$(PYTHON_BINARY) -m pytest tests/test_imports.py --disable-warnings --junit-xml=test_report.xml -m "$(DEFAULT_MARKERS)"
+	$(PYTHON_BINARY) -m pytest tests/test_imports.py --disable-warnings --junit-xml=test_imports_report.xml -m "$(DEFAULT_MARKERS)"
 
 publish:
 	echo "Publishing not implemented yet."
