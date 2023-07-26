@@ -84,7 +84,7 @@ setuptools.setup(
         'WIKI_EXTRA': install_wiki_extra,
     },
     dependency_links=[
-        'https://download.pytorch.org/whl/cu118',
+        'https://download.pytorch.org/whl/cu117',
     ],
     classifiers=[],
     python_requires='>=3.10',

@@ -681,7 +681,7 @@ def get_llm(use_openai_model=False,
             top_k=40,
             top_p=0.7,
             num_beams=1,
-            max_new_tokens=256,
+            max_new_tokens=512,
             min_new_tokens=1,
             early_stopping=False,
             max_time=180,
@@ -1938,7 +1938,7 @@ def _run_qa_db(query=None,
                add_chat_history_to_context=True,
                sanitize_bot_response=False,
                show_rank=False,
-               use_llm_if_no_docs=False,
+               use_llm_if_no_docs=True,
                load_db_if_exists=False,
                db=None,
                do_sample=False,
@@ -1946,7 +1946,7 @@ def _run_qa_db(query=None,
                top_k=40,
                top_p=0.7,
                num_beams=1,
-               max_new_tokens=256,
+               max_new_tokens=512,
                min_new_tokens=1,
                early_stopping=False,
                max_time=180,
@@ -2057,7 +2057,7 @@ def _run_qa_db(query=None,
             return
         if not docs and langchain_mode not in [LangChainMode.DISABLED.value,
                                                LangChainMode.LLM.value]:
-            ret = 'No relevant documents to query.' if have_any_docs else 'No documents to query.'
+            ret = 'No relevant documents to query (for chatting with LLM, pick Resources->Collections->LLM).' if have_any_docs else 'No documents to query (for chatting with LLM, pick Resources->Collections->LLM).'
             extra = ''
             yield ret, extra
             return
