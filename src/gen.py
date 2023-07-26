@@ -1327,7 +1327,7 @@ def set_model_max_len(config, tokenizer, verbose=False, reward_type=False, rope_
         # limit deberta, else uses too much memory and not worth response score
         tokenizer.model_max_length = 512
     if hasattr(config, 'max_seq_len') and isinstance(config.max_seq_len, int):
-        tokenizer.model_max_length = config.max_seq_len * rope_scaling_factor
+        tokenizer.model_max_length = config.max_seq_len  # should be scaled/long already from config
     elif hasattr(config, 'max_position_embeddings') and isinstance(config.max_position_embeddings, int):
         # help automatically limit inputs to generate
         tokenizer.model_max_length = config.max_position_embeddings * rope_scaling_factor
