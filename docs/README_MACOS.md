@@ -76,20 +76,20 @@ Supports CPU and MPS (Metal M1/M2).
 
 ## Run:
 
-* To run CPU mode:
+* To run LLaMa.cpp model in CPU or GPU mode:
     ```bash
     python generate.py --base_model='llama' --prompt_type=wizard2 --score_model=None --langchain_mode='UserData' --user_path=user_path
     ```
 Ignore CLI output showing `0.0.0.0`, and instead go to http://localhost:7860 or the public live URL printed by the server (disable shared link with `--share=False`).
 
-* Run h2oGPT (without document Q/A):
+* Full Hugging Face Model (recommended for M1/M2 only):
     ```bash
     python generate.py --base_model=h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b --score_model=None --langchain_mode='UserData' --user_path=user_path
     ```
 
-* Run CLI:
+* CLI mode:
     ```bash
-    python generate.py --base_model='llama' --cli==True
+    python generate.py --base_model='llama' --prompt_type=wizard2 --score_model=None --langchain_mode='UserData' --user_path=user_path --cli==True
     ```
 
 See [CPU](README_CPU.md) and [GPU](README_GPU.md) for some other general aspects about using h2oGPT on CPU or GPU, such as which models to try.
