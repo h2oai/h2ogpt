@@ -37,7 +37,7 @@ For newer builds of windows versions of 10/11.
 * GPU Only: Install CUDA
    ```bash
     conda install cudatoolkit=11.7 -c conda-forge -y
-    export CUDA_HOME=$CONDA_PREFIX
+    set CUDA_HOME=$CONDA_PREFIX
     ```
 * Install h2oGPT:
    ```bash
