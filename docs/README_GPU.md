@@ -55,9 +55,10 @@ and running on 4xA6000 gives about 4tokens/sec consuming about 35GB per GPU of 4
 Or for GPTQ with RoPE:
 ```bash
 pip install transformers==4.31.0  # breaks load_in_8bit=True in some cases (https://github.com/huggingface/transformers/issues/25026)
-python generate.py --base_model=TheBloke/Llama-2-7b-Chat-GPTQ --load_gptq="gptq_model-4bit-128g" --use_safetensors=True --prompt_type=llama2 --save_dir='7bgptqrope4` --rope_scaling="{'type':'dynamic', 'factor':4}"
---max_max_new_tokens=15000 --max_new_tokens=15000
+python generate.py --base_model=TheBloke/Llama-2-7b-Chat-GPTQ --load_gptq="gptq_model-4bit-128g" --use_safetensors=True --prompt_type=llama2 --score_model=None --save_dir='7bgptqrope4` --rope_scaling="{'type':'dynamic', 'factor':4}"
+--max_max_new_tokens=15000 --max_new_tokens=15000 --max_time=12000
 ```
+for which the GPU only uses 5.5GB.  One can add (e.g.) ` --min_new_tokens=4096` to force generation to continue beyond model's training norms, although this may give lower quality responses.
 Currently, Hugging Face transformers does not support GPTQ directly except in text-generation-inference (TGI) server, but TGI does not support RoPE scaling.  Also, vLLM supports LLaMa2 and AutoGPTQ but not RoPE scaling.  Only exllama supports AutoGPTQ with RoPE scaling.
 
 ##### exllama
