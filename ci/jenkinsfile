@@ -117,9 +117,10 @@ pipeline {
                                             } catch (e) {
                                                 throw e
                                             } finally {
-                                                sh "mv ${testName}/test_report.xml ${testName}/${testName}_report.xml"
-                                                archiveArtifacts allowEmptyArchive: true, artifacts: "${testName}/${testName}_report.xml"
-                                                junit testResults: "${testName}/${testName}_report.xml", keepLongStdio: true, allowEmptyResults: true
+                                                // sh "mv ${testName}/test_report.xml ${testName}/${testName}_report.xml"
+                                                archiveArtifacts allowEmptyArchive: true, artifacts: "${testName}/*_report.xml"
+                                                // junit testResults: "${testName}/${testName}_report.xml", keepLongStdio: true, allowEmptyResults: true
+                                                junit testResults: "${testName}/*_report.xml", keepLongStdio: true, allowEmptyResults: true
                                             }
                                         }
                                     }
