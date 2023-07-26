@@ -88,58 +88,59 @@
 ## Run
 * For document Q/A with UI using LLaMa.cpp-based model on CPU or GPU:
 
-Click [Download Wizard Model](https://huggingface.co/TheBloke/WizardLM-7B-uncensored-GGML/resolve/main/WizardLM-7B-uncensored.ggmlv3.q8_0.bin) and place file in h2ogpt directory.
-   ```bash
-   python generate.py --base_model='llama' --prompt_type=wizard2 --score_model=None --langchain_mode='UserData' --user_path=user_path
-   ```
-  If llama-cpp-python was compiled with CUDA support, you should see in the output:
-```text
-Starting get_model: llama
-ggml_init_cublas: found 2 CUDA devices:
-  Device 0: NVIDIA GeForce RTX 3090 Ti
-  Device 1: NVIDIA GeForce RTX 2080
-llama.cpp: loading model from WizardLM-7B-uncensored.ggmlv3.q8_0.bin
-llama_model_load_internal: format     = ggjt v3 (latest)
-llama_model_load_internal: n_vocab    = 32001
-llama_model_load_internal: n_ctx      = 1792
-llama_model_load_internal: n_embd     = 4096
-llama_model_load_internal: n_mult     = 256
-llama_model_load_internal: n_head     = 32
-llama_model_load_internal: n_layer    = 32
-llama_model_load_internal: n_rot      = 128
-llama_model_load_internal: ftype      = 7 (mostly Q8_0)
-llama_model_load_internal: n_ff       = 11008
-llama_model_load_internal: model size = 7B
-llama_model_load_internal: ggml ctx size =    0.08 MB
-llama_model_load_internal: using CUDA for GPU acceleration
-ggml_cuda_set_main_device: using device 0 (NVIDIA GeForce RTX 3090 Ti) as main device
-llama_model_load_internal: mem required  = 4518.85 MB (+ 1026.00 MB per state)
-llama_model_load_internal: allocating batch_size x (512 kB + n_ctx x 128 B) = 368 MB VRAM for the scratch buffer
-llama_model_load_internal: offloading 20 repeating layers to GPU
-llama_model_load_internal: offloaded 20/35 layers to GPU
-llama_model_load_internal: total VRAM used: 4470 MB
-llama_new_context_with_model: kv self size  =  896.00 MB
-AVX = 1 | AVX2 = 1 | AVX512 = 0 | AVX512_VBMI = 0 | AVX512_VNNI = 0 | FMA = 1 | NEON = 0 | ARM_FMA = 0 | F16C = 1 | FP16_VA = 0 | WASM_SIMD = 0 | BLAS = 1 | SSE3 = 1 | VSX = 0 |
-Model {'base_model': 'llama', 'tokenizer_base_model': '', 'lora_weights': '', 'inference_server': '', 'prompt_type': 'wizard2', 'prompt_dict': {'promptA': 'Below is an instruction that describes a task. Write a response that appropriately completes the request.', 'promptB': 'Below is an instruction that describes a task. Write a response that appropriately completes the request.', 'PreInstruct': '\n### Instruction:\n', 'PreInput': None, 'PreResponse': '\n### Response:\n', 'terminate_response': ['\n### Response:\n'], 'chat_sep': '\n', 'chat_turn_sep': '\n', 'humanstr': '\n### Instruction:\n', 'botstr': '\n### Response:\n', 'generates_leading_space': False}}
-Running on local URL:  http://0.0.0.0:7860
+  * Click [Download Wizard Model](https://huggingface.co/TheBloke/WizardLM-7B-uncensored-GGML/resolve/main/WizardLM-7B-uncensored.ggmlv3.q8_0.bin) and place file in h2ogpt directory.
+       ```bash
+       python generate.py --base_model='llama' --prompt_type=wizard2 --score_model=None --langchain_mode='UserData' --user_path=user_path
+       ```
+      If llama-cpp-python was compiled with CUDA support, you should see in the output:
+    ```text
+    Starting get_model: llama
+    ggml_init_cublas: found 2 CUDA devices:
+      Device 0: NVIDIA GeForce RTX 3090 Ti
+      Device 1: NVIDIA GeForce RTX 2080
+    llama.cpp: loading model from WizardLM-7B-uncensored.ggmlv3.q8_0.bin
+    llama_model_load_internal: format     = ggjt v3 (latest)
+    llama_model_load_internal: n_vocab    = 32001
+    llama_model_load_internal: n_ctx      = 1792
+    llama_model_load_internal: n_embd     = 4096
+    llama_model_load_internal: n_mult     = 256
+    llama_model_load_internal: n_head     = 32
+    llama_model_load_internal: n_layer    = 32
+    llama_model_load_internal: n_rot      = 128
+    llama_model_load_internal: ftype      = 7 (mostly Q8_0)
+    llama_model_load_internal: n_ff       = 11008
+    llama_model_load_internal: model size = 7B
+    llama_model_load_internal: ggml ctx size =    0.08 MB
+    llama_model_load_internal: using CUDA for GPU acceleration
+    ggml_cuda_set_main_device: using device 0 (NVIDIA GeForce RTX 3090 Ti) as main device
+    llama_model_load_internal: mem required  = 4518.85 MB (+ 1026.00 MB per state)
+    llama_model_load_internal: allocating batch_size x (512 kB + n_ctx x 128 B) = 368 MB VRAM for the scratch buffer
+    llama_model_load_internal: offloading 20 repeating layers to GPU
+    llama_model_load_internal: offloaded 20/35 layers to GPU
+    llama_model_load_internal: total VRAM used: 4470 MB
+    llama_new_context_with_model: kv self size  =  896.00 MB
+    AVX = 1 | AVX2 = 1 | AVX512 = 0 | AVX512_VBMI = 0 | AVX512_VNNI = 0 | FMA = 1 | NEON = 0 | ARM_FMA = 0 | F16C = 1 | FP16_VA = 0 | WASM_SIMD = 0 | BLAS = 1 | SSE3 = 1 | VSX = 0 |
+    Model {'base_model': 'llama', 'tokenizer_base_model': '', 'lora_weights': '', 'inference_server': '', 'prompt_type': 'wizard2', 'prompt_dict': {'promptA': 'Below is an instruction that describes a task. Write a response that appropriately completes the request.', 'promptB': 'Below is an instruction that describes a task. Write a response that appropriately completes the request.', 'PreInstruct': '\n### Instruction:\n', 'PreInput': None, 'PreResponse': '\n### Response:\n', 'terminate_response': ['\n### Response:\n'], 'chat_sep': '\n', 'chat_turn_sep': '\n', 'humanstr': '\n### Instruction:\n', 'botstr': '\n### Response:\n', 'generates_leading_space': False}}
+    Running on local URL:  http://0.0.0.0:7860
+  
+    To create a public link, set `share=True` in `launch()`.
+    ```
+  * Go to `http://127.0.0.1:7860` (ignore message above).  Add `--share=True` to get sharable secure link.  To just chat with LLM, click `Resources` and click `LLM` in Collections.
+  * In `nvidia-smi` or some other GPU monitor program you should see `python.exe` using GPUs in `C` (Compute) mode and using GPU resources.
+  * If you have multiple GPUs, best to specify to use the fasted GPU by doing (e.g. if device 0 is fastest and largest memory GPU):
+    ```bash
+    set CUDA_VISIBLE_DEVICES=0
+    ```
+  * On an i9 with 3090Ti, one gets about 5 tokens/second.
 
-To create a public link, set `share=True` in `launch()`.
-```
-Go to `http://127.0.0.1:7860` (ignore message above).  Add `--share=True` to get sharable secure link.  To just chat with LLM, click `Resources` and click `LLM` in Collections.
+  * ![llamasmall.jpg](..%2F..%2FPictures%2Fllamasmall.jpg)
 
-In `nvidia-smi` or some other GPU monitor program you should see `python.exe` using GPUs in `C` (Compute) mode and using GPU resources.  If you have multiple GPUs, best to specify to use the fasted GPU by doing (e.g. if device 0 is fastest and largest memory GPU):
-```bash
-set CUDA_VISIBLE_DEVICES=0
-python generate.py ...
-```
-where ... means whatever you would otherwise put there.
-
-* To use Hugging Face type models:
+* To use Hugging Face type models (faster on GPU than LLaMa.cpp if one has a powerful GPU with enough memory):
    ```bash
    python generate.py --base_model=h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b --langchain_mode=UserData --score_model=None
    ```
 
-See [CPU](README_CPU.md) and [GPU](README_GPU.md) for some other general aspects about using h2oGPT on CPU or GPU, such as which models to try.
+See [CPU](README_CPU.md) and [GPU](README_GPU.md) for some other general aspects about using h2oGPT on CPU or GPU, such as which models to try, quantization, etc.
 
 ---
 
