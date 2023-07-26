@@ -2062,7 +2062,7 @@ def _run_qa_db(query=None,
             yield ret, extra
             return
 
-    if chain is None and model_name not in langchain_only_model:
+    if chain is None and not langchain_only_model:
         # here if no docs at all and not HF type
         # can only return if HF type
         return
