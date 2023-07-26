@@ -1720,7 +1720,7 @@ def evaluate(
                 print(
                     'Post-Generate Langchain: %s decoded_output: %s' % (str(datetime.now()), len(outr) if outr else -1),
                     flush=True)
-        if outr or base_model in langchain_only_model:
+        if outr or langchain_only_model:
             # if got no response (e.g. not showing sources and got no sources,
             # so nothing to give to LLM), then slip through and ask LLM
             # Or if llama/gptj, then just return since they had no response and can't go down below code path
