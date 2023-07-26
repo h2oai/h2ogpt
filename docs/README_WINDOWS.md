@@ -6,7 +6,7 @@ For newer builds of windows versions of 10/11.
 * Download Visual Studio 2022: [Download Link](https://visualstudio.microsoft.com/vs/community/)
   * Run Installer, click ok to run, click Continue
   * Click on `Individual Components`
-  * Search for these ins earch bar and click on them
+  * Search for these in the search bar and click on them:
      * `Windows 11 SDK` (e.g. 10.0.22000.0)
      * `C++ Universal Windows Platform support` (e.g. for v143 build tools)
      * `MSVC VS 2022 C++ x64/x86 build tools` (latest)
@@ -21,9 +21,9 @@ For newer builds of windows versions of 10/11.
      * ![minigw32small.png](minigw32small.png)
   * Go to installation tab, then apply changes.
 * Download and install [Miniconda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/windows.html)
-* Run Miniconda shell (not power shell!) as Administrator
+* Run Miniconda shell (not powershell!) as Administrator
 * Run: `set path=%path%;c:\MinGW\msys\1.0\bin\` to get C++ in path
-* Download latest nvidia driver for windows if have old drivers before CUDA 11.7 supported
+* Download latest nvidia driver for windows if one has old drivers before CUDA 11.7 supported
 * Confirm can run `nvidia-smi` and see driver version
 * Setup Conda Environment:
     * ![minicondashellsmall.png](minicondashellsmall.png)
@@ -101,7 +101,7 @@ For newer builds of windows versions of 10/11.
 ## Run
 * For document Q/A with UI using LLaMa.cpp-based model on CPU or GPU:
 
-  * Click [Download Wizard Model](https://huggingface.co/TheBloke/WizardLM-7B-uncensored-GGML/resolve/main/WizardLM-7B-uncensored.ggmlv3.q8_0.bin) and place file in h2ogpt directory.
+  * Click [Download Wizard Model](https://huggingface.co/TheBloke/WizardLM-7B-uncensored-GGML/resolve/main/WizardLM-7B-uncensored.ggmlv3.q8_0.bin) and place file in h2oGPT directory.
        ```bash
        python generate.py --base_model='llama' --prompt_type=wizard2 --score_model=None --langchain_mode='UserData' --user_path=user_path
        ```

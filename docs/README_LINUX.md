@@ -128,7 +128,7 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
    ```
     should print True.
 
-* Place all documents in `user_path` or upload in UI ([Help with UI](docs/README_ui.md)).
+* Place all documents in `user_path` or upload in UI ([Help with UI](README_ui.md)).
 
   UI using GPU with at least 24GB with streaming:
   ```bash
