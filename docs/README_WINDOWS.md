@@ -18,7 +18,7 @@
     conda create -n h2ogpt -y
     conda activate h2ogpt
     conda install python=3.10 -c conda-forge -y
-    conda install cudatoolkit -c conda-forge -y  # cuda toolkit for 4-bit/8-bit bitsandbytes using GPU, not needed for CPU
+    conda install cudatoolkit=11.7 -c conda-forge -y  # cuda toolkit for 4-bit/8-bit bitsandbytes using GPU, not needed for CPU
     python --version  # should say python 3.10.xx
     python -c "import os, sys ; print('hello world')"  # should print "hello world"
     git clone https://github.com/h2oai/h2ogpt.git
@@ -99,7 +99,7 @@ Running on public URL: https://f8fa95f123416c72dc.gradio.live
 
 This share link expires in 72 hours. For free permanent hosting and GPU upgrades (NEW!), check out Spaces: https://huggingface.co/spaces
 ```
-where bitsandbytes cuda118 was used because conda cuda toolkit is cuda 11.8.  You can confirm GPU use via `nvidia-smi` showing GPU memory consumed.
+where bitsandbytes cuda118 was used because conda cuda toolkit is cuda 11.7.  You can confirm GPU use via `nvidia-smi` showing GPU memory consumed.
 
 Note 8-bit inference is about twice slower than 16-bit inference, and the only use of 8-bit is to keep memory profile low.
 

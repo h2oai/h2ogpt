@@ -41,17 +41,21 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
   ```
   On some systems, `pip` still refers back to the system one, then one can use `python -m pip` or `pip3` instead of `pip` or try `python3` instead of `python`.
 
-* For GPU: Install CUDA ToolKit with ability to compile using nvcc for some packages like llama-cpp-python, AutoGPTQ, and exllama:
+* For GPU: Install CUDA ToolKit with ability to compile using nvcc for some packages like llama-cpp-python, AutoGPTQ, exllama, and flash attention:
   ```bash
-  conda install -c "nvidia/label/cuda-12.1.1" cuda-toolkit
-  conda install cudatoolkit-dev
+  conda install cudatoolkit-dev -c conda-forge -y
   export CUDA_HOME=$CONDA_PREFIX 
   ```
-  or if you prefer follow [CUDA Toolkit](INSTALL.md#installing-cuda-toolkit), then do:
+  which gives CUDA 11.7, or if you prefer follow [CUDA Toolkit](INSTALL.md#installing-cuda-toolkit), then do:
   ```bash
-  export CUDA_HOME=/usr/local/cuda-11.8 
+  export CUDA_HOME=/usr/local/cuda-11.7
   ```
-
+  If you do not plan to use one of those packages, you can just use the non-dev version:
+  ```bash
+  conda install cudatoolkit=11.7 -c conda-forge -y
+  export CUDA_HOME=$CONDA_PREFIX 
+  ```
+  
 * Install dependencies:
     ```bash
     git clone https://github.com/h2oai/h2ogpt.git

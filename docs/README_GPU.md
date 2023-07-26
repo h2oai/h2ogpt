@@ -39,9 +39,9 @@ although to avoid building the package you can run the [specific version](https:
 pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.3.0/auto_gptq-0.3.0+cu118-cp310-cp310-linux_x86_64.whl
 ```
 However, if one sees issues like `CUDA extension not installed.` mentioned during loading of model, need to recompile,
-because, otherwise, the generation will be much slower even if uses GPU.  If you have CUDA 11.8 installed from NVIDIA, run:
+because, otherwise, the generation will be much slower even if uses GPU.  If you have CUDA 11.7 installed from NVIDIA, run:
 ```bash
-pip uninstall -y auto-gptq ; CUDA_HOME=/usr/local/cuda-11.8 GITHUB_ACTIONS=true pip install auto-gptq --no-cache-dir
+pip uninstall -y auto-gptq ; CUDA_HOME=/usr/local/cuda-11.7 GITHUB_ACTIONS=true pip install auto-gptq --no-cache-dir
 ```
 If one used conda cudatoolkit:
 ```bash
