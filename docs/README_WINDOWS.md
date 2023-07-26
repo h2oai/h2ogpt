@@ -171,5 +171,10 @@ For newer builds of windows versions of 10/11.
   * You can confirm GPU use via `nvidia-smi` showing GPU memory consumed is less than 16-bit, at about 9.2GB when in use.  Also try 13B models in 8-bit for similar memory usage.
   * Note 8-bit inference is about twice slower than 16-bit inference, and the only use of 8-bit is to keep memory profile low.
   * Bitsandbytes can be uninstalled (`pip uninstall bitsandbytes`) and still h2oGPT can be used if one does not pass `--load_8bit=True`.
+* To use Hugging Face type models in 4-bit do:
+   ```bash
+   python generate.py --base_model=h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v3 --langchain_mode=UserData --score_model=None --load_4bit=True
+   ```
+  * On an i9 with 3090Ti, one gets about 4 tokens/second, so still about half 16-bit speed.  Memory use is about 6.6GB.
 
 See [CPU](README_CPU.md) and [GPU](README_GPU.md) for some other general aspects about using h2oGPT on CPU or GPU, such as which models to try, quantization, etc.
