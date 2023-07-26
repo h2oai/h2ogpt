@@ -536,7 +536,7 @@ def main(
         if not max_new_tokens:
             max_new_tokens = 256
         if not max_max_new_tokens:
-            max_max_new_tokens = 256
+            max_max_new_tokens = 512
     else:
         if not max_max_time:
             max_max_time = 60 * 20
@@ -837,6 +837,26 @@ def get_config(base_model,
     if 'falcon' in base_model.lower():
         config.use_cache = False
 
+    elif hasattr(config, 'max_seq_len') and isinstance(config.max_seq_len, int):
+        pass
+    elif hasattr(config, 'max_length') and isinstance(config.max_length, int):
+        config.max_seq_len = config.max_length
+    elif hasattr(config, 'max_position_embeddings') and isinstance(config.max_position_embeddings, int):
+        # help automatically limit inputs to generate
+        config.max_seq_len = config.max_position_embeddings
+    else:
+        print("Could not determine max_seq_len, setting to 2048", flush=True)
+        config.max_seq_len = 2048
+
+    if rope_scaling:
+        if rope_scaling.get('factor'):
+            # HF transformers
+            config.max_seq_len *= rope_scaling.get('factor')
+        elif rope_scaling.get('alpha_value'):
+            # exllama
+            # Note: exllama's own tokenizer has this set correctly in loaders.py, this config will be unused
+            config.max_seq_len *= rope_scaling.get('alpha_value')
+
     return config, model
 
 
@@ -1073,6 +1093,8 @@ def get_model(
         else:
             tokenizer = tokenizer_loader.from_pretrained(tokenizer_base_model, **tokenizer_kwargs)
             # sets raw (no cushion) limit
+            # If using RoPE with scaling, then for non-exllama models (e.g. HF models),
+            #  then config -> tokenizer will set model_max_length correctly
             set_model_max_len(config, tokenizer, verbose=False)
             # if using fake tokenizer, not really accurate when lots of numbers, give a bit of buffer, else get:
             # Generation Failed: Input validation error: `inputs` must have less than 2048 tokens. Given: 2233
@@ -1324,11 +1346,12 @@ def set_model_max_len(config, tokenizer, verbose=False, reward_type=False):
     if reward_type:
         # limit deberta, else uses too much memory and not worth response score
         tokenizer.model_max_length = 512
+        return
+
     if hasattr(config, 'max_seq_len') and isinstance(config.max_seq_len, int):
         tokenizer.model_max_length = config.max_seq_len
-    elif hasattr(config, 'max_position_embeddings') and isinstance(config.max_position_embeddings, int):
-        # help automatically limit inputs to generate
-        tokenizer.model_max_length = config.max_position_embeddings
+        if verbose:
+            print("model_max_length=%s" % tokenizer.model_max_length, flush=True)
     else:
         if verbose:
             print("Could not determine model_max_length, setting to 2048", flush=True)
@@ -2009,7 +2032,7 @@ def evaluate(
                                  where_from=where_from, extra_dict=extra_dict)
         return
     else:
-        assert not inference_server, "inferene_server=%s not supported" % inference_server
+        assert not inference_server, "inference_server=%s not supported" % inference_server
 
     if isinstance(tokenizer, str):
         # pipeline
