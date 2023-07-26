@@ -44,10 +44,10 @@ YouTube 4K version: https://www.youtube.com/watch?v=_iktbj4obAI
 * [Compare to PrivateGPT et al.](docs/README_LangChain.md#what-is-h2ogpts-langchain-integration-like)
 * [Roadmap](#roadmap)
 * [Getting Started](#getting-started)
-   * [Linux](docs/README_LINUX.md)
-   * [MACOS](docs/README_MACOS.md)
-   * [Windows 10/11](docs/README_WINDOWS.md)
-   * [GPU (CUDA)](docs/README_GPU.md)
+   * [Linux (CPU or CUDA)](docs/README_LINUX.md)
+   * [MACOS (CPU or M1/M2)](docs/README_MACOS.md)
+   * [Windows 10/11 (CPU or CUDA)](docs/README_WINDOWS.md)
+   * [GPU (CUDA, AutoGPTQ, exllama)](docs/README_GPU.md)
    * [CPU](docs/README_CPU.md)
    * [CLI chat](docs/README_CLI.md)
    * [Gradio UI](docs/README_ui.md)
@@ -100,13 +100,9 @@ See [Windows 10/11 Instructions](docs/README_WINDOWS.md) for Windows 10/11.
 
 See [MACOS Instructions](docs/README_MACOS.md#macos) for MACOS.
 
-See [Help with UI](docs/README_ui.md) to get get help with the UI.
-
 Once all files are downloaded, the CLI and UI can be run in [offline mode](docs/README_offline.md).
 
-See [AutoGPTQ](docs/README_GPU.md#autogptq) for more details on using AutoGPTQ.
-
-See [exllama](docs/README_GPU.md#exllama) for more details on using exllama.
+See [Help with UI](docs/README_ui.md) to get get help with the UI.
 
 #### Run h2oGPT using Docker
 1. Make sure Docker & Nvidia Containers are setup correctly by following instructions [here](docs/INSTALL-DOCKER.md).

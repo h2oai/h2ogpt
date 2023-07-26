@@ -72,9 +72,11 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     # Optional: For AutoGPTQ support on x86_64 linux
     pip uninstall -y auto-gptq ; CUDA_HOME=/usr/local/cuda-11.8  GITHUB_ACTIONS=true pip install auto-gptq --no-cache-dir
     # Optional: For exllama support on x86_64 linux
-    pip uninstall -y exllama ; pip install https://github.com/jllllll/exllama/releases/download/0.0.7/exllama-0.0.7+cu118-cp310-cp310-linux_x86_64.whl --no-cache-dir
+    pip uninstall -y exllama ; pip install https://github.com/jllllll/exllama/releases/download/0.0.8/exllama-0.0.8+cu118-cp310-cp310-linux_x86_64.whl --no-cache-dir
     ```
-    See [AutoGPTQ](docs/README_GPU.md#autogptq) for more details for AutoGPTQ and other GPU installation aspects.  See [exllama](docs/README_GPU.md#) for more details for AutoGPTQ and other GPU installation aspects.
+    See [AutoGPTQ](docs/README_GPU.md#autogptq) for more details for AutoGPTQ and other GPU installation aspects.
+    
+    See [exllama](docs/README_GPU.md#) for more details for AutoGPTQ and other GPU installation aspects.
 
 * To avoid unauthorized telemetry, which document options still do not disable, run:
     ```bash
