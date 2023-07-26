@@ -89,6 +89,7 @@ and note the different `prompt_type`.  For LLaMa2 70B run:
 ```bash
 python generate.py --base_model=TheBloke/Llama-2-70B-chat-GPTQ --load_gptq=gptq_model-4bit-128g --use_safetensors=True --prompt_type=llama2 --load_exllama=True --revision=main
 ```
+which uses about 48GB of memory on 1 GPU and runs at about 12 tokens/second on an A6000, which is about half the speed of 16-bit if run that on 2*A100 GPUs.
 
 With exllama, ensure `--concurrency_count=1` else the model will share states and mix-up concurrent requests.
 
