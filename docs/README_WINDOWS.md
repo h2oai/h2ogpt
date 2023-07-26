@@ -36,20 +36,21 @@
     git clone https://github.com/h2oai/h2ogpt.git
     cd h2ogpt
     ```
-* Install dependencies.
-    For CPU:
-    ```bash
-   pip install -r requirements.txt
-    ```
-   For GPU:
-    ```bash
-   pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cu117
-    ```
-* For GPU, install bitsandbytes 4-bit and 8-bit:
-    ```bash
-    pip uninstall bitsandbytes
-    pip install https://github.com/jllllll/bitsandbytes-windows-webui/releases/download/wheels/bitsandbytes-0.40.1.post1-py3-none-win_amd64.whl
-    ```
+* Install primary dependencies.
+
+  * For CPU Only:
+      ```bash
+      pip install -r requirements.txt
+       ```
+  * For GPU:
+      ```bash
+      pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cu117
+       ```
+    Optional: for bitsandbytes 4-bit and 8-bit:
+       ```bash
+       pip uninstall bitsandbytes
+       pip install https://github.com/jllllll/bitsandbytes-windows-webui/releases/download/wheels/bitsandbytes-0.40.1.post1-py3-none-win_amd64.whl
+       ```
 * Install optional document Q/A dependencies
     ```bash
     pip install -r reqs_optional/requirements_optional_langchain.txt
