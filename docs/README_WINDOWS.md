@@ -147,7 +147,7 @@ For newer builds of windows versions of 10/11.
     ```
   * On an i9 with 3090Ti, one gets about 5 tokens/second.
 
-  * ![llamasmall.jpg](..%2F..%2FPictures%2Fllamasmall.jpg)
+  * ![llamasmall.jpg](llamasmall.jpg)
 
   * For LLaMa2 70B model, add to `.env_gpt4all`:
     ```.env_gpt4all
