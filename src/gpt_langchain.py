@@ -90,7 +90,7 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
                                      index_name=index_name)
     elif db_type == 'chroma':
         assert persist_directory is not None
-        os.makedirs(persist_directory, exist_ok=True)
+        makedirs(persist_directory, exist_ok=True)
 
         # see if already actually have persistent db, and deal with possible changes in embedding
         db = get_existing_db(None, persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
@@ -589,12 +589,12 @@ class H2OOpenAI(OpenAI):
     tokenizer: Any = None
 
     @classmethod
-    def all_required_field_names(cls) -> Set:
-        all_required_field_names = super(OpenAI, cls).all_required_field_names()
-        all_required_field_names.update(
+    def _all_required_field_names(cls) -> Set:
+        _all_required_field_names = super(OpenAI, cls)._all_required_field_names()
+        _all_required_field_names.update(
             {'top_p', 'frequency_penalty', 'presence_penalty', 'stop_sequences', 'sanitize_bot_response', 'prompter',
-             'tokenizer'})
-        return all_required_field_names
+             'tokenizer', 'logit_bias'})
+        return _all_required_field_names
 
     def _generate(
             self,
@@ -663,10 +663,10 @@ class H2OOpenAI(OpenAI):
 
 class H2OChatOpenAI(ChatOpenAI):
     @classmethod
-    def all_required_field_names(cls) -> Set:
-        all_required_field_names = super(ChatOpenAI, cls).all_required_field_names()
-        all_required_field_names.update({'top_p', 'frequency_penalty', 'presence_penalty'})
-        return all_required_field_names
+    def _all_required_field_names(cls) -> Set:
+        _all_required_field_names = super(ChatOpenAI, cls)._all_required_field_names()
+        _all_required_field_names.update({'top_p', 'frequency_penalty', 'presence_penalty', 'logit_bias'})
+        return _all_required_field_names
 
 
 def get_llm(use_openai_model=False,
@@ -681,7 +681,7 @@ def get_llm(use_openai_model=False,
             top_k=40,
             top_p=0.7,
             num_beams=1,
-            max_new_tokens=256,
+            max_new_tokens=512,
             min_new_tokens=1,
             early_stopping=False,
             max_time=180,
@@ -1152,8 +1152,8 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
     elif is_txt:
         base_path = "user_paste"
+        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True)
         source_file = os.path.join(base_path, "_%s" % str(uuid.uuid4())[:10])
-        makedirs(os.path.dirname(source_file), exist_ok=True)
         with open(source_file, "wt") as f:
             f.write(file)
         metadata = dict(source=source_file, date=str(datetime.now()), input_type='pasted txt')
@@ -1400,7 +1400,7 @@ def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True
     if return_file:
         base_tmp = "temp_path_to_doc1"
         if not os.path.isdir(base_tmp):
-            os.makedirs(base_tmp, exist_ok=True)
+            base_tmp = makedirs(base_tmp, exist_ok=True, tmp_ok=True)
         filename = os.path.join(base_tmp, str(uuid.uuid4()) + ".tmp.pickle")
         with open(filename, 'wb') as f:
             pickle.dump(res, f)
@@ -1671,8 +1671,11 @@ def clear_embedding(db):
     if db is None:
         return
     # don't keep on GPU, wastes memory, push back onto CPU and only put back on GPU once again embed
-    db._embedding_function.client.cpu()
-    clear_torch_cache()
+    try:
+        db._embedding_function.client.cpu()
+        clear_torch_cache()
+    except RuntimeError as e:
+        print("clear_embedding error: %s" % ''.join(traceback.format_tb(e.__traceback__)), flush=True)
 
 
 def make_db(**langchain_kwargs):
@@ -1837,7 +1840,7 @@ def get_documents(db):
     if hasattr(db, '_persist_directory'):
         name_path = os.path.basename(db._persist_directory)
         base_path = 'locks'
-        makedirs(base_path)
+        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True)
         with filelock.FileLock(os.path.join(base_path, "getdb_%s.lock" % name_path)):
             # get segfaults and other errors when multiple threads access this
             return _get_documents(db)
@@ -1862,7 +1865,7 @@ def get_docs_and_meta(db, top_k_docs, filter_kwargs={}):
     if hasattr(db, '_persist_directory'):
         name_path = os.path.basename(db._persist_directory)
         base_path = 'locks'
-        makedirs(base_path)
+        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True)
         with filelock.FileLock(os.path.join(base_path, "getdb_%s.lock" % name_path)):
             return _get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs)
     else:
@@ -1935,7 +1938,7 @@ def _run_qa_db(query=None,
                add_chat_history_to_context=True,
                sanitize_bot_response=False,
                show_rank=False,
-               use_llm_if_no_docs=False,
+               use_llm_if_no_docs=True,
                load_db_if_exists=False,
                db=None,
                do_sample=False,
@@ -1943,7 +1946,7 @@ def _run_qa_db(query=None,
                top_k=40,
                top_p=0.7,
                num_beams=1,
-               max_new_tokens=256,
+               max_new_tokens=512,
                min_new_tokens=1,
                early_stopping=False,
                max_time=180,
@@ -2054,12 +2057,12 @@ def _run_qa_db(query=None,
             return
         if not docs and langchain_mode not in [LangChainMode.DISABLED.value,
                                                LangChainMode.LLM.value]:
-            ret = 'No relevant documents to query.' if have_any_docs else 'No documents to query.'
+            ret = 'No relevant documents to query (for chatting with LLM, pick Resources->Collections->LLM).' if have_any_docs else 'No documents to query (for chatting with LLM, pick Resources->Collections->LLM).'
             extra = ''
             yield ret, extra
             return
 
-    if chain is None and model_name not in langchain_only_model:
+    if chain is None and not langchain_only_model:
         # here if no docs at all and not HF type
         # can only return if HF type
         return
@@ -2274,7 +2277,7 @@ def get_chain(query=None,
 
     if db and use_docs_planned:
         base_path = 'locks'
-        makedirs(base_path)
+        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True)
         if hasattr(db, '_persist_directory'):
             name_path = "sim_%s.lock" % os.path.basename(db._persist_directory)
         else:

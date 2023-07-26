@@ -38,23 +38,26 @@ https://github.com/h2oai/h2ogpt/assets/2249614/2f805035-2c85-42fb-807f-fd0bca79a
 
 YouTube 4K version: https://www.youtube.com/watch?v=_iktbj4obAI
 
-### Guide:
+### Docs Guide:
 <!--  cat README.md | ./gh-md-toc  -  But Help is heavily processed -->
 * [Supported OS and Hardware](#supported-os-and-hardware)
-* [Compare to PrivateGPT et al.](docs/README_LangChain.md#what-is-h2ogpts-langchain-integration-like)
-* [Roadmap](#roadmap)
-* [Getting Started](#getting-started)
-   * [TLDR Install & Run](#tldr)
-   * [GPU (CUDA)](docs/README_GPU.md)
-   * [CPU](docs/README_CPU.md)
-   * [MACOS](docs/README_MACOS.md)
-   * [Windows 10/11](docs/README_WINDOWS.md)
+* Getting Started
+   * [Linux (CPU or CUDA)](docs/README_LINUX.md)
+   * [MACOS (CPU or M1/M2)](docs/README_MACOS.md)
+   * [Windows 10/11 (CPU or CUDA)](docs/README_WINDOWS.md)
+   * [GPU (CUDA, AutoGPTQ, exllama) Running Details](docs/README_GPU.md)
+   * [CPU Running Details](docs/README_CPU.md)
    * [CLI chat](docs/README_CLI.md)
    * [Gradio UI](docs/README_ui.md)
-   * [Client API](docs/README_CLIENT.md)
-   * [Inference Servers](docs/README_InferenceServers.md)
+   * [Client API (Gradio, OpenAI-Compliant)](docs/README_CLIENT.md)
+   * [Inference Servers (TGI, vLLM, Gradio)](docs/README_InferenceServers.md)
    * [Python Wheel](docs/README_WHEEL.md)
-   * [Offline Mode](docs/README_offline.md)
+   * [Offline Installation](docs/README_offline.md)
+   * [Low Memory](docs/FAQ.md#low-memory-mode)
+   * [Docker](docs/README_DOCKER.md)
+* [LangChain Document Support](docs/README_LangChain.md)
+* [Compare to PrivateGPT et al.](docs/README_LangChain.md#what-is-h2ogpts-langchain-integration-like)
+* [Roadmap](#roadmap)
 * [Development](#development)
 * [Help](#help)
    * [LangChain file types supported](docs/README_LangChain.md#supported-datatypes)
@@ -65,6 +68,7 @@ YouTube 4K version: https://www.youtube.com/watch?v=_iktbj4obAI
    * [Fine-Tuning](docs/FINETUNE.md)
    * [Docker](docs/INSTALL-DOCKER.md)
    * [Triton](docs/TRITON.md)
+   * [commercially viability](docs/FAQ.md#commercial-viability).
 * [Acknowledgements](#acknowledgements)
 * [Why H2O.ai?](#why-h2oai)
 * [Disclaimer](#disclaimer)
@@ -91,120 +95,6 @@ GPU and CPU mode tested on variety of NVIDIA GPUs in Ubuntu 18-22, but any moder
 - Enhance the model's code completion, reasoning, and mathematical capabilities, ensure factual correctness, minimize hallucinations, and avoid repetitive output
 - Add other tools like search
 - Add agents for SQL and CSV question/answer
-
-## Getting Started
-
-First one needs a Python 3.10 environment.  For help installing a Python 3.10 environment, see [Install Python 3.10 Environment](docs/INSTALL.md#install-python-environment).  On newer Ubuntu systems and environment may be installed by just doing:
-```bash
-sudo apt-get install -y build-essential gcc python3.10-dev
-virtualenv -p python3 h2ogpt
-source h2ogpt/bin/activate
-```
-or use conda:
-```bash
-conda create -n h2ogpt -y
-conda activate h2ogpt
-conda install python=3.10 -c conda-forge -y
-```
-Check your installation by doing:
-```bash
-python --version # should say 3.10.xx
-pip --version  # should say pip 23.x.y ... (python 3.10)
-```
-On some systems, `pip` still refers back to the system one, then one can use `python -m pip` or `pip3` instead of `pip` or try `python3` instead of `python`.
-
-### TLDR
-
-These instructions are for Ubuntu x86_64 (other linux would be similar with different command instead of apt-get) after Python 3.10 environment is installed.  See [MACOS Instructions](docs/README_MACOS.md#macos) and [Windows 10/11 Instructions](docs/README_WINDOWS.md) for those systems.
-
-For Ubuntu:
-```bash
-git clone https://github.com/h2oai/h2ogpt.git
-cd h2ogpt
-# fix any bad env
-pip uninstall -y pandoc pypandoc pypandoc-binary
-# broad support, but no training-time or data creation dependencies
-
-# CPU only:
-pip install -r requirements.txt --extra-index https://download.pytorch.org/whl/cpu
-
-# GPU only:
-pip install -r requirements.txt --extra-index https://download.pytorch.org/whl/cu118
-```
-Then run:
-```bash
-# Required for Doc Q/A: LangChain:
-pip install -r reqs_optional/requirements_optional_langchain.txt
-# Required for CPU: LLaMa/GPT4All:
-pip install -r reqs_optional/requirements_optional_gpt4all.txt
-# Optional: PyMuPDF/ArXiv:
-pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt
-# Optional: Selenium/PlayWright:
-pip install -r reqs_optional/requirements_optional_langchain.urls.txt
-# Optional: support docx, pptx, ArXiv, etc. required by some python packages
-sudo apt-get install -y libmagic-dev poppler-utils tesseract-ocr libtesseract-dev libreoffice
-# Optional: for supporting unstructured package
-python -m nltk.downloader all
-# Optional: For AutoGPTQ support on x86_64 linux
-pip uninstall -y auto-gptq ; CUDA_HOME=/usr/local/cuda-11.8  GITHUB_ACTIONS=true pip install auto-gptq --no-cache-dir
-# Optional: For exllama support on x86_64 linux
-pip uninstall -y exllama ; pip install https://github.com/jllllll/exllama/releases/download/0.0.7/exllama-0.0.7+cu118-cp310-cp310-linux_x86_64.whl --no-cache-dir
-```
-See [AutoGPTQ](docs/README_GPU.md#autogptq) for more details for AutoGPTQ and other GPU installation aspects.  See [exllama](docs/README_GPU.md#) for more details for AutoGPTQ and other GPU installation aspects.
-
-#### Run h2oGPT
-To avoid unauthorized telemetry, which document options still do not disable, run:
-```bash
-sp=`python -c 'import site; print(site.getsitepackages()[0])'`
-sed -i 's/posthog\.capture/return\n            posthog.capture/' $sp/chromadb/telemetry/posthog.py
-```
-
-Place all documents in `user_path` or upload in UI ([Help with UI](docs/README_ui.md)).
-
-UI using GPU with at least 24GB with streaming:
-```bash
-python generate.py --base_model=h2oai/h2ogpt-oasst1-512-12b --load_8bit=True  --score_model=None --langchain_mode='UserData' --user_path=user_path
-```
-UI using LLaMa.cpp model:
-```bash
-wget https://huggingface.co/TheBloke/WizardLM-7B-uncensored-GGML/resolve/main/WizardLM-7B-uncensored.ggmlv3.q8_0.bin
-python generate.py --base_model='llama' --prompt_type=wizard2 --score_model=None --langchain_mode='UserData' --user_path=user_path
-```
-which works on CPU or GPU (assuming llama cpp python package compiled against CUDA or Metal).
-
-If using OpenAI for the LLM is ok, but you want documents to be parsed and embedded locally, then do:
-```bash
-python generate.py  --inference_server=openai_chat --base_model=gpt-3.5-turbo --score_model=None
-```
-and perhaps you want better image caption performance and focus local GPU on that, then do:
-```bash
-python generate.py  --inference_server=openai_chat --base_model=gpt-3.5-turbo --score_model=None --captions_model=Salesforce/blip2-flan-t5-xl
-```
-
-Add `--share=True` to make gradio server visible via sharable URL.  If you see an error about protobuf, try:
-```bash
-pip install protobuf==3.20.0
-```
-
-Once all files are downloaded, the CLI and UI can be run in offline mode, see [offline mode](docs/README_offline.md).
-
-#### Run h2oGPT using Docker
-1. Make sure Docker & Nvidia Containers are setup correctly by following instructions [here](docs/INSTALL-DOCKER.md).
-
-2. Specify the required model using `HF_MODEL` parameter.
-All open-source models are posted on [🤗 H2O.ai's Hugging Face page](https://huggingface.co/h2oai/).
-```bash
-docker run \
-    --runtime=nvidia --shm-size=64g \
-    -e HF_MODEL=h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b \
-    -p 8888:8888 -p 7860:7860 \
-    --rm --init \
-    -v `pwd`/h2ogpt_env:/h2ogpt_env \
-    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0
-```
-3. Navigate to http://localhost:7860/  & start using h2oGPT.
-
-To run h2oGPT with custom entrypoint, refer [here](docs/INSTALL-DOCKER.md).
 
 ### Development
 

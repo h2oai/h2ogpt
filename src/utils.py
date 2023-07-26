@@ -55,11 +55,14 @@ def flatten_list(lis):
 
 
 def clear_torch_cache():
-    import torch
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
-        torch.cuda.ipc_collect()
-        gc.collect()
+    try:
+        import torch
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            torch.cuda.ipc_collect()
+            gc.collect()
+    except RuntimeError as e:
+        print("clear_torch_cache error: %s" % ''.join(traceback.format_tb(e.__traceback__)), flush=True)
 
 
 def ping():
@@ -179,8 +182,10 @@ def _zip_data(root_dirs=None, zip_file=None, base_dir='./'):
         host_name = os.getenv('HF_HOSTNAME', 'emptyhost')
         zip_file = "data_%s_%s.zip" % (datetime_str, host_name)
     assert root_dirs is not None
-    if not os.path.isdir(os.path.dirname(zip_file)) and os.path.dirname(zip_file):
-        os.makedirs(os.path.dirname(zip_file), exist_ok=True)
+    base_path = os.path.dirname(zip_file)
+    if not os.path.isdir(base_path) and os.path.dirname(zip_file):
+        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True)
+        zip_file = os.path.join(base_path, os.path.basename(zip_file))
     with zipfile.ZipFile(zip_file, "w") as expt_zip:
         for root_dir in root_dirs:
             if root_dir is None:
@@ -422,17 +427,29 @@ def remove(path: str):
         pass
 
 
-def makedirs(path, exist_ok=True):
+def makedirs(path, exist_ok=True, tmp_ok=False):
     """
     Avoid some inefficiency in os.makedirs()
     :param path:
     :param exist_ok:
+    :param tmp_ok:
     :return:
     """
     if os.path.isdir(path) and os.path.exists(path):
         assert exist_ok, "Path already exists"
         return path
-    os.makedirs(path, exist_ok=exist_ok)
+    try:
+        os.makedirs(path, exist_ok=exist_ok)
+        return path
+    except PermissionError:
+        if tmp_ok:
+            path0 = path
+            path = os.path.join('/tmp/', path)
+            print("Permission denied to %s, using %s instead" % (path0, path), flush=True)
+            os.makedirs(path, exist_ok=exist_ok)
+            return path
+        else:
+            raise
 
 
 def atomic_move_simple(src, dst):
@@ -463,7 +480,9 @@ def download_simple(url, dest=None, print_func=None):
         )
         raise requests.exceptions.RequestException(msg)
     url_data.raw.decode_content = True
-    makedirs(os.path.dirname(dest), exist_ok=True)
+    base_path = os.path.dirname(dest)
+    base_path = makedirs(base_path, exist_ok=True, tmp_ok=True)
+    dest = os.path.join(base_path, os.path.basename(dest))
     uuid_tmp = str(uuid.uuid4())[:6]
     dest_tmp = dest + "_dl_" + uuid_tmp + ".tmp"
     with open(dest_tmp, "wb") as f:
@@ -504,7 +523,9 @@ def download(url, dest=None, dest_path=None):
     url_data.raw.decode_content = True
     dirname = os.path.dirname(dest)
     if dirname != "" and not os.path.isdir(dirname):
-        makedirs(os.path.dirname(dest), exist_ok=True)
+        base_path = os.path.dirname(dest)
+        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True)
+        dest = os.path.join(base_path, os.path.basename(dest))
     uuid_tmp = "dl3_" + str(uuid.uuid4())[:6]
     dest_tmp = dest + "_" + uuid_tmp + ".tmp"
     with open(dest_tmp, 'wb') as f:
@@ -1036,7 +1057,7 @@ def save_collection_names(langchain_modes, visible_langchain_modes, langchain_mo
                                  k not in scratch_collection_names and k not in llms}
 
     base_path = 'locks'
-    makedirs(base_path)
+    base_path = makedirs(base_path, tmp_ok=True)
 
     # user
     extra = ''

@@ -727,7 +727,7 @@ def inject_chatsep(prompt_type, prompt, chat_sep=None):
 
 
 class Prompter(object):
-    def __init__(self, prompt_type, prompt_dict, debug=False, chat=False, stream_output=False, repeat_penalty=True,
+    def __init__(self, prompt_type, prompt_dict, debug=False, chat=False, stream_output=False, repeat_penalty=False,
                  allowed_repeat_line_length=10, use_system_prompt=False):
         self.prompt_type = prompt_type
         self.prompt_dict = prompt_dict

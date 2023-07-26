@@ -1,42 +1,8 @@
-### GPU
+# GPU Details
 
-GPU via CUDA is supported via Hugging Face type models and LLaMa.cpp models.
+Hugging Face type models and LLaMa.cpp models are supported via CUDA on linux and via MPS on MACOS. 
 
-#### Google Colab
-
-A Google Colab version of a 3B GPU model is at:
-
-[![](https://colab.research.google.com/assets/colab-badge.svg) h2oGPT GPU](https://colab.research.google.com/drive/143-KFHs2iCqXTQLI2pFCDiR69z0dR8iE?usp=sharing)
-
-A local copy of that GPU Google Colab is [h2oGPT_GPU.ipynb](h2oGPT_GPU.ipynb).
-
----
-
-#### GPU (CUDA)
-
-For help installing cuda toolkit, see [CUDA Toolkit](INSTALL.md#installing-cuda-toolkit).
-
-```bash
-git clone https://github.com/h2oai/h2ogpt.git
-cd h2ogpt
-pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cu118
-pip install -r reqs_optional/requirements_optional_langchain.txt
-pip install -r reqs_optional/requirements_optional_gpt4all.txt
-pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt
-pip install -r reqs_optional/requirements_optional_langchain.urls.txt
-# Optional: support docx, pptx, ArXiv, etc.
-sudo apt-get install -y libmagic-dev poppler-utils tesseract-ocr libtesseract-dev libreoffice
-# Optional: for supporting unstructured package
-python -m nltk.downloader all
-```
-then check that can see CUDA from Torch:
-```python
-import torch
-print(torch.cuda.is_available())
-```
-should print True.
-
-To run in ChatBot mode, do:
+To run in ChatBot mode using bitsandbytes in 8-bit, do:
 ```bash
 python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b --load_8bit=True
 ```
@@ -64,27 +30,8 @@ Any other instruct-tuned base models can be used, including non-h2oGPT ones.  [L
 
 ##### AutoGPTQ
 
-To support [AutoGPTQ](https://github.com/PanQiWei/AutoGPTQ) models, run:
-```bash
-pip install auto-gptq[triton]
-```
-although to avoid building the package you can run the [specific version](https://github.com/PanQiWei/AutoGPTQ/releases), e.g.
-```bash
-pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.3.0/auto_gptq-0.3.0+cu118-cp310-cp310-linux_x86_64.whl
-```
-However, if one sees issues like `CUDA extension not installed.` mentioned during loading of model, need to recompile,
-because, otherwise, the generation will be much slower even if uses GPU.  If you have CUDA 11.8 installed from NVIDIA, run:
-```bash
-pip uninstall -y auto-gptq ; CUDA_HOME=/usr/local/cuda-11.8 GITHUB_ACTIONS=true pip install auto-gptq --no-cache-dir
-```
-If one used conda cudatoolkit:
-```bash
-conda install -c conda-forge cudatoolkit-dev
-```
-then use that location instead:
-```bash
-pip uninstall -y auto-gptq ; CUDA_HOME=$CONDA_PREFIX GITHUB_ACTIONS=true pip install auto-gptq --no-cache-dir
-```
+Important: If run below commands and see `CUDA extension not installed` mentioned during loading of model, need to recompile, because, otherwise, the generation will be much slower even if it uses GPU.
+
 An example with AutoGPTQ is:
 ```bash
 python generate.py --base_model=TheBloke/Nous-Hermes-13B-GPTQ --score_model=None --load_gptq=nous-hermes-13b-GPTQ-4bit-128g.no-act.order --use_safetensors=True --prompt_type=instruct --langchain_mode=UserData
@@ -93,11 +40,11 @@ This will use about 9800MB.  You can also add `--hf_embedding_model=sentence-tra
 
 For LLaMa2 70B model quantized in 4-bit AutoGPTQ, can run:
 ```bash
-CUDA_VISIBLE_DEVICES=0 python generate.py --base_model=Llama-2-70B-chat-GPTQ --load_gptq="gptq_model-4bit--1g" --use_safetensors=True --prompt_type=llama2 --save_dir='70bgptq4bit`
+CUDA_VISIBLE_DEVICES=0 python generate.py --base_model=Llama-2-70B-chat-GPTQ --load_gptq="gptq_model-4bit--1g" --use_safetensors=True --prompt_type=llama2 --save_dir='save`
 ```
 which gives about 12 tokens/sec.  For 7b run:
 ```bash
-python generate.py --base_model=TheBloke/Llama-2-7b-Chat-GPTQ --load_gptq="gptq_model-4bit-128g" --use_safetensors=True --prompt_type=llama2 --save_dir='7bgptq4bit`
+python generate.py --base_model=TheBloke/Llama-2-7b-Chat-GPTQ --load_gptq="gptq_model-4bit-128g" --use_safetensors=True --prompt_type=llama2 --save_dir='save`
 ```
 For full 16-bit with 16k context across all GPUs:
 ```bash
@@ -105,57 +52,41 @@ pip install transformers==4.31.0  # breaks load_in_8bit=True in some cases (http
 python generate.py --base_model=meta-llama/Llama-2-70b-chat-hf --prompt_type=llama2 --rope_scaling="{'type': 'linear', 'factor': 4}" --use_gpu_id=False --save_dir=savemeta70b
 ```
 and running on 4xA6000 gives about 4tokens/sec consuming about 35GB per GPU of 4 GPUs when idle.
+Or for GPTQ with RoPE:
+```bash
+pip install transformers==4.31.0  # breaks load_in_8bit=True in some cases (https://github.com/huggingface/transformers/issues/25026)
+python generate.py --base_model=TheBloke/Llama-2-7b-Chat-GPTQ --load_gptq="gptq_model-4bit-128g" --use_safetensors=True --prompt_type=llama2 --score_model=None --save_dir='7bgptqrope4` --rope_scaling="{'type':'dynamic', 'factor':4}"
+--max_max_new_tokens=15000 --max_new_tokens=15000 --max_time=12000
+```
+for which the GPU only uses 5.5GB.  One can add (e.g.) ` --min_new_tokens=4096` to force generation to continue beyond model's training norms, although this may give lower quality responses.
 Currently, Hugging Face transformers does not support GPTQ directly except in text-generation-inference (TGI) server, but TGI does not support RoPE scaling.  Also, vLLM supports LLaMa2 and AutoGPTQ but not RoPE scaling.  Only exllama supports AutoGPTQ with RoPE scaling.
 
 ##### exllama
 
-Currently, only [exllama](https://github.com/turboderp/exllama) supports AutoGPTQ with RoPE scaling.  To install run:
+Currently, only [exllama](https://github.com/turboderp/exllama) supports AutoGPTQ with RoPE scaling.
+To run RoPE scaling the LLaMa-2 7B model for 16k context:
 ```bash
-pip uninstall -y exllama ; pip install https://github.com/jllllll/exllama/releases/download/0.0.7/exllama-0.0.7+cu118-cp310-cp310-linux_x86_64.whl
-```
-And then run with RoPE scaling the LLaMa-2 7B model for 16k context:
-```bash
-python generate.py --base_model=TheBloke/Llama-2-7b-Chat-GPTQ --load_gptq="gptq_model-4bit-128g" --use_safetensors=True --prompt_type=llama2 --save_dir='7bgptq4bit' --load_exllama=True --revision=gptq-4bit-32g-actorder_True --rope_scaling="{'alpha_value':4}"
+python generate.py --base_model=TheBloke/Llama-2-7b-Chat-GPTQ --load_gptq="gptq_model-4bit-128g" --use_safetensors=True --prompt_type=llama2 --save_dir='save' --load_exllama=True --revision=gptq-4bit-32g-actorder_True --rope_scaling="{'alpha_value':4}"
 ```
 which shows how to control `alpha_value` and the `revision` for a given model on [TheBloke/Llama-2-7b-Chat-GPTQ](https://huggingface.co/TheBloke/Llama-2-7b-Chat-GPTQ).  Be careful as setting `alpha_value` higher consumes substantially more GPU memory.  Also, some models have wrong config values for `max_position_embeddings` or `max_sequence_length`, and we try to fix those for LLaMa2 if `llama-2` appears in the lower-case version of the model name.
 Another type of model is
 ```bash
-python generate.py --base_model=TheBloke/Nous-Hermes-Llama2-GPTQ --load_gptq="gptq_model-4bit-128g" --use_safetensors=True --prompt_type=wizard2 --save_dir='7bgptq4bit' --load_exllama=True --revision=gptq-4bit-32g-actorder_True --rope_scaling="{'alpha_value':4}"
+python generate.py --base_model=TheBloke/Nous-Hermes-Llama2-GPTQ --load_gptq="gptq_model-4bit-128g" --use_safetensors=True --prompt_type=wizard2 --save_dir='save' --load_exllama=True --revision=gptq-4bit-32g-actorder_True --rope_scaling="{'alpha_value':4}"
 ```
-and note the different `prompt_type`.
-
----
-
-#### GPU with LLaMa
-
-* Install langchain, and GPT4All, and python LLaMa dependencies:
+and note the different `prompt_type`.  For LLaMa2 70B run:
 ```bash
-pip install -r reqs_optional/requirements_optional_langchain.txt
-pip install -r reqs_optional/requirements_optional_gpt4all.txt
+python generate.py --base_model=TheBloke/Llama-2-70B-chat-GPTQ --load_gptq=gptq_model-4bit-128g --use_safetensors=True --prompt_type=llama2 --load_exllama=True --revision=main
 ```
-then compile llama-cpp-python with CUDA support:
-```bash
-conda install -c "nvidia/label/cuda-12.1.1" cuda-toolkit  # maybe optional
-pip uninstall -y llama-cpp-python
-export LLAMA_CUBLAS=1
-export CMAKE_ARGS=-DLLAMA_CUBLAS=on
-export FORCE_CMAKE=1
-export CUDA_HOME=$HOME/miniconda3/envs/h2ogpt
-CMAKE_ARGS="-DLLAMA_CUBLAS=on" FORCE_CMAKE=1 pip install llama-cpp-python==0.1.68 --no-cache-dir --verbose
-```
-and uncomment `# n_gpu_layers=20` in `.env_gpt4all`, one can try also `40` instead of `20`.  If one sees `/usr/bin/nvcc` mentioned in errors, that file needs to be removed as would likely conflict with version installed for conda.  Then run:
+which uses about 48GB of memory on 1 GPU and runs at about 12 tokens/second on an A6000, which is about half the speed of 16-bit if run that on 2*A100 GPUs.
+
+With exllama, ensure `--concurrency_count=1` else the model will share states and mix-up concurrent requests.
+
+##### For LLaMa.cpp on GPU run:
 ```bash
 python generate.py --base_model='llama' --prompt_type=wizard2 --score_model=None --langchain_mode='UserData' --user_path=user_path
 ```
-when loading you should see something like:
+and ensure output shows:
 ```text
-Using Model llama
-Prep: persist_directory=db_dir_UserData exists, user_path=user_path passed, adding any changed or new documents
-load INSTRUCTOR_Transformer
-max_seq_length  512
-0it [00:00, ?it/s]
-0it [00:00, ?it/s]
-Loaded 0 sources for potentially adding to UserData
 ggml_init_cublas: found 2 CUDA devices:
   Device 0: NVIDIA GeForce RTX 3090 Ti
   Device 1: NVIDIA GeForce RTX 2080
@@ -180,10 +111,4 @@ llama_model_load_internal: offloading 20 repeating layers to GPU
 llama_model_load_internal: offloaded 20/35 layers to GPU
 llama_model_load_internal: total VRAM used: 4470 MB
 llama_new_context_with_model: kv self size  =  896.00 MB
-AVX = 1 | AVX2 = 1 | AVX512 = 0 | AVX512_VBMI = 0 | AVX512_VNNI = 0 | FMA = 1 | NEON = 0 | ARM_FMA = 0 | F16C = 1 | FP16_VA = 0 | WASM_SIMD = 0 | BLAS = 1 | SSE3 = 1 | VSX = 0 | 
-Model {'base_model': 'llama', 'tokenizer_base_model': '', 'lora_weights': '', 'inference_server': '', 'prompt_type': 'wizard2', 'prompt_dict': {'promptA': 'Below is an instruction that describes a task. Write a response that appropriately completes the request.', 'promptB': 'Below is an instruction that describes a task. Write a response that appropriately completes the request.', 'PreInstruct': '\n### Instruction:\n', 'PreInput': None, 'PreResponse': '\n### Response:\n', 'terminate_response': ['\n### Response:\n'], 'chat_sep': '\n', 'chat_turn_sep': '\n', 'humanstr': '\n### Instruction:\n', 'botstr': '\n### Response:\n', 'generates_leading_space': False}}
-Running on local URL:  http://0.0.0.0:7860
-Running on public URL: https://1ccb24d03273a3d085.gradio.live
 ```
-and GPU usage when using.  Note that once `llama-cpp-python` is compiled to support CUDA, it no longer works for CPU mode,
-so one would have to reinstall it without the above options to recovers CPU mode or have a separate h2oGPT env for CPU mode.

@@ -2071,7 +2071,7 @@ def go_gradio(**kwargs):
 
         def get_chats1(chat_state1):
             base = 'chats'
-            makedirs(base, exist_ok=True)
+            base = makedirs(base, exist_ok=True, tmp_ok=True)
             filename = os.path.join(base, 'chats_%s.json' % str(uuid.uuid4()))
             with open(filename, "wt") as f:
                 f.write(json.dumps(chat_state1, indent=2))
@@ -2571,7 +2571,7 @@ def get_sources(db1s, langchain_mode, dbs=None, docs_state0=None):
         source_list = []
         source_files_added = "None"
     sources_dir = "sources_dir"
-    makedirs(sources_dir)
+    sources_dir = makedirs(sources_dir, exist_ok=True, tmp_ok=True)
     sources_file = os.path.join(sources_dir, 'sources_%s_%s' % (langchain_mode, str(uuid.uuid4())))
     with open(sources_file, "wt") as f:
         f.write(source_files_added)
@@ -2623,7 +2623,7 @@ def get_lock_file(db1, langchain_mode):
     assert len(db1) == 2 and db1[1] is not None and isinstance(db1[1], str)
     user_id = db1[1]
     base_path = 'locks'
-    makedirs(base_path)
+    base_path = makedirs(base_path, exist_ok=True, tmp_ok=True)
     lock_file = os.path.join(base_path, "db_%s_%s.lock" % (langchain_mode.replace(' ', '_'), user_id))
     return lock_file
 

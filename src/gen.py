@@ -159,7 +159,7 @@ def main(
         user_path: str = None,
         langchain_mode_paths: dict = {'UserData': None},
         detect_user_path_changes_every_query: bool = False,
-        use_llm_if_no_docs: bool = False,
+        use_llm_if_no_docs: bool = True,
         load_db_if_exists: bool = True,
         keep_sources_in_context: bool = False,
         use_system_prompt: bool = False,
@@ -288,6 +288,8 @@ def main(
     :param max_max_time: Maximum max_time for gradio slider
     :param max_max_new_tokens: Maximum max_new_tokens for gradio slider
     :param sanitize_user_prompt: whether to remove profanity from user input (slows down input processing)
+      Requires optional packages:
+      pip install alt-profanity-check==1.2.2 better-profanity==0.7.0
     :param sanitize_bot_response: whether to remove profanity and repeat lines from bot output (about 2x slower generation for long streaming cases due to better_profanity being slow)
     :param extra_model_options: extra models to show in list in gradio
     :param extra_lora_options: extra LORA to show in list in gradio
@@ -534,12 +536,12 @@ def main(
         if not max_new_tokens:
             max_new_tokens = 256
         if not max_max_new_tokens:
-            max_max_new_tokens = 256
+            max_max_new_tokens = 512
     else:
         if not max_max_time:
             max_max_time = 60 * 20
         if not max_max_new_tokens:
-            max_max_new_tokens = 512
+            max_max_new_tokens = 1024
     if is_hf:
         # must override share if in spaces
         share = False
@@ -607,7 +609,7 @@ def main(
     text_limit = None
 
     if offload_folder:
-        makedirs(offload_folder)
+        offload_folder = makedirs(offload_folder, exist_ok=True, tmp_ok=True)
 
     placeholder_instruction, placeholder_input, \
         stream_output, show_examples, \
@@ -834,6 +836,26 @@ def get_config(base_model,
             model = None
     if 'falcon' in base_model.lower():
         config.use_cache = False
+
+    elif hasattr(config, 'max_seq_len') and isinstance(config.max_seq_len, int):
+        pass
+    elif hasattr(config, 'max_length') and isinstance(config.max_length, int):
+        config.max_seq_len = config.max_length
+    elif hasattr(config, 'max_position_embeddings') and isinstance(config.max_position_embeddings, int):
+        # help automatically limit inputs to generate
+        config.max_seq_len = config.max_position_embeddings
+    else:
+        print("Could not determine max_seq_len, setting to 2048", flush=True)
+        config.max_seq_len = 2048
+
+    if rope_scaling:
+        if rope_scaling.get('factor'):
+            # HF transformers
+            config.max_seq_len *= rope_scaling.get('factor')
+        elif rope_scaling.get('alpha_value'):
+            # exllama
+            # Note: exllama's own tokenizer has this set correctly in loaders.py, this config will be unused
+            config.max_seq_len *= rope_scaling.get('alpha_value')
 
     return config, model
 
@@ -1071,6 +1093,8 @@ def get_model(
         else:
             tokenizer = tokenizer_loader.from_pretrained(tokenizer_base_model, **tokenizer_kwargs)
             # sets raw (no cushion) limit
+            # If using RoPE with scaling, then for non-exllama models (e.g. HF models),
+            #  then config -> tokenizer will set model_max_length correctly
             set_model_max_len(config, tokenizer, verbose=False, rope_scaling=rope_scaling)
             # if using fake tokenizer, not really accurate when lots of numbers, give a bit of buffer, else get:
             # Generation Failed: Input validation error: `inputs` must have less than 2048 tokens. Given: 2233
@@ -1328,9 +1352,8 @@ def set_model_max_len(config, tokenizer, verbose=False, reward_type=False, rope_
         tokenizer.model_max_length = 512
     if hasattr(config, 'max_seq_len') and isinstance(config.max_seq_len, int):
         tokenizer.model_max_length = config.max_seq_len  # should be scaled/long already from config
-    elif hasattr(config, 'max_position_embeddings') and isinstance(config.max_position_embeddings, int):
-        # help automatically limit inputs to generate
-        tokenizer.model_max_length = config.max_position_embeddings * rope_scaling_factor
+        if verbose:
+            print("model_max_length=%s" % tokenizer.model_max_length, flush=True)
     else:
         if verbose:
             print(f"Could not determine model_max_length, setting to {2048 * rope_scaling_factor}", flush=True)
@@ -1452,7 +1475,7 @@ def evaluate(
         raise_generate_gpu_exceptions=None,
         chat_context=None,
         lora_weights=None,
-        use_llm_if_no_docs=False,
+        use_llm_if_no_docs=True,
         load_db_if_exists=True,
         dbs=None,
         detect_user_path_changes_every_query=None,
@@ -1726,7 +1749,7 @@ def evaluate(
                 print(
                     'Post-Generate Langchain: %s decoded_output: %s' % (str(datetime.now()), len(outr) if outr else -1),
                     flush=True)
-        if outr or base_model in langchain_only_model:
+        if outr or langchain_only_model:
             # if got no response (e.g. not showing sources and got no sources,
             # so nothing to give to LLM), then slip through and ask LLM
             # Or if llama/gptj, then just return since they had no response and can't go down below code path
@@ -2449,7 +2472,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         top_p = 1.0 if top_p is None else top_p
         top_k = 40 if top_k is None else top_k
         num_beams = num_beams or 1
-        max_new_tokens = max_new_tokens or 128
+        max_new_tokens = max_new_tokens or 512
         repetition_penalty = repetition_penalty or 1.07
         num_return_sequences = min(num_beams, num_return_sequences or 1)
         do_sample = False if do_sample is None else do_sample
@@ -2458,7 +2481,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         top_p = 0.75 if top_p is None else top_p
         top_k = 40 if top_k is None else top_k
         num_beams = num_beams or 1
-        max_new_tokens = max_new_tokens or 256
+        max_new_tokens = max_new_tokens or 1024
         repetition_penalty = repetition_penalty or 1.07
         num_return_sequences = min(num_beams, num_return_sequences or 1)
         do_sample = False if do_sample is None else do_sample

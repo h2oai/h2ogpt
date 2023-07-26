@@ -44,7 +44,7 @@ with open(os.path.join(current_directory, 'version.txt'), encoding='utf-8') as f
     version = f.read().strip()
 
 # Data to include
-packages = [p + '/**' for p in find_packages(include='*')]
+packages = [p + '/**' for p in find_packages(include='*',exclude=['tests'])]
 
 setuptools.setup(
     name='h2ogpt',
@@ -54,14 +54,15 @@ setuptools.setup(
     },
     package_data={
         'h2ogpt': list(set([
-            'data/**',
-            'docs/**',
             'spaces/**',
         ] + packages)),
     },
     exclude_package_data={
         'h2ogpt': [
             '**/__pycache__/**',
+            'models/modelling_RW_falcon40b.py',
+            'models/modelling_RW_falcon7b.py',
+            'models/README-template.md'
         ],
     },
     version=version,
@@ -83,7 +84,7 @@ setuptools.setup(
         'WIKI_EXTRA': install_wiki_extra,
     },
     dependency_links=[
-        'https://download.pytorch.org/whl/cu118',
+        'https://download.pytorch.org/whl/cu117',
     ],
     classifiers=[],
     python_requires='>=3.10',

@@ -2,36 +2,6 @@
 
 Follow these instructions to get a working Python environment on a Linux system.
 
-### Install Python environment
-
-Download Miniconda, for [Linux](https://repo.anaconda.com/miniconda/Miniconda3-py310_23.1.0-1-Linux-x86_64.sh) or MACOS [Miniconda](https://docs.conda.io/en/latest/miniconda.html#macos-installers) or Windows [Miniconda](https://repo.anaconda.com/miniconda/Miniconda3-latest-Windows-x86_64.exe).  Then, install conda and setup environment:
-```bash
-bash ./Miniconda3-py310_23.1.0-1-Linux-x86_64.sh  # for linux x86-64
-# follow license agreement and add to bash if required
-```
-Enter new shell and should also see `(base)` in prompt.  Then, create new env:
-```bash
-conda create -n h2ogpt -y
-conda activate h2ogpt
-conda install -y mamba -c conda-forge  # for speed
-mamba install python=3.10 -c conda-forge -y
-conda update -n base -c defaults conda -y
-```
-You should see `(h2ogpt)` in shell prompt.  Test your python:
-```bash
-python --version
-```
-should say 3.10.xx and:
-```bash
-python -c "import os, sys ; print('hello world')"
-```
-should print `hello world`.  Then clone:
-```bash
-git clone https://github.com/h2oai/h2ogpt.git
-cd h2ogpt
-```
-Then go back to [README](../README.md) for package installation and use of `generate.py`.
-
 ### Installing CUDA Toolkit
 
 E.g. CUDA 12.1 [install cuda coolkit](https://developer.nvidia.com/cuda-downloads?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=22.04&target_type=deb_local)
