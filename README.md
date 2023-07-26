@@ -94,6 +94,42 @@ GPU and CPU mode tested on variety of NVIDIA GPUs in Ubuntu 18-22, but any moder
 
 ## Getting Started
 
+See [Windows 10/11 Instructions](docs/README_WINDOWS.md) for Windows 10/11.
+
+See [MACOS Instructions](docs/README_MACOS.md#macos) for MACOS.
+
+
+### Linux
+
+These instructions are for Ubuntu x86_64 (other linux would be similar with different command instead of apt-get).
+
+Download Miniconda, for [Linux](https://repo.anaconda.com/miniconda/Miniconda3-py310_23.1.0-1-Linux-x86_64.sh)
+```bash
+bash ./Miniconda3-py310_23.1.0-1-Linux-x86_64.sh  # for linux x86-64
+# follow license agreement and add to bash if required
+```
+Enter new shell and should also see `(base)` in prompt.  Then, create new env:
+```bash
+conda create -n h2ogpt -y
+conda activate h2ogpt
+mamba install python=3.10 -c conda-forge -y
+```
+You should see `(h2ogpt)` in shell prompt.  Test your python:
+```bash
+python --version
+```
+should say 3.10.xx and:
+```bash
+python -c "import os, sys ; print('hello world')"
+```
+should print `hello world`.  Then clone:
+```bash
+git clone https://github.com/h2oai/h2ogpt.git
+cd h2ogpt
+```
+Then go back to [README](../README.md) for package installation and use of `generate.py`.
+
+
 First one needs a Python 3.10 environment.  For help installing a Python 3.10 environment, see [Install Python 3.10 Environment](docs/INSTALL.md#install-python-environment).  On newer Ubuntu systems and environment may be installed by just doing:
 ```bash
 sudo apt-get install -y build-essential gcc python3.10-dev
@@ -113,11 +149,7 @@ pip --version  # should say pip 23.x.y ... (python 3.10)
 ```
 On some systems, `pip` still refers back to the system one, then one can use `python -m pip` or `pip3` instead of `pip` or try `python3` instead of `python`.
 
-### TLDR
-
-These instructions are for Ubuntu x86_64 (other linux would be similar with different command instead of apt-get) after Python 3.10 environment is installed.  See [MACOS Instructions](docs/README_MACOS.md#macos) and [Windows 10/11 Instructions](docs/README_WINDOWS.md) for those systems.
-
-For Ubuntu:
+Install dependencies:
 ```bash
 git clone https://github.com/h2oai/h2ogpt.git
 cd h2ogpt
@@ -131,7 +163,7 @@ pip install -r requirements.txt --extra-index https://download.pytorch.org/whl/c
 # GPU only:
 pip install -r requirements.txt --extra-index https://download.pytorch.org/whl/cu118
 ```
-Then run:
+Then install document question-answer dependencies:
 ```bash
 # Required for Doc Q/A: LangChain:
 pip install -r reqs_optional/requirements_optional_langchain.txt
