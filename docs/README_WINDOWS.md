@@ -125,7 +125,8 @@
   
     To create a public link, set `share=True` in `launch()`.
     ```
-  * Go to `http://127.0.0.1:7860` (ignore message above).  Add `--share=True` to get sharable secure link.  To just chat with LLM, click `Resources` and click `LLM` in Collections.
+  * Go to `http://127.0.0.1:7860` (ignore message above).  Add `--share=True` to get sharable secure link.
+  * To just chat with LLM, click `Resources` and click `LLM` in Collections, or start without `--langchain_mode=UserData`.
   * In `nvidia-smi` or some other GPU monitor program you should see `python.exe` using GPUs in `C` (Compute) mode and using GPU resources.
   * If you have multiple GPUs, best to specify to use the fasted GPU by doing (e.g. if device 0 is fastest and largest memory GPU):
     ```bash
@@ -135,9 +136,15 @@
 
   * ![llamasmall.jpg](..%2F..%2FPictures%2Fllamasmall.jpg)
 
+  * For LLaMa2 70B model, add to `.env_gpt4all`:
+    ```.env_gpt4all
+    n_gqa=8
+    ```
+    See [LLaMa.cpp Instructions](https://pypi.org/project/llama-cpp-python/) for more details.
+
 * To use Hugging Face type models (faster on GPU than LLaMa.cpp if one has a powerful GPU with enough memory):
    ```bash
-   python generate.py --base_model=h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b --langchain_mode=UserData --score_model=None
+   python generate.py --base_model=h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v3 --langchain_mode=UserData --score_model=None
    ```
 
 See [CPU](README_CPU.md) and [GPU](README_GPU.md) for some other general aspects about using h2oGPT on CPU or GPU, such as which models to try, quantization, etc.
