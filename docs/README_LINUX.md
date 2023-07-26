@@ -105,7 +105,7 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     sp=`python -c 'import site; print(site.getsitepackages()[0])'`
     sed -i 's/posthog\.capture/return\n            posthog.capture/' $sp/chromadb/telemetry/posthog.py
     ```
-* GPU Only: Compile llama-cpp-python with CUDA support:
+* GPU Optional: Compile llama-cpp-python with CUDA support:
   ```bash
   pip uninstall -y llama-cpp-python
   export LLAMA_CUBLAS=1
