@@ -3,7 +3,7 @@
 Supports CPU and MPS (Metal M1/M2).
 
 ## Install:
-* Download [Miniconda](https://docs.conda.io/en/latest/miniconda.html#macos-installers) for Python 3.10.
+* Download and Install [Miniconda](https://docs.conda.io/en/latest/miniconda.html#macos-installers) for Python 3.10.
 * Run Miniconda
 * Setup environment with Conda Rust:
     ```bash
@@ -17,7 +17,6 @@ Supports CPU and MPS (Metal M1/M2).
 
     # fix any bad env
     pip uninstall -y pandoc pypandoc pypandoc-binary
-    # broad support, but no training-time or data creation dependencies
     
     # CPU only:
     pip install -r requirements.txt --extra-index https://download.pytorch.org/whl/cpu
@@ -38,7 +37,7 @@ Supports CPU and MPS (Metal M1/M2).
     # Optional: for supporting unstructured package
     python -m nltk.downloader all
 * For supporting Word and Excel documents, download libreoffice: https://www.libreoffice.org/download/download-libreoffice/ .
-* To support OCR, install tesseract and other dependencies.  For more help, see [Tesseract Documentation](https://tesseract-ocr.github.io/tessdoc/Installation.html).
+* To support OCR, install [Tesseract Documentation](https://tesseract-ocr.github.io/tessdoc/Installation.html):
     ```bash
     brew install libmagic
     brew link libmagic
@@ -47,23 +46,24 @@ Supports CPU and MPS (Metal M1/M2).
     ```
 * Metal M1/M2 Only: Install newer Torch for GPU support:
    ```bash
-   pip install --pre torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/nightly/cpu
+   pip uninstall -y torch
+   pip install --pre torch --extra-index-url https://download.pytorch.org/whl/nightly/cpu
    ```
-    Verify whether torch uses MPS, run below python script.
-   ```python
-    import torch
-    if torch.backends.mps.is_available():
-        mps_device = torch.device("mps")
-        x = torch.ones(1, device=mps_device)
-        print (x)
-    else:
-        print ("MPS device not found.")
-   ```
-   Output
-    ```bash
-    tensor([1.], device='mps:0')
-    ```
-* Install and setup GPU-specific dependencies to support LLaMa.cpp on GPU:
+   Verify whether torch uses MPS, run below python script:
+     ```python
+      import torch
+      if torch.backends.mps.is_available():
+          mps_device = torch.device("mps")
+          x = torch.ones(1, device=mps_device)
+          print (x)
+      else:
+          print ("MPS device not found.")
+     ```
+  Output
+     ```bash
+     tensor([1.], device='mps:0')
+     ```
+* Metal M1/M2 Only:  Install and setup GPU-specific dependencies to support LLaMa.cpp on GPU:
     ```bash
     pip uninstall llama-cpp-python -y
     CMAKE_ARGS="-DLLAMA_METAL=on" FORCE_CMAKE=1 pip install -U llama-cpp-python --no-cache-dir
@@ -71,11 +71,6 @@ Supports CPU and MPS (Metal M1/M2).
     - In `.env_gpt4all`, uncomment line with `n_gpu_layers=20`
     - In `.env_gpt4all`, optionally change model name: `model_path_llama=WizardLM-7B-uncensored.ggmlv3.q8_0.bin`
     - **Note** Only supports v3 ggml 4 bit quantized models for MPS, so use llama models ends with `ggmlv3` & `q4_x.bin`.
-* Optional support of AutoGPT for GPU:
-    ```bash
-    pip uninstall -y auto-gptq ; CUDA_HOME=/usr/local/cuda-11.8  GITHUB_ACTIONS=true pip install auto-gptq --no-cache-dir
-    ```
-    See [AutoGPTQ](README_GPU.md#autogptq) for more details for AutoGPTQ and other GPU installation aspects.
 
 ---
 
