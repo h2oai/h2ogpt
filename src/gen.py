@@ -1095,7 +1095,7 @@ def get_model(
             # sets raw (no cushion) limit
             # If using RoPE with scaling, then for non-exllama models (e.g. HF models),
             #  then config -> tokenizer will set model_max_length correctly
-            set_model_max_len(config, tokenizer, verbose=False, rope_scaling=rope_scaling)
+            set_model_max_len(config, tokenizer, verbose=False)
             # if using fake tokenizer, not really accurate when lots of numbers, give a bit of buffer, else get:
             # Generation Failed: Input validation error: `inputs` must have less than 2048 tokens. Given: 2233
             tokenizer.model_max_length = tokenizer.model_max_length - 50
@@ -1337,16 +1337,12 @@ def get_hf_model(load_8bit: bool = False,
         if torch.__version__ >= "2" and sys.platform != "win32" and compile_model:
             model = torch.compile(model)
 
-    set_model_max_len(config, tokenizer, verbose=False, reward_type=reward_type, rope_scaling=rope_scaling)
+    set_model_max_len(config, tokenizer, verbose=False, reward_type=reward_type)
 
     return model, tokenizer, device
 
 
-def set_model_max_len(config, tokenizer, verbose=False, reward_type=False, rope_scaling=None):
-    rope_scaling_factor = 1
-    if rope_scaling:
-        rope_scaling_factor = rope_scaling.get('factor')
-        assert isinstance(rope_scaling_factor, int)
+def set_model_max_len(config, tokenizer, verbose=False, reward_type=False):
     if reward_type:
         # limit deberta, else uses too much memory and not worth response score
         tokenizer.model_max_length = 512
@@ -1356,14 +1352,10 @@ def set_model_max_len(config, tokenizer, verbose=False, reward_type=False, rope_
         if verbose:
             print("model_max_length=%s" % tokenizer.model_max_length, flush=True)
     else:
-        if verbose:
-            print(f"Could not determine model_max_length, setting to {2048 * rope_scaling_factor}", flush=True)
-        # hopefully not for Llama2 models
-        tokenizer.model_max_length = 2048 * rope_scaling_factor
+        raise RuntimeError("Could not determine model_max_length")
     # for bug in HF transformers
     if tokenizer.model_max_length > 100000000:
-        # hopefully not for Llama2 models
-        tokenizer.model_max_length = 2048 * rope_scaling_factor
+        tokenizer.model_max_length = 2048
 
 
 def pop_unused_model_kwargs(model_kwargs):
