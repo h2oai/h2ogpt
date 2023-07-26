@@ -36,7 +36,7 @@ pip install auto-gptq[triton]
 ```
 although to avoid building the package you can run the [specific version](https://github.com/PanQiWei/AutoGPTQ/releases), e.g.
 ```bash
-pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.3.0/auto_gptq-0.3.0+cu118-cp310-cp310-linux_x86_64.whl
+pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.3.0/auto_gptq-0.3.0+cu117-cp310-cp310-linux_x86_64.whl
 ```
 However, if one sees issues like `CUDA extension not installed.` mentioned during loading of model, need to recompile,
 because, otherwise, the generation will be much slower even if uses GPU.  If you have CUDA 11.7 installed from NVIDIA, run:
@@ -77,7 +77,7 @@ Currently, Hugging Face transformers does not support GPTQ directly except in te
 
 Currently, only [exllama](https://github.com/turboderp/exllama) supports AutoGPTQ with RoPE scaling.  To install run:
 ```bash
-pip uninstall -y exllama ; pip install https://github.com/jllllll/exllama/releases/download/0.0.7/exllama-0.0.7+cu118-cp310-cp310-linux_x86_64.whl
+pip uninstall -y exllama ; pip install https://github.com/jllllll/exllama/releases/download/0.0.7/exllama-0.0.7+cu117-cp310-cp310-linux_x86_64.whl
 ```
 And then run with RoPE scaling the LLaMa-2 7B model for 16k context:
 ```bash

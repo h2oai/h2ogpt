@@ -18,21 +18,32 @@
     conda create -n h2ogpt -y
     conda activate h2ogpt
     conda install python=3.10 -c conda-forge -y
-    conda install cudatoolkit=11.7 -c conda-forge -y  # cuda toolkit for 4-bit/8-bit bitsandbytes using GPU, not needed for CPU
     python --version  # should say python 3.10.xx
     python -c "import os, sys ; print('hello world')"  # should print "hello world"
+    ```
+* GPU Only: Install CUDA
+   If you plan to install GPU versions of bitsandbytes, llama-cpp-python, AutoGPTQ, exllama, or flash attention, then do:
+   ```bash
+    conda install cudatoolkit-dev=11.7 -c conda-forge -y
+    ```
+  or if you only need CUDA support otherwise, do:
+   ```bash
+    conda install cudatoolkit=11.7 -c conda-forge -y
+    ```
+  You do not need to isntall both.
+* Install h2oGPT:
+   ```bash
     git clone https://github.com/h2oai/h2ogpt.git
     cd h2ogpt
     ```
 * Install dependencies.
-
     For CPU:
     ```bash
    pip install -r requirements.txt
     ```
    For GPU:
     ```bash
-   pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cu118
+   pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cu117
     ```
 * For GPU, install bitsandbytes 4-bit and 8-bit:
     ```bash
@@ -53,7 +64,7 @@
 * For supporting Word and Excel documents, if you don't have Word/Excel already, then download and install libreoffice: https://www.libreoffice.org/download/download-libreoffice/ . To support OCR, download and install [tesseract](https://github.com/UB-Mannheim/tesseract/wiki), see also: [Tesseract Documentation](https://tesseract-ocr.github.io/tessdoc/Installation.html).  Please add the installation directories to your PATH.
 * Install optional AutoGPTQ dependency:
     ```bash
-    pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.3.0/auto_gptq-0.3.0+cu118-cp310-cp310-win_amd64.whl
+    pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.3.0/auto_gptq-0.3.0+cu117-cp310-cp310-win_amd64.whl
     ```
 * GPU Only: Compile llama-cpp-python with CUDA support:
   ```bash

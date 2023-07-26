@@ -22,7 +22,7 @@ Supports CPU and MPS (Metal M1/M2).
     pip install -r requirements.txt --extra-index https://download.pytorch.org/whl/cpu
     
     # GPU only:
-    pip install -r requirements.txt --extra-index https://download.pytorch.org/whl/cu118
+    pip install -r requirements.txt --extra-index https://download.pytorch.org/whl/cu117
     ```
 * Install document question-answer dependencies:
     ```bash
