@@ -102,12 +102,12 @@ def test_gradio_long_context_uuid_key_value_retrieval(base_model, rope_scaling, 
 
 
 @pytest.mark.parametrize("rope_scaling", [
-    # None,
+    None,
     {'type': 'dynamic', 'factor': 2.0},
 ])
 @pytest.mark.parametrize("base_model", [
     "huggyllama/llama-7b",
-    # "meta-llama/Llama-2-7b-chat-hf"
+    "meta-llama/Llama-2-7b-chat-hf"
 ])
 def test_huggyllama_transformers_pr(base_model, rope_scaling):
     # https://github.com/huggingface/transformers/pull/24653#issue-1788278122
