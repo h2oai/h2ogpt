@@ -55,8 +55,8 @@ For full instructions visit:
 
 ### Partners
 
+- [Live Leaderboard](https://evalgpt.ai/) for GPT-4 Elo Evaluation of Instruct/Chat models with [h2o-LLM-eval](https://github.com/h2oai/h2o-LLM-eval).
 - Advanced fine-tuning with [H2O LLM Studio](https://github.com/h2oai/h2o-llmstudio)
-- GPT-4 Elo Evaluation of Instruct/Chat models with [h2o-LLM-eval](https://github.com/h2oai/h2o-LLM-eval) with [Live Leaderboard](https://evalgpt.ai/).
 
 ### Video Demo:
 
