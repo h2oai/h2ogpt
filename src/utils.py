@@ -1,3 +1,4 @@
+import ast
 import contextlib
 import functools
 import hashlib
@@ -440,6 +441,9 @@ def makedirs(path, exist_ok=True, tmp_ok=False):
         return path
     try:
         os.makedirs(path, exist_ok=exist_ok)
+        return path
+    except FileExistsError:
+        # e.g. soft link
         return path
     except PermissionError:
         if tmp_ok:
@@ -1099,3 +1103,17 @@ def load_collection_enum(extra):
 
 def remove_collection_enum():
     remove(visible_langchain_modes_file)
+
+
+def get_list_or_str(x):
+    if isinstance(x, list):
+        return x
+    elif isinstance(x, str):
+        try:
+            x1 = ast.literal_eval(x)
+            assert isinstance(x1, list)
+            return x1
+        except:
+            return x
+    else:
+        return x

@@ -1,4 +1,6 @@
 import os
+from typing import Union, List
+
 import fire
 
 from gpt_langchain import path_to_docs, get_some_dbs_from_hf, all_db_zips, some_db_zips, create_or_update_db
@@ -28,7 +30,7 @@ def make_db_main(use_openai_embedding: bool = False,
                  hf_embedding_model: str = None,
                  persist_directory: str = 'db_dir_UserData',
                  user_path: str = 'user_path',
-                 url: str = None,
+                 url: Union[List[str], str] = None,
                  add_if_exists: bool = True,
                  collection_name: str = 'UserData',
                  verbose: bool = False,
@@ -70,7 +72,7 @@ def make_db_main(use_openai_embedding: bool = False,
     :param hf_embedding_model: HF embedding model to use. Like generate.py, uses 'hkunlp/instructor-large' if have GPUs, else "sentence-transformers/all-MiniLM-L6-v2"
     :param persist_directory: where to persist db
     :param user_path: where to pull documents from (None means url is not None.  If url is not None, this is ignored.)
-    :param url: url to generate documents from (None means user_path is not None)
+    :param url: url (or urls) to generate documents from (None means user_path is not None)
     :param add_if_exists: Add to db if already exists, but will not add duplicate sources
     :param collection_name: Collection name for new db if not adding
     :param verbose: whether to show verbose messages
