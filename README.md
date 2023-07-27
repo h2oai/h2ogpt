@@ -53,6 +53,11 @@ For full instructions visit:
 - [YouTube: Blazing Fast Falcon 40b 🚀 Uncensored, Open-Source, Fully Hosted, Chat With Your Docs](https://www.youtube.com/watch?v=H8Dx-iUY49s)
 - [Technical Paper: https://arxiv.org/pdf/2306.08161.pdf](https://arxiv.org/pdf/2306.08161.pdf)
 
+### Partners
+
+- Advanced fine-tuning with [H2O LLM Studio](https://github.com/h2oai/h2o-llmstudio)
+- GPT-4 Elo Evaluation of Instruct/Chat models with [h2o-LLM-eval](https://github.com/h2oai/h2o-LLM-eval) with [Live Leaderboard](https://evalgpt.ai/).
+
 ### Video Demo:
 
 https://github.com/h2oai/h2ogpt/assets/2249614/2f805035-2c85-42fb-807f-fd0bca79abc6
@@ -125,8 +130,6 @@ GPU and CPU mode tested on variety of NVIDIA GPUs in Ubuntu 18-22, but any moder
 - To run h2oGPT tests, run `pip install requirements-parser ; pytest -s -v tests client/tests`
 
 ### Help
-
-- For advanced fine-tuning, also check out [H2O LLM Studio](https://github.com/h2oai/h2o-llmstudio)
 
 - Flash attention support, see [Flash Attention](docs/INSTALL.md#flash-attention)
 
