@@ -855,8 +855,11 @@ def get_config(base_model,
                   "  If not desired, pass --max_seq_len and set to some integer value." % config.max_position_embeddings,
                   flush=True)
     else:
-        raise RuntimeError("Could not determine max_seq_len,"
-                           " please pass --max_seq_len and set to some value, e.g. 2048.")
+        print("Could not determine --max_seq_len, setting to 2048.  Pass if not correct", flush=True)
+        config.max_seq_len = 2048
+        # FIXME:
+        #raise RuntimeError("Could not determine max_seq_len,"
+        #                   " please pass --max_seq_len and set to some value, e.g. 2048.")
 
     if rope_scaling:
         if rope_scaling.get('factor'):
