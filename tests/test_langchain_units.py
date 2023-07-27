@@ -233,6 +233,7 @@ def test_qa_daidocs_db_chunk_hf_dbs_switch_embedding(db_type):
                       trust_remote_code=True,
                       offload_folder=None,
                       rope_scaling=None,
+                      max_seq_len=None,
                       compile_model=True,
 
                       verbose=False)
