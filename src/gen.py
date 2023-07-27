@@ -1432,6 +1432,7 @@ def get_score_model(score_model: str = None,
         lora_weights = ''
         inference_server = ''
         llama_type = False
+        max_seq_len = None
         compile_model = False
         smodel, stokenizer, sdevice = get_model(reward_type=True,
                                                 **get_kwargs(get_model, exclude_names=['reward_type'], **locals()))
