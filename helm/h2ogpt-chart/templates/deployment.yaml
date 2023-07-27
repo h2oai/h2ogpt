@@ -3,14 +3,14 @@ kind: Deployment
 metadata:
   name: {{ include "h2ogpt.fullname" . }}
   labels:
-    {{- include "h2ogpt.labels" . | nindent 4 }}
+    app: {{ include "h2ogpt.fullname" . }}
 spec:
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- end }}
   selector:
     matchLabels:
-      {{- include "h2ogpt.selectorLabels" . | nindent 6 }}
+      app: {{ include "h2ogpt.fullname" . }}
   template:
     metadata:
       {{- with .Values.podAnnotations }}
@@ -18,15 +18,30 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        {{- include "h2ogpt.selectorLabels" . | nindent 8 }}
+        app: {{ include "h2ogpt.fullname" . }}
     spec:
-      {{- with .Values.imagePullSecrets }}
-      imagePullSecrets:
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      serviceAccountName: {{ include "h2ogpt.serviceAccountName" . }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - {{ include "h2ogpt.fullname" . }}
+                topologyKey: failure-domain.beta.kubernetes.io/zone
       containers:
         - name: {{ .Chart.Name }}
           securityContext:
@@ -35,27 +50,43 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
-              containerPort: {{ .Values.service.port }}
+              containerPort: 7860
               protocol: TCP
+            - name: gpt
+              containerPort: 8888
+              protocol: TCP
+          {{- if .Values.livenessProbe }}
           livenessProbe:
             httpGet:
-              path: /
+              path:  /
+              scheme: HTTP
               port: http
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          {{- end }}
+          {{- if .Values.readinessProbe }}
           readinessProbe:
             httpGet:
-              path: /
+              path:  /
+              scheme: HTTP
               port: http
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
-      {{- with .Values.nodeSelector }}
-      nodeSelector:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.affinity }}
-      affinity:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.tolerations }}
-      tolerations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "h2ogpt.fullname" . }}-config
+          volumeMounts:
+            - name: h2ogpt-volume
+              mountPath: /h2ogpt_env
+      volumes:
+        - name: h2ogpt-volume
+          ephemeral:
+            volumeClaimTemplate:
+              spec:
+                accessModes: 
+                  - ReadWriteOnce
+                resources:
+                  requests: 
+                    storage: {{ .Values.storage.size | quote }}
+                storageClassName: {{ .Values.storage.class | quote }}

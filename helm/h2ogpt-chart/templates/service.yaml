@@ -1,15 +1,27 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "h2ogpt.fullname" . }}
-  labels:
-    {{- include "h2ogpt.labels" . | nindent 4 }}
+  name: {{ include "h2ogpt.fullname" . }}-web
+  namespace: {{ .Release.Namespace }}
 spec:
-  type: {{ .Values.service.type }}
-  ports:
-    - port: {{ .Values.service.port }}
-      targetPort: http
-      protocol: TCP
-      name: http
   selector:
-    {{- include "h2ogpt.selectorLabels" . | nindent 4 }}
+    app: {{ include "h2ogpt.fullname" . }}
+  ports:
+    - protocol: TCP
+      port: {{ .Values.service.webPort }}
+      targetPort: 7860
+  type: NodePort
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "h2ogpt.fullname" . }}-gpt
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    app: {{ include "h2ogpt.fullname" . }}
+  ports:
+    - protocol: TCP
+      port: {{ .Values.service.gptPort }}
+      targetPort: 8888
+  type: NodePort
