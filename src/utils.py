@@ -1,10 +1,10 @@
 import ast
 import contextlib
 import functools
+import gc
 import hashlib
 import inspect
 import os
-import gc
 import pathlib
 import pickle
 import random
@@ -15,16 +15,43 @@ import threading
 import time
 import traceback
 import zipfile
+from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
+from typing import Tuple, Callable, Dict
 
 import filelock
-import requests, uuid
-from typing import Tuple, Callable, Dict
-from tqdm.auto import tqdm
-from joblib import Parallel
-from concurrent.futures import ProcessPoolExecutor
+import fire
 import numpy as np
 import pandas as pd
+import requests
+import uuid
+from fire import inspectutils
+from joblib import Parallel
+from tqdm.auto import tqdm
+
+
+def H2O_Fire(component=None):
+    config_prefix = "H2OGPT_PARAM_"
+
+    args = sys.argv[1:]
+    query_args = [arg.split("=")[0].split(" ")[0].lstrip("-") for arg in args]
+
+    fn_spec = inspectutils.GetFullArgSpec(component)
+    for key, value in os.environ.items():
+        if not (key.startswith(config_prefix) and len(key) > len(config_prefix)):
+            continue  # ignore as non H2OGPT argument
+
+        new_key = key[len(config_prefix):].lower()
+
+        if new_key in query_args:
+            continue  # ignore as already passed as script argument
+
+        if new_key not in fn_spec.args:
+            continue  # ignore as not a valid H2OGPT argument
+
+        args.append(f"--{new_key}={value}")
+
+    fire.Fire(component=component, command=args)
 
 
 def set_seed(seed: int):

@@ -42,12 +42,13 @@ set_seed(SEED)
 
 from typing import Union
 
-import fire
 import torch
 from transformers import GenerationConfig, AutoModel, TextIteratorStreamer
 
 from prompter import Prompter, inv_prompt_type_to_model_lower, non_hf_types, PromptType, get_prompt, generate_prompt
 from stopping import get_stopping
+
+from src.utils import H2O_Fire
 
 langchain_actions = [x.value for x in list(LangChainAction)]
 
@@ -2822,7 +2823,7 @@ def entrypoint_main():
 
     python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b
     """
-    fire.Fire(main)
+    H2O_Fire(main)
 
 
 if __name__ == "__main__":
