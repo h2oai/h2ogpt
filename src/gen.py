@@ -32,7 +32,7 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mappin
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, remove, \
-    have_langchain, set_openai, load_collection_enum
+    have_langchain, set_openai, load_collection_enum, cuda_vis_check
 
 start_faulthandler()
 import_matplotlib()
@@ -302,7 +302,7 @@ def main(
     :param extra_server_options: extra servers to show in list in gradio
     :param score_model: which model to score responses
            None: no response scoring
-           'auto': auto mode, '' (no model) for CPU, 'OpenAssistant/reward-model-deberta-v3-large-v2' for GPU,
+           'auto': auto mode, '' (no model) for CPU or 1 GPU, 'OpenAssistant/reward-model-deberta-v3-large-v2' for >=2 GPUs,
             because on CPU takes too much compute just for scoring response
     :param eval_filename: json file to use for evaluation, if None is sharegpt
     :param eval_prompts_only_num: for no gradio benchmark, if using eval_filename prompts for eval instead of examples
@@ -565,6 +565,7 @@ def main(
     allow_api = bool(int(os.getenv('ALLOW_API', str(int(allow_api)))))
 
     n_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 0
+    n_gpus, gpu_ids = cuda_vis_check(n_gpus)
     if n_gpus == 0:
         print("No GPUs detected", flush=True)
         enable_captions = False
@@ -591,7 +592,11 @@ def main(
             score_model = ''
     else:
         if score_model == 'auto':
-            score_model = 'OpenAssistant/reward-model-deberta-v3-large-v2'
+            if n_gpus >= 2:
+                # will by default place scoring model on last GPU
+                score_model = 'OpenAssistant/reward-model-deberta-v3-large-v2'
+            else:
+                score_model = ''
         if hf_embedding_model is None:
             # if still None, then set default
             hf_embedding_model = 'hkunlp/instructor-large'
