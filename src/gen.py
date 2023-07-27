@@ -156,7 +156,6 @@ def main(
         # visible_langchain_actions: list = langchain_actions.copy(),
         visible_langchain_actions: list = [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value],
         visible_langchain_agents: list = langchain_agents_list.copy(),
-
         document_subset: str = os.environ.get('DOCUMENT_SUBSET', DocumentSubset.Relevant.name),
         document_choice: list = [DocumentChoice.ALL.value],
         user_path: str = os.environ.get('USER_PATH', None),
