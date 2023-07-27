@@ -45,7 +45,7 @@ For full instructions visit:
 - [![](https://colab.research.google.com/assets/colab-badge.svg) h2oGPT CPU](https://colab.research.google.com/drive/13RiBdAFZ6xqDwDKfW6BG_-tXfXiqPNQe?usp=sharing)
 - [![](https://colab.research.google.com/assets/colab-badge.svg) h2oGPT GPU](https://colab.research.google.com/drive/143-KFHs2iCqXTQLI2pFCDiR69z0dR8iE?usp=sharing)
 
-### Resources:
+### Resources
 - [Discord](https://discord.gg/WKhYMWcVbq)
 - [Apache V2 models (Falcon 40, etc.) at 🤗](https://huggingface.co/h2oai/)
 - [YouTube: 100% Offline ChatGPT Alternative?](https://www.youtube.com/watch?v=Coj72EzmX20)
@@ -58,13 +58,13 @@ For full instructions visit:
 - [Live Leaderboard](https://evalgpt.ai/) for GPT-4 Elo Evaluation of Instruct/Chat models with [h2o-LLM-eval](https://github.com/h2oai/h2o-LLM-eval).
 - Advanced fine-tuning with [H2O LLM Studio](https://github.com/h2oai/h2o-llmstudio)
 
-### Video Demo:
+### Video Demo
 
 https://github.com/h2oai/h2ogpt/assets/2249614/2f805035-2c85-42fb-807f-fd0bca79abc6
 
 YouTube 4K version: https://www.youtube.com/watch?v=_iktbj4obAI
 
-### Docs Guide:
+### Docs Guide
 <!--  cat README.md | ./gh-md-toc  -  But Help is heavily processed -->
 * [Supported OS and Hardware](#supported-os-and-hardware)
 * [Getting Started](#getting-stated)
