@@ -1,7 +1,8 @@
 import functools
 
 
-def get_loaders(model_name, reward_type, llama_type=None, load_gptq='', load_exllama=False, config=None, rope_scaling=None):
+def get_loaders(model_name, reward_type, llama_type=None, load_gptq='', load_exllama=False, config=None,
+                rope_scaling=None, max_seq_len=None):
     # NOTE: Some models need specific new prompt_type
     # E.g. t5_xxl_true_nli_mixture has input format: "premise: PREMISE_TEXT hypothesis: HYPOTHESIS_TEXT".)
     if load_exllama:
@@ -49,6 +50,8 @@ def get_loaders(model_name, reward_type, llama_type=None, load_gptq='', load_exl
         if 'Llama-2'.lower() in model_name.lower():
             # override bad defaults
             exconfig.max_seq_len = int(4096 * exconfig.alpha_value)
+        if max_seq_len is not None:
+            exconfig.max_seq_len = max_seq_len
 
         exconfig.model_path = model_path                          # supply path to model weights file
 

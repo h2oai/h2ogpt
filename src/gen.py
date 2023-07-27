@@ -101,6 +101,8 @@ def main(
         use_auth_token: Union[str, bool] = False,
         trust_remote_code: Union[str, bool] = True,
         rope_scaling: dict = None,
+
+        max_seq_len: int = int(os.environ.get('MIN_SEQ_LEN', None)),
         offload_folder: str = os.environ.get('OFFLOAD_FOLDER', "offline_folder"),
 
         src_lang: str = os.environ.get('SRC_LANG', "English"),
@@ -110,6 +112,7 @@ def main(
         cli_loop: bool = bool(os.environ.get('CLI_LOOP', True)),
         gradio: bool = bool(os.environ.get('GRADIO', True)),
         gradio_offline_level: int = int(os.environ.get('GRADIO_OFFLINE_LEVEL', 0)),
+        root_path: str = os.environ.get('ROOT_PATH', ""),
         chat: bool = bool(os.environ.get('CHAT', True)),
         chat_context: bool = bool(os.environ.get('CHAT_CONTEXT', False)),
         stream_output: bool = bool(os.environ.get('STREAM_OUTPUT', True)),
@@ -126,6 +129,7 @@ def main(
         allow_api: bool = bool(os.environ.get('ALLOW_API', True)),
         input_lines: int = int(os.environ.get('INPUT_LINES', 1)),
         gradio_size: str = os.environ.get('GRADIO_SIZE', None),
+
         auth: typing.List[typing.Tuple[str, str]] = None,
         max_max_time=None,
         max_max_new_tokens=None,
@@ -267,6 +271,10 @@ def main(
            This option further disables google fonts for downloading, which is less intrusive than uploading,
            but still required in air-gapped case.  The fonts don't look as nice as google fonts, but ensure full offline behavior.
            Also set --share=False to avoid sharing a gradio live link.
+    :param root_path: The root path (or "mount point") of the application,
+           if it's not served from the root ("/") of the domain. Often used when the application is behind a reverse proxy 
+           that forwards requests to the application. For example, if the application is served at "https://example.com/myapp", 
+           the `root_path` should be set to "/myapp".
     :param chat: whether to enable chat mode with chat history
     :param chat_context: whether to use extra helpful context if human_bot
     :param stream_output: whether to stream output
@@ -796,6 +804,8 @@ def get_config(base_model,
                long_sequence=True,
                return_model=False,
                raise_exception=False,
+               max_seq_len=None,
+               verbose=False,
                ):
     from accelerate import init_empty_weights
     with init_empty_weights():
@@ -838,16 +848,18 @@ def get_config(base_model,
     if 'falcon' in base_model.lower():
         config.use_cache = False
 
-    elif hasattr(config, 'max_seq_len') and isinstance(config.max_seq_len, int):
+    if hasattr(config, 'max_seq_len') and isinstance(config.max_seq_len, int):
         pass
-    elif hasattr(config, 'max_length') and isinstance(config.max_length, int):
-        config.max_seq_len = config.max_length
     elif hasattr(config, 'max_position_embeddings') and isinstance(config.max_position_embeddings, int):
         # help automatically limit inputs to generate
         config.max_seq_len = config.max_position_embeddings
+        if verbose:
+            print("Used max_position_embeddings=%s as base model (pre-rope) max_seq_len."
+                  "  If not desired, pass --max_seq_len and set to some integer value." % config.max_position_embeddings,
+                  flush=True)
     else:
-        print("Could not determine max_seq_len, setting to 2048", flush=True)
-        config.max_seq_len = 2048
+        raise RuntimeError("Could not determine max_seq_len,"
+                           " please pass --max_seq_len and set to some value, e.g. 2048.")
 
     if rope_scaling:
         if rope_scaling.get('factor'):
@@ -857,6 +869,12 @@ def get_config(base_model,
             # exllama
             # Note: exllama's own tokenizer has this set correctly in loaders.py, this config will be unused
             config.max_seq_len *= rope_scaling.get('alpha_value')
+        print("Used RoPE scaling with max_seq_len=%d" % config.max_seq_len, flush=True)
+
+    # allow override
+    if max_seq_len is not None:
+        print("Overriding max_seq_len %d -> %d" % (config.max_seq_len, max_seq_len), flush=True)
+        config.max_seq_len = max_seq_len
 
     return config, model
 
@@ -1012,6 +1030,7 @@ def get_model(
         trust_remote_code: bool = True,
         offload_folder: str = None,
         rope_scaling: dict = None,
+        max_seq_len: int = None,
         compile_model: bool = True,
 
         verbose: bool = False,
@@ -1040,7 +1059,9 @@ def get_model(
     :param trust_remote_code: trust code needed by model
     :param offload_folder: offload folder
     :param rope_scaling: scaling for rope-based models, e.g. "{'type':'dynamic', 'factor':4}"
+    :param max_seq_len: override for maximum sequence length for model
     :param compile_model: whether to compile torch model
+    :param max_seq_len: if set, use as max_seq_len for model
     :param verbose:
     :return:
     """
@@ -1054,7 +1075,9 @@ def get_model(
                          rope_scaling=rope_scaling,
                          triton_attn=triton_attn,
                          long_sequence=long_sequence,
-                         revision=revision)
+                         revision=revision,
+                         max_seq_len=max_seq_len,
+                         verbose=verbose)
     config, _ = get_config(base_model, **config_kwargs, raise_exception=False)
 
     if base_model in non_hf_types:
@@ -1072,7 +1095,7 @@ def get_model(
 
     model_loader, tokenizer_loader = get_loaders(model_name=base_model, reward_type=reward_type, llama_type=llama_type,
                                                  load_gptq=load_gptq, load_exllama=load_exllama, config=config,
-                                                 rope_scaling=rope_scaling)
+                                                 rope_scaling=rope_scaling, max_seq_len=max_seq_len)
 
     tokenizer_kwargs = dict(local_files_only=local_files_only,
                             resume_download=resume_download,
@@ -1412,6 +1435,7 @@ def get_score_model(score_model: str = None,
         lora_weights = ''
         inference_server = ''
         llama_type = False
+        max_seq_len = None
         compile_model = False
         smodel, stokenizer, sdevice = get_model(reward_type=True,
                                                 **get_kwargs(get_model, exclude_names=['reward_type'], **locals()))
