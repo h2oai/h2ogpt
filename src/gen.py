@@ -101,7 +101,6 @@ def main(
         use_auth_token: Union[str, bool] = False,
         trust_remote_code: Union[str, bool] = True,
         rope_scaling: dict = None,
-
         max_seq_len: int = int(os.environ.get('MIN_SEQ_LEN', None)),
         offload_folder: str = os.environ.get('OFFLOAD_FOLDER', "offline_folder"),
 
@@ -129,7 +128,6 @@ def main(
         allow_api: bool = bool(os.environ.get('ALLOW_API', True)),
         input_lines: int = int(os.environ.get('INPUT_LINES', 1)),
         gradio_size: str = os.environ.get('GRADIO_SIZE', None),
-
         auth: typing.List[typing.Tuple[str, str]] = None,
         max_max_time=None,
         max_max_new_tokens=None,
