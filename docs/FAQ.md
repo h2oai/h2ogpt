@@ -9,6 +9,23 @@ E.g. for vicuna models, a typical prompt_type is used and we support that alread
 but if you pass `--prompt_type=instruct_vicuna` with any other Vicuna model, we'll use it assuming that is the correct prompt type.
 See models that are currently supported in this automatic way, and the same dictionary shows which prompt types are supported: [prompter](../src/prompter.py).
 
+### Token access to Hugging Face models:
+
+Related to transformers.  There are two independent ways to do this (choose one):
+* Use ENV:
+    ```
+    export HUGGING_FACE_HUB_TOKEN=<token goes here>
+    ```
+    token starts with `hf_` usually.  Then start h2oGPT like normal.
+* Use cli tool:
+    ```bash
+    huggingface-cli login
+    ```
+    in repo.  Then add to generate.py:
+    ```
+    python generate.py --use_auth_token=True ...
+    ```
+
 ### Low-memory mode
 
 For GPU case, a reasonable model for low memory is to run:
