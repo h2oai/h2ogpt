@@ -17,6 +17,29 @@ Query and summarize your documents or just chat with local private GPT LLMs usin
 - **OpenAI-compliant Python client API** for client-server control
 - **Evaluate** performance using reward models
 
+### Getting Stated
+
+To quickly try out h2oGPT with LLaMa2 7B Chat, create a fresh Python 3.10 environment and run:
+```bash
+git clone https://github.com/h2oai/h2ogpt.git
+cd h2ogpt
+pip install -r requirements.txt
+pip install -r reqs_optional/requirements_optional_langchain.txt
+pip install -r reqs_optional/requirements_optional_gpt4all.txt
+wget https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin
+```
+Then run:
+```bash
+python generate.py --base_model='llama' --prompt_type=llama2
+```
+Then go to your browser by visiting [http://127.0.0.1:7860](http://127.0.0.1:7860) or [http://localhost:7860](http://localhost:7860).
+
+For full instructions visit:
+
+* [Linux](docs/README_LINUX.md)
+* [MACOS](docs/README_MACOS.md)
+* [Windows 10/11](docs/README_WINDOWS.md)
+
 ### Live Demos
 - [![img-small.png](docs/img-small.png) Live h2oGPT Document Q/A Demo](https://gpt.h2o.ai/)
 - [🤗 Live h2oGPT Chat Demo 1](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot)
@@ -86,29 +109,6 @@ YouTube 4K version: https://www.youtube.com/watch?v=_iktbj4obAI
 **CPU** mode uses GPT4ALL and LLaMa.cpp, e.g. gpt4all-j, requiring about 14GB of system RAM in typical use.
 
 GPU and CPU mode tested on variety of NVIDIA GPUs in Ubuntu 18-22, but any modern Linux variant should work.  MACOS support tested on Macbook Pro running Monterey v12.3.1 using CPU mode, as well as MAC M1 using MPS.
-
-### Getting Stated
-
-To quickly try out h2oGPT with LLaMa2 7B Chat, create a fresh Python 3.10 environment and run:
-```bash
-git clone https://github.com/h2oai/h2ogpt.git
-cd h2ogpt
-pip install -r requirements.txt
-pip install -r reqs_optional/requirements_optional_langchain.txt
-pip install -r reqs_optional/requirements_optional_gpt4all.txt
-wget https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin
-```
-Place documents in `user_path`, then run:
-```bash
-python generate.py --base_model='llama' --prompt_type=llama2 --user_path=user_path
-```
-Then go to your [browser](http://127.0.0.1:7860) or try [browser](http://localhost:7860).
-
-For full instructions visit:
-
-* [Linux](docs/README_LINUX.md)
-* [MACOS](docs/README_MACOS.md)
-* [Windows 10/11](docs/README_WINDOWS.md)
 
 ### Roadmap
 
