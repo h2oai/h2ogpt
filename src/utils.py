@@ -442,6 +442,9 @@ def makedirs(path, exist_ok=True, tmp_ok=False):
     try:
         os.makedirs(path, exist_ok=exist_ok)
         return path
+    except FileExistsError:
+        # e.g. soft link
+        return path
     except PermissionError:
         if tmp_ok:
             path0 = path
