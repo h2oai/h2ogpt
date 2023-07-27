@@ -951,7 +951,7 @@ class FakeTokenizer:
 
     def num_tokens_from_string(self, prompt: str) -> int:
         """Returns the number of tokens in a text string."""
-        num_tokens = len(self.encoding.encode(prompt))
+        num_tokens = len(self.encode(prompt)['input_ids'])
         return num_tokens
 
     def __call__(self, x, *args, **kwargs):
