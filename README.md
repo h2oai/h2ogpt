@@ -127,7 +127,12 @@ GPU and CPU mode tested on variety of NVIDIA GPUs in Ubuntu 18-22, but any moder
 - To create a development environment for training and generation, follow the [installation instructions](docs/INSTALL.md).
 - To fine-tune any LLM models on your data, follow the [fine-tuning instructions](docs/FINETUNE.md).
 - To create a container for deployment, follow the [Docker instructions](docs/INSTALL-DOCKER.md).
-- To run h2oGPT tests, run `pip install requirements-parser ; pytest -s -v tests client/tests`
+- To run h2oGPT tests:
+    ```bash
+    wget https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin
+    pip install requirements-parser
+    pytest -s -v tests client/tests
+    ```
 
 ### Help
 
