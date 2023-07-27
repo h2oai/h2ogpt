@@ -31,14 +31,17 @@ from tqdm.auto import tqdm
 
 
 def H2O_Fire(component=None):
-    config_prefix = "H2OGPT_PARAM_"
+    config_prefix = "H2OGPT_"
 
     args = sys.argv[1:]
     query_args = [arg.split("=")[0].split(" ")[0].lstrip("-") for arg in args]
 
     fn_spec = inspectutils.GetFullArgSpec(component)
     for key, value in os.environ.items():
-        if not (key.startswith(config_prefix) and len(key) > len(config_prefix)):
+        if not (
+            (key.startswith(config_prefix) or key.startswith(config_prefix.lower()))
+            and len(key) > len(config_prefix)
+        ):
             continue  # ignore as non H2OGPT argument
 
         new_key = key[len(config_prefix):].lower()
