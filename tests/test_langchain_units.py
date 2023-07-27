@@ -540,6 +540,54 @@ def test_url_add(db_type):
 
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
+def test_urls_add(db_type):
+    from src.make_db import make_db_main
+    with tempfile.TemporaryDirectory() as tmp_persistent_directory:
+        urls = ['https://h2o.ai/company/team/leadership-team/',
+                'https://arxiv.org/abs/1706.03762',
+                'https://github.com/h2oai/h2ogpt',
+                'https://h2o.ai'
+                ]
+
+        db, collection_name = make_db_main(persist_directory=tmp_persistent_directory, url=urls,
+                                           fail_any_exception=True,
+                                           db_type=db_type)
+        assert db is not None
+        if db_type == 'chroma':
+            assert len(db.get()['documents']) == 104
+        docs = db.similarity_search("list founding team of h2o.ai")
+        assert len(docs) == 4
+        assert 'Sri Ambati' in docs[0].page_content
+
+
+@pytest.mark.parametrize("db_type", db_types)
+@wrap_test_forked
+def test_urls_file_add(db_type):
+    from src.make_db import make_db_main
+    with tempfile.TemporaryDirectory() as tmp_persistent_directory:
+        with tempfile.TemporaryDirectory() as tmp_user_path:
+            urls = ['https://h2o.ai/company/team/leadership-team/',
+                    'https://arxiv.org/abs/1706.03762',
+                    'https://github.com/h2oai/h2ogpt',
+                    'https://h2o.ai'
+                    ]
+            with open(os.path.join(tmp_user_path, 'list.urls'), 'wt') as f:
+                f.write('\n'.join(urls))
+
+            db, collection_name = make_db_main(persist_directory=tmp_persistent_directory, url=urls,
+                                               user_path=tmp_user_path,
+                                               fail_any_exception=True,
+                                               db_type=db_type)
+            assert db is not None
+            if db_type == 'chroma':
+                assert len(db.get()['documents']) == 104
+            docs = db.similarity_search("list founding team of h2o.ai")
+            assert len(docs) == 4
+            assert 'Sri Ambati' in docs[0].page_content
+
+
+@pytest.mark.parametrize("db_type", db_types)
+@wrap_test_forked
 def test_html_add(db_type):
     from src.make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:

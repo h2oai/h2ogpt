@@ -31,7 +31,8 @@ from gen import get_model, SEED
 from prompter import non_hf_types, PromptType, Prompter
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
     get_device, ProgressParallel, remove, hash_file, clear_torch_cache, NullContext, get_hf_server, FakeTokenizer, \
-    have_libreoffice, have_arxiv, have_playwright, have_selenium, have_tesseract, have_pymupdf, set_openai
+    have_libreoffice, have_arxiv, have_playwright, have_selenium, have_tesseract, have_pymupdf, set_openai, \
+    get_list_or_str
 from utils_langchain import StreamingGradioCallbackHandler
 
 import_matplotlib()
@@ -1116,10 +1117,23 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         base_path = os.path.join(dir_name, base_name)
     if is_url:
         file = file.strip()  # in case accidental spaces in front or at end
-        if file.lower().startswith('arxiv:'):
-            query = file.lower().split('arxiv:')
-            if len(query) == 2 and have_arxiv:
-                query = query[1]
+        file_lower = file.lower()
+        case1 = file_lower.startswith('arxiv:') and len(file_lower.split('arxiv:')) == 2
+        case2 = file_lower.startswith('https://arxiv.org/abs') and len(file_lower.split('https://arxiv.org/abs')) == 2
+        case3 = file_lower.startswith('http://arxiv.org/abs') and len(file_lower.split('http://arxiv.org/abs')) == 2
+        case4 = file_lower.startswith('arxiv.org/abs/') and len(file_lower.split('arxiv.org/abs/')) == 2
+        if case1 or case2 or case3 or case4:
+            if case1:
+                query = file.lower().split('arxiv:')[1].strip()
+            elif case2:
+                query = file.lower().split('https://arxiv.org/abs/')[1].strip()
+            elif case2:
+                query = file.lower().split('http://arxiv.org/abs/')[1].strip()
+            elif case3:
+                query = file.lower().split('arxiv.org/abs/')[1].strip()
+            else:
+                raise RuntimeError("Unexpected arxiv error for %s" % file)
+            if have_arxiv:
                 docs1 = ArxivLoader(query=query, load_max_docs=20, load_all_available_meta=True).load()
                 # ensure string, sometimes None
                 [[x.metadata.update({k: str(v)}) for k, v in x.metadata.items()] for x in docs1]
@@ -1329,9 +1343,9 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         add_meta(doc1, file)
     elif file.lower().endswith('.urls'):
         with open(file, "r") as f:
-            docs1 = UnstructuredURLLoader(urls=f.readlines()).load()
-        add_meta(docs1, file)
-        doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
+            urls = f.readlines()
+            # recurse
+            doc1 = path_to_docs(None, url=urls, verbose=verbose, fail_any_exception=fail_any_exception, n_jobs=n_jobs)
     elif file.lower().endswith('.zip'):
         with zipfile.ZipFile(file, 'r') as zip_ref:
             # don't put into temporary path, since want to keep references to docs inside zip
@@ -1425,6 +1439,7 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
     if not path_or_paths and not url and not text:
         return []
     elif url:
+        url = get_list_or_str(url)
         globs_non_image_types = url if isinstance(url, (list, tuple, types.GeneratorType)) else [url]
     elif text:
         globs_non_image_types = text if isinstance(text, (list, tuple, types.GeneratorType)) else [text]
