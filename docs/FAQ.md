@@ -17,6 +17,7 @@ Related to transformers.  There are two independent ways to do this (choose one)
     export HUGGING_FACE_HUB_TOKEN=<token goes here>
     ```
     token starts with `hf_` usually.  Then start h2oGPT like normal.
+  See [Hugging Face ENV documentation](https://huggingface.co/docs/huggingface_hub/package_reference/environment_variables) for other environment variables.
 * Use cli tool:
     ```bash
     huggingface-cli login
@@ -25,6 +26,7 @@ Related to transformers.  There are two independent ways to do this (choose one)
     ```
     python generate.py --use_auth_token=True ...
     ```
+  See [Hugging Face Access Tokens](https://huggingface.co/docs/hub/security-tokens) for more details.
 
 ### Low-memory mode
 
