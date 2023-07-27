@@ -459,19 +459,19 @@ def test_make_add_db(repeat, db_type):
                                                                      **kwargs2)
                     update_and_get_source_files_given_langchain_mode(db1, 'MyData', dbs={}, **kwargs2)
 
-                    assert path_to_docs(test_file2_my)[0].metadata['source'] == test_file2_my
+                    assert path_to_docs(test_file2_my, db_type=db_type)[0].metadata['source'] == test_file2_my
                     assert os.path.normpath(
-                        path_to_docs(os.path.dirname(test_file2_my))[1].metadata['source']) == os.path.normpath(
+                        path_to_docs(os.path.dirname(test_file2_my), db_type=db_type)[1].metadata['source']) == os.path.normpath(
                         os.path.abspath(test_file2_my))
-                    assert path_to_docs([test_file1, test_file2, test_file2_my])[0].metadata['source'] == test_file1
+                    assert path_to_docs([test_file1, test_file2, test_file2_my], db_type=db_type)[0].metadata['source'] == test_file1
 
-                    assert path_to_docs(None, url='arxiv:1706.03762')[0].metadata[
+                    assert path_to_docs(None, url='arxiv:1706.03762', db_type=db_type)[0].metadata[
                                'source'] == 'http://arxiv.org/abs/2002.05202v1'
-                    assert path_to_docs(None, url='http://h2o.ai')[0].metadata['source'] == 'http://h2o.ai'
+                    assert path_to_docs(None, url='http://h2o.ai', db_type=db_type)[0].metadata['source'] == 'http://h2o.ai'
 
                     assert 'user_paste' in path_to_docs(None,
-                                                        text='Yufuu is a wonderful place and you should really visit because there is lots of sun.')[
-                        0].metadata['source']
+                                                        text='Yufuu is a wonderful place and you should really visit because there is lots of sun.',
+                                                        db_type=db_type)[0].metadata['source']
 
                 if db_type == 'faiss':
                     # doesn't persist
@@ -554,7 +554,7 @@ def test_urls_add(db_type):
                                            db_type=db_type)
         assert db is not None
         if db_type == 'chroma':
-            assert len(db.get()['documents']) == 104
+            assert len(db.get()['documents']) == 111
         docs = db.similarity_search("list founding team of h2o.ai")
         assert len(docs) == 4
         assert 'Sri Ambati' in docs[0].page_content
@@ -580,7 +580,7 @@ def test_urls_file_add(db_type):
                                                db_type=db_type)
             assert db is not None
             if db_type == 'chroma':
-                assert len(db.get()['documents']) == 104
+                assert len(db.get()['documents']) == 111
             docs = db.similarity_search("list founding team of h2o.ai")
             assert len(docs) == 4
             assert 'Sri Ambati' in docs[0].page_content

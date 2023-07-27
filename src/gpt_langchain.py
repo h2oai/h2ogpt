@@ -1,4 +1,6 @@
 import ast
+import copy
+import functools
 import glob
 import inspect
 import os
@@ -278,7 +280,7 @@ def get_answer_from_sources(chain, sources, question):
 
 """Wrapper around Huggingface text generation inference API."""
 from functools import partial
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, Iterable
 
 from pydantic import Extra, Field, root_validator
 
@@ -1100,7 +1102,10 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                 enable_captions=True,
                 captions_model=None,
                 enable_ocr=False, enable_pdf_ocr='auto', caption_loader=None,
-                headsize=50):
+                headsize=50,
+                db_type=None):
+    assert db_type is not None
+    chunk_sources = functools.partial(_chunk_sources, chunk=chunk, chunk_size=chunk_size, db_type=db_type)
     if file is None:
         if fail_any_exception:
             raise RuntimeError("Unexpected None file")
@@ -1163,7 +1168,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                     print("No web driver: %s" % str(e), flush=True)
             [x.metadata.update(dict(input_type='url', date=str(datetime.now))) for x in docs1]
         docs1 = clean_doc(docs1)
-        doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
+        doc1 = chunk_sources(docs1)
     elif is_txt:
         base_path = "user_paste"
         base_path = makedirs(base_path, exist_ok=True, tmp_ok=True)
@@ -1177,48 +1182,48 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         docs1 = UnstructuredHTMLLoader(file_path=file).load()
         add_meta(docs1, file)
         docs1 = clean_doc(docs1)
-        doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size, language=Language.HTML)
+        doc1 = chunk_sources(docs1, language=Language.HTML)
     elif (file.lower().endswith('.docx') or file.lower().endswith('.doc')) and (have_libreoffice or True):
         docs1 = UnstructuredWordDocumentLoader(file_path=file).load()
         add_meta(docs1, file)
-        doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
+        doc1 = chunk_sources(docs1)
     elif (file.lower().endswith('.xlsx') or file.lower().endswith('.xls')) and (have_libreoffice or True):
         docs1 = UnstructuredExcelLoader(file_path=file).load()
         add_meta(docs1, file)
-        doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
+        doc1 = chunk_sources(docs1)
     elif file.lower().endswith('.odt'):
         docs1 = UnstructuredODTLoader(file_path=file).load()
         add_meta(docs1, file)
-        doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
+        doc1 = chunk_sources(docs1)
     elif file.lower().endswith('pptx') or file.lower().endswith('ppt'):
         docs1 = UnstructuredPowerPointLoader(file_path=file).load()
         add_meta(docs1, file)
         docs1 = clean_doc(docs1)
-        doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
+        doc1 = chunk_sources(docs1)
     elif file.lower().endswith('.txt'):
         # use UnstructuredFileLoader ?
         docs1 = TextLoader(file, encoding="utf8", autodetect_encoding=True).load()
         # makes just one, but big one
-        doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
+        doc1 = chunk_sources(docs1)
         doc1 = clean_doc(doc1)
         add_meta(doc1, file)
     elif file.lower().endswith('.rtf'):
         docs1 = UnstructuredRTFLoader(file).load()
         add_meta(docs1, file)
-        doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
+        doc1 = chunk_sources(docs1)
     elif file.lower().endswith('.md'):
         docs1 = UnstructuredMarkdownLoader(file).load()
         add_meta(docs1, file)
         docs1 = clean_doc(docs1)
-        doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size, language=Language.MARKDOWN)
+        doc1 = chunk_sources(docs1, language=Language.MARKDOWN)
     elif file.lower().endswith('.enex'):
         docs1 = EverNoteLoader(file).load()
         add_meta(doc1, file)
-        doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
+        doc1 = chunk_sources(docs1)
     elif file.lower().endswith('.epub'):
         docs1 = UnstructuredEPubLoader(file).load()
         add_meta(docs1, file)
-        doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
+        doc1 = chunk_sources(docs1)
     elif file.lower().endswith('.jpeg') or file.lower().endswith('.jpg') or file.lower().endswith('.png'):
         docs1 = []
         if have_tesseract and enable_ocr:
@@ -1248,7 +1253,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                 doci.metadata['source'] = doci.metadata['image_path']
                 doci.metadata['hash'] = hash_file(doci.metadata['source'])
             if docs1:
-                doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
+                doc1 = chunk_sources(docs1)
     elif file.lower().endswith('.msg'):
         raise RuntimeError("Not supported, GPL3 license")
         # docs1 = OutlookMessageLoader(file).load()
@@ -1257,14 +1262,14 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         try:
             docs1 = UnstructuredEmailLoader(file).load()
             add_meta(docs1, file)
-            doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
+            doc1 = chunk_sources(docs1)
         except ValueError as e:
             if 'text/html content not found in email' in str(e):
                 # e.g. plain/text dict key exists, but not
                 # doc1 = TextLoader(file, encoding="utf8").load()
                 docs1 = UnstructuredEmailLoader(file, content_source="text/plain").load()
                 add_meta(docs1, file)
-                doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
+                doc1 = chunk_sources(docs1)
             else:
                 raise
     # elif file.lower().endswith('.gcsdir'):
@@ -1275,7 +1280,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         with open(file, "r") as f:
             doc1 = Document(page_content=f.read(), metadata={"source": file})
         add_meta(doc1, file)
-        doc1 = chunk_sources(doc1, chunk=chunk, chunk_size=chunk_size, language=Language.RST)
+        doc1 = chunk_sources(doc1, language=Language.RST)
     elif file.lower().endswith('.pdf'):
         env_gpt4all_file = ".env_gpt4all"
         from dotenv import dotenv_values
@@ -1329,30 +1334,41 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                 raise ValueError("%s had no valid text, but meta data was parsed" % file)
             else:
                 raise ValueError("%s had no valid text and no meta data was parsed" % file)
-        doc1 = chunk_sources(doc1, chunk=chunk, chunk_size=chunk_size)
+        doc1 = chunk_sources(doc1)
         add_meta(doc1, file)
     elif file.lower().endswith('.csv'):
         doc1 = CSVLoader(file).load()
         add_meta(doc1, file)
+        if isinstance(doc1, list):
+            # each row is a Document, identify
+            [x.metadata.update(dict(chunk_id=chunk_id)) for chunk_id, x in enumerate(doc1)]
+            if db_type == 'chroma':
+                # then separate summarize list
+                sdoc1 = clone_documents(doc1)
+                [x.metadata.update(dict(chunk_id=-1)) for chunk_id, x in enumerate(sdoc1)]
+                doc1 = sdoc1 + doc1
     elif file.lower().endswith('.py'):
         doc1 = PythonLoader(file).load()
         add_meta(doc1, file)
-        doc1 = chunk_sources(doc1, chunk=chunk, chunk_size=chunk_size, language=Language.PYTHON)
+        doc1 = chunk_sources(doc1, language=Language.PYTHON)
     elif file.lower().endswith('.toml'):
         doc1 = TomlLoader(file).load()
         add_meta(doc1, file)
+        doc1 = chunk_sources(doc1)
     elif file.lower().endswith('.urls'):
         with open(file, "r") as f:
             urls = f.readlines()
             # recurse
-            doc1 = path_to_docs(None, url=urls, verbose=verbose, fail_any_exception=fail_any_exception, n_jobs=n_jobs)
+            doc1 = path_to_docs(None, url=urls, verbose=verbose, fail_any_exception=fail_any_exception, n_jobs=n_jobs,
+                                db_type=db_type)
     elif file.lower().endswith('.zip'):
         with zipfile.ZipFile(file, 'r') as zip_ref:
             # don't put into temporary path, since want to keep references to docs inside zip
             # so just extract in path where
             zip_ref.extractall(base_path)
             # recurse
-            doc1 = path_to_docs(base_path, verbose=verbose, fail_any_exception=fail_any_exception, n_jobs=n_jobs)
+            doc1 = path_to_docs(base_path, verbose=verbose, fail_any_exception=fail_any_exception, n_jobs=n_jobs,
+                                db_type=db_type)
     else:
         raise RuntimeError("No file handler for %s" % os.path.basename(file))
 
@@ -1360,12 +1376,12 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
     # if list of length one, don't trust and chunk it
     if not isinstance(doc1, list):
         if chunk:
-            docs = chunk_sources([doc1], chunk=chunk, chunk_size=chunk_size)
+            docs = chunk_sources([doc1])
         else:
             docs = [doc1]
     elif isinstance(doc1, list) and len(doc1) == 1:
         if chunk:
-            docs = chunk_sources(doc1, chunk=chunk, chunk_size=chunk_size)
+            docs = chunk_sources(doc1)
         else:
             docs = doc1
     else:
@@ -1381,7 +1397,9 @@ def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True
                  is_url=False, is_txt=False,
                  enable_captions=True,
                  captions_model=None,
-                 enable_ocr=False, enable_pdf_ocr='auto', caption_loader=None):
+                 enable_ocr=False, enable_pdf_ocr='auto', caption_loader=None,
+                 db_type=None):
+    assert db_type is not None
     if verbose:
         if is_url:
             print("Ingesting URL: %s" % file, flush=True)
@@ -1400,7 +1418,8 @@ def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True
                           captions_model=captions_model,
                           enable_ocr=enable_ocr,
                           enable_pdf_ocr=enable_pdf_ocr,
-                          caption_loader=caption_loader)
+                          caption_loader=caption_loader,
+                          db_type=db_type)
     except BaseException as e:
         print("Failed to ingest %s due to %s" % (file, traceback.format_exc()))
         if fail_any_exception:
@@ -1432,7 +1451,9 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
                  enable_pdf_ocr='auto',
                  existing_files=[],
                  existing_hash_ids={},
+                 db_type=None,
                  ):
+    assert db_type is not None
     # path_or_paths could be str, list, tuple, generator
     globs_image_types = []
     globs_non_image_types = []
@@ -1513,6 +1534,7 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
                   caption_loader=caption_loader,
                   enable_ocr=enable_ocr,
                   enable_pdf_ocr=enable_pdf_ocr,
+                  db_type=db_type,
                   )
 
     if n_jobs != 1 and len(globs_non_image_types) > 1:
@@ -1752,6 +1774,7 @@ def _make_db(use_openai_embedding=False,
 
     sources = []
     if not db:
+        chunk_sources = functools.partial(_chunk_sources, chunk=chunk, chunk_size=chunk_size, db_type=db_type)
         if langchain_mode in ['wiki_full']:
             from read_wiki_full import get_all_documents
             small_test = None
@@ -1759,24 +1782,24 @@ def _make_db(use_openai_embedding=False,
             sources1 = get_all_documents(small_test=small_test, n_jobs=os.cpu_count() // 2)
             print("Got new wiki", flush=True)
             if chunk:
-                sources1 = chunk_sources(sources1, chunk=chunk, chunk_size=chunk_size)
+                sources1 = chunk_sources(sources1)
                 print("Chunked new wiki", flush=True)
             sources.extend(sources1)
         elif langchain_mode in ['wiki']:
             sources1 = get_wiki_sources(first_para=first_para, text_limit=text_limit)
             if chunk:
-                sources1 = chunk_sources(sources1, chunk=chunk, chunk_size=chunk_size)
+                sources1 = chunk_sources(sources1)
             sources.extend(sources1)
         elif langchain_mode in ['github h2oGPT']:
             # sources = get_github_docs("dagster-io", "dagster")
             sources1 = get_github_docs("h2oai", "h2ogpt")
             # FIXME: always chunk for now
-            sources1 = chunk_sources(sources1, chunk=chunk, chunk_size=chunk_size)
+            sources1 = chunk_sources(sources1)
             sources.extend(sources1)
         elif langchain_mode in ['DriverlessAI docs']:
             sources1 = get_dai_docs(from_hf=True)
             if chunk and False:  # FIXME: DAI docs are already chunked well, should only chunk more if over limit
-                sources1 = chunk_sources(sources1, chunk=chunk, chunk_size=chunk_size)
+                sources1 = chunk_sources(sources1)
             sources.extend(sources1)
     if user_path:
         # UserData or custom, which has to be from user's disk
@@ -1793,7 +1816,8 @@ def _make_db(use_openai_embedding=False,
         # FIXME: If first had old Hash=None and switch embeddings,
         #  then re-embed, and then hit here and reload so have hash, and then re-embed.
         sources1 = path_to_docs(user_path, n_jobs=n_jobs, chunk=chunk, chunk_size=chunk_size,
-                                existing_files=existing_files, existing_hash_ids=existing_hash_ids)
+                                existing_files=existing_files, existing_hash_ids=existing_hash_ids,
+                                db_type=db_type)
         new_metadata_sources = set([x.metadata['source'] for x in sources1])
         if new_metadata_sources:
             print("Loaded %s new files as sources to add to %s" % (len(new_metadata_sources), langchain_mode),
@@ -2290,6 +2314,27 @@ def get_chain(query=None,
     else:
         use_template = False
 
+    query_action = langchain_action == LangChainAction.QUERY.value
+    summarize_action = langchain_action in [LangChainAction.SUMMARIZE_MAP.value,
+                                            LangChainAction.SUMMARIZE_ALL.value,
+                                            LangChainAction.SUMMARIZE_REFINE.value]
+
+    if hasattr(llm, 'pipeline') and hasattr(llm.pipeline, 'max_input_tokens'):
+        max_input_tokens = llm.pipeline.max_input_tokens
+    elif inference_server in ['openai']:
+        max_tokens = llm.modelname_to_contextsize(model_name)
+        # leave some room for 1 paragraph, even if min_new_tokens=0
+        max_input_tokens = max_tokens - 256
+    elif inference_server in ['openai_chat']:
+        max_tokens = model_token_mapping[model_name]
+        # leave some room for 1 paragraph, even if min_new_tokens=0
+        max_input_tokens = max_tokens - 256
+    elif isinstance(tokenizer, FakeTokenizer):
+        max_input_tokens = tokenizer.model_max_length - 256
+    else:
+        # leave some room for 1 paragraph, even if min_new_tokens=0
+        max_input_tokens = 2048 - 256
+
     if db and use_docs_planned:
         base_path = 'locks'
         base_path = makedirs(base_path, exist_ok=True, tmp_ok=True)
@@ -2305,16 +2350,18 @@ def get_chain(query=None,
         else:
             assert document_choice is not None, "Document choice was None"
             if len(document_choice) >= 1 and document_choice[0] == DocumentChoice.ALL.value:
-                filter_kwargs = {}
+                filter_kwargs = {"chunk_id": {"$ge": 0}} if query_action else {"chunk_id": {"$eq": -1}}
             elif len(document_choice) >= 2:
                 if document_choice[0] == DocumentChoice.ALL.value:
                     # remove 'All'
                     document_choice = document_choice[1:]
-                or_filter = [{"source": {"$eq": x}} for x in document_choice]
+                or_filter = [{"source": {"$eq": x}, "chunk_id": {"$ge": 0}} if query_action else {"source": {"$eq": x}, "chunk_id": {"$eq": -1}}
+                             for x in document_choice]
                 filter_kwargs = dict(filter={"$or": or_filter})
             elif len(document_choice) == 1:
                 # degenerate UX bug in chroma
-                one_filter = [{"source": {"$eq": x}} for x in document_choice][0]
+                one_filter = [{"source": {"$eq": x}, "chunk_id": {"$ge": 0}} if query_action else {"source": {"$eq": x}, "chunk_id": {"$eq": -1}}
+                              for x in document_choice][0]
                 filter_kwargs = dict(filter=one_filter)
             else:
                 # shouldn't reach
@@ -2330,10 +2377,18 @@ def get_chain(query=None,
 
             # order documents
             doc_hashes = [x.get('doc_hash', 'None') for x in db_metadatas]
-            doc_chunk_ids = [x.get('chunk_id', 0) for x in db_metadatas]
-            docs_with_score = [x for _, _, x in
-                               sorted(zip(doc_hashes, doc_chunk_ids, docs_with_score), key=lambda x: (x[0], x[1]))
-                               ]
+            if query_action:
+                doc_chunk_ids = [x.get('chunk_id', 0) for x in db_metadatas]
+                docs_with_score = [x for hx, cx, x in
+                                   sorted(zip(doc_hashes, doc_chunk_ids, docs_with_score), key=lambda x: (x[0], x[1]))
+                                   if cx >= 0]
+            else:
+                assert summarize_action
+                doc_chunk_ids = [x.get('chunk_id', -1) for x in db_metadatas]
+                docs_with_score = [x for hx, cx, x in
+                                   sorted(zip(doc_hashes, doc_chunk_ids, docs_with_score), key=lambda x: (x[0], x[1]))
+                                   if cx == -1
+                                   ]
 
             docs_with_score = docs_with_score[:top_k_docs]
             docs = [x[0] for x in docs_with_score]
@@ -2365,21 +2420,6 @@ def get_chain(query=None,
                               docs_with_score]
                     template_tokens = db._embedding_function.client.tokenize([template])['input_ids'].shape[1]
                 tokens_cumsum = np.cumsum(tokens)
-                if hasattr(llm, 'pipeline') and hasattr(llm.pipeline, 'max_input_tokens'):
-                    max_input_tokens = llm.pipeline.max_input_tokens
-                elif inference_server in ['openai']:
-                    max_tokens = llm.modelname_to_contextsize(model_name)
-                    # leave some room for 1 paragraph, even if min_new_tokens=0
-                    max_input_tokens = max_tokens - 256
-                elif inference_server in ['openai_chat']:
-                    max_tokens = model_token_mapping[model_name]
-                    # leave some room for 1 paragraph, even if min_new_tokens=0
-                    max_input_tokens = max_tokens - 256
-                elif isinstance(tokenizer, FakeTokenizer):
-                    max_input_tokens = tokenizer.model_max_length - 256
-                else:
-                    # leave some room for 1 paragraph, even if min_new_tokens=0
-                    max_input_tokens = 2048 - 256
                 max_input_tokens -= template_tokens
                 # FIXME: Doesn't account for query, == context, or new lines between contexts
                 where_res = np.where(tokens_cumsum < max_input_tokens)[0]
@@ -2470,7 +2510,8 @@ def get_chain(query=None,
         if langchain_action == LangChainAction.SUMMARIZE_MAP.value:
             prompt = PromptTemplate(input_variables=["text"], template=template)
             chain = load_summarize_chain(llm, chain_type="map_reduce",
-                                         map_prompt=prompt, combine_prompt=prompt, return_intermediate_steps=True)
+                                         map_prompt=prompt, combine_prompt=prompt, return_intermediate_steps=True,
+                                         token_max=max_input_tokens)
             target = wrapped_partial(chain, {"input_documents": docs})  # , return_only_outputs=True)
         elif langchain_action == LangChainAction.SUMMARIZE_ALL.value:
             assert use_template
@@ -2537,13 +2578,24 @@ def clean_doc(docs1):
     return docs1
 
 
-def chunk_sources(sources, chunk=True, chunk_size=512, language=None):
-    if not chunk:
-        [x.metadata.update(dict(chunk_id=chunk_id)) for chunk_id, x in enumerate(sources)]
-        return sources
+def clone_documents(documents: Iterable[Document]) -> List[Document]:
+    # first clone documents
+    new_docs = []
+    for doc in documents:
+        new_doc = Document(page_content=doc.page_content, metadata=copy.deepcopy(doc.metadata))
+        new_docs.append(new_doc)
+    return new_docs
+
+
+def _chunk_sources(sources, chunk=True, chunk_size=512, language=None, db_type=None):
+    assert db_type is not None
+
     if not isinstance(sources, (list, tuple, types.GeneratorType)) and not callable(sources):
         # if just one document
         sources = [sources]
+    if not chunk:
+        [x.metadata.update(dict(chunk_id=0)) for chunk_id, x in enumerate(sources)]
+        return sources
     if language and False:
         # Bug in langchain, keep separator=True not working
         # https://github.com/hwchase17/langchain/issues/2836
@@ -2560,7 +2612,16 @@ def chunk_sources(sources, chunk=True, chunk_size=512, language=None):
     # currently in order, but when pull from db won't be, so mark order and document by hash
     [x.metadata.update(dict(chunk_id=chunk_id)) for chunk_id, x in enumerate(source_chunks)]
 
-    return source_chunks
+    if db_type == 'chroma':
+        # also keep original source for summarization and other tasks
+
+        # assign chunk_id=-1 for original content
+        # this assumes, as is currently true, that splitter makes new documents and list and metadata is deepcopy
+        [x.metadata.update(dict(chunk_id=-1)) for chunk_id, x in enumerate(sources)]
+
+        return sources + source_chunks
+    else:
+        return source_chunks
 
 
 def get_db_from_hf(dest=".", db_dir='db_dir_DriverlessAI_docs.zip'):
