@@ -1371,8 +1371,9 @@ def set_model_max_len(config, tokenizer, verbose=False, reward_type=False):
         # limit deberta, else uses too much memory and not worth response score
         tokenizer.model_max_length = 512
         return
+
     if hasattr(config, 'max_seq_len') and isinstance(config.max_seq_len, int):
-        tokenizer.model_max_length = config.max_seq_len  # should be scaled/long already from config
+        tokenizer.model_max_length = config.max_seq_len
         if verbose:
             print("model_max_length=%s" % tokenizer.model_max_length, flush=True)
     else:
