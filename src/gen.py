@@ -2011,7 +2011,7 @@ def evaluate(
                                          max_new_tokens=max_new_tokens,
                                          # best_of=None,
                                          repetition_penalty=repetition_penalty,
-                                         return_full_text=True,
+                                         return_full_text=False,
                                          seed=SEED,
                                          stop_sequences=stop_sequences,
                                          temperature=temperature,
@@ -2028,7 +2028,7 @@ def evaluate(
                 hf_client.timeout = max(300, max_time)
                 if not stream_output:
                     text = hf_client.generate(prompt, **gen_server_kwargs).generated_text
-                    yield dict(response=prompter.get_response(text, prompt=prompt,
+                    yield dict(response=prompter.get_response(prompt + text, prompt=prompt,
                                                               sanitize_bot_response=sanitize_bot_response),
                                sources='')
                 else:
@@ -2182,7 +2182,7 @@ def evaluate(
                     if verbose:
                         print("WARNING: Special characters in prompt", flush=True)
                 if stream_output:
-                    skip_prompt = False
+                    skip_prompt = False  # means first output has prompt too
                     streamer = H2OTextIteratorStreamer(tokenizer, skip_prompt=skip_prompt, block=False,
                                                        **decoder_kwargs)
                     gen_kwargs.update(dict(streamer=streamer))
