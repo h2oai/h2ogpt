@@ -1377,9 +1377,7 @@ def set_model_max_len(config, tokenizer, verbose=False, reward_type=False):
         if verbose:
             print("model_max_length=%s" % tokenizer.model_max_length, flush=True)
     else:
-        if verbose:
-            print("Could not determine model_max_length, setting to 2048", flush=True)
-        tokenizer.model_max_length = 2048
+        raise RuntimeError("Could not determine model_max_length")
     # for bug in HF transformers
     if tokenizer.model_max_length > 100000000:
         tokenizer.model_max_length = 2048
