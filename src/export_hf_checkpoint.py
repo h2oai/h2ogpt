@@ -11,9 +11,9 @@ from transformers import PreTrainedModel
 
 
 def do_export():
-    BASE_MODEL = 'tiiuae/falcon-40b'
-    LORA_WEIGHTS = 'falcon-40b.h2oaiopenassistant_oasst1_h2ogpt.1_epochs.894d8450d35c180cd03222a45658d04c15b78d4b.9'
-    OUTPUT_NAME = "h2ogpt-oasst1-2048-falcon-40b"
+    BASE_MODEL = 'meta-llama/Llama-2-7b-chat-hf'
+    LORA_WEIGHTS = 'Llama-2-7b-chat-hf.h2oaiopenassistant_oasst1_h2ogpt_llama2_chat.1_epochs.0f429fef1ca45118494f10c42a1fe09003a2f17f.1'
+    OUTPUT_NAME = "h2ogpt-oasst1-4096-llama2-7b"
 
     base_model = os.getenv('BASE_MODEL')
     output = os.getenv('MODEL')
