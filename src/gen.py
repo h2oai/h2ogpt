@@ -369,6 +369,7 @@ def main(
            Not supported yet for openai_chat when using document collection instead of LLM
            Also not supported when using CLI mode
     :param allow_upload_to_user_data: Whether to allow file uploads to update shared vector db (UserData or custom user dbs)
+           Ensure pass user_path for the files uploaded to be moved to this location for linking.
     :param reload_langchain_state: Whether to reload visible_langchain_modes.pkl file that contains any new user collections.
     :param allow_upload_to_my_data: Whether to allow file uploads to update scratch vector db
     :param enable_url_upload: Whether to allow upload from URL
