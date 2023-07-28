@@ -15,7 +15,7 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
   ```bash
   conda create -n h2ogpt -y
   conda activate h2ogpt
-  mamba install python=3.10 -c conda-forge -y
+  conda install python=3.10 -c conda-forge -y
   ```
   You should see `(h2ogpt)` in shell prompt.
   
