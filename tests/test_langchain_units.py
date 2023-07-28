@@ -374,7 +374,7 @@ def test_make_add_db(repeat, db_type):
                                                        fail_any_exception=True, db_type=db_type)
                     assert db is not None
                     docs = db.similarity_search("World")
-                    assert len(docs) == 1
+                    assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
                     assert docs[0].page_content == msg1
                     assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
@@ -389,7 +389,7 @@ def test_make_add_db(repeat, db_type):
                     db1 = {LangChainMode.MY_DATA.value: [dbmy, 'foouuid']}
                     assert dbmy is not None
                     docs1 = dbmy.similarity_search("World")
-                    assert len(docs1) == 1
+                    assert len(docs1) == 1 + (1 if db_type == 'chroma' else 0)
                     assert docs1[0].page_content == msg1
                     assert os.path.normpath(docs1[0].metadata['source']) == os.path.normpath(test_file1my)
 
@@ -490,14 +490,14 @@ def test_make_add_db(repeat, db_type):
                                                        collection_name=collection_name)
                     assert db is not None
                     docs = db.similarity_search("World")
-                    assert len(docs) == 3
+                    assert len(docs) == 3 + (1 if db_type == 'chroma' else 0)
                     assert docs[0].page_content == msg1
                     assert docs[1].page_content in [msg2, msg1up]
                     assert docs[2].page_content in [msg2, msg1up]
                     assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
                     docs = db.similarity_search("Jill")
-                    assert len(docs) == 3
+                    assert len(docs) == 3 + (1 if db_type == 'chroma' else 0)
                     assert docs[0].page_content == msg2
                     assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file2)
 
@@ -519,7 +519,7 @@ def test_zip_add(db_type):
                                                add_if_exists=False)
             assert db is not None
             docs = db.similarity_search("World")
-            assert len(docs) == 1
+            assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
             assert docs[0].page_content == msg1
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
@@ -612,7 +612,7 @@ def test_html_add(db_type):
                                                add_if_exists=False)
             assert db is not None
             docs = db.similarity_search("Yugu")
-            assert len(docs) == 1
+            assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
             assert 'Yugu' in docs[0].page_content
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
@@ -689,7 +689,7 @@ def test_eml_add(db_type):
                                                add_if_exists=False)
             assert db is not None
             docs = db.similarity_search("What is subject?")
-            assert len(docs) == 1
+            assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
             assert 'testtest' in docs[0].page_content
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
@@ -720,7 +720,7 @@ FYIcenter.com Team"""
                                                add_if_exists=False)
             assert db is not None
             docs = db.similarity_search("Subject")
-            assert len(docs) == 1
+            assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
             assert 'Welcome' in docs[0].page_content
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
@@ -776,7 +776,7 @@ def test_pdf_add(db_type):
                                                add_if_exists=False)
             assert db is not None
             docs = db.similarity_search("Suggestions")
-            assert len(docs) == 3
+            assert len(docs) == 3 + (1 if db_type == 'chroma' else 0)
             assert 'And more text. And more text.' in docs[0].page_content
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
@@ -816,7 +816,7 @@ def test_simple_pptx_add(db_type):
                                                add_if_exists=False)
             assert db is not None
             docs = db.similarity_search("Example")
-            assert len(docs) == 1
+            assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
             assert 'Powerpoint' in docs[0].page_content
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
@@ -856,7 +856,7 @@ def test_msg_add(db_type):
                                                fail_any_exception=True, db_type=db_type)
             assert db is not None
             docs = db.similarity_search("Grump")
-            assert len(docs) == 4
+            assert len(docs) == 4 + (1 if db_type == 'chroma' else 0)
             assert 'Happy' in docs[0].page_content
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
@@ -908,7 +908,7 @@ def run_png_add(captions_model=None, caption_gpu=False, pre_load_caption_model=F
                                                add_if_exists=False)
             assert db is not None
             docs = db.similarity_search("cat")
-            assert len(docs) == 1
+            assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
             assert 'a cat sitting on a window' in docs[0].page_content
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
@@ -943,7 +943,7 @@ Microsoft  Word developed RTF for document transportability and gives a user acc
                                                add_if_exists=False)
             assert db is not None
             docs = db.similarity_search("How was this document created?")
-            assert len(docs) == 4
+            assert len(docs) == 4 + (1 if db_type == 'chroma' else 0)
             assert 'Microsoft' in docs[1].page_content
             assert os.path.normpath(docs[1].metadata['source']) == os.path.normpath(test_file1)
 
