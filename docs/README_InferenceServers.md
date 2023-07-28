@@ -172,6 +172,12 @@ SAVE_DIR=./save/ python generate.py --inference_server="http://192.168.1.46:6112
 ```
 One can pass, e.g., `--max_max_new_tokens=2048 --max_new_tokens=512` to generate.py to control tokens, along with `--max-batch-prefill-tokens=2048 --max-input-length 2048 --max-total-tokens 4096 --max-stop-sequences 6 --trust-remote-code` for TGI server to match.
 
+For efficient parallel summarization with 13B LLaMa2 on single A100:
+```bash
+python --inference_server=http://192.168.1.46:6112 --base_model=meta-llama/Llama-2-13b-chat-hf --score_model=None --save_dir=save_gpt13 --max_max_new_tokens=2048 --max_new_tokens=1024 --langchain_mode=LLM --visible_langchain_modes="['LLM', 'UserData', 'MyData']" --captions_model=Salesforce/blip2-flan-t5-xl --num_async=10 --top_k_docs=-1
+```
+which achieves about 80 output tokens/second, using 10 simultaneous streams and all document pages/parts.  In about 2 minutes it can handle summarization a complete 30 page ArXiV paper using LangChain map-reduce with asyncio bugs fixed: https://github.com/langchain-ai/langchain/issues/8391 .  In UI or API calls, one should disable streaming since the threading used by streaming does not mix well with asyncio. 
+
 ## Gradio Inference Server-Client
 
 You can use your own server for some model supported by the server's system specs, e.g.:

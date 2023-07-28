@@ -7,10 +7,11 @@ Query and summarize your documents or just chat with local private GPT LLMs usin
 - **Private** offline database of any documents [(PDFs, Excel, Word, Images, Code, Text, MarkDown, etc.)](docs/README_LangChain.md#supported-datatypes)
 - **Persistent** database (Chroma, Weaviate, or in-memory FAISS) using accurate embeddings (instructor-large, all-MiniLM-L6-v2, etc.)
 - **Efficient** use of context using instruct-tuned LLMs (no need for LangChain's few-shot approach)
+- **Parallel** summarization reaching 80 tokens/second output 13B LLaMa2
 - **Upload** and **View** documents via UI (control multiple collaborative or scratch collections)
 - **UI** or CLI with streaming of all models
 - **Bake-off** UI mode against many models at same time
-- **Variety** of models supported (Falcon, Vicuna, WizardLM including AutoGPTQ, 4-bit/8-bit, LORA)
+- **Variety** of models supported (LLaMa2, Falcon, Vicuna, WizardLM including AutoGPTQ, 4-bit/8-bit, LORA)
 - **GPU** support from HF models, and **CPU** support using LLaMa cpp and GPT4ALL
 - **Linux, Docker, MAC, and Windows** support
 - **Inference Servers** support (HF TGI server, vLLM, Gradio, OpenAI)
