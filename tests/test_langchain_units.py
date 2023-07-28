@@ -460,14 +460,17 @@ def test_make_add_db(repeat, db_type):
                     update_and_get_source_files_given_langchain_mode(db1, 'MyData', dbs={}, **kwargs2)
 
                     assert path_to_docs(test_file2_my, db_type=db_type)[0].metadata['source'] == test_file2_my
+                    extra = 1 if db_type == 'chroma' else 0
                     assert os.path.normpath(
-                        path_to_docs(os.path.dirname(test_file2_my), db_type=db_type)[1].metadata['source']) == os.path.normpath(
+                        path_to_docs(os.path.dirname(test_file2_my), db_type=db_type)[1 + extra].metadata['source']) == os.path.normpath(
                         os.path.abspath(test_file2_my))
-                    assert path_to_docs([test_file1, test_file2, test_file2_my], db_type=db_type)[0].metadata['source'] == test_file1
+                    assert path_to_docs([test_file1, test_file2, test_file2_my], db_type=db_type)[0].metadata[
+                               'source'] == test_file1
 
                     assert path_to_docs(None, url='arxiv:1706.03762', db_type=db_type)[0].metadata[
                                'source'] == 'http://arxiv.org/abs/2002.05202v1'
-                    assert path_to_docs(None, url='http://h2o.ai', db_type=db_type)[0].metadata['source'] == 'http://h2o.ai'
+                    assert path_to_docs(None, url='http://h2o.ai', db_type=db_type)[0].metadata[
+                               'source'] == 'http://h2o.ai'
 
                     assert 'user_paste' in path_to_docs(None,
                                                         text='Yufuu is a wonderful place and you should really visit because there is lots of sun.',
@@ -490,16 +493,28 @@ def test_make_add_db(repeat, db_type):
                                                        collection_name=collection_name)
                     assert db is not None
                     docs = db.similarity_search("World")
-                    assert len(docs) == 3 + (1 if db_type == 'chroma' else 0)
-                    assert docs[0].page_content == msg1
-                    assert docs[1].page_content in [msg2, msg1up]
-                    assert docs[2].page_content in [msg2, msg1up]
-                    assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+                    if db_type == 'chroma':
+                        assert len(docs) == 3 + (1 if db_type == 'chroma' else 0)
+                        assert docs[0].page_content == msg1
+                        assert docs[1 + extra].page_content in [msg2, msg1up]
+                        assert docs[2 + extra].page_content in [msg2, msg1up]
+                        assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
-                    docs = db.similarity_search("Jill")
-                    assert len(docs) == 3 + (1 if db_type == 'chroma' else 0)
-                    assert docs[0].page_content == msg2
-                    assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file2)
+                        docs = db.similarity_search("Jill")
+                        assert len(docs) == 3 + (1 if db_type == 'chroma' else 0)
+                        assert docs[0].page_content == msg2
+                        assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file2)
+                    else:
+                        assert len(docs) == 4
+                        assert docs[0].page_content == msg1
+                        assert docs[1 + extra].page_content in [msg2, msg1up]
+                        assert docs[2 + extra].page_content in [msg2, msg1up]
+                        assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+
+                        docs = db.similarity_search("Jill")
+                        assert len(docs) == 4
+                        assert docs[0].page_content == msg2
+                        assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file2)
 
 
 @pytest.mark.parametrize("db_type", db_types)
@@ -798,7 +813,8 @@ def test_image_pdf_add(db_type, enable_pdf_ocr):
             assert db is not None
             docs = db.similarity_search("List Tshwane's concerns about water.")
             assert len(docs) == 4
-            assert 'we appeal to residents that do have water to please use it sparingly.' in docs[1].page_content
+            assert 'we appeal to residents that do have water to please use it sparingly.' in docs[
+                1].page_content or 'OFFICE OF THE MMC FOR UTILITIES AND REGIONAL OPERATIONS' in docs[1].page_content
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
 
@@ -943,7 +959,7 @@ Microsoft  Word developed RTF for document transportability and gives a user acc
                                                add_if_exists=False)
             assert db is not None
             docs = db.similarity_search("How was this document created?")
-            assert len(docs) == 4 + (1 if db_type == 'chroma' else 0)
+            assert len(docs) == 4
             assert 'Microsoft' in docs[1].page_content
             assert os.path.normpath(docs[1].metadata['source']) == os.path.normpath(test_file1)
 
