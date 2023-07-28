@@ -829,6 +829,7 @@ def get_llm(use_openai_model=False,
         callbacks = [StreamingGradioCallbackHandler()]
 
         if gr_client:
+            async_output = False  # FIXME: not implemented yet
             chat_client = False
             llm = GradioInference(
                 inference_server_url=inference_server,
@@ -885,6 +886,7 @@ def get_llm(use_openai_model=False,
             raise RuntimeError("No defined client")
         streamer = callbacks[0] if stream_output else None
     elif model_name in non_hf_types:
+        async_output = False  # FIXME: not implemented yet
         assert langchain_only_model
         if model_name == 'llama':
             callbacks = [StreamingGradioCallbackHandler()]
@@ -913,6 +915,7 @@ def get_llm(use_openai_model=False,
                               iinput=iinput,
                               )
     elif hasattr(model, 'is_exlama') and model.is_exlama():
+        async_output = False  # FIXME: not implemented yet
         assert langchain_only_model
         callbacks = [StreamingGradioCallbackHandler()]
         streamer = callbacks[0] if stream_output else None
@@ -942,6 +945,7 @@ def get_llm(use_openai_model=False,
                       iinput=iinput,
                       )
     else:
+        async_output = False  # FIXME: not implemented yet
         if model is None:
             # only used if didn't pass model in
             assert tokenizer is None
@@ -999,7 +1003,7 @@ def get_llm(use_openai_model=False,
 
         from langchain.llms import HuggingFacePipeline
         llm = HuggingFacePipeline(pipeline=pipe)
-    return llm, model_name, streamer, prompt_type
+    return llm, model_name, streamer, prompt_type, async_output
 
 
 def get_device_dtype():
@@ -2117,7 +2121,8 @@ def _run_qa_db(query=None,
     assert len(set(gen_hyper).difference(inspect.signature(get_llm).parameters)) == 0
     # pass in context to LLM directly, since already has prompt_type structure
     # can't pass through langchain in get_chain() to LLM: https://github.com/hwchase17/langchain/issues/6638
-    llm, model_name, streamer, prompt_type_out = get_llm(use_openai_model=use_openai_model, model_name=model_name,
+    llm, model_name, streamer, prompt_type_out, async_output = \
+        get_llm(use_openai_model=use_openai_model, model_name=model_name,
                                                          model=model,
                                                          tokenizer=tokenizer,
                                                          inference_server=inference_server,
