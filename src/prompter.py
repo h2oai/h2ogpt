@@ -73,7 +73,7 @@ prompt_type_to_model_name = {
     "wizard_mega": ['openaccess-ai-collective/wizard-mega-13b'],
     "instruct_simple": ['JosephusCheung/Guanaco'],
     "wizard_vicuna": ['ehartford/Wizard-Vicuna-13B-Uncensored'],
-    "wizard2": ['llama'],
+    # "wizard2": [],
     "mptinstruct": ['mosaicml/mpt-30b-instruct', 'mosaicml/mpt-7b-instruct', 'mosaicml/mpt-30b-instruct'],
     "mptchat": ['mosaicml/mpt-7b-chat', 'mosaicml/mpt-30b-chat', 'TheBloke/mpt-30B-chat-GGML'],
     "vicuna11": ['lmsys/vicuna-33b-v1.3'],
@@ -83,6 +83,7 @@ prompt_type_to_model_name = {
         'meta-llama/Llama-2-13b-chat-hf',
         'meta-llama/Llama-2-34b-chat-hf',
         'meta-llama/Llama-2-70b-chat-hf',
+        'llama',
     ],
     # could be plain, but default is correct prompt_type for default TheBloke model ggml-wizardLM-7B.q4_2.bin
 }
