@@ -565,37 +565,43 @@ def main(
 
     n_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 0
     n_gpus, gpu_ids = cuda_vis_check(n_gpus)
-    if n_gpus == 0:
-        print("No GPUs detected", flush=True)
-        enable_captions = False
-        gpu_id = None
-        load_8bit = False
-        load_4bit = False
-        load_half = False
-        load_gptq = ''
-        load_exllama = False
-        use_safetensors = False
-        revision = None
-        use_gpu_id = False
-        torch.backends.cudnn.benchmark = True
-        torch.backends.cudnn.enabled = False
-        torch.set_default_dtype(torch.float32)
-        if psutil.virtual_memory().available < 94 * 1024 ** 3 and not inference_server and not model_lock:
-            # 12B uses ~94GB
-            # 6.9B uses ~47GB
-            base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b' if not base_model else base_model
-        if hf_embedding_model is None:
-            # if no GPUs, use simpler embedding model to avoid cost in time
-            hf_embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
-        if score_model == 'auto':
-            score_model = ''
-    else:
-        if score_model == 'auto':
-            if n_gpus >= 2:
-                # will by default place scoring model on last GPU
-                score_model = 'OpenAssistant/reward-model-deberta-v3-large-v2'
-            else:
+
+    if get_device() == "cuda":
+        if n_gpus == 0:
+            print("No GPUs detected", flush=True)
+            enable_captions = False
+            gpu_id = None
+            load_8bit = False
+            load_4bit = False
+            load_half = False
+            load_gptq = ''
+            load_exllama = False
+            use_safetensors = False
+            revision = None
+            use_gpu_id = False
+            torch.backends.cudnn.benchmark = True
+            torch.backends.cudnn.enabled = False
+            torch.set_default_dtype(torch.float32)
+            if psutil.virtual_memory().available < 94 * 1024 ** 3 and not inference_server and not model_lock:
+                # 12B uses ~94GB
+                # 6.9B uses ~47GB
+                base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b' if not base_model else base_model
+            if hf_embedding_model is None:
+                # if no GPUs, use simpler embedding model to avoid cost in time
+                hf_embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
+            if score_model == 'auto':
                 score_model = ''
+        else:
+            if score_model == 'auto':
+                if n_gpus >= 2:
+                    # will by default place scoring model on last GPU
+                    score_model = 'OpenAssistant/reward-model-deberta-v3-large-v2'
+                else:
+                    score_model = ''
+            if hf_embedding_model is None:
+                # if still None, then set default
+                hf_embedding_model = 'hkunlp/instructor-large'
+    elif get_device() == "mps":
         if hf_embedding_model is None:
             # if still None, then set default
             hf_embedding_model = 'hkunlp/instructor-large'
