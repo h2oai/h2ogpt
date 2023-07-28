@@ -2742,7 +2742,8 @@ def _chunk_sources(sources, chunk=True, chunk_size=512, language=None, db_type=N
         # this assumes, as is currently true, that splitter makes new documents and list and metadata is deepcopy
         [x.metadata.update(dict(chunk_id=-1)) for chunk_id, x in enumerate(sources)]
 
-        return sources + source_chunks
+        # in some cases sources is generator, so convert to list
+        return list(sources) + source_chunks
     else:
         return source_chunks
 
