@@ -846,8 +846,7 @@ def get_llm(use_openai_model=False,
             )
         elif hf_client:
             # no need to pass original client, no state and fast, so can use same validate_environment from base class
-            if async_output:
-                async_sem = asyncio.Semaphore(num_async)
+            async_sem = asyncio.Semaphore(num_async) if async_output else NullContext()
             llm = H2OHuggingFaceTextGenInference(
                 inference_server_url=inference_server,
                 do_sample=do_sample,
@@ -2082,6 +2081,9 @@ def _run_qa_db(query=None,
     :param answer_with_sources
     :return:
     """
+    if stream_output:
+        # threads and asyncio don't mix
+        async_output = False
     assert langchain_mode_paths is not None
     if model is not None:
         assert model_name is not None  # require so can make decisions
@@ -2209,7 +2211,7 @@ def _run_qa_db(query=None,
                 if thread.exc:
                     raise thread.exc
             else:
-                if not stream_output and async_output:
+                if async_output:
                     import asyncio
                     answer = asyncio.run(chain())
                 else:
@@ -2565,7 +2567,7 @@ def get_chain(query=None,
                 input_variables=["context", "question"],
                 template=template,
             )
-            chain = load_qa_chain(llm, prompt=prompt)
+            chain = load_qa_chain(llm, prompt=prompt, verbose=verbose)
         else:
             # only if use_openai_model = True, unused normally except in testing
             chain = load_qa_with_sources_chain(llm)
@@ -2577,7 +2579,7 @@ def get_chain(query=None,
     elif langchain_action in [LangChainAction.SUMMARIZE_MAP.value,
                               LangChainAction.SUMMARIZE_REFINE,
                               LangChainAction.SUMMARIZE_ALL.value]:
-        if not stream_output and async_output:
+        if async_output:
             return_intermediate_steps = False
         else:
             return_intermediate_steps = True
@@ -2587,8 +2589,8 @@ def get_chain(query=None,
             chain = load_summarize_chain(llm, chain_type="map_reduce",
                                          map_prompt=prompt, combine_prompt=prompt,
                                          return_intermediate_steps=return_intermediate_steps,
-                                         token_max=max_input_tokens, verbose=True)
-            if not stream_output and async_output:
+                                         token_max=max_input_tokens, verbose=verbose)
+            if async_output:
                 chain_func = chain.arun
             else:
                 chain_func = chain
@@ -2597,16 +2599,16 @@ def get_chain(query=None,
             assert use_template
             prompt = PromptTemplate(input_variables=["text"], template=template)
             chain = load_summarize_chain(llm, chain_type="stuff", prompt=prompt,
-                                         return_intermediate_steps=return_intermediate_steps)
-            if not stream_output and async_output:
+                                         return_intermediate_steps=return_intermediate_steps, verbose=verbose)
+            if async_output:
                 chain_func = chain.arun
             else:
                 chain_func = chain
             target = wrapped_partial(chain_func)
         elif langchain_action == LangChainAction.SUMMARIZE_REFINE.value:
             chain = load_summarize_chain(llm, chain_type="refine",
-                                         return_intermediate_steps=return_intermediate_steps)
-            if not stream_output and async_output:
+                                         return_intermediate_steps=return_intermediate_steps, verbose=verbose)
+            if async_output:
                 chain_func = chain.arun
             else:
                 chain_func = chain
