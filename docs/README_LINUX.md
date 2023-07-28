@@ -117,6 +117,18 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
    Note that once `llama-cpp-python` is compiled to support CUDA, it no longer works for CPU mode,
    so one would have to reinstall it without the above options to recovers CPU mode or have a separate h2oGPT env for CPU mode.
 
+### Compile Install Issues
+  * `/usr/local/cuda/include/crt/host_config.h:132:2: error: #error -- unsupported GNU version! gcc versions later than 11 are not supported!`
+    * gcc > 11 is not currently supported by nvcc.  Install GCC with a maximum version:
+    ```
+    MAX_GCC_VERSION=11
+    sudo apt install gcc-$MAX_GCC_VERSION g++-$MAX_GCC_VERSION
+    sudo update-alternatives --config gcc
+    # pick version 11
+    sudo update-alternatives --config g++
+    # pick version 11
+    ```
+
 ---
 
 ## Run
