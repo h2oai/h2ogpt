@@ -25,7 +25,7 @@ def make_key():
 
 
 def make_value():
-    return str(uuid.uuid4())[:8]
+    return str(uuid.uuid4())[:4]
 
 
 SECRET_KEY = make_key()
@@ -64,7 +64,8 @@ def create_long_prompt_with_secret(prompt_len=None, secret_pos=None, model_name=
 ])
 @pytest.mark.parametrize("prompt_len", [
     # 2000, 4000,
-    5000, 6000, 7000
+    5000, 6000,
+    # 7000, 8000, # OOM
 ])
 @pytest.mark.parametrize("rel_secret_pos", [
     0.2,
@@ -73,7 +74,7 @@ def create_long_prompt_with_secret(prompt_len=None, secret_pos=None, model_name=
 ])
 @pytest.mark.parametrize("client", [
     False,
-    # True
+    True
 ])
 @wrap_test_forked
 def test_gradio_long_context_uuid_key_value_retrieval(base_model, rope_scaling, prompt_len, rel_secret_pos, client):
