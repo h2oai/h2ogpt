@@ -94,7 +94,7 @@ YouTube 4K version: https://www.youtube.com/watch?v=_iktbj4obAI
    * [Fine-Tuning](docs/FINETUNE.md)
    * [Docker](docs/INSTALL-DOCKER.md)
    * [Triton](docs/TRITON.md)
-   * [Commercially viability](docs/FAQ.md#commercial-viability)
+   * [Commercial viability](docs/FAQ.md#commercial-viability)
 * [Acknowledgements](#acknowledgements)
 * [Why H2O.ai?](#why-h2oai)
 * [Disclaimer](#disclaimer)
