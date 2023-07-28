@@ -470,6 +470,8 @@ class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
     iinput: Any = ''
     tokenizer: Any = None
     async_sem: Any = None
+    count_input_tokens: Any = 0
+    count_output_tokens: Any = 0
 
     def _call(
             self,
@@ -494,6 +496,7 @@ class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
         # NOTE: TGI server does not add prompting, so must do here
         data_point = dict(context=self.context, instruction=prompt, input=self.iinput)
         prompt = self.prompter.generate_prompt(data_point)
+        self.count_input_tokens += self.get_num_tokens(prompt)
 
         gen_server_kwargs = dict(do_sample=self.do_sample,
                                  stop_sequences=stop,
@@ -554,6 +557,7 @@ class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
                 if not response.token.special:
                     if text_callback:
                         text_callback(text_chunk)
+        self.count_output_tokens += self.get_num_tokens(text)
         return text
 
     async def _acall(
@@ -603,12 +607,14 @@ class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
         """Run the LLM on the given prompt and input."""
         generations = []
         new_arg_supported = inspect.signature(self._acall).parameters.get("run_manager")
+        self.count_input_tokens += sum([self.get_num_tokens(prompt) for prompt in prompts])
         tasks = [
             asyncio.ensure_future(self._agenerate_one(prompt, stop=stop, run_manager=run_manager,
                                                       new_arg_supported=new_arg_supported, **kwargs))
             for prompt in prompts
         ]
         texts = await asyncio.gather(*tasks)
+        self.count_output_tokens += sum([self.get_num_tokens(text) for text in texts])
         [generations.append([Generation(text=text)]) for text in texts]
         return LLMResult(generations=generations)
 
@@ -2086,6 +2092,7 @@ def _run_qa_db(query=None,
     :param answer_with_sources
     :return:
     """
+    t_run = time.time()
     if stream_output:
         # threads and asyncio don't mix
         async_output = False
@@ -2222,12 +2229,19 @@ def _run_qa_db(query=None,
                 else:
                     answer = chain()
 
+    t_run = time.time() - t_run
     if not use_docs_planned:
         ret = answer
         extra = ''
         yield ret, extra
     elif answer is not None:
-        ret, extra = get_sources_answer(query, docs, answer, scores, show_rank, answer_with_sources, verbose=verbose)
+        ret, extra = get_sources_answer(query, docs, answer, scores, show_rank, answer_with_sources,
+                                        verbose=verbose,
+                                        t_run=t_run,
+                                        count_input_tokens=llm.count_input_tokens
+                                        if hasattr(llm, 'count_input_tokens') else None,
+                                        count_output_tokens=llm.count_output_tokens
+                                        if hasattr(llm, 'count_output_tokens') else None)
         yield ret, extra
     return
 
@@ -2628,7 +2642,9 @@ def get_chain(query=None,
     return docs, target, scores, use_docs_planned, have_any_docs
 
 
-def get_sources_answer(query, docs, answer, scores, show_rank, answer_with_sources, verbose=False):
+def get_sources_answer(query, docs, answer, scores, show_rank, answer_with_sources, verbose=False,
+                       t_run=None,
+                       count_input_tokens=None, count_output_tokens=None):
     if verbose:
         print("query: %s" % query, flush=True)
         print("answer: %s" % answer, flush=True)
@@ -2655,6 +2671,10 @@ def get_sources_answer(query, docs, answer, scores, show_rank, answer_with_sourc
     else:
         answer_sources = ['<li>%.2g | %s</li>' % (score, url) for score, url in answer_sources]
         sorted_sources_urls = f"{source_prefix}<p><ul>" + "<p>".join(answer_sources)
+        if int(t_run):
+            sorted_sources_urls += 'Total Time: %d [s]<p>' % t_run
+        if count_input_tokens and count_output_tokens:
+            sorted_sources_urls += 'Input Tokens: %s | Output Tokens: %d<p>' % (count_input_tokens, count_output_tokens)
         sorted_sources_urls += f"</ul></p>{source_postfix}"
 
     if not answer.endswith('\n'):
