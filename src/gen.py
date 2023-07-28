@@ -825,8 +825,11 @@ def get_config(base_model,
                     e) or '404 Client Error' in str(e):
                 # e.g. llama, gpjt, etc.
                 # e.g. HF TGI but not model on HF or private etc.
+                if max_seq_len is None and base_model.lower() in non_hf_types:
+                    print("Could not determine --max_seq_len, setting to 2048.  Pass if not correct", flush=True)
+                    max_seq_len = 2048
                 # HF TGI server only should really require prompt_type, not HF model state
-                return None, None
+                return None, None, max_seq_len
             else:
                 raise
         if triton_attn and 'mpt-' in base_model.lower():
@@ -850,38 +853,37 @@ def get_config(base_model,
     if 'falcon' in base_model.lower():
         config.use_cache = False
 
-    if hasattr(config, 'max_seq_len') and isinstance(config.max_seq_len, int):
-        pass
-    elif hasattr(config, 'max_position_embeddings') and isinstance(config.max_position_embeddings, int):
-        # help automatically limit inputs to generate
-        config.max_seq_len = config.max_position_embeddings
-        if verbose:
-            print("Used max_position_embeddings=%s as base model (pre-rope) max_seq_len."
-                  "  If not desired, pass --max_seq_len and set to some integer value." % config.max_position_embeddings,
-                  flush=True)
-    else:
-        print("Could not determine --max_seq_len, setting to 2048.  Pass if not correct", flush=True)
-        config.max_seq_len = 2048
-        # FIXME:
-        #raise RuntimeError("Could not determine max_seq_len,"
-        #                   " please pass --max_seq_len and set to some value, e.g. 2048.")
-
-    if rope_scaling:
-        if rope_scaling.get('factor'):
-            # HF transformers
-            config.max_seq_len *= rope_scaling.get('factor')
-        elif rope_scaling.get('alpha_value'):
-            # exllama
-            # Note: exllama's own tokenizer has this set correctly in loaders.py, this config will be unused
-            config.max_seq_len *= rope_scaling.get('alpha_value')
-        print("Used RoPE scaling with max_seq_len=%d" % config.max_seq_len, flush=True)
-
     # allow override
     if max_seq_len is not None:
-        print("Overriding max_seq_len %d -> %d" % (config.max_seq_len, max_seq_len), flush=True)
-        config.max_seq_len = max_seq_len
+        print("Overriding max_seq_len %d -> %d" % (max_seq_len, max_seq_len), flush=True)
+    else:
+        if hasattr(config, 'max_seq_len'):
+            max_seq_len = int(config.max_seq_len)
+        elif hasattr(config, 'max_position_embeddings') and isinstance(config.max_position_embeddings, int):
+            # help automatically limit inputs to generate
+            max_seq_len = config.max_position_embeddings
+            if verbose:
+                print("Used max_position_embeddings=%s as base model (pre-rope) max_seq_len."
+                      "  If not desired, pass --max_seq_len and set to some integer value." % config.max_position_embeddings,
+                      flush=True)
+        else:
+            print("Could not determine --max_seq_len, setting to 2048.  Pass if not correct", flush=True)
+            max_seq_len = 2048
+            # FIXME:
+            # raise RuntimeError("Could not determine max_seq_len,"
+            #                   " please pass --max_seq_len and set to some value, e.g. 2048.")
 
-    return config, model
+        if rope_scaling:
+            if rope_scaling.get('factor'):
+                # HF transformers
+                max_seq_len *= rope_scaling.get('factor')
+            elif rope_scaling.get('alpha_value'):
+                # exllama
+                # Note: exllama's own tokenizer has this set correctly in loaders.py, this config will be unused
+                max_seq_len *= rope_scaling.get('alpha_value')
+            print("Automatically setting max_seq_len=%d for RoPE scaling" % max_seq_len, flush=True)
+
+    return config, model, max_seq_len
 
 
 def get_non_lora_model(base_model, model_loader, load_half,
@@ -1083,7 +1085,7 @@ def get_model(
                          revision=revision,
                          max_seq_len=max_seq_len,
                          verbose=verbose)
-    config, _ = get_config(base_model, **config_kwargs, raise_exception=False)
+    config, _, max_seq_len = get_config(base_model, **config_kwargs, raise_exception=False)
 
     if base_model in non_hf_types:
         assert config is None, "Expected config None for %s" % base_model
@@ -1124,7 +1126,7 @@ def get_model(
             # sets raw (no cushion) limit
             # If using RoPE with scaling, then for non-exllama models (e.g. HF models),
             #  then config -> tokenizer will set model_max_length correctly
-            set_model_max_len(config, tokenizer, verbose=False)
+            set_model_max_len(max_seq_len, tokenizer, verbose=False)
             # if using fake tokenizer, not really accurate when lots of numbers, give a bit of buffer, else get:
             # Generation Failed: Input validation error: `inputs` must have less than 2048 tokens. Given: 2233
             tokenizer.model_max_length = tokenizer.model_max_length - 50
@@ -1231,7 +1233,7 @@ def get_hf_model(load_8bit: bool = False,
     model_loader, tokenizer_loader = get_loaders(model_name=base_model, reward_type=reward_type, llama_type=llama_type,
                                                  load_gptq=load_gptq, load_exllama=load_exllama)
 
-    config, _ = get_config(base_model, return_model=False, raise_exception=True, **config_kwargs)
+    config, _, max_seq_len = get_config(base_model, return_model=False, raise_exception=True, **config_kwargs)
 
     if tokenizer_loader is not None and not isinstance(tokenizer_loader, str):
         if load_exllama:
@@ -1284,7 +1286,8 @@ def get_hf_model(load_8bit: bool = False,
             with context(device):
 
                 if use_gpu_id:
-                    config, model = get_config(base_model, return_model=True, raise_exception=True, **config_kwargs)
+                    config, model, max_seq_len = get_config(base_model,
+                                                            return_model=True, raise_exception=True, **config_kwargs)
                     model = get_non_lora_model(base_model, model_loader, load_half, load_gptq,
                                                load_exllama,
                                                use_safetensors,
@@ -1294,7 +1297,7 @@ def get_hf_model(load_8bit: bool = False,
                                                gpu_id=gpu_id,
                                                )
                 else:
-                    config, _ = get_config(base_model, **config_kwargs)
+                    config, _, max_seq_len = get_config(base_model, **config_kwargs)
                     if load_half and not (load_8bit or load_4bit or load_gptq):
                         model = model_loader(
                             base_model,
@@ -1306,7 +1309,7 @@ def get_hf_model(load_8bit: bool = False,
                             config=config,
                             **model_kwargs)
         elif load_8bit or load_4bit:
-            config, _ = get_config(base_model, **config_kwargs)
+            config, _, max_seq_len = get_config(base_model, **config_kwargs)
             model = model_loader(
                 base_model,
                 config=config,
@@ -1328,7 +1331,7 @@ def get_hf_model(load_8bit: bool = False,
             )
         else:
             with torch.device(device):
-                config, _ = get_config(base_model, raise_exception=True, **config_kwargs)
+                config, _, max_seq_len = get_config(base_model, raise_exception=True, **config_kwargs)
                 model = model_loader(
                     base_model,
                     config=config,
@@ -1366,23 +1369,20 @@ def get_hf_model(load_8bit: bool = False,
         if torch.__version__ >= "2" and sys.platform != "win32" and compile_model:
             model = torch.compile(model)
 
-    set_model_max_len(config, tokenizer, verbose=False, reward_type=reward_type)
+    set_model_max_len(max_seq_len, tokenizer, verbose=False, reward_type=reward_type)
 
     return model, tokenizer, device
 
 
-def set_model_max_len(config, tokenizer, verbose=False, reward_type=False):
+def set_model_max_len(max_seq_len, tokenizer, verbose=False, reward_type=False):
     if reward_type:
         # limit deberta, else uses too much memory and not worth response score
         tokenizer.model_max_length = 512
         return
 
-    if hasattr(config, 'max_seq_len') and isinstance(config.max_seq_len, int):
-        tokenizer.model_max_length = config.max_seq_len
-        if verbose:
-            print("model_max_length=%s" % tokenizer.model_max_length, flush=True)
-    else:
-        raise RuntimeError("Could not determine model_max_length")
+    tokenizer.model_max_length = max_seq_len
+    if verbose:
+        print("model_max_length=%s" % tokenizer.model_max_length, flush=True)
     # for bug in HF transformers
     if tokenizer.model_max_length > 100000000:
         tokenizer.model_max_length = 2048
@@ -2011,7 +2011,7 @@ def evaluate(
                                          max_new_tokens=max_new_tokens,
                                          # best_of=None,
                                          repetition_penalty=repetition_penalty,
-                                         return_full_text=True,
+                                         return_full_text=False,
                                          seed=SEED,
                                          stop_sequences=stop_sequences,
                                          temperature=temperature,
@@ -2028,7 +2028,7 @@ def evaluate(
                 hf_client.timeout = max(300, max_time)
                 if not stream_output:
                     text = hf_client.generate(prompt, **gen_server_kwargs).generated_text
-                    yield dict(response=prompter.get_response(text, prompt=prompt,
+                    yield dict(response=prompter.get_response(prompt + text, prompt=prompt,
                                                               sanitize_bot_response=sanitize_bot_response),
                                sources='')
                 else:
@@ -2182,7 +2182,7 @@ def evaluate(
                     if verbose:
                         print("WARNING: Special characters in prompt", flush=True)
                 if stream_output:
-                    skip_prompt = False
+                    skip_prompt = False  # means first output has prompt too
                     streamer = H2OTextIteratorStreamer(tokenizer, skip_prompt=skip_prompt, block=False,
                                                        **decoder_kwargs)
                     gen_kwargs.update(dict(streamer=streamer))

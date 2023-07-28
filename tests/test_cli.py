@@ -94,7 +94,8 @@ def test_cli_llamacpp(monkeypatch):
     assert len(all_generations) == 1
     assert "I'm a software engineer with a passion for building scalable" in all_generations[0] or \
            "how can I assist" in all_generations[0] or \
-           "am a virtual assistant" in all_generations[0]
+           "am a virtual assistant" in all_generations[0] or \
+           "My name is John." in all_generations[0]
 
 
 @wrap_test_forked

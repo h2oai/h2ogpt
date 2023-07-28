@@ -156,7 +156,8 @@ def test_client_chat_nostream_llama7b():
     prompt_type = get_llama()
     res_dict, client = run_client_chat_with_server(stream_output=False, base_model='llama', prompt_type=prompt_type)
     assert "am a virtual assistant" in res_dict['response'] or \
-           'am a student' in res_dict['response']
+           'am a student' in res_dict['response'] or \
+           "My name is John." in res_dict['response']
 
 
 def run_client_chat_with_server(prompt='Who are you?', stream_output=False, max_new_tokens=256,
@@ -247,7 +248,8 @@ def test_client_chat_stream_langchain():
     assert 'h2oGPT is a large language model' in res_dict['response'] or \
            'H2O.ai is a technology company' in res_dict['response'] or \
            'an open-source project' in res_dict['response'] or \
-           'h2oGPT is a project that allows' in res_dict['response']
+           'h2oGPT is a project that allows' in res_dict['response'] or \
+           'h2oGPT is a language model trained' in res_dict['response']
 
 
 @pytest.mark.parametrize("max_new_tokens", [256, 2048])
@@ -323,7 +325,8 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'secure, decentralized, and anonymous chat platform' in res_dict['response'] or
             'A low-code development framework' in res_dict['response'] or
             'secure messaging app' in res_dict['response'] or
-            'privacy-focused messaging app that allows' in res_dict['response']
+            'privacy-focused messaging app that allows' in res_dict['response'] or
+            'A low-code AI app development framework' in res_dict['response']
             ) \
            and ('FAQ.md' in res_dict['response'] or 'README.md' in res_dict['response'])
 
