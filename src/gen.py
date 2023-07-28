@@ -2470,9 +2470,8 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         else:
             placeholder_instruction = "Give detailed answer for whether Einstein or Newton is smarter."
         placeholder_input = ""
-        if model_lower in inv_prompt_type_to_model_lower:
-            if prompt_type != 'custom':
-                prompt_type = inv_prompt_type_to_model_lower[model_lower]
+        if not prompt_type and model_lower in inv_prompt_type_to_model_lower and prompt_type != 'custom':
+            prompt_type = inv_prompt_type_to_model_lower[model_lower]
         elif model_lower:
             # default is plain, because might rely upon trust_remote_code to handle prompting
             prompt_type = prompt_type or 'plain'
