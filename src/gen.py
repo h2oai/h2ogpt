@@ -32,7 +32,7 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mappin
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, remove, \
-    have_langchain, set_openai, load_collection_enum, cuda_vis_check
+    have_langchain, set_openai, load_collection_enum, cuda_vis_check, H2O_Fire
 
 start_faulthandler()
 import_matplotlib()
@@ -42,7 +42,6 @@ set_seed(SEED)
 
 from typing import Union
 
-import fire
 import torch
 from transformers import GenerationConfig, AutoModel, TextIteratorStreamer
 
@@ -2821,7 +2820,7 @@ def entrypoint_main():
 
     python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b
     """
-    fire.Fire(main)
+    H2O_Fire(main)
 
 
 if __name__ == "__main__":

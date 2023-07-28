@@ -1,10 +1,8 @@
 import os
 from typing import Union, List
 
-import fire
-
 from gpt_langchain import path_to_docs, get_some_dbs_from_hf, all_db_zips, some_db_zips, create_or_update_db
-from utils import get_ngpus_vis
+from utils import get_ngpus_vis, H2O_Fire
 
 
 def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False,
@@ -170,4 +168,4 @@ def make_db_main(use_openai_embedding: bool = False,
 
 
 if __name__ == "__main__":
-    fire.Fire(make_db_main)
+    H2O_Fire(make_db_main)

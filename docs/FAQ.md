@@ -185,6 +185,8 @@ This warning can be safely ignored.
 
 These can be useful on HuggingFace spaces, where one sets secret tokens because CLI options cannot be used.
 
+> **_NOTE:_**  Scripts can accept different environment variables to control query arguments. For instance, if a Python script takes an argument like `--load_8bit=True`, the corresponding ENV variable would follow this format: `H2OGPT_LOAD_8BIT=True` (regardless of capitalization). It is important to ensure that the environment variable is assigned the exact value that would have been used for the script's query argument.
+
 ### GPT4All not producing output.
 
 Please contact GPT4All team.  Even a basic test can give empty result.
