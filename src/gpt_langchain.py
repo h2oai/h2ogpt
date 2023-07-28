@@ -1993,8 +1993,11 @@ def _get_docs_and_meta(db, top_k_docs, filter_kwargs={}):
         import itertools
         db_metadatas = get_metadatas(db)
         # FIXME: FAISS has no filter
-        # slice dict first
-        db_documents = list(dict(itertools.islice(db.docstore._dict.items(), top_k_docs)).values())
+        if top_k_docs == -1:
+            db_documents = list(db.docstore._dict.values())
+        else:
+            # slice dict first
+            db_documents = list(dict(itertools.islice(db.docstore._dict.items(), top_k_docs)).values())
     else:
         db_metadatas = get_metadatas(db)
         db_documents = get_documents(db)
@@ -2475,6 +2478,8 @@ def get_chain(query=None,
             scores = []
         elif document_subset == DocumentSubset.TopKSources.name or query in [None, '', '\n']:
             db_documents, db_metadatas = get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs)
+            if top_k_docs == -1:
+                top_k_docs = len(db_documents)
             # similar to langchain's chroma's _results_to_docs_and_scores
             docs_with_score = [(Document(page_content=result[0], metadata=result[1] or {}), 0)
                                for result in zip(db_documents, db_metadatas)]
