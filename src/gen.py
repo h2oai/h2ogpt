@@ -1696,6 +1696,7 @@ def evaluate(
                                    num_return_sequences=num_return_sequences,
                                    )
         t_generate = time.time()
+        async_output = True  # if not streaming, will async over tasks if summarization and be faster result
         for r in run_qa_db(query=instruction,
                            iinput=iinput,
                            context=context,
@@ -1703,6 +1704,7 @@ def evaluate(
                            inference_server=inference_server,
                            langchain_only_model=langchain_only_model,
                            stream_output=stream_output,
+                           async_output=async_output,
                            prompter=prompter,
                            use_llm_if_no_docs=use_llm_if_no_docs,
                            load_db_if_exists=load_db_if_exists,
