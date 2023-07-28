@@ -18,14 +18,24 @@ def num_tokens_from_string(string: str, model_name=None) -> int:
 
 
 import uuid
-SECRET_KEY = str(uuid.uuid4())
-SECRET_VALUE = str(uuid.uuid4())
+
+
+def make_key():
+    return str(uuid.uuid4())[:8]
+
+
+def make_value():
+    return str(uuid.uuid4())[:8]
+
+
+SECRET_KEY = make_key()
+SECRET_VALUE = make_value()
 
 ANSWER_LEN = 256  # allow space for answer (same as
 
 
 def get_prompt(before, after):
-    return f"{before}'{SECRET_KEY}' = '{SECRET_VALUE}'\n{after}\n\nWhat is the value of the key '{SECRET_KEY}'?"
+    return f"[INST] {before}'{SECRET_KEY}' = '{SECRET_VALUE}'\n{after}\n\n What is the value of the key '{SECRET_KEY}'? [/INST]"
 
 
 def create_long_prompt_with_secret(prompt_len=None, secret_pos=None, model_name=None):
@@ -33,10 +43,10 @@ def create_long_prompt_with_secret(prompt_len=None, secret_pos=None, model_name=
     t0 = time.time()
     before = "## UUID key/value pairs to remember:\n\n"
     while num_tokens_from_string(before, model_name) < secret_pos:
-        before += f"'{str(uuid.uuid4())}' = '{str(uuid.uuid4())}'\n"
+        before += f"'{make_key()}' = '{make_value()}'\n"
     after = ""
     while num_tokens_from_string(after, model_name) < (prompt_len - secret_pos - ANSWER_LEN):
-        after += f"'{str(uuid.uuid4())}' = '{str(uuid.uuid4())}'\n"
+        after += f"'{make_key()}' = '{make_value()}'\n"
     prompt = get_prompt(before, after)
     assert SECRET_VALUE in prompt
     assert num_tokens_from_string(prompt, model_name) <= prompt_len
@@ -47,26 +57,31 @@ def create_long_prompt_with_secret(prompt_len=None, secret_pos=None, model_name=
 
 @pytest.mark.parametrize("base_model", ['meta-llama/Llama-2-13b-chat-hf'])
 @pytest.mark.parametrize("rope_scaling", [
-    None,
+    # None,
     # "{'type':'linear', 'factor':2}",
-    # "{'type':'dynamic', 'factor':2}",
+    "{'type':'dynamic', 'factor':2}",
     # "{'type':'dynamic', 'factor':4}"
 ])
 @pytest.mark.parametrize("prompt_len", [
-    1000, 2000, 3000,
-    4000, 5000, 6000, 10000
+    # 2000, 4000,
+    5000, 6000, 7000
 ])
 @pytest.mark.parametrize("rel_secret_pos", [
     0.2,
-    0.5,
-    0.8
+    # 0.5,
+    # 0.8
+])
+@pytest.mark.parametrize("client", [
+    False,
+    # True
 ])
 @wrap_test_forked
-def test_gradio_long_context_uuid_key_value_retrieval(base_model, rope_scaling, prompt_len, rel_secret_pos):
+def test_gradio_long_context_uuid_key_value_retrieval(base_model, rope_scaling, prompt_len, rel_secret_pos, client):
     import ast
     rope_scaling_factor = 1
     if rope_scaling:
-        rope_scaling_factor = ast.literal_eval(rope_scaling).get("factor")
+        rope_scaling = ast.literal_eval(rope_scaling)
+        rope_scaling_factor = rope_scaling.get("factor")
     from transformers import AutoConfig
     config = AutoConfig.from_pretrained(base_model, use_auth_token=True,
                                         trust_remote_code=True)
@@ -76,28 +91,52 @@ def test_gradio_long_context_uuid_key_value_retrieval(base_model, rope_scaling, 
     if prompt_len > max_len * rope_scaling_factor:
         pytest.xfail("no chance")
     secret_pos = int(prompt_len * rel_secret_pos)
-    main_kwargs = dict(base_model=base_model, chat=True, stream_output=False, gradio=True, num_beams=1,
-                       block_gradio_exit=False, rope_scaling=rope_scaling, use_auth_token=True, save_dir="long_context")
-    client_port = os.environ['GRADIO_SERVER_PORT'] = "7861"
-    from src.gen import main
-    main(**main_kwargs)
-    from src.client_test import run_client_chat
-    os.environ['HOST'] = "http://127.0.0.1:%s" % client_port
-
     prompt = create_long_prompt_with_secret(prompt_len=prompt_len, secret_pos=secret_pos, model_name=base_model)
 
-    res_dict, client = run_client_chat(
-        prompt=prompt,
-        stream_output=False, max_new_tokens=16384,
-        langchain_mode='Disabled',
-        langchain_action=LangChainAction.QUERY.value,
-        langchain_agents=[]
-    )
-    assert res_dict['prompt'] == prompt
-    assert res_dict['iinput'] == ''
-    print(res_dict['response'])
-    assert SECRET_VALUE in res_dict['response']
+    if client:
+        main_kwargs = dict(base_model=base_model,
+                           chat=True, stream_output=False,
+                           gradio=True, num_beams=1,
+                           prompt_type='plain',  # prompting done explicitly above, so can use with generate() below
+                           block_gradio_exit=False,
+                           rope_scaling=rope_scaling,
+                           use_auth_token=True,
+                           save_dir="long_context")
+        client_port = os.environ['GRADIO_SERVER_PORT'] = "7861"
+        from src.gen import main
+        main(**main_kwargs)
+        from src.client_test import run_client_chat
+        os.environ['HOST'] = "http://127.0.0.1:%s" % client_port
 
+        res_dict, client = run_client_chat(
+            prompt=prompt,
+            stream_output=False, max_new_tokens=16384,
+            langchain_mode='Disabled',
+            langchain_action=LangChainAction.QUERY.value,
+            langchain_agents=[]
+        )
+        assert res_dict['prompt'] == prompt
+        assert res_dict['iinput'] == ''
+        response = res_dict['response']
+    else:
+        from transformers import AutoModelForCausalLM, AutoTokenizer
+        tokenizer = AutoTokenizer.from_pretrained(base_model)
+        model = AutoModelForCausalLM.from_pretrained(
+            base_model,
+            device_map='auto',
+            rope_scaling=rope_scaling,
+        )
+        inputs = tokenizer(prompt, return_tensors="pt").to("cuda")
+        print(inputs.input_ids.shape)
+        gen_out = model.generate(**inputs, max_new_tokens=300)
+        response = tokenizer.batch_decode(gen_out)[0]
+        response = response.split("</s>")[0]
+        print(response)
+        response = response.replace(prompt, "").replace("<s> ", "")  # only keep response
+
+    print(f"\nLLM response (expected value is '{SECRET_VALUE}'):", flush=True)
+    print(response)
+    assert SECRET_VALUE in response
     print("DONE", flush=True)
 
 
@@ -463,8 +502,6 @@ summarization task.
 
 '''
     question = "Question: What's the title of this paper?"  # Something from the beginning
-    os.environ['OMP_NUM_THREADS'] = '1'
-    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
     inputs = tokenizer(prompt + question, return_tensors="pt").to("cuda")
 
