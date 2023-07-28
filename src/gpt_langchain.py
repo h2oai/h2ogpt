@@ -1,4 +1,5 @@
 import ast
+import asyncio
 import copy
 import functools
 import glob
@@ -23,7 +24,7 @@ import filelock
 from joblib import delayed
 from langchain.callbacks import streaming_stdout
 from langchain.embeddings import HuggingFaceInstructEmbeddings
-from langchain.schema import LLMResult
+from langchain.schema import LLMResult, Generation
 from tqdm import tqdm
 
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
@@ -468,7 +469,7 @@ class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
     context: Any = ''
     iinput: Any = ''
     tokenizer: Any = None
-    #client: Any = None
+    async_sem: Any = None
 
     def _call(
             self,
@@ -556,12 +557,13 @@ class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
         return text
 
     async def _acall(
-        self,
-        prompt: str,
-        stop: Optional[List[str]] = None,
-        run_manager: Optional[AsyncCallbackManagerForLLMRun] = None,
-        **kwargs: Any,
+            self,
+            prompt: str,
+            stop: Optional[List[str]] = None,
+            run_manager: Optional[AsyncCallbackManagerForLLMRun] = None,
+            **kwargs: Any,
     ) -> str:
+        # print("acall", flush=True)
         if stop is None:
             stop = self.stop_sequences.copy()
         else:
@@ -588,7 +590,40 @@ class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
         text = prompt + gen_text
         text = self.prompter.get_response(text, prompt=prompt,
                                           sanitize_bot_response=self.sanitize_bot_response)
+        # print("acall done", flush=True)
         return text
+
+    async def _agenerate(
+            self,
+            prompts: List[str],
+            stop: Optional[List[str]] = None,
+            run_manager: Optional[AsyncCallbackManagerForLLMRun] = None,
+            **kwargs: Any,
+    ) -> LLMResult:
+        """Run the LLM on the given prompt and input."""
+        generations = []
+        new_arg_supported = inspect.signature(self._acall).parameters.get("run_manager")
+        tasks = [
+            asyncio.ensure_future(self._agenerate_one(prompt, stop=stop, run_manager=run_manager,
+                                                      new_arg_supported=new_arg_supported, **kwargs))
+            for prompt in prompts
+        ]
+        texts = await asyncio.gather(*tasks)
+        [generations.append([Generation(text=text)]) for text in texts]
+        return LLMResult(generations=generations)
+
+    async def _agenerate_one(
+            self,
+            prompt: str,
+            stop: Optional[List[str]] = None,
+            run_manager: Optional[AsyncCallbackManagerForLLMRun] = None,
+            new_arg_supported=None,
+            **kwargs: Any,
+    ) -> str:
+        async with self.async_sem:  # semaphore limits num of simultaneous downloads
+            return await self._acall(prompt, stop=stop, run_manager=run_manager, **kwargs) \
+                if new_arg_supported else \
+                await self._acall(prompt, stop=stop, **kwargs)
 
 
 from langchain.chat_models import ChatOpenAI
@@ -697,6 +732,8 @@ def get_llm(use_openai_model=False,
             inference_server=None,
             langchain_only_model=None,
             stream_output=False,
+            async_output=True,
+            num_async=3,
             do_sample=False,
             temperature=0.1,
             top_k=40,
@@ -809,6 +846,8 @@ def get_llm(use_openai_model=False,
             )
         elif hf_client:
             # no need to pass original client, no state and fast, so can use same validate_environment from base class
+            if async_output:
+                async_sem = asyncio.Semaphore(num_async)
             llm = H2OHuggingFaceTextGenInference(
                 inference_server_url=inference_server,
                 do_sample=do_sample,
@@ -830,6 +869,7 @@ def get_llm(use_openai_model=False,
                 tokenizer=tokenizer,
                 timeout=max_time,
                 sanitize_bot_response=sanitize_bot_response,
+                async_sem=async_sem,
             )
         else:
             raise RuntimeError("No defined client")
@@ -1988,6 +2028,7 @@ def _run_qa_db(query=None,
                hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
                stream_output=False,
                async_output=True,
+               num_async=3,
                prompter=None,
                prompt_type=None,
                prompt_dict=None,
@@ -2064,6 +2105,8 @@ def _run_qa_db(query=None,
                                                          inference_server=inference_server,
                                                          langchain_only_model=langchain_only_model,
                                                          stream_output=stream_output,
+                                                         async_output=async_output,
+                                                         num_async=num_async,
                                                          do_sample=do_sample,
                                                          temperature=temperature,
                                                          top_k=top_k,
@@ -2379,12 +2422,16 @@ def get_chain(query=None,
                 if document_choice[0] == DocumentChoice.ALL.value:
                     # remove 'All'
                     document_choice = document_choice[1:]
-                or_filter = [{"source": {"$eq": x}, "chunk_id": {"$ge": 0}} if query_action else {"source": {"$eq": x}, "chunk_id": {"$eq": -1}}
+                or_filter = [{"source": {"$eq": x}, "chunk_id": {"$ge": 0}} if query_action else {"source": {"$eq": x},
+                                                                                                  "chunk_id": {
+                                                                                                      "$eq": -1}}
                              for x in document_choice]
                 filter_kwargs = dict(filter={"$or": or_filter})
             elif len(document_choice) == 1:
                 # degenerate UX bug in chroma
-                one_filter = [{"source": {"$eq": x}, "chunk_id": {"$ge": 0}} if query_action else {"source": {"$eq": x}, "chunk_id": {"$eq": -1}}
+                one_filter = [{"source": {"$eq": x}, "chunk_id": {"$ge": 0}} if query_action else {"source": {"$eq": x},
+                                                                                                   "chunk_id": {
+                                                                                                       "$eq": -1}}
                               for x in document_choice][0]
                 filter_kwargs = dict(filter=one_filter)
             else:
@@ -2540,7 +2587,7 @@ def get_chain(query=None,
             chain = load_summarize_chain(llm, chain_type="map_reduce",
                                          map_prompt=prompt, combine_prompt=prompt,
                                          return_intermediate_steps=return_intermediate_steps,
-                                         token_max=max_input_tokens)
+                                         token_max=max_input_tokens, verbose=True)
             if not stream_output and async_output:
                 chain_func = chain.arun
             else:
