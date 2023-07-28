@@ -625,6 +625,11 @@ class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
                 if new_arg_supported else \
                 await self._acall(prompt, stop=stop, **kwargs)
 
+    def get_token_ids(self, text: str) -> List[int]:
+        return self.tokenizer.encode(text)
+        # avoid base method that is not aware of how to properly tokenize (uses GPT2)
+        # return _get_token_ids_default_method(text)
+
 
 from langchain.chat_models import ChatOpenAI
 from langchain.llms import OpenAI
