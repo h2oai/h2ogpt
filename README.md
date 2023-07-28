@@ -17,6 +17,27 @@ Query and summarize your documents or just chat with local private GPT LLMs usin
 - **OpenAI-compliant Python client API** for client-server control
 - **Evaluate** performance using reward models
 
+### Getting Stated
+
+To quickly try out h2oGPT with LLaMa2 7B Chat, create a fresh Python 3.10 environment and run:
+```bash
+git clone https://github.com/h2oai/h2ogpt.git
+cd h2ogpt
+pip install -r requirements.txt
+pip install -r reqs_optional/requirements_optional_langchain.txt
+pip install -r reqs_optional/requirements_optional_gpt4all.txt
+# if don't have wget, copy the below link to browser and download and place file into h2ogpt folder
+wget https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin
+python generate.py --base_model='llama' --prompt_type=llama2
+```
+then go to your browser by visiting [http://127.0.0.1:7860](http://127.0.0.1:7860) or [http://localhost:7860](http://localhost:7860).
+
+For full instructions visit:
+
+* [Linux](docs/README_LINUX.md)
+* [MACOS](docs/README_MACOS.md)
+* [Windows 10/11](docs/README_WINDOWS.md)
+
 ### Live Demos
 - [![img-small.png](docs/img-small.png) Live h2oGPT Document Q/A Demo](https://gpt.h2o.ai/)
 - [🤗 Live h2oGPT Chat Demo 1](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot)
@@ -24,7 +45,7 @@ Query and summarize your documents or just chat with local private GPT LLMs usin
 - [![](https://colab.research.google.com/assets/colab-badge.svg) h2oGPT CPU](https://colab.research.google.com/drive/13RiBdAFZ6xqDwDKfW6BG_-tXfXiqPNQe?usp=sharing)
 - [![](https://colab.research.google.com/assets/colab-badge.svg) h2oGPT GPU](https://colab.research.google.com/drive/143-KFHs2iCqXTQLI2pFCDiR69z0dR8iE?usp=sharing)
 
-### Resources:
+### Resources
 - [Discord](https://discord.gg/WKhYMWcVbq)
 - [Apache V2 models (Falcon 40, etc.) at 🤗](https://huggingface.co/h2oai/)
 - [YouTube: 100% Offline ChatGPT Alternative?](https://www.youtube.com/watch?v=Coj72EzmX20)
@@ -32,16 +53,21 @@ Query and summarize your documents or just chat with local private GPT LLMs usin
 - [YouTube: Blazing Fast Falcon 40b 🚀 Uncensored, Open-Source, Fully Hosted, Chat With Your Docs](https://www.youtube.com/watch?v=H8Dx-iUY49s)
 - [Technical Paper: https://arxiv.org/pdf/2306.08161.pdf](https://arxiv.org/pdf/2306.08161.pdf)
 
-### Video Demo:
+### Partners
+
+- [Live Leaderboard](https://evalgpt.ai/) for GPT-4 Elo Evaluation of Instruct/Chat models with [h2o-LLM-eval](https://github.com/h2oai/h2o-LLM-eval).
+- Advanced fine-tuning with [H2O LLM Studio](https://github.com/h2oai/h2o-llmstudio)
+
+### Video Demo
 
 https://github.com/h2oai/h2ogpt/assets/2249614/2f805035-2c85-42fb-807f-fd0bca79abc6
 
 YouTube 4K version: https://www.youtube.com/watch?v=_iktbj4obAI
 
-### Docs Guide:
+### Docs Guide
 <!--  cat README.md | ./gh-md-toc  -  But Help is heavily processed -->
 * [Supported OS and Hardware](#supported-os-and-hardware)
-* Getting Started
+* [Getting Started](#getting-stated)
    * [Linux (CPU or CUDA)](docs/README_LINUX.md)
    * [MACOS (CPU or M1/M2)](docs/README_MACOS.md)
    * [Windows 10/11 (CPU or CUDA)](docs/README_WINDOWS.md)
@@ -101,11 +127,14 @@ GPU and CPU mode tested on variety of NVIDIA GPUs in Ubuntu 18-22, but any moder
 - To create a development environment for training and generation, follow the [installation instructions](docs/INSTALL.md).
 - To fine-tune any LLM models on your data, follow the [fine-tuning instructions](docs/FINETUNE.md).
 - To create a container for deployment, follow the [Docker instructions](docs/INSTALL-DOCKER.md).
-- To run h2oGPT tests, run `pip install requirements-parser ; pytest -s -v tests client/tests`
+- To run h2oGPT tests:
+    ```bash
+    wget https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin
+    pip install requirements-parser
+    pytest -s -v tests client/tests
+    ```
 
 ### Help
-
-- For advanced fine-tuning, also check out [H2O LLM Studio](https://github.com/h2oai/h2o-llmstudio)
 
 - Flash attention support, see [Flash Attention](docs/INSTALL.md#flash-attention)
 

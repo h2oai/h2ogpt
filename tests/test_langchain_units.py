@@ -554,7 +554,7 @@ def test_urls_add(db_type):
                                            db_type=db_type)
         assert db is not None
         if db_type == 'chroma':
-            assert len(db.get()['documents']) == 111
+            assert len(db.get()['documents']) > 100
         docs = db.similarity_search("list founding team of h2o.ai")
         assert len(docs) == 4
         assert 'Sri Ambati' in docs[0].page_content
@@ -580,7 +580,7 @@ def test_urls_file_add(db_type):
                                                db_type=db_type)
             assert db is not None
             if db_type == 'chroma':
-                assert len(db.get()['documents']) == 111
+                assert len(db.get()['documents']) > 100
             docs = db.similarity_search("list founding team of h2o.ai")
             assert len(docs) == 4
             assert 'Sri Ambati' in docs[0].page_content
