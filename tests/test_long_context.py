@@ -5,6 +5,12 @@ from transformers import AutoTokenizer
 from tests.utils import wrap_test_forked
 from src.enums import LangChainAction
 
+from importlib.metadata import version
+transformers_version = version('transformers')
+# pip install packaging
+from packaging import version
+sufficient_transformers_version = version.parse(transformers_version) >= version.parse("4.31.0")
+
 encoding = None
 
 
@@ -76,6 +82,7 @@ def create_long_prompt_with_secret(prompt_len=None, secret_pos=None, model_name=
     False,
     True
 ])
+@pytest.mark.skipif(not sufficient_transformers_version, reason="Insufficient transformers version")
 @wrap_test_forked
 def test_gradio_long_context_uuid_key_value_retrieval(base_model, rope_scaling, prompt_len, rel_secret_pos, client):
     import ast
@@ -154,6 +161,7 @@ def test_gradio_long_context_uuid_key_value_retrieval(base_model, rope_scaling, 
     "meta-llama/Llama-2-7b-chat-hf"
 ])
 @wrap_test_forked
+@pytest.mark.skipif(not sufficient_transformers_version, reason="Insufficient transformers version")
 def test_huggyllama_transformers_pr(base_model, type, factor):
     if type is None and factor > 1.0:
         pytest.xfail('no point')

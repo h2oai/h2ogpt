@@ -114,6 +114,8 @@ def main(
         chat: bool = True,
         chat_context: bool = False,
         stream_output: bool = True,
+        async_output: bool = True,
+        num_async: int = 3,
         show_examples: bool = None,
         verbose: bool = False,
         h2ocolors: bool = True,
@@ -254,6 +256,7 @@ def main(
     :param rope_scaling:
            For HF transformers model: scaling for rope-based models, e.g. --rope_scaling="{'type':'dynamic', 'factor':4}"
            For exllama model: --rope_scaling="{'alpha_value':4}" .  This automatically scales max_seq_len for exllama
+    :param max_seq_len: Manually set maximum sequence length for the LLM
     :param offload_folder: path for spilling model onto disk
     :param src_lang: source languages to include if doing translation (None = all)
     :param tgt_lang: target languages to include if doing translation (None = all)
@@ -274,6 +277,12 @@ def main(
     :param chat: whether to enable chat mode with chat history
     :param chat_context: whether to use extra helpful context if human_bot
     :param stream_output: whether to stream output
+    :param async_output: Whether to do asyncio handling
+           For summarization
+           Applicable to HF TGI server
+           Only if stream_output=False in CLI, UI, or API
+    :param num_async: Number of simultaneously allowed asyncio calls to make for async_output
+           Too many will overload inference server, too few will be too slow
     :param show_examples: whether to show clickable examples in gradio
     :param verbose: whether to show verbose prints
     :param h2ocolors: whether to use H2O.ai theme
@@ -1487,6 +1496,8 @@ def evaluate(
         document_subset,
         document_choice,
         # END NOTE: Examples must have same order of parameters
+        async_output=None,
+        num_async=None,
         src_lang=None,
         tgt_lang=None,
         debug=False,
@@ -1711,6 +1722,8 @@ def evaluate(
                            inference_server=inference_server,
                            langchain_only_model=langchain_only_model,
                            stream_output=stream_output,
+                           async_output=async_output,
+                           num_async=num_async,
                            prompter=prompter,
                            use_llm_if_no_docs=use_llm_if_no_docs,
                            load_db_if_exists=load_db_if_exists,

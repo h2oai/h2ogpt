@@ -7,13 +7,14 @@ Query and summarize your documents or just chat with local private GPT LLMs usin
 - **Private** offline database of any documents [(PDFs, Excel, Word, Images, Code, Text, MarkDown, etc.)](docs/README_LangChain.md#supported-datatypes)
 - **Persistent** database (Chroma, Weaviate, or in-memory FAISS) using accurate embeddings (instructor-large, all-MiniLM-L6-v2, etc.)
 - **Efficient** use of context using instruct-tuned LLMs (no need for LangChain's few-shot approach)
+- **Parallel** summarization reaching 80 tokens/second output 13B LLaMa2
 - **Upload** and **View** documents via UI (control multiple collaborative or scratch collections)
 - **UI** or CLI with streaming of all models
 - **Bake-off** UI mode against many models at same time
-- **Variety** of models supported (Falcon, Vicuna, WizardLM including AutoGPTQ, 4-bit/8-bit, LORA)
-- **GPU** support from HF models, and **CPU** support using LLaMa cpp and GPT4ALL
+- **Variety** of models supported (LLaMa2, Falcon, Vicuna, WizardLM including AutoGPTQ, 4-bit/8-bit, LORA)
+- **GPU** support from HF and LLaMa.cpp GGML models, and **CPU** support using HF, LLaMa.cpp, and GPT4ALL models
 - **Linux, Docker, MAC, and Windows** support
-- **Inference Servers** support (HF TGI server, vLLM, Gradio, OpenAI)
+- **Inference Servers** support (HF TGI server, vLLM, Gradio, ExLLaMa, OpenAI)
 - **OpenAI-compliant Python client API** for client-server control
 - **Evaluate** performance using reward models
 
@@ -88,13 +89,12 @@ YouTube 4K version: https://www.youtube.com/watch?v=_iktbj4obAI
 * [Help](#help)
    * [LangChain file types supported](docs/README_LangChain.md#supported-datatypes)
    * [CLI Database control](docs/README_LangChain.md#database-creation)
-   * [Why h2oGPT for Doc Q&A](docs/README_LangChain.md#what-is-h2ogpts-langchain-integration-like)
    * [FAQ](docs/FAQ.md)
    * [Useful Links](docs/LINKS.md)
    * [Fine-Tuning](docs/FINETUNE.md)
    * [Docker](docs/INSTALL-DOCKER.md)
    * [Triton](docs/TRITON.md)
-   * [commercially viability](docs/FAQ.md#commercial-viability).
+   * [Commercial viability](docs/FAQ.md#commercial-viability)
 * [Acknowledgements](#acknowledgements)
 * [Why H2O.ai?](#why-h2oai)
 * [Disclaimer](#disclaimer)

@@ -2713,6 +2713,7 @@ def _update_user_db(file,
                            enable_ocr=enable_ocr,
                            enable_pdf_ocr=enable_pdf_ocr,
                            caption_loader=caption_loader,
+                           db_type=db_type,
                            )
     exceptions = [x for x in sources if x.metadata.get('exception')]
     exceptions_strs = [x.metadata['exception'] for x in exceptions]

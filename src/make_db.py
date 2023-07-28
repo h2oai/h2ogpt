@@ -10,7 +10,9 @@ def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False,
                enable_captions=True, captions_model=None,
                caption_loader=None,
                enable_ocr=False,
-               enable_pdf_ocr='auto'):
+               enable_pdf_ocr='auto',
+               db_type=None):
+    assert db_type is not None
     sources1 = path_to_docs(user_path, verbose=verbose, fail_any_exception=fail_any_exception,
                             n_jobs=n_jobs,
                             chunk=chunk,
@@ -20,6 +22,7 @@ def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False,
                             caption_loader=caption_loader,
                             enable_ocr=enable_ocr,
                             enable_pdf_ocr=enable_pdf_ocr,
+                            db_type=db_type,
                             )
     return sources1
 
@@ -151,6 +154,7 @@ def make_db_main(use_openai_embedding: bool = False,
                          caption_loader=caption_loader,
                          enable_ocr=enable_ocr,
                          enable_pdf_ocr=enable_pdf_ocr,
+                         db_type=db_type,
                          )
     exceptions = [x for x in sources if x.metadata.get('exception')]
     print("Exceptions: %s" % exceptions, flush=True)

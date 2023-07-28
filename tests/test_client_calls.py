@@ -692,9 +692,10 @@ def test_client_chat_stream_langchain_steps3():
     assert res[2]['headers'] == ['Collection', 'Path']
     assert res[2]['data'] == [['UserData', user_path], ['MyData', None], [langchain_mode2, user_path2]]
 
-    url = 'https://unec.edu.az/application/uploads/2014/12/pdf-sample.pdf'
+    #url = 'https://unec.edu.az/application/uploads/2014/12/pdf-sample.pdf'
     test_file1 = os.path.join('/tmp/', 'pdf-sample.pdf')
-    download_simple(url, dest=test_file1)
+    #download_simple(url, dest=test_file1)
+    shutil.copy('tests/pdf-sample.pdf', test_file1)
     res = client.predict(test_file1, True, 512, langchain_mode2, api_name='/add_file_api')
     assert res[0] is None
     assert res[1] == langchain_mode2
@@ -802,9 +803,10 @@ def test_client_chat_stream_langchain_steps3():
     assert res[2]['data'] == [['UserData', user_path], ['MyData', None], ['UserData2', 'user_path2'],
                               [langchain_mode2, None]]
 
-    url = 'https://unec.edu.az/application/uploads/2014/12/pdf-sample.pdf'
+    # url = 'https://unec.edu.az/application/uploads/2014/12/pdf-sample.pdf'
     test_file1 = os.path.join('/tmp/', 'pdf-sample.pdf')
-    download_simple(url, dest=test_file1)
+    # download_simple(url, dest=test_file1)
+    shutil.copy('tests/pdf-sample.pdf', test_file1)
     res = client.predict(test_file1, True, 512, langchain_mode2, api_name='/add_file_api')
     assert res[0] is None
     assert res[1] == langchain_mode2
