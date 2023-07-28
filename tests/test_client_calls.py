@@ -8,7 +8,7 @@ import pytest
 from tests.utils import wrap_test_forked, make_user_path_test, get_llama
 from src.client_test import get_client, get_args, run_client_gen
 from src.enums import LangChainAction, LangChainMode
-from src.utils import get_githash, remove, remove_collection_enum, download_simple
+from src.utils import get_githash, remove, remove_collection_enum, download_simple, hash_file
 
 
 @wrap_test_forked
@@ -833,13 +833,21 @@ def test_client_summarization():
     # PURE client code
     from gradio_client import Client
     client = Client(os.getenv('HOST', "http://localhost:7860"), serialize=True)
+
+    # upload file(s).  Can be list or single file
+    hash_client = hash_file(test_file1)
+    test_file_server = client.predict(test_file1, api_name='/upload_api')
+    hash_server = hash_file(test_file_server)
+    assert hash_client == hash_server
+    # since co-located with server, can test that uploaded by comparing the two files
+
     chunk = True
     chunk_size = 512
     langchain_mode = 'MyData'
-    res = client.predict(test_file1, chunk, chunk_size, langchain_mode, api_name='/add_file_api')
+    res = client.predict(test_file_server, chunk, chunk_size, langchain_mode, api_name='/add_file_api')
     assert res[0] is None
     assert res[1] == langchain_mode
-    assert 'file//tmp/%s' % os.path.basename(test_file1) in res[2]
+    assert os.path.basename(test_file_server) in res[2]
     assert res[3] == ''
 
     # ask for summary, need to use same client if using MyData
@@ -915,9 +923,9 @@ def test_client_summarization_from_text():
     assert 'user_paste' in sources
 
 
-#@pytest.mark.parametrize("url", ['https://cdn.openai.com/papers/whisper.pdf', 'https://github.com/h2oai/h2ogpt'])
+# @pytest.mark.parametrize("url", ['https://cdn.openai.com/papers/whisper.pdf', 'https://github.com/h2oai/h2ogpt'])
 @pytest.mark.parametrize("url", ['https://cdn.openai.com/papers/whisper.pdf'])
-#@pytest.mark.parametrize("top_k_docs", [4, -1])
+# @pytest.mark.parametrize("top_k_docs", [4, -1])
 @pytest.mark.parametrize("top_k_docs", [-1])
 @pytest.mark.need_tokens
 @wrap_test_forked
