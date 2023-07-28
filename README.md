@@ -18,7 +18,7 @@ Query and summarize your documents or just chat with local private GPT LLMs usin
 - **OpenAI-compliant Python client API** for client-server control
 - **Evaluate** performance using reward models
 
-### Getting Stated
+### Getting Started
 
 To quickly try out h2oGPT with LLaMa2 7B Chat, create a fresh Python 3.10 environment and run:
 ```bash
@@ -68,7 +68,7 @@ YouTube 4K version: https://www.youtube.com/watch?v=_iktbj4obAI
 ### Docs Guide
 <!--  cat README.md | ./gh-md-toc  -  But Help is heavily processed -->
 * [Supported OS and Hardware](#supported-os-and-hardware)
-* [Getting Started](#getting-stated)
+* [Getting Started](#getting-started)
    * [Linux (CPU or CUDA)](docs/README_LINUX.md)
    * [MACOS (CPU or M1/M2)](docs/README_MACOS.md)
    * [Windows 10/11 (CPU or CUDA)](docs/README_WINDOWS.md)
