@@ -2400,6 +2400,8 @@ def get_chain(query=None,
         max_input_tokens = max_tokens - 256
     elif isinstance(tokenizer, FakeTokenizer):
         max_input_tokens = tokenizer.model_max_length - 256
+    elif hasattr(tokenizer, 'model_max_length'):
+        max_input_tokens = tokenizer.model_max_length - 256
     else:
         # leave some room for 1 paragraph, even if min_new_tokens=0
         max_input_tokens = 2048 - 256
