@@ -2096,6 +2096,10 @@ def _run_qa_db(query=None,
     if stream_output:
         # threads and asyncio don't mix
         async_output = False
+    if langchain_action in [LangChainAction.QUERY.value]:
+        # only summarization supported
+        async_output = False
+
     assert langchain_mode_paths is not None
     if model is not None:
         assert model_name is not None  # require so can make decisions
@@ -2228,6 +2232,7 @@ def _run_qa_db(query=None,
                     answer = asyncio.run(chain())
                 else:
                     answer = chain()
+                    answer = answer['output_text']
 
     t_run = time.time() - t_run
     if not use_docs_planned:

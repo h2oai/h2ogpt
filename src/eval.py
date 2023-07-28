@@ -16,7 +16,8 @@ from utils import clear_torch_cache, NullContext, get_kwargs, makedirs
 def run_eval(  # for local function:
         base_model=None, lora_weights=None, inference_server=None,
         prompt_type=None, prompt_dict=None,
-        debug=None, chat=False, chat_context=None, stream_output=None,
+        debug=None, chat=False, chat_context=None,
+        stream_output=None, async_output=None, num_async=None,
         eval_filename=None, eval_prompts_only_num=None, eval_prompts_only_seed=None, eval_as_output=None,
         examples=None, memory_restriction_level=None,
         # for get_model:
