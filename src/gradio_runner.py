@@ -1332,15 +1332,18 @@ def go_gradio(**kwargs):
         # Handle uploads from API
         upload_api_btn = gr.UploadButton("Upload File Results", visible=False)
         file_upload_api = gr.File()
+        file_upload_text = gr.Textbox()
 
         def upload_file(files):
             if isinstance(files, list):
                 file_paths = [file.name for file in files]
             else:
                 file_paths = files.name
-            return file_paths
+            return file_paths, file_paths
 
-        upload_api_btn.upload(upload_file, upload_api_btn, file_upload_api,
+        upload_api_btn.upload(fn=upload_file,
+                              inputs=upload_api_btn,
+                              outputs=[file_upload_api, file_upload_text],
                               api_name='upload_api' if allow_upload_api else None)
 
         def visible_toggle(x):

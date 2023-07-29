@@ -832,13 +832,16 @@ def test_client_summarization():
 
     # PURE client code
     from gradio_client import Client
-    client = Client(os.getenv('HOST', "http://localhost:7860"), serialize=True)
+    client = Client(os.getenv('HOST', "http://localhost:7860"))
 
     # upload file(s).  Can be list or single file
     hash_client = hash_file(test_file1)
-    test_file_server = client.predict(test_file1, api_name='/upload_api')
+    test_file_local, test_file_server = client.predict(test_file1, api_name='/upload_api')
+    hash_local = hash_file(test_file_local)
     hash_server = hash_file(test_file_server)
+    assert hash_client == hash_local
     assert hash_client == hash_server
+    assert os.path.normpath(test_file_local) != os.path.normpath(test_file_server)
     # since co-located with server, can test that uploaded by comparing the two files
 
     chunk = True
