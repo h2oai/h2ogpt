@@ -1350,7 +1350,7 @@ def test_add_open_assistant(fixup_personality, only_personality, deberta_grading
         if prompt_type == "llama2":
             new_data = ('[INST] ' if role == 'prompter' else ' [/INST] ') + text
             if parent_id and role == 'prompter':
-                new_data = " </s><s>" + new_data
+                new_data = " " + new_data
         elif prompt_type == "human_bot":
             new_data = ('<human>: ' if role == 'prompter' else '<bot>: ') + text
         else:
@@ -1422,8 +1422,8 @@ def test_add_open_assistant(fixup_personality, only_personality, deberta_grading
                      'h2oGPT' in c['text']])
             elif prompt_type == "llama2":
                 all_rows.extend(
-                    [dict(input="<s>" + c['text'] +
-                                (" </s>" if c['text'].rfind("[/INST]") > c['text'].rfind("[INST]") else " [/INST]"),
+                    [dict(input=c['text'] +
+                                ("" if c['text'].rfind("[/INST]") > c['text'].rfind("[INST]") else " [/INST]"),
                           prompt_type='plain', source=data_file) for c in conversations if
                      'h2oGPT' in c['text']])
             else:
@@ -1436,8 +1436,8 @@ def test_add_open_assistant(fixup_personality, only_personality, deberta_grading
                      "What is H2O.ai" not in c['text']])
             elif prompt_type == "llama2":
                 all_rows.extend(
-                    [dict(input="<s>" + c['text'] +
-                                (" </s>" if c['text'].rfind("[/INST]") > c['text'].rfind("[INST]") else " [/INST]"),
+                    [dict(input=c['text'] +
+                                (" " if c['text'].rfind("[/INST]") > c['text'].rfind("[INST]") else " [/INST]"),
                           prompt_type='plain', source=data_file) for c in conversations if
                      "What is H2O.ai" not in c['text']])
             else:
