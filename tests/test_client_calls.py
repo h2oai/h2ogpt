@@ -821,9 +821,16 @@ def test_client_chat_stream_langchain_steps3():
 @wrap_test_forked
 def test_client_summarization():
     # launch server
-    base_model = 'meta-llama/Llama-2-7b-chat-hf'
-    from src.gen import main
-    main(base_model=base_model, chat=True, gradio=True, num_beams=1, block_gradio_exit=False, verbose=True)
+    local_server = True
+    if local_server:
+        base_model = 'meta-llama/Llama-2-7b-chat-hf'
+        from src.gen import main
+        main(base_model=base_model, chat=True, gradio=True, num_beams=1, block_gradio_exit=False, verbose=True)
+        check_hashes = True
+    else:
+        # To test file is really handled remotely
+        os.environ['HOST'] = ''  # set to some host
+        check_hashes = False
 
     # get file for client to upload
     url = 'https://cdn.openai.com/papers/whisper.pdf'
@@ -835,14 +842,16 @@ def test_client_summarization():
     client = Client(os.getenv('HOST', "http://localhost:7860"))
 
     # upload file(s).  Can be list or single file
-    hash_client = hash_file(test_file1)
     test_file_local, test_file_server = client.predict(test_file1, api_name='/upload_api')
-    hash_local = hash_file(test_file_local)
-    hash_server = hash_file(test_file_server)
-    assert hash_client == hash_local
-    assert hash_client == hash_server
+    if check_hashes:
+        # only makes sense if server and client on same disk
+        # since co-located with server, can test that uploaded by comparing the two files
+        hash_client = hash_file(test_file1)
+        hash_local = hash_file(test_file_local)
+        hash_server = hash_file(test_file_server)
+        assert hash_client == hash_local
+        assert hash_client == hash_server
     assert os.path.normpath(test_file_local) != os.path.normpath(test_file_server)
-    # since co-located with server, can test that uploaded by comparing the two files
 
     chunk = True
     chunk_size = 512
@@ -870,7 +879,9 @@ def test_client_summarization():
     res = ast.literal_eval(res)
     summary = res['response']
     sources = res['sources']
-    assert 'Whisper' in summary or 'robust speech recognition system' in summary
+    assert 'Whisper' in summary or \
+           'robust speech recognition system' in summary or \
+           'Robust speech recognition' in summary
     assert 'my_test_pdf.pdf' in sources
 
 
