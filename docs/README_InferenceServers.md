@@ -377,6 +377,13 @@ Note: The client API calls for chat APIs (i.e. `instruction` type for `instructi
 
 ![Models Lock](models_lock.png)
 
+To run a gradio server and talk to it and OpenAI from another generate gradio UI, do:
+```bash
+GRADIO_SERVER_PORT=5000 python generate.py --base_model=h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-13b &
+sleep 60
+python generate.py --model_lock="[{'inference_server':'http://192.168.1.xx:5000','base_model':'h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-13b'},{'inference_server':'openai_chat','base_model':'gpt-3.5-turbo'}]" --model_lock_columns=2
+```
+where be sure to replace `192.168.1.xx` with your IP address.  Note the ampersand so the first call is in background.  The sleep gives time for the first one to come up.  The above is as if ran on single system, but you can run on any other system separate generates of any number.
 
 ### System info from gradio server
 
