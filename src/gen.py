@@ -623,6 +623,9 @@ def main(
         if hf_embedding_model is None:
             # if still None, then set default
             hf_embedding_model = 'hkunlp/instructor-large'
+    if hf_embedding_model is None:
+        # if no GPUs, use simpler embedding model to avoid cost in time
+        hf_embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
 
     # get defaults
     if base_model:
