@@ -923,10 +923,8 @@ def test_client_summarization_from_text():
     assert 'user_paste' in sources
 
 
-# @pytest.mark.parametrize("url", ['https://cdn.openai.com/papers/whisper.pdf', 'https://github.com/h2oai/h2ogpt'])
-@pytest.mark.parametrize("url", ['https://cdn.openai.com/papers/whisper.pdf'])
-# @pytest.mark.parametrize("top_k_docs", [4, -1])
-@pytest.mark.parametrize("top_k_docs", [-1])
+@pytest.mark.parametrize("url", ['https://cdn.openai.com/papers/whisper.pdf', 'https://github.com/h2oai/h2ogpt'])
+@pytest.mark.parametrize("top_k_docs", [4, -1])
 @pytest.mark.need_tokens
 @wrap_test_forked
 def test_client_summarization_from_url(url, top_k_docs):
