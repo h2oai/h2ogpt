@@ -129,6 +129,8 @@ def go_gradio(**kwargs):
     # easy update of kwargs needed for evaluate() etc.
     queue = True
     allow_upload = allow_upload_to_user_data or allow_upload_to_my_data
+    allow_upload_api = allow_api and allow_upload
+
     kwargs.update(locals())
 
     # import control
@@ -891,7 +893,7 @@ def go_gradio(**kwargs):
                                        langchain_mode],
                                outputs=add_file_outputs + [sources_text, doc_exception_text],
                                queue=queue,
-                               api_name='add_file' if allow_api and allow_upload_to_user_data else None)
+                               api_name='add_file' if allow_upload_api else None)
 
         # then no need for add buttons, only single changeable db
         eventdb1a = fileup_output.upload(make_non_interactive, inputs=add_file_outputs, outputs=add_file_outputs,
@@ -906,7 +908,7 @@ def go_gradio(**kwargs):
                                         langchain_mode],
                                 outputs=add_file_outputs + [sources_text, doc_exception_text],
                                 queue=queue,
-                                api_name='add_file_api' if allow_api and allow_upload_to_user_data else None)
+                                api_name='add_file_api' if allow_upload_api else None)
         eventdb1_api = fileup_output_text.submit(**add_file_kwargs2, show_progress='full')
 
         # note for update_user_db_func output is ignored for db
@@ -922,7 +924,7 @@ def go_gradio(**kwargs):
                                       langchain_mode],
                               outputs=add_url_outputs + [sources_text, doc_exception_text],
                               queue=queue,
-                              api_name='add_url' if allow_api and allow_upload_to_user_data else None)
+                              api_name='add_url' if allow_upload_api else None)
 
         eventdb2a = url_text.submit(fn=dummy_fun, inputs=url_text, outputs=url_text, queue=queue,
                                     show_progress='minimal')
@@ -940,7 +942,7 @@ def go_gradio(**kwargs):
                                        langchain_mode],
                                outputs=add_text_outputs + [sources_text, doc_exception_text],
                                queue=queue,
-                               api_name='add_text' if allow_api and allow_upload_to_user_data else None
+                               api_name='add_text' if allow_upload_api else None
                                )
         eventdb3a = user_text_text.submit(fn=dummy_fun, inputs=user_text_text, outputs=user_text_text, queue=queue,
                                           show_progress='minimal')
@@ -1337,9 +1339,9 @@ def go_gradio(**kwargs):
             else:
                 file_paths = files.name
             return file_paths
-        allow_upload = allow_api and (allow_upload_to_user_data or allow_upload_to_my_data)
+
         upload_api_btn.upload(upload_file, upload_api_btn, file_upload_api,
-                              api_name='upload_api' if allow_upload else None)
+                              api_name='upload_api' if allow_upload_api else None)
 
         def visible_toggle(x):
             x = 'off' if x == 'on' else 'on'
