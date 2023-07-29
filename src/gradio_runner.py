@@ -2198,11 +2198,15 @@ def go_gradio(**kwargs):
                 print("Pre-switch pre-del GPU memory: %s" % get_torch_allocated(), flush=True)
 
             model0 = model_state0['model']
-            if isinstance(model_state_old['model'], str) and model0 is not None:
+            if isinstance(model_state_old['model'], str) and \
+                    model0 is not None and \
+                    hasattr(model0, 'cpu'):
                 # best can do, move model loaded at first to CPU
                 model0.cpu()
 
-            if model_state_old['model'] is not None and not isinstance(model_state_old['model'], str):
+            if model_state_old['model'] is not None and \
+                    not isinstance(model_state_old['model'], str) and \
+                    hasattr(model_state_old['model'], 'cpu'):
                 try:
                     model_state_old['model'].cpu()
                 except Exception as e:
