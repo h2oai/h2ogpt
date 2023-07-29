@@ -8,7 +8,7 @@ import pytest
 from tests.utils import wrap_test_forked, make_user_path_test, get_llama
 from src.client_test import get_client, get_args, run_client_gen
 from src.enums import LangChainAction, LangChainMode
-from src.utils import get_githash, remove, remove_collection_enum, download_simple
+from src.utils import get_githash, remove, remove_collection_enum, download_simple, hash_file
 
 
 @wrap_test_forked
@@ -692,9 +692,10 @@ def test_client_chat_stream_langchain_steps3():
     assert res[2]['headers'] == ['Collection', 'Path']
     assert res[2]['data'] == [['UserData', user_path], ['MyData', None], [langchain_mode2, user_path2]]
 
-    url = 'https://unec.edu.az/application/uploads/2014/12/pdf-sample.pdf'
+    # url = 'https://unec.edu.az/application/uploads/2014/12/pdf-sample.pdf'
     test_file1 = os.path.join('/tmp/', 'pdf-sample.pdf')
-    download_simple(url, dest=test_file1)
+    # download_simple(url, dest=test_file1)
+    shutil.copy('tests/pdf-sample.pdf', test_file1)
     res = client.predict(test_file1, True, 512, langchain_mode2, api_name='/add_file_api')
     assert res[0] is None
     assert res[1] == langchain_mode2
@@ -802,9 +803,10 @@ def test_client_chat_stream_langchain_steps3():
     assert res[2]['data'] == [['UserData', user_path], ['MyData', None], ['UserData2', 'user_path2'],
                               [langchain_mode2, None]]
 
-    url = 'https://unec.edu.az/application/uploads/2014/12/pdf-sample.pdf'
+    # url = 'https://unec.edu.az/application/uploads/2014/12/pdf-sample.pdf'
     test_file1 = os.path.join('/tmp/', 'pdf-sample.pdf')
-    download_simple(url, dest=test_file1)
+    # download_simple(url, dest=test_file1)
+    shutil.copy('tests/pdf-sample.pdf', test_file1)
     res = client.predict(test_file1, True, 512, langchain_mode2, api_name='/add_file_api')
     assert res[0] is None
     assert res[1] == langchain_mode2
@@ -813,3 +815,175 @@ def test_client_chat_stream_langchain_steps3():
     assert res[3] == ''
 
     # FIXME: Add load_model, unload_model, etc.
+
+
+@pytest.mark.parametrize("prompt_summary", ['', 'Summarize into single paragraph'])
+@pytest.mark.need_tokens
+@wrap_test_forked
+def test_client_summarization(prompt_summary):
+    # launch server
+    local_server = True
+    if local_server:
+        base_model = 'meta-llama/Llama-2-7b-chat-hf'
+        from src.gen import main
+        main(base_model=base_model, chat=True, gradio=True, num_beams=1, block_gradio_exit=False, verbose=True)
+        check_hashes = True
+    else:
+        # To test file is really handled remotely
+        os.environ['HOST'] = ''  # set to some host
+        check_hashes = False
+
+    # get file for client to upload
+    url = 'https://cdn.openai.com/papers/whisper.pdf'
+    test_file1 = os.path.join('/tmp/', 'my_test_pdf.pdf')
+    download_simple(url, dest=test_file1)
+
+    # PURE client code
+    from gradio_client import Client
+    client = Client(os.getenv('HOST', "http://localhost:7860"))
+
+    # upload file(s).  Can be list or single file
+    test_file_local, test_file_server = client.predict(test_file1, api_name='/upload_api')
+    if check_hashes:
+        # only makes sense if server and client on same disk
+        # since co-located with server, can test that uploaded by comparing the two files
+        hash_client = hash_file(test_file1)
+        hash_local = hash_file(test_file_local)
+        hash_server = hash_file(test_file_server)
+        assert hash_client == hash_local
+        assert hash_client == hash_server
+    assert os.path.normpath(test_file_local) != os.path.normpath(test_file_server)
+
+    chunk = True
+    chunk_size = 512
+    langchain_mode = 'MyData'
+    res = client.predict(test_file_server, chunk, chunk_size, langchain_mode, api_name='/add_file_api')
+    assert res[0] is None
+    assert res[1] == langchain_mode
+    assert os.path.basename(test_file_server) in res[2]
+    assert res[3] == ''
+
+    # ask for summary, need to use same client if using MyData
+    api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
+    kwargs = dict(langchain_mode=langchain_mode,
+                  langchain_action="Summarize",  # uses full document, not vectorDB chunks
+                  top_k_docs=4,  # -1 for entire pdf
+                  document_subset='Relevant',
+                  document_choice='All',
+                  max_new_tokens=256,
+                  max_time=300,
+                  do_sample=False,
+                  prompt_summary=prompt_summary,
+                  )
+    res = client.predict(
+        str(dict(kwargs)),
+        api_name=api_name,
+    )
+    res = ast.literal_eval(res)
+    summary = res['response']
+    sources = res['sources']
+    if prompt_summary == '':
+        assert 'Whisper' in summary or \
+               'robust speech recognition system' in summary or \
+               'Robust speech recognition' in summary
+    else:
+        assert 'various techniques and approaches in speech recognition' in summary
+    assert 'my_test_pdf.pdf' in sources
+
+
+@pytest.mark.need_tokens
+@wrap_test_forked
+def test_client_summarization_from_text():
+    # launch server
+    base_model = 'meta-llama/Llama-2-7b-chat-hf'
+    from src.gen import main
+    main(base_model=base_model, chat=True, gradio=True, num_beams=1, block_gradio_exit=False, verbose=True)
+
+    # get file for client to upload
+    url = 'https://cdn.openai.com/papers/whisper.pdf'
+    test_file1 = os.path.join('/tmp/', 'my_test_pdf.pdf')
+    download_simple(url, dest=test_file1)
+
+    # Get text version of PDF
+    from langchain.document_loaders import PyMuPDFLoader
+    # load() still chunks by pages, but every page has title at start to help
+    doc1 = PyMuPDFLoader(test_file1).load()
+    all_text_contents = '\n\n'.join([x.page_content for x in doc1])
+
+    # PURE client code
+    from gradio_client import Client
+    client = Client(os.getenv('HOST', "http://localhost:7860"), serialize=True)
+    chunk = True
+    chunk_size = 512
+    langchain_mode = 'MyData'
+    res = client.predict(all_text_contents, chunk, chunk_size, langchain_mode, api_name='/add_text')
+    assert res[0] is None
+    assert res[1] == langchain_mode
+    assert 'user_paste' in res[2]
+    assert res[3] == ''
+
+    # ask for summary, need to use same client if using MyData
+    api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
+    kwargs = dict(langchain_mode=langchain_mode,
+                  langchain_action="Summarize",  # uses full document, not vectorDB chunks
+                  top_k_docs=4,  # -1 for entire pdf
+                  document_subset='Relevant',
+                  document_choice='All',
+                  max_new_tokens=256,
+                  max_time=300,
+                  do_sample=False)
+    res = client.predict(
+        str(dict(kwargs)),
+        api_name=api_name,
+    )
+    res = ast.literal_eval(res)
+    summary = res['response']
+    sources = res['sources']
+    assert 'Whisper' in summary or 'robust speech recognition system' in summary
+    assert 'user_paste' in sources
+
+
+@pytest.mark.parametrize("url", ['https://cdn.openai.com/papers/whisper.pdf', 'https://github.com/h2oai/h2ogpt'])
+@pytest.mark.parametrize("top_k_docs", [4, -1])
+@pytest.mark.need_tokens
+@wrap_test_forked
+def test_client_summarization_from_url(url, top_k_docs):
+    # launch server
+    base_model = 'meta-llama/Llama-2-7b-chat-hf'
+    from src.gen import main
+    main(base_model=base_model, chat=True, gradio=True, num_beams=1, block_gradio_exit=False, verbose=True)
+
+    # PURE client code
+    from gradio_client import Client
+    client = Client(os.getenv('HOST', "http://localhost:7860"), serialize=True)
+    chunk = True
+    chunk_size = 512
+    langchain_mode = 'MyData'
+    res = client.predict(url, chunk, chunk_size, langchain_mode, api_name='/add_url')
+    assert res[0] is None
+    assert res[1] == langchain_mode
+    assert url in res[2]
+    assert res[3] == ''
+
+    # ask for summary, need to use same client if using MyData
+    api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
+    kwargs = dict(langchain_mode=langchain_mode,
+                  langchain_action="Summarize",  # uses full document, not vectorDB chunks
+                  top_k_docs=top_k_docs,  # -1 for entire pdf
+                  document_subset='Relevant',
+                  document_choice='All',
+                  max_new_tokens=256,  # per LLM call internally, so affects both intermediate and final steps
+                  max_time=300,
+                  do_sample=False)
+    res = client.predict(
+        str(dict(kwargs)),
+        api_name=api_name,
+    )
+    res = ast.literal_eval(res)
+    summary = res['response']
+    sources = res['sources']
+    if 'whisper' in url:
+        assert 'Whisper' in summary or 'robust speech recognition system' in summary
+    if 'h2ogpt' in url:
+        assert 'Accurate embeddings for private offline databases' in summary
+    assert url in sources

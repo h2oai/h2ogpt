@@ -15,7 +15,7 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
   ```bash
   conda create -n h2ogpt -y
   conda activate h2ogpt
-  mamba install python=3.10 -c conda-forge -y
+  conda install python=3.10 -c conda-forge -y
   ```
   You should see `(h2ogpt)` in shell prompt.
   
@@ -105,17 +105,35 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     sp=`python -c 'import site; print(site.getsitepackages()[0])'`
     sed -i 's/posthog\.capture/return\n            posthog.capture/' $sp/chromadb/telemetry/posthog.py
     ```
-* GPU Optional: Compile llama-cpp-python with CUDA support:
-  ```bash
-  pip uninstall -y llama-cpp-python
-  export LLAMA_CUBLAS=1
-  export CMAKE_ARGS=-DLLAMA_CUBLAS=on
-  export FORCE_CMAKE=1
-  CMAKE_ARGS="-DLLAMA_CUBLAS=on" FORCE_CMAKE=1 pip install llama-cpp-python==0.1.68 --no-cache-dir --verbose
-  ```
-   and uncomment `# n_gpu_layers=20` in `.env_gpt4all`.  One can try also `40` instead of `20`.  If one sees `/usr/bin/nvcc` mentioned in errors, that file needs to be removed as would likely conflict with version installed for conda.  
-   Note that once `llama-cpp-python` is compiled to support CUDA, it no longer works for CPU mode,
-   so one would have to reinstall it without the above options to recovers CPU mode or have a separate h2oGPT env for CPU mode.
+* GPU Optional: Support LLaMa.cpp with CUDA:
+  * Download/Install [CUDA llama-cpp-python wheel](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels), E.g. [Downloaad Python 3.10 CUDA 11.7 wheel](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.1.73+cu117-cp310-cp310-linux_x86_64.whl), then run:
+    ```bash
+    pip uninstall -y llama-cpp-python
+    pip install llama_cpp_python_cuda-0.1.73+cu117-cp310-cp310-linux_x86_64.whl
+    ```
+  * If any issues, then must compile llama-cpp-python with CUDA support:
+   ```bash
+    pip uninstall -y llama-cpp-python
+    export LLAMA_CUBLAS=1
+    export CMAKE_ARGS=-DLLAMA_CUBLAS=on
+    export FORCE_CMAKE=1
+    CMAKE_ARGS="-DLLAMA_CUBLAS=on" FORCE_CMAKE=1 pip install llama-cpp-python==0.1.68 --no-cache-dir --verbose
+   ```
+  * Uncomment `# n_gpu_layers=20` in `.env_gpt4all`.  One can try also `40` instead of `20`.
+  * If one sees `/usr/bin/nvcc` mentioned in errors, that file needs to be removed as would likely conflict with version installed for conda.  
+  * Note that once `llama-cpp-python` is compiled to support CUDA, it no longer works for CPU mode, so one would have to reinstall it without the above options to recovers CPU mode or have a separate h2oGPT env for CPU mode.
+
+### Compile Install Issues
+  * `/usr/local/cuda/include/crt/host_config.h:132:2: error: #error -- unsupported GNU version! gcc versions later than 11 are not supported!`
+    * gcc > 11 is not currently supported by nvcc.  Install GCC with a maximum version:
+    ```
+    MAX_GCC_VERSION=11
+    sudo apt install gcc-$MAX_GCC_VERSION g++-$MAX_GCC_VERSION
+    sudo update-alternatives --config gcc
+    # pick version 11
+    sudo update-alternatives --config g++
+    # pick version 11
+    ```
 
 ---
 

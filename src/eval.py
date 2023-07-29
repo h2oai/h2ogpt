@@ -16,7 +16,8 @@ from utils import clear_torch_cache, NullContext, get_kwargs, makedirs
 def run_eval(  # for local function:
         base_model=None, lora_weights=None, inference_server=None,
         prompt_type=None, prompt_dict=None,
-        debug=None, chat=False, chat_context=None, stream_output=None,
+        debug=None, chat=False, chat_context=None,
+        stream_output=None, async_output=None, num_async=None,
         eval_filename=None, eval_prompts_only_num=None, eval_prompts_only_seed=None, eval_as_output=None,
         examples=None, memory_restriction_level=None,
         # for get_model:
@@ -45,6 +46,8 @@ def run_eval(  # for local function:
         chunk_size=None,
         document_subset=None,
         document_choice=None,
+        pre_prompt_summary=None,
+        prompt_summary=None,
         # for evaluate kwargs:
         src_lang=None, tgt_lang=None, concurrency_count=None, save_dir=None, sanitize_bot_response=None,
         model_state0=None,
@@ -58,6 +61,8 @@ def run_eval(  # for local function:
         my_db_state0=None, selection_docs_state0=None, dbs=None, langchain_modes=None, langchain_mode_paths=None,
         detect_user_path_changes_every_query=None,
         use_openai_embedding=None, use_openai_model=None, hf_embedding_model=None, cut_distance=None,
+        answer_with_sources=None,
+        append_sources_to_answer=None,
         add_chat_history_to_context=None,
         db_type=None, n_jobs=None, first_para=None, text_limit=None, verbose=None, cli=None, reverse_docs=None,
         use_cache=None,

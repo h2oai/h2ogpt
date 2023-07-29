@@ -1,4 +1,7 @@
 import ast
+import asyncio
+import copy
+import functools
 import glob
 import inspect
 import os
@@ -21,7 +24,7 @@ import filelock
 from joblib import delayed
 from langchain.callbacks import streaming_stdout
 from langchain.embeddings import HuggingFaceInstructEmbeddings
-from langchain.schema import LLMResult
+from langchain.schema import LLMResult, Generation
 from tqdm import tqdm
 
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
@@ -278,11 +281,11 @@ def get_answer_from_sources(chain, sources, question):
 
 """Wrapper around Huggingface text generation inference API."""
 from functools import partial
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, Iterable
 
 from pydantic import Extra, Field, root_validator
 
-from langchain.callbacks.manager import CallbackManagerForLLMRun, Callbacks
+from langchain.callbacks.manager import CallbackManagerForLLMRun, Callbacks, AsyncCallbackManagerForLLMRun
 from langchain.llms.base import LLM
 
 
@@ -466,27 +469,9 @@ class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
     context: Any = ''
     iinput: Any = ''
     tokenizer: Any = None
-    client: Any = None
-
-    @root_validator()
-    def validate_environment(cls, values: Dict) -> Dict:
-        """Validate that python package exists in environment."""
-
-        try:
-            if values['client'] is None:
-                import text_generation
-
-                values["client"] = text_generation.Client(
-                    values["inference_server_url"],
-                    timeout=values["timeout"],
-                    headers=values["headers"],
-                )
-        except ImportError:
-            raise ImportError(
-                "Could not import text_generation python package. "
-                "Please install it with `pip install text_generation`."
-            )
-        return values
+    async_sem: Any = None
+    count_input_tokens: Any = 0
+    count_output_tokens: Any = 0
 
     def _call(
             self,
@@ -496,9 +481,12 @@ class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
             **kwargs: Any,
     ) -> str:
         if stop is None:
-            stop = self.stop_sequences
+            stop = self.stop_sequences.copy()
         else:
-            stop += self.stop_sequences
+            stop += self.stop_sequences.copy()
+        stop_tmp = stop.copy()
+        stop = []
+        [stop.append(x) for x in stop_tmp if x not in stop]
 
         # HF inference server needs control over input tokens
         assert self.tokenizer is not None
@@ -508,6 +496,7 @@ class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
         # NOTE: TGI server does not add prompting, so must do here
         data_point = dict(context=self.context, instruction=prompt, input=self.iinput)
         prompt = self.prompter.generate_prompt(data_point)
+        self.count_input_tokens += self.get_num_tokens(prompt)
 
         gen_server_kwargs = dict(do_sample=self.do_sample,
                                  stop_sequences=stop,
@@ -568,7 +557,84 @@ class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
                 if not response.token.special:
                     if text_callback:
                         text_callback(text_chunk)
+        self.count_output_tokens += self.get_num_tokens(text)
         return text
+
+    async def _acall(
+            self,
+            prompt: str,
+            stop: Optional[List[str]] = None,
+            run_manager: Optional[AsyncCallbackManagerForLLMRun] = None,
+            **kwargs: Any,
+    ) -> str:
+        # print("acall", flush=True)
+        if stop is None:
+            stop = self.stop_sequences.copy()
+        else:
+            stop += self.stop_sequences.copy()
+        stop_tmp = stop.copy()
+        stop = []
+        [stop.append(x) for x in stop_tmp if x not in stop]
+
+        # HF inference server needs control over input tokens
+        assert self.tokenizer is not None
+        from h2oai_pipeline import H2OTextGenerationPipeline
+        prompt, num_prompt_tokens = H2OTextGenerationPipeline.limit_prompt(prompt, self.tokenizer)
+
+        # NOTE: TGI server does not add prompting, so must do here
+        data_point = dict(context=self.context, instruction=prompt, input=self.iinput)
+        prompt = self.prompter.generate_prompt(data_point)
+
+        gen_text = await super()._acall(prompt, stop=stop, run_manager=run_manager, **kwargs)
+
+        # remove stop sequences from the end of the generated text
+        for stop_seq in stop:
+            if stop_seq in gen_text:
+                gen_text = gen_text[:gen_text.index(stop_seq)]
+        text = prompt + gen_text
+        text = self.prompter.get_response(text, prompt=prompt,
+                                          sanitize_bot_response=self.sanitize_bot_response)
+        # print("acall done", flush=True)
+        return text
+
+    async def _agenerate(
+            self,
+            prompts: List[str],
+            stop: Optional[List[str]] = None,
+            run_manager: Optional[AsyncCallbackManagerForLLMRun] = None,
+            **kwargs: Any,
+    ) -> LLMResult:
+        """Run the LLM on the given prompt and input."""
+        generations = []
+        new_arg_supported = inspect.signature(self._acall).parameters.get("run_manager")
+        self.count_input_tokens += sum([self.get_num_tokens(prompt) for prompt in prompts])
+        tasks = [
+            asyncio.ensure_future(self._agenerate_one(prompt, stop=stop, run_manager=run_manager,
+                                                      new_arg_supported=new_arg_supported, **kwargs))
+            for prompt in prompts
+        ]
+        texts = await asyncio.gather(*tasks)
+        self.count_output_tokens += sum([self.get_num_tokens(text) for text in texts])
+        [generations.append([Generation(text=text)]) for text in texts]
+        return LLMResult(generations=generations)
+
+    async def _agenerate_one(
+            self,
+            prompt: str,
+            stop: Optional[List[str]] = None,
+            run_manager: Optional[AsyncCallbackManagerForLLMRun] = None,
+            new_arg_supported=None,
+            **kwargs: Any,
+    ) -> str:
+        async with self.async_sem:  # semaphore limits num of simultaneous downloads
+            return await self._acall(prompt, stop=stop, run_manager=run_manager, **kwargs) \
+                if new_arg_supported else \
+                await self._acall(prompt, stop=stop, **kwargs)
+
+    def get_token_ids(self, text: str) -> List[int]:
+        return self.tokenizer.encode(text)
+        # avoid base method that is not aware of how to properly tokenize (uses GPT2)
+        # return _get_token_ids_default_method(text)
 
 
 from langchain.chat_models import ChatOpenAI
@@ -677,6 +743,8 @@ def get_llm(use_openai_model=False,
             inference_server=None,
             langchain_only_model=None,
             stream_output=False,
+            async_output=True,
+            num_async=3,
             do_sample=False,
             temperature=0.1,
             top_k=40,
@@ -761,6 +829,7 @@ def get_llm(use_openai_model=False,
         callbacks = [StreamingGradioCallbackHandler()]
 
         if gr_client:
+            async_output = False  # FIXME: not implemented yet
             chat_client = False
             llm = GradioInference(
                 inference_server_url=inference_server,
@@ -788,12 +857,14 @@ def get_llm(use_openai_model=False,
                 sanitize_bot_response=sanitize_bot_response,
             )
         elif hf_client:
+            # no need to pass original client, no state and fast, so can use same validate_environment from base class
+            async_sem = asyncio.Semaphore(num_async) if async_output else NullContext()
             llm = H2OHuggingFaceTextGenInference(
                 inference_server_url=inference_server,
                 do_sample=do_sample,
                 max_new_tokens=max_new_tokens,
                 repetition_penalty=repetition_penalty,
-                return_full_text=True,
+                return_full_text=False,
                 seed=SEED,
 
                 stop_sequences=prompter.stop_sequences,
@@ -807,14 +878,15 @@ def get_llm(use_openai_model=False,
                 context=context,
                 iinput=iinput,
                 tokenizer=tokenizer,
-                client=hf_client,
                 timeout=max_time,
                 sanitize_bot_response=sanitize_bot_response,
+                async_sem=async_sem,
             )
         else:
             raise RuntimeError("No defined client")
         streamer = callbacks[0] if stream_output else None
     elif model_name in non_hf_types:
+        async_output = False  # FIXME: not implemented yet
         assert langchain_only_model
         if model_name == 'llama':
             callbacks = [StreamingGradioCallbackHandler()]
@@ -843,6 +915,7 @@ def get_llm(use_openai_model=False,
                               iinput=iinput,
                               )
     elif hasattr(model, 'is_exlama') and model.is_exlama():
+        async_output = False  # FIXME: not implemented yet
         assert langchain_only_model
         callbacks = [StreamingGradioCallbackHandler()]
         streamer = callbacks[0] if stream_output else None
@@ -872,6 +945,7 @@ def get_llm(use_openai_model=False,
                       iinput=iinput,
                       )
     else:
+        async_output = False  # FIXME: not implemented yet
         if model is None:
             # only used if didn't pass model in
             assert tokenizer is None
@@ -929,7 +1003,7 @@ def get_llm(use_openai_model=False,
 
         from langchain.llms import HuggingFacePipeline
         llm = HuggingFacePipeline(pipeline=pipe)
-    return llm, model_name, streamer, prompt_type
+    return llm, model_name, streamer, prompt_type, async_output
 
 
 def get_device_dtype():
@@ -1100,7 +1174,10 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                 enable_captions=True,
                 captions_model=None,
                 enable_ocr=False, enable_pdf_ocr='auto', caption_loader=None,
-                headsize=50):
+                headsize=50,
+                db_type=None):
+    assert db_type is not None
+    chunk_sources = functools.partial(_chunk_sources, chunk=chunk, chunk_size=chunk_size, db_type=db_type)
     if file is None:
         if fail_any_exception:
             raise RuntimeError("Unexpected None file")
@@ -1163,7 +1240,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                     print("No web driver: %s" % str(e), flush=True)
             [x.metadata.update(dict(input_type='url', date=str(datetime.now))) for x in docs1]
         docs1 = clean_doc(docs1)
-        doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
+        doc1 = chunk_sources(docs1)
     elif is_txt:
         base_path = "user_paste"
         base_path = makedirs(base_path, exist_ok=True, tmp_ok=True)
@@ -1177,48 +1254,48 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         docs1 = UnstructuredHTMLLoader(file_path=file).load()
         add_meta(docs1, file)
         docs1 = clean_doc(docs1)
-        doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size, language=Language.HTML)
+        doc1 = chunk_sources(docs1, language=Language.HTML)
     elif (file.lower().endswith('.docx') or file.lower().endswith('.doc')) and (have_libreoffice or True):
         docs1 = UnstructuredWordDocumentLoader(file_path=file).load()
         add_meta(docs1, file)
-        doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
+        doc1 = chunk_sources(docs1)
     elif (file.lower().endswith('.xlsx') or file.lower().endswith('.xls')) and (have_libreoffice or True):
         docs1 = UnstructuredExcelLoader(file_path=file).load()
         add_meta(docs1, file)
-        doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
+        doc1 = chunk_sources(docs1)
     elif file.lower().endswith('.odt'):
         docs1 = UnstructuredODTLoader(file_path=file).load()
         add_meta(docs1, file)
-        doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
+        doc1 = chunk_sources(docs1)
     elif file.lower().endswith('pptx') or file.lower().endswith('ppt'):
         docs1 = UnstructuredPowerPointLoader(file_path=file).load()
         add_meta(docs1, file)
         docs1 = clean_doc(docs1)
-        doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
+        doc1 = chunk_sources(docs1)
     elif file.lower().endswith('.txt'):
         # use UnstructuredFileLoader ?
         docs1 = TextLoader(file, encoding="utf8", autodetect_encoding=True).load()
         # makes just one, but big one
-        doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
+        doc1 = chunk_sources(docs1)
         doc1 = clean_doc(doc1)
         add_meta(doc1, file)
     elif file.lower().endswith('.rtf'):
         docs1 = UnstructuredRTFLoader(file).load()
         add_meta(docs1, file)
-        doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
+        doc1 = chunk_sources(docs1)
     elif file.lower().endswith('.md'):
         docs1 = UnstructuredMarkdownLoader(file).load()
         add_meta(docs1, file)
         docs1 = clean_doc(docs1)
-        doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size, language=Language.MARKDOWN)
+        doc1 = chunk_sources(docs1, language=Language.MARKDOWN)
     elif file.lower().endswith('.enex'):
         docs1 = EverNoteLoader(file).load()
         add_meta(doc1, file)
-        doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
+        doc1 = chunk_sources(docs1)
     elif file.lower().endswith('.epub'):
         docs1 = UnstructuredEPubLoader(file).load()
         add_meta(docs1, file)
-        doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
+        doc1 = chunk_sources(docs1)
     elif file.lower().endswith('.jpeg') or file.lower().endswith('.jpg') or file.lower().endswith('.png'):
         docs1 = []
         if have_tesseract and enable_ocr:
@@ -1248,7 +1325,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                 doci.metadata['source'] = doci.metadata['image_path']
                 doci.metadata['hash'] = hash_file(doci.metadata['source'])
             if docs1:
-                doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
+                doc1 = chunk_sources(docs1)
     elif file.lower().endswith('.msg'):
         raise RuntimeError("Not supported, GPL3 license")
         # docs1 = OutlookMessageLoader(file).load()
@@ -1257,14 +1334,14 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         try:
             docs1 = UnstructuredEmailLoader(file).load()
             add_meta(docs1, file)
-            doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
+            doc1 = chunk_sources(docs1)
         except ValueError as e:
             if 'text/html content not found in email' in str(e):
                 # e.g. plain/text dict key exists, but not
                 # doc1 = TextLoader(file, encoding="utf8").load()
                 docs1 = UnstructuredEmailLoader(file, content_source="text/plain").load()
                 add_meta(docs1, file)
-                doc1 = chunk_sources(docs1, chunk=chunk, chunk_size=chunk_size)
+                doc1 = chunk_sources(docs1)
             else:
                 raise
     # elif file.lower().endswith('.gcsdir'):
@@ -1275,7 +1352,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         with open(file, "r") as f:
             doc1 = Document(page_content=f.read(), metadata={"source": file})
         add_meta(doc1, file)
-        doc1 = chunk_sources(doc1, chunk=chunk, chunk_size=chunk_size, language=Language.RST)
+        doc1 = chunk_sources(doc1, language=Language.RST)
     elif file.lower().endswith('.pdf'):
         env_gpt4all_file = ".env_gpt4all"
         from dotenv import dotenv_values
@@ -1329,30 +1406,41 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                 raise ValueError("%s had no valid text, but meta data was parsed" % file)
             else:
                 raise ValueError("%s had no valid text and no meta data was parsed" % file)
-        doc1 = chunk_sources(doc1, chunk=chunk, chunk_size=chunk_size)
+        doc1 = chunk_sources(doc1)
         add_meta(doc1, file)
     elif file.lower().endswith('.csv'):
         doc1 = CSVLoader(file).load()
         add_meta(doc1, file)
+        if isinstance(doc1, list):
+            # each row is a Document, identify
+            [x.metadata.update(dict(chunk_id=chunk_id)) for chunk_id, x in enumerate(doc1)]
+            if db_type == 'chroma':
+                # then separate summarize list
+                sdoc1 = clone_documents(doc1)
+                [x.metadata.update(dict(chunk_id=-1)) for chunk_id, x in enumerate(sdoc1)]
+                doc1 = sdoc1 + doc1
     elif file.lower().endswith('.py'):
         doc1 = PythonLoader(file).load()
         add_meta(doc1, file)
-        doc1 = chunk_sources(doc1, chunk=chunk, chunk_size=chunk_size, language=Language.PYTHON)
+        doc1 = chunk_sources(doc1, language=Language.PYTHON)
     elif file.lower().endswith('.toml'):
         doc1 = TomlLoader(file).load()
         add_meta(doc1, file)
+        doc1 = chunk_sources(doc1)
     elif file.lower().endswith('.urls'):
         with open(file, "r") as f:
             urls = f.readlines()
             # recurse
-            doc1 = path_to_docs(None, url=urls, verbose=verbose, fail_any_exception=fail_any_exception, n_jobs=n_jobs)
+            doc1 = path_to_docs(None, url=urls, verbose=verbose, fail_any_exception=fail_any_exception, n_jobs=n_jobs,
+                                db_type=db_type)
     elif file.lower().endswith('.zip'):
         with zipfile.ZipFile(file, 'r') as zip_ref:
             # don't put into temporary path, since want to keep references to docs inside zip
             # so just extract in path where
             zip_ref.extractall(base_path)
             # recurse
-            doc1 = path_to_docs(base_path, verbose=verbose, fail_any_exception=fail_any_exception, n_jobs=n_jobs)
+            doc1 = path_to_docs(base_path, verbose=verbose, fail_any_exception=fail_any_exception, n_jobs=n_jobs,
+                                db_type=db_type)
     else:
         raise RuntimeError("No file handler for %s" % os.path.basename(file))
 
@@ -1360,12 +1448,12 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
     # if list of length one, don't trust and chunk it
     if not isinstance(doc1, list):
         if chunk:
-            docs = chunk_sources([doc1], chunk=chunk, chunk_size=chunk_size)
+            docs = chunk_sources([doc1])
         else:
             docs = [doc1]
     elif isinstance(doc1, list) and len(doc1) == 1:
         if chunk:
-            docs = chunk_sources(doc1, chunk=chunk, chunk_size=chunk_size)
+            docs = chunk_sources(doc1)
         else:
             docs = doc1
     else:
@@ -1381,7 +1469,9 @@ def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True
                  is_url=False, is_txt=False,
                  enable_captions=True,
                  captions_model=None,
-                 enable_ocr=False, enable_pdf_ocr='auto', caption_loader=None):
+                 enable_ocr=False, enable_pdf_ocr='auto', caption_loader=None,
+                 db_type=None):
+    assert db_type is not None
     if verbose:
         if is_url:
             print("Ingesting URL: %s" % file, flush=True)
@@ -1400,7 +1490,8 @@ def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True
                           captions_model=captions_model,
                           enable_ocr=enable_ocr,
                           enable_pdf_ocr=enable_pdf_ocr,
-                          caption_loader=caption_loader)
+                          caption_loader=caption_loader,
+                          db_type=db_type)
     except BaseException as e:
         print("Failed to ingest %s due to %s" % (file, traceback.format_exc()))
         if fail_any_exception:
@@ -1432,7 +1523,9 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
                  enable_pdf_ocr='auto',
                  existing_files=[],
                  existing_hash_ids={},
+                 db_type=None,
                  ):
+    assert db_type is not None
     # path_or_paths could be str, list, tuple, generator
     globs_image_types = []
     globs_non_image_types = []
@@ -1513,6 +1606,7 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
                   caption_loader=caption_loader,
                   enable_ocr=enable_ocr,
                   enable_pdf_ocr=enable_pdf_ocr,
+                  db_type=db_type,
                   )
 
     if n_jobs != 1 and len(globs_non_image_types) > 1:
@@ -1752,6 +1846,7 @@ def _make_db(use_openai_embedding=False,
 
     sources = []
     if not db:
+        chunk_sources = functools.partial(_chunk_sources, chunk=chunk, chunk_size=chunk_size, db_type=db_type)
         if langchain_mode in ['wiki_full']:
             from read_wiki_full import get_all_documents
             small_test = None
@@ -1759,24 +1854,24 @@ def _make_db(use_openai_embedding=False,
             sources1 = get_all_documents(small_test=small_test, n_jobs=os.cpu_count() // 2)
             print("Got new wiki", flush=True)
             if chunk:
-                sources1 = chunk_sources(sources1, chunk=chunk, chunk_size=chunk_size)
+                sources1 = chunk_sources(sources1)
                 print("Chunked new wiki", flush=True)
             sources.extend(sources1)
         elif langchain_mode in ['wiki']:
             sources1 = get_wiki_sources(first_para=first_para, text_limit=text_limit)
             if chunk:
-                sources1 = chunk_sources(sources1, chunk=chunk, chunk_size=chunk_size)
+                sources1 = chunk_sources(sources1)
             sources.extend(sources1)
         elif langchain_mode in ['github h2oGPT']:
             # sources = get_github_docs("dagster-io", "dagster")
             sources1 = get_github_docs("h2oai", "h2ogpt")
             # FIXME: always chunk for now
-            sources1 = chunk_sources(sources1, chunk=chunk, chunk_size=chunk_size)
+            sources1 = chunk_sources(sources1)
             sources.extend(sources1)
         elif langchain_mode in ['DriverlessAI docs']:
             sources1 = get_dai_docs(from_hf=True)
             if chunk and False:  # FIXME: DAI docs are already chunked well, should only chunk more if over limit
-                sources1 = chunk_sources(sources1, chunk=chunk, chunk_size=chunk_size)
+                sources1 = chunk_sources(sources1)
             sources.extend(sources1)
     if user_path:
         # UserData or custom, which has to be from user's disk
@@ -1793,7 +1888,8 @@ def _make_db(use_openai_embedding=False,
         # FIXME: If first had old Hash=None and switch embeddings,
         #  then re-embed, and then hit here and reload so have hash, and then re-embed.
         sources1 = path_to_docs(user_path, n_jobs=n_jobs, chunk=chunk, chunk_size=chunk_size,
-                                existing_files=existing_files, existing_hash_ids=existing_hash_ids)
+                                existing_files=existing_files, existing_hash_ids=existing_hash_ids,
+                                db_type=db_type)
         new_metadata_sources = set([x.metadata['source'] for x in sources1])
         if new_metadata_sources:
             print("Loaded %s new files as sources to add to %s" % (len(new_metadata_sources), langchain_mode),
@@ -1897,8 +1993,11 @@ def _get_docs_and_meta(db, top_k_docs, filter_kwargs={}):
         import itertools
         db_metadatas = get_metadatas(db)
         # FIXME: FAISS has no filter
-        # slice dict first
-        db_documents = list(dict(itertools.islice(db.docstore._dict.items(), top_k_docs)).values())
+        if top_k_docs == -1:
+            db_documents = list(db.docstore._dict.values())
+        else:
+            # slice dict first
+            db_documents = list(dict(itertools.islice(db.docstore._dict.items(), top_k_docs)).values())
     else:
         db_metadatas = get_metadatas(db)
         db_documents = get_documents(db)
@@ -1921,8 +2020,8 @@ def get_existing_hash_ids(db):
 def run_qa_db(**kwargs):
     func_names = list(inspect.signature(_run_qa_db).parameters)
     # hard-coded defaults
-    kwargs['answer_with_sources'] = True
-    kwargs['show_rank'] = False
+    kwargs['answer_with_sources'] = kwargs.get('answer_with_sources', True)
+    kwargs['show_rank'] = kwargs.get('show_rank', False)
     missing_kwargs = [x for x in func_names if x not in kwargs]
     assert not missing_kwargs, "Missing kwargs for run_qa_db: %s" % missing_kwargs
     # only keep actual used
@@ -1945,10 +2044,13 @@ def _run_qa_db(query=None,
                langchain_only_model=False,
                hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
                stream_output=False,
+               async_output=True,
+               num_async=3,
                prompter=None,
                prompt_type=None,
                prompt_dict=None,
                answer_with_sources=True,
+               append_sources_to_answer=True,
                cut_distance=1.64,
                add_chat_history_to_context=True,
                sanitize_bot_response=False,
@@ -1972,6 +2074,8 @@ def _run_qa_db(query=None,
                langchain_agents=None,
                document_subset=DocumentSubset.Relevant.name,
                document_choice=[DocumentChoice.ALL.value],
+               pre_prompt_summary=None,
+               prompt_summary=None,
                n_jobs=-1,
                verbose=False,
                cli=False,
@@ -1998,6 +2102,14 @@ def _run_qa_db(query=None,
     :param answer_with_sources
     :return:
     """
+    t_run = time.time()
+    if stream_output:
+        # threads and asyncio don't mix
+        async_output = False
+    if langchain_action in [LangChainAction.QUERY.value]:
+        # only summarization supported
+        async_output = False
+
     assert langchain_mode_paths is not None
     if model is not None:
         assert model_name is not None  # require so can make decisions
@@ -2015,31 +2127,34 @@ def _run_qa_db(query=None,
     assert len(set(gen_hyper).difference(inspect.signature(get_llm).parameters)) == 0
     # pass in context to LLM directly, since already has prompt_type structure
     # can't pass through langchain in get_chain() to LLM: https://github.com/hwchase17/langchain/issues/6638
-    llm, model_name, streamer, prompt_type_out = get_llm(use_openai_model=use_openai_model, model_name=model_name,
-                                                         model=model,
-                                                         tokenizer=tokenizer,
-                                                         inference_server=inference_server,
-                                                         langchain_only_model=langchain_only_model,
-                                                         stream_output=stream_output,
-                                                         do_sample=do_sample,
-                                                         temperature=temperature,
-                                                         top_k=top_k,
-                                                         top_p=top_p,
-                                                         num_beams=num_beams,
-                                                         max_new_tokens=max_new_tokens,
-                                                         min_new_tokens=min_new_tokens,
-                                                         early_stopping=early_stopping,
-                                                         max_time=max_time,
-                                                         repetition_penalty=repetition_penalty,
-                                                         num_return_sequences=num_return_sequences,
-                                                         prompt_type=prompt_type,
-                                                         prompt_dict=prompt_dict,
-                                                         prompter=prompter,
-                                                         context=context if add_chat_history_to_context else '',
-                                                         iinput=iinput if add_chat_history_to_context else '',
-                                                         sanitize_bot_response=sanitize_bot_response,
-                                                         verbose=verbose,
-                                                         )
+    llm, model_name, streamer, prompt_type_out, async_output = \
+        get_llm(use_openai_model=use_openai_model, model_name=model_name,
+                model=model,
+                tokenizer=tokenizer,
+                inference_server=inference_server,
+                langchain_only_model=langchain_only_model,
+                stream_output=stream_output,
+                async_output=async_output,
+                num_async=num_async,
+                do_sample=do_sample,
+                temperature=temperature,
+                top_k=top_k,
+                top_p=top_p,
+                num_beams=num_beams,
+                max_new_tokens=max_new_tokens,
+                min_new_tokens=min_new_tokens,
+                early_stopping=early_stopping,
+                max_time=max_time,
+                repetition_penalty=repetition_penalty,
+                num_return_sequences=num_return_sequences,
+                prompt_type=prompt_type,
+                prompt_dict=prompt_dict,
+                prompter=prompter,
+                context=context if add_chat_history_to_context else '',
+                iinput=iinput if add_chat_history_to_context else '',
+                sanitize_bot_response=sanitize_bot_response,
+                verbose=verbose,
+                )
 
     use_docs_planned = False
     scores = []
@@ -2118,20 +2233,33 @@ def _run_qa_db(query=None,
                     # in case no exception and didn't join with thread yet, then join
                     if not thread.exc:
                         answer = thread.join()
+                        answer = answer['output_text']
                 # in case raise StopIteration or broke queue loop in streamer, but still have exception
                 if thread.exc:
                     raise thread.exc
-                # FIXME: answer is not string outputs from streamer.  How to get actual final output?
-                # answer = outputs
             else:
-                answer = chain()
+                if async_output:
+                    import asyncio
+                    answer = asyncio.run(chain())
+                else:
+                    answer = chain()
+                    answer = answer['output_text']
 
+    t_run = time.time() - t_run
     if not use_docs_planned:
-        ret = answer['output_text']
+        ret = answer
         extra = ''
         yield ret, extra
     elif answer is not None:
-        ret, extra = get_sources_answer(query, answer, scores, show_rank, answer_with_sources, verbose=verbose)
+        ret, extra = get_sources_answer(query, docs, answer, scores, show_rank,
+                                        answer_with_sources,
+                                        append_sources_to_answer,
+                                        verbose=verbose,
+                                        t_run=t_run,
+                                        count_input_tokens=llm.count_input_tokens
+                                        if hasattr(llm, 'count_input_tokens') else None,
+                                        count_output_tokens=llm.count_output_tokens
+                                        if hasattr(llm, 'count_output_tokens') else None)
         yield ret, extra
     return
 
@@ -2183,12 +2311,16 @@ def get_chain(query=None,
               langchain_agents=None,
               document_subset=DocumentSubset.Relevant.name,
               document_choice=[DocumentChoice.ALL.value],
+              pre_prompt_summary=None,
+              prompt_summary=None,
               n_jobs=-1,
               # beyond run_db_query:
               llm=None,
               tokenizer=None,
               verbose=False,
               reverse_docs=True,
+              stream_output=True,
+              async_output=True,
 
               # local
               auto_reduce_chunks=True,
@@ -2260,24 +2392,28 @@ def get_chain(query=None,
             template_if_no_docs = """%s{context}%s{question}""" % (prefix, extra)
     elif langchain_action in [LangChainAction.SUMMARIZE_ALL.value, LangChainAction.SUMMARIZE_MAP.value]:
         none = ['', '\n', None]
-        if query in none and iinput in none:
-            prompt_summary = "Using only the text above, write a condensed and concise summary of key results (preferably as bullet points):\n"
-        elif query not in none:
-            prompt_summary = "Focusing on %s, write a condensed and concise Summary:\n" % query
-        elif iinput not in None:
-            prompt_summary = iinput
-        else:
-            prompt_summary = "Focusing on %s, %s:\n" % (query, iinput)
+
+        if not pre_prompt_summary:
+            pre_prompt_summary = """In order to write a concise single-paragraph or bulleted list summary, pay attention to the following text"""
+        if not prompt_summary:
+            if query in none and iinput in none:
+                prompt_summary = "Using only the text above, write a condensed and concise summary of key results (preferably as bullet points):\n"
+            elif query not in none:
+                prompt_summary = "Focusing on %s, write a condensed and concise Summary:\n" % query
+            elif iinput not in None:
+                prompt_summary = iinput
+            else:
+                prompt_summary = "Focusing on %s, %s:\n" % (query, iinput)
         # don't auto reduce
         auto_reduce_chunks = False
         if langchain_action == LangChainAction.SUMMARIZE_MAP.value:
             fstring = '{text}'
         else:
             fstring = '{input_documents}'
-        template = """In order to write a concise single-paragraph or bulleted list summary, pay attention to the following text:
+        template = """%s:
 \"\"\"
 %s
-\"\"\"\n%s""" % (fstring, prompt_summary)
+\"\"\"\n%s""" % (pre_prompt_summary, fstring, prompt_summary)
         template_if_no_docs = "Exactly only say: There are no documents to summarize."
     elif langchain_action in [LangChainAction.SUMMARIZE_REFINE]:
         template = ''  # unused
@@ -2289,6 +2425,29 @@ def get_chain(query=None,
         use_template = True
     else:
         use_template = False
+
+    query_action = langchain_action == LangChainAction.QUERY.value
+    summarize_action = langchain_action in [LangChainAction.SUMMARIZE_MAP.value,
+                                            LangChainAction.SUMMARIZE_ALL.value,
+                                            LangChainAction.SUMMARIZE_REFINE.value]
+
+    if hasattr(llm, 'pipeline') and hasattr(llm.pipeline, 'max_input_tokens'):
+        max_input_tokens = llm.pipeline.max_input_tokens
+    elif inference_server in ['openai']:
+        max_tokens = llm.modelname_to_contextsize(model_name)
+        # leave some room for 1 paragraph, even if min_new_tokens=0
+        max_input_tokens = max_tokens - 256
+    elif inference_server in ['openai_chat']:
+        max_tokens = model_token_mapping[model_name]
+        # leave some room for 1 paragraph, even if min_new_tokens=0
+        max_input_tokens = max_tokens - 256
+    elif isinstance(tokenizer, FakeTokenizer):
+        max_input_tokens = tokenizer.model_max_length - 256
+    elif hasattr(tokenizer, 'model_max_length'):
+        max_input_tokens = tokenizer.model_max_length - 256
+    else:
+        # leave some room for 1 paragraph, even if min_new_tokens=0
+        max_input_tokens = 2048 - 256
 
     if db and use_docs_planned:
         base_path = 'locks'
@@ -2305,16 +2464,22 @@ def get_chain(query=None,
         else:
             assert document_choice is not None, "Document choice was None"
             if len(document_choice) >= 1 and document_choice[0] == DocumentChoice.ALL.value:
-                filter_kwargs = {}
+                filter_kwargs = {"chunk_id": {"$ge": 0}} if query_action else {"chunk_id": {"$eq": -1}}
             elif len(document_choice) >= 2:
                 if document_choice[0] == DocumentChoice.ALL.value:
                     # remove 'All'
                     document_choice = document_choice[1:]
-                or_filter = [{"source": {"$eq": x}} for x in document_choice]
+                or_filter = [{"source": {"$eq": x}, "chunk_id": {"$ge": 0}} if query_action else {"source": {"$eq": x},
+                                                                                                  "chunk_id": {
+                                                                                                      "$eq": -1}}
+                             for x in document_choice]
                 filter_kwargs = dict(filter={"$or": or_filter})
             elif len(document_choice) == 1:
                 # degenerate UX bug in chroma
-                one_filter = [{"source": {"$eq": x}} for x in document_choice][0]
+                one_filter = [{"source": {"$eq": x}, "chunk_id": {"$ge": 0}} if query_action else {"source": {"$eq": x},
+                                                                                                   "chunk_id": {
+                                                                                                       "$eq": -1}}
+                              for x in document_choice][0]
                 filter_kwargs = dict(filter=one_filter)
             else:
                 # shouldn't reach
@@ -2324,16 +2489,26 @@ def get_chain(query=None,
             scores = []
         elif document_subset == DocumentSubset.TopKSources.name or query in [None, '', '\n']:
             db_documents, db_metadatas = get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs)
+            if top_k_docs == -1:
+                top_k_docs = len(db_documents)
             # similar to langchain's chroma's _results_to_docs_and_scores
             docs_with_score = [(Document(page_content=result[0], metadata=result[1] or {}), 0)
                                for result in zip(db_documents, db_metadatas)]
 
             # order documents
             doc_hashes = [x.get('doc_hash', 'None') for x in db_metadatas]
-            doc_chunk_ids = [x.get('chunk_id', 0) for x in db_metadatas]
-            docs_with_score = [x for _, _, x in
-                               sorted(zip(doc_hashes, doc_chunk_ids, docs_with_score), key=lambda x: (x[0], x[1]))
-                               ]
+            if query_action:
+                doc_chunk_ids = [x.get('chunk_id', 0) for x in db_metadatas]
+                docs_with_score = [x for hx, cx, x in
+                                   sorted(zip(doc_hashes, doc_chunk_ids, docs_with_score), key=lambda x: (x[0], x[1]))
+                                   if cx >= 0]
+            else:
+                assert summarize_action
+                doc_chunk_ids = [x.get('chunk_id', -1) for x in db_metadatas]
+                docs_with_score = [x for hx, cx, x in
+                                   sorted(zip(doc_hashes, doc_chunk_ids, docs_with_score), key=lambda x: (x[0], x[1]))
+                                   if cx == -1
+                                   ]
 
             docs_with_score = docs_with_score[:top_k_docs]
             docs = [x[0] for x in docs_with_score]
@@ -2365,21 +2540,6 @@ def get_chain(query=None,
                               docs_with_score]
                     template_tokens = db._embedding_function.client.tokenize([template])['input_ids'].shape[1]
                 tokens_cumsum = np.cumsum(tokens)
-                if hasattr(llm, 'pipeline') and hasattr(llm.pipeline, 'max_input_tokens'):
-                    max_input_tokens = llm.pipeline.max_input_tokens
-                elif inference_server in ['openai']:
-                    max_tokens = llm.modelname_to_contextsize(model_name)
-                    # leave some room for 1 paragraph, even if min_new_tokens=0
-                    max_input_tokens = max_tokens - 256
-                elif inference_server in ['openai_chat']:
-                    max_tokens = model_token_mapping[model_name]
-                    # leave some room for 1 paragraph, even if min_new_tokens=0
-                    max_input_tokens = max_tokens - 256
-                elif isinstance(tokenizer, FakeTokenizer):
-                    max_input_tokens = tokenizer.model_max_length - 256
-                else:
-                    # leave some room for 1 paragraph, even if min_new_tokens=0
-                    max_input_tokens = 2048 - 256
                 max_input_tokens -= template_tokens
                 # FIXME: Doesn't account for query, == context, or new lines between contexts
                 where_res = np.where(tokens_cumsum < max_input_tokens)[0]
@@ -2454,7 +2614,7 @@ def get_chain(query=None,
                 input_variables=["context", "question"],
                 template=template,
             )
-            chain = load_qa_chain(llm, prompt=prompt)
+            chain = load_qa_chain(llm, prompt=prompt, verbose=verbose)
         else:
             # only if use_openai_model = True, unused normally except in testing
             chain = load_qa_with_sources_chain(llm)
@@ -2466,20 +2626,40 @@ def get_chain(query=None,
     elif langchain_action in [LangChainAction.SUMMARIZE_MAP.value,
                               LangChainAction.SUMMARIZE_REFINE,
                               LangChainAction.SUMMARIZE_ALL.value]:
+        if async_output:
+            return_intermediate_steps = False
+        else:
+            return_intermediate_steps = True
         from langchain.chains.summarize import load_summarize_chain
         if langchain_action == LangChainAction.SUMMARIZE_MAP.value:
             prompt = PromptTemplate(input_variables=["text"], template=template)
             chain = load_summarize_chain(llm, chain_type="map_reduce",
-                                         map_prompt=prompt, combine_prompt=prompt, return_intermediate_steps=True)
-            target = wrapped_partial(chain, {"input_documents": docs})  # , return_only_outputs=True)
+                                         map_prompt=prompt, combine_prompt=prompt,
+                                         return_intermediate_steps=return_intermediate_steps,
+                                         token_max=max_input_tokens, verbose=verbose)
+            if async_output:
+                chain_func = chain.arun
+            else:
+                chain_func = chain
+            target = wrapped_partial(chain_func, {"input_documents": docs})  # , return_only_outputs=True)
         elif langchain_action == LangChainAction.SUMMARIZE_ALL.value:
             assert use_template
             prompt = PromptTemplate(input_variables=["text"], template=template)
-            chain = load_summarize_chain(llm, chain_type="stuff", prompt=prompt, return_intermediate_steps=True)
-            target = wrapped_partial(chain)
+            chain = load_summarize_chain(llm, chain_type="stuff", prompt=prompt,
+                                         return_intermediate_steps=return_intermediate_steps, verbose=verbose)
+            if async_output:
+                chain_func = chain.arun
+            else:
+                chain_func = chain
+            target = wrapped_partial(chain_func)
         elif langchain_action == LangChainAction.SUMMARIZE_REFINE.value:
-            chain = load_summarize_chain(llm, chain_type="refine", return_intermediate_steps=True)
-            target = wrapped_partial(chain)
+            chain = load_summarize_chain(llm, chain_type="refine",
+                                         return_intermediate_steps=return_intermediate_steps, verbose=verbose)
+            if async_output:
+                chain_func = chain.arun
+            else:
+                chain_func = chain
+            target = wrapped_partial(chain_func)
         else:
             raise RuntimeError("No such langchain_action=%s" % langchain_action)
     else:
@@ -2488,19 +2668,22 @@ def get_chain(query=None,
     return docs, target, scores, use_docs_planned, have_any_docs
 
 
-def get_sources_answer(query, answer, scores, show_rank, answer_with_sources, verbose=False):
+def get_sources_answer(query, docs, answer, scores, show_rank,
+                       answer_with_sources, append_sources_to_answer,
+                       verbose=False,
+                       t_run=None,
+                       count_input_tokens=None, count_output_tokens=None):
     if verbose:
         print("query: %s" % query, flush=True)
-        print("answer: %s" % answer['output_text'], flush=True)
+        print("answer: %s" % answer, flush=True)
 
-    if len(answer['input_documents']) == 0:
+    if len(docs) == 0:
         extra = ''
-        ret = answer['output_text'] + extra
+        ret = answer + extra
         return ret, extra
 
     # link
-    answer_sources = [(max(0.0, 1.5 - score) / 1.5, get_url(doc)) for score, doc in
-                      zip(scores, answer['input_documents'])]
+    answer_sources = [(max(0.0, 1.5 - score) / 1.5, get_url(doc)) for score, doc in zip(scores, docs)]
     answer_sources_dict = defaultdict(list)
     [answer_sources_dict[url].append(score) for score, url in answer_sources]
     answers_dict = {}
@@ -2516,16 +2699,23 @@ def get_sources_answer(query, answer, scores, show_rank, answer_with_sources, ve
     else:
         answer_sources = ['<li>%.2g | %s</li>' % (score, url) for score, url in answer_sources]
         sorted_sources_urls = f"{source_prefix}<p><ul>" + "<p>".join(answer_sources)
+        if int(t_run):
+            sorted_sources_urls += 'Total Time: %d [s]<p>' % t_run
+        if count_input_tokens and count_output_tokens:
+            sorted_sources_urls += 'Input Tokens: %s | Output Tokens: %d<p>' % (count_input_tokens, count_output_tokens)
         sorted_sources_urls += f"</ul></p>{source_postfix}"
 
-    if not answer['output_text'].endswith('\n'):
-        answer['output_text'] += '\n'
+    if not answer.endswith('\n'):
+        answer += '\n'
 
     if answer_with_sources:
         extra = '\n' + sorted_sources_urls
     else:
         extra = ''
-    ret = answer['output_text'] + extra
+    if append_sources_to_answer:
+        ret = answer + extra
+    else:
+        ret = answer
     return ret, extra
 
 
@@ -2537,13 +2727,24 @@ def clean_doc(docs1):
     return docs1
 
 
-def chunk_sources(sources, chunk=True, chunk_size=512, language=None):
-    if not chunk:
-        [x.metadata.update(dict(chunk_id=chunk_id)) for chunk_id, x in enumerate(sources)]
-        return sources
+def clone_documents(documents: Iterable[Document]) -> List[Document]:
+    # first clone documents
+    new_docs = []
+    for doc in documents:
+        new_doc = Document(page_content=doc.page_content, metadata=copy.deepcopy(doc.metadata))
+        new_docs.append(new_doc)
+    return new_docs
+
+
+def _chunk_sources(sources, chunk=True, chunk_size=512, language=None, db_type=None):
+    assert db_type is not None
+
     if not isinstance(sources, (list, tuple, types.GeneratorType)) and not callable(sources):
         # if just one document
         sources = [sources]
+    if not chunk:
+        [x.metadata.update(dict(chunk_id=0)) for chunk_id, x in enumerate(sources)]
+        return sources
     if language and False:
         # Bug in langchain, keep separator=True not working
         # https://github.com/hwchase17/langchain/issues/2836
@@ -2560,7 +2761,17 @@ def chunk_sources(sources, chunk=True, chunk_size=512, language=None):
     # currently in order, but when pull from db won't be, so mark order and document by hash
     [x.metadata.update(dict(chunk_id=chunk_id)) for chunk_id, x in enumerate(source_chunks)]
 
-    return source_chunks
+    if db_type == 'chroma':
+        # also keep original source for summarization and other tasks
+
+        # assign chunk_id=-1 for original content
+        # this assumes, as is currently true, that splitter makes new documents and list and metadata is deepcopy
+        [x.metadata.update(dict(chunk_id=-1)) for chunk_id, x in enumerate(sources)]
+
+        # in some cases sources is generator, so convert to list
+        return list(sources) + source_chunks
+    else:
+        return source_chunks
 
 
 def get_db_from_hf(dest=".", db_dir='db_dir_DriverlessAI_docs.zip'):

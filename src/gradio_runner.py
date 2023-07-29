@@ -129,6 +129,8 @@ def go_gradio(**kwargs):
     # easy update of kwargs needed for evaluate() etc.
     queue = True
     allow_upload = allow_upload_to_user_data or allow_upload_to_my_data
+    allow_upload_api = allow_api and allow_upload
+
     kwargs.update(locals())
 
     # import control
@@ -691,6 +693,12 @@ def go_gradio(**kwargs):
                                                    visible=kwargs['langchain_mode'] != 'Disabled',
                                                    interactive=not is_public,
                                                    precision=0)
+                            pre_prompt_summary = gr.Textbox(label="Summary Pre-Prompt",
+                                                            info="Empty means use internal defaults",
+                                                            value='')
+                            prompt_summary = gr.Textbox(label="Summary Prompt before text",
+                                                        info="Empty means use internal defaults",
+                                                        value='')
 
                 with gr.TabItem("Models"):
                     model_lock_msg = gr.Textbox(lines=1, label="Model Lock Notice",
@@ -891,7 +899,7 @@ def go_gradio(**kwargs):
                                        langchain_mode],
                                outputs=add_file_outputs + [sources_text, doc_exception_text],
                                queue=queue,
-                               api_name='add_file' if allow_api and allow_upload_to_user_data else None)
+                               api_name='add_file' if allow_upload_api else None)
 
         # then no need for add buttons, only single changeable db
         eventdb1a = fileup_output.upload(make_non_interactive, inputs=add_file_outputs, outputs=add_file_outputs,
@@ -906,7 +914,7 @@ def go_gradio(**kwargs):
                                         langchain_mode],
                                 outputs=add_file_outputs + [sources_text, doc_exception_text],
                                 queue=queue,
-                                api_name='add_file_api' if allow_api and allow_upload_to_user_data else None)
+                                api_name='add_file_api' if allow_upload_api else None)
         eventdb1_api = fileup_output_text.submit(**add_file_kwargs2, show_progress='full')
 
         # note for update_user_db_func output is ignored for db
@@ -922,7 +930,7 @@ def go_gradio(**kwargs):
                                       langchain_mode],
                               outputs=add_url_outputs + [sources_text, doc_exception_text],
                               queue=queue,
-                              api_name='add_url' if allow_api and allow_upload_to_user_data else None)
+                              api_name='add_url' if allow_upload_api else None)
 
         eventdb2a = url_text.submit(fn=dummy_fun, inputs=url_text, outputs=url_text, queue=queue,
                                     show_progress='minimal')
@@ -940,7 +948,7 @@ def go_gradio(**kwargs):
                                        langchain_mode],
                                outputs=add_text_outputs + [sources_text, doc_exception_text],
                                queue=queue,
-                               api_name='add_text' if allow_api and allow_upload_to_user_data else None
+                               api_name='add_text' if allow_upload_api else None
                                )
         eventdb3a = user_text_text.submit(fn=dummy_fun, inputs=user_text_text, outputs=user_text_text, queue=queue,
                                           show_progress='minimal')
@@ -1304,18 +1312,21 @@ def go_gradio(**kwargs):
                 clear_torch_cache()
                 clear_embeddings(user_kwargs['langchain_mode'], my_db_state1)
 
+        kwargs_evaluate_nochat = kwargs_evaluate.copy()
+        # nominally never want sources appended for API calls, which is what nochat used for primarily
+        kwargs_evaluate_nochat.update(dict(append_sources_to_answer=False))
         fun = partial(evaluate_nochat,
                       default_kwargs1=default_kwargs,
                       str_api=False,
-                      **kwargs_evaluate)
+                      **kwargs_evaluate_nochat)
         fun2 = partial(evaluate_nochat,
                        default_kwargs1=default_kwargs,
                        str_api=False,
-                       **kwargs_evaluate)
+                       **kwargs_evaluate_nochat)
         fun_with_dict_str = partial(evaluate_nochat,
                                     default_kwargs1=default_kwargs,
                                     str_api=True,
-                                    **kwargs_evaluate
+                                    **kwargs_evaluate_nochat
                                     )
 
         dark_mode_btn.click(
@@ -1326,6 +1337,23 @@ def go_gradio(**kwargs):
             api_name="dark" if allow_api else None,
             queue=False,
         )
+
+        # Handle uploads from API
+        upload_api_btn = gr.UploadButton("Upload File Results", visible=False)
+        file_upload_api = gr.File(visible=False)
+        file_upload_text = gr.Textbox(visible=False)
+
+        def upload_file(files):
+            if isinstance(files, list):
+                file_paths = [file.name for file in files]
+            else:
+                file_paths = files.name
+            return file_paths, file_paths
+
+        upload_api_btn.upload(fn=upload_file,
+                              inputs=upload_api_btn,
+                              outputs=[file_upload_api, file_upload_text],
+                              api_name='upload_api' if allow_upload_api else None)
 
         def visible_toggle(x):
             x = 'off' if x == 'on' else 'on'
@@ -2713,6 +2741,7 @@ def _update_user_db(file,
                            enable_ocr=enable_ocr,
                            enable_pdf_ocr=enable_pdf_ocr,
                            caption_loader=caption_loader,
+                           db_type=db_type,
                            )
     exceptions = [x for x in sources if x.metadata.get('exception')]
     exceptions_strs = [x.metadata['exception'] for x in exceptions]

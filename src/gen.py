@@ -32,7 +32,7 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mappin
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, remove, \
-    have_langchain, set_openai, load_collection_enum, cuda_vis_check
+    have_langchain, set_openai, load_collection_enum, cuda_vis_check, H2O_Fire
 
 start_faulthandler()
 import_matplotlib()
@@ -42,7 +42,6 @@ set_seed(SEED)
 
 from typing import Union
 
-import fire
 import torch
 from transformers import GenerationConfig, AutoModel, TextIteratorStreamer
 
@@ -115,6 +114,8 @@ def main(
         chat: bool = True,
         chat_context: bool = False,
         stream_output: bool = True,
+        async_output: bool = True,
+        num_async: int = 3,
         show_examples: bool = None,
         verbose: bool = False,
         h2ocolors: bool = True,
@@ -170,6 +171,10 @@ def main(
         use_openai_model: bool = False,
         hf_embedding_model: str = None,
         cut_distance: float = 1.64,
+        answer_with_sources: bool = True,
+        append_sources_to_answer: bool = True,
+        pre_prompt_summary: str = '',
+        prompt_summary: str = '',
         add_chat_history_to_context: bool = True,
         allow_upload_to_user_data: bool = True,
         reload_langchain_state: bool = True,
@@ -255,6 +260,7 @@ def main(
     :param rope_scaling:
            For HF transformers model: scaling for rope-based models, e.g. --rope_scaling="{'type':'dynamic', 'factor':4}"
            For exllama model: --rope_scaling="{'alpha_value':4}" .  This automatically scales max_seq_len for exllama
+    :param max_seq_len: Manually set maximum sequence length for the LLM
     :param offload_folder: path for spilling model onto disk
     :param src_lang: source languages to include if doing translation (None = all)
     :param tgt_lang: target languages to include if doing translation (None = all)
@@ -275,6 +281,12 @@ def main(
     :param chat: whether to enable chat mode with chat history
     :param chat_context: whether to use extra helpful context if human_bot
     :param stream_output: whether to stream output
+    :param async_output: Whether to do asyncio handling
+           For summarization
+           Applicable to HF TGI server
+           Only if stream_output=False in CLI, UI, or API
+    :param num_async: Number of simultaneously allowed asyncio calls to make for async_output
+           Too many will overload inference server, too few will be too slow
     :param show_examples: whether to show clickable examples in gradio
     :param verbose: whether to show verbose prints
     :param h2ocolors: whether to use H2O.ai theme
@@ -357,10 +369,15 @@ def main(
     :param cut_distance: Distance to cut off references with larger distances when showing references.
            1.64 is good to avoid dropping references for all-MiniLM-L6-v2, but instructor-large will always show excessive references.
            For all-MiniLM-L6-v2, a value of 1.5 can push out even more references, or a large value of 100 can avoid any loss of references.
+    :param answer_with_sources: Whether to determine (and return) sources
+    :param append_sources_to_answer: Whether to place source information in chat response (ignored by LLM).  Always disabled for API.
+    :param pre_prompt_summary: prompt before documents to summarize, if empty string then use internal defaults
+    :param prompt_summary: prompt after documents to summarize, if empty string then use internal defaults
     :param add_chat_history_to_context: Include chat context when performing action
            Not supported yet for openai_chat when using document collection instead of LLM
            Also not supported when using CLI mode
     :param allow_upload_to_user_data: Whether to allow file uploads to update shared vector db (UserData or custom user dbs)
+           Ensure pass user_path for the files uploaded to be moved to this location for linking.
     :param reload_langchain_state: Whether to reload visible_langchain_modes.pkl file that contains any new user collections.
     :param allow_upload_to_my_data: Whether to allow file uploads to update scratch vector db
     :param enable_url_upload: Whether to allow upload from URL
@@ -566,37 +583,43 @@ def main(
 
     n_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 0
     n_gpus, gpu_ids = cuda_vis_check(n_gpus)
-    if n_gpus == 0:
-        print("No GPUs detected", flush=True)
-        enable_captions = False
-        gpu_id = None
-        load_8bit = False
-        load_4bit = False
-        load_half = False
-        load_gptq = ''
-        load_exllama = False
-        use_safetensors = False
-        revision = None
-        use_gpu_id = False
-        torch.backends.cudnn.benchmark = True
-        torch.backends.cudnn.enabled = False
-        torch.set_default_dtype(torch.float32)
-        if psutil.virtual_memory().available < 94 * 1024 ** 3 and not inference_server and not model_lock:
-            # 12B uses ~94GB
-            # 6.9B uses ~47GB
-            base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b' if not base_model else base_model
-        if hf_embedding_model is None:
-            # if no GPUs, use simpler embedding model to avoid cost in time
-            hf_embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
-        if score_model == 'auto':
-            score_model = ''
-    else:
-        if score_model == 'auto':
-            if n_gpus >= 2:
-                # will by default place scoring model on last GPU
-                score_model = 'OpenAssistant/reward-model-deberta-v3-large-v2'
-            else:
+
+    if get_device() == "cuda":
+        if n_gpus == 0:
+            print("No GPUs detected", flush=True)
+            enable_captions = False
+            gpu_id = None
+            load_8bit = False
+            load_4bit = False
+            load_half = False
+            load_gptq = ''
+            load_exllama = False
+            use_safetensors = False
+            revision = None
+            use_gpu_id = False
+            torch.backends.cudnn.benchmark = True
+            torch.backends.cudnn.enabled = False
+            torch.set_default_dtype(torch.float32)
+            if psutil.virtual_memory().available < 94 * 1024 ** 3 and not inference_server and not model_lock:
+                # 12B uses ~94GB
+                # 6.9B uses ~47GB
+                base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b' if not base_model else base_model
+            if hf_embedding_model is None:
+                # if no GPUs, use simpler embedding model to avoid cost in time
+                hf_embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
+            if score_model == 'auto':
                 score_model = ''
+        else:
+            if score_model == 'auto':
+                if n_gpus >= 2:
+                    # will by default place scoring model on last GPU
+                    score_model = 'OpenAssistant/reward-model-deberta-v3-large-v2'
+                else:
+                    score_model = ''
+            if hf_embedding_model is None:
+                # if still None, then set default
+                hf_embedding_model = 'hkunlp/instructor-large'
+    elif get_device() == "mps":
         if hf_embedding_model is None:
             # if still None, then set default
             hf_embedding_model = 'hkunlp/instructor-large'
@@ -1481,7 +1504,11 @@ def evaluate(
         chunk_size,
         document_subset,
         document_choice,
+        pre_prompt_summary,
+        prompt_summary,
         # END NOTE: Examples must have same order of parameters
+        async_output=None,
+        num_async=None,
         src_lang=None,
         tgt_lang=None,
         debug=False,
@@ -1521,6 +1548,8 @@ def evaluate(
         force_langchain_evaluate=None,
         model_state_none=None,
         load_exllama=None,
+        answer_with_sources=None,
+        append_sources_to_answer=None,
 ):
     # ensure passed these
     assert concurrency_count is not None
@@ -1699,51 +1728,60 @@ def evaluate(
                                    num_return_sequences=num_return_sequences,
                                    )
         t_generate = time.time()
-        for r in run_qa_db(query=instruction,
-                           iinput=iinput,
-                           context=context,
-                           model_name=base_model, model=model, tokenizer=tokenizer,
-                           inference_server=inference_server,
-                           langchain_only_model=langchain_only_model,
-                           stream_output=stream_output,
-                           prompter=prompter,
-                           use_llm_if_no_docs=use_llm_if_no_docs,
-                           load_db_if_exists=load_db_if_exists,
-                           db=db,
-                           langchain_mode_paths=langchain_mode_paths,
-                           detect_user_path_changes_every_query=detect_user_path_changes_every_query,
-                           cut_distance=1.1 if langchain_mode in ['wiki_full'] else cut_distance,
-                           add_chat_history_to_context=add_chat_history_to_context,
-                           use_openai_embedding=use_openai_embedding,
-                           use_openai_model=use_openai_model,
-                           hf_embedding_model=hf_embedding_model,
-                           first_para=first_para,
-                           text_limit=text_limit,
-                           chunk=chunk,
-                           chunk_size=chunk_size,
-                           langchain_mode=langchain_mode,
-                           langchain_action=langchain_action,
-                           langchain_agents=langchain_agents,
-                           document_subset=document_subset,
-                           document_choice=document_choice,
-                           db_type=db_type,
-                           top_k_docs=top_k_docs,
+        for r in run_qa_db(
+                inference_server=inference_server,
+                model_name=base_model, model=model, tokenizer=tokenizer,
+                langchain_only_model=langchain_only_model,
+                async_output=async_output,
+                num_async=num_async,
+                prompter=prompter,
+                use_llm_if_no_docs=use_llm_if_no_docs,
+                load_db_if_exists=load_db_if_exists,
+                db=db,
+                langchain_mode_paths=langchain_mode_paths,
+                detect_user_path_changes_every_query=detect_user_path_changes_every_query,
+                cut_distance=1.1 if langchain_mode in ['wiki_full'] else cut_distance,
+                answer_with_sources=answer_with_sources,
+                append_sources_to_answer=append_sources_to_answer,
+                add_chat_history_to_context=add_chat_history_to_context,
+                use_openai_embedding=use_openai_embedding,
+                use_openai_model=use_openai_model,
+                hf_embedding_model=hf_embedding_model,
+                first_para=first_para,
+                text_limit=text_limit,
 
-                           **gen_hyper_langchain,
+                # evaluate args items
+                query=instruction,
+                iinput=iinput,
+                context=context,
+                stream_output=stream_output,
+                chunk=chunk,
+                chunk_size=chunk_size,
+                langchain_mode=langchain_mode,
+                langchain_action=langchain_action,
+                langchain_agents=langchain_agents,
+                document_subset=document_subset,
+                document_choice=document_choice,
+                top_k_docs=top_k_docs,
+                prompt_type=prompt_type,
+                prompt_dict=prompt_dict,
+                pre_prompt_summary=pre_prompt_summary,
+                prompt_summary=prompt_summary,
 
-                           prompt_type=prompt_type,
-                           prompt_dict=prompt_dict,
-                           n_jobs=n_jobs,
-                           verbose=verbose,
-                           cli=cli,
-                           sanitize_bot_response=sanitize_bot_response,
-                           reverse_docs=reverse_docs,
+                **gen_hyper_langchain,
 
-                           lora_weights=lora_weights,
+                db_type=db_type,
+                n_jobs=n_jobs,
+                verbose=verbose,
+                cli=cli,
+                sanitize_bot_response=sanitize_bot_response,
+                reverse_docs=reverse_docs,
 
-                           auto_reduce_chunks=auto_reduce_chunks,
-                           max_chunks=max_chunks,
-                           ):
+                lora_weights=lora_weights,
+
+                auto_reduce_chunks=auto_reduce_chunks,
+                max_chunks=max_chunks,
+        ):
             outr, extra = r  # doesn't accumulate, new answer every yield, so only save that full answer
             yield dict(response=outr, sources=extra)
         if save_dir:
@@ -2470,9 +2508,8 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         else:
             placeholder_instruction = "Give detailed answer for whether Einstein or Newton is smarter."
         placeholder_input = ""
-        if model_lower in inv_prompt_type_to_model_lower:
-            if prompt_type != 'custom':
-                prompt_type = inv_prompt_type_to_model_lower[model_lower]
+        if not prompt_type and model_lower in inv_prompt_type_to_model_lower and prompt_type != 'custom':
+            prompt_type = inv_prompt_type_to_model_lower[model_lower]
         elif model_lower:
             # default is plain, because might rely upon trust_remote_code to handle prompting
             prompt_type = prompt_type or 'plain'
@@ -2566,7 +2603,7 @@ y = np.random.randint(0, 1, 100)
     # move to correct position
     for example in examples:
         example += [chat, '', '', LangChainMode.DISABLED.value, True, LangChainAction.QUERY.value, [],
-                    top_k_docs, chunk, chunk_size, DocumentSubset.Relevant.name, []
+                    top_k_docs, chunk, chunk_size, DocumentSubset.Relevant.name, [], '', '',
                     ]
         # adjust examples if non-chat mode
         if not chat:
@@ -2822,7 +2859,7 @@ def entrypoint_main():
 
     python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b
     """
-    fire.Fire(main)
+    H2O_Fire(main)
 
 
 if __name__ == "__main__":

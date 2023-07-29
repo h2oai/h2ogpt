@@ -2,7 +2,6 @@ import os
 import sys
 from functools import partial
 from typing import List, Union
-import fire
 import numpy as np
 
 if os.path.dirname(os.path.abspath(__file__)) not in sys.path:
@@ -13,7 +12,7 @@ if os.path.dirname('src') not in sys.path:
 
 from src.loaders import get_loaders, get_tokenizer
 from src.prompter import generate_prompt, prompt_types, PromptType
-from src.utils import get_githash, copy_code
+from src.utils import get_githash, copy_code, H2O_Fire
 import torch
 
 
@@ -640,7 +639,7 @@ def generate_and_tokenize_prompt(data_point, prompt_type=None, train_on_inputs=F
 
 
 def test_debug():
-    fire.Fire(train)
+    H2O_Fire(train)
 
 
 def entrypoint_main():
@@ -673,7 +672,7 @@ NCCL_P2P_LEVEL=LOC WORLD_SIZE=7 CUDA_VISIBLE_DEVICES="0,1" torchrun --node_rank 
         assert os.environ.get(
             "CUDA_VISIBLE_DEVICES") is not None, "Run python script using: torchrun finetune.py OR set CUDA_VISIBLE_DEVICES to single GPU"
 
-    fire.Fire(train)
+    H2O_Fire(train)
 
 
 if __name__ == "__main__":

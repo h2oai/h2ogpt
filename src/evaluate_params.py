@@ -41,6 +41,8 @@ eval_func_param_names = ['instruction',
                          'chunk_size',
                          'document_subset',
                          'document_choice',
+                         'pre_prompt_summary',
+                         'prompt_summary',
                          ]
 
 # form evaluate defaults for submit_nochat_api

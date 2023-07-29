@@ -172,6 +172,12 @@ SAVE_DIR=./save/ python generate.py --inference_server="http://192.168.1.46:6112
 ```
 One can pass, e.g., `--max_max_new_tokens=2048 --max_new_tokens=512` to generate.py to control tokens, along with `--max-batch-prefill-tokens=2048 --max-input-length 2048 --max-total-tokens 4096 --max-stop-sequences 6 --trust-remote-code` for TGI server to match.
 
+For efficient parallel summarization with 13B LLaMa2 on single A100:
+```bash
+python --inference_server=http://192.168.1.46:6112 --base_model=meta-llama/Llama-2-13b-chat-hf --score_model=None --save_dir=save_gpt13 --max_max_new_tokens=2048 --max_new_tokens=1024 --langchain_mode=LLM --visible_langchain_modes="['LLM', 'UserData', 'MyData']" --captions_model=Salesforce/blip2-flan-t5-xl --num_async=10 --top_k_docs=-1
+```
+which achieves about 80 output tokens/second, using 10 simultaneous streams and all document pages/parts.  In about 2 minutes, it can handle summarization of a complete 30 page ArXiV paper using LangChain map-reduce with asyncio bugs fixed: https://github.com/langchain-ai/langchain/issues/8391 .  In UI or API calls, one should disable streaming since the threading used by streaming does not mix well with asyncio. 
+
 ## Gradio Inference Server-Client
 
 You can use your own server for some model supported by the server's system specs, e.g.:
@@ -371,6 +377,13 @@ Note: The client API calls for chat APIs (i.e. `instruction` type for `instructi
 
 ![Models Lock](models_lock.png)
 
+To run a gradio server and talk to it and OpenAI from another generate gradio UI, do:
+```bash
+GRADIO_SERVER_PORT=5000 python generate.py --base_model=h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-13b &
+sleep 60
+python generate.py --model_lock="[{'inference_server':'http://192.168.1.xx:5000','base_model':'h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-13b'},{'inference_server':'openai_chat','base_model':'gpt-3.5-turbo'}]" --model_lock_columns=2
+```
+where be sure to replace `192.168.1.xx` with your IP address.  Note the ampersand so the first call is in background.  The sleep gives time for the first one to come up.  The above is as if ran on single system, but you can run on any other system separate generates of any number.
 
 ### System info from gradio server
 

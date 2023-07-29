@@ -60,7 +60,7 @@ For newer builds of windows versions of 10/11.
        pip install https://github.com/jllllll/bitsandbytes-windows-webui/releases/download/wheels/bitsandbytes-0.40.1.post1-py3-none-win_amd64.whl
        ```
 * Install document question-answer dependencies:
-    ```bash
+   ```bash
     # Required for Doc Q/A: LangChain:
     pip install -r reqs_optional/requirements_optional_langchain.txt
     # Required for CPU: LLaMa/GPT4All:
@@ -72,27 +72,33 @@ For newer builds of windows versions of 10/11.
     # Optional: for supporting unstructured package
     python -m nltk.downloader all
    ```
-* GPU Only: For optional AutoGPTQ support:
+* GPU Optional: For optional AutoGPTQ support:
    ```bash
     pip uninstall -y auto-gptq
     pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.3.0/auto_gptq-0.3.0+cu118-cp310-cp310-win_amd64.whl
-* GPU Only: For optional exllama support:
-   ```bash
+   ```
+* GPU Optional: For optional exllama support:
+    ```bash
     pip uninstall -y exllama
     pip install https://github.com/jllllll/exllama/releases/download/0.0.8/exllama-0.0.8+cu118-cp310-cp310-win_amd64.whl --no-cache-dir
     ```
-* GPU Only: For optional llama-cpp-python CUDA support:
-  ```bash
-  pip uninstall -y llama-cpp-python
-  set LLAMA_CUBLAS=1
-  set CMAKE_ARGS=-DLLAMA_CUBLAS=on
-  set FORCE_CMAKE=1
-  pip install llama-cpp-python==0.1.68 --no-cache-dir --verbose
-  ```
-   and uncomment `# n_gpu_layers=20` in `.env_gpt4all`.  One can try also `40` instead of `20`.
-   If one sees `/usr/bin/nvcc` mentioned in errors, that file needs to be removed as would likely conflict with version installed for conda.
-   Note that once `llama-cpp-python` is compiled to support CUDA, it no longer works for CPU mode,
-   so one would have to reinstall it without the above options to recovers CPU mode or have a separate h2oGPT env for CPU mode.
+* GPU Optional: Support LLaMa.cpp with CUDA via llama-cpp-python:
+  * Download/Install [CUDA llama-cpp-python wheel](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels), e.g. [Download Python 3.10 CUDA 1.7 wheel](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.1.73+cu117-cp310-cp310-win_amd64.whl), then run:
+    ```bash
+      pip uninstall -y llama-cpp-python
+      pip install llama_cpp_python_cuda-0.1.73+cu117-cp310-cp310-win_amd64.whl
+    ```
+  * If any issues, then must compile llama-cpp-python with CUDA support:
+    ```bash
+    pip uninstall -y llama-cpp-python
+    set LLAMA_CUBLAS=1
+    set CMAKE_ARGS=-DLLAMA_CUBLAS=on
+    set FORCE_CMAKE=1
+    pip install llama-cpp-python==0.1.68 --no-cache-dir --verbose
+    ```
+  * Uncomment `# n_gpu_layers=20` in `.env_gpt4all`.  One can try also `40` instead of `20`.
+  * If one sees `/usr/bin/nvcc` mentioned in errors, that file needs to be removed as would likely conflict with version installed for conda.
+  * Note that once `llama-cpp-python` is compiled to support CUDA, it no longer works for CPU mode, so one would have to reinstall it without the above options to recovers CPU mode or have a separate h2oGPT env for CPU mode.
 * For supporting Word and Excel documents, if you don't have Word/Excel already, then download and install libreoffice: https://www.libreoffice.org/download/download-libreoffice/ .
 * To support OCR, download and install [tesseract](https://github.com/UB-Mannheim/tesseract/wiki), see also: [Tesseract Documentation](https://tesseract-ocr.github.io/tessdoc/Installation.html).  Please add the installation directories to your PATH.
 
