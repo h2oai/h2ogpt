@@ -1418,27 +1418,27 @@ def test_add_open_assistant(fixup_personality, only_personality, deberta_grading
         if only_personality:
             if prompt_type == "human_bot":
                 all_rows.extend(
-                    [dict(input=c['text'] + "\n<human>:", prompt_type='plain', source=data_file) for c in conversations if
+                    [dict(input=c['text'] + "\n<human>:", output="", prompt_type='plain', source=data_file) for c in conversations if
                      'h2oGPT' in c['text']])
             elif prompt_type == "llama2":
                 all_rows.extend(
                     [dict(input=c['text'] +
                                 ("" if c['text'].rfind("[/INST]") > c['text'].rfind("[INST]") else " [/INST]"),
-                          prompt_type='plain', source=data_file) for c in conversations if
+                          output="", prompt_type='plain', source=data_file) for c in conversations if
                      'h2oGPT' in c['text']])
             else:
                 raise NotImplementedError
         else:
             if prompt_type == "human_bot":
                 all_rows.extend(
-                    [dict(input=c['text'] + "\n<human>:", prompt_type='plain', source=data_file) for c in conversations
+                    [dict(input=c['text'] + "\n<human>:", output="", prompt_type='plain', source=data_file) for c in conversations
                      if
                      "What is H2O.ai" not in c['text']])
             elif prompt_type == "llama2":
                 all_rows.extend(
                     [dict(input=c['text'] +
                                 (" " if c['text'].rfind("[/INST]") > c['text'].rfind("[INST]") else " [/INST]"),
-                          prompt_type='plain', source=data_file) for c in conversations if
+                          output="", prompt_type='plain', source=data_file) for c in conversations if
                      "What is H2O.ai" not in c['text']])
             else:
                 raise NotImplementedError
@@ -1471,6 +1471,7 @@ def test_add_open_assistant(fixup_personality, only_personality, deberta_grading
             all_rows.append(
                 dict(
                     input=df['input'].iloc[i],
+                    output=df['output'].iloc[i],
                     source=df['source'].iloc[i],
                     prompt_type=df['prompt_type'].iloc[i],
                     grade_deberta=df['grade_deberta'].iloc[i],
