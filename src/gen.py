@@ -171,6 +171,8 @@ def main(
         use_openai_model: bool = False,
         hf_embedding_model: str = None,
         cut_distance: float = 1.64,
+        answer_with_sources: bool = True,
+        append_sources_to_answer: bool = True,
         add_chat_history_to_context: bool = True,
         allow_upload_to_user_data: bool = True,
         reload_langchain_state: bool = True,
@@ -365,6 +367,8 @@ def main(
     :param cut_distance: Distance to cut off references with larger distances when showing references.
            1.64 is good to avoid dropping references for all-MiniLM-L6-v2, but instructor-large will always show excessive references.
            For all-MiniLM-L6-v2, a value of 1.5 can push out even more references, or a large value of 100 can avoid any loss of references.
+    :param answer_with_sources: Whether to determine (and return) sources
+    :param append_sources_to_answer: Whether to place source information in chat response (ignored by LLM).  Always disabled for API.
     :param add_chat_history_to_context: Include chat context when performing action
            Not supported yet for openai_chat when using document collection instead of LLM
            Also not supported when using CLI mode
@@ -1538,6 +1542,8 @@ def evaluate(
         force_langchain_evaluate=None,
         model_state_none=None,
         load_exllama=None,
+        answer_with_sources=None,
+        append_sources_to_answer=None,
 ):
     # ensure passed these
     assert concurrency_count is not None
@@ -1732,6 +1738,8 @@ def evaluate(
                            langchain_mode_paths=langchain_mode_paths,
                            detect_user_path_changes_every_query=detect_user_path_changes_every_query,
                            cut_distance=1.1 if langchain_mode in ['wiki_full'] else cut_distance,
+                           answer_with_sources=answer_with_sources,
+                           append_sources_to_answer=append_sources_to_answer,
                            add_chat_history_to_context=add_chat_history_to_context,
                            use_openai_embedding=use_openai_embedding,
                            use_openai_model=use_openai_model,

@@ -1306,18 +1306,21 @@ def go_gradio(**kwargs):
                 clear_torch_cache()
                 clear_embeddings(user_kwargs['langchain_mode'], my_db_state1)
 
+        kwargs_evaluate_nochat = kwargs_evaluate.copy()
+        # nominally never want sources appended for API calls, which is what nochat used for primarily
+        kwargs_evaluate_nochat.update(dict(append_sources_to_answer=False))
         fun = partial(evaluate_nochat,
                       default_kwargs1=default_kwargs,
                       str_api=False,
-                      **kwargs_evaluate)
+                      **kwargs_evaluate_nochat)
         fun2 = partial(evaluate_nochat,
                        default_kwargs1=default_kwargs,
                        str_api=False,
-                       **kwargs_evaluate)
+                       **kwargs_evaluate_nochat)
         fun_with_dict_str = partial(evaluate_nochat,
                                     default_kwargs1=default_kwargs,
                                     str_api=True,
-                                    **kwargs_evaluate
+                                    **kwargs_evaluate_nochat
                                     )
 
         dark_mode_btn.click(
