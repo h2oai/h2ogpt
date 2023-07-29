@@ -817,9 +817,10 @@ def test_client_chat_stream_langchain_steps3():
     # FIXME: Add load_model, unload_model, etc.
 
 
+@pytest.mark.parametrize("prompt_summary", ['', 'Summarize into single paragraph'])
 @pytest.mark.need_tokens
 @wrap_test_forked
-def test_client_summarization():
+def test_client_summarization(prompt_summary):
     # launch server
     local_server = True
     if local_server:
@@ -871,7 +872,9 @@ def test_client_summarization():
                   document_choice='All',
                   max_new_tokens=256,
                   max_time=300,
-                  do_sample=False)
+                  do_sample=False,
+                  prompt_summary=prompt_summary,
+                  )
     res = client.predict(
         str(dict(kwargs)),
         api_name=api_name,
@@ -879,9 +882,12 @@ def test_client_summarization():
     res = ast.literal_eval(res)
     summary = res['response']
     sources = res['sources']
-    assert 'Whisper' in summary or \
-           'robust speech recognition system' in summary or \
-           'Robust speech recognition' in summary
+    if prompt_summary == '':
+        assert 'Whisper' in summary or \
+               'robust speech recognition system' in summary or \
+               'Robust speech recognition' in summary
+    else:
+        assert 'various techniques and approaches in speech recognition' in summary
     assert 'my_test_pdf.pdf' in sources
 
 

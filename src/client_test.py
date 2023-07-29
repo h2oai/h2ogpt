@@ -104,6 +104,8 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
                          chunk_size=512,
                          document_subset=DocumentSubset.Relevant.name,
                          document_choice=[],
+                         pre_prompt_summary='',
+                         prompt_summary='',
                          )
     from evaluate_params import eval_func_param_names
     assert len(set(eval_func_param_names).difference(set(list(kwargs.keys())))) == 0

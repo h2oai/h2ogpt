@@ -173,6 +173,8 @@ def main(
         cut_distance: float = 1.64,
         answer_with_sources: bool = True,
         append_sources_to_answer: bool = True,
+        pre_prompt_summary: str = '',
+        prompt_summary: str = '',
         add_chat_history_to_context: bool = True,
         allow_upload_to_user_data: bool = True,
         reload_langchain_state: bool = True,
@@ -369,6 +371,8 @@ def main(
            For all-MiniLM-L6-v2, a value of 1.5 can push out even more references, or a large value of 100 can avoid any loss of references.
     :param answer_with_sources: Whether to determine (and return) sources
     :param append_sources_to_answer: Whether to place source information in chat response (ignored by LLM).  Always disabled for API.
+    :param pre_prompt_summary: prompt before documents to summarize, if empty string then use internal defaults
+    :param prompt_summary: prompt after documents to summarize, if empty string then use internal defaults
     :param add_chat_history_to_context: Include chat context when performing action
            Not supported yet for openai_chat when using document collection instead of LLM
            Also not supported when using CLI mode
@@ -1500,6 +1504,8 @@ def evaluate(
         chunk_size,
         document_subset,
         document_choice,
+        pre_prompt_summary,
+        prompt_summary,
         # END NOTE: Examples must have same order of parameters
         async_output=None,
         num_async=None,
@@ -1722,55 +1728,60 @@ def evaluate(
                                    num_return_sequences=num_return_sequences,
                                    )
         t_generate = time.time()
-        for r in run_qa_db(query=instruction,
-                           iinput=iinput,
-                           context=context,
-                           model_name=base_model, model=model, tokenizer=tokenizer,
-                           inference_server=inference_server,
-                           langchain_only_model=langchain_only_model,
-                           stream_output=stream_output,
-                           async_output=async_output,
-                           num_async=num_async,
-                           prompter=prompter,
-                           use_llm_if_no_docs=use_llm_if_no_docs,
-                           load_db_if_exists=load_db_if_exists,
-                           db=db,
-                           langchain_mode_paths=langchain_mode_paths,
-                           detect_user_path_changes_every_query=detect_user_path_changes_every_query,
-                           cut_distance=1.1 if langchain_mode in ['wiki_full'] else cut_distance,
-                           answer_with_sources=answer_with_sources,
-                           append_sources_to_answer=append_sources_to_answer,
-                           add_chat_history_to_context=add_chat_history_to_context,
-                           use_openai_embedding=use_openai_embedding,
-                           use_openai_model=use_openai_model,
-                           hf_embedding_model=hf_embedding_model,
-                           first_para=first_para,
-                           text_limit=text_limit,
-                           chunk=chunk,
-                           chunk_size=chunk_size,
-                           langchain_mode=langchain_mode,
-                           langchain_action=langchain_action,
-                           langchain_agents=langchain_agents,
-                           document_subset=document_subset,
-                           document_choice=document_choice,
-                           db_type=db_type,
-                           top_k_docs=top_k_docs,
+        for r in run_qa_db(
+                inference_server=inference_server,
+                model_name=base_model, model=model, tokenizer=tokenizer,
+                langchain_only_model=langchain_only_model,
+                async_output=async_output,
+                num_async=num_async,
+                prompter=prompter,
+                use_llm_if_no_docs=use_llm_if_no_docs,
+                load_db_if_exists=load_db_if_exists,
+                db=db,
+                langchain_mode_paths=langchain_mode_paths,
+                detect_user_path_changes_every_query=detect_user_path_changes_every_query,
+                cut_distance=1.1 if langchain_mode in ['wiki_full'] else cut_distance,
+                answer_with_sources=answer_with_sources,
+                append_sources_to_answer=append_sources_to_answer,
+                add_chat_history_to_context=add_chat_history_to_context,
+                use_openai_embedding=use_openai_embedding,
+                use_openai_model=use_openai_model,
+                hf_embedding_model=hf_embedding_model,
+                first_para=first_para,
+                text_limit=text_limit,
 
-                           **gen_hyper_langchain,
+                # evaluate args items
+                query=instruction,
+                iinput=iinput,
+                context=context,
+                stream_output=stream_output,
+                chunk=chunk,
+                chunk_size=chunk_size,
+                langchain_mode=langchain_mode,
+                langchain_action=langchain_action,
+                langchain_agents=langchain_agents,
+                document_subset=document_subset,
+                document_choice=document_choice,
+                top_k_docs=top_k_docs,
+                prompt_type=prompt_type,
+                prompt_dict=prompt_dict,
+                pre_prompt_summary=pre_prompt_summary,
+                prompt_summary=prompt_summary,
 
-                           prompt_type=prompt_type,
-                           prompt_dict=prompt_dict,
-                           n_jobs=n_jobs,
-                           verbose=verbose,
-                           cli=cli,
-                           sanitize_bot_response=sanitize_bot_response,
-                           reverse_docs=reverse_docs,
+                **gen_hyper_langchain,
 
-                           lora_weights=lora_weights,
+                db_type=db_type,
+                n_jobs=n_jobs,
+                verbose=verbose,
+                cli=cli,
+                sanitize_bot_response=sanitize_bot_response,
+                reverse_docs=reverse_docs,
 
-                           auto_reduce_chunks=auto_reduce_chunks,
-                           max_chunks=max_chunks,
-                           ):
+                lora_weights=lora_weights,
+
+                auto_reduce_chunks=auto_reduce_chunks,
+                max_chunks=max_chunks,
+        ):
             outr, extra = r  # doesn't accumulate, new answer every yield, so only save that full answer
             yield dict(response=outr, sources=extra)
         if save_dir:
@@ -2592,7 +2603,7 @@ y = np.random.randint(0, 1, 100)
     # move to correct position
     for example in examples:
         example += [chat, '', '', LangChainMode.DISABLED.value, True, LangChainAction.QUERY.value, [],
-                    top_k_docs, chunk, chunk_size, DocumentSubset.Relevant.name, []
+                    top_k_docs, chunk, chunk_size, DocumentSubset.Relevant.name, [], '', '',
                     ]
         # adjust examples if non-chat mode
         if not chat:

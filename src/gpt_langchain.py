@@ -2074,6 +2074,8 @@ def _run_qa_db(query=None,
                langchain_agents=None,
                document_subset=DocumentSubset.Relevant.name,
                document_choice=[DocumentChoice.ALL.value],
+               pre_prompt_summary=None,
+               prompt_summary=None,
                n_jobs=-1,
                verbose=False,
                cli=False,
@@ -2309,6 +2311,8 @@ def get_chain(query=None,
               langchain_agents=None,
               document_subset=DocumentSubset.Relevant.name,
               document_choice=[DocumentChoice.ALL.value],
+              pre_prompt_summary=None,
+              prompt_summary=None,
               n_jobs=-1,
               # beyond run_db_query:
               llm=None,
@@ -2388,24 +2392,28 @@ def get_chain(query=None,
             template_if_no_docs = """%s{context}%s{question}""" % (prefix, extra)
     elif langchain_action in [LangChainAction.SUMMARIZE_ALL.value, LangChainAction.SUMMARIZE_MAP.value]:
         none = ['', '\n', None]
-        if query in none and iinput in none:
-            prompt_summary = "Using only the text above, write a condensed and concise summary of key results (preferably as bullet points):\n"
-        elif query not in none:
-            prompt_summary = "Focusing on %s, write a condensed and concise Summary:\n" % query
-        elif iinput not in None:
-            prompt_summary = iinput
-        else:
-            prompt_summary = "Focusing on %s, %s:\n" % (query, iinput)
+
+        if not pre_prompt_summary:
+            pre_prompt_summary = """In order to write a concise single-paragraph or bulleted list summary, pay attention to the following text"""
+        if not prompt_summary:
+            if query in none and iinput in none:
+                prompt_summary = "Using only the text above, write a condensed and concise summary of key results (preferably as bullet points):\n"
+            elif query not in none:
+                prompt_summary = "Focusing on %s, write a condensed and concise Summary:\n" % query
+            elif iinput not in None:
+                prompt_summary = iinput
+            else:
+                prompt_summary = "Focusing on %s, %s:\n" % (query, iinput)
         # don't auto reduce
         auto_reduce_chunks = False
         if langchain_action == LangChainAction.SUMMARIZE_MAP.value:
             fstring = '{text}'
         else:
             fstring = '{input_documents}'
-        template = """In order to write a concise single-paragraph or bulleted list summary, pay attention to the following text:
+        template = """%s:
 \"\"\"
 %s
-\"\"\"\n%s""" % (fstring, prompt_summary)
+\"\"\"\n%s""" % (pre_prompt_summary, fstring, prompt_summary)
         template_if_no_docs = "Exactly only say: There are no documents to summarize."
     elif langchain_action in [LangChainAction.SUMMARIZE_REFINE]:
         template = ''  # unused

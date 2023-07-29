@@ -693,6 +693,12 @@ def go_gradio(**kwargs):
                                                    visible=kwargs['langchain_mode'] != 'Disabled',
                                                    interactive=not is_public,
                                                    precision=0)
+                            pre_prompt_summary = gr.Textbox(label="Summary Pre-Prompt",
+                                                            info="Empty means use internal defaults",
+                                                            value='')
+                            prompt_summary = gr.Textbox(label="Summary Prompt before text",
+                                                        info="Empty means use internal defaults",
+                                                        value='')
 
                 with gr.TabItem("Models"):
                     model_lock_msg = gr.Textbox(lines=1, label="Model Lock Notice",
