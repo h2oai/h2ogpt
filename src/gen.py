@@ -133,6 +133,19 @@ def main(
         max_max_time=None,
         max_max_new_tokens=None,
 
+        visible_submit_buttons: bool = True,
+        visible_side_bar: bool = True,
+        visible_chat_tab: bool = True,
+        visible_doc_selection_tab: bool = True,
+        visible_doc_view_tab: bool = True,
+        visible_chat_history_tab: bool = True,
+        visible_expert_tab: bool = True,
+        visible_models_tab: bool = True,
+        visible_system_tab: bool = True,
+        visible_tos_tab: bool = True,
+        visible_hosts_tab: bool = True,
+        chat_tabless: bool = False,
+
         sanitize_user_prompt: bool = False,
         sanitize_bot_response: bool = False,
 
@@ -305,6 +318,18 @@ def main(
                  e.g. --auth=[('jon','password')] with no spaces
     :param max_max_time: Maximum max_time for gradio slider
     :param max_max_new_tokens: Maximum max_new_tokens for gradio slider
+    :param visible_submit_buttons: whether submit buttons are visible when UI first comes up
+    :param visible_side_bar: whether left side bar is visible when UI first comes up
+    :param visible_chat_tab: "" for chat tab
+    :param visible_doc_selection_tab:  "" for doc selection tab
+    :param visible_doc_view_tab: "" for doc view tab
+    :param visible_chat_history_tab: "" for chat history tab
+    :param visible_expert_tab: "" for expert tab
+    :param visible_models_tab: "" for models tab
+    :param visible_system_tab: "" for system tab
+    :param visible_tos_tab: "" for ToS tab
+    :param visible_hosts_tab: "" for hosts tab
+    :param chat_tabless: Just show Chat as block without tab (useful if want only chat view)
     :param sanitize_user_prompt: whether to remove profanity from user input (slows down input processing)
       Requires optional packages:
       pip install alt-profanity-check==1.2.2 better-profanity==0.7.0
