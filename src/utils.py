@@ -232,6 +232,8 @@ def _zip_data(root_dirs=None, zip_file=None, base_dir='./'):
 
 def save_generate_output(prompt=None, output=None, base_model=None, save_dir=None, where_from='unknown where from',
                          extra_dict={}):
+    if not save_dir:
+        return
     try:
         return _save_generate_output(prompt=prompt, output=output, base_model=base_model, save_dir=save_dir,
                                      where_from=where_from, extra_dict=extra_dict)
@@ -249,7 +251,6 @@ def _save_generate_output(prompt=None, output=None, base_model=None, save_dir=No
     """
     prompt = '<not set>' if prompt is None else prompt
     output = '<not set>' if output is None else output
-    assert save_dir, "save_dir must be provided"
     if os.path.exists(save_dir) and not os.path.isdir(save_dir):
         raise RuntimeError("save_dir already exists and is not a directory!")
     makedirs(save_dir, exist_ok=True)
