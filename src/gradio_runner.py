@@ -315,7 +315,9 @@ def go_gradio(**kwargs):
         res_value = "Response Score: NA" if not kwargs[
             'model_lock'] else "Response Scores: %s" % nas
 
-        if kwargs['langchain_mode'] != LangChainMode.DISABLED.value:
+        user_can_do_sum = kwargs['langchain_mode'] != LangChainMode.DISABLED.value and \
+                          (kwargs['visible_side_bar'] or kwargs['visible_system_tab'])
+        if user_can_do_sum:
             extra_prompt_form = ".  For summarization, no query required, just click submit"
         else:
             extra_prompt_form = ""
