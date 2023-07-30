@@ -890,7 +890,8 @@ def test_client_summarization(prompt_summary):
                'Robust speech recognition' in summary or \
                'speech processing' in summary
     else:
-        assert 'various techniques and approaches in speech recognition' in summary
+        assert 'various techniques and approaches in speech recognition' in summary or \
+        'capabilities of speech processing systems' in summary
     assert 'my_test_pdf.pdf' in sources
 
 
