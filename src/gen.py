@@ -317,6 +317,7 @@ def main(
            Small useful for many chatbots in model_lock mode
     :param auth: gradio auth for launcher in form [(user1, pass1), (user2, pass2), ...]
                  e.g. --auth=[('jon','password')] with no spaces
+                 e.g.  --auth="[('jon', 'password)())(')]" so any special characters can be used
     :param max_max_time: Maximum max_time for gradio slider
     :param max_max_new_tokens: Maximum max_new_tokens for gradio slider
     :param visible_submit_buttons: whether submit buttons are visible when UI first comes up
@@ -479,6 +480,9 @@ def main(
 
     if isinstance(rope_scaling, str):
         rope_scaling = ast.literal_eval(rope_scaling)
+
+    if isinstance(auth, str):
+        auth = ast.literal_eval(auth)
 
     # allow set token directly
     use_auth_token = os.environ.get("HUGGINGFACE_API_TOKEN", use_auth_token)
