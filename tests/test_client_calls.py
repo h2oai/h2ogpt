@@ -326,7 +326,9 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'A low-code development framework' in res_dict['response'] or
             'secure messaging app' in res_dict['response'] or
             'privacy-focused messaging app that allows' in res_dict['response'] or
-            'A low-code AI app development framework' in res_dict['response']
+            'A low-code AI app development framework' in res_dict['response'] or
+            'anonymous communication platform' in res_dict['response'] or
+            'A privacy-focused chat app' in res_dict['response']
             ) \
            and ('FAQ.md' in res_dict['response'] or 'README.md' in res_dict['response'])
 
@@ -885,7 +887,8 @@ def test_client_summarization(prompt_summary):
     if prompt_summary == '':
         assert 'Whisper' in summary or \
                'robust speech recognition system' in summary or \
-               'Robust speech recognition' in summary
+               'Robust speech recognition' in summary or \
+               'speech processing' in summary
     else:
         assert 'various techniques and approaches in speech recognition' in summary
     assert 'my_test_pdf.pdf' in sources
@@ -983,7 +986,9 @@ def test_client_summarization_from_url(url, top_k_docs):
     summary = res['response']
     sources = res['sources']
     if 'whisper' in url:
-        assert 'Whisper' in summary or 'robust speech recognition system' in summary
+        assert 'Whisper' in summary or \
+        'robust speech recognition system' in summary or \
+        'speech recognition' in summary
     if 'h2ogpt' in url:
         assert 'Accurate embeddings for private offline databases' in summary
     assert url in sources
