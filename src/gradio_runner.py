@@ -58,7 +58,7 @@ from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt
     get_prompt
 from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping, get_short_name, makedirs, get_kwargs, remove, system_info, ping_gpu, get_url, get_local_ip, \
-    save_collection_names
+    save_collection_names, save_generate_output
 from gen import get_model, languages_covered, evaluate, score_qa, inputs_kwargs_list, scratch_base_dir, \
     get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list, \
     update_langchain
@@ -1198,7 +1198,7 @@ def go_gradio(**kwargs):
                 db1s[langchain_mode2] = [None, None]
             if valid:
                 save_collection_names(langchain_modes, visible_langchain_modes, langchain_mode_paths, LangChainMode,
-                                      db1s)
+                                      db1s, True if user_path else False)
 
             return db1s, selection_docs_state1, gr.update(choices=choices,
                                                           value=langchain_mode2), textbox, df_langchain_mode_paths1
@@ -1211,8 +1211,10 @@ def go_gradio(**kwargs):
             langchain_mode_paths = selection_docs_state1['langchain_mode_paths']
             visible_langchain_modes = selection_docs_state1['visible_langchain_modes']
 
-            if langchain_mode2 in db1s and not allow_upload_to_my_data or \
-                    dbsu is not None and langchain_mode2 in dbsu and not allow_upload_to_user_data or \
+            in_scratch_db = langchain_mode2 in db1s
+            in_user_db = dbsu is not None and langchain_mode2 in dbsu
+            if in_scratch_db and not allow_upload_to_my_data or \
+                    in_user_db and not allow_upload_to_user_data or \
                     langchain_mode2 in langchain_modes_intrinsic:
                 # NOTE: Doesn't fail if remove MyData, but didn't debug odd behavior seen with upload after gone
                 textbox = "Invalid access, cannot remove %s" % langchain_mode2
@@ -1239,7 +1241,7 @@ def go_gradio(**kwargs):
                 df_langchain_mode_paths1 = get_df_langchain_mode_paths(selection_docs_state1)
 
                 save_collection_names(langchain_modes, visible_langchain_modes, langchain_mode_paths, LangChainMode,
-                                      db1s)
+                                      db1s, in_user_db)
 
             return db1s, selection_docs_state1, \
                 gr.update(choices=get_langchain_choices(selection_docs_state1),
@@ -1666,38 +1668,44 @@ def go_gradio(**kwargs):
             instruction (from input_list) itself is not consumed by bot
             :return:
             """
+            error = ''
+            extra = ''
+            save_dict = dict()
             if not fun1:
-                yield history, ''
+                yield history, error, extra, save_dict
                 return
             try:
                 for output_fun in fun1():
                     output = output_fun['response']
                     extra = output_fun['sources']  # FIXME: can show sources in separate text box etc.
+                    save_dict = output_fun['save_dict']
                     # ensure good visually, else markdown ignores multiple \n
                     bot_message = fix_text_for_gradio(output)
                     history[-1][1] = bot_message
-                    yield history, ''
+                    yield history, error, extra, save_dict
             except StopIteration:
-                yield history, ''
+                yield history, error, extra, save_dict
             except RuntimeError as e:
                 if "generator raised StopIteration" in str(e):
                     # assume last entry was bad, undo
                     history.pop()
-                    yield history, ''
+                    yield history, error, extra, save_dict
                 else:
                     if history and len(history) > 0 and len(history[0]) > 1 and history[-1][1] is None:
                         history[-1][1] = ''
-                    yield history, str(e)
+                    yield history, str(e), extra, save_dict
                     raise
             except Exception as e:
                 # put error into user input
                 ex = "Exception: %s" % str(e)
                 if history and len(history) > 0 and len(history[0]) > 1 and history[-1][1] is None:
                     history[-1][1] = ''
-                yield history, ex
+                yield history, ex, extra, save_dict
                 raise
             finally:
-                clear_torch_cache()
+                # clear_torch_cache()
+                # don't clear torch cache here, too early and stalls generation if used for all_bot()
+                pass
             return
 
         def clear_embeddings(langchain_mode1, db1s):
@@ -1714,12 +1722,16 @@ def go_gradio(**kwargs):
 
         def bot(*args, retry=False):
             history, fun1, langchain_mode1, db1 = prep_bot(*args, retry=retry)
+            save_dict = dict()
             try:
                 for res in get_response(fun1, history):
-                    yield res
+                    history, error, extra, save_dict = res
+                    # pass back to gradio only these, rest are consumed in this function
+                    yield history, error
             finally:
                 clear_torch_cache()
                 clear_embeddings(langchain_mode1, db1)
+            save_generate_output(**save_dict)
 
         def all_bot(*args, retry=False, model_states1=None):
             args_list = list(args).copy()
@@ -1731,6 +1743,7 @@ def go_gradio(**kwargs):
             langchain_mode1 = args_list[eval_func_param_names.index('langchain_mode')]
             isize = len(input_args_list) + 1  # states + chat history
             db1s = None
+            save_dicts = []
             try:
                 gen_list = []
                 for chatboti, (chatbot1, model_state1) in enumerate(zip(chatbots, model_states1)):
@@ -1756,14 +1769,16 @@ def go_gradio(**kwargs):
 
                 bots_old = chatbots.copy()
                 exceptions_old = [''] * len(bots_old)
+                extras_old = [''] * len(bots_old)
+                save_dicts_old = [''] * len(bots_old)
                 tgen0 = time.time()
                 for res1 in itertools.zip_longest(*gen_list):
                     if time.time() - tgen0 > max_time1:
                         print("Took too long: %s" % max_time1, flush=True)
                         break
 
-                    bots = [x[0] if x is not None and not isinstance(x, BaseException) else y for x, y in
-                            zip(res1, bots_old)]
+                    bots = [x[0] if x is not None and not isinstance(x, BaseException) else y
+                            for x, y in zip(res1, bots_old)]
                     bots_old = bots.copy()
 
                     def larger_str(x, y):
@@ -1772,6 +1787,14 @@ def go_gradio(**kwargs):
                     exceptions = [x[1] if x is not None and not isinstance(x, BaseException) else larger_str(str(x), y)
                                   for x, y in zip(res1, exceptions_old)]
                     exceptions_old = exceptions.copy()
+
+                    extras = [x[2] if x is not None and not isinstance(x, BaseException) else y
+                              for x, y in zip(res1, extras_old)]
+                    extras_old = extras.copy()
+
+                    save_dicts = [x[3] if x is not None and not isinstance(x, BaseException) else y
+                                  for x, y in zip(res1, save_dicts_old)]
+                    save_dicts_old = save_dicts.copy()
 
                     def choose_exc(x):
                         # don't expose ports etc. to exceptions window
@@ -1783,6 +1806,7 @@ def go_gradio(**kwargs):
                     exceptions_str = '\n'.join(
                         ['Model %s: %s' % (iix, choose_exc(x)) for iix, x in enumerate(exceptions) if
                          x not in [None, '', 'None']])
+                    # yield back to gradio only is bots + exceptions, rest are consumed locally
                     if len(bots) > 1:
                         yield tuple(bots + [exceptions_str])
                     else:
@@ -1794,6 +1818,8 @@ def go_gradio(**kwargs):
             finally:
                 clear_torch_cache()
                 clear_embeddings(langchain_mode1, db1s)
+            for save_dict in save_dicts:
+                save_generate_output(**save_dict)
 
         # NORMAL MODEL
         user_args = dict(fn=functools.partial(user, sanitize_user_prompt=kwargs['sanitize_user_prompt']),
