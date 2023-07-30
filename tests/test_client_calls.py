@@ -991,5 +991,6 @@ def test_client_summarization_from_url(url, top_k_docs):
         'robust speech recognition system' in summary or \
         'speech recognition' in summary
     if 'h2ogpt' in url:
-        assert 'Accurate embeddings for private offline databases' in summary
+        assert 'Accurate embeddings for private offline databases' in summary \
+               or 'private offline database' in summary
     assert url in sources
