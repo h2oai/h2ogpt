@@ -20,24 +20,28 @@ Query and summarize your documents or just chat with local private GPT LLMs usin
 
 ### Getting Started
 
-To quickly try out h2oGPT with LLaMa2 7B Chat, create a fresh Python 3.10 environment and run:
+Reviews installation instructions (including GPU support) for your Operating System here:
+
+* [Linux](docs/README_LINUX.md)
+* [MACOS](docs/README_MACOS.md)
+* [Windows 10/11](docs/README_WINDOWS.md)
+
+To quickly try out h2oGPT with LLaMa2 7B Chat in **CPU mode**, create a fresh Python 3.10 environment and run:
+
 ```bash
 git clone https://github.com/h2oai/h2ogpt.git
 cd h2ogpt
 pip install -r requirements.txt
 pip install -r reqs_optional/requirements_optional_langchain.txt
 pip install -r reqs_optional/requirements_optional_gpt4all.txt
+
 # if don't have wget, copy the below link to browser and download and place file into h2ogpt folder
 wget https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin
+
+# this only supports CPU by default, for GPU support please review the installation instructions for your OS above (see Support LLaMa.cpp with CUDA)
 python generate.py --base_model='llama' --prompt_type=llama2
 ```
 then go to your browser by visiting [http://127.0.0.1:7860](http://127.0.0.1:7860) or [http://localhost:7860](http://localhost:7860).
-
-For full instructions visit:
-
-* [Linux](docs/README_LINUX.md)
-* [MACOS](docs/README_MACOS.md)
-* [Windows 10/11](docs/README_WINDOWS.md)
 
 ### Live Demos
 - [![img-small.png](docs/img-small.png) Live h2oGPT Document Q/A Demo](https://gpt.h2o.ai/)

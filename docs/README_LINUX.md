@@ -18,14 +18,14 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
   conda install python=3.10 -c conda-forge -y
   ```
   You should see `(h2ogpt)` in shell prompt.
-  
+
   Alternatively, on newer Ubuntu systems you can get Python 3.10 environment setup by doing:
   ```bash
   sudo apt-get install -y build-essential gcc python3.10-dev
   virtualenv -p python3 h2ogpt
   source h2ogpt/bin/activate
   ```
-  
+
 * Test your python:
   ```bash
   python --version
@@ -44,7 +44,7 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
 * For GPU: Install CUDA ToolKit with ability to compile using nvcc for some packages like llama-cpp-python, AutoGPTQ, exllama, and flash attention:
   ```bash
   conda install cudatoolkit-dev -c conda-forge -y
-  export CUDA_HOME=$CONDA_PREFIX 
+  export CUDA_HOME=$CONDA_PREFIX
   ```
   which gives CUDA 11.7, or if you prefer follow [CUDA Toolkit](INSTALL.md#installing-cuda-toolkit), then do:
   ```bash
@@ -53,9 +53,9 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
   If you do not plan to use one of those packages, you can just use the non-dev version:
   ```bash
   conda install cudatoolkit=11.7 -c conda-forge -y
-  export CUDA_HOME=$CONDA_PREFIX 
+  export CUDA_HOME=$CONDA_PREFIX
   ```
-  
+
 * Install dependencies:
     ```bash
     git clone https://github.com/h2oai/h2ogpt.git
@@ -63,10 +63,10 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     # fix any bad env
     pip uninstall -y pandoc pypandoc pypandoc-binary
     # broad support, but no training-time or data creation dependencies
-    
+
     # CPU only:
     pip install -r requirements.txt --extra-index https://download.pytorch.org/whl/cpu
-    
+
     # GPU only:
     pip install -r requirements.txt --extra-index https://download.pytorch.org/whl/cu117
     ```
@@ -84,44 +84,51 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     sudo apt-get install -y libmagic-dev poppler-utils tesseract-ocr libtesseract-dev libreoffice
     # Optional: for supporting unstructured package
     python -m nltk.downloader all
-* GPU Optional: For AutoGPTQ support on x86_64 linux
-    ```bash
-    pip uninstall -y auto-gptq ; GITHUB_ACTIONS=true pip install auto-gptq --no-cache-dir
-    ```
-   We recommend to install like the above in order to avoid warnings and inefficient memory usage. If one has trouble installing AutoGPTQ, can try:
-   ```bash
-   pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.3.0/auto_gptq-0.3.0+cu117-cp310-cp310-linux_x86_64.whl
-   ```
-    However, if one sees `CUDA extension not installed` in output after loading model, one needs to compile it, else will use double memory and be slower on GPU.
-    See [AutoGPTQ](README_GPU.md#autogptq) about running AutoGPT models.
-* GPU Optional: For exllama support on x86_64 linux
-    ```bash
-    pip uninstall -y exllama ; pip install https://github.com/jllllll/exllama/releases/download/0.0.8/exllama-0.0.8+cu118-cp310-cp310-linux_x86_64.whl --no-cache-dir
-    ```
-    See [exllama](README_GPU.md#exllama) about running exllama models.
-
 * To avoid unauthorized telemetry, which document options still do not disable, run:
     ```bash
     sp=`python -c 'import site; print(site.getsitepackages()[0])'`
     sed -i 's/posthog\.capture/return\n            posthog.capture/' $sp/chromadb/telemetry/posthog.py
     ```
-* GPU Optional: Support LLaMa.cpp with CUDA:
-  * Download/Install [CUDA llama-cpp-python wheel](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels), E.g. [Downloaad Python 3.10 CUDA 11.7 wheel](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.1.73+cu117-cp310-cp310-linux_x86_64.whl), then run:
-    ```bash
-    pip uninstall -y llama-cpp-python
-    pip install llama_cpp_python_cuda-0.1.73+cu117-cp310-cp310-linux_x86_64.whl
-    ```
-  * If any issues, then must compile llama-cpp-python with CUDA support:
-   ```bash
-    pip uninstall -y llama-cpp-python
-    export LLAMA_CUBLAS=1
-    export CMAKE_ARGS=-DLLAMA_CUBLAS=on
-    export FORCE_CMAKE=1
-    CMAKE_ARGS="-DLLAMA_CUBLAS=on" FORCE_CMAKE=1 pip install llama-cpp-python==0.1.68 --no-cache-dir --verbose
-   ```
-  * Uncomment `# n_gpu_layers=20` in `.env_gpt4all`.  One can try also `40` instead of `20`.
-  * If one sees `/usr/bin/nvcc` mentioned in errors, that file needs to be removed as would likely conflict with version installed for conda.  
-  * Note that once `llama-cpp-python` is compiled to support CUDA, it no longer works for CPU mode, so one would have to reinstall it without the above options to recovers CPU mode or have a separate h2oGPT env for CPU mode.
+
+### GPU Optional: For AutoGPTQ support on x86_64 linux
+* See [AutoGPTQ](README_GPU.md#autogptq) about running AutoGPT models. We recommend to install `auto-gptq` like this in order to avoid warnings and inefficient memory usage.
+  ```bash
+  pip uninstall -y auto-gptq ; GITHUB_ACTIONS=true pip install auto-gptq --no-cache-dir
+  ```
+
+* If one has trouble installing AutoGPTQ, can try:
+  ```bash
+  pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.3.0/auto_gptq-0.3.0+cu117-cp310-cp310-linux_x86_64.whl
+  ```
+
+* However, if one sees `CUDA extension not installed` in output after loading model, one needs to compile it, else will use double memory and be slower on GPU.
+
+### GPU Optional: For exllama support on x86_64 linux
+* See [exllama](README_GPU.md#exllama) about running exllama models.
+
+  ```bash
+  pip uninstall -y exllama; pip install https://github.com/jllllll/exllama/releases/download/0.0.8/exllama-0.0.8+cu118-cp310-cp310-linux_x86_64.whl --no-cache-dir
+  ```
+
+### GPU Optional: Support LLaMa.cpp with CUDA:
+* Download/Install [CUDA llama-cpp-python wheel](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels), E.g. [Downloaad Python 3.10 CUDA 11.7 wheel](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.1.73+cu117-cp310-cp310-linux_x86_64.whl), then run:
+
+  ```bash
+  pip uninstall -y llama-cpp-python
+  pip install llama_cpp_python_cuda-0.1.73+cu117-cp310-cp310-linux_x86_64.whl
+  ```
+* If any issues, then must compile llama-cpp-python with CUDA support:
+
+  ```bash
+  pip uninstall -y llama-cpp-python
+  export LLAMA_CUBLAS=1
+  export CMAKE_ARGS=-DLLAMA_CUBLAS=on
+  export FORCE_CMAKE=1
+  CMAKE_ARGS="-DLLAMA_CUBLAS=on" FORCE_CMAKE=1 pip install llama-cpp-python==0.1.68 --no-cache-dir --verbose
+  ```
+* Uncomment `# n_gpu_layers=20` in `.env_gpt4all`.  One can try also `40` instead of `20`.
+* If one sees `/usr/bin/nvcc` mentioned in errors, that file needs to be removed as would likely conflict with version installed for conda.
+* Note that once `llama-cpp-python` is compiled to support CUDA, it no longer works for CPU mode, so one would have to reinstall it without the above options to recovers CPU mode or have a separate h2oGPT env for CPU mode.
 
 ### Compile Install Issues
   * `/usr/local/cuda/include/crt/host_config.h:132:2: error: #error -- unsupported GNU version! gcc versions later than 11 are not supported!`
@@ -167,9 +174,9 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
   ```bash
   python generate.py  --inference_server=openai_chat --base_model=gpt-3.5-turbo --score_model=None --captions_model=Salesforce/blip2-flan-t5-xl
   ```
-  
+
   Add `--share=True` to make gradio server visible via sharable URL.
- 
+
   If you see an error about protobuf, try:
   ```bash
   pip install protobuf==3.20.0
