@@ -553,9 +553,9 @@ def train(
             # fsdp_min_num_params=20000 if gpus > 1 and not ddp else None,
             report_to='tensorboard' if not neptune_run else 'neptune',
         ),
-        # data_collator=transformers.DataCollatorForSeq2Seq(
-        #     tokenizer, pad_to_multiple_of=8, return_tensors="pt", padding=True
-        # ),
+        data_collator=transformers.DataCollatorForSeq2Seq(
+            tokenizer, pad_to_multiple_of=8, return_tensors="pt", padding=True
+        ),
         callbacks=callbacks,
         **trainer_kwargs,
     )
