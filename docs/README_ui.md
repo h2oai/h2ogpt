@@ -177,3 +177,6 @@ python generate.py --base_model=meta-llama/Llama-2-13b-chat-hf --visible_submit_
 ```
 where one can still at least hit enter to submit queries. This looks like:
 ![chat_tabless.png](chat_tabless.png)
+
+One can add `--visible_h2ogpt_header=False` to remove the h2oGPT header, which looks like:
+![chat_headerless.png](chat_headerless.png)

@@ -145,6 +145,7 @@ def main(
         visible_tos_tab: bool = True,
         visible_hosts_tab: bool = True,
         chat_tabless: bool = False,
+        visible_h2ogpt_header: bool = True,
 
         sanitize_user_prompt: bool = False,
         sanitize_bot_response: bool = False,
@@ -330,6 +331,7 @@ def main(
     :param visible_tos_tab: "" for ToS tab
     :param visible_hosts_tab: "" for hosts tab
     :param chat_tabless: Just show Chat as block without tab (useful if want only chat view)
+    :param visible_h2ogpt_header: Whether github stars, URL, logo, and QR code are visible
     :param sanitize_user_prompt: whether to remove profanity from user input (slows down input processing)
       Requires optional packages:
       pip install alt-profanity-check==1.2.2 better-profanity==0.7.0
