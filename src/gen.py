@@ -11,7 +11,6 @@ import traceback
 import typing
 import warnings
 from datetime import datetime
-import filelock
 import requests
 import psutil
 from requests import ConnectTimeout, JSONDecodeError
@@ -30,7 +29,7 @@ from evaluate_params import eval_func_param_names, no_default_param_names
 from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mapping, no_model_str, source_prefix, \
     source_postfix, LangChainAction, LangChainAgent, DocumentChoice
 from loaders import get_loaders
-from utils import set_seed, clear_torch_cache, save_generate_output, NullContext, wrapped_partial, EThread, get_githash, \
+from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, remove, \
     have_langchain, set_openai, load_collection_enum, cuda_vis_check, H2O_Fire
 
@@ -317,7 +316,7 @@ def main(
            Small useful for many chatbots in model_lock mode
     :param auth: gradio auth for launcher in form [(user1, pass1), (user2, pass2), ...]
                  e.g. --auth=[('jon','password')] with no spaces
-                 e.g.  --auth="[('jon', 'password)())(')]" so any special characters can be used
+                 e.g. --auth="[('jon', 'password)())(')]" so any special characters can be used
     :param max_max_time: Maximum max_time for gradio slider
     :param max_max_new_tokens: Maximum max_new_tokens for gradio slider
     :param visible_submit_buttons: whether submit buttons are visible when UI first comes up
@@ -1742,7 +1741,9 @@ def evaluate(
                         langchain_only_model or \
                         force_langchain_evaluate
     if do_langchain_path:
-        outr = ""
+        text = ''
+        sources = ''
+        response = ''
         # use smaller cut_distance for wiki_full since so many matches could be obtained, and often irrelevant unless close
         from gpt_langchain import run_qa_db
         gen_hyper_langchain = dict(do_sample=do_sample,
@@ -1812,11 +1813,11 @@ def evaluate(
                 auto_reduce_chunks=auto_reduce_chunks,
                 max_chunks=max_chunks,
         ):
-            outr, extra = r  # doesn't accumulate, new answer every yield, so only save that full answer
-            yield dict(response=outr, sources=extra)
+            response, sources = r  # doesn't accumulate, new answer every yield, so only save that full answer
+            yield dict(response=response, sources=sources, save_dict=dict())
         if save_dir:
             # estimate using tiktoken
-            ntokens = FakeTokenizer().num_tokens_from_string(outr)
+            ntokens = FakeTokenizer().num_tokens_from_string(response)
             extra_dict = gen_hyper_langchain.copy()
             extra_dict.update(prompt_type=prompt_type,
                               inference_server=inference_server,
@@ -1833,20 +1834,21 @@ def evaluate(
                               ntokens=ntokens,
                               tokens_persecond=ntokens / (time.time() - t_generate),
                               )
-            save_generate_output(prompt=prompt,
-                                 output=outr, base_model=base_model, save_dir=save_dir,
-                                 where_from='run_qa_db',
-                                 extra_dict=extra_dict)
+            save_dict = dict(prompt=prompt,
+                             output=response, base_model=base_model, save_dir=save_dir,
+                             where_from='run_qa_db',
+                             extra_dict=extra_dict)
+            yield dict(response=response, sources=sources, save_dict=save_dict)
             if verbose:
                 print(
-                    'Post-Generate Langchain: %s decoded_output: %s' % (str(datetime.now()), len(outr) if outr else -1),
+                    'Post-Generate Langchain: %s decoded_output: %s' %
+                    (str(datetime.now()), len(response) if response else -1),
                     flush=True)
-        if outr or langchain_only_model:
+        if response or langchain_only_model:
             # if got no response (e.g. not showing sources and got no sources,
             # so nothing to give to LLM), then slip through and ask LLM
             # Or if llama/gptj, then just return since they had no response and can't go down below code path
-            # clear before return, since .then() never done if from API
-            clear_torch_cache()
+            # don't clear torch cache here, delays multi-generation, and bot(), all_bot(), and evaluate_nochat() do it
             return
 
     if inference_server.startswith('vllm') or inference_server.startswith('openai') or inference_server.startswith(
@@ -1869,32 +1871,34 @@ def evaluate(
                                      presence_penalty=1.07 - repetition_penalty + 0.6,  # so good default
                                      )
             if inf_type == 'vllm' or inference_server == 'openai':
-                response = openai.Completion.create(
+                responses = openai.Completion.create(
                     model=base_model,
                     prompt=prompt,
                     **gen_server_kwargs,
                     stop=stop_sequences,
                     stream=stream_output,
                 )
+                text = ''
+                sources = ''
+                response = ''
                 if not stream_output:
-                    text = response['choices'][0]['text']
-                    yield dict(response=prompter.get_response(prompt + text, prompt=prompt,
-                                                              sanitize_bot_response=sanitize_bot_response),
-                               sources='')
+                    text = responses['choices'][0]['text']
+                    response = prompter.get_response(prompt + text, prompt=prompt,
+                                                     sanitize_bot_response=sanitize_bot_response)
+                    yield dict(response=response, sources=sources, save_dict=dict())
                 else:
                     collected_events = []
-                    text = ''
-                    for event in response:
+                    for event in responses:
                         collected_events.append(event)  # save the event response
                         event_text = event['choices'][0]['text']  # extract the text
                         text += event_text  # append the text
-                        yield dict(response=prompter.get_response(prompt + text, prompt=prompt,
-                                                                  sanitize_bot_response=sanitize_bot_response),
-                                   sources='')
+                        response = prompter.get_response(prompt + text, prompt=prompt,
+                                                         sanitize_bot_response=sanitize_bot_response)
+                        yield dict(response=response, sources=sources, save_dict=dict())
             elif inf_type == 'vllm_chat' or inference_server == 'openai_chat':
                 if inf_type == 'vllm_chat':
                     raise NotImplementedError('%s not supported by vLLM' % inf_type)
-                response = openai.ChatCompletion.create(
+                responses = openai.ChatCompletion.create(
                     model=base_model,
                     messages=[
                         {"role": "system", "content": "You are a helpful assistant."},
@@ -1905,20 +1909,22 @@ def evaluate(
                     stream=stream_output,
                     **gen_server_kwargs,
                 )
+                text = ""
+                sources = ''
+                response = ""
                 if not stream_output:
-                    text = response["choices"][0]["message"]["content"]
-                    yield dict(response=prompter.get_response(prompt + text, prompt=prompt,
-                                                              sanitize_bot_response=sanitize_bot_response),
-                               sources='')
+                    text = responses["choices"][0]["message"]["content"]
+                    response = prompter.get_response(prompt + text, prompt=prompt,
+                                                     sanitize_bot_response=sanitize_bot_response)
+                    yield dict(response=response, sources=sources, save_dict=dict())
                 else:
-                    text = ""
-                    for chunk in response:
+                    for chunk in responses:
                         delta = chunk["choices"][0]["delta"]
                         if 'content' in delta:
                             text += delta['content']
-                            yield dict(response=prompter.get_response(prompt + text, prompt=prompt,
-                                                                      sanitize_bot_response=sanitize_bot_response),
-                                       sources='')
+                            response = prompter.get_response(prompt + text, prompt=prompt,
+                                                             sanitize_bot_response=sanitize_bot_response)
+                            yield dict(response=response, sources=sources, save_dict=dict())
             else:
                 raise RuntimeError("No such OpenAI mode: %s" % inference_server)
         elif inference_server.startswith('http'):
@@ -2009,19 +2015,20 @@ def evaluate(
                                      document_choice=[DocumentChoice.ALL.value],
                                      )
                 api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
+                response = ''
+                text = ''
+                sources = ''
                 if not stream_output:
                     res = gr_client.predict(str(dict(client_kwargs)), api_name=api_name)
                     res_dict = ast.literal_eval(res)
                     text = res_dict['response']
                     sources = res_dict['sources']
-                    yield dict(response=prompter.get_response(prompt + text, prompt=prompt,
-                                                              sanitize_bot_response=sanitize_bot_response),
-                               sources=sources)
+                    response = prompter.get_response(prompt + text, prompt=prompt,
+                                                     sanitize_bot_response=sanitize_bot_response)
+                    yield dict(response=response, sources=sources, save_dict=dict())
                 else:
                     job = gr_client.submit(str(dict(client_kwargs)), api_name=api_name)
-                    text = ''
-                    sources = ''
-                    res_dict = dict(response=text, sources=sources)
+                    res_dict = dict(response=text, sources=sources, save_dict=dict())
                     while not job.done():
                         outputs_list = job.communicator.job.outputs
                         if outputs_list:
@@ -2034,9 +2041,9 @@ def evaluate(
                                 prompt_and_text = text
                             else:
                                 prompt_and_text = prompt + text
-                            yield dict(response=prompter.get_response(prompt_and_text, prompt=prompt,
-                                                                      sanitize_bot_response=sanitize_bot_response),
-                                       sources=sources)
+                            response = prompter.get_response(prompt_and_text, prompt=prompt,
+                                                             sanitize_bot_response=sanitize_bot_response)
+                            yield dict(response=response, sources=sources, save_dict=dict())
                         time.sleep(0.01)
                     # ensure get last output to avoid race
                     res_all = job.outputs()
@@ -2063,12 +2070,15 @@ def evaluate(
                         prompt_and_text = text
                     else:
                         prompt_and_text = prompt + text
-                    yield dict(response=prompter.get_response(prompt_and_text, prompt=prompt,
-                                                              sanitize_bot_response=sanitize_bot_response),
-                               sources=sources)
+                    response = prompter.get_response(prompt_and_text, prompt=prompt,
+                                                     sanitize_bot_response=sanitize_bot_response)
+                    yield dict(response=response, sources=sources, save_dict=dict())
             elif hf_client:
                 # HF inference server needs control over input tokens
                 where_from = "hf_client"
+                response = ''
+                extra = ''
+                sources = ''
 
                 # prompt must include all human-bot like tokens, already added by prompt
                 # https://github.com/huggingface/text-generation-inference/tree/main/clients/python#types
@@ -2096,19 +2106,20 @@ def evaluate(
                 hf_client.timeout = max(300, max_time)
                 if not stream_output:
                     text = hf_client.generate(prompt, **gen_server_kwargs).generated_text
-                    yield dict(response=prompter.get_response(prompt + text, prompt=prompt,
-                                                              sanitize_bot_response=sanitize_bot_response),
-                               sources='')
+                    response = prompter.get_response(prompt + text, prompt=prompt,
+                                                     sanitize_bot_response=sanitize_bot_response)
+                    yield dict(response=response, sources=sources, save_dict=dict())
                 else:
                     text = ""
-                    for response in hf_client.generate_stream(prompt, **gen_server_kwargs):
-                        if not response.token.special:
+                    for responses in hf_client.generate_stream(prompt, **gen_server_kwargs):
+                        if not responses.token.special:
                             # stop_sequences
-                            text_chunk = response.token.text
+                            text_chunk = responses.token.text
                             text += text_chunk
-                            yield dict(response=prompter.get_response(prompt + text, prompt=prompt,
-                                                                      sanitize_bot_response=sanitize_bot_response),
-                                       sources='')
+                            response = prompter.get_response(prompt + text, prompt=prompt,
+                                                             sanitize_bot_response=sanitize_bot_response)
+                            sources = ''
+                            yield dict(response=response, sources=sources, save_dict=dict())
             else:
                 raise RuntimeError("Failed to get client: %s" % inference_server)
         else:
@@ -2124,8 +2135,9 @@ def evaluate(
                                    ntokens=ntokens,
                                    tokens_persecond=ntokens / (time.time() - t_generate),
                                    ))
-            save_generate_output(prompt=prompt, output=text, base_model=base_model, save_dir=save_dir,
-                                 where_from=where_from, extra_dict=extra_dict)
+            save_dict = dict(prompt=prompt, output=text, base_model=base_model, save_dir=save_dir,
+                             where_from=where_from, extra_dict=extra_dict)
+            yield dict(response=response, sources=sources, save_dict=save_dict)
         return
     else:
         assert not inference_server, "inference_server=%s not supported" % inference_server
@@ -2137,7 +2149,8 @@ def evaluate(
         else:
             raise RuntimeError("No such task type %s" % tokenizer)
         # NOTE: uses max_length only
-        yield dict(response=model(prompt, max_length=max_new_tokens)[0][key], sources='')
+        sources = ''
+        yield dict(response=model(prompt, max_length=max_new_tokens)[0][key], sources=sources, save_dict=dict())
 
     if 'mbart-' in base_model.lower():
         assert src_lang is not None
@@ -2262,22 +2275,22 @@ def evaluate(
                     thread = EThread(target=target, streamer=streamer, bucket=bucket)
                     thread.start()
                     outputs = ""
+                    sources = ''
                     try:
                         for new_text in streamer:
                             if bucket.qsize() > 0 or thread.exc:
                                 thread.join()
                             outputs += new_text
-                            yield dict(response=prompter.get_response(outputs, prompt=inputs_decoded,
-                                                                      sanitize_bot_response=sanitize_bot_response),
-                                       sources='')
+                            response = prompter.get_response(outputs, prompt=inputs_decoded,
+                                                             sanitize_bot_response=sanitize_bot_response)
+                            yield dict(response=response, sources=sources, save_dict=dict())
                     except BaseException:
                         # if any exception, raise that exception if was from thread, first
                         if thread.exc:
                             raise thread.exc
                         raise
                     finally:
-                        # clear before return, since .then() never done if from API
-                        clear_torch_cache()
+                        # don't clear torch cache here, delays multi-generation, and bot(), all_bot(), and evaluate_nochat() do it
                         # in case no exception and didn't join with thread yet, then join
                         if not thread.exc:
                             thread.join()
@@ -2290,12 +2303,14 @@ def evaluate(
                     try:
                         outputs = model.generate(**gen_kwargs)
                     finally:
-                        clear_torch_cache()  # has to be here for API submit_nochat_api since.then() not called
+                        pass
+                        # don't clear torch cache here, delays multi-generation, and bot(), all_bot(), and evaluate_nochat() do it
                     ntokens = sum([len(s) for s in outputs.sequences]) if save_dir else -1
                     outputs = [decoder(s) for s in outputs.sequences]
-
-                    yield dict(response=prompter.get_response(outputs, prompt=inputs_decoded,
-                                                              sanitize_bot_response=sanitize_bot_response), sources='')
+                    sources = ''
+                    response = prompter.get_response(outputs, prompt=inputs_decoded,
+                                                     sanitize_bot_response=sanitize_bot_response)
+                    yield dict(response=response, sources=sources, save_dict=dict())
                     if outputs and len(outputs) >= 1:
                         decoded_output = prompt + outputs[0]
                 if save_dir and decoded_output:
@@ -2305,9 +2320,10 @@ def evaluate(
                                            ntokens=ntokens,
                                            tokens_persecond=ntokens / (time.time() - t_generate),
                                            ))
-                    save_generate_output(prompt=prompt, output=decoded_output, base_model=base_model, save_dir=save_dir,
-                                         where_from="evaluate_%s" % str(stream_output),
-                                         extra_dict=extra_dict)
+                    save_dict = dict(prompt=prompt, output=decoded_output, base_model=base_model, save_dir=save_dir,
+                                     where_from="evaluate_%s" % str(stream_output),
+                                     extra_dict=extra_dict)
+                    yield dict(response=response, sources=sources, save_dict=save_dict)
             if verbose:
                 print('Post-Generate: %s decoded_output: %s' % (
                     str(datetime.now()), len(decoded_output) if decoded_output else -1), flush=True)

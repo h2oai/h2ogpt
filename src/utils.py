@@ -39,8 +39,8 @@ def H2O_Fire(component=None):
     fn_spec = inspectutils.GetFullArgSpec(component)
     for key, value in os.environ.items():
         if not (
-            (key.startswith(config_prefix) or key.startswith(config_prefix.lower()))
-            and len(key) > len(config_prefix)
+                (key.startswith(config_prefix) or key.startswith(config_prefix.lower()))
+                and len(key) > len(config_prefix)
         ):
             continue  # ignore as non H2OGPT argument
 
@@ -1068,7 +1068,9 @@ def set_openai(inference_server):
 visible_langchain_modes_file = 'visible_langchain_modes.pkl'
 
 
-def save_collection_names(langchain_modes, visible_langchain_modes, langchain_mode_paths, LangChainMode, db1s):
+def save_collection_names(langchain_modes, visible_langchain_modes, langchain_mode_paths,
+                          LangChainMode, db1s,
+                          in_user_db):
     """
     extra controls if UserData type of MyData type
     """
@@ -1093,19 +1095,20 @@ def save_collection_names(langchain_modes, visible_langchain_modes, langchain_mo
     base_path = 'locks'
     base_path = makedirs(base_path, tmp_ok=True)
 
-    # user
-    extra = ''
-    file = "%s%s" % (visible_langchain_modes_file, extra)
-    with filelock.FileLock(os.path.join(base_path, "%s.lock" % file)):
-        with open(file, 'wb') as f:
-            pickle.dump((user_langchain_modes, user_visible_langchain_modes, user_langchain_mode_paths), f)
-
-    # scratch
-    extra = user_hash
-    file = "%s%s" % (visible_langchain_modes_file, extra)
-    with filelock.FileLock(os.path.join(base_path, "%s.lock" % file)):
-        with open(file, 'wb') as f:
-            pickle.dump((scratch_langchain_modes, scratch_visible_langchain_modes, scratch_langchain_mode_paths), f)
+    if in_user_db:
+        # user
+        extra = ''
+        file = "%s%s" % (visible_langchain_modes_file, extra)
+        with filelock.FileLock(os.path.join(base_path, "%s.lock" % file)):
+            with open(file, 'wb') as f:
+                pickle.dump((user_langchain_modes, user_visible_langchain_modes, user_langchain_mode_paths), f)
+    else:
+        # scratch
+        extra = user_hash
+        file = "%s%s" % (visible_langchain_modes_file, extra)
+        with filelock.FileLock(os.path.join(base_path, "%s.lock" % file)):
+            with open(file, 'wb') as f:
+                pickle.dump((scratch_langchain_modes, scratch_visible_langchain_modes, scratch_langchain_mode_paths), f)
 
 
 def load_collection_enum(extra):
