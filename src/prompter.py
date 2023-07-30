@@ -656,7 +656,7 @@ def generate_prompt(data_point, prompt_type, prompt_dict, chat, reduced, making_
     instruction = data_point.get('instruction')
     input = data_point.get('input')
     output = data_point.get('output')
-    prompt_type = data_point.get('prompt_type', prompt_type) or prompt_type
+    prompt_type = data_point.get('prompt_type', prompt_type)
     prompt_dict = data_point.get('prompt_dict', prompt_dict)
     assert prompt_type in prompt_types, "Bad prompt type: %s" % prompt_type
     promptA, promptB, PreInstruct, PreInput, PreResponse, \
