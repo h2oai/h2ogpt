@@ -363,8 +363,8 @@ def main(
            If already have db, any new/changed files are added automatically if path set, does not have to be same path used for prior db sources
     :param langchain_mode_paths: dict of langchain_mode keys and disk path values to use for source of documents
            E.g. "{'UserData2': 'userpath2'}"
-           Can be None even if existing DB, to avoid new documents being added from that path, source links that are on disk still work.
-           If user_path is not None, that path is used for 'UserData' instead of the value in this dict
+           A disk path be None, e.g. --langchain_mode_paths="{'UserData2': None}" even if existing DB, to avoid new documents being added from that path, source links that are on disk still work.
+           If `--user_path` was passed, that path is used for 'UserData' instead of the value in this dict
     :param detect_user_path_changes_every_query: whether to detect if any files changed or added every similarity search (by file hashes).
            Expensive for large number of files, so not done by default.  By default only detect changes during db loading.
     :param langchain_modes: names of collections/dbs to potentially have
