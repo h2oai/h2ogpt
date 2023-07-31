@@ -1,7 +1,7 @@
 #!/bin/bash
 # CHOOSE:
 ngpus=4
-export TESTMODULOTOTAL=16
+export TESTMODULOTOTAL=8
 
 # GENERAL:
 low=0
