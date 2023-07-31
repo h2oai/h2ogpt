@@ -1,4 +1,4 @@
-!/bin/bash
+#!/bin/bash
 # CHOOSE:
 ngpus=4
 export TESTMODULOTOTAL=16
