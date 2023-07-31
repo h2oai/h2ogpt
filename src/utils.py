@@ -39,8 +39,8 @@ def H2O_Fire(component=None):
     fn_spec = inspectutils.GetFullArgSpec(component)
     for key, value in os.environ.items():
         if not (
-            (key.startswith(config_prefix) or key.startswith(config_prefix.lower()))
-            and len(key) > len(config_prefix)
+                (key.startswith(config_prefix) or key.startswith(config_prefix.lower()))
+                and len(key) > len(config_prefix)
         ):
             continue  # ignore as non H2OGPT argument
 
@@ -232,6 +232,8 @@ def _zip_data(root_dirs=None, zip_file=None, base_dir='./'):
 
 def save_generate_output(prompt=None, output=None, base_model=None, save_dir=None, where_from='unknown where from',
                          extra_dict={}):
+    if not save_dir:
+        return
     try:
         return _save_generate_output(prompt=prompt, output=output, base_model=base_model, save_dir=save_dir,
                                      where_from=where_from, extra_dict=extra_dict)
@@ -249,11 +251,17 @@ def _save_generate_output(prompt=None, output=None, base_model=None, save_dir=No
     """
     prompt = '<not set>' if prompt is None else prompt
     output = '<not set>' if output is None else output
-    assert save_dir, "save_dir must be provided"
     if os.path.exists(save_dir) and not os.path.isdir(save_dir):
         raise RuntimeError("save_dir already exists and is not a directory!")
-    os.makedirs(save_dir, exist_ok=True)
+    makedirs(save_dir, exist_ok=True)
     import json
+
+    # tokenize at end if need to, so doesn't block generation in multi-generator case
+    if extra_dict.get('ntokens') is None:
+        extra_dict['ntokens'] = FakeTokenizer().num_tokens_from_string(output)
+        # only do below if didn't already compute ntokens, else assume also computed rate
+        extra_dict['tokens_persecond'] = extra_dict['ntokens'] / extra_dict['t_generate']
+
     dict_to_save = dict(prompt=prompt, text=output, time=time.ctime(), base_model=base_model, where_from=where_from)
     dict_to_save.update(extra_dict)
     with filelock.FileLock("save_dir.lock"):
@@ -1068,7 +1076,9 @@ def set_openai(inference_server):
 visible_langchain_modes_file = 'visible_langchain_modes.pkl'
 
 
-def save_collection_names(langchain_modes, visible_langchain_modes, langchain_mode_paths, LangChainMode, db1s):
+def save_collection_names(langchain_modes, visible_langchain_modes, langchain_mode_paths,
+                          LangChainMode, db1s,
+                          in_user_db):
     """
     extra controls if UserData type of MyData type
     """
@@ -1093,19 +1103,20 @@ def save_collection_names(langchain_modes, visible_langchain_modes, langchain_mo
     base_path = 'locks'
     base_path = makedirs(base_path, tmp_ok=True)
 
-    # user
-    extra = ''
-    file = "%s%s" % (visible_langchain_modes_file, extra)
-    with filelock.FileLock(os.path.join(base_path, "%s.lock" % file)):
-        with open(file, 'wb') as f:
-            pickle.dump((user_langchain_modes, user_visible_langchain_modes, user_langchain_mode_paths), f)
-
-    # scratch
-    extra = user_hash
-    file = "%s%s" % (visible_langchain_modes_file, extra)
-    with filelock.FileLock(os.path.join(base_path, "%s.lock" % file)):
-        with open(file, 'wb') as f:
-            pickle.dump((scratch_langchain_modes, scratch_visible_langchain_modes, scratch_langchain_mode_paths), f)
+    if in_user_db:
+        # user
+        extra = ''
+        file = "%s%s" % (visible_langchain_modes_file, extra)
+        with filelock.FileLock(os.path.join(base_path, "%s.lock" % file)):
+            with open(file, 'wb') as f:
+                pickle.dump((user_langchain_modes, user_visible_langchain_modes, user_langchain_mode_paths), f)
+    else:
+        # scratch
+        extra = user_hash
+        file = "%s%s" % (visible_langchain_modes_file, extra)
+        with filelock.FileLock(os.path.join(base_path, "%s.lock" % file)):
+            with open(file, 'wb') as f:
+                pickle.dump((scratch_langchain_modes, scratch_visible_langchain_modes, scratch_langchain_mode_paths), f)
 
 
 def load_collection_enum(extra):

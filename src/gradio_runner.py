@@ -58,7 +58,7 @@ from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt
     get_prompt
 from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping, get_short_name, makedirs, get_kwargs, remove, system_info, ping_gpu, get_url, get_local_ip, \
-    save_collection_names
+    save_collection_names, save_generate_output
 from gen import get_model, languages_covered, evaluate, score_qa, inputs_kwargs_list, scratch_base_dir, \
     get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list, \
     update_langchain
@@ -147,7 +147,10 @@ def go_gradio(**kwargs):
                                    " use Enter for multiple input lines)"
 
     title = 'h2oGPT'
-    description = """<iframe src="https://ghbtns.com/github-btn.html?user=h2oai&repo=h2ogpt&type=star&count=true&size=small" frameborder="0" scrolling="0" width="280" height="20" title="GitHub"></iframe><small><a href="https://github.com/h2oai/h2ogpt">h2oGPT</a> <a href="https://evalgpt.ai/">LLM Leaderboard</a>  <a href="https://github.com/h2oai/h2o-llmstudio">LLM Studio</a><br><a href="https://huggingface.co/h2oai">🤗 Models</a>"""
+    if kwargs['visible_h2ogpt_header']:
+        description = """<iframe src="https://ghbtns.com/github-btn.html?user=h2oai&repo=h2ogpt&type=star&count=true&size=small" frameborder="0" scrolling="0" width="280" height="20" title="GitHub"></iframe><small><a href="https://github.com/h2oai/h2ogpt">h2oGPT</a> <a href="https://evalgpt.ai/">LLM Leaderboard</a>  <a href="https://github.com/h2oai/h2o-llmstudio">LLM Studio</a><br><a href="https://huggingface.co/h2oai">🤗 Models</a>"""
+    else:
+        description = None
     description_bottom = "If this host is busy, try<br>[Multi-Model](https://gpt.h2o.ai)<br>[Falcon 40B](https://falcon.h2o.ai)<br>[Vicuna 33B](https://wizardvicuna.h2o.ai)<br>[MPT 30B-Chat](https://mpt.h2o.ai)<br>[HF Spaces1](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot)<br>[HF Spaces2](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot2)<br>"
     if is_hf:
         description_bottom += '''<a href="https://huggingface.co/spaces/h2oai/h2ogpt-chatbot?duplicate=true"><img src="https://bit.ly/3gLdBN6" style="white-space: nowrap" alt="Duplicate Space"></a>'''
@@ -299,9 +302,10 @@ def go_gradio(**kwargs):
         selection_docs_state0 = update_langchain_mode_paths(my_db_state0, selection_docs_state0)
         selection_docs_state = gr.State(selection_docs_state0)
 
-        gr.Markdown(f"""
-            {get_h2o_title(title, description) if kwargs['h2ocolors'] else get_simple_title(title, description)}
-            """)
+        if description is not None:
+            gr.Markdown(f"""
+                {get_h2o_title(title, description) if kwargs['h2ocolors'] else get_simple_title(title, description)}
+                """)
 
         # go button visible if
         base_wanted = kwargs['base_model'] != no_model_str and kwargs['login_mode_if_model0']
@@ -311,7 +315,9 @@ def go_gradio(**kwargs):
         res_value = "Response Score: NA" if not kwargs[
             'model_lock'] else "Response Scores: %s" % nas
 
-        if kwargs['langchain_mode'] != LangChainMode.DISABLED.value:
+        user_can_do_sum = kwargs['langchain_mode'] != LangChainMode.DISABLED.value and \
+                          (kwargs['visible_side_bar'] or kwargs['visible_system_tab'])
+        if user_can_do_sum:
             extra_prompt_form = ".  For summarization, no query required, just click submit"
         else:
             extra_prompt_form = ""
@@ -350,7 +356,7 @@ def go_gradio(**kwargs):
 
         normal_block = gr.Row(visible=not base_wanted, equal_height=False)
         with normal_block:
-            side_bar = gr.Column(elem_id="col_container", scale=1, min_width=100)
+            side_bar = gr.Column(elem_id="col_container", scale=1, min_width=100, visible=kwargs['visible_side_bar'])
             with side_bar:
                 with gr.Accordion("Chats", open=False, visible=True):
                     radio_chats = gr.Radio(value=None, label="Saved Chats", show_label=False,
@@ -414,7 +420,12 @@ def go_gradio(**kwargs):
                         visible=False)  # WIP
             col_tabs = gr.Column(elem_id="col_container", scale=10)
             with col_tabs, gr.Tabs():
-                with gr.TabItem("Chat"):
+                if kwargs['chat_tabless']:
+                    chat_tab = gr.Row(visible=True)
+                else:
+                    chat_tab = gr.TabItem("Chat") \
+                        if kwargs['visible_chat_tab'] else gr.Row(visible=False)
+                with chat_tab:
                     if kwargs['langchain_mode'] == 'Disabled':
                         text_output_nochat = gr.Textbox(lines=5, label=output_label0, show_copy_button=True,
                                                         visible=not kwargs['chat'])
@@ -454,7 +465,7 @@ def go_gradio(**kwargs):
                                         elem_id='prompt-form',
                                         container=True,
                                     )
-                                submit_buttons = gr.Row(equal_height=False)
+                                submit_buttons = gr.Row(equal_height=False, visible=kwargs['visible_submit_buttons'])
                                 with submit_buttons:
                                     mw1 = 50
                                     mw2 = 50
@@ -479,7 +490,9 @@ def go_gradio(**kwargs):
                                     score_text2 = gr.Textbox("Response Score2: NA", show_label=False,
                                                              visible=False and not kwargs['model_lock'])
 
-                with gr.TabItem("Document Selection"):
+                doc_selection_tab = gr.TabItem("Document Selection") \
+                    if kwargs['visible_doc_selection_tab'] else gr.Row(visible=False)
+                with doc_selection_tab:
                     document_choice = gr.Dropdown(docs_state0,
                                                   label="Select Subset of Document(s) %s" % file_types_str,
                                                   value=[DocumentChoice.ALL.value],
@@ -540,7 +553,9 @@ def go_gradio(**kwargs):
                     doc_exception_text = gr.Textbox(value="", label='Document Exceptions',
                                                     interactive=False,
                                                     visible=kwargs['langchain_mode'] != 'Disabled')
-                with gr.TabItem("Document Viewer"):
+                doc_view_tab = gr.TabItem("Document Viewer") \
+                    if kwargs['visible_doc_view_tab'] else gr.Row(visible=False)
+                with doc_view_tab:
                     with gr.Row(visible=kwargs['langchain_mode'] != 'Disabled'):
                         with gr.Column(scale=2):
                             get_viewable_sources_btn = gr.Button(value="Update UI with Document(s) from DB", scale=0,
@@ -561,7 +576,9 @@ def go_gradio(**kwargs):
                     doc_view3 = gr.JSON(visible=False)
                     doc_view4 = gr.Markdown(visible=False)
 
-                with gr.TabItem("Chat History"):
+                chat_tab = gr.TabItem("Chat History") \
+                    if kwargs['visible_chat_history_tab'] else gr.Row(visible=False)
+                with chat_tab:
                     with gr.Row():
                         with gr.Column(scale=1):
                             remove_chat_btn = gr.Button(value="Remove Selected Saved Chats", visible=True, size='sm')
@@ -586,7 +603,9 @@ def go_gradio(**kwargs):
 
                     chat_exception_text = gr.Textbox(value="", visible=True, label='Chat Exceptions',
                                                      interactive=False)
-                with gr.TabItem("Expert"):
+                expert_tab = gr.TabItem("Expert") \
+                    if kwargs['visible_expert_tab'] else gr.Row(visible=False)
+                with expert_tab:
                     with gr.Row():
                         with gr.Column():
                             stream_output = gr.components.Checkbox(label="Stream output",
@@ -700,7 +719,9 @@ def go_gradio(**kwargs):
                                                         info="Empty means use internal defaults",
                                                         value='')
 
-                with gr.TabItem("Models"):
+                models_tab = gr.TabItem("Models") \
+                    if kwargs['visible_models_tab'] else gr.Row(visible=False)
+                with models_tab:
                     model_lock_msg = gr.Textbox(lines=1, label="Model Lock Notice",
                                                 placeholder="Started in model_lock mode, no model changes allowed.",
                                                 visible=bool(kwargs['model_lock']), interactive=False)
@@ -793,7 +814,9 @@ def go_gradio(**kwargs):
                         with gr.Row():
                             add_model_lora_server_button = gr.Button("Add new Model, Lora, Server url:port", scale=0,
                                                                      size='sm', interactive=not is_public)
-                with gr.TabItem("System"):
+                system_tab = gr.TabItem("System") \
+                    if kwargs['visible_system_tab'] else gr.Row(visible=False)
+                with system_tab:
                     with gr.Row():
                         with gr.Column(scale=1):
                             side_bar_text = gr.Textbox('on', visible=False, interactive=False)
@@ -840,7 +863,9 @@ def go_gradio(**kwargs):
                                 s3up_btn = gr.Button("S3UP", size='sm')
                                 s3up_text = gr.Textbox(label='S3UP result', interactive=False)
 
-                with gr.TabItem("Terms of Service"):
+                tos_tab = gr.TabItem("Terms of Service") \
+                    if kwargs['visible_tos_tab'] else gr.Row(visible=False)
+                with tos_tab:
                     description = ""
                     description += """<p><b> DISCLAIMERS: </b><ul><i><li>The model was trained on The Pile and other data, which may contain objectionable content.  Use at own risk.</i></li>"""
                     if kwargs['load_8bit']:
@@ -851,7 +876,9 @@ def go_gradio(**kwargs):
                     description += """<i><li>By using h2oGPT, you accept our <a href="https://github.com/h2oai/h2ogpt/blob/main/docs/tos.md">Terms of Service</a></i></li></ul></p>"""
                     gr.Markdown(value=description, show_label=False, interactive=False)
 
-                with gr.TabItem("Hosts"):
+                hosts_tab = gr.TabItem("Hosts") \
+                    if kwargs['visible_hosts_tab'] else gr.Row(visible=False)
+                with hosts_tab:
                     gr.Markdown(f"""
                         {description_bottom}
                         {task_info_md}
@@ -1171,7 +1198,7 @@ def go_gradio(**kwargs):
                 db1s[langchain_mode2] = [None, None]
             if valid:
                 save_collection_names(langchain_modes, visible_langchain_modes, langchain_mode_paths, LangChainMode,
-                                      db1s)
+                                      db1s, True if user_path else False)
 
             return db1s, selection_docs_state1, gr.update(choices=choices,
                                                           value=langchain_mode2), textbox, df_langchain_mode_paths1
@@ -1184,8 +1211,10 @@ def go_gradio(**kwargs):
             langchain_mode_paths = selection_docs_state1['langchain_mode_paths']
             visible_langchain_modes = selection_docs_state1['visible_langchain_modes']
 
-            if langchain_mode2 in db1s and not allow_upload_to_my_data or \
-                    dbsu is not None and langchain_mode2 in dbsu and not allow_upload_to_user_data or \
+            in_scratch_db = langchain_mode2 in db1s
+            in_user_db = dbsu is not None and langchain_mode2 in dbsu
+            if in_scratch_db and not allow_upload_to_my_data or \
+                    in_user_db and not allow_upload_to_user_data or \
                     langchain_mode2 in langchain_modes_intrinsic:
                 # NOTE: Doesn't fail if remove MyData, but didn't debug odd behavior seen with upload after gone
                 textbox = "Invalid access, cannot remove %s" % langchain_mode2
@@ -1212,7 +1241,7 @@ def go_gradio(**kwargs):
                 df_langchain_mode_paths1 = get_df_langchain_mode_paths(selection_docs_state1)
 
                 save_collection_names(langchain_modes, visible_langchain_modes, langchain_mode_paths, LangChainMode,
-                                      db1s)
+                                      db1s, in_user_db)
 
             return db1s, selection_docs_state1, \
                 gr.update(choices=get_langchain_choices(selection_docs_state1),
@@ -1639,38 +1668,44 @@ def go_gradio(**kwargs):
             instruction (from input_list) itself is not consumed by bot
             :return:
             """
+            error = ''
+            extra = ''
+            save_dict = dict()
             if not fun1:
-                yield history, ''
+                yield history, error, extra, save_dict
                 return
             try:
                 for output_fun in fun1():
                     output = output_fun['response']
                     extra = output_fun['sources']  # FIXME: can show sources in separate text box etc.
+                    save_dict = output_fun['save_dict']
                     # ensure good visually, else markdown ignores multiple \n
                     bot_message = fix_text_for_gradio(output)
                     history[-1][1] = bot_message
-                    yield history, ''
+                    yield history, error, extra, save_dict
             except StopIteration:
-                yield history, ''
+                yield history, error, extra, save_dict
             except RuntimeError as e:
                 if "generator raised StopIteration" in str(e):
                     # assume last entry was bad, undo
                     history.pop()
-                    yield history, ''
+                    yield history, error, extra, save_dict
                 else:
                     if history and len(history) > 0 and len(history[0]) > 1 and history[-1][1] is None:
                         history[-1][1] = ''
-                    yield history, str(e)
+                    yield history, str(e), extra, save_dict
                     raise
             except Exception as e:
                 # put error into user input
                 ex = "Exception: %s" % str(e)
                 if history and len(history) > 0 and len(history[0]) > 1 and history[-1][1] is None:
                     history[-1][1] = ''
-                yield history, ex
+                yield history, ex, extra, save_dict
                 raise
             finally:
-                clear_torch_cache()
+                # clear_torch_cache()
+                # don't clear torch cache here, too early and stalls generation if used for all_bot()
+                pass
             return
 
         def clear_embeddings(langchain_mode1, db1s):
@@ -1687,12 +1722,16 @@ def go_gradio(**kwargs):
 
         def bot(*args, retry=False):
             history, fun1, langchain_mode1, db1 = prep_bot(*args, retry=retry)
+            save_dict = dict()
             try:
                 for res in get_response(fun1, history):
-                    yield res
+                    history, error, extra, save_dict = res
+                    # pass back to gradio only these, rest are consumed in this function
+                    yield history, error
             finally:
                 clear_torch_cache()
                 clear_embeddings(langchain_mode1, db1)
+            save_generate_output(**save_dict)
 
         def all_bot(*args, retry=False, model_states1=None):
             args_list = list(args).copy()
@@ -1704,6 +1743,7 @@ def go_gradio(**kwargs):
             langchain_mode1 = args_list[eval_func_param_names.index('langchain_mode')]
             isize = len(input_args_list) + 1  # states + chat history
             db1s = None
+            save_dicts = []
             try:
                 gen_list = []
                 for chatboti, (chatbot1, model_state1) in enumerate(zip(chatbots, model_states1)):
@@ -1729,14 +1769,16 @@ def go_gradio(**kwargs):
 
                 bots_old = chatbots.copy()
                 exceptions_old = [''] * len(bots_old)
+                extras_old = [''] * len(bots_old)
+                save_dicts_old = [''] * len(bots_old)
                 tgen0 = time.time()
                 for res1 in itertools.zip_longest(*gen_list):
                     if time.time() - tgen0 > max_time1:
                         print("Took too long: %s" % max_time1, flush=True)
                         break
 
-                    bots = [x[0] if x is not None and not isinstance(x, BaseException) else y for x, y in
-                            zip(res1, bots_old)]
+                    bots = [x[0] if x is not None and not isinstance(x, BaseException) else y
+                            for x, y in zip(res1, bots_old)]
                     bots_old = bots.copy()
 
                     def larger_str(x, y):
@@ -1745,6 +1787,14 @@ def go_gradio(**kwargs):
                     exceptions = [x[1] if x is not None and not isinstance(x, BaseException) else larger_str(str(x), y)
                                   for x, y in zip(res1, exceptions_old)]
                     exceptions_old = exceptions.copy()
+
+                    extras = [x[2] if x is not None and not isinstance(x, BaseException) else y
+                              for x, y in zip(res1, extras_old)]
+                    extras_old = extras.copy()
+
+                    save_dicts = [x[3] if x is not None and not isinstance(x, BaseException) else y
+                                  for x, y in zip(res1, save_dicts_old)]
+                    save_dicts_old = save_dicts.copy()
 
                     def choose_exc(x):
                         # don't expose ports etc. to exceptions window
@@ -1756,6 +1806,7 @@ def go_gradio(**kwargs):
                     exceptions_str = '\n'.join(
                         ['Model %s: %s' % (iix, choose_exc(x)) for iix, x in enumerate(exceptions) if
                          x not in [None, '', 'None']])
+                    # yield back to gradio only is bots + exceptions, rest are consumed locally
                     if len(bots) > 1:
                         yield tuple(bots + [exceptions_str])
                     else:
@@ -1767,6 +1818,8 @@ def go_gradio(**kwargs):
             finally:
                 clear_torch_cache()
                 clear_embeddings(langchain_mode1, db1s)
+            for save_dict in save_dicts:
+                save_generate_output(**save_dict)
 
         # NORMAL MODEL
         user_args = dict(fn=functools.partial(user, sanitize_user_prompt=kwargs['sanitize_user_prompt']),
@@ -2198,11 +2251,15 @@ def go_gradio(**kwargs):
                 print("Pre-switch pre-del GPU memory: %s" % get_torch_allocated(), flush=True)
 
             model0 = model_state0['model']
-            if isinstance(model_state_old['model'], str) and model0 is not None:
+            if isinstance(model_state_old['model'], str) and \
+                    model0 is not None and \
+                    hasattr(model0, 'cpu'):
                 # best can do, move model loaded at first to CPU
                 model0.cpu()
 
-            if model_state_old['model'] is not None and not isinstance(model_state_old['model'], str):
+            if model_state_old['model'] is not None and \
+                    not isinstance(model_state_old['model'], str) and \
+                    hasattr(model_state_old['model'], 'cpu'):
                 try:
                     model_state_old['model'].cpu()
                 except Exception as e:
