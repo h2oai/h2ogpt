@@ -110,6 +110,7 @@ def go_gradio(**kwargs):
     enable_text_upload = kwargs['enable_text_upload']
     use_openai_embedding = kwargs['use_openai_embedding']
     hf_embedding_model = kwargs['hf_embedding_model']
+    migrate_embedding_model = kwargs['migrate_embedding_model']
     enable_captions = kwargs['enable_captions']
     captions_model = kwargs['captions_model']
     enable_ocr = kwargs['enable_ocr']
@@ -912,6 +913,7 @@ def go_gradio(**kwargs):
                                            db_type=db_type,
                                            use_openai_embedding=use_openai_embedding,
                                            hf_embedding_model=hf_embedding_model,
+                                           migrate_embedding_model=migrate_embedding_model,
                                            captions_model=captions_model,
                                            enable_captions=enable_captions,
                                            caption_loader=caption_loader,
@@ -2723,6 +2725,7 @@ def _update_user_db(file,
                     visible_langchain_modes=None,
                     use_openai_embedding=None,
                     hf_embedding_model=None,
+                    migrate_embedding_model=None,
                     caption_loader=None,
                     enable_captions=None,
                     captions_model=None,
@@ -2737,6 +2740,7 @@ def _update_user_db(file,
     assert chunk_size is not None
     assert use_openai_embedding is not None
     assert hf_embedding_model is not None
+    assert migrate_embedding_model is not None
     assert caption_loader is not None
     assert enable_captions is not None
     assert captions_model is not None
@@ -2831,7 +2835,8 @@ def _update_user_db(file,
                             db_type=db_type,
                             persist_directory=persist_directory,
                             langchain_mode=langchain_mode,
-                            hf_embedding_model=hf_embedding_model)
+                            hf_embedding_model=hf_embedding_model,
+                            migrate_embedding_model=migrate_embedding_model)
             if db is not None:
                 db1[0] = db
             source_files_added = get_source_files(db=db1[0], exceptions=exceptions)
@@ -2850,7 +2855,8 @@ def _update_user_db(file,
                             db_type=db_type,
                             persist_directory=persist_directory,
                             langchain_mode=langchain_mode,
-                            hf_embedding_model=hf_embedding_model)
+                            hf_embedding_model=hf_embedding_model,
+                            migrate_embedding_model=migrate_embedding_model)
             dbs[langchain_mode] = db
             # NOTE we do not return db, because function call always same code path
             # return dbs[langchain_mode]
@@ -2978,9 +2984,13 @@ def get_source_files(db=None, exceptions=None, metadatas=None):
 
 def update_and_get_source_files_given_langchain_mode(db1s, langchain_mode, chunk, chunk_size,
                                                      dbs=None, first_para=None,
+                                                     hf_embedding_model=None,
+                                                     migrate_embedding_model=None,
                                                      text_limit=None,
                                                      langchain_mode_paths=None, db_type=None, load_db_if_exists=None,
                                                      n_jobs=None, verbose=None):
+    assert hf_embedding_model is not None
+    assert migrate_embedding_model is not None
     has_path = {k: v for k, v in langchain_mode_paths.items() if v}
     if langchain_mode in [LangChainMode.LLM.value, LangChainMode.MY_DATA.value]:
         # then assume user really meant UserData, to avoid extra clicks in UI,
@@ -2991,8 +3001,12 @@ def update_and_get_source_files_given_langchain_mode(db1s, langchain_mode, chunk
     db = get_db(db1s, langchain_mode, dbs=dbs)
 
     from gpt_langchain import make_db
+    # not designed for older way of using openai embeddings, why use_openai_embedding=False
+    # use_openai_embedding, hf_embedding_model passed in and possible different values used,
+    # but no longer used here or in calling functions so ok
     db, num_new_sources, new_sources_metadata = make_db(use_openai_embedding=False,
-                                                        hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
+                                                        hf_embedding_model=hf_embedding_model,
+                                                        migrate_embedding_model=migrate_embedding_model,
                                                         first_para=first_para, text_limit=text_limit,
                                                         chunk=chunk,
                                                         chunk_size=chunk_size,

@@ -29,6 +29,7 @@ def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False,
 
 def make_db_main(use_openai_embedding: bool = False,
                  hf_embedding_model: str = None,
+                 migrate_embedding_model=False,
                  persist_directory: str = 'db_dir_UserData',
                  user_path: str = 'user_path',
                  url: Union[List[str], str] = None,
@@ -71,6 +72,7 @@ def make_db_main(use_openai_embedding: bool = False,
 
     :param use_openai_embedding: Whether to use OpenAI embedding
     :param hf_embedding_model: HF embedding model to use. Like generate.py, uses 'hkunlp/instructor-large' if have GPUs, else "sentence-transformers/all-MiniLM-L6-v2"
+    :param migrate_embedding_model: whether to migrate to newly chosen hf_embedding_model or stick with one in db
     :param persist_directory: where to persist db
     :param user_path: where to pull documents from (None means url is not None.  If url is not None, this is ignored.)
     :param url: url (or urls) to generate documents from (None means user_path is not None)
@@ -163,7 +165,7 @@ def make_db_main(use_openai_embedding: bool = False,
     assert len(sources) > 0, "No sources found"
     db = create_or_update_db(db_type, persist_directory, collection_name,
                              sources, use_openai_embedding, add_if_exists, verbose,
-                             hf_embedding_model)
+                             hf_embedding_model, migrate_embedding_model)
 
     assert db is not None
     if verbose:

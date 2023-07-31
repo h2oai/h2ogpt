@@ -183,6 +183,7 @@ def main(
         use_openai_embedding: bool = False,
         use_openai_model: bool = False,
         hf_embedding_model: str = None,
+        migrate_embedding_model: str = False,
         cut_distance: float = 1.64,
         answer_with_sources: bool = True,
         append_sources_to_answer: bool = True,
@@ -393,6 +394,10 @@ def main(
            Can also choose simpler model with 384 parameters per embedding: "sentence-transformers/all-MiniLM-L6-v2"
            Can also choose even better embedding with 1024 parameters: 'hkunlp/instructor-xl'
            We support automatically changing of embeddings for chroma, with a backup of db made if this is done
+    :param migrate_embedding_model: whether to use hf_embedding_model embedding even if database already had an embedding set.
+           used to migrate all embeddings to a new one, but will take time to re-embed.
+           Default (False) is to use the prior embedding for existing databases, and only use hf_embedding_model for new databases
+           If had old database without embedding saved, then hf_embedding_model is also used.
     :param cut_distance: Distance to cut off references with larger distances when showing references.
            1.64 is good to avoid dropping references for all-MiniLM-L6-v2, but instructor-large will always show excessive references.
            For all-MiniLM-L6-v2, a value of 1.5 can push out even more references, or a large value of 100 can avoid any loss of references.
@@ -729,6 +734,7 @@ def main(
                                     db_type, use_openai_embedding,
                                     langchain_mode1, langchain_mode_paths,
                                     hf_embedding_model,
+                                    migrate_embedding_model,
                                     kwargs_make_db=locals())
             finally:
                 # in case updated embeddings or created new embeddings
@@ -1562,6 +1568,7 @@ def evaluate(
         use_openai_embedding=None,
         use_openai_model=None,
         hf_embedding_model=None,
+        migrate_embedding_model=None,
         cut_distance=None,
         db_type=None,
         n_jobs=None,
@@ -1588,6 +1595,7 @@ def evaluate(
     assert use_openai_embedding is not None
     assert use_openai_model is not None
     assert hf_embedding_model is not None
+    assert migrate_embedding_model is not None
     assert db_type is not None
     assert top_k_docs is not None and isinstance(top_k_docs, int)
     assert chunk is not None and isinstance(chunk, bool)
@@ -1778,6 +1786,7 @@ def evaluate(
                 use_openai_embedding=use_openai_embedding,
                 use_openai_model=use_openai_model,
                 hf_embedding_model=hf_embedding_model,
+                migrate_embedding_model=migrate_embedding_model,
                 first_para=first_para,
                 text_limit=text_limit,
 
