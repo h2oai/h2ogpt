@@ -1797,7 +1797,7 @@ def get_existing_db(db, persist_directory, load_db_if_exists, db_type, use_opena
                     clear_embedding(db)
         save_embed(db, use_openai_embedding, hf_embedding_model)
         return db, use_openai_embedding, hf_embedding_model
-    return None
+    return db, use_openai_embedding, hf_embedding_model
 
 
 def clear_embedding(db):
