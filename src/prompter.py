@@ -633,6 +633,21 @@ ASSISTANT:
         botstr = '[/INST]'
         if making_context:
             PreResponse += " "
+    elif prompt_type in [PromptType.orca_hashes.value, str(PromptType.orca_hashes.value),
+                         PromptType.orca_hashes.name]:
+        # https://huggingface.co/TheBloke/StableBeluga-13B-GPTQ
+        promptA = promptB = "" if not (chat and reduced) else '### System:\nThis is a system prompt, please behave and help the user.'
+
+        PreInstruct = """### User:\n"""
+
+        PreInput = None
+
+        PreResponse = """### Assistant:"""
+        terminate_response = [
+            '### User:']  # but only allow terminate after prompt is found correctly, else can't terminate
+        chat_turn_sep = chat_sep = '\n'
+        humanstr = PreInstruct
+        botstr = PreResponse
     else:
         raise RuntimeError("No such prompt_type=%s" % prompt_type)
 
