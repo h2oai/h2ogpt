@@ -83,6 +83,9 @@ prompt_type_to_model_name = {
         'meta-llama/Llama-2-13b-chat-hf',
         'meta-llama/Llama-2-34b-chat-hf',
         'meta-llama/Llama-2-70b-chat-hf',
+        'h2oai/h2ogpt-oasst1-4096-llama2-7b',
+        'h2oai/h2ogpt-oasst1-4096-llama2-13b',
+        'h2oai/h2ogpt-oasst1-4096-llama2-70b',
         'llama',
     ],
     # could be plain, but default is correct prompt_type for default TheBloke model ggml-wizardLM-7B.q4_2.bin
