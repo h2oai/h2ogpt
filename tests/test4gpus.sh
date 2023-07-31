@@ -4,3 +4,6 @@ GRADIO_SERVER_PORT=7860 TESTMODULOTOTAL=4 TESTMODULO=0 CUDA_VISIBLE_DEVICES=0 py
 GRADIO_SERVER_PORT=7870 TESTMODULOTOTAL=4 TESTMODULO=1 CUDA_VISIBLE_DEVICES=1 pytest -s -v -n 4 tests &> tests1.log &
 GRADIO_SERVER_PORT=7880 TESTMODULOTOTAL=4 TESTMODULO=2 CUDA_VISIBLE_DEVICES=2 pytest -s -v -n 4 tests &> tests2.log &
 GRADIO_SERVER_PORT=7890 TESTMODULOTOTAL=4 TESTMODULO=3 CUDA_VISIBLE_DEVICES=3 pytest -s -v -n 4 tests &> tests3.log &
+
+# to interrupt but still get some results, do:
+# ps -auxwf | grep "[v]i" | grep pytest | awk '{print $2}' |xargs kill -s SIGINT
