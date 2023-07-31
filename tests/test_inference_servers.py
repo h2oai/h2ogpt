@@ -154,7 +154,8 @@ def run_docker(inf_port, base_model):
     home_dir = os.path.expanduser('~')
     data_dir = '%s/.cache/huggingface/hub/' % home_dir
     cmd = ["docker"] + ['run',
-                        '--gpus', 'device=0',
+                        '-d',
+                        '--gpus', 'device=%d' % int(os.getenv('CUDA_VISIBLE_DEVICES', '0')),
                         '--shm-size', '1g',
                         '-e', 'TRANSFORMERS_CACHE="/.cache/"',
                         '-p', '%s:80' % inf_port,
@@ -167,11 +168,9 @@ def run_docker(inf_port, base_model):
                         '--max-stop-sequences', '6',
                         ]
     print(cmd, flush=True)
-    p = subprocess.Popen(cmd,
-                         stdout=None, stderr=subprocess.STDOUT,
-                         )
+    docker_hash = subprocess.check_output(cmd).decode().strip()
     print("Done starting TGI server", flush=True)
-    return p.pid
+    return docker_hash
 
 
 @pytest.mark.parametrize("base_model",
@@ -195,7 +194,7 @@ def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain,
     # HF inference server
     inf_port = "6112"
     inference_server = 'http://127.0.0.1:%s' % inf_port
-    inf_pid = run_docker(inf_port, base_model)
+    docker_hash = run_docker(inf_port, base_model)
     time.sleep(60)
 
     if force_langchain_evaluate:
@@ -303,15 +302,7 @@ def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain,
                        'response']
         print("DONE", flush=True)
     finally:
-        # take down docker server
-        import signal
-        try:
-            os.kill(inf_pid, signal.SIGTERM)
-            os.kill(inf_pid, signal.SIGKILL)
-        except:
-            pass
-
-        os.system("docker ps | grep text-generation-inference | awk '{print $1}' | xargs docker stop ")
+        os.system("docker stop %s" % docker_hash)
 
 
 @pytest.mark.skipif(not have_openai_key, reason="requires OpenAI key to run")
