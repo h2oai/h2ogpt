@@ -1158,3 +1158,16 @@ def get_list_or_str(x):
             return x
     else:
         return x
+
+
+def deepcopy_by_pickle_object(object):
+    """
+    Faster deepcopy, can only work on things that are picklable.  Naive Deepcopy is more general.
+    Same method as for class Individual
+    :param object:
+    :return:
+    """
+    gc.disable()
+    new_object = pickle.loads(pickle.dumps(object, -1))
+    gc.enable()
+    return new_object
