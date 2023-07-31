@@ -32,14 +32,20 @@ def get_inf_server():
     return inf_server
 
 
+def get_mods():
+    testtotalmod = int(os.getenv('TESTMODULOTOTAL', '1'))
+    testmod = int(os.getenv('TESTMODULO', '0'))
+    return testtotalmod, testmod
+
+
 def do_skip_test(name):
     """
     Control if skip test.  note that skipping all tests does not fail, doing no tests is what fails
     :param name:
     :return:
     """
-    testmod = int(os.getenv('TESTMODULOTOTAL', '4'))
-    return os.getenv('TESTMODULO') is not None and int(get_sha(name), 16) % testmod != int(os.getenv('TESTMODULO'))
+    testtotalmod, testmod = get_mods()
+    return int(get_sha(name), 16) % testtotalmod != testmod
 
 
 def wrap_test_forked(func):
@@ -48,8 +54,11 @@ def wrap_test_forked(func):
     @wraps(func)
     def f(*args, **kwargs):
         # automatically list or set, so can globally control server ports or host for all tests
-        gradio_port = os.environ['GRADIO_SERVER_PORT'] = os.getenv('GRADIO_SERVER_PORT', "7860")
+        gradio_port = os.environ['GRADIO_SERVER_PORT'] = os.getenv('GRADIO_SERVER_PORT', str(7860))
+        testtotalmod, testmod = get_mods()
+        gradio_port += testmod
         os.environ['HOST'] = os.getenv('HOST', "http://localhost:%s" % gradio_port)
+
         pytest_name = get_test_name()
         if do_skip_test(pytest_name):
             # Skipping is based on raw name, so deterministic
