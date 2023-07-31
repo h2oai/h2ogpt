@@ -58,7 +58,7 @@ os.environ['HF_HUB_DISABLE_TELEMETRY'] = '1'
 def get_client(serialize=True):
     from gradio_client import Client
 
-    client = Client(os.getenv('HOST', "http://localhost:7860"), serialize=serialize)
+    client = Client(get_inf_server(), serialize=serialize)
     if debug:
         print(client.view_api(all_endpoints=True))
     return client

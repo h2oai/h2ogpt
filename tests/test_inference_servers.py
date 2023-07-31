@@ -4,9 +4,9 @@ import time
 from datetime import datetime
 import pytest
 
-from tests.utils import wrap_test_forked
+from tests.utils import wrap_test_forked, get_inf_port
 from tests.test_langchain_units import have_openai_key
-from src.client_test import run_client_many
+from src.client_test import run_client_many, get_inf_server
 from src.enums import PromptType, LangChainAction
 
 
@@ -56,18 +56,21 @@ def test_gradio_inference_server(base_model, force_langchain_evaluate, do_langch
                        force_langchain_evaluate=force_langchain_evaluate)
 
     # inference server
-    inf_port = os.environ['GRADIO_SERVER_PORT'] = "7860"
     from src.gen import main
     main(**main_kwargs)
+    inference_server = get_inf_server()
+    inf_port = get_inf_port()
 
-    # server that consumes inference server
-    client_port = os.environ['GRADIO_SERVER_PORT'] = "7861"
+    # server that consumes inference server has different port
     from src.gen import main
-    main(**main_kwargs, inference_server='http://127.0.0.1:%s' % inf_port)
+    client_port = inf_port + 2  # assume will not use +  2 in testing, + 1 reservered for non-gradio inference servers
+    # only case when GRADIO_SERVER_PORT and HOST should appear in tests because using 2 gradio instances
+    os.environ['GRADIO_SERVER_PORT'] = str(client_port)
+    os.environ['HOST'] = "http://127.0.0.1:%s" % client_port
+    main(**main_kwargs, inference_server=inference_server)
 
     # client test to server that only consumes inference server
     from src.client_test import run_client_chat
-    os.environ['HOST'] = "http://127.0.0.1:%s" % client_port
     res_dict, client = run_client_chat(prompt=prompt, prompt_type=prompt_type, stream_output=stream_output,
                                        max_new_tokens=max_new_tokens, langchain_mode=langchain_mode,
                                        langchain_action=langchain_action, langchain_agents=langchain_agents)
@@ -192,7 +195,8 @@ def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain,
                              visible_langchain_modes=['UserData', 'MyData'],
                              reverse_docs=True):
     # HF inference server
-    inf_port = "6112"
+    gradio_port = get_inf_server()
+    inf_port = gradio_port + 1
     inference_server = 'http://127.0.0.1:%s' % inf_port
     docker_hash = run_docker(inf_port, base_model)
     time.sleep(60)
@@ -241,13 +245,11 @@ def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain,
 
     try:
         # server that consumes inference server
-        client_port = os.environ['GRADIO_SERVER_PORT'] = "7861"
         from src.gen import main
         main(**main_kwargs)
 
         # client test to server that only consumes inference server
         from src.client_test import run_client_chat
-        os.environ['HOST'] = "http://127.0.0.1:%s" % client_port
         res_dict, client = run_client_chat(prompt=prompt, prompt_type=prompt_type,
                                            stream_output=stream_output,
                                            max_new_tokens=max_new_tokens, langchain_mode=langchain_mode,
@@ -331,13 +333,11 @@ def test_openai_inference_server(force_langchain_evaluate,
                        reverse_docs=reverse_docs)
 
     # server that consumes inference server
-    client_port = os.environ['GRADIO_SERVER_PORT'] = "7861"
     from src.gen import main
     main(**main_kwargs, inference_server='openai_chat')
 
     # client test to server that only consumes inference server
     from src.client_test import run_client_chat
-    os.environ['HOST'] = "http://127.0.0.1:%s" % client_port
     res_dict, client = run_client_chat(prompt=prompt, prompt_type='openai_chat', stream_output=stream_output,
                                        max_new_tokens=max_new_tokens, langchain_mode=langchain_mode,
                                        langchain_action=langchain_action, langchain_agents=langchain_agents)

@@ -2,6 +2,7 @@ import os
 import pytest
 from transformers import AutoTokenizer
 
+from src.client_test import get_inf_server
 from tests.utils import wrap_test_forked
 from src.enums import LangChainAction
 
@@ -110,12 +111,9 @@ def test_gradio_long_context_uuid_key_value_retrieval(base_model, rope_scaling, 
                            rope_scaling=rope_scaling,
                            use_auth_token=True,
                            save_dir="long_context")
-        client_port = os.environ['GRADIO_SERVER_PORT'] = "7861"
         from src.gen import main
         main(**main_kwargs)
         from src.client_test import run_client_chat
-        os.environ['HOST'] = "http://127.0.0.1:%s" % client_port
-
         res_dict, client = run_client_chat(
             prompt=prompt,
             stream_output=False, max_new_tokens=16384,

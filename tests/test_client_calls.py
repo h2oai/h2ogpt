@@ -6,7 +6,7 @@ import shutil
 import pytest
 
 from tests.utils import wrap_test_forked, make_user_path_test, get_llama
-from src.client_test import get_client, get_args, run_client_gen
+from src.client_test import get_client, get_args, run_client_gen, get_inf_server
 from src.enums import LangChainAction, LangChainMode
 from src.utils import get_githash, remove, remove_collection_enum, download_simple, hash_file
 
@@ -53,17 +53,14 @@ def test_client1api_lean(admin_pass):
     from src.gen import main
     base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
     os.environ['ADMIN_PASS'] = admin_pass
-    inf_port = os.environ['GRADIO_SERVER_PORT'] = "9999"
     os.environ['GET_GITHASH'] = '1'
     main(base_model=base_model, prompt_type='human_bot', chat=False,
          stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False)
 
-    os.environ['HOST'] = "http://127.0.0.1:%s" % inf_port
-
     client1 = get_client(serialize=True)
 
     from gradio_utils.grclient import GradioClient
-    client2 = GradioClient(os.environ['HOST'])
+    client2 = GradioClient(get_inf_server())
     client2.refresh_client()  # test refresh
 
     for client in [client1, client2]:
@@ -606,7 +603,7 @@ def test_client_stress_stream(repeat):
 
 
 @pytest.mark.skipif(not os.getenv('SERVER'),
-                    reason="For testing text-generatino-inference server")
+                    reason="For testing remote text-generatino-inference server")
 @wrap_test_forked
 def test_text_generation_inference_server1():
     """
@@ -832,7 +829,7 @@ def test_client_summarization(prompt_summary):
         check_hashes = True
     else:
         # To test file is really handled remotely
-        os.environ['HOST'] = ''  # set to some host
+        # export HOST=''  in CLI to set to some host
         check_hashes = False
 
     # get file for client to upload
@@ -842,7 +839,7 @@ def test_client_summarization(prompt_summary):
 
     # PURE client code
     from gradio_client import Client
-    client = Client(os.getenv('HOST', "http://localhost:7860"))
+    client = Client(get_inf_server())
 
     # upload file(s).  Can be list or single file
     test_file_local, test_file_server = client.predict(test_file1, api_name='/upload_api')
@@ -916,7 +913,7 @@ def test_client_summarization_from_text():
 
     # PURE client code
     from gradio_client import Client
-    client = Client(os.getenv('HOST', "http://localhost:7860"), serialize=True)
+    client = Client(get_inf_server(), serialize=True)
     chunk = True
     chunk_size = 512
     langchain_mode = 'MyData'
@@ -959,7 +956,7 @@ def test_client_summarization_from_url(url, top_k_docs):
 
     # PURE client code
     from gradio_client import Client
-    client = Client(os.getenv('HOST', "http://localhost:7860"), serialize=True)
+    client = Client(get_inf_server(), serialize=True)
     chunk = True
     chunk_size = 512
     langchain_mode = 'MyData'

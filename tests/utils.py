@@ -12,6 +12,26 @@ if os.path.dirname('src') not in sys.path:
 from src.utils import call_subprocess_onetask, makedirs
 
 
+def get_inf_port():
+    if os.getenv('HOST') is not None:
+        inf_server = os.environ['HOST'].split(':')[1]
+    elif os.getenv('GRADIO_SERVER_PORT') is not None:
+        inf_server = "http://localhost:%s" % os.environ['GRADIO_SERVER_PORT']
+    else:
+        raise ValueError("Expect tests to set HOST or GRADIO_SERVER_PORT")
+    return inf_server
+
+
+def get_inf_server():
+    if os.getenv('HOST') is not None:
+        inf_server = os.environ['HOST']
+    elif os.getenv('GRADIO_SERVER_PORT') is not None:
+        inf_server = "http://localhost:%s" % os.environ['GRADIO_SERVER_PORT']
+    else:
+        raise ValueError("Expect tests to set HOST or GRADIO_SERVER_PORT")
+    return inf_server
+
+
 def do_skip_test(name):
     """
     Control if skip test.  note that skipping all tests does not fail, doing no tests is what fails
@@ -27,6 +47,9 @@ def wrap_test_forked(func):
 
     @wraps(func)
     def f(*args, **kwargs):
+        # automatically list or set, so can globally control server ports or host for all tests
+        gradio_port = os.environ['GRADIO_SERVER_PORT'] = os.getenv('GRADIO_SERVER_PORT', "7860")
+        os.environ['HOST'] = os.getenv('HOST', "http://localhost:%s" % gradio_port)
         pytest_name = get_test_name()
         if do_skip_test(pytest_name):
             # Skipping is based on raw name, so deterministic
