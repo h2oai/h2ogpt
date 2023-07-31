@@ -4,9 +4,9 @@ import time
 from datetime import datetime
 import pytest
 
-from tests.utils import wrap_test_forked, get_inf_port
+from tests.utils import wrap_test_forked, get_inf_port, get_inf_server
 from tests.test_langchain_units import have_openai_key
-from src.client_test import run_client_many, get_inf_server
+from src.client_test import run_client_many
 from src.enums import PromptType, LangChainAction
 
 

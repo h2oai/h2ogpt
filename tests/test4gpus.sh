@@ -18,8 +18,8 @@ do
 done
 
 # to check on results while running, do:
-# grep -a PASSED testsparallel*.log |wc -l
-# grep -a FAILED testsparallel*.log |wc -l
+# grep -a PASSED testsparallel*.log | sed 's/.*PASSED//g' | sort | uniq |wc -l
+# grep -a FAILED testsparallel*.log | sed 's/.*FAILED//g' | sort | uniq |wc -l
 
 # to interrupt but still get some results, do:
 # ps -auxwf | grep "[v]i" | grep pytest | awk '{print $2}' |xargs kill -s SIGINT

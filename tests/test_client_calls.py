@@ -5,8 +5,8 @@ import shutil
 
 import pytest
 
-from tests.utils import wrap_test_forked, make_user_path_test, get_llama
-from src.client_test import get_client, get_args, run_client_gen, get_inf_server
+from tests.utils import wrap_test_forked, make_user_path_test, get_llama, get_inf_server
+from src.client_test import get_client, get_args, run_client_gen
 from src.enums import LangChainAction, LangChainMode
 from src.utils import get_githash, remove, remove_collection_enum, download_simple, hash_file
 

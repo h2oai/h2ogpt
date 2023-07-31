@@ -1,8 +1,4 @@
-import os
 import pytest
-from transformers import AutoTokenizer
-
-from src.client_test import get_inf_server
 from tests.utils import wrap_test_forked
 from src.enums import LangChainAction
 
@@ -19,6 +15,7 @@ def num_tokens_from_string(string: str, model_name=None) -> int:
     """Returns the number of tokens in a text string."""
     global encoding
     if encoding is None:
+        from transformers import AutoTokenizer
         encoding = AutoTokenizer.from_pretrained(model_name)
     num_tokens = len(encoding.encode(string))
     return num_tokens
