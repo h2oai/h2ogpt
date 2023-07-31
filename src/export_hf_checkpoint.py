@@ -11,8 +11,12 @@ from transformers import PreTrainedModel
 
 
 def do_export():
+    BASE_MODEL = 'meta-llama/Llama-2-13b-chat-hf'
+    LORA_WEIGHTS = 'Llama-2-13b-chat-hf.h2oaiopenassistant_oasst1_h2ogpt_llama2_chat.1_epochs.b2aed9250804d815c258976c98ce968bacd88389.7'
+    OUTPUT_NAME = "h2ogpt-oasst1-4096-llama2-13b"
+
     BASE_MODEL = 'meta-llama/Llama-2-7b-chat-hf'
-    LORA_WEIGHTS = 'Llama-2-7b-chat-hf.h2oaiopenassistant_oasst1_h2ogpt_llama2_chat.1_epochs.0f429fef1ca45118494f10c42a1fe09003a2f17f.1'
+    LORA_WEIGHTS = 'Llama-2-7b-chat-hf.h2oaiopenassistant_oasst1_h2ogpt_llama2_chat.1_epochs.0c6b906f73b5639fd1d53c74fecbc9cf64f0f225.8'
     OUTPUT_NAME = "h2ogpt-oasst1-4096-llama2-7b"
 
     base_model = os.getenv('BASE_MODEL')
