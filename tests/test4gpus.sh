@@ -22,4 +22,4 @@ done
 # grep -a FAILED testsparallel*.log | sed 's/.*FAILED//g' | sort | uniq |wc -l
 
 # to interrupt but still get some results, do:
-# ps -auxwf | grep "[v]i" | grep pytest | awk '{print $2}' |xargs kill -s SIGINT
+# ps -auxwf | grep -v "[g]rep" | grep pytest | awk '{print $2}' |xargs kill -s SIGINT

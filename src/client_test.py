@@ -49,6 +49,7 @@ import pytest
 from bs4 import BeautifulSoup  # pip install beautifulsoup4
 
 from enums import DocumentSubset, LangChainAction
+from tests.utils import get_inf_server
 
 debug = False
 
