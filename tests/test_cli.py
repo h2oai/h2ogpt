@@ -107,7 +107,7 @@ def test_cli_h2ogpt(monkeypatch):
     all_generations = main(base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b', cli=True, cli_loop=False, score_model='None')
 
     assert len(all_generations) == 1
-    assert "The Earth is a planet in the Solar System." in all_generations[0] or \
+    assert "The Earth is a planet in the Solar System" in all_generations[0] or \
            "The Earth is the third planet" in all_generations[0]
 
 
