@@ -19,6 +19,10 @@ def do_export():
     LORA_WEIGHTS = 'Llama-2-7b-chat-hf.h2oaiopenassistant_oasst1_h2ogpt_llama2_chat.1_epochs.0c6b906f73b5639fd1d53c74fecbc9cf64f0f225.8'
     OUTPUT_NAME = "h2ogpt-oasst1-4096-llama2-7b"
 
+    BASE_MODEL = 'meta-llama/Llama-2-70b-chat-hf'
+    LORA_WEIGHTS = 'Llama-2-70b-chat-hf.h2oaiopenassistant_oasst1_h2ogpt_llama2_chat.1_epochs.0c6b906f73b5639fd1d53c74fecbc9cf64f0f225.6'
+    OUTPUT_NAME = "h2ogpt-oasst1-4096-llama2-70b"
+
     base_model = os.getenv('BASE_MODEL')
     output = os.getenv('MODEL')
     # for testing
