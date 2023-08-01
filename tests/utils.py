@@ -19,7 +19,7 @@ def get_inf_port():
         inf_server = "http://localhost:%s" % os.environ['GRADIO_SERVER_PORT']
     else:
         raise ValueError("Expect tests to set HOST or GRADIO_SERVER_PORT")
-    return inf_server
+    return int(inf_server)
 
 
 def get_inf_server():
