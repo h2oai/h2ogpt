@@ -1055,6 +1055,8 @@ except (pkg_resources.DistributionNotFound, AssertionError):
 # disable, hangs too often
 have_playwright = False
 
+only_selenium = os.environ.get("ONLY_SELENIUM", "0") == "1"
+only_playwright = os.environ.get("ONLY_PLAYWRIGHT", "0") == "1"
 
 def set_openai(inference_server):
     if inference_server.startswith('vllm'):

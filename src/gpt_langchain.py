@@ -34,7 +34,7 @@ from gen import get_model, SEED
 from prompter import non_hf_types, PromptType, Prompter
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
     get_device, ProgressParallel, remove, hash_file, clear_torch_cache, NullContext, get_hf_server, FakeTokenizer, \
-    have_libreoffice, have_arxiv, have_playwright, have_selenium, have_tesseract, have_pymupdf, set_openai, \
+    have_libreoffice, have_arxiv, have_playwright, have_selenium, only_playwright, only_selenium, have_tesseract, have_pymupdf, set_openai, \
     get_list_or_str
 from utils_langchain import StreamingGradioCallbackHandler
 
@@ -1224,20 +1224,35 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         else:
             if not (file.startswith("http://") or file.startswith("file://") or file.startswith("https://")):
                 file = 'http://' + file
-            docs1 = UnstructuredURLLoader(urls=[file]).load()
-            if len(docs1) == 0 and have_playwright:
-                # then something went wrong, try another loader:
-                from langchain.document_loaders import PlaywrightURLLoader
-                docs1 = PlaywrightURLLoader(urls=[file]).load()
-            if len(docs1) == 0 and have_selenium:
-                # then something went wrong, try another loader:
-                # but requires Chrome binary, else get: selenium.common.exceptions.WebDriverException: Message: unknown error: cannot find Chrome binary
+            if only_selenium | have_selenium:
                 from langchain.document_loaders import SeleniumURLLoader
                 from selenium.common.exceptions import WebDriverException
-                try:
-                    docs1 = SeleniumURLLoader(urls=[file]).load()
-                except WebDriverException as e:
-                    print("No web driver: %s" % str(e), flush=True)
+            elif only_playwright | have_playwright:
+                from langchain.document_loaders import PlaywrightURLLoader
+
+            if only_selenium | only_playwright:
+                if only_selenium:
+                    # then something went wrong, try another loader:
+                    # but requires Chrome binary, else get: selenium.common.exceptions.WebDriverException: Message: unknown error: cannot find Chrome binary
+                    try:
+                        docs1 = SeleniumURLLoader(urls=[file]).load()
+                    except WebDriverException as e:
+                        print("No web driver: %s" % str(e), flush=True)
+                elif only_playwright:
+                    docs1 = PlaywrightURLLoader(urls=[file]).load()
+            else:
+                docs1 = UnstructuredURLLoader(urls=[file]).load()
+
+                if len(docs1) == 0 and have_playwright:
+                    # then something went wrong, try another loader:
+                    docs1 = PlaywrightURLLoader(urls=[file]).load()
+                if len(docs1) == 0 and have_selenium:
+                    # then something went wrong, try another loader:
+                    # but requires Chrome binary, else get: selenium.common.exceptions.WebDriverException: Message: unknown error: cannot find Chrome binary
+                    try:
+                        docs1 = SeleniumURLLoader(urls=[file]).load()
+                    except WebDriverException as e:
+                        print("No web driver: %s" % str(e), flush=True)
             [x.metadata.update(dict(input_type='url', date=str(datetime.now))) for x in docs1]
         docs1 = clean_doc(docs1)
         doc1 = chunk_sources(docs1)
@@ -2278,7 +2293,11 @@ def get_docs_with_score(query, k_db, filter_kwargs, db, db_type, verbose=False):
                     print("chroma bug: %s" % str(e), flush=True)
                 if k_db == 1:
                     raise
-                if k_db > 10:
+                if k_db > 500:
+                    k_db -= 100
+                if k_db > 100:
+                    k_db -= 50
+                if k_db > 10 & k_db <= 100:
                     k_db -= 10
                 else:
                     k_db -= 1
