@@ -1,7 +1,8 @@
 #!/bin/bash
 # CHOOSE:
 ngpus=4
-export TESTMODULOTOTAL=8
+# below has to match GPUs for A6000s due to long context tests
+export TESTMODULOTOTAL=4
 
 pip install pytest-instafail || true
 
@@ -33,7 +34,9 @@ do
   export OPENBLAS_MAIN_FREE=$n_jobs
   export MKL_NUM_THREADS=$n_jobs
 
-  pytest --instafail -s -v -n 1 tests &> testsparallel"${mod}".log &
+  # huggyllama test uses alot of memory, requires TESTMODULOTOTAL=ngpus for even A6000s
+  # pytest --instafail -s -v -n 1 tests -k "not test_huggyllama_transformers_pr" &> testsparallel"${mod}".log &
+  pytest --instafail -s -v -n 1 tests  &> testsparallel"${mod}".log &
   pid=$!
   echo "MODS: $mod $GRADIO_SERVER_PORT $CUDA_VISIBLE_DEVICES"
   pids="$pids $pid"
