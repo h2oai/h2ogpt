@@ -3,7 +3,7 @@ from typing import Union, List
 
 from gpt_langchain import path_to_docs, get_some_dbs_from_hf, all_db_zips, some_db_zips, create_or_update_db, \
     get_persist_directory
-from utils import get_ngpus_vis, H2O_Fire
+from utils import get_ngpus_vis, H2O_Fire, makedirs
 
 
 def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False,
@@ -43,7 +43,7 @@ def make_db_main(use_openai_embedding: bool = False,
                  download_all: bool = False,
                  download_some: bool = False,
                  download_one: str = None,
-                 download_dest: str = "./",
+                 download_dest: str = None,
                  n_jobs: int = -1,
                  enable_captions: bool = True,
                  captions_model: str = "Salesforce/blip-image-captioning-base",
@@ -101,6 +101,8 @@ def make_db_main(use_openai_embedding: bool = False,
 
     if persist_directory is None:
         persist_directory = get_persist_directory(collection_name)
+    if download_dest is None:
+        download_dest = makedirs('./', use_base=True)
 
     # match behavior of main() in generate.py for non-HF case
     n_gpus = get_ngpus_vis()
