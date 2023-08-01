@@ -3,6 +3,8 @@
 ngpus=4
 export TESTMODULOTOTAL=8
 
+pip install pytest-instafail || true
+
 NPHYSICAL=`lscpu -p | egrep -v '^\#' | sort -u -t, -k 2,4 | wc -l`
 NPROCS=`lscpu -p | egrep -v '^\#' | wc -l`
 #
@@ -22,7 +24,7 @@ do
   export TESTMODULO=$mod
   # CVD loops over number of GPUs
   export CUDA_VISIBLE_DEVICES=$(($lowergpuid+$(($mod % $ngpus))))
-  pytest -s -v -n 1 tests &> testsparallel"${mod}".log &
+  pytest --instafail -s -v -n 1 tests &> testsparallel"${mod}".log &
   pid=$!
   echo "MODS: $mod $GRADIO_SERVER_PORT $CUDA_VISIBLE_DEVICES"
   pids="$pids $pid"
