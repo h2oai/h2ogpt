@@ -2086,7 +2086,7 @@ def get_existing_files(db):
 def get_existing_hash_ids(db):
     metadatas = get_metadatas(db)
     # assume consistency, that any prior hashed source was single hashed file at the time among all source chunks
-    metadata_hash_ids = {x['source']: x.get('hashid') for x in metadatas}
+    metadata_hash_ids = {os.path.normpath(x['source']): x.get('hashid') for x in metadatas}
     return metadata_hash_ids
 
 
