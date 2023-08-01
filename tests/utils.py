@@ -55,9 +55,9 @@ def wrap_test_forked(func):
     def f(*args, **kwargs):
         # automatically list or set, so can globally control server ports or host for all tests
         gradio_port = os.environ['GRADIO_SERVER_PORT'] = os.getenv('GRADIO_SERVER_PORT', str(7860))
-        testtotalmod, testmod = get_mods()
         gradio_port = int(gradio_port)
-        gradio_port += testmod
+        # testtotalmod, testmod = get_mods()
+        # gradio_port += testmod
         os.environ['HOST'] = os.getenv('HOST', "http://localhost:%s" % gradio_port)
 
         pytest_name = get_test_name()
