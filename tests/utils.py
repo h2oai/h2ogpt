@@ -147,3 +147,11 @@ def get_llama(llama_type=2):
         # out_path will look like '/home/jon/.cache/huggingface/hub/models--h2oai--ggml/snapshots/57e79c71bb0cee07e3e3ffdea507105cd669fa96/ggml-model-q4_0_7b.bin'
         shutil.copy(out_path, dest)
     return prompt_type
+
+
+def kill_weaviate(db_type):
+    """
+    weaviate launches detatched server, which accumulates entries in db, but we want to start freshly
+    """
+    if db_type == 'weaviate':
+        os.system('pkill --signal 9 -f weaviate-embedded/weaviate')

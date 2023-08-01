@@ -3,7 +3,7 @@ import shutil
 import tempfile
 import pytest
 
-from tests.utils import wrap_test_forked
+from tests.utils import wrap_test_forked, kill_weaviate
 from src.enums import DocumentSubset, LangChainAction, LangChainMode
 from src.gpt_langchain import get_persist_directory
 from src.utils import zip_data, download_simple, get_ngpus_vis, get_mem_gpus, have_faiss, remove, get_kwargs
@@ -193,6 +193,7 @@ def test_qa_daidocs_db_chunk_hf_faiss():
 @pytest.mark.parametrize("top_k_docs", [-1, 3])
 @wrap_test_forked
 def test_qa_daidocs_db_chunk_hf_dbs(db_type, top_k_docs):
+    kill_weaviate(db_type)
     langchain_mode = 'DriverlessAI docs'
     langchain_action = LangChainAction.QUERY.value
     langchain_agents = []
@@ -301,6 +302,7 @@ def test_qa_daidocs_db_chunk_hf_dbs_switch_embedding(db_type):
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
 def test_qa_wiki_db_chunk_hf_dbs_llama(db_type):
+    kill_weaviate(db_type)
     from src.gpt4all_llm import get_model_tokenizer_gpt4all
     model_name = 'llama'
     model, tokenizer, device = get_model_tokenizer_gpt4all(model_name)
@@ -374,6 +376,7 @@ def test_get_dai_db_dir():
 @pytest.mark.parametrize("db_type", db_types_full)
 @wrap_test_forked
 def test_make_add_db(repeat, db_type):
+    kill_weaviate(db_type)
     from src.gradio_runner import get_source_files, get_source_files_given_langchain_mode, get_db, update_user_db, \
         get_sources, update_and_get_source_files_given_langchain_mode
     from src.make_db import make_db_main
@@ -546,6 +549,7 @@ def test_make_add_db(repeat, db_type):
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
 def test_zip_add(db_type):
+    kill_weaviate(db_type)
     from src.make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
@@ -568,6 +572,7 @@ def test_zip_add(db_type):
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
 def test_url_add(db_type):
+    kill_weaviate(db_type)
     from src.make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
         url = 'https://h2o.ai/company/team/leadership-team/'
@@ -582,6 +587,7 @@ def test_url_add(db_type):
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
 def test_urls_add(db_type):
+    kill_weaviate(db_type)
     from src.make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
         urls = ['https://h2o.ai/company/team/leadership-team/',
@@ -604,6 +610,7 @@ def test_urls_add(db_type):
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
 def test_urls_file_add(db_type):
+    kill_weaviate(db_type)
     from src.make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
@@ -630,6 +637,7 @@ def test_urls_file_add(db_type):
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
 def test_html_add(db_type):
+    kill_weaviate(db_type)
     from src.make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
@@ -661,6 +669,7 @@ def test_html_add(db_type):
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
 def test_docx_add(db_type):
+    kill_weaviate(db_type)
     from src.make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
@@ -679,6 +688,7 @@ def test_docx_add(db_type):
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
 def test_xls_add(db_type):
+    kill_weaviate(db_type)
     from src.make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
@@ -697,6 +707,7 @@ def test_xls_add(db_type):
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
 def test_md_add(db_type):
+    kill_weaviate(db_type)
     from src.make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
@@ -719,6 +730,7 @@ def test_md_add(db_type):
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
 def test_eml_add(db_type):
+    kill_weaviate(db_type)
     from src.make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
@@ -738,6 +750,7 @@ def test_eml_add(db_type):
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
 def test_simple_eml_add(db_type):
+    kill_weaviate(db_type)
     from src.make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
@@ -769,6 +782,7 @@ FYIcenter.com Team"""
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
 def test_odt_add(db_type):
+    kill_weaviate(db_type)
     from src.make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
@@ -787,6 +801,7 @@ def test_odt_add(db_type):
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
 def test_pptx_add(db_type):
+    kill_weaviate(db_type)
     from src.make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
@@ -806,6 +821,7 @@ def test_pptx_add(db_type):
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
 def test_pdf_add(db_type):
+    kill_weaviate(db_type)
     from src.make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
@@ -826,6 +842,7 @@ def test_pdf_add(db_type):
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
 def test_image_pdf_add(db_type, enable_pdf_ocr):
+    kill_weaviate(db_type)
     from src.make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
@@ -847,6 +864,7 @@ def test_image_pdf_add(db_type, enable_pdf_ocr):
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
 def test_simple_pptx_add(db_type):
+    kill_weaviate(db_type)
     from src.make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
@@ -866,6 +884,7 @@ def test_simple_pptx_add(db_type):
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
 def test_epub_add(db_type):
+    kill_weaviate(db_type)
     from src.make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
@@ -888,6 +907,7 @@ def test_epub_add(db_type):
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
 def test_msg_add(db_type):
+    kill_weaviate(db_type)
     from src.make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
@@ -906,6 +926,7 @@ def test_msg_add(db_type):
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
 def test_png_add(db_type):
+    kill_weaviate(db_type)
     return run_png_add(captions_model=None, caption_gpu=False, db_type=db_type)
 
 
@@ -913,6 +934,7 @@ def test_png_add(db_type):
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
 def test_png_add_gpu(db_type):
+    kill_weaviate(db_type)
     return run_png_add(captions_model=None, caption_gpu=True, db_type=db_type)
 
 
@@ -920,6 +942,7 @@ def test_png_add_gpu(db_type):
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
 def test_png_add_gpu_preload(db_type):
+    kill_weaviate(db_type)
     return run_png_add(captions_model=None, caption_gpu=True, pre_load_caption_model=True, db_type=db_type)
 
 
@@ -927,6 +950,7 @@ def test_png_add_gpu_preload(db_type):
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
 def test_png_add_gpu_blip2(db_type):
+    kill_weaviate(db_type)
     return run_png_add(captions_model='Salesforce/blip2-flan-t5-xl', caption_gpu=True, db_type=db_type)
 
 
@@ -958,6 +982,7 @@ def run_png_add(captions_model=None, caption_gpu=False, pre_load_caption_model=F
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
 def test_simple_rtf_add(db_type):
+    kill_weaviate(db_type)
     from src.make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persistent_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
