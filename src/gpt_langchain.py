@@ -1446,8 +1446,8 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                 raise ValueError("%s had no valid text, but meta data was parsed" % file)
             else:
                 raise ValueError("%s had no valid text and no meta data was parsed" % file)
-        doc1 = chunk_sources(doc1)
         add_meta(doc1, file, headsize)
+        doc1 = chunk_sources(doc1)
     elif file.lower().endswith('.csv'):
         doc1 = CSVLoader(file).load()
         add_meta(doc1, file, headsize)
@@ -1484,18 +1484,13 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
     else:
         raise RuntimeError("No file handler for %s" % os.path.basename(file))
 
-    # allow doc1 to be list or not.  If not list, did not chunk yet, so chunk now
-    # if list of length one, don't trust and chunk it
+    # allow doc1 to be list or not.
     if not isinstance(doc1, list):
-        if chunk:
-            docs = chunk_sources([doc1])
-        else:
-            docs = [doc1]
+        # If not list, did not chunk yet, so chunk now
+        docs = chunk_sources([doc1])
     elif isinstance(doc1, list) and len(doc1) == 1:
-        if chunk:
-            docs = chunk_sources(doc1)
-        else:
-            docs = doc1
+        # if list of length one, don't trust and chunk it, chunk_id's will still be correct if repeat
+        docs = chunk_sources(doc1)
     else:
         docs = doc1
 
