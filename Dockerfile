@@ -28,7 +28,7 @@ RUN apt-get install -y libmagic-dev poppler-utils tesseract-ocr libtesseract-dev
 
 RUN python3.10 -m nltk.downloader all
 
-RUN export CUDA_HOME=/usr/local/cuda-11.7/ && GITHUB_ACTIONS=true pip install auto-gptq --no-cache-dir
+RUN export CUDA_HOME=/usr/local/cuda-11.7/ && GITHUB_ACTIONS=true python3.10 -m pip install auto-gptq --no-cache-dir
 
 RUN python3.10 -m pip install https://github.com/jllllll/exllama/releases/download/0.0.8/exllama-0.0.8+cu118-cp310-cp310-linux_x86_64.whl --no-cache-dir
 
