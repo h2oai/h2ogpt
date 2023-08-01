@@ -16,7 +16,6 @@ WORKDIR /workspace
 
 COPY requirements.txt requirements.txt
 COPY reqs_optional reqs_optional
-COPY . .
 
 RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3.10
 RUN python3.10 -m pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cu117
@@ -44,6 +43,7 @@ EXPOSE 7860
 
 ENV TRANSFORMERS_CACHE=/workspace/.cache
 
+COPY . .
 COPY build_info.txt /build_info.txt
 
 ENTRYPOINT ["python3.10"]
