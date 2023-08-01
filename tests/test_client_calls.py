@@ -675,7 +675,7 @@ def test_client_chat_stream_langchain_steps3():
     assert res[0] is None
     assert res[1] == langchain_mode
     # note moves from /tmp to stable path, even though not /tmp/gradio upload from UI
-    assert 'file/user_path_test/sample1.pdf' in res[2]
+    assert 'file/%s/sample1.pdf' % user_path in res[2]
     assert res[3] == ''
 
     # control langchain_mode
@@ -745,7 +745,7 @@ def test_client_chat_stream_langchain_steps3():
     # refresh
     shutil.copy('tests/next.txt', user_path)
     res = client.predict(langchain_mode, True, 512, api_name='/refresh_sources')
-    assert 'file/user_path_test/./next.txt' in res
+    assert 'file/%s/./next.txt' % user_path in res
 
     # check sources, and do after so would detect leakage
     res = client.predict(langchain_mode, api_name='/get_sources')
