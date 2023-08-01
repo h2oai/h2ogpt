@@ -139,8 +139,8 @@ def main(
         visible_expert_tab: bool = True,
         visible_models_tab: bool = True,
         visible_system_tab: bool = True,
-        visible_tos_tab: bool = True,
-        visible_hosts_tab: bool = True,
+        visible_tos_tab: bool = False,
+        visible_hosts_tab: bool = False,
         chat_tabless: bool = False,
         visible_h2ogpt_header: bool = True,
 
@@ -469,6 +469,8 @@ def main(
     is_hf = bool(int(os.getenv("HUGGINGFACE_SPACES", '0')))
     is_gpth2oai = bool(int(os.getenv("GPT_H2O_AI", '0')))
     is_public = is_hf or is_gpth2oai  # multi-user case with fixed model and disclaimer
+    if is_public:
+        visible_tos_tab = visible_hosts_tab = True
     if memory_restriction_level is None:
         memory_restriction_level = 2 if is_hf else 0  # 2 assumes run on 24GB consumer GPU
     else:
