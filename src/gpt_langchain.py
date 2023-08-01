@@ -1964,11 +1964,17 @@ def _make_db(use_openai_embedding=False,
                                 db_type=db_type)
         new_metadata_sources = set([x.metadata['source'] for x in sources1])
         if new_metadata_sources:
+            if os.getenv('NO_NEW_FILES') is not None:
+                raise RuntimeError("Expected no new files! %s" % new_metadata_sources)
             print("Loaded %s new files as sources to add to %s" % (len(new_metadata_sources), langchain_mode),
                   flush=True)
             if verbose:
                 print("Files added: %s" % '\n'.join(new_metadata_sources), flush=True)
         sources.extend(sources1)
+        if len(sources) > 0 and os.getenv('NO_NEW_FILES') is not None:
+            raise RuntimeError("Expected no new files! %s" % langchain_mode)
+        if len(sources) == 0 and os.getenv('SHOULD_NEW_FILES') is not None:
+            raise RuntimeError("Expected new files! %s" % langchain_mode)
         print("Loaded %s sources for potentially adding to %s" % (len(sources), langchain_mode), flush=True)
 
         # see if got sources

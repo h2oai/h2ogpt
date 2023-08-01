@@ -5,7 +5,7 @@ import shutil
 
 import pytest
 
-from tests.utils import wrap_test_forked, make_user_path_test, get_llama, get_inf_server
+from tests.utils import wrap_test_forked, make_user_path_test, get_llama, get_inf_server, get_inf_port
 from src.client_test import get_client, get_args, run_client_gen
 from src.enums import LangChainAction, LangChainMode
 from src.utils import get_githash, remove, remove_collection_enum, download_simple, hash_file
@@ -439,6 +439,40 @@ def test_client_chat_stream_langchain_steps2(max_new_tokens, top_k_docs):
             'h2oGPT is an open-source, fully permissive, commercially usable' in res_dict['response']
             ) and \
            'README.md' in res_dict['response']
+
+
+@wrap_test_forked
+def test_doc_hash():
+    user_path = make_user_path_test()
+
+    stream_output = True
+    base_model = ''
+    langchain_mode = 'UserData'
+    visible_langchain_modes = ['UserData', 'MyData']
+
+    os.environ['SHOULD_NEW_FILES'] = '1'
+    os.environ['GRADIO_SERVER_PORT'] = str(get_inf_port())
+    from src.gen import main
+    main(base_model=base_model, chat=True,
+         stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
+         langchain_mode=langchain_mode, user_path=user_path,
+         visible_langchain_modes=visible_langchain_modes,
+         score_model='None',
+         reverse_docs=False,  # for 6_9
+         )
+
+    # repeat, shouldn't reload
+    os.environ.pop('SHOULD_NEW_FILES', None)
+    os.environ['NO_NEW_FILES'] = '1'
+    os.environ['GRADIO_SERVER_PORT'] = str(get_inf_port() + 1)
+    from src.gen import main
+    main(base_model=base_model, chat=True,
+         stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
+         langchain_mode=langchain_mode, user_path=user_path,
+         visible_langchain_modes=visible_langchain_modes,
+         score_model='None',
+         reverse_docs=False,  # for 6_9
+         )
 
 
 @wrap_test_forked

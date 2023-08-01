@@ -18,7 +18,7 @@ def get_inf_port():
     elif os.getenv('GRADIO_SERVER_PORT') is not None:
         inf_port = os.environ['GRADIO_SERVER_PORT']
     else:
-        raise ValueError("Expect tests to set HOST or GRADIO_SERVER_PORT")
+        inf_port = str(7860)
     return int(inf_port)
 
 
