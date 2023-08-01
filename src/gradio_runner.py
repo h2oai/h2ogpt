@@ -1170,14 +1170,14 @@ def go_gradio(**kwargs):
                         valid = False
                         langchain_mode2 = langchain_mode1
                     elif user_path and allow_upload_to_user_data or not user_path and allow_upload_to_my_data:
+                        if user_path:
+                            user_path = makedirs(user_path, exist_ok=True, use_base=True)
                         langchain_mode_paths.update({langchain_mode2: user_path})
                         if langchain_mode2 not in visible_langchain_modes:
                             visible_langchain_modes.append(langchain_mode2)
                         if langchain_mode2 not in langchain_modes:
                             langchain_modes.append(langchain_mode2)
                         textbox = ''
-                        if user_path:
-                            user_path = makedirs(user_path, exist_ok=True, use_base=True)
                     else:
                         valid = False
                         langchain_mode2 = langchain_mode1

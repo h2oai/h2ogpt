@@ -8,7 +8,7 @@ import pytest
 from tests.utils import wrap_test_forked, make_user_path_test, get_llama, get_inf_server, get_inf_port
 from src.client_test import get_client, get_args, run_client_gen
 from src.enums import LangChainAction, LangChainMode
-from src.utils import get_githash, remove, remove_collection_enum, download_simple, hash_file
+from src.utils import get_githash, remove, remove_collection_enum, download_simple, hash_file, makedirs
 
 
 @wrap_test_forked
@@ -714,7 +714,7 @@ def test_client_chat_stream_langchain_steps3():
     assert res[3] == ''
 
     # control langchain_mode
-    user_path2 = 'user_path2'
+    user_path2 = makedirs('user_path2', use_base=True)  # so base accounted for
     langchain_mode2 = 'UserData2'
     remove(user_path2)
     remove('db_dir_%s' % langchain_mode2)
@@ -758,7 +758,7 @@ def test_client_chat_stream_langchain_steps3():
     # is not actual data!
     with open(res['name'], 'rb') as f:
         sources = f.read().decode()
-    assert sources == f'{user_path}/./FAQ.md\n{user_path}/./README.md\n{user_path}/./pexels-evg-kowalievska-1170986_small.jpg\n{user_path}/sample1.pdf'
+    assert sources == f'{user_path}/FAQ.md\n{user_path}/README.md\n{user_path}/pexels-evg-kowalievska-1170986_small.jpg\n{user_path}/sample1.pdf'
 
     res = client.predict(langchain_mode2, api_name='/get_sources')
     with open(res['name'], 'rb') as f:
@@ -770,7 +770,7 @@ def test_client_chat_stream_langchain_steps3():
     # is not actual data!
     with open(res['name'], 'rb') as f:
         sources = f.read().decode()
-    assert sources == f'{user_path}/./FAQ.md\n{user_path}/./README.md\n{user_path}/./pexels-evg-kowalievska-1170986_small.jpg\n{user_path}/sample1.pdf'
+    assert sources == f'{user_path}/FAQ.md\n{user_path}/README.md\n{user_path}/pexels-evg-kowalievska-1170986_small.jpg\n{user_path}/sample1.pdf'
 
     res = client.predict(langchain_mode2, api_name='/get_viewable_sources')
     with open(res['name'], 'rb') as f:
@@ -780,14 +780,14 @@ def test_client_chat_stream_langchain_steps3():
     # refresh
     shutil.copy('tests/next.txt', user_path)
     res = client.predict(langchain_mode, True, 512, api_name='/refresh_sources')
-    assert 'file/%s/./next.txt' % user_path in res
+    assert 'file/%s/next.txt' % user_path in res
 
     # check sources, and do after so would detect leakage
     res = client.predict(langchain_mode, api_name='/get_sources')
     # is not actual data!
     with open(res['name'], 'rb') as f:
         sources = f.read().decode()
-    assert sources == f'{user_path}/./FAQ.md\n{user_path}/./README.md\n{user_path}/./next.txt\n{user_path}/./pexels-evg-kowalievska-1170986_small.jpg\n{user_path}/sample1.pdf'
+    assert sources == f'{user_path}/FAQ.md\n{user_path}/README.md\n{user_path}/next.txt\n{user_path}/pexels-evg-kowalievska-1170986_small.jpg\n{user_path}/sample1.pdf'
 
     # even normal langchain_mode  passed to this should get the other langchain_mode2
     res = client.predict(langchain_mode, api_name='/load_langchain')
@@ -811,7 +811,9 @@ def test_client_chat_stream_langchain_steps3():
     res = client.predict(text, True, 512, langchain_mode, api_name='/add_text')
     assert res[0] is None
     assert res[1] == langchain_mode
-    assert 'file/user_paste/' in res[2]
+    user_paste_dir = makedirs('user_paste', use_base=True)
+    remove(user_paste_dir)
+    assert 'file/%s/' % user_paste_dir in res[2]
     assert res[3] == ''
 
     langchain_mode = LangChainMode.MY_DATA.value
@@ -826,15 +828,15 @@ def test_client_chat_stream_langchain_steps3():
     assert res[3] == ''
 
     # control langchain_mode
-    user_path2 = ''
+    user_path2b = ''
     langchain_mode2 = 'MyData2'
-    new_langchain_mode_text = '%s, %s' % (langchain_mode2, user_path2)
+    new_langchain_mode_text = '%s, %s' % (langchain_mode2, user_path2b)
     res = client.predict(langchain_mode, new_langchain_mode_text, api_name='/new_langchain_mode_text')
     assert res[0]['value'] == langchain_mode2
     assert langchain_mode2 in res[0]['choices']
     assert res[1] == ''
     assert res[2]['headers'] == ['Collection', 'Path']
-    assert res[2]['data'] == [['UserData', user_path], ['MyData', None], ['UserData2', 'user_path2'],
+    assert res[2]['data'] == [['UserData', user_path], ['MyData', None], ['UserData2', user_path2],
                               [langchain_mode2, None]]
 
     # url = 'https://unec.edu.az/application/uploads/2014/12/pdf-sample.pdf'

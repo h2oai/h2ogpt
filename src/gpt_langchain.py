@@ -127,7 +127,7 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
     else:
         raise RuntimeError("No such db_type=%s" % db_type)
 
-    # once here, db is not changing and embedding choices in calling functioos does not matter
+    # once here, db is not changing and embedding choices in calling functions does not matter
     return db
 
 
