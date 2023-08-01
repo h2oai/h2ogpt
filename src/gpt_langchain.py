@@ -1735,7 +1735,7 @@ def check_update_chroma_embedding(db, use_openai_embedding,
                                   hf_embedding_model, migrate_embedding_model,
                                   langchain_mode):
     changed_db = False
-    if load_embed(db) not in [(True, use_openai_embedding, hf_embedding_model),
+    if load_embed(db=db) not in [(True, use_openai_embedding, hf_embedding_model),
                               (False, use_openai_embedding, hf_embedding_model)]:
         print("Detected new embedding, updating db: %s" % langchain_mode, flush=True)
         # handle embedding changes
@@ -1775,6 +1775,9 @@ def get_existing_db(db, persist_directory, load_db_if_exists, db_type, use_opena
         if db is None:
             if verbose:
                 print("DO Loading db: %s" % langchain_mode, flush=True)
+            got_embedding, use_openai_embedding0, hf_embedding_model0 = load_embed(persist_directory=persist_directory)
+            if got_embedding:
+                use_openai_embedding, hf_embedding_model = use_openai_embedding0, hf_embedding_model0
             embedding = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model)
             from chromadb.config import Settings
             client_settings = Settings(anonymized_telemetry=False,
@@ -1788,7 +1791,7 @@ def get_existing_db(db, persist_directory, load_db_if_exists, db_type, use_opena
         else:
             if not migrate_embedding_model:
                 # OVERRIDE embedding choices if could load embedding info when not migrating
-                got_embedding, use_openai_embedding, hf_embedding_model = load_embed(db)
+                got_embedding, use_openai_embedding, hf_embedding_model = load_embed(db=db)
             if verbose:
                 print("USING already-loaded db: %s" % langchain_mode, flush=True)
         if check_embedding:
@@ -1841,8 +1844,10 @@ def save_embed(db, use_openai_embedding, hf_embedding_model):
     return use_openai_embedding, hf_embedding_model
 
 
-def load_embed(db):
-    embed_info_file = os.path.join(db._persist_directory, 'embed_info')
+def load_embed(db=None, persist_directory=None):
+    if persist_directory is None:
+        persist_directory = db._persist_directory
+    embed_info_file = os.path.join(persist_directory, 'embed_info')
     if os.path.isfile(embed_info_file):
         with open(embed_info_file, 'rb') as f:
             use_openai_embedding, hf_embedding_model = pickle.load(f)
