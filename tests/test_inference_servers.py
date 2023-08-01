@@ -195,7 +195,7 @@ def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain,
                              visible_langchain_modes=['UserData', 'MyData'],
                              reverse_docs=True):
     # HF inference server
-    gradio_port = get_inf_server()
+    gradio_port = get_inf_port()
     inf_port = gradio_port + 1
     inference_server = 'http://127.0.0.1:%s' % inf_port
     docker_hash = run_docker(inf_port, base_model)
