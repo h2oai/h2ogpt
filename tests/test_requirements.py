@@ -58,7 +58,9 @@ def test_requirements():
         print('Wrong version of packages: %s' % packages_version, flush=True)
         print("Can't determine (e.g. http) packages: %s" % packages_unkn, flush=True)
         print('\n\nRUN THIS:\n\n', flush=True)
-        print('pip uninstall peft transformers accelerate -y ; CUDA_HOME=/usr/local/cuda-11.7 pip install %s --upgrade' % str(' '.join(packages_all)), flush=True)
+        print(
+            'pip uninstall peft transformers accelerate -y ; CUDA_HOME=/usr/local/cuda-11.7 pip install %s --upgrade' % str(
+                ' '.join(packages_all)), flush=True)
         print('\n\n', flush=True)
 
         raise ValueError(packages_all)
@@ -66,6 +68,7 @@ def test_requirements():
 
 import requests
 import json
+
 try:
     from packaging.version import parse
 except ImportError:
@@ -105,4 +108,3 @@ def test_what_latest_packages():
                         print("%s: %s -> %s" % (req.name, current_version, latest_version), flush=True)
                 except Exception as e:
                     print("Exception: %s" % str(e), flush=True)
-

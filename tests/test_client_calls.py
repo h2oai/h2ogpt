@@ -888,7 +888,7 @@ def test_client_summarization(prompt_summary):
                'speech processing' in summary
     else:
         assert 'various techniques and approaches in speech recognition' in summary or \
-        'capabilities of speech processing systems' in summary
+               'capabilities of speech processing systems' in summary
     assert 'my_test_pdf.pdf' in sources
 
 
@@ -985,8 +985,8 @@ def test_client_summarization_from_url(url, top_k_docs):
     sources = res['sources']
     if 'whisper' in url:
         assert 'Whisper' in summary or \
-        'robust speech recognition system' in summary or \
-        'speech recognition' in summary
+               'robust speech recognition system' in summary or \
+               'speech recognition' in summary
     if 'h2ogpt' in url:
         assert 'Accurate embeddings for private offline databases' in summary \
                or 'private offline database' in summary

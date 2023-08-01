@@ -123,7 +123,7 @@ def run_eval(  # for local function:
     num_examples = len(examples)
     scoring_path = 'scoring'
     # if no permissions, assume may not want files, put into temp
-    scoring_path = makedirs(scoring_path, tmp_ok=True)
+    scoring_path = makedirs(scoring_path, tmp_ok=True, use_base=True)
     if eval_as_output:
         used_base_model = 'gpt35'
         used_lora_weights = ''

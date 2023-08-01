@@ -61,13 +61,15 @@ from langchain.vectorstores import Chroma
 
 
 def get_db(sources, use_openai_embedding=False, db_type='faiss',
-           persist_directory="db_dir", load_db_if_exists=True,
+           persist_directory=None, load_db_if_exists=True,
            langchain_mode='notset',
            collection_name=None,
            hf_embedding_model=None,
            migrate_embedding_model=False):
     if not sources:
         return None
+    if persist_directory is None:
+        persist_directory = get_persist_directory(langchain_mode)
     assert hf_embedding_model is not None
 
     # get freshly-determined embedding model
@@ -96,12 +98,13 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
                                      index_name=index_name)
     elif db_type == 'chroma':
         assert persist_directory is not None
+        # use_base already handled when making persist_directory, unless was passed into get_db()
         makedirs(persist_directory, exist_ok=True)
 
         # see if already actually have persistent db, and deal with possible changes in embedding
         db, use_openai_embedding, hf_embedding_model = \
             get_existing_db(None, persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
-                             hf_embedding_model, migrate_embedding_model, verbose=False)
+                            hf_embedding_model, migrate_embedding_model, verbose=False)
         if db is None:
             from chromadb.config import Settings
             client_settings = Settings(anonymized_telemetry=False,
@@ -1252,7 +1255,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         doc1 = chunk_sources(docs1)
     elif is_txt:
         base_path = "user_paste"
-        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True)
+        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
         source_file = os.path.join(base_path, "_%s" % str(uuid.uuid4())[:10])
         with open(source_file, "wt") as f:
             f.write(file)
@@ -1514,7 +1517,7 @@ def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True
     if return_file:
         base_tmp = "temp_path_to_doc1"
         if not os.path.isdir(base_tmp):
-            base_tmp = makedirs(base_tmp, exist_ok=True, tmp_ok=True)
+            base_tmp = makedirs(base_tmp, exist_ok=True, tmp_ok=True, use_base=True)
         filename = os.path.join(base_tmp, str(uuid.uuid4()) + ".tmp.pickle")
         with open(filename, 'wb') as f:
             pickle.dump(res, f)
@@ -1674,7 +1677,7 @@ def prep_langchain(persist_directory,
         print("Prep: persist_directory=%s exists, using" % persist_directory, flush=True)
         db, use_openai_embedding, hf_embedding_model = \
             get_existing_db(None, persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
-                             hf_embedding_model, migrate_embedding_model)
+                            hf_embedding_model, migrate_embedding_model)
     else:
         if db_dir_exists and user_path is not None:
             print("Prep: persist_directory=%s exists, user_path=%s passed, adding any changed or new documents" % (
@@ -1848,7 +1851,16 @@ def load_embed(db):
 
 
 def get_persist_directory(langchain_mode):
-    return 'db_dir_%s' % langchain_mode  # single place, no special names for each case
+    persist_directory = 'db_dir_%s' % langchain_mode  # single place, no special names for each case
+    persist_directory = makedirs(persist_directory, use_base=True)
+    return persist_directory
+
+
+scratch_base_dir = os.getenv('H2OGPT_SCRATCH_PATH', '/tmp/')
+
+
+def get_scratch_directory(langchain_mode, db1):
+    return os.path.join(scratch_base_dir, 'db_dir_%s_%s' % (langchain_mode, db1[1]))
 
 
 def _make_db(use_openai_embedding=False,
@@ -1869,7 +1881,7 @@ def _make_db(use_openai_embedding=False,
     # see if can get persistent chroma db
     db_trial, use_openai_embedding, hf_embedding_model = \
         get_existing_db(db, persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
-                               hf_embedding_model, migrate_embedding_model, verbose=verbose)
+                        hf_embedding_model, migrate_embedding_model, verbose=verbose)
     if db_trial is not None:
         db = db_trial
 
@@ -1981,7 +1993,7 @@ def get_documents(db):
     if hasattr(db, '_persist_directory'):
         name_path = os.path.basename(db._persist_directory)
         base_path = 'locks'
-        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True)
+        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
         with filelock.FileLock(os.path.join(base_path, "getdb_%s.lock" % name_path)):
             # get segfaults and other errors when multiple threads access this
             return _get_documents(db)
@@ -2006,7 +2018,7 @@ def get_docs_and_meta(db, top_k_docs, filter_kwargs={}):
     if hasattr(db, '_persist_directory'):
         name_path = os.path.basename(db._persist_directory)
         base_path = 'locks'
-        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True)
+        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
         with filelock.FileLock(os.path.join(base_path, "getdb_%s.lock" % name_path)):
             return _get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs)
     else:
@@ -2489,7 +2501,7 @@ def get_chain(query=None,
 
     if db and use_docs_planned:
         base_path = 'locks'
-        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True)
+        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
         if hasattr(db, '_persist_directory'):
             name_path = "sim_%s.lock" % os.path.basename(db._persist_directory)
         else:

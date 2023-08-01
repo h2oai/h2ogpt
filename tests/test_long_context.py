@@ -3,9 +3,11 @@ from tests.utils import wrap_test_forked
 from src.enums import LangChainAction
 
 from importlib.metadata import version
+
 transformers_version = version('transformers')
 # pip install packaging
 from packaging import version
+
 sufficient_transformers_version = version.parse(transformers_version) >= version.parse("4.31.0")
 
 encoding = None
@@ -55,7 +57,7 @@ def create_long_prompt_with_secret(prompt_len=None, secret_pos=None, model_name=
     assert SECRET_VALUE in prompt
     assert num_tokens_from_string(prompt, model_name) <= prompt_len
     t1 = time.time()
-    print("time to create long prompt: %.4f" % (t1-t0))
+    print("time to create long prompt: %.4f" % (t1 - t0))
     return prompt
 
 

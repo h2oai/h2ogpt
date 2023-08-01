@@ -1177,7 +1177,7 @@ def go_gradio(**kwargs):
                             langchain_modes.append(langchain_mode2)
                         textbox = ''
                         if user_path:
-                            makedirs(user_path, exist_ok=True)
+                            user_path = makedirs(user_path, exist_ok=True, use_base=True)
                     else:
                         valid = False
                         langchain_mode2 = langchain_mode1
@@ -2154,7 +2154,7 @@ def go_gradio(**kwargs):
 
         def get_chats1(chat_state1):
             base = 'chats'
-            base = makedirs(base, exist_ok=True, tmp_ok=True)
+            base = makedirs(base, exist_ok=True, tmp_ok=True, use_base=True)
             filename = os.path.join(base, 'chats_%s.json' % str(uuid.uuid4()))
             with open(filename, "wt") as f:
                 f.write(json.dumps(chat_state1, indent=2))
@@ -2664,7 +2664,7 @@ def get_sources(db1s, langchain_mode, dbs=None, docs_state0=None):
         source_list = []
         source_files_added = "None"
     sources_dir = "sources_dir"
-    sources_dir = makedirs(sources_dir, exist_ok=True, tmp_ok=True)
+    sources_dir = makedirs(sources_dir, exist_ok=True, tmp_ok=True, use_base=True)
     sources_file = os.path.join(sources_dir, 'sources_%s_%s' % (langchain_mode, str(uuid.uuid4())))
     with open(sources_file, "wt") as f:
         f.write(source_files_added)
@@ -2716,7 +2716,7 @@ def get_lock_file(db1, langchain_mode):
     assert len(db1) == 2 and db1[1] is not None and isinstance(db1[1], str)
     user_id = db1[1]
     base_path = 'locks'
-    base_path = makedirs(base_path, exist_ok=True, tmp_ok=True)
+    base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
     lock_file = os.path.join(base_path, "db_%s_%s.lock" % (langchain_mode.replace(' ', '_'), user_id))
     return lock_file
 
@@ -2836,7 +2836,8 @@ def _update_user_db(file,
                 assert db1[1] is not None, "db hash was None, not allowed"
                 # then create
                 # if added has to original state and didn't change, then would be shared db for all users
-                persist_directory = os.path.join(scratch_base_dir, 'db_dir_%s_%s' % (langchain_mode, db1[1]))
+                from src.gpt_langchain import get_scratch_directory
+                persist_directory = get_scratch_directory(langchain_mode, db1)
                 db = get_db(sources, use_openai_embedding=use_openai_embedding,
                             db_type=db_type,
                             persist_directory=persist_directory,

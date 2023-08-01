@@ -2,7 +2,6 @@ import os
 import pytest
 from tests.utils import wrap_test_forked
 
-
 pytestmark = pytest.mark.skipif(os.getenv('SKIP_MANUAL_TESTS', None) is not None, reason="manual tests.")
 
 
@@ -38,12 +37,14 @@ def test_upload_multiple_file():
 
 @wrap_test_forked
 def test_upload_url():
-    raise NotImplementedError("MANUAL TEST FOR NOW -- put in URL box https://github.com/h2oai/h2ogpt/ (and ask what is h2ogpt?). Ensure can go to source links")
+    raise NotImplementedError(
+        "MANUAL TEST FOR NOW -- put in URL box https://github.com/h2oai/h2ogpt/ (and ask what is h2ogpt?). Ensure can go to source links")
 
 
 @wrap_test_forked
 def test_upload_arxiv():
-    raise NotImplementedError("MANUAL TEST FOR NOW -- paste in arxiv:1706.03762 and ask who wrote attention paper. Ensure can go to source links")
+    raise NotImplementedError(
+        "MANUAL TEST FOR NOW -- paste in arxiv:1706.03762 and ask who wrote attention paper. Ensure can go to source links")
 
 
 @wrap_test_forked
@@ -80,12 +81,14 @@ def test_chat_control():
 
 @wrap_test_forked
 def test_subset_only():
-    raise NotImplementedError("""MANUAL TEST FOR NOW UserData, Select Only for subset, then put in whisper.  Ensure get back only chunks of data with url links to data sources.""")
+    raise NotImplementedError(
+        """MANUAL TEST FOR NOW UserData, Select Only for subset, then put in whisper.  Ensure get back only chunks of data with url links to data sources.""")
 
 
 @wrap_test_forked
 def test_add_new_doc():
-    raise NotImplementedError("""MANUAL TEST FOR NOW UserData, add new pdf or file to user_path and see if pushing refresh sources updates and shows new file in list, then ask question about that new doc""")
+    raise NotImplementedError(
+        """MANUAL TEST FOR NOW UserData, add new pdf or file to user_path and see if pushing refresh sources updates and shows new file in list, then ask question about that new doc""")
 
 
 @wrap_test_forked

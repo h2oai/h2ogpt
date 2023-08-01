@@ -94,7 +94,7 @@ def sanitize_filename(name):
     real_length_limit = file_length_limit - (sha_length + 2)
     if length > file_length_limit:
         sha = get_sha(name)
-        half_real_length_limit = max(1, int(real_length_limit/2))
+        half_real_length_limit = max(1, int(real_length_limit / 2))
         name = name[0:half_real_length_limit] + "_" + sha + "_" + name[length - half_real_length_limit:length]
 
     return name

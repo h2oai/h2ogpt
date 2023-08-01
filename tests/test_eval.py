@@ -76,7 +76,7 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
         chunk=True, chunk_size=512,
         load_half=False, load_4bit=False, load_8bit=False,
         load_gptq=False, load_exllama=False, use_safetensors=False,
-        )
+    )
     if bits == 4:
         kwargs['load_4bit'] = True
     elif bits == 8:
@@ -118,7 +118,7 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
                  'langchain_agents': np.array([]),  # matches return
                  'pre_prompt_summary': '',
                  'prompt_summary': '',
-            }
+                 }
     expected1.update({k: v for k, v in kwargs.items() if
                       k not in ['load_half', 'load_4bit', 'load_8bit', 'load_gptq', 'load_exllama', 'use_safetensors']})
     drop_keys = ['document_choice', 'langchain_agents']

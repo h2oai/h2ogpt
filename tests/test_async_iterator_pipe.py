@@ -46,7 +46,6 @@ class TestTimeoutIterator(unittest.TestCase):
 
         asyncio.get_event_loop().run_until_complete(_(self))
 
-
     def test_multiple_close(self):
 
         async def _(self):
@@ -67,7 +66,6 @@ class TestTimeoutIterator(unittest.TestCase):
                 await it.__anext__()
 
         asyncio.get_event_loop().run_until_complete(_(self))
-
 
     def test_put_after_close(self):
 
@@ -102,7 +100,7 @@ class TestTimeoutIterator(unittest.TestCase):
             iter_results = []
             async for x in it:
                 iter_results.append(x)
-            self.assertEqual(iter_results, [1,2,3])
+            self.assertEqual(iter_results, [1, 2, 3])
 
             iter_results = []
             async for x in it:

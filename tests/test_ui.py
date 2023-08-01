@@ -3,7 +3,6 @@ from tests.utils import wrap_test_forked
 
 @wrap_test_forked
 def test_newline_replace():
-
     text0 = """You can use the `sorted()` function to merge two sorted lists in Python. The `sorted()` function takes a list as an argument and returns a new sorted list. Here’s an example of how you can use it to merge two sorted lists:
 
 ```python

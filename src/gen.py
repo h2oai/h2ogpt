@@ -51,8 +51,6 @@ langchain_actions = [x.value for x in list(LangChainAction)]
 
 langchain_agents_list = [x.value for x in list(LangChainAgent)]
 
-scratch_base_dir = '/tmp/'
-
 
 def main(
         load_8bit: bool = False,
@@ -511,8 +509,8 @@ def main(
         langchain_mode_paths = ast.literal_eval(langchain_mode_paths)
         assert isinstance(langchain_mode_paths, dict)
     if user_path:
+        user_path = makedirs(user_path, use_base=True)
         langchain_mode_paths['UserData'] = user_path
-        makedirs(user_path)
 
     if is_public:
         allow_upload_to_user_data = False
@@ -609,6 +607,7 @@ def main(
             max_max_time = max_time
         # HF accounted for later in get_max_max_new_tokens()
     save_dir = os.getenv('SAVE_DIR', save_dir)
+    save_dir = makedirs(save_dir, exist_ok=True, tmp_ok=True, use_base=True)
     score_model = os.getenv('SCORE_MODEL', score_model)
     if str(score_model) == 'None':
         score_model = ''
@@ -677,7 +676,7 @@ def main(
     text_limit = None
 
     if offload_folder:
-        offload_folder = makedirs(offload_folder, exist_ok=True, tmp_ok=True)
+        offload_folder = makedirs(offload_folder, exist_ok=True, tmp_ok=True, use_base=True)
 
     placeholder_instruction, placeholder_input, \
         stream_output, show_examples, \
@@ -719,7 +718,8 @@ def main(
         for langchain_mode1 in visible_langchain_modes:
             if langchain_mode1 in ['MyData']:  # FIXME: Remove other custom temp dbs
                 # don't use what is on disk, remove it instead
-                for gpath1 in glob.glob(os.path.join(scratch_base_dir, 'db_dir_%s*' % langchain_mode1)):
+                from src.gpt_langchain import scratch_base_dir
+                for gpath1 in glob.glob(os.path.join(scratch_base_dir, 'db_dir_%s_*' % langchain_mode1)):
                     if os.path.isdir(gpath1):
                         print("Removing old MyData: %s" % gpath1, flush=True)
                         remove(gpath1)

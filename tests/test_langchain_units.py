@@ -184,7 +184,7 @@ def test_qa_daidocs_db_chunk_hf_faiss():
                      langchain_agents=[],
                      db_type='faiss',
                      hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
-                    )
+                     )
     check_ret(ret)
 
 
@@ -487,7 +487,8 @@ def test_make_add_db(repeat, db_type):
                     assert path_to_docs(test_file2_my, db_type=db_type)[0].metadata['source'] == test_file2_my
                     extra = 1 if db_type == 'chroma' else 0
                     assert os.path.normpath(
-                        path_to_docs(os.path.dirname(test_file2_my), db_type=db_type)[1 + extra].metadata['source']) == os.path.normpath(
+                        path_to_docs(os.path.dirname(test_file2_my), db_type=db_type)[1 + extra].metadata[
+                            'source']) == os.path.normpath(
                         os.path.abspath(test_file2_my))
                     assert path_to_docs([test_file1, test_file2, test_file2_my], db_type=db_type)[0].metadata[
                                'source'] == test_file1
