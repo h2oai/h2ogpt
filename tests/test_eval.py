@@ -94,6 +94,7 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
                              eval_prompts_only_num=eval_prompts_only_num,
                              eval_as_output=False,
                              eval_prompts_only_seed=1235,
+                             score_model='OpenAssistant/reward-model-deberta-v3-large-v2',
                              **kwargs)
     if eval_filename is not None:
         # then not sharegpt
