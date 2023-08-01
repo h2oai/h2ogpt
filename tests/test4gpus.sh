@@ -5,6 +5,7 @@ ngpus=4
 export TESTMODULOTOTAL=4
 
 pip install pytest-instafail || true
+docker ps | grep text-generation-inference | awk '{print $1}' | xargs docker stop
 
 NPHYSICAL=`lscpu -p | egrep -v '^\#' | sort -u -t, -k 2,4 | wc -l`
 NPROCS=`lscpu -p | egrep -v '^\#' | wc -l`
