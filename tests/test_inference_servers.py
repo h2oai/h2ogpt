@@ -63,7 +63,7 @@ def test_gradio_inference_server(base_model, force_langchain_evaluate, do_langch
 
     # server that consumes inference server has different port
     from src.gen import main
-    client_port = inf_port + 2  # assume will not use +  2 in testing, + 1 reservered for non-gradio inference servers
+    client_port = inf_port + 2  # assume will not use +  2 in testing, + 1 reserved for non-gradio inference servers
     # only case when GRADIO_SERVER_PORT and HOST should appear in tests because using 2 gradio instances
     os.environ['GRADIO_SERVER_PORT'] = str(client_port)
     os.environ['HOST'] = "http://127.0.0.1:%s" % client_port

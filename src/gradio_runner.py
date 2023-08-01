@@ -2589,7 +2589,13 @@ def go_gradio(**kwargs):
         assert 'gpt_langchain' not in sys.modules, "Dev bug, import of langchain when should not have"
         assert 'langchain' not in sys.modules, "Dev bug, import of langchain when should not have"
 
+    # set port in case GRADIO_SERVER_PORT was already set in prior main() call,
+    # gradio does not listen if change after import
+    server_port = os.getenv('GRADIO_SERVER_PORT')
+    if server_port is not None:
+        server_port = int(server_port)
     demo.launch(share=kwargs['share'], server_name="0.0.0.0", show_error=True,
+                server_port=server_port,
                 favicon_path=favicon_path, prevent_thread_lock=True,
                 auth=kwargs['auth'], root_path=kwargs['root_path'])
     if kwargs['verbose']:
