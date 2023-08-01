@@ -6,6 +6,10 @@ export TESTMODULOTOTAL=4
 
 pip install pytest-instafail || true
 docker ps | grep text-generation-inference | awk '{print $1}' | xargs docker stop
+killall -s SIGINT pytest
+killall -s SIGTERM pytest
+killall -s 9 pytest
+pkill --signal 9 -f weaviate-embedded/weaviate
 
 NPHYSICAL=`lscpu -p | egrep -v '^\#' | sort -u -t, -k 2,4 | wc -l`
 NPROCS=`lscpu -p | egrep -v '^\#' | wc -l`
