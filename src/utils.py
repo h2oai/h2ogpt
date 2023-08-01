@@ -475,6 +475,8 @@ def makedirs(path, exist_ok=True, tmp_ok=False, use_base=False):
     :param use_base:
     :return:
     """
+    if path is None:
+        return path
     # if base path set, make relative to that, unless user_path absolute path
     if use_base:
         if os.path.normpath(path) == os.path.normpath(os.path.abspath(path)):
