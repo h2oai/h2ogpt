@@ -29,6 +29,7 @@ dist
 .bash_history
 .benchmarks
 Dockerfile-runner.dockerfile
+build_info.txt
 
 # IDEs
 .idea/

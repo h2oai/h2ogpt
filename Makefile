@@ -8,7 +8,7 @@ DOCKER_RUN_IMAGE      := $(DOCKER_TEST_IMAGE)-runtime
 PYTHON_BINARY         ?= `which python`
 DEFAULT_MARKERS       ?= "not need_tokens and not need_gpu"
 
-.PHONY: reqs_optional/req_constraints.txt venv dist test publish docker_build
+.PHONY: reqs_optional/req_constraints.txt venv dist test publish docker_build build_info.txt
 
 reqs_optional/req_constraints.txt:
 	grep -v '#\|peft\|transformers\|accelerate' requirements.txt > $@
@@ -38,7 +38,18 @@ test_imports:
 publish:
 	echo "Publishing not implemented yet."
 
-docker_build:
+build_info.txt:
+	rm -rf build_info.txt
+	@echo "commit=\"$(shell git rev-parse HEAD)\"" >> $@
+	@echo "branch=\"`git rev-parse HEAD | git branch -a --contains | grep -v detached | sed -e 's~remotes/origin/~~g' -e 's~^ *~~' | sort | uniq | tr '*\n' ' '`\"" >> $@
+	@echo "describe=\"`git describe --always --dirty`\"" >> $@
+	@echo "build_os=\"`uname -a`\"" >> $@
+	@echo "build_machine=\"`hostname`\"" >> $@
+	@echo "build_date=\"$(shell date "+%Y%m%d")\"" >> $@
+	@echo "build_user=\"`id -u -n`\"" >> $@
+	@echo "base_version=\"$(shell cat version.txt)\"" >> $@
+
+docker_build: build_info.txt
 ifeq ($(shell curl --write-out %{http_code} -sS --output /dev/null -X GET http://harbor.h2o.ai/api/v2.0/projects/h2ogpt/repositories/test-image/artifacts/$(BUILD_TAG)/tags),200)
 	@echo "Image already pushed to Harbor: $(DOCKER_TEST_IMAGE)"
 else

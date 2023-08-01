@@ -31,4 +31,6 @@ EXPOSE 7860
 
 ENV TRANSFORMERS_CACHE=/workspace/.cache
 
+COPY build_info.txt /build_info.txt
+
 ENTRYPOINT ["python3.10"]
