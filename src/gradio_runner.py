@@ -2797,6 +2797,10 @@ def _update_user_db(file,
 
     if verbose:
         print("Adding %s" % file, flush=True)
+
+    # FIXME: could avoid even parsing, let alone embedding, same old files if upload same file again
+    # FIXME: but assume nominally user isn't uploading all files over again from UI
+
     sources = path_to_docs(file if not is_url and not is_txt else None,
                            verbose=verbose,
                            n_jobs=n_jobs,
