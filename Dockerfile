@@ -10,8 +10,7 @@ RUN apt-get update && apt-get install -y \
     software-properties-common \
     pandoc \
     && add-apt-repository ppa:deadsnakes/ppa \
-    && apt install -y python3.10 python3-dev libpython3.10-dev \
-    && rm -rf /var/lib/apt/lists/*
+    && apt install -y python3.10 python3-dev libpython3.10-dev
 
 WORKDIR /workspace
 
@@ -39,6 +38,9 @@ RUN sp=`python -c 'import site; print(site.getsitepackages()[0])'` && sed -i 's/
 RUN python3.10 -m pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.1.73+cu117-cp310-cp310-linux_x86_64.whl
 
 RUN sed -i 's/# n_gpu_layers=20/n_gpu_layers=20/g' .env_gpt4all
+
+# Clean-up
+RUN rm -rf /var/lib/apt/lists/*
 
 EXPOSE 8888
 EXPOSE 7860
