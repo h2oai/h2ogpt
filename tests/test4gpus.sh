@@ -34,12 +34,13 @@ do
   # By default, OpenBLAS will restrict the Cpus_allowed to be 0x1.
   export OPENBLAS_MAIN_FREE=$n_jobs
   export MKL_NUM_THREADS=$n_jobs
+  export H2OGPT_BASE_PATH="./base_$mod"
 
   # huggyllama test uses alot of memory, requires TESTMODULOTOTAL=ngpus for even A6000s
   # pytest --instafail -s -v -n 1 tests -k "not test_huggyllama_transformers_pr" &> testsparallel"${mod}".log &
   pytest --instafail -s -v -n 1 tests  &> testsparallel"${mod}".log &
   pid=$!
-  echo "MODS: $mod $GRADIO_SERVER_PORT $CUDA_VISIBLE_DEVICES"
+  echo "MODS: $mod $GRADIO_SERVER_PORT $CUDA_VISIBLE_DEVICES $H2OGPT_BASE_PATH"
   pids="$pids $pid"
 done
 trap "kill $pids; exit 1" INT
