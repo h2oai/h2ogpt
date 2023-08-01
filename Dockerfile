@@ -39,9 +39,6 @@ RUN python3.10 -m pip install https://github.com/jllllll/llama-cpp-python-cuBLAS
 
 RUN sed -i 's/# n_gpu_layers=20/n_gpu_layers=20/g' .env_gpt4all
 
-# Clean-up
-RUN rm -rf /var/lib/apt/lists/*
-
 EXPOSE 8888
 EXPOSE 7860
 
