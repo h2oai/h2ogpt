@@ -6,11 +6,10 @@
     ```bash
     docker run \
       --runtime=nvidia --shm-size=64g \
-      -e HF_MODEL=h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b \
       -p 8888:8888 -p 7860:7860 \
       --rm --init \
-      -v `pwd`/h2ogpt_env:/h2ogpt_env \
-      gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0
+      -v ${HOME}/.cache:/workspace/.cache \
+      gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 /workspace/generate.py --base_model=h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b 
     ```
 3. Navigate to http://localhost:7860/  & start using h2oGPT.
 
