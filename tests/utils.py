@@ -109,13 +109,15 @@ def get_test_name():
 def make_user_path_test():
     import os
     import shutil
-    user_path = 'user_path_test'
+    user_path = makedirs('user_path_test', use_base=True)
     if os.path.isdir(user_path):
         shutil.rmtree(user_path)
-    os.makedirs(user_path)
+    user_path = makedirs('user_path_test', use_base=True)
     db_dir = "db_dir_UserData"
+    db_dir = makedirs(db_dir, use_base=True)
     if os.path.isdir(db_dir):
         shutil.rmtree(db_dir)
+    db_dir = makedirs(db_dir, use_base=True)
     shutil.copy('data/pexels-evg-kowalievska-1170986_small.jpg', user_path)
     shutil.copy('README.md', user_path)
     shutil.copy('docs/FAQ.md', user_path)

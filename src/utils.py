@@ -482,7 +482,8 @@ def makedirs(path, exist_ok=True, tmp_ok=False, use_base=False):
         if os.path.normpath(path) == os.path.normpath(os.path.abspath(path)):
             pass
         else:
-            path = os.path.join(os.getenv('H2OGPT_BASE_PATH', ''), path)
+            if os.getenv('H2OGPT_BASE_PATH') is not None and not path.startswith(os.getenv('H2OGPT_BASE_PATH')):
+                path = os.path.join(os.getenv('H2OGPT_BASE_PATH', ''), path)
 
     if os.path.isdir(path) and os.path.exists(path):
         assert exist_ok, "Path already exists"
