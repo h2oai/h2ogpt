@@ -97,8 +97,11 @@ def get_llm_gpt4all(model_name,
                     prompter=None,
                     context='',
                     iinput='',
+                    n_jobs=None,
                     verbose=False,
                     ):
+    if n_jobs is None:
+        n_jobs = int(os.getenv('OMP_NUM_THREADS', str(os.cpu_count())))
     assert prompter is not None
     env_gpt4all_file = ".env_gpt4all"
     env_kwargs = dotenv_values(env_gpt4all_file)
@@ -114,6 +117,7 @@ def get_llm_gpt4all(model_name,
                           top_k=top_k,
                           top_p=top_p,
                           use_mlock=True,
+                          n_threads=n_jobs,
                           verbose=verbose)
     if model_name == 'llama':
         cls = H2OLlamaCpp

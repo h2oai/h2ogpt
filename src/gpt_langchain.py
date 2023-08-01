@@ -774,8 +774,11 @@ def get_llm(use_openai_model=False,
             context=None,
             iinput=None,
             sanitize_bot_response=False,
+            n_jobs=None,
             verbose=False,
             ):
+    if n_jobs is None:
+        n_jobs = int(os.getenv('OMP_NUM_THREADS', str(os.cpu_count()//2)))
     if inference_server is None:
         inference_server = ''
     if use_openai_model or inference_server.startswith('openai') or inference_server.startswith('vllm'):
@@ -920,6 +923,7 @@ def get_llm(use_openai_model=False,
                               top_k=top_k,
                               top_p=top_p,
                               callbacks=callbacks,
+                              n_jobs=n_jobs,
                               verbose=verbose,
                               streaming=stream_output,
                               prompter=prompter,
@@ -2198,6 +2202,7 @@ def _run_qa_db(query=None,
                 context=context if add_chat_history_to_context else '',
                 iinput=iinput if add_chat_history_to_context else '',
                 sanitize_bot_response=sanitize_bot_response,
+                n_jobs=n_jobs,
                 verbose=verbose,
                 )
 
