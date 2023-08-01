@@ -208,7 +208,7 @@ def main(
         pre_load_caption_model: bool = False,
         caption_gpu: bool = True,
         enable_ocr: bool = False,
-        enable_pdf_ocr: str = 'auto',
+        enable_pdf_ocr: str = 'on',
 ):
     """
 
