@@ -22,8 +22,17 @@ do
   # ports always increment by 3
   export GRADIO_SERVER_PORT=$((7860+$(($mod*3))))
   export TESTMODULO=$mod
+
   # CVD loops over number of GPUs
   export CUDA_VISIBLE_DEVICES=$(($lowergpuid+$(($mod % $ngpus))))
+  export n_jobs=$n_jobs
+  export OMP_NUM_THREADS=$n_jobs
+  export NUMEXPR_MAX_THREADS=$n_jobs
+  export OPENBLAS_NUM_THREADS=$n_jobs
+  # By default, OpenBLAS will restrict the Cpus_allowed to be 0x1.
+  export OPENBLAS_MAIN_FREE=$n_jobs
+  export MKL_NUM_THREADS=$n_jobs
+
   pytest --instafail -s -v -n 1 tests &> testsparallel"${mod}".log &
   pid=$!
   echo "MODS: $mod $GRADIO_SERVER_PORT $CUDA_VISIBLE_DEVICES"
