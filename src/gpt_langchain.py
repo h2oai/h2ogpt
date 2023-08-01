@@ -1187,6 +1187,7 @@ def get_supported_types():
 
 
 non_image_types, image_types, video_types = get_supported_types()
+set_image_types = set(image_types)
 
 if have_libreoffice or True:
     # or True so it tries to load, e.g. on MAC/Windows, even if don't have libreoffice since works without that
@@ -1336,7 +1337,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         docs1 = UnstructuredEPubLoader(file).load()
         add_meta(docs1, file, headsize)
         doc1 = chunk_sources(docs1)
-    elif file.lower().endswith('.jpeg') or file.lower().endswith('.jpg') or file.lower().endswith('.png'):
+    elif any(file.lower().endswith(x) for x in set_image_types):
         docs1 = []
         if have_tesseract and enable_ocr:
             # OCR, somewhat works, but not great
@@ -1359,6 +1360,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                 docs1c = caption_loader.load()
                 add_meta(docs1c, file, headsize)
                 docs1.extend(docs1c)
+            # caption didn't set source, so fix-up meta
             for doci in docs1:
                 doci.metadata['source'] = doci.metadata['image_path']
                 doci.metadata['hashid'] = hash_file(doci.metadata['source'])
