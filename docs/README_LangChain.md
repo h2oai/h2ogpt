@@ -326,6 +326,8 @@ For links to direct to the document and download to your local machine, the orig
 
 * [docquery](https://github.com/impira/docquery) like PrivateGPT but uses LayoutLM.
 
+* [KhoJ](https://github.com/khoj-ai/khoj) but also access from emacs or Obsidian.
+
 * [ChatPDF](https://www.chatpdf.com/) but h2oGPT is open-source and private and many more data types.
 
 * [Sharly](https://www.sharly.ai/) but h2oGPT is open-source and private and many more data types.  Sharly and h2oGPT both allow sharing work through UserData shared collection.
