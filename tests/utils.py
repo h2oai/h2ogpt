@@ -14,12 +14,12 @@ from src.utils import call_subprocess_onetask, makedirs
 
 def get_inf_port():
     if os.getenv('HOST') is not None:
-        inf_server = os.environ['HOST'].split(':')[1]
+        inf_port = os.environ['HOST'].split(':')[-1]
     elif os.getenv('GRADIO_SERVER_PORT') is not None:
-        inf_server = "http://localhost:%s" % os.environ['GRADIO_SERVER_PORT']
+        inf_port = "http://localhost:%s" % os.environ['GRADIO_SERVER_PORT']
     else:
         raise ValueError("Expect tests to set HOST or GRADIO_SERVER_PORT")
-    return int(inf_server)
+    return int(inf_port)
 
 
 def get_inf_server():
