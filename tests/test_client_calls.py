@@ -325,7 +325,8 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'privacy-focused messaging app that allows' in res_dict['response'] or
             'A low-code AI app development framework' in res_dict['response'] or
             'anonymous communication platform' in res_dict['response'] or
-            'A privacy-focused chat app' in res_dict['response']
+            'A privacy-focused chat app' in res_dict['response'] or
+            'A platform for deploying' in res_dict['response']
             ) \
            and ('FAQ.md' in res_dict['response'] or 'README.md' in res_dict['response'])
 

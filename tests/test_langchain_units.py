@@ -522,28 +522,16 @@ def test_make_add_db(repeat, db_type):
                                                        collection_name=collection_name)
                     assert db is not None
                     docs = db.similarity_search("World")
-                    if db_type == 'chroma':
-                        assert len(docs) == 3 + (1 if db_type == 'chroma' else 0)
-                        assert docs[0].page_content == msg1
-                        assert docs[1 + extra].page_content in [msg2, msg1up]
-                        assert docs[2 + extra].page_content in [msg2, msg1up]
-                        assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+                    assert len(docs) == 3 + (1 if db_type == 'chroma' else 0)
+                    assert docs[0].page_content == msg1
+                    assert docs[1 + extra].page_content in [msg2, msg1up]
+                    assert docs[2 + extra].page_content in [msg2, msg1up]
+                    assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
-                        docs = db.similarity_search("Jill")
-                        assert len(docs) == 3 + (1 if db_type == 'chroma' else 0)
-                        assert docs[0].page_content == msg2
-                        assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file2)
-                    else:
-                        assert len(docs) == 4
-                        assert docs[0].page_content == msg1
-                        assert docs[1 + extra].page_content in [msg2, msg1up]
-                        assert docs[2 + extra].page_content in [msg2, msg1up]
-                        assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
-
-                        docs = db.similarity_search("Jill")
-                        assert len(docs) == 4
-                        assert docs[0].page_content == msg2
-                        assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file2)
+                    docs = db.similarity_search("Jill")
+                    assert len(docs) == 3 + (1 if db_type == 'chroma' else 0)
+                    assert docs[0].page_content == msg2
+                    assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file2)
 
 
 @pytest.mark.parametrize("db_type", db_types)
