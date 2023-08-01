@@ -86,7 +86,7 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     python -m nltk.downloader all
 * GPU Optional: For AutoGPTQ support on x86_64 linux
     ```bash
-    pip uninstall -y auto-gptq ; GITHUB_ACTIONS=true pip install auto-gptq --no-cache-dir
+    pip uninstall -y auto-gptq ; GITHUB_ACTIONS=true pip install auto-gptq==0.3.0 --no-cache-dir
     ```
    We recommend to install like the above in order to avoid warnings and inefficient memory usage. If one has trouble installing AutoGPTQ, can try:
    ```bash
