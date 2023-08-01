@@ -2384,7 +2384,7 @@ def get_chain(query=None,
         if iinput:
             query = "%s\n%s" % (query, iinput)
 
-        if 'falcon' in model_name:
+        if 'falcon' in model_name or 'Llama-2'.lower() in model_name.lower():
             extra = "According to only the information in the document sources provided within the context above, "
             prefix = "Pay attention and remember information below, which will help to answer the question or imperative after the context ends."
         elif inference_server in ['openai', 'openai_chat']:
