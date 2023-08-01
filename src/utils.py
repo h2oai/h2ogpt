@@ -1058,6 +1058,12 @@ except (pkg_resources.DistributionNotFound, AssertionError):
     have_selenium = False
 
 try:
+    assert pkg_resources.get_distribution('pillow') is not None
+    have_pillow = True
+except (pkg_resources.DistributionNotFound, AssertionError):
+    have_pillow = False
+
+try:
     assert pkg_resources.get_distribution('playwright') is not None
     have_playwright = True
 except (pkg_resources.DistributionNotFound, AssertionError):

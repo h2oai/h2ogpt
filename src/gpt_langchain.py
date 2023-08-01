@@ -35,7 +35,7 @@ from prompter import non_hf_types, PromptType, Prompter
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
     get_device, ProgressParallel, remove, hash_file, clear_torch_cache, NullContext, get_hf_server, FakeTokenizer, \
     have_libreoffice, have_arxiv, have_playwright, have_selenium, have_tesseract, have_pymupdf, set_openai, \
-    get_list_or_str
+    get_list_or_str, have_pillow
 from utils_langchain import StreamingGradioCallbackHandler
 
 import_matplotlib()
@@ -778,7 +778,7 @@ def get_llm(use_openai_model=False,
             verbose=False,
             ):
     if n_jobs is None:
-        n_jobs = int(os.getenv('OMP_NUM_THREADS', str(os.cpu_count()//2)))
+        n_jobs = int(os.getenv('OMP_NUM_THREADS', str(os.cpu_count() // 2)))
     if inference_server is None:
         inference_server = ''
     if use_openai_model or inference_server.startswith('openai') or inference_server.startswith('vllm'):
@@ -1157,15 +1157,36 @@ def get_dai_docs(from_hf=False, get_pickle=True):
     return sources
 
 
-image_types = ["png", "jpg", "jpeg"]
-non_image_types = ["pdf", "txt", "csv", "toml", "py", "rst", "rtf",
-                   "md",
-                   "html", "mhtml",
-                   "enex", "eml", "epub", "odt", "pptx", "ppt",
-                   "zip", "urls",
+def get_supported_types():
+    non_image_types0 = ["pdf", "txt", "csv", "toml", "py", "rst", "rtf",
+                        "md",
+                        "html", "mhtml",
+                        "enex", "eml", "epub", "odt", "pptx", "ppt",
+                        "zip", "urls",
+                        ]
+    # "msg",  GPL3
 
-                   ]
-# "msg",  GPL3
+    video_types0 = ['WEBM',
+                    'MPG', 'MP2', 'MPEG', 'MPE', '.PV',
+                    'OGG',
+                    'MP4', 'M4P', 'M4V',
+                    'AVI', 'WMV',
+                    'MOV', 'QT',
+                    'FLV', 'SWF',
+                    'AVCHD']
+    video_types0 = [x.lower() for x in video_types0]
+    if have_pillow:
+        from PIL import Image
+        exts = Image.registered_extensions()
+        image_types0 = {ex for ex, f in exts.items() if f in Image.OPEN if ex not in video_types0 + non_image_types0}
+        image_types0 = sorted(image_types0)
+        image_types0 = [x[1:] if x.startswith('.') else x for x in image_types0]
+    else:
+        image_types0 = []
+    return non_image_types0, image_types0, video_types0
+
+
+non_image_types, image_types, video_types = get_supported_types()
 
 if have_libreoffice or True:
     # or True so it tries to load, e.g. on MAC/Windows, even if don't have libreoffice since works without that
@@ -1174,14 +1195,17 @@ if have_libreoffice or True:
 file_types = non_image_types + image_types
 
 
-def add_meta(docs1, file):
+def add_meta(docs1, file, headsize):
     file_extension = pathlib.Path(file).suffix
     hashid = hash_file(file)
     doc_hash = str(uuid.uuid4())[:10]
     if not isinstance(docs1, (list, tuple, types.GeneratorType)):
         docs1 = [docs1]
-    [x.metadata.update(dict(input_type=file_extension, date=str(datetime.now()), hashid=hashid, doc_hash=doc_hash)) for
-     x in docs1]
+    [x.metadata.update(dict(input_type=file_extension,
+                            date=str(datetime.now()),
+                            hashid=hashid,
+                            doc_hash=doc_hash,
+                            head=x.page_content[:headsize].strip())) for x in docs1]
 
 
 def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
@@ -1268,24 +1292,24 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         doc1 = clean_doc(doc1)
     elif file.lower().endswith('.html') or file.lower().endswith('.mhtml'):
         docs1 = UnstructuredHTMLLoader(file_path=file).load()
-        add_meta(docs1, file)
+        add_meta(docs1, file, headsize)
         docs1 = clean_doc(docs1)
         doc1 = chunk_sources(docs1, language=Language.HTML)
     elif (file.lower().endswith('.docx') or file.lower().endswith('.doc')) and (have_libreoffice or True):
         docs1 = UnstructuredWordDocumentLoader(file_path=file).load()
-        add_meta(docs1, file)
+        add_meta(docs1, file, headsize)
         doc1 = chunk_sources(docs1)
     elif (file.lower().endswith('.xlsx') or file.lower().endswith('.xls')) and (have_libreoffice or True):
         docs1 = UnstructuredExcelLoader(file_path=file).load()
-        add_meta(docs1, file)
+        add_meta(docs1, file, headsize)
         doc1 = chunk_sources(docs1)
     elif file.lower().endswith('.odt'):
         docs1 = UnstructuredODTLoader(file_path=file).load()
-        add_meta(docs1, file)
+        add_meta(docs1, file, headsize)
         doc1 = chunk_sources(docs1)
     elif file.lower().endswith('pptx') or file.lower().endswith('ppt'):
         docs1 = UnstructuredPowerPointLoader(file_path=file).load()
-        add_meta(docs1, file)
+        add_meta(docs1, file, headsize)
         docs1 = clean_doc(docs1)
         doc1 = chunk_sources(docs1)
     elif file.lower().endswith('.txt'):
@@ -1294,38 +1318,37 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         # makes just one, but big one
         doc1 = chunk_sources(docs1)
         doc1 = clean_doc(doc1)
-        add_meta(doc1, file)
+        add_meta(doc1, file, headsize)
     elif file.lower().endswith('.rtf'):
         docs1 = UnstructuredRTFLoader(file).load()
-        add_meta(docs1, file)
+        add_meta(docs1, file, headsize)
         doc1 = chunk_sources(docs1)
     elif file.lower().endswith('.md'):
         docs1 = UnstructuredMarkdownLoader(file).load()
-        add_meta(docs1, file)
+        add_meta(docs1, file, headsize)
         docs1 = clean_doc(docs1)
         doc1 = chunk_sources(docs1, language=Language.MARKDOWN)
     elif file.lower().endswith('.enex'):
         docs1 = EverNoteLoader(file).load()
-        add_meta(doc1, file)
+        add_meta(doc1, file, headsize)
         doc1 = chunk_sources(docs1)
     elif file.lower().endswith('.epub'):
         docs1 = UnstructuredEPubLoader(file).load()
-        add_meta(docs1, file)
+        add_meta(docs1, file, headsize)
         doc1 = chunk_sources(docs1)
     elif file.lower().endswith('.jpeg') or file.lower().endswith('.jpg') or file.lower().endswith('.png'):
         docs1 = []
         if have_tesseract and enable_ocr:
             # OCR, somewhat works, but not great
             docs1.extend(UnstructuredImageLoader(file).load())
-            add_meta(docs1, file)
+            add_meta(docs1, file, headsize)
         if enable_captions:
             # BLIP
             if caption_loader is not None and not isinstance(caption_loader, (str, bool)):
                 # assumes didn't fork into this process with joblib, else can deadlock
                 caption_loader.set_image_paths([file])
                 docs1c = caption_loader.load()
-                add_meta(docs1c, file)
-                [x.metadata.update(dict(head=x.page_content[:headsize].strip())) for x in docs1c]
+                add_meta(docs1c, file, headsize)
                 docs1.extend(docs1c)
             else:
                 from image_captions import H2OImageCaptionLoader
@@ -1334,12 +1357,11 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                                                        blip_processor=captions_model)
                 caption_loader.set_image_paths([file])
                 docs1c = caption_loader.load()
-                add_meta(docs1c, file)
-                [x.metadata.update(dict(head=x.page_content[:headsize].strip())) for x in docs1c]
+                add_meta(docs1c, file, headsize)
                 docs1.extend(docs1c)
             for doci in docs1:
                 doci.metadata['source'] = doci.metadata['image_path']
-                doci.metadata['hash'] = hash_file(doci.metadata['source'])
+                doci.metadata['hashid'] = hash_file(doci.metadata['source'])
             if docs1:
                 doc1 = chunk_sources(docs1)
     elif file.lower().endswith('.msg'):
@@ -1349,14 +1371,14 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
     elif file.lower().endswith('.eml'):
         try:
             docs1 = UnstructuredEmailLoader(file).load()
-            add_meta(docs1, file)
+            add_meta(docs1, file, headsize)
             doc1 = chunk_sources(docs1)
         except ValueError as e:
             if 'text/html content not found in email' in str(e):
                 # e.g. plain/text dict key exists, but not
                 # doc1 = TextLoader(file, encoding="utf8").load()
                 docs1 = UnstructuredEmailLoader(file, content_source="text/plain").load()
-                add_meta(docs1, file)
+                add_meta(docs1, file, headsize)
                 doc1 = chunk_sources(docs1)
             else:
                 raise
@@ -1367,7 +1389,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
     elif file.lower().endswith('.rst'):
         with open(file, "r") as f:
             doc1 = Document(page_content=f.read(), metadata={"source": file})
-        add_meta(doc1, file)
+        add_meta(doc1, file, headsize)
         doc1 = chunk_sources(doc1, language=Language.RST)
     elif file.lower().endswith('.pdf'):
         env_gpt4all_file = ".env_gpt4all"
@@ -1423,10 +1445,10 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             else:
                 raise ValueError("%s had no valid text and no meta data was parsed" % file)
         doc1 = chunk_sources(doc1)
-        add_meta(doc1, file)
+        add_meta(doc1, file, headsize)
     elif file.lower().endswith('.csv'):
         doc1 = CSVLoader(file).load()
-        add_meta(doc1, file)
+        add_meta(doc1, file, headsize)
         if isinstance(doc1, list):
             # each row is a Document, identify
             [x.metadata.update(dict(chunk_id=chunk_id)) for chunk_id, x in enumerate(doc1)]
@@ -1437,11 +1459,11 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                 doc1 = sdoc1 + doc1
     elif file.lower().endswith('.py'):
         doc1 = PythonLoader(file).load()
-        add_meta(doc1, file)
+        add_meta(doc1, file, headsize)
         doc1 = chunk_sources(doc1, language=Language.PYTHON)
     elif file.lower().endswith('.toml'):
         doc1 = TomlLoader(file).load()
-        add_meta(doc1, file)
+        add_meta(doc1, file, headsize)
         doc1 = chunk_sources(doc1)
     elif file.lower().endswith('.urls'):
         with open(file, "r") as f:
@@ -1558,8 +1580,10 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
         # Below globs should match patterns in file_to_doc()
         [globs_image_types.extend(glob.glob(os.path.join(path, "./**/*.%s" % ftype), recursive=True))
          for ftype in image_types]
+        globs_image_types = [os.path.normpath(x) for x in globs_image_types]
         [globs_non_image_types.extend(glob.glob(os.path.join(path, "./**/*.%s" % ftype), recursive=True))
          for ftype in non_image_types]
+        globs_non_image_types = [os.path.normpath(x) for x in globs_non_image_types]
     else:
         if isinstance(path_or_paths, str):
             if os.path.isfile(path_or_paths) or os.path.isdir(path_or_paths):
@@ -1571,12 +1595,13 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
         assert isinstance(path_or_paths, (list, tuple, types.GeneratorType)), \
             "Wrong type for path_or_paths: %s %s" % (path_or_paths, type(path_or_paths))
         # reform out of allowed types
-        globs_image_types.extend(flatten_list([[x for x in path_or_paths if x.endswith(y)] for y in image_types]))
+        globs_image_types.extend(
+            flatten_list([[os.path.normpath(x) for x in path_or_paths if x.endswith(y)] for y in image_types]))
         # could do below:
         # globs_non_image_types = flatten_list([[x for x in path_or_paths if x.endswith(y)] for y in non_image_types])
         # But instead, allow fail so can collect unsupported too
         set_globs_image_types = set(globs_image_types)
-        globs_non_image_types.extend([x for x in path_or_paths if x not in set_globs_image_types])
+        globs_non_image_types.extend([os.path.normpath(x) for x in path_or_paths if x not in set_globs_image_types])
 
     # filter out any files to skip (e.g. if already processed them)
     # this is easy, but too aggressive in case a file changed, so parent probably passed existing_files=[]
@@ -1736,7 +1761,7 @@ def check_update_chroma_embedding(db, use_openai_embedding,
                                   langchain_mode):
     changed_db = False
     if load_embed(db=db) not in [(True, use_openai_embedding, hf_embedding_model),
-                              (False, use_openai_embedding, hf_embedding_model)]:
+                                 (False, use_openai_embedding, hf_embedding_model)]:
         print("Detected new embedding, updating db: %s" % langchain_mode, flush=True)
         # handle embedding changes
         db_get = get_documents(db)
