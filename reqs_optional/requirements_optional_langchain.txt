@@ -40,3 +40,7 @@ pip-licenses==4.3.0
 
 # weaviate vector db
 weaviate-client==3.22.1
+
+# elasticsearch vector db
+elasticsearch==7.15.0
+

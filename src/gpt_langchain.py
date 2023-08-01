@@ -57,7 +57,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter, Language
 from langchain.chains.question_answering import load_qa_chain
 from langchain.docstore.document import Document
 from langchain import PromptTemplate, HuggingFaceTextGenInference
-from langchain.vectorstores import Chroma
+from langchain.vectorstores import Chroma, ElasticVectorSearch
 
 
 def get_db(sources, use_openai_embedding=False, db_type='faiss',
@@ -117,6 +117,16 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
             db, num_new_sources, new_sources_metadata = add_to_db(db, sources, db_type=db_type,
                                                                   use_openai_embedding=use_openai_embedding,
                                                                   hf_embedding_model=hf_embedding_model)
+    elif db_type == 'elasticsearch':
+        index_name = collection_name.lower()
+        if os.getenv('ELASTICSEARCH_HOST', None):
+            db = _create_local_elasticsearch_client(embedding, index_name)
+        else:
+            db = ElasticVectorSearch(
+                elasticsearch_url="http://localhost:9200",
+                index_name=index_name,
+                embedding=embedding
+            )
     else:
         raise RuntimeError("No such db_type=%s" % db_type)
 
@@ -195,6 +205,8 @@ def add_to_db(db, sources, db_type='faiss',
         db.persist()
         clear_embedding(db)
         save_embed(db, use_openai_embedding, hf_embedding_model)
+    elif db_type == 'elasticsearch':
+        db.add_documents(documents=sources)
     else:
         raise RuntimeError("No such db_type=%s" % db_type)
 
@@ -2527,7 +2539,8 @@ def get_chain(query=None,
                     tokens = [len(llm.pipeline.tokenizer(x[0].page_content)['input_ids']) for x in docs_with_score]
                     template_tokens = len(llm.pipeline.tokenizer(template)['input_ids'])
                 elif inference_server in ['openai', 'openai_chat'] or use_openai_model or db_type in ['faiss',
-                                                                                                      'weaviate']:
+                                                                                                      'weaviate',
+                                                                                                      'elasticsearch']:
                     # use ticktoken for faiss since embedding called differently
                     tokens = [llm.get_num_tokens(x[0].page_content) for x in docs_with_score]
                     template_tokens = llm.get_num_tokens(template)
@@ -2832,6 +2845,21 @@ def _create_local_weaviate_client():
     except Exception as e:
         print(f"Failed to create Weaviate client: {e}")
         return None
+
+
+def _create_local_elasticsearch_client(embedding, index_name):
+    ELASTICSEARCH_HOST = os.getenv('ELASTICSEARCH_HOST', "localhost")
+    ELASTICSEARCH_PORT = os.getenv('ELASTICSEARCH_PORT', "9200")
+    ELASTICSEARCH_USERNAME = os.getenv('ELASTICSEARCH_USERNAME')
+    ELASTICSEARCH_PASSWORD = os.getenv('ELASTICSEARCH_PASSWORD')
+    ELASTICSEARCH_SCHEMA = os.getenv('ELASTICSEARCH_SCHEMA', "https")
+    if ELASTICSEARCH_USERNAME is not None and ELASTICSEARCH_PASSWORD is not None:
+        ELASTICSEARCH_URL = f"{ELASTICSEARCH_SCHEMA}://{ELASTICSEARCH_USERNAME}:{ELASTICSEARCH_PASSWORD}@{ELASTICSEARCH_HOST}:{ELASTICSEARCH_PORT}"
+    else:
+        ELASTICSEARCH_URL = f"{ELASTICSEARCH_SCHEMA}://{ELASTICSEARCH_HOST}:{ELASTICSEARCH_PORT}"
+
+    elastic_vector_search = ElasticVectorSearch(embedding=embedding, elasticsearch_url=ELASTICSEARCH_URL, index_name=index_name)
+    return elastic_vector_search
 
 
 if __name__ == '__main__':
