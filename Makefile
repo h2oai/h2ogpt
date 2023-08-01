@@ -4,7 +4,6 @@ PACKAGE_VERSION       := `cat version.txt | tr -d '\n'`
 BUILD_TAG_FILES       := requirements.txt Dockerfile `ls reqs_optional/*.txt | sort`
 BUILD_TAG             := $(shell md5sum $(BUILD_TAG_FILES) 2> /dev/null | sort | md5sum | cut -d' ' -f1)
 DOCKER_TEST_IMAGE     := harbor.h2o.ai/h2ogpt/test-image:$(BUILD_TAG)
-DOCKER_RUN_IMAGE      := $(DOCKER_TEST_IMAGE)-runtime
 PYTHON_BINARY         ?= `which python`
 DEFAULT_MARKERS       ?= "not need_tokens and not need_gpu"
 
@@ -47,7 +46,7 @@ build_info.txt:
 	@echo "build_machine=\"`hostname`\"" >> $@
 	@echo "build_date=\"$(shell date "+%Y%m%d")\"" >> $@
 	@echo "build_user=\"`id -u -n`\"" >> $@
-	@echo "base_version=\"$(shell cat version.txt)\"" >> $@
+	@echo "base_version=\"$(PACKAGE_VERSION)\"" >> $@
 
 docker_build: build_info.txt
 ifeq ($(shell curl --write-out %{http_code} -sS --output /dev/null -X GET http://harbor.h2o.ai/api/v2.0/projects/h2ogpt/repositories/test-image/artifacts/$(BUILD_TAG)/tags),200)
@@ -58,9 +57,9 @@ else
 endif
 
 docker_build_runner: docker_build
-	docker tag $(DOCKER_RUN_IMAGE) gcr.io/vorvan/h2oai/h2ogpt-runtime:$(BUILD_TAG)
-	docker tag $(DOCKER_RUN_IMAGE) gcr.io/vorvan/h2oai/h2ogpt-runtime:$(PACKAGE_VERSION)
-	docker tag $(DOCKER_RUN_IMAGE) gcr.io/vorvan/h2oai/h2ogpt-runtime:latest
+	docker tag $(DOCKER_TEST_IMAGE) gcr.io/vorvan/h2oai/h2ogpt-runtime:$(BUILD_TAG)
+	docker tag $(DOCKER_TEST_IMAGE) gcr.io/vorvan/h2oai/h2ogpt-runtime:$(PACKAGE_VERSION)
+	docker tag $(DOCKER_TEST_IMAGE) gcr.io/vorvan/h2oai/h2ogpt-runtime:latest
 	docker push gcr.io/vorvan/h2oai/h2ogpt-runtime:$(BUILD_TAG)
 	docker push gcr.io/vorvan/h2oai/h2ogpt-runtime:$(PACKAGE_VERSION)
 	docker push gcr.io/vorvan/h2oai/h2ogpt-runtime:latest
