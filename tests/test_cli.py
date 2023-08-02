@@ -16,8 +16,9 @@ def test_cli(monkeypatch):
     assert "The Earth is a planet in our solar system" in all_generations[0]
 
 
+@pytest.mark.parametrize("base_model", ['gptj', 'gpt4all_llama'])
 @wrap_test_forked
-def test_cli_langchain(monkeypatch):
+def test_cli_langchain(base_model, monkeypatch):
     from tests.utils import make_user_path_test
     user_path = make_user_path_test()
 
@@ -25,7 +26,7 @@ def test_cli_langchain(monkeypatch):
     monkeypatch.setattr('builtins.input', lambda _: query)
 
     from src.gen import main
-    all_generations = main(base_model='gptj', cli=True, cli_loop=False, score_model='None',
+    all_generations = main(base_model=base_model, cli=True, cli_loop=False, score_model='None',
                            langchain_mode='UserData',
                            user_path=user_path,
                            visible_langchain_modes=['UserData', 'MyData'],

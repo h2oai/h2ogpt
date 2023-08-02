@@ -134,7 +134,7 @@ def get_llm_gpt4all(model_name,
         inner_model = llm.client
     elif model_name == 'gpt4all_llama':
         cls = H2OGPT4All
-        model_path = env_kwargs.pop('model_path_gpt4all_llama') if model is None else model
+        model_path = env_kwargs.pop('model_name_gpt4all_llama') if model is None else model
         model_kwargs = get_model_kwargs(env_kwargs, default_kwargs, cls, exclude_list=['lc_kwargs'])
         model_kwargs.update(
             dict(model=model_path, backend='llama', callbacks=callbacks, streaming=streaming,
@@ -143,7 +143,7 @@ def get_llm_gpt4all(model_name,
         inner_model = llm.client
     elif model_name == 'gptj':
         cls = H2OGPT4All
-        model_path = env_kwargs.pop('model_path_gptj') if model is None else model
+        model_path = env_kwargs.pop('model_name_gptj') if model is None else model
         model_kwargs = get_model_kwargs(env_kwargs, default_kwargs, cls, exclude_list=['lc_kwargs'])
         model_kwargs.update(
             dict(model=model_path, backend='gptj', callbacks=callbacks, streaming=streaming,
