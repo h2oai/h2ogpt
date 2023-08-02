@@ -2759,7 +2759,7 @@ def _update_user_db(file,
     if dbs is None:
         dbs = {}
     assert isinstance(dbs, dict), "Wrong type for dbs: %s" % str(type(dbs))
-    # assert db_type in ['faiss', 'chroma'], "db_type %s not supported" % db_type
+    # assert db_type in ['faiss', 'chroma', 'elasticsearch'], "db_type %s not supported" % db_type
     from gpt_langchain import add_to_db, get_db, path_to_docs
     # handle case of list of temp buffer
     if isinstance(file, list) and len(file) > 0 and hasattr(file[0], 'name'):

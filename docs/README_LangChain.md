@@ -15,10 +15,11 @@ or for CPU FAISS database, run:
 pip install -r reqs_optional/requirements_optional_faiss_cpu.txt
 ```
 
-or for Weaviate, run:
+or for Weaviate or ElasticSearch, run:
 ```bash
 pip install -r reqs_optional/requirements_optional_langchain.txt
 ```
+Note: Elasticsearch client / server should have the same major versioning. 
 ## Supported Datatypes
 
 Open-source data types are supported, .msg is not supported due to GPL-3 requirement.  Other meta types support other types inside them.  Special support for some behaviors is provided by the UI itself.
