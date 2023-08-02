@@ -1092,6 +1092,7 @@ def get_model(
         tokenizer_base_model: str = '',
         lora_weights: str = "",
         gpu_id: int = 0,
+        n_jobs=None,
 
         reward_type: bool = None,
         local_files_only: bool = False,
@@ -1122,6 +1123,7 @@ def get_model(
     :param tokenizer_base_model: name/path of tokenizer
     :param lora_weights: name/path
     :param gpu_id: which GPU (0..n_gpus-1) or allow all GPUs if relevant (-1)
+    :param n_jobs: number of cores to use (e.g. for llama CPU model)
     :param reward_type: reward type model for sequence classification
     :param local_files_only: use local files instead of from HF
     :param resume_download: resume downloads from HF
@@ -1213,7 +1215,7 @@ def get_model(
     assert not inference_server, "Malformed inference_server=%s" % inference_server
     if base_model in non_hf_types:
         from gpt4all_llm import get_model_tokenizer_gpt4all
-        model, tokenizer, device = get_model_tokenizer_gpt4all(base_model)
+        model, tokenizer, device = get_model_tokenizer_gpt4all(base_model, n_jobs=n_jobs)
         return model, tokenizer, device
     if load_exllama:
         return model_loader, tokenizer, 'cuda'
@@ -1476,6 +1478,7 @@ def get_score_model(score_model: str = None,
                     tokenizer_base_model: str = '',
                     lora_weights: str = "",
                     gpu_id: int = 0,
+                    n_jobs=None,
 
                     reward_type: bool = None,
                     local_files_only: bool = False,

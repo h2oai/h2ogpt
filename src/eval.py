@@ -24,7 +24,7 @@ def run_eval(  # for local function:
         score_model=None, load_8bit=None, load_4bit=None, load_half=None,
         load_gptq=None, load_exllama=None, use_safetensors=None, revision=None,
         use_gpu_id=None, tokenizer_base_model=None,
-        gpu_id=None, local_files_only=None, resume_download=None, use_auth_token=None,
+        gpu_id=None, n_jobs=None, local_files_only=None, resume_download=None, use_auth_token=None,
         trust_remote_code=None, offload_folder=None, rope_scaling=None, max_seq_len=None, compile_model=None,
         # for evaluate args beyond what's already above, or things that are always dynamic and locally created
         temperature=None,
@@ -66,7 +66,7 @@ def run_eval(  # for local function:
         answer_with_sources=None,
         append_sources_to_answer=None,
         add_chat_history_to_context=None,
-        db_type=None, n_jobs=None, first_para=None, text_limit=None, verbose=None, cli=None, reverse_docs=None,
+        db_type=None, first_para=None, text_limit=None, verbose=None, cli=None, reverse_docs=None,
         use_cache=None,
         auto_reduce_chunks=None, max_chunks=None,
         model_lock=None, force_langchain_evaluate=None,

@@ -117,6 +117,8 @@ def go_gradio(**kwargs):
     enable_pdf_ocr = kwargs['enable_pdf_ocr']
     caption_loader = kwargs['caption_loader']
 
+    n_jobs = kwargs['n_jobs']
+
     # for dynamic state per user session in gradio
     model_state0 = kwargs['model_state0']
     score_model_state0 = kwargs['score_model_state0']
