@@ -2003,9 +2003,21 @@ def _make_db(use_openai_embedding=False,
         new_sources_metadata = [x.metadata for x in sources]
     elif user_path is not None:
         print("Existing db, potentially adding %s sources from user_path=%s" % (len(sources), user_path), flush=True)
-        db, num_new_sources, new_sources_metadata = add_to_db(db, sources, db_type=db_type,
-                                                              use_openai_embedding=use_openai_embedding,
-                                                              hf_embedding_model=hf_embedding_model)
+        if hasattr(db, '_persist_directory'):
+            name_path = os.path.basename(db._persist_directory)
+            base_path = 'locks'
+            base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
+            file = os.path.join(base_path, "getdb_%s.lock" % name_path)
+            context = filelock.FileLock
+        else:
+            file = None
+            context = NullContext
+        with context(file):
+            # this is place where add to db, but others maybe accessing db, so lock access.
+            # else see RuntimeError: Index seems to be corrupted or unsupported
+            db, num_new_sources, new_sources_metadata = add_to_db(db, sources, db_type=db_type,
+                                                                  use_openai_embedding=use_openai_embedding,
+                                                                  hf_embedding_model=hf_embedding_model)
         print("Existing db, added %s new sources from user_path=%s" % (num_new_sources, user_path), flush=True)
     else:
         new_sources_metadata = [x.metadata for x in sources]
