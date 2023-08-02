@@ -206,10 +206,32 @@ def add_to_db(db, sources, db_type='faiss',
         clear_embedding(db)
         save_embed(db, use_openai_embedding, hf_embedding_model)
     elif db_type == 'elasticsearch':
+        field = ""
+        if avoid_dup_by_file:
+            field = "source"
+        if avoid_dup_by_content:
+            field = "hashid"
+        # Perform the aggregation query
+        response = db.client.search(index=db.index_name, body={
+            "size": 0,
+            "aggs": {
+                "unique_sources": {
+                    "terms": {
+                        "field": f"metadata.{field}.keyword",
+                        "size": 10000  # Set size to a high value to retrieve all unique sources
+                    }
+                }
+            }
+        })
+        # Extract the unique sources from the response
+        unique_sources = [bucket["key"] for bucket in response["aggregations"]["unique_sources"]["buckets"]]
+        sources = [x for x in sources if x.metadata[f"{field}"] not in unique_sources]
+        num_new_sources = len(sources)
+        if num_new_sources == 0:
+            return db, num_new_sources, []
         db.add_documents(documents=sources)
     else:
         raise RuntimeError("No such db_type=%s" % db_type)
-
     new_sources_metadata = [x.metadata for x in sources]
 
     return db, num_new_sources, new_sources_metadata
@@ -2858,7 +2880,8 @@ def _create_local_elasticsearch_client(embedding, index_name):
     else:
         ELASTICSEARCH_URL = f"{ELASTICSEARCH_SCHEMA}://{ELASTICSEARCH_HOST}:{ELASTICSEARCH_PORT}"
 
-    elastic_vector_search = ElasticVectorSearch(embedding=embedding, elasticsearch_url=ELASTICSEARCH_URL, index_name=index_name)
+    elastic_vector_search = ElasticVectorSearch(embedding=embedding, elasticsearch_url=ELASTICSEARCH_URL,
+                                                index_name=index_name)
     return elastic_vector_search
 
 
