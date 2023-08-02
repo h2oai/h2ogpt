@@ -74,6 +74,8 @@ for some token `<hf_...>`.  See [Hugging Face User Tokens](https://huggingface.c
 
 See [README_GPU](README_GPU.md) for more details about what to run.
 
+## Run h2oGPT and TGI using Docker
+
 One can run an inference server in one docker and h2oGPT in another docker.
 
 For the TGI server run (e.g. to run on GPU 0)
