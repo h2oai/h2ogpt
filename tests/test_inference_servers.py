@@ -150,7 +150,7 @@ def test_gradio_inference_server(base_model, force_langchain_evaluate, do_langch
     print("DONE", flush=True)
 
 
-def run_docker(inf_port, base_model):
+def run_docker(inf_port, base_model, low_mem_mode=False):
     datetime_str = str(datetime.now()).replace(" ", "_").replace(":", "_")
     msg = "Starting HF inference %s..." % datetime_str
     print(msg, flush=True)
@@ -160,19 +160,68 @@ def run_docker(inf_port, base_model):
                         '-d',
                         '--gpus', 'device=%d' % int(os.getenv('CUDA_VISIBLE_DEVICES', '0')),
                         '--shm-size', '1g',
+                        '-e', 'HUGGING_FACE_HUB_TOKEN=%s' % os.environ['HUGGING_FACE_HUB_TOKEN'],
                         '-e', 'TRANSFORMERS_CACHE="/.cache/"',
                         '-p', '%s:80' % inf_port,
                         '-v', '%s/.cache:/.cache/' % home_dir,
                         '-v', '%s:/data' % data_dir,
                         'ghcr.io/huggingface/text-generation-inference:latest',
                         '--model-id', base_model,
-                        '--max-input-length', '2048',
-                        '--max-total-tokens', '4096',
                         '--max-stop-sequences', '6',
                         ]
+    if low_mem_mode:
+        cmd.extend(['--max-input-length', '1024',
+                    '--max-total-tokens', '2048',
+                    '--max-batch-prefill-tokens', '2048',
+                    '--max-batch-total-tokens', '2048',
+                    ])
+    else:
+        cmd.extend(['--max-input-length', '2048',
+                    '--max-total-tokens', '4096',
+                    ])
+
     print(cmd, flush=True)
     docker_hash = subprocess.check_output(cmd).decode().strip()
-    print("Done starting TGI server", flush=True)
+    print("Done starting TGI server: %s" % docker_hash, flush=True)
+    return docker_hash
+
+
+def run_h2ogpt_docker(port, base_model, inference_server=None):
+    datetime_str = str(datetime.now()).replace(" ", "_").replace(":", "_")
+    msg = "Starting h2oGPT %s..." % datetime_str
+    print(msg, flush=True)
+    home_dir = os.path.expanduser('~')
+    cmd = ["docker"] + ['run',
+                        '-d',
+                        '--runtime', 'nvidia',
+                        '--gpus', 'device=%d' % int(os.getenv('CUDA_VISIBLE_DEVICES', '0')),
+                        '--shm-size', '1g',
+                        '-p', '%s:7860' % port,
+                        '-v', '%s/.cache:/.cache/' % home_dir,
+                        '-v', 'save:/save',
+                        '-e', 'HUGGING_FACE_HUB_TOKEN=%s' % os.environ['HUGGING_FACE_HUB_TOKEN'],
+                        '--rm', '--init',
+                        '--network', 'host',
+                        'gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0',
+                        '/workspace/generate.py',
+                        '--base_model=%s' % base_model,
+                        '--use_safetensors=True',
+                        '--prompt_type=llama2',
+                        '--save_dir=/workspace/save/',
+                        '--score_model=None',
+                        '--max_max_new_tokens=2048',
+                        '--max_new_tokens=1024',
+                        '--num_async=10',
+                        '--top_k_docs=-1',
+                        '--chat=True',
+                        '--stream_output=True',
+                        ]
+    if inference_server:
+        cmd.extend(['--inference_server=%s' % inference_server])
+
+    print(cmd, flush=True)
+    docker_hash = subprocess.check_output(cmd).decode().strip()
+    print("Done starting h2oGPT server: %s" % docker_hash, flush=True)
     return docker_hash
 
 
@@ -359,3 +408,51 @@ def test_openai_inference_server(force_langchain_evaluate,
     assert 'I am an AI language model' in ret7['response'] or 'I am a helpful assistant designed' in ret7[
         'response']
     print("DONE", flush=True)
+
+
+@pytest.mark.parametrize("base_model",
+                         ['h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2', 'meta-llama/Llama-2-7b-chat-hf']
+                         )
+@wrap_test_forked
+def test_gradio_tgi_docker(base_model):
+    # HF inference server
+    gradio_port = get_inf_port()
+    inf_port = gradio_port + 1
+    inference_server = 'http://127.0.0.1:%s' % inf_port
+    docker_hash1 = run_docker(inf_port, base_model, low_mem_mode=True)
+    time.sleep(30)
+    os.system('docker logs %s | tail -10' % docker_hash1)
+
+    # h2oGPT server
+    docker_hash2 = run_h2ogpt_docker(gradio_port, base_model, inference_server=inference_server)
+    time.sleep(30)  # assumes image already downloaded, else need more time
+    os.system('docker logs %s | tail -10' % docker_hash2)
+
+    try:
+        # client test to server that only consumes inference server
+        prompt = 'Who are you?'
+        print("Starting client tests with prompt: %s using %s" % (prompt, get_inf_server()))
+        from src.client_test import run_client_chat
+        res_dict, client = run_client_chat(prompt=prompt,
+                                           stream_output=True,
+                                           max_new_tokens=256,
+                                           langchain_mode='Disabled',
+                                           langchain_action=LangChainAction.QUERY.value,
+                                           langchain_agents=[])
+        assert res_dict['prompt'] == prompt
+        assert res_dict['iinput'] == ''
+
+        # will use HOST from above
+        # client shouldn't have to specify
+        ret1, ret2, ret3, ret4, ret5, ret6, ret7 = run_client_many(prompt_type=None)
+        assert 'h2oGPT' in ret1['response']
+        assert 'Birds' in ret2['response']
+        assert 'Birds' in ret3['response']
+        assert 'h2oGPT' in ret4['response']
+        assert 'h2oGPT' in ret5['response']
+        assert 'h2oGPT' in ret6['response']
+        assert 'h2oGPT' in ret7['response']
+        print("DONE", flush=True)
+    finally:
+        os.system("docker stop %s" % docker_hash1)
+        os.system("docker stop %s" % docker_hash2)

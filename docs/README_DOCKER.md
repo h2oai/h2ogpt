@@ -122,7 +122,7 @@ docker run -d --gpus '"device=0"' \
         --max-input-length 1024 \
         --max-total-tokens 2048 \
         --max-batch-prefill-tokens 2048 \
-        --max-batch-total-tokens=2048 \
+        --max-batch-total-tokens 2048 \
         --max-stop-sequences 6 &>> logs.infserver.txt
 ```
 then wait till it comes up (e.g. check docker logs for detatched container hash in logs.infserver.txt), about 30 seconds for 7B LLaMa2 on 1 GPU.  Then for h2oGPT, just run one of the commands like the above, but add e.g. `--inference_server=192.168.0.1:6112` to the docker command line.  E.g. using same export's as above, run:
@@ -133,7 +133,7 @@ docker run -d \
        --gpus all \
        --runtime=nvidia \
        --shm-size=2g \
-       -p 7860:7860 \
+       -p $GRADIO_SERVER_PORT:7860 \
        --rm --init \
        --network host \
        -v "${HOME}"/.cache:/workspace/.cache \
@@ -151,6 +151,7 @@ docker run -d \
           --top_k_docs=-1 \
           --use_auth_token="$HUGGING_FACE_HUB_TOKEN"
 ```
+or change `max_max_new_tokens` to `2048` for low-memory case.
 
 When one is done with the docker instance, run `docker ps` and find the container ID's hash, then run `docker stop <hash>`.
 
