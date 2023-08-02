@@ -1,0 +1,167 @@
+:param load_8bit: load model in 8-bit using bitsandbytes
+    :param load_4bit: load model in 4-bit using bitsandbytes
+    :param load_half: load model in float16
+    :param load_gptq: to load model with GPTQ, put model_basename here, e.g. gptq_model-4bit--1g
+    :param use_safetensors: to use safetensors version (assumes file/HF points to safe tensors version)
+    :param use_gpu_id: whether to control devices with gpu_id.  If False, then spread across GPUs
+    :param base_model: model HF-type name.  If use --base_model to preload model, cannot unload in gradio in models tab
+    :param tokenizer_base_model: tokenizer HF-type name.  Usually not required, inferred from base_model.
+    :param lora_weights: LORA weights path/HF link
+    :param gpu_id: if use_gpu_id, then use gpu_id for cuda device ID, or auto mode if gpu_id != -1
+    :param compile_model Whether to compile the model
+    :param use_cache: Whether to use caching in model (some models fail when multiple threads use)
+    :param inference_server: Consume base_model as type of model at this address
+                             Address can be text-generation-server hosting that base_model
+                             e.g. python generate.py --inference_server="http://192.168.1.46:6112" --base_model=h2oai/h2ogpt-oasst1-512-12b
+                             Or Address can be "openai_chat" or "openai" for OpenAI API
+                             e.g. python generate.py --inference_server="openai_chat" --base_model=gpt-3.5-turbo
+                             e.g. python generate.py --inference_server="openai" --base_model=text-davinci-003
+                             Or Address can be "vllm:IP:port" or "vllm:IP:port" for OpenAI-compliant vLLM endpoint
+                             Note: vllm_chat not supported by vLLM project.
+    :param prompt_type: type of prompt, usually matched to fine-tuned model or plain for foundational model
+    :param prompt_dict: If prompt_type=custom, then expects (some) items returned by get_prompt(..., return_dict=True)
+    :param model_lock: Lock models to specific combinations, for ease of use and extending to many models
+           Only used if gradio = True
+           List of dicts, each dict has base_model, tokenizer_base_model, lora_weights, inference_server, prompt_type, and prompt_dict
+           If all models have same prompt_type, and prompt_dict, can still specify that once in CLI outside model_lock as default for dict
+           Can specify model_lock instead of those items on CLI
+           As with CLI itself, base_model can infer prompt_type and prompt_dict if in prompter.py.
+             Also, tokenizer_base_model and lora_weights are optional.
+             Also, inference_server is optional if loading model from local system.
+           All models provided will automatically appear in compare model mode
+           Model loading-unloading and related choices will be disabled.  Model/lora/server adding will be disabled
+    :param model_lock_columns: How many columns to show if locking models (and so showing all at once)
+           If None, then defaults to up to 3
+           if -1, then all goes into 1 row
+           Maximum value is 4 due to non-dynamic gradio rendering elements
+    :param fail_if_cannot_connect: if doing model locking (e.g. with many models), fail if True.  Otherwise ignore.
+           Useful when many endpoints and want to just see what works, but still have to wait for timeout.
+    :param temperature: generation temperature
+    :param top_p: generation top_p
+    :param top_k: generation top_k
+    :param num_beams: generation number of beams
+    :param repetition_penalty: generation repetition penalty
+    :param num_return_sequences: generation number of sequences (1 forced for chat)
+    :param do_sample: generation sample
+    :param max_new_tokens: generation max new tokens
+    :param min_new_tokens: generation min tokens
+    :param early_stopping: generation early stopping
+    :param max_time: maximum time to allow for generation
+    :param memory_restriction_level: 0 = no restriction to tokens or model, 1 = some restrictions on token 2 = HF like restriction 3 = very low memory case
+    :param debug: enable debug mode
+    :param save_dir: directory chat data is saved to
+    :param share: whether to share the gradio app with sharable URL
+    :param local_files_only: whether to only use local files instead of doing to HF for models
+    :param resume_download: whether to resume downloads from HF for models
+    :param use_auth_token: whether to use HF auth token (requires CLI did huggingface-cli login before)
+    :param trust_remote_code: whether to use trust any code needed for HF model
+    :param offload_folder: path for spilling model onto disk
+    :param src_lang: source languages to include if doing translation (None = all)
+    :param tgt_lang: target languages to include if doing translation (None = all)
+    :param cli: whether to use CLI (non-gradio) interface.
+    :param cli_loop: whether to loop for CLI (False usually only for testing)
+    :param gradio: whether to enable gradio, or to enable benchmark mode
+    :param gradio_offline_level: > 0, then change fonts so full offline
+           == 1 means backend won't need internet for fonts, but front-end UI might if font not cached
+           == 2 means backend and frontend don't need internet to download any fonts.
+           Note: Some things always disabled include HF telemetry, gradio telemetry, chromadb posthog that involve uploading.
+           This option further disables google fonts for downloading, which is less intrusive than uploading,
+           but still required in air-gapped case.  The fonts don't look as nice as google fonts, but ensure full offline behavior.
+           Also set --share=False to avoid sharing a gradio live link.
+    :param chat: whether to enable chat mode with chat history
+    :param chat_context: whether to use extra helpful context if human_bot
+    :param stream_output: whether to stream output
+    :param show_examples: whether to show clickable examples in gradio
+    :param verbose: whether to show verbose prints
+    :param h2ocolors: whether to use H2O.ai theme
+    :param height: height of chat window
+    :param show_lora: whether to show LORA options in UI (expert so can be hard to understand)
+    :param login_mode_if_model0: set to True to load --base_model after client logs in, to be able to free GPU memory when model is swapped
+    :param block_gradio_exit: whether to block gradio exit (used for testing)
+    :param concurrency_count: gradio concurrency count (1 is optimal for LLMs)
+    :param api_open: If False, don't let API calls skip gradio queue
+    :param allow_api: whether to allow API calls at all to gradio server
+    :param input_lines: how many input lines to show for chat box (>1 forces shift-enter for submit, else enter is submit)
+    :param gradio_size: Overall size of text and spaces: "xsmall", "small", "medium", "large".
+           Small useful for many chatbots in model_lock mode
+    :param auth: gradio auth for launcher in form [(user1, pass1), (user2, pass2), ...]
+                 e.g. --auth=[('jon','password')] with no spaces
+    :param max_max_time: Maximum max_time for gradio slider
+    :param max_max_new_tokens: Maximum max_new_tokens for gradio slider
+    :param sanitize_user_prompt: whether to remove profanity from user input (slows down input processing)
+    :param sanitize_bot_response: whether to remove profanity and repeat lines from bot output (about 2x slower generation for long streaming cases due to better_profanity being slow)
+    :param extra_model_options: extra models to show in list in gradio
+    :param extra_lora_options: extra LORA to show in list in gradio
+    :param extra_server_options: extra servers to show in list in gradio
+    :param score_model: which model to score responses
+           None: no response scoring
+           'auto': auto mode, '' (no model) for CPU, 'OpenAssistant/reward-model-deberta-v3-large-v2' for GPU,
+            because on CPU takes too much compute just for scoring response
+    :param eval_filename: json file to use for evaluation, if None is sharegpt
+    :param eval_prompts_only_num: for no gradio benchmark, if using eval_filename prompts for eval instead of examples
+    :param eval_prompts_only_seed: for no gradio benchmark, seed for eval_filename sampling
+    :param eval_as_output: for no gradio benchmark, whether to test eval_filename output itself
+    :param langchain_mode: Data source to include.  Choose "UserData" to only consume files from make_db.py.
+           None: auto mode, check if langchain package exists, at least do ChatLLM if so, else Disabled
+           WARNING: wiki_full requires extra data processing via read_wiki_full.py and requires really good workstation to generate db, unless already present.
+    :param langchain_action: Mode langchain operations in on documents.
+            Query: Make query of document(s)
+            Summarize or Summarize_map_reduce: Summarize document(s) via map_reduce
+            Summarize_all: Summarize document(s) using entire document at once
+            Summarize_refine: Summarize document(s) using entire document, and try to refine before returning summary
+    :param langchain_agents: Which agents to use
+            'search': Use Web Search as context for LLM response, e.g. SERP if have SERPAPI_API_KEY in env
+    :param force_langchain_evaluate: Whether to force langchain LLM use even if not doing langchain, mostly for testing.
+    :param user_path: user path to glob from to generate db for vector search, for 'UserData' langchain mode.
+           If already have db, any new/changed files are added automatically if path set, does not have to be same path used for prior db sources
+    :param detect_user_path_changes_every_query: whether to detect if any files changed or added every similarity search (by file hashes).
+           Expensive for large number of files, so not done by default.  By default only detect changes during db loading.
+    :param visible_langchain_modes: dbs to generate at launch to be ready for LLM
+           Can be up to ['wiki', 'wiki_full', 'UserData', 'MyData', 'github h2oGPT', 'DriverlessAI docs']
+           But wiki_full is expensive and requires preparation
+           To allow scratch space only live in session, add 'MyData' to list
+           Default: If only want to consume local files, e.g. prepared by make_db.py, only include ['UserData']
+    :param visible_langchain_actions: Which actions to allow
+    :param visible_langchain_agents: Which agents to allow
+    :param document_subset: Default document choice when taking subset of collection
+    :param document_choice: Chosen document(s) by internal name
+    :param use_llm_if_no_docs: Whether to use LLM even if no documents, when langchain_mode=UserData or MyData
+    :param load_db_if_exists: Whether to load chroma db if exists or re-generate db
+    :param keep_sources_in_context: Whether to keep url sources in context, not helpful usually
+    :param db_type: 'faiss' for in-memory or 'chroma' or 'weaviate' for persisted on disk
+    :param use_openai_embedding: Whether to use OpenAI embeddings for vector db
+    :param use_openai_model: Whether to use OpenAI model for use with vector db
+    :param hf_embedding_model: Which HF embedding model to use for vector db
+           Default is instructor-large with 768 parameters per embedding if have GPUs, else all-MiniLM-L6-v2 if no GPUs
+           Can also choose simpler model with 384 parameters per embedding: "sentence-transformers/all-MiniLM-L6-v2"
+           Can also choose even better embedding with 1024 parameters: 'hkunlp/instructor-xl'
+           We support automatically changing of embeddings for chroma, with a backup of db made if this is done
+    :param cut_distance: Distance to cut off references with larger distances when showing references.
+           1.64 is good to avoid dropping references for all-MiniLM-L6-v2, but instructor-large will always show excessive references.
+           For all-MiniLM-L6-v2, a value of 1.5 can push out even more references, or a large value of 100 can avoid any loss of references.
+    :param allow_upload_to_user_data: Whether to allow file uploads to update shared vector db
+    :param allow_upload_to_my_data: Whether to allow file uploads to update scratch vector db
+    :param enable_url_upload: Whether to allow upload from URL
+    :param enable_text_upload: Whether to allow upload of text
+    :param enable_sources_list: Whether to allow list (or download for non-shared db) of list of sources for chosen db
+    :param chunk: Whether to chunk data (True unless know data is already optimally chunked)
+    :param chunk_size: Size of chunks, with typically top-4 passed to LLM, so neesd to be in context length
+    :param top_k_docs: number of chunks to give LLM
+    :param reverse_docs: whether to reverse docs order so most relevant is closest to question.
+           Best choice for sufficiently smart model, and truncation occurs for oldest context, so best then too.
+           But smaller 6_9 models fail to use newest context and can get stuck on old information.
+    :param auto_reduce_chunks: Whether to automatically reduce top_k_docs to fit context given prompt
+    :param max_chunks: If top_k_docs=-1, maximum number of chunks to allow
+    :param n_jobs: Number of processors to use when consuming documents (-1 = all, is default)
+    :param enable_captions: Whether to support captions using BLIP for image files as documents, then preloads that model
+    :param captions_model: Which model to use for captions.
+           captions_model: str = "Salesforce/blip-image-captioning-base",  # continue capable
+           captions_model: str = "Salesforce/blip2-flan-t5-xl",   # question/answer capable, 16GB state
+           captions_model: str = "Salesforce/blip2-flan-t5-xxl",  # question/answer capable, 60GB state
+           Note: opt-based blip2 are not permissive license due to opt and Meta license restrictions
+           Disabled for CPU since BLIP requires CUDA
+    :param pre_load_caption_model: Whether to preload caption model, or load after forking parallel doc loader
+           parallel loading disabled if preload and have images, to prevent deadlocking on cuda context
+           Recommended if using larger caption model
+    :param caption_gpu: If support caption, then use GPU if exists
+    :param enable_ocr: Whether to support OCR on images
