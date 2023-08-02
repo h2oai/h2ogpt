@@ -58,6 +58,25 @@ If you see this error, then you either have insufficient GPU memory or insuffici
 
 Please check your version of langchain vs. the one in requirements.txt.  Somehow the wrong version is installed.  Try to install the correct one.
 
+### Multiple GPUs
+
+Automatic sharding can be enabled with `--use_gpu_id=False`.  This is disabled by default, as in rare cases torch hits a bug with `cuda:x cuda:y mismatch`.  E.g. to use GPU IDs 0 and 3, one can run:
+```bash
+export HUGGING_FACE_HUB_TOKEN=<hf_...>
+exoprt CUDA_VISIBLE_DEVICES="0,3"
+export GRADIO_SERVER_PORT=7860
+python generate.py \
+          --base_model=meta-llama/Llama-2-7b-chat-hf \
+          --prompt_type=llama2 \
+          --max_max_new_tokens=4096 \
+          --max_new_tokens=1024 \
+          --use_gpu_id=False \
+          --save_dir=save7b \
+          --score_model=None \
+          --use_auth_token="$HUGGING_FACE_HUB_TOKEN"
+```
+where `use_auth_token` has been set as required for LLaMa2.
+
 ### Larger models require more GPU memory
 
 Depending on available GPU memory, you can load differently sized models. For multiple GPUs, automatic sharding can be enabled with `--use_gpu_id=False`, but this is disabled by default since cuda:x cuda:y mismatches can occur.
