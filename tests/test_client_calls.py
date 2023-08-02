@@ -444,6 +444,7 @@ def test_client_chat_stream_langchain_steps2(max_new_tokens, top_k_docs):
 
 @wrap_test_forked
 def test_doc_hash():
+    remove('visible_langchain_modes.pkl')
     user_path = make_user_path_test()
 
     stream_output = True
