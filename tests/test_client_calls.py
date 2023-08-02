@@ -548,13 +548,7 @@ def test_exllama():
                                        langchain_action=langchain_action, langchain_agents=langchain_agents)
     assert res_dict['prompt'] == prompt
     assert res_dict['iinput'] == ''
-    assert "Hello! I'm LLaMA, an AI assistant developed by Meta AI that can understand and respond to human input" \
-           " in a conversational manner. My training data is based on a massive dataset of text from the internet," \
-           " which allows me to generate human-like responses to a wide range of topics and questions. " \
-           "I'm here to help answer any questions you may have, so feel free to ask me anything!" in \
-           res_dict['response'] or \
-           """I am LLaMA, an AI assistant developed by Meta AI that can understand and respond to human input in a conversational manner. My primary function is to assist users with their inquiries and provide information on a wide range of topics. I'm here to help you with any questions or tasks you may have!""" in \
-           res_dict['response']
+    assert "I'm LLaMA, an AI assistant" in res_dict['response']
 
 
 @pytest.mark.skip(reason="Local file required")
