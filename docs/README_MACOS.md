@@ -69,7 +69,7 @@ Supports CPU and MPS (Metal M1/M2).
     CMAKE_ARGS="-DLLAMA_METAL=on" FORCE_CMAKE=1 pip install -U llama-cpp-python --no-cache-dir
     ```
     - In `.env_gpt4all`, uncomment line with `n_gpu_layers=20`
-    - In `.env_gpt4all`, optionally change model name: `model_path_llama=WizardLM-7B-uncensored.ggmlv3.q8_0.bin`
+    - In `.env_gpt4all`, optionally change model name: `model_path_llama` if download a different GGML v3 model from TheBloke. The default model can be [downloaded here](https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin) and placed in repo folder.
     - **Note** Only supports v3 ggml 4 bit quantized models for MPS, so use llama models ends with `ggmlv3` & `q4_x.bin`.
 
 ---
@@ -78,7 +78,7 @@ Supports CPU and MPS (Metal M1/M2).
 
 * To run LLaMa.cpp model in CPU or GPU mode:
     ```bash
-    python generate.py --base_model='llama' --prompt_type=wizard2 --score_model=None --langchain_mode='UserData' --user_path=user_path
+    python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path
     ```
 Ignore CLI output showing `0.0.0.0`, and instead go to http://localhost:7860 or the public live URL printed by the server (disable shared link with `--share=False`).
 
@@ -89,7 +89,7 @@ Ignore CLI output showing `0.0.0.0`, and instead go to http://localhost:7860 or 
 
 * CLI mode:
     ```bash
-    python generate.py --base_model='llama' --prompt_type=wizard2 --score_model=None --langchain_mode='UserData' --user_path=user_path --cli==True
+    python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path --cli==True
     ```
 
 See [CPU](README_CPU.md) and [GPU](README_GPU.md) for some other general aspects about using h2oGPT on CPU or GPU, such as which models to try.

@@ -192,7 +192,7 @@ python generate.py --inference_server="http://192.168.0.10:7680" --base_model=h2
 One can also use gradio live link like `https://6a8d4035f1c8858731.gradio.live` or some ngrok or other mapping/redirect to `https://` address.
 One must specify the model used at the endpoint so the prompt type is handled.  This assumes that base model is specified in `prompter.py::prompt_type_to_model_name`.  Otherwise, one should pass `--prompt_type` as well, like:
 ```bash
-python generate.py --inference_server="http://192.168.0.10:7680" --base_model=foo_model --prompt_type=wizard2
+python generate.py --inference_server="http://192.168.0.10:7680" --base_model=foo_model --prompt_type=llama2
 ```
 If even `prompt_type` is not listed in `enums.py::PromptType` then one can pass `--prompt_dict` like:
 ```bash
