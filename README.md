@@ -17,7 +17,7 @@ Query and summarize your documents or just chat with local private GPT LLMs usin
 - **Inference Servers** support (HF TGI server, vLLM, Gradio, ExLLaMa, OpenAI)
 - **OpenAI-compliant Python client API** for client-server control
 - **Evaluate** performance using reward models
-- **Quality** maintained with over 200 unit and integration tests taking over 4 GPU-hours
+- **Quality** maintained with over 250 unit and integration tests taking over 4 GPU-hours
 
 ### Getting Started
 
