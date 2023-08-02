@@ -8,7 +8,7 @@ include = ["h2ogpt_client/_h2ogpt*"]
 
 [tool.poetry.dependencies]
 python = "^3.8"
-gradio-client = "^0.2.7"
+gradio-client = "^0.3.0"
 
 [tool.poetry.group.test.dependencies]
 pytest = "7.2.2"

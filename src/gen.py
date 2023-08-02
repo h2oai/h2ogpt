@@ -641,7 +641,7 @@ def main(
             torch.backends.cudnn.benchmark = True
             torch.backends.cudnn.enabled = False
             torch.set_default_dtype(torch.float32)
-        if psutil.virtual_memory().available < 94 * 1024 ** 3 and not inference_server and not model_lock:
+        if is_public and not inference_server and not model_lock:
             # 12B uses ~94GB
             # 6.9B uses ~47GB
             base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b' if not base_model else base_model
@@ -929,6 +929,9 @@ def get_config(base_model,
                 print("Used max_position_embeddings=%s as base model (pre-rope) max_seq_len."
                       "  If not desired, pass --max_seq_len and set to some integer value." % config.max_position_embeddings,
                       flush=True)
+        elif hasattr(config, 'n_ctx'):
+            # e.g. gpt2
+            max_seq_len = int(config.n_ctx)
         else:
             print("Could not determine --max_seq_len, setting to 2048.  Pass if not correct", flush=True)
             max_seq_len = 2048
