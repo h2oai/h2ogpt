@@ -38,7 +38,7 @@ publish:
 	echo "Publishing not implemented yet."
 
 build_info.txt:
-	rm -rf build_info.txt
+	@rm -rf build_info.txt
 	@echo "commit=\"$(shell git rev-parse HEAD)\"" >> $@
 	@echo "branch=\"`git rev-parse HEAD | git branch -a --contains | grep -v detached | sed -e 's~remotes/origin/~~g' -e 's~^ *~~' | sort | uniq | tr '*\n' ' '`\"" >> $@
 	@echo "describe=\"`git describe --always --dirty`\"" >> $@
@@ -47,6 +47,24 @@ build_info.txt:
 	@echo "build_date=\"$(shell date "+%Y%m%d")\"" >> $@
 	@echo "build_user=\"`id -u -n`\"" >> $@
 	@echo "base_version=\"$(PACKAGE_VERSION)\"" >> $@
+
+docker_build_deps:
+	@rm -rf Dockerfile_deps
+	@sed '/# Install prebuilt dependencies/,$$d' Dockerfile > Dockerfile_deps
+	@docker build -t h2ogpt-deps-builder -f Dockerfile_deps .
+	@docker run \
+		--rm -it --entrypoint bash --runtime nvidia -v `pwd`:/dot \
+		h2ogpt-deps-builder -c " \
+			mkdir -p /dot/prebuilt_deps && cd /dot/prebuilt_deps && \
+			GITHUB_ACTIONS=true python3.10 -m pip install auto-gptq==0.3.0 --no-cache-dir --use-deprecated=legacy-resolver && \
+			python3.10 -m pip install llama-cpp-python==0.1.73+cu117 --prefer-binary --extra-index-url=https://jllllll.github.io/llama-cpp-python-cuBLAS-wheels/AVX/cu117 && \
+			python3.10 -m pip wheel auto-gptq==0.3.0 && \
+			python3.10 -m pip wheel llama-cpp-python==0.1.73+cu117 --extra-index-url=https://jllllll.github.io/llama-cpp-python-cuBLAS-wheels/AVX/cu117 \
+		"
+	s3cmd put prebuilt_deps/auto_gptq-0.3.0-cp310-cp310-linux_x86_64.whl s3://artifacts.h2o.ai/deps/h2ogpt/ && \
+	$(S3_CMD_LINE) setacl s3://artifacts.h2o.ai/deps/h2ogpt/auto_gptq-0.3.0-cp310-cp310-linux_x86_64.whl --acl-public
+	s3cmd put prebuilt_deps/llama_cpp_python-0.1.73+cu117-cp310-cp310-linux_x86_64.whl s3://artifacts.h2o.ai/deps/h2ogpt/ && \
+	$(S3_CMD_LINE) setacl s3://artifacts.h2o.ai/deps/h2ogpt/llama_cpp_python-0.1.73+cu117-cp310-cp310-linux_x86_64.whl --acl-public
 
 docker_build: build_info.txt
 ifeq ($(shell curl --connect-timeout 4 --write-out %{http_code} -sS --output /dev/null -X GET http://harbor.h2o.ai/api/v2.0/projects/h2ogpt/repositories/test-image/artifacts/$(BUILD_TAG)/tags),200)

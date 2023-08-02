@@ -30,6 +30,8 @@ dist
 .benchmarks
 Dockerfile-runner.dockerfile
 build_info.txt
+prebuilt_deps
+Dockerfile_deps
 
 # IDEs
 .idea/
