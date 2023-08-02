@@ -755,10 +755,12 @@ def go_gradio(**kwargs):
                                         value=kwargs['load_8bit'], interactive=not is_public)
                                     model_use_gpu_id_checkbox = gr.components.Checkbox(
                                         label="Choose Devices [If not Checked, use all GPUs]",
-                                        value=kwargs['use_gpu_id'], interactive=not is_public)
+                                        value=kwargs['use_gpu_id'], interactive=not is_public,
+                                        visible=n_gpus != 0)
                                     model_gpu = gr.Dropdown(n_gpus_list,
                                                             label="GPU ID [-1 = all GPUs, if Choose is enabled]",
-                                                            value=kwargs['gpu_id'], interactive=not is_public)
+                                                            value=kwargs['gpu_id'], interactive=not is_public,
+                                                            visible=n_gpus != 0)
                                     model_used = gr.Textbox(label="Current Model", value=kwargs['base_model'],
                                                             interactive=False)
                                     lora_used = gr.Textbox(label="Current LORA", value=kwargs['lora_weights'],
@@ -2295,7 +2297,7 @@ def go_gradio(**kwargs):
             all_kwargs1['base_model'] = model_name.strip()
             all_kwargs1['load_8bit'] = load_8bit
             all_kwargs1['use_gpu_id'] = use_gpu_id
-            all_kwargs1['gpu_id'] = int(gpu_id)  # detranscribe
+            all_kwargs1['gpu_id'] = int(gpu_id) if gpu_id not in [None, 'None'] else None  # detranscribe
             model_lower = model_name.strip().lower()
             if model_lower in inv_prompt_type_to_model_lower:
                 prompt_type1 = inv_prompt_type_to_model_lower[model_lower]
