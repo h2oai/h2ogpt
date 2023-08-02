@@ -229,29 +229,30 @@ def add_to_db(db, sources, db_type='faiss',
             # save here is for migration, in case old db directory without embedding saved
             save_embed(db, use_openai_embedding, hf_embedding_model)
     elif db_type == 'elasticsearch':
-        field = ""
-        if avoid_dup_by_file:
-            field = "source"
-        if avoid_dup_by_content:
-            field = "hashid"
-        # Perform the aggregation query
-        response = db.client.search(index=db.index_name, body={
-            "size": 0,
-            "aggs": {
-                "unique_sources": {
-                    "terms": {
-                        "field": f"metadata.{field}.keyword",
-                        "size": 10000  # Set size to a high value to retrieve all unique sources
+        if db.client.indices.exists(index=db.index_name):
+            field = ""
+            if avoid_dup_by_file:
+                field = "source"
+            if avoid_dup_by_content:
+                field = "hashid"
+            # Perform the aggregation query
+            response = db.client.search(index=db.index_name, body={
+                "size": 0,
+                "aggs": {
+                    "unique_sources": {
+                        "terms": {
+                            "field": f"metadata.{field}.keyword",
+                            "size": 10000  # Set size to a high value to retrieve all unique sources
+                        }
                     }
                 }
-            }
-        })
-        # Extract the unique sources from the response
-        unique_sources = [bucket["key"] for bucket in response["aggregations"]["unique_sources"]["buckets"]]
-        sources = [x for x in sources if x.metadata[f"{field}"] not in unique_sources]
-        num_new_sources = len(sources)
-        if num_new_sources == 0:
-            return db, num_new_sources, []
+            })
+            # Extract the unique sources from the response
+            unique_sources = [bucket["key"] for bucket in response["aggregations"]["unique_sources"]["buckets"]]
+            sources = [x for x in sources if x.metadata[f"{field}"] not in unique_sources]
+            num_new_sources = len(sources)
+            if num_new_sources == 0:
+                return db, num_new_sources, []
         db.add_documents(documents=sources)
     else:
         raise RuntimeError("No such db_type=%s" % db_type)
@@ -2628,7 +2629,7 @@ def get_chain(query=None,
             if top_k_docs == -1:
                 top_k_docs = len(db_documents)
             # similar to langchain's chroma's _results_to_docs_and_scores
-            docs_with_score = [(Document(page_content=result[0], metadata=result[1] or {}), 0)
+            docs_with_score = [(Document(page_content=str(result[0]), metadata=result[1] or {}), 0)
                                for result in zip(db_documents, db_metadatas)]
 
             # order documents
