@@ -93,7 +93,6 @@ YouTube 4K version: https://www.youtube.com/watch?v=_iktbj4obAI
    * [FAQ](docs/FAQ.md)
    * [Useful Links](docs/LINKS.md)
    * [Fine-Tuning](docs/FINETUNE.md)
-   * [Docker](docs/INSTALL-DOCKER.md)
    * [Triton](docs/TRITON.md)
    * [Commercial viability](docs/FAQ.md#commercial-viability)
 * [Acknowledgements](#acknowledgements)
@@ -127,7 +126,6 @@ GPU and CPU mode tested on variety of NVIDIA GPUs in Ubuntu 18-22, but any moder
 
 - To create a development environment for training and generation, follow the [installation instructions](docs/INSTALL.md).
 - To fine-tune any LLM models on your data, follow the [fine-tuning instructions](docs/FINETUNE.md).
-- To create a container for deployment, follow the [Docker instructions](docs/INSTALL-DOCKER.md).
 - To run h2oGPT tests:
     ```bash
     wget https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin
@@ -138,13 +136,11 @@ GPU and CPU mode tested on variety of NVIDIA GPUs in Ubuntu 18-22, but any moder
 
 ### Help
 
-- Flash attention support, see [Flash Attention](docs/INSTALL.md#flash-attention)
-
-- [Docker](docs/INSTALL-DOCKER.md#containerized-installation-for-inference-on-linux-gpu-servers) for inference
-
 - [FAQs](docs/FAQ.md)
 
 - [README for LangChain](docs/README_LangChain.md)
+
+- Flash attention support, see [Flash Attention](docs/INSTALL.md#flash-attention)
 
 - More [Links](docs/LINKS.md), context, competitors, models, datasets
 

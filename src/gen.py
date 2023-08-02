@@ -492,7 +492,7 @@ def main(
         auth = ast.literal_eval(auth)
 
     # allow set token directly
-    use_auth_token = os.environ.get("HUGGINGFACE_API_TOKEN", use_auth_token)
+    use_auth_token = os.environ.get("HUGGING_FACE_HUB_TOKEN", use_auth_token)
     allow_upload_to_user_data = bool(
         int(os.environ.get("allow_upload_to_user_data", str(int(allow_upload_to_user_data)))))
     allow_upload_to_my_data = bool(int(os.environ.get("allow_upload_to_my_data", str(int(allow_upload_to_my_data)))))

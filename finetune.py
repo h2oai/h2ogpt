@@ -115,7 +115,7 @@ def train(
         replace_llama_attn_with_flash_attn()
 
     # allow set token directly
-    use_auth_token = os.environ.get("HUGGINGFACE_API_TOKEN", use_auth_token)
+    use_auth_token = os.environ.get("HUGGING_FACE_HUB_TOKEN", use_auth_token)
 
     prompt_type = str(prompt_type)  # migration from integers
     assert prompt_type in prompt_types

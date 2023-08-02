@@ -144,7 +144,7 @@ def get_llama(llama_type=2):
 
     if not os.path.isfile(full_path):
         # True for case when locally already logged in with correct token, so don't have to set key
-        token = os.getenv('HUGGINGFACE_API_TOKEN', True)
+        token = os.getenv('HUGGING_FACE_HUB_TOKEN', True)
         out_path = hf_hub_download('h2oai/ggml', file, token=token, repo_type='model')
         # out_path will look like '/home/jon/.cache/huggingface/hub/models--h2oai--ggml/snapshots/57e79c71bb0cee07e3e3ffdea507105cd669fa96/ggml-model-q4_0_7b.bin'
         shutil.copy(out_path, dest)
