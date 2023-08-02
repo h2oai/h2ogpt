@@ -35,7 +35,7 @@ rm -rf requirements.txt.001
 
 git add app.py gen.py evaluate_params.py gradio_runner.py gradio_themes.py h2o-logo.svg LICENSE stopping.py prompter.py enums.py utils.py utils_langchain.py gpt_langchain.py create_data.py client_test.py h2oai_pipeline.py gpt4all_llm.py loaders.py requirements.txt iterators gradio_utils
 git commit -m "Update with h2oGPT hash ${h2ogpt_hash}"
-# ensure write token used and login with git control: huggingface-cli login --token <HUGGINGFACE_API_TOKEN> --add-to-git-credential
+# ensure write token used and login with git control: huggingface-cli login --token <HUGGING_FACE_HUB_TOKEN> --add-to-git-credential
 git push
 
 echo "WARNING: Also change sdk_version: x.xx.xx in README.md in space"

@@ -85,6 +85,7 @@ prompt_type_to_model_name = {
         'meta-llama/Llama-2-70b-chat-hf',
         'llama',
     ],
+    "beluga": ['stabilityai/StableBeluga2'],
     # could be plain, but default is correct prompt_type for default TheBloke model ggml-wizardLM-7B.q4_2.bin
 }
 if os.getenv('OPENAI_API_KEY'):
@@ -616,7 +617,6 @@ ASSISTANT:
         if not (chat and reduced):
             promptA = promptB = ''
         else:
-            #
             promptA = promptB = ''
         PreInput = None
         PreInstruct = "<s>[INST] "
@@ -630,6 +630,21 @@ ASSISTANT:
         botstr = '[/INST]'
         if making_context:
             PreResponse += " "
+    elif prompt_type in [PromptType.beluga.value, str(PromptType.beluga.value),
+                         PromptType.beluga.name]:
+        if use_system_prompt and histi == 0:
+            # too much safety, hurts accuracy
+            promptA = promptB = """### System:\nYou are Stable Beluga, an AI that follows instructions extremely well. Help as much as you can. Remember, be safe, and don't do anything illegal.\n\n"""
+        else:
+            promptA = promptB = ''
+        PreInput = None
+        PreInstruct = "### User:\n"
+        PreResponse = "\n### Assistant:\n"
+        terminate_response = ['### Assistant:', "</s>"]
+        chat_sep = '\n'
+        chat_turn_sep = '\n\n'
+        humanstr = '### User:'
+        botstr = '### Assistant:'
     else:
         raise RuntimeError("No such prompt_type=%s" % prompt_type)
 

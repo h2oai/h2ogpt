@@ -2,10 +2,10 @@ import os
 import pytest
 from tests.utils import wrap_test_forked
 
-
 pytestmark = pytest.mark.skipif(os.getenv('SKIP_MANUAL_TESTS', None) is not None, reason="manual tests.")
 
 
+@wrap_test_forked
 def test_chat_context():
     # on h2oai/h2ogpt-oasst1-512-20b
     instruction = """Rephrase in 5 different ways: “Apple a day keeps the doctor away.”"""
@@ -25,22 +25,29 @@ I hope that helps! Let me know if there’s anything else I could do for you tod
     raise NotImplementedError("MANUAL TEST FOR NOW")
 
 
+@wrap_test_forked
 def test_upload_one_file():
     raise NotImplementedError("MANUAL TEST FOR NOW -- do and ask query of file")
 
 
+@wrap_test_forked
 def test_upload_multiple_file():
     raise NotImplementedError("MANUAL TEST FOR NOW -- do and ask query of files")
 
 
+@wrap_test_forked
 def test_upload_url():
-    raise NotImplementedError("MANUAL TEST FOR NOW -- put in URL box https://github.com/h2oai/h2ogpt/ (and ask what is h2ogpt?). Ensure can go to source links")
+    raise NotImplementedError(
+        "MANUAL TEST FOR NOW -- put in URL box https://github.com/h2oai/h2ogpt/ (and ask what is h2ogpt?). Ensure can go to source links")
 
 
+@wrap_test_forked
 def test_upload_arxiv():
-    raise NotImplementedError("MANUAL TEST FOR NOW -- paste in arxiv:1706.03762 and ask who wrote attention paper. Ensure can go to source links")
+    raise NotImplementedError(
+        "MANUAL TEST FOR NOW -- paste in arxiv:1706.03762 and ask who wrote attention paper. Ensure can go to source links")
 
 
+@wrap_test_forked
 def test_upload_pasted_text():
     raise NotImplementedError("MANUAL TEST FOR NOW -- do and see test code for what to try")
 
@@ -50,31 +57,40 @@ def test_upload_pasted_text():
     # Expected: ~Text
 
 
+@wrap_test_forked
 def test_no_db_dirs():
     raise NotImplementedError("""MANUAL TEST FOR NOW -- Remove db_dirs, ensure can still start up and use in MyData Mode.
     python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b --langchain_mode=MyData
     """)
 
 
+@wrap_test_forked
 def test_upload_unsupported_file():
     raise NotImplementedError("""MANUAL TEST FOR NOW -- e.g. json, ensure error correct and reasonable, no cascades""")
 
 
+@wrap_test_forked
 def test_upload_to_UserData_and_MyData():
     raise NotImplementedError("""MANUAL TEST FOR NOW Upload to each when enabled, ensure no failures""")
 
 
+@wrap_test_forked
 def test_chat_control():
     raise NotImplementedError("""MANUAL TEST FOR NOW save chat, select chats, clear chat, export, import, etc.""")
 
 
+@wrap_test_forked
 def test_subset_only():
-    raise NotImplementedError("""MANUAL TEST FOR NOW UserData, Select Only for subset, then put in whisper.  Ensure get back only chunks of data with url links to data sources.""")
+    raise NotImplementedError(
+        """MANUAL TEST FOR NOW UserData, Select Only for subset, then put in whisper.  Ensure get back only chunks of data with url links to data sources.""")
 
 
+@wrap_test_forked
 def test_add_new_doc():
-    raise NotImplementedError("""MANUAL TEST FOR NOW UserData, add new pdf or file to user_path and see if pushing refresh sources updates and shows new file in list, then ask question about that new doc""")
+    raise NotImplementedError(
+        """MANUAL TEST FOR NOW UserData, add new pdf or file to user_path and see if pushing refresh sources updates and shows new file in list, then ask question about that new doc""")
 
 
+@wrap_test_forked
 def test_model_lock():
     raise NotImplementedError("""MANUAL TEST FOR NOW  UI test of model lock""")

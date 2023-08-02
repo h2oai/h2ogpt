@@ -107,9 +107,9 @@ For newer builds of windows versions of 10/11.
 ## Run
 * For document Q/A with UI using LLaMa.cpp-based model on CPU or GPU:
 
-  * Click [Download Wizard Model](https://huggingface.co/TheBloke/WizardLM-7B-uncensored-GGML/resolve/main/WizardLM-7B-uncensored.ggmlv3.q8_0.bin) and place file in h2oGPT directory.
+  * Click [Download LLaMa2 Model](https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin) and place file in h2oGPT repo directory.  Any other TheBloke GGML v3 model can be used by downloading it and changing `model_path_llama` in `.env_gpt4all` to point to that new file.
        ```bash
-       python generate.py --base_model='llama' --prompt_type=wizard2 --score_model=None --langchain_mode='UserData' --user_path=user_path
+       python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path
        ```
       If llama-cpp-python was compiled with CUDA support, you should see in the output:
     ```text
@@ -117,7 +117,7 @@ For newer builds of windows versions of 10/11.
     ggml_init_cublas: found 2 CUDA devices:
       Device 0: NVIDIA GeForce RTX 3090 Ti
       Device 1: NVIDIA GeForce RTX 2080
-    llama.cpp: loading model from WizardLM-7B-uncensored.ggmlv3.q8_0.bin
+    llama.cpp: loading model from llama-2-7b-chat.ggmlv3.q8_0.bin
     llama_model_load_internal: format     = ggjt v3 (latest)
     llama_model_load_internal: n_vocab    = 32001
     llama_model_load_internal: n_ctx      = 1792
@@ -139,7 +139,7 @@ For newer builds of windows versions of 10/11.
     llama_model_load_internal: total VRAM used: 4470 MB
     llama_new_context_with_model: kv self size  =  896.00 MB
     AVX = 1 | AVX2 = 1 | AVX512 = 0 | AVX512_VBMI = 0 | AVX512_VNNI = 0 | FMA = 1 | NEON = 0 | ARM_FMA = 0 | F16C = 1 | FP16_VA = 0 | WASM_SIMD = 0 | BLAS = 1 | SSE3 = 1 | VSX = 0 |
-    Model {'base_model': 'llama', 'tokenizer_base_model': '', 'lora_weights': '', 'inference_server': '', 'prompt_type': 'wizard2', 'prompt_dict': {'promptA': 'Below is an instruction that describes a task. Write a response that appropriately completes the request.', 'promptB': 'Below is an instruction that describes a task. Write a response that appropriately completes the request.', 'PreInstruct': '\n### Instruction:\n', 'PreInput': None, 'PreResponse': '\n### Response:\n', 'terminate_response': ['\n### Response:\n'], 'chat_sep': '\n', 'chat_turn_sep': '\n', 'humanstr': '\n### Instruction:\n', 'botstr': '\n### Response:\n', 'generates_leading_space': False}}
+    Model {'base_model': 'llama', 'tokenizer_base_model': '', 'lora_weights': '', 'inference_server': '', 'prompt_type': 'llama2', 'prompt_dict': {'promptA': 'Below is an instruction that describes a task. Write a response that appropriately completes the request.', 'promptB': 'Below is an instruction that describes a task. Write a response that appropriately completes the request.', 'PreInstruct': '\n### Instruction:\n', 'PreInput': None, 'PreResponse': '\n### Response:\n', 'terminate_response': ['\n### Response:\n'], 'chat_sep': '\n', 'chat_turn_sep': '\n', 'humanstr': '\n### Instruction:\n', 'botstr': '\n### Response:\n', 'generates_leading_space': False}}
     Running on local URL:  http://0.0.0.0:7860
   
     To create a public link, set `share=True` in `launch()`.

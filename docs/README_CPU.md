@@ -3,12 +3,25 @@
 Details that do not depend upon whether running on CPU for Linux, Windows, or MAC.
 
 ### LLaMa.cpp 
-  
+
+Default llama.cpp model is LLaMa2 GPTQ model from TheBloke:
+ 
+* Run LLaMa.cpp LLaMa2 model:
+
+    With documents in `user_path` folder, run:
+   ```bash
+   # if don't have wget, download to repo folder using below link
+   wget https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin
+   python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path
+   ```
+
+For another llama.cpp model:
+
 * Download from [TheBloke](https://huggingface.co/TheBloke).  For example, [13B WizardLM Quantized](https://huggingface.co/TheBloke/wizardLM-13B-1.0-GGML) or [7B WizardLM Quantized](https://huggingface.co/TheBloke/WizardLM-7B-uncensored-GGML).  TheBloke has a variety of model types, quantization bit depths, and memory consumption.  Choose what is best for your system's specs.  For 7B case, download [WizardLM-7B-uncensored.ggmlv3.q8_0.bin](https://huggingface.co/TheBloke/WizardLM-7B-uncensored-GGML/resolve/main/WizardLM-7B-uncensored.ggmlv3.q8_0.bin) into local path:
    ```bash
     wget https://huggingface.co/TheBloke/WizardLM-7B-uncensored-GGML/resolve/main/WizardLM-7B-uncensored.ggmlv3.q8_0.bin
    ```
-* Change `.env_gpt4all` model name if desired.
+* Change `.env_gpt4all` model name:
    ```.env_gpt4all
    model_path_llama=WizardLM-7B-uncensored.ggmlv3.q8_0.bin
    ```

@@ -42,7 +42,7 @@ This uses 5800MB to startup, then soon drops to 5075MB after torch cache is clea
 
 On CPU case, a good model that's still low memory is to run:
 ```bash
-python generate.py --base_model='llama' --prompt_type=wizard2 --hf_embedding_model=sentence-transformers/all-MiniLM-L6-v2 --langchain_mode=UserData --user_path=user_path
+python generate.py --base_model='llama' --prompt_type=llama2 --hf_embedding_model=sentence-transformers/all-MiniLM-L6-v2 --langchain_mode=UserData --user_path=user_path
 ```
 
 ### ValueError: ...offload....
@@ -166,7 +166,7 @@ This warning can be safely ignored.
    - `AWS_BUCKET`: AWS bucket name to push logs to when have admin access,
    - `AWS_SERVER_PUBLIC_KEY`: AWS public key for pushing logs to when have admin access,
    - `AWS_SERVER_SECRET_KEY`: AWS secret key for pushing logs to when have admin access,
-   - `HUGGINGFACE_API_TOKEN`: Read or write HF token for accessing private models,
+   - `HUGGING_FACE_HUB_TOKEN`: Read or write HF token for accessing private models,
    - `LANGCHAIN_MODE`: LangChain mode, overrides CLI,
    - `SCORE_MODEL`: HF model to use for scoring prompt-response pairs, `None` for no scoring of responses,
    - `HEIGHT`: Height of Chat window,
@@ -182,10 +182,26 @@ This warning can be safely ignored.
    - `CUDA_VISIBLE_DEVICES`: Standard list of CUDA devices to make visible.
    - `PING_GPU`: ping GPU every few minutes for full GPU memory usage by torch, useful for debugging OOMs or memory leaks
    - `GET_GITHASH`: get git hash on startup for system info.  Avoided normally as can fail with extra messages in output for CLI mode
-
+   - `H2OGPT_SCRATCH_PATH`: Choose base scratch folder for scratch databases and files
+   - `H2OGPT_BASE_PATH`: Choose base folder for all files except scratch files
 These can be useful on HuggingFace spaces, where one sets secret tokens because CLI options cannot be used.
 
 > **_NOTE:_**  Scripts can accept different environment variables to control query arguments. For instance, if a Python script takes an argument like `--load_8bit=True`, the corresponding ENV variable would follow this format: `H2OGPT_LOAD_8BIT=True` (regardless of capitalization). It is important to ensure that the environment variable is assigned the exact value that would have been used for the script's query argument.
+
+### How to run functions in src from Python interpreter
+
+E.g.
+```python
+import sys
+sys.path.append('src')
+from src.gpt_langchain import get_supported_types
+non_image_types, image_types, video_types = get_supported_types()
+print(non_image_types)
+print(image_types)
+for x in image_types:
+    print('   - `.%s` : %s Image (optional),' % (x.lower(), x.upper()))
+print(video_types)
+```
 
 ### GPT4All not producing output.
 

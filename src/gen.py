@@ -51,8 +51,6 @@ langchain_actions = [x.value for x in list(LangChainAction)]
 
 langchain_agents_list = [x.value for x in list(LangChainAgent)]
 
-scratch_base_dir = '/tmp/'
-
 
 def main(
         load_8bit: bool = False,
@@ -141,8 +139,8 @@ def main(
         visible_expert_tab: bool = True,
         visible_models_tab: bool = True,
         visible_system_tab: bool = True,
-        visible_tos_tab: bool = True,
-        visible_hosts_tab: bool = True,
+        visible_tos_tab: bool = False,
+        visible_hosts_tab: bool = False,
         chat_tabless: bool = False,
         visible_h2ogpt_header: bool = True,
 
@@ -183,6 +181,7 @@ def main(
         use_openai_embedding: bool = False,
         use_openai_model: bool = False,
         hf_embedding_model: str = None,
+        migrate_embedding_model: str = False,
         cut_distance: float = 1.64,
         answer_with_sources: bool = True,
         append_sources_to_answer: bool = True,
@@ -362,8 +361,8 @@ def main(
            If already have db, any new/changed files are added automatically if path set, does not have to be same path used for prior db sources
     :param langchain_mode_paths: dict of langchain_mode keys and disk path values to use for source of documents
            E.g. "{'UserData2': 'userpath2'}"
-           Can be None even if existing DB, to avoid new documents being added from that path, source links that are on disk still work.
-           If user_path is not None, that path is used for 'UserData' instead of the value in this dict
+           A disk path be None, e.g. --langchain_mode_paths="{'UserData2': None}" even if existing DB, to avoid new documents being added from that path, source links that are on disk still work.
+           If `--user_path` was passed, that path is used for 'UserData' instead of the value in this dict
     :param detect_user_path_changes_every_query: whether to detect if any files changed or added every similarity search (by file hashes).
            Expensive for large number of files, so not done by default.  By default only detect changes during db loading.
     :param langchain_modes: names of collections/dbs to potentially have
@@ -393,6 +392,10 @@ def main(
            Can also choose simpler model with 384 parameters per embedding: "sentence-transformers/all-MiniLM-L6-v2"
            Can also choose even better embedding with 1024 parameters: 'hkunlp/instructor-xl'
            We support automatically changing of embeddings for chroma, with a backup of db made if this is done
+    :param migrate_embedding_model: whether to use hf_embedding_model embedding even if database already had an embedding set.
+           used to migrate all embeddings to a new one, but will take time to re-embed.
+           Default (False) is to use the prior embedding for existing databases, and only use hf_embedding_model for new databases
+           If had old database without embedding saved, then hf_embedding_model is also used.
     :param cut_distance: Distance to cut off references with larger distances when showing references.
            1.64 is good to avoid dropping references for all-MiniLM-L6-v2, but instructor-large will always show excessive references.
            For all-MiniLM-L6-v2, a value of 1.5 can push out even more references, or a large value of 100 can avoid any loss of references.
@@ -466,12 +469,17 @@ def main(
     is_hf = bool(int(os.getenv("HUGGINGFACE_SPACES", '0')))
     is_gpth2oai = bool(int(os.getenv("GPT_H2O_AI", '0')))
     is_public = is_hf or is_gpth2oai  # multi-user case with fixed model and disclaimer
+    if is_public:
+        visible_tos_tab = visible_hosts_tab = True
     if memory_restriction_level is None:
         memory_restriction_level = 2 if is_hf else 0  # 2 assumes run on 24GB consumer GPU
     else:
         assert 0 <= memory_restriction_level <= 3, "Bad memory_restriction_level=%s" % memory_restriction_level
     if is_public and os.getenv('n_jobs') is None:
         n_jobs = max(1, min(os.cpu_count() // 2, 8))
+    if n_jobs == -1:
+        # if -1, assume hypercores, don't use, force user to pass n_jobs to be specific if not standard cores
+        n_jobs = max(1, os.cpu_count() // 2)
     admin_pass = os.getenv("ADMIN_PASS")
     # will sometimes appear in UI or sometimes actual generation, but maybe better than empty result
     # but becomes unrecoverable sometimes if raise, so just be silent for now
@@ -484,7 +492,7 @@ def main(
         auth = ast.literal_eval(auth)
 
     # allow set token directly
-    use_auth_token = os.environ.get("HUGGINGFACE_API_TOKEN", use_auth_token)
+    use_auth_token = os.environ.get("HUGGING_FACE_HUB_TOKEN", use_auth_token)
     allow_upload_to_user_data = bool(
         int(os.environ.get("allow_upload_to_user_data", str(int(allow_upload_to_user_data)))))
     allow_upload_to_my_data = bool(int(os.environ.get("allow_upload_to_my_data", str(int(allow_upload_to_my_data)))))
@@ -506,8 +514,8 @@ def main(
         langchain_mode_paths = ast.literal_eval(langchain_mode_paths)
         assert isinstance(langchain_mode_paths, dict)
     if user_path:
+        user_path = makedirs(user_path, use_base=True)
         langchain_mode_paths['UserData'] = user_path
-        makedirs(user_path)
 
     if is_public:
         allow_upload_to_user_data = False
@@ -604,6 +612,7 @@ def main(
             max_max_time = max_time
         # HF accounted for later in get_max_max_new_tokens()
     save_dir = os.getenv('SAVE_DIR', save_dir)
+    save_dir = makedirs(save_dir, exist_ok=True, tmp_ok=True, use_base=True)
     score_model = os.getenv('SCORE_MODEL', score_model)
     if str(score_model) == 'None':
         score_model = ''
@@ -672,7 +681,7 @@ def main(
     text_limit = None
 
     if offload_folder:
-        offload_folder = makedirs(offload_folder, exist_ok=True, tmp_ok=True)
+        offload_folder = makedirs(offload_folder, exist_ok=True, tmp_ok=True, use_base=True)
 
     placeholder_instruction, placeholder_input, \
         stream_output, show_examples, \
@@ -714,7 +723,8 @@ def main(
         for langchain_mode1 in visible_langchain_modes:
             if langchain_mode1 in ['MyData']:  # FIXME: Remove other custom temp dbs
                 # don't use what is on disk, remove it instead
-                for gpath1 in glob.glob(os.path.join(scratch_base_dir, 'db_dir_%s*' % langchain_mode1)):
+                from src.gpt_langchain import scratch_base_dir
+                for gpath1 in glob.glob(os.path.join(scratch_base_dir, 'db_dir_%s_*' % langchain_mode1)):
                     if os.path.isdir(gpath1):
                         print("Removing old MyData: %s" % gpath1, flush=True)
                         remove(gpath1)
@@ -729,6 +739,7 @@ def main(
                                     db_type, use_openai_embedding,
                                     langchain_mode1, langchain_mode_paths,
                                     hf_embedding_model,
+                                    migrate_embedding_model,
                                     kwargs_make_db=locals())
             finally:
                 # in case updated embeddings or created new embeddings
@@ -1081,6 +1092,7 @@ def get_model(
         tokenizer_base_model: str = '',
         lora_weights: str = "",
         gpu_id: int = 0,
+        n_jobs=None,
 
         reward_type: bool = None,
         local_files_only: bool = False,
@@ -1111,6 +1123,7 @@ def get_model(
     :param tokenizer_base_model: name/path of tokenizer
     :param lora_weights: name/path
     :param gpu_id: which GPU (0..n_gpus-1) or allow all GPUs if relevant (-1)
+    :param n_jobs: number of cores to use (e.g. for llama CPU model)
     :param reward_type: reward type model for sequence classification
     :param local_files_only: use local files instead of from HF
     :param resume_download: resume downloads from HF
@@ -1202,7 +1215,7 @@ def get_model(
     assert not inference_server, "Malformed inference_server=%s" % inference_server
     if base_model in non_hf_types:
         from gpt4all_llm import get_model_tokenizer_gpt4all
-        model, tokenizer, device = get_model_tokenizer_gpt4all(base_model)
+        model, tokenizer, device = get_model_tokenizer_gpt4all(base_model, n_jobs=n_jobs)
         return model, tokenizer, device
     if load_exllama:
         return model_loader, tokenizer, 'cuda'
@@ -1465,6 +1478,7 @@ def get_score_model(score_model: str = None,
                     tokenizer_base_model: str = '',
                     lora_weights: str = "",
                     gpu_id: int = 0,
+                    n_jobs=None,
 
                     reward_type: bool = None,
                     local_files_only: bool = False,
@@ -1562,6 +1576,7 @@ def evaluate(
         use_openai_embedding=None,
         use_openai_model=None,
         hf_embedding_model=None,
+        migrate_embedding_model=None,
         cut_distance=None,
         db_type=None,
         n_jobs=None,
@@ -1588,6 +1603,7 @@ def evaluate(
     assert use_openai_embedding is not None
     assert use_openai_model is not None
     assert hf_embedding_model is not None
+    assert migrate_embedding_model is not None
     assert db_type is not None
     assert top_k_docs is not None and isinstance(top_k_docs, int)
     assert chunk is not None and isinstance(chunk, bool)
@@ -1778,6 +1794,7 @@ def evaluate(
                 use_openai_embedding=use_openai_embedding,
                 use_openai_model=use_openai_model,
                 hf_embedding_model=hf_embedding_model,
+                migrate_embedding_model=migrate_embedding_model,
                 first_para=first_para,
                 text_limit=text_limit,
 

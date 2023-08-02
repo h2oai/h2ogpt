@@ -1,14 +1,13 @@
-import os
 import pytest
-from transformers import AutoTokenizer
-
 from tests.utils import wrap_test_forked
 from src.enums import LangChainAction
 
 from importlib.metadata import version
+
 transformers_version = version('transformers')
 # pip install packaging
 from packaging import version
+
 sufficient_transformers_version = version.parse(transformers_version) >= version.parse("4.31.0")
 
 encoding = None
@@ -18,6 +17,7 @@ def num_tokens_from_string(string: str, model_name=None) -> int:
     """Returns the number of tokens in a text string."""
     global encoding
     if encoding is None:
+        from transformers import AutoTokenizer
         encoding = AutoTokenizer.from_pretrained(model_name)
     num_tokens = len(encoding.encode(string))
     return num_tokens
@@ -57,7 +57,7 @@ def create_long_prompt_with_secret(prompt_len=None, secret_pos=None, model_name=
     assert SECRET_VALUE in prompt
     assert num_tokens_from_string(prompt, model_name) <= prompt_len
     t1 = time.time()
-    print("time to create long prompt: %.4f" % (t1-t0))
+    print("time to create long prompt: %.4f" % (t1 - t0))
     return prompt
 
 
@@ -110,12 +110,9 @@ def test_gradio_long_context_uuid_key_value_retrieval(base_model, rope_scaling, 
                            rope_scaling=rope_scaling,
                            use_auth_token=True,
                            save_dir="long_context")
-        client_port = os.environ['GRADIO_SERVER_PORT'] = "7861"
         from src.gen import main
         main(**main_kwargs)
         from src.client_test import run_client_chat
-        os.environ['HOST'] = "http://127.0.0.1:%s" % client_port
-
         res_dict, client = run_client_chat(
             prompt=prompt,
             stream_output=False, max_new_tokens=16384,

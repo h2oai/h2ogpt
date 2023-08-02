@@ -24,7 +24,8 @@ def regTokenize(text):
 import time
 
 
-@pytest.mark.skipif(not os.getenv('MEASURE'), reason="For checking token length for various methods: MEASURE=1 pytest -s -v tests/test_tokenizer.py")
+@pytest.mark.skipif(not os.getenv('MEASURE'),
+                    reason="For checking token length for various methods: MEASURE=1 pytest -s -v tests/test_tokenizer.py")
 @wrap_test_forked
 def test_tokenizer1():
     prompt = """Here is an example of how to write a Python program to generate the Fibonacci sequence:
@@ -95,7 +96,5 @@ def test_fake_tokenizer():
         assert "disallowed special token" in str(e)
 
 
-
 if __name__ == '__main__':
     test_tokenizer1()
-

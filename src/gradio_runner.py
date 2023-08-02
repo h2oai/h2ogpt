@@ -59,7 +59,7 @@ from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt
 from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping, get_short_name, makedirs, get_kwargs, remove, system_info, ping_gpu, get_url, get_local_ip, \
     save_collection_names, save_generate_output
-from gen import get_model, languages_covered, evaluate, score_qa, inputs_kwargs_list, scratch_base_dir, \
+from gen import get_model, languages_covered, evaluate, score_qa, inputs_kwargs_list, \
     get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list, \
     update_langchain
 from evaluate_params import eval_func_param_names, no_default_param_names, eval_func_param_names_defaults, \
@@ -110,11 +110,14 @@ def go_gradio(**kwargs):
     enable_text_upload = kwargs['enable_text_upload']
     use_openai_embedding = kwargs['use_openai_embedding']
     hf_embedding_model = kwargs['hf_embedding_model']
+    migrate_embedding_model = kwargs['migrate_embedding_model']
     enable_captions = kwargs['enable_captions']
     captions_model = kwargs['captions_model']
     enable_ocr = kwargs['enable_ocr']
     enable_pdf_ocr = kwargs['enable_pdf_ocr']
     caption_loader = kwargs['caption_loader']
+
+    n_jobs = kwargs['n_jobs']
 
     # for dynamic state per user session in gradio
     model_state0 = kwargs['model_state0']
@@ -912,6 +915,7 @@ def go_gradio(**kwargs):
                                            db_type=db_type,
                                            use_openai_embedding=use_openai_embedding,
                                            hf_embedding_model=hf_embedding_model,
+                                           migrate_embedding_model=migrate_embedding_model,
                                            captions_model=captions_model,
                                            enable_captions=enable_captions,
                                            caption_loader=caption_loader,
@@ -1168,14 +1172,14 @@ def go_gradio(**kwargs):
                         valid = False
                         langchain_mode2 = langchain_mode1
                     elif user_path and allow_upload_to_user_data or not user_path and allow_upload_to_my_data:
+                        if user_path:
+                            user_path = makedirs(user_path, exist_ok=True, use_base=True)
                         langchain_mode_paths.update({langchain_mode2: user_path})
                         if langchain_mode2 not in visible_langchain_modes:
                             visible_langchain_modes.append(langchain_mode2)
                         if langchain_mode2 not in langchain_modes:
                             langchain_modes.append(langchain_mode2)
                         textbox = ''
-                        if user_path:
-                            makedirs(user_path, exist_ok=True)
                     else:
                         valid = False
                         langchain_mode2 = langchain_mode1
@@ -2152,7 +2156,7 @@ def go_gradio(**kwargs):
 
         def get_chats1(chat_state1):
             base = 'chats'
-            base = makedirs(base, exist_ok=True, tmp_ok=True)
+            base = makedirs(base, exist_ok=True, tmp_ok=True, use_base=True)
             filename = os.path.join(base, 'chats_%s.json' % str(uuid.uuid4()))
             with open(filename, "wt") as f:
                 f.write(json.dumps(chat_state1, indent=2))
@@ -2587,7 +2591,13 @@ def go_gradio(**kwargs):
         assert 'gpt_langchain' not in sys.modules, "Dev bug, import of langchain when should not have"
         assert 'langchain' not in sys.modules, "Dev bug, import of langchain when should not have"
 
+    # set port in case GRADIO_SERVER_PORT was already set in prior main() call,
+    # gradio does not listen if change after import
+    server_port = os.getenv('GRADIO_SERVER_PORT')
+    if server_port is not None:
+        server_port = int(server_port)
     demo.launch(share=kwargs['share'], server_name="0.0.0.0", show_error=True,
+                server_port=server_port,
                 favicon_path=favicon_path, prevent_thread_lock=True,
                 auth=kwargs['auth'], root_path=kwargs['root_path'])
     if kwargs['verbose']:
@@ -2656,7 +2666,7 @@ def get_sources(db1s, langchain_mode, dbs=None, docs_state0=None):
         source_list = []
         source_files_added = "None"
     sources_dir = "sources_dir"
-    sources_dir = makedirs(sources_dir, exist_ok=True, tmp_ok=True)
+    sources_dir = makedirs(sources_dir, exist_ok=True, tmp_ok=True, use_base=True)
     sources_file = os.path.join(sources_dir, 'sources_%s_%s' % (langchain_mode, str(uuid.uuid4())))
     with open(sources_file, "wt") as f:
         f.write(source_files_added)
@@ -2708,7 +2718,7 @@ def get_lock_file(db1, langchain_mode):
     assert len(db1) == 2 and db1[1] is not None and isinstance(db1[1], str)
     user_id = db1[1]
     base_path = 'locks'
-    base_path = makedirs(base_path, exist_ok=True, tmp_ok=True)
+    base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
     lock_file = os.path.join(base_path, "db_%s_%s.lock" % (langchain_mode.replace(' ', '_'), user_id))
     return lock_file
 
@@ -2723,6 +2733,7 @@ def _update_user_db(file,
                     visible_langchain_modes=None,
                     use_openai_embedding=None,
                     hf_embedding_model=None,
+                    migrate_embedding_model=None,
                     caption_loader=None,
                     enable_captions=None,
                     captions_model=None,
@@ -2737,6 +2748,7 @@ def _update_user_db(file,
     assert chunk_size is not None
     assert use_openai_embedding is not None
     assert hf_embedding_model is not None
+    assert migrate_embedding_model is not None
     assert caption_loader is not None
     assert enable_captions is not None
     assert captions_model is not None
@@ -2787,6 +2799,10 @@ def _update_user_db(file,
 
     if verbose:
         print("Adding %s" % file, flush=True)
+
+    # FIXME: could avoid even parsing, let alone embedding, same old files if upload same file again
+    # FIXME: but assume nominally user isn't uploading all files over again from UI
+
     sources = path_to_docs(file if not is_url and not is_txt else None,
                            verbose=verbose,
                            n_jobs=n_jobs,
@@ -2826,12 +2842,14 @@ def _update_user_db(file,
                 assert db1[1] is not None, "db hash was None, not allowed"
                 # then create
                 # if added has to original state and didn't change, then would be shared db for all users
-                persist_directory = os.path.join(scratch_base_dir, 'db_dir_%s_%s' % (langchain_mode, db1[1]))
+                from src.gpt_langchain import get_scratch_directory
+                persist_directory = get_scratch_directory(langchain_mode, db1)
                 db = get_db(sources, use_openai_embedding=use_openai_embedding,
                             db_type=db_type,
                             persist_directory=persist_directory,
                             langchain_mode=langchain_mode,
-                            hf_embedding_model=hf_embedding_model)
+                            hf_embedding_model=hf_embedding_model,
+                            migrate_embedding_model=migrate_embedding_model)
             if db is not None:
                 db1[0] = db
             source_files_added = get_source_files(db=db1[0], exceptions=exceptions)
@@ -2850,7 +2868,8 @@ def _update_user_db(file,
                             db_type=db_type,
                             persist_directory=persist_directory,
                             langchain_mode=langchain_mode,
-                            hf_embedding_model=hf_embedding_model)
+                            hf_embedding_model=hf_embedding_model,
+                            migrate_embedding_model=migrate_embedding_model)
             dbs[langchain_mode] = db
             # NOTE we do not return db, because function call always same code path
             # return dbs[langchain_mode]
@@ -2978,9 +2997,13 @@ def get_source_files(db=None, exceptions=None, metadatas=None):
 
 def update_and_get_source_files_given_langchain_mode(db1s, langchain_mode, chunk, chunk_size,
                                                      dbs=None, first_para=None,
+                                                     hf_embedding_model=None,
+                                                     migrate_embedding_model=None,
                                                      text_limit=None,
                                                      langchain_mode_paths=None, db_type=None, load_db_if_exists=None,
                                                      n_jobs=None, verbose=None):
+    assert hf_embedding_model is not None
+    assert migrate_embedding_model is not None
     has_path = {k: v for k, v in langchain_mode_paths.items() if v}
     if langchain_mode in [LangChainMode.LLM.value, LangChainMode.MY_DATA.value]:
         # then assume user really meant UserData, to avoid extra clicks in UI,
@@ -2991,8 +3014,12 @@ def update_and_get_source_files_given_langchain_mode(db1s, langchain_mode, chunk
     db = get_db(db1s, langchain_mode, dbs=dbs)
 
     from gpt_langchain import make_db
+    # not designed for older way of using openai embeddings, why use_openai_embedding=False
+    # use_openai_embedding, hf_embedding_model passed in and possible different values used,
+    # but no longer used here or in calling functions so ok
     db, num_new_sources, new_sources_metadata = make_db(use_openai_embedding=False,
-                                                        hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
+                                                        hf_embedding_model=hf_embedding_model,
+                                                        migrate_embedding_model=migrate_embedding_model,
                                                         first_para=first_para, text_limit=text_limit,
                                                         chunk=chunk,
                                                         chunk_size=chunk_size,

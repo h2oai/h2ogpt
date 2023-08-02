@@ -17,8 +17,8 @@ which will build the database first time.  One can also use any other models, li
 ```bash
 python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b --cli=True --langchain_mode=UserData --user_path=user_path
 ```
-or for WizardLM:
+or for LLaMa2:
 ```bash
-python generate.py --base_model='llama' --prompt_type=wizard2 --cli=True --langchain_mode=UserData --user_path=user_path
+python generate.py --base_model='llama' --prompt_type=llama2 --cli=True --langchain_mode=UserData --user_path=user_path
 ```
 

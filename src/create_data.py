@@ -148,7 +148,7 @@ def setup_dai_docs(path=None, dst="working_dir_docs", from_hf=False):
         # assumes
         from huggingface_hub import hf_hub_download
         # True for case when locally already logged in with correct token, so don't have to set key
-        token = os.getenv('HUGGINGFACE_API_TOKEN', True)
+        token = os.getenv('HUGGING_FACE_HUB_TOKEN', True)
         path_to_zip_file = hf_hub_download('h2oai/dai_docs', 'dai_docs.zip', token=token, repo_type='dataset')
         path = 'h2oai'
         import zipfile
