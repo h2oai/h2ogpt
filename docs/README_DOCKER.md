@@ -1,13 +1,12 @@
 # Run or Build h2oGPT Docker
 
-## Setup Docker for CPU inference
+## Setup Docker for CPU Inference
 
 No special docker instructions are required.
 
-## Setup Docker for GPUs
+## Setup Docker for GPU Inference
 
 Ensure docker installed and ready (requires sudo), can skip if system is already capable of running nvidia containers.  Example here is for Ubuntu, see [NVIDIA Containers](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html#docker) for more examples.
-
 ```bash
 distribution=$(. /etc/os-release;echo $ID$VERSION_ID) \
     && curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg \
@@ -21,6 +20,8 @@ sudo systemctl restart docker
 ```
 
 ## Run h2oGPT using Docker
+
+An example of running h2oGPT via docker using AutoGPTQ LLaMa2 7B model is:
 ```bash
 docker run \
        --gpus all \
@@ -43,9 +44,9 @@ docker run \
           --num_async=10 \
           --top_k_docs=-1
 ```
-then go to http://localhost:7860/ or http://127.0.0.1:7860/
+then go to http://localhost:7860/ or http://127.0.0.1:7860/.
 
-If one needs to use a HF token to access certain Hugging Face models, can instead run:
+If one needs to use a Hugging Face token to access certain Hugging Face models like Meta versino of LLaMa2, can run like:
 ```bash
 export HUGGINGFACE_API_TOKEN=<hf_...>
 docker run \
@@ -73,7 +74,7 @@ for some token `<hf_...>`.  See [Hugging Face User Tokens](https://huggingface.c
 
 See [README_GPU](README_GPU.md) for more details about what to run.
 
-One can run an inference server in one docker and h2oGPT in another docker, for h2oGPT just run one of the commands like the above, but add e.g. `--inference_server=192.168.0.1:6112` to the docker command line.  E.g.
+One can run an inference server in one docker and h2oGPT in another docker.  For h2oGPT, just run one of the commands like the above, but add e.g. `--inference_server=192.168.0.1:6112` to the docker command line.  E.g.
 ```bash
 export MODEL=meta-llama/Llama-2-7b-chat-hf
 export HUGGINGFACE_API_TOKEN=<hf_...>
@@ -107,9 +108,9 @@ then for the TGI server run (e.g. to run on GPU 0)
 export CUDA_VISIBLE_DEVICES=0
 docker run -d --gpus all --shm-size 1g -e CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN -e TRANSFORMERS_CACHE="/.cache/" -p 6112:80 -v $HOME/.cache:/.cache/ -v $HOME/.cache/huggingface/hub/:/data ghcr.io/huggingface/text-generation-inference:0.9.3 --model-id $MODEL --max-input-length 4096 --max-total-tokens 8192 --max-stop-sequences 6 &>> logs.infserver.txt
 ```
-Each docker can run on any system where network can reach or on same system on different GPUs.  E.g. replace `--gpus all` with `--gpus '"device=0,3"'` to run on GPUs 0 and 3, and note the extra quotes.
+Each docker can run on any system where network can reach or on same system on different GPUs.  E.g. replace `--gpus all` with `--gpus '"device=0,3"'` to run on GPUs 0 and 3, and note the extra quotes, and then `unset CUDA_VISIBLE_DEVICES` and avoid passing that into the docker image.  This multi-device format is required to avoid TGI server getting confused about which GPUs are available.
 
-Follow [README_InferenceServers.md](README_InferenceServers.md) for more examples of how to launch TGI server using docker.
+Follow [README_InferenceServers.md](README_InferenceServers.md) for similar (and more) examples of how to launch TGI server using docker.
 
 ## Build Docker
 
