@@ -317,7 +317,7 @@ def test_qa_wiki_db_chunk_hf_dbs_llama(db_type):
                      langchain_action=LangChainAction.QUERY.value,
                      langchain_agents=[],
                      db_type=db_type,
-                     prompt_type='wizard2',
+                     prompt_type='llama2',
                      langchain_only_model=True,
                      model_name=model_name, model=model, tokenizer=tokenizer,
                      )

@@ -39,7 +39,7 @@ def test_gradio_inference_server(base_model, force_langchain_evaluate, do_langch
     elif base_model in ['h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2']:
         prompt_type = PromptType.prompt_answer.name
     elif base_model in ['llama']:
-        prompt_type = PromptType.wizard2.name
+        prompt_type = PromptType.llama2.name
     elif base_model in ['gptj']:
         prompt_type = PromptType.gptj.name
     else:
