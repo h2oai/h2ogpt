@@ -863,7 +863,9 @@ def test_client_summarization(prompt_summary):
     if local_server:
         base_model = 'meta-llama/Llama-2-7b-chat-hf'
         from src.gen import main
-        main(base_model=base_model, chat=True, gradio=True, num_beams=1, block_gradio_exit=False, verbose=True)
+        main(base_model=base_model, chat=True, gradio=True, num_beams=1, block_gradio_exit=False, verbose=True,
+             use_auth_token=True,
+             )
         check_hashes = True
     else:
         # To test file is really handled remotely
@@ -937,7 +939,9 @@ def test_client_summarization_from_text():
     # launch server
     base_model = 'meta-llama/Llama-2-7b-chat-hf'
     from src.gen import main
-    main(base_model=base_model, chat=True, gradio=True, num_beams=1, block_gradio_exit=False, verbose=True)
+    main(base_model=base_model, chat=True, gradio=True, num_beams=1, block_gradio_exit=False, verbose=True,
+         use_auth_token=True,
+         )
 
     # get file for client to upload
     url = 'https://cdn.openai.com/papers/whisper.pdf'
@@ -991,7 +995,9 @@ def test_client_summarization_from_url(url, top_k_docs):
     # launch server
     base_model = 'meta-llama/Llama-2-7b-chat-hf'
     from src.gen import main
-    main(base_model=base_model, chat=True, gradio=True, num_beams=1, block_gradio_exit=False, verbose=True)
+    main(base_model=base_model, chat=True, gradio=True, num_beams=1, block_gradio_exit=False, verbose=True,
+         use_auth_token=True,
+         )
 
     # PURE client code
     from gradio_client import Client
