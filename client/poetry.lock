@@ -306,13 +306,13 @@ tqdm = ["tqdm"]
 
 [[package]]
 name = "gradio-client"
-version = "0.2.7"
+version = "0.3.0"
 description = "Python library for easily interacting with trained machine learning models"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "gradio_client-0.2.7-py3-none-any.whl", hash = "sha256:4a7ec6bb1341c626051f1ed24d50cb960ff1a4cd1a5db031dd4caaf1ee7d2d0a"},
-    {file = "gradio_client-0.2.7.tar.gz", hash = "sha256:c83008df8a1dd3f81a290c0a24c03d0ab70317741991b60f713620ed39ad8f12"},
+    {file = "gradio_client-0.3.0-py3-none-any.whl", hash = "sha256:3144c347a080ec82a913dd329e2b50241294da0a633be03e409bc58c79cc7f4c"},
+    {file = "gradio_client-0.3.0.tar.gz", hash = "sha256:efb308d57c0ec8764f68bc136f77731d2dfdb4ac0ed546a9f396782968fe89fc"},
 ]
 
 [package.dependencies]
@@ -320,9 +320,9 @@ fsspec = "*"
 httpx = "*"
 huggingface-hub = ">=0.13.0"
 packaging = "*"
-requests = "*"
-typing-extensions = "*"
-websockets = "*"
+requests = ">=2.0,<3.0"
+typing-extensions = ">=4.0,<5.0"
+websockets = ">=10.0,<12.0"
 
 [[package]]
 name = "h11"
@@ -853,4 +853,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "c0fbaa9e3292f2b78f549f001f2a1d8489085a27510f27da48d524356770262a"
+content-hash = "80634bedd72b53e96d00fe6cbad0d9bfbbdda1e017c24f19d6de41d046f566c7"
