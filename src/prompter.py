@@ -616,7 +616,6 @@ ASSISTANT:
         if not (chat and reduced):
             promptA = promptB = ''
         else:
-            #
             promptA = promptB = ''
         PreInput = None
         PreInstruct = "<s>[INST] "
@@ -628,6 +627,29 @@ ASSISTANT:
         chat_turn_sep = ' </s>'
         humanstr = '[INST]'
         botstr = '[/INST]'
+        if making_context:
+            PreResponse += " "
+    elif prompt_type in [PromptType.beluga.value, str(PromptType.beluga.value),
+                         PromptType.beluga.name]:
+        if use_system_prompt:
+            # too much safety, hurts accuracy
+            sys_msg = """### System:\nYou are Stable Beluga, an AI that follows instructions extremely well. Help as much as you can. Remember, be safe, and don't do anything illegal.\n\n"""
+        else:
+            sys_msg = ""
+        if not (chat and reduced):
+            promptA = promptB = ''
+        else:
+            promptA = promptB = ''
+        PreInput = None
+        PreInstruct = "### User: "
+        if making_context and histi == 0 or not making_context and not (chat and reduced):
+            PreInstruct += sys_msg
+        PreResponse = "\n\n### Assistant:\n"
+        terminate_response = ['### Assistant:', "</s>"]
+        chat_sep = ' '
+        chat_turn_sep = ' </s>'
+        humanstr = '### User:'
+        botstr = '### Assistant:'
         if making_context:
             PreResponse += " "
     else:
