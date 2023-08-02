@@ -2,7 +2,11 @@
 
 ## Setup Docker for CPU Inference
 
-No special docker instructions are required.
+No special docker instructions are required, just follow [these instructions](https://docs.docker.com/engine/install/ubuntu/) to get docker setup at all.  Add your user as part of `docker` group, exit shell, login back in, and run:
+```bash
+newgrp docker
+```
+which avoids having to reboot.  Or just reboot to have docker access.
 
 ## Setup Docker for GPU Inference
 
@@ -18,6 +22,8 @@ sudo apt install nvidia-container-runtime
 sudo nvidia-ctk runtime configure --runtime=docker
 sudo systemctl restart docker
 ```
+
+If running on A100's, might require [Installing Fabric Manager](INSTALL.md#install-and-run-fabric-manager-if-have-multiple-a100100s) and [Installing GPU Manager](INSTALL.md#install-nvidia-gpu-manager-if-have-multiple-a100h100s).
 
 ## Run h2oGPT using Docker
 

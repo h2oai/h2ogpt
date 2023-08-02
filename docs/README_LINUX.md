@@ -85,6 +85,11 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     # Optional: for supporting unstructured package
     python -m nltk.downloader all
 * GPU Optional: For AutoGPTQ support on x86_64 linux
+    Try H2O.ai's pre-built wheel:
+    ```bash
+    pip uninstall -y auto-gptq ; pip install https://s3.amazonaws.com/artifacts.h2o.ai/deps/h2ogpt/auto_gptq-0.3.0-cp310-cp310-linux_x86_64.whl --use-deprecated=legacy-resolver
+    ```
+    This avoids issues with missing cuda extensions etc.  if this does not apply to your system, run:
     ```bash
     pip uninstall -y auto-gptq ; GITHUB_ACTIONS=true pip install auto-gptq==0.3.0 --no-cache-dir
     ```
@@ -120,6 +125,7 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     CMAKE_ARGS="-DLLAMA_CUBLAS=on" FORCE_CMAKE=1 pip install llama-cpp-python==0.1.68 --no-cache-dir --verbose
    ```
   * Uncomment `# n_gpu_layers=20` in `.env_gpt4all`.  One can try also `40` instead of `20`.
+  * For LLaMa2, can set `max_tokens=3792` but uses more memory.
   * If one sees `/usr/bin/nvcc` mentioned in errors, that file needs to be removed as would likely conflict with version installed for conda.  
   * Note that once `llama-cpp-python` is compiled to support CUDA, it no longer works for CPU mode, so one would have to reinstall it without the above options to recovers CPU mode or have a separate h2oGPT env for CPU mode.
 
