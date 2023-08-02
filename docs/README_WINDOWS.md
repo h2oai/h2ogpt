@@ -109,7 +109,7 @@ For newer builds of windows versions of 10/11.
 
   * Click [Download Wizard Model](https://huggingface.co/TheBloke/WizardLM-7B-uncensored-GGML/resolve/main/WizardLM-7B-uncensored.ggmlv3.q8_0.bin) and place file in h2oGPT directory.
        ```bash
-       python generate.py --base_model='llama' --prompt_type=wizard2 --score_model=None --langchain_mode='UserData' --user_path=user_path
+       python generate.py --base_model='llama' --prompt_type=wizard2 --score_model=None --langchain_mode='UserData' --user_path=C:\Users\YourUsername\h2ogpt
        ```
       If llama-cpp-python was compiled with CUDA support, you should see in the output:
     ```text
