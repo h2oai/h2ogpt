@@ -35,7 +35,7 @@ from prompter import non_hf_types, PromptType, Prompter
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
     get_device, ProgressParallel, remove, hash_file, clear_torch_cache, NullContext, get_hf_server, FakeTokenizer, \
     have_libreoffice, have_arxiv, have_playwright, have_selenium, have_tesseract, have_pymupdf, set_openai, \
-    get_list_or_str
+    get_list_or_str, have_pillow
 from utils_langchain import StreamingGradioCallbackHandler
 
 import_matplotlib()
@@ -61,14 +61,18 @@ from langchain.vectorstores import Chroma
 
 
 def get_db(sources, use_openai_embedding=False, db_type='faiss',
-           persist_directory="db_dir", load_db_if_exists=True,
+           persist_directory=None, load_db_if_exists=True,
            langchain_mode='notset',
            collection_name=None,
-           hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2"):
+           hf_embedding_model=None,
+           migrate_embedding_model=False):
     if not sources:
         return None
+    if persist_directory is None:
+        persist_directory = get_persist_directory(langchain_mode)
+    assert hf_embedding_model is not None
 
-    # get embedding model
+    # get freshly-determined embedding model
     embedding = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model)
     assert collection_name is not None or langchain_mode != 'notset'
     if collection_name is None:
@@ -94,11 +98,13 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
                                      index_name=index_name)
     elif db_type == 'chroma':
         assert persist_directory is not None
+        # use_base already handled when making persist_directory, unless was passed into get_db()
         makedirs(persist_directory, exist_ok=True)
 
         # see if already actually have persistent db, and deal with possible changes in embedding
-        db = get_existing_db(None, persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
-                             hf_embedding_model, verbose=False)
+        db, use_openai_embedding, hf_embedding_model = \
+            get_existing_db(None, persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
+                            hf_embedding_model, migrate_embedding_model, verbose=False)
         if db is None:
             from chromadb.config import Settings
             client_settings = Settings(anonymized_telemetry=False,
@@ -114,12 +120,14 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
             save_embed(db, use_openai_embedding, hf_embedding_model)
         else:
             # then just add
+            # doesn't check or change embedding, just saves it in case not saved yet, after persisting
             db, num_new_sources, new_sources_metadata = add_to_db(db, sources, db_type=db_type,
                                                                   use_openai_embedding=use_openai_embedding,
                                                                   hf_embedding_model=hf_embedding_model)
     else:
         raise RuntimeError("No such db_type=%s" % db_type)
 
+    # once here, db is not changing and embedding choices in calling functions does not matter
     return db
 
 
@@ -191,10 +199,25 @@ def add_to_db(db, sources, db_type='faiss',
         num_new_sources = len(sources)
         if num_new_sources == 0:
             return db, num_new_sources, []
-        db.add_documents(documents=sources)
-        db.persist()
-        clear_embedding(db)
-        save_embed(db, use_openai_embedding, hf_embedding_model)
+        if hasattr(db, '_persist_directory'):
+            print("Existing db, adding to %s" % db._persist_directory, flush=True)
+            # chroma only
+            name_path = os.path.basename(db._persist_directory)
+            base_path = 'locks'
+            base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
+            file = os.path.join(base_path, "getdb_%s.lock" % name_path)
+            context = filelock.FileLock
+        else:
+            file = None
+            context = NullContext
+        with context(file):
+            # this is place where add to db, but others maybe accessing db, so lock access.
+            # else see RuntimeError: Index seems to be corrupted or unsupported
+            db.add_documents(documents=sources)
+            db.persist()
+            clear_embedding(db)
+            # save here is for migration, in case old db directory without embedding saved
+            save_embed(db, use_openai_embedding, hf_embedding_model)
     else:
         raise RuntimeError("No such db_type=%s" % db_type)
 
@@ -204,7 +227,8 @@ def add_to_db(db, sources, db_type='faiss',
 
 
 def create_or_update_db(db_type, persist_directory, collection_name,
-                        sources, use_openai_embedding, add_if_exists, verbose, hf_embedding_model):
+                        sources, use_openai_embedding, add_if_exists, verbose,
+                        hf_embedding_model, migrate_embedding_model):
     if db_type == 'weaviate':
         import weaviate
         from weaviate.embedded import EmbeddedOptions
@@ -242,12 +266,14 @@ def create_or_update_db(db_type, persist_directory, collection_name,
                 db_type=db_type,
                 persist_directory=persist_directory,
                 langchain_mode=collection_name,
-                hf_embedding_model=hf_embedding_model)
+                hf_embedding_model=hf_embedding_model,
+                migrate_embedding_model=migrate_embedding_model)
 
     return db
 
 
-def get_embedding(use_openai_embedding, hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2"):
+def get_embedding(use_openai_embedding, hf_embedding_model=None):
+    assert hf_embedding_model is not None
     # Get embedding model
     if use_openai_embedding:
         assert os.getenv("OPENAI_API_KEY") is not None, "Set ENV OPENAI_API_KEY"
@@ -762,8 +788,11 @@ def get_llm(use_openai_model=False,
             context=None,
             iinput=None,
             sanitize_bot_response=False,
+            n_jobs=None,
             verbose=False,
             ):
+    if n_jobs is None:
+        n_jobs = int(os.getenv('OMP_NUM_THREADS', str(os.cpu_count() // 2)))
     if inference_server is None:
         inference_server = ''
     if use_openai_model or inference_server.startswith('openai') or inference_server.startswith('vllm'):
@@ -908,6 +937,7 @@ def get_llm(use_openai_model=False,
                               top_k=top_k,
                               top_p=top_p,
                               callbacks=callbacks,
+                              n_jobs=n_jobs,
                               verbose=verbose,
                               streaming=stream_output,
                               prompter=prompter,
@@ -1141,15 +1171,37 @@ def get_dai_docs(from_hf=False, get_pickle=True):
     return sources
 
 
-image_types = ["png", "jpg", "jpeg"]
-non_image_types = ["pdf", "txt", "csv", "toml", "py", "rst", "rtf",
-                   "md",
-                   "html", "mhtml",
-                   "enex", "eml", "epub", "odt", "pptx", "ppt",
-                   "zip", "urls",
+def get_supported_types():
+    non_image_types0 = ["pdf", "txt", "csv", "toml", "py", "rst", "rtf",
+                        "md",
+                        "html", "mhtml",
+                        "enex", "eml", "epub", "odt", "pptx", "ppt",
+                        "zip", "urls",
+                        ]
+    # "msg",  GPL3
 
-                   ]
-# "msg",  GPL3
+    video_types0 = ['WEBM',
+                    'MPG', 'MP2', 'MPEG', 'MPE', '.PV',
+                    'OGG',
+                    'MP4', 'M4P', 'M4V',
+                    'AVI', 'WMV',
+                    'MOV', 'QT',
+                    'FLV', 'SWF',
+                    'AVCHD']
+    video_types0 = [x.lower() for x in video_types0]
+    if have_pillow:
+        from PIL import Image
+        exts = Image.registered_extensions()
+        image_types0 = {ex for ex, f in exts.items() if f in Image.OPEN if ex not in video_types0 + non_image_types0}
+        image_types0 = sorted(image_types0)
+        image_types0 = [x[1:] if x.startswith('.') else x for x in image_types0]
+    else:
+        image_types0 = []
+    return non_image_types0, image_types0, video_types0
+
+
+non_image_types, image_types, video_types = get_supported_types()
+set_image_types = set(image_types)
 
 if have_libreoffice or True:
     # or True so it tries to load, e.g. on MAC/Windows, even if don't have libreoffice since works without that
@@ -1158,14 +1210,17 @@ if have_libreoffice or True:
 file_types = non_image_types + image_types
 
 
-def add_meta(docs1, file):
+def add_meta(docs1, file, headsize):
     file_extension = pathlib.Path(file).suffix
     hashid = hash_file(file)
     doc_hash = str(uuid.uuid4())[:10]
     if not isinstance(docs1, (list, tuple, types.GeneratorType)):
         docs1 = [docs1]
-    [x.metadata.update(dict(input_type=file_extension, date=str(datetime.now()), hashid=hashid, doc_hash=doc_hash)) for
-     x in docs1]
+    [x.metadata.update(dict(input_type=file_extension,
+                            date=str(datetime.now()),
+                            hashid=hashid,
+                            doc_hash=doc_hash,
+                            head=x.page_content[:headsize].strip())) for x in docs1]
 
 
 def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
@@ -1243,7 +1298,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         doc1 = chunk_sources(docs1)
     elif is_txt:
         base_path = "user_paste"
-        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True)
+        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
         source_file = os.path.join(base_path, "_%s" % str(uuid.uuid4())[:10])
         with open(source_file, "wt") as f:
             f.write(file)
@@ -1252,24 +1307,24 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         doc1 = clean_doc(doc1)
     elif file.lower().endswith('.html') or file.lower().endswith('.mhtml'):
         docs1 = UnstructuredHTMLLoader(file_path=file).load()
-        add_meta(docs1, file)
+        add_meta(docs1, file, headsize)
         docs1 = clean_doc(docs1)
         doc1 = chunk_sources(docs1, language=Language.HTML)
     elif (file.lower().endswith('.docx') or file.lower().endswith('.doc')) and (have_libreoffice or True):
         docs1 = UnstructuredWordDocumentLoader(file_path=file).load()
-        add_meta(docs1, file)
+        add_meta(docs1, file, headsize)
         doc1 = chunk_sources(docs1)
     elif (file.lower().endswith('.xlsx') or file.lower().endswith('.xls')) and (have_libreoffice or True):
         docs1 = UnstructuredExcelLoader(file_path=file).load()
-        add_meta(docs1, file)
+        add_meta(docs1, file, headsize)
         doc1 = chunk_sources(docs1)
     elif file.lower().endswith('.odt'):
         docs1 = UnstructuredODTLoader(file_path=file).load()
-        add_meta(docs1, file)
+        add_meta(docs1, file, headsize)
         doc1 = chunk_sources(docs1)
     elif file.lower().endswith('pptx') or file.lower().endswith('ppt'):
         docs1 = UnstructuredPowerPointLoader(file_path=file).load()
-        add_meta(docs1, file)
+        add_meta(docs1, file, headsize)
         docs1 = clean_doc(docs1)
         doc1 = chunk_sources(docs1)
     elif file.lower().endswith('.txt'):
@@ -1278,38 +1333,37 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         # makes just one, but big one
         doc1 = chunk_sources(docs1)
         doc1 = clean_doc(doc1)
-        add_meta(doc1, file)
+        add_meta(doc1, file, headsize)
     elif file.lower().endswith('.rtf'):
         docs1 = UnstructuredRTFLoader(file).load()
-        add_meta(docs1, file)
+        add_meta(docs1, file, headsize)
         doc1 = chunk_sources(docs1)
     elif file.lower().endswith('.md'):
         docs1 = UnstructuredMarkdownLoader(file).load()
-        add_meta(docs1, file)
+        add_meta(docs1, file, headsize)
         docs1 = clean_doc(docs1)
         doc1 = chunk_sources(docs1, language=Language.MARKDOWN)
     elif file.lower().endswith('.enex'):
         docs1 = EverNoteLoader(file).load()
-        add_meta(doc1, file)
+        add_meta(doc1, file, headsize)
         doc1 = chunk_sources(docs1)
     elif file.lower().endswith('.epub'):
         docs1 = UnstructuredEPubLoader(file).load()
-        add_meta(docs1, file)
+        add_meta(docs1, file, headsize)
         doc1 = chunk_sources(docs1)
-    elif file.lower().endswith('.jpeg') or file.lower().endswith('.jpg') or file.lower().endswith('.png'):
+    elif any(file.lower().endswith(x) for x in set_image_types):
         docs1 = []
         if have_tesseract and enable_ocr:
             # OCR, somewhat works, but not great
             docs1.extend(UnstructuredImageLoader(file).load())
-            add_meta(docs1, file)
+            add_meta(docs1, file, headsize)
         if enable_captions:
             # BLIP
             if caption_loader is not None and not isinstance(caption_loader, (str, bool)):
                 # assumes didn't fork into this process with joblib, else can deadlock
                 caption_loader.set_image_paths([file])
                 docs1c = caption_loader.load()
-                add_meta(docs1c, file)
-                [x.metadata.update(dict(head=x.page_content[:headsize].strip())) for x in docs1c]
+                add_meta(docs1c, file, headsize)
                 docs1.extend(docs1c)
             else:
                 from image_captions import H2OImageCaptionLoader
@@ -1318,12 +1372,12 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                                                        blip_processor=captions_model)
                 caption_loader.set_image_paths([file])
                 docs1c = caption_loader.load()
-                add_meta(docs1c, file)
-                [x.metadata.update(dict(head=x.page_content[:headsize].strip())) for x in docs1c]
+                add_meta(docs1c, file, headsize)
                 docs1.extend(docs1c)
+            # caption didn't set source, so fix-up meta
             for doci in docs1:
                 doci.metadata['source'] = doci.metadata['image_path']
-                doci.metadata['hash'] = hash_file(doci.metadata['source'])
+                doci.metadata['hashid'] = hash_file(doci.metadata['source'])
             if docs1:
                 doc1 = chunk_sources(docs1)
     elif file.lower().endswith('.msg'):
@@ -1333,14 +1387,14 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
     elif file.lower().endswith('.eml'):
         try:
             docs1 = UnstructuredEmailLoader(file).load()
-            add_meta(docs1, file)
+            add_meta(docs1, file, headsize)
             doc1 = chunk_sources(docs1)
         except ValueError as e:
             if 'text/html content not found in email' in str(e):
                 # e.g. plain/text dict key exists, but not
                 # doc1 = TextLoader(file, encoding="utf8").load()
                 docs1 = UnstructuredEmailLoader(file, content_source="text/plain").load()
-                add_meta(docs1, file)
+                add_meta(docs1, file, headsize)
                 doc1 = chunk_sources(docs1)
             else:
                 raise
@@ -1351,7 +1405,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
     elif file.lower().endswith('.rst'):
         with open(file, "r") as f:
             doc1 = Document(page_content=f.read(), metadata={"source": file})
-        add_meta(doc1, file)
+        add_meta(doc1, file, headsize)
         doc1 = chunk_sources(doc1, language=Language.RST)
     elif file.lower().endswith('.pdf'):
         env_gpt4all_file = ".env_gpt4all"
@@ -1406,11 +1460,11 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                 raise ValueError("%s had no valid text, but meta data was parsed" % file)
             else:
                 raise ValueError("%s had no valid text and no meta data was parsed" % file)
+        add_meta(doc1, file, headsize)
         doc1 = chunk_sources(doc1)
-        add_meta(doc1, file)
     elif file.lower().endswith('.csv'):
         doc1 = CSVLoader(file).load()
-        add_meta(doc1, file)
+        add_meta(doc1, file, headsize)
         if isinstance(doc1, list):
             # each row is a Document, identify
             [x.metadata.update(dict(chunk_id=chunk_id)) for chunk_id, x in enumerate(doc1)]
@@ -1421,11 +1475,11 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                 doc1 = sdoc1 + doc1
     elif file.lower().endswith('.py'):
         doc1 = PythonLoader(file).load()
-        add_meta(doc1, file)
+        add_meta(doc1, file, headsize)
         doc1 = chunk_sources(doc1, language=Language.PYTHON)
     elif file.lower().endswith('.toml'):
         doc1 = TomlLoader(file).load()
-        add_meta(doc1, file)
+        add_meta(doc1, file, headsize)
         doc1 = chunk_sources(doc1)
     elif file.lower().endswith('.urls'):
         with open(file, "r") as f:
@@ -1444,18 +1498,13 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
     else:
         raise RuntimeError("No file handler for %s" % os.path.basename(file))
 
-    # allow doc1 to be list or not.  If not list, did not chunk yet, so chunk now
-    # if list of length one, don't trust and chunk it
+    # allow doc1 to be list or not.
     if not isinstance(doc1, list):
-        if chunk:
-            docs = chunk_sources([doc1])
-        else:
-            docs = [doc1]
+        # If not list, did not chunk yet, so chunk now
+        docs = chunk_sources([doc1])
     elif isinstance(doc1, list) and len(doc1) == 1:
-        if chunk:
-            docs = chunk_sources(doc1)
-        else:
-            docs = doc1
+        # if list of length one, don't trust and chunk it, chunk_id's will still be correct if repeat
+        docs = chunk_sources(doc1)
     else:
         docs = doc1
 
@@ -1505,7 +1554,7 @@ def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True
     if return_file:
         base_tmp = "temp_path_to_doc1"
         if not os.path.isdir(base_tmp):
-            base_tmp = makedirs(base_tmp, exist_ok=True, tmp_ok=True)
+            base_tmp = makedirs(base_tmp, exist_ok=True, tmp_ok=True, use_base=True)
         filename = os.path.join(base_tmp, str(uuid.uuid4()) + ".tmp.pickle")
         with open(filename, 'wb') as f:
             pickle.dump(res, f)
@@ -1542,8 +1591,10 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
         # Below globs should match patterns in file_to_doc()
         [globs_image_types.extend(glob.glob(os.path.join(path, "./**/*.%s" % ftype), recursive=True))
          for ftype in image_types]
+        globs_image_types = [os.path.normpath(x) for x in globs_image_types]
         [globs_non_image_types.extend(glob.glob(os.path.join(path, "./**/*.%s" % ftype), recursive=True))
          for ftype in non_image_types]
+        globs_non_image_types = [os.path.normpath(x) for x in globs_non_image_types]
     else:
         if isinstance(path_or_paths, str):
             if os.path.isfile(path_or_paths) or os.path.isdir(path_or_paths):
@@ -1555,12 +1606,13 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
         assert isinstance(path_or_paths, (list, tuple, types.GeneratorType)), \
             "Wrong type for path_or_paths: %s %s" % (path_or_paths, type(path_or_paths))
         # reform out of allowed types
-        globs_image_types.extend(flatten_list([[x for x in path_or_paths if x.endswith(y)] for y in image_types]))
+        globs_image_types.extend(
+            flatten_list([[os.path.normpath(x) for x in path_or_paths if x.endswith(y)] for y in image_types]))
         # could do below:
         # globs_non_image_types = flatten_list([[x for x in path_or_paths if x.endswith(y)] for y in non_image_types])
         # But instead, allow fail so can collect unsupported too
         set_globs_image_types = set(globs_image_types)
-        globs_non_image_types.extend([x for x in path_or_paths if x not in set_globs_image_types])
+        globs_non_image_types.extend([os.path.normpath(x) for x in path_or_paths if x not in set_globs_image_types])
 
     # filter out any files to skip (e.g. if already processed them)
     # this is easy, but too aggressive in case a file changed, so parent probably passed existing_files=[]
@@ -1648,7 +1700,9 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
 def prep_langchain(persist_directory,
                    load_db_if_exists,
                    db_type, use_openai_embedding, langchain_mode, langchain_mode_paths,
-                   hf_embedding_model, n_jobs=-1, kwargs_make_db={}):
+                   hf_embedding_model,
+                   migrate_embedding_model,
+                   n_jobs=-1, kwargs_make_db={}):
     """
     do prep first time, involving downloads
     # FIXME: Add github caching then add here
@@ -1661,8 +1715,9 @@ def prep_langchain(persist_directory,
 
     if db_dir_exists and user_path is None:
         print("Prep: persist_directory=%s exists, using" % persist_directory, flush=True)
-        db = get_existing_db(None, persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
-                             hf_embedding_model)
+        db, use_openai_embedding, hf_embedding_model = \
+            get_existing_db(None, persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
+                            hf_embedding_model, migrate_embedding_model)
     else:
         if db_dir_exists and user_path is not None:
             print("Prep: persist_directory=%s exists, user_path=%s passed, adding any changed or new documents" % (
@@ -1712,9 +1767,12 @@ class FakeConsumer(object):
 posthog.Consumer = FakeConsumer
 
 
-def check_update_chroma_embedding(db, use_openai_embedding, hf_embedding_model, langchain_mode):
+def check_update_chroma_embedding(db, use_openai_embedding,
+                                  hf_embedding_model, migrate_embedding_model,
+                                  langchain_mode):
     changed_db = False
-    if load_embed(db) != (use_openai_embedding, hf_embedding_model):
+    if load_embed(db=db) not in [(True, use_openai_embedding, hf_embedding_model),
+                                 (False, use_openai_embedding, hf_embedding_model)]:
         print("Detected new embedding, updating db: %s" % langchain_mode, flush=True)
         # handle embedding changes
         db_get = get_documents(db)
@@ -1729,7 +1787,9 @@ def check_update_chroma_embedding(db, use_openai_embedding, hf_embedding_model, 
                     persist_directory=persist_directory, load_db_if_exists=load_db_if_exists,
                     langchain_mode=langchain_mode,
                     collection_name=None,
-                    hf_embedding_model=hf_embedding_model)
+                    hf_embedding_model=hf_embedding_model,
+                    migrate_embedding_model=migrate_embedding_model,
+                    )
         if False:
             # below doesn't work if db already in memory, so have to switch to new db as above
             # upsert does new embedding, but if index already in memory, complains about size mismatch etc.
@@ -1743,12 +1803,17 @@ def check_update_chroma_embedding(db, use_openai_embedding, hf_embedding_model, 
 
 
 def get_existing_db(db, persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
-                    hf_embedding_model, verbose=False, check_embedding=True):
+                    hf_embedding_model,
+                    migrate_embedding_model,
+                    verbose=False, check_embedding=True):
     if load_db_if_exists and db_type == 'chroma' and os.path.isdir(persist_directory) and os.path.isdir(
             os.path.join(persist_directory, 'index')):
         if db is None:
             if verbose:
                 print("DO Loading db: %s" % langchain_mode, flush=True)
+            got_embedding, use_openai_embedding0, hf_embedding_model0 = load_embed(persist_directory=persist_directory)
+            if got_embedding:
+                use_openai_embedding, hf_embedding_model = use_openai_embedding0, hf_embedding_model0
             embedding = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model)
             from chromadb.config import Settings
             client_settings = Settings(anonymized_telemetry=False,
@@ -1760,10 +1825,15 @@ def get_existing_db(db, persist_directory, load_db_if_exists, db_type, use_opena
             if verbose:
                 print("DONE Loading db: %s" % langchain_mode, flush=True)
         else:
+            if not migrate_embedding_model:
+                # OVERRIDE embedding choices if could load embedding info when not migrating
+                got_embedding, use_openai_embedding, hf_embedding_model = load_embed(db=db)
             if verbose:
                 print("USING already-loaded db: %s" % langchain_mode, flush=True)
         if check_embedding:
-            db_trial, changed_db = check_update_chroma_embedding(db, use_openai_embedding, hf_embedding_model,
+            db_trial, changed_db = check_update_chroma_embedding(db, use_openai_embedding,
+                                                                 hf_embedding_model,
+                                                                 migrate_embedding_model,
                                                                  langchain_mode)
             if changed_db:
                 db = db_trial
@@ -1772,8 +1842,8 @@ def get_existing_db(db, persist_directory, load_db_if_exists, db_type, use_opena
                     db.persist()
                     clear_embedding(db)
         save_embed(db, use_openai_embedding, hf_embedding_model)
-        return db
-    return None
+        return db, use_openai_embedding, hf_embedding_model
+    return db, use_openai_embedding, hf_embedding_model
 
 
 def clear_embedding(db):
@@ -1810,23 +1880,37 @@ def save_embed(db, use_openai_embedding, hf_embedding_model):
     return use_openai_embedding, hf_embedding_model
 
 
-def load_embed(db):
-    embed_info_file = os.path.join(db._persist_directory, 'embed_info')
+def load_embed(db=None, persist_directory=None):
+    if persist_directory is None:
+        persist_directory = db._persist_directory
+    embed_info_file = os.path.join(persist_directory, 'embed_info')
     if os.path.isfile(embed_info_file):
         with open(embed_info_file, 'rb') as f:
             use_openai_embedding, hf_embedding_model = pickle.load(f)
+        got_embedding = True
     else:
         # migration, assume defaults
         use_openai_embedding, hf_embedding_model = False, "sentence-transformers/all-MiniLM-L6-v2"
-    return use_openai_embedding, hf_embedding_model
+        got_embedding = False
+    return got_embedding, use_openai_embedding, hf_embedding_model
 
 
 def get_persist_directory(langchain_mode):
-    return 'db_dir_%s' % langchain_mode  # single place, no special names for each case
+    persist_directory = 'db_dir_%s' % langchain_mode  # single place, no special names for each case
+    persist_directory = makedirs(persist_directory, use_base=True)
+    return persist_directory
+
+
+scratch_base_dir = os.getenv('H2OGPT_SCRATCH_PATH', '/tmp/')
+
+
+def get_scratch_directory(langchain_mode, db1):
+    return os.path.join(scratch_base_dir, 'db_dir_%s_%s' % (langchain_mode, db1[1]))
 
 
 def _make_db(use_openai_embedding=False,
-             hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
+             hf_embedding_model=None,
+             migrate_embedding_model=False,
              first_para=False, text_limit=None,
              chunk=True, chunk_size=512,
              langchain_mode=None,
@@ -1836,11 +1920,13 @@ def _make_db(use_openai_embedding=False,
              db=None,
              n_jobs=-1,
              verbose=False):
+    assert hf_embedding_model is not None
     persist_directory = get_persist_directory(langchain_mode)
     user_path = langchain_mode_paths.get(langchain_mode)
     # see if can get persistent chroma db
-    db_trial = get_existing_db(db, persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
-                               hf_embedding_model, verbose=verbose)
+    db_trial, use_openai_embedding, hf_embedding_model = \
+        get_existing_db(db, persist_directory, load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
+                        hf_embedding_model, migrate_embedding_model, verbose=verbose)
     if db_trial is not None:
         db = db_trial
 
@@ -1892,11 +1978,17 @@ def _make_db(use_openai_embedding=False,
                                 db_type=db_type)
         new_metadata_sources = set([x.metadata['source'] for x in sources1])
         if new_metadata_sources:
+            if os.getenv('NO_NEW_FILES') is not None:
+                raise RuntimeError("Expected no new files! %s" % new_metadata_sources)
             print("Loaded %s new files as sources to add to %s" % (len(new_metadata_sources), langchain_mode),
                   flush=True)
             if verbose:
                 print("Files added: %s" % '\n'.join(new_metadata_sources), flush=True)
         sources.extend(sources1)
+        if len(sources) > 0 and os.getenv('NO_NEW_FILES') is not None:
+            raise RuntimeError("Expected no new files! %s" % langchain_mode)
+        if len(sources) == 0 and os.getenv('SHOULD_NEW_FILES') is not None:
+            raise RuntimeError("Expected new files! %s" % langchain_mode)
         print("Loaded %s sources for potentially adding to %s" % (len(sources), langchain_mode), flush=True)
 
         # see if got sources
@@ -1916,7 +2008,8 @@ def _make_db(use_openai_embedding=False,
         if sources:
             db = get_db(sources, use_openai_embedding=use_openai_embedding, db_type=db_type,
                         persist_directory=persist_directory, langchain_mode=langchain_mode,
-                        hf_embedding_model=hf_embedding_model)
+                        hf_embedding_model=hf_embedding_model,
+                        migrate_embedding_model=migrate_embedding_model)
             if verbose:
                 print("Generated db", flush=True)
         else:
@@ -1951,7 +2044,7 @@ def get_documents(db):
     if hasattr(db, '_persist_directory'):
         name_path = os.path.basename(db._persist_directory)
         base_path = 'locks'
-        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True)
+        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
         with filelock.FileLock(os.path.join(base_path, "getdb_%s.lock" % name_path)):
             # get segfaults and other errors when multiple threads access this
             return _get_documents(db)
@@ -1976,7 +2069,7 @@ def get_docs_and_meta(db, top_k_docs, filter_kwargs={}):
     if hasattr(db, '_persist_directory'):
         name_path = os.path.basename(db._persist_directory)
         base_path = 'locks'
-        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True)
+        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
         with filelock.FileLock(os.path.join(base_path, "getdb_%s.lock" % name_path)):
             return _get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs)
     else:
@@ -2013,7 +2106,7 @@ def get_existing_files(db):
 def get_existing_hash_ids(db):
     metadatas = get_metadatas(db)
     # assume consistency, that any prior hashed source was single hashed file at the time among all source chunks
-    metadata_hash_ids = {x['source']: x.get('hashid') for x in metadatas}
+    metadata_hash_ids = {os.path.normpath(x['source']): x.get('hashid') for x in metadatas}
     return metadata_hash_ids
 
 
@@ -2039,10 +2132,11 @@ def _run_qa_db(query=None,
                first_para=False, text_limit=None, top_k_docs=4, chunk=True, chunk_size=512,
                langchain_mode_paths={},
                detect_user_path_changes_every_query=False,
-               db_type='faiss',
+               db_type=None,
                model_name=None, model=None, tokenizer=None, inference_server=None,
                langchain_only_model=False,
-               hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
+               hf_embedding_model=None,
+               migrate_embedding_model=False,
                stream_output=False,
                async_output=True,
                num_async=3,
@@ -2110,6 +2204,8 @@ def _run_qa_db(query=None,
         # only summarization supported
         async_output = False
 
+    assert db_type is not None
+    assert hf_embedding_model is not None
     assert langchain_mode_paths is not None
     if model is not None:
         assert model_name is not None  # require so can make decisions
@@ -2153,6 +2249,7 @@ def _run_qa_db(query=None,
                 context=context if add_chat_history_to_context else '',
                 iinput=iinput if add_chat_history_to_context else '',
                 sanitize_bot_response=sanitize_bot_response,
+                n_jobs=n_jobs,
                 verbose=verbose,
                 )
 
@@ -2299,7 +2396,8 @@ def get_chain(query=None,
               model_name=None,
               inference_server='',
               langchain_only_model=False,
-              hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
+              hf_embedding_model=None,
+              migrate_embedding_model=False,
               prompt_type=None,
               prompt_dict=None,
               cut_distance=1.1,
@@ -2326,6 +2424,7 @@ def get_chain(query=None,
               auto_reduce_chunks=True,
               max_chunks=100,
               ):
+    assert hf_embedding_model is not None
     assert langchain_agents is not None  # should be at least []
     # determine whether use of context out of docs is planned
     if not use_openai_model and prompt_type not in ['plain'] or langchain_only_model:
@@ -2355,8 +2454,11 @@ def get_chain(query=None,
             langchain_mode_paths = {}
         langchain_mode_paths = langchain_mode_paths.copy()
         langchain_mode_paths[langchain_mode] = None
+    # once use_openai_embedding, hf_embedding_model passed in, possibly changed,
+    # but that's ok as not used below or in calling functions
     db, num_new_sources, new_sources_metadata = make_db(use_openai_embedding=use_openai_embedding,
                                                         hf_embedding_model=hf_embedding_model,
+                                                        migrate_embedding_model=migrate_embedding_model,
                                                         first_para=first_para, text_limit=text_limit,
                                                         chunk=chunk,
                                                         chunk_size=chunk_size,
@@ -2451,7 +2553,7 @@ def get_chain(query=None,
 
     if db and use_docs_planned:
         base_path = 'locks'
-        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True)
+        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
         if hasattr(db, '_persist_directory'):
             name_path = "sim_%s.lock" % os.path.basename(db._persist_directory)
         else:

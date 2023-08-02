@@ -3,7 +3,7 @@ import shutil
 import tempfile
 import pytest
 
-from tests.utils import wrap_test_forked
+from tests.utils import wrap_test_forked, kill_weaviate
 from src.enums import DocumentSubset, LangChainAction, LangChainMode
 from src.gpt_langchain import get_persist_directory
 from src.utils import zip_data, download_simple, get_ngpus_vis, get_mem_gpus, have_faiss, remove, get_kwargs
@@ -84,6 +84,8 @@ def test_qa_wiki_db_openai():
     from src.gpt_langchain import _run_qa_db
     query = "What are the main differences between Linux and Windows?"
     ret = _run_qa_db(query=query, use_openai_model=True, use_openai_embedding=True, text_limit=None,
+                     hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
+                     db_type='faiss',
                      langchain_mode='wiki',
                      langchain_action=LangChainAction.QUERY.value, langchain_agents=[])
     check_ret(ret)
@@ -98,6 +100,8 @@ def test_qa_wiki_db_hf():
     # FIXME: but spitting out garbage answer right now, all fragmented, or just 1-word answer
     query = "What are the main differences between Linux and Windows?"
     ret = _run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=256,
+                     hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
+                     db_type='faiss',
                      langchain_mode='wiki',
                      langchain_action=LangChainAction.QUERY.value,
                      langchain_agents=[])
@@ -111,6 +115,8 @@ def test_qa_wiki_db_chunk_hf():
     query = "What are the main differences between Linux and Windows?"
     ret = _run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=256, chunk=True,
                      chunk_size=256,
+                     hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
+                     db_type='faiss',
                      langchain_mode='wiki',
                      langchain_action=LangChainAction.QUERY.value,
                      langchain_agents=[])
@@ -125,6 +131,8 @@ def test_qa_wiki_db_chunk_openai():
     query = "What are the main differences between Linux and Windows?"
     ret = _run_qa_db(query=query, use_openai_model=True, use_openai_embedding=True, text_limit=256, chunk=True,
                      chunk_size=256,
+                     hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
+                     db_type='faiss',
                      langchain_mode='wiki',
                      langchain_action=LangChainAction.QUERY.value,
                      langchain_agents=[])
@@ -139,6 +147,8 @@ def test_qa_github_db_chunk_openai():
     query = "what is a software defined asset"
     ret = _run_qa_db(query=query, use_openai_model=True, use_openai_embedding=True, text_limit=256, chunk=True,
                      chunk_size=256,
+                     hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
+                     db_type='faiss',
                      langchain_mode='github h2oGPT',
                      langchain_action=LangChainAction.QUERY.value,
                      langchain_agents=[])
@@ -153,6 +163,8 @@ def test_qa_daidocs_db_chunk_hf():
     query = "Which config.toml enables pytorch for NLP?"
     ret = _run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=None, chunk=True,
                      chunk_size=128,
+                     hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
+                     db_type='faiss',
                      langchain_mode='DriverlessAI docs',
                      langchain_action=LangChainAction.QUERY.value,
                      langchain_agents=[])
@@ -171,6 +183,7 @@ def test_qa_daidocs_db_chunk_hf_faiss():
                      langchain_action=LangChainAction.QUERY.value,
                      langchain_agents=[],
                      db_type='faiss',
+                     hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
                      )
     check_ret(ret)
 
@@ -180,6 +193,7 @@ def test_qa_daidocs_db_chunk_hf_faiss():
 @pytest.mark.parametrize("top_k_docs", [-1, 3])
 @wrap_test_forked
 def test_qa_daidocs_db_chunk_hf_dbs(db_type, top_k_docs):
+    kill_weaviate(db_type)
     langchain_mode = 'DriverlessAI docs'
     langchain_action = LangChainAction.QUERY.value
     langchain_agents = []
@@ -198,6 +212,7 @@ def test_qa_daidocs_db_chunk_hf_dbs(db_type, top_k_docs):
                      langchain_mode=langchain_mode,
                      langchain_action=langchain_action,
                      langchain_agents=langchain_agents,
+                     hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
                      db_type=db_type,
                      top_k_docs=top_k_docs,
                      model_name=model_name,
@@ -226,6 +241,7 @@ def test_qa_daidocs_db_chunk_hf_dbs_switch_embedding(db_type):
                       inference_server='',
                       lora_weights='',
                       gpu_id=0,
+                      n_jobs=1,
 
                       reward_type=False,
                       local_files_only=False,
@@ -251,6 +267,7 @@ def test_qa_daidocs_db_chunk_hf_dbs_switch_embedding(db_type):
     # chunk_size is chars for each of k=4 chunks
     ret = _run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False,
                      hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
+                     migrate_embedding_model=True,
                      model=model,
                      tokenizer=tokenizer,
                      model_name=base_model,
@@ -268,6 +285,7 @@ def test_qa_daidocs_db_chunk_hf_dbs_switch_embedding(db_type):
     # chunk_size is chars for each of k=4 chunks
     ret = _run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False,
                      hf_embedding_model='hkunlp/instructor-large',
+                     migrate_embedding_model=True,
                      model=model,
                      tokenizer=tokenizer,
                      model_name=base_model,
@@ -285,6 +303,7 @@ def test_qa_daidocs_db_chunk_hf_dbs_switch_embedding(db_type):
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
 def test_qa_wiki_db_chunk_hf_dbs_llama(db_type):
+    kill_weaviate(db_type)
     from src.gpt4all_llm import get_model_tokenizer_gpt4all
     model_name = 'llama'
     model, tokenizer, device = get_model_tokenizer_gpt4all(model_name)
@@ -294,6 +313,7 @@ def test_qa_wiki_db_chunk_hf_dbs_llama(db_type):
     # chunk_size is chars for each of k=4 chunks
     ret = _run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=None, chunk=True,
                      chunk_size=128 * 1,  # characters, and if k=4, then 4*4*128 = 2048 chars ~ 512 tokens
+                     hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
                      langchain_mode='wiki',
                      langchain_action=LangChainAction.QUERY.value,
                      langchain_agents=[],
@@ -311,6 +331,8 @@ def test_qa_daidocs_db_chunk_openai():
     from src.gpt_langchain import _run_qa_db
     query = "Which config.toml enables pytorch for NLP?"
     ret = _run_qa_db(query=query, use_openai_model=True, use_openai_embedding=True, text_limit=256, chunk=True,
+                     db_type='faiss',
+                     hf_embedding_model="",
                      chunk_size=256,
                      langchain_mode='DriverlessAI docs',
                      langchain_action=LangChainAction.QUERY.value,
@@ -325,6 +347,8 @@ def test_qa_daidocs_db_chunk_openaiembedding_hfmodel():
     query = "Which config.toml enables pytorch for NLP?"
     ret = _run_qa_db(query=query, use_openai_model=False, use_openai_embedding=True, text_limit=None, chunk=True,
                      chunk_size=128,
+                     hf_embedding_model="",
+                     db_type='faiss',
                      langchain_mode='DriverlessAI docs',
                      langchain_action=LangChainAction.QUERY.value,
                      langchain_agents=[])
@@ -353,13 +377,14 @@ def test_get_dai_db_dir():
 @pytest.mark.parametrize("db_type", db_types_full)
 @wrap_test_forked
 def test_make_add_db(repeat, db_type):
+    kill_weaviate(db_type)
     from src.gradio_runner import get_source_files, get_source_files_given_langchain_mode, get_db, update_user_db, \
         get_sources, update_and_get_source_files_given_langchain_mode
     from src.make_db import make_db_main
     from src.gpt_langchain import path_to_docs
-    with tempfile.TemporaryDirectory() as tmp_persistent_directory:
+    with tempfile.TemporaryDirectory() as tmp_persist_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
-            with tempfile.TemporaryDirectory() as tmp_persistent_directory_my:
+            with tempfile.TemporaryDirectory() as tmp_persist_directory_my:
                 with tempfile.TemporaryDirectory() as tmp_user_path_my:
                     msg1 = "Hello World"
                     test_file1 = os.path.join(tmp_user_path, 'test.txt')
@@ -368,7 +393,7 @@ def test_make_add_db(repeat, db_type):
                     chunk = True
                     chunk_size = 512
                     langchain_mode = 'UserData'
-                    db, collection_name = make_db_main(persist_directory=tmp_persistent_directory,
+                    db, collection_name = make_db_main(persist_directory=tmp_persist_directory,
                                                        user_path=tmp_user_path,
                                                        add_if_exists=False,
                                                        collection_name=langchain_mode,
@@ -382,7 +407,7 @@ def test_make_add_db(repeat, db_type):
                     test_file1my = os.path.join(tmp_user_path_my, 'test.txt')
                     with open(test_file1my, "wt") as f:
                         f.write(msg1)
-                    dbmy, collection_namemy = make_db_main(persist_directory=tmp_persistent_directory_my,
+                    dbmy, collection_namemy = make_db_main(persist_directory=tmp_persist_directory_my,
                                                            user_path=tmp_user_path_my,
                                                            add_if_exists=False,
                                                            collection_name='MyData',
@@ -411,6 +436,7 @@ def test_make_add_db(repeat, db_type):
                         f.write(msg1up)
                     kwargs = dict(use_openai_embedding=False,
                                   hf_embedding_model='hkunlp/instructor-large',
+                                  migrate_embedding_model=True,
                                   caption_loader=False,
                                   enable_captions=False,
                                   captions_model="Salesforce/blip-image-captioning-base",
@@ -454,6 +480,8 @@ def test_make_add_db(repeat, db_type):
                     kwargs2 = dict(first_para=False,
                                    text_limit=None, chunk=chunk, chunk_size=chunk_size,
                                    langchain_mode_paths={langchain_mode: tmp_user_path}, db_type=db_type,
+                                   hf_embedding_model=kwargs['hf_embedding_model'],
+                                   migrate_embedding_model=kwargs['migrate_embedding_model'],
                                    load_db_if_exists=True,
                                    n_jobs=-1, verbose=False)
                     update_and_get_source_files_given_langchain_mode(db1, langchain_mode, dbs={langchain_mode: db},
@@ -463,7 +491,8 @@ def test_make_add_db(repeat, db_type):
                     assert path_to_docs(test_file2_my, db_type=db_type)[0].metadata['source'] == test_file2_my
                     extra = 1 if db_type == 'chroma' else 0
                     assert os.path.normpath(
-                        path_to_docs(os.path.dirname(test_file2_my), db_type=db_type)[1 + extra].metadata['source']) == os.path.normpath(
+                        path_to_docs(os.path.dirname(test_file2_my), db_type=db_type)[1 + extra].metadata[
+                            'source']) == os.path.normpath(
                         os.path.abspath(test_file2_my))
                     assert path_to_docs([test_file1, test_file2, test_file2_my], db_type=db_type)[0].metadata[
                                'source'] == test_file1
@@ -487,42 +516,31 @@ def test_make_add_db(repeat, db_type):
                     test_file2 = os.path.join(tmp_user_path3, 'test2.txt')
                     with open(test_file2, "wt") as f:
                         f.write(msg2)
-                    db, collection_name = make_db_main(persist_directory=tmp_persistent_directory,
+                    db, collection_name = make_db_main(persist_directory=tmp_persist_directory,
                                                        user_path=tmp_user_path3,
                                                        add_if_exists=True,
                                                        fail_any_exception=True, db_type=db_type,
                                                        collection_name=collection_name)
                     assert db is not None
                     docs = db.similarity_search("World")
-                    if db_type == 'chroma':
-                        assert len(docs) == 3 + (1 if db_type == 'chroma' else 0)
-                        assert docs[0].page_content == msg1
-                        assert docs[1 + extra].page_content in [msg2, msg1up]
-                        assert docs[2 + extra].page_content in [msg2, msg1up]
-                        assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+                    assert len(docs) == 3 + (1 if db_type == 'chroma' else 0)
+                    assert docs[0].page_content == msg1
+                    assert docs[1 + extra].page_content in [msg2, msg1up]
+                    assert docs[2 + extra].page_content in [msg2, msg1up]
+                    assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
-                        docs = db.similarity_search("Jill")
-                        assert len(docs) == 3 + (1 if db_type == 'chroma' else 0)
-                        assert docs[0].page_content == msg2
-                        assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file2)
-                    else:
-                        assert len(docs) == 4
-                        assert docs[0].page_content == msg1
-                        assert docs[1 + extra].page_content in [msg2, msg1up]
-                        assert docs[2 + extra].page_content in [msg2, msg1up]
-                        assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
-
-                        docs = db.similarity_search("Jill")
-                        assert len(docs) == 4
-                        assert docs[0].page_content == msg2
-                        assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file2)
+                    docs = db.similarity_search("Jill")
+                    assert len(docs) == 3 + (1 if db_type == 'chroma' else 0)
+                    assert docs[0].page_content == msg2
+                    assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file2)
 
 
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
 def test_zip_add(db_type):
+    kill_weaviate(db_type)
     from src.make_db import make_db_main
-    with tempfile.TemporaryDirectory() as tmp_persistent_directory:
+    with tempfile.TemporaryDirectory() as tmp_persist_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
             msg1 = "Hello World"
             test_file1 = os.path.join(tmp_user_path, 'test.txt')
@@ -530,7 +548,7 @@ def test_zip_add(db_type):
                 f.write(msg1)
             zip_file = './tmpdata/data.zip'
             zip_data(tmp_user_path, zip_file=zip_file, fail_any_exception=True)
-            db, collection_name = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
+            db, collection_name = make_db_main(persist_directory=tmp_persist_directory, user_path=tmp_user_path,
                                                fail_any_exception=True, db_type=db_type,
                                                add_if_exists=False)
             assert db is not None
@@ -543,10 +561,11 @@ def test_zip_add(db_type):
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
 def test_url_add(db_type):
+    kill_weaviate(db_type)
     from src.make_db import make_db_main
-    with tempfile.TemporaryDirectory() as tmp_persistent_directory:
+    with tempfile.TemporaryDirectory() as tmp_persist_directory:
         url = 'https://h2o.ai/company/team/leadership-team/'
-        db, collection_name = make_db_main(persist_directory=tmp_persistent_directory, url=url, fail_any_exception=True,
+        db, collection_name = make_db_main(persist_directory=tmp_persist_directory, url=url, fail_any_exception=True,
                                            db_type=db_type)
         assert db is not None
         docs = db.similarity_search("list founding team of h2o.ai")
@@ -557,15 +576,16 @@ def test_url_add(db_type):
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
 def test_urls_add(db_type):
+    kill_weaviate(db_type)
     from src.make_db import make_db_main
-    with tempfile.TemporaryDirectory() as tmp_persistent_directory:
+    with tempfile.TemporaryDirectory() as tmp_persist_directory:
         urls = ['https://h2o.ai/company/team/leadership-team/',
                 'https://arxiv.org/abs/1706.03762',
                 'https://github.com/h2oai/h2ogpt',
                 'https://h2o.ai'
                 ]
 
-        db, collection_name = make_db_main(persist_directory=tmp_persistent_directory, url=urls,
+        db, collection_name = make_db_main(persist_directory=tmp_persist_directory, url=urls,
                                            fail_any_exception=True,
                                            db_type=db_type)
         assert db is not None
@@ -579,8 +599,9 @@ def test_urls_add(db_type):
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
 def test_urls_file_add(db_type):
+    kill_weaviate(db_type)
     from src.make_db import make_db_main
-    with tempfile.TemporaryDirectory() as tmp_persistent_directory:
+    with tempfile.TemporaryDirectory() as tmp_persist_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
             urls = ['https://h2o.ai/company/team/leadership-team/',
                     'https://arxiv.org/abs/1706.03762',
@@ -590,7 +611,7 @@ def test_urls_file_add(db_type):
             with open(os.path.join(tmp_user_path, 'list.urls'), 'wt') as f:
                 f.write('\n'.join(urls))
 
-            db, collection_name = make_db_main(persist_directory=tmp_persistent_directory, url=urls,
+            db, collection_name = make_db_main(persist_directory=tmp_persist_directory, url=urls,
                                                user_path=tmp_user_path,
                                                fail_any_exception=True,
                                                db_type=db_type)
@@ -605,8 +626,9 @@ def test_urls_file_add(db_type):
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
 def test_html_add(db_type):
+    kill_weaviate(db_type)
     from src.make_db import make_db_main
-    with tempfile.TemporaryDirectory() as tmp_persistent_directory:
+    with tempfile.TemporaryDirectory() as tmp_persist_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
             html_content = """
 <!DOCTYPE html>
@@ -623,7 +645,7 @@ def test_html_add(db_type):
             test_file1 = os.path.join(tmp_user_path, 'test.html')
             with open(test_file1, "wt") as f:
                 f.write(html_content)
-            db, collection_name = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
+            db, collection_name = make_db_main(persist_directory=tmp_persist_directory, user_path=tmp_user_path,
                                                fail_any_exception=True, db_type=db_type,
                                                add_if_exists=False)
             assert db is not None
@@ -636,13 +658,14 @@ def test_html_add(db_type):
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
 def test_docx_add(db_type):
+    kill_weaviate(db_type)
     from src.make_db import make_db_main
-    with tempfile.TemporaryDirectory() as tmp_persistent_directory:
+    with tempfile.TemporaryDirectory() as tmp_persist_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
             url = 'https://calibre-ebook.com/downloads/demos/demo.docx'
             test_file1 = os.path.join(tmp_user_path, 'demo.docx')
             download_simple(url, dest=test_file1)
-            db, collection_name = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
+            db, collection_name = make_db_main(persist_directory=tmp_persist_directory, user_path=tmp_user_path,
                                                fail_any_exception=True, db_type=db_type)
             assert db is not None
             docs = db.similarity_search("What is calibre DOCX plugin do?")
@@ -654,12 +677,13 @@ def test_docx_add(db_type):
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
 def test_xls_add(db_type):
+    kill_weaviate(db_type)
     from src.make_db import make_db_main
-    with tempfile.TemporaryDirectory() as tmp_persistent_directory:
+    with tempfile.TemporaryDirectory() as tmp_persist_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
             test_file1 = os.path.join(tmp_user_path, 'example.xlsx')
             shutil.copy('data/example.xlsx', tmp_user_path)
-            db, collection_name = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
+            db, collection_name = make_db_main(persist_directory=tmp_persist_directory, user_path=tmp_user_path,
                                                fail_any_exception=True, db_type=db_type)
             assert db is not None
             docs = db.similarity_search("What is Profit?")
@@ -672,8 +696,9 @@ def test_xls_add(db_type):
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
 def test_md_add(db_type):
+    kill_weaviate(db_type)
     from src.make_db import make_db_main
-    with tempfile.TemporaryDirectory() as tmp_persistent_directory:
+    with tempfile.TemporaryDirectory() as tmp_persist_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
             test_file1 = 'README.md'
             if not os.path.isfile(test_file1):
@@ -682,7 +707,7 @@ def test_md_add(db_type):
                 test_file1 = os.path.abspath(test_file1)
             shutil.copy(test_file1, tmp_user_path)
             test_file1 = os.path.join(tmp_user_path, os.path.basename(test_file1))
-            db, collection_name = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
+            db, collection_name = make_db_main(persist_directory=tmp_persist_directory, user_path=tmp_user_path,
                                                fail_any_exception=True, db_type=db_type)
             assert db is not None
             docs = db.similarity_search("What is h2oGPT?")
@@ -694,13 +719,14 @@ def test_md_add(db_type):
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
 def test_eml_add(db_type):
+    kill_weaviate(db_type)
     from src.make_db import make_db_main
-    with tempfile.TemporaryDirectory() as tmp_persistent_directory:
+    with tempfile.TemporaryDirectory() as tmp_persist_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
             url = 'https://raw.githubusercontent.com/FlexConfirmMail/Thunderbird/master/sample.eml'
             test_file1 = os.path.join(tmp_user_path, 'sample.eml')
             download_simple(url, dest=test_file1)
-            db, collection_name = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
+            db, collection_name = make_db_main(persist_directory=tmp_persist_directory, user_path=tmp_user_path,
                                                fail_any_exception=True, db_type=db_type,
                                                add_if_exists=False)
             assert db is not None
@@ -713,8 +739,9 @@ def test_eml_add(db_type):
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
 def test_simple_eml_add(db_type):
+    kill_weaviate(db_type)
     from src.make_db import make_db_main
-    with tempfile.TemporaryDirectory() as tmp_persistent_directory:
+    with tempfile.TemporaryDirectory() as tmp_persist_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
             html_content = """
 Date: Sun, 1 Apr 2012 14:25:25 -0600
@@ -731,7 +758,7 @@ FYIcenter.com Team"""
             test_file1 = os.path.join(tmp_user_path, 'test.eml')
             with open(test_file1, "wt") as f:
                 f.write(html_content)
-            db, collection_name = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
+            db, collection_name = make_db_main(persist_directory=tmp_persist_directory, user_path=tmp_user_path,
                                                fail_any_exception=True, db_type=db_type,
                                                add_if_exists=False)
             assert db is not None
@@ -744,13 +771,14 @@ FYIcenter.com Team"""
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
 def test_odt_add(db_type):
+    kill_weaviate(db_type)
     from src.make_db import make_db_main
-    with tempfile.TemporaryDirectory() as tmp_persistent_directory:
+    with tempfile.TemporaryDirectory() as tmp_persist_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
             url = 'https://github.com/owncloud/example-files/raw/master/Documents/Example.odt'
             test_file1 = os.path.join(tmp_user_path, 'sample.odt')
             download_simple(url, dest=test_file1)
-            db, collection_name = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
+            db, collection_name = make_db_main(persist_directory=tmp_persist_directory, user_path=tmp_user_path,
                                                fail_any_exception=True, db_type=db_type)
             assert db is not None
             docs = db.similarity_search("What is ownCloud?")
@@ -762,13 +790,14 @@ def test_odt_add(db_type):
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
 def test_pptx_add(db_type):
+    kill_weaviate(db_type)
     from src.make_db import make_db_main
-    with tempfile.TemporaryDirectory() as tmp_persistent_directory:
+    with tempfile.TemporaryDirectory() as tmp_persist_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
             url = 'https://www.unm.edu/~unmvclib/powerpoint/pptexamples.ppt'
             test_file1 = os.path.join(tmp_user_path, 'sample.pptx')
             download_simple(url, dest=test_file1)
-            db, collection_name = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
+            db, collection_name = make_db_main(persist_directory=tmp_persist_directory, user_path=tmp_user_path,
                                                fail_any_exception=True, db_type=db_type,
                                                add_if_exists=False)
             assert db is not None
@@ -781,13 +810,14 @@ def test_pptx_add(db_type):
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
 def test_pdf_add(db_type):
+    kill_weaviate(db_type)
     from src.make_db import make_db_main
-    with tempfile.TemporaryDirectory() as tmp_persistent_directory:
+    with tempfile.TemporaryDirectory() as tmp_persist_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
             url = 'https://www.africau.edu/images/default/sample.pdf'
             test_file1 = os.path.join(tmp_user_path, 'sample.pdf')
             download_simple(url, dest=test_file1)
-            db, collection_name = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
+            db, collection_name = make_db_main(persist_directory=tmp_persist_directory, user_path=tmp_user_path,
                                                fail_any_exception=True, db_type=db_type,
                                                add_if_exists=False)
             assert db is not None
@@ -801,13 +831,14 @@ def test_pdf_add(db_type):
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
 def test_image_pdf_add(db_type, enable_pdf_ocr):
+    kill_weaviate(db_type)
     from src.make_db import make_db_main
-    with tempfile.TemporaryDirectory() as tmp_persistent_directory:
+    with tempfile.TemporaryDirectory() as tmp_persist_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
             test_file1 = os.path.join('tests', 'CityofTshwaneWater.pdf')
             shutil.copy(test_file1, tmp_user_path)
             test_file1 = os.path.join(tmp_user_path, 'CityofTshwaneWater.pdf')
-            db, collection_name = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
+            db, collection_name = make_db_main(persist_directory=tmp_persist_directory, user_path=tmp_user_path,
                                                fail_any_exception=True, db_type=db_type,
                                                enable_pdf_ocr=enable_pdf_ocr,
                                                add_if_exists=False)
@@ -822,13 +853,14 @@ def test_image_pdf_add(db_type, enable_pdf_ocr):
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
 def test_simple_pptx_add(db_type):
+    kill_weaviate(db_type)
     from src.make_db import make_db_main
-    with tempfile.TemporaryDirectory() as tmp_persistent_directory:
+    with tempfile.TemporaryDirectory() as tmp_persist_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
             url = 'https://www.suu.edu/webservices/styleguide/example-files/example.pptx'
             test_file1 = os.path.join(tmp_user_path, 'sample.pptx')
             download_simple(url, dest=test_file1)
-            db, collection_name = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
+            db, collection_name = make_db_main(persist_directory=tmp_persist_directory, user_path=tmp_user_path,
                                                fail_any_exception=True, db_type=db_type,
                                                add_if_exists=False)
             assert db is not None
@@ -841,13 +873,14 @@ def test_simple_pptx_add(db_type):
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
 def test_epub_add(db_type):
+    kill_weaviate(db_type)
     from src.make_db import make_db_main
-    with tempfile.TemporaryDirectory() as tmp_persistent_directory:
+    with tempfile.TemporaryDirectory() as tmp_persist_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
             url = 'https://contentserver.adobe.com/store/books/GeographyofBliss_oneChapter.epub'
             test_file1 = os.path.join(tmp_user_path, 'sample.epub')
             download_simple(url, dest=test_file1)
-            db, collection_name = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
+            db, collection_name = make_db_main(persist_directory=tmp_persist_directory, user_path=tmp_user_path,
                                                fail_any_exception=True, db_type=db_type,
                                                add_if_exists=False)
             assert db is not None
@@ -863,13 +896,14 @@ def test_epub_add(db_type):
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
 def test_msg_add(db_type):
+    kill_weaviate(db_type)
     from src.make_db import make_db_main
-    with tempfile.TemporaryDirectory() as tmp_persistent_directory:
+    with tempfile.TemporaryDirectory() as tmp_persist_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
             url = 'http://file.fyicenter.com/b/sample.msg'
             test_file1 = os.path.join(tmp_user_path, 'sample.msg')
             download_simple(url, dest=test_file1)
-            db, collection_name = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
+            db, collection_name = make_db_main(persist_directory=tmp_persist_directory, user_path=tmp_user_path,
                                                fail_any_exception=True, db_type=db_type)
             assert db is not None
             docs = db.similarity_search("Grump")
@@ -881,6 +915,7 @@ def test_msg_add(db_type):
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
 def test_png_add(db_type):
+    kill_weaviate(db_type)
     return run_png_add(captions_model=None, caption_gpu=False, db_type=db_type)
 
 
@@ -888,6 +923,7 @@ def test_png_add(db_type):
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
 def test_png_add_gpu(db_type):
+    kill_weaviate(db_type)
     return run_png_add(captions_model=None, caption_gpu=True, db_type=db_type)
 
 
@@ -895,6 +931,7 @@ def test_png_add_gpu(db_type):
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
 def test_png_add_gpu_preload(db_type):
+    kill_weaviate(db_type)
     return run_png_add(captions_model=None, caption_gpu=True, pre_load_caption_model=True, db_type=db_type)
 
 
@@ -902,12 +939,13 @@ def test_png_add_gpu_preload(db_type):
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
 def test_png_add_gpu_blip2(db_type):
+    kill_weaviate(db_type)
     return run_png_add(captions_model='Salesforce/blip2-flan-t5-xl', caption_gpu=True, db_type=db_type)
 
 
 def run_png_add(captions_model=None, caption_gpu=False, pre_load_caption_model=False, db_type='chroma'):
     from src.make_db import make_db_main
-    with tempfile.TemporaryDirectory() as tmp_persistent_directory:
+    with tempfile.TemporaryDirectory() as tmp_persist_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
             test_file1 = 'data/pexels-evg-kowalievska-1170986_small.jpg'
             if not os.path.isfile(test_file1):
@@ -917,7 +955,7 @@ def run_png_add(captions_model=None, caption_gpu=False, pre_load_caption_model=F
             test_file1 = os.path.abspath(test_file1)
             shutil.copy(test_file1, tmp_user_path)
             test_file1 = os.path.join(tmp_user_path, os.path.basename(test_file1))
-            db, collection_name = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
+            db, collection_name = make_db_main(persist_directory=tmp_persist_directory, user_path=tmp_user_path,
                                                fail_any_exception=True, enable_ocr=False, enable_pdf_ocr='auto',
                                                caption_gpu=caption_gpu,
                                                pre_load_caption_model=pre_load_caption_model,
@@ -933,8 +971,9 @@ def run_png_add(captions_model=None, caption_gpu=False, pre_load_caption_model=F
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
 def test_simple_rtf_add(db_type):
+    kill_weaviate(db_type)
     from src.make_db import make_db_main
-    with tempfile.TemporaryDirectory() as tmp_persistent_directory:
+    with tempfile.TemporaryDirectory() as tmp_persist_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
             rtf_content = """
 {\rtf1\mac\deff2 {\fonttbl{\f0\fswiss Chicago;}{\f2\froman New York;}{\f3\fswiss Geneva;}{\f4\fmodern Monaco;}{\f11\fnil Cairo;}{\f13\fnil Zapf Dingbats;}{\f16\fnil Palatino;}{\f18\fnil Zapf Chancery;}{\f20\froman Times;}{\f21\fswiss Helvetica;}
@@ -955,7 +994,7 @@ Microsoft  Word developed RTF for document transportability and gives a user acc
             test_file1 = os.path.join(tmp_user_path, 'test.rtf')
             with open(test_file1, "wt") as f:
                 f.write(rtf_content)
-            db, collection_name = make_db_main(persist_directory=tmp_persistent_directory, user_path=tmp_user_path,
+            db, collection_name = make_db_main(persist_directory=tmp_persist_directory, user_path=tmp_user_path,
                                                fail_any_exception=True, db_type=db_type,
                                                add_if_exists=False)
             assert db is not None

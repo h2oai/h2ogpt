@@ -1,8 +1,9 @@
 import os
 from typing import Union, List
 
-from gpt_langchain import path_to_docs, get_some_dbs_from_hf, all_db_zips, some_db_zips, create_or_update_db
-from utils import get_ngpus_vis, H2O_Fire
+from gpt_langchain import path_to_docs, get_some_dbs_from_hf, all_db_zips, some_db_zips, create_or_update_db, \
+    get_persist_directory
+from utils import get_ngpus_vis, H2O_Fire, makedirs
 
 
 def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False,
@@ -29,7 +30,8 @@ def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False,
 
 def make_db_main(use_openai_embedding: bool = False,
                  hf_embedding_model: str = None,
-                 persist_directory: str = 'db_dir_UserData',
+                 migrate_embedding_model=False,
+                 persist_directory: str = None,
                  user_path: str = 'user_path',
                  url: Union[List[str], str] = None,
                  add_if_exists: bool = True,
@@ -41,7 +43,7 @@ def make_db_main(use_openai_embedding: bool = False,
                  download_all: bool = False,
                  download_some: bool = False,
                  download_one: str = None,
-                 download_dest: str = "./",
+                 download_dest: str = None,
                  n_jobs: int = -1,
                  enable_captions: bool = True,
                  captions_model: str = "Salesforce/blip-image-captioning-base",
@@ -71,7 +73,8 @@ def make_db_main(use_openai_embedding: bool = False,
 
     :param use_openai_embedding: Whether to use OpenAI embedding
     :param hf_embedding_model: HF embedding model to use. Like generate.py, uses 'hkunlp/instructor-large' if have GPUs, else "sentence-transformers/all-MiniLM-L6-v2"
-    :param persist_directory: where to persist db
+    :param migrate_embedding_model: whether to migrate to newly chosen hf_embedding_model or stick with one in db
+    :param persist_directory: where to persist db (note generate.py always uses db_dir_<collection name>
     :param user_path: where to pull documents from (None means url is not None.  If url is not None, this is ignored.)
     :param url: url (or urls) to generate documents from (None means user_path is not None)
     :param add_if_exists: Add to db if already exists, but will not add duplicate sources
@@ -95,6 +98,11 @@ def make_db_main(use_openai_embedding: bool = False,
     :return: None
     """
     db = None
+
+    if persist_directory is None:
+        persist_directory = get_persist_directory(collection_name)
+    if download_dest is None:
+        download_dest = makedirs('./', use_base=True)
 
     # match behavior of main() in generate.py for non-HF case
     n_gpus = get_ngpus_vis()
@@ -163,7 +171,7 @@ def make_db_main(use_openai_embedding: bool = False,
     assert len(sources) > 0, "No sources found"
     db = create_or_update_db(db_type, persist_directory, collection_name,
                              sources, use_openai_embedding, add_if_exists, verbose,
-                             hf_embedding_model)
+                             hf_embedding_model, migrate_embedding_model)
 
     assert db is not None
     if verbose:

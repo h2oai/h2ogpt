@@ -176,28 +176,28 @@ def test_quip():
 
     predictions = ["The current goodwill balance is $25,173 million as of December 31, 2022."]
     references = [[
-                      "Table 7.3: Goodwill (in millions) Consumer Banking and Lending Commercial Banking Corporate and Investment Banking Wealth and Investment Management Corporate Consolidated Company December 31, 2020 $ 16,418 3,018 5,375 1,276 305 26,392 Foreign currency translation — — — — — — Transfers of goodwill — (80) — (932) 1,012 — Divestitures — — — — (1,212) (1,212) December 31, 2021 $ 16,418 2,938 5,375 344 105 25,180 Foreign currency translation — (7) — — — (7) December 31, 2022 $ 16,418 2,931 5,375 344 105 25,173 Table 7.4 presents the components of other assets."]]
+        "Table 7.3: Goodwill (in millions) Consumer Banking and Lending Commercial Banking Corporate and Investment Banking Wealth and Investment Management Corporate Consolidated Company December 31, 2020 $ 16,418 3,018 5,375 1,276 305 26,392 Foreign currency translation — — — — — — Transfers of goodwill — (80) — (932) 1,012 — Divestitures — — — — (1,212) (1,212) December 31, 2021 $ 16,418 2,938 5,375 344 105 25,180 Foreign currency translation — (7) — — — (7) December 31, 2022 $ 16,418 2,931 5,375 344 105 25,173 Table 7.4 presents the components of other assets."]]
     results = quip.compute(predictions=predictions, references=references, min_len=1)
     print(results)
     assert results == 0.33333333333333337
 
     predictions = ["The current goodwill balance is $25,173 million as of December 31, 2022."]
     references = [[
-                      "Table 7.3: Goodwill (in millions) Consumer Banking and Lending Commercial Banking Corporate and Investment Banking Wealth and Investment Management Corporate Consolidated Company December 31, 2020 $ 16,418 3,018 5,375 1,276 305 26,392 Foreign currency translation — — — — — — Transfers of goodwill — (80) — (932) 1,012 — Divestitures — — — — (1,212) (1,212) December 31, 2021 $ 16,418 2,938 5,375 344 105 25,180 Foreign currency translation — (7) — — — (7) December 31, 2022 $ 16,418 2,931 5,375 344 105 25,173 Table 7.4 presents the components of other assets."]]
+        "Table 7.3: Goodwill (in millions) Consumer Banking and Lending Commercial Banking Corporate and Investment Banking Wealth and Investment Management Corporate Consolidated Company December 31, 2020 $ 16,418 3,018 5,375 1,276 305 26,392 Foreign currency translation — — — — — — Transfers of goodwill — (80) — (932) 1,012 — Divestitures — — — — (1,212) (1,212) December 31, 2021 $ 16,418 2,938 5,375 344 105 25,180 Foreign currency translation — (7) — — — (7) December 31, 2022 $ 16,418 2,931 5,375 344 105 25,173 Table 7.4 presents the components of other assets."]]
     results = quip.compute(predictions=predictions, references=references, return_match_count=True)
     print(results)
     assert results == 4
 
     predictions = ["The current goodwill balance is $25,173 million as of December 31, 2022."]
     references = [[
-                      "Table 7.3: Goodwill (in millions) Consumer Banking and Lending Commercial Banking Corporate and Investment Banking Wealth and Investment Management Corporate Consolidated Company December 31, 2020 $ 16,418 3,018 5,375 1,276 305 26,392 Foreign currency translation — — — — — — Transfers of goodwill — (80) — (932) 1,012 — Divestitures — — — — (1,212) (1,212) December 31, 2021 $ 16,418 2,938 5,375 344 105 25,180 Foreign currency translation — (7) — — — (7) December 31, 2022 $ 16,418 2,931 5,375 344 105 25,173 Table 7.4 presents the components of other assets."]]
+        "Table 7.3: Goodwill (in millions) Consumer Banking and Lending Commercial Banking Corporate and Investment Banking Wealth and Investment Management Corporate Consolidated Company December 31, 2020 $ 16,418 3,018 5,375 1,276 305 26,392 Foreign currency translation — — — — — — Transfers of goodwill — (80) — (932) 1,012 — Divestitures — — — — (1,212) (1,212) December 31, 2021 $ 16,418 2,938 5,375 344 105 25,180 Foreign currency translation — (7) — — — (7) December 31, 2022 $ 16,418 2,931 5,375 344 105 25,173 Table 7.4 presents the components of other assets."]]
     results = quip.compute(predictions=predictions, references=references, return_match_fraction_by_pred_length=True)
     print(results)
     assert results == 0.5
 
     predictions = ["How much wood would a woodchuck chuck if a woodchuck could chuck wood?"]
     references = [[
-                      "Table 7.3: Goodwill (in millions) Consumer Banking and Lending Commercial Banking Corporate and Investment Banking Wealth and Investment Management Corporate Consolidated Company December 31, 2020 $ 16,418 3,018 5,375 1,276 305 26,392 Foreign currency translation — — — — — — Transfers of goodwill — (80) — (932) 1,012 — Divestitures — — — — (1,212) (1,212) December 31, 2021 $ 16,418 2,938 5,375 344 105 25,180 Foreign currency translation — (7) — — — (7) December 31, 2022 $ 16,418 2,931 5,375 344 105 25,173 Table 7.4 presents the components of other assets."]]
+        "Table 7.3: Goodwill (in millions) Consumer Banking and Lending Commercial Banking Corporate and Investment Banking Wealth and Investment Management Corporate Consolidated Company December 31, 2020 $ 16,418 3,018 5,375 1,276 305 26,392 Foreign currency translation — — — — — — Transfers of goodwill — (80) — (932) 1,012 — Divestitures — — — — (1,212) (1,212) December 31, 2021 $ 16,418 2,938 5,375 344 105 25,180 Foreign currency translation — (7) — — — (7) December 31, 2022 $ 16,418 2,931 5,375 344 105 25,173 Table 7.4 presents the components of other assets."]]
     results = quip.compute(predictions=predictions, references=references, return_match_fraction_by_pred_length=True)
     print(results)
     assert results == 0.0

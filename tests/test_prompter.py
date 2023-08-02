@@ -92,7 +92,6 @@ Assistant:"""
 
 prompt_llama2 = """<s>[INST] Hello! [/INST] Hi! </s><s>[INST] How are you? [/INST] I'm good </s><s>[INST] Go to the market? [/INST]"""
 
-
 prompt_llama2_sys = """<s>[INST] <<SYS>>
 You are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe. Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.
 
@@ -100,6 +99,8 @@ If a question does not make any sense, or is not factually coherent, explain why
 <</SYS>>
 
 Hello! [/INST] Hi! </s><s>[INST] How are you? [/INST] I'm good </s><s>[INST] Go to the market? [/INST]"""
+
+
 # Fastsys doesn't put space above before final [/INST], I think wrong, since with context version has space.
 # and llama2 code has space before it always: https://github.com/facebookresearch/llama/blob/6c7fe276574e78057f917549435a2554000a876d/llama/generation.py
 
@@ -246,6 +247,7 @@ If a question does not make any sense, or is not factually coherent, explain why
 <</SYS>>
 
 Go to the market? [/INST]"""
+
 
 # Fastsys doesn't put space above before final [/INST], I think wrong, since with context version has space.
 # and llama2 code has space before it always: https://github.com/facebookresearch/llama/blob/6c7fe276574e78057f917549435a2554000a876d/llama/generation.py

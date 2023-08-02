@@ -17,6 +17,7 @@ Query and summarize your documents or just chat with local private GPT LLMs usin
 - **Inference Servers** support (HF TGI server, vLLM, Gradio, ExLLaMa, OpenAI)
 - **OpenAI-compliant Python client API** for client-server control
 - **Evaluate** performance using reward models
+- **Quality** maintained with over 250 unit and integration tests taking over 4 GPU-hours
 
 ### Getting Started
 
@@ -128,9 +129,10 @@ GPU and CPU mode tested on variety of NVIDIA GPUs in Ubuntu 18-22, but any moder
 - To run h2oGPT tests:
     ```bash
     wget https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin
-    pip install requirements-parser
-    pytest -s -v tests client/tests
+    pip install requirements-parser pytest-instafail
+    pytest --instafail -s -v tests client/tests
     ```
+  or tweak/run `tests/test4gpus.sh` to run tests in parallel.
 
 ### Help
 
