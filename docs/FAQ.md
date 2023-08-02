@@ -166,7 +166,7 @@ This warning can be safely ignored.
    - `AWS_BUCKET`: AWS bucket name to push logs to when have admin access,
    - `AWS_SERVER_PUBLIC_KEY`: AWS public key for pushing logs to when have admin access,
    - `AWS_SERVER_SECRET_KEY`: AWS secret key for pushing logs to when have admin access,
-   - `HUGGINGFACE_API_TOKEN`: Read or write HF token for accessing private models,
+   - `HUGGING_FACE_HUB_TOKEN`: Read or write HF token for accessing private models,
    - `LANGCHAIN_MODE`: LangChain mode, overrides CLI,
    - `SCORE_MODEL`: HF model to use for scoring prompt-response pairs, `None` for no scoring of responses,
    - `HEIGHT`: Height of Chat window,

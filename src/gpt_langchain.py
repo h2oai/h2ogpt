@@ -1091,7 +1091,7 @@ def get_github_docs(repo_owner, repo_name):
 def get_dai_pickle(dest="."):
     from huggingface_hub import hf_hub_download
     # True for case when locally already logged in with correct token, so don't have to set key
-    token = os.getenv('HUGGINGFACE_API_TOKEN', True)
+    token = os.getenv('HUGGING_FACE_HUB_TOKEN', True)
     path_to_zip_file = hf_hub_download('h2oai/dai_docs', 'dai_docs.pickle', token=token, repo_type='dataset')
     shutil.copy(path_to_zip_file, dest)
 
@@ -2777,7 +2777,7 @@ def _chunk_sources(sources, chunk=True, chunk_size=512, language=None, db_type=N
 def get_db_from_hf(dest=".", db_dir='db_dir_DriverlessAI_docs.zip'):
     from huggingface_hub import hf_hub_download
     # True for case when locally already logged in with correct token, so don't have to set key
-    token = os.getenv('HUGGINGFACE_API_TOKEN', True)
+    token = os.getenv('HUGGING_FACE_HUB_TOKEN', True)
     path_to_zip_file = hf_hub_download('h2oai/db_dirs', db_dir, token=token, repo_type='dataset')
     import zipfile
     with zipfile.ZipFile(path_to_zip_file, 'r') as zip_ref:

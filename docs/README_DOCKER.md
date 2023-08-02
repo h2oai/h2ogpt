@@ -27,7 +27,7 @@ docker run \
        --gpus all \
        --runtime=nvidia \
        --shm-size=2g \
-       -p 8888:8888 -p 7860:7860 -p 5000:5000 \
+       -p 7860:7860 \
        --rm --init \
        -v "${HOME}"/.cache:/workspace/.cache \
        -v "${HOME}"/save:/workspace/save \
@@ -48,16 +48,16 @@ then go to http://localhost:7860/ or http://127.0.0.1:7860/.
 
 If one needs to use a Hugging Face token to access certain Hugging Face models like Meta versino of LLaMa2, can run like:
 ```bash
-export HUGGINGFACE_API_TOKEN=<hf_...>
+export HUGGING_FACE_HUB_TOKEN=<hf_...>
 docker run \
        --gpus all \
        --runtime=nvidia \
        --shm-size=2g \
-       -p 8888:8888 -p 7860:7860 -p 5000:5000 \
+       -p 7860:7860 \
        --rm --init \
        -v "${HOME}"/.cache:/workspace/.cache \
        -v "${HOME}"/save:/workspace/save \
-       -e HUGGINGFACE_API_TOKEN=$HUGGINGFACE_API_TOKEN \
+       -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN \
        gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 /workspace/generate.py \
           --base_model=meta-llama/Llama-2-7b-chat-hf \
           --prompt_type=llama2 \
@@ -68,31 +68,44 @@ docker run \
           --max_new_tokens=1024 \
           --num_async=10 \
           --top_k_docs=-1 \
-          --use_auth_token=$HUGGINGFACE_API_TOKEN
+          --use_auth_token=$HUGGING_FACE_HUB_TOKEN
 ```
 for some token `<hf_...>`.  See [Hugging Face User Tokens](https://huggingface.co/docs/hub/security-tokens) for more details.
 
 See [README_GPU](README_GPU.md) for more details about what to run.
 
-One can run an inference server in one docker and h2oGPT in another docker.  For h2oGPT, just run one of the commands like the above, but add e.g. `--inference_server=192.168.0.1:6112` to the docker command line.  E.g.
+One can run an inference server in one docker and h2oGPT in another docker.
+
+For the TGI server run (e.g. to run on GPU 0)
+```bash
+export CUDA_VISIBLE_DEVICES=0
+docker run -d --gpus all --shm-size 1g -e CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN -e TRANSFORMERS_CACHE="/.cache/" -p 6112:80 -v $HOME/.cache:/.cache/ -v $HOME/.cache/huggingface/hub/:/data ghcr.io/huggingface/text-generation-inference:0.9.3 --model-id $MODEL --max-input-length 4096 --max-total-tokens 8192 --max-stop-sequences 6 &>> logs.infserver.txt
+```
+Each docker can run on any system where network can reach or on same system on different GPUs.  E.g. replace `--gpus all` with `--gpus '"device=0,3"'` to run on GPUs 0 and 3, and note the extra quotes, and then `unset CUDA_VISIBLE_DEVICES` and avoid passing that into the docker image.  This multi-device format is required to avoid TGI server getting confused about which GPUs are available.
+One a low-memory GPU system can add other options to limit batching, e.g.:
+```bash
+unset CUDA_VISIBLE_DEVICES
+docker run -d --gpus '"device=0"' --shm-size 1g -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN -e TRANSFORMERS_CACHE="/.cache/" -p 6112:80 -v $HOME/.cache:/.cache/ -v $HOME/.cache/huggingface/hub/:/data ghcr.io/huggingface/text-generation-inference:0.9.3 --model-id $MODEL --max-input-length 1024 --max-total-tokens 2048 --max-batch-prefill-tokens 2048 --max-batch-total-tokens=2048 --max-stop-sequences 6 &>> logs.infserver.txt
+```
+then for h2oGPT, just run one of the commands like the above, but add e.g. `--inference_server=192.168.0.1:6112` to the docker command line.  E.g.
 ```bash
 export MODEL=meta-llama/Llama-2-7b-chat-hf
-export HUGGINGFACE_API_TOKEN=<hf_...>
+export HUGGING_FACE_HUB_TOKEN=<hf_...>
 export GRADIO_SERVER_PORT=7860
-export CUDA_VISIBLE_DEVICES=0
 
+export CUDA_VISIBLE_DEVICES=0
 docker run -d \
        --gpus all \
        --runtime=nvidia \
        --shm-size=2g \
-       -p 8888:8888 -p 7860:7860 -p 5000:5000 \
+       -p 7860:7860 -p 6112:6112 \
        --rm --init \
        -v "${HOME}"/.cache:/workspace/.cache \
        -v "${HOME}"/save:/workspace/save \
-       -e HUGGINGFACE_API_TOKEN=$HUGGINGFACE_API_TOKEN \
+       -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN \
        gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 /workspace/generate.py \
           --base_model=$MODEL \
-          --inference_server=http://127.0.0.1:6112 \
+          --inference_server=http://localhost:6112 \
           --prompt_type=llama2 \
           --save_dir='/workspace/save/' \
           --score_model=None \
@@ -101,14 +114,8 @@ docker run -d \
           --max_new_tokens=1024 \
           --num_async=10 \
           --top_k_docs=-1 \
-          --use_auth_token=$HUGGINGFACE_API_TOKEN
+          --use_auth_token=$HUGGING_FACE_HUB_TOKEN
 ```
-then for the TGI server run (e.g. to run on GPU 0)
-```bash
-export CUDA_VISIBLE_DEVICES=0
-docker run -d --gpus all --shm-size 1g -e CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN -e TRANSFORMERS_CACHE="/.cache/" -p 6112:80 -v $HOME/.cache:/.cache/ -v $HOME/.cache/huggingface/hub/:/data ghcr.io/huggingface/text-generation-inference:0.9.3 --model-id $MODEL --max-input-length 4096 --max-total-tokens 8192 --max-stop-sequences 6 &>> logs.infserver.txt
-```
-Each docker can run on any system where network can reach or on same system on different GPUs.  E.g. replace `--gpus all` with `--gpus '"device=0,3"'` to run on GPUs 0 and 3, and note the extra quotes, and then `unset CUDA_VISIBLE_DEVICES` and avoid passing that into the docker image.  This multi-device format is required to avoid TGI server getting confused about which GPUs are available.
 
 Follow [README_InferenceServers.md](README_InferenceServers.md) for similar (and more) examples of how to launch TGI server using docker.
 
