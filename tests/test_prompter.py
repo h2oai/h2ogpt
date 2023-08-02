@@ -104,6 +104,47 @@ Hello! [/INST] Hi! </s><s>[INST] How are you? [/INST] I'm good </s><s>[INST] Go 
 # and llama2 code has space before it always: https://github.com/facebookresearch/llama/blob/6c7fe276574e78057f917549435a2554000a876d/llama/generation.py
 
 
+prompt_beluga = """### User:
+Hello!
+
+### Assistant:
+Hi!
+
+### User:
+How are you?
+
+### Assistant:
+I'm good
+
+### User:
+Go to the market?
+
+### Assistant:
+"""
+
+
+prompt_beluga_sys = """### System:
+You are Stable Beluga, an AI that follows instructions extremely well. Help as much as you can. Remember, be safe, and don't do anything illegal.
+
+### User:
+Hello!
+
+### Assistant:
+Hi!
+
+### User:
+How are you?
+
+### Assistant:
+I'm good
+
+### User:
+Go to the market?
+
+### Assistant:
+"""
+
+
 @wrap_test_forked
 @pytest.mark.parametrize("prompt_type,use_system_prompt,expected",
                          [
@@ -116,6 +157,8 @@ Hello! [/INST] Hi! </s><s>[INST] How are you? [/INST] I'm good </s><s>[INST] Go 
                              ('falcon', False, prompt_falcon),
                              ('llama2', False, prompt_llama2),
                              ('llama2', True, prompt_llama2_sys),
+                             ('beluga', False, prompt_beluga),
+                             ('beluga', True, prompt_beluga_sys),
                          ]
                          )
 def test_prompt_with_context(prompt_type, use_system_prompt, expected):
@@ -207,6 +250,22 @@ Go to the market? [/INST]"""
 # Fastsys doesn't put space above before final [/INST], I think wrong, since with context version has space.
 # and llama2 code has space before it always: https://github.com/facebookresearch/llama/blob/6c7fe276574e78057f917549435a2554000a876d/llama/generation.py
 
+prompt_beluga1_sys = """### System:
+You are Stable Beluga, an AI that follows instructions extremely well. Help as much as you can. Remember, be safe, and don't do anything illegal.
+
+### User:
+Go to the market?
+
+### Assistant:
+"""
+
+
+prompt_beluga1 = """### User:
+Go to the market?
+
+### Assistant:
+"""
+
 
 @pytest.mark.parametrize("prompt_type,use_system_prompt,expected",
                          [
@@ -219,6 +278,8 @@ Go to the market? [/INST]"""
                              ('falcon', False, prompt_falcon1),
                              ('llama2', False, prompt_llama21),
                              ('llama2', True, prompt_llama21_sys),
+                             ('beluga', False, prompt_beluga1),
+                             ('beluga', True, prompt_beluga1_sys),
                          ]
                          )
 @wrap_test_forked
