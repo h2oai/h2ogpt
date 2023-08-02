@@ -42,7 +42,6 @@ docker run \
           --prompt_type=llama2 \
           --save_dir='/workspace/save/' \
           --score_model=None \
-          --save_dir=save_gpt7 \
           --max_max_new_tokens=2048 \
           --max_new_tokens=1024 \
           --num_async=10 \
@@ -67,7 +66,6 @@ docker run \
           --prompt_type=llama2 \
           --save_dir='/workspace/save/' \
           --score_model=None \
-          --save_dir=save_gpt70 \
           --max_max_new_tokens=2048 \
           --max_new_tokens=1024 \
           --num_async=10 \
@@ -141,7 +139,6 @@ docker run -d \
           --prompt_type=llama2 \
           --save_dir='/workspace/save/' \
           --score_model=None \
-          --save_dir=save_gpt7 \
           --max_max_new_tokens=4096 \
           --max_new_tokens=1024 \
           --num_async=10 \

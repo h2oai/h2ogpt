@@ -26,7 +26,18 @@ See [setup.py](../setup.py) for controlling other options via `extras_require`.
 from h2ogpt.generate import main
 main()
 ```
-See `src/gen.py` for all documented options one can pass to `main()`.
+See `src/gen.py` for all documented options one can pass to `main()`.  E.g. to start LLaMa7B:
+```python
+from h2ogpt.generate import main
+main(base_model='meta-llama/Llama-2-7b-chat-hf',
+          prompt_type='llama2',
+          save_dir='save_gpt7',
+          score_model=None,
+          max_max_new_tokens=2048,
+          max_new_tokens=1024,
+          num_async=10,
+          top_k_docs=-1)
+```
 
 ## Checks
 Once the wheel is built, if you do:
