@@ -21,7 +21,11 @@ sudo systemctl restart docker
 
 ## Run h2oGPT using Docker
 
-An example of running h2oGPT via docker using AutoGPTQ LLaMa2 7B model is:
+An example of running h2oGPT via docker using AutoGPTQ LLaMa2 7B model is as follows.  First, ensure you have the latest vorvan image:
+```bash
+docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0
+```
+then run:
 ```bash
 docker run \
        --gpus all \
@@ -155,6 +159,7 @@ Follow [README_InferenceServers.md](README_InferenceServers.md) for similar (and
 # build auto-gptq
 make docker_build_deps
 # build image
+touch build_info.txt
 docker build -t h2ogpt .
 ```
 then to run this version of the docker image, just replace `gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0` with `h2ogpt:latest` in above run command.
