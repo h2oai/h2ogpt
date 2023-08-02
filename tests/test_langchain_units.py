@@ -241,6 +241,7 @@ def test_qa_daidocs_db_chunk_hf_dbs_switch_embedding(db_type):
                       inference_server='',
                       lora_weights='',
                       gpu_id=0,
+                      n_jobs=1,
 
                       reward_type=False,
                       local_files_only=False,
