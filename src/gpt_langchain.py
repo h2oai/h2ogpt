@@ -2004,6 +2004,8 @@ def _make_db(use_openai_embedding=False,
     elif user_path is not None:
         print("Existing db, potentially adding %s sources from user_path=%s" % (len(sources), user_path), flush=True)
         if hasattr(db, '_persist_directory'):
+            print("Existing db, adding to %s %s" % (db._persist_directory, user_path), flush=True)
+            # chroma only
             name_path = os.path.basename(db._persist_directory)
             base_path = 'locks'
             base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
