@@ -953,7 +953,7 @@ def hash_file(file):
     except BaseException as e:
         print("Cannot hash %s due to %s" % (file, str(e)))
         traceback.print_exc()
-        md5 = None
+        return ''
     return md5.hexdigest()
 
 
