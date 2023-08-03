@@ -1480,6 +1480,19 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             # remove empty documents
             doc1 = [x for x in doc1 if x.page_content]
             doc1 = clean_doc(doc1)
+
+        # try treating as html as occurs when scraping websites
+        if len(doc1) == 0:
+            from bs4 import BeautifulSoup
+            with open(file, "rt") as f:
+                try:
+                    is_html = bool(BeautifulSoup(f.read(), "html.parser").find())
+                except: # FIXME
+                    is_html = False
+            if is_html:
+                file_url = 'file://' + file
+                doc1 = UnstructuredURLLoader(urls=[file_url]).load()
+                doc1 = [x for x in doc1 if x.page_content]
         if len(doc1) == 0 and enable_pdf_ocr == 'auto' or enable_pdf_ocr == 'on':
             # try OCR in end since slowest, but works on pure image pages well
             doc1 = UnstructuredPDFLoader(file, strategy='ocr_only').load()
@@ -1488,11 +1501,6 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             doc1 = [x for x in doc1 if x.page_content]
             # seems to not need cleaning in most cases
         # Some PDFs return nothing or junk from PDFMinerLoader
-        # try treating as html as occurs when scraping websites
-        if len(doc1) == 0:
-            file_url = 'file://' + file
-            doc1 = UnstructuredURLLoader(urls=[file_url]).load()
-            doc1 = [x for x in doc1 if x.page_content]
         if len(doc1) == 0:
             # if literally nothing, show failed to parse so user knows, since unlikely nothing in PDF at all.
             if handled:
