@@ -2375,8 +2375,12 @@ def get_docs_with_score(query, k_db, filter_kwargs, db, db_type, verbose=False):
                     print("chroma bug: %s" % str(e), flush=True)
                 if k_db == 1:
                     raise
-                if k_db > 10:
-                    k_db -= 10
+                if k_db > 500:
+                    k_db -= 200
+                elif k_db > 100:
+                    k_db -= 50
+                elif k_db > 10:
+                    k_db -= 5
                 else:
                     k_db -= 1
                 k_db = max(1, k_db)
