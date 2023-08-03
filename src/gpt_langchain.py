@@ -1280,10 +1280,12 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             if not (file.startswith("http://") or file.startswith("file://") or file.startswith("https://")):
                 file = 'http://' + file
             docs1 = UnstructuredURLLoader(urls=[file]).load()
+            docs1 = [x for x in docs1 if x.page_content]
             if len(docs1) == 0 and have_playwright:
                 # then something went wrong, try another loader:
                 from langchain.document_loaders import PlaywrightURLLoader
                 docs1 = PlaywrightURLLoader(urls=[file]).load()
+                docs1 = [x for x in docs1 if x.page_content]
             if len(docs1) == 0 and have_selenium:
                 # then something went wrong, try another loader:
                 # but requires Chrome binary, else get: selenium.common.exceptions.WebDriverException: Message: unknown error: cannot find Chrome binary
@@ -1291,6 +1293,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                 from selenium.common.exceptions import WebDriverException
                 try:
                     docs1 = SeleniumURLLoader(urls=[file]).load()
+                    docs1 = [x for x in docs1 if x.page_content]
                 except WebDriverException as e:
                     print("No web driver: %s" % str(e), flush=True)
             [x.metadata.update(dict(input_type='url', date=str(datetime.now))) for x in docs1]
