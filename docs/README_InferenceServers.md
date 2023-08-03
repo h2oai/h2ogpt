@@ -335,6 +335,27 @@ Note: `vllm_chat` ChatCompletion is not supported by vLLM project.
 
 Note vLLM has bug in stopping sequence that is does not return the last token, unlike OpenAI, so a hack is in place for `prompt_type=human_bot`, and other prompts may need similar hacks.  See `fix_text()` in `src/prompter.py`.
 
+## Replicate Inference Server-Client
+
+If you have a Replicate key and set an ENV `REPLICATE_API_TOKEN`, then you can access Replicate models via gradio by running:
+```bash
+pip install replicate
+export REPLICATE_API_TOKEN=<key>
+python generate.py --inference_server="replicate:<replicate model string>" --base_model="<HF model name>"
+```
+where `<key>` should be replaced by your Replicate key, `<replicate model string>` should be replaced by the model name, e.g. `model="a16z-infra/llama13b-v2-chat:df7690f1994d94e96ad9d568eac121aecf50684a0b0963b25a41cc40061269e5`.  Here we used an example for [LLaMa-V2](https://replicate.com/a16z-infra/llama13b-v2-chat), and `<HF model name>` should be replaced by equivalent HuggingFace Model Name (if this is not known or cannot match, then choose whichever HF model has most similar tokenizer.).  The `prompt_type` in h2oGPT is unused except for system prompting if chosen.
+
+For example, for LLaMa-2 7B:
+```bash
+python generate.py --inference_server="replicate:lucataco/llama-2-7b-chat:6ab580ab4eef2c2b440f2441ec0fc0ace5470edaf2cbea50b8550aec0b3fbd38" --base_model="TheBloke/Llama-2-7b-Chat-GPTQ"
+```
+
+Replicate is **not** recommended for private document question-answer, but sufficient when full privacy is not required.  Only chunks of documents will be sent to the LLM for each LLM response.
+
+Issues:
+* `requests.exceptions.JSONDecodeError: Expecting value: line 1 column 1 (char 0)`
+  * Sometimes Replicate sends back bad json, seems randomly occurs.
+
 ## h2oGPT start-up vs. in-app selection
 
 When using `generate.py`, specifying the `--base_model` or `--inference_server` on the CLI is not required.  One can also add any model and server URL (with optional port) in the **Model** tab at the bottom:

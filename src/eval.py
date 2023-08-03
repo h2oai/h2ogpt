@@ -1,4 +1,3 @@
-import inspect
 import os
 import traceback
 import numpy as np
@@ -9,13 +8,12 @@ from matplotlib import pyplot as plt
 from evaluate_params import eval_func_param_names, eval_extra_columns
 from gen import get_context, get_score_model, get_model, evaluate, check_locals
 from prompter import Prompter
-from src.enums import LangChainMode
 from utils import clear_torch_cache, NullContext, get_kwargs, makedirs
 
 
 def run_eval(  # for local function:
         base_model=None, lora_weights=None, inference_server=None,
-        prompt_type=None, prompt_dict=None,
+        prompt_type=None, prompt_dict=None, system_prompt=None,
         debug=None, chat=False, chat_context=None,
         stream_output=None, async_output=None, num_async=None,
         eval_filename=None, eval_prompts_only_num=None, eval_prompts_only_seed=None, eval_as_output=None,

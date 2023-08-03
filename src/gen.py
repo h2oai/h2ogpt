@@ -70,6 +70,8 @@ def main(
         inference_server: str = "",
         prompt_type: Union[int, str] = None,
         prompt_dict: typing.Dict = None,
+        system_prompt: str = '',
+        use_system_prompt: bool = False,
 
         model_lock: typing.List[typing.Dict[str, str]] = None,
         model_lock_columns: int = None,
@@ -176,7 +178,6 @@ def main(
         use_llm_if_no_docs: bool = True,
         load_db_if_exists: bool = True,
         keep_sources_in_context: bool = False,
-        use_system_prompt: bool = False,
         db_type: str = 'chroma',
         use_openai_embedding: bool = False,
         use_openai_model: bool = False,
@@ -207,6 +208,11 @@ def main(
         caption_gpu: bool = True,
         enable_ocr: bool = False,
         enable_pdf_ocr: str = 'auto',
+        # Heap telemetry
+        enable_heap_analytics: bool = False,
+        # Heap telemetry tracking ID - default corresponds
+        # to Heap Main Dev environment.
+        heap_app_id: str = "1680123994",
 ):
     """
 
@@ -232,8 +238,14 @@ def main(
                              e.g. python generate.py --inference_server="openai" --base_model=text-davinci-003
                              Or Address can be "vllm:IP:port" or "vllm:IP:port" for OpenAI-compliant vLLM endpoint
                              Note: vllm_chat not supported by vLLM project.
+                             --inference_server=replicate:<model name string> will use a Replicate server, requiring a Replicate key.
+                             e.g. <model name string> looks like "a16z-infra/llama13b-v2-chat:df7690f1994d94e96ad9d568eac121aecf50684a0b0963b25a41cc40061269e5"
     :param prompt_type: type of prompt, usually matched to fine-tuned model or plain for foundational model
     :param prompt_dict: If prompt_type=custom, then expects (some) items returned by get_prompt(..., return_dict=True)
+    :param system_prompt: Universal system prompt to use if model supports, like LLaMa2, regardless of prompt_type definition.
+           Useful for langchain case to control behavior, or OpenAI and Replicate.
+    :param use_system_prompt: Whether to use system prompt (e.g. llama2 safe system prompt) present in prompt_type itself
+           Independent of system_prompt, which is used for OpenAI, Replicate.
     :param model_lock: Lock models to specific combinations, for ease of use and extending to many models
            Only used if gradio = True
            List of dicts, each dict has base_model, tokenizer_base_model, lora_weights, inference_server, prompt_type, and prompt_dict
@@ -287,8 +299,8 @@ def main(
            but still required in air-gapped case.  The fonts don't look as nice as google fonts, but ensure full offline behavior.
            Also set --share=False to avoid sharing a gradio live link.
     :param root_path: The root path (or "mount point") of the application,
-           if it's not served from the root ("/") of the domain. Often used when the application is behind a reverse proxy 
-           that forwards requests to the application. For example, if the application is served at "https://example.com/myapp", 
+           if it's not served from the root ("/") of the domain. Often used when the application is behind a reverse proxy
+           that forwards requests to the application. For example, if the application is served at "https://example.com/myapp",
            the `root_path` should be set to "/myapp".
     :param chat: whether to enable chat mode with chat history
     :param chat_context: whether to use extra helpful context if human_bot
@@ -383,7 +395,6 @@ def main(
     :param use_llm_if_no_docs: Whether to use LLM even if no documents, when langchain_mode=UserData or MyData or custom
     :param load_db_if_exists: Whether to load chroma db if exists or re-generate db
     :param keep_sources_in_context: Whether to keep url sources in context, not helpful usually
-    :param use_system_prompt: Whether to use system prompt (e.g. llama2 safe system prompt)
     :param db_type: 'faiss' for in-memory or 'chroma' or 'weaviate' for persisted on disk
     :param use_openai_embedding: Whether to use OpenAI embeddings for vector db
     :param use_openai_model: Whether to use OpenAI model for use with vector db
@@ -437,6 +448,8 @@ def main(
     :param enable_pdf_ocr: 'auto' means only use OCR if normal text extraction fails.  Useful for pure image-based PDFs with text
                             'on' means always do OCR as additional parsing of same documents
                             'off' means don't do OCR (e.g. because it's slow even if 'auto' only would trigger if nothing else worked)
+    :param enable_heap_analytics: Toggle application telemetry.
+    :param heap_app_id: Tracking App ID for Heap analytics.
     :return:
     """
     if base_model is None:
@@ -696,7 +709,7 @@ def main(
         get_generate_params(model_lower,
                             chat,
                             stream_output, show_examples,
-                            prompt_type, prompt_dict,
+                            prompt_type, prompt_dict, system_prompt,
                             temperature, top_p, top_k, num_beams,
                             max_new_tokens, min_new_tokens, early_stopping, max_time,
                             repetition_penalty, num_return_sequences,
@@ -1208,12 +1221,28 @@ def get_model(
         # Don't return None, None for model, tokenizer so triggers
         return client, tokenizer, 'http'
     if isinstance(inference_server, str) and (
-            inference_server.startswith('openai') or inference_server.startswith('vllm')):
+            inference_server.startswith('openai') or
+            inference_server.startswith('vllm') or
+            inference_server.startswith('replicate')):
         if inference_server.startswith('openai'):
             assert os.getenv('OPENAI_API_KEY'), "Set environment for OPENAI_API_KEY"
             # Don't return None, None for model, tokenizer so triggers
             # include small token cushion
             tokenizer = FakeTokenizer(model_max_length=model_token_mapping[base_model] - 50)
+        if inference_server.startswith('replicate'):
+            assert len(inference_server.split(':')) >= 3, "Expected replicate:model string, got %s" % inference_server
+            assert os.getenv('REPLICATE_API_TOKEN'), "Set environment for REPLICATE_API_TOKEN"
+            assert max_seq_len is not None, "Please pass --max_seq_len=<max_seq_len> for replicate models."
+            try:
+                import replicate as replicate_python
+            except ImportError:
+                raise ImportError(
+                    "Could not import replicate python package. "
+                    "Please install it with `pip install replicate`."
+                )
+            # Don't return None, None for model, tokenizer so triggers
+            # include small token cushion
+            tokenizer = FakeTokenizer(model_max_length=max_seq_len - 50)
         return inference_server, tokenizer, inference_server
     assert not inference_server, "Malformed inference_server=%s" % inference_server
     if base_model in non_hf_types:
@@ -1552,6 +1581,7 @@ def evaluate(
         document_choice,
         pre_prompt_summary,
         prompt_summary,
+        system_prompt,
         # END NOTE: Examples must have same order of parameters
         async_output=None,
         num_async=None,
@@ -1756,7 +1786,7 @@ def evaluate(
     else:
         db = None
     t_generate = time.time()
-    langchain_only_model = base_model in non_hf_types or load_exllama
+    langchain_only_model = base_model in non_hf_types or load_exllama or inference_server.startswith('replicate')
     do_langchain_path = langchain_mode not in [False, 'Disabled', 'LLM'] or \
                         langchain_only_model or \
                         force_langchain_evaluate
@@ -1794,6 +1824,7 @@ def evaluate(
                 answer_with_sources=answer_with_sources,
                 append_sources_to_answer=append_sources_to_answer,
                 add_chat_history_to_context=add_chat_history_to_context,
+                system_prompt=system_prompt,
                 use_openai_embedding=use_openai_embedding,
                 use_openai_model=use_openai_model,
                 hf_embedding_model=hf_embedding_model,
@@ -1870,8 +1901,9 @@ def evaluate(
             # don't clear torch cache here, delays multi-generation, and bot(), all_bot(), and evaluate_nochat() do it
             return
 
-    if inference_server.startswith('vllm') or inference_server.startswith('openai') or inference_server.startswith(
-            'http'):
+    if inference_server.startswith('vllm') or \
+            inference_server.startswith('openai') or \
+            inference_server.startswith('http'):
         if inference_server.startswith('vllm') or inference_server.startswith('openai'):
             where_from = "openai_client"
             openai, inf_type = set_openai(inference_server)
@@ -1916,10 +1948,11 @@ def evaluate(
             elif inf_type == 'vllm_chat' or inference_server == 'openai_chat':
                 if inf_type == 'vllm_chat':
                     raise NotImplementedError('%s not supported by vLLM' % inf_type)
+                openai_system_prompt = system_prompt or "You are a helpful assistant."
                 responses = openai.ChatCompletion.create(
                     model=base_model,
                     messages=[
-                        {"role": "system", "content": "You are a helpful assistant."},
+                        {"role": "system", "content": openai_system_prompt},
                         {'role': 'user',
                          'content': prompt,
                          }
@@ -2494,7 +2527,7 @@ def generate_with_exceptions(func, *args, prompt='', inputs_decoded='', raise_ge
 def get_generate_params(model_lower,
                         chat,
                         stream_output, show_examples,
-                        prompt_type, prompt_dict,
+                        prompt_type, prompt_dict, system_prompt,
                         temperature, top_p, top_k, num_beams,
                         max_new_tokens, min_new_tokens, early_stopping, max_time,
                         repetition_penalty, num_return_sequences,
@@ -2528,11 +2561,11 @@ def get_generate_params(model_lower,
         else:
             show_examples = True
 
-    summarize_example1 = """Jeff: Can I train a ? Transformers model on Amazon SageMaker? 
-Philipp: Sure you can use the new Hugging Face Deep Learning Container. 
+    summarize_example1 = """Jeff: Can I train a ? Transformers model on Amazon SageMaker?
+Philipp: Sure you can use the new Hugging Face Deep Learning Container.
 Jeff: ok.
-Jeff: and how can I get started? 
-Jeff: where can I find documentation? 
+Jeff: and how can I get started?
+Jeff: where can I find documentation?
 Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-partnership-amazon-sagemaker-and-hugging-face"""
 
     use_placeholder_instruction_as_example = False
@@ -2663,8 +2696,9 @@ y = np.random.randint(0, 1, 100)
 
     # move to correct position
     for example in examples:
-        example += [chat, '', '', LangChainMode.DISABLED.value, True, LangChainAction.QUERY.value, [],
-                    top_k_docs, chunk, chunk_size, DocumentSubset.Relevant.name, [], '', '',
+        example += [chat, '', '', LangChainMode.DISABLED.value, True,
+                    LangChainAction.QUERY.value, [],
+                    top_k_docs, chunk, chunk_size, DocumentSubset.Relevant.name, [], '', '', system_prompt
                     ]
         # adjust examples if non-chat mode
         if not chat:
@@ -2897,7 +2931,7 @@ def entrypoint_main():
     WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun --nproc_per_node=4 --master_port=1234 generate.py --base_model='EleutherAI/gpt-j-6B' --lora_weights=lora-alpaca_6B
     python generate.py --base_model='EleutherAI/gpt-j-6B' --lora_weights='lora-alpaca_6B'
     python generate.py --base_model='EleutherAI/gpt-neox-20b' --lora_weights='lora-alpaca_20B'
-    
+
     # generate without lora weights, no prompt
     python generate.py --base_model='EleutherAI/gpt-neox-20b' --prompt_type='plain'
     python generate.py --base_model='togethercomputer/GPT-NeoXT-Chat-Base-20B' --prompt_type='dai_faq'

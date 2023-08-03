@@ -9,6 +9,7 @@ from src.gpt_langchain import get_persist_directory
 from src.utils import zip_data, download_simple, get_ngpus_vis, get_mem_gpus, have_faiss, remove, get_kwargs
 
 have_openai_key = os.environ.get('OPENAI_API_KEY') is not None
+have_replicate_key = os.environ.get('REPLICATE_API_TOKEN') is not None
 
 have_gpus = get_ngpus_vis() > 0
 
