@@ -14,7 +14,7 @@ Query and summarize your documents or just chat with local private GPT LLMs usin
 - **Variety** of models supported (LLaMa2, Falcon, Vicuna, WizardLM including AutoGPTQ, 4-bit/8-bit, LORA)
 - **GPU** support from HF and LLaMa.cpp GGML models, and **CPU** support using HF, LLaMa.cpp, and GPT4ALL models
 - **Linux, Docker, MAC, and Windows** support
-- **Inference Servers** support (HF TGI server, vLLM, Gradio, ExLLaMa, OpenAI)
+- **Inference Servers** support (HF TGI server, vLLM, Gradio, ExLLaMa, Replicate, OpenAI)
 - **OpenAI-compliant Python client API** for client-server control
 - **Evaluate** performance using reward models
 - **Quality** maintained with over 250 unit and integration tests taking over 4 GPU-hours

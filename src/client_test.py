@@ -98,6 +98,7 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
                          iinput_nochat='',  # only for chat=False
                          langchain_mode=langchain_mode,
                          add_chat_history_to_context=add_chat_history_to_context,
+                         system_prompt='',
                          langchain_action=langchain_action,
                          langchain_agents=langchain_agents,
                          top_k_docs=top_k_docs,
@@ -248,8 +249,12 @@ def test_client_chat_stream(prompt_type='human_bot'):
                            langchain_agents=[])
 
 
-def run_client_chat(prompt, stream_output, max_new_tokens,
-                    langchain_mode, langchain_action, langchain_agents,
+def run_client_chat(prompt='',
+                    stream_output=None,
+                    max_new_tokens=128,
+                    langchain_mode='Disabled',
+                    langchain_action=LangChainAction.QUERY.value,
+                    langchain_agents=[],
                     prompt_type=None, prompt_dict=None):
     client = get_client(serialize=False)
 

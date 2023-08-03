@@ -1,6 +1,5 @@
 input_args_list = ['model_state', 'my_db_state', 'selection_docs_state']
 
-
 no_default_param_names = [
     'instruction',
     'iinput',
@@ -34,6 +33,7 @@ eval_func_param_names = ['instruction',
                          'iinput_nochat',
                          'langchain_mode',
                          'add_chat_history_to_context',
+                         'system_prompt',
                          'langchain_action',
                          'langchain_agents',
                          'top_k_docs',

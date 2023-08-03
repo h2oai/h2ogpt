@@ -24,6 +24,7 @@ H2OGPT_PARAMETERS_TO_CLIENT = collections.OrderedDict(
     iinput_nochat="input_context_for_instruction",
     langchain_mode="langchain_mode",
     add_chat_history_to_context="add_chat_history_to_context",
+    system_prompt="system_prompt",
     langchain_action="langchain_action",
     langchain_agents="langchain_agents",
     top_k_docs="langchain_top_k_docs",

@@ -611,8 +611,6 @@ def go_gradio(**kwargs):
                 with expert_tab:
                     with gr.Row():
                         with gr.Column():
-                            stream_output = gr.components.Checkbox(label="Stream output",
-                                                                   value=kwargs['stream_output'])
                             prompt_type = gr.Dropdown(prompt_types_strings,
                                                       value=kwargs['prompt_type'], label="Prompt Type",
                                                       visible=not kwargs['model_lock'],
@@ -622,105 +620,115 @@ def go_gradio(**kwargs):
                                                        value=kwargs['prompt_type'], label="Prompt Type Model 2",
                                                        visible=False and not kwargs['model_lock'],
                                                        interactive=not is_public)
-                            do_sample = gr.Checkbox(label="Sample",
-                                                    info="Enable sampler, required for use of temperature, top_p, top_k",
-                                                    value=kwargs['do_sample'])
-                            temperature = gr.Slider(minimum=0.01, maximum=2,
-                                                    value=kwargs['temperature'],
-                                                    label="Temperature",
-                                                    info="Lower is deterministic (but may lead to repeats), Higher more creative (but may lead to hallucinations)")
-                            top_p = gr.Slider(minimum=1e-3, maximum=1.0 - 1e-3,
-                                              value=kwargs['top_p'], label="Top p",
-                                              info="Cumulative probability of tokens to sample from")
-                            top_k = gr.Slider(
-                                minimum=1, maximum=100, step=1,
-                                value=kwargs['top_k'], label="Top k",
-                                info='Num. tokens to sample from'
-                            )
-                            # FIXME: https://github.com/h2oai/h2ogpt/issues/106
-                            if os.getenv('TESTINGFAIL'):
-                                max_beams = 8 if not (memory_restriction_level or is_public) else 1
-                            else:
-                                max_beams = 1
-                            num_beams = gr.Slider(minimum=1, maximum=max_beams, step=1,
-                                                  value=min(max_beams, kwargs['num_beams']), label="Beams",
-                                                  info="Number of searches for optimal overall probability.  "
-                                                       "Uses more GPU memory/compute",
-                                                  interactive=False)
-                            max_max_new_tokens = get_max_max_new_tokens(model_state0, **kwargs)
-                            max_new_tokens = gr.Slider(
-                                minimum=1, maximum=max_max_new_tokens, step=1,
-                                value=min(max_max_new_tokens, kwargs['max_new_tokens']), label="Max output length",
-                            )
-                            min_new_tokens = gr.Slider(
-                                minimum=0, maximum=max_max_new_tokens, step=1,
-                                value=min(max_max_new_tokens, kwargs['min_new_tokens']), label="Min output length",
-                            )
-                            max_new_tokens2 = gr.Slider(
-                                minimum=1, maximum=max_max_new_tokens, step=1,
-                                value=min(max_max_new_tokens, kwargs['max_new_tokens']), label="Max output length 2",
-                                visible=False and not kwargs['model_lock'],
-                            )
-                            min_new_tokens2 = gr.Slider(
-                                minimum=0, maximum=max_max_new_tokens, step=1,
-                                value=min(max_max_new_tokens, kwargs['min_new_tokens']), label="Min output length 2",
-                                visible=False and not kwargs['model_lock'],
-                            )
-                            early_stopping = gr.Checkbox(label="EarlyStopping", info="Stop early in beam search",
-                                                         value=kwargs['early_stopping'])
-                            max_time = gr.Slider(minimum=0, maximum=kwargs['max_max_time'], step=1,
-                                                 value=min(kwargs['max_max_time'],
-                                                           kwargs['max_time']), label="Max. time",
-                                                 info="Max. time to search optimal output.")
-                            repetition_penalty = gr.Slider(minimum=0.01, maximum=3.0,
-                                                           value=kwargs['repetition_penalty'],
-                                                           label="Repetition Penalty")
-                            num_return_sequences = gr.Slider(minimum=1, maximum=10, step=1,
-                                                             value=kwargs['num_return_sequences'],
-                                                             label="Number Returns", info="Must be <= num_beams",
-                                                             interactive=not is_public)
-                            iinput = gr.Textbox(lines=4, label="Input",
-                                                placeholder=kwargs['placeholder_input'],
-                                                interactive=not is_public)
-                            context = gr.Textbox(lines=3, label="System Pre-Context",
+                            context = gr.Textbox(lines=2, label="System Pre-Context",
                                                  info="Directly pre-appended without prompt processing",
                                                  interactive=not is_public)
-                            chat = gr.components.Checkbox(label="Chat mode", value=kwargs['chat'],
-                                                          visible=False,  # no longer support nochat in UI
-                                                          interactive=not is_public,
-                                                          )
-                            count_chat_tokens_btn = gr.Button(value="Count Chat Tokens",
-                                                              visible=not is_public and not kwargs['model_lock'],
-                                                              interactive=not is_public)
-                            chat_token_count = gr.Textbox(label="Chat Token Count", value=None,
-                                                          visible=not is_public and not kwargs['model_lock'],
-                                                          interactive=False)
-                            chunk = gr.components.Checkbox(value=kwargs['chunk'],
-                                                           label="Whether to chunk documents",
-                                                           info="For LangChain",
-                                                           visible=kwargs['langchain_mode'] != 'Disabled',
-                                                           interactive=not is_public)
-                            min_top_k_docs, max_top_k_docs, label_top_k_docs = get_minmax_top_k_docs(is_public)
-                            top_k_docs = gr.Slider(minimum=min_top_k_docs, maximum=max_top_k_docs, step=1,
-                                                   value=kwargs['top_k_docs'],
-                                                   label=label_top_k_docs,
-                                                   info="For LangChain",
-                                                   visible=kwargs['langchain_mode'] != 'Disabled',
-                                                   interactive=not is_public)
-                            chunk_size = gr.Number(value=kwargs['chunk_size'],
-                                                   label="Chunk size for document chunking",
-                                                   info="For LangChain (ignored if chunk=False)",
-                                                   minimum=128,
-                                                   maximum=2048,
-                                                   visible=kwargs['langchain_mode'] != 'Disabled',
-                                                   interactive=not is_public,
-                                                   precision=0)
+                            iinput = gr.Textbox(lines=2, label="Input for Instruct prompt types",
+                                                placeholder=kwargs['placeholder_input'],
+                                                interactive=not is_public)
+                        with gr.Column():
+                            system_prompt = gr.Textbox(label="System Prompt",
+                                                       info="If empty, uses prompt_type's system prompt,"
+                                                            " else use this message.  Use space for actually empty.",
+                                                       value=kwargs['system_prompt'])
                             pre_prompt_summary = gr.Textbox(label="Summary Pre-Prompt",
                                                             info="Empty means use internal defaults",
                                                             value='')
                             prompt_summary = gr.Textbox(label="Summary Prompt before text",
                                                         info="Empty means use internal defaults",
                                                         value='')
+                    with gr.Row():
+                        min_top_k_docs, max_top_k_docs, label_top_k_docs = get_minmax_top_k_docs(is_public)
+                        top_k_docs = gr.Slider(minimum=min_top_k_docs, maximum=max_top_k_docs, step=1,
+                                               value=kwargs['top_k_docs'],
+                                               label=label_top_k_docs,
+                                               info="For LangChain",
+                                               visible=kwargs['langchain_mode'] != 'Disabled',
+                                               interactive=not is_public)
+                        chunk_size = gr.Number(value=kwargs['chunk_size'],
+                                               label="Chunk size for document chunking",
+                                               info="For LangChain (ignored if chunk=False)",
+                                               minimum=128,
+                                               maximum=2048,
+                                               visible=kwargs['langchain_mode'] != 'Disabled',
+                                               interactive=not is_public,
+                                               precision=0)
+                        chunk = gr.components.Checkbox(value=kwargs['chunk'],
+                                                       label="Whether to chunk documents",
+                                                       info="For LangChain",
+                                                       visible=kwargs['langchain_mode'] != 'Disabled',
+                                                       interactive=not is_public)
+                    with gr.Row():
+                        stream_output = gr.components.Checkbox(label="Stream output",
+                                                               value=kwargs['stream_output'])
+                        do_sample = gr.Checkbox(label="Sample",
+                                                info="Enable sampler, required for use of temperature, top_p, top_k",
+                                                value=kwargs['do_sample'])
+                        max_time = gr.Slider(minimum=0, maximum=kwargs['max_max_time'], step=1,
+                                             value=min(kwargs['max_max_time'],
+                                                       kwargs['max_time']), label="Max. time",
+                                             info="Max. time to search optimal output.")
+                        temperature = gr.Slider(minimum=0.01, maximum=2,
+                                                value=kwargs['temperature'],
+                                                label="Temperature",
+                                                info="Lower is deterministic (but may lead to repeats), Higher more creative (but may lead to hallucinations)")
+                        top_p = gr.Slider(minimum=1e-3, maximum=1.0 - 1e-3,
+                                          value=kwargs['top_p'], label="Top p",
+                                          info="Cumulative probability of tokens to sample from")
+                        top_k = gr.Slider(
+                            minimum=1, maximum=100, step=1,
+                            value=kwargs['top_k'], label="Top k",
+                            info='Num. tokens to sample from'
+                        )
+                        # FIXME: https://github.com/h2oai/h2ogpt/issues/106
+                        if os.getenv('TESTINGFAIL'):
+                            max_beams = 8 if not (memory_restriction_level or is_public) else 1
+                        else:
+                            max_beams = 1
+                        num_beams = gr.Slider(minimum=1, maximum=max_beams, step=1,
+                                              value=min(max_beams, kwargs['num_beams']), label="Beams",
+                                              info="Number of searches for optimal overall probability.  "
+                                                   "Uses more GPU memory/compute",
+                                              interactive=False, visible=max_beams > 1)
+                        max_max_new_tokens = get_max_max_new_tokens(model_state0, **kwargs)
+                        max_new_tokens = gr.Slider(
+                            minimum=1, maximum=max_max_new_tokens, step=1,
+                            value=min(max_max_new_tokens, kwargs['max_new_tokens']), label="Max output length",
+                        )
+                        min_new_tokens = gr.Slider(
+                            minimum=0, maximum=max_max_new_tokens, step=1,
+                            value=min(max_max_new_tokens, kwargs['min_new_tokens']), label="Min output length",
+                        )
+                        max_new_tokens2 = gr.Slider(
+                            minimum=1, maximum=max_max_new_tokens, step=1,
+                            value=min(max_max_new_tokens, kwargs['max_new_tokens']), label="Max output length 2",
+                            visible=False and not kwargs['model_lock'],
+                        )
+                        min_new_tokens2 = gr.Slider(
+                            minimum=0, maximum=max_max_new_tokens, step=1,
+                            value=min(max_max_new_tokens, kwargs['min_new_tokens']), label="Min output length 2",
+                            visible=False and not kwargs['model_lock'],
+                        )
+                        early_stopping = gr.Checkbox(label="EarlyStopping", info="Stop early in beam search",
+                                                     value=kwargs['early_stopping'], visible=max_beams > 1)
+                        repetition_penalty = gr.Slider(minimum=0.01, maximum=3.0,
+                                                       value=kwargs['repetition_penalty'],
+                                                       label="Repetition Penalty")
+                        num_return_sequences = gr.Slider(minimum=1, maximum=10, step=1,
+                                                         value=kwargs['num_return_sequences'],
+                                                         label="Number Returns", info="Must be <= num_beams",
+                                                         interactive=not is_public, visible=max_beams > 1)
+                        chat = gr.components.Checkbox(label="Chat mode", value=kwargs['chat'],
+                                                      visible=False,  # no longer support nochat in UI
+                                                      interactive=not is_public,
+                                                      )
+                    with gr.Row():
+                        count_chat_tokens_btn = gr.Button(value="Count Chat Tokens",
+                                                          visible=not is_public and not kwargs['model_lock'],
+                                                          interactive=not is_public, size='sm')
+                        chat_token_count = gr.Textbox(label="Chat Token Count Result", value=None,
+                                                      visible=not is_public and not kwargs['model_lock'],
+                                                      interactive=False)
 
                 models_tab = gr.TabItem("Models") \
                     if kwargs['visible_models_tab'] else gr.Row(visible=False)

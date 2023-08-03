@@ -5,7 +5,7 @@ from datetime import datetime
 import pytest
 
 from tests.utils import wrap_test_forked, get_inf_port, get_inf_server
-from tests.test_langchain_units import have_openai_key
+from tests.test_langchain_units import have_openai_key, have_replicate_key
 from src.client_test import run_client_many
 from src.enums import PromptType, LangChainAction
 
@@ -467,3 +467,56 @@ def test_gradio_tgi_docker(base_model):
     finally:
         os.system("docker stop %s" % docker_hash1)
         os.system("docker stop %s" % docker_hash2)
+
+
+@pytest.mark.skipif(not have_replicate_key, reason="requires Replicate key to run")
+@pytest.mark.parametrize("force_langchain_evaluate", [False, True])
+@wrap_test_forked
+def test_replicate_inference_server(force_langchain_evaluate,
+                                    prompt='Who are you?', stream_output=False,
+                                    max_new_tokens=128,  # limit cost
+                                    base_model='TheBloke/Llama-2-7b-Chat-GPTQ',
+                                    langchain_mode='Disabled',
+                                    langchain_action=LangChainAction.QUERY.value,
+                                    langchain_agents=[],
+                                    user_path=None,
+                                    visible_langchain_modes=['UserData', 'MyData'],
+                                    reverse_docs=True):
+    if force_langchain_evaluate:
+        langchain_mode = 'MyData'
+
+    main_kwargs = dict(base_model=base_model, chat=True,
+                       stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
+                       max_new_tokens=max_new_tokens,
+                       langchain_mode=langchain_mode,
+                       langchain_action=langchain_action,
+                       langchain_agents=langchain_agents,
+                       user_path=user_path,
+                       visible_langchain_modes=visible_langchain_modes,
+                       reverse_docs=reverse_docs)
+
+    # server that consumes inference server
+    from src.gen import main
+    # https://replicate.com/lucataco/llama-2-7b-chat
+    model_string = "lucataco/llama-2-7b-chat:6ab580ab4eef2c2b440f2441ec0fc0ace5470edaf2cbea50b8550aec0b3fbd38"
+    main(**main_kwargs, inference_server='replicate:%s' % model_string)
+
+    # client test to server that only consumes inference server
+    from src.client_test import run_client_chat
+    res_dict, client = run_client_chat(prompt=prompt, prompt_type='llama2', stream_output=stream_output,
+                                       max_new_tokens=max_new_tokens, langchain_mode=langchain_mode,
+                                       langchain_action=langchain_action, langchain_agents=langchain_agents)
+    assert res_dict['prompt'] == prompt
+    assert res_dict['iinput'] == ''
+
+    # will use HOST from above
+    ret1, ret2, ret3, ret4, ret5, ret6, ret7 = run_client_many(prompt_type=None)  # client shouldn't have to specify
+    who = 'an AI assistant'
+    assert who in ret1['response']
+    assert 'Once upon a time, in a far-off land,' in ret2['response'] or 'Once upon a time' in ret2['response']
+    assert 'Once upon a time, in a far-off land,' in ret3['response'] or 'Once upon a time' in ret3['response']
+    assert who in ret4['response'] or 'I am a helpful assistant designed' in ret4['response']
+    assert who in ret5['response'] or 'I am a helpful assistant designed' in ret5['response']
+    assert who in ret6['response'] or 'I am a helpful assistant designed' in ret6['response']
+    assert who in ret7['response'] or 'I am a helpful assistant designed' in ret7['response']
+    print("DONE", flush=True)
