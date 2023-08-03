@@ -121,15 +121,15 @@ class TextCompletionCreator:
 class TextCompletion:
     """Text completion."""
 
-    _API_NAME = "/submit_nochat"
+    _API_NAME = "/submit_nochat_api"
 
     def __init__(self, client: Client, parameters: OrderedDict[str, Any]):
         self._client = client
         self._parameters = parameters
 
-    def _get_parameters(self, prompt: str) -> ValuesView:
+    def _get_parameters(self, prompt: str) -> OrderedDict[str, Any]:
         self._parameters["instruction_nochat"] = prompt
-        return self._parameters.values()
+        return self._parameters
 
     async def complete(self, prompt: str) -> str:
         """
@@ -140,7 +140,7 @@ class TextCompletion:
         """
 
         return await self._client._predict_async(
-            *self._get_parameters(prompt), api_name=self._API_NAME
+            str(dict(self._get_parameters(prompt))), api_name=self._API_NAME
         )
 
     def complete_sync(self, prompt: str) -> str:
@@ -151,7 +151,7 @@ class TextCompletion:
         :return: response from the model
         """
         return self._client._predict(
-            *self._get_parameters(prompt), api_name=self._API_NAME
+            str(dict(self._get_parameters(prompt))), api_name=self._API_NAME
         )
 
 
