@@ -200,13 +200,11 @@ def run_h2ogpt_docker(port, base_model, inference_server=None):
                         '-v', '%s/.cache:/.cache/' % home_dir,
                         '-v', 'save:/save',
                         '-e', 'HUGGING_FACE_HUB_TOKEN=%s' % os.environ['HUGGING_FACE_HUB_TOKEN'],
-                        '--rm', '--init',
                         '--network', 'host',
                         'gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0',
                         '/workspace/generate.py',
                         '--base_model=%s' % base_model,
                         '--use_safetensors=True',
-                        '--prompt_type=llama2',
                         '--save_dir=/workspace/save/',
                         '--score_model=None',
                         '--max_max_new_tokens=2048',
@@ -215,6 +213,7 @@ def run_h2ogpt_docker(port, base_model, inference_server=None):
                         '--top_k_docs=-1',
                         '--chat=True',
                         '--stream_output=True',
+                        # '--debug=True',
                         ]
     if inference_server:
         cmd.extend(['--inference_server=%s' % inference_server])
