@@ -445,13 +445,24 @@ def test_gradio_tgi_docker(base_model):
         # will use HOST from above
         # client shouldn't have to specify
         ret1, ret2, ret3, ret4, ret5, ret6, ret7 = run_client_many(prompt_type=None)
-        assert 'h2oGPT' in ret1['response']
-        assert 'Birds' in ret2['response']
-        assert 'Birds' in ret3['response']
-        assert 'h2oGPT' in ret4['response']
-        assert 'h2oGPT' in ret5['response']
-        assert 'h2oGPT' in ret6['response']
-        assert 'h2oGPT' in ret7['response']
+        if 'llama' in base_model.lower():
+            who = "I'm LLaMA, an AI assistant developed by Meta AI"
+            assert who in ret1['response']
+            assert who in ret1['response']
+            assert 'Once upon a time' in ret2['response']
+            assert 'Once upon a time' in ret3['response']
+            assert who in ret4['response']
+            assert who in ret5['response']
+            assert who in ret6['response']
+            assert who in ret7['response']
+        else:
+            assert 'h2oGPT' in ret1['response']
+            assert 'Birds' in ret2['response']
+            assert 'Birds' in ret3['response']
+            assert 'h2oGPT' in ret4['response']
+            assert 'h2oGPT' in ret5['response']
+            assert 'h2oGPT' in ret6['response']
+            assert 'h2oGPT' in ret7['response']
         print("DONE", flush=True)
     finally:
         os.system("docker stop %s" % docker_hash1)
