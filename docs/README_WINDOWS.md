@@ -111,6 +111,7 @@ For newer builds of windows versions of 10/11.
        ```bash
        python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path
        ```
+    for an absolute windows path, change to `--user_path=C:\Users\YourUsername\h2ogpt` or something similar for some user `YourUsername`.
       If llama-cpp-python was compiled with CUDA support, you should see in the output:
     ```text
     Starting get_model: llama

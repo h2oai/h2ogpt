@@ -35,7 +35,7 @@ from prompter import non_hf_types, PromptType, Prompter
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
     get_device, ProgressParallel, remove, hash_file, clear_torch_cache, NullContext, get_hf_server, FakeTokenizer, \
     have_libreoffice, have_arxiv, have_playwright, have_selenium, have_tesseract, have_pymupdf, set_openai, \
-    get_list_or_str, have_pillow
+    get_list_or_str, have_pillow, only_selenium, only_playwright, only_unstructured_urls, get_sha
 from utils_langchain import StreamingGradioCallbackHandler
 
 import_matplotlib()
@@ -1246,8 +1246,12 @@ file_types = non_image_types + image_types
 
 
 def add_meta(docs1, file, headsize):
-    file_extension = pathlib.Path(file).suffix
-    hashid = hash_file(file)
+    if os.path.isfile(file):
+        file_extension = pathlib.Path(file).suffix
+        hashid = hash_file(file)
+    else:
+        file_extension = str(file)  # not file, just show full thing
+        hashid = get_sha(file)
     doc_hash = str(uuid.uuid4())[:10]
     if not isinstance(docs1, (list, tuple, types.GeneratorType)):
         docs1 = [docs1]
@@ -1314,21 +1318,32 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         else:
             if not (file.startswith("http://") or file.startswith("file://") or file.startswith("https://")):
                 file = 'http://' + file
-            docs1 = UnstructuredURLLoader(urls=[file]).load()
-            if len(docs1) == 0 and have_playwright:
+            docs1 = []
+            do_unstructured = only_unstructured_urls or not (only_selenium or only_playwright)
+            do_playwright = have_playwright and (only_playwright or not (only_selenium or only_unstructured_urls))
+            do_selenium = have_selenium and (only_selenium or not (only_playwright or only_unstructured_urls))
+
+            if do_unstructured:
+                docs1 = UnstructuredURLLoader(urls=[file]).load()
+                docs1 = [x for x in docs1 if x.page_content]
+            if len(docs1) == 0 and do_playwright:
                 # then something went wrong, try another loader:
                 from langchain.document_loaders import PlaywrightURLLoader
                 docs1 = PlaywrightURLLoader(urls=[file]).load()
-            if len(docs1) == 0 and have_selenium:
+                docs1 = [x for x in docs1 if x.page_content]
+            if len(docs1) == 0 and do_selenium:
                 # then something went wrong, try another loader:
-                # but requires Chrome binary, else get: selenium.common.exceptions.WebDriverException: Message: unknown error: cannot find Chrome binary
+                # but requires Chrome binary, else get: selenium.common.exceptions.WebDriverException:
+                # Message: unknown error: cannot find Chrome binary
                 from langchain.document_loaders import SeleniumURLLoader
                 from selenium.common.exceptions import WebDriverException
                 try:
                     docs1 = SeleniumURLLoader(urls=[file]).load()
+                    docs1 = [x for x in docs1 if x.page_content]
                 except WebDriverException as e:
                     print("No web driver: %s" % str(e), flush=True)
             [x.metadata.update(dict(input_type='url', date=str(datetime.now))) for x in docs1]
+        add_meta(docs1, file, headsize)
         docs1 = clean_doc(docs1)
         doc1 = chunk_sources(docs1)
     elif is_txt:
@@ -1339,8 +1354,9 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             f.write(file)
         metadata = dict(source=source_file, date=str(datetime.now()), input_type='pasted txt')
         doc1 = Document(page_content=file, metadata=metadata)
+        add_meta(doc1, file, headsize)
         doc1 = clean_doc(doc1)
-    elif file.lower().endswith('.html') or file.lower().endswith('.mhtml'):
+    elif file.lower().endswith('.html') or file.lower().endswith('.mhtml') or file.lower().endswith('.htm'):
         docs1 = UnstructuredHTMLLoader(file_path=file).load()
         add_meta(docs1, file, headsize)
         docs1 = clean_doc(docs1)
@@ -2410,8 +2426,12 @@ def get_docs_with_score(query, k_db, filter_kwargs, db, db_type, verbose=False):
                     print("chroma bug: %s" % str(e), flush=True)
                 if k_db == 1:
                     raise
-                if k_db > 10:
-                    k_db -= 10
+                if k_db > 500:
+                    k_db -= 200
+                elif k_db > 100:
+                    k_db -= 50
+                elif k_db > 10:
+                    k_db -= 5
                 else:
                     k_db -= 1
                 k_db = max(1, k_db)

@@ -326,7 +326,8 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'A low-code AI app development framework' in res_dict['response'] or
             'anonymous communication platform' in res_dict['response'] or
             'A privacy-focused chat app' in res_dict['response'] or
-            'A platform for deploying' in res_dict['response']
+            'A platform for deploying' in res_dict['response'] or
+            'A language model that can be used to generate text.' in res_dict['response']
             ) \
            and ('FAQ.md' in res_dict['response'] or 'README.md' in res_dict['response'])
 
@@ -374,7 +375,8 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'is a language model that is trained' in res_dict['response'] or
             'private, and anonymous communication' in res_dict['response'] or
             'The large language model is' in res_dict['response'] or
-            'is a private, secure, and encrypted' in res_dict['response']
+            'is a private, secure, and encrypted' in res_dict['response'] or
+            'H2O AI is a cloud-based platform for building' in res_dict['response']
             ) \
            and '.md' in res_dict['response']
 

@@ -953,7 +953,7 @@ def hash_file(file):
     except BaseException as e:
         print("Cannot hash %s due to %s" % (file, str(e)))
         traceback.print_exc()
-        md5 = None
+        return ''
     return md5.hexdigest()
 
 
@@ -1073,8 +1073,13 @@ try:
 except (pkg_resources.DistributionNotFound, AssertionError):
     have_playwright = False
 
-# disable, hangs too often
-have_playwright = False
+
+only_unstructured_urls = os.environ.get("ONLY_UNSTRUCTURED_URLS", "0") == "1"
+only_selenium = os.environ.get("ONLY_SELENIUM", "0") == "1"
+only_playwright = os.environ.get("ONLY_PLAYWRIGHT", "0") == "1"
+if not only_playwright:
+    # disable, hangs too often
+    have_playwright = False
 
 
 def set_openai(inference_server):

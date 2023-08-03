@@ -70,13 +70,13 @@ The most normal task is keep it on `Relevant` and just make a query, which will 
 
 ![ui_6.png](ui_6.png)
 
-| Dropdown or Button or panel or text box | Purpose                                                          |
-|-----------------------------------------|------------------------------------------------------------------|
-| Select Subset of Document(s)            | Select documents to consider for query or summarization actions  |
-| Update UI with Document(s) from DB      | Update the drop-down in                                          |
-| Show Sources from DB                    | Show HTML links of sources in right panel                        |
-| Download File w/Sources                 | Download list of sources after clicking on "Update UI..." button |
-| Document Exceptions                     | Location where document ingestion failurse are located           |
+| Dropdown or Button or panel or text box | Purpose                                                                 |
+|-----------------------------------------|-------------------------------------------------------------------------|
+| Select Subset of Document(s)            | Select documents to consider for query or summarization actions         |
+| Update UI with Document(s) from DB      | Update the drop-down for selecting subset *and* Download File w/Sources |
+| Show Sources from DB                    | Show HTML links of sources in right panel                               |
+| Download File w/Sources                 | Download list of sources after clicking on "Update UI..." button        |
+| Document Exceptions                     | Location where document ingestion failurse are located                  |
 
 A normal task is to subset on just 1-2 documents, and make a query on those.
 

@@ -1,13 +1,94 @@
 ## Frequently asked questions
 
-### Other models
+### Adding Models
 
-One can choose any huggingface model. 
+One can choose any Hugging Face model or quantized GGLM model file in h2oGPT.
 
-Just pass the name after `--base_model=`, but a `prompt_type` is required if we don't already have support.
-E.g. for vicuna models, a typical prompt_type is used and we support that already automatically for specific models,
-but if you pass `--prompt_type=instruct_vicuna` with any other Vicuna model, we'll use it assuming that is the correct prompt type.
-See models that are currently supported in this automatic way, and the same dictionary shows which prompt types are supported: [prompter](../src/prompter.py).
+Hugging Face models are passed via `--base_model` in all cases, with an extra `--load_gptq` for GPTQ models, e.g., by [TheBloke](https://huggingface.co/TheBloke).
+
+GLLM v3 quantized models are supported, and [TheBloke](https://huggingface.co/TheBloke) also has many of those.  These are not passed via `--base_model`, but instead are typically LLaMa-based and are supported via llama.cpp for which `--base_model=llama`.  GPT4All models are also supported.  In this GLLM case, one needs to edit the `.env_gpt4all` file for whichever model type one wants to change.  E.g.:
+```
+model_path_llama (e.g. llama-2-7b-chat.ggmlv3.q8_0.bin)
+model_name_gptj (e.g. ggml-gpt4all-j-v1.3-groovy.bin)
+model_name_gpt4all_llama (e.g. ggml-wizardLM-7B.q4_2.bin)
+```
+respectively, are for `--base_model=llama`, `--base_model=gptj`, and `--base_model=gpt4all_llama`.  In those cases, consider changing `max_tokens=1792` in that file as well, e.g. larger for LLaMa2 if your hardware can handle it.  See [README_CPU.md](README_CPU.md) and [README_GPU.md](README_GPU.md) for more information on controlling these parameters.
+
+### Adding Prompt Templates
+
+After providing a `--base_model` and perhaps changing `.env_gpt4all`, one needs to consider if an existing `prompt_type` will work or a new one is required.  E.g. for Vicuna models, a well-defined `prompt_type` is used which we support automatically for specific model names.  If the model is in `prompter.py` as associated with some `prompt_type` name, then we added it already.  See models that are currently supported in this automatic way in [prompter.py](../src/prompter.py) and [enums.py](../src/enums.py).
+
+If we do not list the model in `prompter.py`, then if you find a `prompt_type` by name that works for your new model, you can pass `--prompt_type=<NAME>` for some prompt_type `<NAME>`, and we will use that for the new model.
+
+However, in some cases, you need to add a new prompt structure because the model does not conform at all (or exactly enough) to the template given in, e.g., the Hugging Face model card or elsewhere.  In that case you have two options:
+
+* **Option 1**: Use custom prompt
+
+    In CLI you can pass `--prompt_type=custom --prompt_dict="{....}"` for some dict {....}.  The dictionary doesn't need to contain all the things mentioned below, but should contain primary ones.
+
+    You can also choose `prompt_type=custom` in expert settings and change `prompt_dict` in the UI under `Models tab`.  Not all of these dictionary keys need to be set:
+    ```
+    promptA
+    promptB
+    PreInstruct
+    PreInput
+    PreResponse
+    terminate_response
+    chat_sep
+    chat_turn_sep
+    humanstr
+    botstr
+    ```
+    i.e. see how consumed:  https://github.com/h2oai/h2ogpt/blob/a51576cd174e9fda61f00c3889a26888a604172c/src/prompter.py#L130-L142
+
+    The ones that are most crucial are:
+    ```
+    PreInstruct
+    PreResponse
+    humanstr
+    botstr
+    ```
+    and often `humanstr` just equals `PreInstruct` and `botstr` just equals `PreResponse`.
+
+    If so, then really only have to set 2 things.
+
+* **Option 2**: Tweak or Edit code
+
+   You can change the code itself if that seems easier than using CLI or UI.  For that case you'd do:
+
+   1) In `prompter.py`, add new key (`prompt_type` name) and value (model name) into `prompt_type_to_model_name`
+   2) In `enums.py`, add a new name and value for the new `prompt_type`
+   3) In `prompter.py`, add new block in `get_prompt()`
+
+    A simple example to follow is vicuna11, with this block:
+    ```
+    elif prompt_type in [PromptType.vicuna11.value, str(PromptType.vicuna11.value),
+                         PromptType.vicuna11.name]:
+        preprompt = """A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions. """ if not (
+                chat and reduced) else ''
+        start = ''
+        promptB = promptA = '%s%s' % (preprompt, start)
+        eos = '</s>'
+        PreInstruct = """USER: """
+        PreInput = None
+        PreResponse = """ASSISTANT:"""
+        terminate_response = [PreResponse]
+        chat_sep = ' '
+        chat_turn_sep = eos
+        humanstr = PreInstruct
+        botstr = PreResponse
+
+        if making_context:
+            # when making context, want it to appear as-if LLM generated, which starts with space after :
+            PreResponse = PreResponse + ' '
+        else:
+            # normally LLM adds space after this, because was how trained.
+            # if add space here, non-unique tokenization will often make LLM produce wrong output
+            PreResponse = PreResponse
+    ```
+    You can start by changing each thing that appears in the model card that tells about the prompting.  You can always ask for help in a GitHub issue or Discord.
+
+In either case, if the model card doesn't have that information, you'll need to ask around.  Sometimes, prompt information will be in their pipeline file or in a GitHub repository associated with the model with training of inference code.  Or sometimes the model builds upon another, and you should look at the original model card.  You can also  ask in the community section on Hugging Face for that model card.
 
 ### Token access to Hugging Face models:
 
@@ -57,6 +138,25 @@ If you see this error, then you either have insufficient GPU memory or insuffici
 ### TypeError: Chroma.init() got an unexpected keyword argument 'anonymized_telemetry'
 
 Please check your version of langchain vs. the one in requirements.txt.  Somehow the wrong version is installed.  Try to install the correct one.
+
+### Multiple GPUs
+
+Automatic sharding can be enabled with `--use_gpu_id=False`.  This is disabled by default, as in rare cases torch hits a bug with `cuda:x cuda:y mismatch`.  E.g. to use GPU IDs 0 and 3, one can run:
+```bash
+export HUGGING_FACE_HUB_TOKEN=<hf_...>
+exoprt CUDA_VISIBLE_DEVICES="0,3"
+export GRADIO_SERVER_PORT=7860
+python generate.py \
+          --base_model=meta-llama/Llama-2-7b-chat-hf \
+          --prompt_type=llama2 \
+          --max_max_new_tokens=4096 \
+          --max_new_tokens=1024 \
+          --use_gpu_id=False \
+          --save_dir=save7b \
+          --score_model=None \
+          --use_auth_token="$HUGGING_FACE_HUB_TOKEN"
+```
+where `use_auth_token` has been set as required for LLaMa2.
 
 ### Larger models require more GPU memory
 

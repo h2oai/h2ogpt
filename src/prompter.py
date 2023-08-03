@@ -86,6 +86,7 @@ prompt_type_to_model_name = {
         'llama',
     ],
     "beluga": ['stabilityai/StableBeluga2'],
+    "wizard3nospace": ['WizardLM/WizardLM-13B-V1.2'],
     # could be plain, but default is correct prompt_type for default TheBloke model ggml-wizardLM-7B.q4_2.bin
 }
 if os.getenv('OPENAI_API_KEY'):
@@ -645,6 +646,20 @@ ASSISTANT:
         chat_turn_sep = '\n\n'
         humanstr = '### User:'
         botstr = '### Assistant:'
+    elif prompt_type in [PromptType.wizard3nospace.value, str(PromptType.wizard3nospace.value),
+                         PromptType.wizard3nospace.name]:
+        # https://huggingface.co/WizardLM/WizardLM-13B-V1.2/discussions/3
+        preprompt = """A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions.""" if not (
+                chat and reduced) else ''
+        start = ''
+        promptB = promptA = '%s%s' % (preprompt, start)
+        PreInstruct = """USER: """
+        PreInput = None
+        PreResponse = """ASSISTANT:"""
+        terminate_response = [PreResponse]
+        chat_turn_sep = chat_sep = '\n'
+        humanstr = PreInstruct
+        botstr = PreResponse
     else:
         raise RuntimeError("No such prompt_type=%s" % prompt_type)
 
