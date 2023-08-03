@@ -246,7 +246,7 @@ def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain,
     gradio_port = get_inf_port()
     inf_port = gradio_port + 1
     inference_server = 'http://127.0.0.1:%s' % inf_port
-    docker_hash = run_docker(inf_port, base_model)
+    docker_hash = run_docker(inf_port, base_model, low_mem_mode=True)
     time.sleep(60)
 
     if force_langchain_evaluate:
