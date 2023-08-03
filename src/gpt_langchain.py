@@ -1485,13 +1485,17 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             doc1 = chunk_sources(docs1)
         except ValueError as e:
             if 'text/html content not found in email' in str(e):
-                # e.g. plain/text dict key exists, but not
-                # doc1 = TextLoader(file, encoding="utf8").load()
-                docs1 = UnstructuredEmailLoader(file, content_source="text/plain").load()
-                add_meta(docs1, file, headsize)
-                doc1 = chunk_sources(docs1)
+                pass
             else:
                 raise
+        doc1 = [x for x in doc1 if x.page_content]
+        if len(doc1) == 0:
+            # e.g. plain/text dict key exists, but not
+            # doc1 = TextLoader(file, encoding="utf8").load()
+            docs1 = UnstructuredEmailLoader(file, content_source="text/plain").load()
+            docs1 = [x for x in docs1 if x.page_content]
+            add_meta(docs1, file, headsize)
+            doc1 = chunk_sources(docs1)
     # elif file.lower().endswith('.gcsdir'):
     #    doc1 = GCSDirectoryLoader(project_name, bucket, prefix).load()
     # elif file.lower().endswith('.gcsfile'):

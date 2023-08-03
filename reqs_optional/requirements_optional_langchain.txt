@@ -7,6 +7,10 @@ pypdf==3.14.0
 # for HF embeddings
 sentence_transformers==2.2.2
 
+# optional: for OpenAI endpoint or embeddings (requires key)
+openai==0.27.8
+replicate==0.10.0
+
 # local vector db
 chromadb==0.3.25
 # server vector db

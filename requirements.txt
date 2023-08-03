@@ -64,8 +64,6 @@ python-dotenv==1.0.0
 text-generation==0.6.0
 # for tokenization when don't have HF tokenizer
 tiktoken==0.4.0
-# optional: for OpenAI endpoint or embeddings (requires key)
-openai==0.27.8
 
 requests>=2.31.0
 urllib3>=1.26.16
