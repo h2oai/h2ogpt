@@ -71,6 +71,7 @@ def main(
         prompt_type: Union[int, str] = None,
         prompt_dict: typing.Dict = None,
         system_prompt: str = '',
+        use_system_prompt: bool = False,
 
         model_lock: typing.List[typing.Dict[str, str]] = None,
         model_lock_columns: int = None,
@@ -177,7 +178,6 @@ def main(
         use_llm_if_no_docs: bool = True,
         load_db_if_exists: bool = True,
         keep_sources_in_context: bool = False,
-        use_system_prompt: bool = False,
         db_type: str = 'chroma',
         use_openai_embedding: bool = False,
         use_openai_model: bool = False,
@@ -239,6 +239,8 @@ def main(
     :param prompt_dict: If prompt_type=custom, then expects (some) items returned by get_prompt(..., return_dict=True)
     :param system_prompt: Universal system prompt to use if model supports, like LLaMa2, regardless of prompt_type definition.
            Useful for langchain case to control behavior, or OpenAI and Replicate.
+    :param use_system_prompt: Whether to use system prompt (e.g. llama2 safe system prompt) present in prompt_type itself
+           Independent of system_prompt, which is used for OpenAI, Replicate.
     :param model_lock: Lock models to specific combinations, for ease of use and extending to many models
            Only used if gradio = True
            List of dicts, each dict has base_model, tokenizer_base_model, lora_weights, inference_server, prompt_type, and prompt_dict
@@ -388,7 +390,6 @@ def main(
     :param use_llm_if_no_docs: Whether to use LLM even if no documents, when langchain_mode=UserData or MyData or custom
     :param load_db_if_exists: Whether to load chroma db if exists or re-generate db
     :param keep_sources_in_context: Whether to keep url sources in context, not helpful usually
-    :param use_system_prompt: Whether to use system prompt (e.g. llama2 safe system prompt and OpenAI).
     :param db_type: 'faiss' for in-memory or 'chroma' or 'weaviate' for persisted on disk
     :param use_openai_embedding: Whether to use OpenAI embeddings for vector db
     :param use_openai_model: Whether to use OpenAI model for use with vector db
@@ -1564,7 +1565,6 @@ def evaluate(
         iinput_nochat,
         langchain_mode,
         add_chat_history_to_context,
-        system_prompt,
         langchain_action,
         langchain_agents,
         top_k_docs,
@@ -1574,6 +1574,7 @@ def evaluate(
         document_choice,
         pre_prompt_summary,
         prompt_summary,
+        system_prompt,
         # END NOTE: Examples must have same order of parameters
         async_output=None,
         num_async=None,
@@ -2688,9 +2689,9 @@ y = np.random.randint(0, 1, 100)
 
     # move to correct position
     for example in examples:
-        example += [chat, '', '', LangChainMode.DISABLED.value, True, system_prompt,
+        example += [chat, '', '', LangChainMode.DISABLED.value, True,
                     LangChainAction.QUERY.value, [],
-                    top_k_docs, chunk, chunk_size, DocumentSubset.Relevant.name, [], '', '',
+                    top_k_docs, chunk, chunk_size, DocumentSubset.Relevant.name, [], '', '', system_prompt
                     ]
         # adjust examples if non-chat mode
         if not chat:
