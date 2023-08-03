@@ -32,7 +32,7 @@ An example of running h2oGPT via docker using AutoGPTQ LLaMa2 7B model is as fol
 docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0
 ```
 
-All available h2oGPT docker images can be found in [GCR](https://console.cloud.google.com/gcr/images/vorvan/global/h2oai/h2ogpt-runtime)
+All available public h2oGPT docker images can be found in [Google Container Registry](https://console.cloud.google.com/gcr/images/vorvan/global/h2oai/h2ogpt-runtime).
 
 then run:
 ```bash
