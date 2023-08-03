@@ -1487,7 +1487,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             with open(file, "rt") as f:
                 try:
                     is_html = bool(BeautifulSoup(f.read(), "html.parser").find())
-                except: # FIXME
+                except:  # FIXME
                     is_html = False
             if is_html:
                 file_url = 'file://' + file
