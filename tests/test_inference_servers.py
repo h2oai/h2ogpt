@@ -165,7 +165,7 @@ def run_docker(inf_port, base_model, low_mem_mode=False):
                         '-p', '%s:80' % inf_port,
                         '-v', '%s/.cache:/.cache/' % home_dir,
                         '-v', '%s:/data' % data_dir,
-                        'ghcr.io/huggingface/text-generation-inference:latest',
+                        'ghcr.io/huggingface/text-generation-inference:0.9.4',
                         '--model-id', base_model,
                         '--max-stop-sequences', '6',
                         ]
@@ -427,6 +427,9 @@ def test_gradio_tgi_docker(base_model):
     time.sleep(30)  # assumes image already downloaded, else need more time
     os.system('docker logs %s | tail -10' % docker_hash2)
 
+    # test this version for now, until docker updated
+    version = 0
+
     try:
         # client test to server that only consumes inference server
         prompt = 'Who are you?'
@@ -437,13 +440,14 @@ def test_gradio_tgi_docker(base_model):
                                            max_new_tokens=256,
                                            langchain_mode='Disabled',
                                            langchain_action=LangChainAction.QUERY.value,
-                                           langchain_agents=[])
+                                           langchain_agents=[],
+                                           version=version)
         assert res_dict['prompt'] == prompt
         assert res_dict['iinput'] == ''
 
         # will use HOST from above
         # client shouldn't have to specify
-        ret1, ret2, ret3, ret4, ret5, ret6, ret7 = run_client_many(prompt_type=None)
+        ret1, ret2, ret3, ret4, ret5, ret6, ret7 = run_client_many(prompt_type=None, version=version)
         if 'llama' in base_model.lower():
             who = "I'm LLaMA, an AI assistant developed by Meta AI"
             assert who in ret1['response']

@@ -72,7 +72,8 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
              add_chat_history_to_context=True,
              langchain_action=LangChainAction.QUERY.value,
              langchain_agents=[],
-             prompt_dict=None):
+             prompt_dict=None,
+             version=None):
     from collections import OrderedDict
     kwargs = OrderedDict(instruction=prompt if chat else '',  # only for chat=True
                          iinput='',  # only for chat=True
@@ -98,7 +99,6 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
                          iinput_nochat='',  # only for chat=False
                          langchain_mode=langchain_mode,
                          add_chat_history_to_context=add_chat_history_to_context,
-                         system_prompt='',
                          langchain_action=langchain_action,
                          langchain_agents=langchain_agents,
                          top_k_docs=top_k_docs,
@@ -109,8 +109,18 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
                          pre_prompt_summary='',
                          prompt_summary='',
                          )
+    diff = 0
+    if version is None:
+        # latest
+        version = 1
+    if version == 0:
+        diff = 1
+    if version >= 1:
+        kwargs.update(dict(system_prompt=''))
+        diff = 0
+
     from evaluate_params import eval_func_param_names
-    assert len(set(eval_func_param_names).difference(set(list(kwargs.keys())))) == 0
+    assert len(set(eval_func_param_names).difference(set(list(kwargs.keys())))) == diff
     if chat:
         # add chatbot output on end.  Assumes serialize=False
         kwargs.update(dict(chatbot=[]))
@@ -119,12 +129,12 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
 
 
 @pytest.mark.skip(reason="For manual use against some server, no server launched")
-def test_client_basic(prompt_type='human_bot'):
-    return run_client_nochat(prompt='Who are you?', prompt_type=prompt_type, max_new_tokens=50)
+def test_client_basic(prompt_type='human_bot', version=None):
+    return run_client_nochat(prompt='Who are you?', prompt_type=prompt_type, max_new_tokens=50, version=version)
 
 
-def run_client_nochat(prompt, prompt_type, max_new_tokens):
-    kwargs, args = get_args(prompt, prompt_type, chat=False, max_new_tokens=max_new_tokens)
+def run_client_nochat(prompt, prompt_type, max_new_tokens, version=None):
+    kwargs, args = get_args(prompt, prompt_type, chat=False, max_new_tokens=max_new_tokens, version=version)
 
     api_name = '/submit_nochat'
     client = get_client(serialize=True)
@@ -140,12 +150,12 @@ def run_client_nochat(prompt, prompt_type, max_new_tokens):
 
 
 @pytest.mark.skip(reason="For manual use against some server, no server launched")
-def test_client_basic_api(prompt_type='human_bot'):
-    return run_client_nochat_api(prompt='Who are you?', prompt_type=prompt_type, max_new_tokens=50)
+def test_client_basic_api(prompt_type='human_bot', version=None):
+    return run_client_nochat_api(prompt='Who are you?', prompt_type=prompt_type, max_new_tokens=50, version=version)
 
 
-def run_client_nochat_api(prompt, prompt_type, max_new_tokens):
-    kwargs, args = get_args(prompt, prompt_type, chat=False, max_new_tokens=max_new_tokens)
+def run_client_nochat_api(prompt, prompt_type, max_new_tokens, version=None):
+    kwargs, args = get_args(prompt, prompt_type, chat=False, max_new_tokens=max_new_tokens, version=version)
 
     api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
     client = get_client(serialize=True)
@@ -162,11 +172,12 @@ def run_client_nochat_api(prompt, prompt_type, max_new_tokens):
 
 
 @pytest.mark.skip(reason="For manual use against some server, no server launched")
-def test_client_basic_api_lean(prompt_type='human_bot'):
-    return run_client_nochat_api_lean(prompt='Who are you?', prompt_type=prompt_type, max_new_tokens=50)
+def test_client_basic_api_lean(prompt_type='human_bot', version=None):
+    return run_client_nochat_api_lean(prompt='Who are you?', prompt_type=prompt_type, max_new_tokens=50,
+                                      version=version)
 
 
-def run_client_nochat_api_lean(prompt, prompt_type, max_new_tokens):
+def run_client_nochat_api_lean(prompt, prompt_type, max_new_tokens, version=None):
     kwargs = dict(instruction_nochat=prompt)
 
     api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
@@ -184,11 +195,12 @@ def run_client_nochat_api_lean(prompt, prompt_type, max_new_tokens):
 
 
 @pytest.mark.skip(reason="For manual use against some server, no server launched")
-def test_client_basic_api_lean_morestuff(prompt_type='human_bot'):
-    return run_client_nochat_api_lean_morestuff(prompt='Who are you?', prompt_type=prompt_type, max_new_tokens=50)
+def test_client_basic_api_lean_morestuff(prompt_type='human_bot', version=None):
+    return run_client_nochat_api_lean_morestuff(prompt='Who are you?', prompt_type=prompt_type, max_new_tokens=50,
+                                                version=version)
 
 
-def run_client_nochat_api_lean_morestuff(prompt, prompt_type='human_bot', max_new_tokens=512):
+def run_client_nochat_api_lean_morestuff(prompt, prompt_type='human_bot', max_new_tokens=512, version=None):
     kwargs = dict(
         instruction='',
         iinput='',
@@ -233,20 +245,22 @@ def run_client_nochat_api_lean_morestuff(prompt, prompt_type='human_bot', max_ne
 
 
 @pytest.mark.skip(reason="For manual use against some server, no server launched")
-def test_client_chat(prompt_type='human_bot'):
+def test_client_chat(prompt_type='human_bot', version=None):
     return run_client_chat(prompt='Who are you?', prompt_type=prompt_type, stream_output=False, max_new_tokens=50,
                            langchain_mode='Disabled',
                            langchain_action=LangChainAction.QUERY.value,
-                           langchain_agents=[])
+                           langchain_agents=[],
+                           version=version)
 
 
 @pytest.mark.skip(reason="For manual use against some server, no server launched")
-def test_client_chat_stream(prompt_type='human_bot'):
+def test_client_chat_stream(prompt_type='human_bot', version=None):
     return run_client_chat(prompt="Tell a very long kid's story about birds.", prompt_type=prompt_type,
                            stream_output=True, max_new_tokens=512,
                            langchain_mode='Disabled',
                            langchain_action=LangChainAction.QUERY.value,
-                           langchain_agents=[])
+                           langchain_agents=[],
+                           version=version)
 
 
 def run_client_chat(prompt='',
@@ -255,7 +269,8 @@ def run_client_chat(prompt='',
                     langchain_mode='Disabled',
                     langchain_action=LangChainAction.QUERY.value,
                     langchain_agents=[],
-                    prompt_type=None, prompt_dict=None):
+                    prompt_type=None, prompt_dict=None,
+                    version=None):
     client = get_client(serialize=False)
 
     kwargs, args = get_args(prompt, prompt_type, chat=True, stream_output=stream_output,
@@ -263,7 +278,8 @@ def run_client_chat(prompt='',
                             langchain_mode=langchain_mode,
                             langchain_action=langchain_action,
                             langchain_agents=langchain_agents,
-                            prompt_dict=prompt_dict)
+                            prompt_dict=prompt_dict,
+                            version=version)
     return run_client(client, prompt, args, kwargs)
 
 
@@ -303,21 +319,23 @@ def run_client(client, prompt, args, kwargs, do_md_to_text=True, verbose=False):
 
 
 @pytest.mark.skip(reason="For manual use against some server, no server launched")
-def test_client_nochat_stream(prompt_type='human_bot'):
+def test_client_nochat_stream(prompt_type='human_bot', version=None):
     return run_client_nochat_gen(prompt="Tell a very long kid's story about birds.", prompt_type=prompt_type,
                                  stream_output=True, max_new_tokens=512,
                                  langchain_mode='Disabled',
                                  langchain_action=LangChainAction.QUERY.value,
-                                 langchain_agents=[])
+                                 langchain_agents=[],
+                                 version=version)
 
 
 def run_client_nochat_gen(prompt, prompt_type, stream_output, max_new_tokens,
-                          langchain_mode, langchain_action, langchain_agents):
+                          langchain_mode, langchain_action, langchain_agents, version=None):
     client = get_client(serialize=False)
 
     kwargs, args = get_args(prompt, prompt_type, chat=False, stream_output=stream_output,
                             max_new_tokens=max_new_tokens, langchain_mode=langchain_mode,
-                            langchain_action=langchain_action, langchain_agents=langchain_agents)
+                            langchain_action=langchain_action, langchain_agents=langchain_agents,
+                            version=version)
     return run_client_gen(client, prompt, args, kwargs)
 
 
@@ -355,14 +373,14 @@ def md_to_text(md, do_md_to_text=True):
     return soup.get_text()
 
 
-def run_client_many(prompt_type='human_bot'):
-    ret1, _ = test_client_chat(prompt_type=prompt_type)
-    ret2, _ = test_client_chat_stream(prompt_type=prompt_type)
-    ret3, _ = test_client_nochat_stream(prompt_type=prompt_type)
-    ret4, _ = test_client_basic(prompt_type=prompt_type)
-    ret5, _ = test_client_basic_api(prompt_type=prompt_type)
-    ret6, _ = test_client_basic_api_lean(prompt_type=prompt_type)
-    ret7, _ = test_client_basic_api_lean_morestuff(prompt_type=prompt_type)
+def run_client_many(prompt_type='human_bot', version=None):
+    ret1, _ = test_client_chat(prompt_type=prompt_type, version=version)
+    ret2, _ = test_client_chat_stream(prompt_type=prompt_type, version=version)
+    ret3, _ = test_client_nochat_stream(prompt_type=prompt_type, version=version)
+    ret4, _ = test_client_basic(prompt_type=prompt_type, version=version)
+    ret5, _ = test_client_basic_api(prompt_type=prompt_type, version=version)
+    ret6, _ = test_client_basic_api_lean(prompt_type=prompt_type, version=version)
+    ret7, _ = test_client_basic_api_lean_morestuff(prompt_type=prompt_type, version=version)
     return ret1, ret2, ret3, ret4, ret5, ret6, ret7
 
 
