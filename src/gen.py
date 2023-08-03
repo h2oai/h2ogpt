@@ -208,6 +208,11 @@ def main(
         caption_gpu: bool = True,
         enable_ocr: bool = False,
         enable_pdf_ocr: str = 'auto',
+        # Heap telemetry
+        enable_heap_analytics: bool = False,
+        # Heap telemetry tracking ID - default corresponds
+        # to Heap Main Dev environment.
+        heap_app_id: str = "1680123994",
 ):
     """
 
@@ -294,8 +299,8 @@ def main(
            but still required in air-gapped case.  The fonts don't look as nice as google fonts, but ensure full offline behavior.
            Also set --share=False to avoid sharing a gradio live link.
     :param root_path: The root path (or "mount point") of the application,
-           if it's not served from the root ("/") of the domain. Often used when the application is behind a reverse proxy 
-           that forwards requests to the application. For example, if the application is served at "https://example.com/myapp", 
+           if it's not served from the root ("/") of the domain. Often used when the application is behind a reverse proxy
+           that forwards requests to the application. For example, if the application is served at "https://example.com/myapp",
            the `root_path` should be set to "/myapp".
     :param chat: whether to enable chat mode with chat history
     :param chat_context: whether to use extra helpful context if human_bot
@@ -443,6 +448,8 @@ def main(
     :param enable_pdf_ocr: 'auto' means only use OCR if normal text extraction fails.  Useful for pure image-based PDFs with text
                             'on' means always do OCR as additional parsing of same documents
                             'off' means don't do OCR (e.g. because it's slow even if 'auto' only would trigger if nothing else worked)
+    :param enable_heap_analytics: Toggle application telemetry.
+    :param heap_app_id: Tracking App ID for Heap analytics.
     :return:
     """
     if base_model is None:
@@ -2554,11 +2561,11 @@ def get_generate_params(model_lower,
         else:
             show_examples = True
 
-    summarize_example1 = """Jeff: Can I train a ? Transformers model on Amazon SageMaker? 
-Philipp: Sure you can use the new Hugging Face Deep Learning Container. 
+    summarize_example1 = """Jeff: Can I train a ? Transformers model on Amazon SageMaker?
+Philipp: Sure you can use the new Hugging Face Deep Learning Container.
 Jeff: ok.
-Jeff: and how can I get started? 
-Jeff: where can I find documentation? 
+Jeff: and how can I get started?
+Jeff: where can I find documentation?
 Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-partnership-amazon-sagemaker-and-hugging-face"""
 
     use_placeholder_instruction_as_example = False
@@ -2924,7 +2931,7 @@ def entrypoint_main():
     WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun --nproc_per_node=4 --master_port=1234 generate.py --base_model='EleutherAI/gpt-j-6B' --lora_weights=lora-alpaca_6B
     python generate.py --base_model='EleutherAI/gpt-j-6B' --lora_weights='lora-alpaca_6B'
     python generate.py --base_model='EleutherAI/gpt-neox-20b' --lora_weights='lora-alpaca_20B'
-    
+
     # generate without lora weights, no prompt
     python generate.py --base_model='EleutherAI/gpt-neox-20b' --prompt_type='plain'
     python generate.py --base_model='togethercomputer/GPT-NeoXT-Chat-Base-20B' --prompt_type='dai_faq'
