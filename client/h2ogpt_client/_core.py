@@ -70,6 +70,7 @@ class TextCompletionCreator:
         system_pre_context: str = "",
         langchain_mode: LangChainMode = LangChainMode.DISABLED,
         add_chat_history_to_context: bool = True,
+        system_prompt: str = '',
     ) -> "TextCompletion":
         """
         Creates a new text completion.
@@ -95,6 +96,7 @@ class TextCompletionCreator:
         :param system_pre_context: directly pre-appended without prompt processing
         :param langchain_mode: LangChain mode
         :param add_chat_history_to_context: Whether to add chat history to context
+        :param system_prompt: Universal system prompt to override prompt_type's system prompt
         """
         params = _utils.to_h2ogpt_params(locals().copy())
         params["instruction"] = ""  # empty when chat_mode is False
@@ -106,6 +108,7 @@ class TextCompletionCreator:
         params["instruction_nochat"] = None  # future prompt
         params["langchain_mode"] = langchain_mode.value  # convert to serializable type
         params["add_chat_history_to_context"] = True
+        params['system_prompt'] = ''
         params["langchain_action"] = LangChainAction.QUERY.value
         params["langchain_agents"] = []
         params["top_k_docs"] = 4  # langchain: number of document chunks
@@ -179,6 +182,7 @@ class ChatCompletionCreator:
         system_pre_context: str = "",
         langchain_mode: LangChainMode = LangChainMode.DISABLED,
         add_chat_history_to_context: bool = True,
+        system_prompt: str = '',
     ) -> "ChatCompletion":
         """
         Creates a new chat completion.
@@ -204,6 +208,7 @@ class ChatCompletionCreator:
         :param system_pre_context: directly pre-appended without prompt processing
         :param langchain_mode: LangChain mode
         :param add_chat_history_to_context: Whether to add chat history to context
+        :param system_prompt: Universal system prompt to override prompt_type's system prompt
         """
         params = _utils.to_h2ogpt_params(locals().copy())
         params["instruction"] = None  # future prompts
@@ -215,6 +220,7 @@ class ChatCompletionCreator:
         params["instruction_nochat"] = ""  # empty when chat_mode is True
         params["langchain_mode"] = langchain_mode.value  # convert to serializable type
         params["add_chat_history_to_context"] = True
+        params["system_prompt"] = ''
         params["langchain_action"] = LangChainAction.QUERY.value
         params["langchain_agents"] = []
         params["top_k_docs"] = 4  # langchain: number of document chunks

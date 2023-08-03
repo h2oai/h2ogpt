@@ -33,6 +33,7 @@ H2OGPT_PARAMETERS_TO_CLIENT = collections.OrderedDict(
     document_choice="langchain_document_choice",
     pre_prompt_summary='pre_prompt_summary',
     prompt_summary='prompt_summary',
+    system_prompt="system_prompt",
 )
 
 

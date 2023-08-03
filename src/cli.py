@@ -19,7 +19,7 @@ def run_cli(  # for local function:
         trust_remote_code=None, offload_folder=None, rope_scaling=None, max_seq_len=None, compile_model=None,
         # for some evaluate args
         stream_output=None, async_output=None, num_async=None,
-        prompt_type=None, prompt_dict=None,
+        prompt_type=None, prompt_dict=None, system_prompt=None,
         temperature=None, top_p=None, top_k=None, num_beams=None,
         max_new_tokens=None, min_new_tokens=None, early_stopping=None, max_time=None, repetition_penalty=None,
         num_return_sequences=None, do_sample=None, chat=None,

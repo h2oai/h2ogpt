@@ -7,10 +7,7 @@ DOCKER_TEST_IMAGE     := harbor.h2o.ai/h2ogpt/test-image:$(BUILD_TAG)
 PYTHON_BINARY         ?= `which python`
 DEFAULT_MARKERS       ?= "not need_tokens and not need_gpu"
 
-.PHONY: reqs_optional/req_constraints.txt venv dist test publish docker_build build_info.txt
-
-reqs_optional/req_constraints.txt:
-	grep -v '#\|peft\|transformers\|accelerate' requirements.txt > $@
+.PHONY: venv dist test publish docker_build build_info.txt
 
 clean:
 	rm -rf dist build h2ogpt.egg-info
@@ -28,7 +25,7 @@ dist:
 	$(PYTHON_BINARY) setup.py bdist_wheel
 
 test:
-	$(PYTHON_BINARY) -m pip install requirements-parser -c reqs_optional/req_constraints.txt
+	$(PYTHON_BINARY) -m pip install requirements-parser
 	$(PYTHON_BINARY) -m pytest tests --disable-warnings --junit-xml=test_report.xml -m "$(DEFAULT_MARKERS)"
 
 test_imports:
