@@ -34,6 +34,8 @@ Open-source data types are supported, .msg is not supported due to GPL-3 require
    - `.rtf`: Rich Text Format,
    - `.md`: Markdown,
    - `.html`: HTML File,
+   - `.mhtml`: MHTML File,
+   - `.htm`: HTML File,
    - `.docx`: Word Document (optional),
    - `.doc`: Word Document (optional),
    - `.xlsx`: Excel Document (optional),
