@@ -1398,7 +1398,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         doc1 = Document(page_content=file, metadata=metadata)
         add_meta(doc1, file, headsize)
         doc1 = clean_doc(doc1)
-    elif file.lower().endswith('.html') or file.lower().endswith('.mhtml'):
+    elif file.lower().endswith('.html') or file.lower().endswith('.mhtml') or file.lower().endswith('.htm'):
         docs1 = UnstructuredHTMLLoader(file_path=file).load()
         add_meta(docs1, file, headsize)
         docs1 = clean_doc(docs1)
