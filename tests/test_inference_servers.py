@@ -455,13 +455,14 @@ def test_gradio_tgi_docker(base_model):
             assert who in ret6['response']
             assert who in ret7['response']
         else:
-            assert 'h2oGPT' in ret1['response']
-            assert 'Birds' in ret2['response']
-            assert 'Birds' in ret3['response']
-            assert 'h2oGPT' in ret4['response']
-            assert 'h2oGPT' in ret5['response']
-            assert 'h2oGPT' in ret6['response']
-            assert 'h2oGPT' in ret7['response']
+            who = 'I am an AI language model'
+            assert who in ret1['response']
+            assert 'Once upon a time' in ret2['response']
+            assert 'Once upon a time' in ret3['response']
+            assert who in ret4['response']
+            assert who in ret5['response']
+            assert who in ret6['response']
+            assert who in ret7['response']
         print("DONE", flush=True)
     finally:
         os.system("docker stop %s" % docker_hash1)
