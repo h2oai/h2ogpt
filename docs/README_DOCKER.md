@@ -27,10 +27,13 @@ If running on A100's, might require [Installing Fabric Manager](INSTALL.md#insta
 
 ## Run h2oGPT using Docker
 
-An example of running h2oGPT via docker using AutoGPTQ LLaMa2 7B model is as follows.  First, ensure you have the latest vorvan image:
+An example of running h2oGPT via docker using AutoGPTQ LLaMa2 7B model is as follows.  First, use the following command to pull the latest h2oGPT docker image available.
 ```bash
-docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0
+docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime
 ```
+
+All available h2oGPT docker images can be found in [GCR](https://console.cloud.google.com/gcr/images/vorvan/global/h2oai/h2ogpt-runtime).
+
 then run:
 ```bash
 docker run \
