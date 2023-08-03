@@ -824,6 +824,7 @@ def get_llm(use_openai_model=False,
             sanitize_bot_response=False,
             system_prompt='',
             n_jobs=None,
+            cli=False,
             verbose=False,
             ):
     if n_jobs is None:
@@ -2345,6 +2346,7 @@ def _run_qa_db(query=None,
                 sanitize_bot_response=sanitize_bot_response,
                 system_prompt=system_prompt,
                 n_jobs=n_jobs,
+                cli=cli,
                 verbose=verbose,
                 )
 
