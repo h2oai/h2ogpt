@@ -20,6 +20,7 @@ from datetime import datetime
 from functools import reduce
 from operator import concat
 import filelock
+from fitz import FileDataError
 
 from joblib import delayed
 from langchain.callbacks import streaming_stdout
@@ -1430,17 +1431,26 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         pdf_class_name = env_kwargs.get('PDF_CLASS_NAME', 'PyMuPDFParser')
         doc1 = []
         handled = False
+        e = None
         if have_pymupdf and pdf_class_name == 'PyMuPDFParser':
             # GPL, only use if installed
             from langchain.document_loaders import PyMuPDFLoader
             # load() still chunks by pages, but every page has title at start to help
-            doc1 = PyMuPDFLoader(file).load()
+            try:
+                doc1 = PyMuPDFLoader(file).load()
+            except FileDataError as e0:
+                print("PyMuPDFLoader: %s" % str(e0), flush=True)
+                e = e0
             # remove empty documents
             handled |= len(doc1) > 0
             doc1 = [x for x in doc1 if x.page_content]
             doc1 = clean_doc(doc1)
         if len(doc1) == 0:
-            doc1 = UnstructuredPDFLoader(file).load()
+            try:
+                doc1 = UnstructuredPDFLoader(file).load()
+            except FileDataError as e0:
+                print("UnstructuredPDFLoader: %s" % str(e0), flush=True)
+                e = e0
             handled |= len(doc1) > 0
             # remove empty documents
             doc1 = [x for x in doc1 if x.page_content]
@@ -1448,7 +1458,11 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         if len(doc1) == 0:
             # open-source fallback
             # load() still chunks by pages, but every page has title at start to help
-            doc1 = PyPDFLoader(file).load()
+            try:
+                doc1 = PyPDFLoader(file).load()
+            except FileDataError as e0:
+                print("PyPDFLoader: %s" % str(e0), flush=True)
+                e = e0
             handled |= len(doc1) > 0
             # remove empty documents
             doc1 = [x for x in doc1 if x.page_content]
@@ -1457,7 +1471,11 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             # GPL, only use if installed
             from langchain.document_loaders import PyMuPDFLoader
             # load() still chunks by pages, but every page has title at start to help
-            doc1 = PyMuPDFLoader(file).load()
+            try:
+                doc1 = PyMuPDFLoader(file).load()
+            except FileDataError as e0:
+                print("PyMuPDFLoader: %s" % str(e0), flush=True)
+                e = e0
             handled |= len(doc1) > 0
             # remove empty documents
             doc1 = [x for x in doc1 if x.page_content]
@@ -1470,12 +1488,17 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             doc1 = [x for x in doc1 if x.page_content]
             # seems to not need cleaning in most cases
         # Some PDFs return nothing or junk from PDFMinerLoader
+        # try treating as html as occurs when scraping websites
+        if len(doc1) == 0:
+            file_url = 'file://' + file
+            doc1 = UnstructuredURLLoader(urls=[file_url]).load()
+            doc1 = [x for x in doc1 if x.page_content]
         if len(doc1) == 0:
             # if literally nothing, show failed to parse so user knows, since unlikely nothing in PDF at all.
             if handled:
                 raise ValueError("%s had no valid text, but meta data was parsed" % file)
             else:
-                raise ValueError("%s had no valid text and no meta data was parsed" % file)
+                raise ValueError("%s had no valid text and no meta data was parsed: %s" % (file, str(e)))
         add_meta(doc1, file, headsize)
         doc1 = chunk_sources(doc1)
     elif file.lower().endswith('.csv'):
