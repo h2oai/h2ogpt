@@ -636,7 +636,7 @@ ASSISTANT:
             PreResponse += " "
     elif prompt_type in [PromptType.beluga.value, str(PromptType.beluga.value),
                          PromptType.beluga.name]:
-        if use_system_prompt and histi == 0:
+        if use_system_prompt and histi in [-1, 0]:
             # too much safety, hurts accuracy
             promptA = promptB = """### System:\nYou are Stable Beluga, an AI that follows instructions extremely well. Help as much as you can. Remember, be safe, and don't do anything illegal.\n\n"""
         else:
