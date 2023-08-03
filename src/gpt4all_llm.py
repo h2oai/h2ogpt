@@ -319,8 +319,9 @@ class H2OLlamaCpp(LlamaCpp):
             if text_callback:
                 text_callback(prompt)
             text = ""
-            for token in self.stream(prompt=prompt, stop=stop, run_manager=run_manager):
-                text_chunk = token["choices"][0]["text"]
+            for token in self.stream(input=prompt, stop=stop):
+            #for token in self.stream(input=prompt, stop=stop, run_manager=run_manager):
+                text_chunk = token#["choices"][0]["text"]
                 # self.stream already calls text_callback
                 # if text_callback:
                 #    text_callback(text_chunk)
