@@ -300,6 +300,7 @@ print(non_image_types)
 print(image_types)
 for x in image_types:
     print('   - `.%s` : %s Image (optional),' % (x.lower(), x.upper()))
+# unused in h2oGPT:
 print(video_types)
 ```
 

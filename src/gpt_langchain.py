@@ -1252,7 +1252,7 @@ def get_dai_docs(from_hf=False, get_pickle=True):
 def get_supported_types():
     non_image_types0 = ["pdf", "txt", "csv", "toml", "py", "rst", "rtf",
                         "md",
-                        "html", "mhtml",
+                        "html", "mhtml", "htm",
                         "enex", "eml", "epub", "odt", "pptx", "ppt",
                         "zip", "urls",
                         ]
@@ -1312,7 +1312,13 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                 captions_model=None,
                 enable_ocr=False, enable_pdf_ocr='auto', caption_loader=None,
                 headsize=50,
-                db_type=None):
+                db_type=None,
+                selected_file_types=None):
+    if selected_file_types is not None:
+        set_image_types1 = set_image_types.intersection(set(selected_file_types))
+    else:
+        set_image_types1 = set_image_types
+
     assert db_type is not None
     chunk_sources = functools.partial(_chunk_sources, chunk=chunk, chunk_size=chunk_size, db_type=db_type)
     if file is None:
@@ -1445,7 +1451,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         docs1 = UnstructuredEPubLoader(file).load()
         add_meta(docs1, file, headsize)
         doc1 = chunk_sources(docs1)
-    elif any(file.lower().endswith(x) for x in set_image_types):
+    elif any(file.lower().endswith(x) for x in set_image_types1):
         docs1 = []
         if have_tesseract and enable_ocr:
             # OCR, somewhat works, but not great
@@ -1647,7 +1653,8 @@ def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True
                  enable_captions=True,
                  captions_model=None,
                  enable_ocr=False, enable_pdf_ocr='auto', caption_loader=None,
-                 db_type=None):
+                 db_type=None,
+                 selected_file_types=None):
     assert db_type is not None
     if verbose:
         if is_url:
@@ -1668,7 +1675,8 @@ def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True
                           enable_ocr=enable_ocr,
                           enable_pdf_ocr=enable_pdf_ocr,
                           caption_loader=caption_loader,
-                          db_type=db_type)
+                          db_type=db_type,
+                          selected_file_types=selected_file_types)
     except BaseException as e:
         print("Failed to ingest %s due to %s" % (file, traceback.format_exc()))
         if fail_any_exception:
@@ -1701,7 +1709,15 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
                  existing_files=[],
                  existing_hash_ids={},
                  db_type=None,
+                 selected_file_types=None,
                  ):
+    if selected_file_types is not None:
+        non_image_types1 = [x for x in non_image_types if x in selected_file_types]
+        image_types1 = [x for x in image_types if x in selected_file_types]
+    else:
+        non_image_types1 = non_image_types.copy()
+        image_types1 = image_types.copy()
+
     assert db_type is not None
     # path_or_paths could be str, list, tuple, generator
     globs_image_types = []
@@ -1718,10 +1734,10 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
         path = path_or_paths
         # Below globs should match patterns in file_to_doc()
         [globs_image_types.extend(glob.glob(os.path.join(path, "./**/*.%s" % ftype), recursive=True))
-         for ftype in image_types]
+         for ftype in image_types1]
         globs_image_types = [os.path.normpath(x) for x in globs_image_types]
         [globs_non_image_types.extend(glob.glob(os.path.join(path, "./**/*.%s" % ftype), recursive=True))
-         for ftype in non_image_types]
+         for ftype in non_image_types1]
         globs_non_image_types = [os.path.normpath(x) for x in globs_non_image_types]
     else:
         if isinstance(path_or_paths, str):
@@ -1735,9 +1751,9 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
             "Wrong type for path_or_paths: %s %s" % (path_or_paths, type(path_or_paths))
         # reform out of allowed types
         globs_image_types.extend(
-            flatten_list([[os.path.normpath(x) for x in path_or_paths if x.endswith(y)] for y in image_types]))
+            flatten_list([[os.path.normpath(x) for x in path_or_paths if x.endswith(y)] for y in image_types1]))
         # could do below:
-        # globs_non_image_types = flatten_list([[x for x in path_or_paths if x.endswith(y)] for y in non_image_types])
+        # globs_non_image_types = flatten_list([[x for x in path_or_paths if x.endswith(y)] for y in non_image_types1])
         # But instead, allow fail so can collect unsupported too
         set_globs_image_types = set(globs_image_types)
         globs_non_image_types.extend([os.path.normpath(x) for x in path_or_paths if x not in set_globs_image_types])
@@ -1787,6 +1803,7 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
                   enable_ocr=enable_ocr,
                   enable_pdf_ocr=enable_pdf_ocr,
                   db_type=db_type,
+                  selected_file_types=selected_file_types,
                   )
 
     if n_jobs != 1 and len(globs_non_image_types) > 1:

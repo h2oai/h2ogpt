@@ -233,6 +233,22 @@ python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None 
 ```
 and watch-out for use of whitespace.  For `langchain_mode_paths` you can pass surrounded by "'s and have spaces.
 
+### Choosing document types
+
+```python
+import sys
+sys.path.append('src')
+from src.gpt_langchain import get_supported_types
+non_image_types, image_types, video_types = get_supported_types()
+print(non_image_types)
+print(image_types)
+```
+Select types, and pass to `make_db` like:
+```bash
+python src/make_db.py --user_path="/home/jon/Downloads/demo_data" --collection_name=VAData --enable_pdf_ocr='off' --selected_file_types="['pdf', 'html', 'htm']"
+python generate.py --langchain_mode=VAData --langchain_modes=['VAData']
+```
+
 ### Note about Embeddings
 
 The default embedding for GPU is `instructor-large` since most accurate, however it leads to excessively high scores for references due to its flat score distribution.  For CPU the default embedding is `all-MiniLM-L6-v2`, and it has a sharp distribution of scores, so references make sense, but it is less accurate.
