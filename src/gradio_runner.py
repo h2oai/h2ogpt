@@ -1799,7 +1799,7 @@ def go_gradio(**kwargs):
                 bots_old = chatbots.copy()
                 exceptions_old = [''] * len(bots_old)
                 extras_old = [''] * len(bots_old)
-                save_dicts_old = [''] * len(bots_old)
+                save_dicts_old = [{}] * len(bots_old)
                 tgen0 = time.time()
                 for res1 in itertools.zip_longest(*gen_list):
                     if time.time() - tgen0 > max_time1:
