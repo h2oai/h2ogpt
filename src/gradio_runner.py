@@ -308,6 +308,8 @@ def go_gradio(**kwargs):
         viewable_docs_state = gr.State(viewable_docs_state0)
         selection_docs_state0 = update_langchain_mode_paths(my_db_state0, selection_docs_state0)
         selection_docs_state = gr.State(selection_docs_state0)
+        requests_state0 = dict(headers='', host='', username='')
+        requests_state = gr.State(requests_state0)
 
         if description is not None:
             gr.Markdown(f"""
@@ -1352,10 +1354,11 @@ def go_gradio(**kwargs):
             model_state1 = args_list[0]
             my_db_state1 = args_list[1]
             selection_docs_state1 = args_list[2]
+            requests_state1 = args_list[3]
             args_list = [user_kwargs[k] if k in user_kwargs and user_kwargs[k] is not None else default_kwargs1[k] for k
                          in eval_func_param_names]
             assert len(args_list) == len(eval_func_param_names)
-            args_list = [model_state1, my_db_state1, selection_docs_state1] + args_list
+            args_list = [model_state1, my_db_state1, selection_docs_state1, requests_state1] + args_list
 
             try:
                 for res_dict in evaluate(*tuple(args_list), **kwargs1):
@@ -1632,12 +1635,16 @@ def go_gradio(**kwargs):
             model_state1 = args_list[-isize]
             my_db_state1 = args_list[-isize + 1]
             selection_docs_state1 = args_list[-isize + 2]
+            requests_state1 = args_list[-isize + 3]
             history = args_list[-1]
+            if not history:
+                history = []
             prompt_type1 = args_list[eval_func_param_names.index('prompt_type')]
             prompt_dict1 = args_list[eval_func_param_names.index('prompt_dict')]
+            dummy_return = history, None, None, None, None
 
             if model_state1['model'] is None or model_state1['model'] == no_model_str:
-                return history, None, None, None
+                return dummy_return
 
             args_list = args_list[:-isize]  # only keep rest needed for evaluate()
             langchain_mode1 = args_list[eval_func_param_names.index('langchain_mode')]
@@ -1648,8 +1655,7 @@ def go_gradio(**kwargs):
             document_choice1 = args_list[eval_func_param_names.index('document_choice')]
             if not history:
                 print("No history", flush=True)
-                history = []
-                return history, None, None, None
+                return dummy_return
             instruction1 = history[-1][0]
             if retry and history:
                 # if retry, pop history and move onto bot stuff
@@ -1658,11 +1664,11 @@ def go_gradio(**kwargs):
             elif not instruction1:
                 if not allow_empty_instruction(langchain_mode1, document_subset1, langchain_action1):
                     # if not retrying, then reject empty query
-                    return history, None, None, None
+                    return dummy_return
             elif len(history) > 0 and history[-1][1] not in [None, '']:
                 # reject submit button if already filled and not retrying
                 # None when not filling with '' to keep client happy
-                return history, None, None, None
+                return dummy_return
 
             # shouldn't have to specify in API prompt_type if CLI launched model, so prefer global CLI one if have it
             prompt_type1, prompt_dict1 = update_prompt(prompt_type1, prompt_dict1, model_state1,
@@ -1686,10 +1692,11 @@ def go_gradio(**kwargs):
                            model_state1,
                            my_db_state1,
                            selection_docs_state1,
+                           requests_state1,
                            *tuple(args_list),
                            **kwargs_evaluate)
 
-            return history, fun1, langchain_mode1, my_db_state1
+            return history, fun1, langchain_mode1, my_db_state1, requests_state1
 
         def get_response(fun1, history):
             """
@@ -1750,7 +1757,7 @@ def go_gradio(**kwargs):
                         clear_embedding(db1[0])
 
         def bot(*args, retry=False):
-            history, fun1, langchain_mode1, db1 = prep_bot(*args, retry=retry)
+            history, fun1, langchain_mode1, db1, requests_state1 = prep_bot(*args, retry=retry)
             save_dict = dict()
             try:
                 for res in get_response(fun1, history):
@@ -1760,6 +1767,10 @@ def go_gradio(**kwargs):
             finally:
                 clear_torch_cache()
                 clear_embeddings(langchain_mode1, db1)
+            if requests_state1:
+                if 'extra_dict' not in save_dict:
+                    save_dict['extra_dict'] = {}
+                save_dict['extra_dict'].update(requests_state1)
             save_generate_output(**save_dict)
 
         def all_bot(*args, retry=False, model_states1=None):
@@ -1772,6 +1783,7 @@ def go_gradio(**kwargs):
             langchain_mode1 = args_list[eval_func_param_names.index('langchain_mode')]
             isize = len(input_args_list) + 1  # states + chat history
             db1s = None
+            requests_state1 = None
             save_dicts = []
             try:
                 gen_list = []
@@ -1787,9 +1799,9 @@ def go_gradio(**kwargs):
                     args_list1.append(chatbot1)
                     # so consistent with prep_bot()
                     # with model_state1 at -3, my_db_state1 at -2, and history(chatbot) at -1
-                    # langchain_mode1 and my_db_state1 should be same for every bot
-                    history, fun1, langchain_mode1, db1s = prep_bot(*tuple(args_list1), retry=retry,
-                                                                    which_model=chatboti)
+                    # langchain_mode1 and my_db_state1 and requests_state1 should be same for every bot
+                    history, fun1, langchain_mode1, db1s, requests_state1 = prep_bot(*tuple(args_list1), retry=retry,
+                                                                                     which_model=chatboti)
                     gen1 = get_response(fun1, history)
                     if stream_output1:
                         gen1 = TimeoutIterator(gen1, timeout=0.01, sentinel=None, raise_on_exception=False)
@@ -1848,6 +1860,10 @@ def go_gradio(**kwargs):
                 clear_torch_cache()
                 clear_embeddings(langchain_mode1, db1s)
             for save_dict in save_dicts:
+                if requests_state1:
+                    if 'extra_dict' not in save_dict:
+                        save_dict['extra_dict'] = {}
+                    save_dict['extra_dict'].update(requests_state1)
                 save_generate_output(**save_dict)
 
         # NORMAL MODEL
@@ -1856,11 +1872,13 @@ def go_gradio(**kwargs):
                          outputs=text_output,
                          )
         bot_args = dict(fn=bot,
-                        inputs=inputs_list + [model_state, my_db_state, selection_docs_state] + [text_output],
+                        inputs=inputs_list + [model_state, my_db_state, selection_docs_state, requests_state] + [
+                            text_output],
                         outputs=[text_output, chat_exception_text],
                         )
         retry_bot_args = dict(fn=functools.partial(bot, retry=True),
-                              inputs=inputs_list + [model_state, my_db_state, selection_docs_state] + [text_output],
+                              inputs=inputs_list + [model_state, my_db_state, selection_docs_state, requests_state] + [
+                                  text_output],
                               outputs=[text_output, chat_exception_text],
                               )
         retry_user_args = dict(fn=functools.partial(user, retry=True),
@@ -1878,11 +1896,13 @@ def go_gradio(**kwargs):
                           outputs=text_output2,
                           )
         bot_args2 = dict(fn=bot,
-                         inputs=inputs_list2 + [model_state2, my_db_state, selection_docs_state] + [text_output2],
+                         inputs=inputs_list2 + [model_state2, my_db_state, selection_docs_state, requests_state] + [
+                             text_output2],
                          outputs=[text_output2, chat_exception_text],
                          )
         retry_bot_args2 = dict(fn=functools.partial(bot, retry=True),
-                               inputs=inputs_list2 + [model_state2, my_db_state, selection_docs_state] + [text_output2],
+                               inputs=inputs_list2 + [model_state2, my_db_state, selection_docs_state,
+                                                      requests_state] + [text_output2],
                                outputs=[text_output2, chat_exception_text],
                                )
         retry_user_args2 = dict(fn=functools.partial(user, retry=True),
@@ -1903,11 +1923,12 @@ def go_gradio(**kwargs):
                              outputs=text_outputs,
                              )
         all_bot_args = dict(fn=functools.partial(all_bot, model_states1=model_states),
-                            inputs=inputs_list + [my_db_state, selection_docs_state] + text_outputs,
+                            inputs=inputs_list + [my_db_state, selection_docs_state, requests_state] + text_outputs,
                             outputs=text_outputs + [chat_exception_text],
                             )
         all_retry_bot_args = dict(fn=functools.partial(all_bot, model_states1=model_states, retry=True),
-                                  inputs=inputs_list + [my_db_state, selection_docs_state] + text_outputs,
+                                  inputs=inputs_list + [my_db_state, selection_docs_state,
+                                                        requests_state] + text_outputs,
                                   outputs=text_outputs + [chat_exception_text],
                                   )
         all_retry_user_args = dict(fn=functools.partial(all_user, retry=True,
@@ -1935,6 +1956,17 @@ def go_gradio(**kwargs):
             return gr.Textbox.update(value=''), gr.Textbox.update(value=''), gr.update(value=None), \
                 gr.Textbox.update(value=''), gr.Textbox.update(value='')
 
+        def dummy_fun2(x, request: gr.Request):
+            requests_state1 = requests_state0
+            if requests:
+                if hasattr(request, 'headers'):
+                    requests_state1.update(request.headers)
+                if hasattr(request, 'host'):
+                    requests_state1.update(dict(host2=request.client.host))
+                if hasattr(request, 'username'):
+                    requests_state1.update(dict(username=request.username))
+            return x, {str(k): str(v) for k, v in requests_state1.items()}
+
         if kwargs['model_states']:
             submits1 = submits2 = submits3 = []
             submits4 = []
@@ -1944,8 +1976,10 @@ def go_gradio(**kwargs):
             user_args = [all_user_args, all_user_args, all_retry_user_args]
             bot_args = [all_bot_args, all_bot_args, all_retry_bot_args]
             for userargs1, botarg1, funn1, funs1 in zip(user_args, bot_args, fun_name, fun_source):
-                submit_event11 = funs1(fn=dummy_fun,
-                                       inputs=instruction, outputs=instruction, queue=queue)
+                submit_event11 = funs1(fn=dummy_fun2,
+                                       inputs=instruction,
+                                       outputs=[instruction, requests_state],
+                                       queue=queue)
                 submit_event1a = submit_event11.then(**userargs1, queue=queue,
                                                      api_name='%s' % funn1 if allow_api else None)
                 # if hit enter on new instruction for submitting new query, no longer the saved chat
@@ -1963,8 +1997,10 @@ def go_gradio(**kwargs):
                 submits1.extend([submit_event1a, submit_event1b, submit_event1c, submit_event1d])
 
             # if undo, no longer the saved chat
-            submit_event4 = undo.click(fn=dummy_fun,
-                                       inputs=instruction, outputs=instruction, queue=queue) \
+            submit_event4 = undo.click(fn=dummy_fun2,
+                                       inputs=instruction,
+                                       outputs=[instruction, requests_state],
+                                       queue=queue) \
                 .then(**all_undo_user_args, api_name='undo' if allow_api else None) \
                 .then(clear_all, inputs=None, outputs=[instruction, iinput, radio_chats, score_text,
                                                        score_text2], queue=queue) \
@@ -1974,8 +2010,10 @@ def go_gradio(**kwargs):
         else:
             # in case 2nd model, consume instruction first, so can clear quickly
             # bot doesn't consume instruction itself, just history from user, so why works
-            submit_event11 = instruction.submit(fn=dummy_fun,
-                                                inputs=instruction, outputs=instruction, queue=queue)
+            submit_event11 = instruction.submit(fn=dummy_fun2,
+                                                inputs=instruction,
+                                                outputs=[instruction, requests_state],
+                                                queue=queue)
             submit_event1a = submit_event11.then(**user_args, queue=queue,
                                                  api_name='instruction' if allow_api else None)
             # if hit enter on new instruction for submitting new query, no longer the saved chat
@@ -1997,8 +2035,10 @@ def go_gradio(**kwargs):
                         submit_event1e,
                         submit_event1f, submit_event1g]
 
-            submit_event21 = submit.click(fn=dummy_fun,
-                                          inputs=instruction, outputs=instruction, queue=queue)
+            submit_event21 = submit.click(fn=dummy_fun2,
+                                          inputs=instruction,
+                                          outputs=[instruction, requests_state],
+                                          queue=queue)
             submit_event2a = submit_event21.then(**user_args, api_name='submit' if allow_api else None)
             # if submit new query, no longer the saved chat
             submit_event2a2 = submit_event2a.then(deselect_radio_chats, inputs=None, outputs=radio_chats, queue=queue)
@@ -2020,8 +2060,10 @@ def go_gradio(**kwargs):
                         submit_event2e,
                         submit_event2f, submit_event2g]
 
-            submit_event31 = retry_btn.click(fn=dummy_fun,
-                                             inputs=instruction, outputs=instruction, queue=queue)
+            submit_event31 = retry_btn.click(fn=dummy_fun2,
+                                             inputs=instruction,
+                                             outputs=[instruction, requests_state],
+                                             queue=queue)
             submit_event3a = submit_event31.then(**user_args, api_name='retry' if allow_api else None)
             # if retry, no longer the saved chat
             submit_event3a2 = submit_event3a.then(deselect_radio_chats, inputs=None, outputs=radio_chats, queue=queue)
@@ -2044,8 +2086,10 @@ def go_gradio(**kwargs):
                         submit_event3f, submit_event3g]
 
             # if undo, no longer the saved chat
-            submit_event4 = undo.click(fn=dummy_fun,
-                                       inputs=instruction, outputs=instruction, queue=queue) \
+            submit_event4 = undo.click(fn=dummy_fun2,
+                                       inputs=instruction,
+                                       outputs=[instruction, requests_state],
+                                       queue=queue) \
                 .then(**undo_user_args, api_name='undo' if allow_api else None) \
                 .then(**undo_user_args2, api_name='undo2' if allow_api else None) \
                 .then(clear_all, inputs=None, outputs=[instruction, iinput, radio_chats, score_text,
@@ -2244,7 +2288,7 @@ def go_gradio(**kwargs):
         # NOTE: clear of instruction/iinput for nochat has to come after score,
         # because score for nochat consumes actual textbox, while chat consumes chat history filled by user()
         no_chat_args = dict(fn=fun,
-                            inputs=[model_state, my_db_state, selection_docs_state] + inputs_list,
+                            inputs=[model_state, my_db_state, selection_docs_state, requests_state] + inputs_list,
                             outputs=text_output_nochat,
                             queue=queue,
                             )
@@ -2264,6 +2308,7 @@ def go_gradio(**kwargs):
 
         submit_event_nochat_api = submit_nochat_api.click(fun_with_dict_str,
                                                           inputs=[model_state, my_db_state, selection_docs_state,
+                                                                  requests_state,
                                                                   inputs_dict_str],
                                                           outputs=text_output_nochat_api,
                                                           queue=True,  # required for generator
