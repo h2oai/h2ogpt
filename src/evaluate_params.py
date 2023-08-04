@@ -1,4 +1,4 @@
-input_args_list = ['model_state', 'my_db_state', 'selection_docs_state']
+input_args_list = ['model_state', 'my_db_state', 'selection_docs_state', 'requests_state']
 
 no_default_param_names = [
     'instruction',

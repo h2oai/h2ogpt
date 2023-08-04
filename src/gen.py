@@ -25,7 +25,7 @@ os.environ['HF_HUB_DISABLE_TELEMETRY'] = '1'
 os.environ['BITSANDBYTES_NOWELCOME'] = '1'
 warnings.filterwarnings('ignore', category=UserWarning, message='TypedStorage is deprecated')
 
-from evaluate_params import eval_func_param_names, no_default_param_names
+from evaluate_params import eval_func_param_names, no_default_param_names, input_args_list
 from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mapping, no_model_str, source_prefix, \
     source_postfix, LangChainAction, LangChainAgent, DocumentChoice
 from loaders import get_loaders
@@ -1546,6 +1546,7 @@ def evaluate(
         model_state,
         my_db_state,
         selection_docs_state,
+        requests_state,
         # START NOTE: Examples must have same order of parameters
         instruction,
         iinput,
@@ -2375,7 +2376,7 @@ def evaluate(
 
 
 inputs_list_names = list(inspect.signature(evaluate).parameters)
-state_names = ['model_state', 'my_db_state', 'selection_docs_state']
+state_names = input_args_list.copy()  # doesn't have to be the same, but state_names must match evaluate() and how filled then
 inputs_kwargs_list = [x for x in inputs_list_names if x not in eval_func_param_names + state_names]
 
 
