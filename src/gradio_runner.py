@@ -1064,7 +1064,15 @@ def go_gradio(**kwargs):
             if not isinstance(file, str):
                 return dummy_ret
 
-            if file.endswith('.md'):
+            if file.lower().endswith('.html') or file.lower().endswith('.mhtml') or file.lower().endswith('.htm'):
+                try:
+                    with open(file, 'rt') as f:
+                        content = f.read()
+                    return gr.update(visible=True, value=content), dummy1, dummy1, dummy1
+                except:
+                    return dummy_ret
+
+            if file.lower().endswith('.md'):
                 try:
                     with open(file, 'rt') as f:
                         content = f.read()
@@ -1072,7 +1080,7 @@ def go_gradio(**kwargs):
                 except:
                     return dummy_ret
 
-            if file.endswith('.py'):
+            if file.lower().endswith('.py'):
                 try:
                     with open(file, 'rt') as f:
                         content = f.read()
@@ -1081,7 +1089,8 @@ def go_gradio(**kwargs):
                 except:
                     return dummy_ret
 
-            if file.endswith('.txt') or file.endswith('.rst') or file.endswith('.rtf') or file.endswith('.toml'):
+            if file.lower().endswith('.txt') or file.lower().endswith('.rst') or file.lower().endswith(
+                    '.rtf') or file.lower().endswith('.toml'):
                 try:
                     with open(file, 'rt') as f:
                         content = f.read()
@@ -1091,15 +1100,15 @@ def go_gradio(**kwargs):
                     return dummy_ret
 
             func = None
-            if file.endswith(".csv"):
+            if file.lower().endswith(".csv"):
                 func = pd.read_csv
-            elif file.endswith(".pickle"):
+            elif file.lower().endswith(".pickle"):
                 func = pd.read_pickle
-            elif file.endswith(".xls") or file.endswith("xlsx"):
+            elif file.lower().endswith(".xls") or file.lower().endswith("xlsx"):
                 func = pd.read_excel
-            elif file.endswith('.json'):
+            elif file.lower().endswith('.json'):
                 func = pd.read_json
-            elif file.endswith('.xml'):
+            elif file.lower().endswith('.xml'):
                 func = pd.read_xml
             if func is not None:
                 try:
@@ -1113,10 +1122,10 @@ def go_gradio(**kwargs):
             url_path = pathlib.Path(absolute_path_string).as_uri()
             url = get_url(absolute_path_string, from_str=True)
             img_url = url.replace("""<a href=""", """<img src=""")
-            if file.endswith('.png') or file.endswith('.jpg') or file.endswith('.jpeg'):
+            if file.lower().endswith('.png') or file.lower().endswith('.jpg') or file.lower().endswith('.jpeg'):
                 return gr.update(visible=True, value=img_url), dummy1, dummy1, dummy1
-            elif file.endswith('.pdf') or 'arxiv.org/pdf' in file:
-                if file.startswith('http') or file.startswith('https'):
+            elif file.lower().endswith('.pdf') or 'arxiv.org/pdf' in file:
+                if file.lower().startswith('http') or file.lower().startswith('https'):
                     # if file is online, then might as well use google(?)
                     document1 = file
                     return gr.update(visible=True,
