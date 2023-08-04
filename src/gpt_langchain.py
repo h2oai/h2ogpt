@@ -20,7 +20,6 @@ from datetime import datetime
 from functools import reduce
 from operator import concat
 import filelock
-from fitz import FileDataError
 
 from joblib import delayed
 from langchain.callbacks import streaming_stdout
@@ -1520,7 +1519,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             # load() still chunks by pages, but every page has title at start to help
             try:
                 doc1 = PyMuPDFLoader(file).load()
-            except FileDataError as e0:
+            except BaseException as e0:
                 print("PyMuPDFLoader: %s" % str(e0), flush=True)
                 e = e0
             # remove empty documents
@@ -1530,7 +1529,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         if len(doc1) == 0:
             try:
                 doc1 = UnstructuredPDFLoader(file).load()
-            except FileDataError as e0:
+            except BaseException as e0:
                 print("UnstructuredPDFLoader: %s" % str(e0), flush=True)
                 e = e0
             handled |= len(doc1) > 0
@@ -1542,7 +1541,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             # load() still chunks by pages, but every page has title at start to help
             try:
                 doc1 = PyPDFLoader(file).load()
-            except FileDataError as e0:
+            except BaseException as e0:
                 print("PyPDFLoader: %s" % str(e0), flush=True)
                 e = e0
             handled |= len(doc1) > 0
@@ -1555,7 +1554,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             # load() still chunks by pages, but every page has title at start to help
             try:
                 doc1 = PyMuPDFLoader(file).load()
-            except FileDataError as e0:
+            except BaseException as e0:
                 print("PyMuPDFLoader: %s" % str(e0), flush=True)
                 e = e0
             handled |= len(doc1) > 0
