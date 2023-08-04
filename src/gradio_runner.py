@@ -427,7 +427,7 @@ def go_gradio(**kwargs):
                         visible=False)  # WIP
             col_tabs = gr.Column(elem_id="col_container", scale=10)
             with col_tabs, gr.Tabs():
-                if kwargs['chat_tabless']:
+                if kwargs['chat_tables']:
                     chat_tab = gr.Row(visible=True)
                 else:
                     chat_tab = gr.TabItem("Chat") \
