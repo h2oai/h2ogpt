@@ -208,10 +208,7 @@ def main(
         caption_gpu: bool = True,
         enable_ocr: bool = False,
         enable_pdf_ocr: str = 'auto',
-        # Heap telemetry
-        enable_heap_analytics: bool = False,
-        # Heap telemetry tracking ID - default corresponds
-        # to Heap Main Dev environment.
+        enable_heap_analytics: bool = True,
         heap_app_id: str = "1680123994",
 ):
     """
@@ -448,8 +445,8 @@ def main(
     :param enable_pdf_ocr: 'auto' means only use OCR if normal text extraction fails.  Useful for pure image-based PDFs with text
                             'on' means always do OCR as additional parsing of same documents
                             'off' means don't do OCR (e.g. because it's slow even if 'auto' only would trigger if nothing else worked)
-    :param enable_heap_analytics: Toggle application telemetry.
-    :param heap_app_id: Tracking App ID for Heap analytics.
+    :param enable_heap_analytics: Toggle telemetry.
+    :param heap_app_id: App ID for Heap, change to your ID.
     :return:
     """
     if base_model is None:
