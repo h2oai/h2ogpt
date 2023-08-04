@@ -2017,11 +2017,18 @@ def make_db(**langchain_kwargs):
     return _make_db(**langchain_kwargs)
 
 
+embed_file_string = "embed_%s.lock"
+
+
 def save_embed(db, use_openai_embedding, hf_embedding_model):
-    if db is not None:
-        embed_info_file = os.path.join(db._persist_directory, 'embed_info')
-        with open(embed_info_file, 'wb') as f:
-            pickle.dump((use_openai_embedding, hf_embedding_model), f)
+    if hasattr(db, '_persist_directory'):
+        name_path = os.path.basename(db._persist_directory)
+        base_path = 'locks'
+        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
+        with filelock.FileLock(os.path.join(base_path, embed_file_string % name_path)):
+            embed_info_file = os.path.join(db._persist_directory, 'embed_info')
+            with open(embed_info_file, 'wb') as f:
+                pickle.dump((use_openai_embedding, hf_embedding_model), f)
     return use_openai_embedding, hf_embedding_model
 
 
@@ -2030,9 +2037,13 @@ def load_embed(db=None, persist_directory=None):
         persist_directory = db._persist_directory
     embed_info_file = os.path.join(persist_directory, 'embed_info')
     if os.path.isfile(embed_info_file):
-        with open(embed_info_file, 'rb') as f:
-            use_openai_embedding, hf_embedding_model = pickle.load(f)
-        got_embedding = True
+        name_path = os.path.basename(persist_directory)
+        base_path = 'locks'
+        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
+        with filelock.FileLock(os.path.join(base_path, embed_file_string % name_path)):
+            with open(embed_info_file, 'rb') as f:
+                use_openai_embedding, hf_embedding_model = pickle.load(f)
+            got_embedding = True
     else:
         # migration, assume defaults
         use_openai_embedding, hf_embedding_model = False, "sentence-transformers/all-MiniLM-L6-v2"
@@ -2724,16 +2735,17 @@ def get_chain(query=None,
                     # remove 'All'
                     document_choice = document_choice[1:]
                 or_filter = [{"source": {"$eq": x}, "chunk_id": {"$gte": 0}} if query_action else {"source": {"$eq": x},
-                                                                                                  "chunk_id": {
-                                                                                                      "$eq": -1}}
+                                                                                                   "chunk_id": {
+                                                                                                       "$eq": -1}}
                              for x in document_choice]
                 filter_kwargs = dict(filter={"$or": or_filter})
             elif len(document_choice) == 1:
                 # degenerate UX bug in chroma
-                one_filter = [{"source": {"$eq": x}, "chunk_id": {"$gte": 0}} if query_action else {"source": {"$eq": x},
-                                                                                                   "chunk_id": {
-                                                                                                       "$eq": -1}}
-                              for x in document_choice][0]
+                one_filter = \
+                [{"source": {"$eq": x}, "chunk_id": {"$gte": 0}} if query_action else {"source": {"$eq": x},
+                                                                                       "chunk_id": {
+                                                                                           "$eq": -1}}
+                 for x in document_choice][0]
                 filter_kwargs = dict(filter=one_filter)
             else:
                 # shouldn't reach

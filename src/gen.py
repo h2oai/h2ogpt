@@ -534,7 +534,7 @@ def main(
 
     # in-place, for non-scratch dbs
     if allow_upload_to_user_data:
-        update_langchain(langchain_modes, visible_langchain_modes, langchain_mode_paths, '')
+        update_langchain(langchain_modes, visible_langchain_modes, langchain_mode_paths, '', save_dir=save_dir)
         # always listen to CLI-passed user_path if passed
         if user_path:
             langchain_mode_paths['UserData'] = user_path
@@ -2905,10 +2905,10 @@ def history_to_context(history, langchain_mode1,
     return context1
 
 
-def update_langchain(langchain_modes, visible_langchain_modes, langchain_mode_paths, extra):
+def update_langchain(langchain_modes, visible_langchain_modes, langchain_mode_paths, extra, save_dir=None):
     # update from saved state on disk
     langchain_modes_from_file, visible_langchain_modes_from_file, langchain_mode_paths_from_file = \
-        load_collection_enum(extra)
+        load_collection_enum(extra, save_dir=save_dir)
 
     visible_langchain_modes_temp = visible_langchain_modes.copy() + visible_langchain_modes_from_file
     visible_langchain_modes.clear()  # don't lose original reference

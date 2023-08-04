@@ -52,8 +52,8 @@ fix_pydantic_duplicate_validators_error()
 
 from enums import DocumentSubset, no_model_str, no_lora_str, no_server_str, LangChainAction, LangChainMode, \
     DocumentChoice, langchain_modes_intrinsic
-from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title,\
-    get_dark_js, get_heap_js, wrap_js_to_lambda,\
+from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, \
+    get_dark_js, get_heap_js, wrap_js_to_lambda, \
     spacing_xsm, radius_xsm, text_xsm
 from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt_type_to_model_lower, non_hf_types, \
     get_prompt
@@ -1216,7 +1216,7 @@ def go_gradio(**kwargs):
                 db1s[langchain_mode2] = [None, None]
             if valid:
                 save_collection_names(langchain_modes, visible_langchain_modes, langchain_mode_paths, LangChainMode,
-                                      db1s, True if user_path else False)
+                                      db1s, True if user_path else False, save_dir=kwargs['save_dir'])
 
             return db1s, selection_docs_state1, gr.update(choices=choices,
                                                           value=langchain_mode2), textbox, df_langchain_mode_paths1
@@ -1259,7 +1259,7 @@ def go_gradio(**kwargs):
                 df_langchain_mode_paths1 = get_df_langchain_mode_paths(selection_docs_state1)
 
                 save_collection_names(langchain_modes, visible_langchain_modes, langchain_mode_paths, LangChainMode,
-                                      db1s, in_user_db)
+                                      db1s, in_user_db, save_dir=kwargs['save_dir'])
 
             return db1s, selection_docs_state1, \
                 gr.update(choices=get_langchain_choices(selection_docs_state1),
@@ -1290,10 +1290,12 @@ def go_gradio(**kwargs):
             # in-place
 
             # update user collaborative collections
-            update_langchain(langchain_modes, visible_langchain_modes, langchain_mode_paths, '')
+            update_langchain(langchain_modes, visible_langchain_modes, langchain_mode_paths, '',
+                             save_dir=kwargs['save_dir'])
             # update scratch single-user collections
             user_hash = db1s.get(LangChainMode.MY_DATA.value, '')[1]
-            update_langchain(langchain_modes, visible_langchain_modes, langchain_mode_paths, user_hash)
+            update_langchain(langchain_modes, visible_langchain_modes, langchain_mode_paths, user_hash,
+                             save_dir=kwargs['save_dir'])
 
             selection_docs_state1 = update_langchain_mode_paths(db1s, selection_docs_state1)
             df_langchain_mode_paths1 = get_df_langchain_mode_paths(selection_docs_state1)
