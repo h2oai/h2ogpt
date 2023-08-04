@@ -25,7 +25,7 @@ os.environ['HF_HUB_DISABLE_TELEMETRY'] = '1'
 os.environ['BITSANDBYTES_NOWELCOME'] = '1'
 warnings.filterwarnings('ignore', category=UserWarning, message='TypedStorage is deprecated')
 
-from evaluate_params import eval_func_param_names, no_default_param_names
+from evaluate_params import eval_func_param_names, no_default_param_names, input_args_list
 from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mapping, no_model_str, source_prefix, \
     source_postfix, LangChainAction, LangChainAgent, DocumentChoice
 from loaders import get_loaders
@@ -51,8 +51,6 @@ langchain_actions = [x.value for x in list(LangChainAction)]
 
 langchain_agents_list = [x.value for x in list(LangChainAgent)]
 
-scratch_base_dir = '/tmp/'
-
 
 def main(
         load_8bit: bool = False,
@@ -72,6 +70,8 @@ def main(
         inference_server: str = "",
         prompt_type: Union[int, str] = None,
         prompt_dict: typing.Dict = None,
+        system_prompt: str = '',
+        use_system_prompt: bool = False,
 
         model_lock: typing.List[typing.Dict[str, str]] = None,
         model_lock_columns: int = None,
@@ -141,9 +141,9 @@ def main(
         visible_expert_tab: bool = True,
         visible_models_tab: bool = True,
         visible_system_tab: bool = True,
-        visible_tos_tab: bool = True,
-        visible_hosts_tab: bool = True,
-        chat_tabless: bool = False,
+        visible_tos_tab: bool = False,
+        visible_hosts_tab: bool = False,
+        chat_tables: bool = False,
         visible_h2ogpt_header: bool = True,
 
         sanitize_user_prompt: bool = False,
@@ -178,11 +178,11 @@ def main(
         use_llm_if_no_docs: bool = True,
         load_db_if_exists: bool = True,
         keep_sources_in_context: bool = False,
-        use_system_prompt: bool = False,
         db_type: str = 'chroma',
         use_openai_embedding: bool = False,
         use_openai_model: bool = False,
         hf_embedding_model: str = None,
+        migrate_embedding_model: str = False,
         cut_distance: float = 1.64,
         answer_with_sources: bool = True,
         append_sources_to_answer: bool = True,
@@ -208,6 +208,8 @@ def main(
         caption_gpu: bool = True,
         enable_ocr: bool = False,
         enable_pdf_ocr: str = 'auto',
+        enable_heap_analytics: bool = True,
+        heap_app_id: str = "1680123994",
 ):
     """
 
@@ -233,8 +235,14 @@ def main(
                              e.g. python generate.py --inference_server="openai" --base_model=text-davinci-003
                              Or Address can be "vllm:IP:port" or "vllm:IP:port" for OpenAI-compliant vLLM endpoint
                              Note: vllm_chat not supported by vLLM project.
+                             --inference_server=replicate:<model name string> will use a Replicate server, requiring a Replicate key.
+                             e.g. <model name string> looks like "a16z-infra/llama13b-v2-chat:df7690f1994d94e96ad9d568eac121aecf50684a0b0963b25a41cc40061269e5"
     :param prompt_type: type of prompt, usually matched to fine-tuned model or plain for foundational model
     :param prompt_dict: If prompt_type=custom, then expects (some) items returned by get_prompt(..., return_dict=True)
+    :param system_prompt: Universal system prompt to use if model supports, like LLaMa2, regardless of prompt_type definition.
+           Useful for langchain case to control behavior, or OpenAI and Replicate.
+    :param use_system_prompt: Whether to use system prompt (e.g. llama2 safe system prompt) present in prompt_type itself
+           Independent of system_prompt, which is used for OpenAI, Replicate.
     :param model_lock: Lock models to specific combinations, for ease of use and extending to many models
            Only used if gradio = True
            List of dicts, each dict has base_model, tokenizer_base_model, lora_weights, inference_server, prompt_type, and prompt_dict
@@ -288,8 +296,8 @@ def main(
            but still required in air-gapped case.  The fonts don't look as nice as google fonts, but ensure full offline behavior.
            Also set --share=False to avoid sharing a gradio live link.
     :param root_path: The root path (or "mount point") of the application,
-           if it's not served from the root ("/") of the domain. Often used when the application is behind a reverse proxy 
-           that forwards requests to the application. For example, if the application is served at "https://example.com/myapp", 
+           if it's not served from the root ("/") of the domain. Often used when the application is behind a reverse proxy
+           that forwards requests to the application. For example, if the application is served at "https://example.com/myapp",
            the `root_path` should be set to "/myapp".
     :param chat: whether to enable chat mode with chat history
     :param chat_context: whether to use extra helpful context if human_bot
@@ -330,7 +338,7 @@ def main(
     :param visible_system_tab: "" for system tab
     :param visible_tos_tab: "" for ToS tab
     :param visible_hosts_tab: "" for hosts tab
-    :param chat_tabless: Just show Chat as block without tab (useful if want only chat view)
+    :param chat_tables: Just show Chat as block without tab (useful if want only chat view)
     :param visible_h2ogpt_header: Whether github stars, URL, logo, and QR code are visible
     :param sanitize_user_prompt: whether to remove profanity from user input (slows down input processing)
       Requires optional packages:
@@ -362,8 +370,8 @@ def main(
            If already have db, any new/changed files are added automatically if path set, does not have to be same path used for prior db sources
     :param langchain_mode_paths: dict of langchain_mode keys and disk path values to use for source of documents
            E.g. "{'UserData2': 'userpath2'}"
-           Can be None even if existing DB, to avoid new documents being added from that path, source links that are on disk still work.
-           If user_path is not None, that path is used for 'UserData' instead of the value in this dict
+           A disk path be None, e.g. --langchain_mode_paths="{'UserData2': None}" even if existing DB, to avoid new documents being added from that path, source links that are on disk still work.
+           If `--user_path` was passed, that path is used for 'UserData' instead of the value in this dict
     :param detect_user_path_changes_every_query: whether to detect if any files changed or added every similarity search (by file hashes).
            Expensive for large number of files, so not done by default.  By default only detect changes during db loading.
     :param langchain_modes: names of collections/dbs to potentially have
@@ -384,7 +392,6 @@ def main(
     :param use_llm_if_no_docs: Whether to use LLM even if no documents, when langchain_mode=UserData or MyData or custom
     :param load_db_if_exists: Whether to load chroma db if exists or re-generate db
     :param keep_sources_in_context: Whether to keep url sources in context, not helpful usually
-    :param use_system_prompt: Whether to use system prompt (e.g. llama2 safe system prompt)
     :param db_type: 'faiss' for in-memory or 'chroma' or 'weaviate' for persisted on disk
     :param use_openai_embedding: Whether to use OpenAI embeddings for vector db
     :param use_openai_model: Whether to use OpenAI model for use with vector db
@@ -393,6 +400,10 @@ def main(
            Can also choose simpler model with 384 parameters per embedding: "sentence-transformers/all-MiniLM-L6-v2"
            Can also choose even better embedding with 1024 parameters: 'hkunlp/instructor-xl'
            We support automatically changing of embeddings for chroma, with a backup of db made if this is done
+    :param migrate_embedding_model: whether to use hf_embedding_model embedding even if database already had an embedding set.
+           used to migrate all embeddings to a new one, but will take time to re-embed.
+           Default (False) is to use the prior embedding for existing databases, and only use hf_embedding_model for new databases
+           If had old database without embedding saved, then hf_embedding_model is also used.
     :param cut_distance: Distance to cut off references with larger distances when showing references.
            1.64 is good to avoid dropping references for all-MiniLM-L6-v2, but instructor-large will always show excessive references.
            For all-MiniLM-L6-v2, a value of 1.5 can push out even more references, or a large value of 100 can avoid any loss of references.
@@ -434,6 +445,8 @@ def main(
     :param enable_pdf_ocr: 'auto' means only use OCR if normal text extraction fails.  Useful for pure image-based PDFs with text
                             'on' means always do OCR as additional parsing of same documents
                             'off' means don't do OCR (e.g. because it's slow even if 'auto' only would trigger if nothing else worked)
+    :param enable_heap_analytics: Toggle telemetry.
+    :param heap_app_id: App ID for Heap, change to your ID.
     :return:
     """
     if base_model is None:
@@ -466,12 +479,17 @@ def main(
     is_hf = bool(int(os.getenv("HUGGINGFACE_SPACES", '0')))
     is_gpth2oai = bool(int(os.getenv("GPT_H2O_AI", '0')))
     is_public = is_hf or is_gpth2oai  # multi-user case with fixed model and disclaimer
+    if is_public:
+        visible_tos_tab = visible_hosts_tab = True
     if memory_restriction_level is None:
         memory_restriction_level = 2 if is_hf else 0  # 2 assumes run on 24GB consumer GPU
     else:
         assert 0 <= memory_restriction_level <= 3, "Bad memory_restriction_level=%s" % memory_restriction_level
+    if n_jobs == -1:
+        # if -1, assume hypercores, don't use, force user to pass n_jobs to be specific if not standard cores
+        n_jobs = max(1, os.cpu_count() // 2)
     if is_public and os.getenv('n_jobs') is None:
-        n_jobs = max(1, min(os.cpu_count() // 2, 8))
+        n_jobs = min(n_jobs, max(1, min(os.cpu_count() // 2, 8)))
     admin_pass = os.getenv("ADMIN_PASS")
     # will sometimes appear in UI or sometimes actual generation, but maybe better than empty result
     # but becomes unrecoverable sometimes if raise, so just be silent for now
@@ -484,7 +502,7 @@ def main(
         auth = ast.literal_eval(auth)
 
     # allow set token directly
-    use_auth_token = os.environ.get("HUGGINGFACE_API_TOKEN", use_auth_token)
+    use_auth_token = os.environ.get("HUGGING_FACE_HUB_TOKEN", use_auth_token)
     allow_upload_to_user_data = bool(
         int(os.environ.get("allow_upload_to_user_data", str(int(allow_upload_to_user_data)))))
     allow_upload_to_my_data = bool(int(os.environ.get("allow_upload_to_my_data", str(int(allow_upload_to_my_data)))))
@@ -506,8 +524,8 @@ def main(
         langchain_mode_paths = ast.literal_eval(langchain_mode_paths)
         assert isinstance(langchain_mode_paths, dict)
     if user_path:
+        user_path = makedirs(user_path, use_base=True)
         langchain_mode_paths['UserData'] = user_path
-        makedirs(user_path)
 
     if is_public:
         allow_upload_to_user_data = False
@@ -516,7 +534,7 @@ def main(
 
     # in-place, for non-scratch dbs
     if allow_upload_to_user_data:
-        update_langchain(langchain_modes, visible_langchain_modes, langchain_mode_paths, '')
+        update_langchain(langchain_modes, visible_langchain_modes, langchain_mode_paths, '', save_dir=save_dir)
         # always listen to CLI-passed user_path if passed
         if user_path:
             langchain_mode_paths['UserData'] = user_path
@@ -604,6 +622,7 @@ def main(
             max_max_time = max_time
         # HF accounted for later in get_max_max_new_tokens()
     save_dir = os.getenv('SAVE_DIR', save_dir)
+    save_dir = makedirs(save_dir, exist_ok=True, tmp_ok=True, use_base=True)
     score_model = os.getenv('SCORE_MODEL', score_model)
     if str(score_model) == 'None':
         score_model = ''
@@ -632,7 +651,7 @@ def main(
             torch.backends.cudnn.benchmark = True
             torch.backends.cudnn.enabled = False
             torch.set_default_dtype(torch.float32)
-        if psutil.virtual_memory().available < 94 * 1024 ** 3 and not inference_server and not model_lock:
+        if is_public and not inference_server and not model_lock:
             # 12B uses ~94GB
             # 6.9B uses ~47GB
             base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b' if not base_model else base_model
@@ -672,7 +691,7 @@ def main(
     text_limit = None
 
     if offload_folder:
-        offload_folder = makedirs(offload_folder, exist_ok=True, tmp_ok=True)
+        offload_folder = makedirs(offload_folder, exist_ok=True, tmp_ok=True, use_base=True)
 
     placeholder_instruction, placeholder_input, \
         stream_output, show_examples, \
@@ -687,7 +706,7 @@ def main(
         get_generate_params(model_lower,
                             chat,
                             stream_output, show_examples,
-                            prompt_type, prompt_dict,
+                            prompt_type, prompt_dict, system_prompt,
                             temperature, top_p, top_k, num_beams,
                             max_new_tokens, min_new_tokens, early_stopping, max_time,
                             repetition_penalty, num_return_sequences,
@@ -714,7 +733,8 @@ def main(
         for langchain_mode1 in visible_langchain_modes:
             if langchain_mode1 in ['MyData']:  # FIXME: Remove other custom temp dbs
                 # don't use what is on disk, remove it instead
-                for gpath1 in glob.glob(os.path.join(scratch_base_dir, 'db_dir_%s*' % langchain_mode1)):
+                from src.gpt_langchain import scratch_base_dir
+                for gpath1 in glob.glob(os.path.join(scratch_base_dir, 'db_dir_%s_*' % langchain_mode1)):
                     if os.path.isdir(gpath1):
                         print("Removing old MyData: %s" % gpath1, flush=True)
                         remove(gpath1)
@@ -729,6 +749,7 @@ def main(
                                     db_type, use_openai_embedding,
                                     langchain_mode1, langchain_mode_paths,
                                     hf_embedding_model,
+                                    migrate_embedding_model,
                                     kwargs_make_db=locals())
             finally:
                 # in case updated embeddings or created new embeddings
@@ -918,6 +939,9 @@ def get_config(base_model,
                 print("Used max_position_embeddings=%s as base model (pre-rope) max_seq_len."
                       "  If not desired, pass --max_seq_len and set to some integer value." % config.max_position_embeddings,
                       flush=True)
+        elif hasattr(config, 'n_ctx'):
+            # e.g. gpt2
+            max_seq_len = int(config.n_ctx)
         else:
             print("Could not determine --max_seq_len, setting to 2048.  Pass if not correct", flush=True)
             max_seq_len = 2048
@@ -1081,6 +1105,7 @@ def get_model(
         tokenizer_base_model: str = '',
         lora_weights: str = "",
         gpu_id: int = 0,
+        n_jobs=None,
 
         reward_type: bool = None,
         local_files_only: bool = False,
@@ -1111,6 +1136,7 @@ def get_model(
     :param tokenizer_base_model: name/path of tokenizer
     :param lora_weights: name/path
     :param gpu_id: which GPU (0..n_gpus-1) or allow all GPUs if relevant (-1)
+    :param n_jobs: number of cores to use (e.g. for llama CPU model)
     :param reward_type: reward type model for sequence classification
     :param local_files_only: use local files instead of from HF
     :param resume_download: resume downloads from HF
@@ -1192,17 +1218,33 @@ def get_model(
         # Don't return None, None for model, tokenizer so triggers
         return client, tokenizer, 'http'
     if isinstance(inference_server, str) and (
-            inference_server.startswith('openai') or inference_server.startswith('vllm')):
+            inference_server.startswith('openai') or
+            inference_server.startswith('vllm') or
+            inference_server.startswith('replicate')):
         if inference_server.startswith('openai'):
             assert os.getenv('OPENAI_API_KEY'), "Set environment for OPENAI_API_KEY"
             # Don't return None, None for model, tokenizer so triggers
             # include small token cushion
             tokenizer = FakeTokenizer(model_max_length=model_token_mapping[base_model] - 50)
+        if inference_server.startswith('replicate'):
+            assert len(inference_server.split(':')) >= 3, "Expected replicate:model string, got %s" % inference_server
+            assert os.getenv('REPLICATE_API_TOKEN'), "Set environment for REPLICATE_API_TOKEN"
+            assert max_seq_len is not None, "Please pass --max_seq_len=<max_seq_len> for replicate models."
+            try:
+                import replicate as replicate_python
+            except ImportError:
+                raise ImportError(
+                    "Could not import replicate python package. "
+                    "Please install it with `pip install replicate`."
+                )
+            # Don't return None, None for model, tokenizer so triggers
+            # include small token cushion
+            tokenizer = FakeTokenizer(model_max_length=max_seq_len - 50)
         return inference_server, tokenizer, inference_server
     assert not inference_server, "Malformed inference_server=%s" % inference_server
     if base_model in non_hf_types:
         from gpt4all_llm import get_model_tokenizer_gpt4all
-        model, tokenizer, device = get_model_tokenizer_gpt4all(base_model)
+        model, tokenizer, device = get_model_tokenizer_gpt4all(base_model, n_jobs=n_jobs)
         return model, tokenizer, device
     if load_exllama:
         return model_loader, tokenizer, 'cuda'
@@ -1465,6 +1507,7 @@ def get_score_model(score_model: str = None,
                     tokenizer_base_model: str = '',
                     lora_weights: str = "",
                     gpu_id: int = 0,
+                    n_jobs=None,
 
                     reward_type: bool = None,
                     local_files_only: bool = False,
@@ -1503,6 +1546,7 @@ def evaluate(
         model_state,
         my_db_state,
         selection_docs_state,
+        requests_state,
         # START NOTE: Examples must have same order of parameters
         instruction,
         iinput,
@@ -1535,6 +1579,7 @@ def evaluate(
         document_choice,
         pre_prompt_summary,
         prompt_summary,
+        system_prompt,
         # END NOTE: Examples must have same order of parameters
         async_output=None,
         num_async=None,
@@ -1562,6 +1607,7 @@ def evaluate(
         use_openai_embedding=None,
         use_openai_model=None,
         hf_embedding_model=None,
+        migrate_embedding_model=None,
         cut_distance=None,
         db_type=None,
         n_jobs=None,
@@ -1588,6 +1634,7 @@ def evaluate(
     assert use_openai_embedding is not None
     assert use_openai_model is not None
     assert hf_embedding_model is not None
+    assert migrate_embedding_model is not None
     assert db_type is not None
     assert top_k_docs is not None and isinstance(top_k_docs, int)
     assert chunk is not None and isinstance(chunk, bool)
@@ -1737,7 +1784,7 @@ def evaluate(
     else:
         db = None
     t_generate = time.time()
-    langchain_only_model = base_model in non_hf_types or load_exllama
+    langchain_only_model = base_model in non_hf_types or load_exllama or inference_server.startswith('replicate')
     do_langchain_path = langchain_mode not in [False, 'Disabled', 'LLM'] or \
                         langchain_only_model or \
                         force_langchain_evaluate
@@ -1775,9 +1822,11 @@ def evaluate(
                 answer_with_sources=answer_with_sources,
                 append_sources_to_answer=append_sources_to_answer,
                 add_chat_history_to_context=add_chat_history_to_context,
+                system_prompt=system_prompt,
                 use_openai_embedding=use_openai_embedding,
                 use_openai_model=use_openai_model,
                 hf_embedding_model=hf_embedding_model,
+                migrate_embedding_model=migrate_embedding_model,
                 first_para=first_para,
                 text_limit=text_limit,
 
@@ -1850,8 +1899,9 @@ def evaluate(
             # don't clear torch cache here, delays multi-generation, and bot(), all_bot(), and evaluate_nochat() do it
             return
 
-    if inference_server.startswith('vllm') or inference_server.startswith('openai') or inference_server.startswith(
-            'http'):
+    if inference_server.startswith('vllm') or \
+            inference_server.startswith('openai') or \
+            inference_server.startswith('http'):
         if inference_server.startswith('vllm') or inference_server.startswith('openai'):
             where_from = "openai_client"
             openai, inf_type = set_openai(inference_server)
@@ -1896,10 +1946,11 @@ def evaluate(
             elif inf_type == 'vllm_chat' or inference_server == 'openai_chat':
                 if inf_type == 'vllm_chat':
                     raise NotImplementedError('%s not supported by vLLM' % inf_type)
+                openai_system_prompt = system_prompt or "You are a helpful assistant."
                 responses = openai.ChatCompletion.create(
                     model=base_model,
                     messages=[
-                        {"role": "system", "content": "You are a helpful assistant."},
+                        {"role": "system", "content": openai_system_prompt},
                         {'role': 'user',
                          'content': prompt,
                          }
@@ -2325,7 +2376,7 @@ def evaluate(
 
 
 inputs_list_names = list(inspect.signature(evaluate).parameters)
-state_names = ['model_state', 'my_db_state', 'selection_docs_state']
+state_names = input_args_list.copy()  # doesn't have to be the same, but state_names must match evaluate() and how filled then
 inputs_kwargs_list = [x for x in inputs_list_names if x not in eval_func_param_names + state_names]
 
 
@@ -2474,7 +2525,7 @@ def generate_with_exceptions(func, *args, prompt='', inputs_decoded='', raise_ge
 def get_generate_params(model_lower,
                         chat,
                         stream_output, show_examples,
-                        prompt_type, prompt_dict,
+                        prompt_type, prompt_dict, system_prompt,
                         temperature, top_p, top_k, num_beams,
                         max_new_tokens, min_new_tokens, early_stopping, max_time,
                         repetition_penalty, num_return_sequences,
@@ -2508,11 +2559,11 @@ def get_generate_params(model_lower,
         else:
             show_examples = True
 
-    summarize_example1 = """Jeff: Can I train a ? Transformers model on Amazon SageMaker? 
-Philipp: Sure you can use the new Hugging Face Deep Learning Container. 
+    summarize_example1 = """Jeff: Can I train a ? Transformers model on Amazon SageMaker?
+Philipp: Sure you can use the new Hugging Face Deep Learning Container.
 Jeff: ok.
-Jeff: and how can I get started? 
-Jeff: where can I find documentation? 
+Jeff: and how can I get started?
+Jeff: where can I find documentation?
 Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-partnership-amazon-sagemaker-and-hugging-face"""
 
     use_placeholder_instruction_as_example = False
@@ -2643,8 +2694,9 @@ y = np.random.randint(0, 1, 100)
 
     # move to correct position
     for example in examples:
-        example += [chat, '', '', LangChainMode.DISABLED.value, True, LangChainAction.QUERY.value, [],
-                    top_k_docs, chunk, chunk_size, DocumentSubset.Relevant.name, [], '', '',
+        example += [chat, '', '', LangChainMode.DISABLED.value, True,
+                    LangChainAction.QUERY.value, [],
+                    top_k_docs, chunk, chunk_size, DocumentSubset.Relevant.name, [], '', '', system_prompt
                     ]
         # adjust examples if non-chat mode
         if not chat:
@@ -2854,10 +2906,10 @@ def history_to_context(history, langchain_mode1,
     return context1
 
 
-def update_langchain(langchain_modes, visible_langchain_modes, langchain_mode_paths, extra):
+def update_langchain(langchain_modes, visible_langchain_modes, langchain_mode_paths, extra, save_dir=None):
     # update from saved state on disk
     langchain_modes_from_file, visible_langchain_modes_from_file, langchain_mode_paths_from_file = \
-        load_collection_enum(extra)
+        load_collection_enum(extra, save_dir=save_dir)
 
     visible_langchain_modes_temp = visible_langchain_modes.copy() + visible_langchain_modes_from_file
     visible_langchain_modes.clear()  # don't lose original reference
@@ -2877,7 +2929,7 @@ def entrypoint_main():
     WORLD_SIZE=4 CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun --nproc_per_node=4 --master_port=1234 generate.py --base_model='EleutherAI/gpt-j-6B' --lora_weights=lora-alpaca_6B
     python generate.py --base_model='EleutherAI/gpt-j-6B' --lora_weights='lora-alpaca_6B'
     python generate.py --base_model='EleutherAI/gpt-neox-20b' --lora_weights='lora-alpaca_20B'
-    
+
     # generate without lora weights, no prompt
     python generate.py --base_model='EleutherAI/gpt-neox-20b' --prompt_type='plain'
     python generate.py --base_model='togethercomputer/GPT-NeoXT-Chat-Base-20B' --prompt_type='dai_faq'

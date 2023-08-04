@@ -2,7 +2,7 @@
 
 To get optimal performance for inference for h2oGPT models, we will be using the [FastTransformer Backend for Triton](https://github.com/triton-inference-server/fastertransformer_backend/).
 
-Make sure to [install Docker](INSTALL-DOCKER.md) first.
+Make sure to [Set Up GPU Docker](README_DOCKER.md#setup-docker-for-gpus) first.
 
 ### Build Docker image for Triton with FasterTransformer backend:
 

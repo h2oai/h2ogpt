@@ -71,7 +71,7 @@ python generate.py --base_model=TheBloke/Llama-2-7b-Chat-GPTQ --load_gptq="gptq_
 which shows how to control `alpha_value` and the `revision` for a given model on [TheBloke/Llama-2-7b-Chat-GPTQ](https://huggingface.co/TheBloke/Llama-2-7b-Chat-GPTQ).  Be careful as setting `alpha_value` higher consumes substantially more GPU memory.  Also, some models have wrong config values for `max_position_embeddings` or `max_sequence_length`, and we try to fix those for LLaMa2 if `llama-2` appears in the lower-case version of the model name.
 Another type of model is
 ```bash
-python generate.py --base_model=TheBloke/Nous-Hermes-Llama2-GPTQ --load_gptq="gptq_model-4bit-128g" --use_safetensors=True --prompt_type=wizard2 --save_dir='save' --load_exllama=True --revision=gptq-4bit-32g-actorder_True --rope_scaling="{'alpha_value':4}"
+python generate.py --base_model=TheBloke/Nous-Hermes-Llama2-GPTQ --load_gptq="gptq_model-4bit-128g" --use_safetensors=True --prompt_type=llama2 --save_dir='save' --load_exllama=True --revision=gptq-4bit-32g-actorder_True --rope_scaling="{'alpha_value':4}"
 ```
 and note the different `prompt_type`.  For LLaMa2 70B run:
 ```bash
@@ -83,14 +83,14 @@ With exllama, ensure `--concurrency_count=1` else the model will share states an
 
 ##### For LLaMa.cpp on GPU run:
 ```bash
-python generate.py --base_model='llama' --prompt_type=wizard2 --score_model=None --langchain_mode='UserData' --user_path=user_path
+python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path
 ```
 and ensure output shows:
 ```text
 ggml_init_cublas: found 2 CUDA devices:
   Device 0: NVIDIA GeForce RTX 3090 Ti
   Device 1: NVIDIA GeForce RTX 2080
-llama.cpp: loading model from WizardLM-7B-uncensored.ggmlv3.q8_0.bin
+llama.cpp: loading model from llama-2-7b-chat.ggmlv3.q8_0.bin
 llama_model_load_internal: format     = ggjt v3 (latest)
 llama_model_load_internal: n_vocab    = 32001
 llama_model_load_internal: n_ctx      = 1792

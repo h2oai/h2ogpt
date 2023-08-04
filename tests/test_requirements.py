@@ -3,28 +3,42 @@ from pathlib import Path
 import pkg_resources
 from pkg_resources import DistributionNotFound, VersionConflict
 
+from src.utils import remove
 from tests.utils import wrap_test_forked
 
 
-def get_requirements():
-    req_file = "requirements.txt"
+def get_all_requirements():
+    import glob
+    requirements_all = []
+    reqs_http_all = []
+    for req_name in ['requirements.txt'] + glob.glob('reqs_optional/req*.txt'):
+        requirements1, reqs_http1 = get_requirements(req_name)
+        requirements_all.extend(requirements1)
+        reqs_http_all.extend(reqs_http1)
+    return requirements_all, reqs_http_all
+
+
+def get_requirements(req_file="requirements.txt"):
     req_tmp_file = req_file + '.tmp.txt'
+    try:
 
-    reqs_http = []
+        reqs_http = []
 
-    with open(req_file, 'rt') as f:
-        contents = f.readlines()
-        with open(req_tmp_file, 'wt') as g:
-            for line in contents:
-                if 'http://' not in line and 'https://' not in line:
-                    g.write(line)
-                else:
-                    reqs_http.append(line.replace('\n', ''))
-    reqs_http = [x for x in reqs_http if x]
-    print('reqs_http: %s' % reqs_http, flush=True)
+        with open(req_file, 'rt') as f:
+            contents = f.readlines()
+            with open(req_tmp_file, 'wt') as g:
+                for line in contents:
+                    if 'http://' not in line and 'https://' not in line:
+                        g.write(line)
+                    else:
+                        reqs_http.append(line.replace('\n', ''))
+        reqs_http = [x for x in reqs_http if x]
+        print('reqs_http: %s' % reqs_http, flush=True)
 
-    _REQUIREMENTS_PATH = Path(__file__).parent.with_name(req_tmp_file)
-    requirements = pkg_resources.parse_requirements(_REQUIREMENTS_PATH.open())
+        with open(req_tmp_file, "rt") as f:
+            requirements = pkg_resources.parse_requirements(f.read())
+    finally:
+        remove(req_tmp_file)
     return requirements, reqs_http
 
 
@@ -36,7 +50,7 @@ def test_requirements():
     packages_version = []
     packages_unkn = []
 
-    requirements, reqs_http = get_requirements()
+    requirements, reqs_http = get_all_requirements()
 
     for requirement in requirements:
         try:
@@ -58,7 +72,9 @@ def test_requirements():
         print('Wrong version of packages: %s' % packages_version, flush=True)
         print("Can't determine (e.g. http) packages: %s" % packages_unkn, flush=True)
         print('\n\nRUN THIS:\n\n', flush=True)
-        print('pip uninstall peft transformers accelerate -y ; CUDA_HOME=/usr/local/cuda-11.7 pip install %s --upgrade' % str(' '.join(packages_all)), flush=True)
+        print(
+            'pip uninstall peft transformers accelerate -y ; CUDA_HOME=/usr/local/cuda-11.7 pip install %s --upgrade' % str(
+                ' '.join(packages_all)), flush=True)
         print('\n\n', flush=True)
 
         raise ValueError(packages_all)
@@ -66,6 +82,7 @@ def test_requirements():
 
 import requests
 import json
+
 try:
     from packaging.version import parse
 except ImportError:
@@ -105,4 +122,3 @@ def test_what_latest_packages():
                         print("%s: %s -> %s" % (req.name, current_version, latest_version), flush=True)
                 except Exception as e:
                     print("Exception: %s" % str(e), flush=True)
-

@@ -87,7 +87,10 @@ prompt_type_to_model_name = {
         'h2oai/h2ogpt-oasst1-4096-llama2-13b',
         'h2oai/h2ogpt-oasst1-4096-llama2-70b',
         'llama',
+        'TheBloke/Llama-2-7b-Chat-GPTQ',
     ],
+    "beluga": ['stabilityai/StableBeluga2'],
+    "wizard3nospace": ['WizardLM/WizardLM-13B-V1.2'],
     # could be plain, but default is correct prompt_type for default TheBloke model ggml-wizardLM-7B.q4_2.bin
 }
 if os.getenv('OPENAI_API_KEY'):
@@ -112,6 +115,7 @@ def get_prompt(prompt_type, prompt_dict, chat, context, reduced, making_context,
                use_system_prompt=False, histi=-1):
     prompt_dict_error = ''
     generates_leading_space = False
+    system_prompt = None
 
     if prompt_type == PromptType.custom.name and not isinstance(prompt_dict, dict):
         try:
@@ -613,13 +617,13 @@ ASSISTANT:
                          PromptType.llama2.name]:
         if use_system_prompt:
             # too much safety, hurts accuracy
-            sys_msg = """<<SYS>>\nYou are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe. Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.\n\nIf a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.\n<</SYS>>\n\n"""
+            system_prompt = """You are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe. Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.\n\nIf a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information."""
+            sys_msg = """<<SYS>>\n%s\n<</SYS>>\n\n""" % system_prompt
         else:
             sys_msg = ""
         if not (chat and reduced):
             promptA = promptB = ''
         else:
-            #
             promptA = promptB = ''
         PreInput = None
         PreInstruct = "<s>[INST] "
@@ -633,18 +637,32 @@ ASSISTANT:
         botstr = '[/INST]'
         if making_context:
             PreResponse += " "
-    elif prompt_type in [PromptType.orca_hashes.value, str(PromptType.orca_hashes.value),
-                         PromptType.orca_hashes.name]:
-        # https://huggingface.co/TheBloke/StableBeluga-13B-GPTQ
-        promptA = promptB = "" if not (chat and reduced) else '### System:\nThis is a system prompt, please behave and help the user.'
-
-        PreInstruct = """### User:\n"""
-
+    elif prompt_type in [PromptType.beluga.value, str(PromptType.beluga.value),
+                         PromptType.beluga.name]:
+        if use_system_prompt and histi in [-1, 0]:
+            # too much safety, hurts accuracy
+            promptA = promptB = """### System:\nYou are Stable Beluga, an AI that follows instructions extremely well. Help as much as you can. Remember, be safe, and don't do anything illegal.\n\n"""
+        else:
+            promptA = promptB = ''
         PreInput = None
-
-        PreResponse = """### Assistant:"""
-        terminate_response = [
-            '### User:']  # but only allow terminate after prompt is found correctly, else can't terminate
+        PreInstruct = "### User:\n"
+        PreResponse = "\n### Assistant:\n"
+        terminate_response = ['### Assistant:', "</s>"]
+        chat_sep = '\n'
+        chat_turn_sep = '\n\n'
+        humanstr = '### User:'
+        botstr = '### Assistant:'
+    elif prompt_type in [PromptType.wizard3nospace.value, str(PromptType.wizard3nospace.value),
+                         PromptType.wizard3nospace.name]:
+        # https://huggingface.co/WizardLM/WizardLM-13B-V1.2/discussions/3
+        preprompt = """A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions.""" if not (
+                chat and reduced) else ''
+        start = ''
+        promptB = promptA = '%s%s' % (preprompt, start)
+        PreInstruct = """USER: """
+        PreInput = None
+        PreResponse = """ASSISTANT:"""
+        terminate_response = [PreResponse]
         chat_turn_sep = chat_sep = '\n'
         humanstr = PreInstruct
         botstr = PreResponse
@@ -658,7 +676,8 @@ ASSISTANT:
                     PreResponse=PreResponse, terminate_response=terminate_response, chat_sep=chat_sep,
                     chat_turn_sep=chat_turn_sep,
                     humanstr=humanstr, botstr=botstr,
-                    generates_leading_space=generates_leading_space)
+                    generates_leading_space=generates_leading_space,
+                    system_prompt=system_prompt)
 
     if return_dict:
         return ret_dict, prompt_dict_error
@@ -679,10 +698,10 @@ def generate_prompt(data_point, prompt_type, prompt_dict, chat, reduced, making_
     assert prompt_type in prompt_types, "Bad prompt type: %s" % prompt_type
     promptA, promptB, PreInstruct, PreInput, PreResponse, \
         terminate_response, chat_sep, chat_turn_sep, humanstr, botstr, \
-        generates_leading_space = get_prompt(prompt_type, prompt_dict, chat,
-                                             context, reduced, making_context,
-                                             use_system_prompt=use_system_prompt,
-                                             histi=histi)
+        generates_leading_space, system_prompt = get_prompt(prompt_type, prompt_dict, chat,
+                                                            context, reduced, making_context,
+                                                            use_system_prompt=use_system_prompt,
+                                                            histi=histi)
 
     # could avoid if reduce=True, but too complex for parent functions to handle
     prompt = context
@@ -762,7 +781,7 @@ class Prompter(object):
         making_context = False  # not for chat context
         self.promptA, self.promptB, self.PreInstruct, self.PreInput, self.PreResponse, \
             self.terminate_response, self.chat_sep, self.chat_turn_sep, self.humanstr, self.botstr, \
-            self.generates_leading_space = \
+            self.generates_leading_space, self.system_prompt = \
             get_prompt(self.prompt_type, self.prompt_dict, chat, context, reduced, making_context,
                        use_system_prompt=use_system_prompt)
         self.pre_response = self.PreResponse

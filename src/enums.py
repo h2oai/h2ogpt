@@ -33,7 +33,8 @@ class PromptType(Enum):
     falcon = 27
     guanaco = 28
     llama2 = 29
-    orca_hashes = 30
+    beluga = 30
+    wizard3nospace = 31
 
 
 class DocumentSubset(Enum):

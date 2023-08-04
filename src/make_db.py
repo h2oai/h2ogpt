@@ -1,8 +1,10 @@
+import ast
 import os
 from typing import Union, List
 
-from gpt_langchain import path_to_docs, get_some_dbs_from_hf, all_db_zips, some_db_zips, create_or_update_db
-from utils import get_ngpus_vis, H2O_Fire
+from gpt_langchain import path_to_docs, get_some_dbs_from_hf, all_db_zips, some_db_zips, create_or_update_db, \
+    get_persist_directory
+from utils import get_ngpus_vis, H2O_Fire, makedirs
 
 
 def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False,
@@ -11,7 +13,8 @@ def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False,
                caption_loader=None,
                enable_ocr=False,
                enable_pdf_ocr='auto',
-               db_type=None):
+               db_type=None,
+               selected_file_types=None):
     assert db_type is not None
     sources1 = path_to_docs(user_path, verbose=verbose, fail_any_exception=fail_any_exception,
                             n_jobs=n_jobs,
@@ -23,13 +26,15 @@ def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False,
                             enable_ocr=enable_ocr,
                             enable_pdf_ocr=enable_pdf_ocr,
                             db_type=db_type,
+                            selected_file_types=selected_file_types,
                             )
     return sources1
 
 
 def make_db_main(use_openai_embedding: bool = False,
                  hf_embedding_model: str = None,
-                 persist_directory: str = 'db_dir_UserData',
+                 migrate_embedding_model=False,
+                 persist_directory: str = None,
                  user_path: str = 'user_path',
                  url: Union[List[str], str] = None,
                  add_if_exists: bool = True,
@@ -41,7 +46,7 @@ def make_db_main(use_openai_embedding: bool = False,
                  download_all: bool = False,
                  download_some: bool = False,
                  download_one: str = None,
-                 download_dest: str = "./",
+                 download_dest: str = None,
                  n_jobs: int = -1,
                  enable_captions: bool = True,
                  captions_model: str = "Salesforce/blip-image-captioning-base",
@@ -50,6 +55,7 @@ def make_db_main(use_openai_embedding: bool = False,
                  enable_ocr: bool = False,
                  enable_pdf_ocr: str = 'auto',
                  db_type: str = 'chroma',
+                 selected_file_types: Union[List[str], str] = None,
                  ):
     """
     # To make UserData db for generate.py, put pdfs, etc. into path user_path and run:
@@ -71,7 +77,8 @@ def make_db_main(use_openai_embedding: bool = False,
 
     :param use_openai_embedding: Whether to use OpenAI embedding
     :param hf_embedding_model: HF embedding model to use. Like generate.py, uses 'hkunlp/instructor-large' if have GPUs, else "sentence-transformers/all-MiniLM-L6-v2"
-    :param persist_directory: where to persist db
+    :param migrate_embedding_model: whether to migrate to newly chosen hf_embedding_model or stick with one in db
+    :param persist_directory: where to persist db (note generate.py always uses db_dir_<collection name>
     :param user_path: where to pull documents from (None means url is not None.  If url is not None, this is ignored.)
     :param url: url (or urls) to generate documents from (None means user_path is not None)
     :param add_if_exists: Add to db if already exists, but will not add duplicate sources
@@ -92,9 +99,20 @@ def make_db_main(use_openai_embedding: bool = False,
     :param enable_ocr: Whether to enable OCR on images
     :param enable_pdf_ocr: 'auto' uses OCR on PDFs as backup, good to handle image PDFs
     :param db_type: Type of db to create. Currently only 'chroma' and 'weaviate' is supported.
+    :param selected_file_types: File types (by extension) to include if passing user_path
+       For a list of possible values, see:
+       https://github.com/h2oai/h2ogpt/blob/main/docs/README_LangChain.md#shoosing-document-types
+       e.g. --selected_file_types="['pdf', 'html', 'htm']"
     :return: None
     """
     db = None
+
+    if isinstance(selected_file_types, str):
+        selected_file_types = ast.literal_eval(selected_file_types)
+    if persist_directory is None:
+        persist_directory = get_persist_directory(collection_name)
+    if download_dest is None:
+        download_dest = makedirs('./', use_base=True)
 
     # match behavior of main() in generate.py for non-HF case
     n_gpus = get_ngpus_vis()
@@ -155,15 +173,16 @@ def make_db_main(use_openai_embedding: bool = False,
                          enable_ocr=enable_ocr,
                          enable_pdf_ocr=enable_pdf_ocr,
                          db_type=db_type,
+                         selected_file_types=selected_file_types,
                          )
     exceptions = [x for x in sources if x.metadata.get('exception')]
-    print("Exceptions: %s" % exceptions, flush=True)
+    print("Exceptions: %s/%s %s" % (len(exceptions), len(sources), exceptions), flush=True)
     sources = [x for x in sources if 'exception' not in x.metadata]
 
     assert len(sources) > 0, "No sources found"
     db = create_or_update_db(db_type, persist_directory, collection_name,
                              sources, use_openai_embedding, add_if_exists, verbose,
-                             hf_embedding_model)
+                             hf_embedding_model, migrate_embedding_model)
 
     assert db is not None
     if verbose:

@@ -10,52 +10,24 @@ from dotenv import dotenv_values
 from utils import FakeTokenizer
 
 
-def get_model_tokenizer_gpt4all(base_model, **kwargs):
+def get_model_tokenizer_gpt4all(base_model, n_jobs=None):
     # defaults (some of these are generation parameters, so need to be passed in at generation time)
-    model_kwargs = dict(n_threads=os.cpu_count() // 2,
-                        temp=kwargs.get('temperature', 0.2),
-                        top_p=kwargs.get('top_p', 0.75),
-                        top_k=kwargs.get('top_k', 40),
-                        n_ctx=2048 - 256)
-    env_gpt4all_file = ".env_gpt4all"
-    model_kwargs.update(dotenv_values(env_gpt4all_file))
-    # make int or float if can to satisfy types for class
-    for k, v in model_kwargs.items():
-        try:
-            if float(v) == int(v):
-                model_kwargs[k] = int(v)
-            else:
-                model_kwargs[k] = float(v)
-        except:
-            pass
-
-    if base_model == "llama":
-        if 'model_path_llama' not in model_kwargs:
-            raise ValueError("No model_path_llama in %s" % env_gpt4all_file)
-        model_path = model_kwargs.pop('model_path_llama')
-        # FIXME: GPT4All version of llama doesn't handle new quantization, so use llama_cpp_python
-        from llama_cpp import Llama
-        # llama sets some things at init model time, not generation time
-        func_names = list(inspect.signature(Llama.__init__).parameters)
-        model_kwargs = {k: v for k, v in model_kwargs.items() if k in func_names}
-        model_kwargs['n_ctx'] = int(model_kwargs['n_ctx'])
-        model = Llama(model_path=model_path, **model_kwargs)
-    elif base_model in "gpt4all_llama":
-        if 'model_name_gpt4all_llama' not in model_kwargs and 'model_path_gpt4all_llama' not in model_kwargs:
-            raise ValueError("No model_name_gpt4all_llama or model_path_gpt4all_llama in %s" % env_gpt4all_file)
-        model_name = model_kwargs.pop('model_name_gpt4all_llama')
-        model_type = 'llama'
-        from gpt4all import GPT4All as GPT4AllModel
-        model = GPT4AllModel(model_name=model_name, model_type=model_type)
-    elif base_model in "gptj":
-        if 'model_name_gptj' not in model_kwargs and 'model_path_gptj' not in model_kwargs:
-            raise ValueError("No model_name_gpt4j or model_path_gpt4j in %s" % env_gpt4all_file)
-        model_name = model_kwargs.pop('model_name_gptj')
-        model_type = 'gptj'
-        from gpt4all import GPT4All as GPT4AllModel
-        model = GPT4AllModel(model_name=model_name, model_type=model_type)
-    else:
-        raise ValueError("No such base_model %s" % base_model)
+    model_name = base_model.lower()
+    model = get_llm_gpt4all(model_name, model=None,
+                            # max_new_tokens=max_new_tokens,
+                            # temperature=temperature,
+                            # repetition_penalty=repetition_penalty,
+                            # top_k=top_k,
+                            # top_p=top_p,
+                            # callbacks=callbacks,
+                            n_jobs=n_jobs,
+                            # verbose=verbose,
+                            # streaming=stream_output,
+                            # prompter=prompter,
+                            # context=context,
+                            # iinput=iinput,
+                            inner_class=True,
+                            )
     return model, FakeTokenizer(), 'cpu'
 
 
@@ -82,24 +54,28 @@ def get_model_kwargs(env_kwargs, default_kwargs, cls, exclude_list=[]):
     # ensure only valid keys
     func_names = list(inspect.signature(cls).parameters)
     model_kwargs = {k: v for k, v in model_kwargs.items() if k in func_names}
+    # make int or float if can to satisfy types for class
+    for k, v in model_kwargs.items():
+        try:
+            if float(v) == int(v):
+                model_kwargs[k] = int(v)
+            else:
+                model_kwargs[k] = float(v)
+        except:
+            pass
     return model_kwargs
 
 
-def get_llm_gpt4all(model_name,
-                    model=None,
-                    max_new_tokens=256,
-                    temperature=0.1,
-                    repetition_penalty=1.0,
-                    top_k=40,
-                    top_p=0.7,
-                    streaming=False,
-                    callbacks=None,
-                    prompter=None,
-                    context='',
-                    iinput='',
-                    verbose=False,
-                    ):
-    assert prompter is not None
+def get_gpt4all_default_kwargs(max_new_tokens=256,
+                               temperature=0.1,
+                               repetition_penalty=1.0,
+                               top_k=40,
+                               top_p=0.7,
+                               n_jobs=None,
+                               verbose=False,
+                               ):
+    if n_jobs is None:
+        n_jobs = int(os.getenv('OMP_NUM_THREADS', str(os.cpu_count())))
     env_gpt4all_file = ".env_gpt4all"
     env_kwargs = dotenv_values(env_gpt4all_file)
     max_tokens = env_kwargs.pop('max_tokens', 2048 - max_new_tokens)
@@ -114,7 +90,39 @@ def get_llm_gpt4all(model_name,
                           top_k=top_k,
                           top_p=top_p,
                           use_mlock=True,
+                          n_threads=n_jobs,
                           verbose=verbose)
+    return default_kwargs, env_kwargs
+
+
+def get_llm_gpt4all(model_name,
+                    model=None,
+                    max_new_tokens=256,
+                    temperature=0.1,
+                    repetition_penalty=1.0,
+                    top_k=40,
+                    top_p=0.7,
+                    streaming=False,
+                    callbacks=None,
+                    prompter=None,
+                    context='',
+                    iinput='',
+                    n_jobs=None,
+                    verbose=False,
+                    inner_class=False,
+                    ):
+    if not inner_class:
+        assert prompter is not None
+
+    default_kwargs, env_kwargs = \
+        get_gpt4all_default_kwargs(max_new_tokens=max_new_tokens,
+                                   temperature=temperature,
+                                   repetition_penalty=repetition_penalty,
+                                   top_k=top_k,
+                                   top_p=top_p,
+                                   n_jobs=n_jobs,
+                                   verbose=verbose,
+                                   )
     if model_name == 'llama':
         cls = H2OLlamaCpp
         model_path = env_kwargs.pop('model_path_llama') if model is None else model
@@ -123,25 +131,31 @@ def get_llm_gpt4all(model_name,
                                  prompter=prompter, context=context, iinput=iinput))
         llm = cls(**model_kwargs)
         llm.client.verbose = verbose
+        inner_model = llm.client
     elif model_name == 'gpt4all_llama':
         cls = H2OGPT4All
-        model_path = env_kwargs.pop('model_path_gpt4all_llama') if model is None else model
+        model_path = env_kwargs.pop('model_name_gpt4all_llama') if model is None else model
         model_kwargs = get_model_kwargs(env_kwargs, default_kwargs, cls, exclude_list=['lc_kwargs'])
         model_kwargs.update(
             dict(model=model_path, backend='llama', callbacks=callbacks, streaming=streaming,
                  prompter=prompter, context=context, iinput=iinput))
         llm = cls(**model_kwargs)
+        inner_model = llm.client
     elif model_name == 'gptj':
         cls = H2OGPT4All
-        model_path = env_kwargs.pop('model_path_gptj') if model is None else model
+        model_path = env_kwargs.pop('model_name_gptj') if model is None else model
         model_kwargs = get_model_kwargs(env_kwargs, default_kwargs, cls, exclude_list=['lc_kwargs'])
         model_kwargs.update(
             dict(model=model_path, backend='gptj', callbacks=callbacks, streaming=streaming,
                  prompter=prompter, context=context, iinput=iinput))
         llm = cls(**model_kwargs)
+        inner_model = llm.client
     else:
         raise RuntimeError("No such model_name %s" % model_name)
-    return llm
+    if inner_class:
+        return inner_model
+    else:
+        return llm
 
 
 class H2OGPT4All(gpt4all.GPT4All):
@@ -166,13 +180,16 @@ class H2OGPT4All(gpt4all.GPT4All):
                     model_name=model_name,
                     model_path=model_path or None,
                     model_type=values["backend"],
-                    allow_download=False,
+                    allow_download=True,
                 )
                 if values["n_threads"] is not None:
                     # set n_threads
                     values["client"].model.set_thread_count(values["n_threads"])
             else:
                 values["client"] = values["model"]
+                if values["n_threads"] is not None:
+                    # set n_threads
+                    values["client"].model.set_thread_count(values["n_threads"])
             try:
                 values["backend"] = values["client"].model_type
             except AttributeError:
@@ -302,8 +319,9 @@ class H2OLlamaCpp(LlamaCpp):
             if text_callback:
                 text_callback(prompt)
             text = ""
-            for token in self.stream(prompt=prompt, stop=stop, run_manager=run_manager):
-                text_chunk = token["choices"][0]["text"]
+            for token in self.stream(input=prompt, stop=stop):
+            #for token in self.stream(input=prompt, stop=stop, run_manager=run_manager):
+                text_chunk = token#["choices"][0]["text"]
                 # self.stream already calls text_callback
                 # if text_callback:
                 #    text_callback(text_chunk)

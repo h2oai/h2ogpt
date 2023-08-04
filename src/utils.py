@@ -215,7 +215,7 @@ def _zip_data(root_dirs=None, zip_file=None, base_dir='./'):
     assert root_dirs is not None
     base_path = os.path.dirname(zip_file)
     if not os.path.isdir(base_path) and os.path.dirname(zip_file):
-        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True)
+        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
         zip_file = os.path.join(base_path, os.path.basename(zip_file))
     with zipfile.ZipFile(zip_file, "w") as expt_zip:
         for root_dir in root_dirs:
@@ -253,7 +253,7 @@ def _save_generate_output(prompt=None, output=None, base_model=None, save_dir=No
     output = '<not set>' if output is None else output
     if os.path.exists(save_dir) and not os.path.isdir(save_dir):
         raise RuntimeError("save_dir already exists and is not a directory!")
-    makedirs(save_dir, exist_ok=True)
+    makedirs(save_dir, exist_ok=True)  # already should be made, can't change at this point
     import json
 
     # tokenize at end if need to, so doesn't block generation in multi-generator case
@@ -466,14 +466,29 @@ def remove(path: str):
         pass
 
 
-def makedirs(path, exist_ok=True, tmp_ok=False):
+def makedirs(path, exist_ok=True, tmp_ok=False, use_base=False):
     """
     Avoid some inefficiency in os.makedirs()
     :param path:
     :param exist_ok:
-    :param tmp_ok:
+    :param tmp_ok:  use /tmp if can't write locally
+    :param use_base:
     :return:
     """
+    if path is None:
+        return path
+    # if base path set, make relative to that, unless user_path absolute path
+    if use_base:
+        if os.path.normpath(path) == os.path.normpath(os.path.abspath(path)):
+            pass
+        else:
+            if os.getenv('H2OGPT_BASE_PATH') is not None:
+                base_dir = os.path.normpath(os.getenv('H2OGPT_BASE_PATH'))
+                path = os.path.normpath(path)
+                if not path.startswith(base_dir):
+                    path = os.path.join(os.getenv('H2OGPT_BASE_PATH', ''), path)
+                    path = os.path.normpath(path)
+
     if os.path.isdir(path) and os.path.exists(path):
         assert exist_ok, "Path already exists"
         return path
@@ -523,7 +538,7 @@ def download_simple(url, dest=None, print_func=None):
         raise requests.exceptions.RequestException(msg)
     url_data.raw.decode_content = True
     base_path = os.path.dirname(dest)
-    base_path = makedirs(base_path, exist_ok=True, tmp_ok=True)
+    base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
     dest = os.path.join(base_path, os.path.basename(dest))
     uuid_tmp = str(uuid.uuid4())[:6]
     dest_tmp = dest + "_dl_" + uuid_tmp + ".tmp"
@@ -566,7 +581,7 @@ def download(url, dest=None, dest_path=None):
     dirname = os.path.dirname(dest)
     if dirname != "" and not os.path.isdir(dirname):
         base_path = os.path.dirname(dest)
-        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True)
+        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
         dest = os.path.join(base_path, os.path.basename(dest))
     uuid_tmp = "dl3_" + str(uuid.uuid4())[:6]
     dest_tmp = dest + "_" + uuid_tmp + ".tmp"
@@ -938,7 +953,7 @@ def hash_file(file):
     except BaseException as e:
         print("Cannot hash %s due to %s" % (file, str(e)))
         traceback.print_exc()
-        md5 = None
+        return ''
     return md5.hexdigest()
 
 
@@ -1047,13 +1062,24 @@ except (pkg_resources.DistributionNotFound, AssertionError):
     have_selenium = False
 
 try:
+    assert pkg_resources.get_distribution('pillow') is not None
+    have_pillow = True
+except (pkg_resources.DistributionNotFound, AssertionError):
+    have_pillow = False
+
+try:
     assert pkg_resources.get_distribution('playwright') is not None
     have_playwright = True
 except (pkg_resources.DistributionNotFound, AssertionError):
     have_playwright = False
 
-# disable, hangs too often
-have_playwright = False
+
+only_unstructured_urls = os.environ.get("ONLY_UNSTRUCTURED_URLS", "0") == "1"
+only_selenium = os.environ.get("ONLY_SELENIUM", "0") == "1"
+only_playwright = os.environ.get("ONLY_PLAYWRIGHT", "0") == "1"
+if not only_playwright:
+    # disable, hangs too often
+    have_playwright = False
 
 
 def set_openai(inference_server):
@@ -1078,7 +1104,7 @@ visible_langchain_modes_file = 'visible_langchain_modes.pkl'
 
 def save_collection_names(langchain_modes, visible_langchain_modes, langchain_mode_paths,
                           LangChainMode, db1s,
-                          in_user_db):
+                          in_user_db, save_dir=None):
     """
     extra controls if UserData type of MyData type
     """
@@ -1100,36 +1126,56 @@ def save_collection_names(langchain_modes, visible_langchain_modes, langchain_mo
     user_langchain_mode_paths = {k: v for k, v in langchain_mode_paths.items() if
                                  k not in scratch_collection_names and k not in llms}
 
+    if save_dir is not None:
+        base_path_file = save_dir
+    else:
+        base_path_file = './'
     base_path = 'locks'
-    base_path = makedirs(base_path, tmp_ok=True)
+    base_path = makedirs(base_path, tmp_ok=True, use_base=True)
 
     if in_user_db:
         # user
         extra = ''
-        file = "%s%s" % (visible_langchain_modes_file, extra)
-        with filelock.FileLock(os.path.join(base_path, "%s.lock" % file)):
+    else:
+        # scratch
+        extra = user_hash
+
+    file = os.path.join(base_path_file, "%s%s" % (visible_langchain_modes_file, extra))
+    lock_file = os.path.join(base_path, "%s.lock" % file)
+    makedirs(os.path.dirname(lock_file), exist_ok=True)
+    if in_user_db:
+        # user
+        with filelock.FileLock(lock_file):
             with open(file, 'wb') as f:
                 pickle.dump((user_langchain_modes, user_visible_langchain_modes, user_langchain_mode_paths), f)
     else:
         # scratch
-        extra = user_hash
-        file = "%s%s" % (visible_langchain_modes_file, extra)
-        with filelock.FileLock(os.path.join(base_path, "%s.lock" % file)):
+        with filelock.FileLock(lock_file):
             with open(file, 'wb') as f:
                 pickle.dump((scratch_langchain_modes, scratch_visible_langchain_modes, scratch_langchain_mode_paths), f)
 
 
-def load_collection_enum(extra):
+def load_collection_enum(extra, save_dir=None):
     """
     extra controls if UserData type of MyData type
     """
-    file = "%s%s" % (visible_langchain_modes_file, extra)
+    if save_dir is not None:
+        base_path_file = save_dir
+    else:
+        base_path_file = './'
+    base_path = 'locks'
+    base_path = makedirs(base_path, tmp_ok=True, use_base=True)
+
+    file = os.path.join(base_path_file, "%s%s" % (visible_langchain_modes_file, extra))
+    lock_file = os.path.join(base_path, "%s.lock" % file)
+    makedirs(os.path.dirname(lock_file), exist_ok=True)
+
     langchain_modes_from_file = []
     visible_langchain_modes_from_file = []
     langchain_mode_paths_from_file = {}
-    if os.path.isfile(visible_langchain_modes_file):
+    if os.path.isfile(file):
         try:
-            with filelock.FileLock("%s.lock" % file):
+            with filelock.FileLock(lock_file):
                 with open(file, 'rb') as f:
                     langchain_modes_from_file, visible_langchain_modes_from_file, langchain_mode_paths_from_file = pickle.load(
                         f)
@@ -1138,7 +1184,7 @@ def load_collection_enum(extra):
     for k, v in langchain_mode_paths_from_file.items():
         if v is not None and not os.path.isdir(v) and isinstance(v, str):
             # assume was deleted, but need to make again to avoid extra code elsewhere
-            makedirs(v)
+            langchain_mode_paths_from_file[k] = makedirs(v, use_base=True)
     return langchain_modes_from_file, visible_langchain_modes_from_file, langchain_mode_paths_from_file
 
 
@@ -1158,3 +1204,16 @@ def get_list_or_str(x):
             return x
     else:
         return x
+
+
+def deepcopy_by_pickle_object(object):
+    """
+    Faster deepcopy, can only work on things that are picklable.  Naive Deepcopy is more general.
+    Same method as for class Individual
+    :param object:
+    :return:
+    """
+    gc.disable()
+    new_object = pickle.loads(pickle.dumps(object, -1))
+    gc.enable()
+    return new_object

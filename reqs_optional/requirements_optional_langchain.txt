@@ -1,11 +1,15 @@
 # optional for chat with PDF
-langchain==0.0.235
-pypdf==3.12.2
+langchain==0.0.250
+pypdf==3.14.0
 # avoid textract, requires old six
 #textract==1.6.5
 
 # for HF embeddings
 sentence_transformers==2.2.2
+
+# optional: for OpenAI endpoint or embeddings (requires key)
+openai==0.27.8
+replicate==0.10.0
 
 # local vector db
 chromadb==0.3.25
@@ -17,10 +21,11 @@ chromadb==0.3.25
 
 # strong support for images
 # Requires on Ubuntu: sudo apt-get install libmagic-dev poppler-utils tesseract-ocr libtesseract-dev libreoffice
-unstructured[local-inference]==0.7.4
+unstructured[local-inference]==0.9.0
 #pdf2image==1.16.3
 #pytesseract==0.3.10
-pillow
+pillow==9.5.0
+posthog==3.0.1
 
 pdfminer.six==20221105
 urllib3

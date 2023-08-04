@@ -85,8 +85,13 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     # Optional: for supporting unstructured package
     python -m nltk.downloader all
 * GPU Optional: For AutoGPTQ support on x86_64 linux
+    Try H2O.ai's pre-built wheel:
     ```bash
-    pip uninstall -y auto-gptq ; GITHUB_ACTIONS=true pip install auto-gptq --no-cache-dir
+    pip uninstall -y auto-gptq ; pip install https://s3.amazonaws.com/artifacts.h2o.ai/deps/h2ogpt/auto_gptq-0.3.0-cp310-cp310-linux_x86_64.whl --use-deprecated=legacy-resolver
+    ```
+    This avoids issues with missing cuda extensions etc.  if this does not apply to your system, run:
+    ```bash
+    pip uninstall -y auto-gptq ; GITHUB_ACTIONS=true pip install auto-gptq==0.3.0 --no-cache-dir
     ```
    We recommend to install like the above in order to avoid warnings and inefficient memory usage. If one has trouble installing AutoGPTQ, can try:
    ```bash
@@ -100,16 +105,11 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     ```
     See [exllama](README_GPU.md#exllama) about running exllama models.
 
-* To avoid unauthorized telemetry, which document options still do not disable, run:
-    ```bash
-    sp=`python -c 'import site; print(site.getsitepackages()[0])'`
-    sed -i 's/posthog\.capture/return\n            posthog.capture/' $sp/chromadb/telemetry/posthog.py
-    ```
 * GPU Optional: Support LLaMa.cpp with CUDA:
-  * Download/Install [CUDA llama-cpp-python wheel](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels), E.g. [Downloaad Python 3.10 CUDA 11.7 wheel](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.1.73+cu117-cp310-cp310-linux_x86_64.whl), then run:
+  * Download/Install [CUDA llama-cpp-python wheel](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels), E.g.:
     ```bash
     pip uninstall -y llama-cpp-python
-    pip install llama_cpp_python_cuda-0.1.73+cu117-cp310-cp310-linux_x86_64.whl
+    pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.1.73+cu117-cp310-cp310-linux_x86_64.whl
     ```
   * If any issues, then must compile llama-cpp-python with CUDA support:
    ```bash
@@ -120,6 +120,7 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     CMAKE_ARGS="-DLLAMA_CUBLAS=on" FORCE_CMAKE=1 pip install llama-cpp-python==0.1.68 --no-cache-dir --verbose
    ```
   * Uncomment `# n_gpu_layers=20` in `.env_gpt4all`.  One can try also `40` instead of `20`.
+  * For LLaMa2, can set `max_tokens=3792` but uses more memory.
   * If one sees `/usr/bin/nvcc` mentioned in errors, that file needs to be removed as would likely conflict with version installed for conda.  
   * Note that once `llama-cpp-python` is compiled to support CUDA, it no longer works for CPU mode, so one would have to reinstall it without the above options to recovers CPU mode or have a separate h2oGPT env for CPU mode.
 
@@ -152,10 +153,10 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
   ```bash
   python generate.py --base_model=h2oai/h2ogpt-oasst1-512-12b --load_8bit=True  --score_model=None --langchain_mode='UserData' --user_path=user_path
   ```
-  UI using LLaMa.cpp model:
+  UI using LLaMa.cpp LLaMa2 model:
   ```bash
-  wget https://huggingface.co/TheBloke/WizardLM-7B-uncensored-GGML/resolve/main/WizardLM-7B-uncensored.ggmlv3.q8_0.bin
-  python generate.py --base_model='llama' --prompt_type=wizard2 --score_model=None --langchain_mode='UserData' --user_path=user_path
+  wget wget https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin
+  python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path
   ```
   which works on CPU or GPU (assuming llama cpp python package compiled against CUDA or Metal).
 
