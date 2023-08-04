@@ -11,9 +11,17 @@ from transformers import PreTrainedModel
 
 
 def do_export():
-    BASE_MODEL = 'tiiuae/falcon-40b'
-    LORA_WEIGHTS = 'falcon-40b.h2oaiopenassistant_oasst1_h2ogpt.1_epochs.894d8450d35c180cd03222a45658d04c15b78d4b.9'
-    OUTPUT_NAME = "h2ogpt-oasst1-2048-falcon-40b"
+    BASE_MODEL = 'meta-llama/Llama-2-13b-chat-hf'
+    LORA_WEIGHTS = 'Llama-2-13b-chat-hf.h2oaiopenassistant_oasst1_h2ogpt_llama2_chat.1_epochs.b2aed9250804d815c258976c98ce968bacd88389.7'
+    OUTPUT_NAME = "h2ogpt-oasst1-4096-llama2-13b"
+
+    BASE_MODEL = 'meta-llama/Llama-2-7b-chat-hf'
+    LORA_WEIGHTS = 'Llama-2-7b-chat-hf.h2oaiopenassistant_oasst1_h2ogpt_llama2_chat.1_epochs.0c6b906f73b5639fd1d53c74fecbc9cf64f0f225.8'
+    OUTPUT_NAME = "h2ogpt-oasst1-4096-llama2-7b"
+
+    BASE_MODEL = 'meta-llama/Llama-2-70b-chat-hf'
+    LORA_WEIGHTS = 'Llama-2-70b-chat-hf.h2oaiopenassistant_oasst1_h2ogpt_llama2_chat.1_epochs.0c6b906f73b5639fd1d53c74fecbc9cf64f0f225.6'
+    OUTPUT_NAME = "h2ogpt-oasst1-4096-llama2-70b"
 
     base_model = os.getenv('BASE_MODEL')
     output = os.getenv('MODEL')
