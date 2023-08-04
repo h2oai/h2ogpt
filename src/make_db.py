@@ -176,7 +176,7 @@ def make_db_main(use_openai_embedding: bool = False,
                          selected_file_types=selected_file_types,
                          )
     exceptions = [x for x in sources if x.metadata.get('exception')]
-    print("Exceptions: %s" % exceptions, flush=True)
+    print("Exceptions: %s/%s %s" % (len(exceptions), len(sources), exceptions), flush=True)
     sources = [x for x in sources if 'exception' not in x.metadata]
 
     assert len(sources) > 0, "No sources found"
