@@ -261,7 +261,12 @@ class H2OLlamaCpp(LlamaCpp):
                 model_params["n_gpu_layers"] = values["n_gpu_layers"]
 
             try:
-                from llama_cpp import Llama
+                try:
+                    from llama_cpp import Llama
+                    print("Using GPU llama.cpp", flush=True)
+                except ImportError:
+                    from llama_cpp_cuda import Llama
+                    print("Using CPU llama.cpp", flush=True)
 
                 values["client"] = Llama(model_path, **model_params)
             except ImportError:
