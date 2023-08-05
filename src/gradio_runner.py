@@ -1167,8 +1167,8 @@ def go_gradio(**kwargs):
                                            outputs=[my_db_state, requests_state, show_sources_btn],
                                            show_progress='minimal')
         eventdb8 = eventdb8a.then(fn=show_sources1,
-                                  inputs=[my_db_state, requests_state, langchain_mode, selection_docs_state]
-                                  , outputs=sources_text,
+                                  inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode],
+                                  outputs=sources_text,
                                   api_name='show_sources' if allow_api else None)
 
         def update_viewable_dropdown(x):
@@ -1312,7 +1312,7 @@ def go_gradio(**kwargs):
         admin_pass_textbox.submit(check_admin_pass, inputs=admin_pass_textbox, outputs=system_row, queue=False) \
             .then(close_admin, inputs=admin_pass_textbox, outputs=admin_row, queue=False)
 
-        def add_langchain_mode(db1s, selection_docs_state1, langchain_mode1, requests_state1, y):
+        def add_langchain_mode(db1s, selection_docs_state1, requests_state1, langchain_mode1, y):
             set_userid(db1s, requests_state1, get_userid_auth)
             for k in db1s:
                 set_dbid(db1s[k])
@@ -3150,7 +3150,7 @@ def get_any_db(db1s, langchain_mode, langchain_mode_paths,
     return db
 
 
-def get_source_files_given_langchain_mode(db1s, requests_state1, langchain_mode, selection_docs_state1,
+def get_source_files_given_langchain_mode(db1s, selection_docs_state1, requests_state1, langchain_mode,
                                           dbs=None,
                                           load_db_if_exists=None,
                                           db_type=None,
