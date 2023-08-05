@@ -108,18 +108,25 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
 * GPU Optional: Support LLaMa.cpp with CUDA:
   * Download/Install [CUDA llama-cpp-python wheel](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels), E.g.:
     ```bash
-    pip uninstall -y llama-cpp-python
+    pip uninstall -y llama-cpp-python llama-cpp-python-cuda
     pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.1.73+cu117-cp310-cp310-linux_x86_64.whl
     ```
   * If any issues, then must compile llama-cpp-python with CUDA support:
    ```bash
-    pip uninstall -y llama-cpp-python
+    pip uninstall -y llama-cpp-python llama-cpp-python-cuda
     export LLAMA_CUBLAS=1
     export CMAKE_ARGS=-DLLAMA_CUBLAS=on
     export FORCE_CMAKE=1
-    CMAKE_ARGS="-DLLAMA_CUBLAS=on" FORCE_CMAKE=1 pip install llama-cpp-python==0.1.68 --no-cache-dir --verbose
+    CMAKE_ARGS="-DLLAMA_CUBLAS=on" FORCE_CMAKE=1 pip install llama-cpp-python==0.1.73 --no-cache-dir --verbose
    ```
-  * Uncomment `# n_gpu_layers=20` in `.env_gpt4all`.  One can try also `40` instead of `20`.
+  * Uncomment `# n_gpu_layers=20` in `.env_gpt4all`.  For highest performance, offload *all* layers.  You might see something like:
+    ```text
+    llama_model_load_internal: offloaded 20/35 layers to GPU
+    ```
+    but you can choose `n_gpu_layers=35` to get maximum performance:
+      ```text
+    llama_model_load_internal: offloaded 35/35 layers to GPU
+    ```
   * Pass to `generate.py` the option `--max_seq_len=2048` or some other number if you want model have controlled smaller context, else default (relatively large) value is used that will be slower on CPU.
   * For LLaMa2, can set `max_tokens` to a larger value for longer output.
   * If one sees `/usr/bin/nvcc` mentioned in errors, that file needs to be removed as would likely conflict with version installed for conda.  

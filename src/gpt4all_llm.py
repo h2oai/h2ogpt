@@ -271,10 +271,8 @@ class H2OLlamaCpp(LlamaCpp):
             try:
                 try:
                     from llama_cpp import Llama
-                    print("Using CPU llama.cpp", flush=True)
                 except ImportError:
                     from llama_cpp_cuda import Llama
-                    print("Using GPU llama.cpp", flush=True)
 
                 values["client"] = Llama(model_path, **model_params)
             except ImportError:
