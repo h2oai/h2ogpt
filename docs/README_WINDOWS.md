@@ -96,14 +96,12 @@ For newer builds of windows versions of 10/11.
     set FORCE_CMAKE=1
     pip install llama-cpp-python==0.1.68 --no-cache-dir --verbose
     ```
-  * Uncomment `# n_gpu_layers=20` in `.env_gpt4all`.  For highest performance, offload *all* layers.  You might see something like:
-    ```text
-    llama_model_load_internal: offloaded 20/35 layers to GPU
-    ```
-    but you can choose `n_gpu_layers=35` to get maximum performance:
+  * By default, we set `n_gpu_layers` to large value, so llama.cpp offloads all layers for maximum GPU performance.  You can control this by uncommenting `# n_gpu_layers` and set to some value in `.env_gpt4all`.  For highest performance, offload *all* layers.
+    That is, one gets maximum performance if one sees in startup of h2oGPT all layers offloaded:
       ```text
     llama_model_load_internal: offloaded 35/35 layers to GPU
     ```
+  but this requires sufficient GPU memory.  Reduce if you have low memory GPU, say 15.
   * Pass to `generate.py` the option `--max_seq_len=2048` or some other number if you want model have controlled smaller context, else default (relatively large) value is used that will be slower on CPU.
   * If one sees `/usr/bin/nvcc` mentioned in errors, that file needs to be removed as would likely conflict with version installed for conda.
   * Note that once `llama-cpp-python` is compiled to support CUDA, it no longer works for CPU mode, so one would have to reinstall it without the above options to recovers CPU mode or have a separate h2oGPT env for CPU mode.
