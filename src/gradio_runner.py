@@ -2636,7 +2636,7 @@ def go_gradio(**kwargs):
                        queue=False, api_name='stop' if allow_api else None).then(clear_torch_cache, queue=False)
 
         app_js = wrap_js_to_lambda(
-            get_dark_js(),
+            get_dark_js() if kwargs['dark'] else None,
             get_heap_js(heap_app_id) if is_heap_analytics_enabled else None)
         demo.load(None, None, None, _js=app_js)
 
