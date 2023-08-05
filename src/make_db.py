@@ -79,6 +79,8 @@ def make_db_main(use_openai_embedding: bool = False,
     :param hf_embedding_model: HF embedding model to use. Like generate.py, uses 'hkunlp/instructor-large' if have GPUs, else "sentence-transformers/all-MiniLM-L6-v2"
     :param migrate_embedding_model: whether to migrate to newly chosen hf_embedding_model or stick with one in db
     :param persist_directory: where to persist db (note generate.py always uses db_dir_<collection name>
+           make_db always makes shared type others will see when on same server (e.g. UserData) not personal/scratch space (e.g. MyData)
+           because do not know user hash at this point (FIXME: Go by user name for path, since unique and understandable here)
     :param user_path: where to pull documents from (None means url is not None.  If url is not None, this is ignored.)
     :param url: url (or urls) to generate documents from (None means user_path is not None)
     :param add_if_exists: Add to db if already exists, but will not add duplicate sources
@@ -110,7 +112,7 @@ def make_db_main(use_openai_embedding: bool = False,
     if isinstance(selected_file_types, str):
         selected_file_types = ast.literal_eval(selected_file_types)
     if persist_directory is None:
-        persist_directory = get_persist_directory(collection_name)
+        persist_directory = get_persist_directory(collection_name, shared_type=True)
     if download_dest is None:
         download_dest = makedirs('./', use_base=True)
 

@@ -198,7 +198,7 @@ def test_qa_daidocs_db_chunk_hf_dbs(db_type, top_k_docs):
     langchain_mode = 'DriverlessAI docs'
     langchain_action = LangChainAction.QUERY.value
     langchain_agents = []
-    persist_directory = get_persist_directory(langchain_mode)
+    persist_directory = get_persist_directory(langchain_mode, shared_type=True)
     remove(persist_directory)
     from src.gpt_langchain import _run_qa_db
     query = "Which config.toml enables pytorch for NLP?"
@@ -261,7 +261,7 @@ def test_qa_daidocs_db_chunk_hf_dbs_switch_embedding(db_type):
     langchain_mode = 'DriverlessAI docs'
     langchain_action = LangChainAction.QUERY.value
     langchain_agents = []
-    persist_directory = get_persist_directory(langchain_mode)
+    persist_directory = get_persist_directory(langchain_mode, shared_type=True)
     remove(persist_directory)
     from src.gpt_langchain import _run_qa_db
     query = "Which config.toml enables pytorch for NLP?"
@@ -379,7 +379,7 @@ def test_get_dai_db_dir():
 @wrap_test_forked
 def test_make_add_db(repeat, db_type):
     kill_weaviate(db_type)
-    from src.gradio_runner import get_source_files, get_source_files_given_langchain_mode, get_db, update_user_db, \
+    from src.gradio_runner import get_source_files, get_source_files_given_langchain_mode, get_any_db, update_user_db, \
         get_sources, update_and_get_source_files_given_langchain_mode
     from src.make_db import make_db_main
     from src.gpt_langchain import path_to_docs

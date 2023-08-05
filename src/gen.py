@@ -128,7 +128,13 @@ def main(
         allow_api: bool = True,
         input_lines: int = 1,
         gradio_size: str = None,
+
+        auth_type: str = None,
         auth: typing.List[typing.Tuple[str, str]] = None,
+        auth_filename: str = None,
+        auth_access: str = 'open',
+        auth_message: str = None,
+
         max_max_time=None,
         max_max_new_tokens=None,
 
@@ -322,9 +328,21 @@ def main(
     :param input_lines: how many input lines to show for chat box (>1 forces shift-enter for submit, else enter is submit)
     :param gradio_size: Overall size of text and spaces: "xsmall", "small", "medium", "large".
            Small useful for many chatbots in model_lock mode
+
+    :param auth_type:
+        None: No authentication, no login, no persistence of state
+        'auth': Use --auth list. Persistence of state by cookie while server up and user/pass otherwise
+                If --auth list is None, then no auth or persistence
+        'file': List of users in file
     :param auth: gradio auth for launcher in form [(user1, pass1), (user2, pass2), ...]
                  e.g. --auth=[('jon','password')] with no spaces
                  e.g. --auth="[('jon', 'password)())(')]" so any special characters can be used
+    :param auth_filename: if --auth_type=='file', then this is the filename to store auth information
+    :param auth_access:
+         'open': Allow new users to be added
+         'closed': Stick to existing users
+    :param auth_message: Message to show if having users login, fixed if passed, else dynamic internally
+
     :param max_max_time: Maximum max_time for gradio slider
     :param max_max_new_tokens: Maximum max_new_tokens for gradio slider
     :param visible_submit_buttons: whether submit buttons are visible when UI first comes up
@@ -726,23 +744,16 @@ def main(
 
     if langchain_mode != "Disabled":
         # SECOND PLACE where LangChain referenced, but all imports are kept local so not required
-        from gpt_langchain import prep_langchain, get_some_dbs_from_hf
+        from gpt_langchain import prep_langchain, get_some_dbs_from_hf, get_persist_directory
         if is_hf:
             get_some_dbs_from_hf()
         dbs = {}
         for langchain_mode1 in visible_langchain_modes:
-            if langchain_mode1 in ['MyData']:  # FIXME: Remove other custom temp dbs
-                # don't use what is on disk, remove it instead
-                from src.gpt_langchain import scratch_base_dir
-                for gpath1 in glob.glob(os.path.join(scratch_base_dir, 'db_dir_%s_*' % langchain_mode1)):
-                    if os.path.isdir(gpath1):
-                        print("Removing old MyData: %s" % gpath1, flush=True)
-                        remove(gpath1)
-                continue
             if langchain_mode1 in ['All']:
                 # FIXME: All should be avoided until scans over each db, shouldn't be separate db
                 continue
-            persist_directory1 = 'db_dir_%s' % langchain_mode1  # single place, no special names for each case
+            shared_type = langchain_mode_paths.get(langchain_mode1) is not None
+            persist_directory1 = get_persist_directory(langchain_mode1, shared_type=shared_type)
             try:
                 db = prep_langchain(persist_directory1,
                                     load_db_if_exists,

@@ -282,7 +282,6 @@ This warning can be safely ignored.
    - `CUDA_VISIBLE_DEVICES`: Standard list of CUDA devices to make visible.
    - `PING_GPU`: ping GPU every few minutes for full GPU memory usage by torch, useful for debugging OOMs or memory leaks
    - `GET_GITHASH`: get git hash on startup for system info.  Avoided normally as can fail with extra messages in output for CLI mode
-   - `H2OGPT_SCRATCH_PATH`: Choose base scratch folder for scratch databases and files
    - `H2OGPT_BASE_PATH`: Choose base folder for all files except scratch files
 These can be useful on HuggingFace spaces, where one sets secret tokens because CLI options cannot be used.
 
