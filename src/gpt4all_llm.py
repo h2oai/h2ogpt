@@ -7,7 +7,7 @@ from pydantic import root_validator
 from langchain.llms import gpt4all
 from dotenv import dotenv_values
 
-from utils import FakeTokenizer
+from utils import FakeTokenizer, get_ngpus_vis
 
 
 def get_model_tokenizer_gpt4all(base_model, n_jobs=None, max_seq_len=None):
@@ -81,6 +81,7 @@ def get_gpt4all_default_kwargs(max_new_tokens=256,
     env_gpt4all_file = ".env_gpt4all"
     env_kwargs = dotenv_values(env_gpt4all_file)
     max_tokens = env_kwargs.pop('max_tokens', max_seq_len - max_new_tokens)
+    n_gpus = get_ngpus_vis()
     default_kwargs = dict(context_erase=0.5,
                           n_batch=1,
                           max_tokens=max_tokens,
@@ -95,6 +96,8 @@ def get_gpt4all_default_kwargs(max_new_tokens=256,
                           n_ctx=max_seq_len,
                           n_threads=n_jobs,
                           verbose=verbose)
+    if n_gpus != 0:
+        default_kwargs.update(dict(n_gpu_layers=15))
     return default_kwargs, env_kwargs
 
 
