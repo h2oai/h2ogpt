@@ -2332,13 +2332,13 @@ def go_gradio(**kwargs):
                 model0.cpu()
 
             if model_state_old['model'] is not None and \
-                    not isinstance(model_state_old['model'], str) and \
-                    hasattr(model_state_old['model'], 'cpu'):
-                try:
-                    model_state_old['model'].cpu()
-                except Exception as e:
-                    # sometimes hit NotImplementedError: Cannot copy out of meta tensor; no data!
-                    print("Unable to put model on CPU: %s" % str(e), flush=True)
+                    not isinstance(model_state_old['model'], str):
+                if hasattr(model_state_old['model'], 'cpu'):
+                    try:
+                        model_state_old['model'].cpu()
+                    except Exception as e:
+                        # sometimes hit NotImplementedError: Cannot copy out of meta tensor; no data!
+                        print("Unable to put model on CPU: %s" % str(e), flush=True)
                 del model_state_old['model']
                 model_state_old['model'] = None
 
