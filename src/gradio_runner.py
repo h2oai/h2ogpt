@@ -260,6 +260,15 @@ def go_gradio(**kwargs):
         # else gets input_list at time of submit that is old, and shows up as truncated in chatbot
         return x
 
+    def update_auth_selection(auth_user, selection_docs_state1):
+        # in-place
+        if 'selection_docs_state' in auth_user:
+            for k, v in auth_user['selection_docs_state'].items():
+                # add values, don't overwrite or remove here
+                auth_user['selection_docs_state'][k].update(selection_docs_state1[k])
+        else:
+            auth_user.update(dict(selection_docs_state=selection_docs_state1))
+
     # BEGIN AUTH THINGS
     def auth_func(username, password, auth_pairs=None, auth_filename=None,
                   auth_access=None,
@@ -279,10 +288,8 @@ def go_gradio(**kwargs):
                     auth_dict = json.load(f)
             if username in auth_dict and username in auth_pairs:
                 if password == auth_dict[username]['password'] and password == auth_pairs[username]:
-                    if 'selection_docs_state' in auth_dict[username]:
-                        auth_dict[username]['selection_docs_state'].update(selection_docs_state1)
-                    else:
-                        auth_dict[username].update(dict(selection_docs_state=selection_docs_state1))
+                    auth_user = auth_dict[username]
+                    update_auth_selection(auth_user, selection_docs_state1)
                     with open(auth_filename, 'wt') as f:
                         f.write(json.dumps(auth_dict, indent=2))
                     return True
@@ -290,10 +297,8 @@ def go_gradio(**kwargs):
                     return False
             elif username in auth_dict:
                 if password == auth_dict[username]['password']:
-                    if 'selection_docs_state' in auth_dict[username]:
-                        auth_dict[username]['selection_docs_state'].update(selection_docs_state1)
-                    else:
-                        auth_dict[username].update(dict(selection_docs_state=selection_docs_state1))
+                    auth_user = auth_dict[username]
+                    update_auth_selection(auth_user, selection_docs_state1)
                     with open(auth_filename, 'wt') as f:
                         f.write(json.dumps(auth_dict, indent=2))
                     return True
@@ -302,10 +307,8 @@ def go_gradio(**kwargs):
             elif username in auth_pairs:
                 # copy over CLI auth to file so only one state to manage
                 auth_dict[username] = dict(password=auth_pairs[username], userid=str(uuid.uuid4()))
-                if 'selection_docs_state' in auth_dict[username]:
-                    auth_dict[username]['selection_docs_state'].update(selection_docs_state1)
-                else:
-                    auth_dict[username].update(dict(selection_docs_state=selection_docs_state1))
+                auth_user = auth_dict[username]
+                update_auth_selection(auth_user, selection_docs_state1)
                 with open(auth_filename, 'wt') as f:
                     f.write(json.dumps(auth_dict, indent=2))
                 return True
@@ -314,10 +317,8 @@ def go_gradio(**kwargs):
                     return False
                 # open access
                 auth_dict[username] = dict(password=password, userid=str(uuid.uuid4()))
-                if 'selection_docs_state' in auth_dict[username]:
-                    auth_dict[username]['selection_docs_state'].update(selection_docs_state1)
-                else:
-                    auth_dict[username].update(dict(selection_docs_state=selection_docs_state1))
+                auth_user = auth_dict[username]
+                update_auth_selection(auth_user, selection_docs_state1)
                 with open(auth_filename, 'wt') as f:
                     f.write(json.dumps(auth_dict, indent=2))
                 if auth_access == 'open':
@@ -1373,7 +1374,47 @@ def go_gradio(**kwargs):
         admin_pass_textbox.submit(check_admin_pass, inputs=admin_pass_textbox, outputs=system_row, queue=False) \
             .then(close_admin, inputs=admin_pass_textbox, outputs=admin_row, queue=False)
 
-        def add_langchain_mode(db1s, selection_docs_state1, requests_state1, langchain_mode1, y):
+        def load_auth(db1s, selection_docs_state1, requests_state1, auth_filename=None):
+            # in-place assignment
+            if not auth_filename:
+                return
+            # if first time here, need to set userID
+            set_userid(db1s, requests_state1, get_userid_auth)
+            username = get_username(requests_state1)
+            with filelock.FileLock(auth_filename + '.lock'):
+                if os.path.isfile(auth_filename):
+                    with open(auth_filename, 'rt') as f:
+                        auth_dict = json.load(f)
+                        if username in auth_dict:
+                            auth_user = auth_dict[username]
+                            if 'selection_docs_state' in auth_user:
+                                for k, v in auth_user['selection_docs_state'].items():
+                                    # only add, don't assume file is all that have
+                                    # e.g. migration
+                                    selection_docs_state1[k].update(auth_user['selection_docs_state'][k])
+
+        def save_auth(requests_state1, selection_docs_state1, auth_filename, auth_freeze):
+            if auth_freeze:
+                return
+            if not auth_filename:
+                return
+            # save to auth file
+            username = get_username(requests_state1)
+            with filelock.FileLock(auth_filename + '.lock'):
+                if os.path.isfile(auth_filename):
+                    with open(auth_filename, 'rt') as f:
+                        auth_dict = json.load(f)
+                    with open(auth_filename, 'wt') as f:
+                        if username in auth_dict:
+                            auth_user = auth_dict[username]
+                            update_auth_selection(auth_user, selection_docs_state1)
+                            f.write(json.dumps(auth_dict, indent=2))
+
+        def add_langchain_mode(db1s, selection_docs_state1, requests_state1, langchain_mode1, y,
+                               auth_filename=None, auth_freeze=None):
+            assert auth_filename is not None
+            assert auth_freeze is not None
+
             set_userid(db1s, requests_state1, get_userid_auth)
             for k in db1s:
                 set_dbid(db1s[k])
@@ -1436,14 +1477,15 @@ def go_gradio(**kwargs):
                 # needs to have key for it to make it known different from userdata case in _update_user_db()
                 db1s[langchain_mode2] = [None, None]
             if valid:
-                # FIXME: Save to auth file
-                pass
+                save_auth(requests_state1, selection_docs_state1, auth_filename, auth_freeze)
 
             return db1s, selection_docs_state1, gr.update(choices=choices,
                                                           value=langchain_mode2), textbox, df_langchain_mode_paths1
 
         def remove_langchain_mode(db1s, selection_docs_state1, requests_state1,
-                                  langchain_mode1, langchain_mode2, dbsu=None):
+                                  langchain_mode1, langchain_mode2, dbsu=None, auth_filename=None, auth_freeze=None):
+            assert auth_filename is not None
+            assert auth_freeze is not None
             set_userid(db1s, requests_state1, get_userid_auth)
             for k in db1s:
                 set_dbid(db1s[k])
@@ -1452,6 +1494,7 @@ def go_gradio(**kwargs):
             langchain_mode_paths = selection_docs_state1['langchain_mode_paths']
             langchain_mode_types = selection_docs_state1['langchain_mode_types']
 
+            valid = False
             in_scratch_db = langchain_mode2 in db1s
             in_user_db = dbsu is not None and langchain_mode2 in dbsu
             if in_scratch_db and not allow_upload_to_my_data or \
@@ -1465,6 +1508,7 @@ def go_gradio(**kwargs):
                 if langchain_mode2 in langchain_modes:
                     langchain_modes.remove(langchain_mode2)
                     textbox = ""
+                    valid = True
                 else:
                     textbox = "%s was not visible" % langchain_mode2
                 if langchain_mode2 in langchain_mode_paths:
@@ -1479,8 +1523,8 @@ def go_gradio(**kwargs):
                 selection_docs_state1 = update_langchain_mode_paths(selection_docs_state1)
                 df_langchain_mode_paths1 = get_df_langchain_mode_paths(selection_docs_state1)
 
-                # FIXME: Update auth file
-                pass
+                if valid:
+                    save_auth(requests_state1, selection_docs_state1, auth_filename, auth_freeze)
 
             return db1s, selection_docs_state1, \
                 gr.update(choices=get_langchain_choices(selection_docs_state1),
@@ -1491,6 +1535,10 @@ def go_gradio(**kwargs):
                                                             new_langchain_mode_text, new_langchain_mode_text],
                                                     outputs=[my_db_state, requests_state, new_langchain_mode_text],
                                                     show_progress='minimal')
+        add_langchain_mode_func = functools.partial(add_langchain_mode,
+                                                    auth_filename=kwargs['auth_filename'],
+                                                    auth_freeze=kwargs['auth_freeze'],
+                                                    )
         eventdb20b = eventdb20a.then(fn=add_langchain_mode,
                                      inputs=[my_db_state, selection_docs_state, requests_state,
                                              langchain_mode,
@@ -1517,18 +1565,7 @@ def go_gradio(**kwargs):
                                      api_name='remove_langchain_mode_text' if allow_api and allow_upload_to_user_data else None)
 
         def load_langchain_gr(db1s, selection_docs_state1, requests_state1, langchain_mode1, auth_filename=None):
-            if auth_filename:
-                # if first time here, need to set userID
-                set_userid(db1s, requests_state1, get_userid_auth)
-                username = get_username(requests_state1)
-                with filelock.FileLock(auth_filename + '.lock'):
-                    if os.path.isfile(auth_filename):
-                        with open(auth_filename, 'rt') as f:
-                            auth_dict = json.load(f)
-                            if username in auth_dict:
-                                auth_user = auth_dict[username]
-                                if 'selection_docs_state' in auth_user:
-                                    selection_docs_state1 = auth_user['selection_docs_state']
+            load_auth(db1s, selection_docs_state1, requests_state1, auth_filename)
 
             selection_docs_state1 = update_langchain_mode_paths(selection_docs_state1)
             df_langchain_mode_paths1 = get_df_langchain_mode_paths(selection_docs_state1)
