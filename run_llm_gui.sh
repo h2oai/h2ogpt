@@ -7,5 +7,5 @@ python generate.py \
     --score_model=None \
     --load_4bit=False \
     --prompt_type=human_bot \
-    --user_path='/mnt/llm/synology_github/h2ogpt_rg/data/training' \
+    --user_path='user_path' \
     --allow_upload_to_user_data=True

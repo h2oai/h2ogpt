@@ -1,5 +1,12 @@
 #!/bin/bash
 
+# install instructions
+# to install follow these steps:
+# wget https://raw.githubusercontent.com/Royce-Geospatial-Consultants/h2ogpt_rg/main/royce_install_script.sh
+# chmod +x royce_install_script.sh
+# less install.sh # this will allow you to check the script before running it to make sure it is not compromised
+# sudo ./royce_install_script.sh # this will run the script in the codespace.
+
 # Update and install git
 sudo apt-get update -y
 sudo apt-get install git -y
