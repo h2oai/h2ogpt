@@ -1,3 +1,4 @@
+import ast
 import asyncio
 from typing import Any, Dict, List, Optional, OrderedDict, Tuple, ValuesView
 
@@ -133,6 +134,10 @@ class TextCompletion:
         self._parameters["instruction_nochat"] = prompt
         return self._parameters
 
+    @staticmethod
+    def _get_reply(response: str) -> str:
+        return ast.literal_eval(response)["response"]
+
     async def complete(self, prompt: str) -> str:
         """
         Complete this text completion.
@@ -141,9 +146,10 @@ class TextCompletion:
         :return: response from the model
         """
 
-        return await self._client._predict_async(
+        response = await self._client._predict_async(
             str(dict(self._get_parameters(prompt))), api_name=self._API_NAME
         )
+        return self._get_reply(response)
 
     def complete_sync(self, prompt: str) -> str:
         """
@@ -152,9 +158,10 @@ class TextCompletion:
         :param prompt: text prompt to generate completion for
         :return: response from the model
         """
-        return self._client._predict(
+        response = self._client._predict(
             str(dict(self._get_parameters(prompt))), api_name=self._API_NAME
         )
+        return self._get_reply(response)
 
 
 class ChatCompletionCreator:
