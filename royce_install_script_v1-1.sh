@@ -14,15 +14,15 @@ sudo apt-get install git -y
 # Print git version
 git --version
 
-# Clone repository
-git clone https://github.com/Royce-Geospatial-Consultants/h2ogpt_rg.git
-cd h2ogpt_rg
-
 # Install Miniconda
 wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
 chmod +x Miniconda3-latest-Linux-x86_64.sh
-echo 'yes' | ./Miniconda3-latest-Linux-x86_64.sh
-source ~/.bashrc
+./Miniconda3-latest-Linux-x86_64.sh -b -p $HOME/miniconda3
+source $HOME/miniconda3/etc/profile.d/conda.sh
+
+# Clone repository
+git clone https://github.com/Royce-Geospatial-Consultants/h2ogpt_rg.git
+cd h2ogpt_rg
 
 # Create conda environment
 conda create --name h2ogpt_rg python=3.10 -y
