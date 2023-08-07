@@ -265,7 +265,12 @@ def go_gradio(**kwargs):
         if 'selection_docs_state' in auth_user:
             for k, v in auth_user['selection_docs_state'].items():
                 # add values, don't overwrite or remove here
-                auth_user['selection_docs_state'][k].update(selection_docs_state1[k])
+                if isinstance(selection_docs_state1[k], dict):
+                    auth_user['selection_docs_state'][k].update(selection_docs_state1[k])
+                elif isinstance(selection_docs_state1[k], list):
+                    auth_user['selection_docs_state'][k].extend(selection_docs_state1[k])
+                else:
+                    raise RuntimeError("Bad type: %s" % selection_docs_state1[k])
         else:
             auth_user.update(dict(selection_docs_state=selection_docs_state1))
 
@@ -1387,11 +1392,7 @@ def go_gradio(**kwargs):
                         auth_dict = json.load(f)
                         if username in auth_dict:
                             auth_user = auth_dict[username]
-                            if 'selection_docs_state' in auth_user:
-                                for k, v in auth_user['selection_docs_state'].items():
-                                    # only add, don't assume file is all that have
-                                    # e.g. migration
-                                    selection_docs_state1[k].update(auth_user['selection_docs_state'][k])
+                            update_auth_selection(auth_user, selection_docs_state1)
 
         def save_auth(requests_state1, selection_docs_state1, auth_filename, auth_freeze):
             if auth_freeze:
