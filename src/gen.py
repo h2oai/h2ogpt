@@ -168,8 +168,7 @@ def main(
 
         langchain_mode: str = None,
         user_path: str = None,
-        langchain_modes: list = [x.value for x in list(LangChainMode)],
-        visible_langchain_modes: list = ['UserData', 'MyData'],
+        langchain_modes: list = ['UserData', 'MyData'],
         langchain_mode_paths: dict = {'UserData': None},
         detect_user_path_changes_every_query: bool = False,
 
@@ -381,15 +380,14 @@ def main(
            WARNING: wiki_full requires extra data processing via read_wiki_full.py and requires really good workstation to generate db, unless already present.
     :param user_path: user path to glob from to generate db for vector search, for 'UserData' langchain mode.
            If already have db, any new/changed files are added automatically if path set, does not have to be same path used for prior db sources
-    :param langchain_modes: names of collections/dbs to potentially have
-    :param visible_langchain_modes: dbs to generate at launch to be ready for LLM
-           Can be up to ['wiki', 'wiki_full', 'UserData', 'MyData', 'github h2oGPT', 'DriverlessAI docs']
-           But wiki_full is expensive and requires preparation
+    :param langchain_modes: dbs to generate at launch to be ready for LLM
+           Apart from additional user-defined collections, can include ['wiki', 'wiki_full', 'UserData', 'MyData', 'github h2oGPT', 'DriverlessAI docs']
+             But wiki_full is expensive and requires preparation
            To allow scratch space only live in session, add 'MyData' to list
            Default: If only want to consume local files, e.g. prepared by make_db.py, only include ['UserData']
            If have own user modes, need to add these here or add in UI.
-           A state file is stored in visible_langchain_modes.pkl containing last UI-selected values of:
-              langchain_modes, visible_langchain_modes, and langchain_mode_paths
+           A state file is stored in langchain_modes.pkl containing last UI-selected values of:
+              langchain_modes, and langchain_mode_paths
               Delete the file if you want to start fresh,
               but in any case the user_path passed in CLI is used for UserData even if was None or different
     :param langchain_mode_paths: dict of langchain_mode keys and disk path values to use for source of documents
@@ -441,7 +439,7 @@ def main(
            Also not supported when using CLI mode
     :param allow_upload_to_user_data: Whether to allow file uploads to update shared vector db (UserData or custom user dbs)
            Ensure pass user_path for the files uploaded to be moved to this location for linking.
-    :param reload_langchain_state: Whether to reload visible_langchain_modes.pkl file that contains any new user collections.
+    :param reload_langchain_state: Whether to reload langchain_modes.pkl file that contains any new user collections.
     :param allow_upload_to_my_data: Whether to allow file uploads to update scratch vector db
     :param enable_url_upload: Whether to allow upload from URL
     :param enable_text_upload: Whether to allow upload of text
@@ -537,12 +535,9 @@ def main(
     # allow enabling langchain via ENV
     # FIRST PLACE where LangChain referenced, but no imports related to it
     langchain_mode = os.environ.get("LANGCHAIN_MODE", langchain_mode)
+    langchain_modes = ast.literal_eval(os.environ.get("langchain_modes", str(langchain_modes)))
     if langchain_mode is not None:
         assert langchain_mode in langchain_modes, "Invalid langchain_mode %s" % langchain_mode
-    visible_langchain_modes = ast.literal_eval(os.environ.get("visible_langchain_modes", str(visible_langchain_modes)))
-    if langchain_mode not in visible_langchain_modes and langchain_mode in langchain_modes:
-        if langchain_mode is not None:
-            visible_langchain_modes += [langchain_mode]
 
     # update
     if isinstance(langchain_mode_paths, str):
@@ -554,12 +549,12 @@ def main(
 
     if is_public:
         allow_upload_to_user_data = False
-        if LangChainMode.USER_DATA.value in visible_langchain_modes:
-            visible_langchain_modes.remove(LangChainMode.USER_DATA.value)
+        if LangChainMode.USER_DATA.value in langchain_modes:
+            langchain_modes.remove(LangChainMode.USER_DATA.value)
 
     # in-place, for non-scratch dbs
     if allow_upload_to_user_data:
-        update_langchain(langchain_modes, visible_langchain_modes, langchain_mode_paths, '', save_dir=save_dir)
+        update_langchain(langchain_modes, langchain_mode_paths, '', save_dir=save_dir)
         # always listen to CLI-passed user_path if passed
         if user_path:
             langchain_mode_paths['UserData'] = user_path
@@ -569,9 +564,9 @@ def main(
         set(langchain_agents).difference(langchain_agents_list)) == 0, "Invalid langchain_agents %s" % langchain_agents
 
     # if specifically chose not to show My or User Data, disable upload, so gradio elements are simpler
-    if LangChainMode.MY_DATA.value not in visible_langchain_modes:
+    if LangChainMode.MY_DATA.value not in langchain_modes:
         allow_upload_to_my_data = False
-    if LangChainMode.USER_DATA.value not in visible_langchain_modes:
+    if LangChainMode.USER_DATA.value not in langchain_modes:
         allow_upload_to_user_data = False
 
     # auto-set langchain_mode
@@ -755,10 +750,7 @@ def main(
         if is_hf:
             get_some_dbs_from_hf()
         dbs = {}
-        for langchain_mode1 in visible_langchain_modes:
-            if langchain_mode1 in ['All']:
-                # FIXME: All should be avoided until scans over each db, shouldn't be separate db
-                continue
+        for langchain_mode1 in langchain_modes:
             shared_type = langchain_mode_paths.get(langchain_mode1) is not None
             persist_directory1 = get_persist_directory(langchain_mode1, shared_type=shared_type)
             try:
@@ -786,13 +778,9 @@ def main(
                             base_model=None, tokenizer_base_model=None, lora_weights=None,
                             inference_server=None, prompt_type=None, prompt_dict=None)
     my_db_state0 = {LangChainMode.MY_DATA.value: [None, None]}
-    selection_docs_state0 = dict(visible_langchain_modes=visible_langchain_modes,
-                                 langchain_mode_paths=langchain_mode_paths,
-                                 langchain_modes=langchain_modes)
-    selection_docs_state = selection_docs_state0
-    langchain_modes0 = langchain_modes
-    langchain_mode_paths0 = langchain_mode_paths
-    visible_langchain_modes0 = visible_langchain_modes
+    selection_docs_state0 = dict(langchain_modes=langchain_modes,
+                                 langchain_mode_paths=langchain_mode_paths)
+    selection_docs_state = copy.deepcopy(selection_docs_state0)
 
     if cli:
         from cli import run_cli
@@ -1608,9 +1596,6 @@ def evaluate(
         save_dir=None,
         sanitize_bot_response=False,
         model_state0=None,
-        langchain_modes0=None,
-        langchain_mode_paths0=None,
-        visible_langchain_modes0=None,
         memory_restriction_level=None,
         max_max_new_tokens=None,
         is_public=None,
@@ -1662,14 +1647,8 @@ def evaluate(
     assert isinstance(add_chat_history_to_context, bool)
     assert load_exllama is not None
 
-    if selection_docs_state is not None:
-        langchain_modes = selection_docs_state.get('langchain_modes', langchain_modes0)
-        langchain_mode_paths = selection_docs_state.get('langchain_mode_paths', langchain_mode_paths0)
-        visible_langchain_modes = selection_docs_state.get('visible_langchain_modes', visible_langchain_modes0)
-    else:
-        langchain_modes = langchain_modes0
-        langchain_mode_paths = langchain_mode_paths0
-        visible_langchain_modes = visible_langchain_modes0
+    langchain_modes = selection_docs_state['langchain_modes']
+    langchain_mode_paths = selection_docs_state['langchain_mode_paths']
 
     if debug:
         locals_dict = locals().copy()
@@ -2924,14 +2903,10 @@ def history_to_context(history, langchain_mode1,
     return context1
 
 
-def update_langchain(langchain_modes, visible_langchain_modes, langchain_mode_paths, extra, save_dir=None):
+def update_langchain(langchain_modes, langchain_mode_paths, extra, save_dir=None):
     # update from saved state on disk
     langchain_modes_from_file, visible_langchain_modes_from_file, langchain_mode_paths_from_file = \
         load_collection_enum(extra, save_dir=save_dir)
-
-    visible_langchain_modes_temp = visible_langchain_modes.copy() + visible_langchain_modes_from_file
-    visible_langchain_modes.clear()  # don't lose original reference
-    [visible_langchain_modes.append(x) for x in visible_langchain_modes_temp if x not in visible_langchain_modes]
 
     langchain_mode_paths.update(langchain_mode_paths_from_file)
 

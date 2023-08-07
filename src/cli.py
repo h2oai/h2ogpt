@@ -31,9 +31,6 @@ def run_cli(  # for local function:
         # for evaluate kwargs
         src_lang=None, tgt_lang=None, concurrency_count=None, save_dir=None, sanitize_bot_response=None,
         model_state0=None,
-        langchain_modes0=None,
-        langchain_mode_paths0=None,
-        visible_langchain_modes0=None,
         max_max_new_tokens=None,
         is_public=None,
         max_max_time=None,

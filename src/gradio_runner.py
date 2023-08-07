@@ -127,10 +127,6 @@ def go_gradio(**kwargs):
     score_model_state0 = kwargs['score_model_state0']
     my_db_state0 = kwargs['my_db_state0']
     selection_docs_state0 = kwargs['selection_docs_state0']
-    # for evaluate defaults
-    langchain_modes0 = kwargs['langchain_modes']
-    visible_langchain_modes0 = kwargs['visible_langchain_modes']
-    langchain_mode_paths0 = kwargs['langchain_mode_paths']
     # For Heap analytics
     is_heap_analytics_enabled = kwargs['enable_heap_analytics']
     heap_app_id = kwargs['heap_app_id']
@@ -384,7 +380,7 @@ def go_gradio(**kwargs):
                 selection_docs_state1['langchain_mode_paths'].update({k: None for k in db1s})
             dup = selection_docs_state1['langchain_mode_paths'].copy()
             for k, v in dup.items():
-                if k not in selection_docs_state1['visible_langchain_modes']:
+                if k not in selection_docs_state1['langchain_modes']:
                     selection_docs_state1['langchain_mode_paths'].pop(k)
             return selection_docs_state1
 
@@ -432,14 +428,13 @@ def go_gradio(**kwargs):
 
         def get_langchain_choices(selection_docs_state1):
             langchain_modes = selection_docs_state1['langchain_modes']
-            visible_langchain_modes = selection_docs_state1['visible_langchain_modes']
 
             if is_hf:
                 # don't show 'wiki' since only usually useful for internal testing at moment
                 no_show_modes = ['Disabled', 'wiki']
             else:
                 no_show_modes = ['Disabled']
-            allowed_modes = visible_langchain_modes.copy()
+            allowed_modes = langchain_modes.copy()
             # allowed_modes = [x for x in allowed_modes if x in dbs]
             allowed_modes += ['LLM']
             if allow_upload_to_my_data and 'MyData' not in allowed_modes:
@@ -1318,7 +1313,6 @@ def go_gradio(**kwargs):
                 set_dbid(db1s[k])
             langchain_modes = selection_docs_state1['langchain_modes']
             langchain_mode_paths = selection_docs_state1['langchain_mode_paths']
-            visible_langchain_modes = selection_docs_state1['visible_langchain_modes']
 
             user_path = None
             valid = True
@@ -1342,8 +1336,6 @@ def go_gradio(**kwargs):
                         if user_path:
                             user_path = makedirs(user_path, exist_ok=True, use_base=True)
                         langchain_mode_paths.update({langchain_mode2: user_path})
-                        if langchain_mode2 not in visible_langchain_modes:
-                            visible_langchain_modes.append(langchain_mode2)
                         if langchain_mode2 not in langchain_modes:
                             langchain_modes.append(langchain_mode2)
                         textbox = ''
@@ -1368,7 +1360,7 @@ def go_gradio(**kwargs):
                 # needs to have key for it to make it known different from userdata case in _update_user_db()
                 db1s[langchain_mode2] = [None, None]
             if valid:
-                save_collection_names(langchain_modes, visible_langchain_modes, langchain_mode_paths, LangChainMode,
+                save_collection_names(langchain_modes, langchain_mode_paths, LangChainMode,
                                       db1s, True if user_path else False, save_dir=kwargs['save_dir'])
 
             return db1s, selection_docs_state1, gr.update(choices=choices,
@@ -1382,7 +1374,6 @@ def go_gradio(**kwargs):
             assert dbsu is not None
             langchain_modes = selection_docs_state1['langchain_modes']
             langchain_mode_paths = selection_docs_state1['langchain_mode_paths']
-            visible_langchain_modes = selection_docs_state1['visible_langchain_modes']
 
             in_scratch_db = langchain_mode2 in db1s
             in_user_db = dbsu is not None and langchain_mode2 in dbsu
@@ -1394,13 +1385,11 @@ def go_gradio(**kwargs):
                 df_langchain_mode_paths1 = get_df_langchain_mode_paths(selection_docs_state1)
             else:
                 # change global variables
-                if langchain_mode2 in visible_langchain_modes:
-                    visible_langchain_modes.remove(langchain_mode2)
+                if langchain_mode2 in langchain_modes:
+                    langchain_modes.remove(langchain_mode2)
                     textbox = ""
                 else:
                     textbox = "%s was not visible" % langchain_mode2
-                if langchain_mode2 in langchain_modes:
-                    langchain_modes.remove(langchain_mode2)
                 if langchain_mode2 in langchain_mode_paths:
                     langchain_mode_paths.pop(langchain_mode2)
                 if langchain_mode2 in db1s:
@@ -1413,7 +1402,7 @@ def go_gradio(**kwargs):
                 selection_docs_state1 = update_langchain_mode_paths(db1s, selection_docs_state1)
                 df_langchain_mode_paths1 = get_df_langchain_mode_paths(selection_docs_state1)
 
-                save_collection_names(langchain_modes, visible_langchain_modes, langchain_mode_paths, LangChainMode,
+                save_collection_names(langchain_modes, langchain_mode_paths, LangChainMode,
                                       db1s, in_user_db, save_dir=kwargs['save_dir'])
 
             return db1s, selection_docs_state1, \
@@ -1456,15 +1445,14 @@ def go_gradio(**kwargs):
                 set_dbid(db1s[k])
             langchain_modes = selection_docs_state1['langchain_modes']
             langchain_mode_paths = selection_docs_state1['langchain_mode_paths']
-            visible_langchain_modes = selection_docs_state1['visible_langchain_modes']
             # in-place
 
             # update user collaborative collections
-            update_langchain(langchain_modes, visible_langchain_modes, langchain_mode_paths, '',
+            update_langchain(langchain_modes, langchain_mode_paths, '',
                              save_dir=kwargs['save_dir'])
             # update scratch single-user collections
             user_hash = db1s.get(LangChainMode.MY_DATA.value, '')[1]
-            update_langchain(langchain_modes, visible_langchain_modes, langchain_mode_paths, user_hash,
+            update_langchain(langchain_modes, langchain_mode_paths, user_hash,
                              save_dir=kwargs['save_dir'])
 
             selection_docs_state1 = update_langchain_mode_paths(db1s, selection_docs_state1)
@@ -2969,9 +2957,8 @@ def _update_user_db(file,
                     chunk=None, chunk_size=None,
                     dbs=None, db_type=None,
                     langchain_mode='UserData',
-                    langchain_modes=None,  # unused but required as part of selection_docs_state1
+                    langchain_modes=None,
                     langchain_mode_paths=None,
-                    visible_langchain_modes=None,
                     use_openai_embedding=None,
                     hf_embedding_model=None,
                     migrate_embedding_model=None,
@@ -3017,7 +3004,7 @@ def _update_user_db(file,
     if langchain_mode in [LangChainMode.LLM.value]:
         # then switch to MyData, so langchain_mode also becomes way to select where upload goes
         # but default to mydata if nothing chosen, since safest
-        if LangChainMode.MY_DATA.value in visible_langchain_modes:
+        if LangChainMode.MY_DATA.value in langchain_modes:
             langchain_mode = LangChainMode.MY_DATA.value
 
     if langchain_mode_paths is None:

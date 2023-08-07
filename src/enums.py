@@ -58,7 +58,6 @@ class LangChainMode(Enum):
 
     DISABLED = "Disabled"
     LLM = "LLM"
-    ALL = "All"
     WIKI = "wiki"
     WIKI_FULL = "wiki_full"
     USER_DATA = "UserData"

@@ -448,7 +448,7 @@ def test_make_add_db(repeat, db_type):
                     langchain_mode2 = 'MyData'
                     selection_docs_state1 = dict(langchain_modes=[langchain_mode2],
                                                  langchain_mode_paths={},
-                                                 visible_langchain_modes=[langchain_mode2])
+                                                 langchain_modes=[langchain_mode2])
                     z1, z2, source_files_added, exceptions = update_user_db(test_file2_my, db1,
                                                                             selection_docs_state1,
                                                                             chunk,
@@ -464,7 +464,7 @@ def test_make_add_db(repeat, db_type):
                     langchain_mode = 'UserData'
                     selection_docs_state2 = dict(langchain_modes=[langchain_mode],
                                                  langchain_mode_paths={langchain_mode: tmp_user_path},
-                                                 visible_langchain_modes=[langchain_mode])
+                                                 langchain_modes=[langchain_mode])
                     z1, z2, source_files_added, exceptions = update_user_db(test_file2, db1,
                                                                             selection_docs_state2,
                                                                             chunk, chunk_size,

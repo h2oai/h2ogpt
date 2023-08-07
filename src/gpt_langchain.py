@@ -1870,11 +1870,11 @@ def prep_langchain(persist_directory,
         elif not db_dir_exists:
             print("Prep: persist_directory=%s does not exist, regenerating" % persist_directory, flush=True)
         db = None
-        if langchain_mode in ['All', 'DriverlessAI docs']:
+        if langchain_mode in ['DriverlessAI docs']:
             # FIXME: Could also just use dai_docs.pickle directly and upload that
             get_dai_docs(from_hf=True)
 
-        if langchain_mode in ['All', 'wiki']:
+        if langchain_mode in ['wiki']:
             get_wiki_sources(first_para=kwargs_make_db['first_para'], text_limit=kwargs_make_db['text_limit'])
 
         langchain_kwargs = kwargs_make_db.copy()
@@ -2731,7 +2731,6 @@ def get_chain(query=None,
                 filter_kwargs = {"chunk_id": {"$gte": 0}} if query_action else {"chunk_id": {"$eq": -1}}
             elif len(document_choice) >= 2:
                 if document_choice[0] == DocumentChoice.ALL.value:
-                    # remove 'All'
                     document_choice = document_choice[1:]
                 or_filter = [{"source": {"$eq": x}, "chunk_id": {"$gte": 0}} if query_action else {"source": {"$eq": x},
                                                                                                    "chunk_id": {

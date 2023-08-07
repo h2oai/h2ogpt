@@ -45,7 +45,7 @@ All the buttons are also accessible via gradio client API.
 | Database Subset     | Control if query uses "Relevant" documents or relevant sources, or All sources in collection |
 
 ### Data Collection of Sources
-Collections (defaults to value set by `--langchain_mode=` and visible items set by `--visible_langchain_modes`):
+Collections (defaults to value set by `--langchain_mode=` and visible items set by `--langchain_modes`):
 * LLM: Single query-response, no chat context or docs used
 * UserData: Shared and persistent. Writable if `--allow_upload_to_user_data=True`. Rebuilt from path `--user_path` if set.
 * MyData: Private and non-persistent.  Writable if `--allow_upload_to_my_data=True`
