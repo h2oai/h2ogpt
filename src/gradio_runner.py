@@ -263,6 +263,7 @@ def go_gradio(**kwargs):
     # BEGIN AUTH THINGS
     def auth_func(username, password, auth_pairs=None, auth_filename=None, auth_access=None, guest_name=None,
                   selection_docs_state1=None, **kwargs):
+        assert selection_docs_state1 is not None
         assert auth_filename and isinstance(auth_filename, str), "Auth file must be a non-empty string, got: %s" % str(
             auth_filename)
         if auth_access == 'open' and username == guest_name:
@@ -274,7 +275,10 @@ def go_gradio(**kwargs):
                     auth_dict = json.load(f)
             if username in auth_dict and username in auth_pairs:
                 if password == auth_dict[username]['password'] and password == auth_pairs[username]:
-                    auth_dict[username].update(dict(selection_docs_state=selection_docs_state1))
+                    if 'selection_docs_state' in auth_dict[username]:
+                        auth_dict[username]['selection_docs_state'].update(selection_docs_state1)
+                    else:
+                        auth_dict[username].update(dict(selection_docs_state=selection_docs_state1))
                     with open(auth_filename, 'wt') as f:
                         f.write(json.dumps(auth_dict, indent=2))
                     return True
@@ -282,7 +286,10 @@ def go_gradio(**kwargs):
                     return False
             elif username in auth_dict:
                 if password == auth_dict[username]['password']:
-                    auth_dict[username].update(dict(selection_docs_state=selection_docs_state1))
+                    if 'selection_docs_state' in auth_dict[username]:
+                        auth_dict[username]['selection_docs_state'].update(selection_docs_state1)
+                    else:
+                        auth_dict[username].update(dict(selection_docs_state=selection_docs_state1))
                     with open(auth_filename, 'wt') as f:
                         f.write(json.dumps(auth_dict, indent=2))
                     return True
@@ -291,7 +298,10 @@ def go_gradio(**kwargs):
             elif username in auth_pairs:
                 # copy over CLI auth to file so only one state to manage
                 auth_dict[username] = dict(password=auth_pairs[username], userid=str(uuid.uuid4()))
-                auth_dict[username].update(dict(selection_docs_state=selection_docs_state1))
+                if 'selection_docs_state' in auth_dict[username]:
+                    auth_dict[username]['selection_docs_state'].update(selection_docs_state1)
+                else:
+                    auth_dict[username].update(dict(selection_docs_state=selection_docs_state1))
                 with open(auth_filename, 'wt') as f:
                     f.write(json.dumps(auth_dict, indent=2))
                 return True
@@ -300,7 +310,10 @@ def go_gradio(**kwargs):
                     return False
                 # open access
                 auth_dict[username] = dict(password=password, userid=str(uuid.uuid4()))
-                auth_dict[username].update(dict(selection_docs_state=selection_docs_state1))
+                if 'selection_docs_state' in auth_dict[username]:
+                    auth_dict[username]['selection_docs_state'].update(selection_docs_state1)
+                else:
+                    auth_dict[username].update(dict(selection_docs_state=selection_docs_state1))
                 with open(auth_filename, 'wt') as f:
                     f.write(json.dumps(auth_dict, indent=2))
                 if auth_access == 'open':
@@ -358,7 +371,7 @@ def go_gradio(**kwargs):
                              auth_filename=kwargs['auth_filename'],
                              auth_access=kwargs['auth_access'],
                              guest_name=kwargs['guest_name'],
-                             selection_docs_state0=selection_docs_state0)
+                             selection_docs_state1=selection_docs_state0)
 
     def get_request_state(request):
         # if need to get state, do it now
@@ -409,6 +422,9 @@ def go_gradio(**kwargs):
             for k, v in dup.items():
                 if k not in selection_docs_state1['langchain_modes']:
                     selection_docs_state1['langchain_mode_paths'].pop(k)
+            for k in selection_docs_state1['langchain_modes']:
+                if k not in selection_docs_state1['langchain_mode_types']:
+                    selection_docs_state1['langchain_mode_types'][k] = LangChainTypes.SCRATCH.value
             return selection_docs_state1
 
         # Setup some gradio states for per-user dynamic state
