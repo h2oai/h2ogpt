@@ -129,6 +129,7 @@ def main(
 
         auth: Union[typing.List[typing.Tuple[str, str]], str] = None,
         auth_access: str = 'open',
+        auth_freeze: bool = False,
         auth_message: str = None,
         guest_name: str = "guest",
 
@@ -336,6 +337,7 @@ def main(
     :param auth_access:
          'open': Allow new users to be added
          'closed': Stick to existing users
+    :param auth_freeze: whether freeze authentication based upon current file, no longer update file
     :param auth_message: Message to show if having users login, fixed if passed, else dynamic internally
     :param guest_name: guess name if using auth and have open access.
            If '', then no guest allowed even if open access, then all databases for each user always persisted

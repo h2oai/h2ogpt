@@ -261,8 +261,12 @@ def go_gradio(**kwargs):
         return x
 
     # BEGIN AUTH THINGS
-    def auth_func(username, password, auth_pairs=None, auth_filename=None, auth_access=None, guest_name=None,
+    def auth_func(username, password, auth_pairs=None, auth_filename=None,
+                  auth_access=None,
+                  auth_freeze=None,
+                  guest_name=None,
                   selection_docs_state1=None, **kwargs):
+        assert auth_freeze is not None
         assert selection_docs_state1 is not None
         assert auth_filename and isinstance(auth_filename, str), "Auth file must be a non-empty string, got: %s" % str(
             auth_filename)
@@ -370,6 +374,7 @@ def go_gradio(**kwargs):
                              auth_pairs=auth_pairs0,
                              auth_filename=kwargs['auth_filename'],
                              auth_access=kwargs['auth_access'],
+                             auth_freeze=kwargs['auth_freeze'],
                              guest_name=kwargs['guest_name'],
                              selection_docs_state1=selection_docs_state0)
 
