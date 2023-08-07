@@ -128,6 +128,8 @@ On CPU case, a good model that's still low memory is to run:
 python generate.py --base_model='llama' --prompt_type=llama2 --hf_embedding_model=sentence-transformers/all-MiniLM-L6-v2 --langchain_mode=UserData --user_path=user_path
 ```
 
+Ensure to vary `n_gpu_layers` in `.env_gpt4all` to smaller values to reduce offloading for smaller GPU memory boards.
+
 ### ValueError: ...offload....
 
 ```
