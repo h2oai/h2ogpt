@@ -760,7 +760,7 @@ def main(
         dbs = {}
         for langchain_mode1 in langchain_modes:
             langchain_type = langchain_mode_types.get(langchain_mode1, LangChainTypes.SCRATCH.value)
-            if langchain_type in [LangChainTypes.SCRATCH.value, LangChainTypes.PERSONAL.value]:
+            if langchain_type == LangChainTypes.SCRATCH.value:
                 # shouldn't prepare per-user databases here
                 continue
             persist_directory1 = get_persist_directory(langchain_mode1, langchain_type=langchain_type)

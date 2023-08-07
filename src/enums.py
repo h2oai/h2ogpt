@@ -68,7 +68,7 @@ class LangChainMode(Enum):
 
 class LangChainTypes(Enum):
     SHARED = 'shared'
-    PERSONAL = 'personal'
+    # PERSONAL = 'personal'
     SCRATCH = 'scratch'
 
 

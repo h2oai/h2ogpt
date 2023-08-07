@@ -269,6 +269,9 @@ def go_gradio(**kwargs):
                     auth_user['selection_docs_state'][k].update(selection_docs_state1[k])
                 elif isinstance(selection_docs_state1[k], list):
                     auth_user['selection_docs_state'][k].extend(selection_docs_state1[k])
+                    tmp = auth_user['selection_docs_state'][k].copy()
+                    auth_user['selection_docs_state'][k].clear()
+                    [auth_user['selection_docs_state'][k].append(x) for x in tmp if x not in auth_user['selection_docs_state'][k]]
                 else:
                     raise RuntimeError("Bad type: %s" % selection_docs_state1[k])
         else:
@@ -1438,10 +1441,9 @@ def go_gradio(**kwargs):
                     if user_path in ['', "''"]:
                         # transcribe UI input
                         user_path = None
-                    if user_path is not None and langchain_mode_type in [LangChainTypes.SCRATCH.value,
-                                                                         LangChainTypes.PERSONAL.value]:
+                    if user_path is not None and langchain_mode_type == LangChainTypes.SCRATCH.value:
                         user_path = None
-                        textbox = "Do not pass user_path for scratch/personal types"
+                        textbox = "Do not pass user_path for scratch types"
                         valid = False
                         langchain_mode2 = langchain_mode1
                     elif langchain_mode2 in langchain_modes_intrinsic:
