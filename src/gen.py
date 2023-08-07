@@ -1,7 +1,6 @@
 import ast
 import copy
 import functools
-import glob
 import inspect
 import queue
 import sys
@@ -12,7 +11,6 @@ import typing
 import warnings
 from datetime import datetime
 import requests
-import psutil
 from requests import ConnectTimeout, JSONDecodeError
 from urllib3.exceptions import ConnectTimeoutError, MaxRetryError, ConnectionError
 from requests.exceptions import ConnectionError as ConnectionError2
@@ -27,7 +25,7 @@ warnings.filterwarnings('ignore', category=UserWarning, message='TypedStorage is
 
 from evaluate_params import eval_func_param_names, no_default_param_names, input_args_list
 from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mapping, no_model_str, source_prefix, \
-    source_postfix, LangChainAction, LangChainAgent, DocumentChoice
+    source_postfix, LangChainAction, LangChainAgent, DocumentChoice, LangChainTypes
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, remove, \
@@ -168,8 +166,9 @@ def main(
 
         langchain_mode: str = None,
         user_path: str = None,
-        langchain_modes: list = ['UserData', 'MyData'],
-        langchain_mode_paths: dict = {'UserData': None},
+        langchain_modes: list = [LangChainMode.USER_DATA.value, LangChainMode.MY_DATA.value, LangChainMode.LLM.value, LangChainMode.DISABLED.value],
+        langchain_mode_paths: dict = {LangChainMode.USER_DATA.value: None},
+        langchain_mode_types: dict = {LangChainMode.USER_DATA.value: LangChainTypes.SHARED.value},
         detect_user_path_changes_every_query: bool = False,
 
         langchain_action: str = LangChainAction.QUERY.value,
@@ -394,6 +393,7 @@ def main(
            E.g. "{'UserData2': 'userpath2'}"
            A disk path be None, e.g. --langchain_mode_paths="{'UserData2': None}" even if existing DB, to avoid new documents being added from that path, source links that are on disk still work.
            If `--user_path` was passed, that path is used for 'UserData' instead of the value in this dict
+    :param langchain_mode_types: dict of langchain_mode keys and database types
     :param detect_user_path_changes_every_query: whether to detect if any files changed or added every similarity search (by file hashes).
            Expensive for large number of files, so not done by default.  By default only detect changes during db loading.
 
@@ -543,9 +543,13 @@ def main(
     if isinstance(langchain_mode_paths, str):
         langchain_mode_paths = ast.literal_eval(langchain_mode_paths)
         assert isinstance(langchain_mode_paths, dict)
+    if isinstance(langchain_mode_types, str):
+        langchain_mode_types = ast.literal_eval(langchain_mode_types)
+        assert isinstance(langchain_mode_types, dict)
     if user_path:
         user_path = makedirs(user_path, use_base=True)
         langchain_mode_paths['UserData'] = user_path
+        langchain_mode_paths['UserData'] = LangChainTypes.SHARED.value
 
     if is_public:
         allow_upload_to_user_data = False
@@ -554,7 +558,7 @@ def main(
 
     # in-place, for non-scratch dbs
     if allow_upload_to_user_data:
-        update_langchain(langchain_modes, langchain_mode_paths, '', save_dir=save_dir)
+        update_langchain(langchain_modes, langchain_mode_paths, langchain_mode_types, '', save_dir=save_dir)
         # always listen to CLI-passed user_path if passed
         if user_path:
             langchain_mode_paths['UserData'] = user_path
@@ -751,8 +755,8 @@ def main(
             get_some_dbs_from_hf()
         dbs = {}
         for langchain_mode1 in langchain_modes:
-            shared_type = langchain_mode_paths.get(langchain_mode1) is not None
-            persist_directory1 = get_persist_directory(langchain_mode1, shared_type=shared_type)
+            langchain_type = langchain_mode_types.get(langchain_mode1, LangChainTypes.SCRATCH.value)
+            persist_directory1 = get_persist_directory(langchain_mode1, langchain_type=langchain_type)
             try:
                 db = prep_langchain(persist_directory1,
                                     load_db_if_exists,
@@ -2903,12 +2907,13 @@ def history_to_context(history, langchain_mode1,
     return context1
 
 
-def update_langchain(langchain_modes, langchain_mode_paths, extra, save_dir=None):
+def update_langchain(langchain_modes, langchain_mode_paths, langchain_mode_types, extra, save_dir=None):
     # update from saved state on disk
-    langchain_modes_from_file, visible_langchain_modes_from_file, langchain_mode_paths_from_file = \
+    langchain_modes_from_file, langchain_mode_types_from_file, langchain_mode_paths_from_file = \
         load_collection_enum(extra, save_dir=save_dir)
 
     langchain_mode_paths.update(langchain_mode_paths_from_file)
+    langchain_mode_types.update(langchain_mode_types_from_file)
 
     langchain_modes_temp = langchain_modes.copy() + langchain_modes_from_file
     langchain_modes.clear()  # don't lose original reference

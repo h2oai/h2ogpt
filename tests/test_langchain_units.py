@@ -4,7 +4,7 @@ import tempfile
 import pytest
 
 from tests.utils import wrap_test_forked, kill_weaviate
-from src.enums import DocumentSubset, LangChainAction, LangChainMode
+from src.enums import DocumentSubset, LangChainAction, LangChainMode, LangChainTypes
 from src.gpt_langchain import get_persist_directory
 from src.utils import zip_data, download_simple, get_ngpus_vis, get_mem_gpus, have_faiss, remove, get_kwargs
 
@@ -198,7 +198,7 @@ def test_qa_daidocs_db_chunk_hf_dbs(db_type, top_k_docs):
     langchain_mode = 'DriverlessAI docs'
     langchain_action = LangChainAction.QUERY.value
     langchain_agents = []
-    persist_directory = get_persist_directory(langchain_mode, shared_type=True)
+    persist_directory = get_persist_directory(langchain_mode, langchain_type=LangChainTypes.SHARED.value)
     remove(persist_directory)
     from src.gpt_langchain import _run_qa_db
     query = "Which config.toml enables pytorch for NLP?"
@@ -261,7 +261,7 @@ def test_qa_daidocs_db_chunk_hf_dbs_switch_embedding(db_type):
     langchain_mode = 'DriverlessAI docs'
     langchain_action = LangChainAction.QUERY.value
     langchain_agents = []
-    persist_directory = get_persist_directory(langchain_mode, shared_type=True)
+    persist_directory = get_persist_directory(langchain_mode, langchain_type=LangChainTypes.SHARED.value)
     remove(persist_directory)
     from src.gpt_langchain import _run_qa_db
     query = "Which config.toml enables pytorch for NLP?"

@@ -29,6 +29,8 @@ from fire import inspectutils
 from joblib import Parallel
 from tqdm.auto import tqdm
 
+from src.enums import LangChainTypes
+
 
 def H2O_Fire(component=None):
     config_prefix = "H2OGPT_"
@@ -1102,7 +1104,7 @@ def set_openai(inference_server):
 langchain_modes_file = 'langchain_modes.pkl'
 
 
-def save_collection_names(langchain_modes, langchain_mode_paths,
+def save_collection_names(langchain_modes, langchain_mode_paths, langchain_mode_types,
                           LangChainMode, db1s,
                           in_user_db, save_dir=None):
     """
@@ -1119,9 +1121,13 @@ def save_collection_names(langchain_modes, langchain_mode_paths,
     scratch_langchain_modes = [x for x in langchain_modes if x in scratch_collection_names]
     scratch_langchain_mode_paths = {k: v for k, v in langchain_mode_paths.items() if
                                     k in scratch_collection_names and k not in llms}
+    scratch_langchain_mode_types = {k: v for k, v in langchain_mode_types.items() if
+                                    k in scratch_collection_names and k not in llms}
 
     user_langchain_modes = [x for x in langchain_modes if x not in scratch_collection_names]
     user_langchain_mode_paths = {k: v for k, v in langchain_mode_paths.items() if
+                                 k not in scratch_collection_names and k not in llms}
+    user_langchain_mode_types = {k: v for k, v in langchain_mode_types.items() if
                                  k not in scratch_collection_names and k not in llms}
 
     if save_dir is not None:
@@ -1145,12 +1151,12 @@ def save_collection_names(langchain_modes, langchain_mode_paths,
         # user
         with filelock.FileLock(lock_file):
             with open(file, 'wb') as f:
-                pickle.dump((user_langchain_modes, user_langchain_modes, user_langchain_mode_paths), f)
+                pickle.dump((user_langchain_modes, user_langchain_mode_types, user_langchain_mode_paths), f)
     else:
         # scratch
         with filelock.FileLock(lock_file):
             with open(file, 'wb') as f:
-                pickle.dump((scratch_langchain_modes, scratch_langchain_modes, scratch_langchain_mode_paths), f)
+                pickle.dump((scratch_langchain_modes, scratch_langchain_mode_types, scratch_langchain_mode_paths), f)
 
 
 def load_collection_enum(extra, save_dir=None):
@@ -1170,19 +1176,26 @@ def load_collection_enum(extra, save_dir=None):
 
     langchain_modes_from_file = []
     langchain_mode_paths_from_file = {}
+    langchain_mode_types_from_file = {}
     if os.path.isfile(file):
         try:
             with filelock.FileLock(lock_file):
                 with open(file, 'rb') as f:
-                    langchain_modes_from_file, langchain_modes_from_file_unused, langchain_mode_paths_from_file = pickle.load(
+                    langchain_modes_from_file, langchain_mode_types_from_file, langchain_mode_paths_from_file = pickle.load(
                         f)
+
+                # migration
+                if isinstance(langchain_mode_types_from_file, list):
+                    for langchain_mode in langchain_modes_from_file:
+                        langchain_mode_types_from_file[langchain_mode] = LangChainTypes.SHARED.value
+
         except BaseException as e:
             print("Cannot load %s, ignoring error: %s" % (file, str(e)), flush=True)
     for k, v in langchain_mode_paths_from_file.items():
         if v is not None and not os.path.isdir(v) and isinstance(v, str):
             # assume was deleted, but need to make again to avoid extra code elsewhere
             langchain_mode_paths_from_file[k] = makedirs(v, use_base=True)
-    return langchain_modes_from_file, langchain_modes_from_file, langchain_mode_paths_from_file
+    return langchain_modes_from_file, langchain_mode_types_from_file, langchain_mode_paths_from_file
 
 
 def remove_collection_enum():

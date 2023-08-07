@@ -28,7 +28,7 @@ from langchain.schema import LLMResult, Generation
 from tqdm import tqdm
 
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
-    LangChainAction, LangChainMode, DocumentChoice
+    LangChainAction, LangChainMode, DocumentChoice, LangChainTypes
 from evaluate_params import gen_hyper
 from gen import get_model, SEED
 from prompter import non_hf_types, PromptType, Prompter
@@ -64,6 +64,7 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
            persist_directory=None, load_db_if_exists=True,
            langchain_mode='notset',
            langchain_mode_paths={},
+           langchain_mode_types={},
            collection_name=None,
            hf_embedding_model=None,
            migrate_embedding_model=False):
@@ -71,7 +72,8 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
         return None
     user_path = langchain_mode_paths.get(langchain_mode)
     if persist_directory is None:
-        persist_directory = get_persist_directory(langchain_mode, shared_type=user_path is not None)
+        langchain_type = langchain_mode_types.get(langchain_mode, LangChainTypes.SCRATCH.value)
+        persist_directory = get_persist_directory(langchain_mode, langchain_type=langchain_type)
     assert hf_embedding_model is not None
 
     # get freshly-determined embedding model
@@ -2049,8 +2051,8 @@ def load_embed(db=None, persist_directory=None):
     return got_embedding, use_openai_embedding, hf_embedding_model
 
 
-def get_persist_directory(langchain_mode, shared_type=None, db1s=None, dbs=None):
-    if shared_type or langchain_mode in dbs:
+def get_persist_directory(langchain_mode, langchain_type=None, db1s=None, dbs=None):
+    if langchain_type == LangChainTypes.SHARED.value or langchain_mode in dbs:
         persist_directory = 'db_dir_%s' % langchain_mode  # single place, no special names for each case
     else:
         userid = db1s[LangChainMode.MY_DATA.value][1]
@@ -2067,6 +2069,7 @@ def _make_db(use_openai_embedding=False,
              chunk=True, chunk_size=512,
              langchain_mode=None,
              langchain_mode_paths=None,
+             langchain_mode_types=None,
              db_type='faiss',
              load_db_if_exists=True,
              db=None,
@@ -2074,7 +2077,8 @@ def _make_db(use_openai_embedding=False,
              verbose=False):
     assert hf_embedding_model is not None
     user_path = langchain_mode_paths.get(langchain_mode)
-    persist_directory = get_persist_directory(langchain_mode, shared_type=user_path is not None)
+    langchain_type = langchain_mode_types.get(langchain_mode, LangChainTypes.SCRATCH.value)
+    persist_directory = get_persist_directory(langchain_mode, langchain_type=langchain_type)
     # see if can get persistent chroma db
     db_trial, use_openai_embedding, hf_embedding_model = \
         get_existing_db(db, persist_directory, load_db_if_exists, db_type,

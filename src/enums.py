@@ -66,6 +66,12 @@ class LangChainMode(Enum):
     H2O_DAI_DOCS = "DriverlessAI docs"
 
 
+class LangChainTypes(Enum):
+    SHARED = 'shared'
+    PERSONAL = 'personal'
+    SCRATCH = 'scratch'
+
+
 # modes should not be removed from visible list or added by name
 langchain_modes_intrinsic = [LangChainMode.DISABLED.value,
                              LangChainMode.LLM.value,

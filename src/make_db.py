@@ -36,6 +36,7 @@ def make_db_main(use_openai_embedding: bool = False,
                  migrate_embedding_model=False,
                  persist_directory: str = None,
                  user_path: str = 'user_path',
+                 langchain_type: str = 'shared',
                  url: Union[List[str], str] = None,
                  add_if_exists: bool = True,
                  collection_name: str = 'UserData',
@@ -82,6 +83,7 @@ def make_db_main(use_openai_embedding: bool = False,
            make_db always makes shared type others will see when on same server (e.g. UserData) not personal/scratch space (e.g. MyData)
            because do not know user hash at this point (FIXME: Go by user name for path, since unique and understandable here)
     :param user_path: where to pull documents from (None means url is not None.  If url is not None, this is ignored.)
+    :param langchain_type: type of database, i.e.. 'shared', 'personal', 'scratch'
     :param url: url (or urls) to generate documents from (None means user_path is not None)
     :param add_if_exists: Add to db if already exists, but will not add duplicate sources
     :param collection_name: Collection name for new db if not adding
@@ -112,7 +114,7 @@ def make_db_main(use_openai_embedding: bool = False,
     if isinstance(selected_file_types, str):
         selected_file_types = ast.literal_eval(selected_file_types)
     if persist_directory is None:
-        persist_directory = get_persist_directory(collection_name, shared_type=True)
+        persist_directory = get_persist_directory(collection_name, langchain_type=langchain_type)
     if download_dest is None:
         download_dest = makedirs('./', use_base=True)
 

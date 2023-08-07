@@ -51,7 +51,7 @@ def fix_pydantic_duplicate_validators_error():
 fix_pydantic_duplicate_validators_error()
 
 from enums import DocumentSubset, no_model_str, no_lora_str, no_server_str, LangChainAction, LangChainMode, \
-    DocumentChoice, langchain_modes_intrinsic
+    DocumentChoice, langchain_modes_intrinsic, LangChainTypes
 from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, \
     get_dark_js, get_heap_js, wrap_js_to_lambda, \
     spacing_xsm, radius_xsm, text_xsm
@@ -3106,7 +3106,7 @@ def _update_user_db(file,
             return None, langchain_mode, source_files_added, '\n'.join(exceptions_strs)
 
 
-def get_any_db(db1s, langchain_mode, langchain_mode_paths,
+def get_any_db(db1s, langchain_mode, langchain_mode_paths, langchain_mode_types,
                dbs=None,
                load_db_if_exists=None, db_type=None,
                use_openai_embedding=None,
@@ -3125,7 +3125,8 @@ def get_any_db(db1s, langchain_mode, langchain_mode_paths,
 
     if db is None:
         from src.gpt_langchain import get_existing_db, get_persist_directory
-        persist_directory = get_persist_directory(langchain_mode, db1s=db1s, dbs=dbs)
+        langchain_type = langchain_mode_types.get(langchain_mode, LangChainTypes.SCRATCH.value)
+        persist_directory = get_persist_directory(langchain_mode, db1s=db1s, dbs=dbs, langchain_type=langchain_type)
         # see if actually have on disk, don't try to switch embedding yet, since can't use return here
         migrate_embedding_model = False
         db, _, _ = \
