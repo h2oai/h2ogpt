@@ -756,6 +756,9 @@ def main(
         dbs = {}
         for langchain_mode1 in langchain_modes:
             langchain_type = langchain_mode_types.get(langchain_mode1, LangChainTypes.SCRATCH.value)
+            if langchain_type in [LangChainTypes.SCRATCH.value, LangChainTypes.PERSONAL.value]:
+                # shouldn't prepare per-user databases here
+                continue
             persist_directory1 = get_persist_directory(langchain_mode1, langchain_type=langchain_type)
             try:
                 db = prep_langchain(persist_directory1,
@@ -783,7 +786,8 @@ def main(
                             inference_server=None, prompt_type=None, prompt_dict=None)
     my_db_state0 = {LangChainMode.MY_DATA.value: [None, None]}
     selection_docs_state0 = dict(langchain_modes=langchain_modes,
-                                 langchain_mode_paths=langchain_mode_paths)
+                                 langchain_mode_paths=langchain_mode_paths,
+                                 langchain_mode_types=langchain_mode_types)
     selection_docs_state = copy.deepcopy(selection_docs_state0)
 
     if cli:

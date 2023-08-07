@@ -488,9 +488,13 @@ def test_make_add_db(repeat, db_type):
                                    migrate_embedding_model=kwargs['migrate_embedding_model'],
                                    load_db_if_exists=True,
                                    n_jobs=-1, verbose=False)
-                    update_and_get_source_files_given_langchain_mode(db1, langchain_mode, dbs={langchain_mode: db},
+                    update_and_get_source_files_given_langchain_mode(db1,
+                                                                     {}, {},
+                                                                     langchain_mode, dbs={langchain_mode: db},
                                                                      **kwargs2)
-                    update_and_get_source_files_given_langchain_mode(db1, 'MyData', dbs={}, **kwargs2)
+                    update_and_get_source_files_given_langchain_mode(db1,
+                                                                     {}, {},
+                                                                     'MyData', dbs={}, **kwargs2)
 
                     assert path_to_docs(test_file2_my, db_type=db_type)[0].metadata['source'] == test_file2_my
                     extra = 1 if db_type == 'chroma' else 0

@@ -2059,12 +2059,18 @@ def load_embed(db=None, persist_directory=None):
 
 
 def get_persist_directory(langchain_mode, langchain_type=None, db1s=None, dbs=None):
-    if langchain_type == LangChainTypes.SHARED.value or langchain_mode in dbs:
-        persist_directory = 'db_dir_%s' % langchain_mode  # single place, no special names for each case
-    else:
+    if db1s is not None and langchain_mode in db1s:
         userid = db1s[LangChainMode.MY_DATA.value][1]
         db1 = db1s[langchain_mode]
         persist_directory = os.path.join(userid, 'db_dir_%s_%s' % (langchain_mode, db1[1]))
+    elif dbs is not None and langchain_mode in dbs:
+        persist_directory = 'db_dir_%s' % langchain_mode  # single place, no special names for each case
+    elif langchain_type in [LangChainTypes.SHARED.value]:
+        persist_directory = 'db_dir_%s' % langchain_mode  # single place, no special names for each case
+    else:
+        # e.g. if PERSONAL or SCRATCH or not set, then here,
+        # but won't find if during prep_langchain() as expected since not to be loaded up front for all users
+        persist_directory = 'db_dir_%s' % str(uuid.uuid4())
     persist_directory = makedirs(persist_directory, use_base=True)
     return persist_directory
 

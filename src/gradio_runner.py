@@ -309,7 +309,7 @@ def go_gradio(**kwargs):
     if kwargs['auth_access'] == 'closed':
         auth_message1 = ""
     else:
-        auth_message1 = "WELCOME!  Open access (choose any unique user/pass)"
+        auth_message1 = "WELCOME!  Open access (guest/guest or any unique user/pass)"
 
     if kwargs['auth_type'] is None:
         auth = None
@@ -1294,7 +1294,8 @@ def go_gradio(**kwargs):
                                               outputs=[my_db_state, requests_state, refresh_sources_btn],
                                               show_progress='minimal')
         eventdb9 = eventdb9a.then(fn=refresh_sources1,
-                                  inputs=[my_db_state, requests_state, langchain_mode, chunk, chunk_size],
+                                  inputs=[my_db_state, selection_docs_state, requests_state,
+                                          langchain_mode, chunk, chunk_size],
                                   outputs=sources_text,
                                   api_name='refresh_sources' if allow_api else None)
 
@@ -1313,6 +1314,7 @@ def go_gradio(**kwargs):
                 set_dbid(db1s[k])
             langchain_modes = selection_docs_state1['langchain_modes']
             langchain_mode_paths = selection_docs_state1['langchain_mode_paths']
+            langchain_mode_types = selection_docs_state1['langchain_mode_types']
 
             user_path = None
             valid = True
@@ -1360,7 +1362,8 @@ def go_gradio(**kwargs):
                 # needs to have key for it to make it known different from userdata case in _update_user_db()
                 db1s[langchain_mode2] = [None, None]
             if valid:
-                save_collection_names(langchain_modes, langchain_mode_paths, LangChainMode,
+                save_collection_names(langchain_modes, langchain_mode_paths, langchain_mode_types,
+                                      LangChainMode,
                                       db1s, True if user_path else False, save_dir=kwargs['save_dir'])
 
             return db1s, selection_docs_state1, gr.update(choices=choices,
@@ -1374,6 +1377,7 @@ def go_gradio(**kwargs):
             assert dbsu is not None
             langchain_modes = selection_docs_state1['langchain_modes']
             langchain_mode_paths = selection_docs_state1['langchain_mode_paths']
+            langchain_mode_types = selection_docs_state1['langchain_mode_types']
 
             in_scratch_db = langchain_mode2 in db1s
             in_user_db = dbsu is not None and langchain_mode2 in dbsu
@@ -1402,7 +1406,8 @@ def go_gradio(**kwargs):
                 selection_docs_state1 = update_langchain_mode_paths(db1s, selection_docs_state1)
                 df_langchain_mode_paths1 = get_df_langchain_mode_paths(selection_docs_state1)
 
-                save_collection_names(langchain_modes, langchain_mode_paths, LangChainMode,
+                save_collection_names(langchain_modes, langchain_mode_paths, langchain_mode_types,
+                                      LangChainMode,
                                       db1s, in_user_db, save_dir=kwargs['save_dir'])
 
             return db1s, selection_docs_state1, \
@@ -3118,8 +3123,11 @@ def get_any_db(db1s, langchain_mode, langchain_mode_paths, langchain_mode_types,
                hf_embedding_model=None, migrate_embedding_model=None,
                verbose=False,
                ):
-    if langchain_mode in ['wiki_full']:
+    if langchain_mode in [LangChainMode.WIKI_FULL.value]:
         # NOTE: avoid showing full wiki.  Takes about 30 seconds over about 90k entries, but not useful for now
+        db = None
+    elif langchain_mode in [LangChainMode.LLM.value]:
+        # Not db
         db = None
     elif langchain_mode in db1s and len(db1s[langchain_mode]) > 1 and db1s[langchain_mode][0]:
         db = db1s[langchain_mode][0]
@@ -3264,9 +3272,9 @@ def get_source_files(db=None, exceptions=None, metadatas=None):
 
 
 def update_and_get_source_files_given_langchain_mode(db1s,
+                                                     selection_docs_state,
                                                      requests_state,
                                                      langchain_mode, chunk, chunk_size,
-                                                     selection_docs_state,
                                                      dbs=None, first_para=None,
                                                      hf_embedding_model=None,
                                                      use_openai_embedding=None,
