@@ -52,7 +52,7 @@ def fix_pydantic_duplicate_validators_error():
 fix_pydantic_duplicate_validators_error()
 
 from enums import DocumentSubset, no_model_str, no_lora_str, no_server_str, LangChainAction, LangChainMode, \
-    DocumentChoice, langchain_modes_intrinsic, LangChainTypes
+    DocumentChoice, langchain_modes_intrinsic, LangChainTypes, langchain_modes_non_db
 from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, \
     get_dark_js, get_heap_js, wrap_js_to_lambda, \
     spacing_xsm, radius_xsm, text_xsm
@@ -262,8 +262,10 @@ def go_gradio(**kwargs):
         return x
 
     # BEGIN AUTH THINGS
-    def auth_func(username, password, file=None, auth_access=None, **kwargs):
+    def auth_func(username, password, file=None, auth_access=None, guest_name=None, **kwargs):
         assert file and isinstance(file, str), "Auth file must be a non-empty string, got: %s" % str(file)
+        if auth_access == 'open' and username == guest_name:
+            return True
         with filelock.FileLock(file + '.lock'):
             auth_dict = {}
             if os.path.isfile(file):
@@ -289,11 +291,13 @@ def go_gradio(**kwargs):
     def auth_func_open(*args, **kwargs):
         return True
 
-    def get_userid_auth_func(requests_state1, file=None, auth_access=None, **kwargs):
+    def get_userid_auth_func(requests_state1, file=None, auth_access=None, guest_name=None, **kwargs):
         if file and isinstance(file, str):
             if 'username' in requests_state1:
                 username = requests_state1['username']
                 if username:
+                    if username == guest_name:
+                        return str(uuid.uuid4())
                     with filelock.FileLock(file + '.lock'):
                         if os.path.isfile(file):
                             with open(file, 'rt') as f:
@@ -306,7 +310,8 @@ def go_gradio(**kwargs):
 
     get_userid_auth = functools.partial(get_userid_auth_func,
                                         file=kwargs['auth_type'],
-                                        auth_access=kwargs['auth_access'])
+                                        auth_access=kwargs['auth_access'],
+                                        guest_name=kwargs['guest_name'])
     if kwargs['auth_access'] == 'closed':
         auth_message1 = "Closed access"
     else:
@@ -325,7 +330,8 @@ def go_gradio(**kwargs):
     elif kwargs['auth_type'] == 'file':
         auth = functools.partial(auth_func,
                                  file=kwargs['auth_type'],
-                                 auth_access=kwargs['auth_access'])
+                                 auth_access=kwargs['auth_access'],
+                                 guest_name=kwargs['guest_name'])
     else:
         raise RuntimeError("No such auth_type=%d" % kwargs['auth_type'])
     if kwargs['auth_message'] is not None:
@@ -449,6 +455,9 @@ def go_gradio(**kwargs):
         def get_df_langchain_mode_paths(selection_docs_state1):
             langchain_mode_paths = selection_docs_state1['langchain_mode_paths']
             if langchain_mode_paths:
+                langchain_mode_paths = langchain_mode_paths.copy()
+                for langchain_mode1 in langchain_modes_non_db:
+                    langchain_mode_paths.pop(langchain_mode1, None)
                 df1 = pd.DataFrame.from_dict(langchain_mode_paths.items(), orient='columns')
                 df1.columns = ['Collection', 'Path']
                 df1 = df1.set_index('Collection')
@@ -456,12 +465,16 @@ def go_gradio(**kwargs):
                 df1 = pd.DataFrame(None)
             langchain_mode_types = selection_docs_state1['langchain_mode_types']
             if langchain_mode_types:
+                langchain_mode_types = langchain_mode_types.copy()
+                for langchain_mode1 in langchain_modes_non_db:
+                    langchain_mode_types.pop(langchain_mode1, None)
+
                 df2 = pd.DataFrame.from_dict(langchain_mode_types.items(), orient='columns')
                 df2.columns = ['Collection', 'Type']
                 df2 = df2.set_index('Collection')
             else:
                 df2 = pd.DataFrame(None)
-            df = df1.join(df2, on='Collection').replace(np.nan, '')
+            df = df2.join(df1, on='Collection').replace(np.nan, '')
             df = df.reset_index()
             return df
 
@@ -628,8 +641,8 @@ def go_gradio(**kwargs):
                             visible_add_remove_collection = (allow_upload_to_user_data or
                                                              allow_upload_to_my_data) and \
                                                             kwargs['langchain_mode'] != 'Disabled'
-                            add_placeholder = "e.g. UserData2, user_path2 (optional)" \
-                                if not is_public else "e.g. MyData2"
+                            add_placeholder = "e.g. UserData2, shared, user_path2" \
+                                if not is_public else "e.g. MyData2, personal (optional)"
                             remove_placeholder = "e.g. UserData2" if not is_public else "e.g. MyData2"
                             new_langchain_mode_text = gr.Textbox(value="", visible=visible_add_remove_collection,
                                                                  label='Add Collection',
@@ -1337,11 +1350,18 @@ def go_gradio(**kwargs):
                     # real restriction is:
                     # ValueError: Expected collection name that (1) contains 3-63 characters, (2) starts and ends with an alphanumeric character, (3) otherwise contains only alphanumeric characters, underscores or hyphens (-), (4) contains no two consecutive periods (..) and (5) is not a valid IPv4 address, got me
                     # but just make simpler
-                    user_path = y2[1] if len(y2) > 1 else None  # assume scratch if don't have user_path
+                    # assume scratch if don't have user_path
+                    langchain_mode_type = y2[1] if len(y2) > 1 else LangChainTypes.SCRATCH.value
+                    user_path = y2[2] if len(y2) > 2 else None  # assume None if don't have user_path
                     if user_path in ['', "''"]:
-                        # for scratch spaces
+                        # transcribe UI input
                         user_path = None
-                    if langchain_mode2 in langchain_modes_intrinsic:
+                    if user_path is not None and langchain_mode_type in [LangChainTypes.SCRATCH.value, LangChainTypes.PERSONAL.value]:
+                        user_path = None
+                        textbox = "Do not pass user_path for scratch/personal types"
+                        valid = False
+                        langchain_mode2 = langchain_mode1
+                    elif langchain_mode2 in langchain_modes_intrinsic:
                         user_path = None
                         textbox = "Invalid access to use internal name: %s" % langchain_mode2
                         valid = False
@@ -1350,6 +1370,7 @@ def go_gradio(**kwargs):
                         if user_path:
                             user_path = makedirs(user_path, exist_ok=True, use_base=True)
                         langchain_mode_paths.update({langchain_mode2: user_path})
+                        langchain_mode_types.update({langchain_mode2: langchain_mode_type})
                         if langchain_mode2 not in langchain_modes:
                             langchain_modes.append(langchain_mode2)
                         textbox = ''

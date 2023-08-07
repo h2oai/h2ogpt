@@ -77,6 +77,9 @@ langchain_modes_intrinsic = [LangChainMode.DISABLED.value,
                              LangChainMode.LLM.value,
                              LangChainMode.MY_DATA.value]
 
+langchain_modes_non_db = [LangChainMode.DISABLED.value,
+                          LangChainMode.LLM.value]
+
 
 class LangChainAction(Enum):
     """LangChain action"""
