@@ -167,20 +167,22 @@ def main(
         eval_as_output: bool = False,
 
         langchain_mode: str = None,
+        user_path: str = None,
+        langchain_modes: list = [x.value for x in list(LangChainMode)],
+        visible_langchain_modes: list = ['UserData', 'MyData'],
+        langchain_mode_paths: dict = {'UserData': None},
+        detect_user_path_changes_every_query: bool = False,
+
         langchain_action: str = LangChainAction.QUERY.value,
         langchain_agents: list = [],
         force_langchain_evaluate: bool = False,
-        langchain_modes: list = [x.value for x in list(LangChainMode)],
-        visible_langchain_modes: list = ['UserData', 'MyData'],
-        # WIP:
-        # visible_langchain_actions: list = langchain_actions.copy(),
+
         visible_langchain_actions: list = [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value],
         visible_langchain_agents: list = langchain_agents_list.copy(),
+
         document_subset: str = DocumentSubset.Relevant.name,
         document_choice: list = [DocumentChoice.ALL.value],
-        user_path: str = None,
-        langchain_mode_paths: dict = {'UserData': None},
-        detect_user_path_changes_every_query: bool = False,
+
         use_llm_if_no_docs: bool = True,
         load_db_if_exists: bool = True,
         keep_sources_in_context: bool = False,
@@ -373,25 +375,12 @@ def main(
     :param eval_prompts_only_num: for no gradio benchmark, if using eval_filename prompts for eval instead of examples
     :param eval_prompts_only_seed: for no gradio benchmark, seed for eval_filename sampling
     :param eval_as_output: for no gradio benchmark, whether to test eval_filename output itself
+
     :param langchain_mode: Data source to include.  Choose "UserData" to only consume files from make_db.py.
            None: auto mode, check if langchain package exists, at least do LLM if so, else Disabled
            WARNING: wiki_full requires extra data processing via read_wiki_full.py and requires really good workstation to generate db, unless already present.
-    :param langchain_action: Mode langchain operations in on documents.
-            Query: Make query of document(s)
-            Summarize or Summarize_map_reduce: Summarize document(s) via map_reduce
-            Summarize_all: Summarize document(s) using entire document at once
-            Summarize_refine: Summarize document(s) using entire document, and try to refine before returning summary
-    :param langchain_agents: Which agents to use
-            'search': Use Web Search as context for LLM response, e.g. SERP if have SERPAPI_API_KEY in env
-    :param force_langchain_evaluate: Whether to force langchain LLM use even if not doing langchain, mostly for testing.
     :param user_path: user path to glob from to generate db for vector search, for 'UserData' langchain mode.
            If already have db, any new/changed files are added automatically if path set, does not have to be same path used for prior db sources
-    :param langchain_mode_paths: dict of langchain_mode keys and disk path values to use for source of documents
-           E.g. "{'UserData2': 'userpath2'}"
-           A disk path be None, e.g. --langchain_mode_paths="{'UserData2': None}" even if existing DB, to avoid new documents being added from that path, source links that are on disk still work.
-           If `--user_path` was passed, that path is used for 'UserData' instead of the value in this dict
-    :param detect_user_path_changes_every_query: whether to detect if any files changed or added every similarity search (by file hashes).
-           Expensive for large number of files, so not done by default.  By default only detect changes during db loading.
     :param langchain_modes: names of collections/dbs to potentially have
     :param visible_langchain_modes: dbs to generate at launch to be ready for LLM
            Can be up to ['wiki', 'wiki_full', 'UserData', 'MyData', 'github h2oGPT', 'DriverlessAI docs']
@@ -403,10 +392,28 @@ def main(
               langchain_modes, visible_langchain_modes, and langchain_mode_paths
               Delete the file if you want to start fresh,
               but in any case the user_path passed in CLI is used for UserData even if was None or different
+    :param langchain_mode_paths: dict of langchain_mode keys and disk path values to use for source of documents
+           E.g. "{'UserData2': 'userpath2'}"
+           A disk path be None, e.g. --langchain_mode_paths="{'UserData2': None}" even if existing DB, to avoid new documents being added from that path, source links that are on disk still work.
+           If `--user_path` was passed, that path is used for 'UserData' instead of the value in this dict
+    :param detect_user_path_changes_every_query: whether to detect if any files changed or added every similarity search (by file hashes).
+           Expensive for large number of files, so not done by default.  By default only detect changes during db loading.
+
+    :param langchain_action: Mode langchain operations in on documents.
+            Query: Make query of document(s)
+            Summarize or Summarize_map_reduce: Summarize document(s) via map_reduce
+            Summarize_all: Summarize document(s) using entire document at once
+            Summarize_refine: Summarize document(s) using entire document, and try to refine before returning summary
+    :param langchain_agents: Which agents to use
+            'search': Use Web Search as context for LLM response, e.g. SERP if have SERPAPI_API_KEY in env
+    :param force_langchain_evaluate: Whether to force langchain LLM use even if not doing langchain, mostly for testing.
+
     :param visible_langchain_actions: Which actions to allow
     :param visible_langchain_agents: Which agents to allow
+
     :param document_subset: Default document choice when taking subset of collection
     :param document_choice: Chosen document(s) by internal name, 'All' means use all docs
+
     :param use_llm_if_no_docs: Whether to use LLM even if no documents, when langchain_mode=UserData or MyData or custom
     :param load_db_if_exists: Whether to load chroma db if exists or re-generate db
     :param keep_sources_in_context: Whether to keep url sources in context, not helpful usually
