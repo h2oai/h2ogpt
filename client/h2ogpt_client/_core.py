@@ -1,3 +1,4 @@
+import ast
 import asyncio
 from typing import Any, Dict, List, Optional, OrderedDict, Tuple, ValuesView
 
@@ -69,7 +70,7 @@ class TextCompletionCreator:
         number_returns: int = 1,
         system_pre_context: str = "",
         langchain_mode: LangChainMode = LangChainMode.DISABLED,
-        system_prompt: str = '',
+        system_prompt: str = "",
     ) -> "TextCompletion":
         """
         Creates a new text completion.
@@ -95,7 +96,8 @@ class TextCompletionCreator:
         :param system_pre_context: directly pre-appended without prompt processing
         :param langchain_mode: LangChain mode
         :param add_chat_history_to_context: Whether to add chat history to context
-        :param system_prompt: Universal system prompt to override prompt_type's system prompt
+        :param system_prompt: Universal system prompt to override prompt_type's system
+                              prompt
         """
         params = _utils.to_h2ogpt_params(locals().copy())
         params["instruction"] = ""  # empty when chat_mode is False
@@ -116,7 +118,7 @@ class TextCompletionCreator:
         params["document_choice"] = []
         params["pre_prompt_summary"] = ""
         params["prompt_summary"] = ""
-        params['system_prompt'] = ''
+        params["system_prompt"] = ""
         return TextCompletion(self._client, params)
 
 
@@ -133,6 +135,10 @@ class TextCompletion:
         self._parameters["instruction_nochat"] = prompt
         return self._parameters
 
+    @staticmethod
+    def _get_reply(response: str) -> str:
+        return ast.literal_eval(response)["response"]
+
     async def complete(self, prompt: str) -> str:
         """
         Complete this text completion.
@@ -141,9 +147,10 @@ class TextCompletion:
         :return: response from the model
         """
 
-        return await self._client._predict_async(
+        response = await self._client._predict_async(
             str(dict(self._get_parameters(prompt))), api_name=self._API_NAME
         )
+        return self._get_reply(response)
 
     def complete_sync(self, prompt: str) -> str:
         """
@@ -152,9 +159,10 @@ class TextCompletion:
         :param prompt: text prompt to generate completion for
         :return: response from the model
         """
-        return self._client._predict(
+        response = self._client._predict(
             str(dict(self._get_parameters(prompt))), api_name=self._API_NAME
         )
+        return self._get_reply(response)
 
 
 class ChatCompletionCreator:
@@ -180,7 +188,7 @@ class ChatCompletionCreator:
         number_returns: int = 1,
         system_pre_context: str = "",
         langchain_mode: LangChainMode = LangChainMode.DISABLED,
-        system_prompt: str = '',
+        system_prompt: str = "",
     ) -> "ChatCompletion":
         """
         Creates a new chat completion.
@@ -205,7 +213,8 @@ class ChatCompletionCreator:
         :param number_returns:
         :param system_pre_context: directly pre-appended without prompt processing
         :param langchain_mode: LangChain mode
-        :param system_prompt: Universal system prompt to override prompt_type's system prompt
+        :param system_prompt: Universal system prompt to override prompt_type's system
+                              prompt
         """
         params = _utils.to_h2ogpt_params(locals().copy())
         params["instruction"] = None  # future prompts
@@ -217,7 +226,7 @@ class ChatCompletionCreator:
         params["instruction_nochat"] = ""  # empty when chat_mode is True
         params["langchain_mode"] = langchain_mode.value  # convert to serializable type
         params["add_chat_history_to_context"] = False  # relevant only for the UI
-        params["system_prompt"] = ''
+        params["system_prompt"] = ""
         params["langchain_action"] = LangChainAction.QUERY.value
         params["langchain_agents"] = []
         params["top_k_docs"] = 4  # langchain: number of document chunks

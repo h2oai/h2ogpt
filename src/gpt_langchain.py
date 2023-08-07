@@ -1013,7 +1013,10 @@ def get_llm(use_openai_model=False,
             prompter = Prompter(prompt_type, prompt_dict, debug=False, chat=False, stream_output=stream_output)
             pass  # assume inputted prompt_type is correct
         from gpt4all_llm import get_llm_gpt4all
-        llm = get_llm_gpt4all(model_name, model=model, max_new_tokens=max_new_tokens,
+        max_max_tokens = tokenizer.model_max_length
+        llm = get_llm_gpt4all(model_name,
+                              model=model,
+                              max_new_tokens=max_new_tokens,
                               temperature=temperature,
                               repetition_penalty=repetition_penalty,
                               top_k=top_k,
@@ -1025,6 +1028,7 @@ def get_llm(use_openai_model=False,
                               prompter=prompter,
                               context=context,
                               iinput=iinput,
+                              max_seq_len=max_max_tokens,
                               )
     elif hasattr(model, 'is_exlama') and model.is_exlama():
         async_output = False  # FIXME: not implemented yet
