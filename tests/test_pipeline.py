@@ -36,9 +36,9 @@ def test_export_copy():
     subset_types = [x.name for x in list(DocumentSubset)]
     assert 'Relevant' in subset_types and len(prompt_types) >= 4
 
-    langchain_types = [x.name for x in list(LangChainMode)]
-    langchain_types_v = [x.value for x in list(LangChainMode)]
-    assert 'UserData' in langchain_types_v and "USER_DATA" in langchain_types and len(langchain_types) >= 9
+    langchain_mode_types = [x.name for x in list(LangChainMode)]
+    langchain_mode_types_v = [x.value for x in list(LangChainMode)]
+    assert 'UserData' in langchain_mode_types_v and "USER_DATA" in langchain_mode_types and len(langchain_mode_types) >= 9
 
     prompter = Prompter(prompt_type, prompt_dict)
     assert prompter is not None

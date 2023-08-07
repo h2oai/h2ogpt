@@ -2959,6 +2959,7 @@ def _update_user_db(file,
                     langchain_mode='UserData',
                     langchain_modes=None,
                     langchain_mode_paths=None,
+                    langchain_mode_types=None,
                     use_openai_embedding=None,
                     hf_embedding_model=None,
                     migrate_embedding_model=None,
@@ -3076,6 +3077,8 @@ def _update_user_db(file,
                             db_type=db_type,
                             persist_directory=persist_directory,
                             langchain_mode=langchain_mode,
+                            langchain_mode_paths=langchain_mode_paths,
+                            langchain_mode_types=langchain_mode_types,
                             hf_embedding_model=hf_embedding_model,
                             migrate_embedding_model=migrate_embedding_model)
             if db is not None:
@@ -3096,6 +3099,8 @@ def _update_user_db(file,
                             db_type=db_type,
                             persist_directory=persist_directory,
                             langchain_mode=langchain_mode,
+                            langchain_mode_paths=langchain_mode_paths,
+                            langchain_mode_types=langchain_mode_types,
                             hf_embedding_model=hf_embedding_model,
                             migrate_embedding_model=migrate_embedding_model)
             dbs[langchain_mode] = db
@@ -3131,7 +3136,8 @@ def get_any_db(db1s, langchain_mode, langchain_mode_paths, langchain_mode_types,
         migrate_embedding_model = False
         db, _, _ = \
             get_existing_db(db, persist_directory, load_db_if_exists, db_type,
-                            use_openai_embedding, langchain_mode, langchain_mode_paths,
+                            use_openai_embedding,
+                            langchain_mode, langchain_mode_paths, langchain_mode_types,
                             hf_embedding_model, migrate_embedding_model,
                             verbose=verbose)
 
@@ -3148,8 +3154,9 @@ def get_source_files_given_langchain_mode(db1s, selection_docs_state1, requests_
                                           verbose=False,
                                           get_userid_auth=None):
     langchain_mode_paths = selection_docs_state1['langchain_mode_paths']
+    langchain_mode_types = selection_docs_state1['langchain_mode_types']
     set_userid(db1s, requests_state1, get_userid_auth)
-    db = get_any_db(db1s, langchain_mode, langchain_mode_paths,
+    db = get_any_db(db1s, langchain_mode, langchain_mode_paths, langchain_mode_types,
                     dbs=dbs,
                     load_db_if_exists=load_db_if_exists,
                     db_type=db_type,
@@ -3271,6 +3278,7 @@ def update_and_get_source_files_given_langchain_mode(db1s,
     assert hf_embedding_model is not None
     assert migrate_embedding_model is not None
     langchain_mode_paths = selection_docs_state['langchain_mode_paths']
+    langchain_mode_types = selection_docs_state['langchain_mode_types']
     has_path = {k: v for k, v in langchain_mode_paths.items() if v}
     if langchain_mode in [LangChainMode.LLM.value, LangChainMode.MY_DATA.value]:
         # then assume user really meant UserData, to avoid extra clicks in UI,
@@ -3278,7 +3286,7 @@ def update_and_get_source_files_given_langchain_mode(db1s,
         if LangChainMode.USER_DATA.value in has_path:
             langchain_mode = LangChainMode.USER_DATA.value
 
-    db = get_any_db(db1s, langchain_mode, langchain_mode_paths,
+    db = get_any_db(db1s, langchain_mode, langchain_mode_paths, langchain_mode_types,
                     dbs=dbs,
                     load_db_if_exists=load_db_if_exists,
                     db_type=db_type,
@@ -3300,6 +3308,7 @@ def update_and_get_source_files_given_langchain_mode(db1s,
                                                         chunk_size=chunk_size,
                                                         langchain_mode=langchain_mode,
                                                         langchain_mode_paths=langchain_mode_paths,
+                                                        langchain_mode_types=langchain_mode_types,
                                                         db_type=db_type,
                                                         load_db_if_exists=load_db_if_exists,
                                                         db=db,

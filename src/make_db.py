@@ -184,7 +184,8 @@ def make_db_main(use_openai_embedding: bool = False,
     sources = [x for x in sources if 'exception' not in x.metadata]
 
     assert len(sources) > 0, "No sources found"
-    db = create_or_update_db(db_type, persist_directory, collection_name,
+    db = create_or_update_db(db_type, persist_directory,
+                             collection_name, user_path, langchain_type,
                              sources, use_openai_embedding, add_if_exists, verbose,
                              hf_embedding_model, migrate_embedding_model)
 

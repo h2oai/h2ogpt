@@ -108,8 +108,8 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
         # see if already actually have persistent db, and deal with possible changes in embedding
         db, use_openai_embedding, hf_embedding_model = \
             get_existing_db(None, persist_directory, load_db_if_exists, db_type,
-                            use_openai_embedding, langchain_mode,
-                            langchain_mode_paths,
+                            use_openai_embedding,
+                            langchain_mode, langchain_mode_paths, langchain_mode_types,
                             hf_embedding_model, migrate_embedding_model, verbose=False)
         if db is None:
             from chromadb.config import Settings
@@ -232,6 +232,7 @@ def add_to_db(db, sources, db_type='faiss',
 
 
 def create_or_update_db(db_type, persist_directory, collection_name,
+                        user_path, langchain_type,
                         sources, use_openai_embedding, add_if_exists, verbose,
                         hf_embedding_model, migrate_embedding_model):
     if db_type == 'weaviate':
@@ -271,6 +272,8 @@ def create_or_update_db(db_type, persist_directory, collection_name,
                 db_type=db_type,
                 persist_directory=persist_directory,
                 langchain_mode=collection_name,
+                langchain_mode_paths={collection_name: user_path},
+                langchain_mode_types={collection_name: langchain_type},
                 hf_embedding_model=hf_embedding_model,
                 migrate_embedding_model=migrate_embedding_model)
 
@@ -1845,7 +1848,8 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
 
 def prep_langchain(persist_directory,
                    load_db_if_exists,
-                   db_type, use_openai_embedding, langchain_mode, langchain_mode_paths,
+                   db_type, use_openai_embedding,
+                   langchain_mode, langchain_mode_paths, langchain_mode_types,
                    hf_embedding_model,
                    migrate_embedding_model,
                    n_jobs=-1, kwargs_make_db={}):
@@ -1863,7 +1867,8 @@ def prep_langchain(persist_directory,
         print("Prep: persist_directory=%s exists, using" % persist_directory, flush=True)
         db, use_openai_embedding, hf_embedding_model = \
             get_existing_db(None, persist_directory, load_db_if_exists,
-                            db_type, use_openai_embedding, langchain_mode, langchain_mode_paths,
+                            db_type, use_openai_embedding,
+                            langchain_mode, langchain_mode_paths, langchain_mode_types,
                             hf_embedding_model, migrate_embedding_model)
     else:
         if db_dir_exists and user_path is not None:
@@ -1916,7 +1921,7 @@ posthog.Consumer = FakeConsumer
 
 def check_update_chroma_embedding(db, use_openai_embedding,
                                   hf_embedding_model, migrate_embedding_model,
-                                  langchain_mode, langchain_mode_paths):
+                                  langchain_mode, langchain_mode_paths, langchain_mode_types):
     changed_db = False
     if load_embed(db=db) not in [(True, use_openai_embedding, hf_embedding_model),
                                  (False, use_openai_embedding, hf_embedding_model)]:
@@ -1934,6 +1939,7 @@ def check_update_chroma_embedding(db, use_openai_embedding,
                     persist_directory=persist_directory, load_db_if_exists=load_db_if_exists,
                     langchain_mode=langchain_mode,
                     langchain_mode_paths=langchain_mode_paths,
+                    langchain_mode_types=langchain_mode_types,
                     collection_name=None,
                     hf_embedding_model=hf_embedding_model,
                     migrate_embedding_model=migrate_embedding_model,
@@ -1945,8 +1951,8 @@ def check_update_chroma_embedding(db, use_openai_embedding,
 
 
 def get_existing_db(db, persist_directory,
-                    load_db_if_exists, db_type, use_openai_embedding, langchain_mode,
-                    langchain_mode_paths,
+                    load_db_if_exists, db_type, use_openai_embedding,
+                    langchain_mode, langchain_mode_paths, langchain_mode_types,
                     hf_embedding_model,
                     migrate_embedding_model,
                     verbose=False, check_embedding=True):
@@ -1979,7 +1985,8 @@ def get_existing_db(db, persist_directory,
                                                                  hf_embedding_model,
                                                                  migrate_embedding_model,
                                                                  langchain_mode,
-                                                                 langchain_mode_paths)
+                                                                 langchain_mode_paths,
+                                                                 langchain_mode_types)
             if changed_db:
                 db = db_trial
                 # only call persist if really changed db, else takes too long for large db
@@ -2082,8 +2089,8 @@ def _make_db(use_openai_embedding=False,
     # see if can get persistent chroma db
     db_trial, use_openai_embedding, hf_embedding_model = \
         get_existing_db(db, persist_directory, load_db_if_exists, db_type,
-                        use_openai_embedding, langchain_mode,
-                        langchain_mode_paths,
+                        use_openai_embedding,
+                        langchain_mode, langchain_mode_paths, langchain_mode_types,
                         hf_embedding_model, migrate_embedding_model, verbose=verbose)
     if db_trial is not None:
         db = db_trial
@@ -2165,8 +2172,10 @@ def _make_db(use_openai_embedding=False,
     if not db:
         if sources:
             db = get_db(sources, use_openai_embedding=use_openai_embedding, db_type=db_type,
-                        persist_directory=persist_directory, langchain_mode=langchain_mode,
+                        persist_directory=persist_directory,
+                        langchain_mode=langchain_mode,
                         langchain_mode_paths=langchain_mode_paths,
+                        langchain_mode_types=langchain_mode_types,
                         hf_embedding_model=hf_embedding_model,
                         migrate_embedding_model=migrate_embedding_model)
             if verbose:
@@ -2290,6 +2299,7 @@ def _run_qa_db(query=None,
                use_openai_model=False, use_openai_embedding=False,
                first_para=False, text_limit=None, top_k_docs=4, chunk=True, chunk_size=512,
                langchain_mode_paths={},
+               langchain_mode_types={},
                detect_user_path_changes_every_query=False,
                db_type=None,
                model_name=None, model=None, tokenizer=None, inference_server=None,
@@ -2367,6 +2377,7 @@ def _run_qa_db(query=None,
     assert db_type is not None
     assert hf_embedding_model is not None
     assert langchain_mode_paths is not None
+    assert langchain_mode_types is not None
     if model is not None:
         assert model_name is not None  # require so can make decisions
     assert query is not None
@@ -2557,6 +2568,7 @@ def get_chain(query=None,
               use_openai_model=False, use_openai_embedding=False,
               first_para=False, text_limit=None, top_k_docs=4, chunk=True, chunk_size=512,
               langchain_mode_paths=None,
+              langchain_mode_types=None,
               detect_user_path_changes_every_query=False,
               db_type='faiss',
               model_name=None,
@@ -2630,6 +2642,7 @@ def get_chain(query=None,
                                                         chunk_size=chunk_size,
                                                         langchain_mode=langchain_mode,
                                                         langchain_mode_paths=langchain_mode_paths,
+                                                        langchain_mode_types=langchain_mode_types,
                                                         db_type=db_type,
                                                         load_db_if_exists=load_db_if_exists,
                                                         db=db,

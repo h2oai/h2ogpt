@@ -761,7 +761,7 @@ def main(
                 db = prep_langchain(persist_directory1,
                                     load_db_if_exists,
                                     db_type, use_openai_embedding,
-                                    langchain_mode1, langchain_mode_paths,
+                                    langchain_mode1, langchain_mode_paths, langchain_mode_types,
                                     hf_embedding_model,
                                     migrate_embedding_model,
                                     kwargs_make_db=locals())
