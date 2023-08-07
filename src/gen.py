@@ -29,7 +29,7 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mappin
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, remove, \
-    have_langchain, set_openai, load_collection_enum, cuda_vis_check, H2O_Fire
+    have_langchain, set_openai, cuda_vis_check, H2O_Fire
 
 start_faulthandler()
 import_matplotlib()
@@ -127,9 +127,7 @@ def main(
         input_lines: int = 1,
         gradio_size: str = None,
 
-        auth_type: str = None,
-        auth: typing.List[typing.Tuple[str, str]] = None,
-        auth_filename: str = None,
+        auth: Union[typing.List[typing.Tuple[str, str]], str] = None,
         auth_access: str = 'open',
         auth_message: str = None,
         guest_name: str = "guest",
@@ -330,15 +328,11 @@ def main(
     :param gradio_size: Overall size of text and spaces: "xsmall", "small", "medium", "large".
            Small useful for many chatbots in model_lock mode
 
-    :param auth_type:
-        None: No authentication, no login, no persistence of state
-        'auth': Use --auth list. Persistence of state by cookie while server up and user/pass otherwise
-                If --auth list is None, then no auth or persistence
-        'file': List of users in file
     :param auth: gradio auth for launcher in form [(user1, pass1), (user2, pass2), ...]
                  e.g. --auth=[('jon','password')] with no spaces
                  e.g. --auth="[('jon', 'password)())(')]" so any special characters can be used
-    :param auth_filename: if --auth_type=='file', then this is the filename to store auth information
+                 e.g. --auth=auth.json to specify persisted state file
+                 e.g. --auth='' will use default auth.json as file name for persisted state file
     :param auth_access:
          'open': Allow new users to be added
          'closed': Stick to existing users
@@ -525,7 +519,13 @@ def main(
         rope_scaling = ast.literal_eval(rope_scaling)
 
     if isinstance(auth, str):
-        auth = ast.literal_eval(auth)
+        if auth.strip().startswith('['):
+            auth = ast.literal_eval(auth.strip())
+    if isinstance(auth, list):
+        auth_filename = "auth.json"
+    elif isinstance(auth, str):
+        auth_filename = auth or "auth.json"
+    assert isinstance(auth, (str, list, tuple, type(None))), "Unknown type %s for auth=%s" % (type(auth), auth)
 
     # allow set token directly
     use_auth_token = os.environ.get("HUGGING_FACE_HUB_TOKEN", use_auth_token)
@@ -561,7 +561,6 @@ def main(
 
     # in-place, for non-scratch dbs
     if allow_upload_to_user_data:
-        update_langchain(langchain_modes, langchain_mode_paths, langchain_mode_types, '', save_dir=save_dir)
         # always listen to CLI-passed user_path if passed
         if user_path:
             langchain_mode_paths['UserData'] = user_path
@@ -2913,24 +2912,6 @@ def history_to_context(history, langchain_mode1,
         if context1 and not context1.endswith(chat_turn_sep):
             context1 += chat_turn_sep  # ensure if terminates abruptly, then human continues on next line
     return context1
-
-
-def update_langchain(langchain_modes, langchain_mode_paths, langchain_mode_types, extra, save_dir=None):
-    # update from saved state on disk
-    langchain_modes_from_file, langchain_mode_types_from_file, langchain_mode_paths_from_file = \
-        load_collection_enum(extra, save_dir=save_dir)
-
-    langchain_mode_paths.update(langchain_mode_paths_from_file)
-    langchain_mode_types.update(langchain_mode_types_from_file)
-
-    langchain_modes_temp = langchain_modes.copy() + langchain_modes_from_file
-    langchain_modes.clear()  # don't lose original reference
-    [langchain_modes.append(x) for x in langchain_modes_temp if x not in langchain_modes]
-
-    # if not shared or personal, then assume scratch
-    for langchain_mode in langchain_modes:
-        if langchain_mode not in langchain_mode_types:
-            langchain_mode_types[langchain_mode] = LangChainTypes.SCRATCH.value
 
 
 def entrypoint_main():

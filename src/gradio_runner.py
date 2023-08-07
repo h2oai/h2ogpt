@@ -60,10 +60,9 @@ from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt
     get_prompt
 from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping, get_short_name, makedirs, get_kwargs, remove, system_info, ping_gpu, get_url, get_local_ip, \
-    save_collection_names, save_generate_output
+    save_generate_output
 from gen import get_model, languages_covered, evaluate, score_qa, inputs_kwargs_list, \
-    get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list, \
-    update_langchain
+    get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list
 from evaluate_params import eval_func_param_names, no_default_param_names, eval_func_param_names_defaults, \
     input_args_list
 
@@ -262,54 +261,80 @@ def go_gradio(**kwargs):
         return x
 
     # BEGIN AUTH THINGS
-    def auth_func(username, password, file=None, auth_access=None, guest_name=None, **kwargs):
-        assert file and isinstance(file, str), "Auth file must be a non-empty string, got: %s" % str(file)
+    def auth_func(username, password, auth_pairs=None, auth_filename=None, auth_access=None, guest_name=None,
+                  selection_docs_state1=None, **kwargs):
+        assert auth_filename and isinstance(auth_filename, str), "Auth file must be a non-empty string, got: %s" % str(
+            auth_filename)
         if auth_access == 'open' and username == guest_name:
             return True
-        with filelock.FileLock(file + '.lock'):
+        with filelock.FileLock(auth_filename + '.lock'):
             auth_dict = {}
-            if os.path.isfile(file):
-                with open(file, 'rt') as f:
+            if os.path.isfile(auth_filename):
+                with open(auth_filename, 'rt') as f:
                     auth_dict = json.load(f)
-            if username in auth_dict:
-                if password == auth_dict[username]['password']:
+            if username in auth_dict and username in auth_pairs:
+                if password == auth_dict[username]['password'] and password == auth_pairs[username]:
+                    auth_dict[username].update(dict(selection_docs_state=selection_docs_state1))
+                    with open(auth_filename, 'wt') as f:
+                        f.write(json.dumps(auth_dict, indent=2))
                     return True
                 else:
                     return False
+            elif username in auth_dict:
+                if password == auth_dict[username]['password']:
+                    auth_dict[username].update(dict(selection_docs_state=selection_docs_state1))
+                    with open(auth_filename, 'wt') as f:
+                        f.write(json.dumps(auth_dict, indent=2))
+                    return True
+                else:
+                    return False
+            elif username in auth_pairs:
+                # copy over CLI auth to file so only one state to manage
+                auth_dict[username] = dict(password=auth_pairs[username], userid=str(uuid.uuid4()))
+                auth_dict[username].update(dict(selection_docs_state=selection_docs_state1))
+                with open(auth_filename, 'wt') as f:
+                    f.write(json.dumps(auth_dict, indent=2))
+                return True
             else:
+                if auth_access == 'closed':
+                    return False
                 # open access
                 auth_dict[username] = dict(password=password, userid=str(uuid.uuid4()))
-                with open(file, 'wt') as f:
+                auth_dict[username].update(dict(selection_docs_state=selection_docs_state1))
+                with open(auth_filename, 'wt') as f:
                     f.write(json.dumps(auth_dict, indent=2))
                 if auth_access == 'open':
                     return True
-                elif auth_access == 'closed':
-                    return False
                 else:
                     raise RuntimeError("Invalid auth_access: %s" % auth_access)
 
     def auth_func_open(*args, **kwargs):
         return True
 
-    def get_userid_auth_func(requests_state1, file=None, auth_access=None, guest_name=None, **kwargs):
-        if file and isinstance(file, str):
-            if 'username' in requests_state1:
-                username = requests_state1['username']
-                if username:
-                    if username == guest_name:
-                        return str(uuid.uuid4())
-                    with filelock.FileLock(file + '.lock'):
-                        if os.path.isfile(file):
-                            with open(file, 'rt') as f:
-                                auth_dict = json.load(f)
-                            if username in auth_dict:
-                                return auth_dict[username]['userid']
+    def get_username(requests_state1):
+        username = None
+        if 'username' in requests_state1:
+            username = requests_state1['username']
+        return username
+
+    def get_userid_auth_func(requests_state1, auth_filename=None, auth_access=None, guest_name=None, **kwargs):
+        if auth_filename and isinstance(auth_filename, str):
+            username = get_username(requests_state1)
+            if username:
+                if username == guest_name:
+                    return str(uuid.uuid4())
+                with filelock.FileLock(auth_filename + '.lock'):
+                    if os.path.isfile(auth_filename):
+                        with open(auth_filename, 'rt') as f:
+                            auth_dict = json.load(f)
+                        if username in auth_dict:
+                            return auth_dict[username]['userid']
         # if here, then not persistently associated with username,
         # but should only be one-time asked if going to persist within a single session!
         return str(uuid.uuid4())
 
     get_userid_auth = functools.partial(get_userid_auth_func,
-                                        file=kwargs['auth_type'],
+                                        auth_filename=kwargs['auth_filename'],
                                         auth_access=kwargs['auth_access'],
                                         guest_name=kwargs['guest_name'])
     if kwargs['auth_access'] == 'closed':
@@ -318,26 +343,22 @@ def go_gradio(**kwargs):
         auth_message1 = "WELCOME!  Open access" \
                         " (%s/%s or any unique user/pass)" % (kwargs['guest_name'], kwargs['guest_name'])
 
-    if kwargs['auth_type'] is None:
-        auth = None
-        auth_message1 = ""
-    elif kwargs['auth_type'] == 'auth':
-        if kwargs['auth_access'] == 'closed':
-            auth = kwargs['auth']
-            assert auth, "Specify users if auth_access is closed for auth_type=auth"
-        else:
-            auth = auth_func_open
-    elif kwargs['auth_type'] == 'file':
-        auth = functools.partial(auth_func,
-                                 file=kwargs['auth_type'],
-                                 auth_access=kwargs['auth_access'],
-                                 guest_name=kwargs['guest_name'])
-    else:
-        raise RuntimeError("No such auth_type=%d" % kwargs['auth_type'])
     if kwargs['auth_message'] is not None:
         auth_message = kwargs['auth_message']
     else:
         auth_message = auth_message1
+
+    # always use same callable
+    auth_pairs0 = {}
+    if isinstance(kwargs['auth'], list):
+        for k, v in zip(kwargs['auth'][0], kwargs['auth'][1]):
+            auth_pairs0[k] = v
+    auth = functools.partial(auth_func,
+                             auth_pairs=auth_pairs0,
+                             auth_filename=kwargs['auth_filename'],
+                             auth_access=kwargs['auth_access'],
+                             guest_name=kwargs['guest_name'],
+                             selection_docs_state0=selection_docs_state0)
 
     def get_request_state(request):
         # if need to get state, do it now
@@ -383,9 +404,7 @@ def go_gradio(**kwargs):
                  )
         )
 
-        def update_langchain_mode_paths(db1s, selection_docs_state1):
-            if allow_upload_to_my_data:
-                selection_docs_state1['langchain_mode_paths'].update({k: None for k in db1s})
+        def update_langchain_mode_paths(selection_docs_state1):
             dup = selection_docs_state1['langchain_mode_paths'].copy()
             for k, v in dup.items():
                 if k not in selection_docs_state1['langchain_modes']:
@@ -405,7 +424,7 @@ def go_gradio(**kwargs):
         docs_state = gr.State(docs_state0)
         viewable_docs_state0 = []
         viewable_docs_state = gr.State(viewable_docs_state0)
-        selection_docs_state0 = update_langchain_mode_paths(my_db_state0, selection_docs_state0)
+        selection_docs_state0 = update_langchain_mode_paths(selection_docs_state0)
         selection_docs_state = gr.State(selection_docs_state0)
         requests_state0 = dict(headers='', host='', username='')
         requests_state = gr.State(requests_state0)
@@ -1356,7 +1375,8 @@ def go_gradio(**kwargs):
                     if user_path in ['', "''"]:
                         # transcribe UI input
                         user_path = None
-                    if user_path is not None and langchain_mode_type in [LangChainTypes.SCRATCH.value, LangChainTypes.PERSONAL.value]:
+                    if user_path is not None and langchain_mode_type in [LangChainTypes.SCRATCH.value,
+                                                                         LangChainTypes.PERSONAL.value]:
                         user_path = None
                         textbox = "Do not pass user_path for scratch/personal types"
                         valid = False
@@ -1387,7 +1407,7 @@ def go_gradio(**kwargs):
                 valid = False
                 langchain_mode2 = langchain_mode1
                 textbox = "Invalid, must be like UserData2, user_path2"
-            selection_docs_state1 = update_langchain_mode_paths(db1s, selection_docs_state1)
+            selection_docs_state1 = update_langchain_mode_paths(selection_docs_state1)
             df_langchain_mode_paths1 = get_df_langchain_mode_paths(selection_docs_state1)
             choices = get_langchain_choices(selection_docs_state1)
 
@@ -1395,9 +1415,8 @@ def go_gradio(**kwargs):
                 # needs to have key for it to make it known different from userdata case in _update_user_db()
                 db1s[langchain_mode2] = [None, None]
             if valid:
-                save_collection_names(langchain_modes, langchain_mode_paths, langchain_mode_types,
-                                      LangChainMode,
-                                      db1s, True if user_path else False, save_dir=kwargs['save_dir'])
+                # FIXME: Save to auth file
+                pass
 
             return db1s, selection_docs_state1, gr.update(choices=choices,
                                                           value=langchain_mode2), textbox, df_langchain_mode_paths1
@@ -1436,12 +1455,11 @@ def go_gradio(**kwargs):
                         # don't remove last MyData, used as user hash
                         db1s.pop(langchain_mode2)
                 # only show
-                selection_docs_state1 = update_langchain_mode_paths(db1s, selection_docs_state1)
+                selection_docs_state1 = update_langchain_mode_paths(selection_docs_state1)
                 df_langchain_mode_paths1 = get_df_langchain_mode_paths(selection_docs_state1)
 
-                save_collection_names(langchain_modes, langchain_mode_paths, langchain_mode_types,
-                                      LangChainMode,
-                                      db1s, in_user_db, save_dir=kwargs['save_dir'])
+                # FIXME: Update auth file
+                pass
 
             return db1s, selection_docs_state1, \
                 gr.update(choices=get_langchain_choices(selection_docs_state1),
@@ -1477,29 +1495,28 @@ def go_gradio(**kwargs):
                                               langchain_mode_path_text],
                                      api_name='remove_langchain_mode_text' if allow_api and allow_upload_to_user_data else None)
 
-        def update_langchain_gr(db1s, selection_docs_state1, requests_state1, langchain_mode1):
-            set_userid(db1s, requests_state1, get_userid_auth)
-            for k in db1s:
-                set_dbid(db1s[k])
-            langchain_modes = selection_docs_state1['langchain_modes']
-            langchain_mode_paths = selection_docs_state1['langchain_mode_paths']
-            # in-place
+        def load_langchain_gr(db1s, selection_docs_state1, requests_state1, langchain_mode1, auth_filename=None):
+            if auth_filename:
+                # if first time here, need to set userID
+                set_userid(db1s, requests_state1, get_userid_auth)
+                username = get_username(requests_state1)
+                with filelock.FileLock(auth_filename + '.lock'):
+                    if os.path.isfile(auth_filename):
+                        with open(auth_filename, 'rt') as f:
+                            auth_dict = json.load(f)
+                            if username in auth_dict:
+                                auth_user = auth_dict[username]
+                                if 'selection_docs_state' in auth_user:
+                                    selection_docs_state1 = auth_user['selection_docs_state']
 
-            # update user collaborative collections
-            update_langchain(langchain_modes, langchain_mode_paths, '',
-                             save_dir=kwargs['save_dir'])
-            # update scratch single-user collections
-            user_hash = db1s.get(LangChainMode.MY_DATA.value, '')[1]
-            update_langchain(langchain_modes, langchain_mode_paths, user_hash,
-                             save_dir=kwargs['save_dir'])
-
-            selection_docs_state1 = update_langchain_mode_paths(db1s, selection_docs_state1)
+            selection_docs_state1 = update_langchain_mode_paths(selection_docs_state1)
             df_langchain_mode_paths1 = get_df_langchain_mode_paths(selection_docs_state1)
             return selection_docs_state1, \
                 gr.update(choices=get_langchain_choices(selection_docs_state1),
                           value=langchain_mode1), df_langchain_mode_paths1
 
-        load_langchain.click(fn=update_langchain_gr,
+        load_langchain_gr_func = functools.partial(load_langchain_gr, auth_filename=kwargs['auth_filename'])
+        load_langchain.click(fn=load_langchain_gr_func,
                              inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode],
                              outputs=[selection_docs_state, langchain_mode, langchain_mode_path_text],
                              api_name='load_langchain' if allow_api and allow_upload_to_user_data else None)
