@@ -132,6 +132,7 @@ def main(
         auth_filename: str = None,
         auth_access: str = 'open',
         auth_message: str = None,
+        guest_name: str = "guest",
 
         max_max_time=None,
         max_max_new_tokens=None,
@@ -342,6 +343,8 @@ def main(
          'open': Allow new users to be added
          'closed': Stick to existing users
     :param auth_message: Message to show if having users login, fixed if passed, else dynamic internally
+    :param guest_name: guess name if using auth and have open access.
+           If '', then no guest allowed even if open access, then all databases for each user always persisted
 
     :param max_max_time: Maximum max_time for gradio slider
     :param max_max_new_tokens: Maximum max_new_tokens for gradio slider
@@ -2923,6 +2926,11 @@ def update_langchain(langchain_modes, langchain_mode_paths, langchain_mode_types
     langchain_modes_temp = langchain_modes.copy() + langchain_modes_from_file
     langchain_modes.clear()  # don't lose original reference
     [langchain_modes.append(x) for x in langchain_modes_temp if x not in langchain_modes]
+
+    # if not shared or personal, then assume scratch
+    for langchain_mode in langchain_modes:
+        if langchain_mode not in langchain_mode_types:
+            langchain_mode_types[langchain_mode] = LangChainTypes.SCRATCH.value
 
 
 def entrypoint_main():

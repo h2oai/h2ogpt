@@ -14,6 +14,7 @@ import traceback
 import typing
 import uuid
 import filelock
+import numpy as np
 import pandas as pd
 import requests
 import tabulate
@@ -307,9 +308,10 @@ def go_gradio(**kwargs):
                                         file=kwargs['auth_type'],
                                         auth_access=kwargs['auth_access'])
     if kwargs['auth_access'] == 'closed':
-        auth_message1 = ""
+        auth_message1 = "Closed access"
     else:
-        auth_message1 = "WELCOME!  Open access (guest/guest or any unique user/pass)"
+        auth_message1 = "WELCOME!  Open access" \
+                        " (%s/%s or any unique user/pass)" % (kwargs['guest_name'], kwargs['guest_name'])
 
     if kwargs['auth_type'] is None:
         auth = None
@@ -447,10 +449,20 @@ def go_gradio(**kwargs):
         def get_df_langchain_mode_paths(selection_docs_state1):
             langchain_mode_paths = selection_docs_state1['langchain_mode_paths']
             if langchain_mode_paths:
-                df = pd.DataFrame.from_dict(langchain_mode_paths.items(), orient='columns')
-                df.columns = ['Collection', 'Path']
+                df1 = pd.DataFrame.from_dict(langchain_mode_paths.items(), orient='columns')
+                df1.columns = ['Collection', 'Path']
+                df1 = df1.set_index('Collection')
             else:
-                df = pd.DataFrame(None)
+                df1 = pd.DataFrame(None)
+            langchain_mode_types = selection_docs_state1['langchain_mode_types']
+            if langchain_mode_types:
+                df2 = pd.DataFrame.from_dict(langchain_mode_types.items(), orient='columns')
+                df2.columns = ['Collection', 'Type']
+                df2 = df2.set_index('Collection')
+            else:
+                df2 = pd.DataFrame(None)
+            df = df1.join(df2, on='Collection').replace(np.nan, '')
+            df = df.reset_index()
             return df
 
         normal_block = gr.Row(visible=not base_wanted, equal_height=False)
