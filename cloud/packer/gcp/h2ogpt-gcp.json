@@ -1,9 +1,9 @@
 {
   "variables": {
-    "project_id":"eng-llm",
-    "account_file":"<NAME OF GCP CREDENTIALS JSON FILE>",
+    "project_id": "eng-llm",
+    "account_file": "<NAME OF GCP CREDENTIALS JSON FILE>",
     "h2ogpt_version": "010"
- },
+  },
   "builders": [
     {
       "type": "googlecompute",
@@ -20,9 +20,22 @@
     }
   ],
   "provisioners": [
-      { 
-       "type": "shell",
-       "script": "./install_h2ogpt.sh"
-     }
+    {
+      "type": "shell",
+      "script": "setup_environment.sh",
+      "pause_before": "50s",
+      "pause_after": "50s"
+    },
+    {
+      "type": "shell",
+      "inline": ["sudo reboot now"],
+      "pause_after": "50s",
+      "expect_disconnect": true
+    },
+    {
+      "type": "shell",
+      "script": "install_h2ogpt.sh",
+      "pause_after": "50s"
+    }
   ]
 }
