@@ -527,7 +527,7 @@ def main(
     if isinstance(auth, str):
         if auth.strip().startswith('['):
             auth = ast.literal_eval(auth.strip())
-    if isinstance(auth, str):
+    if isinstance(auth, str) and auth:
         auth_filename = auth
     assert isinstance(auth, (str, list, tuple, type(None))), "Unknown type %s for auth=%s" % (type(auth), auth)
 
