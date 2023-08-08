@@ -146,6 +146,7 @@ def main(
         visible_models_tab: bool = True,
         visible_system_tab: bool = True,
         visible_tos_tab: bool = False,
+        visible_login_tab: bool = True,
         visible_hosts_tab: bool = False,
         chat_tables: bool = False,
         visible_h2ogpt_header: bool = True,
@@ -334,6 +335,7 @@ def main(
                  e.g. --auth="[('jon', 'password)())(')]" so any special characters can be used
                  e.g. --auth=auth.json to specify persisted state file
                  e.g. --auth='' will use default auth.json as file name for persisted state file
+                 e.g. --auth=None will use no auth, but still keep track of auth state, just no fron login
     :param auth_access:
          'open': Allow new users to be added
          'closed': Stick to existing users
@@ -354,6 +356,7 @@ def main(
     :param visible_models_tab: "" for models tab
     :param visible_system_tab: "" for system tab
     :param visible_tos_tab: "" for ToS tab
+    :param visible_login_tab: "" for Login tab
     :param visible_hosts_tab: "" for hosts tab
     :param chat_tables: Just show Chat as block without tab (useful if want only chat view)
     :param visible_h2ogpt_header: Whether github stars, URL, logo, and QR code are visible
@@ -520,13 +523,12 @@ def main(
     if isinstance(rope_scaling, str):
         rope_scaling = ast.literal_eval(rope_scaling)
 
+    auth_filename = "auth.json"  # default
     if isinstance(auth, str):
         if auth.strip().startswith('['):
             auth = ast.literal_eval(auth.strip())
-    if isinstance(auth, list):
-        auth_filename = "auth.json"
-    elif isinstance(auth, str):
-        auth_filename = auth or "auth.json"
+    if isinstance(auth, str):
+        auth_filename = auth
     assert isinstance(auth, (str, list, tuple, type(None))), "Unknown type %s for auth=%s" % (type(auth), auth)
 
     # allow set token directly
