@@ -292,6 +292,9 @@ def go_gradio(**kwargs):
             auth_filename)
         if auth_access == 'open' and username1 == guest_name:
             return True
+        if username1 == '':
+            # some issue with login
+            return False
         with filelock.FileLock(auth_filename + '.lock'):
             auth_dict = {}
             if os.path.isfile(auth_filename):
@@ -1405,9 +1408,14 @@ def go_gradio(**kwargs):
         def login(db1s, selection_docs_state1, requests_state1, chat_state1, langchain_mode1,
                   username1, password1,
                   text_output1, text_output21, *text_outputs1,
-                  auth_filename=None, num_model_lock=0):
+                  auth_filename=None, num_model_lock=0, pre_authorized=False):
             # use full auth login to allow new users if open access etc.
-            authorized1 = authf(username1, password1)
+            if pre_authorized:
+                username1 = requests_state1['username']
+                password1 = None
+                authorized1 = True
+            else:
+                authorized1 = authf(username1, password1)
             if authorized1:
                 set_userid_gr(db1s, requests_state1, get_userid_auth)
                 username2 = get_username(requests_state1)
@@ -1434,17 +1442,25 @@ def go_gradio(**kwargs):
         login_func = functools.partial(login,
                                        auth_filename=kwargs['auth_filename'],
                                        num_model_lock=len(text_outputs),
+                                       pre_authorized=False,
                                        )
+        load_login_func = functools.partial(login,
+                                            auth_filename=kwargs['auth_filename'],
+                                            num_model_lock=len(text_outputs),
+                                            pre_authorized=True,
+                                            )
+        login_inputs = [my_db_state, selection_docs_state, requests_state, chat_state,
+                        langchain_mode,
+                        username_text, password_text,
+                        text_output, text_output2] + text_outputs
+        login_outputs = [my_db_state, selection_docs_state, requests_state, chat_state,
+                         login_result_text, langchain_mode_path_text,
+                         radio_chats,
+                         langchain_mode,
+                         text_output, text_output2] + text_outputs
         eventdb_logina.then(login_func,
-                            inputs=[my_db_state, selection_docs_state, requests_state, chat_state,
-                                    langchain_mode,
-                                    username_text, password_text,
-                                    text_output, text_output2] + text_outputs,
-                            outputs=[my_db_state, selection_docs_state, requests_state, chat_state,
-                                     login_result_text, langchain_mode_path_text,
-                                     radio_chats,
-                                     langchain_mode,
-                                     text_output, text_output2] + text_outputs,
+                            inputs=login_inputs,
+                            outputs=login_outputs,
                             queue=False)
 
         admin_pass_textbox.submit(check_admin_pass, inputs=admin_pass_textbox, outputs=system_row, queue=False) \
@@ -3075,7 +3091,25 @@ def go_gradio(**kwargs):
         app_js = wrap_js_to_lambda(
             get_dark_js() if kwargs['dark'] else None,
             get_heap_js(heap_app_id) if is_heap_analytics_enabled else None)
-        demo.load(None, None, None, _js=app_js)
+
+        if kwargs['auth'] is not None:
+            auth = authf
+            load_func = user_state_setup
+            load_inputs = [my_db_state, requests_state, login_btn, login_btn]
+            load_outputs = [my_db_state, requests_state, login_btn]
+        else:
+            auth = None
+            load_func, load_inputs, load_outputs = None, None, None
+        load_event = demo.load(fn=load_func, inputs=load_inputs, outputs=load_outputs)
+        if load_func:
+            load_event2 = load_event.then(load_login_func,
+                                          inputs=login_inputs,
+                                          outputs=login_outputs)
+            # have to put app_js after else messes up other functions
+            load_event2.then(None, None, None, _js=app_js)
+        else:
+            # have to put app_js after else messes up other functions
+            load_event.then(None, None, None, _js=app_js)
 
     demo.queue(concurrency_count=kwargs['concurrency_count'], api_open=kwargs['api_open'])
     favicon_path = "h2o-logo.svg"
@@ -3113,7 +3147,7 @@ def go_gradio(**kwargs):
                 server_port=server_port,
                 favicon_path=favicon_path,
                 prevent_thread_lock=True,
-                auth=authf if kwargs['auth'] is not None else None,
+                auth=auth,
                 auth_message=auth_message,
                 root_path=kwargs['root_path'])
     if kwargs['verbose']:

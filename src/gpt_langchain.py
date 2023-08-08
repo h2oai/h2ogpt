@@ -3038,6 +3038,11 @@ def set_userid(db1s, requests_state1, get_userid_auth):
     assert db1 is not None and len(db1) == length_db1()
     if not db1[1]:
         db1[1] = get_userid_auth(requests_state1)
+    if not db1[2]:
+        username1 = None
+        if 'username' in requests_state1:
+            username1 = requests_state1['username']
+        db1[2] = username1
 
 
 def set_userid_direct(db1s, userid, username):
@@ -3115,7 +3120,8 @@ def get_any_db(db1s, langchain_mode, langchain_mode_paths, langchain_mode_types,
             # if found db, then stuff into state, so don't have to reload again that takes time
             if langchain_type == LangChainTypes.PERSONAL.value:
                 assert isinstance(db1s, dict), "db1s wrong type: %s" % type(db1s)
-                db1 = db1s[langchain_mode] = [db, None]
+                db1 = db1s[langchain_mode] = [db, None, None]
+                assert len(db1) == length_db1(), "Bad setup: %s" % len(db1)
                 set_dbid(db1)
             else:
                 assert isinstance(dbs, dict), "dbs wrong type: %s" % type(dbs)
