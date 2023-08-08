@@ -387,12 +387,12 @@ def go_gradio(**kwargs):
         for k, v in zip(kwargs['auth'][0], kwargs['auth'][1]):
             auth_pairs0[k] = v
     authf = functools.partial(auth_func,
-                             auth_pairs=auth_pairs0,
-                             auth_filename=kwargs['auth_filename'],
-                             auth_access=kwargs['auth_access'],
-                             auth_freeze=kwargs['auth_freeze'],
-                             guest_name=kwargs['guest_name'],
-                             selection_docs_state1=selection_docs_state0)
+                              auth_pairs=auth_pairs0,
+                              auth_filename=kwargs['auth_filename'],
+                              auth_access=kwargs['auth_access'],
+                              auth_freeze=kwargs['auth_freeze'],
+                              guest_name=kwargs['guest_name'],
+                              selection_docs_state1=selection_docs_state0)
 
     def get_request_state(request):
         # if need to get state, do it now
@@ -1072,7 +1072,8 @@ def go_gradio(**kwargs):
                 with login_tab:
                     username_text = gr.Textbox(label="Username")
                     password_text = gr.Textbox(label="Password", type='password', visible=True)
-                    login_msg = "Login (pick unique user/pass to persist your state)" if kwargs['auth_access'] == 'open' else "Login (closed access)"
+                    login_msg = "Login (pick unique user/pass to persist your state)" if kwargs[
+                                                                                             'auth_access'] == 'open' else "Login (closed access)"
                     login_btn = gr.Button(value=login_msg)
                     login_result_text = gr.Text(label="Login Result", interactive=False)
 
