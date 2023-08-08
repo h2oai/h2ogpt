@@ -1475,8 +1475,7 @@ def go_gradio(**kwargs):
                                     return False, [], [], [], "Invalid password for user %s" % username1
                             if username_override:
                                 # then use original user id
-                                db1 = db1s[LangChainMode.MY_DATA.value]
-                                db1[1] = auth_dict[username1]['userid']
+                                set_userid_direct_gr(db1s, auth_dict[username1]['userid'], username1)
                             if 'selection_docs_state' in auth_user:
                                 update_auth_selection(auth_user, selection_docs_state1)
                             if 'chat_state' in auth_user:
@@ -3228,3 +3227,8 @@ def set_userid_gr(db1s, requests_state1, get_userid_auth):
 def set_dbid_gr(db1):
     from src.gpt_langchain import set_dbid
     return set_dbid(db1)
+
+
+def set_userid_direct_gr(db1s, userid, username):
+    from src.gpt_langchain import set_userid_direct
+    return set_userid_direct(db1s, userid, username)

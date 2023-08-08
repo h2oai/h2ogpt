@@ -786,7 +786,7 @@ def main(
     model_state_none = dict(model=None, tokenizer=None, device=None,
                             base_model=None, tokenizer_base_model=None, lora_weights=None,
                             inference_server=None, prompt_type=None, prompt_dict=None)
-    my_db_state0 = {LangChainMode.MY_DATA.value: [None, None]}
+    my_db_state0 = {LangChainMode.MY_DATA.value: [None, None, None]}
     selection_docs_state0 = dict(langchain_modes=langchain_modes,
                                  langchain_mode_paths=langchain_mode_paths,
                                  langchain_mode_types=langchain_mode_types)

@@ -2065,10 +2065,13 @@ def load_embed(db=None, persist_directory=None):
 
 
 def get_persist_directory(langchain_mode, langchain_type=None, db1s=None, dbs=None):
-    userid = db1s[LangChainMode.MY_DATA.value][1] if db1s is not None else ''
+    userid = get_userid_direct(db1s)
+    username = get_username_direct(db1s)
+    dirid = username or userid
 
     # deal with existing locations
-    persist_directory = os.path.join(userid, 'db_dir_%s' % langchain_mode)
+    user_base_dir = os.getenv('USERS_BASE_DIR', 'users')
+    persist_directory = os.path.join(user_base_dir, dirid, 'db_dir_%s' % langchain_mode)
     if userid and \
             (os.path.isdir(persist_directory) or
              langchain_mode in db1s or
@@ -3032,17 +3035,48 @@ def get_sources_answer(query, docs, answer, scores, show_rank,
 
 def set_userid(db1s, requests_state1, get_userid_auth):
     db1 = db1s[LangChainMode.MY_DATA.value]
-    assert db1 is not None and len(db1) == 2
+    assert db1 is not None and len(db1) == length_db1()
     if not db1[1]:
         db1[1] = get_userid_auth(requests_state1)
 
 
+def set_userid_direct(db1s, userid, username):
+    db1 = db1s[LangChainMode.MY_DATA.value]
+    db1[1] = userid
+    db1[2] = username
+
+
+def get_userid_direct(db1s):
+    return db1s[LangChainMode.MY_DATA.value][1] if db1s is not None else ''
+
+
+def get_username_direct(db1s):
+    return db1s[LangChainMode.MY_DATA.value][2] if db1s is not None else ''
+
+
+def get_dbid(db1):
+    return db1[1]
+
+
 def set_dbid(db1):
     # can only call this after function called so for specific user, not in gr.State() that occurs during app init
-    assert db1 is not None and len(db1) == 2
+    assert db1 is not None and len(db1) == length_db1()
     if db1[1] is None:
         #  uuid in db is used as user ID
         db1[1] = str(uuid.uuid4())
+
+
+def length_db1():
+    # For MyData:
+    # 0: db
+    # 1: userid and dbid
+    # 2: username
+
+    # For others:
+    # 0: db
+    # 1: dbid
+    # 2: None
+    return 3
 
 
 def get_any_db(db1s, langchain_mode, langchain_mode_paths, langchain_mode_types,
@@ -3102,7 +3136,7 @@ def get_sources(db1s, requests_state1, langchain_mode, dbs=None, docs_state0=Non
         source_files_added = "Not showing wiki_full, takes about 20 seconds and makes 4MB file." \
                              "  Ask jon.mckinney@h2o.ai for file if required."
         source_list = []
-    elif langchain_mode in db1s and len(db1s[langchain_mode]) == 2 and db1s[langchain_mode][0] is not None:
+    elif langchain_mode in db1s and len(db1s[langchain_mode]) == length_db1() and db1s[langchain_mode][0] is not None:
         db1 = db1s[langchain_mode]
         metadatas = get_metadatas(db1[0])
         source_list = sorted(set([x['source'] for x in metadatas]))
@@ -3161,7 +3195,7 @@ def update_user_db(file, db1s, selection_docs_state1, requests_state1,
 
 
 def get_lock_file(db1, langchain_mode):
-    db_id = db1[1]
+    db_id = get_dbid(db1)
     base_path = 'locks'
     base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
     lock_file = os.path.join(base_path, "db_%s_%s.lock" % (langchain_mode.replace(' ', '_'), db_id))
@@ -3280,10 +3314,10 @@ def _update_user_db(file,
                                                                       hf_embedding_model=hf_embedding_model)
             else:
                 # in testing expect:
-                # assert len(db1) == 2 and db1[1] is None, "Bad MyData db: %s" % db1
+                # assert len(db1) == length_db1() and db1[1] is None, "Bad MyData db: %s" % db1
                 # for production hit, when user gets clicky:
-                assert len(db1) == 2, "Bad %s db: %s" % (langchain_mode, db1)
-                assert db1[1] is not None, "db hash was None, not allowed"
+                assert len(db1) == length_db1(), "Bad %s db: %s" % (langchain_mode, db1)
+                assert get_dbid(db1) is not None, "db hash was None, not allowed"
                 # then create
                 # if added has to original state and didn't change, then would be shared db for all users
                 persist_directory = get_persist_directory(langchain_mode, db1s=db1s, dbs=dbs)

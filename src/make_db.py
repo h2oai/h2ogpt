@@ -80,10 +80,10 @@ def make_db_main(use_openai_embedding: bool = False,
     :param hf_embedding_model: HF embedding model to use. Like generate.py, uses 'hkunlp/instructor-large' if have GPUs, else "sentence-transformers/all-MiniLM-L6-v2"
     :param migrate_embedding_model: whether to migrate to newly chosen hf_embedding_model or stick with one in db
     :param persist_directory: where to persist db (note generate.py always uses db_dir_<collection name>
-           make_db always makes shared type others will see when on same server (e.g. UserData) not personal/scratch space (e.g. MyData)
-           because do not know user hash at this point (FIXME: Go by user name for path, since unique and understandable here)
+           If making personal database for user, set persistent_directory to users/<username>/db_dir_<collection name>
+           and pass --langchain_type=personal
     :param user_path: where to pull documents from (None means url is not None.  If url is not None, this is ignored.)
-    :param langchain_type: type of database, i.e.. 'shared', 'personal', 'scratch'
+    :param langchain_type: type of database, i.e.. 'shared' or 'personal'
     :param url: url (or urls) to generate documents from (None means user_path is not None)
     :param add_if_exists: Add to db if already exists, but will not add duplicate sources
     :param collection_name: Collection name for new db if not adding
