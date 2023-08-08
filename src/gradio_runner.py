@@ -386,16 +386,13 @@ def go_gradio(**kwargs):
     if isinstance(kwargs['auth'], list):
         for k, v in zip(kwargs['auth'][0], kwargs['auth'][1]):
             auth_pairs0[k] = v
-    if kwargs['auth'] is not None:
-        auth = functools.partial(auth_func,
-                                 auth_pairs=auth_pairs0,
-                                 auth_filename=kwargs['auth_filename'],
-                                 auth_access=kwargs['auth_access'],
-                                 auth_freeze=kwargs['auth_freeze'],
-                                 guest_name=kwargs['guest_name'],
-                                 selection_docs_state1=selection_docs_state0)
-    else:
-        auth = None
+    authf = functools.partial(auth_func,
+                             auth_pairs=auth_pairs0,
+                             auth_filename=kwargs['auth_filename'],
+                             auth_access=kwargs['auth_access'],
+                             auth_freeze=kwargs['auth_freeze'],
+                             guest_name=kwargs['guest_name'],
+                             selection_docs_state1=selection_docs_state0)
 
     def get_request_state(request):
         # if need to get state, do it now
@@ -1075,7 +1072,8 @@ def go_gradio(**kwargs):
                 with login_tab:
                     username_text = gr.Textbox(label="Username")
                     password_text = gr.Textbox(label="Password", type='password', visible=True)
-                    login_btn = gr.Button(value="Login")
+                    login_msg = "Login (pick unique user/pass to persist your state)" if kwargs['auth_access'] == 'open' else "Login (closed access)"
+                    login_btn = gr.Button(value=login_msg)
                     login_result_text = gr.Text(label="Login Result", interactive=False)
 
                 hosts_tab = gr.TabItem("Hosts") \
@@ -1407,15 +1405,21 @@ def go_gradio(**kwargs):
                   username1, password1,
                   text_output1, text_output21, *text_outputs1,
                   auth_filename=None, num_model_lock=0):
-            set_userid(db1s, requests_state1, get_userid_auth)
-            username2 = get_username(requests_state1)
-            text_outputs1 = list(text_outputs1)
+            # use full auth login to allow new users if open access etc.
+            authorized1 = authf(username1, password1)
+            if authorized1:
+                set_userid(db1s, requests_state1, get_userid_auth)
+                username2 = get_username(requests_state1)
+                text_outputs1 = list(text_outputs1)
 
-            success1, text_result, text_output1, text_output21, text_outputs1, langchain_mode1 = \
-                load_auth(db1s, requests_state1, auth_filename, selection_docs_state1=selection_docs_state1,
-                          chat_state1=chat_state1, langchain_mode1=langchain_mode1,
-                          text_output1=text_output1, text_output21=text_output21, text_outputs1=text_outputs1,
-                          username_override=username1, password_to_check=password1)
+                success1, text_result, text_output1, text_output21, text_outputs1, langchain_mode1 = \
+                    load_auth(db1s, requests_state1, auth_filename, selection_docs_state1=selection_docs_state1,
+                              chat_state1=chat_state1, langchain_mode1=langchain_mode1,
+                              text_output1=text_output1, text_output21=text_output21, text_outputs1=text_outputs1,
+                              username_override=username1, password_to_check=password1)
+            else:
+                success1 = False
+                text_result = "Wrong password for user %s" % username1
             df_langchain_mode_paths1 = get_df_langchain_mode_paths(selection_docs_state1)
             if success1:
                 requests_state1['username'] = username1
@@ -3107,7 +3111,7 @@ def go_gradio(**kwargs):
                 server_port=server_port,
                 favicon_path=favicon_path,
                 prevent_thread_lock=True,
-                auth=auth,
+                auth=authf if kwargs['auth'] is not None else None,
                 auth_message=auth_message,
                 root_path=kwargs['root_path'])
     if kwargs['verbose']:
