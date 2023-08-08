@@ -1411,15 +1411,18 @@ def go_gradio(**kwargs):
             username2 = get_username(requests_state1)
             text_outputs1 = list(text_outputs1)
 
-            text_output1, text_output21, text_outputs1, text_result = \
+            success1, text_output1, text_output21, text_outputs1, text_result = \
                 load_auth(db1s, requests_state1, auth_filename, selection_docs_state1=selection_docs_state1,
+                          chat_state1=chat_state1,
                           text_output1=text_output1, text_output21=text_output21, text_outputs1=text_outputs1,
                           username_override=username1, password_to_check=password1)
             df_langchain_mode_paths1 = get_df_langchain_mode_paths(selection_docs_state1)
-            return db1s, selection_docs_state1, chat_state1, \
+            if success1:
+                requests_state1['username'] = username1
+            return db1s, selection_docs_state1, requests_state1, chat_state1, \
                 text_result, df_langchain_mode_paths1, \
                 gr.update(choices=list(chat_state1.keys()), value=None), \
-                text_output1, text_output21, text_outputs1
+                text_output1, text_output21, *tuple(text_outputs1)
 
         login_func = functools.partial(login,
                                        auth_filename=kwargs['auth_filename'],
@@ -1429,7 +1432,7 @@ def go_gradio(**kwargs):
                             inputs=[my_db_state, selection_docs_state, requests_state, chat_state,
                                     username_text, password_text,
                                     text_output, text_output2] + text_outputs,
-                            outputs=[my_db_state, selection_docs_state, chat_state,
+                            outputs=[my_db_state, selection_docs_state, requests_state, chat_state,
                                      login_result_text, langchain_mode_path_text,
                                      radio_chats,
                                      text_output, text_output2] + text_outputs,
@@ -1438,18 +1441,20 @@ def go_gradio(**kwargs):
         admin_pass_textbox.submit(check_admin_pass, inputs=admin_pass_textbox, outputs=system_row, queue=False) \
             .then(close_admin, inputs=admin_pass_textbox, outputs=admin_row, queue=False)
 
-        def load_auth(db1s, requests_state1, auth_filename=None, selection_docs_state1=None, chat_state1=None,
+        def load_auth(db1s, requests_state1, auth_filename=None, selection_docs_state1=None,
+                      chat_state1=None,
                       text_output1=None, text_output21=None, text_outputs1=None,
                       username_override=None, password_to_check=None):
             # in-place assignment
             if not auth_filename:
-                return text_output1, text_output21, text_outputs1, "No auth file"
+                return False, text_output1, text_output21, text_outputs1, "No auth file"
             # if first time here, need to set userID
             set_userid(db1s, requests_state1, get_userid_auth)
             if username_override:
                 username1 = username_override
             else:
                 username1 = get_username(requests_state1)
+            success1 = False
             with filelock.FileLock(auth_filename + '.lock'):
                 if os.path.isfile(auth_filename):
                     with open(auth_filename, 'rt') as f:
@@ -1458,23 +1463,24 @@ def go_gradio(**kwargs):
                             auth_user = auth_dict[username1]
                             if password_to_check:
                                 if auth_user['password'] != password_to_check:
-                                    return [], [], [], "Invalid password for user %s" % username1
-                            if selection_docs_state1:
+                                    return False, [], [], [], "Invalid password for user %s" % username1
+                            if 'selection_docs_state' in auth_user:
                                 update_auth_selection(auth_user, selection_docs_state1)
-                            if chat_state1:
+                            if 'chat_state' in auth_user:
                                 chat_state1.update(auth_user['chat_state'])
                             if 'text_output' in auth_user:
                                 text_output1 = auth_user['text_output']
                             if 'text_output2' in auth_user:
                                 text_output21 = auth_user['text_output2']
-                            if 'text_output2' in auth_user:
-                                text_output21 = auth_user['text_output2']
+                            if 'text_outputs' in auth_user:
+                                text_outputs1 = auth_user['text_outputs']
                             text_result = "Successful login for %s" % username1
+                            success1 = True
                         else:
                             text_result = "No user %s" % username1
                 else:
                     text_result = "No auth file"
-            return text_output1, text_output21, text_outputs1, text_result
+            return success1, text_output1, text_output21, text_outputs1, text_result
 
         def save_auth_dict(auth_dict, auth_filename):
             backup_file = auth_filename + '.bak' + str(uuid.uuid4())
@@ -1515,7 +1521,7 @@ def go_gradio(**kwargs):
                         if text_output21:
                             auth_user['text_output2'] = text_output21
                         if text_outputs1:
-                            auth_user['text_outputs1'] = text_outputs1
+                            auth_user['text_outputs'] = text_outputs1
                         save_auth_dict(auth_dict, auth_filename)
 
         def add_langchain_mode(db1s, selection_docs_state1, requests_state1, langchain_mode1, y,
