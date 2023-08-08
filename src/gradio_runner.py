@@ -297,14 +297,18 @@ def go_gradio(**kwargs):
         with filelock.FileLock(auth_filename + '.lock'):
             auth_dict = {}
             if os.path.isfile(auth_filename):
-                with open(auth_filename, 'rt') as f:
-                    auth_dict = json.load(f)
+                try:
+                    with open(auth_filename, 'rt') as f:
+                        auth_dict = json.load(f)
+                except json.decoder.JSONDecodeError as e:
+                    print("Auth exception: %s" % str(e), flush=True)
+                    shutil.move(auth_filename, auth_filename + '.bak' + str(uuid.uuid4()))
+                    auth_dict = {}
             if username in auth_dict and username in auth_pairs:
                 if password == auth_dict[username]['password'] and password == auth_pairs[username]:
                     auth_user = auth_dict[username]
                     update_auth_selection(auth_user, selection_docs_state1)
-                    with open(auth_filename, 'wt') as f:
-                        f.write(json.dumps(auth_dict, indent=2))
+                    save_auth_dict(auth_dict, auth_filename)
                     return True
                 else:
                     return False
@@ -312,8 +316,7 @@ def go_gradio(**kwargs):
                 if password == auth_dict[username]['password']:
                     auth_user = auth_dict[username]
                     update_auth_selection(auth_user, selection_docs_state1)
-                    with open(auth_filename, 'wt') as f:
-                        f.write(json.dumps(auth_dict, indent=2))
+                    save_auth_dict(auth_dict, auth_filename)
                     return True
                 else:
                     return False
@@ -322,8 +325,7 @@ def go_gradio(**kwargs):
                 auth_dict[username] = dict(password=auth_pairs[username], userid=str(uuid.uuid4()))
                 auth_user = auth_dict[username]
                 update_auth_selection(auth_user, selection_docs_state1)
-                with open(auth_filename, 'wt') as f:
-                    f.write(json.dumps(auth_dict, indent=2))
+                save_auth_dict(auth_dict, auth_filename)
                 return True
             else:
                 if auth_access == 'closed':
@@ -332,8 +334,7 @@ def go_gradio(**kwargs):
                 auth_dict[username] = dict(password=password, userid=str(uuid.uuid4()))
                 auth_user = auth_dict[username]
                 update_auth_selection(auth_user, selection_docs_state1)
-                with open(auth_filename, 'wt') as f:
-                    f.write(json.dumps(auth_dict, indent=2))
+                save_auth_dict(auth_dict, auth_filename)
                 if auth_access == 'open':
                     return True
                 else:
@@ -1402,6 +1403,20 @@ def go_gradio(**kwargs):
                             auth_user = auth_dict[username]
                             update_auth_selection(auth_user, selection_docs_state1)
 
+        def save_auth_dict(auth_dict, auth_filename):
+            backup_file = auth_filename + '.bak' + str(uuid.uuid4())
+            shutil.copy(auth_filename, backup_file)
+            try:
+                with open(auth_filename, 'wt') as f:
+                    f.write(json.dumps(auth_dict, indent=2))
+            except BaseException as e:
+                print("Failure to save auth %s, restored backup: %s: %s" % (auth_filename, backup_file, str(e)),
+                      flush=True)
+                shutil.copy(backup_file, auth_dict)
+                if os.getenv('HARD_ASSERTS'):
+                    # unexpected in testing or normally
+                    raise
+
         def save_auth(requests_state1, selection_docs_state1, auth_filename, auth_freeze):
             if auth_freeze:
                 return
@@ -1413,11 +1428,10 @@ def go_gradio(**kwargs):
                 if os.path.isfile(auth_filename):
                     with open(auth_filename, 'rt') as f:
                         auth_dict = json.load(f)
-                    with open(auth_filename, 'wt') as f:
-                        if username in auth_dict:
-                            auth_user = auth_dict[username]
-                            update_auth_selection(auth_user, selection_docs_state1)
-                            f.write(json.dumps(auth_dict, indent=2))
+                    if username in auth_dict:
+                        auth_user = auth_dict[username]
+                        update_auth_selection(auth_user, selection_docs_state1)
+                        save_auth_dict(auth_dict, auth_filename)
 
         def add_langchain_mode(db1s, selection_docs_state1, requests_state1, langchain_mode1, y,
                                auth_filename=None, auth_freeze=None, guest_name=None):
@@ -1447,7 +1461,15 @@ def go_gradio(**kwargs):
                     if user_path in ['', "''"]:
                         # transcribe UI input
                         user_path = None
-                    if user_path is not None and langchain_mode_type == LangChainTypes.PERSONAL.value:
+                    if langchain_mode_type not in [x.value for x in list(LangChainTypes)]:
+                        textbox = "Invalid type %s" % langchain_mode_type
+                        valid = False
+                        langchain_mode2 = langchain_mode1
+                    elif langchain_mode_type == LangChainTypes.SHARED.value and username == guest_name:
+                        textbox = "Guests cannot add shared collections"
+                        valid = False
+                        langchain_mode2 = langchain_mode1
+                    elif user_path is not None and langchain_mode_type == LangChainTypes.PERSONAL.value:
                         textbox = "Do not pass user_path for scratch types"
                         valid = False
                         langchain_mode2 = langchain_mode1
