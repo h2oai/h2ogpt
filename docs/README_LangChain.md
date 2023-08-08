@@ -391,6 +391,8 @@ For links to direct to the document and download to your local machine, the orig
 
 * [Quiver](https://github.com/StanGirard/quivr). By comparison, Quiver requires docker but also supports audio and video and currently only supports OpenAI models and embeddings.
 
+* [LM Studio](https://github.com/lmstudio-ai). Nice control over models and llama settings, good windows installer.
+
 * [DocsGPT](https://github.com/arc53/DocsGPT).  More limited document support.
 
 * [GPT4-PDF-Chatbot-LangChain](https://github.com/mayooear/gpt4-pdf-chatbot-langchain).  Uses OpenAI, pinecone, etc. No longer maintained.
