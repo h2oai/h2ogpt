@@ -3414,7 +3414,7 @@ def get_source_files(db=None, exceptions=None, metadatas=None):
 
     # below automatically de-dups
     small_dict = {get_url(x['source'], from_str=True, short_name=True): get_short_name(x.get('head')) for x in
-                  metadatas}
+                  metadatas if x.get('page', 0) == 0}
     # if small_dict is empty dict, that's ok
     df = pd.DataFrame(small_dict.items(), columns=['source', 'head'])
     df.index = df.index + 1
