@@ -32,6 +32,9 @@ else
   exit 1
 fi
 
+# Initialize conda for shell interaction
+conda init bash
+
 if [ -n "$BASH_VERSION" ]; then
     echo "export PATH=\"$HOME/miniconda3/bin:\$PATH\"" >> ~/.bashrc
     source ~/.bashrc
@@ -59,13 +62,12 @@ else
 fi
 
 # Activate the base environment to update Conda itself
-conda activate base
+source activate base || conda activate base
 # Update conda to the latest version
 conda update -n base -c defaults conda -y
 
 # Activate the specific environment
-conda activate h2ogpt_rg
-
+source activate h2ogpt_rg || conda activate h2ogpt_rg
 
 # Print Python version
 python --version
