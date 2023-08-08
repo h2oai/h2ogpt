@@ -4,12 +4,16 @@
 # to install follow these steps:
 # wget https://raw.githubusercontent.com/Royce-Geospatial-Consultants/h2ogpt_rg/main/royce_install_script.sh
 # chmod +x royce_install_script.sh
-# less install.sh # this will allow you to check the script before running it to make sure it is not compromised
+# less royce_install_script.sh # this will allow you to check the script before running it to make sure it is not compromised
 # sudo ./royce_install_script.sh # this will run the script in the codespace.
 
 # Update and install git
 sudo apt-get update -y
-sudo apt-get install git -y
+if ! command -v git &> /dev/null; then
+  sudo apt-get install git -y
+else
+  echo "Git is already installed."
+fi
 
 # Print git version
 git --version
@@ -17,15 +21,31 @@ git --version
 # Install Miniconda
 wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
 chmod +x Miniconda3-latest-Linux-x86_64.sh
-./Miniconda3-latest-Linux-x86_64.sh -b -p $HOME/miniconda3
-source $HOME/miniconda3/etc/profile.d/conda.sh
+echo "yes" | ./Miniconda3-latest-Linux-x86_64.sh -b -p $HOME/miniconda3
 
-# Clone repository
-git clone https://github.com/Royce-Geospatial-Consultants/h2ogpt_rg.git
+# Verify the installation by checking if 'conda' command is available
+source $HOME/miniconda3/etc/profile.d/conda.sh
+if conda --version >/dev/null 2>&1; then
+  echo "Miniconda installed successfully."
+else
+  echo "Miniconda installation failed. Please manually install or consult the documentation."
+  exit 1
+fi
+
+# Clone repository if not already cloned
+if [ ! -d "h2ogpt_rg" ]; then
+  git clone https://github.com/Royce-Geospatial-Consultants/h2ogpt_rg.git
+else
+  echo "Repository already cloned."
+fi
 cd h2ogpt_rg
 
-# Create conda environment
-conda create --name h2ogpt_rg python=3.10 -y
+# Create conda environment if not already created
+if ! conda env list | grep -q 'h2ogpt_rg'; then
+  conda create --name h2ogpt_rg python=3.10 -y
+else
+  echo "Conda environment h2ogpt_rg already exists."
+fi
 conda activate h2ogpt_rg
 
 # Print Python version
