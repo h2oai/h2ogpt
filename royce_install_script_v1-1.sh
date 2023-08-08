@@ -32,6 +32,17 @@ else
   exit 1
 fi
 
+if [ -n "$BASH_VERSION" ]; then
+    echo "export PATH=\"$HOME/miniconda3/bin:\$PATH\"" >> ~/.bashrc
+    source ~/.bashrc
+elif [ -n "$ZSH_VERSION" ]; then
+    echo "export PATH=\"$HOME/miniconda3/bin:\$PATH\"" >> ~/.zshrc
+    source ~/.zshrc
+else
+    echo "Shell not supported for automatic PATH update. Please manually update your PATH."
+fi
+
+
 # Clone repository if not already cloned
 if [ ! -d "h2ogpt_rg" ]; then
   git clone https://github.com/Royce-Geospatial-Consultants/h2ogpt_rg.git
