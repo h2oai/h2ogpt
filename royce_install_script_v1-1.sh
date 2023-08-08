@@ -57,7 +57,15 @@ if ! conda env list | grep -q 'h2ogpt_rg'; then
 else
   echo "Conda environment h2ogpt_rg already exists."
 fi
+
+# Activate the base environment to update Conda itself
+conda activate base
+# Update conda to the latest version
+conda update -n base -c defaults conda -y
+
+# Activate the specific environment
 conda activate h2ogpt_rg
+
 
 # Print Python version
 python --version
