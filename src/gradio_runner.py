@@ -3440,6 +3440,15 @@ def get_any_db(db1s, langchain_mode, langchain_mode_paths, langchain_mode_types,
                             langchain_mode, langchain_mode_paths, langchain_mode_types,
                             hf_embedding_model, migrate_embedding_model,
                             verbose=verbose)
+        if db is not None:
+            # if found db, then stuff into state, so don't have to reload again that takes time
+            if langchain_type == LangChainTypes.PERSONAL.value:
+                assert isinstance(db1s, dict), "db1s wrong type: %s" % type(db1s)
+                db1 = db1s[langchain_mode] = [db, None]
+                set_dbid(db1)
+            else:
+                assert isinstance(dbs, dict), "dbs wrong type: %s" % type(dbs)
+                dbs[langchain_mode] = db
 
     return db
 
