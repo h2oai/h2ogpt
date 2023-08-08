@@ -8,7 +8,7 @@ import pytest
 from tests.utils import wrap_test_forked, make_user_path_test, get_llama, get_inf_server, get_inf_port
 from src.client_test import get_client, get_args, run_client_gen
 from src.enums import LangChainAction, LangChainMode
-from src.utils import get_githash, remove, remove_collection_enum, download_simple, hash_file, makedirs
+from src.utils import get_githash, remove, download_simple, hash_file, makedirs
 
 
 @wrap_test_forked
@@ -679,7 +679,6 @@ def test_text_generation_inference_server1():
 @wrap_test_forked
 def test_client_chat_stream_langchain_steps3():
     os.environ['VERBOSE_PIPELINE'] = '1'
-    remove_collection_enum()
     user_path = make_user_path_test()
 
     stream_output = True
