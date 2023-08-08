@@ -1468,6 +1468,10 @@ def go_gradio(**kwargs):
                             if password_to_check:
                                 if auth_user['password'] != password_to_check:
                                     return False, [], [], [], "Invalid password for user %s" % username1
+                            if username_override:
+                                # then use original user id
+                                db1 = db1s[LangChainMode.MY_DATA.value]
+                                db1[1] = auth_dict[username1]['userid']
                             if 'selection_docs_state' in auth_user:
                                 update_auth_selection(auth_user, selection_docs_state1)
                             if 'chat_state' in auth_user:
