@@ -387,10 +387,6 @@ def main(
            To allow scratch space only live in session, add 'MyData' to list
            Default: If only want to consume local files, e.g. prepared by make_db.py, only include ['UserData']
            If have own user modes, need to add these here or add in UI.
-           A state file is stored in langchain_modes.pkl containing last UI-selected values of:
-              langchain_modes, and langchain_mode_paths
-              Delete the file if you want to start fresh,
-              but in any case the user_path passed in CLI is used for UserData even if was None or different
     :param langchain_mode_paths: dict of langchain_mode keys and disk path values to use for source of documents
            E.g. "{'UserData2': 'userpath2'}"
            A disk path be None, e.g. --langchain_mode_paths="{'UserData2': None}" even if existing DB, to avoid new documents being added from that path, source links that are on disk still work.
