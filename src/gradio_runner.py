@@ -58,7 +58,7 @@ from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt
     get_prompt
 from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping, makedirs, get_kwargs, system_info, ping_gpu, get_url, get_local_ip, \
-    save_generate_output
+    save_generate_output, url_alive
 from gen import get_model, languages_covered, evaluate, score_qa, inputs_kwargs_list, \
     get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list
 from evaluate_params import eval_func_param_names, no_default_param_names, eval_func_param_names_defaults, \
@@ -1347,6 +1347,13 @@ def go_gradio(**kwargs):
             if file.lower().endswith('.png') or file.lower().endswith('.jpg') or file.lower().endswith('.jpeg'):
                 return gr.update(visible=True, value=img_url), dummy1, dummy1, dummy1
             elif file.lower().endswith('.pdf') or 'arxiv.org/pdf' in file:
+
+                # account for when use `wget -b -m -k -o wget.log -e robots=off`
+                if url_alive('http://' + file):
+                    file = 'http://' + file
+                if url_alive('https://' + file):
+                    file = 'https://' + file
+
                 if file.lower().startswith('http') or file.lower().startswith('https'):
                     # if file is online, then might as well use google(?)
                     document1 = file

@@ -1126,3 +1126,15 @@ def deepcopy_by_pickle_object(object):
     new_object = pickle.loads(pickle.dumps(object, -1))
     gc.enable()
     return new_object
+
+
+def url_alive(url):
+    try:
+        response = requests.head(url)
+    except Exception as e:
+        return False
+    else:
+        if response.status_code in [200, 301]:
+            return True
+        else:
+            return False
