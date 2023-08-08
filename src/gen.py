@@ -1664,6 +1664,7 @@ def evaluate(
 
     langchain_modes = selection_docs_state['langchain_modes']
     langchain_mode_paths = selection_docs_state['langchain_mode_paths']
+    langchain_mode_types = selection_docs_state['langchain_mode_types']
 
     if debug:
         locals_dict = locals().copy()
@@ -1785,16 +1786,20 @@ def evaluate(
     assert langchain_action in langchain_actions, "Invalid langchain_action %s" % langchain_action
     assert len(
         set(langchain_agents).difference(langchain_agents_list)) == 0, "Invalid langchain_agents %s" % langchain_agents
-    if dbs is not None and langchain_mode in dbs:
-        db = dbs[langchain_mode]
-    elif my_db_state is not None and langchain_mode in my_db_state:
-        db1 = my_db_state[langchain_mode]
-        if db1 is not None and len(db1) == 2:
-            db = db1[0]
-        else:
-            db = None
-    else:
-        db = None
+
+    # get db, but also fill db state so return already has my_db_state and dbs filled so faster next query
+    from src.gpt_langchain import get_any_db
+    db = get_any_db(my_db_state, langchain_mode, langchain_mode_paths, langchain_mode_types,
+                    dbs=dbs,
+                    load_db_if_exists=load_db_if_exists,
+                    db_type=db_type,
+                    use_openai_embedding=use_openai_embedding,
+                    hf_embedding_model=hf_embedding_model,
+                    migrate_embedding_model=migrate_embedding_model,
+                    for_sources_list=True,
+                    verbose=verbose,
+                    )
+
     t_generate = time.time()
     langchain_only_model = base_model in non_hf_types or load_exllama or inference_server.startswith('replicate')
     do_langchain_path = langchain_mode not in [False, 'Disabled', 'LLM'] or \

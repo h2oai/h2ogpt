@@ -13,6 +13,7 @@ import tempfile
 import time
 import traceback
 import types
+import typing
 import uuid
 import zipfile
 from collections import defaultdict
@@ -20,6 +21,7 @@ from datetime import datetime
 from functools import reduce
 from operator import concat
 import filelock
+import tabulate
 
 from joblib import delayed
 from langchain.callbacks import streaming_stdout
@@ -35,7 +37,7 @@ from prompter import non_hf_types, PromptType, Prompter
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
     get_device, ProgressParallel, remove, hash_file, clear_torch_cache, NullContext, get_hf_server, FakeTokenizer, \
     have_libreoffice, have_arxiv, have_playwright, have_selenium, have_tesseract, have_pymupdf, set_openai, \
-    get_list_or_str, have_pillow, only_selenium, only_playwright, only_unstructured_urls, get_sha
+    get_list_or_str, have_pillow, only_selenium, only_playwright, only_unstructured_urls, get_sha, get_short_name
 from utils_langchain import StreamingGradioCallbackHandler
 
 import_matplotlib()
@@ -2068,9 +2070,9 @@ def get_persist_directory(langchain_mode, langchain_type=None, db1s=None, dbs=No
     # deal with existing locations
     persist_directory = os.path.join(userid, 'db_dir_%s' % langchain_mode)
     if userid and \
-        (os.path.isdir(persist_directory) or
-            langchain_mode in db1s or
-            langchain_type == LangChainTypes.PERSONAL.value):
+            (os.path.isdir(persist_directory) or
+             langchain_mode in db1s or
+             langchain_type == LangChainTypes.PERSONAL.value):
         msg = "Bad type: %s for %s" % (langchain_type, langchain_mode)
         # if langchain_mode in dbs:
         #    raise RuntimeError(msg)
@@ -3026,6 +3028,489 @@ def get_sources_answer(query, docs, answer, scores, show_rank,
     else:
         ret = answer
     return ret, extra
+
+
+def set_userid(db1s, requests_state1, get_userid_auth):
+    db1 = db1s[LangChainMode.MY_DATA.value]
+    assert db1 is not None and len(db1) == 2
+    if not db1[1]:
+        db1[1] = get_userid_auth(requests_state1)
+
+
+def set_dbid(db1):
+    # can only call this after function called so for specific user, not in gr.State() that occurs during app init
+    assert db1 is not None and len(db1) == 2
+    if db1[1] is None:
+        #  uuid in db is used as user ID
+        db1[1] = str(uuid.uuid4())
+
+
+def get_any_db(db1s, langchain_mode, langchain_mode_paths, langchain_mode_types,
+               dbs=None,
+               load_db_if_exists=None, db_type=None,
+               use_openai_embedding=None,
+               hf_embedding_model=None, migrate_embedding_model=None,
+               for_sources_list=False,
+               verbose=False,
+               ):
+    if for_sources_list and langchain_mode in [LangChainMode.WIKI_FULL.value]:
+        # NOTE: avoid showing full wiki.  Takes about 30 seconds over about 90k entries, but not useful for now
+        db = None
+    elif langchain_mode in [LangChainMode.LLM.value]:
+        # Not db
+        db = None
+    elif langchain_mode in db1s and len(db1s[langchain_mode]) > 1 and db1s[langchain_mode][0]:
+        db = db1s[langchain_mode][0]
+    elif dbs is not None and langchain_mode in dbs and dbs[langchain_mode] is not None:
+        db = dbs[langchain_mode]
+    else:
+        db = None
+
+    if db is None:
+        langchain_type = langchain_mode_types.get(langchain_mode, LangChainTypes.PERSONAL.value)
+        persist_directory = get_persist_directory(langchain_mode, db1s=db1s, dbs=dbs, langchain_type=langchain_type)
+        # see if actually have on disk, don't try to switch embedding yet, since can't use return here
+        migrate_embedding_model = False
+        db, _, _ = \
+            get_existing_db(db, persist_directory, load_db_if_exists, db_type,
+                            use_openai_embedding,
+                            langchain_mode, langchain_mode_paths, langchain_mode_types,
+                            hf_embedding_model, migrate_embedding_model,
+                            verbose=verbose)
+        if db is not None:
+            # if found db, then stuff into state, so don't have to reload again that takes time
+            if langchain_type == LangChainTypes.PERSONAL.value:
+                assert isinstance(db1s, dict), "db1s wrong type: %s" % type(db1s)
+                db1 = db1s[langchain_mode] = [db, None]
+                set_dbid(db1)
+            else:
+                assert isinstance(dbs, dict), "dbs wrong type: %s" % type(dbs)
+                dbs[langchain_mode] = db
+
+    return db
+
+
+def get_sources(db1s, requests_state1, langchain_mode, dbs=None, docs_state0=None, get_userid_auth=None):
+    set_userid(db1s, requests_state1, get_userid_auth)
+    for k in db1s:
+        set_dbid(db1s[k])
+
+    if langchain_mode in ['LLM']:
+        source_files_added = "NA"
+        source_list = []
+    elif langchain_mode in ['wiki_full']:
+        source_files_added = "Not showing wiki_full, takes about 20 seconds and makes 4MB file." \
+                             "  Ask jon.mckinney@h2o.ai for file if required."
+        source_list = []
+    elif langchain_mode in db1s and len(db1s[langchain_mode]) == 2 and db1s[langchain_mode][0] is not None:
+        db1 = db1s[langchain_mode]
+        metadatas = get_metadatas(db1[0])
+        source_list = sorted(set([x['source'] for x in metadatas]))
+        source_files_added = '\n'.join(source_list)
+    elif langchain_mode in dbs and dbs[langchain_mode] is not None:
+        db1 = dbs[langchain_mode]
+        metadatas = get_metadatas(db1)
+        source_list = sorted(set([x['source'] for x in metadatas]))
+        source_files_added = '\n'.join(source_list)
+    else:
+        source_list = []
+        source_files_added = "None"
+    sources_dir = "sources_dir"
+    sources_dir = makedirs(sources_dir, exist_ok=True, tmp_ok=True, use_base=True)
+    sources_file = os.path.join(sources_dir, 'sources_%s_%s' % (langchain_mode, str(uuid.uuid4())))
+    with open(sources_file, "wt") as f:
+        f.write(source_files_added)
+    source_list = docs_state0 + source_list
+    return sources_file, source_list
+
+
+def update_user_db(file, db1s, selection_docs_state1, requests_state1,
+                   chunk, chunk_size, langchain_mode, dbs=None,
+                   get_userid_auth=None,
+                   **kwargs):
+    kwargs.update(selection_docs_state1)
+    set_userid(db1s, requests_state1, get_userid_auth)
+
+    if file is None:
+        raise RuntimeError("Don't use change, use input")
+
+    try:
+        return _update_user_db(file, db1s=db1s, chunk=chunk, chunk_size=chunk_size,
+                               langchain_mode=langchain_mode, dbs=dbs,
+                               **kwargs)
+    except BaseException as e:
+        print(traceback.format_exc(), flush=True)
+        # gradio has issues if except, so fail semi-gracefully, else would hang forever in processing textbox
+        ex_str = "Exception: %s" % str(e)
+        source_files_added = """\
+        <html>
+          <body>
+            <p>
+               Sources: <br>
+            </p>
+               <div style="overflow-y: auto;height:400px">
+               {0}
+               </div>
+          </body>
+        </html>
+        """.format(ex_str)
+        doc_exception_text = str(e)
+        return None, langchain_mode, source_files_added, doc_exception_text
+    finally:
+        clear_torch_cache()
+
+
+def get_lock_file(db1, langchain_mode):
+    db_id = db1[1]
+    base_path = 'locks'
+    base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
+    lock_file = os.path.join(base_path, "db_%s_%s.lock" % (langchain_mode.replace(' ', '_'), db_id))
+    return lock_file
+
+
+def _update_user_db(file,
+                    db1s=None,
+                    chunk=None, chunk_size=None,
+                    dbs=None, db_type=None,
+                    langchain_mode='UserData',
+                    langchain_modes=None,
+                    langchain_mode_paths=None,
+                    langchain_mode_types=None,
+                    use_openai_embedding=None,
+                    hf_embedding_model=None,
+                    migrate_embedding_model=None,
+                    caption_loader=None,
+                    enable_captions=None,
+                    captions_model=None,
+                    enable_ocr=None,
+                    enable_pdf_ocr=None,
+                    verbose=None,
+                    n_jobs=-1,
+                    is_url=None, is_txt=None,
+                    ):
+    assert db1s is not None
+    assert chunk is not None
+    assert chunk_size is not None
+    assert use_openai_embedding is not None
+    assert hf_embedding_model is not None
+    assert migrate_embedding_model is not None
+    assert caption_loader is not None
+    assert enable_captions is not None
+    assert captions_model is not None
+    assert enable_ocr is not None
+    assert enable_pdf_ocr is not None
+    assert verbose is not None
+
+    if dbs is None:
+        dbs = {}
+    assert isinstance(dbs, dict), "Wrong type for dbs: %s" % str(type(dbs))
+    # assert db_type in ['faiss', 'chroma'], "db_type %s not supported" % db_type
+    # handle case of list of temp buffer
+    if isinstance(file, list) and len(file) > 0 and hasattr(file[0], 'name'):
+        file = [x.name for x in file]
+    # handle single file of temp buffer
+    if hasattr(file, 'name'):
+        file = file.name
+    if not isinstance(file, (list, tuple, typing.Generator)) and isinstance(file, str):
+        file = [file]
+
+    if langchain_mode == LangChainMode.DISABLED.value:
+        return None, langchain_mode, get_source_files(), ""
+
+    if langchain_mode in [LangChainMode.LLM.value]:
+        # then switch to MyData, so langchain_mode also becomes way to select where upload goes
+        # but default to mydata if nothing chosen, since safest
+        if LangChainMode.MY_DATA.value in langchain_modes:
+            langchain_mode = LangChainMode.MY_DATA.value
+
+    if langchain_mode_paths is None:
+        langchain_mode_paths = {}
+    user_path = langchain_mode_paths.get(langchain_mode)
+    # UserData or custom, which has to be from user's disk
+    if user_path is not None:
+        # move temp files from gradio upload to stable location
+        for fili, fil in enumerate(file):
+            if isinstance(fil, str) and os.path.isfile(fil):  # not url, text
+                new_fil = os.path.normpath(os.path.join(user_path, os.path.basename(fil)))
+                if os.path.normpath(os.path.abspath(fil)) != os.path.normpath(os.path.abspath(new_fil)):
+                    if os.path.isfile(new_fil):
+                        remove(new_fil)
+                    try:
+                        shutil.move(fil, new_fil)
+                    except FileExistsError:
+                        pass
+                    file[fili] = new_fil
+
+    if verbose:
+        print("Adding %s" % file, flush=True)
+
+    # FIXME: could avoid even parsing, let alone embedding, same old files if upload same file again
+    # FIXME: but assume nominally user isn't uploading all files over again from UI
+
+    sources = path_to_docs(file if not is_url and not is_txt else None,
+                           verbose=verbose,
+                           n_jobs=n_jobs,
+                           chunk=chunk, chunk_size=chunk_size,
+                           url=file if is_url else None,
+                           text=file if is_txt else None,
+                           enable_captions=enable_captions,
+                           captions_model=captions_model,
+                           enable_ocr=enable_ocr,
+                           enable_pdf_ocr=enable_pdf_ocr,
+                           caption_loader=caption_loader,
+                           db_type=db_type,
+                           )
+    exceptions = [x for x in sources if x.metadata.get('exception')]
+    exceptions_strs = [x.metadata['exception'] for x in exceptions]
+    sources = [x for x in sources if 'exception' not in x.metadata]
+
+    # below must at least come after langchain_mode is modified in case was LLM -> MyData,
+    # so original langchain mode changed
+    for k in db1s:
+        set_dbid(db1s[k])
+    db1 = get_db1(db1s, langchain_mode)
+
+    lock_file = get_lock_file(db1s[LangChainMode.MY_DATA.value], langchain_mode)  # user-level lock, not db-level lock
+    with filelock.FileLock(lock_file):
+        if langchain_mode in db1s:
+            if db1[0] is not None:
+                # then add
+                db, num_new_sources, new_sources_metadata = add_to_db(db1[0], sources, db_type=db_type,
+                                                                      use_openai_embedding=use_openai_embedding,
+                                                                      hf_embedding_model=hf_embedding_model)
+            else:
+                # in testing expect:
+                # assert len(db1) == 2 and db1[1] is None, "Bad MyData db: %s" % db1
+                # for production hit, when user gets clicky:
+                assert len(db1) == 2, "Bad %s db: %s" % (langchain_mode, db1)
+                assert db1[1] is not None, "db hash was None, not allowed"
+                # then create
+                # if added has to original state and didn't change, then would be shared db for all users
+                persist_directory = get_persist_directory(langchain_mode, db1s=db1s, dbs=dbs)
+                db = get_db(sources, use_openai_embedding=use_openai_embedding,
+                            db_type=db_type,
+                            persist_directory=persist_directory,
+                            langchain_mode=langchain_mode,
+                            langchain_mode_paths=langchain_mode_paths,
+                            langchain_mode_types=langchain_mode_types,
+                            hf_embedding_model=hf_embedding_model,
+                            migrate_embedding_model=migrate_embedding_model)
+            if db is not None:
+                db1[0] = db
+            source_files_added = get_source_files(db=db1[0], exceptions=exceptions)
+            return None, langchain_mode, source_files_added, '\n'.join(exceptions_strs)
+        else:
+            persist_directory = get_persist_directory(langchain_mode, db1s=db1s, dbs=dbs)
+            if langchain_mode in dbs and dbs[langchain_mode] is not None:
+                # then add
+                db, num_new_sources, new_sources_metadata = add_to_db(dbs[langchain_mode], sources, db_type=db_type,
+                                                                      use_openai_embedding=use_openai_embedding,
+                                                                      hf_embedding_model=hf_embedding_model)
+            else:
+                # then create.  Or might just be that dbs is unfilled, then it will fill, then add
+                db = get_db(sources, use_openai_embedding=use_openai_embedding,
+                            db_type=db_type,
+                            persist_directory=persist_directory,
+                            langchain_mode=langchain_mode,
+                            langchain_mode_paths=langchain_mode_paths,
+                            langchain_mode_types=langchain_mode_types,
+                            hf_embedding_model=hf_embedding_model,
+                            migrate_embedding_model=migrate_embedding_model)
+            dbs[langchain_mode] = db
+            # NOTE we do not return db, because function call always same code path
+            # return dbs[langchain_mode]
+            # db in this code path is updated in place
+            source_files_added = get_source_files(db=dbs[langchain_mode], exceptions=exceptions)
+            return None, langchain_mode, source_files_added, '\n'.join(exceptions_strs)
+
+
+def get_source_files_given_langchain_mode(db1s, selection_docs_state1, requests_state1, langchain_mode,
+                                          dbs=None,
+                                          load_db_if_exists=None,
+                                          db_type=None,
+                                          use_openai_embedding=None,
+                                          hf_embedding_model=None,
+                                          migrate_embedding_model=None,
+                                          verbose=False,
+                                          get_userid_auth=None):
+    langchain_mode_paths = selection_docs_state1['langchain_mode_paths']
+    langchain_mode_types = selection_docs_state1['langchain_mode_types']
+    set_userid(db1s, requests_state1, get_userid_auth)
+    db = get_any_db(db1s, langchain_mode, langchain_mode_paths, langchain_mode_types,
+                    dbs=dbs,
+                    load_db_if_exists=load_db_if_exists,
+                    db_type=db_type,
+                    use_openai_embedding=use_openai_embedding,
+                    hf_embedding_model=hf_embedding_model,
+                    migrate_embedding_model=migrate_embedding_model,
+                    for_sources_list=True,
+                    verbose=verbose,
+                    )
+    if langchain_mode in ['LLM'] or db is None:
+        return "Sources: N/A"
+    return get_source_files(db=db, exceptions=None)
+
+
+def get_source_files(db=None, exceptions=None, metadatas=None):
+    if exceptions is None:
+        exceptions = []
+
+    # only should be one source, not confused
+    # assert db is not None or metadatas is not None
+    # clicky user
+    if db is None and metadatas is None:
+        return "No Sources at all"
+
+    if metadatas is None:
+        source_label = "Sources:"
+        if db is not None:
+            metadatas = get_metadatas(db)
+        else:
+            metadatas = []
+        adding_new = False
+    else:
+        source_label = "New Sources:"
+        adding_new = True
+
+    # below automatically de-dups
+    small_dict = {get_url(x['source'], from_str=True, short_name=True): get_short_name(x.get('head')) for x in
+                  metadatas}
+    # if small_dict is empty dict, that's ok
+    df = pd.DataFrame(small_dict.items(), columns=['source', 'head'])
+    df.index = df.index + 1
+    df.index.name = 'index'
+    source_files_added = tabulate.tabulate(df, headers='keys', tablefmt='unsafehtml')
+
+    if exceptions:
+        exception_metadatas = [x.metadata for x in exceptions]
+        small_dict = {get_url(x['source'], from_str=True, short_name=True): get_short_name(x.get('exception')) for x in
+                      exception_metadatas}
+        # if small_dict is empty dict, that's ok
+        df = pd.DataFrame(small_dict.items(), columns=['source', 'exception'])
+        df.index = df.index + 1
+        df.index.name = 'index'
+        exceptions_html = tabulate.tabulate(df, headers='keys', tablefmt='unsafehtml')
+    else:
+        exceptions_html = ''
+
+    if metadatas and exceptions:
+        source_files_added = """\
+        <html>
+          <body>
+            <p>
+               {0} <br>
+            </p>
+               <div style="overflow-y: auto;height:400px">
+               {1}
+               {2}
+               </div>
+          </body>
+        </html>
+        """.format(source_label, source_files_added, exceptions_html)
+    elif metadatas:
+        source_files_added = """\
+        <html>
+          <body>
+            <p>
+               {0} <br>
+            </p>
+               <div style="overflow-y: auto;height:400px">
+               {1}
+               </div>
+          </body>
+        </html>
+        """.format(source_label, source_files_added)
+    elif exceptions_html:
+        source_files_added = """\
+        <html>
+          <body>
+            <p>
+               Exceptions: <br>
+            </p>
+               <div style="overflow-y: auto;height:400px">
+               {0}
+               </div>
+          </body>
+        </html>
+        """.format(exceptions_html)
+    else:
+        if adding_new:
+            source_files_added = "No New Sources"
+        else:
+            source_files_added = "No Sources"
+
+    return source_files_added
+
+
+def update_and_get_source_files_given_langchain_mode(db1s,
+                                                     selection_docs_state,
+                                                     requests_state,
+                                                     langchain_mode, chunk, chunk_size,
+                                                     dbs=None, first_para=None,
+                                                     hf_embedding_model=None,
+                                                     use_openai_embedding=None,
+                                                     migrate_embedding_model=None,
+                                                     text_limit=None,
+                                                     db_type=None, load_db_if_exists=None,
+                                                     n_jobs=None, verbose=None, get_userid_auth=None):
+    set_userid(db1s, requests_state, get_userid_auth)
+    assert hf_embedding_model is not None
+    assert migrate_embedding_model is not None
+    langchain_mode_paths = selection_docs_state['langchain_mode_paths']
+    langchain_mode_types = selection_docs_state['langchain_mode_types']
+    has_path = {k: v for k, v in langchain_mode_paths.items() if v}
+    if langchain_mode in [LangChainMode.LLM.value, LangChainMode.MY_DATA.value]:
+        # then assume user really meant UserData, to avoid extra clicks in UI,
+        # since others can't be on disk, except custom user modes, which they should then select to query it
+        if LangChainMode.USER_DATA.value in has_path:
+            langchain_mode = LangChainMode.USER_DATA.value
+
+    db = get_any_db(db1s, langchain_mode, langchain_mode_paths, langchain_mode_types,
+                    dbs=dbs,
+                    load_db_if_exists=load_db_if_exists,
+                    db_type=db_type,
+                    use_openai_embedding=use_openai_embedding,
+                    hf_embedding_model=hf_embedding_model,
+                    migrate_embedding_model=migrate_embedding_model,
+                    for_sources_list=True,
+                    verbose=verbose,
+                    )
+
+    # not designed for older way of using openai embeddings, why use_openai_embedding=False
+    # use_openai_embedding, hf_embedding_model passed in and possible different values used,
+    # but no longer used here or in calling functions so ok
+    db, num_new_sources, new_sources_metadata = make_db(use_openai_embedding=False,
+                                                        hf_embedding_model=hf_embedding_model,
+                                                        migrate_embedding_model=migrate_embedding_model,
+                                                        first_para=first_para, text_limit=text_limit,
+                                                        chunk=chunk,
+                                                        chunk_size=chunk_size,
+                                                        langchain_mode=langchain_mode,
+                                                        langchain_mode_paths=langchain_mode_paths,
+                                                        langchain_mode_types=langchain_mode_types,
+                                                        db_type=db_type,
+                                                        load_db_if_exists=load_db_if_exists,
+                                                        db=db,
+                                                        n_jobs=n_jobs,
+                                                        verbose=verbose)
+    # during refreshing, might have "created" new db since not in dbs[] yet, so insert back just in case
+    # so even if persisted, not kept up-to-date with dbs memory
+    if langchain_mode in db1s:
+        db1s[langchain_mode][0] = db
+    else:
+        dbs[langchain_mode] = db
+
+    # return only new sources with text saying such
+    return get_source_files(db=None, exceptions=None, metadatas=new_sources_metadata)
+
+
+def get_db1(db1s, langchain_mode1):
+    if langchain_mode1 in db1s:
+        db1 = db1s[langchain_mode1]
+    else:
+        # indicates to code that not scratch database
+        db1 = [None, None]
+    return db1
 
 
 def clean_doc(docs1):
