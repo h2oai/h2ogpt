@@ -1,3 +1,4 @@
+import ast
 import os
 from typing import Union, List
 
@@ -12,7 +13,8 @@ def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False,
                caption_loader=None,
                enable_ocr=False,
                enable_pdf_ocr='auto',
-               db_type=None):
+               db_type=None,
+               selected_file_types=None):
     assert db_type is not None
     sources1 = path_to_docs(user_path, verbose=verbose, fail_any_exception=fail_any_exception,
                             n_jobs=n_jobs,
@@ -24,6 +26,7 @@ def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False,
                             enable_ocr=enable_ocr,
                             enable_pdf_ocr=enable_pdf_ocr,
                             db_type=db_type,
+                            selected_file_types=selected_file_types,
                             )
     return sources1
 
@@ -52,6 +55,7 @@ def make_db_main(use_openai_embedding: bool = False,
                  enable_ocr: bool = False,
                  enable_pdf_ocr: str = 'auto',
                  db_type: str = 'chroma',
+                 selected_file_types: Union[List[str], str] = None,
                  ):
     """
     # To make UserData db for generate.py, put pdfs, etc. into path user_path and run:
@@ -95,10 +99,16 @@ def make_db_main(use_openai_embedding: bool = False,
     :param enable_ocr: Whether to enable OCR on images
     :param enable_pdf_ocr: 'auto' uses OCR on PDFs as backup, good to handle image PDFs
     :param db_type: Type of db to create. Currently only 'chroma' and 'weaviate' is supported.
+    :param selected_file_types: File types (by extension) to include if passing user_path
+       For a list of possible values, see:
+       https://github.com/h2oai/h2ogpt/blob/main/docs/README_LangChain.md#shoosing-document-types
+       e.g. --selected_file_types="['pdf', 'html', 'htm']"
     :return: None
     """
     db = None
 
+    if isinstance(selected_file_types, str):
+        selected_file_types = ast.literal_eval(selected_file_types)
     if persist_directory is None:
         persist_directory = get_persist_directory(collection_name)
     if download_dest is None:
@@ -163,9 +173,10 @@ def make_db_main(use_openai_embedding: bool = False,
                          enable_ocr=enable_ocr,
                          enable_pdf_ocr=enable_pdf_ocr,
                          db_type=db_type,
+                         selected_file_types=selected_file_types,
                          )
     exceptions = [x for x in sources if x.metadata.get('exception')]
-    print("Exceptions: %s" % exceptions, flush=True)
+    print("Exceptions: %s/%s %s" % (len(exceptions), len(sources), exceptions), flush=True)
     sources = [x for x in sources if 'exception' not in x.metadata]
 
     assert len(sources) > 0, "No sources found"

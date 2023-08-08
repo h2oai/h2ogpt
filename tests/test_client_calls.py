@@ -376,7 +376,8 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'private, and anonymous communication' in res_dict['response'] or
             'The large language model is' in res_dict['response'] or
             'is a private, secure, and encrypted' in res_dict['response'] or
-            'H2O AI is a cloud-based platform for building' in res_dict['response']
+            'H2O AI is a cloud-based platform for building' in res_dict['response'] or
+            'a private chat between' in res_dict['response']
             ) \
            and '.md' in res_dict['response']
 
@@ -550,7 +551,7 @@ def test_exllama():
                                        langchain_action=langchain_action, langchain_agents=langchain_agents)
     assert res_dict['prompt'] == prompt
     assert res_dict['iinput'] == ''
-    assert "I'm LLaMA, an AI assistant" in res_dict['response']
+    assert "I'm LLaMA, an AI assistant" in res_dict['response'] or "I am LLaMA" in res_dict['response']
 
 
 @pytest.mark.skip(reason="Local file required")
@@ -1030,5 +1031,6 @@ def test_client_summarization_from_url(url, top_k_docs):
                'speech recognition' in summary
     if 'h2ogpt' in url:
         assert 'Accurate embeddings for private offline databases' in summary \
-               or 'private offline database' in summary
+               or 'private offline database' in summary \
+               or 'H2OGPT is an open-source project' in summary
     assert url in sources

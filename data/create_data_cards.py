@@ -89,10 +89,17 @@ from datasets import load_dataset
 - [Fortune 2000 companies from Wikipedia](https://github.com/h2oai/h2ogpt/blob/b1ea74c0088884ebff97f1ccddbfb3f393e29e44/create_data.py#L1743)
 """
         ),
+        (
+                "openassistant_oasst1_h2ogpt_llama2_chat",
+                """
+- [Original Open Assistant data in tree structure](https://huggingface.co/datasets/OpenAssistant/oasst1)
+- [This flattened dataset created by script in h2oGPT repository](https://github.com/h2oai/h2ogpt/blob/0bee5f50a74f489ca3fc81486f9322078360f2cb/src/create_data.py#L1296)
+"""
+        ),
     ],
 )
 def test_create_data_cards(dataset_name, link_to_source):
-    if dataset_name != "h2ogpt-fortune2000-personalized":
+    if dataset_name != "openassistant_oasst1_h2ogpt_llama2_chat":
         return
     #
     assert os.path.exists("README-template.md"), "must be running this test from the data dir."

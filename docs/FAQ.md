@@ -14,6 +14,8 @@ model_name_gpt4all_llama (e.g. ggml-wizardLM-7B.q4_2.bin)
 ```
 respectively, are for `--base_model=llama`, `--base_model=gptj`, and `--base_model=gpt4all_llama`.  In those cases, consider changing `max_tokens=1792` in that file as well, e.g. larger for LLaMa2 if your hardware can handle it.  See [README_CPU.md](README_CPU.md) and [README_GPU.md](README_GPU.md) for more information on controlling these parameters.
 
+For GGML models, always good to pass `--max_seq_len` directly.
+
 ### Adding Prompt Templates
 
 After providing a `--base_model` and perhaps changing `.env_gpt4all`, one needs to consider if an existing `prompt_type` will work or a new one is required.  E.g. for Vicuna models, a well-defined `prompt_type` is used which we support automatically for specific model names.  If the model is in `prompter.py` as associated with some `prompt_type` name, then we added it already.  See models that are currently supported in this automatic way in [prompter.py](../src/prompter.py) and [enums.py](../src/enums.py).
@@ -247,7 +249,7 @@ LLAMA ERROR: failed to load model from ./models/7B/ggml-model-q4_0.bin
 ```
 then note that llama.cpp upgraded to version 3, and we use llama-cpp-python version that supports only that latest version 3.  GPT4All does not support version 3 yet.  If you want to support older version 2 llama quantized models, then do:
 ```bash
-pip install --force-reinstall --ignore-installed --no-cache-dir llama-cpp-python==0.1.48
+pip install --force-reinstall --ignore-installed --no-cache-dir llama-cpp-python==0.1.73
 ```
 to go back to the prior version.  Or specify the model using GPT4All as `--base_model='gpt4all_llama` and ensure entry exists like:
 ```.env_gpt4all
@@ -300,6 +302,7 @@ print(non_image_types)
 print(image_types)
 for x in image_types:
     print('   - `.%s` : %s Image (optional),' % (x.lower(), x.upper()))
+# unused in h2oGPT:
 print(video_types)
 ```
 

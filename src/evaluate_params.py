@@ -1,5 +1,4 @@
-input_args_list = ['model_state', 'my_db_state', 'selection_docs_state']
-
+input_args_list = ['model_state', 'my_db_state', 'selection_docs_state', 'requests_state']
 
 no_default_param_names = [
     'instruction',
@@ -43,6 +42,7 @@ eval_func_param_names = ['instruction',
                          'document_choice',
                          'pre_prompt_summary',
                          'prompt_summary',
+                         'system_prompt',
                          ]
 
 # form evaluate defaults for submit_nochat_api

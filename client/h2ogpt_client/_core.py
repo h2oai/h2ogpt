@@ -1,3 +1,4 @@
+import ast
 import asyncio
 from typing import Any, Dict, List, Optional, OrderedDict, Tuple, ValuesView
 
@@ -69,7 +70,7 @@ class TextCompletionCreator:
         number_returns: int = 1,
         system_pre_context: str = "",
         langchain_mode: LangChainMode = LangChainMode.DISABLED,
-        add_chat_history_to_context: bool = True,
+        system_prompt: str = "",
     ) -> "TextCompletion":
         """
         Creates a new text completion.
@@ -95,6 +96,8 @@ class TextCompletionCreator:
         :param system_pre_context: directly pre-appended without prompt processing
         :param langchain_mode: LangChain mode
         :param add_chat_history_to_context: Whether to add chat history to context
+        :param system_prompt: Universal system prompt to override prompt_type's system
+                              prompt
         """
         params = _utils.to_h2ogpt_params(locals().copy())
         params["instruction"] = ""  # empty when chat_mode is False
@@ -105,7 +108,7 @@ class TextCompletionCreator:
         params["chat"] = False
         params["instruction_nochat"] = None  # future prompt
         params["langchain_mode"] = langchain_mode.value  # convert to serializable type
-        params["add_chat_history_to_context"] = True
+        params["add_chat_history_to_context"] = False  # relevant only for the UI
         params["langchain_action"] = LangChainAction.QUERY.value
         params["langchain_agents"] = []
         params["top_k_docs"] = 4  # langchain: number of document chunks
@@ -113,23 +116,28 @@ class TextCompletionCreator:
         params["chunk_size"] = 512  # langchain: chunk size for document chunking
         params["document_subset"] = DocumentSubset.Relevant.name
         params["document_choice"] = []
-        params["pre_prompt_summary"] = ''
-        params["prompt_summary"] = ''
+        params["pre_prompt_summary"] = ""
+        params["prompt_summary"] = ""
+        params["system_prompt"] = ""
         return TextCompletion(self._client, params)
 
 
 class TextCompletion:
     """Text completion."""
 
-    _API_NAME = "/submit_nochat"
+    _API_NAME = "/submit_nochat_api"
 
     def __init__(self, client: Client, parameters: OrderedDict[str, Any]):
         self._client = client
         self._parameters = parameters
 
-    def _get_parameters(self, prompt: str) -> ValuesView:
+    def _get_parameters(self, prompt: str) -> OrderedDict[str, Any]:
         self._parameters["instruction_nochat"] = prompt
-        return self._parameters.values()
+        return self._parameters
+
+    @staticmethod
+    def _get_reply(response: str) -> str:
+        return ast.literal_eval(response)["response"]
 
     async def complete(self, prompt: str) -> str:
         """
@@ -139,9 +147,10 @@ class TextCompletion:
         :return: response from the model
         """
 
-        return await self._client._predict_async(
-            *self._get_parameters(prompt), api_name=self._API_NAME
+        response = await self._client._predict_async(
+            str(dict(self._get_parameters(prompt))), api_name=self._API_NAME
         )
+        return self._get_reply(response)
 
     def complete_sync(self, prompt: str) -> str:
         """
@@ -150,9 +159,10 @@ class TextCompletion:
         :param prompt: text prompt to generate completion for
         :return: response from the model
         """
-        return self._client._predict(
-            *self._get_parameters(prompt), api_name=self._API_NAME
+        response = self._client._predict(
+            str(dict(self._get_parameters(prompt))), api_name=self._API_NAME
         )
+        return self._get_reply(response)
 
 
 class ChatCompletionCreator:
@@ -178,7 +188,7 @@ class ChatCompletionCreator:
         number_returns: int = 1,
         system_pre_context: str = "",
         langchain_mode: LangChainMode = LangChainMode.DISABLED,
-        add_chat_history_to_context: bool = True,
+        system_prompt: str = "",
     ) -> "ChatCompletion":
         """
         Creates a new chat completion.
@@ -203,7 +213,8 @@ class ChatCompletionCreator:
         :param number_returns:
         :param system_pre_context: directly pre-appended without prompt processing
         :param langchain_mode: LangChain mode
-        :param add_chat_history_to_context: Whether to add chat history to context
+        :param system_prompt: Universal system prompt to override prompt_type's system
+                              prompt
         """
         params = _utils.to_h2ogpt_params(locals().copy())
         params["instruction"] = None  # future prompts
@@ -214,7 +225,8 @@ class ChatCompletionCreator:
         params["chat"] = True
         params["instruction_nochat"] = ""  # empty when chat_mode is True
         params["langchain_mode"] = langchain_mode.value  # convert to serializable type
-        params["add_chat_history_to_context"] = True
+        params["add_chat_history_to_context"] = False  # relevant only for the UI
+        params["system_prompt"] = ""
         params["langchain_action"] = LangChainAction.QUERY.value
         params["langchain_agents"] = []
         params["top_k_docs"] = 4  # langchain: number of document chunks
@@ -222,8 +234,8 @@ class ChatCompletionCreator:
         params["chunk_size"] = 512  # langchain: chunk size for document chunking
         params["document_subset"] = DocumentSubset.Relevant.name
         params["document_choice"] = []
-        params["pre_prompt_summary"] = ''
-        params["prompt_summary"] = ''
+        params["pre_prompt_summary"] = ""
+        params["prompt_summary"] = ""
         params["chatbot"] = []  # chat history
         return ChatCompletion(self._client, params)
 

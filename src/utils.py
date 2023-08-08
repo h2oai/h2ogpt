@@ -1104,7 +1104,7 @@ visible_langchain_modes_file = 'visible_langchain_modes.pkl'
 
 def save_collection_names(langchain_modes, visible_langchain_modes, langchain_mode_paths,
                           LangChainMode, db1s,
-                          in_user_db):
+                          in_user_db, save_dir=None):
     """
     extra controls if UserData type of MyData type
     """
@@ -1126,36 +1126,56 @@ def save_collection_names(langchain_modes, visible_langchain_modes, langchain_mo
     user_langchain_mode_paths = {k: v for k, v in langchain_mode_paths.items() if
                                  k not in scratch_collection_names and k not in llms}
 
+    if save_dir is not None:
+        base_path_file = save_dir
+    else:
+        base_path_file = './'
     base_path = 'locks'
     base_path = makedirs(base_path, tmp_ok=True, use_base=True)
 
     if in_user_db:
         # user
         extra = ''
-        file = "%s%s" % (visible_langchain_modes_file, extra)
-        with filelock.FileLock(os.path.join(base_path, "%s.lock" % file)):
+    else:
+        # scratch
+        extra = user_hash
+
+    file = os.path.join(base_path_file, "%s%s" % (visible_langchain_modes_file, extra))
+    lock_file = os.path.join(base_path, "%s.lock" % file)
+    makedirs(os.path.dirname(lock_file), exist_ok=True)
+    if in_user_db:
+        # user
+        with filelock.FileLock(lock_file):
             with open(file, 'wb') as f:
                 pickle.dump((user_langchain_modes, user_visible_langchain_modes, user_langchain_mode_paths), f)
     else:
         # scratch
-        extra = user_hash
-        file = "%s%s" % (visible_langchain_modes_file, extra)
-        with filelock.FileLock(os.path.join(base_path, "%s.lock" % file)):
+        with filelock.FileLock(lock_file):
             with open(file, 'wb') as f:
                 pickle.dump((scratch_langchain_modes, scratch_visible_langchain_modes, scratch_langchain_mode_paths), f)
 
 
-def load_collection_enum(extra):
+def load_collection_enum(extra, save_dir=None):
     """
     extra controls if UserData type of MyData type
     """
-    file = "%s%s" % (visible_langchain_modes_file, extra)
+    if save_dir is not None:
+        base_path_file = save_dir
+    else:
+        base_path_file = './'
+    base_path = 'locks'
+    base_path = makedirs(base_path, tmp_ok=True, use_base=True)
+
+    file = os.path.join(base_path_file, "%s%s" % (visible_langchain_modes_file, extra))
+    lock_file = os.path.join(base_path, "%s.lock" % file)
+    makedirs(os.path.dirname(lock_file), exist_ok=True)
+
     langchain_modes_from_file = []
     visible_langchain_modes_from_file = []
     langchain_mode_paths_from_file = {}
-    if os.path.isfile(visible_langchain_modes_file):
+    if os.path.isfile(file):
         try:
-            with filelock.FileLock("%s.lock" % file):
+            with filelock.FileLock(lock_file):
                 with open(file, 'rb') as f:
                     langchain_modes_from_file, visible_langchain_modes_from_file, langchain_mode_paths_from_file = pickle.load(
                         f)

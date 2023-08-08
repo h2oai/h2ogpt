@@ -105,27 +105,28 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     ```
     See [exllama](README_GPU.md#exllama) about running exllama models.
 
-* To avoid unauthorized telemetry, which document options still do not disable, run:
-    ```bash
-    sp=`python -c 'import site; print(site.getsitepackages()[0])'`
-    sed -i 's/posthog\.capture/return\n            posthog.capture/' $sp/chromadb/telemetry/posthog.py
-    ```
 * GPU Optional: Support LLaMa.cpp with CUDA:
   * Download/Install [CUDA llama-cpp-python wheel](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels), E.g.:
     ```bash
-    pip uninstall -y llama-cpp-python
+    pip uninstall -y llama-cpp-python llama-cpp-python-cuda
     pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.1.73+cu117-cp310-cp310-linux_x86_64.whl
     ```
   * If any issues, then must compile llama-cpp-python with CUDA support:
    ```bash
-    pip uninstall -y llama-cpp-python
+    pip uninstall -y llama-cpp-python llama-cpp-python-cuda
     export LLAMA_CUBLAS=1
     export CMAKE_ARGS=-DLLAMA_CUBLAS=on
     export FORCE_CMAKE=1
-    CMAKE_ARGS="-DLLAMA_CUBLAS=on" FORCE_CMAKE=1 pip install llama-cpp-python==0.1.68 --no-cache-dir --verbose
+    CMAKE_ARGS="-DLLAMA_CUBLAS=on" FORCE_CMAKE=1 pip install llama-cpp-python==0.1.73 --no-cache-dir --verbose
    ```
-  * Uncomment `# n_gpu_layers=20` in `.env_gpt4all`.  One can try also `40` instead of `20`.
-  * For LLaMa2, can set `max_tokens=3792` but uses more memory.
+  * By default, we set `n_gpu_layers` to large value, so llama.cpp offloads all layers for maximum GPU performance.  You can control this by uncommenting `# n_gpu_layers` and set to some value in `.env_gpt4all`.  For highest performance, offload *all* layers.
+    That is, one gets maximum performance if one sees in startup of h2oGPT all layers offloaded:
+      ```text
+    llama_model_load_internal: offloaded 35/35 layers to GPU
+    ```
+  but this requires sufficient GPU memory.  Reduce if you have low memory GPU, say 15.
+  * Pass to `generate.py` the option `--max_seq_len=2048` or some other number if you want model have controlled smaller context, else default (relatively large) value is used that will be slower on CPU.
+  * For LLaMa2, can set `max_tokens` to a larger value for longer output.
   * If one sees `/usr/bin/nvcc` mentioned in errors, that file needs to be removed as would likely conflict with version installed for conda.  
   * Note that once `llama-cpp-python` is compiled to support CUDA, it no longer works for CPU mode, so one would have to reinstall it without the above options to recovers CPU mode or have a separate h2oGPT env for CPU mode.
 

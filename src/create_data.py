@@ -1286,13 +1286,14 @@ def test_grade():
 @pytest.mark.parametrize(
     "fixup_personality, only_personality, deberta_grading",
     [
-        [False, False, False],
-        [True, True, False],
+        # [False, False, False],
+        # [True, True, False],
         [True, False, False],
-        [True, False, True],
+        # [True, False, True],
     ]
 )
-def test_add_open_assistant(fixup_personality, only_personality, deberta_grading, save_json=True):
+@pytest.mark.parametrize("prompt_type", ["llama2"])
+def test_add_open_assistant(fixup_personality, only_personality, deberta_grading, prompt_type, save_json=True):
     """
     Flatten tree structure into one row per path from root to leaf
     Also turn into human_bot prompting format:
@@ -1310,13 +1311,16 @@ def test_add_open_assistant(fixup_personality, only_personality, deberta_grading
     parent_ids = df['parent_id'].values.tolist()
     texts = df['text'].values.tolist()
     roles = df['role'].values.tolist()
-
+    deleteds = df['deleted'].values.tolist()
     for i in range(df.shape[0]):
         # collect all trees
         message_id = message_ids[i]
         message_tree_id = message_tree_ids[i]
         parent_id = parent_ids[i]
         text = texts[i]
+        deleted = deleteds[i]
+        if deleted:
+            continue
         if fixup_personality:
             text = text.replace("Open Assistant", "h2oGPT")
             text = text.replace("Open-Assistant", "h2oGPT")
@@ -1343,7 +1347,14 @@ def test_add_open_assistant(fixup_personality, only_personality, deberta_grading
             text = text.replace("LAION", "H2O.ai")
 
         role = roles[i]
-        new_data = ('<human>: ' if role == 'prompter' else '<bot>: ') + text
+        if prompt_type == "llama2":
+            new_data = ('[INST] ' if role == 'prompter' else ' [/INST] ') + text
+            if parent_id and role == 'prompter':
+                new_data = " " + new_data
+        elif prompt_type == "human_bot":
+            new_data = ('<human>: ' if role == 'prompter' else '<bot>: ') + text
+        else:
+            raise NotImplementedError("prompt_type not supported")
         entry = dict(message_id=message_id, parent_id=parent_id, text=new_data)
         if message_tree_id not in rows:
             rows[message_tree_id] = [entry]
@@ -1375,9 +1386,14 @@ def test_add_open_assistant(fixup_personality, only_personality, deberta_grading
                         if parent_id == conv['message_id'][-len(parent_id):]:
                             # my message follows conversation, but fork first, so another follow-on message can do same
                             conversations.append(conv.copy())
-                            conv['text'] += f"""
+                            if prompt_type == "llama2":
+                                conv['text'] += f"""{leaf['text']}"""
+                            elif prompt_type == "human_bot":
+                                conv['text'] += f"""
 {leaf['text']}
 """
+                            else:
+                                raise NotImplementedError
                             conv['message_id'] += leaf['message_id']
                             found = True
                             break
@@ -1400,16 +1416,36 @@ def test_add_open_assistant(fixup_personality, only_personality, deberta_grading
                         conv2['message_id'] = None
         conversations = [c for c in conversations if c['message_id']]
         if only_personality:
-            all_rows.extend(
-                [dict(input=c['text'] + "\n<human>:", prompt_type='plain', source=data_file) for c in conversations if
-                 'h2oGPT' in c['text']])
+            if prompt_type == "human_bot":
+                all_rows.extend(
+                    [dict(input=c['text'] + "\n<human>:", output="", prompt_type='plain', source=data_file) for c in conversations if
+                     'h2oGPT' in c['text']])
+            elif prompt_type == "llama2":
+                all_rows.extend(
+                    [dict(input=c['text'] +
+                                ("" if c['text'].rfind("[/INST]") > c['text'].rfind("[INST]") else " [/INST]"),
+                          output="", prompt_type='plain', source=data_file) for c in conversations if
+                     'h2oGPT' in c['text']])
+            else:
+                raise NotImplementedError
         else:
-            all_rows.extend(
-                [dict(input=c['text'] + "\n<human>:", prompt_type='plain', source=data_file) for c in conversations if
-                 "What is H2O.ai" not in c['text']])
+            if prompt_type == "human_bot":
+                all_rows.extend(
+                    [dict(input=c['text'] + "\n<human>:", output="", prompt_type='plain', source=data_file) for c in conversations
+                     if
+                     "What is H2O.ai" not in c['text']])
+            elif prompt_type == "llama2":
+                all_rows.extend(
+                    [dict(input=c['text'] +
+                                (" " if c['text'].rfind("[/INST]") > c['text'].rfind("[INST]") else " [/INST]"),
+                          output="", prompt_type='plain', source=data_file) for c in conversations if
+                     "What is H2O.ai" not in c['text']])
+            else:
+                raise NotImplementedError
+
     unhelpful = get_unhelpful_list()
     all_rows = [x for x in all_rows if not any(u in x['input'] for u in unhelpful)]
-    personality = create_personality_data()
+    personality = create_personality_data(prompt_type=prompt_type)
     all_rows.extend(personality * 10)
     np.random.seed(123)
     np.random.shuffle(all_rows)
@@ -1435,6 +1471,7 @@ def test_add_open_assistant(fixup_personality, only_personality, deberta_grading
             all_rows.append(
                 dict(
                     input=df['input'].iloc[i],
+                    output=df['output'].iloc[i],
                     source=df['source'].iloc[i],
                     prompt_type=df['prompt_type'].iloc[i],
                     grade_deberta=df['grade_deberta'].iloc[i],
@@ -1444,7 +1481,8 @@ def test_add_open_assistant(fixup_personality, only_personality, deberta_grading
         data_file = data_file + \
                     ("_h2ogpt" if fixup_personality else "") + \
                     ("_only" if only_personality else "") + \
-                    ("_graded" if deberta_grading else "")
+                    ("_graded" if deberta_grading else "") + \
+                    ("_llama2_chat" if prompt_type == "llama2" else "")
         for i in range(len(all_rows)):
             all_rows[i]['id'] = i
         with open(data_file.lower().replace("/", "_") + ".json", "w") as f:
@@ -1498,7 +1536,7 @@ def test_finalize_to_json():
         f.write(json.dumps(row_list, indent=2))
 
 
-def create_personality_data():
+def create_personality_data(prompt_type="llama2"):
     questions = [
         "What's your name?",
         "What is your name?",
@@ -1527,22 +1565,21 @@ def create_personality_data():
     rows = []
     for pair in itertools.product(questions, answers, help):
         rows.append(
-            dict(input=f"<human>: {pair[0]}\n<bot>: {pair[1]}{pair[2]}\n<human>:", prompt_type='plain', source="H2O.ai")
+            dict(input=f"{pair[0]}", output=f"{pair[1]}{pair[2]}", prompt_type=prompt_type, source="H2O.ai")
         )
-    for row in [
-        "<human>: What is H2O.ai?\n<bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.\n<human>:",
-        "<human>: What is h2o.ai?\n<bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.\n<human>:",
-        "<human>: What is H2O?\n<bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.\n<human>:",
-        "<human>: Who is h2o.ai?\n<bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.\n<human>:",
-        "<human>: who is h2o.ai?\n<bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.\n<human>:",
-        "<human>: who is h2o?\n<bot>: H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models.\n<human>:",
-        "<human>: What is H2O.ai?\n<bot>: H2O.ai is the visionary leader in democratizing AI.\n<human>:",
-        "<human>: Who is H2O.ai?\n<bot>: H2O.ai is the visionary leader in democratizing AI.\n<human>:",
-        "<human>: Who is H2O?\n<bot>: H2O.ai is the visionary leader in democratizing AI.\n<human>:",
-        "<human>: Who is h2o?\n<bot>: H2O.ai is the visionary leader in democratizing AI.\n<human>:",
-        "<human>: who is h2o?\n<bot>: H2O.ai is the visionary leader in democratizing AI.\n<human>:",
+    for q, a in [
+        ("What is H2O.ai?", "H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models."),
+        ("What is h2o.ai?", "H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models."),
+        ("What is H2O?", "H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models."),
+        ("Who is h2o.ai?", "H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models."),
+        ("who is h2o.ai?", "H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models."),
+        ("who is h2o?", "H2O.ai is a technology company that aims to democratize AI and make it accessible to a broader audience by simplifying the process of creating and deploying machine learning models."),
+        ("what is H2O.ai?", "H2O.ai is the visionary leader in democratizing AI."),
+        ("who is H2O.ai?", "H2O.ai is the visionary leader in democratizing AI."),
+        ("who is H2O?", "H2O.ai is the visionary leader in democratizing AI."),
+        ("Who is h20?", "H2O.ai is the visionary leader in democratizing AI."),
     ]:
-        rows.append(dict(input=row, prompt_type='plain', source='H2O.ai'))
+        rows.append(dict(input=q, output=a, prompt_type=prompt_type, source='H2O.ai'))
     print(len(rows))
     with open("h2ogpt-personality.json", "w") as f:
         f.write(json.dumps(rows, indent=2))

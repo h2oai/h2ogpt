@@ -7,10 +7,10 @@ from pydantic import root_validator
 from langchain.llms import gpt4all
 from dotenv import dotenv_values
 
-from utils import FakeTokenizer
+from utils import FakeTokenizer, get_ngpus_vis
 
 
-def get_model_tokenizer_gpt4all(base_model, n_jobs=None):
+def get_model_tokenizer_gpt4all(base_model, n_jobs=None, max_seq_len=None):
     # defaults (some of these are generation parameters, so need to be passed in at generation time)
     model_name = base_model.lower()
     model = get_llm_gpt4all(model_name, model=None,
@@ -27,6 +27,7 @@ def get_model_tokenizer_gpt4all(base_model, n_jobs=None):
                             # context=context,
                             # iinput=iinput,
                             inner_class=True,
+                            max_seq_len=max_seq_len,
                             )
     return model, FakeTokenizer(), 'cpu'
 
@@ -73,12 +74,14 @@ def get_gpt4all_default_kwargs(max_new_tokens=256,
                                top_p=0.7,
                                n_jobs=None,
                                verbose=False,
+                               max_seq_len=None,
                                ):
     if n_jobs is None:
         n_jobs = int(os.getenv('OMP_NUM_THREADS', str(os.cpu_count())))
     env_gpt4all_file = ".env_gpt4all"
     env_kwargs = dotenv_values(env_gpt4all_file)
-    max_tokens = env_kwargs.pop('max_tokens', 2048 - max_new_tokens)
+    max_tokens = env_kwargs.pop('max_tokens', max_seq_len - max_new_tokens)
+    n_gpus = get_ngpus_vis()
     default_kwargs = dict(context_erase=0.5,
                           n_batch=1,
                           max_tokens=max_tokens,
@@ -90,8 +93,11 @@ def get_gpt4all_default_kwargs(max_new_tokens=256,
                           top_k=top_k,
                           top_p=top_p,
                           use_mlock=True,
+                          n_ctx=max_seq_len,
                           n_threads=n_jobs,
                           verbose=verbose)
+    if n_gpus != 0:
+        default_kwargs.update(dict(n_gpu_layers=100))
     return default_kwargs, env_kwargs
 
 
@@ -110,6 +116,7 @@ def get_llm_gpt4all(model_name,
                     n_jobs=None,
                     verbose=False,
                     inner_class=False,
+                    max_seq_len=None,
                     ):
     if not inner_class:
         assert prompter is not None
@@ -122,6 +129,7 @@ def get_llm_gpt4all(model_name,
                                    top_p=top_p,
                                    n_jobs=n_jobs,
                                    verbose=verbose,
+                                   max_seq_len=max_seq_len,
                                    )
     if model_name == 'llama':
         cls = H2OLlamaCpp
@@ -261,7 +269,10 @@ class H2OLlamaCpp(LlamaCpp):
                 model_params["n_gpu_layers"] = values["n_gpu_layers"]
 
             try:
-                from llama_cpp import Llama
+                try:
+                    from llama_cpp import Llama
+                except ImportError:
+                    from llama_cpp_cuda import Llama
 
                 values["client"] = Llama(model_path, **model_params)
             except ImportError:
@@ -319,8 +330,9 @@ class H2OLlamaCpp(LlamaCpp):
             if text_callback:
                 text_callback(prompt)
             text = ""
-            for token in self.stream(prompt=prompt, stop=stop, run_manager=run_manager):
-                text_chunk = token["choices"][0]["text"]
+            for token in self.stream(input=prompt, stop=stop):
+            #for token in self.stream(input=prompt, stop=stop, run_manager=run_manager):
+                text_chunk = token#["choices"][0]["text"]
                 # self.stream already calls text_callback
                 # if text_callback:
                 #    text_callback(text_chunk)
