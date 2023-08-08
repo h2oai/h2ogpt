@@ -69,7 +69,7 @@ class LangChainMode(Enum):
 class LangChainTypes(Enum):
     SHARED = 'shared'
     # PERSONAL = 'personal'
-    SCRATCH = 'scratch'
+    PERSONAL = 'scratch'
 
 
 # modes should not be removed from visible list or added by name

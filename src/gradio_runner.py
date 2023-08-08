@@ -261,17 +261,22 @@ def go_gradio(**kwargs):
         return x
 
     def update_auth_selection(auth_user, selection_docs_state1):
-        # in-place
+        # in-place update of both
         if 'selection_docs_state' in auth_user:
             for k, v in auth_user['selection_docs_state'].items():
                 # add values, don't overwrite or remove here
                 if isinstance(selection_docs_state1[k], dict):
                     auth_user['selection_docs_state'][k].update(selection_docs_state1[k])
+                    selection_docs_state1[k].clear()
+                    selection_docs_state1[k].update(auth_user['selection_docs_state'][k])
                 elif isinstance(selection_docs_state1[k], list):
                     auth_user['selection_docs_state'][k].extend(selection_docs_state1[k])
                     tmp = auth_user['selection_docs_state'][k].copy()
                     auth_user['selection_docs_state'][k].clear()
-                    [auth_user['selection_docs_state'][k].append(x) for x in tmp if x not in auth_user['selection_docs_state'][k]]
+                    [auth_user['selection_docs_state'][k].append(x) for x in tmp if
+                     x not in auth_user['selection_docs_state'][k]]
+                    selection_docs_state1[k].clear()
+                    selection_docs_state1[k].extend(auth_user['selection_docs_state'][k])
                 else:
                     raise RuntimeError("Bad type: %s" % selection_docs_state1[k])
         else:
@@ -438,7 +443,7 @@ def go_gradio(**kwargs):
                     selection_docs_state1['langchain_mode_paths'].pop(k)
             for k in selection_docs_state1['langchain_modes']:
                 if k not in selection_docs_state1['langchain_mode_types']:
-                    selection_docs_state1['langchain_mode_types'][k] = LangChainTypes.SCRATCH.value
+                    selection_docs_state1['langchain_mode_types'][k] = LangChainTypes.PERSONAL.value
             return selection_docs_state1
 
         # Setup some gradio states for per-user dynamic state
@@ -1415,11 +1420,12 @@ def go_gradio(**kwargs):
                             f.write(json.dumps(auth_dict, indent=2))
 
         def add_langchain_mode(db1s, selection_docs_state1, requests_state1, langchain_mode1, y,
-                               auth_filename=None, auth_freeze=None):
+                               auth_filename=None, auth_freeze=None, guest_name=None):
             assert auth_filename is not None
             assert auth_freeze is not None
 
             set_userid(db1s, requests_state1, get_userid_auth)
+            username = get_username(requests_state1)
             for k in db1s:
                 set_dbid(db1s[k])
             langchain_modes = selection_docs_state1['langchain_modes']
@@ -1436,14 +1442,17 @@ def go_gradio(**kwargs):
                     # ValueError: Expected collection name that (1) contains 3-63 characters, (2) starts and ends with an alphanumeric character, (3) otherwise contains only alphanumeric characters, underscores or hyphens (-), (4) contains no two consecutive periods (..) and (5) is not a valid IPv4 address, got me
                     # but just make simpler
                     # assume scratch if don't have user_path
-                    langchain_mode_type = y2[1] if len(y2) > 1 else LangChainTypes.SCRATCH.value
+                    langchain_mode_type = y2[1] if len(y2) > 1 else LangChainTypes.PERSONAL.value
                     user_path = y2[2] if len(y2) > 2 else None  # assume None if don't have user_path
                     if user_path in ['', "''"]:
                         # transcribe UI input
                         user_path = None
-                    if user_path is not None and langchain_mode_type == LangChainTypes.SCRATCH.value:
-                        user_path = None
+                    if user_path is not None and langchain_mode_type == LangChainTypes.PERSONAL.value:
                         textbox = "Do not pass user_path for scratch types"
+                        valid = False
+                        langchain_mode2 = langchain_mode1
+                    elif user_path is not None and username == guest_name:
+                        textbox = "Guests cannot add collections with path"
                         valid = False
                         langchain_mode2 = langchain_mode1
                     elif langchain_mode2 in langchain_modes_intrinsic:
@@ -1541,8 +1550,9 @@ def go_gradio(**kwargs):
         add_langchain_mode_func = functools.partial(add_langchain_mode,
                                                     auth_filename=kwargs['auth_filename'],
                                                     auth_freeze=kwargs['auth_freeze'],
+                                                    guest_name=kwargs['guest_name'],
                                                     )
-        eventdb20b = eventdb20a.then(fn=add_langchain_mode,
+        eventdb20b = eventdb20a.then(fn=add_langchain_mode_func,
                                      inputs=[my_db_state, selection_docs_state, requests_state,
                                              langchain_mode,
                                              new_langchain_mode_text],
@@ -1576,11 +1586,16 @@ def go_gradio(**kwargs):
                 gr.update(choices=get_langchain_choices(selection_docs_state1),
                           value=langchain_mode1), df_langchain_mode_paths1
 
-        load_langchain_gr_func = functools.partial(load_langchain_gr, auth_filename=kwargs['auth_filename'])
-        load_langchain.click(fn=load_langchain_gr_func,
-                             inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode],
-                             outputs=[selection_docs_state, langchain_mode, langchain_mode_path_text],
-                             api_name='load_langchain' if allow_api and allow_upload_to_user_data else None)
+        eventdbloadla = load_langchain.click(dummy_fun2,
+                                             inputs=[my_db_state, requests_state, langchain_mode],
+                                             outputs=[my_db_state, requests_state, langchain_mode],
+                                             show_progress='minimal')
+        load_langchain_gr_func = functools.partial(load_langchain_gr,
+                                                   auth_filename=kwargs['auth_filename'])
+        eventdbloadlb = eventdbloadla.then(fn=load_langchain_gr_func,
+                                           inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode],
+                                           outputs=[selection_docs_state, langchain_mode, langchain_mode_path_text],
+                                           api_name='load_langchain' if allow_api and allow_upload_to_user_data else None)
 
         inputs_list, inputs_dict = get_inputs_list(all_kwargs, kwargs['model_lower'], model_id=1)
         inputs_list2, inputs_dict2 = get_inputs_list(all_kwargs, kwargs['model_lower'], model_id=2)
@@ -2883,6 +2898,7 @@ def go_gradio(**kwargs):
                                db_events +
                                [eventdb20a, eventdb20b] +
                                [eventdb21a, eventdb21b] +
+                               [eventdbloadla, eventdbloadlb] +
                                [clear_event] +
                                [submit_event_nochat_api, submit_event_nochat] +
                                [load_model_event, load_model_event2] +
@@ -3249,7 +3265,7 @@ def get_any_db(db1s, langchain_mode, langchain_mode_paths, langchain_mode_types,
 
     if db is None:
         from src.gpt_langchain import get_existing_db, get_persist_directory
-        langchain_type = langchain_mode_types.get(langchain_mode, LangChainTypes.SCRATCH.value)
+        langchain_type = langchain_mode_types.get(langchain_mode, LangChainTypes.PERSONAL.value)
         persist_directory = get_persist_directory(langchain_mode, db1s=db1s, dbs=dbs, langchain_type=langchain_type)
         # see if actually have on disk, don't try to switch embedding yet, since can't use return here
         migrate_embedding_model = False

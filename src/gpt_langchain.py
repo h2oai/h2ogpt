@@ -72,7 +72,7 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
         return None
     user_path = langchain_mode_paths.get(langchain_mode)
     if persist_directory is None:
-        langchain_type = langchain_mode_types.get(langchain_mode, LangChainTypes.SCRATCH.value)
+        langchain_type = langchain_mode_types.get(langchain_mode, LangChainTypes.PERSONAL.value)
         persist_directory = get_persist_directory(langchain_mode, langchain_type=langchain_type)
     assert hf_embedding_model is not None
 
@@ -2063,18 +2063,36 @@ def load_embed(db=None, persist_directory=None):
 
 
 def get_persist_directory(langchain_mode, langchain_type=None, db1s=None, dbs=None):
-    if db1s is not None and langchain_mode in db1s:
-        userid = db1s[LangChainMode.MY_DATA.value][1]
-        db1 = db1s[langchain_mode]
-        persist_directory = os.path.join(userid, 'db_dir_%s_%s' % (langchain_mode, db1[1]))
-    elif dbs is not None and langchain_mode in dbs:
-        persist_directory = 'db_dir_%s' % langchain_mode  # single place, no special names for each case
-    elif langchain_type in [LangChainTypes.SHARED.value]:
-        persist_directory = 'db_dir_%s' % langchain_mode  # single place, no special names for each case
-    else:
-        # e.g. if PERSONAL or SCRATCH or not set, then here,
-        # but won't find if during prep_langchain() as expected since not to be loaded up front for all users
-        persist_directory = 'db_dir_%s' % str(uuid.uuid4())
+    userid = db1s[LangChainMode.MY_DATA.value][1] if db1s is not None else ''
+
+    # deal with existing locations
+    persist_directory = os.path.join(userid, 'db_dir_%s' % langchain_mode)
+    if userid and \
+        (os.path.isdir(persist_directory) or
+            langchain_mode in db1s or
+            langchain_type == LangChainTypes.PERSONAL.value):
+        msg = "Bad type: %s for %s" % (langchain_type, langchain_mode)
+        # if langchain_mode in dbs:
+        #    raise RuntimeError(msg)
+        if langchain_type is not None:
+            assert langchain_type == LangChainTypes.PERSONAL.value, msg
+        persist_directory = makedirs(persist_directory, use_base=True)
+        return persist_directory
+
+    persist_directory = 'db_dir_%s' % langchain_mode
+    if (os.path.isdir(persist_directory) or
+            langchain_mode in dbs or
+            langchain_type == LangChainTypes.SHARED.value):
+        msg = "Bad type: %s for %s" % (langchain_type, langchain_mode)
+        # if langchain_mode in db1s:
+        #    raise RuntimeError(msg)
+        if langchain_type is not None:
+            assert langchain_type == LangChainTypes.SHARED.value, msg
+        persist_directory = makedirs(persist_directory, use_base=True)
+        return persist_directory
+
+    # dummy return for prep_langchain() or full scratch space
+    persist_directory = 'db_dir_%s' % str(uuid.uuid4())
     persist_directory = makedirs(persist_directory, use_base=True)
     return persist_directory
 
@@ -2094,7 +2112,7 @@ def _make_db(use_openai_embedding=False,
              verbose=False):
     assert hf_embedding_model is not None
     user_path = langchain_mode_paths.get(langchain_mode)
-    langchain_type = langchain_mode_types.get(langchain_mode, LangChainTypes.SCRATCH.value)
+    langchain_type = langchain_mode_types.get(langchain_mode, LangChainTypes.PERSONAL.value)
     persist_directory = get_persist_directory(langchain_mode, langchain_type=langchain_type)
     # see if can get persistent chroma db
     db_trial, use_openai_embedding, hf_embedding_model = \
@@ -2767,10 +2785,10 @@ def get_chain(query=None,
             elif len(document_choice) == 1:
                 # degenerate UX bug in chroma
                 one_filter = \
-                [{"source": {"$eq": x}, "chunk_id": {"$gte": 0}} if query_action else {"source": {"$eq": x},
-                                                                                       "chunk_id": {
-                                                                                           "$eq": -1}}
-                 for x in document_choice][0]
+                    [{"source": {"$eq": x}, "chunk_id": {"$gte": 0}} if query_action else {"source": {"$eq": x},
+                                                                                           "chunk_id": {
+                                                                                               "$eq": -1}}
+                     for x in document_choice][0]
                 filter_kwargs = dict(filter=one_filter)
             else:
                 # shouldn't reach
