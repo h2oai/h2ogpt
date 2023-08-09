@@ -3243,10 +3243,18 @@ def go_gradio(**kwargs):
             load_event.then(None, None, None, _js=app_js)
 
     demo.queue(concurrency_count=kwargs['concurrency_count'], api_open=kwargs['api_open'])
-    favicon_path = "h2o-logo.svg"
-    if not os.path.isfile(favicon_path):
-        print("favicon_path=%s not found" % favicon_path, flush=True)
-        favicon_path = None
+    favicon_file = "h2o-logo.svg"
+    if not os.path.isfile(favicon_file):
+        print("favicon_path1=%s not found" % favicon_file, flush=True)
+        alt_path = os.path.dirname(os.path.abspath(__file__))
+        favicon_path = os.path.join(alt_path, favicon_file)
+        if not os.path.isfile(favicon_path):
+            print("favicon_path2: %s not found in %s" % (favicon_file, alt_path), flush=True)
+            alt_path = os.path.dirname(alt_path)
+            favicon_path = os.path.join(alt_path, favicon_file)
+            if not os.path.isfile(favicon_path):
+                print("favicon_path3: %s not found in %s" % (favicon_file, alt_path), flush=True)
+                favicon_path = None
 
     scheduler = BackgroundScheduler()
     scheduler.add_job(func=clear_torch_cache, trigger="interval", seconds=20)
