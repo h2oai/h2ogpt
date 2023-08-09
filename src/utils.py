@@ -29,8 +29,6 @@ from fire import inspectutils
 from joblib import Parallel
 from tqdm.auto import tqdm
 
-from src.enums import LangChainTypes
-
 
 def H2O_Fire(component=None):
     config_prefix = "H2OGPT_"

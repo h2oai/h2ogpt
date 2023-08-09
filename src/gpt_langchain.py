@@ -2074,7 +2074,7 @@ def get_persist_directory(langchain_mode, langchain_type=None, db1s=None, dbs=No
     persist_directory = os.path.join(user_base_dir, dirid, 'db_dir_%s' % langchain_mode)
     if userid and \
             (os.path.isdir(persist_directory) or
-             langchain_mode in db1s or
+             db1s is not None and langchain_mode in db1s or
              langchain_type == LangChainTypes.PERSONAL.value):
         msg = "Bad type: %s for %s" % (langchain_type, langchain_mode)
         # if langchain_mode in dbs:
@@ -2086,7 +2086,7 @@ def get_persist_directory(langchain_mode, langchain_type=None, db1s=None, dbs=No
 
     persist_directory = 'db_dir_%s' % langchain_mode
     if (os.path.isdir(persist_directory) or
-            langchain_mode in dbs or
+            dbs is not None and langchain_mode in dbs or
             langchain_type == LangChainTypes.SHARED.value):
         msg = "Bad type: %s for %s" % (langchain_type, langchain_mode)
         # if langchain_mode in db1s:
