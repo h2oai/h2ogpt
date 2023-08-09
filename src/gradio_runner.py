@@ -934,6 +934,12 @@ def go_gradio(**kwargs):
                                                               value=kwargs['lora_weights'], visible=kwargs['show_lora'])
                                     server_choice = gr.Dropdown(server_options_state.value[0], label="Choose Server",
                                                                 value=kwargs['inference_server'], visible=not is_public)
+                                    max_seq_len = gr.Number(value=kwargs['max_seq_len'],
+                                                            minimum=128,
+                                                            maximum=2**18,
+                                                            label="max_seq_len")
+                                    rope_scaling = gr.Textbox(value=str(kwargs['rope_scaling'] or {}),
+                                                              label="rope_scaling")
                                     row_llama = gr.Row(visible=kwargs['show_llama'] and kwargs['base_model'] == 'llama')
                                     with row_llama:
                                         model_path_llama = gr.Textbox(value=kwargs['llamacpp_dict']['model_path_llama'],
@@ -1004,6 +1010,11 @@ def go_gradio(**kwargs):
                                     server_choice2 = gr.Dropdown(server_options_state.value[0], label="Choose Server 2",
                                                                  value=no_server_str,
                                                                  visible=not is_public)
+                                    max_seq_len2 = gr.Number(value=kwargs['max_seq_len'], minimum=128, maximum=2**18,
+                                                            label="max_seq_len Model 2")
+                                    rope_scaling2 = gr.Textbox(value=str(kwargs['rope_scaling'] or {}),
+                                                              label="rope_scaling Model 2")
+
                                     row_llama2 = gr.Row(visible=kwargs['show_llama'] and kwargs['base_model'] == 'llama')
                                     with row_llama2:
                                         model_path_llama2 = gr.Textbox(
@@ -2862,7 +2873,8 @@ def go_gradio(**kwargs):
             .then(clear_torch_cache)
 
         def load_model(model_name, lora_weights, server_name, model_state_old, prompt_type_old, load_8bit,
-                       use_gpu_id, gpu_id, model_path_llama1, model_name_gptj1, model_name_gpt4all_llama1,
+                       use_gpu_id, gpu_id, max_seq_len1, rope_scaling1,
+                       model_path_llama1, model_name_gptj1, model_name_gpt4all_llama1,
                        n_gpu_layers1, n_batch1, n_gqa1, llamacpp_dict_more1):
             try:
                 llamacpp_dict = ast.literal_eval(llamacpp_dict_more1)
@@ -2927,6 +2939,8 @@ def go_gradio(**kwargs):
             all_kwargs1['use_gpu_id'] = use_gpu_id
             all_kwargs1['gpu_id'] = int(gpu_id) if gpu_id not in [None, 'None'] else None  # detranscribe
             all_kwargs1['llamacpp_dict'] = llamacpp_dict
+            all_kwargs1['max_seq_len'] = max_seq_len1
+            all_kwargs1['rope_scaling'] = rope_scaling1
             model_lower = model_name.strip().lower()
             if model_lower in inv_prompt_type_to_model_lower:
                 prompt_type1 = inv_prompt_type_to_model_lower[model_lower]
@@ -2991,6 +3005,7 @@ def go_gradio(**kwargs):
         load_model_args = dict(fn=load_model,
                                inputs=[model_choice, lora_choice, server_choice, model_state, prompt_type,
                                        model_load8bit_checkbox, model_use_gpu_id_checkbox, model_gpu,
+                                       max_seq_len, rope_scaling,
                                        model_path_llama, model_name_gptj, model_name_gpt4all_llama,
                                        n_gpu_layers, n_batch, n_gqa, llamacpp_dict_more],
                                outputs=[model_state, model_used, lora_used, server_used,
@@ -3010,6 +3025,7 @@ def go_gradio(**kwargs):
         load_model_args2 = dict(fn=load_model,
                                 inputs=[model_choice2, lora_choice2, server_choice2, model_state2, prompt_type2,
                                         model_load8bit_checkbox2, model_use_gpu_id_checkbox2, model_gpu2,
+                                        max_seq_len2, rope_scaling2,
                                         model_path_llama2, model_name_gptj2, model_name_gpt4all_llama2,
                                         n_gpu_layers2, n_batch2, n_gqa2, llamacpp_dict_more2],
                                 outputs=[model_state2, model_used2, lora_used2, server_used2,

@@ -4,7 +4,7 @@ import time
 import webbrowser
 
 os.environ['NLTK_DATA'] = './nltk_data'
-os.environ['PATH'] = os.environ['PATH'] + ';' + 'poppler/Library/bin/' + ';' + '../Tesseract-OCR'
+os.environ['PATH'] = os.environ['PATH'] + ';' + 'poppler/Library/bin/' + ';' + 'Tesseract-OCR'
 print(os.environ['PATH'])
 
 print(__file__)

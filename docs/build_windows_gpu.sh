@@ -48,8 +48,10 @@ cd ..
 unzip Release-23.08.0-0.zip
 move poppler-23.08.0 poppler
 
-# User needs to Install: https://digi.bib.uni-mannheim.de/tesseract/tesseract-ocr-w64-setup-5.3.1.20230401.exe
-
+# Install: https://digi.bib.uni-mannheim.de/tesseract/tesseract-ocr-w64-setup-5.3.1.20230401.exe
+# copy from install path to local path
+mkdir Tesseract-OCR
+xcopy C:\Users\pseud\AppData\Local\Programs\Tesseract-OCR Tesseract-OCR  /s /e /h  # say specifies Directory
 
 # build
 python -m nsist windows_installer.cfg
