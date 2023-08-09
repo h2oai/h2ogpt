@@ -831,6 +831,7 @@ def get_llm(use_openai_model=False,
             system_prompt='',
             n_jobs=None,
             cli=False,
+            llamacpp_dict=None,
             verbose=False,
             ):
     if n_jobs is None:
@@ -1031,6 +1032,7 @@ def get_llm(use_openai_model=False,
                               context=context,
                               iinput=iinput,
                               max_seq_len=max_max_tokens,
+                              llamacpp_dict=llamacpp_dict,
                               )
     elif hasattr(model, 'is_exlama') and model.is_exlama():
         async_output = False  # FIXME: not implemented yet
@@ -2371,6 +2373,7 @@ def _run_qa_db(query=None,
                pre_prompt_summary=None,
                prompt_summary=None,
                n_jobs=-1,
+               llamacpp_dict=None,
                verbose=False,
                cli=False,
                reverse_docs=True,
@@ -2452,6 +2455,7 @@ def _run_qa_db(query=None,
                 sanitize_bot_response=sanitize_bot_response,
                 system_prompt=system_prompt,
                 n_jobs=n_jobs,
+                llamacpp_dict=llamacpp_dict,
                 cli=cli,
                 verbose=verbose,
                 )

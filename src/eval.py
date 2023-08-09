@@ -24,6 +24,7 @@ def run_eval(  # for local function:
         use_gpu_id=None, tokenizer_base_model=None,
         gpu_id=None, n_jobs=None, local_files_only=None, resume_download=None, use_auth_token=None,
         trust_remote_code=None, offload_folder=None, rope_scaling=None, max_seq_len=None, compile_model=None,
+        llamacpp_dict=None,
         # for evaluate args beyond what's already above, or things that are always dynamic and locally created
         temperature=None,
         top_p=None,

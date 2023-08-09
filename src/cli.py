@@ -17,6 +17,7 @@ def run_cli(  # for local function:
         use_gpu_id=None, tokenizer_base_model=None,
         gpu_id=None, n_jobs=None, local_files_only=None, resume_download=None, use_auth_token=None,
         trust_remote_code=None, offload_folder=None, rope_scaling=None, max_seq_len=None, compile_model=None,
+        llamacpp_dict=None,
         # for some evaluate args
         stream_output=None, async_output=None, num_async=None,
         prompt_type=None, prompt_dict=None, system_prompt=None,

@@ -57,7 +57,7 @@ def run_qa_wiki(use_openai_model=False, first_para=True, text_limit=None, chain_
 
     sources = get_wiki_sources(first_para=first_para, text_limit=text_limit)
     llm, model_name, streamer, prompt_type_out, async_output = \
-        get_llm(use_openai_model=use_openai_model, prompt_type=prompt_type)
+        get_llm(use_openai_model=use_openai_model, prompt_type=prompt_type, llamacpp_dict={})
     chain = load_qa_with_sources_chain(llm, chain_type=chain_type)
 
     question = "What are the main differences between Linux and Windows?"
@@ -88,7 +88,7 @@ def test_qa_wiki_db_openai():
                      hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
                      db_type='faiss',
                      langchain_mode='wiki',
-                     langchain_action=LangChainAction.QUERY.value, langchain_agents=[])
+                     langchain_action=LangChainAction.QUERY.value, langchain_agents=[], llamacpp_dict={})
     check_ret(ret)
 
 
@@ -105,7 +105,7 @@ def test_qa_wiki_db_hf():
                      db_type='faiss',
                      langchain_mode='wiki',
                      langchain_action=LangChainAction.QUERY.value,
-                     langchain_agents=[])
+                     langchain_agents=[], llamacpp_dict={})
     check_ret(ret)
 
 
@@ -120,7 +120,7 @@ def test_qa_wiki_db_chunk_hf():
                      db_type='faiss',
                      langchain_mode='wiki',
                      langchain_action=LangChainAction.QUERY.value,
-                     langchain_agents=[])
+                     langchain_agents=[], llamacpp_dict={})
     check_ret(ret)
 
 
@@ -136,7 +136,7 @@ def test_qa_wiki_db_chunk_openai():
                      db_type='faiss',
                      langchain_mode='wiki',
                      langchain_action=LangChainAction.QUERY.value,
-                     langchain_agents=[])
+                     langchain_agents=[], llamacpp_dict={})
     check_ret(ret)
 
 
@@ -152,7 +152,7 @@ def test_qa_github_db_chunk_openai():
                      db_type='faiss',
                      langchain_mode='github h2oGPT',
                      langchain_action=LangChainAction.QUERY.value,
-                     langchain_agents=[])
+                     langchain_agents=[], llamacpp_dict={})
     check_ret(ret)
 
 
@@ -168,7 +168,7 @@ def test_qa_daidocs_db_chunk_hf():
                      db_type='faiss',
                      langchain_mode='DriverlessAI docs',
                      langchain_action=LangChainAction.QUERY.value,
-                     langchain_agents=[])
+                     langchain_agents=[], llamacpp_dict={})
     check_ret(ret)
 
 
@@ -183,6 +183,7 @@ def test_qa_daidocs_db_chunk_hf_faiss():
                      langchain_mode='DriverlessAI docs',
                      langchain_action=LangChainAction.QUERY.value,
                      langchain_agents=[],
+                     llamacpp_dict={},
                      db_type='faiss',
                      hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
                      )
@@ -217,6 +218,7 @@ def test_qa_daidocs_db_chunk_hf_dbs(db_type, top_k_docs):
                      db_type=db_type,
                      top_k_docs=top_k_docs,
                      model_name=model_name,
+                     llamacpp_dict={},
                      )
     check_ret(ret)
 
@@ -253,6 +255,7 @@ def test_qa_daidocs_db_chunk_hf_dbs_switch_embedding(db_type):
                       rope_scaling=None,
                       max_seq_len=None,
                       compile_model=True,
+                      llamacpp_dict={},
 
                       verbose=False)
     model, tokenizer, device = get_model(reward_type=False,
@@ -279,6 +282,7 @@ def test_qa_daidocs_db_chunk_hf_dbs_switch_embedding(db_type):
                      langchain_action=langchain_action,
                      langchain_agents=langchain_agents,
                      db_type=db_type,
+                     llamacpp_dict={},
                      )
     check_ret(ret)
 
@@ -297,6 +301,7 @@ def test_qa_daidocs_db_chunk_hf_dbs_switch_embedding(db_type):
                      langchain_action=langchain_action,
                      langchain_agents=langchain_agents,
                      db_type=db_type,
+                     llamacpp_dict={},
                      )
     check_ret(ret)
 
@@ -307,7 +312,8 @@ def test_qa_wiki_db_chunk_hf_dbs_llama(db_type):
     kill_weaviate(db_type)
     from src.gpt4all_llm import get_model_tokenizer_gpt4all
     model_name = 'llama'
-    model, tokenizer, device = get_model_tokenizer_gpt4all(model_name)
+    model, tokenizer, device = get_model_tokenizer_gpt4all(model_name,
+                                                           llamacpp_dict=dict(n_gpu_layers=100, use_mlock=True, n_batch=1024))
 
     from src.gpt_langchain import _run_qa_db
     query = "What are the main differences between Linux and Windows?"
@@ -322,6 +328,7 @@ def test_qa_wiki_db_chunk_hf_dbs_llama(db_type):
                      prompt_type='llama2',
                      langchain_only_model=True,
                      model_name=model_name, model=model, tokenizer=tokenizer,
+                     llamacpp_dict=dict(n_gpu_layers=100, use_mlock=True, n_batch=1024),
                      )
     check_ret(ret)
 
@@ -337,7 +344,7 @@ def test_qa_daidocs_db_chunk_openai():
                      chunk_size=256,
                      langchain_mode='DriverlessAI docs',
                      langchain_action=LangChainAction.QUERY.value,
-                     langchain_agents=[])
+                     langchain_agents=[], llamacpp_dict={})
     check_ret(ret)
 
 
@@ -352,7 +359,7 @@ def test_qa_daidocs_db_chunk_openaiembedding_hfmodel():
                      db_type='faiss',
                      langchain_mode='DriverlessAI docs',
                      langchain_action=LangChainAction.QUERY.value,
-                     langchain_agents=[])
+                     langchain_agents=[], llamacpp_dict={})
     check_ret(ret)
 
 

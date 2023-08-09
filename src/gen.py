@@ -72,10 +72,7 @@ def main(
         use_system_prompt: bool = False,
 
         # llama and gpt4all settings
-        n_gpu_layers: int = 100,
-        use_mlock: bool = True,
-        n_batch: int = 1024,
-        n_gqa: int = 8,
+        llamacpp_dict: typing.Dict = dict(n_gpu_layers=100, use_mlock=True, n_batch=1024, n_gqa=8),
         model_path_llama: str = 'llama-2-7b-chat.ggmlv3.q8_0.bin',
         model_name_gptj: str = 'ggml-gpt4all-j-v1.3-groovy.bin',
         model_name_gpt4all_llama: str = 'ggml-wizardLM-7B.q4_2.bin',
@@ -261,10 +258,12 @@ def main(
     :param use_system_prompt: Whether to use system prompt (e.g. llama2 safe system prompt) present in prompt_type itself
            Independent of system_prompt, which is used for OpenAI, Replicate.
 
-    :param n_gpu_layers: for llama.cpp based models, number of GPU layers to offload (default is all by using large value)
-    :param use_mlock: when using `llama.cpp` based CPU models, for computers with low system RAM or slow CPUs, recommended False
-    :param n_batch: Can make smaller to 128 for slower low-memory CPU systems
-    :param n_gqa: Required to be 8 for LLaMa 70B
+    :param llamacpp_dict:
+           n_gpu_layers: for llama.cpp based models, number of GPU layers to offload (default is all by using large value)
+           use_mlock: when using `llama.cpp` based CPU models, for computers with low system RAM or slow CPUs, recommended False
+           n_batch: Can make smaller to 128 for slower low-memory CPU systems
+           n_gqa: Required to be 8 for LLaMa 70B
+           ... etc. anything that could be passed to llama.cpp or GPT4All models
     :param model_path_llama: model path or URL (for auto-download)
     :param model_name_gptj: model path or URL (for auto-download)
     :param model_name_gpt4all_llama: model path or URL (for auto-download)
@@ -502,6 +501,14 @@ def main(
     # listen to env if set
     model_lock = os.getenv('model_lock', str(model_lock))
     model_lock = ast.literal_eval(model_lock)
+
+    if isinstance(llamacpp_dict, str):
+        llamacpp_dict = ast.literal_eval(llamacpp_dict)
+    # add others to single dict
+    llamacpp_dict['model_path_llama'] = model_path_llama
+    llamacpp_dict['model_name_gptj'] = model_name_gptj
+    llamacpp_dict['model_name_gpt4all_llama'] = model_name_gpt4all_llama
+    llamacpp_dict['model_name_exllama_if_no_config'] = model_name_exllama_if_no_config
 
     if model_lock:
         assert gradio, "model_lock only supported for gradio=True"
@@ -1152,6 +1159,7 @@ def get_model(
         rope_scaling: dict = None,
         max_seq_len: int = None,
         compile_model: bool = True,
+        llamacpp_dict=None,
 
         verbose: bool = False,
 ):
@@ -1181,8 +1189,9 @@ def get_model(
     :param offload_folder: offload folder
     :param rope_scaling: scaling for rope-based models, e.g. "{'type':'dynamic', 'factor':4}"
     :param max_seq_len: override for maximum sequence length for model
-    :param compile_model: whether to compile torch model
     :param max_seq_len: if set, use as max_seq_len for model
+    :param compile_model: whether to compile torch model
+    :param llamacpp_dict: dict of llama.cpp and GPT4All model options
     :param verbose:
     :return:
     """
@@ -1281,7 +1290,8 @@ def get_model(
     if base_model in non_hf_types:
         from gpt4all_llm import get_model_tokenizer_gpt4all
         model, tokenizer, device = get_model_tokenizer_gpt4all(base_model, n_jobs=n_jobs,
-                                                               max_seq_len=max_seq_len)
+                                                               max_seq_len=max_seq_len,
+                                                               llamacpp_dict=llamacpp_dict)
         return model, tokenizer, device
     if load_exllama:
         return model_loader, tokenizer, 'cuda'
@@ -1554,6 +1564,7 @@ def get_score_model(score_model: str = None,
                     offload_folder: str = None,
                     rope_scaling: dict = None,
                     compile_model: bool = True,
+                    llamacpp_dict: typing.Dict = None,
 
                     verbose: bool = False,
                     ):
@@ -1572,6 +1583,7 @@ def get_score_model(score_model: str = None,
         llama_type = False
         max_seq_len = None
         compile_model = False
+        llamacpp_dict = {}
         smodel, stokenizer, sdevice = get_model(reward_type=True,
                                                 **get_kwargs(get_model, exclude_names=['reward_type'], **locals()))
     else:
