@@ -518,6 +518,17 @@ def atomic_move_simple(src, dst):
 
 
 def download_simple(url, dest=None):
+    if dest is None:
+        dest = os.path.basename(url)
+    base_path = os.path.dirname(dest)
+    if base_path:  # else local path
+        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
+        dest = os.path.join(base_path, os.path.basename(dest))
+
+    if os.path.isfile(dest):
+        print("Already have %s from url %s, delete file if invalid" % (dest, str(url)), flush=True)
+        return dest
+
     print("BEGIN get url %s" % str(url), flush=True)
     if url.startswith("file://"):
         from requests_file import FileAdapter
@@ -527,8 +538,7 @@ def download_simple(url, dest=None):
     else:
         url_data = requests.get(url, stream=True)
     print("GOT url %s" % str(url), flush=True)
-    if dest is None:
-        dest = os.path.basename(url)
+
     if url_data.status_code != requests.codes.ok:
         msg = "Cannot get url %s, code: %s, reason: %s" % (
             str(url),
@@ -537,10 +547,7 @@ def download_simple(url, dest=None):
         )
         raise requests.exceptions.RequestException(msg)
     url_data.raw.decode_content = True
-    base_path = os.path.dirname(dest)
-    if base_path:  # else local path
-        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
-        dest = os.path.join(base_path, os.path.basename(dest))
+
     uuid_tmp = str(uuid.uuid4())[:6]
     dest_tmp = dest + "_dl_" + uuid_tmp + ".tmp"
     with open(dest_tmp, "wb") as f:
