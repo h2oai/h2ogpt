@@ -934,7 +934,7 @@ def go_gradio(**kwargs):
                                                               value=kwargs['lora_weights'], visible=kwargs['show_lora'])
                                     server_choice = gr.Dropdown(server_options_state.value[0], label="Choose Server",
                                                                 value=kwargs['inference_server'], visible=not is_public)
-                                    row_llama = gr.Row(visible=kwargs['show_llama'] or kwargs['base_model'] == 'llama')
+                                    row_llama = gr.Row(visible=kwargs['show_llama'] and kwargs['base_model'] == 'llama')
                                     with row_llama:
                                         model_path_llama = gr.Textbox(value=kwargs['llamacpp_dict']['model_path_llama'],
                                                                       lines=4,
@@ -957,7 +957,7 @@ def go_gradio(**kwargs):
                                                                         label="Dict for other LLaMa.cpp/GPT4All options",
                                                                         visible=kwargs['show_llama'])
                                     row_gpt4all = gr.Row(
-                                        visible=kwargs['show_gpt4all'] or kwargs['base_model'] in ['gptj',
+                                        visible=kwargs['show_gpt4all'] and kwargs['base_model'] in ['gptj',
                                                                                                    'gpt4all_llama'])
                                     with row_gpt4all:
                                         model_name_gptj = gr.Textbox(value=kwargs['llamacpp_dict']['model_name_gptj'],
@@ -1004,7 +1004,7 @@ def go_gradio(**kwargs):
                                     server_choice2 = gr.Dropdown(server_options_state.value[0], label="Choose Server 2",
                                                                  value=no_server_str,
                                                                  visible=not is_public)
-                                    row_llama2 = gr.Row(visible=kwargs['show_llama'] or kwargs['base_model'] == 'llama')
+                                    row_llama2 = gr.Row(visible=kwargs['show_llama'] and kwargs['base_model'] == 'llama')
                                     with row_llama2:
                                         model_path_llama2 = gr.Textbox(
                                             value=kwargs['llamacpp_dict']['model_path_llama'],
@@ -1028,7 +1028,7 @@ def go_gradio(**kwargs):
                                                                          label="Model 2 Dict for other LLaMa.cpp/GPT4All options",
                                                                          visible=kwargs['show_llama'])
                                     row_gpt4all2 = gr.Row(
-                                        visible=kwargs['show_gpt4all'] or kwargs['base_model'] in ['gptj',
+                                        visible=kwargs['show_gpt4all'] and kwargs['base_model'] in ['gptj',
                                                                                                    'gpt4all_llama'])
                                     with row_gpt4all2:
                                         model_name_gptj2 = gr.Textbox(value=kwargs['llamacpp_dict']['model_name_gptj'],
