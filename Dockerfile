@@ -44,7 +44,6 @@ RUN python3.10 -m pip install https://github.com/jllllll/exllama/releases/downlo
 COPY . .
 
 RUN sp=`python3.10 -c 'import site; print(site.getsitepackages()[0])'` && sed -i 's/posthog\.capture/return\n            posthog.capture/' $sp/chromadb/telemetry/posthog.py
-RUN sed -i 's/# n_gpu_layers=20/n_gpu_layers=20/g' /workspace/.env_gpt4all
 
 EXPOSE 8888
 EXPOSE 7860

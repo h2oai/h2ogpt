@@ -78,8 +78,6 @@ def get_gpt4all_default_kwargs(max_new_tokens=256,
                                ):
     if n_jobs is None:
         n_jobs = int(os.getenv('OMP_NUM_THREADS', str(os.cpu_count())))
-    env_gpt4all_file = ".env_gpt4all"
-    env_kwargs = dotenv_values(env_gpt4all_file)
     max_tokens = env_kwargs.pop('max_tokens', max_seq_len - max_new_tokens)
     n_gpus = get_ngpus_vis()
     default_kwargs = dict(context_erase=0.5,

@@ -150,8 +150,9 @@ def test_client_chat_nostream_gpt4all_llama():
 @pytest.mark.need_tokens
 @wrap_test_forked
 def test_client_chat_nostream_llama7b():
-    prompt_type = get_llama()
-    res_dict, client = run_client_chat_with_server(stream_output=False, base_model='llama', prompt_type=prompt_type)
+    prompt_type, full_path = get_llama()
+    res_dict, client = run_client_chat_with_server(stream_output=False, base_model='llama',
+                                                   prompt_type=prompt_type, model_path_llama=full_path)
     assert "am a virtual assistant" in res_dict['response'] or \
            'am a student' in res_dict['response'] or \
            "My name is John." in res_dict['response']
@@ -164,6 +165,7 @@ def run_client_chat_with_server(prompt='Who are you?', stream_output=False, max_
                                 langchain_agents=[],
                                 user_path=None,
                                 langchain_modes=['UserData', 'MyData'],
+                                model_path_llama='llama-2-7b-chat.ggmlv3.q8_0.bin',
                                 reverse_docs=True):
     if langchain_mode == 'Disabled':
         os.environ['TEST_LANGCHAIN_IMPORT'] = "1"
@@ -171,7 +173,9 @@ def run_client_chat_with_server(prompt='Who are you?', stream_output=False, max_
         sys.modules.pop('langchain', None)
 
     from src.gen import main
-    main(base_model=base_model, prompt_type=prompt_type, chat=True,
+    main(base_model=base_model,
+         model_path_llama=model_path_llama,
+         prompt_type=prompt_type, chat=True,
          stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
          max_new_tokens=max_new_tokens,
          langchain_mode=langchain_mode, user_path=user_path,

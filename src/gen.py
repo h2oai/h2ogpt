@@ -71,6 +71,16 @@ def main(
         system_prompt: str = '',
         use_system_prompt: bool = False,
 
+        # llama and gpt4all settings
+        n_gpu_layers: int = 100,
+        use_mlock: bool = True,
+        n_batch: int = 1024,
+        n_gqa: int = 8,
+        model_path_llama: str = 'llama-2-7b-chat.ggmlv3.q8_0.bin',
+        model_name_gptj: str = 'ggml-gpt4all-j-v1.3-groovy.bin',
+        model_name_gpt4all_llama: str = 'ggml-wizardLM-7B.q4_2.bin',
+        model_name_exllama_if_no_config: str = 'TheBloke/Nous-Hermes-Llama2-GPTQ',
+
         model_lock: typing.List[typing.Dict[str, str]] = None,
         model_lock_columns: int = None,
         fail_if_cannot_connect: bool = False,
@@ -250,6 +260,16 @@ def main(
            Useful for langchain case to control behavior, or OpenAI and Replicate.
     :param use_system_prompt: Whether to use system prompt (e.g. llama2 safe system prompt) present in prompt_type itself
            Independent of system_prompt, which is used for OpenAI, Replicate.
+
+    :param n_gpu_layers: for llama.cpp based models, number of GPU layers to offload (default is all by using large value)
+    :param use_mlock: when using `llama.cpp` based CPU models, for computers with low system RAM or slow CPUs, recommended False
+    :param n_batch: Can make smaller to 128 for slower low-memory CPU systems
+    :param n_gqa: Required to be 8 for LLaMa 70B
+    :param model_path_llama: model path or URL (for auto-download)
+    :param model_name_gptj: model path or URL (for auto-download)
+    :param model_name_gpt4all_llama: model path or URL (for auto-download)
+    :param model_name_exllama_if_no_config: exllama model's full path for model, tokenizer, generator for use when no HuggingFace config
+
     :param model_lock: Lock models to specific combinations, for ease of use and extending to many models
            Only used if gradio = True
            List of dicts, each dict has base_model, tokenizer_base_model, lora_weights, inference_server, prompt_type, and prompt_dict

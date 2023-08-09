@@ -16,9 +16,6 @@ def get_loaders(model_name, reward_type, llama_type=None, load_gptq='', load_exl
             model_directory = os.path.join(TRANSFORMERS_CACHE, 'models--' + config.name_or_path.replace('/', '--'), 'snapshots', config._commit_hash)
         else:
             # then use path in env file
-            env_gpt4all_file = ".env_gpt4all"
-            from dotenv import dotenv_values
-            env_kwargs = dotenv_values(env_gpt4all_file)
             # Directory containing model, tokenizer, generator
             model_directory = env_kwargs['model_name_exllama_if_no_config']
 

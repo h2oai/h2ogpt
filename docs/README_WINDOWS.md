@@ -96,7 +96,7 @@ For newer builds of windows versions of 10/11.
     set FORCE_CMAKE=1
     pip install llama-cpp-python==0.1.68 --no-cache-dir --verbose
     ```
-  * By default, we set `n_gpu_layers` to large value, so llama.cpp offloads all layers for maximum GPU performance.  You can control this by uncommenting `# n_gpu_layers` and set to some value in `.env_gpt4all`.  For highest performance, offload *all* layers.
+  * By default, we set `n_gpu_layers` to large value, so llama.cpp offloads all layers for maximum GPU performance.  You can control this by passing `--n_gpu_layers` or setting in UI.  For highest performance, offload *all* layers.
     That is, one gets maximum performance if one sees in startup of h2oGPT all layers offloaded:
       ```text
     llama_model_load_internal: offloaded 35/35 layers to GPU
@@ -113,7 +113,7 @@ For newer builds of windows versions of 10/11.
 ## Run
 * For document Q/A with UI using LLaMa.cpp-based model on CPU or GPU:
 
-  * Click [Download LLaMa2 Model](https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin) and place file in h2oGPT repo directory.  Any other TheBloke GGML v3 model can be used by downloading it and changing `model_path_llama` in `.env_gpt4all` to point to that new file.
+  * Click [Download LLaMa2 Model](https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin) and place file in h2oGPT repo directory.  Any other TheBloke GGML v3 model can be used by changing value of `--model_path_llama` to path previously downloaded or URL.
        ```bash
        python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path
        ```
@@ -162,10 +162,11 @@ For newer builds of windows versions of 10/11.
 
   * ![llamasmall.jpg](llamasmall.jpg)
 
-  * For LLaMa2 70B model, add to `.env_gpt4all`:
-    ```.env_gpt4all
-    n_gqa=8
+  * For LLaMa2 70B model, launch as
+    ```bash
+    python generate.py --base_model=llama --model_path_llama=llama-2-70b-chat.ggmlv3.q8_0.bin n_gqa=8
     ```
+    where one should have downloaded the zip and extracted from [here](https://huggingface.co/TheBloke/Llama-2-70B-Chat-GGML/tree/main).
     See [LLaMa.cpp Instructions](https://pypi.org/project/llama-cpp-python/) for more details.
 * To use Hugging Face type models (faster on GPU than LLaMa.cpp if one has a powerful GPU with enough memory):
    ```bash

@@ -1522,10 +1522,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         add_meta(doc1, file, headsize)
         doc1 = chunk_sources(doc1, language=Language.RST)
     elif file.lower().endswith('.pdf'):
-        env_gpt4all_file = ".env_gpt4all"
-        from dotenv import dotenv_values
-        env_kwargs = dotenv_values(env_gpt4all_file)
-        pdf_class_name = env_kwargs.get('PDF_CLASS_NAME', 'PyMuPDFParser')
+        pdf_class_name = os.getenv('PDF_CLASS_NAME', 'PyMuPDFParser')
         doc1 = []
         handled = False
         e = None
