@@ -538,8 +538,9 @@ def download_simple(url, dest=None, print_func=None):
         raise requests.exceptions.RequestException(msg)
     url_data.raw.decode_content = True
     base_path = os.path.dirname(dest)
-    base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
-    dest = os.path.join(base_path, os.path.basename(dest))
+    if base_path:  # else local path
+        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
+        dest = os.path.join(base_path, os.path.basename(dest))
     uuid_tmp = str(uuid.uuid4())[:6]
     dest_tmp = dest + "_dl_" + uuid_tmp + ".tmp"
     with open(dest_tmp, "wb") as f:
@@ -1133,7 +1134,7 @@ def url_alive(url):
     except Exception as e:
         return False
     else:
-        if response.status_code in [200, 301]:
+        if response.status_code in [200, 301, 302]:
             return True
         else:
             return False

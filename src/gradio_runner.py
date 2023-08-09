@@ -934,31 +934,39 @@ def go_gradio(**kwargs):
                                                               value=kwargs['lora_weights'], visible=kwargs['show_lora'])
                                     server_choice = gr.Dropdown(server_options_state.value[0], label="Choose Server",
                                                                 value=kwargs['inference_server'], visible=not is_public)
-                                    model_path_llama = gr.Textbox(value=kwargs['llamacpp_dict']['model_path_llama'],
-                                                                  label="Choose LLaMa.cpp Model Path/URL (for Base Model: llama)",
-                                                                  visible=kwargs['show_llama'])
-                                    model_name_gptj = gr.Textbox(value=kwargs['llamacpp_dict']['model_name_gptj'],
-                                                                 label="Choose GPT4All GPTJ Model Path/URL (for Base Model: gptj)",
-                                                                 visible=kwargs['show_gpt4all'])
-                                    model_name_gpt4all_llama = gr.Textbox(
-                                        value=kwargs['llamacpp_dict']['model_name_gpt4all_llama'],
-                                        label="Choose GPT4All LLaMa Model Path/URL (for Base Model: gpt4all_llama)",
-                                        visible=kwargs['show_gpt4all'])
-                                    n_gpu_layers = gr.Number(value=kwargs['llamacpp_dict']['n_gpu_layers'],
-                                                             minimum=0, maximum=100,
-                                                             label="LLaMa.cpp Num. GPU Layers Offloaded",
-                                                             visible=kwargs['show_llama'])
-                                    n_batch = gr.Number(value=kwargs['llamacpp_dict']['n_batch'],
-                                                        minimum=0, maximum=2048,
-                                                        label="LLaMa.cpp Batch Size",
-                                                        visible=kwargs['show_llama'])
-                                    n_gqa = gr.Number(value=kwargs['llamacpp_dict']['n_gqa'],
-                                                      minimum=0, maximum=32,
-                                                      label="LLaMa.cpp Num. Group Query Attention (8 for 70B LLaMa2)",
-                                                      visible=kwargs['show_llama'])
-                                    llamacpp_dict_more = gr.Textbox(value="{}",
-                                                                    label="Dict for other LLaMa.cpp/GPT4All options",
-                                                                    visible=kwargs['show_llama'])
+                                    row_llama = gr.Row(visible=kwargs['show_llama'] or kwargs['base_model'] == 'llama')
+                                    with row_llama:
+                                        model_path_llama = gr.Textbox(value=kwargs['llamacpp_dict']['model_path_llama'],
+                                                                      lines=4,
+                                                                      label="Choose LLaMa.cpp Model Path/URL (for Base Model: llama)",
+                                                                      visible=kwargs['show_llama'])
+                                        n_gpu_layers = gr.Number(value=kwargs['llamacpp_dict']['n_gpu_layers'],
+                                                                 minimum=0, maximum=100,
+                                                                 label="LLaMa.cpp Num. GPU Layers Offloaded",
+                                                                 visible=kwargs['show_llama'])
+                                        n_batch = gr.Number(value=kwargs['llamacpp_dict']['n_batch'],
+                                                            minimum=0, maximum=2048,
+                                                            label="LLaMa.cpp Batch Size",
+                                                            visible=kwargs['show_llama'])
+                                        n_gqa = gr.Number(value=kwargs['llamacpp_dict']['n_gqa'],
+                                                          minimum=0, maximum=32,
+                                                          label="LLaMa.cpp Num. Group Query Attention (8 for 70B LLaMa2)",
+                                                          visible=kwargs['show_llama'])
+                                        llamacpp_dict_more = gr.Textbox(value="{}",
+                                                                        lines=4,
+                                                                        label="Dict for other LLaMa.cpp/GPT4All options",
+                                                                        visible=kwargs['show_llama'])
+                                    row_gpt4all = gr.Row(
+                                        visible=kwargs['show_gpt4all'] or kwargs['base_model'] in ['gptj',
+                                                                                                   'gpt4all_llama'])
+                                    with row_gpt4all:
+                                        model_name_gptj = gr.Textbox(value=kwargs['llamacpp_dict']['model_name_gptj'],
+                                                                     label="Choose GPT4All GPTJ Model Path/URL (for Base Model: gptj)",
+                                                                     visible=kwargs['show_gpt4all'])
+                                        model_name_gpt4all_llama = gr.Textbox(
+                                            value=kwargs['llamacpp_dict']['model_name_gpt4all_llama'],
+                                            label="Choose GPT4All LLaMa Model Path/URL (for Base Model: gpt4all_llama)",
+                                            visible=kwargs['show_gpt4all'])
                                 with gr.Column(scale=1, visible=not kwargs['model_lock']):
                                     load_model_button = gr.Button(load_msg, variant=variant_load_msg, scale=0,
                                                                   size='sm', interactive=not is_public)
@@ -996,31 +1004,41 @@ def go_gradio(**kwargs):
                                     server_choice2 = gr.Dropdown(server_options_state.value[0], label="Choose Server 2",
                                                                  value=no_server_str,
                                                                  visible=not is_public)
-                                    model_path_llama2 = gr.Textbox(value=kwargs['llamacpp_dict']['model_path_llama'],
-                                                                   label="Choose LLaMa.cpp Model 2 Path/URL (for Base Model: llama)",
-                                                                   visible=kwargs['show_llama'])
-                                    model_name_gptj2 = gr.Textbox(value=kwargs['llamacpp_dict']['model_name_gptj'],
-                                                                  label="Choose GPT4All GPTJ Model 2 Path/URL (for Base Model: gptj)",
-                                                                  visible=kwargs['show_gpt4all'])
-                                    model_name_gpt4all_llama2 = gr.Textbox(
-                                        value=kwargs['llamacpp_dict']['model_name_gpt4all_llama'],
-                                        label="Choose GPT4All LLaMa Model 2 Path/URL (for Base Model: gpt4all_llama)",
-                                        visible=kwargs['show_gpt4all'])
-                                    n_gpu_layers2 = gr.Number(value=kwargs['llamacpp_dict']['n_gpu_layers'],
-                                                              minimum=0, maximum=100,
-                                                              label="LLaMa.cpp Num. GPU 2 Layers Offloaded",
-                                                              visible=kwargs['show_llama'])
-                                    n_batch2 = gr.Number(value=kwargs['llamacpp_dict']['n_batch'],
-                                                         minimum=0, maximum=2048,
-                                                         label="LLaMa.cpp Model 2 Batch Size",
-                                                         visible=kwargs['show_llama'])
-                                    n_gqa2 = gr.Number(value=kwargs['llamacpp_dict']['n_gqa'],
-                                                       minimum=0, maximum=32,
-                                                       label="LLaMa.cpp Model 2 Num. Group Query Attention (8 for 70B LLaMa2)",
-                                                       visible=kwargs['show_llama'])
-                                    llamacpp_dict_more2 = gr.Textbox(value="{}",
-                                                                     label="Model 2 Dict for other LLaMa.cpp/GPT4All options",
-                                                                     visible=kwargs['show_llama'])
+                                    row_llama2 = gr.Row(visible=kwargs['show_llama'] or kwargs['base_model'] == 'llama')
+                                    with row_llama2:
+                                        model_path_llama2 = gr.Textbox(
+                                            value=kwargs['llamacpp_dict']['model_path_llama'],
+                                            label="Choose LLaMa.cpp Model 2 Path/URL (for Base Model: llama)",
+                                            lines=4,
+                                            visible=kwargs['show_llama'])
+                                        n_gpu_layers2 = gr.Number(value=kwargs['llamacpp_dict']['n_gpu_layers'],
+                                                                  minimum=0, maximum=100,
+                                                                  label="LLaMa.cpp Num. GPU 2 Layers Offloaded",
+                                                                  visible=kwargs['show_llama'])
+                                        n_batch2 = gr.Number(value=kwargs['llamacpp_dict']['n_batch'],
+                                                             minimum=0, maximum=2048,
+                                                             label="LLaMa.cpp Model 2 Batch Size",
+                                                             visible=kwargs['show_llama'])
+                                        n_gqa2 = gr.Number(value=kwargs['llamacpp_dict']['n_gqa'],
+                                                           minimum=0, maximum=32,
+                                                           label="LLaMa.cpp Model 2 Num. Group Query Attention (8 for 70B LLaMa2)",
+                                                           visible=kwargs['show_llama'])
+                                        llamacpp_dict_more2 = gr.Textbox(value="{}",
+                                                                         lines=4,
+                                                                         label="Model 2 Dict for other LLaMa.cpp/GPT4All options",
+                                                                         visible=kwargs['show_llama'])
+                                    row_gpt4all2 = gr.Row(
+                                        visible=kwargs['show_gpt4all'] or kwargs['base_model'] in ['gptj',
+                                                                                                   'gpt4all_llama'])
+                                    with row_gpt4all2:
+                                        model_name_gptj2 = gr.Textbox(value=kwargs['llamacpp_dict']['model_name_gptj'],
+                                                                      label="Choose GPT4All GPTJ Model 2 Path/URL (for Base Model: gptj)",
+                                                                      visible=kwargs['show_gpt4all'])
+                                        model_name_gpt4all_llama2 = gr.Textbox(
+                                            value=kwargs['llamacpp_dict']['model_name_gpt4all_llama'],
+                                            label="Choose GPT4All LLaMa Model 2 Path/URL (for Base Model: gpt4all_llama)",
+                                            visible=kwargs['show_gpt4all'])
+
                                 with gr.Column(scale=1, visible=not kwargs['model_lock']):
                                     load_model_button2 = gr.Button(load_msg2, variant=variant_load_msg, scale=0,
                                                                    size='sm', interactive=not is_public)
@@ -1259,6 +1277,27 @@ def go_gradio(**kwargs):
             return gr.Dropdown.update(choices=docs_state0, value=DocumentChoice.ALL.value)
 
         langchain_mode.change(clear_doc_choice, inputs=None, outputs=document_choice, queue=False)
+
+        def change_visible_llama(x):
+            if x == 'llama':
+                return gr.update(visible=True), \
+                    gr.update(visible=True), \
+                    gr.update(visible=False), \
+                    gr.update(visible=False)
+            elif x in ['gptj', 'gpt4all_llama']:
+                return gr.update(visible=False), \
+                    gr.update(visible=False), \
+                    gr.update(visible=True), \
+                    gr.update(visible=True)
+            else:
+                return gr.update(visible=False), \
+                    gr.update(visible=False), \
+                    gr.update(visible=False), \
+                    gr.update(visible=False)
+
+        model_choice.change(change_visible_llama,
+                            inputs=model_choice,
+                            outputs=[row_llama, row_llama2, row_gpt4all, row_gpt4all2])
 
         def resize_col_tabs(x):
             return gr.Dropdown.update(scale=x)
