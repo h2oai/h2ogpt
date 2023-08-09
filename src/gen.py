@@ -1866,6 +1866,7 @@ def evaluate(
                 load_db_if_exists=load_db_if_exists,
                 db=db,
                 langchain_mode_paths=langchain_mode_paths,
+                langchain_mode_types=langchain_mode_types,
                 detect_user_path_changes_every_query=detect_user_path_changes_every_query,
                 cut_distance=1.1 if langchain_mode in ['wiki_full'] else cut_distance,
                 answer_with_sources=answer_with_sources,
