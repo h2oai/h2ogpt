@@ -27,9 +27,17 @@ pip wheel sentence-transformers==2.2.2
 pip wheel sgmllib3k==1.0.0
 pip wheel torch==2.0.1+cu117 --extra-index-url https://download.pytorch.org/whl/cu117
 pip wheel validators==0.20.0
+pip wheel https://github.com/jllllll/bitsandbytes-windows-webui/releases/download/wheels/bitsandbytes-0.40.1.post1-py3-none-win_amd64.whl
+pip wheel https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.3.0/auto_gptq-0.3.0+cu118-cp310-cp310-win_amd64.whl
+pip wheel https://github.com/jllllll/exllama/releases/download/0.0.8/exllama-0.0.8+cu118-cp310-cp310-win_amd64.whl
+pip wheel https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.1.73+cu117-cp310-cp310-win_amd64.whl
 
 mkdir wheels
 move *.whl wheels
+cd wheels
+del torch-2.0.1-cp310-cp310-win_amd64.whl
+cd ..
+
 
 # build
 python -m nsist src/windows_installer.cfg
