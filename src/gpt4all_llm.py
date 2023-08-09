@@ -120,7 +120,6 @@ def get_llm_gpt4all(model_name,
                     ):
     if not inner_class:
         assert prompter is not None
-    assert llamacpp_dict is not None
 
     default_kwargs = \
         get_gpt4all_default_kwargs(max_new_tokens=max_new_tokens,
@@ -134,9 +133,13 @@ def get_llm_gpt4all(model_name,
                                    )
     if model_name == 'llama':
         cls = H2OLlamaCpp
-        model_path = llamacpp_dict.pop('model_path_llama') if model is None else model
-        if url_alive(model_path):
-            model_path = download_simple(model_path)
+        if model is None:
+            llamacpp_dict = llamacpp_dict.copy()
+            model_path = llamacpp_dict.pop('model_path_llama')
+            if url_alive(model_path):
+                model_path = download_simple(model_path)
+        else:
+            model_path = model
         model_kwargs = get_model_kwargs(llamacpp_dict, default_kwargs, cls, exclude_list=['lc_kwargs'])
         model_kwargs.update(dict(model_path=model_path, callbacks=callbacks, streaming=streaming,
                                  prompter=prompter, context=context, iinput=iinput))
@@ -145,9 +148,13 @@ def get_llm_gpt4all(model_name,
         inner_model = llm.client
     elif model_name == 'gpt4all_llama':
         cls = H2OGPT4All
-        model_path = llamacpp_dict.pop('model_name_gpt4all_llama') if model is None else model
-        if url_alive(model_path):
-            model_path = download_simple(model_path)
+        if model is None:
+            llamacpp_dict = llamacpp_dict.copy()
+            model_path = llamacpp_dict.pop('model_name_gpt4all_llama')
+            if url_alive(model_path):
+                model_path = download_simple(model_path)
+        else:
+            model_path = model
         model_kwargs = get_model_kwargs(llamacpp_dict, default_kwargs, cls, exclude_list=['lc_kwargs'])
         model_kwargs.update(
             dict(model=model_path, backend='llama', callbacks=callbacks, streaming=streaming,
@@ -156,9 +163,13 @@ def get_llm_gpt4all(model_name,
         inner_model = llm.client
     elif model_name == 'gptj':
         cls = H2OGPT4All
-        model_path = llamacpp_dict.pop('model_name_gptj') if model is None else model
-        if url_alive(model_path):
-            model_path = download_simple(model_path)
+        if model is None:
+            llamacpp_dict = llamacpp_dict.copy()
+            model_path = llamacpp_dict.pop('model_name_gptj') if model is None else model
+            if url_alive(model_path):
+                model_path = download_simple(model_path)
+        else:
+            model_path = model
         model_kwargs = get_model_kwargs(llamacpp_dict, default_kwargs, cls, exclude_list=['lc_kwargs'])
         model_kwargs.update(
             dict(model=model_path, backend='gptj', callbacks=callbacks, streaming=streaming,
@@ -338,8 +349,8 @@ class H2OLlamaCpp(LlamaCpp):
                 text_callback(prompt)
             text = ""
             for token in self.stream(input=prompt, stop=stop):
-            #for token in self.stream(input=prompt, stop=stop, run_manager=run_manager):
-                text_chunk = token#["choices"][0]["text"]
+                # for token in self.stream(input=prompt, stop=stop, run_manager=run_manager):
+                text_chunk = token  # ["choices"][0]["text"]
                 # self.stream already calls text_callback
                 # if text_callback:
                 #    text_callback(text_chunk)

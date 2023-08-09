@@ -72,7 +72,7 @@ def main(
         use_system_prompt: bool = False,
 
         # llama and gpt4all settings
-        llamacpp_dict: typing.Dict = dict(n_gpu_layers=100, use_mlock=True, n_batch=1024, n_gqa=8),
+        llamacpp_dict: typing.Dict = dict(n_gpu_layers=100, use_mlock=True, n_batch=1024, n_gqa=0),
         model_path_llama: str = 'llama-2-7b-chat.ggmlv3.q8_0.bin',
         model_name_gptj: str = 'ggml-gpt4all-j-v1.3-groovy.bin',
         model_name_gpt4all_llama: str = 'ggml-wizardLM-7B.q4_2.bin',
@@ -126,6 +126,8 @@ def main(
         dark: bool = False,  # light tends to be best
         height: int = 600,
         show_lora: bool = True,
+        show_llama: bool = True,
+        show_gpt4all: bool = False,
         login_mode_if_model0: bool = False,
         block_gradio_exit: bool = True,
         concurrency_count: int = 1,
@@ -340,6 +342,8 @@ def main(
     :param dark: whether to use dark mode for UI by default (still controlled in UI)
     :param height: height of chat window
     :param show_lora: whether to show LORA options in UI (expert so can be hard to understand)
+    :param show_llama: whether to show LLaMa.cpp/GPT4All options in UI (only likely useful if have weak GPUs)
+    :param show_gpt4all: whether to show GPT4All models in UI (not often useful, llama.cpp models best)
     :param login_mode_if_model0: set to True to load --base_model after client logs in, to be able to free GPU memory when model is swapped
     :param block_gradio_exit: whether to block gradio exit (used for testing)
     :param concurrency_count: gradio concurrency count (1 is optimal for LLMs)
