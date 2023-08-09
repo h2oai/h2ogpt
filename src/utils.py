@@ -547,6 +547,7 @@ def download_simple(url, dest=None, print_func=None):
     atomic_move_simple(dest_tmp, dest)
     if print_func is not None:
         print_func("END get url %s" % str(url))
+    return dest
 
 
 def download(url, dest=None, dest_path=None):

@@ -7,7 +7,7 @@ from pydantic import root_validator
 from langchain.llms import gpt4all
 from dotenv import dotenv_values
 
-from utils import FakeTokenizer, get_ngpus_vis
+from utils import FakeTokenizer, get_ngpus_vis, url_alive, download_simple
 
 
 def get_model_tokenizer_gpt4all(base_model, n_jobs=None, max_seq_len=None, llamacpp_dict=None):
@@ -135,6 +135,8 @@ def get_llm_gpt4all(model_name,
     if model_name == 'llama':
         cls = H2OLlamaCpp
         model_path = llamacpp_dict.pop('model_path_llama') if model is None else model
+        if url_alive(model_path):
+            model_path = download_simple(model_path)
         model_kwargs = get_model_kwargs(llamacpp_dict, default_kwargs, cls, exclude_list=['lc_kwargs'])
         model_kwargs.update(dict(model_path=model_path, callbacks=callbacks, streaming=streaming,
                                  prompter=prompter, context=context, iinput=iinput))
@@ -144,6 +146,8 @@ def get_llm_gpt4all(model_name,
     elif model_name == 'gpt4all_llama':
         cls = H2OGPT4All
         model_path = llamacpp_dict.pop('model_name_gpt4all_llama') if model is None else model
+        if url_alive(model_path):
+            model_path = download_simple(model_path)
         model_kwargs = get_model_kwargs(llamacpp_dict, default_kwargs, cls, exclude_list=['lc_kwargs'])
         model_kwargs.update(
             dict(model=model_path, backend='llama', callbacks=callbacks, streaming=streaming,
@@ -153,6 +157,8 @@ def get_llm_gpt4all(model_name,
     elif model_name == 'gptj':
         cls = H2OGPT4All
         model_path = llamacpp_dict.pop('model_name_gptj') if model is None else model
+        if url_alive(model_path):
+            model_path = download_simple(model_path)
         model_kwargs = get_model_kwargs(llamacpp_dict, default_kwargs, cls, exclude_list=['lc_kwargs'])
         model_kwargs.update(
             dict(model=model_path, backend='gptj', callbacks=callbacks, streaming=streaming,
