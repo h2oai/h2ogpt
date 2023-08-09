@@ -36,6 +36,10 @@ mkdir wheels
 move *.whl wheels
 cd wheels
 del torch-2.0.1-cp310-cp310-win_amd64.whl
+move auto_gptq-0.3.0+cu118-cp310-cp310-win_amd64.whl auto_gptq-0.3.0-cp310-cp310-win_amd64.whl
+move exllama-0.0.8+cu118-cp310-cp310-win_amd64.whl exllama-0.0.8-cp310-cp310-win_amd64.whl
+move llama_cpp_python_cuda-0.1.73+cu117-cp310-cp310-win_amd64.whl llama_cpp_python_cuda-0.1.73-cp310-cp310-win_amd64.whl
+move torch-2.0.1+cu117-cp310-cp310-win_amd64.whl torch-2.0.1-cp310-cp310-win_amd64.whl
 cd ..
 
 
