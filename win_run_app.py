@@ -4,6 +4,8 @@ import time
 import webbrowser
 
 os.environ['NLTK_DATA'] = './nltk_data'
+os.environ['PATH'] = os.environ['PATH'] + ';' + 'poppler/Library/bin/' + ';' + '../Tesseract-OCR'
+print(os.environ['PATH'])
 
 print(__file__)
 path1 = os.path.dirname(os.path.abspath(__file__))
@@ -24,7 +26,8 @@ def main():
     url = "http://localhost:%s" % os.getenv('GRADIO_SERVER_PORT', str(7860))
     webbrowser.open(url)
 
-    time.sleep(10000000000000)
+    while True:
+        time.sleep(10000)
 
 
 if __name__ == "__main__":

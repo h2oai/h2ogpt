@@ -44,6 +44,13 @@ move torch-2.0.1+cu117-cp310-cp310-win_amd64.whl torch-2.0.1-cp310-cp310-win_amd
 cd ..
 
 
+# Download: https://github.com/oschwartz10612/poppler-windows/releases/download/v23.08.0-0/Release-23.08.0-0.zip
+unzip Release-23.08.0-0.zip
+move poppler-23.08.0 poppler
+
+# User needs to Install: https://digi.bib.uni-mannheim.de/tesseract/tesseract-ocr-w64-setup-5.3.1.20230401.exe
+
+
 # build
 python -m nsist windows_installer.cfg
 
