@@ -996,6 +996,31 @@ def go_gradio(**kwargs):
                                     server_choice2 = gr.Dropdown(server_options_state.value[0], label="Choose Server 2",
                                                                  value=no_server_str,
                                                                  visible=not is_public)
+                                    model_path_llama2 = gr.Textbox(value=kwargs['llamacpp_dict']['model_path_llama'],
+                                                                   label="Choose LLaMa.cpp Model 2 Path/URL (for Base Model: llama)",
+                                                                   visible=kwargs['show_llama'])
+                                    model_name_gptj2 = gr.Textbox(value=kwargs['llamacpp_dict']['model_name_gptj'],
+                                                                  label="Choose GPT4All GPTJ Model 2 Path/URL (for Base Model: gptj)",
+                                                                  visible=kwargs['show_gpt4all'])
+                                    model_name_gpt4all_llama2 = gr.Textbox(
+                                        value=kwargs['llamacpp_dict']['model_name_gpt4all_llama'],
+                                        label="Choose GPT4All LLaMa Model 2 Path/URL (for Base Model: gpt4all_llama)",
+                                        visible=kwargs['show_gpt4all'])
+                                    n_gpu_layers2 = gr.Number(value=kwargs['llamacpp_dict']['n_gpu_layers'],
+                                                              minimum=0, maximum=100,
+                                                              label="LLaMa.cpp Num. GPU 2 Layers Offloaded",
+                                                              visible=kwargs['show_llama'])
+                                    n_batch2 = gr.Number(value=kwargs['llamacpp_dict']['n_batch'],
+                                                         minimum=0, maximum=2048,
+                                                         label="LLaMa.cpp Model 2 Batch Size",
+                                                         visible=kwargs['show_llama'])
+                                    n_gqa2 = gr.Number(value=kwargs['llamacpp_dict']['n_gqa'],
+                                                       minimum=0, maximum=32,
+                                                       label="LLaMa.cpp Model 2 Num. Group Query Attention (8 for 70B LLaMa2)",
+                                                       visible=kwargs['show_llama'])
+                                    llamacpp_dict_more2 = gr.Textbox(value="{}",
+                                                                     label="Model 2 Dict for other LLaMa.cpp/GPT4All options",
+                                                                     visible=kwargs['show_llama'])
                                 with gr.Column(scale=1, visible=not kwargs['model_lock']):
                                     load_model_button2 = gr.Button(load_msg2, variant=variant_load_msg, scale=0,
                                                                    size='sm', interactive=not is_public)
@@ -2945,7 +2970,9 @@ def go_gradio(**kwargs):
 
         load_model_args2 = dict(fn=load_model,
                                 inputs=[model_choice2, lora_choice2, server_choice2, model_state2, prompt_type2,
-                                        model_load8bit_checkbox2, model_use_gpu_id_checkbox2, model_gpu2],
+                                        model_load8bit_checkbox2, model_use_gpu_id_checkbox2, model_gpu2,
+                                        model_path_llama2, model_name_gptj2, model_name_gpt4all_llama2,
+                                        n_gpu_layers2, n_batch2, n_gqa2, llamacpp_dict_more2],
                                 outputs=[model_state2, model_used2, lora_used2, server_used2,
                                          # if prompt_type2 changes, prompt_dict2 will change via change rule
                                          prompt_type2, max_new_tokens2, min_new_tokens2
