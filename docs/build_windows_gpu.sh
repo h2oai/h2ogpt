@@ -31,6 +31,7 @@ pip wheel https://github.com/jllllll/bitsandbytes-windows-webui/releases/downloa
 pip wheel https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.3.0/auto_gptq-0.3.0+cu118-cp310-cp310-win_amd64.whl
 pip wheel https://github.com/jllllll/exllama/releases/download/0.0.8/exllama-0.0.8+cu118-cp310-cp310-win_amd64.whl
 pip wheel https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.1.73+cu117-cp310-cp310-win_amd64.whl
+pip wheel setuptools
 
 mkdir wheels
 move *.whl wheels

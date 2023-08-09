@@ -1,51 +1,30 @@
 import os
-from subprocess import Popen, PIPE, STDOUT
 import sys
 import time
 import webbrowser
 
-import requests
+os.environ['NLTK_DATA'] = './nltk_data'
 
-from src.utils import url_alive
+print(__file__)
+path1 = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(path1)
+os.environ['PYTHONPATH'] = path1
+print(path1)
+for sub in ['src', 'iterators', 'gradio_utils', 'metrics', 'models', '.']:
+    path2 = os.path.join(os.path.dirname(__file__), '..', sub)
+    sys.path.append(path2)
+    print(path2)
 
 
 def main():
 
-    # Getting path to python executable (full path of deployed python on Windows)
-    executable = sys.executable
+    from gen import main as main_h2ogpt
+    main_h2ogpt(block_gradio_exit=False)
 
-    from nltk.downloader import download
-    download('all')
-
-    # Running streamlit server in a subprocess and writing to log file
-    proc = Popen(
-        [
-            executable,
-            "generate.py",
-        ],
-        stdin=PIPE,
-        stdout=PIPE,
-        stderr=STDOUT,
-        text=True,
-    )
-    proc.stdin.close()
-
-    # Force the opening (does not open automatically) of the browser tab after a brief delay to let
-    # the gradio server start.
     url = "http://localhost:%s" % os.getenv('GRADIO_SERVER_PORT', str(7860))
-    while not url_alive(url):
-        print("Not alive", flush=True)
-        time.sleep(1)
-    print("Alive!", flush=True)
-    webbrowser.open("http://localhost:7860")
+    webbrowser.open(url)
 
-    while True:
-        s = proc.stdout.read()
-        if not s:
-            break
-        print(s, end="")
-
-    proc.wait()
+    time.sleep(10000000000000)
 
 
 if __name__ == "__main__":
