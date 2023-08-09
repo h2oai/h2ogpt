@@ -912,24 +912,25 @@ def get_kwargs(func, exclude_names=None, **kwargs):
     return kwargs
 
 
-import pkg_resources
+from importlib.metadata import distribution, PackageNotFoundError
+
 
 have_faiss = False
 
 try:
-    assert pkg_resources.get_distribution('faiss') is not None
+    assert distribution('faiss') is not None
     have_faiss = True
-except (pkg_resources.DistributionNotFound, AssertionError):
+except (PackageNotFoundError, AssertionError):
     pass
 try:
-    assert pkg_resources.get_distribution('faiss_gpu') is not None
+    assert distribution('faiss_gpu') is not None
     have_faiss = True
-except (pkg_resources.DistributionNotFound, AssertionError):
+except (PackageNotFoundError, AssertionError):
     pass
 try:
-    assert pkg_resources.get_distribution('faiss_cpu') is not None
+    assert distribution('faiss_cpu') is not None
     have_faiss = True
-except (pkg_resources.DistributionNotFound, AssertionError):
+except (PackageNotFoundError, AssertionError):
     pass
 
 
@@ -1030,9 +1031,9 @@ def get_local_ip():
 
 
 try:
-    assert pkg_resources.get_distribution('langchain') is not None
+    assert distribution('langchain') is not None
     have_langchain = True
-except (pkg_resources.DistributionNotFound, AssertionError):
+except (PackageNotFoundError, AssertionError):
     have_langchain = False
 
 import distutils.spawn
@@ -1040,37 +1041,36 @@ import distutils.spawn
 have_tesseract = distutils.spawn.find_executable("tesseract")
 have_libreoffice = distutils.spawn.find_executable("libreoffice")
 
-import pkg_resources
 
 try:
-    assert pkg_resources.get_distribution('arxiv') is not None
-    assert pkg_resources.get_distribution('pymupdf') is not None
+    assert distribution('arxiv') is not None
+    assert distribution('pymupdf') is not None
     have_arxiv = True
-except (pkg_resources.DistributionNotFound, AssertionError):
+except (PackageNotFoundError, AssertionError):
     have_arxiv = False
 
 try:
-    assert pkg_resources.get_distribution('pymupdf') is not None
+    assert distribution('pymupdf') is not None
     have_pymupdf = True
-except (pkg_resources.DistributionNotFound, AssertionError):
+except (PackageNotFoundError, AssertionError):
     have_pymupdf = False
 
 try:
-    assert pkg_resources.get_distribution('selenium') is not None
+    assert distribution('selenium') is not None
     have_selenium = True
-except (pkg_resources.DistributionNotFound, AssertionError):
+except (PackageNotFoundError, AssertionError):
     have_selenium = False
 
 try:
-    assert pkg_resources.get_distribution('pillow') is not None
+    assert distribution('pillow') is not None
     have_pillow = True
-except (pkg_resources.DistributionNotFound, AssertionError):
+except (PackageNotFoundError, AssertionError):
     have_pillow = False
 
 try:
-    assert pkg_resources.get_distribution('playwright') is not None
+    assert distribution('playwright') is not None
     have_playwright = True
-except (pkg_resources.DistributionNotFound, AssertionError):
+except (PackageNotFoundError, AssertionError):
     have_playwright = False
 
 
