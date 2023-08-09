@@ -40,7 +40,7 @@ cd ..
 
 
 # build
-python -m nsist src/windows_installer.cfg
+python -m nsist windows_installer.cfg
 
 # test
 python run_app.py
