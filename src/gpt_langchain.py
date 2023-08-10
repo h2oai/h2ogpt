@@ -2075,6 +2075,15 @@ def get_persist_directory(langchain_mode, langchain_type=None, db1s=None, dbs=No
     dirid = username or userid
     if langchain_type == LangChainTypes.SHARED.value and not dirid:
         dirid = './'  # just to avoid error
+    if langchain_type == LangChainTypes.PERSONAL.value and not dirid:
+        # e.g. from client when doing transient calls with MyData
+        if db1s is None:
+            # just trick to get filled locally
+            db1s = {LangChainMode.MY_DATA.value: [None, None, None]}
+        set_userid_direct(db1s, str(uuid.uuid4()), str(uuid.uuid4()))
+        userid = get_userid_direct(db1s)
+        username = get_username_direct(db1s)
+        dirid = username or userid
 
     # deal with existing locations
     user_base_dir = os.getenv('USERS_BASE_DIR', 'users')
