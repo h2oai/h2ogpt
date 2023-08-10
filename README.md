@@ -41,7 +41,7 @@ For Windows 10 64-bit with full document Q/A capability:
   * [h2oGPT CPU Installer](https://h2o-release.s3.amazonaws.com/h2ogpt/h2oGPT_0.0.1_cpu.exe), a 755MB file
   * [Windows 10/11 Install and Run Docs](docs/README_WINDOWS.md)
 
-The installers include all dependencies for document Q/A, except models (LLM, embedding, reward) that are downloadable via UI.  After installation, go to start and run h2oGPT, and a web browser will open for h2oGPT.  To terminate the app, in task manager kill the `Python` process named `pythonw.exe` as will also show up in `nvidia-smi` if using GPUs.
+The installers include all dependencies for document Q/A, except models (LLM, embedding, reward) that are downloadable via UI.  After installation, go to start and run h2oGPT, and a web browser will open for h2oGPT.  To terminate the app, in task manager kill the `Python` process named `pythonw.exe` as will also show up in `nvidia-smi` if using GPUs.  Set ENVs `n_jobs` to control number of cores for various tasks, and `OMP_NUM_THREADS` to control thread count for LLaMa.
 
 For Linux (CPU/CUDA) with full document Q/A capability:
   * [Docker Build and Run Docs](docs/README_DOCKER.md)
