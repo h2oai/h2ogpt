@@ -54,6 +54,7 @@ del llama_cpp_python_cuda*.whl
 del auto_gptq*.whl
 del exllama-*.whl
 del torch-2.0.1+cu117*.whl
+move torch-2.0.1+cpu-cp310-cp310-win_amd64.whl torch-2.0.1-cp310-cp310-win_amd64.whl
 
 cd ..
 
