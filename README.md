@@ -23,11 +23,7 @@ Query and summarize your documents or just chat with local private GPT LLMs usin
 
 ### Getting Started
 
-If using GPU on Windows 10 64-bit, we recommend to [Download and Install using Istaller](https://h2o-release.s3.amazonaws.com/h2ogpt/h2oGPT_0.0.1.exe), a 1.8GB file that includes all packages to do document Q/A except model objects that are downloadable from UI.  After installation, go to start and run h2oGPT, and a web browser will open for h2oGPT.  To terminate the app, in task manager kill the `Python` process
-
-If using Linux, we recommend running [Docker](docs/README_DOCKER.md).
-
-Or, to quickly try out h2oGPT on CPU with LLaMa2 7B Chat, create a fresh Python 3.10 environment and run:
+To quickly try out h2oGPT on CPU with limited document Q/A capability using LLaMa2 7B Chat, create a fresh Python 3.10 environment and run:
 ```bash
 git clone https://github.com/h2oai/h2ogpt.git
 cd h2ogpt
@@ -40,14 +36,22 @@ python generate.py --base_model='llama' --prompt_type=llama2
 ```
 then go to your browser by visiting [http://127.0.0.1:7860](http://127.0.0.1:7860) or [http://localhost:7860](http://localhost:7860).
 
-For full instructions (required for GPU inference if not using windows installer or docker) visit:
+For Windows 10 64-bit with full document Q/A capability:
+  * [h2oGPT GPU-CUDA Installer](https://h2o-release.s3.amazonaws.com/h2ogpt/h2oGPT_0.0.1_gpu.exe), a 1.8GB file
+  * [h2oGPT CPU Installer](https://h2o-release.s3.amazonaws.com/h2ogpt/h2oGPT_0.0.1_cpu.exe), a 755MB file
+  * [Windows 10/11 Install and Run Docs](docs/README_WINDOWS.md)
 
-* [Linux](docs/README_LINUX.md)
-* [MACOS](docs/README_MACOS.md)
-* [Windows 10/11](docs/README_WINDOWS.md)
+The installers include all dependencies for document Q/A, except models (LLM, embedding, reward) that are downloadable via UI.  After installation, go to start and run h2oGPT, and a web browser will open for h2oGPT.  To terminate the app, in task manager kill the `Python` process.
 
-Example models:
-* [Highest accuracy and speed](https://huggingface.co/TheBloke/Llama-2-70B-Chat-fp16) on 16-bit with TGI/vLLM using ~48GB/GPU when in use (4*A100)
+For Linux (CPU/CUDA) with full document Q/A capability:
+  * [Docker Build and Run Docs](docs/README_DOCKER.md)
+  * [Linux Install and Run Docs](docs/README_LINUX.md)
+
+For MACOS (CPU/M1/M2) with full document Q/A capability:
+* [MACOS Install and Run Docs](docs/README_MACOS.md)
+
+Example Models:
+* [Highest accuracy and speed](https://huggingface.co/TheBloke/Llama-2-70B-Chat-fp16) on 16-bit with TGI/vLLM using ~48GB/GPU when in use (4*A100 high concurrency, 2*A100 for low concurrency)
 * [Middle-range accuracy](https://huggingface.co/h2oai/h2ogpt-gm-oasst1-en-2048-falcon-40b-v2) on 16-bit with TGI/vLLM using ~45GB/GPU when in use (2*A100)
 * [Small memory profile with ok accuracy](https://huggingface.co/TheBloke/Llama-2-13B-Chat-GGML) 16GB GPU if full GPU offloading
 * [Balanced accuracy and size](https://huggingface.co/TheBloke/Llama-2-13B-Chat-fp16) on 16-bit with TGI/vLLM using ~45GB/GPU when in use (1*A100)
