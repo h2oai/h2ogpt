@@ -69,6 +69,8 @@ move poppler-23.08.0 poppler
 mkdir Tesseract-OCR
 xcopy C:\Users\pseud\AppData\Local\Programs\Tesseract-OCR Tesseract-OCR  /s /e /h  # say specifies Directory
 
+python src/basic_nltk.py
+
 # build
 python -m nsist windows_installer.cfg
 
