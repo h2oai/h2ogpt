@@ -151,6 +151,24 @@ If you see this error, then you either have insufficient GPU memory or insuffici
 
 Please check your version of langchain vs. the one in requirements.txt.  Somehow the wrong version is installed.  Try to install the correct one.
 
+### bitsandbytes CUDA error
+  ```text
+  CUDA Setup failed despite GPU being available. Please run the following command to get more information:
+  E               
+  E                       python -m bitsandbytes
+  E               
+  E                       Inspect the output of the command and see if you can locate CUDA libraries. You might need to add them
+  E                       to your LD_LIBRARY_PATH. If you suspect a bug, please take the information from python -m bitsandbytes
+  E                       and open an issue at: https://github.com/TimDettmers/bitsandbytes/issues
+  ```
+
+Ensure you have cuda version supported by bitsandbytes, e.g. in Ubuntu:
+```text
+sudo update-alternatives --display cuda
+sudo update-alternatives --config cuda
+```
+and ensure you choose CUDA 12.1 if using bitsandbytes 0.39.0 since that is last version it supports.  Or upgrade bitsandbytes if that works.  Or uninstall bitsandbytes to remove 4-bit and 8-bit support, but that will also avoid the error. 
+
 ### Multiple GPUs
 
 Automatic sharding can be enabled with `--use_gpu_id=False`.  This is disabled by default, as in rare cases torch hits a bug with `cuda:x cuda:y mismatch`.  E.g. to use GPU IDs 0 and 3, one can run:
