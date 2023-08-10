@@ -202,6 +202,7 @@ def train(
         resume_download=resume_download,
         use_auth_token=use_auth_token,
     )
+    print(model)
     if gpus > 1:
         if not ddp:
             log("model parallel")
@@ -550,7 +551,8 @@ def train(
             load_best_model_at_end=True if val_set_size > 0 else False,
             ddp_find_unused_parameters=False if ddp else None,
             group_by_length=group_by_length,
-            # fsdp="shard_grad_op auto_wrap" if gpus > 1 and not ddp else None,
+            fsdp="full_shard auto_wrap" if gpus > 1 and not ddp else "",
+            fsdp_transformer_layer_cls_to_wrap='LlamaDecoderLayer' if gpus > 1 and not ddp else None,
             # fsdp_min_num_params=20000 if gpus > 1 and not ddp else None,
             report_to='tensorboard' if not neptune_run else 'neptune',
         ),
