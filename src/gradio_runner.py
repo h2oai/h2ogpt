@@ -934,7 +934,7 @@ def go_gradio(**kwargs):
                                                               value=kwargs['lora_weights'], visible=kwargs['show_lora'])
                                     server_choice = gr.Dropdown(server_options_state.value[0], label="Choose Server",
                                                                 value=kwargs['inference_server'], visible=not is_public)
-                                    max_seq_len = gr.Number(value=kwargs['max_seq_len'],
+                                    max_seq_len = gr.Number(value=kwargs['max_seq_len'] or 2048,
                                                             minimum=128,
                                                             maximum=2**18,
                                                             label="max_seq_len")
