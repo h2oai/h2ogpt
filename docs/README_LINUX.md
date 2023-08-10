@@ -157,7 +157,11 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
 
   UI using GPU with at least 24GB with streaming:
   ```bash
-  python generate.py --base_model=h2oai/h2ogpt-oasst1-512-12b --load_8bit=True  --score_model=None --langchain_mode='UserData' --user_path=user_path
+  python generate.py --base_model=h2oai/h2ogpt-4096-llama2-13b-chat --load_8bit=True  --score_model=None --langchain_mode='UserData' --user_path=user_path
+  ```
+  Same with a smaller model without quantization:
+  ```bash
+  python generate.py --base_model=h2oai/h2ogpt-4096-llama2-7b-chat --score_model=None --langchain_mode='UserData' --user_path=user_path
   ```
   UI using LLaMa.cpp LLaMa2 model:
   ```bash
