@@ -386,7 +386,7 @@ def test_get_dai_db_dir():
 @wrap_test_forked
 def test_make_add_db(repeat, db_type):
     kill_weaviate(db_type)
-    from src.gradio_runner import get_source_files, get_source_files_given_langchain_mode, get_any_db, update_user_db, \
+    from src.gpt_langchain import get_source_files, get_source_files_given_langchain_mode, get_any_db, update_user_db, \
         get_sources, update_and_get_source_files_given_langchain_mode
     from src.make_db import make_db_main
     from src.gpt_langchain import path_to_docs

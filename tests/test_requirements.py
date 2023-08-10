@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import pkg_resources
 from pkg_resources import DistributionNotFound, VersionConflict
 
