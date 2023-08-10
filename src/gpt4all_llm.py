@@ -1,12 +1,10 @@
 import inspect
 import os
-from functools import partial
 from typing import Dict, Any, Optional, List, Iterator
 from langchain.callbacks.manager import CallbackManagerForLLMRun
 from langchain.schema.output import GenerationChunk
 from pydantic import root_validator
 from langchain.llms import gpt4all
-from dotenv import dotenv_values
 
 from utils import FakeTokenizer, get_ngpus_vis, url_alive, download_simple
 
@@ -80,7 +78,8 @@ def get_gpt4all_default_kwargs(max_new_tokens=256,
                                max_seq_len=None,
                                ):
     if n_jobs is None:
-        n_jobs = int(os.getenv('OMP_NUM_THREADS', str(os.cpu_count())))
+        n_jobs = int(os.getenv('OMP_NUM_THREADS', str(os.cpu_count()//2)))
+    n_jobs = max(1, min(20, n_jobs))  # hurts beyond some point
     n_gpus = get_ngpus_vis()
     default_kwargs = dict(context_erase=0.5,
                           n_batch=1,

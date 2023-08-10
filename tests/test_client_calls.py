@@ -164,7 +164,7 @@ def run_client_chat_with_server(prompt='Who are you?', stream_output=False, max_
                                 langchain_action=LangChainAction.QUERY.value,
                                 langchain_agents=[],
                                 user_path=None,
-                                langchain_modes=['UserData', 'MyData'],
+                                langchain_modes=['UserData', 'MyData', 'Disabled', 'LLM'],
                                 model_path_llama='llama-2-7b-chat.ggmlv3.q8_0.bin',
                                 reverse_docs=True):
     if langchain_mode == 'Disabled':
@@ -201,7 +201,7 @@ def run_client_nochat_with_server(prompt='Who are you?', stream_output=False, ma
                                   langchain_mode='Disabled', langchain_action=LangChainAction.QUERY.value,
                                   langchain_agents=[],
                                   user_path=None,
-                                  langchain_modes=['UserData', 'MyData'],
+                                  langchain_modes=['UserData', 'MyData', 'Disabled', 'LLM'],
                                   reverse_docs=True):
     if langchain_mode == 'Disabled':
         os.environ['TEST_LANGCHAIN_IMPORT'] = "1"
@@ -239,7 +239,7 @@ def test_client_chat_stream_langchain():
     prompt = "What is h2oGPT?"
     res_dict, client = run_client_chat_with_server(prompt=prompt, stream_output=True, langchain_mode="UserData",
                                                    user_path=user_path,
-                                                   langchain_modes=['UserData', 'MyData'],
+                                                   langchain_modes=['UserData', 'MyData', 'Disabled', 'LLM'],
                                                    reverse_docs=False,  # for 6_9 dumb model for testing
                                                    )
     # below wouldn't occur if didn't use LangChain with README.md,
@@ -264,7 +264,7 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
     base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
     prompt_type = 'human_bot'
     langchain_mode = 'UserData'
-    langchain_modes = ['UserData', 'MyData', 'LLM']
+    langchain_modes = ['UserData', 'MyData', 'LLM', 'Disabled', 'LLM']
 
     from src.gen import main
     main(base_model=base_model, prompt_type=prompt_type, chat=True,

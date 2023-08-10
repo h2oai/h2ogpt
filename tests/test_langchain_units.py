@@ -84,10 +84,12 @@ def check_ret(ret):
 def test_qa_wiki_db_openai():
     from src.gpt_langchain import _run_qa_db
     query = "What are the main differences between Linux and Windows?"
+    langchain_mode = 'wiki'
     ret = _run_qa_db(query=query, use_openai_model=True, use_openai_embedding=True, text_limit=None,
                      hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
                      db_type='faiss',
-                     langchain_mode='wiki',
+                     langchain_mode_types=dict(langchain_mode=LangChainTypes.SHARED.value),
+                     langchain_mode=langchain_mode,
                      langchain_action=LangChainAction.QUERY.value, langchain_agents=[], llamacpp_dict={})
     check_ret(ret)
 
@@ -100,10 +102,12 @@ def test_qa_wiki_db_hf():
     # but this case can handle at least more documents, by picking top k
     # FIXME: but spitting out garbage answer right now, all fragmented, or just 1-word answer
     query = "What are the main differences between Linux and Windows?"
+    langchain_mode = 'wiki'
     ret = _run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=256,
                      hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
                      db_type='faiss',
-                     langchain_mode='wiki',
+                     langchain_mode_types=dict(langchain_mode=LangChainTypes.SHARED.value),
+                     langchain_mode=langchain_mode,
                      langchain_action=LangChainAction.QUERY.value,
                      langchain_agents=[], llamacpp_dict={})
     check_ret(ret)
@@ -114,11 +118,13 @@ def test_qa_wiki_db_hf():
 def test_qa_wiki_db_chunk_hf():
     from src.gpt_langchain import _run_qa_db
     query = "What are the main differences between Linux and Windows?"
+    langchain_mode = 'wiki'
     ret = _run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=256, chunk=True,
                      chunk_size=256,
                      hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
                      db_type='faiss',
-                     langchain_mode='wiki',
+                     langchain_mode_types=dict(langchain_mode=LangChainTypes.SHARED.value),
+                     langchain_mode=langchain_mode,
                      langchain_action=LangChainAction.QUERY.value,
                      langchain_agents=[], llamacpp_dict={})
     check_ret(ret)
@@ -130,11 +136,13 @@ def test_qa_wiki_db_chunk_openai():
     from src.gpt_langchain import _run_qa_db
     # don't need 256, just seeing how compares to hf
     query = "What are the main differences between Linux and Windows?"
+    langchain_mode = 'wiki'
     ret = _run_qa_db(query=query, use_openai_model=True, use_openai_embedding=True, text_limit=256, chunk=True,
                      chunk_size=256,
                      hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
                      db_type='faiss',
-                     langchain_mode='wiki',
+                     langchain_mode_types=dict(langchain_mode=LangChainTypes.SHARED.value),
+                     langchain_mode=langchain_mode,
                      langchain_action=LangChainAction.QUERY.value,
                      langchain_agents=[], llamacpp_dict={})
     check_ret(ret)
@@ -146,11 +154,13 @@ def test_qa_github_db_chunk_openai():
     from src.gpt_langchain import _run_qa_db
     # don't need 256, just seeing how compares to hf
     query = "what is a software defined asset"
+    langchain_mode = 'github h2oGPT'
     ret = _run_qa_db(query=query, use_openai_model=True, use_openai_embedding=True, text_limit=256, chunk=True,
                      chunk_size=256,
                      hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
                      db_type='faiss',
-                     langchain_mode='github h2oGPT',
+                     langchain_mode_types=dict(langchain_mode=LangChainTypes.SHARED.value),
+                     langchain_mode=langchain_mode,
                      langchain_action=LangChainAction.QUERY.value,
                      langchain_agents=[], llamacpp_dict={})
     check_ret(ret)
@@ -162,11 +172,13 @@ def test_qa_daidocs_db_chunk_hf():
     from src.gpt_langchain import _run_qa_db
     # FIXME: doesn't work well with non-instruct-tuned Cerebras
     query = "Which config.toml enables pytorch for NLP?"
+    langchain_mode = 'DriverlessAI docs'
     ret = _run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=None, chunk=True,
                      chunk_size=128,
                      hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
                      db_type='faiss',
-                     langchain_mode='DriverlessAI docs',
+                     langchain_mode_types=dict(langchain_mode=LangChainTypes.SHARED.value),
+                     langchain_mode=langchain_mode,
                      langchain_action=LangChainAction.QUERY.value,
                      langchain_agents=[], llamacpp_dict={})
     check_ret(ret)
@@ -178,9 +190,11 @@ def test_qa_daidocs_db_chunk_hf_faiss():
     from src.gpt_langchain import _run_qa_db
     query = "Which config.toml enables pytorch for NLP?"
     # chunk_size is chars for each of k=4 chunks
+    langchain_mode = 'DriverlessAI docs'
     ret = _run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=None, chunk=True,
                      chunk_size=128 * 1,  # characters, and if k=4, then 4*4*128 = 2048 chars ~ 512 tokens
-                     langchain_mode='DriverlessAI docs',
+                     langchain_mode_types=dict(langchain_mode=LangChainTypes.SHARED.value),
+                     langchain_mode=langchain_mode,
                      langchain_action=LangChainAction.QUERY.value,
                      langchain_agents=[],
                      llamacpp_dict={},
@@ -313,15 +327,23 @@ def test_qa_wiki_db_chunk_hf_dbs_llama(db_type):
     from src.gpt4all_llm import get_model_tokenizer_gpt4all
     model_name = 'llama'
     model, tokenizer, device = get_model_tokenizer_gpt4all(model_name,
-                                                           llamacpp_dict=dict(n_gpu_layers=100, use_mlock=True, n_batch=1024))
+                                                           n_jobs=8,
+                                                           max_seq_len=512,
+                                                           llamacpp_dict=dict(
+                                                               model_path_llama='llama-2-7b-chat.ggmlv3.q8_0.bin',
+                                                               n_gpu_layers=100,
+                                                               use_mlock=True,
+                                                               n_batch=1024))
 
     from src.gpt_langchain import _run_qa_db
     query = "What are the main differences between Linux and Windows?"
     # chunk_size is chars for each of k=4 chunks
+    langchain_mode = 'wiki'
     ret = _run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=None, chunk=True,
                      chunk_size=128 * 1,  # characters, and if k=4, then 4*4*128 = 2048 chars ~ 512 tokens
                      hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
-                     langchain_mode='wiki',
+                     langchain_mode_types=dict(langchain_mode=LangChainTypes.SHARED.value),
+                     langchain_mode=langchain_mode,
                      langchain_action=LangChainAction.QUERY.value,
                      langchain_agents=[],
                      db_type=db_type,
@@ -338,11 +360,13 @@ def test_qa_wiki_db_chunk_hf_dbs_llama(db_type):
 def test_qa_daidocs_db_chunk_openai():
     from src.gpt_langchain import _run_qa_db
     query = "Which config.toml enables pytorch for NLP?"
+    langchain_mode = 'DriverlessAI docs'
     ret = _run_qa_db(query=query, use_openai_model=True, use_openai_embedding=True, text_limit=256, chunk=True,
                      db_type='faiss',
                      hf_embedding_model="",
                      chunk_size=256,
-                     langchain_mode='DriverlessAI docs',
+                     langchain_mode_types=dict(langchain_mode=LangChainTypes.SHARED.value),
+                     langchain_mode=langchain_mode,
                      langchain_action=LangChainAction.QUERY.value,
                      langchain_agents=[], llamacpp_dict={})
     check_ret(ret)
@@ -353,11 +377,13 @@ def test_qa_daidocs_db_chunk_openai():
 def test_qa_daidocs_db_chunk_openaiembedding_hfmodel():
     from src.gpt_langchain import _run_qa_db
     query = "Which config.toml enables pytorch for NLP?"
+    langchain_mode = 'DriverlessAI docs'
     ret = _run_qa_db(query=query, use_openai_model=False, use_openai_embedding=True, text_limit=None, chunk=True,
                      chunk_size=128,
                      hf_embedding_model="",
                      db_type='faiss',
-                     langchain_mode='DriverlessAI docs',
+                     langchain_mode_types=dict(langchain_mode=LangChainTypes.SHARED.value),
+                     langchain_mode=langchain_mode,
                      langchain_action=LangChainAction.QUERY.value,
                      langchain_agents=[], llamacpp_dict={})
     check_ret(ret)
@@ -430,7 +456,8 @@ def test_make_add_db(repeat, db_type):
                     # some db testing for gradio UI/client
                     get_source_files(db=db)
                     get_source_files(db=dbmy)
-                    selection_docs_state1 = dict(langchain_modes=[langchain_mode], langchain_mode_paths={}, langchain_mode_types={})
+                    selection_docs_state1 = dict(langchain_modes=[langchain_mode], langchain_mode_paths={},
+                                                 langchain_mode_types={})
                     requests_state1 = dict()
                     get_source_files_given_langchain_mode(db1, selection_docs_state1, requests_state1,
                                                           langchain_mode=langchain_mode, dbs={langchain_mode: db})
