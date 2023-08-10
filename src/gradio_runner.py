@@ -2879,7 +2879,7 @@ def go_gradio(**kwargs):
             try:
                 llamacpp_dict = ast.literal_eval(llamacpp_dict_more1)
             except:
-                # FIXME:
+                print("Failed to use user input for llamacpp_dict_more1 dict", flush=True)
                 llamacpp_dict = {}
             llamacpp_dict.update(dict(model_path_llama=model_path_llama1,
                                       model_name_gptj=model_name_gptj1,
@@ -2940,7 +2940,11 @@ def go_gradio(**kwargs):
             all_kwargs1['gpu_id'] = int(gpu_id) if gpu_id not in [None, 'None'] else None  # detranscribe
             all_kwargs1['llamacpp_dict'] = llamacpp_dict
             all_kwargs1['max_seq_len'] = max_seq_len1
-            all_kwargs1['rope_scaling'] = rope_scaling1
+            try:
+                all_kwargs1['rope_scaling'] = ast.literal_eval(rope_scaling1)  # transcribe
+            except:
+                print("Failed to use user input for rope_scaling dict", flush=True)
+                all_kwargs1['rope_scaling'] = {}
             model_lower = model_name.strip().lower()
             if model_lower in inv_prompt_type_to_model_lower:
                 prompt_type1 = inv_prompt_type_to_model_lower[model_lower]
