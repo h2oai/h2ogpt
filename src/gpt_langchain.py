@@ -2064,6 +2064,10 @@ def load_embed(db=None, persist_directory=None):
 
 
 def get_persist_directory(langchain_mode, langchain_type=None, db1s=None, dbs=None):
+    if langchain_mode in [LangChainMode.DISABLED.value, LangChainMode.LLM.value]:
+        # not None so join works but will fail to find db
+        return ''
+
     userid = get_userid_direct(db1s)
     username = get_username_direct(db1s)
     dirid = username or userid
