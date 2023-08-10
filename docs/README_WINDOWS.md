@@ -1,5 +1,7 @@
 # Windows 10/11
 
+If using GPU on Windows 10 Pro 64-bit, we recommend [downloading and installing Windows installer](https://h2o-release.s3.amazonaws.com/h2ogpt/h2oGPT_0.0.1.exe)
+
 For newer builds of windows versions of 10/11.
 
 ## Installation

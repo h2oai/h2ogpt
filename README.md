@@ -5,15 +5,17 @@ Turn ★ into ⭐ (top-right corner) if you like the project!
 Query and summarize your documents or just chat with local private GPT LLMs using h2oGPT, an Apache V2 open-source project.
 
 - **Private** offline database of any documents [(PDFs, Excel, Word, Images, Code, Text, MarkDown, etc.)](docs/README_LangChain.md#supported-datatypes)
-- **Persistent** database (Chroma, Weaviate, or in-memory FAISS) using accurate embeddings (instructor-large, all-MiniLM-L6-v2, etc.)
-- **Efficient** use of context using instruct-tuned LLMs (no need for LangChain's few-shot approach)
-- **Parallel** summarization reaching 80 tokens/second output 13B LLaMa2
-- **Upload** and **View** documents via UI (control multiple collaborative or scratch collections)
-- **UI** or CLI with streaming of all models
-- **Bake-off** UI mode against many models at same time
+  - **Persistent** database (Chroma, Weaviate, or in-memory FAISS) using accurate embeddings (instructor-large, all-MiniLM-L6-v2, etc.)
+  - **Efficient** use of context using instruct-tuned LLMs (no need for LangChain's few-shot approach)
+  - **Parallel** summarization reaching 80 tokens/second output 13B LLaMa2
 - **Variety** of models supported (LLaMa2, Falcon, Vicuna, WizardLM including AutoGPTQ, 4-bit/8-bit, LORA)
-- **GPU** support from HF and LLaMa.cpp GGML models, and **CPU** support using HF, LLaMa.cpp, and GPT4ALL models
+  - **GPU** support from HF and LLaMa.cpp GGML models, and **CPU** support using HF, LLaMa.cpp, and GPT4ALL models
+- **UI** or CLI with streaming of all models
+  - **Upload** and **View** documents via UI (control multiple collaborative or scratch collections)
+  - **Bake-off** UI mode against many models at same time
+  - **Easy Download** of model artifacts and control over models like LLaMa.cpp via UI
 - **Linux, Docker, MAC, and Windows** support
+  - **Easy Windows Installer** for Windows 10 64-bit
 - **Inference Servers** support (HF TGI server, vLLM, Gradio, ExLLaMa, Replicate, OpenAI)
 - **OpenAI-compliant Python client API** for client-server control
 - **Evaluate** performance using reward models
@@ -21,7 +23,11 @@ Query and summarize your documents or just chat with local private GPT LLMs usin
 
 ### Getting Started
 
-To quickly try out h2oGPT on CPU with LLaMa2 7B Chat, create a fresh Python 3.10 environment and run:
+If using GPU on Windows 10 64-bit, we recommend to [Download and Install using Istaller](https://h2o-release.s3.amazonaws.com/h2ogpt/h2oGPT_0.0.1.exe), a 1.8GB file that includes all packages to do document Q/A except model objects that are downloadable from UI.  After installation, go to start and run h2oGPT, and a web browser will open for h2oGPT.  To terminate the app, in task manager kill the `Python` process
+
+If using Linux, we recommend running [Docker](docs/README_DOCKER.md).
+
+Or, to quickly try out h2oGPT on CPU with LLaMa2 7B Chat, create a fresh Python 3.10 environment and run:
 ```bash
 git clone https://github.com/h2oai/h2ogpt.git
 cd h2ogpt
@@ -34,7 +40,7 @@ python generate.py --base_model='llama' --prompt_type=llama2
 ```
 then go to your browser by visiting [http://127.0.0.1:7860](http://127.0.0.1:7860) or [http://localhost:7860](http://localhost:7860).
 
-For full instructions (required for GPU inference) visit:
+For full instructions (required for GPU inference if not using windows installer or docker) visit:
 
 * [Linux](docs/README_LINUX.md)
 * [MACOS](docs/README_MACOS.md)
