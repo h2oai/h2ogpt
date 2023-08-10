@@ -850,6 +850,8 @@ def get_llm(use_openai_model=False,
             gen_kwargs.update(dict(system_prompt=system_prompt))
         elif prompter.system_prompt:
             gen_kwargs.update(dict(system_prompt=prompter.system_prompt))
+        # replicate handles prompting, so avoid get_resopnse() filter
+        prompter.prompt_type = 'plain'
         if stream_output:
             callbacks = [StreamingGradioCallbackHandler()]
             streamer = callbacks[0] if stream_output else None
@@ -2466,6 +2468,9 @@ def _run_qa_db(query=None,
                 cli=cli,
                 verbose=verbose,
                 )
+    # in case change, override original prompter
+    if hasattr(llm, 'prompter'):
+        prompter = llm.prompter
 
     use_docs_planned = False
     scores = []
