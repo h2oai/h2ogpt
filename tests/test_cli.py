@@ -87,12 +87,13 @@ def test_cli_llamacpp(monkeypatch):
     monkeypatch.setattr('builtins.input', lambda _: query)
 
     from src.gen import main
+    langchain_mode = 'Disabled'
     all_generations = main(base_model='llama', cli=True, cli_loop=False, score_model='None',
-                           langchain_mode='Disabled',
+                           langchain_mode=langchain_mode,
                            prompt_type=prompt_type,
                            model_path_llama=full_path,
                            user_path=None,
-                           langchain_modes=[],
+                           langchain_modes=[langchain_mode],
                            document_subset=DocumentSubset.Relevant.name,
                            verbose=True)
 
