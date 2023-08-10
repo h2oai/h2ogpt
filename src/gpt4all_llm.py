@@ -1,8 +1,9 @@
 import inspect
 import os
 from functools import partial
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Iterator
 from langchain.callbacks.manager import CallbackManagerForLLMRun
+from langchain.schema.output import GenerationChunk
 from pydantic import root_validator
 from langchain.llms import gpt4all
 from dotenv import dotenv_values
@@ -339,14 +340,7 @@ class H2OLlamaCpp(LlamaCpp):
             print("_call prompt: %s" % prompt, flush=True)
 
         if self.streaming:
-            text_callback = None
-            if run_manager:
-                text_callback = partial(
-                    run_manager.on_llm_new_token, verbose=self.verbose
-                )
             # parent handler of streamer expects to see prompt first else output="" and lose if prompt=None in prompter
-            if text_callback:
-                text_callback(prompt)
             text = ""
             for token in self.stream(input=prompt, stop=stop):
                 # for token in self.stream(input=prompt, stop=stop, run_manager=run_manager):
@@ -355,9 +349,32 @@ class H2OLlamaCpp(LlamaCpp):
                 # if text_callback:
                 #    text_callback(text_chunk)
                 text += text_chunk
-            return text
+            # parent handler of streamer expects to see prompt first else output="" and lose if prompt=None in prompter
+            return text[len(prompt):]
         else:
             params = self._get_parameters(stop)
             params = {**params, **kwargs}
             result = self.client(prompt=prompt, **params)
             return result["choices"][0]["text"]
+
+    def _stream(
+            self,
+            prompt: str,
+            stop: Optional[List[str]] = None,
+            run_manager: Optional[CallbackManagerForLLMRun] = None,
+            **kwargs: Any,
+        ) -> Iterator[GenerationChunk]:
+        # parent handler of streamer expects to see prompt first else output="" and lose if prompt=None in prompter
+        logprobs = 0
+        chunk = GenerationChunk(
+            text=prompt,
+            generation_info={"logprobs": logprobs},
+        )
+        yield chunk
+        if run_manager:
+            run_manager.on_llm_new_token(
+                token=chunk.text, verbose=self.verbose, log_probs=logprobs
+            )
+        # actual new tokens
+        for chunk in super()._stream(prompt, stop=stop, run_manager=run_manager, **kwargs):
+            yield chunk
