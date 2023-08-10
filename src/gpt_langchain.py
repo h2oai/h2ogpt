@@ -2067,6 +2067,8 @@ def get_persist_directory(langchain_mode, langchain_type=None, db1s=None, dbs=No
     userid = get_userid_direct(db1s)
     username = get_username_direct(db1s)
     dirid = username or userid
+    if langchain_type == LangChainTypes.SHARED.value and not dirid:
+        dirid = './'  # just to avoid error
 
     # deal with existing locations
     user_base_dir = os.getenv('USERS_BASE_DIR', 'users')
@@ -3094,16 +3096,15 @@ def get_any_db(db1s, langchain_mode, langchain_mode_paths, langchain_mode_types,
                for_sources_list=False,
                verbose=False,
                ):
-    if for_sources_list and langchain_mode in [LangChainMode.WIKI_FULL.value]:
+    if langchain_mode in [LangChainMode.DISABLED.value, LangChainMode.LLM.value]:
+        return None
+    elif for_sources_list and langchain_mode in [LangChainMode.WIKI_FULL.value]:
         # NOTE: avoid showing full wiki.  Takes about 30 seconds over about 90k entries, but not useful for now
-        db = None
-    elif langchain_mode in [LangChainMode.LLM.value]:
-        # Not db
-        db = None
+        return None
     elif langchain_mode in db1s and len(db1s[langchain_mode]) > 1 and db1s[langchain_mode][0]:
-        db = db1s[langchain_mode][0]
+        return db1s[langchain_mode][0]
     elif dbs is not None and langchain_mode in dbs and dbs[langchain_mode] is not None:
-        db = dbs[langchain_mode]
+        return dbs[langchain_mode]
     else:
         db = None
 
