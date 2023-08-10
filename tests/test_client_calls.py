@@ -264,7 +264,7 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
     base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
     prompt_type = 'human_bot'
     langchain_mode = 'UserData'
-    langchain_modes = ['UserData', 'MyData']
+    langchain_modes = ['UserData', 'MyData', 'LLM']
 
     from src.gen import main
     main(base_model=base_model, prompt_type=prompt_type, chat=True,
@@ -402,7 +402,7 @@ def test_client_chat_stream_langchain_steps2(max_new_tokens, top_k_docs):
     base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
     prompt_type = 'human_bot'
     langchain_mode = 'UserData'
-    langchain_modes = ['UserData', 'MyData', 'github h2oGPT']
+    langchain_modes = ['UserData', 'MyData', 'github h2oGPT', 'LLM']
 
     from src.gen import main
     main(base_model=base_model, prompt_type=prompt_type, chat=True,
@@ -457,7 +457,7 @@ def test_doc_hash():
     stream_output = True
     base_model = ''
     langchain_mode = 'UserData'
-    langchain_modes = ['UserData', 'MyData']
+    langchain_modes = ['UserData', 'MyData', 'LLM']
 
     os.environ['SHOULD_NEW_FILES'] = '1'
     os.environ['GRADIO_SERVER_PORT'] = str(get_inf_port())
@@ -504,7 +504,7 @@ def test_autogptq():
     langchain_action = LangChainAction.QUERY.value
     langchain_agents = []
     user_path = None
-    langchain_modes = ['UserData', 'MyData']
+    langchain_modes = ['UserData', 'MyData', 'LLM']
     reverse_docs = True
     from src.gen import main
     main(base_model=base_model, load_gptq=load_gptq,
@@ -538,7 +538,7 @@ def test_exllama():
     langchain_action = LangChainAction.QUERY.value
     langchain_agents = []
     user_path = None
-    langchain_modes = ['UserData', 'MyData']
+    langchain_modes = ['UserData', 'MyData', 'LLM']
     reverse_docs = True
     from src.gen import main
     main(base_model=base_model, load_exllama=load_exllama,
@@ -690,7 +690,7 @@ def test_client_chat_stream_langchain_steps3():
     base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
     prompt_type = 'human_bot'
     langchain_mode = 'UserData'
-    langchain_modes = ['UserData', 'MyData', 'github h2oGPT']
+    langchain_modes = ['UserData', 'MyData', 'github h2oGPT', 'LLM']
 
     from src.gen import main
     main(base_model=base_model, prompt_type=prompt_type, chat=True,
