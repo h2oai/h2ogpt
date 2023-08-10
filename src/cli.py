@@ -73,8 +73,10 @@ def run_cli(  # for local function:
         model_state = dict(model=model, tokenizer=tokenizer, device=device)
         model_state.update(model_dict)
         fun = partial(evaluate, model_state, my_db_state0, selection_docs_state0,
-                      **get_kwargs(evaluate, exclude_names=['model_state', 'my_db_state',
-                                                            'selection_docs_state'] + eval_func_param_names,
+                      **get_kwargs(evaluate, exclude_names=['model_state',
+                                                            'my_db_state',
+                                                            'selection_docs_state',
+                                                            'requests_state'] + eval_func_param_names,
                                    **locals()))
 
         example1 = examples[-1]  # pick reference example
