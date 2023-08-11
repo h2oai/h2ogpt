@@ -580,6 +580,15 @@ def main(
     if isinstance(langchain_mode_types, str):
         langchain_mode_types = ast.literal_eval(langchain_mode_types)
         assert isinstance(langchain_mode_types, dict)
+    for lmode in [LangChainMode.GITHUB_H2OGPT.value,
+                  LangChainMode.H2O_DAI_DOCS.value,
+                  LangChainMode.WIKI.value,
+                  LangChainMode.WIKI_FULL.value,
+                  ]:
+        if lmode not in langchain_mode_types:
+            langchain_mode_types[lmode] = 'shared'
+    if lmode not in langchain_mode_paths:
+        langchain_mode_types[lmode] = ''
     if user_path:
         user_path = makedirs(user_path, use_base=True)
         langchain_mode_paths['UserData'] = user_path
