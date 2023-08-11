@@ -29,7 +29,7 @@ def test_cli_langchain(base_model, monkeypatch):
     all_generations = main(base_model=base_model, cli=True, cli_loop=False, score_model='None',
                            langchain_mode='UserData',
                            user_path=user_path,
-                           visible_langchain_modes=['UserData', 'MyData'],
+                           langchain_modes=['UserData', 'MyData'],
                            document_subset=DocumentSubset.Relevant.name,
                            verbose=True)
 
@@ -61,7 +61,7 @@ def test_cli_langchain_llamacpp(monkeypatch):
                            langchain_mode='UserData',
                            prompt_type=prompt_type,
                            user_path=user_path,
-                           visible_langchain_modes=['UserData', 'MyData'],
+                           langchain_modes=['UserData', 'MyData'],
                            document_subset=DocumentSubset.Relevant.name,
                            verbose=True)
 
@@ -90,7 +90,7 @@ def test_cli_llamacpp(monkeypatch):
                            langchain_mode='Disabled',
                            prompt_type=prompt_type,
                            user_path=None,
-                           visible_langchain_modes=[],
+                           langchain_modes=[],
                            document_subset=DocumentSubset.Relevant.name,
                            verbose=True)
 
@@ -128,7 +128,7 @@ def test_cli_langchain_h2ogpt(monkeypatch):
                            cli=True, cli_loop=False, score_model='None',
                            langchain_mode='UserData',
                            user_path=user_path,
-                           visible_langchain_modes=['UserData', 'MyData'],
+                           langchain_modes=['UserData', 'MyData'],
                            document_subset=DocumentSubset.Relevant.name,
                            verbose=True)
 

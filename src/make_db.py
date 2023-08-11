@@ -36,6 +36,7 @@ def make_db_main(use_openai_embedding: bool = False,
                  migrate_embedding_model=False,
                  persist_directory: str = None,
                  user_path: str = 'user_path',
+                 langchain_type: str = 'shared',
                  url: Union[List[str], str] = None,
                  add_if_exists: bool = True,
                  collection_name: str = 'UserData',
@@ -79,7 +80,10 @@ def make_db_main(use_openai_embedding: bool = False,
     :param hf_embedding_model: HF embedding model to use. Like generate.py, uses 'hkunlp/instructor-large' if have GPUs, else "sentence-transformers/all-MiniLM-L6-v2"
     :param migrate_embedding_model: whether to migrate to newly chosen hf_embedding_model or stick with one in db
     :param persist_directory: where to persist db (note generate.py always uses db_dir_<collection name>
+           If making personal database for user, set persistent_directory to users/<username>/db_dir_<collection name>
+           and pass --langchain_type=personal
     :param user_path: where to pull documents from (None means url is not None.  If url is not None, this is ignored.)
+    :param langchain_type: type of database, i.e.. 'shared' or 'personal'
     :param url: url (or urls) to generate documents from (None means user_path is not None)
     :param add_if_exists: Add to db if already exists, but will not add duplicate sources
     :param collection_name: Collection name for new db if not adding
@@ -110,7 +114,7 @@ def make_db_main(use_openai_embedding: bool = False,
     if isinstance(selected_file_types, str):
         selected_file_types = ast.literal_eval(selected_file_types)
     if persist_directory is None:
-        persist_directory = get_persist_directory(collection_name)
+        persist_directory = get_persist_directory(collection_name, langchain_type=langchain_type)
     if download_dest is None:
         download_dest = makedirs('./', use_base=True)
 
@@ -180,7 +184,8 @@ def make_db_main(use_openai_embedding: bool = False,
     sources = [x for x in sources if 'exception' not in x.metadata]
 
     assert len(sources) > 0, "No sources found"
-    db = create_or_update_db(db_type, persist_directory, collection_name,
+    db = create_or_update_db(db_type, persist_directory,
+                             collection_name, user_path, langchain_type,
                              sources, use_openai_embedding, add_if_exists, verbose,
                              hf_embedding_model, migrate_embedding_model)
 

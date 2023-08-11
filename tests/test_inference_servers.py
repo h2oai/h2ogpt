@@ -23,7 +23,7 @@ def test_gradio_inference_server(base_model, force_langchain_evaluate, do_langch
                                  langchain_mode='Disabled', langchain_action=LangChainAction.QUERY.value,
                                  langchain_agents=[],
                                  user_path=None,
-                                 visible_langchain_modes=['UserData', 'MyData'],
+                                 langchain_modes=['UserData', 'MyData'],
                                  reverse_docs=True):
     if force_langchain_evaluate:
         langchain_mode = 'MyData'
@@ -51,7 +51,7 @@ def test_gradio_inference_server(base_model, force_langchain_evaluate, do_langch
                        langchain_mode=langchain_mode, langchain_action=langchain_action,
                        langchain_agents=langchain_agents,
                        user_path=user_path,
-                       visible_langchain_modes=visible_langchain_modes,
+                       langchain_modes=langchain_modes,
                        reverse_docs=reverse_docs,
                        force_langchain_evaluate=force_langchain_evaluate)
 
@@ -240,7 +240,7 @@ def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain,
                              langchain_action=LangChainAction.QUERY.value,
                              langchain_agents=[],
                              user_path=None,
-                             visible_langchain_modes=['UserData', 'MyData'],
+                             langchain_modes=['UserData', 'MyData'],
                              reverse_docs=True):
     # HF inference server
     gradio_port = get_inf_port()
@@ -285,7 +285,7 @@ def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain,
                        langchain_action=langchain_action,
                        langchain_agents=langchain_agents,
                        user_path=user_path,
-                       visible_langchain_modes=visible_langchain_modes,
+                       langchain_modes=langchain_modes,
                        reverse_docs=reverse_docs,
                        force_langchain_evaluate=force_langchain_evaluate,
                        inference_server=inference_server,
@@ -365,7 +365,7 @@ def test_openai_inference_server(force_langchain_evaluate,
                                  langchain_action=LangChainAction.QUERY.value,
                                  langchain_agents=[],
                                  user_path=None,
-                                 visible_langchain_modes=['UserData', 'MyData'],
+                                 langchain_modes=['UserData', 'MyData'],
                                  reverse_docs=True):
     if force_langchain_evaluate:
         langchain_mode = 'MyData'
@@ -377,7 +377,7 @@ def test_openai_inference_server(force_langchain_evaluate,
                        langchain_action=langchain_action,
                        langchain_agents=langchain_agents,
                        user_path=user_path,
-                       visible_langchain_modes=visible_langchain_modes,
+                       langchain_modes=langchain_modes,
                        reverse_docs=reverse_docs)
 
     # server that consumes inference server
@@ -484,7 +484,7 @@ def test_replicate_inference_server(force_langchain_evaluate,
                                     langchain_action=LangChainAction.QUERY.value,
                                     langchain_agents=[],
                                     user_path=None,
-                                    visible_langchain_modes=['UserData', 'MyData'],
+                                    langchain_modes=['UserData', 'MyData'],
                                     reverse_docs=True):
     if force_langchain_evaluate:
         langchain_mode = 'MyData'
@@ -496,7 +496,7 @@ def test_replicate_inference_server(force_langchain_evaluate,
                        langchain_action=langchain_action,
                        langchain_agents=langchain_agents,
                        user_path=user_path,
-                       visible_langchain_modes=visible_langchain_modes,
+                       langchain_modes=langchain_modes,
                        reverse_docs=reverse_docs)
 
     # server that consumes inference server

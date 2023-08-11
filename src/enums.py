@@ -58,7 +58,6 @@ class LangChainMode(Enum):
 
     DISABLED = "Disabled"
     LLM = "LLM"
-    ALL = "All"
     WIKI = "wiki"
     WIKI_FULL = "wiki_full"
     USER_DATA = "UserData"
@@ -67,10 +66,18 @@ class LangChainMode(Enum):
     H2O_DAI_DOCS = "DriverlessAI docs"
 
 
+class LangChainTypes(Enum):
+    SHARED = 'shared'
+    PERSONAL = 'personal'
+
+
 # modes should not be removed from visible list or added by name
 langchain_modes_intrinsic = [LangChainMode.DISABLED.value,
                              LangChainMode.LLM.value,
                              LangChainMode.MY_DATA.value]
+
+langchain_modes_non_db = [LangChainMode.DISABLED.value,
+                          LangChainMode.LLM.value]
 
 
 class LangChainAction(Enum):

@@ -1,7 +1,6 @@
 import ast
 import copy
 import functools
-import glob
 import inspect
 import queue
 import sys
@@ -12,7 +11,6 @@ import typing
 import warnings
 from datetime import datetime
 import requests
-import psutil
 from requests import ConnectTimeout, JSONDecodeError
 from urllib3.exceptions import ConnectTimeoutError, MaxRetryError, ConnectionError
 from requests.exceptions import ConnectionError as ConnectionError2
@@ -27,11 +25,11 @@ warnings.filterwarnings('ignore', category=UserWarning, message='TypedStorage is
 
 from evaluate_params import eval_func_param_names, no_default_param_names, input_args_list
 from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mapping, no_model_str, source_prefix, \
-    source_postfix, LangChainAction, LangChainAgent, DocumentChoice
+    source_postfix, LangChainAction, LangChainAgent, DocumentChoice, LangChainTypes
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, remove, \
-    have_langchain, set_openai, load_collection_enum, cuda_vis_check, H2O_Fire
+    have_langchain, set_openai, cuda_vis_check, H2O_Fire
 
 start_faulthandler()
 import_matplotlib()
@@ -128,7 +126,13 @@ def main(
         allow_api: bool = True,
         input_lines: int = 1,
         gradio_size: str = None,
-        auth: typing.List[typing.Tuple[str, str]] = None,
+
+        auth: Union[typing.List[typing.Tuple[str, str]], str] = None,
+        auth_access: str = 'open',
+        auth_freeze: bool = False,
+        auth_message: str = None,
+        guest_name: str = "guest",
+
         max_max_time=None,
         max_max_new_tokens=None,
 
@@ -142,6 +146,7 @@ def main(
         visible_models_tab: bool = True,
         visible_system_tab: bool = True,
         visible_tos_tab: bool = False,
+        visible_login_tab: bool = True,
         visible_hosts_tab: bool = False,
         chat_tables: bool = False,
         visible_h2ogpt_header: bool = True,
@@ -161,20 +166,22 @@ def main(
         eval_as_output: bool = False,
 
         langchain_mode: str = None,
+        user_path: str = None,
+        langchain_modes: list = [LangChainMode.USER_DATA.value, LangChainMode.MY_DATA.value, LangChainMode.LLM.value, LangChainMode.DISABLED.value],
+        langchain_mode_paths: dict = {LangChainMode.USER_DATA.value: None},
+        langchain_mode_types: dict = {LangChainMode.USER_DATA.value: LangChainTypes.SHARED.value},
+        detect_user_path_changes_every_query: bool = False,
+
         langchain_action: str = LangChainAction.QUERY.value,
         langchain_agents: list = [],
         force_langchain_evaluate: bool = False,
-        langchain_modes: list = [x.value for x in list(LangChainMode)],
-        visible_langchain_modes: list = ['UserData', 'MyData'],
-        # WIP:
-        # visible_langchain_actions: list = langchain_actions.copy(),
+
         visible_langchain_actions: list = [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value],
         visible_langchain_agents: list = langchain_agents_list.copy(),
+
         document_subset: str = DocumentSubset.Relevant.name,
         document_choice: list = [DocumentChoice.ALL.value],
-        user_path: str = None,
-        langchain_mode_paths: dict = {'UserData': None},
-        detect_user_path_changes_every_query: bool = False,
+
         use_llm_if_no_docs: bool = True,
         load_db_if_exists: bool = True,
         keep_sources_in_context: bool = False,
@@ -322,9 +329,21 @@ def main(
     :param input_lines: how many input lines to show for chat box (>1 forces shift-enter for submit, else enter is submit)
     :param gradio_size: Overall size of text and spaces: "xsmall", "small", "medium", "large".
            Small useful for many chatbots in model_lock mode
+
     :param auth: gradio auth for launcher in form [(user1, pass1), (user2, pass2), ...]
                  e.g. --auth=[('jon','password')] with no spaces
                  e.g. --auth="[('jon', 'password)())(')]" so any special characters can be used
+                 e.g. --auth=auth.json to specify persisted state file
+                 e.g. --auth='' will use default auth.json as file name for persisted state file
+                 e.g. --auth=None will use no auth, but still keep track of auth state, just no fron login
+    :param auth_access:
+         'open': Allow new users to be added
+         'closed': Stick to existing users
+    :param auth_freeze: whether freeze authentication based upon current file, no longer update file
+    :param auth_message: Message to show if having users login, fixed if passed, else dynamic internally
+    :param guest_name: guess name if using auth and have open access.
+           If '', then no guest allowed even if open access, then all databases for each user always persisted
+
     :param max_max_time: Maximum max_time for gradio slider
     :param max_max_new_tokens: Maximum max_new_tokens for gradio slider
     :param visible_submit_buttons: whether submit buttons are visible when UI first comes up
@@ -337,6 +356,7 @@ def main(
     :param visible_models_tab: "" for models tab
     :param visible_system_tab: "" for system tab
     :param visible_tos_tab: "" for ToS tab
+    :param visible_login_tab: "" for Login tab
     :param visible_hosts_tab: "" for hosts tab
     :param chat_tables: Just show Chat as block without tab (useful if want only chat view)
     :param visible_h2ogpt_header: Whether github stars, URL, logo, and QR code are visible
@@ -355,9 +375,26 @@ def main(
     :param eval_prompts_only_num: for no gradio benchmark, if using eval_filename prompts for eval instead of examples
     :param eval_prompts_only_seed: for no gradio benchmark, seed for eval_filename sampling
     :param eval_as_output: for no gradio benchmark, whether to test eval_filename output itself
+
     :param langchain_mode: Data source to include.  Choose "UserData" to only consume files from make_db.py.
            None: auto mode, check if langchain package exists, at least do LLM if so, else Disabled
            WARNING: wiki_full requires extra data processing via read_wiki_full.py and requires really good workstation to generate db, unless already present.
+    :param user_path: user path to glob from to generate db for vector search, for 'UserData' langchain mode.
+           If already have db, any new/changed files are added automatically if path set, does not have to be same path used for prior db sources
+    :param langchain_modes: dbs to generate at launch to be ready for LLM
+           Apart from additional user-defined collections, can include ['wiki', 'wiki_full', 'UserData', 'MyData', 'github h2oGPT', 'DriverlessAI docs']
+             But wiki_full is expensive and requires preparation
+           To allow scratch space only live in session, add 'MyData' to list
+           Default: If only want to consume local files, e.g. prepared by make_db.py, only include ['UserData']
+           If have own user modes, need to add these here or add in UI.
+    :param langchain_mode_paths: dict of langchain_mode keys and disk path values to use for source of documents
+           E.g. "{'UserData2': 'userpath2'}"
+           A disk path be None, e.g. --langchain_mode_paths="{'UserData2': None}" even if existing DB, to avoid new documents being added from that path, source links that are on disk still work.
+           If `--user_path` was passed, that path is used for 'UserData' instead of the value in this dict
+    :param langchain_mode_types: dict of langchain_mode keys and database types
+    :param detect_user_path_changes_every_query: whether to detect if any files changed or added every similarity search (by file hashes).
+           Expensive for large number of files, so not done by default.  By default only detect changes during db loading.
+
     :param langchain_action: Mode langchain operations in on documents.
             Query: Make query of document(s)
             Summarize or Summarize_map_reduce: Summarize document(s) via map_reduce
@@ -366,29 +403,13 @@ def main(
     :param langchain_agents: Which agents to use
             'search': Use Web Search as context for LLM response, e.g. SERP if have SERPAPI_API_KEY in env
     :param force_langchain_evaluate: Whether to force langchain LLM use even if not doing langchain, mostly for testing.
-    :param user_path: user path to glob from to generate db for vector search, for 'UserData' langchain mode.
-           If already have db, any new/changed files are added automatically if path set, does not have to be same path used for prior db sources
-    :param langchain_mode_paths: dict of langchain_mode keys and disk path values to use for source of documents
-           E.g. "{'UserData2': 'userpath2'}"
-           A disk path be None, e.g. --langchain_mode_paths="{'UserData2': None}" even if existing DB, to avoid new documents being added from that path, source links that are on disk still work.
-           If `--user_path` was passed, that path is used for 'UserData' instead of the value in this dict
-    :param detect_user_path_changes_every_query: whether to detect if any files changed or added every similarity search (by file hashes).
-           Expensive for large number of files, so not done by default.  By default only detect changes during db loading.
-    :param langchain_modes: names of collections/dbs to potentially have
-    :param visible_langchain_modes: dbs to generate at launch to be ready for LLM
-           Can be up to ['wiki', 'wiki_full', 'UserData', 'MyData', 'github h2oGPT', 'DriverlessAI docs']
-           But wiki_full is expensive and requires preparation
-           To allow scratch space only live in session, add 'MyData' to list
-           Default: If only want to consume local files, e.g. prepared by make_db.py, only include ['UserData']
-           If have own user modes, need to add these here or add in UI.
-           A state file is stored in visible_langchain_modes.pkl containing last UI-selected values of:
-              langchain_modes, visible_langchain_modes, and langchain_mode_paths
-              Delete the file if you want to start fresh,
-              but in any case the user_path passed in CLI is used for UserData even if was None or different
+
     :param visible_langchain_actions: Which actions to allow
     :param visible_langchain_agents: Which agents to allow
+
     :param document_subset: Default document choice when taking subset of collection
     :param document_choice: Chosen document(s) by internal name, 'All' means use all docs
+
     :param use_llm_if_no_docs: Whether to use LLM even if no documents, when langchain_mode=UserData or MyData or custom
     :param load_db_if_exists: Whether to load chroma db if exists or re-generate db
     :param keep_sources_in_context: Whether to keep url sources in context, not helpful usually
@@ -416,7 +437,7 @@ def main(
            Also not supported when using CLI mode
     :param allow_upload_to_user_data: Whether to allow file uploads to update shared vector db (UserData or custom user dbs)
            Ensure pass user_path for the files uploaded to be moved to this location for linking.
-    :param reload_langchain_state: Whether to reload visible_langchain_modes.pkl file that contains any new user collections.
+    :param reload_langchain_state: Whether to reload langchain_modes.pkl file that contains any new user collections.
     :param allow_upload_to_my_data: Whether to allow file uploads to update scratch vector db
     :param enable_url_upload: Whether to allow upload from URL
     :param enable_text_upload: Whether to allow upload of text
@@ -498,8 +519,13 @@ def main(
     if isinstance(rope_scaling, str):
         rope_scaling = ast.literal_eval(rope_scaling)
 
+    auth_filename = "auth.json"  # default
     if isinstance(auth, str):
-        auth = ast.literal_eval(auth)
+        if auth.strip().startswith('['):
+            auth = ast.literal_eval(auth.strip())
+    if isinstance(auth, str) and auth:
+        auth_filename = auth
+    assert isinstance(auth, (str, list, tuple, type(None))), "Unknown type %s for auth=%s" % (type(auth), auth)
 
     # allow set token directly
     use_auth_token = os.environ.get("HUGGING_FACE_HUB_TOKEN", use_auth_token)
@@ -512,29 +538,29 @@ def main(
     # allow enabling langchain via ENV
     # FIRST PLACE where LangChain referenced, but no imports related to it
     langchain_mode = os.environ.get("LANGCHAIN_MODE", langchain_mode)
+    langchain_modes = ast.literal_eval(os.environ.get("langchain_modes", str(langchain_modes)))
     if langchain_mode is not None:
         assert langchain_mode in langchain_modes, "Invalid langchain_mode %s" % langchain_mode
-    visible_langchain_modes = ast.literal_eval(os.environ.get("visible_langchain_modes", str(visible_langchain_modes)))
-    if langchain_mode not in visible_langchain_modes and langchain_mode in langchain_modes:
-        if langchain_mode is not None:
-            visible_langchain_modes += [langchain_mode]
 
     # update
     if isinstance(langchain_mode_paths, str):
         langchain_mode_paths = ast.literal_eval(langchain_mode_paths)
         assert isinstance(langchain_mode_paths, dict)
+    if isinstance(langchain_mode_types, str):
+        langchain_mode_types = ast.literal_eval(langchain_mode_types)
+        assert isinstance(langchain_mode_types, dict)
     if user_path:
         user_path = makedirs(user_path, use_base=True)
         langchain_mode_paths['UserData'] = user_path
+        langchain_mode_paths['UserData'] = LangChainTypes.SHARED.value
 
     if is_public:
         allow_upload_to_user_data = False
-        if LangChainMode.USER_DATA.value in visible_langchain_modes:
-            visible_langchain_modes.remove(LangChainMode.USER_DATA.value)
+        if LangChainMode.USER_DATA.value in langchain_modes:
+            langchain_modes.remove(LangChainMode.USER_DATA.value)
 
     # in-place, for non-scratch dbs
     if allow_upload_to_user_data:
-        update_langchain(langchain_modes, visible_langchain_modes, langchain_mode_paths, '', save_dir=save_dir)
         # always listen to CLI-passed user_path if passed
         if user_path:
             langchain_mode_paths['UserData'] = user_path
@@ -544,9 +570,9 @@ def main(
         set(langchain_agents).difference(langchain_agents_list)) == 0, "Invalid langchain_agents %s" % langchain_agents
 
     # if specifically chose not to show My or User Data, disable upload, so gradio elements are simpler
-    if LangChainMode.MY_DATA.value not in visible_langchain_modes:
+    if LangChainMode.MY_DATA.value not in langchain_modes:
         allow_upload_to_my_data = False
-    if LangChainMode.USER_DATA.value not in visible_langchain_modes:
+    if LangChainMode.USER_DATA.value not in langchain_modes:
         allow_upload_to_user_data = False
 
     # auto-set langchain_mode
@@ -726,28 +752,21 @@ def main(
 
     if langchain_mode != "Disabled":
         # SECOND PLACE where LangChain referenced, but all imports are kept local so not required
-        from gpt_langchain import prep_langchain, get_some_dbs_from_hf
+        from gpt_langchain import prep_langchain, get_some_dbs_from_hf, get_persist_directory
         if is_hf:
             get_some_dbs_from_hf()
         dbs = {}
-        for langchain_mode1 in visible_langchain_modes:
-            if langchain_mode1 in ['MyData']:  # FIXME: Remove other custom temp dbs
-                # don't use what is on disk, remove it instead
-                from src.gpt_langchain import scratch_base_dir
-                for gpath1 in glob.glob(os.path.join(scratch_base_dir, 'db_dir_%s_*' % langchain_mode1)):
-                    if os.path.isdir(gpath1):
-                        print("Removing old MyData: %s" % gpath1, flush=True)
-                        remove(gpath1)
+        for langchain_mode1 in langchain_modes:
+            langchain_type = langchain_mode_types.get(langchain_mode1, LangChainTypes.PERSONAL.value)
+            if langchain_type == LangChainTypes.PERSONAL.value:
+                # shouldn't prepare per-user databases here
                 continue
-            if langchain_mode1 in ['All']:
-                # FIXME: All should be avoided until scans over each db, shouldn't be separate db
-                continue
-            persist_directory1 = 'db_dir_%s' % langchain_mode1  # single place, no special names for each case
+            persist_directory1 = get_persist_directory(langchain_mode1, langchain_type=langchain_type)
             try:
                 db = prep_langchain(persist_directory1,
                                     load_db_if_exists,
                                     db_type, use_openai_embedding,
-                                    langchain_mode1, langchain_mode_paths,
+                                    langchain_mode1, langchain_mode_paths, langchain_mode_types,
                                     hf_embedding_model,
                                     migrate_embedding_model,
                                     kwargs_make_db=locals())
@@ -767,14 +786,11 @@ def main(
     model_state_none = dict(model=None, tokenizer=None, device=None,
                             base_model=None, tokenizer_base_model=None, lora_weights=None,
                             inference_server=None, prompt_type=None, prompt_dict=None)
-    my_db_state0 = {LangChainMode.MY_DATA.value: [None, None]}
-    selection_docs_state0 = dict(visible_langchain_modes=visible_langchain_modes,
+    my_db_state0 = {LangChainMode.MY_DATA.value: [None, None, None]}
+    selection_docs_state0 = dict(langchain_modes=langchain_modes,
                                  langchain_mode_paths=langchain_mode_paths,
-                                 langchain_modes=langchain_modes)
-    selection_docs_state = selection_docs_state0
-    langchain_modes0 = langchain_modes
-    langchain_mode_paths0 = langchain_mode_paths
-    visible_langchain_modes0 = visible_langchain_modes
+                                 langchain_mode_types=langchain_mode_types)
+    selection_docs_state = copy.deepcopy(selection_docs_state0)
 
     if cli:
         from cli import run_cli
@@ -1591,9 +1607,6 @@ def evaluate(
         save_dir=None,
         sanitize_bot_response=False,
         model_state0=None,
-        langchain_modes0=None,
-        langchain_mode_paths0=None,
-        visible_langchain_modes0=None,
         memory_restriction_level=None,
         max_max_new_tokens=None,
         is_public=None,
@@ -1645,14 +1658,9 @@ def evaluate(
     assert isinstance(add_chat_history_to_context, bool)
     assert load_exllama is not None
 
-    if selection_docs_state is not None:
-        langchain_modes = selection_docs_state.get('langchain_modes', langchain_modes0)
-        langchain_mode_paths = selection_docs_state.get('langchain_mode_paths', langchain_mode_paths0)
-        visible_langchain_modes = selection_docs_state.get('visible_langchain_modes', visible_langchain_modes0)
-    else:
-        langchain_modes = langchain_modes0
-        langchain_mode_paths = langchain_mode_paths0
-        visible_langchain_modes = visible_langchain_modes0
+    langchain_modes = selection_docs_state['langchain_modes']
+    langchain_mode_paths = selection_docs_state['langchain_mode_paths']
+    langchain_mode_types = selection_docs_state['langchain_mode_types']
 
     if debug:
         locals_dict = locals().copy()
@@ -1774,16 +1782,20 @@ def evaluate(
     assert langchain_action in langchain_actions, "Invalid langchain_action %s" % langchain_action
     assert len(
         set(langchain_agents).difference(langchain_agents_list)) == 0, "Invalid langchain_agents %s" % langchain_agents
-    if dbs is not None and langchain_mode in dbs:
-        db = dbs[langchain_mode]
-    elif my_db_state is not None and langchain_mode in my_db_state:
-        db1 = my_db_state[langchain_mode]
-        if db1 is not None and len(db1) == 2:
-            db = db1[0]
-        else:
-            db = None
-    else:
-        db = None
+
+    # get db, but also fill db state so return already has my_db_state and dbs filled so faster next query
+    from src.gpt_langchain import get_any_db
+    db = get_any_db(my_db_state, langchain_mode, langchain_mode_paths, langchain_mode_types,
+                    dbs=dbs,
+                    load_db_if_exists=load_db_if_exists,
+                    db_type=db_type,
+                    use_openai_embedding=use_openai_embedding,
+                    hf_embedding_model=hf_embedding_model,
+                    migrate_embedding_model=migrate_embedding_model,
+                    for_sources_list=True,
+                    verbose=verbose,
+                    )
+
     t_generate = time.time()
     langchain_only_model = base_model in non_hf_types or load_exllama or inference_server.startswith('replicate')
     do_langchain_path = langchain_mode not in [False, 'Disabled', 'LLM'] or \
@@ -2905,22 +2917,6 @@ def history_to_context(history, langchain_mode1,
         if context1 and not context1.endswith(chat_turn_sep):
             context1 += chat_turn_sep  # ensure if terminates abruptly, then human continues on next line
     return context1
-
-
-def update_langchain(langchain_modes, visible_langchain_modes, langchain_mode_paths, extra, save_dir=None):
-    # update from saved state on disk
-    langchain_modes_from_file, visible_langchain_modes_from_file, langchain_mode_paths_from_file = \
-        load_collection_enum(extra, save_dir=save_dir)
-
-    visible_langchain_modes_temp = visible_langchain_modes.copy() + visible_langchain_modes_from_file
-    visible_langchain_modes.clear()  # don't lose original reference
-    [visible_langchain_modes.append(x) for x in visible_langchain_modes_temp if x not in visible_langchain_modes]
-
-    langchain_mode_paths.update(langchain_mode_paths_from_file)
-
-    langchain_modes_temp = langchain_modes.copy() + langchain_modes_from_file
-    langchain_modes.clear()  # don't lose original reference
-    [langchain_modes.append(x) for x in langchain_modes_temp if x not in langchain_modes]
 
 
 def entrypoint_main():

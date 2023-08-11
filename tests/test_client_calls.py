@@ -8,7 +8,7 @@ import pytest
 from tests.utils import wrap_test_forked, make_user_path_test, get_llama, get_inf_server, get_inf_port
 from src.client_test import get_client, get_args, run_client_gen
 from src.enums import LangChainAction, LangChainMode
-from src.utils import get_githash, remove, remove_collection_enum, download_simple, hash_file, makedirs
+from src.utils import get_githash, remove, download_simple, hash_file, makedirs
 
 
 @wrap_test_forked
@@ -163,7 +163,7 @@ def run_client_chat_with_server(prompt='Who are you?', stream_output=False, max_
                                 langchain_action=LangChainAction.QUERY.value,
                                 langchain_agents=[],
                                 user_path=None,
-                                visible_langchain_modes=['UserData', 'MyData'],
+                                langchain_modes=['UserData', 'MyData'],
                                 reverse_docs=True):
     if langchain_mode == 'Disabled':
         os.environ['TEST_LANGCHAIN_IMPORT'] = "1"
@@ -175,7 +175,7 @@ def run_client_chat_with_server(prompt='Who are you?', stream_output=False, max_
          stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
          max_new_tokens=max_new_tokens,
          langchain_mode=langchain_mode, user_path=user_path,
-         visible_langchain_modes=visible_langchain_modes,
+         langchain_modes=langchain_modes,
          reverse_docs=reverse_docs)
 
     from src.client_test import run_client_chat
@@ -197,7 +197,7 @@ def run_client_nochat_with_server(prompt='Who are you?', stream_output=False, ma
                                   langchain_mode='Disabled', langchain_action=LangChainAction.QUERY.value,
                                   langchain_agents=[],
                                   user_path=None,
-                                  visible_langchain_modes=['UserData', 'MyData'],
+                                  langchain_modes=['UserData', 'MyData'],
                                   reverse_docs=True):
     if langchain_mode == 'Disabled':
         os.environ['TEST_LANGCHAIN_IMPORT'] = "1"
@@ -210,7 +210,7 @@ def run_client_nochat_with_server(prompt='Who are you?', stream_output=False, ma
          max_new_tokens=max_new_tokens,
          langchain_mode=langchain_mode, langchain_action=langchain_action, langchain_agents=langchain_agents,
          user_path=user_path,
-         visible_langchain_modes=visible_langchain_modes,
+         langchain_modes=langchain_modes,
          reverse_docs=reverse_docs)
 
     from src.client_test import run_client_nochat_gen
@@ -235,7 +235,7 @@ def test_client_chat_stream_langchain():
     prompt = "What is h2oGPT?"
     res_dict, client = run_client_chat_with_server(prompt=prompt, stream_output=True, langchain_mode="UserData",
                                                    user_path=user_path,
-                                                   visible_langchain_modes=['UserData', 'MyData'],
+                                                   langchain_modes=['UserData', 'MyData'],
                                                    reverse_docs=False,  # for 6_9 dumb model for testing
                                                    )
     # below wouldn't occur if didn't use LangChain with README.md,
@@ -260,7 +260,7 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
     base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
     prompt_type = 'human_bot'
     langchain_mode = 'UserData'
-    visible_langchain_modes = ['UserData', 'MyData']
+    langchain_modes = ['UserData', 'MyData']
 
     from src.gen import main
     main(base_model=base_model, prompt_type=prompt_type, chat=True,
@@ -268,7 +268,7 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
          max_new_tokens=max_new_tokens,
          top_k_docs=top_k_docs,
          langchain_mode=langchain_mode, user_path=user_path,
-         visible_langchain_modes=visible_langchain_modes,
+         langchain_modes=langchain_modes,
          reverse_docs=False,  # for 6_9
          )
 
@@ -398,14 +398,14 @@ def test_client_chat_stream_langchain_steps2(max_new_tokens, top_k_docs):
     base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
     prompt_type = 'human_bot'
     langchain_mode = 'UserData'
-    visible_langchain_modes = ['UserData', 'MyData', 'github h2oGPT']
+    langchain_modes = ['UserData', 'MyData', 'github h2oGPT']
 
     from src.gen import main
     main(base_model=base_model, prompt_type=prompt_type, chat=True,
          stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
          max_new_tokens=max_new_tokens,
          langchain_mode=langchain_mode, user_path=user_path,
-         visible_langchain_modes=visible_langchain_modes,
+         langchain_modes=langchain_modes,
          verbose=True)
 
     from src.client_test import get_client, get_args, run_client
@@ -447,13 +447,13 @@ def test_client_chat_stream_langchain_steps2(max_new_tokens, top_k_docs):
 
 @wrap_test_forked
 def test_doc_hash():
-    remove('visible_langchain_modes.pkl')
+    remove('langchain_modes.pkl')
     user_path = make_user_path_test()
 
     stream_output = True
     base_model = ''
     langchain_mode = 'UserData'
-    visible_langchain_modes = ['UserData', 'MyData']
+    langchain_modes = ['UserData', 'MyData']
 
     os.environ['SHOULD_NEW_FILES'] = '1'
     os.environ['GRADIO_SERVER_PORT'] = str(get_inf_port())
@@ -461,7 +461,7 @@ def test_doc_hash():
     main(base_model=base_model, chat=True,
          stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
          langchain_mode=langchain_mode, user_path=user_path,
-         visible_langchain_modes=visible_langchain_modes,
+         langchain_modes=langchain_modes,
          score_model='None',
          reverse_docs=False,  # for 6_9
          )
@@ -474,7 +474,7 @@ def test_doc_hash():
     main(base_model=base_model, chat=True,
          stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
          langchain_mode=langchain_mode, user_path=user_path,
-         visible_langchain_modes=visible_langchain_modes,
+         langchain_modes=langchain_modes,
          score_model='None',
          reverse_docs=False,  # for 6_9
          )
@@ -500,7 +500,7 @@ def test_autogptq():
     langchain_action = LangChainAction.QUERY.value
     langchain_agents = []
     user_path = None
-    visible_langchain_modes = ['UserData', 'MyData']
+    langchain_modes = ['UserData', 'MyData']
     reverse_docs = True
     from src.gen import main
     main(base_model=base_model, load_gptq=load_gptq,
@@ -509,7 +509,7 @@ def test_autogptq():
          stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
          max_new_tokens=max_new_tokens,
          langchain_mode=langchain_mode, user_path=user_path,
-         visible_langchain_modes=visible_langchain_modes,
+         langchain_modes=langchain_modes,
          reverse_docs=reverse_docs)
 
     from src.client_test import run_client_chat
@@ -534,7 +534,7 @@ def test_exllama():
     langchain_action = LangChainAction.QUERY.value
     langchain_agents = []
     user_path = None
-    visible_langchain_modes = ['UserData', 'MyData']
+    langchain_modes = ['UserData', 'MyData']
     reverse_docs = True
     from src.gen import main
     main(base_model=base_model, load_exllama=load_exllama,
@@ -542,7 +542,7 @@ def test_exllama():
          stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
          max_new_tokens=max_new_tokens,
          langchain_mode=langchain_mode, user_path=user_path,
-         visible_langchain_modes=visible_langchain_modes,
+         langchain_modes=langchain_modes,
          reverse_docs=reverse_docs)
 
     from src.client_test import run_client_chat
@@ -679,7 +679,6 @@ def test_text_generation_inference_server1():
 @wrap_test_forked
 def test_client_chat_stream_langchain_steps3():
     os.environ['VERBOSE_PIPELINE'] = '1'
-    remove_collection_enum()
     user_path = make_user_path_test()
 
     stream_output = True
@@ -687,14 +686,14 @@ def test_client_chat_stream_langchain_steps3():
     base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
     prompt_type = 'human_bot'
     langchain_mode = 'UserData'
-    visible_langchain_modes = ['UserData', 'MyData', 'github h2oGPT']
+    langchain_modes = ['UserData', 'MyData', 'github h2oGPT']
 
     from src.gen import main
     main(base_model=base_model, prompt_type=prompt_type, chat=True,
          stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
          max_new_tokens=max_new_tokens,
          langchain_mode=langchain_mode, user_path=user_path,
-         visible_langchain_modes=visible_langchain_modes,
+         langchain_modes=langchain_modes,
          verbose=True)
 
     from src.client_test import get_client, get_args, run_client

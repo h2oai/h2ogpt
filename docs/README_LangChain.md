@@ -187,7 +187,7 @@ Metadata is added using `add_meta` function, and other metadata, like chunk_id, 
 To use some example databases (will overwrite UserData make above unless change options) and run generate after, do:
 ```bash
 python src/make_db.py --download_some=True
-python generate.py --base_model=h2oai/h2ogpt-oasst1-512-12b --load_8bit=True --langchain_mode=UserData --visible_langchain_modes="['UserData', 'wiki', 'MyData', 'github h2oGPT', 'DriverlessAI docs']"
+python generate.py --base_model=h2oai/h2ogpt-oasst1-512-12b --load_8bit=True --langchain_mode=UserData --langchain_modes="['UserData', 'wiki', 'MyData', 'github h2oGPT', 'DriverlessAI docs']"
 ```
 which downloads example databases.  This obtains files from some [pre-generated databases](https://huggingface.co/datasets/h2oai/db_dirs).  A large Wikipedia database is also available.
 
@@ -211,25 +211,25 @@ which will avoid using `user_path` since it is no longer passed.  Otherwise when
 
 If you have enough GPU memory for embedding, but not the LLM as well, then a less private mode is to use OpenAI model.
 ```bash
-python generate.py  --inference_server=openai_chat --base_model=gpt-3.5-turbo --score_model=None --langchain_mode=LLM --visible_langchain_modes="['LLM', 'UserData', 'MyData']"
+python generate.py  --inference_server=openai_chat --base_model=gpt-3.5-turbo --score_model=None --langchain_mode=LLM --langchain_modes="['LLM', 'UserData', 'MyData']"
 ```
 and if you want to push image caption model to get better captions, this can be done if have enough GPU memory or if use OpenAI:
 ```bash
-python generate.py  --inference_server=openai_chat --base_model=gpt-3.5-turbo --score_model=None --langchain_mode=LLM --visible_langchain_modes="['LLM', 'UserData', 'MyData']" --captions_model=Salesforce/blip2-flan-t5-xl
+python generate.py  --inference_server=openai_chat --base_model=gpt-3.5-turbo --score_model=None --langchain_mode=LLM --langchain_modes="['LLM', 'UserData', 'MyData']" --captions_model=Salesforce/blip2-flan-t5-xl
 ```
 
 ### Multiple embeddings and sources
 
 We only support one embedding at a time for each database.
 
-So you could use src/make_db.py to make the db for different embeddings (`--hf_embedding_model` like gen.py, any HF model) for each collection (e.g. UserData, UserData2) for each source folders (e.g. user_path, user_path2), and then at generate.py time you can specify those different collection names in `--langchain_modes` and `--visible_langchain_modes` and `--langchain_mode_paths`.  For example:
+So you could use src/make_db.py to make the db for different embeddings (`--hf_embedding_model` like gen.py, any HF model) for each collection (e.g. UserData, UserData2) for each source folders (e.g. user_path, user_path2), and then at generate.py time you can specify those different collection names in `--langchain_modes` and `--langchain_modes` and `--langchain_mode_paths`.  For example:
 ```bash
 python src/make_db.py --user_path=user_path --collection_name=UserData --hf_embedding_model=hkunlp/instructor-large
 python src/make_db.py --user_path=user_path2 --collection_name=UserData2 --hf_embedding_model=sentence-transformers/all-MiniLM-L6-v2
 ```
 then
 ```bash
-python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --langchain_modes=['UserData','UserData2'] --visible_langchain_modes=['UserData','UserData2'] --langchain_mode_paths={'UserData':'user_path','UserData2':'user_path2'}
+python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --langchain_modes=['UserData','UserData2'] --langchain_modes=['UserData','UserData2'] --langchain_mode_paths={'UserData':'user_path','UserData2':'user_path2'}
 ```
 and watch-out for use of whitespace.  For `langchain_mode_paths` you can pass surrounded by "'s and have spaces.
 
@@ -390,6 +390,8 @@ For links to direct to the document and download to your local machine, the orig
 * [localGPT](https://github.com/PromtEngineer/localGPT).  By comparison, h2oGPT has similar benefits as compared to localGPT.  Both h2oGPT and localGPT can use GPUs for LLMs and embeddings, including latest Vicuna or WizardLM models.
 
 * [Quiver](https://github.com/StanGirard/quivr). By comparison, Quiver requires docker but also supports audio and video and currently only supports OpenAI models and embeddings.
+
+* [LM Studio](https://github.com/lmstudio-ai). Nice control over models and llama settings, good windows installer.
 
 * [DocsGPT](https://github.com/arc53/DocsGPT).  More limited document support.
 

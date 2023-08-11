@@ -11,7 +11,7 @@ evaluate==0.4.0
 rouge_score==0.1.2
 sacrebleu==2.3.1
 scikit-learn==1.2.2
-# optional:
+# optional (need to uncomment code in gradio_runner.py for import of better_profanity)
 # alt-profanity-check==1.2.2
 # better-profanity==0.7.0
 numpy==1.24.3

@@ -128,6 +128,8 @@ On CPU case, a good model that's still low memory is to run:
 python generate.py --base_model='llama' --prompt_type=llama2 --hf_embedding_model=sentence-transformers/all-MiniLM-L6-v2 --langchain_mode=UserData --user_path=user_path
 ```
 
+Ensure to vary `n_gpu_layers` in `.env_gpt4all` to smaller values to reduce offloading for smaller GPU memory boards.
+
 ### ValueError: ...offload....
 
 ```
@@ -284,7 +286,6 @@ This warning can be safely ignored.
    - `CUDA_VISIBLE_DEVICES`: Standard list of CUDA devices to make visible.
    - `PING_GPU`: ping GPU every few minutes for full GPU memory usage by torch, useful for debugging OOMs or memory leaks
    - `GET_GITHASH`: get git hash on startup for system info.  Avoided normally as can fail with extra messages in output for CLI mode
-   - `H2OGPT_SCRATCH_PATH`: Choose base scratch folder for scratch databases and files
    - `H2OGPT_BASE_PATH`: Choose base folder for all files except scratch files
 These can be useful on HuggingFace spaces, where one sets secret tokens because CLI options cannot be used.
 

@@ -9,6 +9,8 @@ import pytest
 if os.path.dirname('src') not in sys.path:
     sys.path.append('src')
 
+os.environ['HARD_ASSERTS'] = "1"
+
 from src.utils import call_subprocess_onetask, makedirs
 
 

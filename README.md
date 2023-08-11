@@ -21,7 +21,7 @@ Query and summarize your documents or just chat with local private GPT LLMs usin
 
 ### Getting Started
 
-To quickly try out h2oGPT with LLaMa2 7B Chat, create a fresh Python 3.10 environment and run:
+To quickly try out h2oGPT on CPU with LLaMa2 7B Chat, create a fresh Python 3.10 environment and run:
 ```bash
 git clone https://github.com/h2oai/h2ogpt.git
 cd h2ogpt
@@ -34,11 +34,18 @@ python generate.py --base_model='llama' --prompt_type=llama2
 ```
 then go to your browser by visiting [http://127.0.0.1:7860](http://127.0.0.1:7860) or [http://localhost:7860](http://localhost:7860).
 
-For full instructions visit:
+For full instructions (required for GPU inference) visit:
 
 * [Linux](docs/README_LINUX.md)
 * [MACOS](docs/README_MACOS.md)
 * [Windows 10/11](docs/README_WINDOWS.md)
+
+Example models:
+* [Highest accuracy and speed](https://huggingface.co/TheBloke/Llama-2-70B-Chat-fp16) on 16-bit with TGI/vLLM using ~48GB/GPU when in use (4*A100)
+* [Middle-range accuracy](https://huggingface.co/h2oai/h2ogpt-gm-oasst1-en-2048-falcon-40b-v2) on 16-bit with TGI/vLLM using ~45GB/GPU when in use (2*A100)
+* [Small memory profile with ok accuracy](https://huggingface.co/TheBloke/Llama-2-13B-Chat-GGML) 16GB GPU if full GPU offloading
+* [Balanced accuracy and size](https://huggingface.co/TheBloke/Llama-2-13B-Chat-fp16) on 16-bit with TGI/vLLM using ~45GB/GPU when in use (1*A100)
+* [Smallest or CPU friendly](https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML) 32GB system ram or 9GB GPU if full GPU offloading
 
 ### Live Demos
 - [![img-small.png](docs/img-small.png) Live h2oGPT Document Q/A Demo](https://gpt.h2o.ai/)

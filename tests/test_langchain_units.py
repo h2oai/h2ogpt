@@ -4,7 +4,7 @@ import tempfile
 import pytest
 
 from tests.utils import wrap_test_forked, kill_weaviate
-from src.enums import DocumentSubset, LangChainAction, LangChainMode
+from src.enums import DocumentSubset, LangChainAction, LangChainMode, LangChainTypes
 from src.gpt_langchain import get_persist_directory
 from src.utils import zip_data, download_simple, get_ngpus_vis, get_mem_gpus, have_faiss, remove, get_kwargs
 
@@ -198,7 +198,7 @@ def test_qa_daidocs_db_chunk_hf_dbs(db_type, top_k_docs):
     langchain_mode = 'DriverlessAI docs'
     langchain_action = LangChainAction.QUERY.value
     langchain_agents = []
-    persist_directory = get_persist_directory(langchain_mode)
+    persist_directory = get_persist_directory(langchain_mode, langchain_type=LangChainTypes.SHARED.value)
     remove(persist_directory)
     from src.gpt_langchain import _run_qa_db
     query = "Which config.toml enables pytorch for NLP?"
@@ -261,7 +261,7 @@ def test_qa_daidocs_db_chunk_hf_dbs_switch_embedding(db_type):
     langchain_mode = 'DriverlessAI docs'
     langchain_action = LangChainAction.QUERY.value
     langchain_agents = []
-    persist_directory = get_persist_directory(langchain_mode)
+    persist_directory = get_persist_directory(langchain_mode, langchain_type=LangChainTypes.SHARED.value)
     remove(persist_directory)
     from src.gpt_langchain import _run_qa_db
     query = "Which config.toml enables pytorch for NLP?"
@@ -379,7 +379,7 @@ def test_get_dai_db_dir():
 @wrap_test_forked
 def test_make_add_db(repeat, db_type):
     kill_weaviate(db_type)
-    from src.gradio_runner import get_source_files, get_source_files_given_langchain_mode, get_db, update_user_db, \
+    from src.gradio_runner import get_source_files, get_source_files_given_langchain_mode, get_any_db, update_user_db, \
         get_sources, update_and_get_source_files_given_langchain_mode
     from src.make_db import make_db_main
     from src.gpt_langchain import path_to_docs
@@ -423,10 +423,13 @@ def test_make_add_db(repeat, db_type):
                     # some db testing for gradio UI/client
                     get_source_files(db=db)
                     get_source_files(db=dbmy)
-                    get_source_files_given_langchain_mode(db1, langchain_mode=langchain_mode, dbs={langchain_mode: db})
-                    get_source_files_given_langchain_mode(db1, langchain_mode='MyData', dbs={})
-                    get_db(db1, langchain_mode='UserData', dbs={langchain_mode: db})
-                    get_db(db1, langchain_mode='MyData', dbs={})
+                    get_source_files_given_langchain_mode(db1, {}, {},
+                                                          langchain_mode=langchain_mode, dbs={langchain_mode: db})
+                    get_source_files_given_langchain_mode(db1, {}, {},
+                                                          langchain_mode='MyData', dbs={})
+                    get_any_db(db1, langchain_mode='UserData', langchain_mode_paths={}, langchain_mode_types={},
+                               dbs={langchain_mode: db})
+                    get_any_db(db1, langchain_mode='MyData', langchain_mode_paths={}, langchain_mode_types={}, dbs={})
 
                     msg1up = "Beefy Chicken"
                     test_file2 = os.path.join(tmp_user_path, 'test2.txt')
@@ -448,7 +451,7 @@ def test_make_add_db(repeat, db_type):
                     langchain_mode2 = 'MyData'
                     selection_docs_state1 = dict(langchain_modes=[langchain_mode2],
                                                  langchain_mode_paths={},
-                                                 visible_langchain_modes=[langchain_mode2])
+                                                 langchain_mode_types={})
                     z1, z2, source_files_added, exceptions = update_user_db(test_file2_my, db1,
                                                                             selection_docs_state1,
                                                                             chunk,
@@ -464,7 +467,7 @@ def test_make_add_db(repeat, db_type):
                     langchain_mode = 'UserData'
                     selection_docs_state2 = dict(langchain_modes=[langchain_mode],
                                                  langchain_mode_paths={langchain_mode: tmp_user_path},
-                                                 visible_langchain_modes=[langchain_mode])
+                                                 langchain_mode_types={langchain_mode: LangChainTypes.SHARED.value})
                     z1, z2, source_files_added, exceptions = update_user_db(test_file2, db1,
                                                                             selection_docs_state2,
                                                                             chunk, chunk_size,
@@ -476,8 +479,8 @@ def test_make_add_db(repeat, db_type):
                     assert langchain_mode == z2
                     assert z1 is None
                     docs_state0 = [x.name for x in list(DocumentSubset)]
-                    get_sources(db1, langchain_mode, dbs={langchain_mode: db}, docs_state0=docs_state0)
-                    get_sources(db1, 'MyData', dbs={}, docs_state0=docs_state0)
+                    get_sources(db1, {}, langchain_mode, dbs={langchain_mode: db}, docs_state0=docs_state0)
+                    get_sources(db1, {}, 'MyData', dbs={}, docs_state0=docs_state0)
                     kwargs2 = dict(first_para=False,
                                    text_limit=None, chunk=chunk, chunk_size=chunk_size,
                                    langchain_mode_paths={langchain_mode: tmp_user_path}, db_type=db_type,
@@ -485,9 +488,13 @@ def test_make_add_db(repeat, db_type):
                                    migrate_embedding_model=kwargs['migrate_embedding_model'],
                                    load_db_if_exists=True,
                                    n_jobs=-1, verbose=False)
-                    update_and_get_source_files_given_langchain_mode(db1, langchain_mode, dbs={langchain_mode: db},
+                    update_and_get_source_files_given_langchain_mode(db1,
+                                                                     {}, {},
+                                                                     langchain_mode, dbs={langchain_mode: db},
                                                                      **kwargs2)
-                    update_and_get_source_files_given_langchain_mode(db1, 'MyData', dbs={}, **kwargs2)
+                    update_and_get_source_files_given_langchain_mode(db1,
+                                                                     {}, {},
+                                                                     'MyData', dbs={}, **kwargs2)
 
                     assert path_to_docs(test_file2_my, db_type=db_type)[0].metadata['source'] == test_file2_my
                     extra = 1 if db_type == 'chroma' else 0
