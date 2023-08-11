@@ -25,6 +25,12 @@ Query and summarize your documents or just chat with local private GPT LLMs usin
 
 ### Getting Started
 
+[![GitHub license](https://img.shields.io/github/license/NVIDIA/nvidia-docker?style=flat-square)](https://raw.githubusercontent.com/h2oai/h2ogpt/main/LICENSE)
+![Linux](https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black)
+![macOS](https://img.shields.io/badge/mac%20os-000000?style=for-the-badge&logo=macos&logoColor=F0F0F0)
+![Windows](https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white)
+![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)
+
 To quickly try out h2oGPT on CPU with limited document Q/A capability using LLaMa2 7B Chat, create a fresh Python 3.10 environment and run:
 ```bash
 git clone https://github.com/h2oai/h2ogpt.git
@@ -38,29 +44,34 @@ python generate.py --base_model='llama' --prompt_type=llama2
 ```
 then go to your browser by visiting [http://127.0.0.1:7860](http://127.0.0.1:7860) or [http://localhost:7860](http://localhost:7860).
 
-#### Windows 10/11 64-bit with full document Q/A capability:
+#### Windows 10/11 64-bit with full document Q/A capability
   * [h2oGPT GPU-CUDA Installer](https://h2o-release.s3.amazonaws.com/h2ogpt/h2oGPT_0.0.1_gpu.exe) (1.8GB file)
   * [h2oGPT CPU Installer](https://h2o-release.s3.amazonaws.com/h2ogpt/h2oGPT_0.0.1_cpu.exe) (755MB file)
-  * [Windows 10/11 Install and Run Docs](docs/README_WINDOWS.md)
 
     The installers include all dependencies for document Q/A, except models (LLM, embedding, reward) that are downloadable via UI.  After installation, go to start and run h2oGPT, and a web browser will open for h2oGPT.  To use LLaMa model, go to Models tab, select `llama` base model, then click load to download from preset URL.  Then use as normal.  To terminate the app, in task manager kill the `Python` process named `pythonw.exe` as will also show up in `nvidia-smi` if using GPUs.  Set environment variables to control a few things:
-    * `n_jobs`: number of cores for various tasks
-    * `OMP_NUM_THREADS` thread count for LLaMa
-    * `CUDA_VISIBLE_DEVICES` which GPUs are visible
+      * `n_jobs`: number of cores for various tasks
+      * `OMP_NUM_THREADS` thread count for LLaMa
+      * `CUDA_VISIBLE_DEVICES` which GPUs are visible
+  * [Windows 10/11 Install and Run Docs](docs/README_WINDOWS.md)
 
-#### For Linux (CPU/CUDA) with full document Q/A capability:
+
+#### Linux (CPU/CUDA) with full document Q/A capability
   * [Docker Build and Run Docs](docs/README_DOCKER.md)
   * [Linux Install and Run Docs](docs/README_LINUX.md)
 
-#### For MACOS (CPU/M1/M2) with full document Q/A capability:
+#### MACOS (CPU/M1/M2) with full document Q/A capability
 * [MACOS Install and Run Docs](docs/README_MACOS.md)
 
-#### Example Models:
+#### Example Models
 * [Highest accuracy and speed](https://huggingface.co/TheBloke/Llama-2-70B-Chat-fp16) on 16-bit with TGI/vLLM using ~48GB/GPU when in use (4*A100 high concurrency, 2*A100 for low concurrency)
 * [Middle-range accuracy](https://huggingface.co/h2oai/h2ogpt-gm-oasst1-en-2048-falcon-40b-v2) on 16-bit with TGI/vLLM using ~45GB/GPU when in use (2*A100)
 * [Small memory profile with ok accuracy](https://huggingface.co/TheBloke/Llama-2-13B-Chat-GGML) 16GB GPU if full GPU offloading
 * [Balanced accuracy and size](https://huggingface.co/TheBloke/Llama-2-13B-Chat-fp16) on 16-bit with TGI/vLLM using ~45GB/GPU when in use (1*A100)
 * [Smallest or CPU friendly](https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML) 32GB system ram or 9GB GPU if full GPU offloading
+
+**GPU** mode requires CUDA support via torch and transformers.  A 6.9B (or 12GB) model in 8-bit uses 8GB (or 13GB) of GPU memory. 8-bit precision, 4-bit precision, and AutoGPTQ can further reduce memory requirements down no more than about 6.5GB when asking a question about your documents (see [low-memory mode](docs/FAQ.md#low-memory-mode)).
+
+**CPU** mode uses GPT4ALL and LLaMa.cpp, e.g. gpt4all-j, requiring about 14GB of system RAM in typical use.
 
 ### Live Demos
 - [![img-small.png](docs/img-small.png) Live h2oGPT Document Q/A Demo](https://gpt.h2o.ai/)
@@ -90,7 +101,6 @@ YouTube 4K version: https://www.youtube.com/watch?v=_iktbj4obAI
 
 ### Docs Guide
 <!--  cat README.md | ./gh-md-toc  -  But Help is heavily processed -->
-* [Supported OS and Hardware](#supported-os-and-hardware)
 * [Getting Started](#getting-started)
    * [Linux (CPU or CUDA)](docs/README_LINUX.md)
    * [MACOS (CPU or M1/M2)](docs/README_MACOS.md)
@@ -120,20 +130,6 @@ YouTube 4K version: https://www.youtube.com/watch?v=_iktbj4obAI
 * [Acknowledgements](#acknowledgements)
 * [Why H2O.ai?](#why-h2oai)
 * [Disclaimer](#disclaimer)
-
-### Supported OS and Hardware
-
-[![GitHub license](https://img.shields.io/github/license/NVIDIA/nvidia-docker?style=flat-square)](https://raw.githubusercontent.com/h2oai/h2ogpt/main/LICENSE)
-![Linux](https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black)
-![macOS](https://img.shields.io/badge/mac%20os-000000?style=for-the-badge&logo=macos&logoColor=F0F0F0)
-![Windows](https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white)
-![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)
-
-**GPU** mode requires CUDA support via torch and transformers.  A 6.9B (or 12GB) model in 8-bit uses 8GB (or 13GB) of GPU memory. 8-bit precision, 4-bit precision, and AutoGPTQ can further reduce memory requirements down no more than about 6.5GB when asking a question about your documents (see [low-memory mode](docs/FAQ.md#low-memory-mode)).
-
-**CPU** mode uses GPT4ALL and LLaMa.cpp, e.g. gpt4all-j, requiring about 14GB of system RAM in typical use.
-
-GPU and CPU mode tested on variety of NVIDIA GPUs in Ubuntu 18-22, but any modern Linux variant should work.  MACOS support tested on Macbook Pro running Monterey v12.3.1 using CPU mode, as well as MAC M1 using MPS.
 
 ### Roadmap
 
