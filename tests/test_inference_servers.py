@@ -166,7 +166,7 @@ def run_docker(inf_port, base_model, low_mem_mode=False):
                         '-p', '%s:80' % inf_port,
                         '-v', '%s/.cache:/.cache/' % home_dir,
                         '-v', '%s:/data' % data_dir,
-                        'ghcr.io/huggingface/text-generation-inference:0.9.3',
+                        'ghcr.io/huggingface/text-generation-inference:0.9.4',
                         '--model-id', base_model,
                         '--max-stop-sequences', '6',
                         ]
