@@ -3575,7 +3575,7 @@ def get_db1(db1s, langchain_mode1):
         db1 = db1s[langchain_mode1]
     else:
         # indicates to code that not personal database
-        db1 = [None, None]
+        db1 = [None] * length_db1()
     return db1
 
 

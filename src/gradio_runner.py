@@ -1740,7 +1740,8 @@ def go_gradio(**kwargs):
 
             if valid and not user_path:
                 # needs to have key for it to make it known different from userdata case in _update_user_db()
-                db1s[langchain_mode2] = [None, None]
+                from src.gpt_langchain import length_db1
+                db1s[langchain_mode2] = [None] * length_db1()
             if valid:
                 save_auth(requests_state1, auth_filename, auth_freeze, selection_docs_state1=selection_docs_state1,
                           langchain_mode1=langchain_mode2)
