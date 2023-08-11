@@ -284,6 +284,34 @@ python generate.py --base_model=gpt4all_llama  --model_path_gpt4all_llama=./mode
 ```
 assuming that file is from version 2 quantization.
 
+### not enough memory: you tried to allocate 590938112 bytes.
+
+    If one sees: 
+    ```
+    RuntimeError: [enforce fail at ..\c10\core\impl\alloc_cpu.cpp:72] data. DefaultCPUAllocator: not enough memory: you tried to allocate 590938112 bytes.
+    ```
+    then probably CPU has insufficient memory to handle the model.  Try GGML.
+
+### WARNING: failed to allocate 258.00 MB of pinned memory: out of memory
+
+    If you see:
+    ```
+    Warning: failed to VirtualLock 17825792-byte buffer (after previously locking 1407303680 bytes): The paging file is too small for this operation to complete.
+    
+    WARNING: failed to allocate 258.00 MB of pinned memory: out of memory
+    Traceback (most recent call last):
+    ```
+    then you have insufficient pinned memory on your GPU.  You can disable pinning by setting this env before launching h2oGPT:
+* Linux:
+    ```
+    export GGML_CUDA_NO_PINNED=1
+    ```
+* Windows:
+    ```
+    setenv GGML_CUDA_NO_PINNED=1
+    ```
+
+
 ### I get the error: `The model 'OptimizedModule' is not supported for . Supported models are ...`
 
 This warning can be safely ignored.
