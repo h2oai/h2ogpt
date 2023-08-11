@@ -3325,7 +3325,7 @@ def go_gradio(**kwargs):
         server_port = int(server_port)
 
     demo.launch(share=kwargs['share'],
-                server_name="0.0.0.0",
+                server_name=kwargs['server_name'],
                 show_error=True,
                 server_port=server_port,
                 favicon_path=favicon_path,
