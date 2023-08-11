@@ -15,7 +15,8 @@ def make_chatbots(output_label0, output_label0_model2, **kwargs):
         output_label = f'h2oGPT [{model_name}]'
         min_width = 250 if kwargs['gradio_size'] in ['small', 'large', 'medium'] else 160
         chat_kwargs.append(dict(label=output_label, visible=kwargs['model_lock'], elem_classes='chatsmall',
-                                height=kwargs['height'] or 400, min_width=min_width))
+                                height=kwargs['height'] or 400, min_width=min_width,
+                                show_copy_button=kwargs['show_copy_button']))
 
     if kwargs['model_lock_columns'] == -1:
         kwargs['model_lock_columns'] = len(kwargs['model_states'])

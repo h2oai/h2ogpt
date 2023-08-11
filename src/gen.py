@@ -136,6 +136,7 @@ def main(
         allow_api: bool = True,
         input_lines: int = 1,
         gradio_size: str = None,
+        show_copy_button: bool = False,
 
         auth: Union[typing.List[typing.Tuple[str, str]], str] = None,
         auth_access: str = 'open',
@@ -355,6 +356,7 @@ def main(
     :param input_lines: how many input lines to show for chat box (>1 forces shift-enter for submit, else enter is submit)
     :param gradio_size: Overall size of text and spaces: "xsmall", "small", "medium", "large".
            Small useful for many chatbots in model_lock mode
+    :param show_copy_button: Whether to show copy button for chatbots
 
     :param auth: gradio auth for launcher in form [(user1, pass1), (user2, pass2), ...]
                  e.g. --auth=[('jon','password')] with no spaces
