@@ -36,7 +36,7 @@ python generate.py --base_model='llama' --prompt_type=llama2
 ```
 then go to your browser by visiting [http://127.0.0.1:7860](http://127.0.0.1:7860) or [http://localhost:7860](http://localhost:7860).
 
-For Windows 10 64-bit with full document Q/A capability:
+#### Windows 10/11 64-bit with full document Q/A capability:
   * [h2oGPT GPU-CUDA Installer](https://h2o-release.s3.amazonaws.com/h2ogpt/h2oGPT_0.0.1_gpu.exe) (1.8GB file)
   * [h2oGPT CPU Installer](https://h2o-release.s3.amazonaws.com/h2ogpt/h2oGPT_0.0.1_cpu.exe) (755MB file)
   * [Windows 10/11 Install and Run Docs](docs/README_WINDOWS.md)
@@ -46,14 +46,14 @@ For Windows 10 64-bit with full document Q/A capability:
     * `OMP_NUM_THREADS` thread count for LLaMa
     * `CUDA_VISIBLE_DEVICES` which GPUs are visible
 
-For Linux (CPU/CUDA) with full document Q/A capability:
+#### For Linux (CPU/CUDA) with full document Q/A capability:
   * [Docker Build and Run Docs](docs/README_DOCKER.md)
   * [Linux Install and Run Docs](docs/README_LINUX.md)
 
-For MACOS (CPU/M1/M2) with full document Q/A capability:
+#### For MACOS (CPU/M1/M2) with full document Q/A capability:
 * [MACOS Install and Run Docs](docs/README_MACOS.md)
 
-Example Models:
+#### Example Models:
 * [Highest accuracy and speed](https://huggingface.co/TheBloke/Llama-2-70B-Chat-fp16) on 16-bit with TGI/vLLM using ~48GB/GPU when in use (4*A100 high concurrency, 2*A100 for low concurrency)
 * [Middle-range accuracy](https://huggingface.co/h2oai/h2ogpt-gm-oasst1-en-2048-falcon-40b-v2) on 16-bit with TGI/vLLM using ~45GB/GPU when in use (2*A100)
 * [Small memory profile with ok accuracy](https://huggingface.co/TheBloke/Llama-2-13B-Chat-GGML) 16GB GPU if full GPU offloading
