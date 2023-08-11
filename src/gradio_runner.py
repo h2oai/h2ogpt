@@ -204,9 +204,9 @@ def go_gradio(**kwargs):
 
     # always add in no lora case
     # add fake space so doesn't go away in gradio dropdown
-    model_options0 = [no_model_str] + model_options0
-    lora_options = [no_lora_str] + lora_options
-    server_options = [no_server_str] + server_options
+    model_options0 = [no_model_str] + sorted(model_options0)
+    lora_options = [no_lora_str] + sorted(lora_options)
+    server_options = [no_server_str] + sorted(server_options)
     # always add in no model case so can free memory
     # add fake space so doesn't go away in gradio dropdown
 
@@ -511,7 +511,9 @@ def go_gradio(**kwargs):
             return choices
 
         def get_df_langchain_mode_paths(selection_docs_state1):
+            langchain_choices1 = get_langchain_choices(selection_docs_state0)
             langchain_mode_paths = selection_docs_state1['langchain_mode_paths']
+            langchain_mode_paths = {k: v for k, v in langchain_mode_paths.items() if k in langchain_choices1}
             if langchain_mode_paths:
                 langchain_mode_paths = langchain_mode_paths.copy()
                 for langchain_mode1 in langchain_modes_non_db:
@@ -522,6 +524,7 @@ def go_gradio(**kwargs):
             else:
                 df1 = pd.DataFrame(None)
             langchain_mode_types = selection_docs_state1['langchain_mode_types']
+            langchain_mode_types = {k: v for k, v in langchain_mode_types.items() if k in langchain_choices1}
             if langchain_mode_types:
                 langchain_mode_types = langchain_mode_types.copy()
                 for langchain_mode1 in langchain_modes_non_db:
@@ -1892,20 +1895,37 @@ def go_gradio(**kwargs):
             args_list = [user_kwargs[k] if k in user_kwargs and user_kwargs[k] is not None else default_kwargs1[k] for k
                          in eval_func_param_names]
             assert len(args_list) == len(eval_func_param_names)
+            stream_output1 = args_list[eval_func_param_names.index('stream_output')]
             args_list = [model_state1, my_db_state1, selection_docs_state1, requests_state1] + args_list
 
+            save_dict = dict()
+            error = ''
+            extra = ''
+            ret = {}
             try:
                 for res_dict in evaluate(*tuple(args_list), **kwargs1):
+                    error = res_dict.get('error')
+                    extra = res_dict.get('extra')
+                    save_dict = res_dict.get('save_dict')
                     if str_api:
                         # full return of dict
-                        yield res_dict
+                        ret = res_dict
                     elif kwargs['langchain_mode'] == 'Disabled':
-                        yield fix_text_for_gradio(res_dict['response'])
+                        ret = fix_text_for_gradio(res_dict['response'])
                     else:
-                        yield '<br>' + fix_text_for_gradio(res_dict['response'])
+                        ret = '<br>' + fix_text_for_gradio(res_dict['response'])
+                    if stream_output1:
+                        # yield as it goes, else need to wait since predict only returns first yield
+                        yield ret
             finally:
                 clear_torch_cache()
                 clear_embeddings(user_kwargs['langchain_mode'], my_db_state1)
+                save_dict['error'] = error
+                save_dict['extra'] = extra
+            save_generate_output(**save_dict)
+            if not stream_output1:
+                # return back last ret
+                yield ret
 
         kwargs_evaluate_nochat = kwargs_evaluate.copy()
         # nominally never want sources appended for API calls, which is what nochat used for primarily
@@ -2295,6 +2315,8 @@ def go_gradio(**kwargs):
         def bot(*args, retry=False):
             history, fun1, langchain_mode1, db1, requests_state1 = prep_bot(*args, retry=retry)
             save_dict = dict()
+            error = ''
+            extra = ''
             try:
                 for res in get_response(fun1, history):
                     history, error, extra, save_dict = res
@@ -2307,6 +2329,8 @@ def go_gradio(**kwargs):
                 if 'extra_dict' not in save_dict:
                     save_dict['extra_dict'] = {}
                 save_dict['extra_dict'].update(requests_state1)
+            save_dict['error'] = error
+            save_dict['extra'] = extra
             save_generate_output(**save_dict)
 
         def all_bot(*args, retry=False, model_states1=None):
@@ -2320,6 +2344,8 @@ def go_gradio(**kwargs):
             isize = len(input_args_list) + 1  # states + chat history
             db1s = None
             requests_state1 = None
+            extras = []
+            exceptions = []
             save_dicts = []
             try:
                 gen_list = []
@@ -2389,17 +2415,19 @@ def go_gradio(**kwargs):
                     else:
                         yield bots[0], exceptions_str
                 if exceptions:
-                    exceptions = [x for x in exceptions if x not in ['', None, 'None']]
-                    if exceptions:
-                        print("Generate exceptions: %s" % exceptions, flush=True)
+                    exceptions_reduced = [x for x in exceptions if x not in ['', None, 'None']]
+                    if exceptions_reduced:
+                        print("Generate exceptions: %s" % exceptions_reduced, flush=True)
             finally:
                 clear_torch_cache()
                 clear_embeddings(langchain_mode1, db1s)
-            for save_dict in save_dicts:
+            for extra, error, save_dict in zip(extras, exceptions, save_dicts):
                 if requests_state1:
                     if 'extra_dict' not in save_dict:
                         save_dict['extra_dict'] = {}
                     save_dict['extra_dict'].update(requests_state1)
+                save_dict['error'] = error
+                save_dict['extra'] = extra
                 save_generate_output(**save_dict)
 
         # NORMAL MODEL
@@ -3054,6 +3082,9 @@ def go_gradio(**kwargs):
                                             ):
             model_new_state = [model_list0[0] + [model_x]]
             model_new_options = [*model_new_state[0]]
+            if no_model_str in model_new_options:
+                model_new_options.remove(no_model_str)
+            model_new_options = [no_model_str] + sorted(model_new_options)
             x1 = model_x if model_used1 == no_model_str else model_used1
             x2 = model_x if model_used2 == no_model_str else model_used2
             ret1 = [gr.Dropdown.update(value=x1, choices=model_new_options),
@@ -3062,6 +3093,9 @@ def go_gradio(**kwargs):
 
             lora_new_state = [lora_list0[0] + [lora_x]]
             lora_new_options = [*lora_new_state[0]]
+            if no_lora_str in lora_new_options:
+                lora_new_options.remove(no_lora_str)
+            lora_new_options = [no_lora_str] + sorted(lora_new_options)
             # don't switch drop-down to added lora if already have model loaded
             x1 = lora_x if model_used1 == no_model_str else lora_used1
             x2 = lora_x if model_used2 == no_model_str else lora_used2
@@ -3071,6 +3105,9 @@ def go_gradio(**kwargs):
 
             server_new_state = [server_list0[0] + [server_x]]
             server_new_options = [*server_new_state[0]]
+            if no_server_str in server_new_options:
+                server_new_options.remove(no_server_str)
+            server_new_options = [no_server_str] + sorted(server_new_options)
             # don't switch drop-down to added server if already have model loaded
             x1 = server_x if model_used1 == no_model_str else server_used1
             x2 = server_x if model_used2 == no_model_str else server_used2
@@ -3288,7 +3325,7 @@ def go_gradio(**kwargs):
         server_port = int(server_port)
 
     demo.launch(share=kwargs['share'],
-                server_name="0.0.0.0",
+                server_name=kwargs['server_name'],
                 show_error=True,
                 server_port=server_port,
                 favicon_path=favicon_path,

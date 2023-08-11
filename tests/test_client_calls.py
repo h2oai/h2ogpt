@@ -49,14 +49,16 @@ def test_client1api():
 
 
 @pytest.mark.parametrize("admin_pass", ['', 'foodoo1234'])
+@pytest.mark.parametrize("save_dir", [None, 'save_foodoo1234'])
 @wrap_test_forked
-def test_client1api_lean(admin_pass):
+def test_client1api_lean(save_dir, admin_pass):
     from src.gen import main
     base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
     os.environ['ADMIN_PASS'] = admin_pass
     os.environ['GET_GITHASH'] = '1'
     main(base_model=base_model, prompt_type='human_bot', chat=False,
-         stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False)
+         stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False,
+         save_dir=save_dir)
 
     client1 = get_client(serialize=True)
 
@@ -70,9 +72,18 @@ def test_client1api_lean(admin_pass):
         kwargs = dict(instruction_nochat=prompt)
         # pass string of dict.  All entries are optional, but expect at least instruction_nochat to be filled
         res = client.predict(str(dict(kwargs)), api_name=api_name)
+        res = ast.literal_eval(res)
+        if save_dir:
+            assert 'base_model' in res['save_dict']
+            assert res['save_dict']['base_model'] == base_model
+            assert res['save_dict']['error'] is None
+            assert 'extra_dict' in res['save_dict']
+            assert res['save_dict']['extra_dict']['ntokens'] > 0
+            assert res['save_dict']['extra_dict']['t_generate'] > 0
+            assert res['save_dict']['extra_dict']['tokens_persecond'] > 0
 
         print("Raw client result: %s" % res, flush=True)
-        response = ast.literal_eval(res)['response']
+        response = res['response']
 
         assert 'I am h2oGPT' in response or "I'm h2oGPT" in response or 'I’m h2oGPT' in response
 

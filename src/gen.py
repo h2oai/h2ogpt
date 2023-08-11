@@ -114,6 +114,7 @@ def main(
         cli_loop: bool = True,
         gradio: bool = True,
         gradio_offline_level: int = 0,
+        server_name: str = "0.0.0.0",
         root_path: str = "",
         chat: bool = True,
         chat_context: bool = False,
@@ -323,6 +324,8 @@ def main(
            This option further disables google fonts for downloading, which is less intrusive than uploading,
            but still required in air-gapped case.  The fonts don't look as nice as google fonts, but ensure full offline behavior.
            Also set --share=False to avoid sharing a gradio live link.
+    :param server_name: IP to use.  In linux 0.0.0.0 is good choice so exposed to outside host, else for only local use 127.0.0.1.
+                        For windows/MAC 0.0.0.0 or 127.0.0.1 will work, but may need to specify actual LAN IP address for other LAN clients to see.
     :param root_path: The root path (or "mount point") of the application,
            if it's not served from the root ("/") of the domain. Often used when the application is behind a reverse proxy
            that forwards requests to the application. For example, if the application is served at "https://example.com/myapp",
