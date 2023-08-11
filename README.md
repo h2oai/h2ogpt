@@ -14,6 +14,8 @@ Query and summarize your documents or just chat with local private GPT LLMs usin
   - **Upload** and **View** documents via UI (control multiple collaborative or personal collections)
   - **Bake-off** UI mode against many models at same time
   - **Easy Download** of model artifacts and control over models like LLaMa.cpp via UI
+  - **Authentication** in UI by user/password
+  - **State Preservation** in UI by user/password
 - **Linux, Docker, MAC, and Windows** support
   - **Easy Windows Installer** for Windows 10 64-bit
 - **Inference Servers** support (HF TGI server, vLLM, Gradio, ExLLaMa, Replicate, OpenAI)
