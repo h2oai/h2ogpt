@@ -928,12 +928,51 @@ def go_gradio(**kwargs):
                         with gr.Column():
                             with gr.Row():
                                 with gr.Column(scale=20, visible=not kwargs['model_lock']):
-                                    model_choice = gr.Dropdown(model_options_state.value[0], label="Choose Model",
+                                    model_choice = gr.Dropdown(model_options_state.value[0], label="Choose Base Model",
                                                                value=kwargs['base_model'])
                                     lora_choice = gr.Dropdown(lora_options_state.value[0], label="Choose LORA",
                                                               value=kwargs['lora_weights'], visible=kwargs['show_lora'])
                                     server_choice = gr.Dropdown(server_options_state.value[0], label="Choose Server",
                                                                 value=kwargs['inference_server'], visible=not is_public)
+                                    max_seq_len = gr.Number(value=kwargs['max_seq_len'] or 2048,
+                                                            minimum=128,
+                                                            maximum=2 ** 18,
+                                                            label="max_seq_len")
+                                    rope_scaling = gr.Textbox(value=str(kwargs['rope_scaling'] or {}),
+                                                              label="rope_scaling")
+                                    row_llama = gr.Row(visible=kwargs['show_llama'] and kwargs['base_model'] == 'llama')
+                                    with row_llama:
+                                        model_path_llama = gr.Textbox(value=kwargs['llamacpp_dict']['model_path_llama'],
+                                                                      lines=4,
+                                                                      label="Choose LLaMa.cpp Model Path/URL (for Base Model: llama)",
+                                                                      visible=kwargs['show_llama'])
+                                        n_gpu_layers = gr.Number(value=kwargs['llamacpp_dict']['n_gpu_layers'],
+                                                                 minimum=0, maximum=100,
+                                                                 label="LLaMa.cpp Num. GPU Layers Offloaded",
+                                                                 visible=kwargs['show_llama'])
+                                        n_batch = gr.Number(value=kwargs['llamacpp_dict']['n_batch'],
+                                                            minimum=0, maximum=2048,
+                                                            label="LLaMa.cpp Batch Size",
+                                                            visible=kwargs['show_llama'])
+                                        n_gqa = gr.Number(value=kwargs['llamacpp_dict']['n_gqa'],
+                                                          minimum=0, maximum=32,
+                                                          label="LLaMa.cpp Num. Group Query Attention (8 for 70B LLaMa2)",
+                                                          visible=kwargs['show_llama'])
+                                        llamacpp_dict_more = gr.Textbox(value="{}",
+                                                                        lines=4,
+                                                                        label="Dict for other LLaMa.cpp/GPT4All options",
+                                                                        visible=kwargs['show_llama'])
+                                    row_gpt4all = gr.Row(
+                                        visible=kwargs['show_gpt4all'] and kwargs['base_model'] in ['gptj',
+                                                                                                    'gpt4all_llama'])
+                                    with row_gpt4all:
+                                        model_name_gptj = gr.Textbox(value=kwargs['llamacpp_dict']['model_name_gptj'],
+                                                                     label="Choose GPT4All GPTJ Model Path/URL (for Base Model: gptj)",
+                                                                     visible=kwargs['show_gpt4all'])
+                                        model_name_gpt4all_llama = gr.Textbox(
+                                            value=kwargs['llamacpp_dict']['model_name_gpt4all_llama'],
+                                            label="Choose GPT4All LLaMa Model Path/URL (for Base Model: gpt4all_llama)",
+                                            visible=kwargs['show_gpt4all'])
                                 with gr.Column(scale=1, visible=not kwargs['model_lock']):
                                     load_model_button = gr.Button(load_msg, variant=variant_load_msg, scale=0,
                                                                   size='sm', interactive=not is_public)
@@ -971,6 +1010,47 @@ def go_gradio(**kwargs):
                                     server_choice2 = gr.Dropdown(server_options_state.value[0], label="Choose Server 2",
                                                                  value=no_server_str,
                                                                  visible=not is_public)
+                                    max_seq_len2 = gr.Number(value=kwargs['max_seq_len'], minimum=128, maximum=2 ** 18,
+                                                             label="max_seq_len Model 2")
+                                    rope_scaling2 = gr.Textbox(value=str(kwargs['rope_scaling'] or {}),
+                                                               label="rope_scaling Model 2")
+
+                                    row_llama2 = gr.Row(
+                                        visible=kwargs['show_llama'] and kwargs['base_model'] == 'llama')
+                                    with row_llama2:
+                                        model_path_llama2 = gr.Textbox(
+                                            value=kwargs['llamacpp_dict']['model_path_llama'],
+                                            label="Choose LLaMa.cpp Model 2 Path/URL (for Base Model: llama)",
+                                            lines=4,
+                                            visible=kwargs['show_llama'])
+                                        n_gpu_layers2 = gr.Number(value=kwargs['llamacpp_dict']['n_gpu_layers'],
+                                                                  minimum=0, maximum=100,
+                                                                  label="LLaMa.cpp Num. GPU 2 Layers Offloaded",
+                                                                  visible=kwargs['show_llama'])
+                                        n_batch2 = gr.Number(value=kwargs['llamacpp_dict']['n_batch'],
+                                                             minimum=0, maximum=2048,
+                                                             label="LLaMa.cpp Model 2 Batch Size",
+                                                             visible=kwargs['show_llama'])
+                                        n_gqa2 = gr.Number(value=kwargs['llamacpp_dict']['n_gqa'],
+                                                           minimum=0, maximum=32,
+                                                           label="LLaMa.cpp Model 2 Num. Group Query Attention (8 for 70B LLaMa2)",
+                                                           visible=kwargs['show_llama'])
+                                        llamacpp_dict_more2 = gr.Textbox(value="{}",
+                                                                         lines=4,
+                                                                         label="Model 2 Dict for other LLaMa.cpp/GPT4All options",
+                                                                         visible=kwargs['show_llama'])
+                                    row_gpt4all2 = gr.Row(
+                                        visible=kwargs['show_gpt4all'] and kwargs['base_model'] in ['gptj',
+                                                                                                    'gpt4all_llama'])
+                                    with row_gpt4all2:
+                                        model_name_gptj2 = gr.Textbox(value=kwargs['llamacpp_dict']['model_name_gptj'],
+                                                                      label="Choose GPT4All GPTJ Model 2 Path/URL (for Base Model: gptj)",
+                                                                      visible=kwargs['show_gpt4all'])
+                                        model_name_gpt4all_llama2 = gr.Textbox(
+                                            value=kwargs['llamacpp_dict']['model_name_gpt4all_llama'],
+                                            label="Choose GPT4All LLaMa Model 2 Path/URL (for Base Model: gpt4all_llama)",
+                                            visible=kwargs['show_gpt4all'])
+
                                 with gr.Column(scale=1, visible=not kwargs['model_lock']):
                                     load_model_button2 = gr.Button(load_msg2, variant=variant_load_msg, scale=0,
                                                                    size='sm', interactive=not is_public)
@@ -997,9 +1077,9 @@ def go_gradio(**kwargs):
                                                               interactive=not is_public, lines=4)
                     with gr.Row(visible=not kwargs['model_lock']):
                         with gr.Column(scale=50):
-                            new_model = gr.Textbox(label="New Model name/path", interactive=not is_public)
+                            new_model = gr.Textbox(label="New Model name/path/URL", interactive=not is_public)
                         with gr.Column(scale=50):
-                            new_lora = gr.Textbox(label="New LORA name/path", visible=kwargs['show_lora'],
+                            new_lora = gr.Textbox(label="New LORA name/path/URL", visible=kwargs['show_lora'],
                                                   interactive=not is_public)
                         with gr.Column(scale=50):
                             new_server = gr.Textbox(label="New Server url:port", interactive=not is_public)
@@ -1209,6 +1289,27 @@ def go_gradio(**kwargs):
             return gr.Dropdown.update(choices=docs_state0, value=DocumentChoice.ALL.value)
 
         langchain_mode.change(clear_doc_choice, inputs=None, outputs=document_choice, queue=False)
+
+        def change_visible_llama(x):
+            if x == 'llama':
+                return gr.update(visible=True), \
+                    gr.update(visible=True), \
+                    gr.update(visible=False), \
+                    gr.update(visible=False)
+            elif x in ['gptj', 'gpt4all_llama']:
+                return gr.update(visible=False), \
+                    gr.update(visible=False), \
+                    gr.update(visible=True), \
+                    gr.update(visible=True)
+            else:
+                return gr.update(visible=False), \
+                    gr.update(visible=False), \
+                    gr.update(visible=False), \
+                    gr.update(visible=False)
+
+        model_choice.change(change_visible_llama,
+                            inputs=model_choice,
+                            outputs=[row_llama, row_llama2, row_gpt4all, row_gpt4all2])
 
         def resize_col_tabs(x):
             return gr.Dropdown.update(scale=x)
@@ -2773,7 +2874,22 @@ def go_gradio(**kwargs):
             .then(clear_torch_cache)
 
         def load_model(model_name, lora_weights, server_name, model_state_old, prompt_type_old, load_8bit,
-                       use_gpu_id, gpu_id):
+                       use_gpu_id, gpu_id, max_seq_len1, rope_scaling1,
+                       model_path_llama1, model_name_gptj1, model_name_gpt4all_llama1,
+                       n_gpu_layers1, n_batch1, n_gqa1, llamacpp_dict_more1):
+            try:
+                llamacpp_dict = ast.literal_eval(llamacpp_dict_more1)
+            except:
+                print("Failed to use user input for llamacpp_dict_more1 dict", flush=True)
+                llamacpp_dict = {}
+            llamacpp_dict.update(dict(model_path_llama=model_path_llama1,
+                                      model_name_gptj=model_name_gptj1,
+                                      model_name_gpt4all_llama=model_name_gpt4all_llama1,
+                                      n_gpu_layers=n_gpu_layers1,
+                                      n_batch=n_batch1,
+                                      n_gqa=n_gqa1,
+                                      ))
+
             # ensure no API calls reach here
             if is_public:
                 raise RuntimeError("Illegal access for %s" % model_name)
@@ -2823,6 +2939,13 @@ def go_gradio(**kwargs):
             all_kwargs1['load_8bit'] = load_8bit
             all_kwargs1['use_gpu_id'] = use_gpu_id
             all_kwargs1['gpu_id'] = int(gpu_id) if gpu_id not in [None, 'None'] else None  # detranscribe
+            all_kwargs1['llamacpp_dict'] = llamacpp_dict
+            all_kwargs1['max_seq_len'] = max_seq_len1
+            try:
+                all_kwargs1['rope_scaling'] = ast.literal_eval(rope_scaling1)  # transcribe
+            except:
+                print("Failed to use user input for rope_scaling dict", flush=True)
+                all_kwargs1['rope_scaling'] = {}
             model_lower = model_name.strip().lower()
             if model_lower in inv_prompt_type_to_model_lower:
                 prompt_type1 = inv_prompt_type_to_model_lower[model_lower]
@@ -2886,7 +3009,10 @@ def go_gradio(**kwargs):
 
         load_model_args = dict(fn=load_model,
                                inputs=[model_choice, lora_choice, server_choice, model_state, prompt_type,
-                                       model_load8bit_checkbox, model_use_gpu_id_checkbox, model_gpu],
+                                       model_load8bit_checkbox, model_use_gpu_id_checkbox, model_gpu,
+                                       max_seq_len, rope_scaling,
+                                       model_path_llama, model_name_gptj, model_name_gpt4all_llama,
+                                       n_gpu_layers, n_batch, n_gqa, llamacpp_dict_more],
                                outputs=[model_state, model_used, lora_used, server_used,
                                         # if prompt_type changes, prompt_dict will change via change rule
                                         prompt_type, max_new_tokens, min_new_tokens,
@@ -2903,7 +3029,10 @@ def go_gradio(**kwargs):
 
         load_model_args2 = dict(fn=load_model,
                                 inputs=[model_choice2, lora_choice2, server_choice2, model_state2, prompt_type2,
-                                        model_load8bit_checkbox2, model_use_gpu_id_checkbox2, model_gpu2],
+                                        model_load8bit_checkbox2, model_use_gpu_id_checkbox2, model_gpu2,
+                                        max_seq_len2, rope_scaling2,
+                                        model_path_llama2, model_name_gptj2, model_name_gpt4all_llama2,
+                                        n_gpu_layers2, n_batch2, n_gqa2, llamacpp_dict_more2],
                                 outputs=[model_state2, model_used2, lora_used2, server_used2,
                                          # if prompt_type2 changes, prompt_dict2 will change via change rule
                                          prompt_type2, max_new_tokens2, min_new_tokens2
@@ -3119,10 +3248,19 @@ def go_gradio(**kwargs):
             load_event.then(None, None, None, _js=app_js)
 
     demo.queue(concurrency_count=kwargs['concurrency_count'], api_open=kwargs['api_open'])
-    favicon_path = "h2o-logo.svg"
-    if not os.path.isfile(favicon_path):
-        print("favicon_path=%s not found" % favicon_path, flush=True)
-        favicon_path = None
+    favicon_file = "h2o-logo.svg"
+    favicon_path = favicon_file
+    if not os.path.isfile(favicon_file):
+        print("favicon_path1=%s not found" % favicon_file, flush=True)
+        alt_path = os.path.dirname(os.path.abspath(__file__))
+        favicon_path = os.path.join(alt_path, favicon_file)
+        if not os.path.isfile(favicon_path):
+            print("favicon_path2: %s not found in %s" % (favicon_file, alt_path), flush=True)
+            alt_path = os.path.dirname(alt_path)
+            favicon_path = os.path.join(alt_path, favicon_file)
+            if not os.path.isfile(favicon_path):
+                print("favicon_path3: %s not found in %s" % (favicon_file, alt_path), flush=True)
+                favicon_path = None
 
     scheduler = BackgroundScheduler()
     scheduler.add_job(func=clear_torch_cache, trigger="interval", seconds=20)

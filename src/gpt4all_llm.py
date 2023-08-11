@@ -1,16 +1,16 @@
 import inspect
 import os
-from functools import partial
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Iterator
 from langchain.callbacks.manager import CallbackManagerForLLMRun
+from langchain.schema.output import GenerationChunk
 from pydantic import root_validator
 from langchain.llms import gpt4all
-from dotenv import dotenv_values
 
-from utils import FakeTokenizer, get_ngpus_vis
+from utils import FakeTokenizer, get_ngpus_vis, url_alive, download_simple
 
 
-def get_model_tokenizer_gpt4all(base_model, n_jobs=None, max_seq_len=None):
+def get_model_tokenizer_gpt4all(base_model, n_jobs=None, max_seq_len=None, llamacpp_dict=None):
+    assert llamacpp_dict is not None
     # defaults (some of these are generation parameters, so need to be passed in at generation time)
     model_name = base_model.lower()
     model = get_llm_gpt4all(model_name, model=None,
@@ -28,6 +28,7 @@ def get_model_tokenizer_gpt4all(base_model, n_jobs=None, max_seq_len=None):
                             # iinput=iinput,
                             inner_class=True,
                             max_seq_len=max_seq_len,
+                            llamacpp_dict=llamacpp_dict,
                             )
     return model, FakeTokenizer(), 'cpu'
 
@@ -45,13 +46,13 @@ class H2OStreamingStdOutCallbackHandler(StreamingStdOutCallbackHandler):
         pass
 
 
-def get_model_kwargs(env_kwargs, default_kwargs, cls, exclude_list=[]):
+def get_model_kwargs(llamacpp_dict, default_kwargs, cls, exclude_list=[]):
     # default from class
     model_kwargs = {k: v.default for k, v in dict(inspect.signature(cls).parameters).items() if k not in exclude_list}
     # from our defaults
     model_kwargs.update(default_kwargs)
     # from user defaults
-    model_kwargs.update(env_kwargs)
+    model_kwargs.update(llamacpp_dict)
     # ensure only valid keys
     func_names = list(inspect.signature(cls).parameters)
     model_kwargs = {k: v for k, v in model_kwargs.items() if k in func_names}
@@ -77,14 +78,12 @@ def get_gpt4all_default_kwargs(max_new_tokens=256,
                                max_seq_len=None,
                                ):
     if n_jobs is None:
-        n_jobs = int(os.getenv('OMP_NUM_THREADS', str(os.cpu_count())))
-    env_gpt4all_file = ".env_gpt4all"
-    env_kwargs = dotenv_values(env_gpt4all_file)
-    max_tokens = env_kwargs.pop('max_tokens', max_seq_len - max_new_tokens)
+        n_jobs = int(os.getenv('OMP_NUM_THREADS', str(os.cpu_count()//2)))
+    n_jobs = max(1, min(20, n_jobs))  # hurts beyond some point
     n_gpus = get_ngpus_vis()
     default_kwargs = dict(context_erase=0.5,
                           n_batch=1,
-                          max_tokens=max_tokens,
+                          max_tokens=max_seq_len - max_new_tokens,
                           n_predict=max_new_tokens,
                           repeat_last_n=64 if repetition_penalty != 1.0 else 0,
                           repeat_penalty=repetition_penalty,
@@ -98,7 +97,7 @@ def get_gpt4all_default_kwargs(max_new_tokens=256,
                           verbose=verbose)
     if n_gpus != 0:
         default_kwargs.update(dict(n_gpu_layers=100))
-    return default_kwargs, env_kwargs
+    return default_kwargs
 
 
 def get_llm_gpt4all(model_name,
@@ -117,11 +116,12 @@ def get_llm_gpt4all(model_name,
                     verbose=False,
                     inner_class=False,
                     max_seq_len=None,
+                    llamacpp_dict=None,
                     ):
     if not inner_class:
         assert prompter is not None
 
-    default_kwargs, env_kwargs = \
+    default_kwargs = \
         get_gpt4all_default_kwargs(max_new_tokens=max_new_tokens,
                                    temperature=temperature,
                                    repetition_penalty=repetition_penalty,
@@ -133,8 +133,14 @@ def get_llm_gpt4all(model_name,
                                    )
     if model_name == 'llama':
         cls = H2OLlamaCpp
-        model_path = env_kwargs.pop('model_path_llama') if model is None else model
-        model_kwargs = get_model_kwargs(env_kwargs, default_kwargs, cls, exclude_list=['lc_kwargs'])
+        if model is None:
+            llamacpp_dict = llamacpp_dict.copy()
+            model_path = llamacpp_dict.pop('model_path_llama')
+            if url_alive(model_path):
+                model_path = download_simple(model_path)
+        else:
+            model_path = model
+        model_kwargs = get_model_kwargs(llamacpp_dict, default_kwargs, cls, exclude_list=['lc_kwargs'])
         model_kwargs.update(dict(model_path=model_path, callbacks=callbacks, streaming=streaming,
                                  prompter=prompter, context=context, iinput=iinput))
         llm = cls(**model_kwargs)
@@ -142,8 +148,14 @@ def get_llm_gpt4all(model_name,
         inner_model = llm.client
     elif model_name == 'gpt4all_llama':
         cls = H2OGPT4All
-        model_path = env_kwargs.pop('model_name_gpt4all_llama') if model is None else model
-        model_kwargs = get_model_kwargs(env_kwargs, default_kwargs, cls, exclude_list=['lc_kwargs'])
+        if model is None:
+            llamacpp_dict = llamacpp_dict.copy()
+            model_path = llamacpp_dict.pop('model_name_gpt4all_llama')
+            if url_alive(model_path):
+                model_path = download_simple(model_path)
+        else:
+            model_path = model
+        model_kwargs = get_model_kwargs(llamacpp_dict, default_kwargs, cls, exclude_list=['lc_kwargs'])
         model_kwargs.update(
             dict(model=model_path, backend='llama', callbacks=callbacks, streaming=streaming,
                  prompter=prompter, context=context, iinput=iinput))
@@ -151,8 +163,14 @@ def get_llm_gpt4all(model_name,
         inner_model = llm.client
     elif model_name == 'gptj':
         cls = H2OGPT4All
-        model_path = env_kwargs.pop('model_name_gptj') if model is None else model
-        model_kwargs = get_model_kwargs(env_kwargs, default_kwargs, cls, exclude_list=['lc_kwargs'])
+        if model is None:
+            llamacpp_dict = llamacpp_dict.copy()
+            model_path = llamacpp_dict.pop('model_name_gptj') if model is None else model
+            if url_alive(model_path):
+                model_path = download_simple(model_path)
+        else:
+            model_path = model
+        model_kwargs = get_model_kwargs(llamacpp_dict, default_kwargs, cls, exclude_list=['lc_kwargs'])
         model_kwargs.update(
             dict(model=model_path, backend='gptj', callbacks=callbacks, streaming=streaming,
                  prompter=prompter, context=context, iinput=iinput))
@@ -321,25 +339,41 @@ class H2OLlamaCpp(LlamaCpp):
             print("_call prompt: %s" % prompt, flush=True)
 
         if self.streaming:
-            text_callback = None
-            if run_manager:
-                text_callback = partial(
-                    run_manager.on_llm_new_token, verbose=self.verbose
-                )
             # parent handler of streamer expects to see prompt first else output="" and lose if prompt=None in prompter
-            if text_callback:
-                text_callback(prompt)
             text = ""
             for token in self.stream(input=prompt, stop=stop):
-            #for token in self.stream(input=prompt, stop=stop, run_manager=run_manager):
-                text_chunk = token#["choices"][0]["text"]
+                # for token in self.stream(input=prompt, stop=stop, run_manager=run_manager):
+                text_chunk = token  # ["choices"][0]["text"]
                 # self.stream already calls text_callback
                 # if text_callback:
                 #    text_callback(text_chunk)
                 text += text_chunk
-            return text
+            # parent handler of streamer expects to see prompt first else output="" and lose if prompt=None in prompter
+            return text[len(prompt):]
         else:
             params = self._get_parameters(stop)
             params = {**params, **kwargs}
             result = self.client(prompt=prompt, **params)
             return result["choices"][0]["text"]
+
+    def _stream(
+            self,
+            prompt: str,
+            stop: Optional[List[str]] = None,
+            run_manager: Optional[CallbackManagerForLLMRun] = None,
+            **kwargs: Any,
+        ) -> Iterator[GenerationChunk]:
+        # parent handler of streamer expects to see prompt first else output="" and lose if prompt=None in prompter
+        logprobs = 0
+        chunk = GenerationChunk(
+            text=prompt,
+            generation_info={"logprobs": logprobs},
+        )
+        yield chunk
+        if run_manager:
+            run_manager.on_llm_new_token(
+                token=chunk.text, verbose=self.verbose, log_probs=logprobs
+            )
+        # actual new tokens
+        for chunk in super()._stream(prompt, stop=stop, run_manager=run_manager, **kwargs):
+            yield chunk

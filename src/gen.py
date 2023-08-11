@@ -71,6 +71,13 @@ def main(
         system_prompt: str = '',
         use_system_prompt: bool = False,
 
+        # llama and gpt4all settings
+        llamacpp_dict: typing.Dict = dict(n_gpu_layers=100, use_mlock=True, n_batch=1024, n_gqa=0),
+        model_path_llama: str = 'https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin', #'llama-2-7b-chat.ggmlv3.q8_0.bin',
+        model_name_gptj: str = 'ggml-gpt4all-j-v1.3-groovy.bin',
+        model_name_gpt4all_llama: str = 'ggml-wizardLM-7B.q4_2.bin',
+        model_name_exllama_if_no_config: str = 'TheBloke/Nous-Hermes-Llama2-GPTQ',
+
         model_lock: typing.List[typing.Dict[str, str]] = None,
         model_lock_columns: int = None,
         fail_if_cannot_connect: bool = False,
@@ -119,6 +126,8 @@ def main(
         dark: bool = False,  # light tends to be best
         height: int = 600,
         show_lora: bool = True,
+        show_llama: bool = True,
+        show_gpt4all: bool = False,
         login_mode_if_model0: bool = False,
         block_gradio_exit: bool = True,
         concurrency_count: int = 1,
@@ -250,6 +259,18 @@ def main(
            Useful for langchain case to control behavior, or OpenAI and Replicate.
     :param use_system_prompt: Whether to use system prompt (e.g. llama2 safe system prompt) present in prompt_type itself
            Independent of system_prompt, which is used for OpenAI, Replicate.
+
+    :param llamacpp_dict:
+           n_gpu_layers: for llama.cpp based models, number of GPU layers to offload (default is all by using large value)
+           use_mlock: when using `llama.cpp` based CPU models, for computers with low system RAM or slow CPUs, recommended False
+           n_batch: Can make smaller to 128 for slower low-memory CPU systems
+           n_gqa: Required to be 8 for LLaMa 70B
+           ... etc. anything that could be passed to llama.cpp or GPT4All models
+    :param model_path_llama: model path or URL (for auto-download)
+    :param model_name_gptj: model path or URL (for auto-download)
+    :param model_name_gpt4all_llama: model path or URL (for auto-download)
+    :param model_name_exllama_if_no_config: exllama model's full path for model, tokenizer, generator for use when no HuggingFace config
+
     :param model_lock: Lock models to specific combinations, for ease of use and extending to many models
            Only used if gradio = True
            List of dicts, each dict has base_model, tokenizer_base_model, lora_weights, inference_server, prompt_type, and prompt_dict
@@ -321,6 +342,8 @@ def main(
     :param dark: whether to use dark mode for UI by default (still controlled in UI)
     :param height: height of chat window
     :param show_lora: whether to show LORA options in UI (expert so can be hard to understand)
+    :param show_llama: whether to show LLaMa.cpp/GPT4All options in UI (only likely useful if have weak GPUs)
+    :param show_gpt4all: whether to show GPT4All models in UI (not often useful, llama.cpp models best)
     :param login_mode_if_model0: set to True to load --base_model after client logs in, to be able to free GPU memory when model is swapped
     :param block_gradio_exit: whether to block gradio exit (used for testing)
     :param concurrency_count: gradio concurrency count (1 is optimal for LLMs)
@@ -483,6 +506,14 @@ def main(
     model_lock = os.getenv('model_lock', str(model_lock))
     model_lock = ast.literal_eval(model_lock)
 
+    if isinstance(llamacpp_dict, str):
+        llamacpp_dict = ast.literal_eval(llamacpp_dict)
+    # add others to single dict
+    llamacpp_dict['model_path_llama'] = model_path_llama
+    llamacpp_dict['model_name_gptj'] = model_name_gptj
+    llamacpp_dict['model_name_gpt4all_llama'] = model_name_gpt4all_llama
+    llamacpp_dict['model_name_exllama_if_no_config'] = model_name_exllama_if_no_config
+
     if model_lock:
         assert gradio, "model_lock only supported for gradio=True"
         if len(model_lock) > 1:
@@ -549,6 +580,15 @@ def main(
     if isinstance(langchain_mode_types, str):
         langchain_mode_types = ast.literal_eval(langchain_mode_types)
         assert isinstance(langchain_mode_types, dict)
+    for lmode in [LangChainMode.GITHUB_H2OGPT.value,
+                  LangChainMode.H2O_DAI_DOCS.value,
+                  LangChainMode.WIKI.value,
+                  LangChainMode.WIKI_FULL.value,
+                  ]:
+        if lmode not in langchain_mode_types:
+            langchain_mode_types[lmode] = 'shared'
+    if lmode not in langchain_mode_paths:
+        langchain_mode_types[lmode] = ''
     if user_path:
         user_path = makedirs(user_path, use_base=True)
         langchain_mode_paths['UserData'] = user_path
@@ -1132,6 +1172,7 @@ def get_model(
         rope_scaling: dict = None,
         max_seq_len: int = None,
         compile_model: bool = True,
+        llamacpp_dict=None,
 
         verbose: bool = False,
 ):
@@ -1161,8 +1202,9 @@ def get_model(
     :param offload_folder: offload folder
     :param rope_scaling: scaling for rope-based models, e.g. "{'type':'dynamic', 'factor':4}"
     :param max_seq_len: override for maximum sequence length for model
-    :param compile_model: whether to compile torch model
     :param max_seq_len: if set, use as max_seq_len for model
+    :param compile_model: whether to compile torch model
+    :param llamacpp_dict: dict of llama.cpp and GPT4All model options
     :param verbose:
     :return:
     """
@@ -1261,7 +1303,8 @@ def get_model(
     if base_model in non_hf_types:
         from gpt4all_llm import get_model_tokenizer_gpt4all
         model, tokenizer, device = get_model_tokenizer_gpt4all(base_model, n_jobs=n_jobs,
-                                                               max_seq_len=max_seq_len)
+                                                               max_seq_len=max_seq_len,
+                                                               llamacpp_dict=llamacpp_dict)
         return model, tokenizer, device
     if load_exllama:
         return model_loader, tokenizer, 'cuda'
@@ -1534,6 +1577,7 @@ def get_score_model(score_model: str = None,
                     offload_folder: str = None,
                     rope_scaling: dict = None,
                     compile_model: bool = True,
+                    llamacpp_dict: typing.Dict = None,
 
                     verbose: bool = False,
                     ):
@@ -1552,6 +1596,7 @@ def get_score_model(score_model: str = None,
         llama_type = False
         max_seq_len = None
         compile_model = False
+        llamacpp_dict = {}
         smodel, stokenizer, sdevice = get_model(reward_type=True,
                                                 **get_kwargs(get_model, exclude_names=['reward_type'], **locals()))
     else:
@@ -1830,6 +1875,7 @@ def evaluate(
                 load_db_if_exists=load_db_if_exists,
                 db=db,
                 langchain_mode_paths=langchain_mode_paths,
+                langchain_mode_types=langchain_mode_types,
                 detect_user_path_changes_every_query=detect_user_path_changes_every_query,
                 cut_distance=1.1 if langchain_mode in ['wiki_full'] else cut_distance,
                 answer_with_sources=answer_with_sources,

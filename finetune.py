@@ -148,11 +148,11 @@ def train(
     if llama_type is None:
         llama_type = "llama" in base_model.lower()
     if llama_type and llama_flash_attn:
-        import pkg_resources
+        from importlib.metadata import distribution, PackageNotFoundError
         try:
-            pkg_resources.get_distribution('flash_attn')
+            distribution('flash_attn')
             can_do_flash_attn = True
-        except (pkg_resources.DistributionNotFound, pkg_resources.ContextualVersionConflict):
+        except (PackageNotFoundError, AssertionError):
             can_do_flash_attn = False
 
         if not can_do_flash_attn:

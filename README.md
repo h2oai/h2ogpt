@@ -5,15 +5,17 @@ Turn ★ into ⭐ (top-right corner) if you like the project!
 Query and summarize your documents or just chat with local private GPT LLMs using h2oGPT, an Apache V2 open-source project.
 
 - **Private** offline database of any documents [(PDFs, Excel, Word, Images, Code, Text, MarkDown, etc.)](docs/README_LangChain.md#supported-datatypes)
-- **Persistent** database (Chroma, Weaviate, or in-memory FAISS) using accurate embeddings (instructor-large, all-MiniLM-L6-v2, etc.)
-- **Efficient** use of context using instruct-tuned LLMs (no need for LangChain's few-shot approach)
-- **Parallel** summarization reaching 80 tokens/second output 13B LLaMa2
-- **Upload** and **View** documents via UI (control multiple collaborative or scratch collections)
-- **UI** or CLI with streaming of all models
-- **Bake-off** UI mode against many models at same time
+  - **Persistent** database (Chroma, Weaviate, or in-memory FAISS) using accurate embeddings (instructor-large, all-MiniLM-L6-v2, etc.)
+  - **Efficient** use of context using instruct-tuned LLMs (no need for LangChain's few-shot approach)
+  - **Parallel** summarization reaching 80 tokens/second output 13B LLaMa2
 - **Variety** of models supported (LLaMa2, Falcon, Vicuna, WizardLM including AutoGPTQ, 4-bit/8-bit, LORA)
-- **GPU** support from HF and LLaMa.cpp GGML models, and **CPU** support using HF, LLaMa.cpp, and GPT4ALL models
+  - **GPU** support from HF and LLaMa.cpp GGML models, and **CPU** support using HF, LLaMa.cpp, and GPT4ALL models
+- **UI** or CLI with streaming of all models
+  - **Upload** and **View** documents via UI (control multiple collaborative or scratch collections)
+  - **Bake-off** UI mode against many models at same time
+  - **Easy Download** of model artifacts and control over models like LLaMa.cpp via UI
 - **Linux, Docker, MAC, and Windows** support
+  - **Easy Windows Installer** for Windows 10 64-bit
 - **Inference Servers** support (HF TGI server, vLLM, Gradio, ExLLaMa, Replicate, OpenAI)
 - **OpenAI-compliant Python client API** for client-server control
 - **Evaluate** performance using reward models
@@ -21,7 +23,7 @@ Query and summarize your documents or just chat with local private GPT LLMs usin
 
 ### Getting Started
 
-To quickly try out h2oGPT on CPU with LLaMa2 7B Chat, create a fresh Python 3.10 environment and run:
+To quickly try out h2oGPT on CPU with limited document Q/A capability using LLaMa2 7B Chat, create a fresh Python 3.10 environment and run:
 ```bash
 git clone https://github.com/h2oai/h2ogpt.git
 cd h2ogpt
@@ -34,14 +36,25 @@ python generate.py --base_model='llama' --prompt_type=llama2
 ```
 then go to your browser by visiting [http://127.0.0.1:7860](http://127.0.0.1:7860) or [http://localhost:7860](http://localhost:7860).
 
-For full instructions (required for GPU inference) visit:
+For Windows 10 64-bit with full document Q/A capability:
+  * [h2oGPT GPU-CUDA Installer](https://h2o-release.s3.amazonaws.com/h2ogpt/h2oGPT_0.0.1_gpu.exe) (1.8GB file)
+  * [h2oGPT CPU Installer](https://h2o-release.s3.amazonaws.com/h2ogpt/h2oGPT_0.0.1_cpu.exe) (755MB file)
+  * [Windows 10/11 Install and Run Docs](docs/README_WINDOWS.md)
 
-* [Linux](docs/README_LINUX.md)
-* [MACOS](docs/README_MACOS.md)
-* [Windows 10/11](docs/README_WINDOWS.md)
+    The installers include all dependencies for document Q/A, except models (LLM, embedding, reward) that are downloadable via UI.  After installation, go to start and run h2oGPT, and a web browser will open for h2oGPT.  To use LLaMa model, go to Models tab, select `llama` base model, then click load to download from preset URL.  Then use as normal.  To terminate the app, in task manager kill the `Python` process named `pythonw.exe` as will also show up in `nvidia-smi` if using GPUs.  Set environment variables to control a few things:
+    * `n_jobs`: number of cores for various tasks
+    * `OMP_NUM_THREADS` thread count for LLaMa
+    * `CUDA_VISIBLE_DEVICES` which GPUs are visible
 
-Example models:
-* [Highest accuracy and speed](https://huggingface.co/TheBloke/Llama-2-70B-Chat-fp16) on 16-bit with TGI/vLLM using ~48GB/GPU when in use (4*A100)
+For Linux (CPU/CUDA) with full document Q/A capability:
+  * [Docker Build and Run Docs](docs/README_DOCKER.md)
+  * [Linux Install and Run Docs](docs/README_LINUX.md)
+
+For MACOS (CPU/M1/M2) with full document Q/A capability:
+* [MACOS Install and Run Docs](docs/README_MACOS.md)
+
+Example Models:
+* [Highest accuracy and speed](https://huggingface.co/TheBloke/Llama-2-70B-Chat-fp16) on 16-bit with TGI/vLLM using ~48GB/GPU when in use (4*A100 high concurrency, 2*A100 for low concurrency)
 * [Middle-range accuracy](https://huggingface.co/h2oai/h2ogpt-gm-oasst1-en-2048-falcon-40b-v2) on 16-bit with TGI/vLLM using ~45GB/GPU when in use (2*A100)
 * [Small memory profile with ok accuracy](https://huggingface.co/TheBloke/Llama-2-13B-Chat-GGML) 16GB GPU if full GPU offloading
 * [Balanced accuracy and size](https://huggingface.co/TheBloke/Llama-2-13B-Chat-fp16) on 16-bit with TGI/vLLM using ~45GB/GPU when in use (1*A100)

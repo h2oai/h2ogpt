@@ -23,7 +23,7 @@ def test_gradio_inference_server(base_model, force_langchain_evaluate, do_langch
                                  langchain_mode='Disabled', langchain_action=LangChainAction.QUERY.value,
                                  langchain_agents=[],
                                  user_path=None,
-                                 langchain_modes=['UserData', 'MyData'],
+                                 langchain_modes=['UserData', 'MyData', 'LLM', 'Disabled'],
                                  reverse_docs=True):
     if force_langchain_evaluate:
         langchain_mode = 'MyData'
@@ -240,7 +240,7 @@ def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain,
                              langchain_action=LangChainAction.QUERY.value,
                              langchain_agents=[],
                              user_path=None,
-                             langchain_modes=['UserData', 'MyData'],
+                             langchain_modes=['UserData', 'MyData', 'LLM', 'Disabled'],
                              reverse_docs=True):
     # HF inference server
     gradio_port = get_inf_port()
@@ -365,7 +365,7 @@ def test_openai_inference_server(force_langchain_evaluate,
                                  langchain_action=LangChainAction.QUERY.value,
                                  langchain_agents=[],
                                  user_path=None,
-                                 langchain_modes=['UserData', 'MyData'],
+                                 langchain_modes=['UserData', 'MyData', 'LLM', 'Disabled'],
                                  reverse_docs=True):
     if force_langchain_evaluate:
         langchain_mode = 'MyData'
@@ -484,7 +484,7 @@ def test_replicate_inference_server(force_langchain_evaluate,
                                     langchain_action=LangChainAction.QUERY.value,
                                     langchain_agents=[],
                                     user_path=None,
-                                    langchain_modes=['UserData', 'MyData'],
+                                    langchain_modes=['UserData', 'MyData', 'LLM', 'Disabled'],
                                     reverse_docs=True):
     if force_langchain_evaluate:
         langchain_mode = 'MyData'

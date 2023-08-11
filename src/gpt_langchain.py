@@ -831,6 +831,7 @@ def get_llm(use_openai_model=False,
             system_prompt='',
             n_jobs=None,
             cli=False,
+            llamacpp_dict=None,
             verbose=False,
             ):
     if n_jobs is None:
@@ -849,6 +850,8 @@ def get_llm(use_openai_model=False,
             gen_kwargs.update(dict(system_prompt=system_prompt))
         elif prompter.system_prompt:
             gen_kwargs.update(dict(system_prompt=prompter.system_prompt))
+        # replicate handles prompting, so avoid get_resopnse() filter
+        prompter.prompt_type = 'plain'
         if stream_output:
             callbacks = [StreamingGradioCallbackHandler()]
             streamer = callbacks[0] if stream_output else None
@@ -1031,6 +1034,7 @@ def get_llm(use_openai_model=False,
                               context=context,
                               iinput=iinput,
                               max_seq_len=max_max_tokens,
+                              llamacpp_dict=llamacpp_dict,
                               )
     elif hasattr(model, 'is_exlama') and model.is_exlama():
         async_output = False  # FIXME: not implemented yet
@@ -1522,10 +1526,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         add_meta(doc1, file, headsize)
         doc1 = chunk_sources(doc1, language=Language.RST)
     elif file.lower().endswith('.pdf'):
-        env_gpt4all_file = ".env_gpt4all"
-        from dotenv import dotenv_values
-        env_kwargs = dotenv_values(env_gpt4all_file)
-        pdf_class_name = env_kwargs.get('PDF_CLASS_NAME', 'PyMuPDFParser')
+        pdf_class_name = os.getenv('PDF_CLASS_NAME', 'PyMuPDFParser')
         doc1 = []
         handled = False
         e = None
@@ -2065,16 +2066,31 @@ def load_embed(db=None, persist_directory=None):
 
 
 def get_persist_directory(langchain_mode, langchain_type=None, db1s=None, dbs=None):
+    if langchain_mode in [LangChainMode.DISABLED.value, LangChainMode.LLM.value]:
+        # not None so join works but will fail to find db
+        return ''
+
     userid = get_userid_direct(db1s)
     username = get_username_direct(db1s)
     dirid = username or userid
+    if langchain_type == LangChainTypes.SHARED.value and not dirid:
+        dirid = './'  # just to avoid error
+    if langchain_type == LangChainTypes.PERSONAL.value and not dirid:
+        # e.g. from client when doing transient calls with MyData
+        if db1s is None:
+            # just trick to get filled locally
+            db1s = {LangChainMode.MY_DATA.value: [None, None, None]}
+        set_userid_direct(db1s, str(uuid.uuid4()), str(uuid.uuid4()))
+        userid = get_userid_direct(db1s)
+        username = get_username_direct(db1s)
+        dirid = username or userid
 
     # deal with existing locations
     user_base_dir = os.getenv('USERS_BASE_DIR', 'users')
     persist_directory = os.path.join(user_base_dir, dirid, 'db_dir_%s' % langchain_mode)
     if userid and \
             (os.path.isdir(persist_directory) or
-             langchain_mode in db1s or
+             db1s is not None and langchain_mode in db1s or
              langchain_type == LangChainTypes.PERSONAL.value):
         msg = "Bad type: %s for %s" % (langchain_type, langchain_mode)
         # if langchain_mode in dbs:
@@ -2086,7 +2102,7 @@ def get_persist_directory(langchain_mode, langchain_type=None, db1s=None, dbs=No
 
     persist_directory = 'db_dir_%s' % langchain_mode
     if (os.path.isdir(persist_directory) or
-            langchain_mode in dbs or
+            dbs is not None and langchain_mode in dbs or
             langchain_type == LangChainTypes.SHARED.value):
         msg = "Bad type: %s for %s" % (langchain_type, langchain_mode)
         # if langchain_mode in db1s:
@@ -2316,6 +2332,7 @@ def run_qa_db(**kwargs):
     # hard-coded defaults
     kwargs['answer_with_sources'] = kwargs.get('answer_with_sources', True)
     kwargs['show_rank'] = kwargs.get('show_rank', False)
+    kwargs['llamacpp_dict'] = {}  # shouldn't be required unless from test using _run_qa_db
     missing_kwargs = [x for x in func_names if x not in kwargs]
     assert not missing_kwargs, "Missing kwargs for run_qa_db: %s" % missing_kwargs
     # only keep actual used
@@ -2374,6 +2391,7 @@ def _run_qa_db(query=None,
                pre_prompt_summary=None,
                prompt_summary=None,
                n_jobs=-1,
+               llamacpp_dict=None,
                verbose=False,
                cli=False,
                reverse_docs=True,
@@ -2455,9 +2473,13 @@ def _run_qa_db(query=None,
                 sanitize_bot_response=sanitize_bot_response,
                 system_prompt=system_prompt,
                 n_jobs=n_jobs,
+                llamacpp_dict=llamacpp_dict,
                 cli=cli,
                 verbose=verbose,
                 )
+    # in case change, override original prompter
+    if hasattr(llm, 'prompter'):
+        prompter = llm.prompter
 
     use_docs_planned = False
     scores = []
@@ -3092,16 +3114,15 @@ def get_any_db(db1s, langchain_mode, langchain_mode_paths, langchain_mode_types,
                for_sources_list=False,
                verbose=False,
                ):
-    if for_sources_list and langchain_mode in [LangChainMode.WIKI_FULL.value]:
+    if langchain_mode in [LangChainMode.DISABLED.value, LangChainMode.LLM.value]:
+        return None
+    elif for_sources_list and langchain_mode in [LangChainMode.WIKI_FULL.value]:
         # NOTE: avoid showing full wiki.  Takes about 30 seconds over about 90k entries, but not useful for now
-        db = None
-    elif langchain_mode in [LangChainMode.LLM.value]:
-        # Not db
-        db = None
+        return None
     elif langchain_mode in db1s and len(db1s[langchain_mode]) > 1 and db1s[langchain_mode][0]:
-        db = db1s[langchain_mode][0]
+        return db1s[langchain_mode][0]
     elif dbs is not None and langchain_mode in dbs and dbs[langchain_mode] is not None:
-        db = dbs[langchain_mode]
+        return dbs[langchain_mode]
     else:
         db = None
 

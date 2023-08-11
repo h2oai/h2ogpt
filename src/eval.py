@@ -24,6 +24,7 @@ def run_eval(  # for local function:
         use_gpu_id=None, tokenizer_base_model=None,
         gpu_id=None, n_jobs=None, local_files_only=None, resume_download=None, use_auth_token=None,
         trust_remote_code=None, offload_folder=None, rope_scaling=None, max_seq_len=None, compile_model=None,
+        llamacpp_dict=None,
         # for evaluate args beyond what's already above, or things that are always dynamic and locally created
         temperature=None,
         top_p=None,
@@ -160,8 +161,12 @@ def run_eval(  # for local function:
                               inference_server=inference_server, prompt_type=prompt_type, prompt_dict=prompt_dict)
             model_state = dict(model=model, tokenizer=tokenizer, device=device)
             model_state.update(model_dict)
-            fun = partial(evaluate, model_state, my_db_state0, selection_docs_state0,
-                          **get_kwargs(evaluate, exclude_names=['model_state', 'my_db_state', 'selection_docs_state']
+            requests_state0 = {}
+            fun = partial(evaluate, model_state, my_db_state0, selection_docs_state0, requests_state0,
+                          **get_kwargs(evaluate, exclude_names=['model_state',
+                                                                'my_db_state',
+                                                                'selection_docs_state',
+                                                                'requests_state']
                                                                + eval_func_param_names,
                                        **locals()))
         else:

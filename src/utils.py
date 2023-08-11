@@ -29,8 +29,6 @@ from fire import inspectutils
 from joblib import Parallel
 from tqdm.auto import tqdm
 
-from src.enums import LangChainTypes
-
 
 def H2O_Fire(component=None):
     config_prefix = "H2OGPT_"
@@ -519,9 +517,19 @@ def atomic_move_simple(src, dst):
     remove(src)
 
 
-def download_simple(url, dest=None, print_func=None):
-    if print_func is not None:
-        print_func("BEGIN get url %s" % str(url))
+def download_simple(url, dest=None):
+    if dest is None:
+        dest = os.path.basename(url)
+    base_path = os.path.dirname(dest)
+    if base_path:  # else local path
+        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
+        dest = os.path.join(base_path, os.path.basename(dest))
+
+    if os.path.isfile(dest):
+        print("Already have %s from url %s, delete file if invalid" % (dest, str(url)), flush=True)
+        return dest
+
+    print("BEGIN get url %s" % str(url), flush=True)
     if url.startswith("file://"):
         from requests_file import FileAdapter
         s = requests.Session()
@@ -529,8 +537,8 @@ def download_simple(url, dest=None, print_func=None):
         url_data = s.get(url, stream=True)
     else:
         url_data = requests.get(url, stream=True)
-    if dest is None:
-        dest = os.path.basename(url)
+    print("GOT url %s" % str(url), flush=True)
+
     if url_data.status_code != requests.codes.ok:
         msg = "Cannot get url %s, code: %s, reason: %s" % (
             str(url),
@@ -539,16 +547,14 @@ def download_simple(url, dest=None, print_func=None):
         )
         raise requests.exceptions.RequestException(msg)
     url_data.raw.decode_content = True
-    base_path = os.path.dirname(dest)
-    base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
-    dest = os.path.join(base_path, os.path.basename(dest))
+
     uuid_tmp = str(uuid.uuid4())[:6]
     dest_tmp = dest + "_dl_" + uuid_tmp + ".tmp"
     with open(dest_tmp, "wb") as f:
         shutil.copyfileobj(url_data.raw, f)
     atomic_move_simple(dest_tmp, dest)
-    if print_func is not None:
-        print_func("END get url %s" % str(url))
+    print("DONE url %s" % str(url), flush=True)
+    return dest
 
 
 def download(url, dest=None, dest_path=None):
@@ -914,24 +920,25 @@ def get_kwargs(func, exclude_names=None, **kwargs):
     return kwargs
 
 
-import pkg_resources
+from importlib.metadata import distribution, PackageNotFoundError
+
 
 have_faiss = False
 
 try:
-    assert pkg_resources.get_distribution('faiss') is not None
+    assert distribution('faiss') is not None
     have_faiss = True
-except (pkg_resources.DistributionNotFound, AssertionError):
+except (PackageNotFoundError, AssertionError):
     pass
 try:
-    assert pkg_resources.get_distribution('faiss_gpu') is not None
+    assert distribution('faiss_gpu') is not None
     have_faiss = True
-except (pkg_resources.DistributionNotFound, AssertionError):
+except (PackageNotFoundError, AssertionError):
     pass
 try:
-    assert pkg_resources.get_distribution('faiss_cpu') is not None
+    assert distribution('faiss_cpu') is not None
     have_faiss = True
-except (pkg_resources.DistributionNotFound, AssertionError):
+except (PackageNotFoundError, AssertionError):
     pass
 
 
@@ -1032,9 +1039,9 @@ def get_local_ip():
 
 
 try:
-    assert pkg_resources.get_distribution('langchain') is not None
+    assert distribution('langchain') is not None
     have_langchain = True
-except (pkg_resources.DistributionNotFound, AssertionError):
+except (PackageNotFoundError, AssertionError):
     have_langchain = False
 
 import distutils.spawn
@@ -1042,37 +1049,36 @@ import distutils.spawn
 have_tesseract = distutils.spawn.find_executable("tesseract")
 have_libreoffice = distutils.spawn.find_executable("libreoffice")
 
-import pkg_resources
 
 try:
-    assert pkg_resources.get_distribution('arxiv') is not None
-    assert pkg_resources.get_distribution('pymupdf') is not None
+    assert distribution('arxiv') is not None
+    assert distribution('pymupdf') is not None
     have_arxiv = True
-except (pkg_resources.DistributionNotFound, AssertionError):
+except (PackageNotFoundError, AssertionError):
     have_arxiv = False
 
 try:
-    assert pkg_resources.get_distribution('pymupdf') is not None
+    assert distribution('pymupdf') is not None
     have_pymupdf = True
-except (pkg_resources.DistributionNotFound, AssertionError):
+except (PackageNotFoundError, AssertionError):
     have_pymupdf = False
 
 try:
-    assert pkg_resources.get_distribution('selenium') is not None
+    assert distribution('selenium') is not None
     have_selenium = True
-except (pkg_resources.DistributionNotFound, AssertionError):
+except (PackageNotFoundError, AssertionError):
     have_selenium = False
 
 try:
-    assert pkg_resources.get_distribution('pillow') is not None
+    assert distribution('pillow') is not None
     have_pillow = True
-except (pkg_resources.DistributionNotFound, AssertionError):
+except (PackageNotFoundError, AssertionError):
     have_pillow = False
 
 try:
-    assert pkg_resources.get_distribution('playwright') is not None
+    assert distribution('playwright') is not None
     have_playwright = True
-except (pkg_resources.DistributionNotFound, AssertionError):
+except (PackageNotFoundError, AssertionError):
     have_playwright = False
 
 
@@ -1134,7 +1140,7 @@ def url_alive(url):
     except Exception as e:
         return False
     else:
-        if response.status_code in [200, 301]:
+        if response.status_code in [200, 301, 302]:
             return True
         else:
             return False

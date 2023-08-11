@@ -15,12 +15,12 @@ from langchain.document_loaders import ImageCaptionLoader
 
 from utils import get_device, NullContext
 
-import pkg_resources
+from importlib.metadata import distribution, PackageNotFoundError
 
 try:
-    assert pkg_resources.get_distribution('bitsandbytes') is not None
+    assert distribution('bitsandbytes') is not None
     have_bitsandbytes = True
-except (pkg_resources.DistributionNotFound, AssertionError):
+except (PackageNotFoundError, AssertionError):
     have_bitsandbytes = False
 
 

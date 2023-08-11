@@ -129,7 +129,7 @@ def make_user_path_test():
 def get_llama(llama_type=2):
     from huggingface_hub import hf_hub_download
 
-    # default should match .env_gpt4all
+    # FIXME: Pass into main()
     if llama_type == 1:
         file = 'ggml-model-q4_0_7b.bin'
         dest = 'models/7B/'
@@ -150,7 +150,7 @@ def get_llama(llama_type=2):
         out_path = hf_hub_download('h2oai/ggml', file, token=token, repo_type='model')
         # out_path will look like '/home/jon/.cache/huggingface/hub/models--h2oai--ggml/snapshots/57e79c71bb0cee07e3e3ffdea507105cd669fa96/ggml-model-q4_0_7b.bin'
         shutil.copy(out_path, dest)
-    return prompt_type
+    return prompt_type, full_path
 
 
 def kill_weaviate(db_type):
