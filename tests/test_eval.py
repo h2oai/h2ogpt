@@ -119,6 +119,7 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
                  'langchain_agents': np.array([]),  # matches return
                  'pre_prompt_summary': '',
                  'prompt_summary': '',
+                 'system_prompt': '',
                  }
     expected1.update({k: v for k, v in kwargs.items() if
                       k not in ['load_half', 'load_4bit', 'load_8bit', 'load_gptq', 'load_exllama', 'use_safetensors']})

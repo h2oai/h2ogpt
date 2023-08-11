@@ -57,7 +57,7 @@ def run_qa_wiki(use_openai_model=False, first_para=True, text_limit=None, chain_
 
     sources = get_wiki_sources(first_para=first_para, text_limit=text_limit)
     llm, model_name, streamer, prompt_type_out, async_output = \
-        get_llm(use_openai_model=use_openai_model, prompt_type=prompt_type)
+        get_llm(use_openai_model=use_openai_model, prompt_type=prompt_type, llamacpp_dict={})
     chain = load_qa_with_sources_chain(llm, chain_type=chain_type)
 
     question = "What are the main differences between Linux and Windows?"
@@ -84,11 +84,13 @@ def check_ret(ret):
 def test_qa_wiki_db_openai():
     from src.gpt_langchain import _run_qa_db
     query = "What are the main differences between Linux and Windows?"
+    langchain_mode = 'wiki'
     ret = _run_qa_db(query=query, use_openai_model=True, use_openai_embedding=True, text_limit=None,
                      hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
                      db_type='faiss',
-                     langchain_mode='wiki',
-                     langchain_action=LangChainAction.QUERY.value, langchain_agents=[])
+                     langchain_mode_types=dict(langchain_mode=LangChainTypes.SHARED.value),
+                     langchain_mode=langchain_mode,
+                     langchain_action=LangChainAction.QUERY.value, langchain_agents=[], llamacpp_dict={})
     check_ret(ret)
 
 
@@ -100,12 +102,14 @@ def test_qa_wiki_db_hf():
     # but this case can handle at least more documents, by picking top k
     # FIXME: but spitting out garbage answer right now, all fragmented, or just 1-word answer
     query = "What are the main differences between Linux and Windows?"
+    langchain_mode = 'wiki'
     ret = _run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=256,
                      hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
                      db_type='faiss',
-                     langchain_mode='wiki',
+                     langchain_mode_types=dict(langchain_mode=LangChainTypes.SHARED.value),
+                     langchain_mode=langchain_mode,
                      langchain_action=LangChainAction.QUERY.value,
-                     langchain_agents=[])
+                     langchain_agents=[], llamacpp_dict={})
     check_ret(ret)
 
 
@@ -114,13 +118,15 @@ def test_qa_wiki_db_hf():
 def test_qa_wiki_db_chunk_hf():
     from src.gpt_langchain import _run_qa_db
     query = "What are the main differences between Linux and Windows?"
+    langchain_mode = 'wiki'
     ret = _run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=256, chunk=True,
                      chunk_size=256,
                      hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
                      db_type='faiss',
-                     langchain_mode='wiki',
+                     langchain_mode_types=dict(langchain_mode=LangChainTypes.SHARED.value),
+                     langchain_mode=langchain_mode,
                      langchain_action=LangChainAction.QUERY.value,
-                     langchain_agents=[])
+                     langchain_agents=[], llamacpp_dict={})
     check_ret(ret)
 
 
@@ -130,13 +136,15 @@ def test_qa_wiki_db_chunk_openai():
     from src.gpt_langchain import _run_qa_db
     # don't need 256, just seeing how compares to hf
     query = "What are the main differences between Linux and Windows?"
+    langchain_mode = 'wiki'
     ret = _run_qa_db(query=query, use_openai_model=True, use_openai_embedding=True, text_limit=256, chunk=True,
                      chunk_size=256,
                      hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
                      db_type='faiss',
-                     langchain_mode='wiki',
+                     langchain_mode_types=dict(langchain_mode=LangChainTypes.SHARED.value),
+                     langchain_mode=langchain_mode,
                      langchain_action=LangChainAction.QUERY.value,
-                     langchain_agents=[])
+                     langchain_agents=[], llamacpp_dict={})
     check_ret(ret)
 
 
@@ -146,13 +154,15 @@ def test_qa_github_db_chunk_openai():
     from src.gpt_langchain import _run_qa_db
     # don't need 256, just seeing how compares to hf
     query = "what is a software defined asset"
+    langchain_mode = 'github h2oGPT'
     ret = _run_qa_db(query=query, use_openai_model=True, use_openai_embedding=True, text_limit=256, chunk=True,
                      chunk_size=256,
                      hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
                      db_type='faiss',
-                     langchain_mode='github h2oGPT',
+                     langchain_mode_types=dict(langchain_mode=LangChainTypes.SHARED.value),
+                     langchain_mode=langchain_mode,
                      langchain_action=LangChainAction.QUERY.value,
-                     langchain_agents=[])
+                     langchain_agents=[], llamacpp_dict={})
     check_ret(ret)
 
 
@@ -162,13 +172,15 @@ def test_qa_daidocs_db_chunk_hf():
     from src.gpt_langchain import _run_qa_db
     # FIXME: doesn't work well with non-instruct-tuned Cerebras
     query = "Which config.toml enables pytorch for NLP?"
+    langchain_mode = 'DriverlessAI docs'
     ret = _run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=None, chunk=True,
                      chunk_size=128,
                      hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
                      db_type='faiss',
-                     langchain_mode='DriverlessAI docs',
+                     langchain_mode_types=dict(langchain_mode=LangChainTypes.SHARED.value),
+                     langchain_mode=langchain_mode,
                      langchain_action=LangChainAction.QUERY.value,
-                     langchain_agents=[])
+                     langchain_agents=[], llamacpp_dict={})
     check_ret(ret)
 
 
@@ -178,11 +190,14 @@ def test_qa_daidocs_db_chunk_hf_faiss():
     from src.gpt_langchain import _run_qa_db
     query = "Which config.toml enables pytorch for NLP?"
     # chunk_size is chars for each of k=4 chunks
+    langchain_mode = 'DriverlessAI docs'
     ret = _run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=None, chunk=True,
                      chunk_size=128 * 1,  # characters, and if k=4, then 4*4*128 = 2048 chars ~ 512 tokens
-                     langchain_mode='DriverlessAI docs',
+                     langchain_mode_types=dict(langchain_mode=LangChainTypes.SHARED.value),
+                     langchain_mode=langchain_mode,
                      langchain_action=LangChainAction.QUERY.value,
                      langchain_agents=[],
+                     llamacpp_dict={},
                      db_type='faiss',
                      hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
                      )
@@ -217,6 +232,7 @@ def test_qa_daidocs_db_chunk_hf_dbs(db_type, top_k_docs):
                      db_type=db_type,
                      top_k_docs=top_k_docs,
                      model_name=model_name,
+                     llamacpp_dict={},
                      )
     check_ret(ret)
 
@@ -253,6 +269,7 @@ def test_qa_daidocs_db_chunk_hf_dbs_switch_embedding(db_type):
                       rope_scaling=None,
                       max_seq_len=None,
                       compile_model=True,
+                      llamacpp_dict={},
 
                       verbose=False)
     model, tokenizer, device = get_model(reward_type=False,
@@ -279,6 +296,7 @@ def test_qa_daidocs_db_chunk_hf_dbs_switch_embedding(db_type):
                      langchain_action=langchain_action,
                      langchain_agents=langchain_agents,
                      db_type=db_type,
+                     llamacpp_dict={},
                      )
     check_ret(ret)
 
@@ -297,6 +315,7 @@ def test_qa_daidocs_db_chunk_hf_dbs_switch_embedding(db_type):
                      langchain_action=langchain_action,
                      langchain_agents=langchain_agents,
                      db_type=db_type,
+                     llamacpp_dict={},
                      )
     check_ret(ret)
 
@@ -307,21 +326,31 @@ def test_qa_wiki_db_chunk_hf_dbs_llama(db_type):
     kill_weaviate(db_type)
     from src.gpt4all_llm import get_model_tokenizer_gpt4all
     model_name = 'llama'
-    model, tokenizer, device = get_model_tokenizer_gpt4all(model_name)
+    model, tokenizer, device = get_model_tokenizer_gpt4all(model_name,
+                                                           n_jobs=8,
+                                                           max_seq_len=512,
+                                                           llamacpp_dict=dict(
+                                                               model_path_llama='llama-2-7b-chat.ggmlv3.q8_0.bin',
+                                                               n_gpu_layers=100,
+                                                               use_mlock=True,
+                                                               n_batch=1024))
 
     from src.gpt_langchain import _run_qa_db
     query = "What are the main differences between Linux and Windows?"
     # chunk_size is chars for each of k=4 chunks
+    langchain_mode = 'wiki'
     ret = _run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False, text_limit=None, chunk=True,
                      chunk_size=128 * 1,  # characters, and if k=4, then 4*4*128 = 2048 chars ~ 512 tokens
                      hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
-                     langchain_mode='wiki',
+                     langchain_mode_types=dict(langchain_mode=LangChainTypes.SHARED.value),
+                     langchain_mode=langchain_mode,
                      langchain_action=LangChainAction.QUERY.value,
                      langchain_agents=[],
                      db_type=db_type,
                      prompt_type='llama2',
                      langchain_only_model=True,
                      model_name=model_name, model=model, tokenizer=tokenizer,
+                     llamacpp_dict=dict(n_gpu_layers=100, use_mlock=True, n_batch=1024),
                      )
     check_ret(ret)
 
@@ -331,13 +360,15 @@ def test_qa_wiki_db_chunk_hf_dbs_llama(db_type):
 def test_qa_daidocs_db_chunk_openai():
     from src.gpt_langchain import _run_qa_db
     query = "Which config.toml enables pytorch for NLP?"
+    langchain_mode = 'DriverlessAI docs'
     ret = _run_qa_db(query=query, use_openai_model=True, use_openai_embedding=True, text_limit=256, chunk=True,
                      db_type='faiss',
                      hf_embedding_model="",
                      chunk_size=256,
-                     langchain_mode='DriverlessAI docs',
+                     langchain_mode_types=dict(langchain_mode=LangChainTypes.SHARED.value),
+                     langchain_mode=langchain_mode,
                      langchain_action=LangChainAction.QUERY.value,
-                     langchain_agents=[])
+                     langchain_agents=[], llamacpp_dict={})
     check_ret(ret)
 
 
@@ -346,13 +377,15 @@ def test_qa_daidocs_db_chunk_openai():
 def test_qa_daidocs_db_chunk_openaiembedding_hfmodel():
     from src.gpt_langchain import _run_qa_db
     query = "Which config.toml enables pytorch for NLP?"
+    langchain_mode = 'DriverlessAI docs'
     ret = _run_qa_db(query=query, use_openai_model=False, use_openai_embedding=True, text_limit=None, chunk=True,
                      chunk_size=128,
                      hf_embedding_model="",
                      db_type='faiss',
-                     langchain_mode='DriverlessAI docs',
+                     langchain_mode_types=dict(langchain_mode=LangChainTypes.SHARED.value),
+                     langchain_mode=langchain_mode,
                      langchain_action=LangChainAction.QUERY.value,
-                     langchain_agents=[])
+                     langchain_agents=[], llamacpp_dict={})
     check_ret(ret)
 
 
@@ -379,7 +412,7 @@ def test_get_dai_db_dir():
 @wrap_test_forked
 def test_make_add_db(repeat, db_type):
     kill_weaviate(db_type)
-    from src.gradio_runner import get_source_files, get_source_files_given_langchain_mode, get_any_db, update_user_db, \
+    from src.gpt_langchain import get_source_files, get_source_files_given_langchain_mode, get_any_db, update_user_db, \
         get_sources, update_and_get_source_files_given_langchain_mode
     from src.make_db import make_db_main
     from src.gpt_langchain import path_to_docs
@@ -413,7 +446,7 @@ def test_make_add_db(repeat, db_type):
                                                            add_if_exists=False,
                                                            collection_name='MyData',
                                                            fail_any_exception=True, db_type=db_type)
-                    db1 = {LangChainMode.MY_DATA.value: [dbmy, 'foouuid']}
+                    db1 = {LangChainMode.MY_DATA.value: [dbmy, 'foouuid', 'foousername']}
                     assert dbmy is not None
                     docs1 = dbmy.similarity_search("World")
                     assert len(docs1) == 1 + (1 if db_type == 'chroma' else 0)
@@ -423,13 +456,21 @@ def test_make_add_db(repeat, db_type):
                     # some db testing for gradio UI/client
                     get_source_files(db=db)
                     get_source_files(db=dbmy)
-                    get_source_files_given_langchain_mode(db1, {}, {},
+                    selection_docs_state1 = dict(langchain_modes=[langchain_mode], langchain_mode_paths={},
+                                                 langchain_mode_types={})
+                    requests_state1 = dict()
+                    get_source_files_given_langchain_mode(db1, selection_docs_state1, requests_state1,
                                                           langchain_mode=langchain_mode, dbs={langchain_mode: db})
-                    get_source_files_given_langchain_mode(db1, {}, {},
+                    get_source_files_given_langchain_mode(db1, selection_docs_state1, requests_state1,
                                                           langchain_mode='MyData', dbs={})
-                    get_any_db(db1, langchain_mode='UserData', langchain_mode_paths={}, langchain_mode_types={},
+                    get_any_db(db1, langchain_mode='UserData',
+                               langchain_mode_paths=selection_docs_state1['langchain_mode_paths'],
+                               langchain_mode_types=selection_docs_state1['langchain_mode_types'],
                                dbs={langchain_mode: db})
-                    get_any_db(db1, langchain_mode='MyData', langchain_mode_paths={}, langchain_mode_types={}, dbs={})
+                    get_any_db(db1, langchain_mode='MyData',
+                               langchain_mode_paths=selection_docs_state1['langchain_mode_paths'],
+                               langchain_mode_types=selection_docs_state1['langchain_mode_types'],
+                               dbs={})
 
                     msg1up = "Beefy Chicken"
                     test_file2 = os.path.join(tmp_user_path, 'test2.txt')
@@ -449,11 +490,13 @@ def test_make_add_db(repeat, db_type):
                                   verbose=False,
                                   is_url=False, is_txt=False)
                     langchain_mode2 = 'MyData'
-                    selection_docs_state1 = dict(langchain_modes=[langchain_mode2],
+                    selection_docs_state2 = dict(langchain_modes=[langchain_mode2],
                                                  langchain_mode_paths={},
                                                  langchain_mode_types={})
+                    requests_state2 = dict()
                     z1, z2, source_files_added, exceptions = update_user_db(test_file2_my, db1,
-                                                                            selection_docs_state1,
+                                                                            selection_docs_state2,
+                                                                            requests_state2,
                                                                             chunk,
                                                                             chunk_size,
                                                                             langchain_mode2,
@@ -465,11 +508,12 @@ def test_make_add_db(repeat, db_type):
                     assert len(exceptions) == 0
 
                     langchain_mode = 'UserData'
-                    selection_docs_state2 = dict(langchain_modes=[langchain_mode],
+                    selection_docs_state1 = dict(langchain_modes=[langchain_mode],
                                                  langchain_mode_paths={langchain_mode: tmp_user_path},
                                                  langchain_mode_types={langchain_mode: LangChainTypes.SHARED.value})
                     z1, z2, source_files_added, exceptions = update_user_db(test_file2, db1,
-                                                                            selection_docs_state2,
+                                                                            selection_docs_state1,
+                                                                            requests_state1,
                                                                             chunk, chunk_size,
                                                                             langchain_mode,
                                                                             dbs={langchain_mode: db},
@@ -481,19 +525,20 @@ def test_make_add_db(repeat, db_type):
                     docs_state0 = [x.name for x in list(DocumentSubset)]
                     get_sources(db1, {}, langchain_mode, dbs={langchain_mode: db}, docs_state0=docs_state0)
                     get_sources(db1, {}, 'MyData', dbs={}, docs_state0=docs_state0)
+                    selection_docs_state1['langchain_mode_paths'] = {langchain_mode: tmp_user_path}
                     kwargs2 = dict(first_para=False,
                                    text_limit=None, chunk=chunk, chunk_size=chunk_size,
-                                   langchain_mode_paths={langchain_mode: tmp_user_path}, db_type=db_type,
+                                   db_type=db_type,
                                    hf_embedding_model=kwargs['hf_embedding_model'],
                                    migrate_embedding_model=kwargs['migrate_embedding_model'],
                                    load_db_if_exists=True,
                                    n_jobs=-1, verbose=False)
                     update_and_get_source_files_given_langchain_mode(db1,
-                                                                     {}, {},
+                                                                     selection_docs_state1, requests_state1,
                                                                      langchain_mode, dbs={langchain_mode: db},
                                                                      **kwargs2)
                     update_and_get_source_files_given_langchain_mode(db1,
-                                                                     {}, {},
+                                                                     selection_docs_state2, requests_state2,
                                                                      'MyData', dbs={}, **kwargs2)
 
                     assert path_to_docs(test_file2_my, db_type=db_type)[0].metadata['source'] == test_file2_my

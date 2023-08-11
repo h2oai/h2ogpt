@@ -68,8 +68,7 @@ Supports CPU and MPS (Metal M1/M2).
     pip uninstall llama-cpp-python -y
     CMAKE_ARGS="-DLLAMA_METAL=on" FORCE_CMAKE=1 pip install -U llama-cpp-python --no-cache-dir
     ```
-    - In `.env_gpt4all`, uncomment line with `n_gpu_layers=20`
-    - In `.env_gpt4all`, optionally change model name: `model_path_llama` if download a different GGML v3 model from TheBloke. The default model can be [downloaded here](https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin) and placed in repo folder.
+    - Pass difference value of `--model_path_llama` if download a different GGML v3 model from TheBloke, or pass URL/path in UI. The default model can be [downloaded here](https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin) and placed in repo folder or give this URL.
     - **Note** Only supports v3 ggml 4 bit quantized models for MPS, so use llama models ends with `ggmlv3` & `q4_x.bin`.
 
 ---
