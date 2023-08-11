@@ -158,6 +158,7 @@ def run_docker(inf_port, base_model, low_mem_mode=False):
     data_dir = '%s/.cache/huggingface/hub/' % home_dir
     cmd = ["docker"] + ['run',
                         '-d',
+                        # FIXME - add sharding for >1 GPUs
                         '--gpus', 'device=%d' % int(os.getenv('CUDA_VISIBLE_DEVICES', '0')),
                         '--shm-size', '1g',
                         '-e', 'HUGGING_FACE_HUB_TOKEN=%s' % os.environ['HUGGING_FACE_HUB_TOKEN'],
