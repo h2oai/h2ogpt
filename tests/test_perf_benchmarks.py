@@ -103,6 +103,7 @@ def test_perf_benchmarks(backend, base_model, task):
             assert 'my_test_pdf.pdf' in sources
 
         if "generate" in task:
+            api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
             kwargs = dict(prompt_summary="Write a poem about water.")
             import time
             t0 = time.time()
