@@ -231,19 +231,20 @@ def _zip_data(root_dirs=None, zip_file=None, base_dir='./'):
 
 
 def save_generate_output(prompt=None, output=None, base_model=None, save_dir=None, where_from='unknown where from',
-                         extra_dict={}):
+                         extra_dict={}, error='', extra='', return_dict=False):
     if not save_dir:
         return
     try:
         return _save_generate_output(prompt=prompt, output=output, base_model=base_model, save_dir=save_dir,
-                                     where_from=where_from, extra_dict=extra_dict)
+                                     where_from=where_from, extra_dict=extra_dict, error=error, extra=extra,
+                                     return_dict=return_dict)
     except Exception as e:
         traceback.print_exc()
         print('Exception in saving: %s' % str(e))
 
 
 def _save_generate_output(prompt=None, output=None, base_model=None, save_dir=None, where_from='unknown where from',
-                          extra_dict={}):
+                          extra_dict={}, error='', extra='', return_dict=False):
     """
     Save conversation to .json, row by row.
     json_file_path is path to final JSON file. If not in ., then will attempt to make directories.
@@ -251,10 +252,6 @@ def _save_generate_output(prompt=None, output=None, base_model=None, save_dir=No
     """
     prompt = '<not set>' if prompt is None else prompt
     output = '<not set>' if output is None else output
-    if os.path.exists(save_dir) and not os.path.isdir(save_dir):
-        raise RuntimeError("save_dir already exists and is not a directory!")
-    makedirs(save_dir, exist_ok=True)  # already should be made, can't change at this point
-    import json
 
     # tokenize at end if need to, so doesn't block generation in multi-generator case
     if extra_dict.get('ntokens') is None:
@@ -262,8 +259,21 @@ def _save_generate_output(prompt=None, output=None, base_model=None, save_dir=No
         # only do below if didn't already compute ntokens, else assume also computed rate
         extra_dict['tokens_persecond'] = extra_dict['ntokens'] / extra_dict['t_generate']
 
-    dict_to_save = dict(prompt=prompt, text=output, time=time.ctime(), base_model=base_model, where_from=where_from)
+    dict_to_save = dict(prompt=prompt, text=output, time=time.ctime(),
+                        base_model=base_model,
+                        where_from=where_from,
+                        error=error,
+                        extra=extra,
+                        )
     dict_to_save.update(extra_dict)
+
+    if return_dict:
+        return dict_to_save
+
+    if os.path.exists(save_dir) and not os.path.isdir(save_dir):
+        raise RuntimeError("save_dir already exists and is not a directory!")
+    makedirs(save_dir, exist_ok=True)  # already should be made, can't change at this point
+    import json
     with filelock.FileLock("save_dir.lock"):
         # lock logging in case have concurrency
         with open(os.path.join(save_dir, "history.json"), "a") as f:
