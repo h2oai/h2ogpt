@@ -362,7 +362,7 @@ Notes:
 
 UserData: Shared with anyone who is on your server.  Persisted across sessions in single location for entire server.  Control upload via allow_upload_to_user_data option.  Useful for collaboration.
 
-MyData: Scratch space that is inaccessible if one goes into a new browser session.  Useful for public demonstrations so that every instance is independent.  Or useful  if user is not allowed to upload to shared UserData and wants to do Q/A.
+MyData: Personal space that is inaccessible if one goes into a new browser session.  Useful for public demonstrations so that every instance is independent.  Or useful  if user is not allowed to upload to shared UserData and wants to do Q/A.
 
 It's work in progress to add other persistent databases and to have MyData persisted across browser sessions via cookie or other authentication.
 

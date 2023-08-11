@@ -1686,7 +1686,7 @@ def go_gradio(**kwargs):
                     # real restriction is:
                     # ValueError: Expected collection name that (1) contains 3-63 characters, (2) starts and ends with an alphanumeric character, (3) otherwise contains only alphanumeric characters, underscores or hyphens (-), (4) contains no two consecutive periods (..) and (5) is not a valid IPv4 address, got me
                     # but just make simpler
-                    # assume scratch if don't have user_path
+                    # assume personal if don't have user_path
                     langchain_mode_type = y2[1] if len(y2) > 1 else LangChainTypes.PERSONAL.value
                     user_path = y2[2] if len(y2) > 2 else None  # assume None if don't have user_path
                     if user_path in ['', "''"]:
@@ -1701,7 +1701,7 @@ def go_gradio(**kwargs):
                         valid = False
                         langchain_mode2 = langchain_mode1
                     elif user_path is not None and langchain_mode_type == LangChainTypes.PERSONAL.value:
-                        textbox = "Do not pass user_path for scratch types"
+                        textbox = "Do not pass user_path for personal/scratch types"
                         valid = False
                         langchain_mode2 = langchain_mode1
                     elif user_path is not None and username1 == guest_name:
@@ -1725,7 +1725,7 @@ def go_gradio(**kwargs):
                         valid = False
                         langchain_mode2 = langchain_mode1
                         textbox = "Invalid access.  user allowed: %s " \
-                                  "scratch allowed: %s" % (allow_upload_to_user_data, allow_upload_to_my_data)
+                                  "personal/scratch allowed: %s" % (allow_upload_to_user_data, allow_upload_to_my_data)
                 else:
                     valid = False
                     langchain_mode2 = langchain_mode1

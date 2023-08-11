@@ -11,7 +11,7 @@ Query and summarize your documents or just chat with local private GPT LLMs usin
 - **Variety** of models supported (LLaMa2, Falcon, Vicuna, WizardLM including AutoGPTQ, 4-bit/8-bit, LORA)
   - **GPU** support from HF and LLaMa.cpp GGML models, and **CPU** support using HF, LLaMa.cpp, and GPT4ALL models
 - **UI** or CLI with streaming of all models
-  - **Upload** and **View** documents via UI (control multiple collaborative or scratch collections)
+  - **Upload** and **View** documents via UI (control multiple collaborative or personal collections)
   - **Bake-off** UI mode against many models at same time
   - **Easy Download** of model artifacts and control over models like LLaMa.cpp via UI
 - **Linux, Docker, MAC, and Windows** support

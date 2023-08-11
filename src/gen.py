@@ -407,7 +407,7 @@ def main(
     :param langchain_modes: dbs to generate at launch to be ready for LLM
            Apart from additional user-defined collections, can include ['wiki', 'wiki_full', 'UserData', 'MyData', 'github h2oGPT', 'DriverlessAI docs']
              But wiki_full is expensive and requires preparation
-           To allow scratch space only live in session, add 'MyData' to list
+           To allow personal space only live in session, add 'MyData' to list
            Default: If only want to consume local files, e.g. prepared by make_db.py, only include ['UserData']
            If have own user modes, need to add these here or add in UI.
     :param langchain_mode_paths: dict of langchain_mode keys and disk path values to use for source of documents
@@ -461,7 +461,7 @@ def main(
     :param allow_upload_to_user_data: Whether to allow file uploads to update shared vector db (UserData or custom user dbs)
            Ensure pass user_path for the files uploaded to be moved to this location for linking.
     :param reload_langchain_state: Whether to reload langchain_modes.pkl file that contains any new user collections.
-    :param allow_upload_to_my_data: Whether to allow file uploads to update scratch vector db
+    :param allow_upload_to_my_data: Whether to allow file uploads to update personal vector db
     :param enable_url_upload: Whether to allow upload from URL
     :param enable_text_upload: Whether to allow upload of text
     :param enable_sources_list: Whether to allow list (or download for non-shared db) of list of sources for chosen db

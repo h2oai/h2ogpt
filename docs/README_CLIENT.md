@@ -188,7 +188,7 @@ def summarize(text: str = None,
     # chunking not used here
     chunk = True
     chunk_size = 512
-    # MyData specifies scratch space, only persisted for this individual client call
+    # MyData specifies personal/scratch space, only persisted for this individual client call
     langchain_mode = 'MyData'
 
     if text:

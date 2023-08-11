@@ -300,7 +300,7 @@ This warning can be safely ignored.
    - `SCORE_MODEL`: HF model to use for scoring prompt-response pairs, `None` for no scoring of responses,
    - `HEIGHT`: Height of Chat window,
    - `allow_upload_to_user_data`: Whether to allow uploading to Shared UserData,
-   - `allow_upload_to_my_data`: Whether to allow uploading to Scratch MyData,
+   - `allow_upload_to_my_data`: Whether to allow uploading to Personal MyData,
    - `HEIGHT`: Height of Chat window,
    - `HUGGINGFACE_SPACES`: Whether on public A10G 24GB HF spaces, sets some low-GPU-memory defaults for public access to avoid GPU memory abuse by model switching, etc.
    - `HF_HOSTNAME`: Name of HF spaces for purpose of naming log files,
@@ -311,7 +311,7 @@ This warning can be safely ignored.
    - `CUDA_VISIBLE_DEVICES`: Standard list of CUDA devices to make visible.
    - `PING_GPU`: ping GPU every few minutes for full GPU memory usage by torch, useful for debugging OOMs or memory leaks
    - `GET_GITHASH`: get git hash on startup for system info.  Avoided normally as can fail with extra messages in output for CLI mode
-   - `H2OGPT_BASE_PATH`: Choose base folder for all files except scratch files
+   - `H2OGPT_BASE_PATH`: Choose base folder for all files except personal/scratch files
 These can be useful on HuggingFace spaces, where one sets secret tokens because CLI options cannot be used.
 
 > **_NOTE:_**  Scripts can accept different environment variables to control query arguments. For instance, if a Python script takes an argument like `--load_8bit=True`, the corresponding ENV variable would follow this format: `H2OGPT_LOAD_8BIT=True` (regardless of capitalization). It is important to ensure that the environment variable is assigned the exact value that would have been used for the script's query argument.

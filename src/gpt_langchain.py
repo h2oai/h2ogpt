@@ -1865,7 +1865,7 @@ def prep_langchain(persist_directory,
     # FIXME: Add github caching then add here
     :return:
     """
-    assert langchain_mode not in ['MyData'], "Should not prep scratch data"
+    assert langchain_mode not in ['MyData'], "Should not prep scratch/personal data"
 
     db_dir_exists = os.path.isdir(persist_directory)
     user_path = langchain_mode_paths.get(langchain_mode)
@@ -2112,7 +2112,7 @@ def get_persist_directory(langchain_mode, langchain_type=None, db1s=None, dbs=No
         persist_directory = makedirs(persist_directory, use_base=True)
         return persist_directory
 
-    # dummy return for prep_langchain() or full scratch space
+    # dummy return for prep_langchain() or full personal space
     persist_directory = 'db_dir_%s' % str(uuid.uuid4())
     persist_directory = makedirs(persist_directory, use_base=True)
     return persist_directory
@@ -3569,7 +3569,7 @@ def get_db1(db1s, langchain_mode1):
     if langchain_mode1 in db1s:
         db1 = db1s[langchain_mode1]
     else:
-        # indicates to code that not scratch database
+        # indicates to code that not personal database
         db1 = [None, None]
     return db1
 
