@@ -173,7 +173,7 @@ def run_docker(inf_port, base_model, low_mem_mode=False):
     if low_mem_mode:
         cmd.extend(['--max-input-length', '1024',
                     '--max-total-tokens', '2048',
-                    '--cuda-memory-fraction', '0.5',
+                    '--cuda-memory-fraction', '0.7',
                     ])
     else:
         cmd.extend(['--max-input-length', '2048',
