@@ -45,7 +45,6 @@ cd wheels
 # GPU only
 del torch-2.0.1-cp310-cp310-win_amd64.whl
 del llama_cpp_python-0.1.73*.whl
-move bitsandbytes-0.40.1.post1-py3-none-win_amd64.whl bitsandbytes-0.40.1-py3-none-win_amd64.whl
 move auto_gptq-0.3.0+cu118-cp310-cp310-win_amd64.whl auto_gptq-0.3.0-cp310-cp310-win_amd64.whl
 move exllama-0.0.8+cu118-cp310-cp310-win_amd64.whl exllama-0.0.8-cp310-cp310-win_amd64.whl
 move llama_cpp_python_cuda-0.1.73+cu117-cp310-cp310-win_amd64.whl llama_cpp_python_cuda-0.1.73-cp310-cp310-win_amd64.whl
