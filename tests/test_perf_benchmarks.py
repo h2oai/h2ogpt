@@ -10,7 +10,7 @@ from src.utils import download_simple
 
 
 @pytest.mark.parametrize("backend", [
-    # 'transformers',
+    'transformers',
     'tgi',
 ])
 @pytest.mark.parametrize("base_model", [
@@ -31,6 +31,7 @@ def test_perf_benchmarks(backend, base_model, task):
             from src.gen import main
             main(base_model=base_model, chat=True, gradio=True, num_beams=1, block_gradio_exit=False, verbose=True,
                  use_auth_token=True,
+                 max_new_tokens=4096,
                  )
         elif backend == 'tgi':
             from tests.test_inference_servers import run_docker
@@ -83,7 +84,7 @@ def test_perf_benchmarks(backend, base_model, task):
                           max_new_tokens=1024,
                           max_time=300,
                           do_sample=False,
-                          prompt_summary='',
+                          prompt_summary='Summarize into single paragraph',
                           )
 
             import time
