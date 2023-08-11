@@ -404,7 +404,7 @@ def go_gradio(**kwargs):
             if hasattr(request, 'host'):
                 requests_state1.update(dict(host2=request.client.host))
             if hasattr(request, 'username'):
-                requests_state1.update(dict(username=request.username))
+                requests_state1.update(dict(username=request.username or str(uuid.uuid4())))
         requests_state1 = {str(k): str(v) for k, v in requests_state1.items()}
         return requests_state1
 

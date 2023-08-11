@@ -2072,6 +2072,11 @@ def get_persist_directory(langchain_mode, langchain_type=None, db1s=None, dbs=No
 
     userid = get_userid_direct(db1s)
     username = get_username_direct(db1s)
+
+    # sanity for bad code
+    assert userid != 'None'
+    assert username != 'None'
+
     dirid = username or userid
     if langchain_type == LangChainTypes.SHARED.value and not dirid:
         dirid = './'  # just to avoid error
