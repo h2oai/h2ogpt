@@ -2,6 +2,7 @@ import ast
 import json
 import os, sys
 import shutil
+import tempfile
 
 import pytest
 
@@ -890,6 +891,21 @@ def test_client_chat_stream_langchain_steps3():
         '\r', '\n')
     assert 'sample1.pdf' not in res[2]  # ensure no leakage
     assert res[3] == ''
+
+    urls = ['https://h2o.ai/company/team/leadership-team/',
+            'https://arxiv.org/abs/1706.03762',
+            'https://github.com/h2oai/h2ogpt',
+            'https://h2o.ai'
+            ]
+    with tempfile.TemporaryDirectory() as tmp_user_path:
+        urls_file = os.path.join(tmp_user_path, 'list.urls')
+        with open(urls_file, 'wt') as f:
+            f.write('\n'.join(urls))
+        res = client.predict(urls_file, True, 512, langchain_mode2, api_name='/add_file_api')
+        assert res[0] is None
+        assert res[1] == langchain_mode2
+        assert [x in res[2] or x.replace('https', 'http') in res[2] for x in urls]
+        assert res[3] == ''
 
     # FIXME: Add load_model, unload_model, etc.
 

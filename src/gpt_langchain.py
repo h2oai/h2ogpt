@@ -1698,6 +1698,13 @@ def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True
                 metadata={"source": file, "exception": '%s Exception: %s' % (file, str(e)),
                           "traceback": traceback.format_exc()})
             res = [exception_doc]
+    if verbose:
+        if is_url:
+            print("DONE Ingesting URL: %s" % file, flush=True)
+        elif is_txt:
+            print("DONE Ingesting Text: %s" % file, flush=True)
+        else:
+            print("DONE Ingesting file: %s" % file, flush=True)
     if return_file:
         base_tmp = "temp_path_to_doc1"
         if not os.path.isdir(base_tmp):
@@ -1722,6 +1729,8 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
                  db_type=None,
                  selected_file_types=None,
                  ):
+    if verbose:
+        print("BEGIN Consuming path_or_paths=%s url=%s text=%s" % (path_or_paths, url, text), flush=True)
     if selected_file_types is not None:
         non_image_types1 = [x for x in non_image_types if x in selected_file_types]
         image_types1 = [x for x in image_types if x in selected_file_types]
@@ -1850,6 +1859,9 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
             remove(fil)
     else:
         documents = reduce(concat, documents)
+
+    if verbose:
+        print("END consuming path_or_paths=%s url=%s text=%s" % (path_or_paths, url, text), flush=True)
     return documents
 
 
