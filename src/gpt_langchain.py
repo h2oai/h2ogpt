@@ -3284,6 +3284,11 @@ def _update_user_db(file,
     assert isinstance(dbs, dict), "Wrong type for dbs: %s" % str(type(dbs))
     # assert db_type in ['faiss', 'chroma'], "db_type %s not supported" % db_type
     # handle case of list of temp buffer
+    if file.strip().startswith('['):
+        try:
+            file = ast.literal_eval(file.strip())
+        except Exception as e:
+            print("Tried to parse %s as list but failed: %s" % (file, str(e)), flush=True)
     if isinstance(file, list) and len(file) > 0 and hasattr(file[0], 'name'):
         file = [x.name for x in file]
     # handle single file of temp buffer

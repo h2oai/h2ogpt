@@ -907,6 +907,20 @@ def test_client_chat_stream_langchain_steps3():
         assert [x in res[2] or x.replace('https', 'http') in res[2] for x in urls]
         assert res[3] == ''
 
+    langchain_mode3 = 'MyData3'
+    user_path3 = ''
+    new_langchain_mode_text = '%s, %s, %s' % (langchain_mode3, 'personal', user_path3)
+    res = client.predict(langchain_mode3, new_langchain_mode_text, api_name='/new_langchain_mode_text')
+    assert res[0]['value'] == langchain_mode3
+
+    with tempfile.TemporaryDirectory() as tmp_user_path:
+        res = client.predict(urls, True, 512, langchain_mode3, api_name='/add_url')
+        print(res)
+        assert res[0] is None
+        assert res[1] == langchain_mode3
+        assert [x in res[2] or x.replace('https', 'http') in res[2] for x in urls]
+        assert res[3] == ''
+
     # FIXME: Add load_model, unload_model, etc.
 
 
