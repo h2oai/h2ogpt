@@ -29,12 +29,13 @@ def test_perf_benchmarks(backend, base_model, task):
     # launch server(s)
     docker_hash1 = None
     docker_hash2 = None
+    max_new_tokens = 4096
     try:
         if backend == 'transformers':
             from src.gen import main
             main(base_model=base_model, chat=True, gradio=True, num_beams=1, block_gradio_exit=False, verbose=True,
                  use_auth_token=True,
-                 max_new_tokens=4096,
+                 max_new_tokens=max_new_tokens,
                  )
         elif backend == 'tgi':
             from tests.test_inference_servers import run_docker
@@ -48,7 +49,7 @@ def test_perf_benchmarks(backend, base_model, task):
             os.system('docker logs %s | tail -10' % docker_hash1)
 
             # h2oGPT server
-            docker_hash2 = run_h2ogpt_docker(gradio_port, base_model, inference_server=inference_server, max_new_tokens=4096)
+            docker_hash2 = run_h2ogpt_docker(gradio_port, base_model, inference_server=inference_server, max_new_tokens=max_new_tokens)
             time.sleep(30)  # assumes image already downloaded, else need more time
             os.system('docker logs %s | tail -10' % docker_hash2)
         elif backend == 'mixed':
@@ -67,9 +68,8 @@ def test_perf_benchmarks(backend, base_model, task):
                  inference_server=inference_server,
                  chat=True, gradio=True, num_beams=1, block_gradio_exit=False, verbose=True,
                  use_auth_token=True,
-                 max_new_tokens=4096,
+                 max_new_tokens=max_new_tokens,
                  )
-
         else:
             raise NotImplementedError("backend %s not implemented" % backend)
 
@@ -103,7 +103,7 @@ def test_perf_benchmarks(backend, base_model, task):
                           top_k_docs=4,  # -1 == entire pdf
                           document_subset='Relevant',
                           document_choice='All',
-                          max_new_tokens=1024,
+                          max_new_tokens=max_new_tokens,
                           max_time=300,
                           do_sample=False,
                           prompt_summary='Summarize into single paragraph',
