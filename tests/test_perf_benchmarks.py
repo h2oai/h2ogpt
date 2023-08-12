@@ -27,6 +27,8 @@ from src.utils import download_simple
 @wrap_test_forked
 def test_perf_benchmarks(backend, base_model, task):
     # launch server(s)
+    docker_hash1 = None
+    docker_hash2 = None
     try:
         if backend == 'transformers':
             from src.gen import main
@@ -46,7 +48,7 @@ def test_perf_benchmarks(backend, base_model, task):
             os.system('docker logs %s | tail -10' % docker_hash1)
 
             # h2oGPT server
-            docker_hash2 = run_h2ogpt_docker(gradio_port, base_model, inference_server=inference_server)
+            docker_hash2 = run_h2ogpt_docker(gradio_port, base_model, inference_server=inference_server, max_new_tokens=4096)
             time.sleep(30)  # assumes image already downloaded, else need more time
             os.system('docker logs %s | tail -10' % docker_hash2)
         elif backend == 'mixed':
@@ -138,5 +140,7 @@ def test_perf_benchmarks(backend, base_model, task):
             print("Time to generate %s bytes: %.4f" % (len(response), t1-t0))
     finally:
         if backend == "tgi":
-            os.system("docker stop %s" % docker_hash1)
-            os.system("docker stop %s" % docker_hash2)
+            if docker_hash1:
+                os.system("docker stop %s" % docker_hash1)
+            if docker_hash2:
+                os.system("docker stop %s" % docker_hash2)

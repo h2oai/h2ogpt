@@ -187,7 +187,7 @@ def run_docker(inf_port, base_model, low_mem_mode=False):
     return docker_hash
 
 
-def run_h2ogpt_docker(port, base_model, inference_server=None):
+def run_h2ogpt_docker(port, base_model, inference_server=None, max_new_tokens=None):
     datetime_str = str(datetime.now()).replace(" ", "_").replace(":", "_")
     msg = "Starting h2oGPT %s..." % datetime_str
     print(msg, flush=True)
@@ -209,7 +209,7 @@ def run_h2ogpt_docker(port, base_model, inference_server=None):
                         '--save_dir=/workspace/save/',
                         '--score_model=None',
                         '--max_max_new_tokens=2048',
-                        '--max_new_tokens=1024',
+                        '--max_new_tokens=%s' % (max_new_tokens or 1024),
                         '--num_async=10',
                         '--top_k_docs=-1',
                         '--chat=True',
