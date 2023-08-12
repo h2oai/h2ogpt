@@ -12,6 +12,7 @@ from src.utils import download_simple
 @pytest.mark.parametrize("backend", [
     'transformers',
     'tgi',
+    'mixed',
 ])
 @pytest.mark.parametrize("base_model", [
     'h2oai/h2ogpt-4096-llama2-7b-chat',
@@ -48,6 +49,25 @@ def test_perf_benchmarks(backend, base_model, task):
             docker_hash2 = run_h2ogpt_docker(gradio_port, base_model, inference_server=inference_server)
             time.sleep(30)  # assumes image already downloaded, else need more time
             os.system('docker logs %s | tail -10' % docker_hash2)
+        elif backend == 'mixed':
+            from tests.test_inference_servers import run_docker
+            # HF inference server
+            gradio_port = get_inf_port()
+            inf_port = gradio_port + 1
+            inference_server = 'http://127.0.0.1:%s' % inf_port
+            docker_hash1 = run_docker(inf_port, base_model, low_mem_mode=False)  # don't do low-mem, since need tokens for summary
+            import time
+            time.sleep(30)
+            os.system('docker logs %s | tail -10' % docker_hash1)
+
+            from src.gen import main
+            main(base_model=base_model,
+                 inference_server=inference_server,
+                 chat=True, gradio=True, num_beams=1, block_gradio_exit=False, verbose=True,
+                 use_auth_token=True,
+                 max_new_tokens=4096,
+                 )
+
         else:
             raise NotImplementedError("backend %s not implemented" % backend)
 
