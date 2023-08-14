@@ -11,6 +11,11 @@ GGML v3 quantized models are supported, and [TheBloke](https://huggingface.co/Th
 python generate.py --base_model=llama --model_path_llama=llama-2-7b-chat.ggmlv3.q8_0.bin --max_seq_len=4096
 ```
 For GGML models, always good to pass `--max_seq_len` directly.  When passing the filename like above, we assume one has previously downloaded the model to the local path, but if one passes a URL, then we download the file for you.
+You can also pass a URL for automatic downloading (which will not re-download if file already exists):
+```bash
+python generate.py --base_model=llama --model_path_llama=https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin --max_seq_len=4096
+```
+for any TheBloke GGML v3 models.
 
 GPT4All models are supported, which are automatically downloaded to a GPT4All cache folder (in the home folder).  E.g.
 ```bash
