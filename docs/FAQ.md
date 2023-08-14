@@ -106,7 +106,7 @@ For arbitrary tasks, good to use uncensored models like [Falcon 40 GM](https://h
 
 For the UI this means editing the `context` text box in expert settings.  Or for API, passing `context` variable.
 
-This can be filled with arbitrary things, including actual conversations to prime the model, although if a conversation then need to put in prompts.  E.g. for falcon 40 GM model:
+This can be filled with arbitrary things, including actual conversations to prime the model, although if a conversation then need to put in prompts like:
 ```python
 from gradio_client import Client
 import ast
