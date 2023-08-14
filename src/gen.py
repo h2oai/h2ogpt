@@ -631,12 +631,6 @@ def main(
     assert len(
         set(langchain_agents).difference(langchain_agents_list)) == 0, "Invalid langchain_agents %s" % langchain_agents
 
-    # if specifically chose not to show My or User Data, disable upload, so gradio elements are simpler
-    if LangChainMode.MY_DATA.value not in langchain_modes:
-        allow_upload_to_my_data = False
-    if LangChainMode.USER_DATA.value not in langchain_modes:
-        allow_upload_to_user_data = False
-
     # auto-set langchain_mode
     if have_langchain and langchain_mode is None:
         # start in chat mode, in case just want to chat and don't want to get "No documents to query" by default.
