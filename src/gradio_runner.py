@@ -385,7 +385,7 @@ def go_gradio(**kwargs):
     # always use same callable
     auth_pairs0 = {}
     if isinstance(kwargs['auth'], list):
-        for k, v in zip(kwargs['auth'][0], kwargs['auth'][1]):
+        for k, v in kwargs['auth']:
             auth_pairs0[k] = v
     authf = functools.partial(auth_func,
                               auth_pairs=auth_pairs0,

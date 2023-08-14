@@ -633,6 +633,20 @@ def test_fast_up():
     main(gradio=True, block_gradio_exit=False)
 
 
+@wrap_test_forked
+def test_fast_up_auth():
+    from src.gen import main
+    main(gradio=True, block_gradio_exit=False, score_model='', langchain_mode='LLM', auth=[('jonny', 'dude')])
+    # doesn't test login, has to be done manually
+
+
+@wrap_test_forked
+def test_fast_up_auth2():
+    from src.gen import main
+    main(gradio=True, block_gradio_exit=False, score_model='', langchain_mode='LLM', auth='')
+    # doesn't test login, has to be done manually
+
+
 @pytest.mark.skipif(not os.getenv('STRESS'), reason="Only for stress testing already-running server")
 @pytest.mark.parametrize("repeat", list(range(0, 100)))
 @wrap_test_forked
