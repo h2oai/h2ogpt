@@ -137,7 +137,7 @@ def main(
         allow_api: bool = True,
         input_lines: int = 1,
         gradio_size: str = None,
-        show_copy_button: bool = False,
+        show_copy_button: bool = True,
 
         auth: Union[typing.List[typing.Tuple[str, str]], str] = None,
         auth_access: str = 'open',
