@@ -1624,7 +1624,8 @@ def go_gradio(**kwargs):
 
         def save_auth_dict(auth_dict, auth_filename):
             backup_file = auth_filename + '.bak' + str(uuid.uuid4())
-            shutil.copy(auth_filename, backup_file)
+            if os.path.isfile(auth_filename):
+                shutil.copy(auth_filename, backup_file)
             try:
                 with open(auth_filename, 'wt') as f:
                     f.write(json.dumps(auth_dict, indent=2))
