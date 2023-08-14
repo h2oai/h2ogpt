@@ -739,9 +739,6 @@ def test_client_chat_stream_langchain_steps3():
     assert res[2]['headers'] == ['Collection', 'Type', 'Path']
     assert res[2]['data'] == [['UserData', 'shared', user_path],
                               ['github h2oGPT', 'shared', ''],
-                              ['DriverlessAI docs', 'shared', ''],
-                              ['wiki', 'shared', ''],
-                              ['wiki_full', '', ''],
                               ['MyData', 'personal', ''],
                               [langchain_mode2, 'shared', user_path2]]
 
@@ -828,9 +825,6 @@ def test_client_chat_stream_langchain_steps3():
     assert res[1]['headers'] == ['Collection', 'Type', 'Path']
     assert res[1]['data'] == [['UserData', 'shared', user_path],
                               ['github h2oGPT', 'shared', ''],
-                              ['DriverlessAI docs', 'shared', ''],
-                              ['wiki', 'shared', ''],
-                              ['wiki_full', '', ''],
                               ['MyData', 'personal', ''],
                               [langchain_mode2, 'shared', user_path2]]
 
@@ -882,9 +876,6 @@ def test_client_chat_stream_langchain_steps3():
     assert res[2]['headers'] == ['Collection', 'Type', 'Path']
     assert res[2]['data'] == [['UserData', 'shared', user_path],
                               ['github h2oGPT', 'shared', ''],
-                              ['DriverlessAI docs', 'shared', ''],
-                              ['wiki', 'shared', ''],
-                              ['wiki_full', '', ''],
                               ['MyData', 'personal', ''],
                               ['UserData2', 'shared', user_path2],
                               [langchain_mode2, 'personal', '']]
@@ -1116,5 +1107,6 @@ def test_client_summarization_from_url(url, top_k_docs):
     if 'h2ogpt' in url:
         assert 'Accurate embeddings for private offline databases' in summary \
                or 'private offline database' in summary \
-               or 'H2OGPT is an open-source project' in summary
+               or 'H2OGPT is an open-source project' in summary \
+               or 'is an open-source project for document Q/A' in summary
     assert url in sources

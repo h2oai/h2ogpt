@@ -511,7 +511,7 @@ def go_gradio(**kwargs):
             return choices
 
         def get_df_langchain_mode_paths(selection_docs_state1):
-            langchain_choices1 = get_langchain_choices(selection_docs_state0)
+            langchain_choices1 = get_langchain_choices(selection_docs_state1)
             langchain_mode_paths = selection_docs_state1['langchain_mode_paths']
             langchain_mode_paths = {k: v for k, v in langchain_mode_paths.items() if k in langchain_choices1}
             if langchain_mode_paths:
