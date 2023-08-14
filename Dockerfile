@@ -10,13 +10,13 @@ RUN apt-get update && apt-get install -y \
     software-properties-common \
     pandoc
 
-ENV PATH="/root/miniconda3/bin:${PATH}"
-ARG PATH="/root/miniconda3/bin:${PATH}"
+ENV PATH="/h2ogpt_conda/bin:${PATH}"
+ARG PATH="/h2ogpt_conda/bin:${PATH}"
 
 RUN wget https://repo.anaconda.com/miniconda/Miniconda3-py310_23.1.0-1-Linux-x86_64.sh && \
-    mkdir /root/.conda && \
+    mkdir -p /h2ogpt_conda && \
     bash ./Miniconda3-py310_23.1.0-1-Linux-x86_64.sh -b && \
-    conda install python=3.10 -c conda-forge -y
+    conda install python=3.10 -c conda-forge -p /h2ogpt_conda -y
 
 WORKDIR /workspace
 
@@ -51,5 +51,16 @@ EXPOSE 7860
 ENV TRANSFORMERS_CACHE=/workspace/.cache/huggingface/hub/
 
 COPY build_info.txt /build_info.txt
+
+ARG user=h2ogpt
+ARG group=h2ogpt
+ARG uid=1000
+ARG gid=1000
+
+RUN groupadd -g ${gid} ${group} && useradd -u ${uid} -g ${group} -s /bin/bash ${user}
+RUN chmod -R a+rwx /workspace
+RUN chmod -R a+rwx /h2ogpt_conda
+
+USER h2ogpt
 
 ENTRYPOINT ["python3.10"]
