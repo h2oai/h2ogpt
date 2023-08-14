@@ -21,17 +21,8 @@ cd h2ogpt_rg
 # Install Miniconda
 wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
 chmod +x Miniconda3-latest-Linux-x86_64.sh
-echo "yes" | ./Miniconda3-latest-Linux-x86_64.sh -b -p $HOME/miniconda3
-
-# Verify the installation by checking if 'conda' command is available
-source $HOME/miniconda3/etc/profile.d/conda.sh
-if conda --version >/dev/null 2>&1; then
-  echo "Miniconda installed successfully."
-else
-  echo "Miniconda installation failed. Please manually install or consult the documentation."
-  exit 1
-fi
-
+echo 'yes' | ./Miniconda3-latest-Linux-x86_64.sh
+source ~/.bashrc
 
 # Create conda environment
 conda create --name h2ogpt_rg python=3.10 -y
