@@ -673,8 +673,8 @@ class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
         # return _get_token_ids_default_method(text)
 
 
-from langchain.chat_models import ChatOpenAI
-from langchain.llms import OpenAI, Replicate
+from langchain.chat_models import ChatOpenAI, AzureChatOpenAI
+from langchain.llms import OpenAI, AzureOpenAI, Replicate
 from langchain.llms.openai import _streaming_response_template, completion_with_retry, _update_response, \
     update_token_usage
 
@@ -802,6 +802,22 @@ class H2OChatOpenAI(ChatOpenAI):
         return _all_required_field_names
 
 
+class H2OAzureChatOpenAI(AzureChatOpenAI):
+    @classmethod
+    def _all_required_field_names(cls) -> Set:
+        _all_required_field_names = super(AzureChatOpenAI, cls)._all_required_field_names()
+        _all_required_field_names.update({'top_p', 'frequency_penalty', 'presence_penalty', 'logit_bias'})
+        return _all_required_field_names
+
+
+class H2OAzureOpenAI(AzureOpenAI):
+    @classmethod
+    def _all_required_field_names(cls) -> Set:
+        _all_required_field_names = super(AzureOpenAI, cls)._all_required_field_names()
+        _all_required_field_names.update({'top_p', 'frequency_penalty', 'presence_penalty', 'logit_bias'})
+        return _all_required_field_names
+
+
 def get_llm(use_openai_model=False,
             model_name=None,
             model=None,
@@ -881,26 +897,49 @@ def get_llm(use_openai_model=False,
                 iinput=iinput,
                 tokenizer=tokenizer,
             )
-
     elif use_openai_model or inference_server.startswith('openai') or inference_server.startswith('vllm'):
         if use_openai_model and model_name is None:
             model_name = "gpt-3.5-turbo"
         # FIXME: Will later import be ignored?  I think so, so should be fine
-        openai, inf_type = set_openai(inference_server)
+        openai, inf_type, deployment_name, base_url, api_version = set_openai(inference_server)
         kwargs_extra = {}
-        if inference_server == 'openai_chat' or inf_type == 'vllm_chat':
+        if inf_type == 'openai_chat' or inf_type == 'vllm_chat':
             cls = H2OChatOpenAI
+            # FIXME: Support context, iinput
+        elif inf_type == 'openai_azure_chat':
+            cls = H2OAzureChatOpenAI
+            kwargs_extra.update(dict(openai_api_type='azure'))
+            # FIXME: Support context, iinput
+        elif inf_type == 'openai_azure':
+            cls = H2OAzureOpenAI
+            kwargs_extra.update(dict(openai_api_type='azure'))
             # FIXME: Support context, iinput
         else:
             cls = H2OOpenAI
             if inf_type == 'vllm':
-                kwargs_extra = dict(stop_sequences=prompter.stop_sequences,
-                                    sanitize_bot_response=sanitize_bot_response,
-                                    prompter=prompter,
-                                    context=context,
-                                    iinput=iinput,
-                                    tokenizer=tokenizer,
-                                    client=None)
+                kwargs_extra.update(dict(stop_sequences=prompter.stop_sequences,
+                                         sanitize_bot_response=sanitize_bot_response,
+                                         prompter=prompter,
+                                         context=context,
+                                         iinput=iinput,
+                                         tokenizer=tokenizer,
+                                         openai_api_base=openai.api_base,
+                                         client=None))
+            else:
+                assert inf_type == 'openai'
+
+        if deployment_name:
+            kwargs_extra.update(dict(deployment_name=deployment_name))
+        if api_version:
+            kwargs_extra.update(dict(openai_api_version=api_version))
+        elif openai.api_version:
+            kwargs_extra.update(dict(openai_api_version=openai.api_version))
+        elif inf_type in ['openai_azure', 'openai_azure_chat']:
+            kwargs_extra.update(dict(openai_api_version="2023-05-15"))
+        if base_url:
+            kwargs_extra.update(dict(openai_api_base=base_url))
+        else:
+            kwargs_extra.update(dict(openai_api_base=openai.api_base))
 
         callbacks = [StreamingGradioCallbackHandler()]
         llm = cls(model_name=model_name,
@@ -912,14 +951,13 @@ def get_llm(use_openai_model=False,
                   presence_penalty=1.07 - repetition_penalty + 0.6,  # so good default
                   callbacks=callbacks if stream_output else None,
                   openai_api_key=openai.api_key,
-                  openai_api_base=openai.api_base,
                   logit_bias=None if inf_type == 'vllm' else {},
                   max_retries=2,
                   streaming=stream_output,
                   **kwargs_extra
                   )
         streamer = callbacks[0] if stream_output else None
-        if inference_server in ['openai', 'openai_chat']:
+        if inf_type in ['openai', 'openai_chat', 'openai_azure', 'openai_azure_chat']:
             prompt_type = inference_server
         else:
             # vllm goes here
@@ -2728,7 +2766,7 @@ def get_chain(query=None,
         if 'falcon' in model_name or 'Llama-2'.lower() in model_name.lower():
             extra = "According to only the information in the document sources provided within the context above, "
             prefix = "Pay attention and remember information below, which will help to answer the question or imperative after the context ends.\n"
-        elif inference_server in ['openai', 'openai_chat']:
+        elif inference_server.startswith('openai'):
             extra = "According to (primarily) the information in the document sources provided within context above, "
             prefix = "Pay attention and remember information below, which will help to answer the question or imperative after the context ends.  If the answer cannot be primarily obtained from information within the context, then respond that the answer does not appear in the context of the documents.\n"
         else:
@@ -2786,11 +2824,11 @@ def get_chain(query=None,
 
     if hasattr(llm, 'pipeline') and hasattr(llm.pipeline, 'max_input_tokens'):
         max_input_tokens = llm.pipeline.max_input_tokens
-    elif inference_server in ['openai']:
+    elif inference_server in ['openai', 'openai_azure']:
         max_tokens = llm.modelname_to_contextsize(model_name)
         # leave some room for 1 paragraph, even if min_new_tokens=0
         max_input_tokens = max_tokens - 256
-    elif inference_server in ['openai_chat']:
+    elif inference_server in ['openai_chat', 'openai_azure_chat']:
         max_tokens = model_token_mapping[model_name]
         # leave some room for 1 paragraph, even if min_new_tokens=0
         max_input_tokens = max_tokens - 256
@@ -2879,14 +2917,18 @@ def get_chain(query=None,
                     # more accurate
                     tokens = [len(llm.pipeline.tokenizer(x[0].page_content)['input_ids']) for x in docs_with_score]
                     template_tokens = len(llm.pipeline.tokenizer(template)['input_ids'])
-                elif inference_server in ['openai', 'openai_chat'] or use_openai_model or db_type in ['faiss',
-                                                                                                      'weaviate']:
-                    # use ticktoken for faiss since embedding called differently
+                elif inference_server in ['openai', 'openai_chat', 'openai_azure',
+                                          'openai_azure_chat'] or use_openai_model:
                     tokens = [llm.get_num_tokens(x[0].page_content) for x in docs_with_score]
                     template_tokens = llm.get_num_tokens(template)
                 elif isinstance(tokenizer, FakeTokenizer):
                     tokens = [tokenizer.num_tokens_from_string(x[0].page_content) for x in docs_with_score]
                     template_tokens = tokenizer.num_tokens_from_string(template)
+                elif db_type in ['faiss', 'weaviate']:
+                    # use ticktoken for faiss since embedding called differently
+                    tokz = FakeTokenizer()
+                    tokens = [tokz.num_tokens_from_string(x[0].page_content) for x in docs_with_score]
+                    template_tokens = tokz.num_tokens_from_string(template)
                 else:
                     # in case model is not our pipeline with HF tokenizer
                     tokens = [db._embedding_function.client.tokenize([x[0].page_content])['input_ids'].shape[1] for x in

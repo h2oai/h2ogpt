@@ -1,6 +1,6 @@
 # Inference Servers
 
-One can connect to Hugging Face text generation inference server, gradio servers running h2oGPT, or OpenAI servers.  
+One can connect to Hugging Face text generation inference server, gradio servers running h2oGPT, OpenAI, or Azure OpenAI servers.  
 
 ## Hugging Face Text Generation Inference Server-Client
 
@@ -207,6 +207,14 @@ If you have an OpenAI key and set an ENV `OPENAI_API_KEY`, then you can access O
 OPENAI_API_KEY=<key> python generate.py --inference_server="openai_chat" --base_model=gpt-3.5-turbo --h2ocolors=False --langchain_mode=UserData
 ```
 where `<key>` should be replaced by your OpenAI key that probably starts with `sk-`.  OpenAI is **not** recommended for private document question-answer, but it can be a good reference for testing purposes or when privacy is not required.
+
+## Azure OpenAI Inference Server-Client
+
+If you have an Azure OpenAI subscription with OpenAI key and set an ENV `OPENAI_API_KEY`, then you can access Azure OpenAI models via gradio by running:
+```bash
+OPENAI_API_KEY=<key> python generate.py --inference_server="openai_azure_chat:<deployment_name>:<base_url>:<api_version>" --base_model=gpt-3.5-turbo --h2ocolors=False --langchain_mode=UserData
+```
+where `<key>` should be replaced by your OpenAI key that probably starts with `sk-`.  OpenAI is **not** recommended for private document question-answer, but it can be a good reference for testing purposes or when privacy is not required.  The entry `<deployment_name>` is required for Azure, others are optional and can be filled with None or have empty input between `:`.
 
 ## vLLM Inference Server-Client
 

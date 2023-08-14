@@ -217,6 +217,11 @@ and if you want to push image caption model to get better captions, this can be 
 ```bash
 python generate.py  --inference_server=openai_chat --base_model=gpt-3.5-turbo --score_model=None --langchain_mode=LLM --langchain_modes="['LLM', 'UserData', 'MyData']" --captions_model=Salesforce/blip2-flan-t5-xl
 ```
+Similar commands can be used for Azure OpenAI, e.g.
+```bash
+OPENAI_API_KEY=<key> python generate.py --inference_server="openai_azure_chat:<deployment_name>:<base_url>:<api_version>" --base_model=gpt-3.5-turbo --h2ocolors=False --langchain_mode=UserData
+```
+
 
 ### Multiple embeddings and sources
 
