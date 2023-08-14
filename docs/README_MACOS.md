@@ -42,7 +42,8 @@ Supports CPU and MPS (Metal M1/M2).
     brew install libmagic
     brew link libmagic
     brew install poppler
-    brew install tesseract --all-languages
+    brew install tesseract
+    brew install tesseract-lang
     ```
 * Metal M1/M2 Only: Install newer Torch for GPU support:
    ```bash
