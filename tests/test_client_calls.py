@@ -30,6 +30,43 @@ def test_client1():
         'response']
 
 
+@pytest.mark.parametrize("base_model", [
+    # 'h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2',  # can't handle
+    'llama',
+])
+@wrap_test_forked
+def test_client1_context(base_model):
+    os.environ['TEST_LANGCHAIN_IMPORT'] = "1"
+    sys.modules.pop('gpt_langchain', None)
+    sys.modules.pop('langchain', None)
+
+    from src.gen import main
+    main(base_model=base_model, prompt_type='prompt_answer', chat=False,
+         stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False)
+
+    from gradio_client import Client
+    client = Client(get_inf_server())
+
+    # string of dict for input
+    prompt = 'Who are you?'
+    if base_model == 'h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2':
+        context = """<|answer|>I am a pixie filled with fairy dust<|endoftext|><|prompt|>What kind of pixie are you?<|endoftext|><|answer|>Magical<|endoftext|>"""
+    else:
+        # FYI llama70b even works with falcon prompt_answer context
+        context = """[/INST] I am a pixie filled with fairy dust </s><s>[INST] What kind of pixie are you? [/INST] Magical"""
+    kwargs = dict(instruction_nochat=prompt, context=context)
+    res = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
+
+    # string of dict for output
+    response = ast.literal_eval(res)['response']
+    print(response)
+    assert """I am a mischievous pixie, always up to no good! *wink* But don't worry, I won't play any tricks on you... unless you want me to, that is. *giggles*
+As for my fairy dust, it's a special blend of sparkly, shimmering magic that can grant wishes and make dreams come true. *twinkle eyes* Would you like some? *offers a tiny vial of sparkles*""" in response or \
+           """I am a mischievous pixie, always up to no good! *winks* But don't worry, I won't play any tricks on you... unless you want me to, that is. *giggles*
+   As for my fairy dust, it's a special blend of sparkly, shimmering magic that can grant wishes and make dreams come true. *twinkle* Would you like some? *offers a tiny vial of sparkles*""" in response or \
+           """I am a mischievous pixie""" in response
+
+
 @wrap_test_forked
 def test_client1api():
     os.environ['TEST_LANGCHAIN_IMPORT'] = "1"
@@ -807,7 +844,7 @@ def test_client_chat_stream_langchain_steps3():
     res = client.predict(langchain_mode, True, 512, api_name='/refresh_sources')
     sources_expected = 'file/%s/next.txt' % user_path
     assert sources_expected in res or sources_expected.replace('\\', '/').replace('\r', '') in res.replace('\\',
-                                                                                                             '/').replace(
+                                                                                                           '/').replace(
         '\r', '\n')
 
     # check sources, and do after so would detect leakage
@@ -848,7 +885,7 @@ def test_client_chat_stream_langchain_steps3():
     remove(user_paste_dir)
     sources_expected = 'file/%s/' % user_paste_dir
     assert sources_expected in res[2] or sources_expected.replace('\\', '/').replace('\r', '') in res[2].replace('\\',
-                                                                                                                   '/').replace(
+                                                                                                                 '/').replace(
         '\r', '\n')
     assert res[3] == ''
 
@@ -862,7 +899,7 @@ def test_client_chat_stream_langchain_steps3():
     # will just use source location, e.g. for UI will be /tmp/gradio
     sources_expected = 'file//tmp/sample1.pdf'
     assert sources_expected in res[2] or sources_expected.replace('\\', '/').replace('\r', '') in res[2].replace('\\',
-                                                                                                                   '/').replace(
+                                                                                                                 '/').replace(
         '\r', '\n')
     assert res[3] == ''
 
@@ -890,7 +927,7 @@ def test_client_chat_stream_langchain_steps3():
     assert res[1] == langchain_mode2
     sources_expected = 'file//tmp/pdf-sample.pdf'
     assert sources_expected in res[2] or sources_expected.replace('\\', '/').replace('\r', '') in res[2].replace('\\',
-                                                                                                                   '/').replace(
+                                                                                                                 '/').replace(
         '\r', '\n')
     assert 'sample1.pdf' not in res[2]  # ensure no leakage
     assert res[3] == ''

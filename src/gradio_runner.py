@@ -803,8 +803,7 @@ def go_gradio(**kwargs):
                                                        visible=False and not kwargs['model_lock'],
                                                        interactive=not is_public)
                             context = gr.Textbox(lines=2, label="System Pre-Context",
-                                                 info="Directly pre-appended without prompt processing",
-                                                 interactive=not is_public)
+                                                 info="Directly pre-appended without prompt processing")
                             iinput = gr.Textbox(lines=2, label="Input for Instruct prompt types",
                                                 placeholder=kwargs['placeholder_input'],
                                                 interactive=not is_public)

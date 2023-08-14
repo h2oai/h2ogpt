@@ -100,6 +100,37 @@ However, in some cases, you need to add a new prompt structure because the model
 
 In either case, if the model card doesn't have that information, you'll need to ask around.  Sometimes, prompt information will be in their pipeline file or in a GitHub repository associated with the model with training of inference code.  Or sometimes the model builds upon another, and you should look at the original model card.  You can also  ask in the community section on Hugging Face for that model card.
 
+### In-Context learning via Prompt Engineering
+
+For arbitrary tasks, good to use uncensored models like [Falcon 40 GM](https://huggingface.co/h2oai/h2ogpt-gm-oasst1-en-2048-falcon-40b-v2).  If censored is ok, then [LLama-2 Chat](https://huggingface.co/h2oai/h2ogpt-4096-llama2-70b-chat) are ok. Choose model size according to your system specs.
+
+For the UI this means editing the `context` text box in expert settings.  Or for API, passing `context` variable.
+
+This can be filled with arbitrary things, including actual conversations to prime the model, although if a conversation then need to put in prompts.  E.g. for falcon 40 GM model:
+```python
+from gradio_client import Client
+import ast
+
+HOST_URL = "http://localhost:7860"
+client = Client(HOST_URL)
+
+# string of dict for input
+prompt = 'Who are you?'
+# falcon, but falcon7B is not good at this:
+#context = """<|answer|>I am a pixie filled with fairy dust<|endoftext|><|prompt|>What kind of pixie are you?<|endoftext|><|answer|>Magical<|endoftext|>"""
+# LLama2 7B handles this well:
+context = """[/INST] I am a pixie filled with fairy dust </s><s>[INST] What kind of pixie are you? [/INST] Magical"""
+kwargs = dict(instruction_nochat=prompt, context=context)
+res = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
+
+# string of dict for output
+response = ast.literal_eval(res)['response']
+print(response)
+```
+See for example: https://github.com/h2oai/h2ogpt/blob/d3334233ca6de6a778707feadcadfef4249240ad/tests/test_prompter.py#L47 .
+
+Note that even if the prompting is not perfect or matches the model, smarter models will still do quite well, as long as you give their answers as part of context.
+
 ### Token access to Hugging Face models:
 
 Related to transformers.  There are two independent ways to do this (choose one):
