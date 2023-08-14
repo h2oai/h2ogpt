@@ -172,12 +172,18 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
 
   If using OpenAI for the LLM is ok, but you want documents to be parsed and embedded locally, then do:
   ```bash
-  python generate.py  --inference_server=openai_chat --base_model=gpt-3.5-turbo --score_model=None
+  OPENAI_API_KEY=<key> python generate.py  --inference_server=openai_chat --base_model=gpt-3.5-turbo --score_model=None
   ```
-  and perhaps you want better image caption performance and focus local GPU on that, then do:
+  where `<key>` should be replaced by your OpenAI key that probably starts with `sk-`.  OpenAI is **not** recommended for private document question-answer, but it can be a good reference for testing purposes or when privacy is not required.  
+  Perhaps you want better image caption performance and focus local GPU on that, then do:
   ```bash
-  python generate.py  --inference_server=openai_chat --base_model=gpt-3.5-turbo --score_model=None --captions_model=Salesforce/blip2-flan-t5-xl
+  OPENAI_API_KEY=<key> python generate.py  --inference_server=openai_chat --base_model=gpt-3.5-turbo --score_model=None --captions_model=Salesforce/blip2-flan-t5-xl
   ```
+  For Azure OpenAI:
+  ```bash
+   OPENAI_API_KEY=<key> python generate.py --inference_server="openai_azure_chat:<deployment_name>:<base_url>:<api_version>" --base_model=gpt-3.5-turbo --h2ocolors=False --langchain_mode=UserData
+   ```
+  where the entry `<deployment_name>` is required for Azure, others are optional and can be filled with string `None` or have empty input between `:`.  Azure OpenAI is a bit safer for private access to Azure-based docs.
   
   Add `--share=True` to make gradio server visible via sharable URL.
  

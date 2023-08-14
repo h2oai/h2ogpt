@@ -1108,13 +1108,30 @@ def set_openai(inference_server):
         ip_vllm = inference_server.split(':')[1]
         port_vllm = inference_server.split(':')[2]
         openai_vllm.api_base = f"http://{ip_vllm}:{port_vllm}/v1"
-        return openai_vllm, inf_type
+        return openai_vllm, inf_type, None, None, None
     else:
         import openai
         openai.api_key = os.getenv("OPENAI_API_KEY")
         openai.api_base = os.environ.get("OPENAI_API_BASE", "https://api.openai.com/v1")
-        inf_type = inference_server
-        return openai, inf_type
+
+        base_url = None
+        deployment_type = None
+        api_version = None
+        inf_type = inference_server.split(':')[0]
+        if len(inference_server.split(':')) >= 2:
+            deployment_type = inference_server.split(':')[1]
+        if len(inference_server.split(':')) >= 3:
+            base_url = inference_server.split(':')[2]
+        if len(inference_server.split(':')) >= 4:
+            api_version = inference_server.split(':')[3]
+
+        if deployment_type == 'None':
+            deployment_type = None
+        if base_url == 'None':
+            base_url = None
+        if base_url == 'None':
+            base_url = None
+        return openai, inf_type, deployment_type, base_url, api_version
 
 
 def get_list_or_str(x):

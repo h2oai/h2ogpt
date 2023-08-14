@@ -357,8 +357,9 @@ def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain,
 
 @pytest.mark.skipif(not have_openai_key, reason="requires OpenAI key to run")
 @pytest.mark.parametrize("force_langchain_evaluate", [False, True])
+@pytest.mark.parametrize("inference_server", ['openai_chat', 'openai_azure_chat'])
 @wrap_test_forked
-def test_openai_inference_server(force_langchain_evaluate,
+def test_openai_inference_server(inference_server, force_langchain_evaluate,
                                  prompt='Who are you?', stream_output=False, max_new_tokens=256,
                                  base_model='gpt-3.5-turbo',
                                  langchain_mode='Disabled',
@@ -369,6 +370,10 @@ def test_openai_inference_server(force_langchain_evaluate,
                                  reverse_docs=True):
     if force_langchain_evaluate:
         langchain_mode = 'MyData'
+    if inference_server == 'openai_azure_chat':
+        # need at least deployment name added:
+        deployment_name = 'h2ogpt'
+        inference_server += ':%s' % deployment_name
 
     main_kwargs = dict(base_model=base_model, chat=True,
                        stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
@@ -382,7 +387,7 @@ def test_openai_inference_server(force_langchain_evaluate,
 
     # server that consumes inference server
     from src.gen import main
-    main(**main_kwargs, inference_server='openai_chat')
+    main(**main_kwargs, inference_server=inference_server)
 
     # client test to server that only consumes inference server
     from src.client_test import run_client_chat

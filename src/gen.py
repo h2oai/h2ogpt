@@ -28,7 +28,7 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mappin
     source_postfix, LangChainAction, LangChainAgent, DocumentChoice, LangChainTypes
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
-    import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, remove, \
+    import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
     have_langchain, set_openai, cuda_vis_check, H2O_Fire
 
 start_faulthandler()
@@ -73,7 +73,8 @@ def main(
 
         # llama and gpt4all settings
         llamacpp_dict: typing.Dict = dict(n_gpu_layers=100, use_mlock=True, n_batch=1024, n_gqa=0),
-        model_path_llama: str = 'https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin', #'llama-2-7b-chat.ggmlv3.q8_0.bin',
+        model_path_llama: str = 'https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin',
+        # 'llama-2-7b-chat.ggmlv3.q8_0.bin',
         model_name_gptj: str = 'ggml-gpt4all-j-v1.3-groovy.bin',
         model_name_gpt4all_llama: str = 'ggml-wizardLM-7B.q4_2.bin',
         model_name_exllama_if_no_config: str = 'TheBloke/Nous-Hermes-Llama2-GPTQ',
@@ -178,7 +179,8 @@ def main(
 
         langchain_mode: str = None,
         user_path: str = None,
-        langchain_modes: list = [LangChainMode.USER_DATA.value, LangChainMode.MY_DATA.value, LangChainMode.LLM.value, LangChainMode.DISABLED.value],
+        langchain_modes: list = [LangChainMode.USER_DATA.value, LangChainMode.MY_DATA.value, LangChainMode.LLM.value,
+                                 LangChainMode.DISABLED.value],
         langchain_mode_paths: dict = {LangChainMode.USER_DATA.value: None},
         langchain_mode_types: dict = {LangChainMode.USER_DATA.value: LangChainTypes.SHARED.value},
         detect_user_path_changes_every_query: bool = False,
@@ -248,13 +250,28 @@ def main(
     :param inference_server: Consume base_model as type of model at this address
                              Address can be text-generation-server hosting that base_model
                              e.g. python generate.py --inference_server="http://192.168.1.46:6112" --base_model=h2oai/h2ogpt-oasst1-512-12b
+
                              Or Address can be "openai_chat" or "openai" for OpenAI API
+                             Or Address can be "openai_azure_chat" or "openai_azure" for Azure OpenAI API
                              e.g. python generate.py --inference_server="openai_chat" --base_model=gpt-3.5-turbo
                              e.g. python generate.py --inference_server="openai" --base_model=text-davinci-003
-                             Or Address can be "vllm:IP:port" or "vllm:IP:port" for OpenAI-compliant vLLM endpoint
-                             Note: vllm_chat not supported by vLLM project.
-                             --inference_server=replicate:<model name string> will use a Replicate server, requiring a Replicate key.
-                             e.g. <model name string> looks like "a16z-infra/llama13b-v2-chat:df7690f1994d94e96ad9d568eac121aecf50684a0b0963b25a41cc40061269e5"
+                             e.g. python generate.py --inference_server="openai_azure_chat:<deployment_name>:<baseurl>:<api_version>:<model_version>" --base_model=gpt-3.5-turbo
+                             e.g. python generate.py --inference_server="openai_azure:<deployment_name>:<baseurl>:<api_version>:<model_version>" --base_model=text-davinci-003
+                             Optionals (Replace with None or just leave empty but keep :)
+                                 <deployment_name> of some deployment name
+                                 <baseurl>: e.g. "https://<endpoint>.openai.azure.com" for some <endpoint>
+                                 <api_version> of some api, e.g. 2023-05-15
+                                 <model_version> e.g. 0613
+
+                             Or Address can be for vLLM:
+                              Use: "vllm:IP:port" or "vllm:IP:port" for OpenAI-compliant vLLM endpoint
+                              Note: vllm_chat not supported by vLLM project.
+
+                             Or Address can be replicate:
+                             Use:
+                              --inference_server=replicate:<model name string> will use a Replicate server, requiring a Replicate key.
+                              e.g. <model name string> looks like "a16z-infra/llama13b-v2-chat:df7690f1994d94e96ad9d568eac121aecf50684a0b0963b25a41cc40061269e5"
+
     :param prompt_type: type of prompt, usually matched to fine-tuned model or plain for foundational model
     :param prompt_dict: If prompt_type=custom, then expects (some) items returned by get_prompt(..., return_dict=True)
     :param system_prompt: Universal system prompt to use if model supports, like LLaMa2, regardless of prompt_type definition.
@@ -1847,7 +1864,11 @@ def evaluate(
                     )
 
     t_generate = time.time()
-    langchain_only_model = base_model in non_hf_types or load_exllama or inference_server.startswith('replicate')
+    langchain_only_model = base_model in non_hf_types or \
+                           load_exllama or \
+                           inference_server.startswith('replicate') or \
+                           inference_server.startswith('openai_azure_chat') or \
+                           inference_server.startswith('openai_azure')
     do_langchain_path = langchain_mode not in [False, 'Disabled', 'LLM'] or \
                         langchain_only_model or \
                         force_langchain_evaluate
@@ -1967,8 +1988,10 @@ def evaluate(
             inference_server.startswith('openai') or \
             inference_server.startswith('http'):
         if inference_server.startswith('vllm') or inference_server.startswith('openai'):
-            where_from = "openai_client"
-            openai, inf_type = set_openai(inference_server)
+            assert not inference_server.startswith('openai_azure_chat'), "Not fo Azure, use langchain path"
+            assert not inference_server.startswith('openai_azure'), "Not for Azure, use langchain path"
+            openai, inf_type, deployment_name, base_url, api_version = set_openai(inference_server)
+            where_from = inf_type
 
             terminate_response = prompter.terminate_response or []
             stop_sequences = list(set(terminate_response + [prompter.PreResponse]))
