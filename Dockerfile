@@ -50,7 +50,8 @@ EXPOSE 7860
 
 ENV TRANSFORMERS_CACHE=/workspace/.cache/huggingface/hub/
 
-COPY build_info.txt /build_info.txt
+COPY build_info.txt* /build_info.txt
+RUN touch /build_info.txt
 
 ARG user=h2ogpt
 ARG group=h2ogpt

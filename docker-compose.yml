@@ -12,7 +12,8 @@ services:
     command: generate.py --load_8bit True --base_model 'EleutherAI/gpt-j-6B'
     restart: unless-stopped
     volumes:
-      - h2o-llm:/root/.cache # Location downloaded weights will be stored
+      - ./h2o-llm:/root/.cache # Location downloaded weights will be stored
+      - ./.cache:/workspace/.cache
     ports:
       - 7860:7860
     deploy:
