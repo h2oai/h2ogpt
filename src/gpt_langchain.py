@@ -918,13 +918,13 @@ def get_llm(use_openai_model=False,
             cls = H2OOpenAI
             if inf_type == 'vllm':
                 kwargs_extra.update(dict(stop_sequences=prompter.stop_sequences,
-                                    sanitize_bot_response=sanitize_bot_response,
-                                    prompter=prompter,
-                                    context=context,
-                                    iinput=iinput,
-                                    tokenizer=tokenizer,
-                                    openai_api_base=openai.api_base,
-                                    client=None))
+                                         sanitize_bot_response=sanitize_bot_response,
+                                         prompter=prompter,
+                                         context=context,
+                                         iinput=iinput,
+                                         tokenizer=tokenizer,
+                                         openai_api_base=openai.api_base,
+                                         client=None))
             else:
                 assert inf_type == 'openai'
 
@@ -2917,14 +2917,18 @@ def get_chain(query=None,
                     # more accurate
                     tokens = [len(llm.pipeline.tokenizer(x[0].page_content)['input_ids']) for x in docs_with_score]
                     template_tokens = len(llm.pipeline.tokenizer(template)['input_ids'])
-                elif (inference_server in ['openai', 'openai_chat', 'openai_azure', 'openai_azure_chat'] or
-                      use_openai_model or db_type in ['faiss', 'weaviate']):
-                    # use ticktoken for faiss since embedding called differently
+                elif inference_server in ['openai', 'openai_chat', 'openai_azure',
+                                          'openai_azure_chat'] or use_openai_model:
                     tokens = [llm.get_num_tokens(x[0].page_content) for x in docs_with_score]
                     template_tokens = llm.get_num_tokens(template)
                 elif isinstance(tokenizer, FakeTokenizer):
                     tokens = [tokenizer.num_tokens_from_string(x[0].page_content) for x in docs_with_score]
                     template_tokens = tokenizer.num_tokens_from_string(template)
+                elif db_type in ['faiss', 'weaviate']:
+                    # use ticktoken for faiss since embedding called differently
+                    tokz = FakeTokenizer()
+                    tokens = [tokz.num_tokens_from_string(x[0].page_content) for x in docs_with_score]
+                    template_tokens = tokz.num_tokens_from_string(template)
                 else:
                     # in case model is not our pipeline with HF tokenizer
                     tokens = [db._embedding_function.client.tokenize([x[0].page_content])['input_ids'].shape[1] for x in
