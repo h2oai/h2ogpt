@@ -2950,13 +2950,14 @@ def go_gradio(**kwargs):
             clear_torch_cache()
             if kwargs['debug']:
                 print("Pre-switch post-del GPU memory: %s" % get_torch_allocated(), flush=True)
-
-            if model_name is None or model_name == no_model_str:
+            if not model_name:
+                model_name = no_model_str
+            if model_name == no_model_str:
                 # no-op if no model, just free memory
                 # no detranscribe needed for model, never go into evaluate
                 lora_weights = no_lora_str
                 server_name = no_server_str
-                return [None, None, None, model_name, server_name], \
+                return kwargs['model_state_none'].copy(), \
                     model_name, lora_weights, server_name, prompt_type_old, \
                     gr.Slider.update(maximum=256), \
                     gr.Slider.update(maximum=256)
