@@ -63,10 +63,12 @@ def make_css_base() -> str:
     }
     
     div.message.user > div.icon-button {
-        top: 0;
+        top: unset;
+        bottom: 0;
     }
     
     div.message.bot > div.icon-button {
-        top: 0;
+        top: unset;
+        bottom: 0;
     }
     """
