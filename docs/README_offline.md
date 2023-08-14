@@ -2,7 +2,7 @@
 
 Note, when running `generate.py` and asking your first question, it will download the model(s), which for the 6.9B model takes about 15 minutes per 3 pytorch bin files if have 10MB/s download.
 
-If all data has been put into `~/.cache` by HF transformers, then these following steps (those related to downloading HF models) are not required.
+If all data has been put into `~/.cache` by HF transformers and GGML files downloaded already and one points to them (e.g. with `--model_path_llama=llama-2-7b-chat.ggmlv3.q8_0.bin`), then these following steps (those related to downloading HF models) are not required.
 
 1) Download model and tokenizer of choice
     
@@ -14,6 +14,7 @@ If all data has been put into `~/.cache` by HF transformers, then these followin
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     tokenizer.save_pretrained(model_name)
     ```
+    If using GGML files, those should be downloaded separately manually, and point to file path, e.g. `--base_model=llama --model_path_llama=llama-2-7b-chat.ggmlv3.q8_0.bin`.
 
 2) Download reward model, unless pass `--score_model='None'` to `generate.py`
     ```python
