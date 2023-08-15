@@ -1564,7 +1564,7 @@ def set_model_max_len(max_seq_len, tokenizer, verbose=False, reward_type=False):
         tokenizer.model_max_length = 512
         return
 
-    tokenizer.model_max_length = max_seq_len
+    tokenizer.model_max_length = int(max_seq_len)
     if verbose:
         print("model_max_length=%s" % tokenizer.model_max_length, flush=True)
     # for bug in HF transformers
@@ -2309,7 +2309,7 @@ def evaluate(
     input_ids = inputs["input_ids"].to(device)
     # CRITICAL LIMIT else will fail
     max_max_tokens = tokenizer.model_max_length
-    max_input_tokens = max_max_tokens - min_new_tokens
+    max_input_tokens = max(0, int(max_max_tokens - min_new_tokens))
     # NOTE: Don't limit up front due to max_new_tokens, let go up to max or reach max_max_tokens in stopping.py
     assert isinstance(max_input_tokens, int), "Bad type for max_input_tokens=%s %s" % (max_input_tokens, type(max_input_tokens))
     input_ids = input_ids[:, -max_input_tokens:]
