@@ -1,6 +1,7 @@
 name: Build & Publish h2oGPT Python wheel to PYPI
 
 on:
+  pull_request:
   workflow_dispatch:
     inputs:
       pypi-index:
