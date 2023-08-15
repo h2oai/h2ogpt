@@ -554,7 +554,8 @@ def go_gradio(**kwargs):
                             file_types_str = '[' + ' '.join(file_types) + ' URL ArXiv TEXT' + ']'
                             fileup_output = gr.File(label=f'Upload {file_types_str}',
                                                     show_label=False,
-                                                    file_types=file_types,
+                                                    #file_types=file_types,
+                                                    file_types=None,  # for iPhone etc. needs to be unconstrained else doesn't work with extension-based restrictions
                                                     file_count="multiple",
                                                     scale=1,
                                                     min_width=0,
