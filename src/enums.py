@@ -125,5 +125,10 @@ model_token_mapping = {
     "code-cushman-001": 2048,
 }
 
+font_size = 2
+head_acc = 40  # 40 for 6-way
 source_prefix = "Sources [Score | Link]:"
 source_postfix = "End Sources<p>"
+
+super_source_prefix = f"""<details><summary><font size="{font_size}">Sources</font></summary><font size="{font_size}"><font size="{font_size}">Sources [Score | Link]:"""
+super_source_postfix = f"""End Sources<p></font></font></details>"""

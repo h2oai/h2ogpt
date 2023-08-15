@@ -30,7 +30,8 @@ from langchain.schema import LLMResult, Generation
 from tqdm import tqdm
 
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
-    LangChainAction, LangChainMode, DocumentChoice, LangChainTypes
+    LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
+    super_source_postfix
 from evaluate_params import gen_hyper
 from gen import get_model, SEED
 from prompter import non_hf_types, PromptType, Prompter
@@ -3090,8 +3091,6 @@ def get_sources_answer(query, docs, answer, scores, show_rank,
         return ret, extra
 
     # link
-    font_size = 2
-    head_acc = 40  # 40 for 6-way
     answer_sources = [(max(0.0, 1.5 - score) / 1.5,
                        get_url(doc, font_size=font_size),
                        get_accordion(doc, font_size=font_size, head_acc=head_acc)) for score, doc in
@@ -3121,7 +3120,8 @@ def get_sources_answer(query, docs, answer, scores, show_rank,
         if show_accordions:
             sorted_sources_urls = f"<font size=\"{font_size}\">{source_prefix}<ul></font>" + "".join(answer_sources)
         else:
-            sorted_sources_urls = f"<font size=\"{font_size}\">{source_prefix}<p><ul></font>" + "<p>".join(answer_sources)
+            sorted_sources_urls = f"<font size=\"{font_size}\">{source_prefix}<p><ul></font>" + "<p>".join(
+                answer_sources)
         if verbose:
             if int(t_run):
                 sorted_sources_urls += 'Total Time: %d [s]<p>' % t_run
@@ -3129,6 +3129,11 @@ def get_sources_answer(query, docs, answer, scores, show_rank,
                 sorted_sources_urls += 'Input Tokens: %s | Output Tokens: %d<p>' % (
                     count_input_tokens, count_output_tokens)
         sorted_sources_urls += f"<font size=\"{font_size}\"></ul></p>{source_postfix}</font>"
+        title_overall = "Sources"
+        sorted_sources_urls = f"""<details><summary><font size="{font_size}">{title_overall}</font></summary><font size="{font_size}">{sorted_sources_urls}</font></details>"""
+        if os.getenv("HARD_ASSERTS"):
+            assert sorted_sources_urls.startswith(super_source_prefix)
+            assert sorted_sources_urls.endswith(super_source_postfix)
 
     if not answer.endswith('\n'):
         answer += '\n'
