@@ -642,16 +642,23 @@ def go_gradio(**kwargs):
                         # CHAT
                         col_chat = gr.Column(visible=kwargs['chat'])
                         with col_chat:
-                            with gr.Row():  # elem_id='prompt-form-area'):
+                            with gr.Row():
                                 with gr.Column(scale=50):
-                                    instruction = gr.Textbox(
-                                        lines=kwargs['input_lines'],
-                                        label='Ask anything',
-                                        placeholder=instruction_label,
-                                        info=None,
-                                        elem_id='prompt-form',
-                                        container=True,
-                                    )
+                                    with gr.Row(elem_id="prompt-form-row"):
+                                        instruction = gr.Textbox(
+                                            lines=kwargs['input_lines'],
+                                            label='Ask anything',
+                                            placeholder=instruction_label,
+                                            info=None,
+                                            elem_id='prompt-form',
+                                            container=True,
+                                        )
+                                        attach_button = gr.Button(
+                                            elem_id="attach-button",
+                                            value="",
+                                            size="sm",
+                                            min_width=24,
+                                            icon="static/attach.svg")
                                 submit_buttons = gr.Row(equal_height=False, visible=kwargs['visible_submit_buttons'])
                                 with submit_buttons:
                                     mw1 = 50

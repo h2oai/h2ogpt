@@ -71,4 +71,22 @@ def make_css_base() -> str:
         top: unset;
         bottom: 0;
     }
+    
+    #prompt-form-row {
+        position: relative;
+    }
+    
+    #attach-button {
+        position: absolute;
+        top: 45px;
+        right: 20px;
+        
+        display: flex;
+        justify-content: center;
+        border: 1px solid var(--primary-500) !important;
+    }
+    
+    #attach-button > img {
+        margin-right: 0;
+    }
     """
