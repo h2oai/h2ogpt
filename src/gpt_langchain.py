@@ -928,7 +928,7 @@ def get_llm(use_openai_model=False,
                                          openai_api_base=openai.api_base,
                                          client=None))
             else:
-                assert inf_type == 'openai'
+                assert inf_type == 'openai' or use_openai_model
 
         if deployment_name:
             kwargs_extra.update(dict(deployment_name=deployment_name))
