@@ -2389,6 +2389,7 @@ def run_qa_db(**kwargs):
     kwargs['answer_with_sources'] = kwargs.get('answer_with_sources', True)
     kwargs['show_rank'] = kwargs.get('show_rank', False)
     kwargs['show_accordions'] = kwargs.get('show_accordions', True)
+    kwargs['top_k_docs_max_show'] = kwargs.get('top_k_docs_max_show', 10)
     kwargs['llamacpp_dict'] = {}  # shouldn't be required unless from test using _run_qa_db
     missing_kwargs = [x for x in func_names if x not in kwargs]
     assert not missing_kwargs, "Missing kwargs for run_qa_db: %s" % missing_kwargs
@@ -2427,6 +2428,7 @@ def _run_qa_db(query=None,
                sanitize_bot_response=False,
                show_rank=False,
                show_accordions=True,
+               top_k_docs_max_show=10,
                use_llm_if_no_docs=True,
                load_db_if_exists=False,
                db=None,
@@ -2637,6 +2639,8 @@ def _run_qa_db(query=None,
         ret, extra = get_sources_answer(query, docs, answer, scores, show_rank,
                                         answer_with_sources,
                                         append_sources_to_answer,
+                                        show_accordions=show_accordions,
+                                        top_k_docs_max_show=top_k_docs_max_show,
                                         verbose=verbose,
                                         t_run=t_run,
                                         count_input_tokens=llm.count_input_tokens
@@ -3071,8 +3075,9 @@ def get_chain(query=None,
 
 def get_sources_answer(query, docs, answer, scores, show_rank,
                        answer_with_sources, append_sources_to_answer,
-                       verbose=False,
                        show_accordions=True,
+                       top_k_docs_max_show=10,
+                       verbose=False,
                        t_run=None,
                        count_input_tokens=None, count_output_tokens=None):
     if verbose:
@@ -3103,6 +3108,7 @@ def get_sources_answer(query, docs, answer, scores, show_rank,
         # answer_sources = ['%d | %s' % (1 + rank, url) for rank, (score, url) in enumerate(answer_sources)]
         # sorted_sources_urls = "Sources [Rank | Link]:<br>" + "<br>".join(answer_sources)
         answer_sources = ['%s' % url for rank, (score, url) in enumerate(answer_sources)]
+        answer_sources = answer_sources[:top_k_docs_max_show]
         sorted_sources_urls = "Ranked Sources:<br>" + "<br>".join(answer_sources)
     else:
         if show_accordions:
@@ -3111,6 +3117,7 @@ def get_sources_answer(query, docs, answer, scores, show_rank,
         else:
             answer_sources = ['<font size="%s"><li>%.2g | %s</li></font>' % (font_size, score, url)
                               for score, url in answer_sources]
+        answer_sources = answer_sources[:top_k_docs_max_show]
         sorted_sources_urls = f"<font size=\"{font_size}\">{source_prefix}<p><ul></font>" + "<p>".join(answer_sources)
         if verbose:
             if int(t_run):
