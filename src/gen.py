@@ -140,6 +140,7 @@ def main(
         show_copy_button: bool = True,
 
         auth: Union[typing.List[typing.Tuple[str, str]], str] = None,
+        auth_filename: str = None,
         auth_access: str = 'open',
         auth_freeze: bool = False,
         auth_message: str = None,
@@ -378,9 +379,11 @@ def main(
     :param auth: gradio auth for launcher in form [(user1, pass1), (user2, pass2), ...]
                  e.g. --auth=[('jon','password')] with no spaces
                  e.g. --auth="[('jon', 'password)())(')]" so any special characters can be used
-                 e.g. --auth=auth.json to specify persisted state file
-                 e.g. --auth='' will use default auth.json as file name for persisted state file
-                 e.g. --auth=None will use no auth, but still keep track of auth state, just no fron login
+                 e.g. --auth=auth.json to specify persisted state file with name auth.json (auth_filename then not required)
+                 e.g. --auth='' will use default auth.json as file name for persisted state file (auth_filename then not required)
+                 e.g. --auth=None will use no auth, but still keep track of auth state, just not from logins
+    :param auth_filename:
+         Set auth filename, used only if --auth= was passed list of user/passwords
     :param auth_access:
          'open': Allow new users to be added
          'closed': Stick to existing users
@@ -572,12 +575,13 @@ def main(
     if isinstance(rope_scaling, str):
         rope_scaling = ast.literal_eval(rope_scaling)
 
-    auth_filename = "auth.json"  # default
     if isinstance(auth, str):
         if auth.strip().startswith('['):
             auth = ast.literal_eval(auth.strip())
     if isinstance(auth, str) and auth:
         auth_filename = auth
+    if not auth_filename:
+        auth_filename = "auth.json"
     assert isinstance(auth, (str, list, tuple, type(None))), "Unknown type %s for auth=%s" % (type(auth), auth)
 
     # allow set token directly
