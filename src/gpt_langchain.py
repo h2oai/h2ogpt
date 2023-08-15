@@ -3091,7 +3091,7 @@ def get_sources_answer(query, docs, answer, scores, show_rank,
 
     # link
     font_size = 2
-    head_acc = 50
+    head_acc = 40  # 40 for 6-way
     answer_sources = [(max(0.0, 1.5 - score) / 1.5,
                        get_url(doc, font_size=font_size),
                        get_accordion(doc, font_size=font_size, head_acc=head_acc)) for score, doc in
