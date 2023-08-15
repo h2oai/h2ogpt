@@ -616,10 +616,9 @@ def download(url, dest=None, dest_path=None):
 def get_accordion(x, font_size=2, head_acc=50):
     title = x.page_content[:head_acc].replace("\n", ' ').replace("<br>", ' ').replace("<p>", ' ').replace("\r", ' ')
     content = x.page_content
-    return f"""<details>
-<summary><font size="{font_size}">{title}</font></summary>
-<font size="{font_size}">{content}</font>
-</details>
+    return f"""
+<details><summary><font size="{font_size}">{title}</font></summary>
+<font size="{font_size}">{content}</font></details>
 """
 
 
