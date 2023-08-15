@@ -3112,13 +3112,16 @@ def get_sources_answer(query, docs, answer, scores, show_rank,
         sorted_sources_urls = "Ranked Sources:<br>" + "<br>".join(answer_sources)
     else:
         if show_accordions:
-            answer_sources = ['<font size="%s"><li>%.2g | %s</li><p>%s</font>' % (font_size, score, url, accordion)
+            answer_sources = ['<font size="%s"><li>%.2g | %s</li>%s</font>' % (font_size, score, url, accordion)
                               for score, url, accordion in answer_sources]
         else:
             answer_sources = ['<font size="%s"><li>%.2g | %s</li></font>' % (font_size, score, url)
                               for score, url in answer_sources]
         answer_sources = answer_sources[:top_k_docs_max_show]
-        sorted_sources_urls = f"<font size=\"{font_size}\">{source_prefix}<p><ul></font>" + "<p>".join(answer_sources)
+        if show_accordions:
+            sorted_sources_urls = f"<font size=\"{font_size}\">{source_prefix}<ul></font>" + "".join(answer_sources)
+        else:
+            sorted_sources_urls = f"<font size=\"{font_size}\">{source_prefix}<p><ul></font>" + "<p>".join(answer_sources)
         if verbose:
             if int(t_run):
                 sorted_sources_urls += 'Total Time: %d [s]<p>' % t_run
