@@ -89,4 +89,8 @@ def make_css_base() -> str:
     #attach-button > img {
         margin-right: 0;
     }
+    
+    #prompt-form > label > textarea {
+        padding-right: 40px;
+    }
     """
