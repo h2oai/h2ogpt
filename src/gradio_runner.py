@@ -555,11 +555,12 @@ def go_gradio(**kwargs):
                             fileup_output = gr.File(label=f'Upload {file_types_str}',
                                                     show_label=False,
                                                     #file_types=file_types,
-                                                    file_types=None,  # for iPhone etc. needs to be unconstrained else doesn't work with extension-based restrictions
+                                                    file_types=['*', '*.*'],  # for iPhone etc. needs to be unconstrained else doesn't work with extension-based restrictions
                                                     file_count="multiple",
                                                     scale=1,
                                                     min_width=0,
-                                                    elem_id="warning", elem_classes="feedback")
+                                                    elem_id="warning", elem_classes="feedback",
+                                                    )
                             fileup_output_text = gr.Textbox(visible=False)
                     url_visible = kwargs['langchain_mode'] != 'Disabled' and allow_upload and enable_url_upload
                     url_label = 'URL/ArXiv' if have_arxiv else 'URL'
