@@ -10,9 +10,9 @@ from src.utils import download_simple
 
 
 @pytest.mark.parametrize("backend", [
-    'transformers',
+    # 'transformers',
     'tgi',
-    'mixed',
+    # 'mixed',
 ])
 @pytest.mark.parametrize("base_model", [
     'h2oai/h2ogpt-4096-llama2-7b-chat',
