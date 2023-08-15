@@ -207,6 +207,7 @@ def main(
         cut_distance: float = 1.64,
         answer_with_sources: bool = True,
         append_sources_to_answer: bool = True,
+        show_accordions: bool = True,
         pre_prompt_summary: str = '',
         prompt_summary: str = '',
         add_chat_history_to_context: bool = True,
@@ -479,6 +480,7 @@ def main(
            For all-MiniLM-L6-v2, a value of 1.5 can push out even more references, or a large value of 100 can avoid any loss of references.
     :param answer_with_sources: Whether to determine (and return) sources
     :param append_sources_to_answer: Whether to place source information in chat response (ignored by LLM).  Always disabled for API.
+    :param show_accordions: whether to show accordion for document references in chatbot UI
     :param pre_prompt_summary: prompt before documents to summarize, if empty string then use internal defaults
     :param prompt_summary: prompt after documents to summarize, if empty string then use internal defaults
     :param add_chat_history_to_context: Include chat context when performing action
@@ -1700,6 +1702,7 @@ def evaluate(
         n_jobs=None,
         first_para=None,
         text_limit=None,
+        show_accordions=None,
         verbose=False,
         cli=False,
         reverse_docs=True,
@@ -1920,6 +1923,7 @@ def evaluate(
                 migrate_embedding_model=migrate_embedding_model,
                 first_para=first_para,
                 text_limit=text_limit,
+                show_accordions=show_accordions,
 
                 # evaluate args items
                 query=instruction,

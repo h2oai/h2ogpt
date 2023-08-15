@@ -37,7 +37,8 @@ from prompter import non_hf_types, PromptType, Prompter
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
     get_device, ProgressParallel, remove, hash_file, clear_torch_cache, NullContext, get_hf_server, FakeTokenizer, \
     have_libreoffice, have_arxiv, have_playwright, have_selenium, have_tesseract, have_pymupdf, set_openai, \
-    get_list_or_str, have_pillow, only_selenium, only_playwright, only_unstructured_urls, get_sha, get_short_name
+    get_list_or_str, have_pillow, only_selenium, only_playwright, only_unstructured_urls, get_sha, get_short_name, \
+    get_accordion
 from utils_langchain import StreamingGradioCallbackHandler
 
 import_matplotlib()
@@ -2387,6 +2388,7 @@ def run_qa_db(**kwargs):
     # hard-coded defaults
     kwargs['answer_with_sources'] = kwargs.get('answer_with_sources', True)
     kwargs['show_rank'] = kwargs.get('show_rank', False)
+    kwargs['show_accordions'] = kwargs.get('show_accordions', True)
     kwargs['llamacpp_dict'] = {}  # shouldn't be required unless from test using _run_qa_db
     missing_kwargs = [x for x in func_names if x not in kwargs]
     assert not missing_kwargs, "Missing kwargs for run_qa_db: %s" % missing_kwargs
@@ -2424,6 +2426,7 @@ def _run_qa_db(query=None,
                system_prompt='',
                sanitize_bot_response=False,
                show_rank=False,
+               show_accordions=True,
                use_llm_if_no_docs=True,
                load_db_if_exists=False,
                db=None,
@@ -2857,7 +2860,8 @@ def get_chain(query=None,
         else:
             assert document_choice is not None, "Document choice was None"
             if len(document_choice) >= 1 and document_choice[0] == DocumentChoice.ALL.value:
-                filter_kwargs = {"chunk_id": {"$gte": 0}} if query_action else {"chunk_id": {"$eq": -1}}
+                filter_kwargs = {"filter": {"chunk_id": {"$gte": 0}}} if query_action else \
+                    {"filter": {"chunk_id": {"$eq": -1}}}
             elif len(document_choice) >= 2:
                 if document_choice[0] == DocumentChoice.ALL.value:
                     document_choice = document_choice[1:]
@@ -3068,6 +3072,7 @@ def get_chain(query=None,
 def get_sources_answer(query, docs, answer, scores, show_rank,
                        answer_with_sources, append_sources_to_answer,
                        verbose=False,
+                       show_accordions=True,
                        t_run=None,
                        count_input_tokens=None, count_output_tokens=None):
     if verbose:
@@ -3080,13 +3085,19 @@ def get_sources_answer(query, docs, answer, scores, show_rank,
         return ret, extra
 
     # link
-    answer_sources = [(max(0.0, 1.5 - score) / 1.5, get_url(doc)) for score, doc in zip(scores, docs)]
-    answer_sources_dict = defaultdict(list)
-    [answer_sources_dict[url].append(score) for score, url in answer_sources]
-    answers_dict = {}
-    for url, scores_url in answer_sources_dict.items():
-        answers_dict[url] = np.max(scores_url)
-    answer_sources = [(score, url) for url, score in answers_dict.items()]
+    font_size = 2
+    head_acc = 50
+    answer_sources = [(max(0.0, 1.5 - score) / 1.5,
+                       get_url(doc, font_size=font_size),
+                       get_accordion(doc, font_size=font_size, head_acc=head_acc)) for score, doc in
+                      zip(scores, docs)]
+    if not show_accordions:
+        answer_sources_dict = defaultdict(list)
+        [answer_sources_dict[url].append(score) for score, url in answer_sources]
+        answers_dict = {}
+        for url, scores_url in answer_sources_dict.items():
+            answers_dict[url] = np.max(scores_url)
+        answer_sources = [(score, url) for url, score in answers_dict.items()]
     answer_sources.sort(key=lambda x: x[0], reverse=True)
     if show_rank:
         # answer_sources = ['%d | %s' % (1 + rank, url) for rank, (score, url) in enumerate(answer_sources)]
@@ -3094,13 +3105,20 @@ def get_sources_answer(query, docs, answer, scores, show_rank,
         answer_sources = ['%s' % url for rank, (score, url) in enumerate(answer_sources)]
         sorted_sources_urls = "Ranked Sources:<br>" + "<br>".join(answer_sources)
     else:
-        answer_sources = ['<li>%.2g | %s</li>' % (score, url) for score, url in answer_sources]
-        sorted_sources_urls = f"{source_prefix}<p><ul>" + "<p>".join(answer_sources)
-        if int(t_run):
-            sorted_sources_urls += 'Total Time: %d [s]<p>' % t_run
-        if count_input_tokens and count_output_tokens:
-            sorted_sources_urls += 'Input Tokens: %s | Output Tokens: %d<p>' % (count_input_tokens, count_output_tokens)
-        sorted_sources_urls += f"</ul></p>{source_postfix}"
+        if show_accordions:
+            answer_sources = ['<font size="%s"><li>%.2g | %s</li><p>%s</font>' % (font_size, score, url, accordion)
+                              for score, url, accordion in answer_sources]
+        else:
+            answer_sources = ['<font size="%s"><li>%.2g | %s</li></font>' % (font_size, score, url)
+                              for score, url in answer_sources]
+        sorted_sources_urls = f"<font size=\"{font_size}\">{source_prefix}<p><ul></font>" + "<p>".join(answer_sources)
+        if verbose:
+            if int(t_run):
+                sorted_sources_urls += 'Total Time: %d [s]<p>' % t_run
+            if count_input_tokens and count_output_tokens:
+                sorted_sources_urls += 'Input Tokens: %s | Output Tokens: %d<p>' % (
+                    count_input_tokens, count_output_tokens)
+        sorted_sources_urls += f"<font size=\"{font_size}\"></ul></p>{source_postfix}</font>"
 
     if not answer.endswith('\n'):
         answer += '\n'
