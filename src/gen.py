@@ -286,6 +286,7 @@ def main(
            n_batch: Can make smaller to 128 for slower low-memory CPU systems
            n_gqa: Required to be 8 for LLaMa 70B
            ... etc. anything that could be passed to llama.cpp or GPT4All models
+           e.g. python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path --llamacpp_dict="{'n_gpu_layers':25,'n_batch':128}"
     :param model_path_llama: model path or URL (for auto-download)
     :param model_name_gptj: model path or URL (for auto-download)
     :param model_name_gpt4all_llama: model path or URL (for auto-download)
@@ -538,6 +539,13 @@ def main(
     llamacpp_dict['model_name_gptj'] = model_name_gptj
     llamacpp_dict['model_name_gpt4all_llama'] = model_name_gpt4all_llama
     llamacpp_dict['model_name_exllama_if_no_config'] = model_name_exllama_if_no_config
+    # if user overrides but doesn't set these:
+    if 'n_batch' not in llamacpp_dict:
+        llamacpp_dict['n_batch'] = 128
+    if 'n_gpu_layers' not in llamacpp_dict:
+        llamacpp_dict['n_gpu_layers'] = 100
+    if 'n_gqa' not in llamacpp_dict:
+        llamacpp_dict['n_gqa'] = 0
 
     if model_lock:
         assert gradio, "model_lock only supported for gradio=True"
