@@ -2311,6 +2311,7 @@ def evaluate(
     max_max_tokens = tokenizer.model_max_length
     max_input_tokens = max_max_tokens - min_new_tokens
     # NOTE: Don't limit up front due to max_new_tokens, let go up to max or reach max_max_tokens in stopping.py
+    assert isinstance(max_input_tokens, int), "Bad type for max_input_tokens=%s %s" % (max_input_tokens, type(max_input_tokens))
     input_ids = input_ids[:, -max_input_tokens:]
     # required for falcon if multiple threads or asyncio accesses to model during generation
     if use_cache is None:
