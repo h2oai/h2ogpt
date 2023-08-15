@@ -29,8 +29,10 @@ for sub in ['src', 'iterators', 'gradio_utils', 'metrics', 'models', '.']:
 
 
 def main():
-    from gen import main as main_h2ogpt
-    main_h2ogpt(block_gradio_exit=False, score_model=None)
+    from generate import entrypoint_main as main_h2ogpt
+    os.environ['h2ogpt_block_gradio_exit'] = 'False'
+    os.environ['h2ogpt_score_model'] = ''
+    main_h2ogpt()
 
     url = "http://localhost:%s" % os.getenv('GRADIO_SERVER_PORT', str(7860))
     webbrowser.open(url)
