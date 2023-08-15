@@ -2712,6 +2712,8 @@ def get_chain(query=None,
               auto_reduce_chunks=True,
               max_chunks=100,
               ):
+    if inference_server is None:
+        inference_server = ''
     assert hf_embedding_model is not None
     assert langchain_agents is not None  # should be at least []
     # determine whether use of context out of docs is planned
