@@ -653,12 +653,15 @@ def go_gradio(**kwargs):
                                             elem_id='prompt-form',
                                             container=True,
                                         )
-                                        attach_button = gr.Button(
+                                        attach_button = gr.UploadButton(
                                             elem_id="attach-button",
                                             value="",
                                             size="sm",
                                             min_width=24,
-                                            icon="static/attach.svg")
+                                            icon="static/attach.svg",
+                                            file_types=[".pdf", ".txt"],
+                                            file_count="multiple")
+
                                 submit_buttons = gr.Row(equal_height=False, visible=kwargs['visible_submit_buttons'])
                                 with submit_buttons:
                                     mw1 = 50
@@ -673,6 +676,16 @@ def go_gradio(**kwargs):
                                         retry_btn = gr.Button("Redo", size='sm', min_width=mw2)
                                         undo = gr.Button("Undo", size='sm', min_width=mw2)
                                         clear_chat_btn = gr.Button(value="Clear", size='sm', min_width=mw2)
+
+                            with gr.Row() as uploaded_files_box:
+                                file_output = gr.File(label="Uploaded Files", elem_id="uploaded-files-box")
+
+                            def upload_file_fn(files):
+                                file_paths = [file.name for file in files]
+                                return file_paths
+
+                            attach_button.upload(fn=upload_file_fn, inputs=attach_button, outputs=file_output)
+
                             text_output, text_output2, text_outputs = make_chatbots(output_label0, output_label0_model2,
                                                                                     **kwargs)
 
