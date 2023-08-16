@@ -31,11 +31,11 @@ dist:
 test:
 	$(PYTHON_BINARY) -m pip install requirements-parser -c reqs_optional/req_constraints.txt
 	$(PYTHON_BINARY) -m pip install pytest-timeout
-	$(PYTHON_BINARY) -m pytest tests/test_cli.py --timeout=200 --disable-warnings --junit-xml=test_cli_report.xml -m "$(DEFAULT_MARKERS)"
-	# $(PYTHON_BINARY) -m pytest tests/test_client_calls.py --disable-warnings --tb=line --junit-xml=test_client_calls_report.xml -m "$(DEFAULT_MARKERS)"
-	# $(PYTHON_BINARY) -m pytest tests/test_eval_models.py --disable-warnings --tb=line --junit-xml=test_eval_models_report.xml -m "$(DEFAULT_MARKERS)"
-	# $(PYTHON_BINARY) -m pytest tests/test_eval.py --disable-warnings --tb=line --junit-xml=test_eval_report.xml -m "$(DEFAULT_MARKERS)"
-	# $(PYTHON_BINARY) -m pytest tests/test_inference_servers.py --disable-warnings --tb=line --junit-xml=test_inference_servers_report.xml -m "$(DEFAULT_MARKERS)"
+	$(PYTHON_BINARY) -m pytest tests/test_cli.py --timeout=600 --disable-warnings --junit-xml=test_cli_report.xml -m "$(DEFAULT_MARKERS)"
+	$(PYTHON_BINARY) -m pytest tests/test_client_calls.py --timeout=600 --disable-warnings --tb=line --junit-xml=test_client_calls_report.xml -m "$(DEFAULT_MARKERS)"
+	$(PYTHON_BINARY) -m pytest tests/test_eval_models.py --timeout=600 --disable-warnings --tb=line --junit-xml=test_eval_models_report.xml -m "$(DEFAULT_MARKERS)"
+	$(PYTHON_BINARY) -m pytest tests/test_eval.py --timeout=600 --disable-warnings --tb=line --junit-xml=test_eval_report.xml -m "$(DEFAULT_MARKERS)"
+	$(PYTHON_BINARY) -m pytest tests/test_inference_servers.py --timeout=600 --disable-warnings --tb=line --junit-xml=test_inference_servers_report.xml -m "$(DEFAULT_MARKERS)"
 
 test_imports:
 	$(PYTHON_BINARY) -m pytest tests/test_imports.py --disable-warnings --junit-xml=test_imports_report.xml -m "$(DEFAULT_MARKERS)"

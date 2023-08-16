@@ -14,7 +14,6 @@ def ALL_TESTS = [
             test_target: "test_imports",
             node: "osx",
             test_markers: "not need_tokens and not need_gpu",
-            timeout: 90,
             use_docker: false,
             env: ['PYTHON_BINARY=/Users/jenkins/anaconda/envs/h2ogpt-py3.10/bin/python']
         ],
@@ -23,7 +22,6 @@ def ALL_TESTS = [
             test_target: "test",
             test_markers: "not need_tokens and not need_gpu",
             node: "DAIDEV-GPU || DAIDEV-2GPU",
-            timeout: 90,
             use_docker: true,
             env: []
         ],
