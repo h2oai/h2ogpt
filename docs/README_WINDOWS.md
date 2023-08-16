@@ -59,7 +59,7 @@ For newer builds of windows versions of 10/11.
     Optional: for bitsandbytes 4-bit and 8-bit:
        ```bash
        pip uninstall bitsandbytes -y
-       pip install https://github.com/jllllll/bitsandbytes-windows-webui/releases/download/wheels/bitsandbytes-0.40.1.post1-py3-none-win_amd64.whl
+       pip install https://github.com/jllllll/bitsandbytes-windows-webui/releases/download/wheels/bitsandbytes-0.41.1-py3-none-win_amd64.whl
        ```
 * Install document question-answer dependencies:
    ```bash
