@@ -241,6 +241,7 @@ def main(
     :param load_4bit: load model in 4-bit using bitsandbytes
     :param low_bit_mode: 0: no quantization config 1: change compute 2: nf4 3: double quant 4: 2 and 3
            See: https://huggingface.co/docs/transformers/main_classes/quantization
+           If using older bitsandbytes or transformers, 0 is required
     :param load_half: load model in float16
     :param load_gptq: to load model with GPTQ, put model_basename here, e.g. gptq_model-4bit--1g
     :param load_exllama: whether to use exllama (only applicable to LLaMa1/2 models with 16-bit or GPTQ
