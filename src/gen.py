@@ -1020,7 +1020,7 @@ def get_config(base_model,
 
     # allow override
     if max_seq_len is not None:
-        print("Overriding max_seq_len %d -> %d" % (max_seq_len, max_seq_len), flush=True)
+        print("Overriding max_seq_len -> %d" % max_seq_len, flush=True)
     else:
         if hasattr(config, 'max_seq_len'):
             max_seq_len = int(config.max_seq_len)
