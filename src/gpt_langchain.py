@@ -2040,8 +2040,8 @@ def get_existing_db(db, persist_directory,
             if verbose:
                 print("USING already-loaded db: %s" % langchain_mode, flush=True)
         if migrate_meta and db is not None:
-            db_documents = get_documents(db)
-            [x.metadata.update(dict(chunk_id=x.metadata.get('chunk_id', 0))) for x in db_documents]
+            db_documents, db_metadatas = get_docs_and_meta(db, top_k_docs=-1)
+            [x.update(dict(chunk_id=x.get('chunk_id', 0))) for x in db_metadatas]
 
         if check_embedding:
             db_trial, changed_db = check_update_chroma_embedding(db, use_openai_embedding,
