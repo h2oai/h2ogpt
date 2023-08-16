@@ -11,12 +11,12 @@ from src.utils import download_simple
 
 @pytest.mark.parametrize("backend", [
     'transformers',
-    # 'tgi',
+    'tgi',
     # 'mixed',
 ])
 @pytest.mark.parametrize("base_model", [
-    'h2oai/h2ogpt-4096-llama2-7b-chat',
-    # 'h2oai/h2ogpt-4096-llama2-13b-chat',
+    # 'h2oai/h2ogpt-4096-llama2-7b-chat',
+    'h2oai/h2ogpt-4096-llama2-13b-chat',
 ])
 @pytest.mark.parametrize("task", [
     # 'summary',
@@ -46,6 +46,8 @@ def test_perf_benchmarks(backend, base_model, task, bits):
                  max_new_tokens=max_new_tokens,
                  )
         elif backend == 'tgi':
+            if bits != 16:
+                pytest.xfail("Quantization not yet supported in TGI")
             from tests.test_inference_servers import run_docker
             # HF inference server
             gradio_port = get_inf_port()
@@ -61,6 +63,8 @@ def test_perf_benchmarks(backend, base_model, task, bits):
             time.sleep(30)  # assumes image already downloaded, else need more time
             os.system('docker logs %s | tail -10' % docker_hash2)
         elif backend == 'mixed':
+            if bits != 16:
+                pytest.xfail("Quantization not yet supported in TGI")
             from tests.test_inference_servers import run_docker
             # HF inference server
             gradio_port = get_inf_port()
