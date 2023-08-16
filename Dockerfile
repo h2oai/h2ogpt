@@ -14,9 +14,9 @@ ENV PATH="/h2ogpt_conda/bin:${PATH}"
 ARG PATH="/h2ogpt_conda/bin:${PATH}"
 
 RUN wget https://repo.anaconda.com/miniconda/Miniconda3-py310_23.1.0-1-Linux-x86_64.sh && \
-    mkdir -p /h2ogpt_conda && \
-    bash ./Miniconda3-py310_23.1.0-1-Linux-x86_64.sh -b && \
-    conda install python=3.10 -c conda-forge -p /h2ogpt_conda -y
+    mkdir -p h2ogpt_conda && \
+    bash ./Miniconda3-py310_23.1.0-1-Linux-x86_64.sh -b -u -p /h2ogpt_conda && \
+    conda install python=3.10 -c conda-forge -y
 
 WORKDIR /workspace
 
