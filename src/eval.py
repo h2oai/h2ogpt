@@ -61,6 +61,7 @@ def run_eval(  # for local function:
         cut_distance=None,
         answer_with_sources=None,
         append_sources_to_answer=None,
+        show_accordions=None,
         add_chat_history_to_context=None,
         db_type=None, first_para=None, text_limit=None, verbose=None, cli=None, reverse_docs=None,
         use_cache=None,

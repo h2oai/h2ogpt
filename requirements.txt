@@ -18,7 +18,7 @@ numpy==1.24.3
 pandas==2.0.2
 matplotlib==3.7.1
 loralib==0.1.1
-bitsandbytes==0.39.0
+bitsandbytes==0.41.1
 accelerate==0.20.3
 peft==0.4.0
 # 4.31.0+ breaks load_in_8bit=True (https://github.com/huggingface/transformers/issues/25026)

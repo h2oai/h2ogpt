@@ -34,7 +34,10 @@ def main():
     os.environ['h2ogpt_score_model'] = ''
     main_h2ogpt()
 
-    url = "http://localhost:%s" % os.getenv('GRADIO_SERVER_PORT', str(7860))
+    server_name = os.getenv('h2ogpt_server_name', os.getenv('H2OGPT_SERVER_NAME', 'localhost'))
+    server_port = os.getenv('GRADIO_SERVER_PORT', str(7860))
+
+    url = "http://%s:%s" % (server_name, server_port)
     webbrowser.open(url)
 
     while True:

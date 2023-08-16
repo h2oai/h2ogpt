@@ -2305,13 +2305,13 @@ def go_gradio(**kwargs):
         def clear_embeddings(langchain_mode1, db1s):
             # clear any use of embedding that sits on GPU, else keeps accumulating GPU usage even if clear torch cache
             if db_type == 'chroma' and langchain_mode1 not in ['LLM', 'Disabled', None, '']:
-                from gpt_langchain import clear_embedding
+                from gpt_langchain import clear_embedding, length_db1
                 db = dbs.get('langchain_mode1')
                 if db is not None and not isinstance(db, str):
                     clear_embedding(db)
                 if db1s is not None and langchain_mode1 in db1s:
                     db1 = db1s[langchain_mode1]
-                    if len(db1) == 2:
+                    if len(db1) == length_db1():
                         clear_embedding(db1[0])
 
         def bot(*args, retry=False):

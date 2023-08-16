@@ -24,8 +24,9 @@ os.environ['BITSANDBYTES_NOWELCOME'] = '1'
 warnings.filterwarnings('ignore', category=UserWarning, message='TypedStorage is deprecated')
 
 from evaluate_params import eval_func_param_names, no_default_param_names, input_args_list
-from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mapping, no_model_str, source_prefix, \
-    source_postfix, LangChainAction, LangChainAgent, DocumentChoice, LangChainTypes
+from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mapping, no_model_str, \
+    LangChainAction, LangChainAgent, DocumentChoice, LangChainTypes, super_source_prefix, \
+    super_source_postfix
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
@@ -207,6 +208,7 @@ def main(
         cut_distance: float = 1.64,
         answer_with_sources: bool = True,
         append_sources_to_answer: bool = True,
+        show_accordions: bool = True,
         pre_prompt_summary: str = '',
         prompt_summary: str = '',
         add_chat_history_to_context: bool = True,
@@ -479,6 +481,7 @@ def main(
            For all-MiniLM-L6-v2, a value of 1.5 can push out even more references, or a large value of 100 can avoid any loss of references.
     :param answer_with_sources: Whether to determine (and return) sources
     :param append_sources_to_answer: Whether to place source information in chat response (ignored by LLM).  Always disabled for API.
+    :param show_accordions: whether to show accordion for document references in chatbot UI
     :param pre_prompt_summary: prompt before documents to summarize, if empty string then use internal defaults
     :param prompt_summary: prompt after documents to summarize, if empty string then use internal defaults
     :param add_chat_history_to_context: Include chat context when performing action
@@ -1562,7 +1565,7 @@ def set_model_max_len(max_seq_len, tokenizer, verbose=False, reward_type=False):
         tokenizer.model_max_length = 512
         return
 
-    tokenizer.model_max_length = max_seq_len
+    tokenizer.model_max_length = int(max_seq_len)
     if verbose:
         print("model_max_length=%s" % tokenizer.model_max_length, flush=True)
     # for bug in HF transformers
@@ -1700,6 +1703,7 @@ def evaluate(
         n_jobs=None,
         first_para=None,
         text_limit=None,
+        show_accordions=None,
         verbose=False,
         cli=False,
         reverse_docs=True,
@@ -1920,6 +1924,7 @@ def evaluate(
                 migrate_embedding_model=migrate_embedding_model,
                 first_para=first_para,
                 text_limit=text_limit,
+                show_accordions=show_accordions,
 
                 # evaluate args items
                 query=instruction,
@@ -2305,8 +2310,9 @@ def evaluate(
     input_ids = inputs["input_ids"].to(device)
     # CRITICAL LIMIT else will fail
     max_max_tokens = tokenizer.model_max_length
-    max_input_tokens = max_max_tokens - min_new_tokens
+    max_input_tokens = max(0, int(max_max_tokens - min_new_tokens))
     # NOTE: Don't limit up front due to max_new_tokens, let go up to max or reach max_max_tokens in stopping.py
+    assert isinstance(max_input_tokens, int), "Bad type for max_input_tokens=%s %s" % (max_input_tokens, type(max_input_tokens))
     input_ids = input_ids[:, -max_input_tokens:]
     # required for falcon if multiple threads or asyncio accesses to model during generation
     if use_cache is None:
@@ -2972,10 +2978,10 @@ def history_to_context(history, langchain_mode1,
                                 use_system_prompt=use_system_prompt1,
                                 histi=histi)
             # md -> back to text, maybe not super important if model trained enough
-            if not keep_sources_in_context1 and langchain_mode1 != 'Disabled' and prompt.find(source_prefix) >= 0:
+            if not keep_sources_in_context1 and langchain_mode1 != 'Disabled' and prompt.find(super_source_prefix) >= 0:
                 # FIXME: This is relatively slow even for small amount of text, like 0.3s each history item
                 import re
-                prompt = re.sub(f'{re.escape(source_prefix)}.*?{re.escape(source_postfix)}', '', prompt,
+                prompt = re.sub(f'{re.escape(super_source_prefix)}.*?{re.escape(super_source_postfix)}', '', prompt,
                                 flags=re.DOTALL)
                 if prompt.endswith('\n<p>'):
                     prompt = prompt[:-4]

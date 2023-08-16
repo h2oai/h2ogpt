@@ -613,7 +613,13 @@ def download(url, dest=None, dest_path=None):
     return dest
 
 
-def get_url(x, from_str=False, short_name=False):
+def get_accordion(x, font_size=2, head_acc=50):
+    title = x.page_content[:head_acc].replace("\n", ' ').replace("<br>", ' ').replace("<p>", ' ').replace("\r", ' ')
+    content = x.page_content
+    return f"""<details><summary><font size="{font_size}">{title}</font></summary><font size="{font_size}">{content}</font></details>"""
+
+
+def get_url(x, from_str=False, short_name=False, font_size=2):
     if not from_str:
         source = x.metadata['source']
     else:
@@ -623,11 +629,11 @@ def get_url(x, from_str=False, short_name=False):
     else:
         source_name = source
     if source.startswith('http://') or source.startswith('https://'):
-        return """<a href="%s" target="_blank"  rel="noopener noreferrer">%s</a>""" % (
-            source, source_name)
+        return """<font size="%s"><a href="%s" target="_blank"  rel="noopener noreferrer">%s</a></font>""" % (
+            font_size, source, source_name)
     else:
-        return """<a href="file/%s" target="_blank"  rel="noopener noreferrer">%s</a>""" % (
-            source, source_name)
+        return """<font size="%s"><a href="file/%s" target="_blank"  rel="noopener noreferrer">%s</a></font>""" % (
+            font_size, source, source_name)
 
 
 def get_short_name(name, maxl=50):
