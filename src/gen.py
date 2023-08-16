@@ -1477,21 +1477,31 @@ def get_hf_model(load_8bit: bool = False,
             model_kwargs.pop('torch_dtype', None)
         pop_unused_model_kwargs(model_kwargs)
 
-        if load_4bit:
-            # these all only valid for 4-bit
-            if low_bit_mode == 1:
-                from transformers import BitsAndBytesConfig
-                model_kwargs['quantization_config'] = BitsAndBytesConfig(bnb_4bit_compute_dtype=torch.bfloat16)
-            elif low_bit_mode == 2:
-                from transformers import BitsAndBytesConfig
-                model_kwargs['quantization_config'] = BitsAndBytesConfig(bnb_4bit_quant_type="nf4")
-            elif low_bit_mode == 3:
-                from transformers import BitsAndBytesConfig
-                model_kwargs['quantization_config'] = BitsAndBytesConfig(bnb_4bit_use_double_quant=True)
-            elif low_bit_mode == 4:
-                from transformers import BitsAndBytesConfig
-                model_kwargs['quantization_config'] = BitsAndBytesConfig(bnb_4bit_use_double_quant=True,
-                                                                         bnb_4bit_quant_type="nf4")
+        if low_bit_mode == 1:
+            from transformers import BitsAndBytesConfig
+            model_kwargs['quantization_config'] = BitsAndBytesConfig(bnb_4bit_compute_dtype=torch.bfloat16,
+                                                                     load_in_4bit=load_4bit,
+                                                                     load_in_8bit=load_8bit,
+                                                                     )
+        elif low_bit_mode == 2:
+            from transformers import BitsAndBytesConfig
+            model_kwargs['quantization_config'] = BitsAndBytesConfig(bnb_4bit_quant_type="nf4",
+                                                                     load_in_4bit=load_4bit,
+                                                                     load_in_8bit=load_8bit,
+                                                                     )
+        elif low_bit_mode == 3:
+            from transformers import BitsAndBytesConfig
+            model_kwargs['quantization_config'] = BitsAndBytesConfig(bnb_4bit_use_double_quant=True,
+                                                                     load_in_4bit=load_4bit,
+                                                                     load_in_8bit=load_8bit,
+                                                                     )
+        elif low_bit_mode == 4:
+            from transformers import BitsAndBytesConfig
+            model_kwargs['quantization_config'] = BitsAndBytesConfig(bnb_4bit_use_double_quant=True,
+                                                                     bnb_4bit_quant_type="nf4",
+                                                                     load_in_4bit=load_4bit,
+                                                                     load_in_8bit=load_8bit,
+                                                                     )
 
         if not lora_weights:
             # torch.device context uses twice memory for AutoGPTQ
