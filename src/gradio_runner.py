@@ -980,15 +980,15 @@ def go_gradio(**kwargs):
                                 with gr.Column(scale=1, visible=not kwargs['model_lock']):
                                     load_model_button = gr.Button(load_msg, variant=variant_load_msg, scale=0,
                                                                   size='sm', interactive=not is_public)
+                                    model_load8bit_checkbox = gr.components.Checkbox(
+                                        label="Load 8-bit [requires support]",
+                                        value=kwargs['load_8bit'], interactive=not is_public)
                                     model_load4bit_checkbox = gr.components.Checkbox(
                                         label="Load 4-bit [requires support]",
                                         value=kwargs['load_4bit'], interactive=not is_public)
                                     model_low_bit_mode = gr.Slider(value=kwargs['low_bit_mode'],
                                                                    minimum=0, maximum=4, step=1,
                                                                    label="low_bit_mode")
-                                    model_load8bit_checkbox = gr.components.Checkbox(
-                                        label="Load 8-bit [requires support]",
-                                        value=kwargs['load_8bit'], interactive=not is_public)
                                     model_load_gptq = gr.Textbox(label="gptq", value=kwargs['load_gptq'],
                                                                  interactive=not is_public)
                                     model_load_exllama_checkbox = gr.components.Checkbox(
@@ -1074,42 +1074,42 @@ def go_gradio(**kwargs):
                                 with gr.Column(scale=1, visible=not kwargs['model_lock']):
                                     load_model_button2 = gr.Button(load_msg2, variant=variant_load_msg, scale=0,
                                                                    size='sm', interactive=not is_public)
+                                    model_load8bit_checkbox2 = gr.components.Checkbox(
+                                        label="Load 8-bit (Model 2) [requires support]",
+                                        value=kwargs['load_8bit'], interactive=not is_public)
                                     model_load4bit_checkbox2 = gr.components.Checkbox(
-                                        label="Load 4-bit 2 [requires support]",
+                                        label="Load 4-bit (Model 2) [requires support]",
                                         value=kwargs['load_4bit'], interactive=not is_public)
                                     model_low_bit_mode2 = gr.Slider(value=kwargs['low_bit_mode'],
                                                                     # ok that same as Model 1
                                                                     minimum=0, maximum=4, step=1,
                                                                     label="low_bit_mode (Model 2)")
-                                    model_load8bit_checkbox2 = gr.components.Checkbox(
-                                        label="Load 8-bit 2 [requires support]",
-                                        value=kwargs['load_8bit'], interactive=not is_public)
                                     model_load_gptq2 = gr.Textbox(label="gptq", value='',
                                                                   interactive=not is_public)
                                     model_load_exllama_checkbox2 = gr.components.Checkbox(
-                                        label="Load load_exllama [requires support]",
+                                        label="Load load_exllama (Model 2) [requires support]",
                                         value=False, interactive=not is_public)
                                     model_safetensors_checkbox2 = gr.components.Checkbox(
-                                        label="Safetensors 2 [requires support]",
+                                        label="Safetensors (Model 2) [requires support]",
                                         value=False, interactive=not is_public)
                                     model_revision2 = gr.Textbox(label="revision 2", value='',
                                                                  interactive=not is_public)
                                     model_use_gpu_id_checkbox2 = gr.components.Checkbox(
-                                        label="Choose Devices 2 [If not Checked, use all GPUs]",
+                                        label="Choose Devices (Model 2) [If not Checked, use all GPUs]",
                                         value=kwargs[
                                             'use_gpu_id'], interactive=not is_public)
                                     model_gpu2 = gr.Dropdown(n_gpus_list,
-                                                             label="GPU ID 2 [-1 = all GPUs, if choose is enabled]",
+                                                             label="GPU ID (Model 2) [-1 = all GPUs, if choose is enabled]",
                                                              value=kwargs['gpu_id'], interactive=not is_public)
                                     # no model/lora loaded ever in model2 by default
                                     model_used2 = gr.Textbox(label="Current Model 2", value=no_model_str,
                                                              interactive=False)
-                                    lora_used2 = gr.Textbox(label="Current LORA 2", value=no_lora_str,
+                                    lora_used2 = gr.Textbox(label="Current LORA (Model 2)", value=no_lora_str,
                                                             visible=kwargs['show_lora'], interactive=False)
-                                    server_used2 = gr.Textbox(label="Current Server 2", value=no_server_str,
+                                    server_used2 = gr.Textbox(label="Current Server (Model 2)", value=no_server_str,
                                                               interactive=False,
                                                               visible=not is_public)
-                                    prompt_dict2 = gr.Textbox(label="Prompt (or Custom) 2",
+                                    prompt_dict2 = gr.Textbox(label="Prompt (or Custom) (Model 2)",
                                                               value=pprint.pformat(kwargs['prompt_dict'], indent=4),
                                                               interactive=not is_public, lines=4)
                     with gr.Row(visible=not kwargs['model_lock']):
@@ -2938,7 +2938,7 @@ def go_gradio(**kwargs):
             .then(clear_torch_cache)
 
         def load_model(model_name, lora_weights, server_name, model_state_old, prompt_type_old,
-                       load_4bit, load_8bit, low_bit_mode,
+                       load_8bit, load_4bit, low_bit_mode,
                        load_gptq, load_exllama, use_safetensors, revision,
                        use_gpu_id, gpu_id, max_seq_len1, rope_scaling1,
                        model_path_llama1, model_name_gptj1, model_name_gpt4all_llama1,
@@ -3003,8 +3003,8 @@ def go_gradio(**kwargs):
             # don't deepcopy, can contain model itself
             all_kwargs1 = all_kwargs.copy()
             all_kwargs1['base_model'] = model_name.strip()
-            all_kwargs1['load_4bit'] = load_4bit
             all_kwargs1['load_8bit'] = load_8bit
+            all_kwargs1['load_4bit'] = load_4bit
             all_kwargs1['low_bit_mode'] = low_bit_mode
             all_kwargs1['load_gptq'] = load_gptq
             all_kwargs1['load_exllama'] = load_exllama
@@ -3082,7 +3082,7 @@ def go_gradio(**kwargs):
 
         load_model_args = dict(fn=load_model,
                                inputs=[model_choice, lora_choice, server_choice, model_state, prompt_type,
-                                       model_load4bit_checkbox, model_load8bit_checkbox, model_low_bit_mode,
+                                       model_load8bit_checkbox, model_load4bit_checkbox, model_low_bit_mode,
                                        model_load_gptq, model_load_exllama_checkbox,
                                        model_safetensors_checkbox, model_revision,
                                        model_use_gpu_id_checkbox, model_gpu,
@@ -3105,7 +3105,7 @@ def go_gradio(**kwargs):
 
         load_model_args2 = dict(fn=load_model,
                                 inputs=[model_choice2, lora_choice2, server_choice2, model_state2, prompt_type2,
-                                        model_load4bit_checkbox2, model_load8bit_checkbox2, model_low_bit_mode2,
+                                        model_load8bit_checkbox2, model_load4bit_checkbox2, model_low_bit_mode2,
                                         model_load_gptq2, model_load_exllama_checkbox2,
                                         model_safetensors_checkbox2, model_revision2,
                                         model_use_gpu_id_checkbox2, model_gpu2,
