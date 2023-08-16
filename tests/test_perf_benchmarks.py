@@ -10,8 +10,8 @@ from src.utils import download_simple
 
 
 @pytest.mark.parametrize("backend", [
-    # 'transformers',
-    'tgi',
+    'transformers',
+    # 'tgi',
     # 'mixed',
 ])
 @pytest.mark.parametrize("base_model", [
@@ -23,9 +23,14 @@ from src.utils import download_simple
     # 'generate',
     'summary_and_generate'
 ])
+@pytest.mark.parametrize("bits", [
+    16,
+    8,
+    4,
+])
 @pytest.mark.need_tokens
 @wrap_test_forked
-def test_perf_benchmarks(backend, base_model, task):
+def test_perf_benchmarks(backend, base_model, task, bits):
     # launch server(s)
     docker_hash1 = None
     docker_hash2 = None
@@ -34,6 +39,9 @@ def test_perf_benchmarks(backend, base_model, task):
         if backend == 'transformers':
             from src.gen import main
             main(base_model=base_model, chat=True, gradio=True, num_beams=1, block_gradio_exit=False, verbose=True,
+                 load_half=bits == 16,
+                 load_8bit=bits == 8,
+                 load_4bit=bits == 4,
                  use_auth_token=True,
                  max_new_tokens=max_new_tokens,
                  )
