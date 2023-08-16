@@ -555,7 +555,7 @@ def go_gradio(**kwargs):
                             fileup_output = gr.File(label=f'Upload {file_types_str}',
                                                     show_label=False,
                                                     file_types=['.' + x for x in file_types],
-                                                    #file_types=['*', '*.*'],  # for iPhone etc. needs to be unconstrained else doesn't work with extension-based restrictions
+                                                    # file_types=['*', '*.*'],  # for iPhone etc. needs to be unconstrained else doesn't work with extension-based restrictions
                                                     file_count="multiple",
                                                     scale=1,
                                                     min_width=0,
@@ -980,9 +980,25 @@ def go_gradio(**kwargs):
                                 with gr.Column(scale=1, visible=not kwargs['model_lock']):
                                     load_model_button = gr.Button(load_msg, variant=variant_load_msg, scale=0,
                                                                   size='sm', interactive=not is_public)
+                                    model_load4bit_checkbox = gr.components.Checkbox(
+                                        label="Load 4-bit [requires support]",
+                                        value=kwargs['load_4bit'], interactive=not is_public)
+                                    model_low_bit_mode = gr.Slider(value=kwargs['low_bit_mode'],
+                                                                   minimum=0, maximum=4, step=1,
+                                                                   label="low_bit_mode")
                                     model_load8bit_checkbox = gr.components.Checkbox(
                                         label="Load 8-bit [requires support]",
                                         value=kwargs['load_8bit'], interactive=not is_public)
+                                    model_load_gptq = gr.Textbox(label="gptq", value=kwargs['load_gptq'],
+                                                                 interactive=not is_public)
+                                    model_load_exllama_checkbox = gr.components.Checkbox(
+                                        label="Load load_exllama [requires support]",
+                                        value=kwargs['load_exllama'], interactive=not is_public)
+                                    model_safetensors_checkbox = gr.components.Checkbox(
+                                        label="Safetensors [requires support]",
+                                        value=kwargs['use_safetensors'], interactive=not is_public)
+                                    model_revision = gr.Textbox(label="revision", value=kwargs['revision'],
+                                                                interactive=not is_public)
                                     model_use_gpu_id_checkbox = gr.components.Checkbox(
                                         label="Choose Devices [If not Checked, use all GPUs]",
                                         value=kwargs['use_gpu_id'], interactive=not is_public,
@@ -1058,9 +1074,26 @@ def go_gradio(**kwargs):
                                 with gr.Column(scale=1, visible=not kwargs['model_lock']):
                                     load_model_button2 = gr.Button(load_msg2, variant=variant_load_msg, scale=0,
                                                                    size='sm', interactive=not is_public)
+                                    model_load4bit_checkbox2 = gr.components.Checkbox(
+                                        label="Load 4-bit 2 [requires support]",
+                                        value=kwargs['load_4bit'], interactive=not is_public)
+                                    model_low_bit_mode2 = gr.Slider(value=kwargs['low_bit_mode'],
+                                                                    # ok that same as Model 1
+                                                                    minimum=0, maximum=4, step=1,
+                                                                    label="low_bit_mode (Model 2)")
                                     model_load8bit_checkbox2 = gr.components.Checkbox(
                                         label="Load 8-bit 2 [requires support]",
                                         value=kwargs['load_8bit'], interactive=not is_public)
+                                    model_load_gptq2 = gr.Textbox(label="gptq", value='',
+                                                                  interactive=not is_public)
+                                    model_load_exllama_checkbox2 = gr.components.Checkbox(
+                                        label="Load load_exllama [requires support]",
+                                        value=False, interactive=not is_public)
+                                    model_safetensors_checkbox2 = gr.components.Checkbox(
+                                        label="Safetensors 2 [requires support]",
+                                        value=False, interactive=not is_public)
+                                    model_revision2 = gr.Textbox(label="revision 2", value='',
+                                                                 interactive=not is_public)
                                     model_use_gpu_id_checkbox2 = gr.components.Checkbox(
                                         label="Choose Devices 2 [If not Checked, use all GPUs]",
                                         value=kwargs[
@@ -2904,7 +2937,9 @@ def go_gradio(**kwargs):
                                                           api_name='submit_nochat_api' if allow_api else None) \
             .then(clear_torch_cache)
 
-        def load_model(model_name, lora_weights, server_name, model_state_old, prompt_type_old, load_8bit,
+        def load_model(model_name, lora_weights, server_name, model_state_old, prompt_type_old,
+                       load_4bit, load_8bit, low_bit_mode,
+                       load_gptq, load_exllama, use_safetensors, revision,
                        use_gpu_id, gpu_id, max_seq_len1, rope_scaling1,
                        model_path_llama1, model_name_gptj1, model_name_gpt4all_llama1,
                        n_gpu_layers1, n_batch1, n_gqa1, llamacpp_dict_more1):
@@ -2968,7 +3003,13 @@ def go_gradio(**kwargs):
             # don't deepcopy, can contain model itself
             all_kwargs1 = all_kwargs.copy()
             all_kwargs1['base_model'] = model_name.strip()
+            all_kwargs1['load_4bit'] = load_4bit
             all_kwargs1['load_8bit'] = load_8bit
+            all_kwargs1['low_bit_mode'] = low_bit_mode
+            all_kwargs1['load_gptq'] = load_gptq
+            all_kwargs1['load_exllama'] = load_exllama
+            all_kwargs1['use_safetensors'] = use_safetensors
+            all_kwargs1['revision'] = None if not revision else revision  # transcribe, don't pass ''
             all_kwargs1['use_gpu_id'] = use_gpu_id
             all_kwargs1['gpu_id'] = int(gpu_id) if gpu_id not in [None, 'None'] else None  # detranscribe
             all_kwargs1['llamacpp_dict'] = llamacpp_dict
@@ -3041,7 +3082,10 @@ def go_gradio(**kwargs):
 
         load_model_args = dict(fn=load_model,
                                inputs=[model_choice, lora_choice, server_choice, model_state, prompt_type,
-                                       model_load8bit_checkbox, model_use_gpu_id_checkbox, model_gpu,
+                                       model_load4bit_checkbox, model_load8bit_checkbox, model_low_bit_mode,
+                                       model_load_gptq, model_load_exllama_checkbox,
+                                       model_safetensors_checkbox, model_revision,
+                                       model_use_gpu_id_checkbox, model_gpu,
                                        max_seq_len, rope_scaling,
                                        model_path_llama, model_name_gptj, model_name_gpt4all_llama,
                                        n_gpu_layers, n_batch, n_gqa, llamacpp_dict_more],
@@ -3061,7 +3105,10 @@ def go_gradio(**kwargs):
 
         load_model_args2 = dict(fn=load_model,
                                 inputs=[model_choice2, lora_choice2, server_choice2, model_state2, prompt_type2,
-                                        model_load8bit_checkbox2, model_use_gpu_id_checkbox2, model_gpu2,
+                                        model_load4bit_checkbox2, model_load8bit_checkbox2, model_low_bit_mode2,
+                                        model_load_gptq2, model_load_exllama_checkbox2,
+                                        model_safetensors_checkbox2, model_revision2,
+                                        model_use_gpu_id_checkbox2, model_gpu2,
                                         max_seq_len2, rope_scaling2,
                                         model_path_llama2, model_name_gptj2, model_name_gpt4all_llama2,
                                         n_gpu_layers2, n_batch2, n_gqa2, llamacpp_dict_more2],

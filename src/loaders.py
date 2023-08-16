@@ -2,7 +2,7 @@ import functools
 
 
 def get_loaders(model_name, reward_type, llama_type=None, load_gptq='', load_exllama=False, config=None,
-                rope_scaling=None, max_seq_len=None):
+                rope_scaling=None, max_seq_len=None, model_name_exllama_if_no_config=''):
     # NOTE: Some models need specific new prompt_type
     # E.g. t5_xxl_true_nli_mixture has input format: "premise: PREMISE_TEXT hypothesis: HYPOTHESIS_TEXT".)
     if load_exllama:
@@ -17,7 +17,7 @@ def get_loaders(model_name, reward_type, llama_type=None, load_gptq='', load_exl
         else:
             # then use path in env file
             # Directory containing model, tokenizer, generator
-            model_directory = env_kwargs['model_name_exllama_if_no_config']
+            model_directory = model_name_exllama_if_no_config
 
         # download model
         revision = config._commit_hash

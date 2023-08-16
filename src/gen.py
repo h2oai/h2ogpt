@@ -54,6 +54,7 @@ langchain_agents_list = [x.value for x in list(LangChainAgent)]
 def main(
         load_8bit: bool = False,
         load_4bit: bool = False,
+        low_bit_mode: int = 1,
         load_half: bool = True,
         load_gptq: str = '',
         load_exllama: bool = False,
@@ -238,6 +239,8 @@ def main(
 
     :param load_8bit: load model in 8-bit using bitsandbytes
     :param load_4bit: load model in 4-bit using bitsandbytes
+    :param low_bit_mode: 0: no quantization config 1: change compute 2: nf4 3: double quant 4: 2 and 3
+           See: https://huggingface.co/docs/transformers/main_classes/quantization
     :param load_half: load model in float16
     :param load_gptq: to load model with GPTQ, put model_basename here, e.g. gptq_model-4bit--1g
     :param load_exllama: whether to use exllama (only applicable to LLaMa1/2 models with 16-bit or GPTQ
@@ -740,6 +743,7 @@ def main(
         gpu_id = None
         load_8bit = False
         load_4bit = False
+        low_bit_mode = 1
         load_half = False
         load_gptq = ''
         load_exllama = False
@@ -1181,6 +1185,7 @@ def get_client_from_inference_server(inference_server, base_model=None, raise_co
 def get_model(
         load_8bit: bool = False,
         load_4bit: bool = False,
+        low_bit_mode: int = 1,
         load_half: bool = True,
         load_gptq: str = '',
         load_exllama: bool = False,
@@ -1211,6 +1216,7 @@ def get_model(
 
     :param load_8bit: load model in 8-bit, not supported by all models
     :param load_4bit: load model in 4-bit, not supported by all models
+    :param low_bit_mode: See gen.py
     :param load_half: load model in 16-bit
     :param load_gptq: GPTQ model_basename
     :param load_exllama: whether to use exllama
@@ -1267,9 +1273,12 @@ def get_model(
             print("Detected as llama type from"
                   " config (%s) or name (%s)" % (llama_type_from_config, llama_type_from_name), flush=True)
 
+    model_name_exllama_if_no_config = '' if not llamacpp_dict else llamacpp_dict.get('model_name_exllama_if_no_config',
+                                                                                     '')
     model_loader, tokenizer_loader = get_loaders(model_name=base_model, reward_type=reward_type, llama_type=llama_type,
                                                  load_gptq=load_gptq, load_exllama=load_exllama, config=config,
-                                                 rope_scaling=rope_scaling, max_seq_len=max_seq_len)
+                                                 rope_scaling=rope_scaling, max_seq_len=max_seq_len,
+                                                 model_name_exllama_if_no_config=model_name_exllama_if_no_config)
 
     tokenizer_kwargs = dict(local_files_only=local_files_only,
                             resume_download=resume_download,
@@ -1343,6 +1352,7 @@ def get_model(
     # get local torch-HF model
     return get_hf_model(load_8bit=load_8bit,
                         load_4bit=load_4bit,
+                        low_bit_mode=low_bit_mode,
                         load_half=load_half,
                         load_gptq=load_gptq,
                         use_safetensors=use_safetensors,
@@ -1371,6 +1381,7 @@ def get_model(
 
 def get_hf_model(load_8bit: bool = False,
                  load_4bit: bool = False,
+                 low_bit_mode: int = 1,
                  load_half: bool = True,
                  load_gptq: str = '',
                  use_safetensors: bool = False,
@@ -1464,6 +1475,25 @@ def get_hf_model(load_8bit: bool = False,
             model_kwargs['device_map'] = {"": 0} if device == 'cuda' else {"": 'cpu'}
             model_kwargs.pop('torch_dtype', None)
         pop_unused_model_kwargs(model_kwargs)
+
+        if load_4bit:
+            if low_bit_mode == 1:
+                assert load_4bit, "low_bit_mode==1 only valid for load_4bit=True"
+                from transformers import BitsAndBytesConfig
+                model_kwargs['quantization_config'] = BitsAndBytesConfig(bnb_4bit_compute_dtype=torch.bfloat16)
+            elif low_bit_mode == 2:
+                assert load_4bit, "low_bit_mode==2 only valid for load_4bit=True"
+                from transformers import BitsAndBytesConfig
+                model_kwargs['quantization_config'] = BitsAndBytesConfig(bnb_4bit_quant_type="nf4")
+            elif low_bit_mode == 3:
+                assert load_4bit, "low_bit_mode==3 only valid for load_4bit=True"
+                from transformers import BitsAndBytesConfig
+                model_kwargs['quantization_config'] = BitsAndBytesConfig(bnb_4bit_use_double_quant=True)
+            elif low_bit_mode == 4:
+                assert load_4bit, "low_bit_mode==4 only valid for load_4bit=True"
+                from transformers import BitsAndBytesConfig
+                model_kwargs['quantization_config'] = BitsAndBytesConfig(bnb_4bit_use_double_quant=True,
+                                                                         bnb_4bit_quant_type="nf4")
 
         if not lora_weights:
             # torch.device context uses twice memory for AutoGPTQ
@@ -1589,6 +1619,7 @@ def pop_unused_model_kwargs(model_kwargs):
 def get_score_model(score_model: str = None,
                     load_8bit: bool = False,
                     load_4bit: bool = False,
+                    low_bit_mode = 1,
                     load_half: bool = True,
                     load_gptq: str = '',
                     load_exllama: bool = False,
@@ -1615,6 +1646,7 @@ def get_score_model(score_model: str = None,
     if score_model is not None and score_model.strip():
         load_8bit = False
         load_4bit = False
+        low_bit_mode = 1
         load_half = False
         load_gptq = ''
         load_exllama = False
@@ -2312,7 +2344,8 @@ def evaluate(
     max_max_tokens = tokenizer.model_max_length
     max_input_tokens = max(0, int(max_max_tokens - min_new_tokens))
     # NOTE: Don't limit up front due to max_new_tokens, let go up to max or reach max_max_tokens in stopping.py
-    assert isinstance(max_input_tokens, int), "Bad type for max_input_tokens=%s %s" % (max_input_tokens, type(max_input_tokens))
+    assert isinstance(max_input_tokens, int), "Bad type for max_input_tokens=%s %s" % (
+    max_input_tokens, type(max_input_tokens))
     input_ids = input_ids[:, -max_input_tokens:]
     # required for falcon if multiple threads or asyncio accesses to model during generation
     if use_cache is None:
