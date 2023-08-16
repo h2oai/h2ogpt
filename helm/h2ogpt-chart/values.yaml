@@ -1,70 +1,135 @@
 nameOverride: ""
 fullnameOverride: h2ogpt
 
-autoscaling: {}
 
-replicaCount: 1
 
-image:
-  repository: gcr.io/vorvan/h2oai/h2ogpt-runtime
-  pullPolicy: IfNotPresent
 
-storage:
-  size: 128Gi
-  class: ebs-csi
+h2ogpt:
+  enabled: true
+  image:
+    repository: gcr.io/vorvan/h2oai/h2ogpt-runtime
+    pullPolicy: IfNotPresent
 
-config:
-  hfModel: h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b
+  storage:
+    size: 128Gi
+    class: ebs-csi
+  
+  replicaCount: 1
+  autoscaling: {}
 
-podAnnotations: {}
+  overrideConfig:
+    h2ogpt_inference_server: "http://h2ogpt-inference:8080"
+    h2ogpt_base_model: "h2oai/h2ogpt-4096-llama2-13b-chat"
+    h2ogpt_height: "500"
+    h2ogpt_score_model: "None"
+    h2ogpt_max_max_new_tokens: "4096"
+    h2ogpt_max_new_tokens: "50"
 
-podLabels: {}
+  service:
+    type: NodePort
+    webPort: 80
+    gptPort: 8888
+
+  resources:
+    limits:
+      nvidia.com/gpu: 1
+    requests:
+      nvidia.com/gpu: 1
+
+  nodeSelector:
+    helium.h2o.ai/provisioner: karpenter
+
+  tolerations:
+    - key: type
+      operator: Equal
+      value: helium-gpu
+      effect: NoSchedule
+  
+  podAnnotations: {}
+
+  podLabels: {}
+
+
+tgi:
+  enabled: true
+  image:
+    repository: ghcr.io/huggingface/text-generation-inference
+    tag: 0.9.3
+    pullPolicy: IfNotPresent
+
+  storage:
+    size: 1024Gi
+    class: ebs-csi
+
+  replicaCount: 1
+  autoscaling: {}
+  
+  overrideConfig:
+    HUGGING_FACE_HUB_TOKEN: ""
+    TRANSFORMERS_CACHE: "/app/cache"
+
+  containerArgs:
+    - "--model-id"
+    - "h2oai/h2ogpt-4096-llama2-13b-chat"
+    - "--max-input-length"
+    - "4096"
+    - "--max-total-tokens"
+    - "8192"
+    - "--max-stop-sequences"
+    - "6"
+    - "--sharded"
+    - "true" 
+    - "--num-shard" 
+    - "4"
+
+  service:
+    type: NodePort
+    port: 8080
+
+  resources:
+    limits:
+      nvidia.com/gpu: 4
+    requests:
+      nvidia.com/gpu: 4
+
+  nodeSelector:
+    gpt.h2o.ai/provisioner: karpenter
+
+  tolerations:
+    - key: gpt.h2o.ai/accelerator
+      operator: Equal
+      value: gpt-gpu
+      effect: NoSchedule
+  
+  podAnnotations: {}
+
+  podLabels: {}
 
 podSecurityContext:
-  runAsNonRoot: true
-  runAsUser: 1001
-  runAsGroup: 1001
-  fsGroup: 1001
+  # runAsNonRoot: true
+  runAsUser: 0
+  runAsGroup: 0
 
 securityContext:
-  runAsNonRoot: true
-  allowPrivilegeEscalation: false
-  capabilities:
-    drop:
-      - ALL
-  seccompProfile:
-    type: RuntimeDefault
+  # runAsNonRoot: true
+  # allowPrivilegeEscalation: false
+  # capabilities:
+  #   drop:
+  #     - ALL
+  # seccompProfile:
+  #   type: RuntimeDefault
 
-livenessProbe:
-    initialDelaySeconds: 600
-    periodSeconds: 5
-    failureThreshold: 5
-    timeoutSeconds: 120
-    successThreshold: 1
+# livenessProbe:
+#     initialDelaySeconds: 1200
+#     periodSeconds: 5
+#     failureThreshold: 5
+#     timeoutSeconds: 120
+#     successThreshold: 1
 
-readinessProbe:
-    initialDelaySeconds: 600
-    periodSeconds: 5
-    failureThreshold: 5
-    timeoutSeconds: 1
-    successThreshold: 1
+# readinessProbe:
+#     initialDelaySeconds: 1200
+#     periodSeconds: 5
+#     failureThreshold: 5
+#     timeoutSeconds: 1
+#     successThreshold: 1
 
-service:
-  type: NodePort
-  webPort: 80
-  gptPort: 8888
-
-resources:
-  limits:
-    nvidia.com/gpu: 1
-  requests:
-    nvidia.com/gpu: 1
-
-nodeSelector:
-  gpt.h2o.ai/provisioner: karpenter
-
-tolerations:
-  - key: gpt.h2o.ai/accelerator
-    operator: Equal
-    value: gpt-gpu
-    effect: NoSchedule

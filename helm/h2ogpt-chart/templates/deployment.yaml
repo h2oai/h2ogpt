@@ -1,3 +1,4 @@
+{{- if .Values.h2ogpt.enabled }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -5,26 +6,26 @@ metadata:
   labels:
     app: {{ include "h2ogpt.fullname" . }}
 spec:
-  {{- if not .Values.autoscaling.enabled }}
-  replicas: {{ .Values.replicaCount }}
+  {{- if not .Values.h2ogpt.autoscaling.enabled }}
+  replicas: {{ .Values.h2ogpt.replicaCount }}
   {{- end }}
   selector:
     matchLabels:
       app: {{ include "h2ogpt.fullname" . }}
   template:
     metadata:
-      {{- with .Values.podAnnotations }}
+      {{- with .Values.h2ogpt.podAnnotations }}
       annotations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
         app: {{ include "h2ogpt.fullname" . }}
     spec:
-      {{- with .Values.nodeSelector }}
+      {{- with .Values.h2ogpt.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.tolerations }}
+      {{- with .Values.h2ogpt.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
@@ -43,11 +44,14 @@ spec:
                         - {{ include "h2ogpt.fullname" . }}
                 topologyKey: failure-domain.beta.kubernetes.io/zone
       containers:
-        - name: {{ .Chart.Name }}
+        - name: {{ include "h2ogpt.fullname" . }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          image: "{{ .Values.h2ogpt.image.repository }}:{{ .Values.h2ogpt.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.h2ogpt.image.pullPolicy }}
+          command: []
+          args:
+            - "/workspace/generate.py"
           ports:
             - name: http
               containerPort: 7860
@@ -55,30 +59,32 @@ spec:
             - name: gpt
               containerPort: 8888
               protocol: TCP
-          {{- if .Values.livenessProbe }}
+          {{- if .Values.h2ogpt.livenessProbe }}
           livenessProbe:
             httpGet:
               path:  /
               scheme: HTTP
               port: http
-            {{- toYaml .Values.livenessProbe | nindent 12 }}
+            {{- toYaml .Values.h2ogpt.livenessProbe | nindent 12 }}
           {{- end }}
-          {{- if .Values.readinessProbe }}
+          {{- if .Values.h2ogpt.readinessProbe }}
           readinessProbe:
             httpGet:
               path:  /
               scheme: HTTP
               port: http
-            {{- toYaml .Values.readinessProbe | nindent 12 }}
+            {{- toYaml .Values.h2ogpt.readinessProbe | nindent 12 }}
           {{- end }}
           resources:
-            {{- toYaml .Values.resources | nindent 12 }}
+            {{- toYaml .Values.h2ogpt.resources | nindent 12 }}
           envFrom:
             - configMapRef:
                 name: {{ include "h2ogpt.fullname" . }}-config
           volumeMounts:
             - name: h2ogpt-volume
-              mountPath: /h2ogpt_env
+              mountPath: /workspace/.cache
+            - name: h2ogpt-volume
+              mountPath: /workspace/save
       volumes:
         - name: h2ogpt-volume
           ephemeral:
@@ -88,5 +94,108 @@ spec:
                   - ReadWriteOnce
                 resources:
                   requests: 
-                    storage: {{ .Values.storage.size | quote }}
-                storageClassName: {{ .Values.storage.class | quote }}
+                    storage: {{ .Values.h2ogpt.storage.size | quote }}
+                storageClassName: {{ .Values.h2ogpt.storage.class | quote }}
+{{- end }}
+---
+{{- if .Values.tgi.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "h2ogpt.fullname" . }}-inference
+  labels:
+    app: {{ include "h2ogpt.fullname" . }}-inference
+spec:
+  {{- if not .Values.tgi.autoscaling.enabled }}
+  replicas: {{ .Values.tgi.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      app: {{ include "h2ogpt.fullname" . }}-inference
+  template:
+    metadata:
+      {{- with .Values.tgi.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        app: {{ include "h2ogpt.fullname" . }}-inference
+    spec:
+      {{- with .Values.tgi.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tgi.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - {{ include "h2ogpt.fullname" . }}
+                topologyKey: failure-domain.beta.kubernetes.io/zone
+      containers:
+        - name: {{ include "h2ogpt.fullname" . }}-inference
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.tgi.image.repository }}:{{ .Values.tgi.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.tgi.image.pullPolicy }}
+          command: []
+          args: 
+{{- range $arg := .Values.tgi.containerArgs }}
+            - "{{ $arg }}"
+{{- end }}
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          {{- if .Values.tgi.livenessProbe }}
+          livenessProbe:
+            httpGet:
+              path:  /
+              scheme: HTTP
+              port: http
+            {{- toYaml .Values.tgi.livenessProbe | nindent 12 }}
+          {{- end }}
+          {{- if .Values.tgi.readinessProbe }}
+          readinessProbe:
+            httpGet:
+              path:  /
+              scheme: HTTP
+              port: http
+            {{- toYaml .Values.tgi.readinessProbe | nindent 12 }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.tgi.resources | nindent 12 }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "h2ogpt.fullname" . }}-inference-config
+          volumeMounts:
+            - name: h2ogpt-inference-volume
+              mountPath: /app/cache
+            - name: h2ogpt-inference-volume
+              mountPath: /data
+            - name: h2ogpt-inference-volume
+              mountPath: /dev/shm
+      volumes:
+        - name: h2ogpt-inference-volume
+          ephemeral:
+            volumeClaimTemplate:
+              spec:
+                accessModes: 
+                  - ReadWriteOnce
+                resources:
+                  requests: 
+                    storage: {{ .Values.tgi.storage.size | quote }}
+                storageClassName: {{ .Values.tgi.storage.class | quote }}
+{{- end }}
+

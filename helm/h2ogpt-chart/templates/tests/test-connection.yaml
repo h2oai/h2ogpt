@@ -11,5 +11,5 @@ spec:
     - name: wget
       image: busybox
       command: ['wget']
-      args: ['{{ include "h2ogpt.fullname" . }}:{{ .Values.service.port }}']
+      args: ['{{ include "h2ogpt.fullname" . }}:{{ .Values.h2ogpt.service.port }}']
   restartPolicy: Never

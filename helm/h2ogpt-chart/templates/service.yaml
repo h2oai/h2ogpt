@@ -1,3 +1,4 @@
+{{- if .Values.h2ogpt.enabled }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -8,10 +9,12 @@ spec:
     app: {{ include "h2ogpt.fullname" . }}
   ports:
     - protocol: TCP
-      port: {{ .Values.service.webPort }}
+      port: {{ .Values.h2ogpt.service.webPort }}
       targetPort: 7860
   type: NodePort
+{{- end }}
 ---
+{{- if .Values.h2ogpt.enabled }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -22,6 +25,23 @@ spec:
     app: {{ include "h2ogpt.fullname" . }}
   ports:
     - protocol: TCP
-      port: {{ .Values.service.gptPort }}
+      port: {{ .Values.h2ogpt.service.gptPort }}
       targetPort: 8888
   type: NodePort
+  {{- end }}
+---
+{{- if .Values.tgi.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "h2ogpt.fullname" . }}-inference
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    app: {{ include "h2ogpt.fullname" . }}-inference
+  ports:
+    - protocol: TCP
+      port: {{ .Values.tgi.service.port }}
+      targetPort: 80
+  type: NodePort
+  {{- end }}
