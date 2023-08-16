@@ -2014,7 +2014,7 @@ def get_existing_db(db, persist_directory,
                     langchain_mode, langchain_mode_paths, langchain_mode_types,
                     hf_embedding_model,
                     migrate_embedding_model,
-                    verbose=False, check_embedding=True):
+                    verbose=False, check_embedding=True, migrate_meta=True):
     if load_db_if_exists and db_type == 'chroma' and os.path.isdir(persist_directory) and os.path.isdir(
             os.path.join(persist_directory, 'index')):
         if db is None:
@@ -2039,6 +2039,10 @@ def get_existing_db(db, persist_directory,
                 got_embedding, use_openai_embedding, hf_embedding_model = load_embed(db=db)
             if verbose:
                 print("USING already-loaded db: %s" % langchain_mode, flush=True)
+        if migrate_meta and db is not None:
+            db_documents = get_documents(db)
+            [x.metadata.update(dict(chunk_id=x.metadata.get('chunk_id', 0))) for x in db_documents]
+
         if check_embedding:
             db_trial, changed_db = check_update_chroma_embedding(db, use_openai_embedding,
                                                                  hf_embedding_model,
@@ -2210,14 +2214,12 @@ def _make_db(use_openai_embedding=False,
             print("Generating new wiki", flush=True)
             sources1 = get_all_documents(small_test=small_test, n_jobs=os.cpu_count() // 2)
             print("Got new wiki", flush=True)
-            if chunk:
-                sources1 = chunk_sources(sources1)
-                print("Chunked new wiki", flush=True)
+            sources1 = chunk_sources(sources1, chunk=chunk)
+            print("Chunked new wiki", flush=True)
             sources.extend(sources1)
         elif langchain_mode in ['wiki']:
             sources1 = get_wiki_sources(first_para=first_para, text_limit=text_limit)
-            if chunk:
-                sources1 = chunk_sources(sources1)
+            sources1 = chunk_sources(sources1, chunk=chunk)
             sources.extend(sources1)
         elif langchain_mode in ['github h2oGPT']:
             # sources = get_github_docs("dagster-io", "dagster")
@@ -2227,8 +2229,8 @@ def _make_db(use_openai_embedding=False,
             sources.extend(sources1)
         elif langchain_mode in ['DriverlessAI docs']:
             sources1 = get_dai_docs(from_hf=True)
-            if chunk and False:  # FIXME: DAI docs are already chunked well, should only chunk more if over limit
-                sources1 = chunk_sources(sources1)
+            # FIXME: DAI docs are already chunked well, should only chunk more if over limit
+            sources1 = chunk_sources(sources1, chunk=False)
             sources.extend(sources1)
     if user_path:
         # UserData or custom, which has to be from user's disk
@@ -3698,22 +3700,29 @@ def _chunk_sources(sources, chunk=True, chunk_size=512, language=None, db_type=N
         sources = [sources]
     if not chunk:
         [x.metadata.update(dict(chunk_id=0)) for chunk_id, x in enumerate(sources)]
-        return sources
-    if language and False:
-        # Bug in langchain, keep separator=True not working
-        # https://github.com/hwchase17/langchain/issues/2836
-        # so avoid this for now
-        keep_separator = True
-        separators = RecursiveCharacterTextSplitter.get_separators_for_language(language)
+        if db_type == 'chroma':
+            # make copy so can have separate summarize case
+            source_chunks = [Document(page_content=x.page_content,
+                                      metadata=copy.deepcopy(x.metadata) or {})
+                             for x in sources]
+        else:
+            source_chunks = sources  # just same thing
     else:
-        separators = ["\n\n", "\n", " ", ""]
-        keep_separator = False
-    splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=0, keep_separator=keep_separator,
-                                              separators=separators)
-    source_chunks = splitter.split_documents(sources)
+        if language and False:
+            # Bug in langchain, keep separator=True not working
+            # https://github.com/hwchase17/langchain/issues/2836
+            # so avoid this for now
+            keep_separator = True
+            separators = RecursiveCharacterTextSplitter.get_separators_for_language(language)
+        else:
+            separators = ["\n\n", "\n", " ", ""]
+            keep_separator = False
+        splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=0, keep_separator=keep_separator,
+                                                  separators=separators)
+        source_chunks = splitter.split_documents(sources)
 
-    # currently in order, but when pull from db won't be, so mark order and document by hash
-    [x.metadata.update(dict(chunk_id=chunk_id)) for chunk_id, x in enumerate(source_chunks)]
+        # currently in order, but when pull from db won't be, so mark order and document by hash
+        [x.metadata.update(dict(chunk_id=chunk_id)) for chunk_id, x in enumerate(source_chunks)]
 
     if db_type == 'chroma':
         # also keep original source for summarization and other tasks
