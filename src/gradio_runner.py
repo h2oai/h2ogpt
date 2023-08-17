@@ -677,14 +677,13 @@ def go_gradio(**kwargs):
                                         undo = gr.Button("Undo", size='sm', min_width=mw2)
                                         clear_chat_btn = gr.Button(value="Clear", size='sm', min_width=mw2)
 
-                            with gr.Row() as uploaded_files_box:
-                                file_output = gr.File(label="Uploaded Files", elem_id="uploaded-files-box")
+                            def upload_file_fn(files, progress=gr.Progress()):
+                                imgs = [None] * 24
+                                for img in progress.tqdm(imgs, desc="Loading from list"):
+                                    time.sleep(0.1)
+                                return ''
 
-                            def upload_file_fn(files):
-                                file_paths = [file.name for file in files]
-                                return file_paths
-
-                            attach_button.upload(fn=upload_file_fn, inputs=attach_button, outputs=file_output)
+                            attach_button.upload(fn=upload_file_fn, inputs=attach_button, outputs=[instruction])
 
                             text_output, text_output2, text_outputs = make_chatbots(output_label0, output_label0_model2,
                                                                                     **kwargs)
