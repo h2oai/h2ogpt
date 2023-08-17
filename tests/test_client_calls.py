@@ -978,6 +978,50 @@ def test_client_chat_stream_langchain_steps3():
     # FIXME: Add load_model, unload_model, etc.
 
 
+@pytest.mark.need_tokens
+@wrap_test_forked
+def test_client_chat_stream_langchain_openai_embeddings():
+    os.environ['VERBOSE_PIPELINE'] = '1'
+    user_path = make_user_path_test()
+    remove('db_dir_UserData')
+
+    stream_output = True
+    max_new_tokens = 256
+    base_model = 'distilgpt2'
+    prompt_type = 'human_bot'
+    langchain_mode = 'UserData'
+    langchain_modes = ['UserData', 'MyData', 'github h2oGPT', 'LLM', 'Disabled']
+
+    from src.gen import main
+    main(base_model=base_model, prompt_type=prompt_type, chat=True,
+         stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
+         max_new_tokens=max_new_tokens,
+         langchain_mode=langchain_mode, user_path=user_path,
+         langchain_modes=langchain_modes,
+         use_openai_embedding=True,
+         verbose=True)
+
+    from src.client_test import get_client, get_args, run_client
+    # serialize=False would lead to returning dict for some objects or files for get_sources
+    client = get_client(serialize=False)
+
+    url = 'https://www.africau.edu/images/default/sample.pdf'
+    test_file1 = os.path.join('/tmp/', 'sample1.pdf')
+    download_simple(url, dest=test_file1)
+    res = client.predict(test_file1, True, 512, langchain_mode, api_name='/add_file_api')
+    assert res[0] is None
+    assert res[1] == langchain_mode
+    # note moves from /tmp to stable path, even though not /tmp/gradio upload from UI
+    assert 'file/%s/sample1.pdf' % user_path in res[2] or 'file/%s\sample1.pdf' % user_path in res[2]
+    assert res[3] == ''
+
+    from src.gpt_langchain import load_embed
+    got_embedding, use_openai_embedding, hf_embedding_model = load_embed(persist_directory='db_dir_UserData')
+    assert use_openai_embedding
+    assert hf_embedding_model == 'hkunlp/instructor-large'  # but not used
+    assert got_embedding
+
+
 @pytest.mark.parametrize("prompt_summary", ['', 'Summarize into single paragraph'])
 @pytest.mark.need_tokens
 @wrap_test_forked
