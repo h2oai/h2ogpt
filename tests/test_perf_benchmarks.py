@@ -41,7 +41,7 @@ def test_perf_benchmarks(backend, base_model, task, bits, ngpus):
     import torch
     if ngpus > torch.cuda.device_count():
         return
-    os.environ['CUDA_VISIBLE_DEVICES'] = ",".join([str(x) for x in range(ngpus)])
+    os.environ['CUDA_VISIBLE_DEVICES'] = "0" if ngpus == 1 else ",".join([str(x) for x in range(ngpus)])
     n_gpus = torch.cuda.device_count()
     git_sha = (
         subprocess.check_output("git rev-parse HEAD", shell=True)
@@ -179,6 +179,8 @@ def test_perf_benchmarks(backend, base_model, task, bits, ngpus):
             bench_dict["generate_time"] = t1 - t0
             # bench_dict["generate_tokens_per_sec"] = res['tokens/s']
     except BaseException as e:
+        if 'CUDA out of memory' in str(e):
+            e = "OOM"
         bench_dict["exception"] = str(e)
         raise
     finally:
