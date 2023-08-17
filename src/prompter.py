@@ -302,7 +302,7 @@ Current Time: {}
 ### Assistant:
 """
         #  but only allow terminate after prompt is found correctly, else can't terminate
-        terminate_response = ['### Human:', '###  Human:  ', '###  Assistant:']
+        terminate_response = ['### Human:', '###  Human:  ', ' ###  Human:', '###  Assistant:']
         chat_turn_sep = chat_sep = '\n'
         humanstr = PreInstruct
         botstr = PreResponse
@@ -701,7 +701,7 @@ Remember to tailor the activities to the birthday child's interests and preferen
         PreResponse = """
 ### Assistant:"""
         # but only allow terminate after prompt is found correctly, else can't terminate
-        terminate_response = ['### Human:', '###  Human:  ', '###  Assistant:']
+        terminate_response = ['### Human:', '###  Human:  ', ' ###  Human:', '###  Assistant:']
         chat_turn_sep = chat_sep = '\n'
         humanstr = PreInstruct
         botstr = PreResponse

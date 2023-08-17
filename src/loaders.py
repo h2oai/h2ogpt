@@ -1,11 +1,6 @@
 import functools
 
-
-def t5_type(model_name):
-    return 't5' == model_name.lower() or \
-        't5-' in model_name.lower() or \
-        'flan-' in model_name.lower() or \
-        'fastchat-t5' in model_name.lower()
+from src.enums import t5_type
 
 
 def get_loaders(model_name, reward_type, llama_type=None, load_gptq='', load_exllama=False, config=None,

@@ -1158,6 +1158,7 @@ def get_llm(use_openai_model=False,
                                          tokenizer=tokenizer,
                                          # leave some room for 1 paragraph, even if min_new_tokens=0
                                          max_input_tokens=max_max_tokens - max(min_new_tokens, 256),
+                                         base_model=model_name,
                                          **gen_kwargs)
         # pipe.task = "text-generation"
         # below makes it listen only to our prompt removal,

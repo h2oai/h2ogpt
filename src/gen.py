@@ -26,8 +26,8 @@ warnings.filterwarnings('ignore', category=UserWarning, message='TypedStorage is
 from evaluate_params import eval_func_param_names, no_default_param_names, input_args_list
 from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mapping, no_model_str, \
     LangChainAction, LangChainAgent, DocumentChoice, LangChainTypes, super_source_prefix, \
-    super_source_postfix
-from loaders import get_loaders, t5_type
+    super_source_postfix, t5_type
+from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
     have_langchain, set_openai, cuda_vis_check, H2O_Fire
@@ -2363,7 +2363,7 @@ def evaluate(
         assert src_lang is not None
         tokenizer.src_lang = languages_covered()[src_lang]
 
-    stopping_criteria = get_stopping(prompt_type, prompt_dict, tokenizer, device,
+    stopping_criteria = get_stopping(prompt_type, prompt_dict, tokenizer, device, base_model,
                                      model_max_length=tokenizer.model_max_length)
 
     inputs = tokenizer(prompt, return_tensors="pt")

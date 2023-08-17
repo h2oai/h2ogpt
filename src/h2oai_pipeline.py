@@ -13,7 +13,9 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
                  use_prompter=True, prompter=None,
                  context='', iinput='',
                  prompt_type=None, prompt_dict=None,
-                 max_input_tokens=2048 - 256, **kwargs):
+                 max_input_tokens=2048 - 256,
+                 base_model=None,
+                 **kwargs):
         """
         HF-like pipeline, but handle instruction prompting and stopping (for some models)
         :param args:
@@ -54,6 +56,7 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
             self.can_stop = False
         self.sanitize_bot_response = sanitize_bot_response
         self.max_input_tokens = max_input_tokens  # not for generate, so ok that not kwargs
+        self.base_model = base_model
 
     @staticmethod
     def limit_prompt(prompt_text, tokenizer, max_prompt_length=None):
@@ -206,6 +209,7 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
         if self.can_stop:
             stopping_criteria = get_stopping(self.prompt_type, self.prompt_dict,
                                              self.tokenizer, self.device,
+                                             self.base_model,
                                              human=self.human, bot=self.bot,
                                              model_max_length=self.tokenizer.model_max_length)
             generate_kwargs['stopping_criteria'] = stopping_criteria
