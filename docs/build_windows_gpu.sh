@@ -75,3 +75,40 @@ python -m nsist windows_installer.cfg
 
 # test
 python run_app.py
+
+
+# these changes required for GPU build:
+#diff --git a/windows_installer.cfg b/windows_installer.cfg
+#index 120d284..ea71ea0 100644
+#--- a/windows_installer.cfg
+#+++ b/windows_installer.cfg
+#@@ -34,7 +34,7 @@ pypi_wheels = absl-py==1.4.0
+#     Authlib==1.2.1
+#     # GPU
+#     #auto-gptq @ https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.3.0/auto_gptq-0.3.0+cu118-cp310-cp310-win_amd64.whl#sha256=71d4b1aaaaf57244b9b38730f1fcbf15c25633475230258af996408b3d78a366
+#-    # auto_gptq==0.3.0
+#+    auto_gptq==0.3.0
+#     backoff==2.2.1
+#     beautifulsoup4==4.12.2
+#     bioc==2.0
+#@@ -73,7 +73,7 @@ pypi_wheels = absl-py==1.4.0
+#     exceptiongroup==1.1.2
+#     execnet==2.0.2
+#     # GPU:
+#-    # exllama==0.0.8
+#+    exllama==0.0.8
+#     fastapi==0.100.0
+#     feedparser==6.0.10
+#     ffmpy==0.3.1
+#@@ -123,9 +123,9 @@ pypi_wheels = absl-py==1.4.0
+#     layoutparser==0.3.4
+#     linkify-it-py==2.0.2
+#     # CPU
+#-    llama_cpp_python==0.1.73
+#+    # llama_cpp_python==0.1.73
+#     # GPU
+#-    # llama-cpp-python-cuda==0.1.73
+#+    llama-cpp-python-cuda==0.1.73
+#     lm-dataformat==0.0.20
+#     loralib==0.1.1
+#     lxml==4.9.3
