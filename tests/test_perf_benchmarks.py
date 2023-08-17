@@ -28,14 +28,21 @@ from src.utils import download_simple
     16,
     8,
     4,
-])
+], ids=["16-bit", "8-bit", "4-bit"])
+@pytest.mark.parametrize("ngpus", [
+    1, 2, 4, 8
+], ids=["1 GPU", "2 GPUs", "4 GPUs", "8 GPUs"])
 @pytest.mark.need_tokens
 @wrap_test_forked
-def test_perf_benchmarks(backend, base_model, task, bits):
+def test_perf_benchmarks(backend, base_model, task, bits, ngpus):
     bench_dict = locals()
     from datetime import datetime
     import json
-
+    import torch
+    if ngpus > torch.cuda.device_count():
+        return
+    os.environ['CUDA_VISIBLE_DEVICES'] = ",".join([str(x) for x in range(ngpus)])
+    n_gpus = torch.cuda.device_count()
     git_sha = (
         subprocess.check_output("git rev-parse HEAD", shell=True)
         .decode("utf-8")
@@ -43,8 +50,6 @@ def test_perf_benchmarks(backend, base_model, task, bits):
     )
     bench_dict["date"] = datetime.now().strftime("%m/%d/%Y %H:%M:%S")
     bench_dict["git_sha"] = git_sha
-    import torch
-    n_gpus = torch.cuda.device_count()
     bench_dict["n_gpus"] = n_gpus
     bench_dict["gpus"] = [torch.cuda.get_device_name(i) for i in range(n_gpus)]
 
@@ -54,16 +59,18 @@ def test_perf_benchmarks(backend, base_model, task, bits):
     max_new_tokens = 4096
     results_file = "./perf.json"
     try:
+        h2ogpt_args = dict(base_model=base_model,
+             chat=True, gradio=True, num_beams=1, block_gradio_exit=False, verbose=True,
+             load_half=bits == 16,
+             load_8bit=bits == 8,
+             load_4bit=bits == 4,
+             langchain_mode='MyData',
+             use_auth_token=True,
+             max_new_tokens=max_new_tokens,
+             )
         if backend == 'transformers':
             from src.gen import main
-            main(base_model=base_model, chat=True, gradio=True, num_beams=1, block_gradio_exit=False, verbose=True,
-                 load_half=bits == 16,
-                 load_8bit=bits == 8,
-                 load_4bit=bits == 4,
-                 langchain_mode='MyData',
-                 use_auth_token=True,
-                 max_new_tokens=max_new_tokens,
-                 )
+            main(**h2ogpt_args)
         elif backend == 'tgi':
             if bits != 16:
                 pytest.xfail("Quantization not yet supported in TGI")
@@ -95,13 +102,7 @@ def test_perf_benchmarks(backend, base_model, task, bits):
             os.system('docker logs %s | tail -10' % docker_hash1)
 
             from src.gen import main
-            main(base_model=base_model,
-                 inference_server=inference_server,
-                 langchain_mode='MyData',
-                 chat=True, gradio=True, num_beams=1, block_gradio_exit=False, verbose=True,
-                 use_auth_token=True,
-                 max_new_tokens=max_new_tokens,
-                 )
+            main(**h2ogpt_args)
         else:
             raise NotImplementedError("backend %s not implemented" % backend)
 
@@ -157,7 +158,7 @@ def test_perf_benchmarks(backend, base_model, task, bits):
             bench_dict["summarize_input_len_bytes"] = size_summary
             bench_dict["summarize_output_len_bytes"] = len(response)
             bench_dict["summarize_time"] = t1 - t0
-            bench_dict["summarize_tokens_per_sec"] = res['tokens/s']
+            # bench_dict["summarize_tokens_per_sec"] = res['tokens/s']
             assert 'my_test_pdf.pdf' in sources
 
         if "generate" in task:
@@ -176,7 +177,7 @@ def test_perf_benchmarks(backend, base_model, task, bits):
             print("Time to generate %s bytes: %.4f" % (len(response), t1-t0))
             bench_dict["generate_output_len_bytes"] = len(response)
             bench_dict["generate_time"] = t1 - t0
-            bench_dict["generate_tokens_per_sec"] = res['tokens/s']
+            # bench_dict["generate_tokens_per_sec"] = res['tokens/s']
     except BaseException as e:
         bench_dict["exception"] = str(e)
         raise
