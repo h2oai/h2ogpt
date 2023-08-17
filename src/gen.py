@@ -845,7 +845,7 @@ def main(
                 # shouldn't prepare per-user databases here
                 continue
             persist_directory1, langchain_type = get_persist_directory(langchain_mode1, langchain_type=langchain_type)
-            langchain_mode_types[langchain_mode] = langchain_type
+            langchain_mode_types[langchain_mode1] = langchain_type
             if langchain_type == LangChainTypes.PERSONAL.value:
                 # shouldn't prepare per-user databases here
                 continue
