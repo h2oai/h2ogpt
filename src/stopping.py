@@ -3,10 +3,6 @@ from transformers import StoppingCriteria, StoppingCriteriaList
 
 from enums import PromptType, t5_type
 
-from transformers import AutoTokenizer
-tokenizer = AutoTokenizer.from_pretrained("lmsys/fastchat-t5-3b-v1.0")
-
-
 
 class StoppingCriteriaSub(StoppingCriteria):
 
@@ -22,7 +18,6 @@ class StoppingCriteriaSub(StoppingCriteria):
         for stopi, stop in enumerate(self.stops):
             current_block = input_ids[0][-len(stop):]
             len_new_tokens = current_block.shape[0]
-            print("stop: %s %s block: %s %s" % (tokenizer.decode(stop), stop, current_block, tokenizer.decode(current_block)), flush=True)
             if len(stop) <= len_new_tokens and torch.all((stop == input_ids[0][-len(stop):])).item():
                 self.num_stops[stopi] += 1
                 if self.num_stops[stopi] >= self.encounters[stopi % len(self.encounters)]:
@@ -77,10 +72,10 @@ def get_stopping(prompt_type, prompt_dict, tokenizer, device, base_model,
                 """###  Assistant:"""
             ]
             if prompt_type in [PromptType.instruct_vicuna2.value, str(PromptType.instruct_vicuna2.value),
-                PromptType.instruct_vicuna2.name]:
+                               PromptType.instruct_vicuna2.name]:
                 stop_words = [x.upper() for x in stop_words]
             if prompt_type in [PromptType.instruct_vicuna3.value, str(PromptType.instruct_vicuna3.value),
-                PromptType.instruct_vicuna3.name]:
+                               PromptType.instruct_vicuna3.name]:
                 stop_words = [x.replace('Human', 'User') for x in stop_words]
             encounters = [1, 2]
         else:

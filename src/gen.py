@@ -55,7 +55,7 @@ def main(
         load_8bit: bool = False,
         load_4bit: bool = False,
         low_bit_mode: int = 1,
-        load_half: bool = True,
+        load_half: bool = None,
         load_gptq: str = '',
         load_exllama: bool = False,
         use_safetensors: bool = False,
@@ -242,8 +242,8 @@ def main(
     :param low_bit_mode: 0: no quantization config 1: change compute 2: nf4 3: double quant 4: 2 and 3
            See: https://huggingface.co/docs/transformers/main_classes/quantization
            If using older bitsandbytes or transformers, 0 is required
-    :param load_half: load model in float16
-           Avoided for t5 models
+    :param load_half: load model in float16 (None means auto, which means True unless t5 based model)
+                      otherwise specify bool
     :param load_gptq: to load model with GPTQ, put model_basename here, e.g. gptq_model-4bit--1g
     :param load_exllama: whether to use exllama (only applicable to LLaMa1/2 models with 16-bit or GPTQ
     :param use_safetensors: to use safetensors version (assumes file/HF points to safe tensors version)
@@ -742,7 +742,7 @@ def main(
     n_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 0
     n_gpus, gpu_ids = cuda_vis_check(n_gpus)
 
-    if t5_type(base_model):
+    if load_half is None and t5_type(base_model):
         load_half = False
         print("load_half=%s auto-set for %s to avoid bad generation" % (load_half, base_model), flush=True)
 
@@ -757,7 +757,9 @@ def main(
         load_8bit = False
         load_4bit = False
         low_bit_mode = 1
-        load_half = False
+        if load_half is None:
+            # wouldn't work if specified True, but respect
+            load_half = False
         load_gptq = ''
         load_exllama = False
         use_gpu_id = False
@@ -775,6 +777,8 @@ def main(
         if score_model == 'auto':
             score_model = ''
     else:
+        if load_half is None:
+            load_half = True
         # CUDA GPUs visible
         if score_model == 'auto':
             if n_gpus >= 2:
