@@ -1,22 +1,23 @@
 import ast
 import os
+import subprocess
 
 import pytest
 
 from src.enums import LangChainAction
 from tests.test_inference_servers import run_h2ogpt_docker
-from tests.utils import wrap_test_forked, get_inf_server, get_inf_port
+from tests.utils import wrap_test_forked, get_inf_server, get_inf_port, get_sha
 from src.utils import download_simple
 
 
 @pytest.mark.parametrize("backend", [
     'transformers',
-    'tgi',
-    # 'mixed',
+    # 'tgi',
+    'mixed',
 ])
 @pytest.mark.parametrize("base_model", [
-    # 'h2oai/h2ogpt-4096-llama2-7b-chat',
-    'h2oai/h2ogpt-4096-llama2-13b-chat',
+    'h2oai/h2ogpt-4096-llama2-7b-chat',
+    # 'h2oai/h2ogpt-4096-llama2-13b-chat',
 ])
 @pytest.mark.parametrize("task", [
     # 'summary',
@@ -31,10 +32,27 @@ from src.utils import download_simple
 @pytest.mark.need_tokens
 @wrap_test_forked
 def test_perf_benchmarks(backend, base_model, task, bits):
+    bench_dict = locals()
+    from datetime import datetime
+    import json
+
+    git_sha = (
+        subprocess.check_output("git rev-parse HEAD", shell=True)
+        .decode("utf-8")
+        .strip()
+    )
+    bench_dict["date"] = datetime.now().strftime("%m/%d/%Y %H:%M:%S")
+    bench_dict["git_sha"] = git_sha
+    import torch
+    n_gpus = torch.cuda.device_count()
+    bench_dict["n_gpus"] = n_gpus
+    bench_dict["gpus"] = [torch.cuda.get_device_name(i) for i in range(n_gpus)]
+
     # launch server(s)
     docker_hash1 = None
     docker_hash2 = None
     max_new_tokens = 4096
+    results_file = "./perf.json"
     try:
         if backend == 'transformers':
             from src.gen import main
@@ -42,6 +60,7 @@ def test_perf_benchmarks(backend, base_model, task, bits):
                  load_half=bits == 16,
                  load_8bit=bits == 8,
                  load_4bit=bits == 4,
+                 langchain_mode='MyData',
                  use_auth_token=True,
                  max_new_tokens=max_new_tokens,
                  )
@@ -78,6 +97,7 @@ def test_perf_benchmarks(backend, base_model, task, bits):
             from src.gen import main
             main(base_model=base_model,
                  inference_server=inference_server,
+                 langchain_mode='MyData',
                  chat=True, gradio=True, num_beams=1, block_gradio_exit=False, verbose=True,
                  use_auth_token=True,
                  max_new_tokens=max_new_tokens,
@@ -132,8 +152,12 @@ def test_perf_benchmarks(backend, base_model, task, bits):
             response = res['response']
             sources = res['sources']
             size_summary = os.path.getsize(test_file1)
-            print(response)
+            # print(response)
             print("Time to summarize %s bytes into %s bytes: %.4f" % (size_summary, len(response), t1-t0))
+            bench_dict["summarize_input_len_bytes"] = size_summary
+            bench_dict["summarize_output_len_bytes"] = len(response)
+            bench_dict["summarize_time"] = t1 - t0
+            bench_dict["summarize_tokens_per_sec"] = res['tokens/s']
             assert 'my_test_pdf.pdf' in sources
 
         if "generate" in task:
@@ -148,9 +172,17 @@ def test_perf_benchmarks(backend, base_model, task, bits):
             t1 = time.time()
             res = ast.literal_eval(res)
             response = res['response']
-            print(response)
+            # print(response)
             print("Time to generate %s bytes: %.4f" % (len(response), t1-t0))
+            bench_dict["generate_output_len_bytes"] = len(response)
+            bench_dict["generate_time"] = t1 - t0
+            bench_dict["generate_tokens_per_sec"] = res['tokens/s']
+    except BaseException as e:
+        bench_dict["exception"] = str(e)
+        raise
     finally:
+        with open(results_file, mode="a") as f:
+            f.write(json.dumps(bench_dict) + "\n")
         if backend == "tgi":
             if docker_hash1:
                 os.system("docker stop %s" % docker_hash1)
