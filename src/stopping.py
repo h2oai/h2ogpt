@@ -34,24 +34,31 @@ class StoppingCriteriaSub(StoppingCriteria):
 def get_stopping(prompt_type, prompt_dict, tokenizer, device, base_model,
                  human='<human>:', bot="<bot>:", model_max_length=None):
     # FIXME: prompt_dict unused currently
-    if prompt_type in [PromptType.human_bot.name, PromptType.instruct_vicuna.name, PromptType.instruct_with_end.name]:
-        if prompt_type == PromptType.human_bot.name:
+    user_human_assistant_types = [PromptType.instruct_vicuna.value, str(PromptType.instruct_vicuna.value),
+                                 PromptType.instruct_vicuna.name] + \
+                                [PromptType.guanaco.value, str(PromptType.guanaco.value),
+                                 PromptType.guanaco.name] + \
+                                [PromptType.one_shot.value, str(PromptType.one_shot.value),
+                                 PromptType.one_shot.name] + \
+                                [PromptType.instruct_vicuna2.value, str(PromptType.instruct_vicuna2.value),
+                                 PromptType.instruct_vicuna2.name] + \
+                                [PromptType.instruct_vicuna3.value, str(PromptType.instruct_vicuna3.value),
+                                 PromptType.instruct_vicuna3.name] + \
+                                [PromptType.instruct_with_end.value, str(PromptType.instruct_with_end.value),
+                                 PromptType.instruct_with_end.name]
+    human_bot_types = [PromptType.human_bot.value, str(PromptType.human_bot.value),
+                       PromptType.human_bot.name] + \
+                      [PromptType.human_bot_orig.value, str(PromptType.human_bot_orig.value),
+                       PromptType.human_bot_orig.name]
+    all_types = user_human_assistant_types + human_bot_types
+    if prompt_type in all_types:
+        if prompt_type in human:
             # encounters = [prompt.count(human) + 1, prompt.count(bot) + 1]
             # stopping only starts once output is beyond prompt
             # 1 human is enough to trigger, but need 2 bots, because very first view back will be bot we added
             stop_words = [human, bot, '\n' + human, '\n' + bot]
             encounters = [1, 2]
-        elif (prompt_type in
-              [PromptType.instruct_vicuna.value, str(PromptType.instruct_vicuna.value),
-               PromptType.instruct_vicuna.name] +
-              [PromptType.guanaco.value, str(PromptType.guanaco.value),
-               PromptType.guanaco.name] +
-              [PromptType.one_shot.value, str(PromptType.one_shot.value),
-               PromptType.one_shot.name] +
-              [PromptType.instruct_vicuna2.value, str(PromptType.instruct_vicuna2.value),
-               PromptType.instruct_vicuna2.name] +
-              [PromptType.instruct_vicuna3.value, str(PromptType.instruct_vicuna3.value),
-               PromptType.instruct_vicuna3.name]):
+        elif prompt_type in user_human_assistant_types:
             # even below is not enough, generic strings and many ways to encode
             stop_words = [
                 '### Human:',
