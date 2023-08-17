@@ -16,7 +16,8 @@ class StoppingCriteriaSub(StoppingCriteria):
 
     def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor, **kwargs) -> bool:
         for stopi, stop in enumerate(self.stops):
-            if torch.all((stop == input_ids[0][-len(stop):])).item():
+            len_new_tokens = input_ids[0][-len(stop):].shape[0]
+            if len(stop) <= len_new_tokens and torch.all((stop == input_ids[0][-len(stop):])).item():
                 self.num_stops[stopi] += 1
                 if self.num_stops[stopi] >= self.encounters[stopi % len(self.encounters)]:
                     # print("Stopped", flush=True)
@@ -38,7 +39,7 @@ def get_stopping(prompt_type, prompt_dict, tokenizer, device, human='<human>:', 
             # 1 human is enough to trigger, but need 2 bots, because very first view back will be bot we added
             stop_words = [human, bot, '\n' + human, '\n' + bot]
             encounters = [1, 2]
-        elif prompt_type == PromptType.instruct_vicuna.name:
+        elif prompt_type in [PromptType.instruct_vicuna.name, PromptType.instruct_vicuna.name]:
             # even below is not enough, generic strings and many ways to encode
             stop_words = [
                 '### Human:',

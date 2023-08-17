@@ -2587,6 +2587,7 @@ def _run_qa_db(query=None,
     # context stuff similar to used in evaluate()
     import torch
     device, torch_dtype, context_class = get_device_dtype()
+    conditional_type = hasattr(llm, 'pipeline') and hasattr(llm.pipeline, 'model') and hasattr(llm.pipeline.model, 'conditional_type') and llm.pipeline.model.conditional_type
     with torch.no_grad():
         have_lora_weights = lora_weights not in [no_lora_str, '', None]
         context_class_cast = NullContext if device == 'cpu' or have_lora_weights else torch.autocast
@@ -2606,7 +2607,16 @@ def _run_qa_db(query=None,
                             thread.join()
                         outputs += new_text
                         if prompter:  # and False:  # FIXME: pipeline can already use prompter
-                            output1 = prompter.get_response(outputs, prompt=prompt,
+                            if conditional_type:
+                                if prompter.botstr:
+                                    prompt = prompter.botstr
+                                    output_with_prompt = prompt + outputs
+                                else:
+                                    prompt = None
+                                    output_with_prompt = outputs
+                            else:
+                                output_with_prompt = outputs
+                            output1 = prompter.get_response(output_with_prompt, prompt=prompt,
                                                             sanitize_bot_response=sanitize_bot_response)
                             yield output1, ''
                         else:

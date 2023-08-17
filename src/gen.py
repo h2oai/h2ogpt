@@ -27,7 +27,7 @@ from evaluate_params import eval_func_param_names, no_default_param_names, input
 from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mapping, no_model_str, \
     LangChainAction, LangChainAgent, DocumentChoice, LangChainTypes, super_source_prefix, \
     super_source_postfix
-from loaders import get_loaders
+from loaders import get_loaders, t5_type
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
     have_langchain, set_openai, cuda_vis_check, H2O_Fire
@@ -243,6 +243,7 @@ def main(
            See: https://huggingface.co/docs/transformers/main_classes/quantization
            If using older bitsandbytes or transformers, 0 is required
     :param load_half: load model in float16
+           Avoided for t5 models
     :param load_gptq: to load model with GPTQ, put model_basename here, e.g. gptq_model-4bit--1g
     :param load_exllama: whether to use exllama (only applicable to LLaMa1/2 models with 16-bit or GPTQ
     :param use_safetensors: to use safetensors version (assumes file/HF points to safe tensors version)
@@ -740,6 +741,10 @@ def main(
 
     n_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 0
     n_gpus, gpu_ids = cuda_vis_check(n_gpus)
+
+    if t5_type(base_model):
+        load_half = False
+        print("load_half=%s auto-set for %s to avoid bad generation" % (load_half, base_model), flush=True)
 
     if n_gpus == 0 or get_device() == "mps":
         # No CUDA GPUs usable
@@ -1287,10 +1292,11 @@ def get_model(
 
     model_name_exllama_if_no_config = '' if not llamacpp_dict else llamacpp_dict.get('model_name_exllama_if_no_config',
                                                                                      '')
-    model_loader, tokenizer_loader = get_loaders(model_name=base_model, reward_type=reward_type, llama_type=llama_type,
-                                                 load_gptq=load_gptq, load_exllama=load_exllama, config=config,
-                                                 rope_scaling=rope_scaling, max_seq_len=max_seq_len,
-                                                 model_name_exllama_if_no_config=model_name_exllama_if_no_config)
+    model_loader, tokenizer_loader, conditional_type = (
+        get_loaders(model_name=base_model, reward_type=reward_type, llama_type=llama_type,
+                    load_gptq=load_gptq, load_exllama=load_exllama, config=config,
+                    rope_scaling=rope_scaling, max_seq_len=max_seq_len,
+                    model_name_exllama_if_no_config=model_name_exllama_if_no_config))
 
     tokenizer_kwargs = dict(local_files_only=local_files_only,
                             resume_download=resume_download,
@@ -1438,8 +1444,9 @@ def get_hf_model(load_8bit: bool = False,
         "Please choose a base model with --base_model (CLI) or load one from Models Tab (gradio)"
     )
 
-    model_loader, tokenizer_loader = get_loaders(model_name=base_model, reward_type=reward_type, llama_type=llama_type,
-                                                 load_gptq=load_gptq, load_exllama=load_exllama)
+    model_loader, tokenizer_loader, conditional_type = (
+        get_loaders(model_name=base_model, reward_type=reward_type, llama_type=llama_type,
+                    load_gptq=load_gptq, load_exllama=load_exllama))
 
     config, _, max_seq_len = get_config(base_model, return_model=False, raise_exception=True, **config_kwargs)
 
@@ -1605,6 +1612,10 @@ def get_hf_model(load_8bit: bool = False,
 
     set_model_max_len(max_seq_len, tokenizer, verbose=False, reward_type=reward_type)
 
+    # tell if conditional type
+    model.conditional_type = conditional_type
+    tokenizer.conditional_type = conditional_type
+
     return model, tokenizer, device
 
 
@@ -1638,7 +1649,7 @@ def pop_unused_model_kwargs(model_kwargs):
 def get_score_model(score_model: str = None,
                     load_8bit: bool = False,
                     load_4bit: bool = False,
-                    low_bit_mode = 1,
+                    low_bit_mode=1,
                     load_half: bool = True,
                     load_gptq: str = '',
                     load_exllama: bool = False,
@@ -2364,7 +2375,7 @@ def evaluate(
     max_input_tokens = max(0, int(max_max_tokens - min_new_tokens))
     # NOTE: Don't limit up front due to max_new_tokens, let go up to max or reach max_max_tokens in stopping.py
     assert isinstance(max_input_tokens, int), "Bad type for max_input_tokens=%s %s" % (
-    max_input_tokens, type(max_input_tokens))
+        max_input_tokens, type(max_input_tokens))
     input_ids = input_ids[:, -max_input_tokens:]
     # required for falcon if multiple threads or asyncio accesses to model during generation
     if use_cache is None:
@@ -2478,7 +2489,13 @@ def evaluate(
                             if bucket.qsize() > 0 or thread.exc:
                                 thread.join()
                             outputs += new_text
-                            response = prompter.get_response(outputs, prompt=inputs_decoded,
+                            if hasattr(model, 'conditional_type') and model.conditional_type:
+                                # because doesn't support skip_prompt=False
+                                prompt_and_outputs = prompt + outputs
+                            else:
+                                # because skip_prompt=False
+                                prompt_and_outputs = outputs
+                            response = prompter.get_response(prompt_and_outputs, prompt=inputs_decoded,
                                                              sanitize_bot_response=sanitize_bot_response)
                             yield dict(response=response, sources=sources, save_dict=dict())
                     except BaseException:
