@@ -2068,7 +2068,8 @@ def clear_embedding(db):
         return
     # don't keep on GPU, wastes memory, push back onto CPU and only put back on GPU once again embed
     try:
-        db._embedding_function.client.cpu()
+        if hasattr(db._embedding_function.client, 'cpu'):
+            db._embedding_function.client.cpu()
         clear_torch_cache()
     except RuntimeError as e:
         print("clear_embedding error: %s" % ''.join(traceback.format_tb(e.__traceback__)), flush=True)

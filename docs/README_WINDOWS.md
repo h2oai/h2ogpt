@@ -201,3 +201,9 @@ See [CPU](README_CPU.md) and [GPU](README_GPU.md) for some other general aspects
   * Try: https://stackoverflow.com/a/75111104
   * Or try: https://github.com/huggingface/transformers/issues/17611#issuecomment-1619582900
   * Try using proxy.
+* If you see import problems, then try setting `PYTHONPATH` in a `.bat` file:
+  ```shell
+  SET PYTHONPATH=.:src:$PYTHONPATH
+  python generate.py ...
+  ```
+  for some options ...
