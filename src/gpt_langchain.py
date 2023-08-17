@@ -1918,7 +1918,8 @@ def prep_langchain(persist_directory,
     # FIXME: Add github caching then add here
     :return:
     """
-    assert langchain_mode not in ['MyData'], "Should not prep scratch/personal data"
+    if os.getenv("HARD_ASSERTS"):
+        assert langchain_mode not in ['MyData'], "Should not prep scratch/personal data"
 
     db_dir_exists = os.path.isdir(persist_directory)
     user_path = langchain_mode_paths.get(langchain_mode)
