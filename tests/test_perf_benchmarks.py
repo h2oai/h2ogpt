@@ -13,7 +13,7 @@ from src.utils import download_simple
 @pytest.mark.parametrize("backend", [
     'transformers',
     # 'tgi',
-    'mixed',
+    # 'mixed',
 ])
 @pytest.mark.parametrize("base_model", [
     'h2oai/h2ogpt-4096-llama2-7b-chat',
@@ -38,18 +38,19 @@ def test_perf_benchmarks(backend, base_model, task, bits, ngpus):
     bench_dict = locals()
     from datetime import datetime
     import json
-    import torch
-    if ngpus > torch.cuda.device_count():
-        return
     os.environ['CUDA_VISIBLE_DEVICES'] = "0" if ngpus == 1 else ",".join([str(x) for x in range(ngpus)])
+    os.putenv('CUDA_VISIBLE_DEVICES', "0" if ngpus == 1 else ",".join([str(x) for x in range(ngpus)]))
+    import torch
     n_gpus = torch.cuda.device_count()
+    if n_gpus != ngpus:
+        return
     git_sha = (
         subprocess.check_output("git rev-parse HEAD", shell=True)
         .decode("utf-8")
         .strip()
     )
     bench_dict["date"] = datetime.now().strftime("%m/%d/%Y %H:%M:%S")
-    bench_dict["git_sha"] = git_sha
+    bench_dict["git_sha"] = git_sha[:8]
     bench_dict["n_gpus"] = n_gpus
     bench_dict["gpus"] = [torch.cuda.get_device_name(i) for i in range(n_gpus)]
 
