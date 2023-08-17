@@ -76,8 +76,9 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
         return None
     user_path = langchain_mode_paths.get(langchain_mode)
     if persist_directory is None:
-        langchain_type = langchain_mode_types.get(langchain_mode, LangChainTypes.PERSONAL.value)
-        persist_directory = get_persist_directory(langchain_mode, langchain_type=langchain_type)
+        langchain_type = langchain_mode_types.get(langchain_mode, LangChainTypes.EITHER.value)
+        persist_directory, langchain_type = get_persist_directory(langchain_mode, langchain_type=langchain_type)
+        langchain_mode_types[langchain_mode] = langchain_type
     assert hf_embedding_model is not None
 
     # get freshly-determined embedding model
@@ -2014,7 +2015,7 @@ def get_existing_db(db, persist_directory,
                     langchain_mode, langchain_mode_paths, langchain_mode_types,
                     hf_embedding_model,
                     migrate_embedding_model,
-                    verbose=False, check_embedding=True):
+                    verbose=False, check_embedding=True, migrate_meta=True):
     if load_db_if_exists and db_type == 'chroma' and os.path.isdir(persist_directory) and os.path.isdir(
             os.path.join(persist_directory, 'index')):
         if db is None:
@@ -2039,6 +2040,10 @@ def get_existing_db(db, persist_directory,
                 got_embedding, use_openai_embedding, hf_embedding_model = load_embed(db=db)
             if verbose:
                 print("USING already-loaded db: %s" % langchain_mode, flush=True)
+        if migrate_meta and db is not None:
+            db_documents, db_metadatas = get_docs_and_meta(db, top_k_docs=-1)
+            [x.update(dict(chunk_id=x.get('chunk_id', 0))) for x in db_metadatas]
+
         if check_embedding:
             db_trial, changed_db = check_update_chroma_embedding(db, use_openai_embedding,
                                                                  hf_embedding_model,
@@ -2120,7 +2125,7 @@ def load_embed(db=None, persist_directory=None):
 def get_persist_directory(langchain_mode, langchain_type=None, db1s=None, dbs=None):
     if langchain_mode in [LangChainMode.DISABLED.value, LangChainMode.LLM.value]:
         # not None so join works but will fail to find db
-        return ''
+        return '', langchain_type
 
     userid = get_userid_direct(db1s)
     username = get_username_direct(db1s)
@@ -2141,6 +2146,7 @@ def get_persist_directory(langchain_mode, langchain_type=None, db1s=None, dbs=No
         userid = get_userid_direct(db1s)
         username = get_username_direct(db1s)
         dirid = username or userid
+        langchain_type = LangChainTypes.PERSONAL.value
 
     # deal with existing locations
     user_base_dir = os.getenv('USERS_BASE_DIR', 'users')
@@ -2149,30 +2155,24 @@ def get_persist_directory(langchain_mode, langchain_type=None, db1s=None, dbs=No
             (os.path.isdir(persist_directory) or
              db1s is not None and langchain_mode in db1s or
              langchain_type == LangChainTypes.PERSONAL.value):
-        msg = "Bad type: %s for %s" % (langchain_type, langchain_mode)
-        # if langchain_mode in dbs:
-        #    raise RuntimeError(msg)
-        if langchain_type is not None:
-            assert langchain_type == LangChainTypes.PERSONAL.value, msg
+        langchain_type = LangChainTypes.PERSONAL.value
         persist_directory = makedirs(persist_directory, use_base=True)
-        return persist_directory
+        return persist_directory, langchain_type
 
     persist_directory = 'db_dir_%s' % langchain_mode
     if (os.path.isdir(persist_directory) or
             dbs is not None and langchain_mode in dbs or
             langchain_type == LangChainTypes.SHARED.value):
-        msg = "Bad type: %s for %s" % (langchain_type, langchain_mode)
-        # if langchain_mode in db1s:
-        #    raise RuntimeError(msg)
-        if langchain_type is not None:
-            assert langchain_type == LangChainTypes.SHARED.value, msg
+        # ensure consistent
+        langchain_type = LangChainTypes.SHARED.value
         persist_directory = makedirs(persist_directory, use_base=True)
-        return persist_directory
+        return persist_directory, langchain_type
 
     # dummy return for prep_langchain() or full personal space
     persist_directory = 'db_dir_%s' % str(uuid.uuid4())
     persist_directory = makedirs(persist_directory, use_base=True)
-    return persist_directory
+    langchain_type = LangChainTypes.PERSONAL.value
+    return persist_directory, langchain_type
 
 
 def _make_db(use_openai_embedding=False,
@@ -2190,8 +2190,9 @@ def _make_db(use_openai_embedding=False,
              verbose=False):
     assert hf_embedding_model is not None
     user_path = langchain_mode_paths.get(langchain_mode)
-    langchain_type = langchain_mode_types.get(langchain_mode, LangChainTypes.PERSONAL.value)
-    persist_directory = get_persist_directory(langchain_mode, langchain_type=langchain_type)
+    langchain_type = langchain_mode_types.get(langchain_mode, LangChainTypes.EITHER.value)
+    persist_directory, langchain_type = get_persist_directory(langchain_mode, langchain_type=langchain_type)
+    langchain_mode_types[langchain_mode] = langchain_type
     # see if can get persistent chroma db
     db_trial, use_openai_embedding, hf_embedding_model = \
         get_existing_db(db, persist_directory, load_db_if_exists, db_type,
@@ -2210,14 +2211,12 @@ def _make_db(use_openai_embedding=False,
             print("Generating new wiki", flush=True)
             sources1 = get_all_documents(small_test=small_test, n_jobs=os.cpu_count() // 2)
             print("Got new wiki", flush=True)
-            if chunk:
-                sources1 = chunk_sources(sources1)
-                print("Chunked new wiki", flush=True)
+            sources1 = chunk_sources(sources1, chunk=chunk)
+            print("Chunked new wiki", flush=True)
             sources.extend(sources1)
         elif langchain_mode in ['wiki']:
             sources1 = get_wiki_sources(first_para=first_para, text_limit=text_limit)
-            if chunk:
-                sources1 = chunk_sources(sources1)
+            sources1 = chunk_sources(sources1, chunk=chunk)
             sources.extend(sources1)
         elif langchain_mode in ['github h2oGPT']:
             # sources = get_github_docs("dagster-io", "dagster")
@@ -2227,8 +2226,8 @@ def _make_db(use_openai_embedding=False,
             sources.extend(sources1)
         elif langchain_mode in ['DriverlessAI docs']:
             sources1 = get_dai_docs(from_hf=True)
-            if chunk and False:  # FIXME: DAI docs are already chunked well, should only chunk more if over limit
-                sources1 = chunk_sources(sources1)
+            # FIXME: DAI docs are already chunked well, should only chunk more if over limit
+            sources1 = chunk_sources(sources1, chunk=False)
             sources.extend(sources1)
     if user_path:
         # UserData or custom, which has to be from user's disk
@@ -3221,8 +3220,10 @@ def get_any_db(db1s, langchain_mode, langchain_mode_paths, langchain_mode_types,
         db = None
 
     if db is None:
-        langchain_type = langchain_mode_types.get(langchain_mode, LangChainTypes.PERSONAL.value)
-        persist_directory = get_persist_directory(langchain_mode, db1s=db1s, dbs=dbs, langchain_type=langchain_type)
+        langchain_type = langchain_mode_types.get(langchain_mode, LangChainTypes.EITHER.value)
+        persist_directory, langchain_type = get_persist_directory(langchain_mode, db1s=db1s, dbs=dbs,
+                                                                  langchain_type=langchain_type)
+        langchain_mode_types[langchain_mode] = langchain_type
         # see if actually have on disk, don't try to switch embedding yet, since can't use return here
         migrate_embedding_model = False
         db, _, _ = \
@@ -3446,7 +3447,8 @@ def _update_user_db(file,
                 assert get_dbid(db1) is not None, "db hash was None, not allowed"
                 # then create
                 # if added has to original state and didn't change, then would be shared db for all users
-                persist_directory = get_persist_directory(langchain_mode, db1s=db1s, dbs=dbs)
+                persist_directory, langchain_type = get_persist_directory(langchain_mode, db1s=db1s, dbs=dbs)
+                langchain_mode_types[langchain_mode] = langchain_type
                 db = get_db(sources, use_openai_embedding=use_openai_embedding,
                             db_type=db_type,
                             persist_directory=persist_directory,
@@ -3460,7 +3462,8 @@ def _update_user_db(file,
             source_files_added = get_source_files(db=db1[0], exceptions=exceptions)
             return None, langchain_mode, source_files_added, '\n'.join(exceptions_strs)
         else:
-            persist_directory = get_persist_directory(langchain_mode, db1s=db1s, dbs=dbs)
+            persist_directory, langchain_type = get_persist_directory(langchain_mode, db1s=db1s, dbs=dbs)
+            langchain_mode_types[langchain_mode] = langchain_type
             if langchain_mode in dbs and dbs[langchain_mode] is not None:
                 # then add
                 db, num_new_sources, new_sources_metadata = add_to_db(dbs[langchain_mode], sources, db_type=db_type,
@@ -3698,22 +3701,29 @@ def _chunk_sources(sources, chunk=True, chunk_size=512, language=None, db_type=N
         sources = [sources]
     if not chunk:
         [x.metadata.update(dict(chunk_id=0)) for chunk_id, x in enumerate(sources)]
-        return sources
-    if language and False:
-        # Bug in langchain, keep separator=True not working
-        # https://github.com/hwchase17/langchain/issues/2836
-        # so avoid this for now
-        keep_separator = True
-        separators = RecursiveCharacterTextSplitter.get_separators_for_language(language)
+        if db_type == 'chroma':
+            # make copy so can have separate summarize case
+            source_chunks = [Document(page_content=x.page_content,
+                                      metadata=copy.deepcopy(x.metadata) or {})
+                             for x in sources]
+        else:
+            source_chunks = sources  # just same thing
     else:
-        separators = ["\n\n", "\n", " ", ""]
-        keep_separator = False
-    splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=0, keep_separator=keep_separator,
-                                              separators=separators)
-    source_chunks = splitter.split_documents(sources)
+        if language and False:
+            # Bug in langchain, keep separator=True not working
+            # https://github.com/hwchase17/langchain/issues/2836
+            # so avoid this for now
+            keep_separator = True
+            separators = RecursiveCharacterTextSplitter.get_separators_for_language(language)
+        else:
+            separators = ["\n\n", "\n", " ", ""]
+            keep_separator = False
+        splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=0, keep_separator=keep_separator,
+                                                  separators=separators)
+        source_chunks = splitter.split_documents(sources)
 
-    # currently in order, but when pull from db won't be, so mark order and document by hash
-    [x.metadata.update(dict(chunk_id=chunk_id)) for chunk_id, x in enumerate(source_chunks)]
+        # currently in order, but when pull from db won't be, so mark order and document by hash
+        [x.metadata.update(dict(chunk_id=chunk_id)) for chunk_id, x in enumerate(source_chunks)]
 
     if db_type == 'chroma':
         # also keep original source for summarization and other tasks

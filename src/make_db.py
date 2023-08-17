@@ -114,7 +114,7 @@ def make_db_main(use_openai_embedding: bool = False,
     if isinstance(selected_file_types, str):
         selected_file_types = ast.literal_eval(selected_file_types)
     if persist_directory is None:
-        persist_directory = get_persist_directory(collection_name, langchain_type=langchain_type)
+        persist_directory, langchain_type = get_persist_directory(collection_name, langchain_type=langchain_type)
     if download_dest is None:
         download_dest = makedirs('./', use_base=True)
 

@@ -54,6 +54,7 @@ langchain_agents_list = [x.value for x in list(LangChainAgent)]
 def main(
         load_8bit: bool = False,
         load_4bit: bool = False,
+        low_bit_mode: int = 1,
         load_half: bool = True,
         load_gptq: str = '',
         load_exllama: bool = False,
@@ -238,6 +239,9 @@ def main(
 
     :param load_8bit: load model in 8-bit using bitsandbytes
     :param load_4bit: load model in 4-bit using bitsandbytes
+    :param low_bit_mode: 0: no quantization config 1: change compute 2: nf4 3: double quant 4: 2 and 3
+           See: https://huggingface.co/docs/transformers/main_classes/quantization
+           If using older bitsandbytes or transformers, 0 is required
     :param load_half: load model in float16
     :param load_gptq: to load model with GPTQ, put model_basename here, e.g. gptq_model-4bit--1g
     :param load_exllama: whether to use exllama (only applicable to LLaMa1/2 models with 16-bit or GPTQ
@@ -429,6 +433,7 @@ def main(
 
     :param langchain_mode: Data source to include.  Choose "UserData" to only consume files from make_db.py.
            None: auto mode, check if langchain package exists, at least do LLM if so, else Disabled
+           If not passed, then chosen to be first langchain_modes, else langchain_mode->Disabled is set if no langchain_modes either
            WARNING: wiki_full requires extra data processing via read_wiki_full.py and requires really good workstation to generate db, unless already present.
     :param user_path: user path to glob from to generate db for vector search, for 'UserData' langchain mode.
            If already have db, any new/changed files are added automatically if path set, does not have to be same path used for prior db sources
@@ -443,6 +448,8 @@ def main(
            A disk path be None, e.g. --langchain_mode_paths="{'UserData2': None}" even if existing DB, to avoid new documents being added from that path, source links that are on disk still work.
            If `--user_path` was passed, that path is used for 'UserData' instead of the value in this dict
     :param langchain_mode_types: dict of langchain_mode keys and database types
+           E.g. python generate.py --base_model=llama --langchain_modes=['TestData'] --langchain_mode_types="{'TestData':'shared'}"
+           The type is attempted to be inferred if directory already exists, then don't have to pass this
     :param detect_user_path_changes_every_query: whether to detect if any files changed or added every similarity search (by file hashes).
            Expensive for large number of files, so not done by default.  By default only detect changes during db loading.
 
@@ -649,7 +656,11 @@ def main(
     # auto-set langchain_mode
     if have_langchain and langchain_mode is None:
         # start in chat mode, in case just want to chat and don't want to get "No documents to query" by default.
-        langchain_mode = LangChainMode.LLM.value
+        if LangChainMode.LLM.value in langchain_modes:
+            langchain_mode = LangChainMode.LLM.value
+        elif len(langchain_modes) >= 1:
+            # infer even if don't pass which langchain_mode, just langchain_modes.
+            langchain_mode = langchain_modes[0]
         if allow_upload_to_user_data and not is_public and langchain_mode_paths['UserData']:
             print("Auto set langchain_mode=%s.  Could use UserData instead." % langchain_mode, flush=True)
         elif allow_upload_to_my_data:
@@ -740,6 +751,7 @@ def main(
         gpu_id = None
         load_8bit = False
         load_4bit = False
+        low_bit_mode = 1
         load_half = False
         load_gptq = ''
         load_exllama = False
@@ -828,11 +840,15 @@ def main(
             get_some_dbs_from_hf()
         dbs = {}
         for langchain_mode1 in langchain_modes:
-            langchain_type = langchain_mode_types.get(langchain_mode1, LangChainTypes.PERSONAL.value)
+            langchain_type = langchain_mode_types.get(langchain_mode1, LangChainTypes.EITHER.value)
             if langchain_type == LangChainTypes.PERSONAL.value:
                 # shouldn't prepare per-user databases here
                 continue
-            persist_directory1 = get_persist_directory(langchain_mode1, langchain_type=langchain_type)
+            persist_directory1, langchain_type = get_persist_directory(langchain_mode1, langchain_type=langchain_type)
+            langchain_mode_types[langchain_mode] = langchain_type
+            if langchain_type == LangChainTypes.PERSONAL.value:
+                # shouldn't prepare per-user databases here
+                continue
             try:
                 db = prep_langchain(persist_directory1,
                                     load_db_if_exists,
@@ -1015,7 +1031,7 @@ def get_config(base_model,
 
     # allow override
     if max_seq_len is not None:
-        print("Overriding max_seq_len %d -> %d" % (max_seq_len, max_seq_len), flush=True)
+        print("Overriding max_seq_len -> %d" % max_seq_len, flush=True)
     else:
         if hasattr(config, 'max_seq_len'):
             max_seq_len = int(config.max_seq_len)
@@ -1181,6 +1197,7 @@ def get_client_from_inference_server(inference_server, base_model=None, raise_co
 def get_model(
         load_8bit: bool = False,
         load_4bit: bool = False,
+        low_bit_mode: int = 1,
         load_half: bool = True,
         load_gptq: str = '',
         load_exllama: bool = False,
@@ -1211,6 +1228,7 @@ def get_model(
 
     :param load_8bit: load model in 8-bit, not supported by all models
     :param load_4bit: load model in 4-bit, not supported by all models
+    :param low_bit_mode: See gen.py
     :param load_half: load model in 16-bit
     :param load_gptq: GPTQ model_basename
     :param load_exllama: whether to use exllama
@@ -1267,9 +1285,12 @@ def get_model(
             print("Detected as llama type from"
                   " config (%s) or name (%s)" % (llama_type_from_config, llama_type_from_name), flush=True)
 
+    model_name_exllama_if_no_config = '' if not llamacpp_dict else llamacpp_dict.get('model_name_exllama_if_no_config',
+                                                                                     '')
     model_loader, tokenizer_loader = get_loaders(model_name=base_model, reward_type=reward_type, llama_type=llama_type,
                                                  load_gptq=load_gptq, load_exllama=load_exllama, config=config,
-                                                 rope_scaling=rope_scaling, max_seq_len=max_seq_len)
+                                                 rope_scaling=rope_scaling, max_seq_len=max_seq_len,
+                                                 model_name_exllama_if_no_config=model_name_exllama_if_no_config)
 
     tokenizer_kwargs = dict(local_files_only=local_files_only,
                             resume_download=resume_download,
@@ -1343,6 +1364,7 @@ def get_model(
     # get local torch-HF model
     return get_hf_model(load_8bit=load_8bit,
                         load_4bit=load_4bit,
+                        low_bit_mode=low_bit_mode,
                         load_half=load_half,
                         load_gptq=load_gptq,
                         use_safetensors=use_safetensors,
@@ -1371,6 +1393,7 @@ def get_model(
 
 def get_hf_model(load_8bit: bool = False,
                  load_4bit: bool = False,
+                 low_bit_mode: int = 1,
                  load_half: bool = True,
                  load_gptq: str = '',
                  use_safetensors: bool = False,
@@ -1464,6 +1487,32 @@ def get_hf_model(load_8bit: bool = False,
             model_kwargs['device_map'] = {"": 0} if device == 'cuda' else {"": 'cpu'}
             model_kwargs.pop('torch_dtype', None)
         pop_unused_model_kwargs(model_kwargs)
+
+        if low_bit_mode == 1:
+            from transformers import BitsAndBytesConfig
+            model_kwargs['quantization_config'] = BitsAndBytesConfig(bnb_4bit_compute_dtype=torch.bfloat16,
+                                                                     load_in_4bit=load_4bit,
+                                                                     load_in_8bit=load_8bit,
+                                                                     )
+        elif low_bit_mode == 2:
+            from transformers import BitsAndBytesConfig
+            model_kwargs['quantization_config'] = BitsAndBytesConfig(bnb_4bit_quant_type="nf4",
+                                                                     load_in_4bit=load_4bit,
+                                                                     load_in_8bit=load_8bit,
+                                                                     )
+        elif low_bit_mode == 3:
+            from transformers import BitsAndBytesConfig
+            model_kwargs['quantization_config'] = BitsAndBytesConfig(bnb_4bit_use_double_quant=True,
+                                                                     load_in_4bit=load_4bit,
+                                                                     load_in_8bit=load_8bit,
+                                                                     )
+        elif low_bit_mode == 4:
+            from transformers import BitsAndBytesConfig
+            model_kwargs['quantization_config'] = BitsAndBytesConfig(bnb_4bit_use_double_quant=True,
+                                                                     bnb_4bit_quant_type="nf4",
+                                                                     load_in_4bit=load_4bit,
+                                                                     load_in_8bit=load_8bit,
+                                                                     )
 
         if not lora_weights:
             # torch.device context uses twice memory for AutoGPTQ
@@ -1589,6 +1638,7 @@ def pop_unused_model_kwargs(model_kwargs):
 def get_score_model(score_model: str = None,
                     load_8bit: bool = False,
                     load_4bit: bool = False,
+                    low_bit_mode = 1,
                     load_half: bool = True,
                     load_gptq: str = '',
                     load_exllama: bool = False,
@@ -1615,6 +1665,7 @@ def get_score_model(score_model: str = None,
     if score_model is not None and score_model.strip():
         load_8bit = False
         load_4bit = False
+        low_bit_mode = 1
         load_half = False
         load_gptq = ''
         load_exllama = False
@@ -2312,7 +2363,8 @@ def evaluate(
     max_max_tokens = tokenizer.model_max_length
     max_input_tokens = max(0, int(max_max_tokens - min_new_tokens))
     # NOTE: Don't limit up front due to max_new_tokens, let go up to max or reach max_max_tokens in stopping.py
-    assert isinstance(max_input_tokens, int), "Bad type for max_input_tokens=%s %s" % (max_input_tokens, type(max_input_tokens))
+    assert isinstance(max_input_tokens, int), "Bad type for max_input_tokens=%s %s" % (
+    max_input_tokens, type(max_input_tokens))
     input_ids = input_ids[:, -max_input_tokens:]
     # required for falcon if multiple threads or asyncio accesses to model during generation
     if use_cache is None:
