@@ -447,6 +447,7 @@ def go_gradio(**kwargs):
                     selection_docs_state1['langchain_mode_paths'].pop(k)
             for k in selection_docs_state1['langchain_modes']:
                 if k not in selection_docs_state1['langchain_mode_types']:
+                    # if didn't specify shared, then assume scratch if didn't login or personal if logged in
                     selection_docs_state1['langchain_mode_types'][k] = LangChainTypes.PERSONAL.value
             return selection_docs_state1
 

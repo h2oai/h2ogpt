@@ -76,8 +76,9 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
         return None
     user_path = langchain_mode_paths.get(langchain_mode)
     if persist_directory is None:
-        langchain_type = langchain_mode_types.get(langchain_mode, LangChainTypes.PERSONAL.value)
-        persist_directory = get_persist_directory(langchain_mode, langchain_type=langchain_type)
+        langchain_type = langchain_mode_types.get(langchain_mode, LangChainTypes.EITHER.value)
+        persist_directory, langchain_type = get_persist_directory(langchain_mode, langchain_type=langchain_type)
+        langchain_mode_types[langchain_mode] = langchain_type
     assert hf_embedding_model is not None
 
     # get freshly-determined embedding model
@@ -2124,7 +2125,7 @@ def load_embed(db=None, persist_directory=None):
 def get_persist_directory(langchain_mode, langchain_type=None, db1s=None, dbs=None):
     if langchain_mode in [LangChainMode.DISABLED.value, LangChainMode.LLM.value]:
         # not None so join works but will fail to find db
-        return ''
+        return '', langchain_type
 
     userid = get_userid_direct(db1s)
     username = get_username_direct(db1s)
@@ -2145,6 +2146,7 @@ def get_persist_directory(langchain_mode, langchain_type=None, db1s=None, dbs=No
         userid = get_userid_direct(db1s)
         username = get_username_direct(db1s)
         dirid = username or userid
+        langchain_type = LangChainTypes.PERSONAL.value
 
     # deal with existing locations
     user_base_dir = os.getenv('USERS_BASE_DIR', 'users')
@@ -2153,30 +2155,24 @@ def get_persist_directory(langchain_mode, langchain_type=None, db1s=None, dbs=No
             (os.path.isdir(persist_directory) or
              db1s is not None and langchain_mode in db1s or
              langchain_type == LangChainTypes.PERSONAL.value):
-        msg = "Bad type: %s for %s" % (langchain_type, langchain_mode)
-        # if langchain_mode in dbs:
-        #    raise RuntimeError(msg)
-        if langchain_type is not None:
-            assert langchain_type == LangChainTypes.PERSONAL.value, msg
+        langchain_type = LangChainTypes.PERSONAL.value
         persist_directory = makedirs(persist_directory, use_base=True)
-        return persist_directory
+        return persist_directory, langchain_type
 
     persist_directory = 'db_dir_%s' % langchain_mode
     if (os.path.isdir(persist_directory) or
             dbs is not None and langchain_mode in dbs or
             langchain_type == LangChainTypes.SHARED.value):
-        msg = "Bad type: %s for %s" % (langchain_type, langchain_mode)
-        # if langchain_mode in db1s:
-        #    raise RuntimeError(msg)
-        if langchain_type is not None:
-            assert langchain_type == LangChainTypes.SHARED.value, msg
+        # ensure consistent
+        langchain_type = LangChainTypes.SHARED.value
         persist_directory = makedirs(persist_directory, use_base=True)
-        return persist_directory
+        return persist_directory, langchain_type
 
     # dummy return for prep_langchain() or full personal space
     persist_directory = 'db_dir_%s' % str(uuid.uuid4())
     persist_directory = makedirs(persist_directory, use_base=True)
-    return persist_directory
+    langchain_type = LangChainTypes.PERSONAL.value
+    return persist_directory, langchain_type
 
 
 def _make_db(use_openai_embedding=False,
@@ -2194,8 +2190,9 @@ def _make_db(use_openai_embedding=False,
              verbose=False):
     assert hf_embedding_model is not None
     user_path = langchain_mode_paths.get(langchain_mode)
-    langchain_type = langchain_mode_types.get(langchain_mode, LangChainTypes.PERSONAL.value)
-    persist_directory = get_persist_directory(langchain_mode, langchain_type=langchain_type)
+    langchain_type = langchain_mode_types.get(langchain_mode, LangChainTypes.EITHER.value)
+    persist_directory, langchain_type = get_persist_directory(langchain_mode, langchain_type=langchain_type)
+    langchain_mode_types[langchain_mode] = langchain_type
     # see if can get persistent chroma db
     db_trial, use_openai_embedding, hf_embedding_model = \
         get_existing_db(db, persist_directory, load_db_if_exists, db_type,
@@ -3223,8 +3220,10 @@ def get_any_db(db1s, langchain_mode, langchain_mode_paths, langchain_mode_types,
         db = None
 
     if db is None:
-        langchain_type = langchain_mode_types.get(langchain_mode, LangChainTypes.PERSONAL.value)
-        persist_directory = get_persist_directory(langchain_mode, db1s=db1s, dbs=dbs, langchain_type=langchain_type)
+        langchain_type = langchain_mode_types.get(langchain_mode, LangChainTypes.EITHER.value)
+        persist_directory, langchain_type = get_persist_directory(langchain_mode, db1s=db1s, dbs=dbs,
+                                                                  langchain_type=langchain_type)
+        langchain_mode_types[langchain_mode] = langchain_type
         # see if actually have on disk, don't try to switch embedding yet, since can't use return here
         migrate_embedding_model = False
         db, _, _ = \
@@ -3448,7 +3447,8 @@ def _update_user_db(file,
                 assert get_dbid(db1) is not None, "db hash was None, not allowed"
                 # then create
                 # if added has to original state and didn't change, then would be shared db for all users
-                persist_directory = get_persist_directory(langchain_mode, db1s=db1s, dbs=dbs)
+                persist_directory, langchain_type = get_persist_directory(langchain_mode, db1s=db1s, dbs=dbs)
+                langchain_mode_types[langchain_mode] = langchain_type
                 db = get_db(sources, use_openai_embedding=use_openai_embedding,
                             db_type=db_type,
                             persist_directory=persist_directory,
@@ -3462,7 +3462,8 @@ def _update_user_db(file,
             source_files_added = get_source_files(db=db1[0], exceptions=exceptions)
             return None, langchain_mode, source_files_added, '\n'.join(exceptions_strs)
         else:
-            persist_directory = get_persist_directory(langchain_mode, db1s=db1s, dbs=dbs)
+            persist_directory, langchain_type = get_persist_directory(langchain_mode, db1s=db1s, dbs=dbs)
+            langchain_mode_types[langchain_mode] = langchain_type
             if langchain_mode in dbs and dbs[langchain_mode] is not None:
                 # then add
                 db, num_new_sources, new_sources_metadata = add_to_db(dbs[langchain_mode], sources, db_type=db_type,

@@ -69,6 +69,7 @@ class LangChainMode(Enum):
 class LangChainTypes(Enum):
     SHARED = 'shared'
     PERSONAL = 'personal'
+    EITHER = 'either'  # used when user did not pass which one, so need to try both
 
 
 # modes should not be removed from visible list or added by name

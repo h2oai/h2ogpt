@@ -433,6 +433,7 @@ def main(
 
     :param langchain_mode: Data source to include.  Choose "UserData" to only consume files from make_db.py.
            None: auto mode, check if langchain package exists, at least do LLM if so, else Disabled
+           If not passed, then chosen to be first langchain_modes, else langchain_mode->Disabled is set if no langchain_modes either
            WARNING: wiki_full requires extra data processing via read_wiki_full.py and requires really good workstation to generate db, unless already present.
     :param user_path: user path to glob from to generate db for vector search, for 'UserData' langchain mode.
            If already have db, any new/changed files are added automatically if path set, does not have to be same path used for prior db sources
@@ -447,6 +448,8 @@ def main(
            A disk path be None, e.g. --langchain_mode_paths="{'UserData2': None}" even if existing DB, to avoid new documents being added from that path, source links that are on disk still work.
            If `--user_path` was passed, that path is used for 'UserData' instead of the value in this dict
     :param langchain_mode_types: dict of langchain_mode keys and database types
+           E.g. python generate.py --base_model=llama --langchain_modes=['TestData'] --langchain_mode_types="{'TestData':'shared'}"
+           The type is attempted to be inferred if directory already exists, then don't have to pass this
     :param detect_user_path_changes_every_query: whether to detect if any files changed or added every similarity search (by file hashes).
            Expensive for large number of files, so not done by default.  By default only detect changes during db loading.
 
@@ -653,7 +656,11 @@ def main(
     # auto-set langchain_mode
     if have_langchain and langchain_mode is None:
         # start in chat mode, in case just want to chat and don't want to get "No documents to query" by default.
-        langchain_mode = LangChainMode.LLM.value
+        if LangChainMode.LLM.value in langchain_modes:
+            langchain_mode = LangChainMode.LLM.value
+        elif len(langchain_modes) >= 1:
+            # infer even if don't pass which langchain_mode, just langchain_modes.
+            langchain_mode = langchain_modes[0]
         if allow_upload_to_user_data and not is_public and langchain_mode_paths['UserData']:
             print("Auto set langchain_mode=%s.  Could use UserData instead." % langchain_mode, flush=True)
         elif allow_upload_to_my_data:
@@ -833,11 +840,15 @@ def main(
             get_some_dbs_from_hf()
         dbs = {}
         for langchain_mode1 in langchain_modes:
-            langchain_type = langchain_mode_types.get(langchain_mode1, LangChainTypes.PERSONAL.value)
+            langchain_type = langchain_mode_types.get(langchain_mode1, LangChainTypes.EITHER.value)
             if langchain_type == LangChainTypes.PERSONAL.value:
                 # shouldn't prepare per-user databases here
                 continue
-            persist_directory1 = get_persist_directory(langchain_mode1, langchain_type=langchain_type)
+            persist_directory1, langchain_type = get_persist_directory(langchain_mode1, langchain_type=langchain_type)
+            langchain_mode_types[langchain_mode] = langchain_type
+            if langchain_type == LangChainTypes.PERSONAL.value:
+                # shouldn't prepare per-user databases here
+                continue
             try:
                 db = prep_langchain(persist_directory1,
                                     load_db_if_exists,
