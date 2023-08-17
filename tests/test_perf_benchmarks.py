@@ -68,6 +68,7 @@ def test_perf_benchmarks(backend, base_model, task, bits, ngpus):
              langchain_mode='MyData',
              use_auth_token=True,
              max_new_tokens=max_new_tokens,
+             use_gpu_id=ngpus == 1,
              )
         if backend == 'transformers':
             from src.gen import main
