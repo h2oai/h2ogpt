@@ -2472,6 +2472,8 @@ def evaluate(
                     decoder = decoder_raw
                     decoder_kwargs = decoder_raw_kwargs
                 else:
+                    # decode(encode(prompt)) != prompt, then assume tokenizer issue and generation cleaner, so use real prompt
+                    inputs_decoded = prompt
                     if verbose:
                         print("WARNING: Special characters in prompt", flush=True)
                 if stream_output:
