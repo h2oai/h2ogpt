@@ -1,19 +1,19 @@
 name: Build & Publish h2oGPT Python wheel to PYPI
 
 on:
-  pull_request:
   workflow_dispatch:
     inputs:
       pypi-index:
         type: choice
-        description: PYPI index that needed to be published
+        description: PyPI index that needed to be published
         required: true
-        default: TEST-PYPI
+        default: Test-PyPI
         options:
-          - PYPI
-          - Test-PYPI
+          - PyPI
+          - Test-PyPI
       version:
-        description: Custom version for the python package
+        description: |
+          Override the current version for the python package for dev purposes when uploading to Test-PyPI
         type: string
 
 jobs:
@@ -37,21 +37,21 @@ jobs:
         - name: Modify Version
           if: ${{ inputs.version != ''}}
           run: |
-            ${{ inputs.version}} > version.txt
-            echo "h2ogpt wheel version  = $(cat version.txt)"
+            echo ${{ inputs.version}} > version.txt
+            echo "h2ogpt-wheel-version  = $(cat version.txt)"
         
-        - name: Publish to Test-PYPI
-          if: ${{ inputs.pypi-index == 'Test-PYPI' }}
+        - name: Publish to Test-PyPI
+          if: ${{ inputs.pypi-index == 'Test-PyPI' }}
           run: |
-            echo "publishing to test-pypi"
+            twine upload -r testpypi dist/*
           env:
             TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}  
             TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
         
-        - name: Publish to Test-PYPI
-          if: ${{ inputs.pypi-index == 'PYPI' }}
+        - name: Publish to PyPI
+          if: ${{ inputs.pypi-index == 'PyPI' }}
           run: |
-            echo "publishing to pypi"
+            twine upload dist/*
           env:
             TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}  
             TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
