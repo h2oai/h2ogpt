@@ -855,7 +855,7 @@ class Prompter(object):
         self.prompt = prompt
         return prompt
 
-    def get_response(self, outputs, prompt=None, sanitize_bot_response=False):
+    def get_response(self, outputs, prompt=None, sanitize_bot_response=False, only_new_text=False):
         if isinstance(outputs, str):
             outputs = [outputs]
         if self.debug:
@@ -890,7 +890,11 @@ class Prompter(object):
             if self.prompt_type in [PromptType.plain.value, str(PromptType.plain.value), PromptType.plain.name]:
                 output = clean_response(output)
                 allow_terminate = True
+            elif only_new_text:
+                # only use terminate, that will have other variations of cleaning that include \n etc. not just simple human bot that will leave residual \n
+                allow_terminate = True
             elif prompt is None:
+                allow_terminate = True
                 # then use most basic parsing like pipeline
                 if not self.botstr:
                     pass
@@ -900,7 +904,6 @@ class Prompter(object):
                     else:
                         # i.e. use after bot but only up to next bot
                         output = clean_response(output.split(self.botstr)[-1].split(self.botstr)[0])
-                allow_terminate = True
             else:
                 # find first instance of prereponse
                 # prompt sometimes has odd characters, that mutate length,

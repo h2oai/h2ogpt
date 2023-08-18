@@ -2466,6 +2466,7 @@ def evaluate(
                                 thread.join()
                             outputs += new_text
                             response = prompter.get_response(outputs, prompt=None,
+                                                             only_new_text=True,
                                                              sanitize_bot_response=sanitize_bot_response)
                             yield dict(response=response, sources=sources, save_dict=dict())
                     except BaseException:
@@ -2489,10 +2490,13 @@ def evaluate(
                     finally:
                         pass
                         # don't clear torch cache here, delays multi-generation, and bot(), all_bot(), and evaluate_nochat() do it
-                    ntokens = sum([len(s) for s in outputs.sequences]) if save_dir else -1
-                    outputs = [decoder(s) for s in outputs.sequences]
+                    # skip first IDs
+                    input_ids_len = gen_kwargs['input_ids'][0].shape[0]
+                    ntokens = sum([len(s) - input_ids_len for s in outputs.sequences]) if save_dir else -1
+                    outputs = [decoder(s[input_ids_len:]) for s in outputs.sequences]
                     sources = ''
                     response = prompter.get_response(outputs, prompt=None,
+                                                     only_new_text=True,
                                                      sanitize_bot_response=sanitize_bot_response)
                     yield dict(response=response, sources=sources, save_dict=dict())
                     if outputs and len(outputs) >= 1:

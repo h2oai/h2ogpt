@@ -2616,12 +2616,15 @@ def _run_qa_db(query=None,
                                 if prompter.botstr:
                                     prompt = prompter.botstr
                                     output_with_prompt = prompt + outputs
+                                    only_new_text = False
                                 else:
                                     prompt = None
                                     output_with_prompt = outputs
+                                    only_new_text = True
                             else:
                                 output_with_prompt = outputs
                             output1 = prompter.get_response(output_with_prompt, prompt=prompt,
+                                                            only_new_text=only_new_text,
                                                             sanitize_bot_response=sanitize_bot_response)
                             yield output1, ''
                         else:

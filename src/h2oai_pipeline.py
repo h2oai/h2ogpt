@@ -188,13 +188,17 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
                     if self.prompter.botstr:
                         prompt = self.prompter.botstr
                         output_with_prompt = prompt + outputs
+                        only_new_text = False
                     else:
                         prompt = None
                         output_with_prompt = outputs
+                        only_new_text = True
                 else:
                     output_with_prompt = outputs
                     prompt = self.prompt_text
+                    only_new_text = False
                 outputs = self.prompter.get_response(output_with_prompt, prompt=prompt,
+                                                     only_new_text=only_new_text,
                                                      sanitize_bot_response=self.sanitize_bot_response)
             elif self.bot in rec[key]:
                 if self.human:
