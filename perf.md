@@ -30,13 +30,19 @@
 |-------:|:-----------------------------------------------|---------------------------:|--------------------------------:|
 |     16 | 1 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                    52.4984 |                        26.2487  |
 |     16 | 1 x NVIDIA GeForce RTX 3090 (24576 MiB)        |                   OOM      |                       OOM       |
+|     16 | 1 x NVIDIA GeForce RTX 4090 (24564 MiB)        |                   OOM      |                       OOM       |
 |      8 | 1 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                   168.967  |                         7.67522 |
+|      8 | 1 x NVIDIA GeForce RTX 4090 (24564 MiB)        |                   185.442  |                         6.0205  |
 |      8 | 1 x NVIDIA GeForce RTX 3090 (24576 MiB)        |                   280.467  |                         3.75936 |
 |      4 | 1 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                    45.3051 |                        20.4771  |
+|      4 | 1 x NVIDIA GeForce RTX 4090 (24564 MiB)        |                    68.0646 |                        16.1241  |
 |      4 | 1 x NVIDIA GeForce RTX 3090 (24576 MiB)        |                    96.6189 |                         9.77255 |
 ### Number of GPUs: 2
 |   bits | gpus                                           |   summarization time [sec] |   generation speed [tokens/sec] |
 |-------:|:-----------------------------------------------|---------------------------:|--------------------------------:|
 |     16 | 2 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                    51.6428 |                        26.1842  |
+|     16 | 2 x NVIDIA GeForce RTX 3090 (24576 MiB)        |                    89.5996 |                        12.8295  |
 |      8 | 2 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                   167.523  |                         7.82793 |
+|      8 | 2 x NVIDIA GeForce RTX 3090 (24576 MiB)        |                   280.831  |                         3.72157 |
 |      4 | 2 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                    47.1425 |                        19.9791  |
+|      4 | 2 x NVIDIA GeForce RTX 3090 (24576 MiB)        |                    98.4705 |                         9.68779 |
