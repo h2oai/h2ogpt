@@ -102,7 +102,7 @@ def get_stopping(prompt_type, prompt_dict, tokenizer, device, base_model,
             stop_words_ids = [x[:-1] if x[-1] == tokenizer.unk_token_id and len(x) > 1 else x for x in stop_words_ids]
         if tokenizer._eos_token:  # use hidden variable to avoid annoying properly logger bug
             stop_words_ids = [x[:-1] if x[-1] == tokenizer.eos_token_id and len(x) > 1 else x for x in stop_words_ids]
-        if t5_type(base_model):
+        if base_model and t5_type(base_model):
             # T5 encoder converts internal double space to space+new line, so fix
             for stopi, stop_word_id in enumerate(stop_words_ids):
                 start = stop_word_id[0:1]
