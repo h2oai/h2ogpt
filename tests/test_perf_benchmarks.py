@@ -9,6 +9,7 @@ from tests.test_inference_servers import run_h2ogpt_docker
 from tests.utils import wrap_test_forked, get_inf_server, get_inf_port, get_sha
 from src.utils import download_simple
 
+results_file = "./perf.json"
 
 @pytest.mark.parametrize("backend", [
     'transformers',
@@ -57,7 +58,6 @@ def test_perf_benchmarks(backend, base_model, task, bits, ngpus):
     docker_hash1 = None
     docker_hash2 = None
     max_new_tokens = 4096
-    results_file = "./perf.json"
     try:
         h2ogpt_args = dict(base_model=base_model,
              chat=True, gradio=True, num_beams=1, block_gradio_exit=False, verbose=True,
@@ -192,3 +192,29 @@ def test_perf_benchmarks(backend, base_model, task, bits, ngpus):
                 os.system("docker stop %s" % docker_hash1)
             if docker_hash2:
                 os.system("docker stop %s" % docker_hash2)
+
+
+def test_plot_results():
+    import pandas as pd
+    import json
+    res = []
+    with open(results_file) as f:
+        for line in f.readlines():
+            entry = json.loads(line)
+            res.append(entry)
+    X = pd.DataFrame(res)
+    X.to_csv(results_file + ".csv", index=False)
+
+    X['summarization time [sec]'] = X['summarize_time']
+    X['generation speed [tokens/sec]'] = X['generate_output_len_bytes'] / 4 / X['generate_time']
+    with open("perf.md", "w") as f:
+        for backend in pd.unique(X['backend']):
+            print("## Backend: %s" % backend, file=f)
+            for base_model in pd.unique(X['base_model']):
+                print("### Model: %s" % base_model, file=f)
+                for n_gpus in pd.unique(X['n_gpus']):
+                    print("### Number of GPUs: %s" % n_gpus, file=f)
+
+                    XX = X[(X['base_model'] == base_model) & (X['backend'] == backend) & (X['n_gpus'] == n_gpus)]
+                    XX = XX.sort_values(['bits', 'generation speed [tokens/sec]'], ascending=[False, False])
+                    print(XX[['bits', 'gpus', 'summarization time [sec]', 'generation speed [tokens/sec]']].to_markdown(index=False).replace("nan", "OOM"), file=f)
