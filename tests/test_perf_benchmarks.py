@@ -39,7 +39,6 @@ def test_perf_benchmarks(backend, base_model, task, bits, ngpus):
     from datetime import datetime
     import json
     os.environ['CUDA_VISIBLE_DEVICES'] = "0" if ngpus == 1 else ",".join([str(x) for x in range(ngpus)])
-    os.putenv('CUDA_VISIBLE_DEVICES', "0" if ngpus == 1 else ",".join([str(x) for x in range(ngpus)]))
     import torch
     n_gpus = torch.cuda.device_count()
     if n_gpus != ngpus:
