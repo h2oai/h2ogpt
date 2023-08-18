@@ -2432,6 +2432,9 @@ def evaluate(
     with torch.no_grad():
         have_lora_weights = lora_weights not in [no_lora_str, '', None]
         context_class_cast = NullContext if device == 'cpu' or have_lora_weights or device == 'mps' else torch.autocast
+        if t5_type(base_model):
+            # issues when casting to float16, can mess up t5 model, e.g. only when not streaming, or other odd behaviors
+            context_class_cast = NullContext
         with context_class_cast(device):
             # protection for gradio not keeping track of closed users,
             # else hit bitsandbytes lack of thread safety:
@@ -2445,7 +2448,7 @@ def evaluate(
                 if verbose:
                     print('Generate: %s' % str(datetime.now()), flush=True)
                 if stream_output:
-                    skip_prompt = True  # means first output has prompt too
+                    skip_prompt = True  # True means first output excludes prompt
                     streamer = H2OTextIteratorStreamer(tokenizer, skip_prompt=skip_prompt, block=False,
                                                        **decoder_kwargs)
                     gen_kwargs.update(dict(streamer=streamer))

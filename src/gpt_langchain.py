@@ -2588,10 +2588,14 @@ def _run_qa_db(query=None,
     # context stuff similar to used in evaluate()
     import torch
     device, torch_dtype, context_class = get_device_dtype()
-    conditional_type = hasattr(llm, 'pipeline') and hasattr(llm.pipeline, 'model') and hasattr(llm.pipeline.model, 'conditional_type') and llm.pipeline.model.conditional_type
+    conditional_type = hasattr(llm, 'pipeline') and hasattr(llm.pipeline, 'model') and hasattr(llm.pipeline.model,
+                                                                                               'conditional_type') and llm.pipeline.model.conditional_type
     with torch.no_grad():
         have_lora_weights = lora_weights not in [no_lora_str, '', None]
         context_class_cast = NullContext if device == 'cpu' or have_lora_weights else torch.autocast
+        if conditional_type:
+            # issues when casting to float16, can mess up t5 model, e.g. only when not streaming, or other odd behaviors
+            context_class_cast = NullContext
         with context_class_cast(device):
             if stream_output and streamer:
                 answer = None
