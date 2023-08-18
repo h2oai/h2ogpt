@@ -3464,7 +3464,9 @@ def _update_user_db(file,
                 assert get_dbid(db1) is not None, "db hash was None, not allowed"
                 # then create
                 # if added has to original state and didn't change, then would be shared db for all users
-                persist_directory, langchain_type = get_persist_directory(langchain_mode, db1s=db1s, dbs=dbs)
+                langchain_type = langchain_mode_types.get(langchain_mode, LangChainTypes.EITHER.value)
+                persist_directory, langchain_type = get_persist_directory(langchain_mode, db1s=db1s, dbs=dbs,
+                                                                          langchain_type=langchain_type)
                 langchain_mode_types[langchain_mode] = langchain_type
                 db = get_db(sources, use_openai_embedding=use_openai_embedding,
                             db_type=db_type,
@@ -3479,7 +3481,9 @@ def _update_user_db(file,
             source_files_added = get_source_files(db=db1[0], exceptions=exceptions)
             return None, langchain_mode, source_files_added, '\n'.join(exceptions_strs)
         else:
-            persist_directory, langchain_type = get_persist_directory(langchain_mode, db1s=db1s, dbs=dbs)
+            langchain_type = langchain_mode_types.get(langchain_mode, LangChainTypes.EITHER.value)
+            persist_directory, langchain_type = get_persist_directory(langchain_mode, db1s=db1s, dbs=dbs,
+                                                                      langchain_type=langchain_type)
             langchain_mode_types[langchain_mode] = langchain_type
             if langchain_mode in dbs and dbs[langchain_mode] is not None:
                 # then add
