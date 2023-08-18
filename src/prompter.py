@@ -889,20 +889,18 @@ class Prompter(object):
         for oi, output in enumerate(outputs):
             if self.prompt_type in [PromptType.plain.value, str(PromptType.plain.value), PromptType.plain.name]:
                 output = clean_response(output)
+                allow_terminate = True
             elif prompt is None:
                 # then use most basic parsing like pipeline
                 if not self.botstr:
                     pass
-                elif self.botstr in output:
+                else:
                     if self.humanstr:
                         output = clean_response(output.split(self.botstr)[-1].split(self.humanstr)[0])
                     else:
                         # i.e. use after bot but only up to next bot
                         output = clean_response(output.split(self.botstr)[-1].split(self.botstr)[0])
-                else:
-                    # output = clean_response(output)
-                    # assume just not printed yet
-                    output = ""
+                allow_terminate = True
             else:
                 # find first instance of prereponse
                 # prompt sometimes has odd characters, that mutate length,
@@ -928,18 +926,18 @@ class Prompter(object):
                     output = output[len(prompt):]
                 # clean after subtract prompt out, so correct removal of pre_response
                 output = clean_response(output)
-                if self.repeat_penalty:
-                    output = clean_repeats(output)
-                if self.terminate_response and allow_terminate:
-                    finds = []
-                    for term in self.terminate_response:
-                        finds.append(output.find(term))
-                    finds = [x for x in finds if x >= 0]
-                    if len(finds) > 0:
-                        termi = finds[0]
-                        output = output[:termi]
-                    else:
-                        output = output
+            if self.repeat_penalty:
+                output = clean_repeats(output)
+            if self.terminate_response and allow_terminate:
+                finds = []
+                for term in self.terminate_response:
+                    finds.append(output.find(term))
+                finds = [x for x in finds if x >= 0]
+                if len(finds) > 0:
+                    termi = finds[0]
+                    output = output[:termi]
+                else:
+                    output = output
             if multi_output:
                 # prefix with output counter
                 output = "\n=========== Output %d\n\n" % (1 + oi) + output
