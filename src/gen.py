@@ -2447,7 +2447,8 @@ def evaluate(
             with context_class("generate.lock"):
                 if verbose:
                     print('Generate: %s' % str(datetime.now()), flush=True)
-                if stream_output:
+                always_use_streaming_method = True  # to deal with complex parsing of prompt vs. generation due to odd tokenizing
+                if stream_output or always_use_streaming_method:
                     skip_prompt = True  # True means first output excludes prompt
                     streamer = H2OTextIteratorStreamer(tokenizer, skip_prompt=skip_prompt, block=False,
                                                        **decoder_kwargs)
@@ -2458,6 +2459,7 @@ def evaluate(
                     bucket = queue.Queue()
                     thread = EThread(target=target, streamer=streamer, bucket=bucket)
                     thread.start()
+                    ret = dict(response='', sources='', save_dict=dict())
                     outputs = ""
                     sources = ''
                     try:
@@ -2468,7 +2470,11 @@ def evaluate(
                             response = prompter.get_response(outputs, prompt=None,
                                                              only_new_text=True,
                                                              sanitize_bot_response=sanitize_bot_response)
-                            yield dict(response=response, sources=sources, save_dict=dict())
+                            ret = dict(response=response, sources=sources, save_dict=dict())
+                            if stream_output:
+                                yield ret
+                        if not stream_output:
+                            yield ret
                     except BaseException:
                         # if any exception, raise that exception if was from thread, first
                         if thread.exc:
@@ -2485,13 +2491,14 @@ def evaluate(
                     decoded_output = outputs
                     ntokens = len(outputs) // 4  # hack for now
                 else:
+                    # below length removal doesn't work in general, because encoding does not match internal of model generation
+                    input_ids_len = gen_kwargs['input_ids'][0].shape[0]
                     try:
                         outputs = model.generate(**gen_kwargs)
                     finally:
                         pass
                         # don't clear torch cache here, delays multi-generation, and bot(), all_bot(), and evaluate_nochat() do it
                     # skip first IDs
-                    input_ids_len = gen_kwargs['input_ids'][0].shape[0]
                     ntokens = sum([len(s) - input_ids_len for s in outputs.sequences]) if save_dir else -1
                     outputs = [decoder(s[input_ids_len:]) for s in outputs.sequences]
                     sources = ''
