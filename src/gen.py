@@ -2429,13 +2429,6 @@ def evaluate(
     decoder = functools.partial(tokenizer.decode,
                                 **decoder_kwargs
                                 )
-    decoder_raw_kwargs = dict(skip_special_tokens=False,
-                              clean_up_tokenization_spaces=True)
-
-    decoder_raw = functools.partial(tokenizer.decode,
-                                    **decoder_raw_kwargs
-                                    )
-
     with torch.no_grad():
         have_lora_weights = lora_weights not in [no_lora_str, '', None]
         context_class_cast = NullContext if device == 'cpu' or have_lora_weights or device == 'mps' else torch.autocast
@@ -2451,38 +2444,12 @@ def evaluate(
             with context_class("generate.lock"):
                 if verbose:
                     print('Generate: %s' % str(datetime.now()), flush=True)
-                # decoded tokenized prompt can deviate from prompt due to special characters
-                inputs_decoded = decoder(input_ids[0])
-                inputs_decoded_raw = decoder_raw(input_ids[0])
-                if inputs_decoded == prompt:
-                    # normal
-                    pass
-                elif inputs_decoded.lstrip() == prompt.lstrip():
-                    # sometimes extra space in front, make prompt same for prompt removal
-                    prompt = inputs_decoded
-                elif inputs_decoded_raw == prompt:
-                    # some models specify special tokens that are part of normal prompt, so can't skip them
-                    inputs_decoded = prompt = inputs_decoded_raw
-                    decoder = decoder_raw
-                    decoder_kwargs = decoder_raw_kwargs
-                elif inputs_decoded_raw.replace("<unk> ", "").replace("<unk>", "").replace('\n', ' ').replace(' ',
-                                                                                                              '') == prompt.replace(
-                    '\n', ' ').replace(' ', ''):
-                    inputs_decoded = prompt = inputs_decoded_raw
-                    decoder = decoder_raw
-                    decoder_kwargs = decoder_raw_kwargs
-                else:
-                    # decode(encode(prompt)) != prompt, then assume tokenizer issue and generation cleaner, so use real prompt
-                    inputs_decoded = prompt
-                    if verbose:
-                        print("WARNING: Special characters in prompt", flush=True)
                 if stream_output:
-                    skip_prompt = False  # means first output has prompt too
+                    skip_prompt = True  # means first output has prompt too
                     streamer = H2OTextIteratorStreamer(tokenizer, skip_prompt=skip_prompt, block=False,
                                                        **decoder_kwargs)
                     gen_kwargs.update(dict(streamer=streamer))
                     target = wrapped_partial(generate_with_exceptions, model.generate,
-                                             prompt=prompt, inputs_decoded=inputs_decoded,
                                              raise_generate_gpu_exceptions=raise_generate_gpu_exceptions,
                                              **gen_kwargs)
                     bucket = queue.Queue()
@@ -2495,13 +2462,7 @@ def evaluate(
                             if bucket.qsize() > 0 or thread.exc:
                                 thread.join()
                             outputs += new_text
-                            if hasattr(model, 'conditional_type') and model.conditional_type:
-                                # because doesn't support skip_prompt=False
-                                prompt_and_outputs = prompt + outputs
-                            else:
-                                # because skip_prompt=False
-                                prompt_and_outputs = outputs
-                            response = prompter.get_response(prompt_and_outputs, prompt=inputs_decoded,
+                            response = prompter.get_response(outputs, prompt=None,
                                                              sanitize_bot_response=sanitize_bot_response)
                             yield dict(response=response, sources=sources, save_dict=dict())
                     except BaseException:
@@ -2528,7 +2489,7 @@ def evaluate(
                     ntokens = sum([len(s) for s in outputs.sequences]) if save_dir else -1
                     outputs = [decoder(s) for s in outputs.sequences]
                     sources = ''
-                    response = prompter.get_response(outputs, prompt=inputs_decoded,
+                    response = prompter.get_response(outputs, prompt=None,
                                                      sanitize_bot_response=sanitize_bot_response)
                     yield dict(response=response, sources=sources, save_dict=dict())
                     if outputs and len(outputs) >= 1:
@@ -2663,11 +2624,11 @@ class H2OTextIteratorStreamer(TextIteratorStreamer):
         self.on_finalized_text(printable_text)
 
 
-def generate_with_exceptions(func, *args, prompt='', inputs_decoded='', raise_generate_gpu_exceptions=True, **kwargs):
+def generate_with_exceptions(func, *args, raise_generate_gpu_exceptions=True, **kwargs):
     try:
         func(*args, **kwargs)
     except torch.cuda.OutOfMemoryError as e:
-        print("GPU OOM 2: prompt: %s inputs_decoded: %s exception: %s" % (prompt, inputs_decoded, str(e)),
+        print("GPU OOM 2: exception: %s" % str(e),
               flush=True)
         if 'input_ids' in kwargs:
             if kwargs['input_ids'] is not None:
@@ -2683,7 +2644,7 @@ def generate_with_exceptions(func, *args, prompt='', inputs_decoded='', raise_ge
                 'cublasLt ran into an error!' in str(e) or \
                 'mat1 and mat2 shapes cannot be multiplied' in str(e):
             print(
-                "GPU Error: prompt: %s inputs_decoded: %s exception: %s" % (prompt, inputs_decoded, str(e)),
+                "GPU Error: exception: %s" % str(e),
                 flush=True)
             traceback.print_exc()
             clear_torch_cache()
