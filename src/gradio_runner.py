@@ -1923,6 +1923,11 @@ def go_gradio(**kwargs):
                 user_kwargs['langchain_action'] = LangChainAction.QUERY.value
             if 'langchain_agents' not in user_kwargs:
                 user_kwargs['langchain_agents'] = []
+            # be flexible
+            if 'instruction' in user_kwargs and 'instruction_nochat' not in user_kwargs:
+                user_kwargs['instruction_nochat'] = user_kwargs['instruction']
+            if 'iinput' in user_kwargs and 'iinput_nochat' not in user_kwargs:
+                user_kwargs['iinput_nochat'] = user_kwargs['iinput']
 
             set1 = set(list(default_kwargs1.keys()))
             set2 = set(eval_func_param_names)
