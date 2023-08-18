@@ -4,9 +4,8 @@ import subprocess
 
 import pytest
 
-from src.enums import LangChainAction
 from tests.test_inference_servers import run_h2ogpt_docker
-from tests.utils import wrap_test_forked, get_inf_server, get_inf_port, get_sha
+from tests.utils import wrap_test_forked, get_inf_server, get_inf_port
 from src.utils import download_simple
 
 results_file = "./perf.json"
@@ -53,8 +52,15 @@ def test_perf_benchmarks(backend, base_model, task, bits, ngpus):
     bench_dict["git_sha"] = git_sha[:8]
     bench_dict["n_gpus"] = n_gpus
     gpu_list = [torch.cuda.get_device_name(i) for i in range(n_gpus)]
-    bench_dict["gpus"] = "%d x %s (%s)" % (n_gpus, gpu_list[0], torch.cuda.get_device_properties(0).total_memory // 1024 ** 3)
-    assert set(gpu_list) == set(gpu_list[0])
+
+    # get GPU memory, assumes homogeneous system
+    cmd = 'nvidia-smi -i 0 -q | grep -A 1 "FB Memory Usage" | cut -d: -f2 | tail -n 1'
+    o = subprocess.check_output(cmd, shell=True, timeout=15)
+    mem_gpu = o.decode("utf-8").splitlines()[0].strip()
+
+    bench_dict["gpus"] = "%d x %s (%s)" % (n_gpus, gpu_list[0], mem_gpu)
+    assert all([x == gpu_list[0] for x in gpu_list])
+    print(bench_dict)
 
     # launch server(s)
     docker_hash1 = None
