@@ -99,7 +99,9 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
                         print("using %s tokens with %s chars" % (num_prompt_tokens, len(prompt_text)), flush=True)
                     break
             if num_prompt_tokens is not None and num_prompt_tokens > model_max_length:
-                print("Failed to reduce %s tokens with %s chars: %s" % (num_prompt_tokens, len(prompt_text), prompt_text), flush=True)
+                print(
+                    "Failed to reduce %s tokens with %s chars: %s" % (num_prompt_tokens, len(prompt_text), prompt_text),
+                    flush=True)
 
             # Why Below False: don't limit max_new_tokens more, just rely upon stopping to reach limit of model
             if False:
@@ -116,7 +118,7 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
                 if max_new_tokens < generate_kwargs['max_new_tokens']:
                     if verbose:
                         print("Reduced max_new_tokens from %s -> %s" % (
-                        generate_kwargs['max_new_tokens'], max_new_tokens))
+                            generate_kwargs['max_new_tokens'], max_new_tokens))
                     generate_kwargs['max_new_tokens'] = max_new_tokens
         return prompt_text, num_prompt_tokens
 
@@ -178,7 +180,7 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
     def postprocess(self, model_outputs, return_type=ReturnType.FULL_TEXT, clean_up_tokenization_spaces=True):
         conditional_type = hasattr(self.model, 'conditional_type') and self.model.conditional_type
         records = self._postprocess(model_outputs, return_type=return_type,
-                                      clean_up_tokenization_spaces=clean_up_tokenization_spaces,
+                                    clean_up_tokenization_spaces=clean_up_tokenization_spaces,
                                     conditional_type=conditional_type)
         key = 'generated_text'
         for rec in records:
