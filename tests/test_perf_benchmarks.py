@@ -52,7 +52,9 @@ def test_perf_benchmarks(backend, base_model, task, bits, ngpus):
     bench_dict["date"] = datetime.now().strftime("%m/%d/%Y %H:%M:%S")
     bench_dict["git_sha"] = git_sha[:8]
     bench_dict["n_gpus"] = n_gpus
-    bench_dict["gpus"] = [torch.cuda.get_device_name(i) for i in range(n_gpus)]
+    gpu_list = [torch.cuda.get_device_name(i) for i in range(n_gpus)]
+    bench_dict["gpus"] = "%d x %s (%s)" % (n_gpus, gpu_list[0], torch.cuda.get_device_properties(0).total_memory // 1024 ** 3)
+    assert set(gpu_list) == set(gpu_list[0])
 
     # launch server(s)
     docker_hash1 = None
