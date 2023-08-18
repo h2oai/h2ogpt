@@ -51,6 +51,10 @@ def test_perf_benchmarks(backend, base_model, task, bits, ngpus):
     bench_dict["date"] = datetime.now().strftime("%m/%d/%Y %H:%M:%S")
     bench_dict["git_sha"] = git_sha[:8]
     bench_dict["n_gpus"] = n_gpus
+    from importlib.metadata import version
+    bench_dict["transformers"] = str(version('transformers'))
+    bench_dict["bitsandbytes"] = str(version('bitsandbytes'))
+    bench_dict["cuda"] = str(torch.version.cuda)
     gpu_list = [torch.cuda.get_device_name(i) for i in range(n_gpus)]
 
     # get GPU memory, assumes homogeneous system
