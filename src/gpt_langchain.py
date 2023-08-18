@@ -347,7 +347,7 @@ class GradioInference(LLM):
     do_sample: bool = False
     chat_client: bool = False
 
-    return_full_text: bool = True
+    return_full_text: bool = False
     stream_output: bool = False
     sanitize_bot_response: bool = False
 
@@ -990,7 +990,7 @@ def get_llm(use_openai_model=False,
             chat_client = False
             llm = GradioInference(
                 inference_server_url=inference_server,
-                return_full_text=True,
+                return_full_text=False,
 
                 temperature=temperature,
                 top_p=top_p,
@@ -1133,12 +1133,12 @@ def get_llm(use_openai_model=False,
                           max_time=max_time,
                           repetition_penalty=repetition_penalty,
                           num_return_sequences=num_return_sequences,
-                          return_full_text=True,
+                          return_full_text=False,
                           handle_long_generation=None)
         assert len(set(gen_hyper).difference(gen_kwargs.keys())) == 0
 
         if stream_output:
-            skip_prompt = False
+            skip_prompt = True
             from gen import H2OTextIteratorStreamer
             decoder_kwargs = {}
             streamer = H2OTextIteratorStreamer(tokenizer, skip_prompt=skip_prompt, block=False, **decoder_kwargs)
@@ -2604,7 +2604,6 @@ def _run_qa_db(query=None,
                 thread = EThread(target=chain, streamer=streamer, bucket=bucket)
                 thread.start()
                 outputs = ""
-                prompt = None  # FIXME
                 try:
                     for new_text in streamer:
                         # print("new_text: %s" % new_text, flush=True)
@@ -2622,7 +2621,9 @@ def _run_qa_db(query=None,
                                     output_with_prompt = outputs
                                     only_new_text = True
                             else:
+                                prompt = None  # FIXME
                                 output_with_prompt = outputs
+                                only_new_text = True
                             output1 = prompter.get_response(output_with_prompt, prompt=prompt,
                                                             only_new_text=only_new_text,
                                                             sanitize_bot_response=sanitize_bot_response)

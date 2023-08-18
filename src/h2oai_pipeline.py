@@ -184,7 +184,11 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
         for rec in records:
             if self.use_prompter:
                 outputs = rec[key]
-                if conditional_type:
+                if return_type == ReturnType.NEW_TEXT:
+                    output_with_prompt = outputs
+                    prompt = None
+                    only_new_text = True
+                elif conditional_type:
                     if self.prompter.botstr:
                         prompt = self.prompter.botstr
                         output_with_prompt = prompt + outputs
