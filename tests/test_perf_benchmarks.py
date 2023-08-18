@@ -35,9 +35,11 @@ results_file = "./perf.json"
 @pytest.mark.need_tokens
 @wrap_test_forked
 def test_perf_benchmarks(backend, base_model, task, bits, ngpus):
+    reps = 3
     bench_dict = locals()
     from datetime import datetime
     import json
+    import socket
     os.environ['CUDA_VISIBLE_DEVICES'] = "0" if ngpus == 1 else ",".join([str(x) for x in range(ngpus)])
     import torch
     n_gpus = torch.cuda.device_count()
@@ -55,6 +57,7 @@ def test_perf_benchmarks(backend, base_model, task, bits, ngpus):
     bench_dict["transformers"] = str(version('transformers'))
     bench_dict["bitsandbytes"] = str(version('bitsandbytes'))
     bench_dict["cuda"] = str(torch.version.cuda)
+    bench_dict["hostname"] = str(socket.gethostname())
     gpu_list = [torch.cuda.get_device_name(i) for i in range(n_gpus)]
 
     # get GPU memory, assumes homogeneous system
@@ -157,20 +160,22 @@ def test_perf_benchmarks(backend, base_model, task, bits, ngpus):
 
             import time
             t0 = time.time()
-            res = client.predict(
-                str(dict(kwargs)),
-                api_name=api_name,
-            )
+            for r in range(reps):
+                res = client.predict(
+                    str(dict(kwargs)),
+                    api_name=api_name,
+                )
             t1 = time.time()
+            time_taken = (t1 - t0) / reps
             res = ast.literal_eval(res)
             response = res['response']
             sources = res['sources']
             size_summary = os.path.getsize(test_file1)
             # print(response)
-            print("Time to summarize %s bytes into %s bytes: %.4f" % (size_summary, len(response), t1-t0))
+            print("Time to summarize %s bytes into %s bytes: %.4f" % (size_summary, len(response), time_taken))
             bench_dict["summarize_input_len_bytes"] = size_summary
             bench_dict["summarize_output_len_bytes"] = len(response)
-            bench_dict["summarize_time"] = t1 - t0
+            bench_dict["summarize_time"] = time_taken
             # bench_dict["summarize_tokens_per_sec"] = res['tokens/s']
             assert 'my_test_pdf.pdf' in sources
 
@@ -179,17 +184,19 @@ def test_perf_benchmarks(backend, base_model, task, bits, ngpus):
             kwargs = dict(prompt_summary="Write a poem about water.")
             import time
             t0 = time.time()
-            res = client.predict(
-                str(dict(kwargs)),
-                api_name=api_name,
-            )
+            for r in range(reps):
+                res = client.predict(
+                    str(dict(kwargs)),
+                    api_name=api_name,
+                )
             t1 = time.time()
+            time_taken = (t1 - t0) / reps
             res = ast.literal_eval(res)
             response = res['response']
             # print(response)
-            print("Time to generate %s bytes: %.4f" % (len(response), t1-t0))
+            print("Time to generate %s bytes: %.4f" % (len(response), time_taken))
             bench_dict["generate_output_len_bytes"] = len(response)
-            bench_dict["generate_time"] = t1 - t0
+            bench_dict["generate_time"] = time_taken
             # bench_dict["generate_tokens_per_sec"] = res['tokens/s']
     except BaseException as e:
         if 'CUDA out of memory' in str(e):
