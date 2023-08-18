@@ -12,12 +12,12 @@ results_file = "./perf.json"
 
 @pytest.mark.parametrize("backend", [
     'transformers',
-    # 'tgi',
+    # 'text-generation-inference',
     # 'mixed',
 ])
 @pytest.mark.parametrize("base_model", [
-    'h2oai/h2ogpt-4096-llama2-7b-chat',
-    # 'h2oai/h2ogpt-4096-llama2-13b-chat',
+    # 'h2oai/h2ogpt-4096-llama2-7b-chat',
+    'h2oai/h2ogpt-4096-llama2-13b-chat',
 ])
 @pytest.mark.parametrize("task", [
     # 'summary',
@@ -87,9 +87,9 @@ def test_perf_benchmarks(backend, base_model, task, bits, ngpus):
         if backend == 'transformers':
             from src.gen import main
             main(**h2ogpt_args)
-        elif backend == 'tgi':
+        elif backend == 'text-generation-inference':
             if bits != 16:
-                pytest.xfail("Quantization not yet supported in TGI")
+                pytest.xfail("Quantization not yet supported in text-generation-inference")
             from tests.test_inference_servers import run_docker
             # HF inference server
             gradio_port = get_inf_port()
@@ -206,7 +206,7 @@ def test_perf_benchmarks(backend, base_model, task, bits, ngpus):
     finally:
         with open(results_file, mode="a") as f:
             f.write(json.dumps(bench_dict) + "\n")
-        if backend == "tgi":
+        if backend == "text-generation-inference":
             if docker_hash1:
                 os.system("docker stop %s" % docker_hash1)
             if docker_hash2:

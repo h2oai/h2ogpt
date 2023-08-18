@@ -24,3 +24,19 @@
 |      4 | 2 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                    43.235  |                        32.0566  |
 |      4 | 2 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                    43.6512 |                        30.9057  |
 |      4 | 2 x NVIDIA GeForce RTX 3090 (24576 MiB)        |                    94.5099 |                        14.6162  |
+### Model: h2oai/h2ogpt-4096-llama2-13b-chat
+### Number of GPUs: 1
+|   bits | gpus                                           |   summarization time [sec] |   generation speed [tokens/sec] |
+|-------:|:-----------------------------------------------|---------------------------:|--------------------------------:|
+|     16 | 1 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                    52.4984 |                        26.2487  |
+|     16 | 1 x NVIDIA GeForce RTX 3090 (24576 MiB)        |                   OOM      |                       OOM       |
+|      8 | 1 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                   168.967  |                         7.67522 |
+|      8 | 1 x NVIDIA GeForce RTX 3090 (24576 MiB)        |                   280.467  |                         3.75936 |
+|      4 | 1 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                    45.3051 |                        20.4771  |
+|      4 | 1 x NVIDIA GeForce RTX 3090 (24576 MiB)        |                    96.6189 |                         9.77255 |
+### Number of GPUs: 2
+|   bits | gpus                                           |   summarization time [sec] |   generation speed [tokens/sec] |
+|-------:|:-----------------------------------------------|---------------------------:|--------------------------------:|
+|     16 | 2 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                    51.6428 |                        26.1842  |
+|      8 | 2 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                   167.523  |                         7.82793 |
+|      4 | 2 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                    47.1425 |                        19.9791  |
