@@ -18,6 +18,7 @@ results_file = "./perf.json"
 @pytest.mark.parametrize("base_model", [
     # 'h2oai/h2ogpt-4096-llama2-7b-chat',
     'h2oai/h2ogpt-4096-llama2-13b-chat',
+    'h2oai/h2ogpt-4096-llama2-70b-chat',
 ])
 @pytest.mark.parametrize("task", [
     # 'summary',
@@ -213,6 +214,7 @@ def test_perf_benchmarks(backend, base_model, task, bits, ngpus):
                 os.system("docker stop %s" % docker_hash2)
 
 
+@pytest.mark.skip("run manually")
 def test_plot_results():
     import pandas as pd
     import json
