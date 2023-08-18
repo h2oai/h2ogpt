@@ -344,7 +344,7 @@ def run_client_gen(client, prompt, args, kwargs, do_md_to_text=True, verbose=Fal
     res_dict['prompt'] = prompt
     if not kwargs['stream_output']:
         res = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
-        res_dict['response'] = res[0]
+        res_dict.update(ast.literal_eval(res))
         print(md_to_text(res_dict['response'], do_md_to_text=do_md_to_text))
         return res_dict, client
     else:
