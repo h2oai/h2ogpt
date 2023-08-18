@@ -64,7 +64,7 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
 
         if hasattr(tokenizer, 'model_max_length'):
             # model_max_length only defined for generate.py, not raw use of h2oai_pipeline.py
-            model_max_length = tokenizer.model_max_length
+            model_max_length = int(tokenizer.model_max_length)
             if max_prompt_length is not None:
                 model_max_length = min(model_max_length, max_prompt_length)
             # cut at some upper likely limit to avoid excessive tokenization etc
@@ -87,9 +87,10 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
                 num_prompt_tokens = len(prompt_tokens)
                 if num_prompt_tokens > model_max_length:
                     # conservative by using int()
-                    chars_per_token = int(len(prompt_text) / num_prompt_tokens)
+                    chars_per_token = len(prompt_text) / num_prompt_tokens
                     # keep tail, where question is if using langchain
-                    prompt_text = prompt_text[-model_max_length * chars_per_token:]
+                    model_max_length_with_buffer = model_max_length - 50
+                    prompt_text = prompt_text[-int(model_max_length_with_buffer * chars_per_token):]
                     if verbose:
                         print("reducing %s tokens, assuming average of %s chars/token for %s characters" % (
                             num_prompt_tokens, chars_per_token, len(prompt_text)), flush=True)
@@ -97,6 +98,8 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
                     if verbose:
                         print("using %s tokens with %s chars" % (num_prompt_tokens, len(prompt_text)), flush=True)
                     break
+            if num_prompt_tokens is not None and num_prompt_tokens > model_max_length:
+                print("Failed to reduce %s tokens with %s chars: %s" % (num_prompt_tokens, len(prompt_text), prompt_text), flush=True)
 
             # Why Below False: don't limit max_new_tokens more, just rely upon stopping to reach limit of model
             if False:
