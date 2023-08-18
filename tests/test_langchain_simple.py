@@ -53,7 +53,8 @@ def run_langchain_simple(base_model='h2oai/h2ogpt-oasst1-512-12b', prompt_type='
                                          load_in_8bit=load_in_8bit)
 
     gen_kwargs = dict(max_new_tokens=512, return_full_text=True, early_stopping=False)
-    pipe = H2OTextGenerationPipeline(model=model, tokenizer=tokenizer, prompt_type=prompt_type, **gen_kwargs)
+    pipe = H2OTextGenerationPipeline(model=model, tokenizer=tokenizer, prompt_type=prompt_type,
+                                     base_model=base_model, **gen_kwargs)
     # below makes it listen only to our prompt removal,
     # not built in prompt removal that is less general and not specific for our model
     pipe.task = "text2text-generation"

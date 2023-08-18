@@ -1206,3 +1206,78 @@ def test_client_summarization_from_url(url, top_k_docs):
                or 'H2OGPT is an open-source project' in summary \
                or 'is an open-source project for document Q/A' in summary
     assert url in sources
+
+
+@pytest.mark.parametrize("prompt_type", ['instruct_vicuna', 'one_shot'])
+@pytest.mark.parametrize("bits", [None, 8, 4])
+@pytest.mark.parametrize("stream_output", [True, False])
+@pytest.mark.need_tokens
+@wrap_test_forked
+def test_fastsys(stream_output, bits, prompt_type):
+    base_model = 'lmsys/fastchat-t5-3b-v1.0'
+    from src.gen import main
+    main(base_model=base_model,
+         load_half=True if bits == 16 else None,
+         load_4bit=bits == 4,
+         load_8bit=bits == 8,
+         chat=True, gradio=True, num_beams=1, block_gradio_exit=False, verbose=True,
+         use_auth_token=True,
+         )
+
+    # PURE client code
+    from gradio_client import Client
+    client = Client(get_inf_server())
+
+    prompt = "Who are you?"
+    kwargs = dict(stream_output=stream_output, instruction=prompt)
+    res_dict, client = run_client_gen(client, prompt, None, kwargs)
+    response = res_dict['response']
+    assert """As  an  AI  language  model,  I  don't  have  a  physical  identity  or  a  physical  body.  I  exist  solely  to  assist  users  with  their  questions  and  provide  information  to  the  best  of  my  ability.  Is  there  something  specific  you  would  like  to  know  or  discuss?""" in response or \
+        "As  an  AI  language  model,  I  don't  have  a  personal  identity  or  physical  presence.  I  exist  solely  to  provide  information  and  answer  questions  to  the  best  of  my  ability.  How  can  I  assist  you  today?" in response or \
+        "As  an  AI  language  model,  I  don't  have  a  physical  identity  or  a  physical  presence.  I  exist  solely  to  provide  information  and  answer  questions  to  the  best  of  my  ability.  How  can  I  assist  you  today?" in response
+    sources = res_dict['sources']
+    assert sources == ''
+
+    # get file for client to upload
+    url = 'https://cdn.openai.com/papers/whisper.pdf'
+    test_file1 = os.path.join('/tmp/', 'my_test_pdf.pdf')
+    download_simple(url, dest=test_file1)
+
+    # PURE client code
+    from gradio_client import Client
+    client = Client(get_inf_server())
+
+    # upload file(s).  Can be list or single file
+    test_file_local, test_file_server = client.predict(test_file1, api_name='/upload_api')
+
+    chunk = True
+    chunk_size = 512
+    langchain_mode = 'MyData'
+    res = client.predict(test_file_server, chunk, chunk_size, langchain_mode, api_name='/add_file_api')
+    assert res[0] is None
+    assert res[1] == langchain_mode
+    assert os.path.basename(test_file_server) in res[2]
+    assert res[3] == ''
+
+    # ask for summary, need to use same client if using MyData
+    api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
+    kwargs = dict(langchain_mode=langchain_mode,
+                  langchain_action="Query",
+                  top_k_docs=4,
+                  document_subset='Relevant',
+                  document_choice='All',
+                  max_new_tokens=256,
+                  max_time=300,
+                  do_sample=False,
+                  stream_output=stream_output,
+                  instruction="What is Whisper?",
+                  )
+    res_dict, client = run_client_gen(client, prompt, None, kwargs)
+    response = res_dict['response']
+    if bits is None:
+        assert """Whisper is a machine learning model developed by OpenAI for speech recognition. It is trained on large amounts of text data from the internet and uses a minimalist approach to data pre-processing, relying on the expressiveness of sequence-to-sequence models to learn to map between words in a transcript. The model is designed to be able to predict the raw text of transcripts without any significant standardization, allowing it to learn to map between words in different languages without having to rely on pre-trained models.""" in response or \
+            """Whisper  is  a  speech  processing  system  that  is  designed  to  generalize  well  across  domains,  tasks,  and  languages.  It  is  based  on  a  single  robust  architecture  that  is  trained  on  a  wide  set  of  existing  datasets,  and  it  is  able  to  generalize  well  across  domains,  tasks,  and  languages.  The  goal  of  Whisper  is  to  develop  a  single  robust  speech  processing  system  that  works  reliably  without  the  need  for  dataset-specific  fine-tuning  to  achieve  high-quality  results  on  specific  distributions.""" in response
+    else:
+        assert """single  robust  speech  processing  system  that  works""" in response or """Whisper""" in response
+    sources = res_dict['sources']
+    assert 'my_test_pdf.pdf' in sources
