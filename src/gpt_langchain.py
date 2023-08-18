@@ -100,7 +100,7 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
             client = _create_local_weaviate_client()
         else:
             client = weaviate.Client(
-                embedded_options=EmbeddedOptions()
+                embedded_options=EmbeddedOptions(persistence_data_path=persist_directory)
             )
         index_name = collection_name.capitalize()
         db = Weaviate.from_documents(documents=sources, embedding=embedding, client=client, by_text=False,
@@ -240,6 +240,13 @@ def create_or_update_db(db_type, persist_directory, collection_name,
                         user_path, langchain_type,
                         sources, use_openai_embedding, add_if_exists, verbose,
                         hf_embedding_model, migrate_embedding_model):
+    if not os.path.isdir(persist_directory) or not add_if_exists:
+        if os.path.isdir(persist_directory):
+            if verbose:
+                print("Removing %s" % persist_directory, flush=True)
+            remove(persist_directory)
+        if verbose:
+            print("Generating db", flush=True)
     if db_type == 'weaviate':
         import weaviate
         from weaviate.embedded import EmbeddedOptions
@@ -248,7 +255,7 @@ def create_or_update_db(db_type, persist_directory, collection_name,
             client = _create_local_weaviate_client()
         else:
             client = weaviate.Client(
-                embedded_options=EmbeddedOptions()
+                embedded_options=EmbeddedOptions(persistence_data_path=persist_directory)
             )
 
         index_name = collection_name.replace(' ', '_').capitalize()
@@ -257,13 +264,7 @@ def create_or_update_db(db_type, persist_directory, collection_name,
             if verbose:
                 print("Removing %s" % index_name, flush=True)
     elif db_type == 'chroma':
-        if not os.path.isdir(persist_directory) or not add_if_exists:
-            if os.path.isdir(persist_directory):
-                if verbose:
-                    print("Removing %s" % persist_directory, flush=True)
-                remove(persist_directory)
-            if verbose:
-                print("Generating db", flush=True)
+        pass
 
     if not add_if_exists:
         if verbose:
@@ -3809,6 +3810,7 @@ def _create_local_weaviate_client():
     resource_owner_config = None
     try:
         import weaviate
+        from weaviate.embedded import EmbeddedOptions
         if WEAVIATE_USERNAME is not None and WEAVIATE_PASSWORD is not None:
             resource_owner_config = weaviate.AuthClientPassword(
                 username=WEAVIATE_USERNAME,
@@ -3816,6 +3818,7 @@ def _create_local_weaviate_client():
                 scope=WEAVIATE_SCOPE
             )
 
+        # if using remote server, don't choose persistent directory
         client = weaviate.Client(WEAVIATE_URL, auth_client_secret=resource_owner_config)
         return client
     except Exception as e:
