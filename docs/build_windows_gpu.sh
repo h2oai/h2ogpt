@@ -71,6 +71,10 @@ xcopy C:\Users\pseud\AppData\Local\Programs\Tesseract-OCR Tesseract-OCR  /s /e /
 
 python src/basic_nltk.py
 
+del C:\Users\pseud\AppData\Local\ms-playwright ms-playwright
+playwright install
+xcopy C:\Users\pseud\AppData\Local\ms-playwright ms-playwright /s /e /h  # say specifies Directory
+
 # build
 python -m nsist windows_installer.cfg
 
