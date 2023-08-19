@@ -188,6 +188,13 @@ def run_docker(inf_port, base_model, low_mem_mode=False):
 
     print(cmd, flush=True)
     docker_hash = subprocess.check_output(cmd).decode().strip()
+    import time
+    connected = False
+    while not connected:
+        cmd = 'docker logs %s' % docker_hash
+        o = subprocess.check_output(cmd, shell=True, timeout=15)
+        connected = 'Connected' in o.decode("utf-8")
+        time.sleep(5)
     print("Done starting TGI server: %s" % docker_hash, flush=True)
     return docker_hash
 
@@ -255,7 +262,6 @@ def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain,
     inf_port = gradio_port + 1
     inference_server = 'http://127.0.0.1:%s' % inf_port
     docker_hash = run_docker(inf_port, base_model, low_mem_mode=True)
-    time.sleep(60)
 
     if force_langchain_evaluate:
         langchain_mode = 'MyData'
@@ -432,7 +438,6 @@ def test_gradio_tgi_docker(base_model):
     inf_port = gradio_port + 1
     inference_server = 'http://127.0.0.1:%s' % inf_port
     docker_hash1 = run_docker(inf_port, base_model, low_mem_mode=True)
-    time.sleep(30)
     os.system('docker logs %s | tail -10' % docker_hash1)
 
     # h2oGPT server
