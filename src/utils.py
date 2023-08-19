@@ -7,6 +7,7 @@ import inspect
 import os
 import pathlib
 import pickle
+import platform
 import random
 import shutil
 import subprocess
@@ -1101,7 +1102,7 @@ except (PackageNotFoundError, AssertionError):
 only_unstructured_urls = os.environ.get("ONLY_UNSTRUCTURED_URLS", "0") == "1"
 only_selenium = os.environ.get("ONLY_SELENIUM", "0") == "1"
 only_playwright = os.environ.get("ONLY_PLAYWRIGHT", "0") == "1"
-if not only_playwright:
+if not only_playwright and platform.system() == "Linux":
     # disable, hangs too often
     have_playwright = False
 

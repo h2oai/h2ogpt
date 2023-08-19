@@ -15,7 +15,8 @@ os.environ['NLTK_DATA'] = os.path.join(base_path, './nltk_data')
 os.environ['PATH'] = os.environ['PATH'] + ';' + \
                      os.path.join(base_path, 'poppler/Library/bin/') + ';' + \
                      os.path.join(base_path, 'poppler/Library/lib/') + ';' + \
-                     os.path.join(base_path, 'Tesseract-OCR')
+                     os.path.join(base_path, 'Tesseract-OCR') + \
+                     os.path.join(base_path, 'ms-playwright')
 print(os.environ['PATH'])
 
 for sub in ['src', 'iterators', 'gradio_utils', 'metrics', 'models', '.']:

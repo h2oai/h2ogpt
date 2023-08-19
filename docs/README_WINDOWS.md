@@ -73,7 +73,15 @@ For newer builds of windows versions of 10/11.
     pip install -r reqs_optional/requirements_optional_langchain.urls.txt
     # Optional: for supporting unstructured package
     python -m nltk.downloader all
+    # Optional but required for PlayWright
+    playwright install --with-deps
    ```
+* Optional: For Selenium, needs ChromeDriver 114, [Download and Install](https://chromedriver.storage.googleapis.com/114.0.5735.90/chromedriver_win32.zip).
+  However, you will have to install Chrome browser 114 for this to be supported, else selenium will fail with
+     ```text
+      This version of ChromeDriver only supports Chrome version 114
+      E       Current browser version is 116.0.5845.96 with binary path C:\Program Files (x86)\Google\Chrome\Application\chrome.exe
+     ```
 * GPU Optional: For optional AutoGPTQ support:
    ```bash
     pip uninstall -y auto-gptq

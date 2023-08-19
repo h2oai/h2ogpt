@@ -1060,5 +1060,40 @@ Microsoft  Word developed RTF for document transportability and gives a user acc
             assert os.path.normpath(docs[1].metadata['source']) == os.path.normpath(test_file1)
 
 
+# Windows is not supported with EmbeddedDB. Please upvote the feature request if you want this: https://github.com/weaviate/weaviate-python-client/issues/239
+@pytest.mark.parametrize("db_type", ['chroma'])
+@wrap_test_forked
+def test_url_more_add(db_type):
+    kill_weaviate(db_type)
+    from src.make_db import make_db_main
+    with tempfile.TemporaryDirectory() as tmp_persist_directory:
+        url = 'https://edition.cnn.com/2023/08/19/europe/ukraine-f-16s-counteroffensive-intl/index.html'
+        db, collection_name = make_db_main(persist_directory=tmp_persist_directory, url=url, fail_any_exception=True,
+                                           db_type=db_type)
+        assert db is not None
+        docs = db.similarity_search("Ukraine")
+        assert len(docs) == 4
+        assert 'Ukraine' in docs[0].page_content
+
+
+@wrap_test_forked
+def test_url_more_subunit():
+    url = 'https://edition.cnn.com/2023/08/19/europe/ukraine-f-16s-counteroffensive-intl/index.html'
+    from langchain.document_loaders import UnstructuredURLLoader
+    docs1 = UnstructuredURLLoader(urls=[url]).load()
+    docs1 = [x for x in docs1 if x.page_content]
+    assert len(docs1) > 0
+
+    from langchain.document_loaders import PlaywrightURLLoader
+    docs1 = PlaywrightURLLoader(urls=[url]).load()
+    docs1 = [x for x in docs1 if x.page_content]
+    assert len(docs1) > 0
+
+    from langchain.document_loaders import SeleniumURLLoader
+    docs1 = SeleniumURLLoader(urls=[url]).load()
+    docs1 = [x for x in docs1 if x.page_content]
+    assert len(docs1) > 0
+
+
 if __name__ == '__main__':
     pass
