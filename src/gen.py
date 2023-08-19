@@ -1011,7 +1011,7 @@ def get_config(base_model,
             if raise_exception:
                 raise
             if 'not a local folder and is not a valid model identifier listed on' in str(
-                    e) or '404 Client Error' in str(e):
+                    e) or '404 Client Error' in str(e) or "couldn't connect" in str(e):
                 # e.g. llama, gpjt, etc.
                 # e.g. HF TGI but not model on HF or private etc.
                 if max_seq_len is None and base_model.lower() in non_hf_types:
@@ -1332,19 +1332,18 @@ def get_model(
             # if using fake tokenizer, not really accurate when lots of numbers, give a bit of buffer, else get:
             # Generation Failed: Input validation error: `inputs` must have less than 2048 tokens. Given: 2233
             tokenizer.model_max_length = tokenizer.model_max_length - 50
-    else:
-        tokenizer = FakeTokenizer()
 
     if isinstance(inference_server, str) and inference_server.startswith("http"):
         inference_server, gr_client, hf_client = get_client_from_inference_server(inference_server,
                                                                                   base_model=base_model)
         client = gr_client or hf_client
         # Don't return None, None for model, tokenizer so triggers
-        return client, tokenizer, 'http'
+        return client, FakeTokenizer(), 'http'
     if isinstance(inference_server, str) and (
             inference_server.startswith('openai') or
             inference_server.startswith('vllm') or
             inference_server.startswith('replicate')):
+        tokenizer = FakeTokenizer()
         if inference_server.startswith('openai'):
             assert os.getenv('OPENAI_API_KEY'), "Set environment for OPENAI_API_KEY"
             # Don't return None, None for model, tokenizer so triggers
