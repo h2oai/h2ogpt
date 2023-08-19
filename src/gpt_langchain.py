@@ -156,6 +156,20 @@ def _get_unique_sources_in_weaviate(db):
     return unique_sources
 
 
+def del_from_db(db, sources, db_type=None):
+    if db_type == 'chroma':
+        # sources should be list of x.metadata['source'] from document metadatas
+        metadatas = set(sources)
+        client_collection = db._client.get_collection(name=db._collection.name,
+                                                      embedding_function=db._collection._embedding_function)
+        for source in metadatas:
+            meta = dict(source=source)
+            try:
+                client_collection.delete(where=meta)
+            except KeyError:
+                pass
+
+
 def add_to_db(db, sources, db_type='faiss',
               avoid_dup_by_file=False,
               avoid_dup_by_content=True,
@@ -2173,7 +2187,8 @@ def get_persist_directory(langchain_mode, langchain_type=None, db1s=None, dbs=No
         return persist_directory, langchain_type
 
     # dummy return for prep_langchain() or full personal space
-    persist_directory = 'db_dir_%s' % str(uuid.uuid4())
+    base_others = 'db_nonusers'
+    persist_directory = os.path.join(base_others, 'db_dir_%s' % str(uuid.uuid4()))
     persist_directory = makedirs(persist_directory, use_base=True)
     langchain_type = LangChainTypes.PERSONAL.value
     return persist_directory, langchain_type
@@ -3268,26 +3283,41 @@ def get_any_db(db1s, langchain_mode, langchain_mode_paths, langchain_mode_types,
     return db
 
 
-def get_sources(db1s, requests_state1, langchain_mode, dbs=None, docs_state0=None, get_userid_auth=None):
-    set_userid(db1s, requests_state1, get_userid_auth)
+def get_sources(db1s, selection_docs_state1, requests_state1, langchain_mode,
+                dbs=None, docs_state0=None,
+                load_db_if_exists=None,
+                db_type=None,
+                use_openai_embedding=None,
+                hf_embedding_model=None,
+                migrate_embedding_model=None,
+                verbose=False,
+                get_userid_auth=None,
+                ):
     for k in db1s:
         set_dbid(db1s[k])
+    langchain_mode_paths = selection_docs_state1['langchain_mode_paths']
+    langchain_mode_types = selection_docs_state1['langchain_mode_types']
+    set_userid(db1s, requests_state1, get_userid_auth)
+    db = get_any_db(db1s, langchain_mode, langchain_mode_paths, langchain_mode_types,
+                    dbs=dbs,
+                    load_db_if_exists=load_db_if_exists,
+                    db_type=db_type,
+                    use_openai_embedding=use_openai_embedding,
+                    hf_embedding_model=hf_embedding_model,
+                    migrate_embedding_model=migrate_embedding_model,
+                    for_sources_list=True,
+                    verbose=verbose,
+                    )
 
-    if langchain_mode in ['LLM']:
+    if langchain_mode in ['LLM'] or db is None:
         source_files_added = "NA"
         source_list = []
     elif langchain_mode in ['wiki_full']:
         source_files_added = "Not showing wiki_full, takes about 20 seconds and makes 4MB file." \
                              "  Ask jon.mckinney@h2o.ai for file if required."
         source_list = []
-    elif langchain_mode in db1s and len(db1s[langchain_mode]) == length_db1() and db1s[langchain_mode][0] is not None:
-        db1 = db1s[langchain_mode]
-        metadatas = get_metadatas(db1[0])
-        source_list = sorted(set([x['source'] for x in metadatas]))
-        source_files_added = '\n'.join(source_list)
-    elif langchain_mode in dbs and dbs[langchain_mode] is not None:
-        db1 = dbs[langchain_mode]
-        metadatas = get_metadatas(db1)
+    elif db is not None:
+        metadatas = get_metadatas(db)
         source_list = sorted(set([x['source'] for x in metadatas]))
         source_files_added = '\n'.join(source_list)
     else:
@@ -3299,7 +3329,9 @@ def get_sources(db1s, requests_state1, langchain_mode, dbs=None, docs_state0=Non
     with open(sources_file, "wt") as f:
         f.write(source_files_added)
     source_list = docs_state0 + source_list
-    return sources_file, source_list
+    if 'All' in source_list:
+        source_list.remove('All')
+    return sources_file, source_list, db
 
 
 def update_user_db(file, db1s, selection_docs_state1, requests_state1,
@@ -3513,7 +3545,8 @@ def _update_user_db(file,
             return None, langchain_mode, source_files_added, '\n'.join(exceptions_strs)
 
 
-def get_source_files_given_langchain_mode(db1s, selection_docs_state1, requests_state1, langchain_mode,
+def get_source_files_given_langchain_mode(db1s, selection_docs_state1, requests_state1, document_choice1,
+                                          langchain_mode,
                                           dbs=None,
                                           load_db_if_exists=None,
                                           db_type=None,
@@ -3521,7 +3554,8 @@ def get_source_files_given_langchain_mode(db1s, selection_docs_state1, requests_
                                           hf_embedding_model=None,
                                           migrate_embedding_model=None,
                                           verbose=False,
-                                          get_userid_auth=None):
+                                          get_userid_auth=None,
+                                          delete_sources=False):
     langchain_mode_paths = selection_docs_state1['langchain_mode_paths']
     langchain_mode_types = selection_docs_state1['langchain_mode_types']
     set_userid(db1s, requests_state1, get_userid_auth)
@@ -3535,6 +3569,9 @@ def get_source_files_given_langchain_mode(db1s, selection_docs_state1, requests_
                     for_sources_list=True,
                     verbose=verbose,
                     )
+    if delete_sources:
+        del_from_db(db, document_choice1, db_type=db_type)
+
     if langchain_mode in ['LLM'] or db is None:
         return "Sources: N/A"
     return get_source_files(db=db, exceptions=None)

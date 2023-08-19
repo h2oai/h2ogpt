@@ -862,10 +862,8 @@ def test_client_chat_stream_langchain_steps3():
         '\r', '\n')
 
     # check sources, and do after so would detect leakage
-    res = client.predict(langchain_mode, api_name='/get_sources')
-    # is not actual data!
-    with open(res['name'], 'rb') as f:
-        sources = f.read().decode()
+    sources = ast.literal_eval(client.predict(langchain_mode, api_name='/get_sources_api'))
+    assert isinstance(sources, list)
     sources_expected = f'{user_path}/FAQ.md\n{user_path}/README.md\n{user_path}/next.txt\n{user_path}/pexels-evg-kowalievska-1170986_small.jpg\n{user_path}/sample1.pdf'
     assert sources == sources_expected or sources.replace('\\', '/').replace('\r', '') == sources_expected.replace(
         '\\', '/').replace('\r', '')
@@ -966,6 +964,16 @@ def test_client_chat_stream_langchain_steps3():
     new_langchain_mode_text = '%s, %s, %s' % (langchain_mode3, 'personal', user_path3)
     res = client.predict(langchain_mode3, new_langchain_mode_text, api_name='/new_langchain_mode_text')
     assert res[0]['value'] == langchain_mode3
+    assert langchain_mode3 in res[0]['choices']
+    assert res[1] == ''
+    assert res[2]['headers'] == ['Collection', 'Type', 'Path']
+    assert res[2]['data'] == [['UserData', 'shared', user_path],
+                              ['github h2oGPT', 'shared', ''],
+                              ['MyData', 'personal', ''],
+                              ['UserData2', 'shared', user_path2],
+                              [langchain_mode2, 'personal', ''],
+                              [langchain_mode3, 'personal', ''],
+                              ]
 
     with tempfile.TemporaryDirectory() as tmp_user_path:
         res = client.predict(urls, True, 512, langchain_mode3, api_name='/add_url')
@@ -974,6 +982,43 @@ def test_client_chat_stream_langchain_steps3():
         assert res[1] == langchain_mode3
         assert [x in res[2] or x.replace('https', 'http') in res[2] for x in urls]
         assert res[3] == ''
+
+    sources_text = client.predict(langchain_mode3, api_name='/show_sources')
+    assert isinstance(sources_text, str)
+    assert [x in sources_text or x.replace('https', 'http') in sources_text for x in urls]
+
+    source_list = ast.literal_eval(client.predict(langchain_mode3, api_name='/get_sources_api'))
+    assert isinstance(source_list, list)
+    assert [x in source_list or x.replace('https', 'http') in source_list for x in urls]
+
+    sources_text_after_delete = client.predict(source_list[0], langchain_mode3, api_name='/delete_sources')
+    assert source_list[0] not in sources_text_after_delete
+
+    sources_state_after_delete = ast.literal_eval(client.predict(langchain_mode3, api_name='/get_sources_api'))
+    assert isinstance(sources_state_after_delete, list)
+    assert source_list[0] not in sources_state_after_delete
+
+    res = client.predict(langchain_mode3, langchain_mode3, api_name='/remove_langchain_mode_text')
+    assert res[0]['value'] == langchain_mode3
+    assert langchain_mode2 in res[0]['choices']
+    assert res[1] == ''
+    assert res[2]['headers'] == ['Collection', 'Type', 'Path']
+    assert res[2]['data'] == [['UserData', 'shared', user_path],
+                              ['github h2oGPT', 'shared', ''],
+                              ['MyData', 'personal', ''],
+                              [langchain_mode2, 'shared', user_path2]]
+
+    assert os.path.isdir("db_dir_%s" % langchain_mode2)
+    res = client.predict(langchain_mode2, langchain_mode2, api_name='/purge_langchain_mode_text')
+    assert not os.path.isdir("db_dir_%s" % langchain_mode2)
+    assert res[0]['value'] == langchain_mode2
+    assert langchain_mode2 in res[0]['choices']
+    assert res[1] == ''
+    assert res[2]['headers'] == ['Collection', 'Type', 'Path']
+    assert res[2]['data'] == [['UserData', 'shared', user_path],
+                              ['github h2oGPT', 'shared', ''],
+                              ['MyData', 'personal', ''],
+                              ]
 
     # FIXME: Add load_model, unload_model, etc.
 
