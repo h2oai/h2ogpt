@@ -12,13 +12,13 @@ from src.utils import download_simple
 results_file = "./perf.json"
 
 @pytest.mark.parametrize("backend", [
-    'transformers',
+    # 'transformers',
     # 'text-generation-inference',
-    # 'mixed',
+    'text-generation-inference-',
 ])
 @pytest.mark.parametrize("base_model", [
-    # 'h2oai/h2ogpt-4096-llama2-7b-chat',
-    # 'h2oai/h2ogpt-4096-llama2-13b-chat',
+    'h2oai/h2ogpt-4096-llama2-7b-chat',
+    'h2oai/h2ogpt-4096-llama2-13b-chat',
     'h2oai/h2ogpt-4096-llama2-70b-chat',
 ])
 @pytest.mark.parametrize("task", [
@@ -118,7 +118,7 @@ def test_perf_benchmarks(backend, base_model, task, bits, ngpus):
             docker_hash2 = run_h2ogpt_docker(gradio_port, base_model, inference_server=inference_server, max_new_tokens=max_new_tokens)
             time.sleep(30)  # assumes image already downloaded, else need more time
             os.system('docker logs %s | tail -10' % docker_hash2)
-        elif backend == 'mixed':
+        elif backend == 'text-generation-inference-':
             if bits != 16:
                 return
             from tests.test_inference_servers import run_docker
