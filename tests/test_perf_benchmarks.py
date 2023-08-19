@@ -16,7 +16,7 @@ results_file = "./perf.json"
     # 'mixed',
 ])
 @pytest.mark.parametrize("base_model", [
-    # 'h2oai/h2ogpt-4096-llama2-7b-chat',
+    'h2oai/h2ogpt-4096-llama2-7b-chat',
     'h2oai/h2ogpt-4096-llama2-13b-chat',
     'h2oai/h2ogpt-4096-llama2-70b-chat',
 ])
