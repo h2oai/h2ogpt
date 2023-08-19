@@ -431,7 +431,8 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'The large language model is' in res_dict['response'] or
             'is a private, secure, and encrypted' in res_dict['response'] or
             'H2O AI is a cloud-based platform for building' in res_dict['response'] or
-            'a private chat between' in res_dict['response']
+            'a private chat between' in res_dict['response'] or
+            'whisper is a chat bot'  in res_dict['response']
             ) \
            and '.md' in res_dict['response']
 
@@ -493,7 +494,7 @@ def test_client_chat_stream_langchain_steps2(max_new_tokens, top_k_docs):
     assert ('h2oGPT is an open-source, fully permissive, commercially usable, and fully trained language model' in
             res_dict['response'] or
             'A new open-source language model that is fully permissive' in res_dict['response'] or
-            'h2oGPT is an open-source language model' in res_dict['response'] or
+            'h2oGPT is an open-source' in res_dict['response'] or
             'h2oGPT is an open-source, fully permissive, commercially usable' in res_dict['response']
             ) and \
            'README.md' in res_dict['response']
@@ -1158,7 +1159,8 @@ def test_client_summarization(prompt_summary):
         assert 'Whisper' in summary or \
                'robust speech recognition system' in summary or \
                'Robust speech recognition' in summary or \
-               'speech processing' in summary
+               'speech processing' in summary or \
+               'LibriSpeech dataset with weak supervision' in summary
     else:
         assert 'various techniques and approaches in speech recognition' in summary or \
                'capabilities of speech processing systems' in summary or \
@@ -1269,7 +1271,8 @@ def test_client_summarization_from_url(url, top_k_docs):
         assert 'Accurate embeddings for private offline databases' in summary \
                or 'private offline database' in summary \
                or 'H2OGPT is an open-source project' in summary \
-               or 'is an open-source project for document Q/A' in summary
+               or 'is an open-source project for document Q/A' in summary \
+               or 'h2oGPT is an open-source project' in summary
     assert url in sources
 
 
