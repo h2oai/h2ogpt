@@ -3445,6 +3445,10 @@ def _update_user_db(file,
         # but default to mydata if nothing chosen, since safest
         if LangChainMode.MY_DATA.value in langchain_modes:
             langchain_mode = LangChainMode.MY_DATA.value
+        elif len(langchain_modes) >= 1:
+            langchain_mode = langchain_modes[0]
+        else:
+            return None, langchain_mode, get_source_files(), ""
 
     if langchain_mode_paths is None:
         langchain_mode_paths = {}
