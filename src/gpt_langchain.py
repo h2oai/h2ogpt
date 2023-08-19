@@ -872,6 +872,9 @@ def get_llm(use_openai_model=False,
             llamacpp_dict=None,
             verbose=False,
             ):
+    # currently all but h2oai_pipeline case return prompt + new text, but could change
+    only_new_text = False
+
     if n_jobs is None:
         n_jobs = int(os.getenv('OMP_NUM_THREADS', str(os.cpu_count() // 2)))
     if inference_server is None:
@@ -1040,7 +1043,7 @@ def get_llm(use_openai_model=False,
                 do_sample=do_sample,
                 max_new_tokens=max_new_tokens,
                 repetition_penalty=repetition_penalty,
-                return_full_text=False,
+                return_full_text=False,  # this only controls internal behavior, still returns processed text
                 seed=SEED,
 
                 stop_sequences=prompter.stop_sequences,
@@ -1141,6 +1144,7 @@ def get_llm(use_openai_model=False,
                                                  inference_server=inference_server, gpu_id=0)
 
         max_max_tokens = tokenizer.model_max_length
+        only_new_text = True
         gen_kwargs = dict(do_sample=do_sample,
                           temperature=temperature,
                           top_k=top_k,
@@ -1152,12 +1156,12 @@ def get_llm(use_openai_model=False,
                           max_time=max_time,
                           repetition_penalty=repetition_penalty,
                           num_return_sequences=num_return_sequences,
-                          return_full_text=False,
+                          return_full_text=not only_new_text,
                           handle_long_generation=None)
         assert len(set(gen_hyper).difference(gen_kwargs.keys())) == 0
 
         if stream_output:
-            skip_prompt = True
+            skip_prompt = only_new_text
             from gen import H2OTextIteratorStreamer
             decoder_kwargs = {}
             streamer = H2OTextIteratorStreamer(tokenizer, skip_prompt=skip_prompt, block=False, **decoder_kwargs)
@@ -1186,7 +1190,7 @@ def get_llm(use_openai_model=False,
 
         from langchain.llms import HuggingFacePipeline
         llm = HuggingFacePipeline(pipeline=pipe)
-    return llm, model_name, streamer, prompt_type, async_output
+    return llm, model_name, streamer, prompt_type, async_output, only_new_text
 
 
 def get_device_dtype():
@@ -2528,7 +2532,7 @@ def _run_qa_db(query=None,
     assert len(set(gen_hyper).difference(inspect.signature(get_llm).parameters)) == 0
     # pass in context to LLM directly, since already has prompt_type structure
     # can't pass through langchain in get_chain() to LLM: https://github.com/hwchase17/langchain/issues/6638
-    llm, model_name, streamer, prompt_type_out, async_output = \
+    llm, model_name, streamer, prompt_type_out, async_output, only_new_text = \
         get_llm(use_openai_model=use_openai_model, model_name=model_name,
                 model=model,
                 tokenizer=tokenizer,
@@ -2643,7 +2647,7 @@ def _run_qa_db(query=None,
                             else:
                                 prompt = None  # FIXME
                                 output_with_prompt = outputs
-                                only_new_text = True
+                                # don't specify only_new_text here, use get_llm() value
                             output1 = prompter.get_response(output_with_prompt, prompt=prompt,
                                                             only_new_text=only_new_text,
                                                             sanitize_bot_response=sanitize_bot_response)
