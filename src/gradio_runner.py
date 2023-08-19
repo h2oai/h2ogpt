@@ -3239,7 +3239,7 @@ def go_gradio(**kwargs):
         chatbot_update_args = dict(fn=chatbot_list, inputs=[text_output, model_used], outputs=text_output)
         nochat_update_args = dict(fn=chatbot_list, inputs=[text_output_nochat, model_used], outputs=text_output_nochat)
         load_model_event = load_model_button.click(**load_model_args,
-                                                   api_name='load_model' if allow_api and is_public else None) \
+                                                   api_name='load_model' if allow_api and not is_public else None) \
             .then(**prompt_update_args) \
             .then(**chatbot_update_args) \
             .then(**nochat_update_args) \
@@ -3261,7 +3261,7 @@ def go_gradio(**kwargs):
         prompt_update_args2 = dict(fn=dropdown_prompt_type_list, inputs=prompt_type2, outputs=prompt_type2)
         chatbot_update_args2 = dict(fn=chatbot_list, inputs=[text_output2, model_used2], outputs=text_output2)
         load_model_event2 = load_model_button2.click(**load_model_args2,
-                                                     api_name='load_model2' if allow_api and is_public else None) \
+                                                     api_name='load_model2' if allow_api and not is_public else None) \
             .then(**prompt_update_args2) \
             .then(**chatbot_update_args2) \
             .then(clear_torch_cache)
