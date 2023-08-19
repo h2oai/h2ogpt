@@ -234,10 +234,17 @@ def get_heap_js(heapAppId: str) -> str:
     return ("""globalThis.window.heap=window.heap||[],heap.load=function(e,t){window.heap.appid=e,window.heap.config=t=t||{};var r=document.createElement("script");r.type="text/javascript",r.async=!0,r.src="https://cdn.heapanalytics.com/js/heap-"+e+".js";var a=document.getElementsByTagName("script")[0];a.parentNode.insertBefore(r,a);for(var n=function(e){return function(){heap.push([e].concat(Array.prototype.slice.call(arguments,0)))}},p=["addEventProperties","addUserProperties","clearEventProperties","identify","resetIdentity","removeEventProperty","setEventProperties","track","unsetEventProperty"],o=0;o<p.length;o++)heap[p[o]]=n(p[o])};"""
            f"""heap.load("{heapAppId}");""")
 
-def wrap_js_to_lambda(*args: str) -> str:
+def wrap_js_to_lambda(num_params: int, *args: str) -> str:
+    """
+    Generates a JS code representing JS lambda that wraps all given '*args' code strings.
+    The lambda function has number of parameters based on 'num_params' and returns them
+    without modification in an array. Lambda with zero parameters returns an empty array.
+    """
+    params = ", ".join([f"p{i}" for i in range(num_params)])
     newline = "\n"
     return f"""
-        () => {{
+        ({params}) => {{
             {newline.join([a for a in args if a is not None])}
+            return [{params}];
         }}
     """
