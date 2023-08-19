@@ -239,4 +239,5 @@ def test_plot_results():
 
                     XX = X[(X['base_model'] == base_model) & (X['backend'] == backend) & (X['n_gpus'] == n_gpus)]
                     XX = XX.sort_values(['bits', 'generation speed [tokens/sec]'], ascending=[False, False])
-                    print(XX[['bits', 'gpus', 'summarization time [sec]', 'generation speed [tokens/sec]']].to_markdown(index=False).replace("nan", "OOM"), file=f)
+                    XX['exception'] = XX['exception'].astype(str).replace("nan", "")
+                    print(XX[['bits', 'gpus', 'summarization time [sec]', 'generation speed [tokens/sec]', 'exception']].to_markdown(index=False), file=f)
