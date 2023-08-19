@@ -248,6 +248,7 @@ def test_qa_daidocs_db_chunk_hf_dbs_switch_embedding(db_type):
     prompt_type = 'human_bot'
     all_kwargs = dict(load_8bit=False,
                       load_4bit=False,
+                      low_bit_mode=1,
                       load_half=True,
                       load_gptq=False,
                       load_exllama=False,
