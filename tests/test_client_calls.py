@@ -788,7 +788,8 @@ def test_client_chat_stream_langchain_steps3():
     assert res[0]['value'] == langchain_mode2
     assert langchain_mode2 in res[0]['choices']
     assert res[1] == ''
-    assert res[2]['headers'] == ['Collection', 'Type', 'Path']
+    assert res[2]['headers'] == ['Collection', 'Type', 'Path', 'Directory']
+    res[2]['data'] = [[x[0], x[1], x[2]] for x in res[2]['data']]  # ignore persist_directory
     assert res[2]['data'] == [['UserData', 'shared', user_path],
                               ['github h2oGPT', 'shared', ''],
                               ['MyData', 'personal', ''],
@@ -879,7 +880,8 @@ def test_client_chat_stream_langchain_steps3():
     res = client.predict(langchain_mode, api_name='/load_langchain')
     assert res[0]['choices'] == [langchain_mode, 'MyData', 'github h2oGPT', 'LLM', langchain_mode2]
     assert res[0]['value'] == langchain_mode
-    assert res[1]['headers'] == ['Collection', 'Type', 'Path']
+    assert res[1]['headers'] == ['Collection', 'Type', 'Path', 'Directory']
+    res[1]['data'] = [[x[0], x[1], x[2]] for x in res[1]['data']]  # ignore persist_directory
     assert res[1]['data'] == [['UserData', 'shared', user_path],
                               ['github h2oGPT', 'shared', ''],
                               ['MyData', 'personal', ''],
@@ -930,7 +932,8 @@ def test_client_chat_stream_langchain_steps3():
     assert res[0]['value'] == langchain_mode2
     assert langchain_mode2 in res[0]['choices']
     assert res[1] == ''
-    assert res[2]['headers'] == ['Collection', 'Type', 'Path']
+    assert res[2]['headers'] == ['Collection', 'Type', 'Path', 'Directory']
+    res[2]['data'] = [[x[0], x[1], x[2]] for x in res[2]['data']]  # ignore persist_directory
     assert res[2]['data'] == [['UserData', 'shared', user_path],
                               ['github h2oGPT', 'shared', ''],
                               ['MyData', 'personal', ''],
@@ -973,7 +976,8 @@ def test_client_chat_stream_langchain_steps3():
     assert res[0]['value'] == langchain_mode3
     assert langchain_mode3 in res[0]['choices']
     assert res[1] == ''
-    assert res[2]['headers'] == ['Collection', 'Type', 'Path']
+    assert res[2]['headers'] == ['Collection', 'Type', 'Path', 'Directory']
+    res[2]['data'] = [[x[0], x[1], x[2]] for x in res[2]['data']]  # ignore persist_directory
     assert res[2]['data'] == [['UserData', 'shared', user_path],
                               ['github h2oGPT', 'shared', ''],
                               ['MyData', 'personal', ''],
@@ -1013,7 +1017,8 @@ def test_client_chat_stream_langchain_steps3():
     assert res[0]['value'] == langchain_mode3
     assert langchain_mode2 in res[0]['choices']
     assert res[1] == ''
-    assert res[2]['headers'] == ['Collection', 'Type', 'Path']
+    assert res[2]['headers'] == ['Collection', 'Type', 'Path', 'Directory']
+    res[2]['data'] = [[x[0], x[1], x[2]] for x in res[2]['data']]  # ignore persist_directory
     assert res[2]['data'] == [['UserData', 'shared', user_path],
                               ['github h2oGPT', 'shared', ''],
                               ['MyData', 'personal', ''],
@@ -1027,7 +1032,8 @@ def test_client_chat_stream_langchain_steps3():
     assert res[0]['value'] == langchain_mode
     assert langchain_mode not in res[0]['choices']
     assert res[1] == ''
-    assert res[2]['headers'] == ['Collection', 'Type', 'Path']
+    assert res[2]['headers'] == ['Collection', 'Type', 'Path', 'Directory']
+    res[2]['data'] = [[x[0], x[1], x[2]] for x in res[2]['data']]  # ignore persist_directory
     assert res[2]['data'] == [['github h2oGPT', 'shared', ''],
                               ['MyData', 'personal', ''],
                               ['UserData2', 'shared', 'user_path2'],

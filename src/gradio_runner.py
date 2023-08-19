@@ -534,9 +534,22 @@ def go_gradio(**kwargs):
                 df2 = pd.DataFrame.from_dict(langchain_mode_types.items(), orient='columns')
                 df2.columns = ['Collection', 'Type']
                 df2 = df2.set_index('Collection')
+
+                from src.gpt_langchain import get_persist_directory
+                persist_directory_dict = {}
+                for langchain_mode3 in langchain_mode_types:
+                    langchain_type3 = langchain_mode_types.get(langchain_mode3, LangChainTypes.EITHER.value)
+                    persist_directory3, langchain_type3 = get_persist_directory(langchain_mode3, langchain_type=langchain_type3)
+                    persist_directory_dict[langchain_mode3] = persist_directory3
+
+                df3 = pd.DataFrame.from_dict(persist_directory_dict.items(), orient='columns')
+                df3.columns = ['Collection', 'Directory']
+                df3 = df3.set_index('Collection')
             else:
                 df2 = pd.DataFrame(None)
-            df = df2.join(df1, on='Collection').replace(np.nan, '')
+                df3 = pd.DataFrame(None)
+            df_tmp = df2.join(df1, on='Collection').replace(np.nan, '')
+            df = df_tmp.join(df3, on='Collection').replace(np.nan, '')
             df = df.reset_index()
             return df
 
