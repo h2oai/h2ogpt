@@ -11,8 +11,8 @@ from src.utils import download_simple
 results_file = "./perf.json"
 
 @pytest.mark.parametrize("backend", [
-    'transformers',
-    # 'text-generation-inference',
+    # 'transformers',
+    'text-generation-inference',
     # 'mixed',
 ])
 @pytest.mark.parametrize("base_model", [
