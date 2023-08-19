@@ -504,7 +504,11 @@ def main(
     :param enable_sources_list: Whether to allow list (or download for non-shared db) of list of sources for chosen db
     :param chunk: Whether to chunk data (True unless know data is already optimally chunked)
     :param chunk_size: Size of chunks, with typically top-4 passed to LLM, so needs to be in context length
-    :param top_k_docs: number of chunks to give LLM
+    :param top_k_docs: For langchain_action query: number of chunks to give LLM
+                       -1 : auto-fills context up to max_seq_len
+                       For langchain_action summarize: number of document parts, like pages for PDF.
+                       There's no such thing as chunks for summarization.
+                       -1 : auto-fills context up to max_seq_len
     :param reverse_docs: whether to reverse docs order so most relevant is closest to question.
            Best choice for sufficiently smart model, and truncation occurs for oldest context, so best then too.
            But smaller 6_9 models fail to use newest context and can get stuck on old information.
