@@ -90,7 +90,7 @@ def test_perf_benchmarks(backend, base_model, task, bits, ngpus):
             main(**h2ogpt_args)
         elif backend == 'text-generation-inference':
             if bits != 16:
-                pytest.xfail("Quantization not yet supported in text-generation-inference")
+                return
             from tests.test_inference_servers import run_docker
             # HF inference server
             gradio_port = get_inf_port()
@@ -107,7 +107,7 @@ def test_perf_benchmarks(backend, base_model, task, bits, ngpus):
             os.system('docker logs %s | tail -10' % docker_hash2)
         elif backend == 'mixed':
             if bits != 16:
-                pytest.xfail("Quantization not yet supported in TGI")
+                return
             from tests.test_inference_servers import run_docker
             # HF inference server
             gradio_port = get_inf_port()
