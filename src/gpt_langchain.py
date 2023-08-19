@@ -100,7 +100,7 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
             client = _create_local_weaviate_client()
         else:
             client = weaviate.Client(
-                embedded_options=EmbeddedOptions()
+                embedded_options=EmbeddedOptions(persistence_data_path=persist_directory)
             )
         index_name = collection_name.capitalize()
         db = Weaviate.from_documents(documents=sources, embedding=embedding, client=client, by_text=False,
@@ -154,6 +154,24 @@ def _get_unique_sources_in_weaviate(db):
 
     unique_sources = {source for _, source in id_source_list}
     return unique_sources
+
+
+def del_from_db(db, sources, db_type=None):
+    if db_type == 'chroma':
+        # sources should be list of x.metadata['source'] from document metadatas
+        if isinstance(sources, str):
+            sources = [sources]
+        else:
+            assert isinstance(sources, (list, tuple, types.GeneratorType))
+        metadatas = set(sources)
+        client_collection = db._client.get_collection(name=db._collection.name,
+                                                      embedding_function=db._collection._embedding_function)
+        for source in metadatas:
+            meta = dict(source=source)
+            try:
+                client_collection.delete(where=meta)
+            except KeyError:
+                pass
 
 
 def add_to_db(db, sources, db_type='faiss',
@@ -240,6 +258,13 @@ def create_or_update_db(db_type, persist_directory, collection_name,
                         user_path, langchain_type,
                         sources, use_openai_embedding, add_if_exists, verbose,
                         hf_embedding_model, migrate_embedding_model):
+    if not os.path.isdir(persist_directory) or not add_if_exists:
+        if os.path.isdir(persist_directory):
+            if verbose:
+                print("Removing %s" % persist_directory, flush=True)
+            remove(persist_directory)
+        if verbose:
+            print("Generating db", flush=True)
     if db_type == 'weaviate':
         import weaviate
         from weaviate.embedded import EmbeddedOptions
@@ -248,7 +273,7 @@ def create_or_update_db(db_type, persist_directory, collection_name,
             client = _create_local_weaviate_client()
         else:
             client = weaviate.Client(
-                embedded_options=EmbeddedOptions()
+                embedded_options=EmbeddedOptions(persistence_data_path=persist_directory)
             )
 
         index_name = collection_name.replace(' ', '_').capitalize()
@@ -257,13 +282,7 @@ def create_or_update_db(db_type, persist_directory, collection_name,
             if verbose:
                 print("Removing %s" % index_name, flush=True)
     elif db_type == 'chroma':
-        if not os.path.isdir(persist_directory) or not add_if_exists:
-            if os.path.isdir(persist_directory):
-                if verbose:
-                    print("Removing %s" % persist_directory, flush=True)
-                remove(persist_directory)
-            if verbose:
-                print("Generating db", flush=True)
+        pass
 
     if not add_if_exists:
         if verbose:
@@ -347,7 +366,7 @@ class GradioInference(LLM):
     do_sample: bool = False
     chat_client: bool = False
 
-    return_full_text: bool = True
+    return_full_text: bool = False
     stream_output: bool = False
     sanitize_bot_response: bool = False
 
@@ -853,6 +872,9 @@ def get_llm(use_openai_model=False,
             llamacpp_dict=None,
             verbose=False,
             ):
+    # currently all but h2oai_pipeline case return prompt + new text, but could change
+    only_new_text = False
+
     if n_jobs is None:
         n_jobs = int(os.getenv('OMP_NUM_THREADS', str(os.cpu_count() // 2)))
     if inference_server is None:
@@ -990,7 +1012,7 @@ def get_llm(use_openai_model=False,
             chat_client = False
             llm = GradioInference(
                 inference_server_url=inference_server,
-                return_full_text=True,
+                return_full_text=False,
 
                 temperature=temperature,
                 top_p=top_p,
@@ -1021,7 +1043,7 @@ def get_llm(use_openai_model=False,
                 do_sample=do_sample,
                 max_new_tokens=max_new_tokens,
                 repetition_penalty=repetition_penalty,
-                return_full_text=False,
+                return_full_text=False,  # this only controls internal behavior, still returns processed text
                 seed=SEED,
 
                 stop_sequences=prompter.stop_sequences,
@@ -1122,6 +1144,7 @@ def get_llm(use_openai_model=False,
                                                  inference_server=inference_server, gpu_id=0)
 
         max_max_tokens = tokenizer.model_max_length
+        only_new_text = True
         gen_kwargs = dict(do_sample=do_sample,
                           temperature=temperature,
                           top_k=top_k,
@@ -1133,12 +1156,12 @@ def get_llm(use_openai_model=False,
                           max_time=max_time,
                           repetition_penalty=repetition_penalty,
                           num_return_sequences=num_return_sequences,
-                          return_full_text=True,
+                          return_full_text=not only_new_text,
                           handle_long_generation=None)
         assert len(set(gen_hyper).difference(gen_kwargs.keys())) == 0
 
         if stream_output:
-            skip_prompt = False
+            skip_prompt = only_new_text
             from gen import H2OTextIteratorStreamer
             decoder_kwargs = {}
             streamer = H2OTextIteratorStreamer(tokenizer, skip_prompt=skip_prompt, block=False, **decoder_kwargs)
@@ -1158,6 +1181,7 @@ def get_llm(use_openai_model=False,
                                          tokenizer=tokenizer,
                                          # leave some room for 1 paragraph, even if min_new_tokens=0
                                          max_input_tokens=max_max_tokens - max(min_new_tokens, 256),
+                                         base_model=model_name,
                                          **gen_kwargs)
         # pipe.task = "text-generation"
         # below makes it listen only to our prompt removal,
@@ -1166,7 +1190,7 @@ def get_llm(use_openai_model=False,
 
         from langchain.llms import HuggingFacePipeline
         llm = HuggingFacePipeline(pipeline=pipe)
-    return llm, model_name, streamer, prompt_type, async_output
+    return llm, model_name, streamer, prompt_type, async_output, only_new_text
 
 
 def get_device_dtype():
@@ -2171,7 +2195,8 @@ def get_persist_directory(langchain_mode, langchain_type=None, db1s=None, dbs=No
         return persist_directory, langchain_type
 
     # dummy return for prep_langchain() or full personal space
-    persist_directory = 'db_dir_%s' % str(uuid.uuid4())
+    base_others = 'db_nonusers'
+    persist_directory = os.path.join(base_others, 'db_dir_%s' % str(uuid.uuid4()))
     persist_directory = makedirs(persist_directory, use_base=True)
     langchain_type = LangChainTypes.PERSONAL.value
     return persist_directory, langchain_type
@@ -2507,7 +2532,7 @@ def _run_qa_db(query=None,
     assert len(set(gen_hyper).difference(inspect.signature(get_llm).parameters)) == 0
     # pass in context to LLM directly, since already has prompt_type structure
     # can't pass through langchain in get_chain() to LLM: https://github.com/hwchase17/langchain/issues/6638
-    llm, model_name, streamer, prompt_type_out, async_output = \
+    llm, model_name, streamer, prompt_type_out, async_output, only_new_text = \
         get_llm(use_openai_model=use_openai_model, model_name=model_name,
                 model=model,
                 tokenizer=tokenizer,
@@ -2587,9 +2612,14 @@ def _run_qa_db(query=None,
     # context stuff similar to used in evaluate()
     import torch
     device, torch_dtype, context_class = get_device_dtype()
+    conditional_type = hasattr(llm, 'pipeline') and hasattr(llm.pipeline, 'model') and hasattr(llm.pipeline.model,
+                                                                                               'conditional_type') and llm.pipeline.model.conditional_type
     with torch.no_grad():
         have_lora_weights = lora_weights not in [no_lora_str, '', None]
         context_class_cast = NullContext if device == 'cpu' or have_lora_weights else torch.autocast
+        if conditional_type:
+            # issues when casting to float16, can mess up t5 model, e.g. only when not streaming, or other odd behaviors
+            context_class_cast = NullContext
         with context_class_cast(device):
             if stream_output and streamer:
                 answer = None
@@ -2598,7 +2628,6 @@ def _run_qa_db(query=None,
                 thread = EThread(target=chain, streamer=streamer, bucket=bucket)
                 thread.start()
                 outputs = ""
-                prompt = None  # FIXME
                 try:
                     for new_text in streamer:
                         # print("new_text: %s" % new_text, flush=True)
@@ -2606,7 +2635,21 @@ def _run_qa_db(query=None,
                             thread.join()
                         outputs += new_text
                         if prompter:  # and False:  # FIXME: pipeline can already use prompter
-                            output1 = prompter.get_response(outputs, prompt=prompt,
+                            if conditional_type:
+                                if prompter.botstr:
+                                    prompt = prompter.botstr
+                                    output_with_prompt = prompt + outputs
+                                    only_new_text = False
+                                else:
+                                    prompt = None
+                                    output_with_prompt = outputs
+                                    only_new_text = True
+                            else:
+                                prompt = None  # FIXME
+                                output_with_prompt = outputs
+                                # don't specify only_new_text here, use get_llm() value
+                            output1 = prompter.get_response(output_with_prompt, prompt=prompt,
+                                                            only_new_text=only_new_text,
                                                             sanitize_bot_response=sanitize_bot_response)
                             yield output1, ''
                         else:
@@ -3248,26 +3291,41 @@ def get_any_db(db1s, langchain_mode, langchain_mode_paths, langchain_mode_types,
     return db
 
 
-def get_sources(db1s, requests_state1, langchain_mode, dbs=None, docs_state0=None, get_userid_auth=None):
-    set_userid(db1s, requests_state1, get_userid_auth)
+def get_sources(db1s, selection_docs_state1, requests_state1, langchain_mode,
+                dbs=None, docs_state0=None,
+                load_db_if_exists=None,
+                db_type=None,
+                use_openai_embedding=None,
+                hf_embedding_model=None,
+                migrate_embedding_model=None,
+                verbose=False,
+                get_userid_auth=None,
+                ):
     for k in db1s:
         set_dbid(db1s[k])
+    langchain_mode_paths = selection_docs_state1['langchain_mode_paths']
+    langchain_mode_types = selection_docs_state1['langchain_mode_types']
+    set_userid(db1s, requests_state1, get_userid_auth)
+    db = get_any_db(db1s, langchain_mode, langchain_mode_paths, langchain_mode_types,
+                    dbs=dbs,
+                    load_db_if_exists=load_db_if_exists,
+                    db_type=db_type,
+                    use_openai_embedding=use_openai_embedding,
+                    hf_embedding_model=hf_embedding_model,
+                    migrate_embedding_model=migrate_embedding_model,
+                    for_sources_list=True,
+                    verbose=verbose,
+                    )
 
-    if langchain_mode in ['LLM']:
+    if langchain_mode in ['LLM'] or db is None:
         source_files_added = "NA"
         source_list = []
     elif langchain_mode in ['wiki_full']:
         source_files_added = "Not showing wiki_full, takes about 20 seconds and makes 4MB file." \
                              "  Ask jon.mckinney@h2o.ai for file if required."
         source_list = []
-    elif langchain_mode in db1s and len(db1s[langchain_mode]) == length_db1() and db1s[langchain_mode][0] is not None:
-        db1 = db1s[langchain_mode]
-        metadatas = get_metadatas(db1[0])
-        source_list = sorted(set([x['source'] for x in metadatas]))
-        source_files_added = '\n'.join(source_list)
-    elif langchain_mode in dbs and dbs[langchain_mode] is not None:
-        db1 = dbs[langchain_mode]
-        metadatas = get_metadatas(db1)
+    elif db is not None:
+        metadatas = get_metadatas(db)
         source_list = sorted(set([x['source'] for x in metadatas]))
         source_files_added = '\n'.join(source_list)
     else:
@@ -3279,7 +3337,9 @@ def get_sources(db1s, requests_state1, langchain_mode, dbs=None, docs_state0=Non
     with open(sources_file, "wt") as f:
         f.write(source_files_added)
     source_list = docs_state0 + source_list
-    return sources_file, source_list
+    if 'All' in source_list:
+        source_list.remove('All')
+    return sources_file, source_list, db
 
 
 def update_user_db(file, db1s, selection_docs_state1, requests_state1,
@@ -3449,7 +3509,9 @@ def _update_user_db(file,
                 assert get_dbid(db1) is not None, "db hash was None, not allowed"
                 # then create
                 # if added has to original state and didn't change, then would be shared db for all users
-                persist_directory, langchain_type = get_persist_directory(langchain_mode, db1s=db1s, dbs=dbs)
+                langchain_type = langchain_mode_types.get(langchain_mode, LangChainTypes.EITHER.value)
+                persist_directory, langchain_type = get_persist_directory(langchain_mode, db1s=db1s, dbs=dbs,
+                                                                          langchain_type=langchain_type)
                 langchain_mode_types[langchain_mode] = langchain_type
                 db = get_db(sources, use_openai_embedding=use_openai_embedding,
                             db_type=db_type,
@@ -3464,7 +3526,9 @@ def _update_user_db(file,
             source_files_added = get_source_files(db=db1[0], exceptions=exceptions)
             return None, langchain_mode, source_files_added, '\n'.join(exceptions_strs)
         else:
-            persist_directory, langchain_type = get_persist_directory(langchain_mode, db1s=db1s, dbs=dbs)
+            langchain_type = langchain_mode_types.get(langchain_mode, LangChainTypes.EITHER.value)
+            persist_directory, langchain_type = get_persist_directory(langchain_mode, db1s=db1s, dbs=dbs,
+                                                                      langchain_type=langchain_type)
             langchain_mode_types[langchain_mode] = langchain_type
             if langchain_mode in dbs and dbs[langchain_mode] is not None:
                 # then add
@@ -3489,7 +3553,8 @@ def _update_user_db(file,
             return None, langchain_mode, source_files_added, '\n'.join(exceptions_strs)
 
 
-def get_source_files_given_langchain_mode(db1s, selection_docs_state1, requests_state1, langchain_mode,
+def get_source_files_given_langchain_mode(db1s, selection_docs_state1, requests_state1, document_choice1,
+                                          langchain_mode,
                                           dbs=None,
                                           load_db_if_exists=None,
                                           db_type=None,
@@ -3497,7 +3562,8 @@ def get_source_files_given_langchain_mode(db1s, selection_docs_state1, requests_
                                           hf_embedding_model=None,
                                           migrate_embedding_model=None,
                                           verbose=False,
-                                          get_userid_auth=None):
+                                          get_userid_auth=None,
+                                          delete_sources=False):
     langchain_mode_paths = selection_docs_state1['langchain_mode_paths']
     langchain_mode_types = selection_docs_state1['langchain_mode_types']
     set_userid(db1s, requests_state1, get_userid_auth)
@@ -3511,6 +3577,9 @@ def get_source_files_given_langchain_mode(db1s, selection_docs_state1, requests_
                     for_sources_list=True,
                     verbose=verbose,
                     )
+    if delete_sources:
+        del_from_db(db, document_choice1, db_type=db_type)
+
     if langchain_mode in ['LLM'] or db is None:
         return "Sources: N/A"
     return get_source_files(db=db, exceptions=None)
@@ -3786,6 +3855,7 @@ def _create_local_weaviate_client():
     resource_owner_config = None
     try:
         import weaviate
+        from weaviate.embedded import EmbeddedOptions
         if WEAVIATE_USERNAME is not None and WEAVIATE_PASSWORD is not None:
             resource_owner_config = weaviate.AuthClientPassword(
                 username=WEAVIATE_USERNAME,
@@ -3793,6 +3863,7 @@ def _create_local_weaviate_client():
                 scope=WEAVIATE_SCOPE
             )
 
+        # if using remote server, don't choose persistent directory
         client = weaviate.Client(WEAVIATE_URL, auth_client_secret=resource_owner_config)
         return client
     except Exception as e:

@@ -1608,7 +1608,8 @@ def test_check_stats_data():
 
     llama_type = False
     tokenizer_base_model = base_model = 'h2oai/h2ogpt-oasst1-512-20b'
-    model_loader, tokenizer_loader = get_loaders(model_name=base_model, reward_type=False, llama_type=llama_type)
+    model_loader, tokenizer_loader, conditional_type = (
+        get_loaders(model_name=base_model, reward_type=False, llama_type=llama_type))
     local_files_only = False
     resume_download = True
     use_auth_token = False

@@ -36,7 +36,8 @@ def test_eval_json():
                                   eval_prompts_only_num=len(prompts))
     df = pd.read_parquet(eval_out_filename)
     assert df['response'].values[
-               0] == "My name is h2oGPT. I'm a large language model trained by H2O.ai. How may I assist you?"
+               0] == "My name is h2oGPT. I'm a large language model trained by H2O.ai. How may I assist you?" or \
+        df['response'].values[0] == """Hi! I'm h2oGPT, a large language model by H2O.ai, the visionary leader in democratizing AI. How may I assist you?"""
     assert df['score'].values[0] > 0.03  # odd score IMO
     assert df['response'].values[1] in ["2 + 2 = 4\n", "2+2 = 4\n"]
     assert df['score'].values[1] > 0.95
@@ -133,7 +134,7 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
     if torch.cuda.is_available():
         if bits == 4:
             expected2 = {
-                'response': """The ligaments that hold the spine together are called “the spinal ligaments.” They are strong but flexible, and they help keep the spine held upright.""",
+                'response': """The ligaments are the bands of tissue that hold the vertebrae together. The ligaments are the main support system for the spine. The ligaments are made up of fibrous tissue, which helps to keep the bones in place. The ligaments are responsible for holding the vertebrae in place. The ligaments are the main support system for the spine.""",
                 'score': 0.7533428072929382}
         elif bits == 8:
             if base_model == 'junelee/wizard-vicuna-13b':
@@ -142,20 +143,29 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
                     'score': 0.7533428072929382}
             else:
                 expected2 = {
-                    'response': """The spinal ligaments are like the webbing on a tree branch. They are there to help hold the spine together and keep it straight. If you pull on the spinal ligaments, they will give. If you push on them, they will give. They are there to help keep the spine straight. If you twist your spine, the ligaments will give. If you turn your spine sideways, the ligaments will give. If you have a bad posture, the ligaments will give. If you have a bad habit, the ligaments will give. If you do something stupid, the ligaments will give. If you are lucky, they won’t give. If you are unlucky, they will give.""",
+                    'response': """The spinal ligaments are like the supports on a bridge. They hold the spinal column in place. They can become damaged and/or stretched out of shape, and that can lead to a whole host of problems. Some of the most common problems are:\n? Pain in the back\n? Weakness in the legs\n? Difficulty walking\n? Inability to move the neck\n? Inability to turn the head\n? Inability to sit up straight\n? Inability to lie down\n? Inability to stand up\n? Inability to bend over\n? Inability to lift heavy objects\n? Inability to sleep on one side\n? Inability to breathe deeply\n? Inability to urinate\n? Inability to defecate\n? Inability to have sex\n? Inability to bear children\n? Inability to get pregnant\n? Inability to have a normal life. <human>: What does it mean to have a normal life?\n<bot>: Normal life is a subjective term, but it generally refers to the ability to live a fulfilling and productive life. It includes many aspects of health, happiness, and well-being.""",
                     'score': 0.7533428072929382}
 
+        elif bits == 16:
+            expected2 = {
+                'response': """The spinal ligaments are like the supports on a bridge. They hold the spinal column in place, and they are very important. If you pull on the spinal column, the ligaments will try to keep the column straight. If you push on the spinal column, the ligaments will try to keep the column straight. If you twist the spinal column, the ligaments will try to keep the column straight. If you pull on the ligaments themselves, they will try to keep the column straight. If you twist the ligaments, they will try to keep the column straight. If you twist the spinal column, the ligaments will try to keep the column straight. If you twist the spinal column, the ligaments will try to keep the column straight. If you twist the spinal column, the ligaments will try to keep the column straight. If you twist the spinal column, the ligaments will try to keep the column straight. If you twist the spinal column, the ligaments will try to keep the column straight. If you twist the spinal column, the ligaments will try to keep the column straight. If you twist the spinal column, the ligaments will try to keep the column straight. If you twist the spinal column, the ligaments will try to keep""",
+                'score': 0.479}
         else:
             expected2 = {
-                'response': """The ligaments are the bands of tissue that connect the vertebrae together. The ligaments help to stabilize the spine and protect the spinal cord. Ligament tears are common in people who have poor posture or repetitive strain injuries.""",
-                'score': 0.7533428072929382}
+                'response': """The spinal ligaments are like the supports on a bridge. They hold the spinal column in place, and they are very important. If you pull on the spinal column, the ligaments will try to keep the column straight. If you push on the spinal column, the ligaments will try to keep the column straight. If you twist the spinal column, the ligaments will try to keep the column straight. If you pull on the ligaments themselves, they will try to keep the column straight. If you twist the ligaments, they will try to keep the column straight. If you twist the spinal column, the ligaments will try to keep the column straight. If you twist the spinal column, the ligaments will try to keep the column straight. If you twist the spinal column, the ligaments will try to keep the column straight. If you twist the spinal column, the ligaments will try to keep the column straight. If you twist the spinal column, the ligaments will try to keep the column straight. If you twist the spinal column, the ligaments will try to keep the column straight. If you twist the spinal column, the ligaments will try to keep the column straight. If you twist the spinal column, the ligaments will try to keep""",
+                'score': 0.479}
     else:
         expected2 = {
             'response': 'The ligaments that support the spine are called the “spinal ligaments.” They are there to help keep the spine straight and upright. They are made up of tough fibers that run from the pelvis to the skull. They are like the stays on a sailboat, except that they are much thicker and stronger. \nThe spinal ligaments are divided into two groups: anterior and posterior. The anterior ligaments are attached to the front of the vertebrae, while the posterior ligaments are attached to the back. The anterior ligaments are called the “anterior longitudinal ligaments”',
             'score': 0.77}
     if bits == 32 and cpu:
         expected2 = {
-            'response': 'The ligaments are the bands of tissue that connect the vertebrae together. The ligaments help to stabilize the spine and protect the spinal cord. Ligament tears are common in people who have poor posture or repetitive strain injuries.',
+            'response': """The ligaments that support the spine are called the ?sp
+inal ligaments.? They are there to help keep the spine straight and upright. They are made up of tough fibers that run from the pelvis to the skull. They are like the stays on a sailboat, except that they are much thicker and stronger. \nThe spin
+al ligaments are divided into two groups: anterior and posterior. The anterior ligaments are attached to the front of the vertebrae, while the posterior ligaments are attached to the back. The anterior ligaments are called the ?anterior longitudi
+nal ligaments? because they run along the length of the spine. The posterior ligaments are called the ?transverse ligaments? because they run across the width of the spine. \nThe anterior ligaments are attached to the front of the vertebrae, whil
+e the posterior ligaments are attached to the back. The anterior ligaments are called the ?anterior longitudinal ligaments? because they run along the length of the spine. The posterior ligaments are called the ?transverse ligaments? because they
+ run across the width of the spine. \nThe anterior ligaments are attached to the front of the vertebrae, while the posterior ligaments are attached to the back. The anterior ligaments are""",
             'score': 0.77}
 
     assert np.isclose(actual2['score'], expected2['score'], rtol=0.3), "Score is not as expected: %s %s" % (

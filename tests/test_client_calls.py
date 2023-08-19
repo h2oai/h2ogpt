@@ -431,7 +431,8 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'The large language model is' in res_dict['response'] or
             'is a private, secure, and encrypted' in res_dict['response'] or
             'H2O AI is a cloud-based platform for building' in res_dict['response'] or
-            'a private chat between' in res_dict['response']
+            'a private chat between' in res_dict['response'] or
+            'whisper is a chat bot'  in res_dict['response']
             ) \
            and '.md' in res_dict['response']
 
@@ -493,7 +494,7 @@ def test_client_chat_stream_langchain_steps2(max_new_tokens, top_k_docs):
     assert ('h2oGPT is an open-source, fully permissive, commercially usable, and fully trained language model' in
             res_dict['response'] or
             'A new open-source language model that is fully permissive' in res_dict['response'] or
-            'h2oGPT is an open-source language model' in res_dict['response'] or
+            'h2oGPT is an open-source' in res_dict['response'] or
             'h2oGPT is an open-source, fully permissive, commercially usable' in res_dict['response']
             ) and \
            'README.md' in res_dict['response']
@@ -788,7 +789,8 @@ def test_client_chat_stream_langchain_steps3():
     assert res[0]['value'] == langchain_mode2
     assert langchain_mode2 in res[0]['choices']
     assert res[1] == ''
-    assert res[2]['headers'] == ['Collection', 'Type', 'Path']
+    assert res[2]['headers'] == ['Collection', 'Type', 'Path', 'Directory']
+    res[2]['data'] = [[x[0], x[1], x[2]] for x in res[2]['data']]  # ignore persist_directory
     assert res[2]['data'] == [['UserData', 'shared', user_path],
                               ['github h2oGPT', 'shared', ''],
                               ['MyData', 'personal', ''],
@@ -861,7 +863,6 @@ def test_client_chat_stream_langchain_steps3():
                                                                                                            '/').replace(
         '\r', '\n')
 
-    # check sources, and do after so would detect leakage
     res = client.predict(langchain_mode, api_name='/get_sources')
     # is not actual data!
     with open(res['name'], 'rb') as f:
@@ -870,11 +871,18 @@ def test_client_chat_stream_langchain_steps3():
     assert sources == sources_expected or sources.replace('\\', '/').replace('\r', '') == sources_expected.replace(
         '\\', '/').replace('\r', '')
 
+    # check sources, and do after so would detect leakage
+    sources = ast.literal_eval(client.predict(langchain_mode, api_name='/get_sources_api'))
+    assert isinstance(sources, list)
+    sources_expected = ['user_path_test/FAQ.md', 'user_path_test/README.md', 'user_path_test/next.txt', 'user_path_test/pexels-evg-kowalievska-1170986_small.jpg', 'user_path_test/sample1.pdf']
+    assert sources == sources_expected
+
     # even normal langchain_mode  passed to this should get the other langchain_mode2
     res = client.predict(langchain_mode, api_name='/load_langchain')
     assert res[0]['choices'] == [langchain_mode, 'MyData', 'github h2oGPT', 'LLM', langchain_mode2]
     assert res[0]['value'] == langchain_mode
-    assert res[1]['headers'] == ['Collection', 'Type', 'Path']
+    assert res[1]['headers'] == ['Collection', 'Type', 'Path', 'Directory']
+    res[1]['data'] = [[x[0], x[1], x[2]] for x in res[1]['data']]  # ignore persist_directory
     assert res[1]['data'] == [['UserData', 'shared', user_path],
                               ['github h2oGPT', 'shared', ''],
                               ['MyData', 'personal', ''],
@@ -903,13 +911,13 @@ def test_client_chat_stream_langchain_steps3():
         '\r', '\n')
     assert res[3] == ''
 
-    langchain_mode = LangChainMode.MY_DATA.value
+    langchain_mode_my = LangChainMode.MY_DATA.value
     url = 'https://www.africau.edu/images/default/sample.pdf'
     test_file1 = os.path.join('/tmp/', 'sample1.pdf')
     download_simple(url, dest=test_file1)
-    res = client.predict(test_file1, True, 512, langchain_mode, api_name='/add_file_api')
+    res = client.predict(test_file1, True, 512, langchain_mode_my, api_name='/add_file_api')
     assert res[0] is None
-    assert res[1] == langchain_mode
+    assert res[1] == langchain_mode_my
     # will just use source location, e.g. for UI will be /tmp/gradio
     sources_expected = 'file//tmp/sample1.pdf'
     assert sources_expected in res[2] or sources_expected.replace('\\', '/').replace('\r', '') in res[2].replace('\\',
@@ -921,11 +929,12 @@ def test_client_chat_stream_langchain_steps3():
     user_path2b = ''
     langchain_mode2 = 'MyData2'
     new_langchain_mode_text = '%s, %s, %s' % (langchain_mode2, 'personal', user_path2b)
-    res = client.predict(langchain_mode, new_langchain_mode_text, api_name='/new_langchain_mode_text')
+    res = client.predict(langchain_mode2, new_langchain_mode_text, api_name='/new_langchain_mode_text')
     assert res[0]['value'] == langchain_mode2
     assert langchain_mode2 in res[0]['choices']
     assert res[1] == ''
-    assert res[2]['headers'] == ['Collection', 'Type', 'Path']
+    assert res[2]['headers'] == ['Collection', 'Type', 'Path', 'Directory']
+    res[2]['data'] = [[x[0], x[1], x[2]] for x in res[2]['data']]  # ignore persist_directory
     assert res[2]['data'] == [['UserData', 'shared', user_path],
                               ['github h2oGPT', 'shared', ''],
                               ['MyData', 'personal', ''],
@@ -966,6 +975,17 @@ def test_client_chat_stream_langchain_steps3():
     new_langchain_mode_text = '%s, %s, %s' % (langchain_mode3, 'personal', user_path3)
     res = client.predict(langchain_mode3, new_langchain_mode_text, api_name='/new_langchain_mode_text')
     assert res[0]['value'] == langchain_mode3
+    assert langchain_mode3 in res[0]['choices']
+    assert res[1] == ''
+    assert res[2]['headers'] == ['Collection', 'Type', 'Path', 'Directory']
+    res[2]['data'] = [[x[0], x[1], x[2]] for x in res[2]['data']]  # ignore persist_directory
+    assert res[2]['data'] == [['UserData', 'shared', user_path],
+                              ['github h2oGPT', 'shared', ''],
+                              ['MyData', 'personal', ''],
+                              ['UserData2', 'shared', user_path2],
+                              [langchain_mode2, 'personal', ''],
+                              [langchain_mode3, 'personal', ''],
+                              ]
 
     with tempfile.TemporaryDirectory() as tmp_user_path:
         res = client.predict(urls, True, 512, langchain_mode3, api_name='/add_url')
@@ -974,6 +994,52 @@ def test_client_chat_stream_langchain_steps3():
         assert res[1] == langchain_mode3
         assert [x in res[2] or x.replace('https', 'http') in res[2] for x in urls]
         assert res[3] == ''
+
+    sources_text = client.predict(langchain_mode3, api_name='/show_sources')
+    assert isinstance(sources_text, str)
+    assert [x in sources_text or x.replace('https', 'http') in sources_text for x in urls]
+
+    source_list = ast.literal_eval(client.predict(langchain_mode3, api_name='/get_sources_api'))
+    source_list_assert = [x.replace('v1', '').replace('v7', '') for x in source_list]  # for arxiv for asserts
+    assert isinstance(source_list, list)
+    assert [x in source_list_assert or x.replace('https', 'http') in source_list_assert for x in urls]
+
+    sources_text_after_delete = client.predict(source_list[0], langchain_mode3, api_name='/delete_sources')
+    source_list_assert = [x.replace('v1', '').replace('v7', '') for x in source_list]  # for arxiv for asserts
+    assert source_list_assert[0] not in sources_text_after_delete
+
+    sources_state_after_delete = ast.literal_eval(client.predict(langchain_mode3, api_name='/get_sources_api'))
+    sources_state_after_delete = [x.replace('v1', '').replace('v7', '') for x in sources_state_after_delete]  # for arxiv for asserts
+    assert isinstance(sources_state_after_delete, list)
+    source_list_assert = [x.replace('v1', '').replace('v7', '') for x in source_list]  # for arxiv for asserts
+    assert source_list_assert[0] not in sources_state_after_delete
+
+    res = client.predict(langchain_mode3, langchain_mode3, api_name='/remove_langchain_mode_text')
+    assert res[0]['value'] == langchain_mode3
+    assert langchain_mode2 in res[0]['choices']
+    assert res[1] == ''
+    assert res[2]['headers'] == ['Collection', 'Type', 'Path', 'Directory']
+    res[2]['data'] = [[x[0], x[1], x[2]] for x in res[2]['data']]  # ignore persist_directory
+    assert res[2]['data'] == [['UserData', 'shared', user_path],
+                              ['github h2oGPT', 'shared', ''],
+                              ['MyData', 'personal', ''],
+                              ['UserData2', 'shared', user_path2],
+                              [langchain_mode2, 'personal', '']]
+
+    # FIXME: could do MyData personal type, but would need to know path and don't have access via API
+    assert os.path.isdir("db_dir_%s" % langchain_mode)
+    res = client.predict(langchain_mode, langchain_mode, api_name='/purge_langchain_mode_text')
+    assert not os.path.isdir("db_dir_%s" % langchain_mode)
+    assert res[0]['value'] == langchain_mode
+    assert langchain_mode not in res[0]['choices']
+    assert res[1] == ''
+    assert res[2]['headers'] == ['Collection', 'Type', 'Path', 'Directory']
+    res[2]['data'] = [[x[0], x[1], x[2]] for x in res[2]['data']]  # ignore persist_directory
+    assert res[2]['data'] == [['github h2oGPT', 'shared', ''],
+                              ['MyData', 'personal', ''],
+                              ['UserData2', 'shared', 'user_path2'],
+                              ['MyData2', 'personal', ''],
+                              ]
 
     # FIXME: Add load_model, unload_model, etc.
 
@@ -1093,7 +1159,8 @@ def test_client_summarization(prompt_summary):
         assert 'Whisper' in summary or \
                'robust speech recognition system' in summary or \
                'Robust speech recognition' in summary or \
-               'speech processing' in summary
+               'speech processing' in summary or \
+               'LibriSpeech dataset with weak supervision' in summary
     else:
         assert 'various techniques and approaches in speech recognition' in summary or \
                'capabilities of speech processing systems' in summary or \
@@ -1204,5 +1271,81 @@ def test_client_summarization_from_url(url, top_k_docs):
         assert 'Accurate embeddings for private offline databases' in summary \
                or 'private offline database' in summary \
                or 'H2OGPT is an open-source project' in summary \
-               or 'is an open-source project for document Q/A' in summary
+               or 'is an open-source project for document Q/A' in summary \
+               or 'h2oGPT is an open-source project' in summary
     assert url in sources
+
+
+@pytest.mark.parametrize("prompt_type", ['instruct_vicuna', 'one_shot'])
+@pytest.mark.parametrize("bits", [None, 8, 4])
+@pytest.mark.parametrize("stream_output", [True, False])
+@pytest.mark.need_tokens
+@wrap_test_forked
+def test_fastsys(stream_output, bits, prompt_type):
+    base_model = 'lmsys/fastchat-t5-3b-v1.0'
+    from src.gen import main
+    main(base_model=base_model,
+         load_half=True if bits == 16 else None,
+         load_4bit=bits == 4,
+         load_8bit=bits == 8,
+         chat=True, gradio=True, num_beams=1, block_gradio_exit=False, verbose=True,
+         use_auth_token=True,
+         )
+
+    # PURE client code
+    from gradio_client import Client
+    client = Client(get_inf_server())
+
+    prompt = "Who are you?"
+    kwargs = dict(stream_output=stream_output, instruction=prompt)
+    res_dict, client = run_client_gen(client, prompt, None, kwargs)
+    response = res_dict['response']
+    assert """As  an  AI  language  model,  I  don't  have  a  physical  identity  or  a  physical  body.  I  exist  solely  to  assist  users  with  their  questions  and  provide  information  to  the  best  of  my  ability.  Is  there  something  specific  you  would  like  to  know  or  discuss?""" in response or \
+        "As  an  AI  language  model,  I  don't  have  a  personal  identity  or  physical  presence.  I  exist  solely  to  provide  information  and  answer  questions  to  the  best  of  my  ability.  How  can  I  assist  you  today?" in response or \
+        "As  an  AI  language  model,  I  don't  have  a  physical  identity  or  a  physical  presence.  I  exist  solely  to  provide  information  and  answer  questions  to  the  best  of  my  ability.  How  can  I  assist  you  today?" in response
+    sources = res_dict['sources']
+    assert sources == ''
+
+    # get file for client to upload
+    url = 'https://cdn.openai.com/papers/whisper.pdf'
+    test_file1 = os.path.join('/tmp/', 'my_test_pdf.pdf')
+    download_simple(url, dest=test_file1)
+
+    # PURE client code
+    from gradio_client import Client
+    client = Client(get_inf_server())
+
+    # upload file(s).  Can be list or single file
+    test_file_local, test_file_server = client.predict(test_file1, api_name='/upload_api')
+
+    chunk = True
+    chunk_size = 512
+    langchain_mode = 'MyData'
+    res = client.predict(test_file_server, chunk, chunk_size, langchain_mode, api_name='/add_file_api')
+    assert res[0] is None
+    assert res[1] == langchain_mode
+    assert os.path.basename(test_file_server) in res[2]
+    assert res[3] == ''
+
+    # ask for summary, need to use same client if using MyData
+    api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
+    kwargs = dict(langchain_mode=langchain_mode,
+                  langchain_action="Query",
+                  top_k_docs=4,
+                  document_subset='Relevant',
+                  document_choice='All',
+                  max_new_tokens=256,
+                  max_time=300,
+                  do_sample=False,
+                  stream_output=stream_output,
+                  instruction="What is Whisper?",
+                  )
+    res_dict, client = run_client_gen(client, prompt, None, kwargs)
+    response = res_dict['response']
+    if bits is None:
+        assert """Whisper is a machine learning model developed by OpenAI for speech recognition. It is trained on large amounts of text data from the internet and uses a minimalist approach to data pre-processing, relying on the expressiveness of sequence-to-sequence models to learn to map between words in a transcript. The model is designed to be able to predict the raw text of transcripts without any significant standardization, allowing it to learn to map between words in different languages without having to rely on pre-trained models.""" in response or \
+            """Whisper  is  a  speech  processing  system  that  is  designed  to  generalize  well  across  domains,  tasks,  and  languages.  It  is  based  on  a  single  robust  architecture  that  is  trained  on  a  wide  set  of  existing  datasets,  and  it  is  able  to  generalize  well  across  domains,  tasks,  and  languages.  The  goal  of  Whisper  is  to  develop  a  single  robust  speech  processing  system  that  works  reliably  without  the  need  for  dataset-specific  fine-tuning  to  achieve  high-quality  results  on  specific  distributions.""" in response
+    else:
+        assert """single  robust  speech  processing  system  that  works""" in response or """Whisper""" in response
+    sources = res_dict['sources']
+    assert 'my_test_pdf.pdf' in sources

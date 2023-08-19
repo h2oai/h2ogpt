@@ -35,7 +35,8 @@ def do_export():
     as_pytorch = False  # False -> HF
 
     from loaders import get_loaders
-    model_loader, tokenizer_loader = get_loaders(model_name=BASE_MODEL, reward_type=False, llama_type=llama_type)
+    model_loader, tokenizer_loader, conditional_type = (
+        get_loaders(model_name=BASE_MODEL, reward_type=False, llama_type=llama_type))
 
     tokenizer = tokenizer_loader.from_pretrained(
         BASE_MODEL,

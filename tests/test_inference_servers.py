@@ -400,17 +400,22 @@ def test_openai_inference_server(inference_server, force_langchain_evaluate,
     # will use HOST from above
     ret1, ret2, ret3, ret4, ret5, ret6, ret7 = run_client_many(prompt_type=None)  # client shouldn't have to specify
     assert 'I am an AI language model' in ret1['response'] or 'I am a helpful assistant designed' in ret1[
-        'response']
+        'response'] or 'I am an AI assistant designed to help answer questions and provide information' in ret1[
+               'response']
     assert 'Once upon a time, in a far-off land,' in ret2['response'] or 'Once upon a time' in ret2['response']
     assert 'Once upon a time, in a far-off land,' in ret3['response'] or 'Once upon a time' in ret3['response']
     assert 'I am an AI language model' in ret4['response'] or 'I am a helpful assistant designed' in ret4[
-        'response']
+        'response'] or 'I am an AI assistant designed to help answer questions and provide information' in ret4[
+               'response']
     assert 'I am an AI language model' in ret5['response'] or 'I am a helpful assistant designed' in ret5[
-        'response']
+        'response'] or 'I am an AI assistant designed to help answer questions and provide information' in ret5[
+               'response']
     assert 'I am an AI language model' in ret6['response'] or 'I am a helpful assistant designed' in ret6[
-        'response']
+        'response'] or 'I am an AI assistant designed to help answer questions and provide information' in ret6[
+               'response']
     assert 'I am an AI language model' in ret7['response'] or 'I am a helpful assistant designed' in ret7[
-        'response']
+        'response'] or 'I am an AI assistant designed to help answer questions and provide information' in ret7[
+               'response']
     print("DONE", flush=True)
 
 

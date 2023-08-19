@@ -26,7 +26,7 @@ warnings.filterwarnings('ignore', category=UserWarning, message='TypedStorage is
 from evaluate_params import eval_func_param_names, no_default_param_names, input_args_list
 from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mapping, no_model_str, \
     LangChainAction, LangChainAgent, DocumentChoice, LangChainTypes, super_source_prefix, \
-    super_source_postfix
+    super_source_postfix, t5_type
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
@@ -55,7 +55,7 @@ def main(
         load_8bit: bool = False,
         load_4bit: bool = False,
         low_bit_mode: int = 1,
-        load_half: bool = True,
+        load_half: bool = None,
         load_gptq: str = '',
         load_exllama: bool = False,
         use_safetensors: bool = False,
@@ -242,7 +242,8 @@ def main(
     :param low_bit_mode: 0: no quantization config 1: change compute 2: nf4 3: double quant 4: 2 and 3
            See: https://huggingface.co/docs/transformers/main_classes/quantization
            If using older bitsandbytes or transformers, 0 is required
-    :param load_half: load model in float16
+    :param load_half: load model in float16 (None means auto, which means True unless t5 based model)
+                      otherwise specify bool
     :param load_gptq: to load model with GPTQ, put model_basename here, e.g. gptq_model-4bit--1g
     :param load_exllama: whether to use exllama (only applicable to LLaMa1/2 models with 16-bit or GPTQ
     :param use_safetensors: to use safetensors version (assumes file/HF points to safe tensors version)
@@ -503,7 +504,11 @@ def main(
     :param enable_sources_list: Whether to allow list (or download for non-shared db) of list of sources for chosen db
     :param chunk: Whether to chunk data (True unless know data is already optimally chunked)
     :param chunk_size: Size of chunks, with typically top-4 passed to LLM, so needs to be in context length
-    :param top_k_docs: number of chunks to give LLM
+    :param top_k_docs: For langchain_action query: number of chunks to give LLM
+                       -1 : auto-fills context up to max_seq_len
+                       For langchain_action summarize: number of document parts, like pages for PDF.
+                       There's no such thing as chunks for summarization.
+                       -1 : auto-fills context up to max_seq_len
     :param reverse_docs: whether to reverse docs order so most relevant is closest to question.
            Best choice for sufficiently smart model, and truncation occurs for oldest context, so best then too.
            But smaller 6_9 models fail to use newest context and can get stuck on old information.
@@ -741,6 +746,10 @@ def main(
     n_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 0
     n_gpus, gpu_ids = cuda_vis_check(n_gpus)
 
+    if load_half is None and t5_type(base_model):
+        load_half = False
+        print("load_half=%s auto-set for %s to avoid bad generation" % (load_half, base_model), flush=True)
+
     if n_gpus == 0 or get_device() == "mps":
         # No CUDA GPUs usable
 
@@ -752,7 +761,9 @@ def main(
         load_8bit = False
         load_4bit = False
         low_bit_mode = 1
-        load_half = False
+        if load_half is None:
+            # wouldn't work if specified True, but respect
+            load_half = False
         load_gptq = ''
         load_exllama = False
         use_gpu_id = False
@@ -770,6 +781,8 @@ def main(
         if score_model == 'auto':
             score_model = ''
     else:
+        if load_half is None:
+            load_half = True
         # CUDA GPUs visible
         if score_model == 'auto':
             if n_gpus >= 2:
@@ -1287,10 +1300,11 @@ def get_model(
 
     model_name_exllama_if_no_config = '' if not llamacpp_dict else llamacpp_dict.get('model_name_exllama_if_no_config',
                                                                                      '')
-    model_loader, tokenizer_loader = get_loaders(model_name=base_model, reward_type=reward_type, llama_type=llama_type,
-                                                 load_gptq=load_gptq, load_exllama=load_exllama, config=config,
-                                                 rope_scaling=rope_scaling, max_seq_len=max_seq_len,
-                                                 model_name_exllama_if_no_config=model_name_exllama_if_no_config)
+    model_loader, tokenizer_loader, conditional_type = (
+        get_loaders(model_name=base_model, reward_type=reward_type, llama_type=llama_type,
+                    load_gptq=load_gptq, load_exllama=load_exllama, config=config,
+                    rope_scaling=rope_scaling, max_seq_len=max_seq_len,
+                    model_name_exllama_if_no_config=model_name_exllama_if_no_config))
 
     tokenizer_kwargs = dict(local_files_only=local_files_only,
                             resume_download=resume_download,
@@ -1438,8 +1452,9 @@ def get_hf_model(load_8bit: bool = False,
         "Please choose a base model with --base_model (CLI) or load one from Models Tab (gradio)"
     )
 
-    model_loader, tokenizer_loader = get_loaders(model_name=base_model, reward_type=reward_type, llama_type=llama_type,
-                                                 load_gptq=load_gptq, load_exllama=load_exllama)
+    model_loader, tokenizer_loader, conditional_type = (
+        get_loaders(model_name=base_model, reward_type=reward_type, llama_type=llama_type,
+                    load_gptq=load_gptq, load_exllama=load_exllama))
 
     config, _, max_seq_len = get_config(base_model, return_model=False, raise_exception=True, **config_kwargs)
 
@@ -1605,6 +1620,10 @@ def get_hf_model(load_8bit: bool = False,
 
     set_model_max_len(max_seq_len, tokenizer, verbose=False, reward_type=reward_type)
 
+    # tell if conditional type
+    model.conditional_type = conditional_type
+    tokenizer.conditional_type = conditional_type
+
     return model, tokenizer, device
 
 
@@ -1638,7 +1657,7 @@ def pop_unused_model_kwargs(model_kwargs):
 def get_score_model(score_model: str = None,
                     load_8bit: bool = False,
                     load_4bit: bool = False,
-                    low_bit_mode = 1,
+                    low_bit_mode=1,
                     load_half: bool = True,
                     load_gptq: str = '',
                     load_exllama: bool = False,
@@ -2352,7 +2371,7 @@ def evaluate(
         assert src_lang is not None
         tokenizer.src_lang = languages_covered()[src_lang]
 
-    stopping_criteria = get_stopping(prompt_type, prompt_dict, tokenizer, device,
+    stopping_criteria = get_stopping(prompt_type, prompt_dict, tokenizer, device, base_model,
                                      model_max_length=tokenizer.model_max_length)
 
     inputs = tokenizer(prompt, return_tensors="pt")
@@ -2364,7 +2383,7 @@ def evaluate(
     max_input_tokens = max(0, int(max_max_tokens - min_new_tokens))
     # NOTE: Don't limit up front due to max_new_tokens, let go up to max or reach max_max_tokens in stopping.py
     assert isinstance(max_input_tokens, int), "Bad type for max_input_tokens=%s %s" % (
-    max_input_tokens, type(max_input_tokens))
+        max_input_tokens, type(max_input_tokens))
     input_ids = input_ids[:, -max_input_tokens:]
     # required for falcon if multiple threads or asyncio accesses to model during generation
     if use_cache is None:
@@ -2414,16 +2433,12 @@ def evaluate(
     decoder = functools.partial(tokenizer.decode,
                                 **decoder_kwargs
                                 )
-    decoder_raw_kwargs = dict(skip_special_tokens=False,
-                              clean_up_tokenization_spaces=True)
-
-    decoder_raw = functools.partial(tokenizer.decode,
-                                    **decoder_raw_kwargs
-                                    )
-
     with torch.no_grad():
         have_lora_weights = lora_weights not in [no_lora_str, '', None]
         context_class_cast = NullContext if device == 'cpu' or have_lora_weights or device == 'mps' else torch.autocast
+        if t5_type(base_model):
+            # issues when casting to float16, can mess up t5 model, e.g. only when not streaming, or other odd behaviors
+            context_class_cast = NullContext
         with context_class_cast(device):
             # protection for gradio not keeping track of closed users,
             # else hit bitsandbytes lack of thread safety:
@@ -2436,41 +2451,19 @@ def evaluate(
             with context_class("generate.lock"):
                 if verbose:
                     print('Generate: %s' % str(datetime.now()), flush=True)
-                # decoded tokenized prompt can deviate from prompt due to special characters
-                inputs_decoded = decoder(input_ids[0])
-                inputs_decoded_raw = decoder_raw(input_ids[0])
-                if inputs_decoded == prompt:
-                    # normal
-                    pass
-                elif inputs_decoded.lstrip() == prompt.lstrip():
-                    # sometimes extra space in front, make prompt same for prompt removal
-                    prompt = inputs_decoded
-                elif inputs_decoded_raw == prompt:
-                    # some models specify special tokens that are part of normal prompt, so can't skip them
-                    inputs_decoded = prompt = inputs_decoded_raw
-                    decoder = decoder_raw
-                    decoder_kwargs = decoder_raw_kwargs
-                elif inputs_decoded_raw.replace("<unk> ", "").replace("<unk>", "").replace('\n', ' ').replace(' ',
-                                                                                                              '') == prompt.replace(
-                    '\n', ' ').replace(' ', ''):
-                    inputs_decoded = prompt = inputs_decoded_raw
-                    decoder = decoder_raw
-                    decoder_kwargs = decoder_raw_kwargs
-                else:
-                    if verbose:
-                        print("WARNING: Special characters in prompt", flush=True)
-                if stream_output:
-                    skip_prompt = False  # means first output has prompt too
+                always_use_streaming_method = True  # to deal with complex parsing of prompt vs. generation due to odd tokenizing
+                if stream_output or always_use_streaming_method:
+                    skip_prompt = True  # True means first output excludes prompt
                     streamer = H2OTextIteratorStreamer(tokenizer, skip_prompt=skip_prompt, block=False,
                                                        **decoder_kwargs)
                     gen_kwargs.update(dict(streamer=streamer))
                     target = wrapped_partial(generate_with_exceptions, model.generate,
-                                             prompt=prompt, inputs_decoded=inputs_decoded,
                                              raise_generate_gpu_exceptions=raise_generate_gpu_exceptions,
                                              **gen_kwargs)
                     bucket = queue.Queue()
                     thread = EThread(target=target, streamer=streamer, bucket=bucket)
                     thread.start()
+                    ret = dict(response='', sources='', save_dict=dict())
                     outputs = ""
                     sources = ''
                     try:
@@ -2478,9 +2471,14 @@ def evaluate(
                             if bucket.qsize() > 0 or thread.exc:
                                 thread.join()
                             outputs += new_text
-                            response = prompter.get_response(outputs, prompt=inputs_decoded,
+                            response = prompter.get_response(outputs, prompt=None,
+                                                             only_new_text=True,
                                                              sanitize_bot_response=sanitize_bot_response)
-                            yield dict(response=response, sources=sources, save_dict=dict())
+                            ret = dict(response=response, sources=sources, save_dict=dict())
+                            if stream_output:
+                                yield ret
+                        if not stream_output:
+                            yield ret
                     except BaseException:
                         # if any exception, raise that exception if was from thread, first
                         if thread.exc:
@@ -2497,15 +2495,19 @@ def evaluate(
                     decoded_output = outputs
                     ntokens = len(outputs) // 4  # hack for now
                 else:
+                    # below length removal doesn't work in general, because encoding does not match internal of model generation
+                    input_ids_len = gen_kwargs['input_ids'][0].shape[0]
                     try:
                         outputs = model.generate(**gen_kwargs)
                     finally:
                         pass
                         # don't clear torch cache here, delays multi-generation, and bot(), all_bot(), and evaluate_nochat() do it
-                    ntokens = sum([len(s) for s in outputs.sequences]) if save_dir else -1
-                    outputs = [decoder(s) for s in outputs.sequences]
+                    # skip first IDs
+                    ntokens = sum([len(s) - input_ids_len for s in outputs.sequences]) if save_dir else -1
+                    outputs = [decoder(s[input_ids_len:]) for s in outputs.sequences]
                     sources = ''
-                    response = prompter.get_response(outputs, prompt=inputs_decoded,
+                    response = prompter.get_response(outputs, prompt=None,
+                                                     only_new_text=True,
                                                      sanitize_bot_response=sanitize_bot_response)
                     yield dict(response=response, sources=sources, save_dict=dict())
                     if outputs and len(outputs) >= 1:
@@ -2640,11 +2642,11 @@ class H2OTextIteratorStreamer(TextIteratorStreamer):
         self.on_finalized_text(printable_text)
 
 
-def generate_with_exceptions(func, *args, prompt='', inputs_decoded='', raise_generate_gpu_exceptions=True, **kwargs):
+def generate_with_exceptions(func, *args, raise_generate_gpu_exceptions=True, **kwargs):
     try:
         func(*args, **kwargs)
     except torch.cuda.OutOfMemoryError as e:
-        print("GPU OOM 2: prompt: %s inputs_decoded: %s exception: %s" % (prompt, inputs_decoded, str(e)),
+        print("GPU OOM 2: exception: %s" % str(e),
               flush=True)
         if 'input_ids' in kwargs:
             if kwargs['input_ids'] is not None:
@@ -2660,7 +2662,7 @@ def generate_with_exceptions(func, *args, prompt='', inputs_decoded='', raise_ge
                 'cublasLt ran into an error!' in str(e) or \
                 'mat1 and mat2 shapes cannot be multiplied' in str(e):
             print(
-                "GPU Error: prompt: %s inputs_decoded: %s exception: %s" % (prompt, inputs_decoded, str(e)),
+                "GPU Error: exception: %s" % str(e),
                 flush=True)
             traceback.print_exc()
             clear_torch_cache()
