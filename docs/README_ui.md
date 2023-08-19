@@ -70,13 +70,19 @@ The most normal task is keep it on `Relevant` and just make a query, which will 
 
 ![ui_6.png](ui_6.png)
 
-| Dropdown or Button or panel or text box | Purpose                                                                 |
-|-----------------------------------------|-------------------------------------------------------------------------|
-| Select Subset of Document(s)            | Select documents to consider for query or summarization actions         |
-| Update UI with Document(s) from DB      | Update the drop-down for selecting subset *and* Download File w/Sources |
-| Show Sources from DB                    | Show HTML links of sources in right panel                               |
-| Download File w/Sources                 | Download list of sources after clicking on "Update UI..." button        |
-| Document Exceptions                     | Location where document ingestion failurse are located                  |
+| Dropdown or Button or panel or text box   | Purpose                                                                    |
+|-------------------------------------------|----------------------------------------------------------------------------|
+| Select Subset of Document(s)              | Select documents to consider for query or summarization actions            |
+| Update UI with Document(s) from DB        | Update the drop-down for selecting subset *and* Download File w/Sources    |
+| Show Sources from DB                      | Show HTML links of sources in right panel                                  |
+| Delete Selected Sources from DB           | Delete documents from DB (uses subset selection dropdown)                  |
+| Update DB with new/changed files on disk  | Use path of sources and look for new files or changes files and update DB  |
+| Add Collection                            | Add a new collection. Specify name, shared/personal, user_path.            |
+| Remove Collection from UI                 | Remove collection by name (only removes from UI and persisted auth records |
+| Purge Collection (UI, DB, & source files) | Remove collection, all source files, and full database on disk             |
+| Load LangChain State                      | Load collection names and related info out of auth records if present      |
+| Download File w/Sources                   | Download list of sources after clicking on "Update UI..." button           |
+| Document Exceptions                       | Location where document ingestion failures are located                     |
 
 A normal task is to subset on just 1-2 documents, and make a query on those.
 
