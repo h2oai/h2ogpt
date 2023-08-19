@@ -12,13 +12,13 @@ from src.utils import download_simple
 results_file = "./perf.json"
 
 @pytest.mark.parametrize("backend", [
-    # 'transformers',
-    'text-generation-inference',
+    'transformers',
+    # 'text-generation-inference',
     # 'mixed',
 ])
 @pytest.mark.parametrize("base_model", [
-    'h2oai/h2ogpt-4096-llama2-7b-chat',
-    'h2oai/h2ogpt-4096-llama2-13b-chat',
+    # 'h2oai/h2ogpt-4096-llama2-7b-chat',
+    # 'h2oai/h2ogpt-4096-llama2-13b-chat',
     'h2oai/h2ogpt-4096-llama2-70b-chat',
 ])
 @pytest.mark.parametrize("task", [
@@ -27,20 +27,24 @@ results_file = "./perf.json"
     'summary_and_generate'
 ])
 @pytest.mark.parametrize("bits", [
-    16,
-    8,
+    # 16,
+    # 8,
     4,
-], ids=["16-bit", "8-bit", "4-bit"])
+], ids=[
+    # "16-bit",
+    # "8-bit",
+    "4-bit",
+])
 @pytest.mark.parametrize("ngpus", [
     1,
-    2,
-    4,
-    8,
+    # 2,
+    # 4,
+    # 8,
 ], ids=[
     "1 GPU",
-    "2 GPUs",
-    "4 GPUs",
-    "8 GPUs",
+    # "2 GPUs",
+    # "4 GPUs",
+    # "8 GPUs",
 ])
 @pytest.mark.need_tokens
 @wrap_test_forked
