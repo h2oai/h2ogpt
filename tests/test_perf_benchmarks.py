@@ -27,24 +27,24 @@ results_file = "./perf.json"
     'summary_and_generate'
 ])
 @pytest.mark.parametrize("bits", [
-    # 16,
-    # 8,
+    16,
+    8,
     4,
 ], ids=[
-    # "16-bit",
-    # "8-bit",
+    "16-bit",
+    "8-bit",
     "4-bit",
 ])
 @pytest.mark.parametrize("ngpus", [
     1,
-    # 2,
-    # 4,
-    # 8,
+    2,
+    4,
+    8,
 ], ids=[
     "1 GPU",
-    # "2 GPUs",
-    # "4 GPUs",
-    # "8 GPUs",
+    "2 GPUs",
+    "4 GPUs",
+    "8 GPUs",
 ])
 @pytest.mark.need_tokens
 @wrap_test_forked
