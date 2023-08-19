@@ -44,9 +44,12 @@ python generate.py --base_model='llama' --prompt_type=llama2
 ```
 then go to your browser by visiting [http://127.0.0.1:7860](http://127.0.0.1:7860) or [http://localhost:7860](http://localhost:7860).
 
+---
+
 #### Windows 10/11 64-bit with full document Q/A capability
-  * [h2oGPT GPU-CUDA Installer](https://h2o-release.s3.amazonaws.com/h2ogpt/h2oGPT_0.0.1_gpu.exe) (1.8GB file)
-  * [h2oGPT CPU Installer](https://h2o-release.s3.amazonaws.com/h2ogpt/h2oGPT_0.0.1_cpu.exe) (755MB file)
+  * One-click Installers
+    * [h2oGPT GPU-CUDA Installer](https://h2o-release.s3.amazonaws.com/h2ogpt/h2oGPT_0.0.1_gpu.exe) (1.8GB file)
+    * [h2oGPT CPU Installer](https://h2o-release.s3.amazonaws.com/h2ogpt/h2oGPT_0.0.1_cpu.exe) (755MB file)
 
     The installers include all dependencies for document Q/A, except models (LLM, embedding, reward) that are downloadable via UI.  After installation, go to start and run h2oGPT, and a web browser will open for h2oGPT.  To use LLaMa model, go to Models tab, select `llama` base model, then click load to download from preset URL.  Then use as normal.  To terminate the app, in task manager kill the `Python` process named `pythonw.exe` as will also show up in `nvidia-smi` if using GPUs.  Set environment variables (in system properties->advanced->environment variables) to control things:
       * `n_jobs`: number of cores for various tasks
@@ -54,15 +57,20 @@ then go to your browser by visiting [http://127.0.0.1:7860](http://127.0.0.1:786
       * `CUDA_VISIBLE_DEVICES` which GPUs are visible
       * Any CLI argument from `python generate.py --help` with environment variable set as `h2ogpt_x`, e.g. `h2ogpt_h2ocolors` to `False`.
       * Set env `h2ogpt_server_name` to actual IP address for LAN to see app, e.g. `h2ogpt_server_name` to `192.168.1.172` and allow access through firewall if have Windows Defender activated.
-  * [Windows 10/11 Install and Run Docs](docs/README_WINDOWS.md)
+  * [Windows 10/11 Manual Install and Run Docs](docs/README_WINDOWS.md)
 
+---
 
 #### Linux (CPU/CUDA) with full document Q/A capability
   * [Docker Build and Run Docs](docs/README_DOCKER.md)
-  * [Linux Install and Run Docs](docs/README_LINUX.md)
+  * [Linux Manual Install and Run Docs](docs/README_LINUX.md)
+
+---
 
 #### MACOS (CPU/M1/M2) with full document Q/A capability
-* [MACOS Install and Run Docs](docs/README_MACOS.md)
+* [MACOS Manual Install and Run Docs](docs/README_MACOS.md)
+
+---
 
 #### Example Models
 * [Highest accuracy and speed](https://huggingface.co/TheBloke/Llama-2-70B-Chat-fp16) on 16-bit with TGI/vLLM using ~48GB/GPU when in use (4xA100 high concurrency, 2xA100 for low concurrency)
@@ -74,6 +82,8 @@ then go to your browser by visiting [http://127.0.0.1:7860](http://127.0.0.1:786
 **GPU** mode requires CUDA support via torch and transformers.  A 6.9B (or 12GB) model in 8-bit uses 8GB (or 13GB) of GPU memory. 8-bit precision, 4-bit precision, and AutoGPTQ can further reduce memory requirements down no more than about 6.5GB when asking a question about your documents (see [low-memory mode](docs/FAQ.md#low-memory-mode)).
 
 **CPU** mode uses GPT4ALL and LLaMa.cpp, e.g. gpt4all-j, requiring about 14GB of system RAM in typical use.
+
+---
 
 ### Live Demos
 - [![img-small.png](docs/img-small.png) Live h2oGPT Document Q/A Demo](https://gpt.h2o.ai/)
