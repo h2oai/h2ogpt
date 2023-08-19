@@ -1026,7 +1026,6 @@ def test_client_chat_stream_langchain_steps3():
                               ['UserData2', 'shared', user_path2],
                               [langchain_mode2, 'personal', '']]
 
-    # FIXME: could do MyData personal type, but would need to know path and don't have access via API
     assert os.path.isdir("db_dir_%s" % langchain_mode)
     res = client.predict(langchain_mode, langchain_mode, api_name='/purge_langchain_mode_text')
     assert not os.path.isdir("db_dir_%s" % langchain_mode)
