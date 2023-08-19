@@ -113,23 +113,45 @@
 ### Number of GPUs: 1
 |   bits | gpus                                           |   summarization time [sec] |   generation speed [tokens/sec] | exception   |
 |-------:|:-----------------------------------------------|---------------------------:|--------------------------------:|:------------|
-|     16 | 1 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                    nan     |                        nan      | OOM         |
-|     16 | 1 x NVIDIA GeForce RTX 3090 (24576 MiB)        |                    nan     |                        nan      | OOM         |
-|     16 | 1 x NVIDIA A100-SXM4-80GB (81920 MiB)          |                    nan     |                        nan      | OOM         |
-|     16 | 1 x NVIDIA RTX A6000 (46068 MiB)               |                    nan     |                        nan      | OOM         |
-|      8 | 1 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                    nan     |                        nan      | OOM         |
-|      8 | 1 x NVIDIA GeForce RTX 3090 (24576 MiB)        |                    nan     |                        nan      | OOM         |
-|      8 | 1 x NVIDIA RTX A6000 (46068 MiB)               |                    nan     |                        nan      | OOM         |
-|      4 | 1 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                    122.132 |                         10.6495 |             |
-|      4 | 1 x NVIDIA GeForce RTX 3090 (24576 MiB)        |                    nan     |                        nan      | OOM         |
+|     16 | 1 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                    nan     |                       nan       | OOM         |
+|     16 | 1 x NVIDIA GeForce RTX 3090 (24576 MiB)        |                    nan     |                       nan       | OOM         |
+|     16 | 1 x NVIDIA A100-SXM4-80GB (81920 MiB)          |                    nan     |                       nan       | OOM         |
+|     16 | 1 x NVIDIA RTX A6000 (46068 MiB)               |                    nan     |                       nan       | OOM         |
+|     16 | 1 x NVIDIA RTX A6000 (46068 MiB)               |                    nan     |                       nan       | OOM         |
+|      8 | 1 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                    nan     |                       nan       | OOM         |
+|      8 | 1 x NVIDIA GeForce RTX 3090 (24576 MiB)        |                    nan     |                       nan       | OOM         |
+|      8 | 1 x NVIDIA RTX A6000 (46068 MiB)               |                    nan     |                       nan       | OOM         |
+|      8 | 1 x NVIDIA RTX A6000 (46068 MiB)               |                    nan     |                       nan       | OOM         |
+|      4 | 1 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                    122.132 |                        10.6495  |             |
+|      4 | 1 x NVIDIA RTX A6000 (46068 MiB)               |                    165.058 |                         6.94248 |             |
+|      4 | 1 x NVIDIA GeForce RTX 3090 (24576 MiB)        |                    nan     |                       nan       | OOM         |
 ### Number of GPUs: 2
 |   bits | gpus                                           |   summarization time [sec] |   generation speed [tokens/sec] | exception   |
 |-------:|:-----------------------------------------------|---------------------------:|--------------------------------:|:------------|
-|      4 | 2 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                    120.538 |                         10.5008 |             |
-|      4 | 2 x NVIDIA GeForce RTX 3090 (24576 MiB)        |                    nan     |                        nan      | OOM         |
+|     16 | 2 x NVIDIA RTX A6000 (46068 MiB)               |                    nan     |                       nan       | OOM         |
+|      8 | 2 x NVIDIA RTX A6000 (46068 MiB)               |                    410.069 |                         2.25687 |             |
+|      4 | 2 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                    120.538 |                        10.5008  |             |
+|      4 | 2 x NVIDIA RTX A6000 (46068 MiB)               |                    171.744 |                         6.71342 |             |
+|      4 | 2 x NVIDIA GeForce RTX 3090 (24576 MiB)        |                    nan     |                       nan       | OOM         |
 ### Number of GPUs: 4
+|   bits | gpus                             |   summarization time [sec] |   generation speed [tokens/sec] | exception   |
+|-------:|:---------------------------------|---------------------------:|--------------------------------:|:------------|
+|     16 | 4 x NVIDIA RTX A6000 (46068 MiB) |                    267.056 |                         4.24242 |             |
+|      8 | 4 x NVIDIA RTX A6000 (46068 MiB) |                    413.957 |                         2.22551 |             |
+### Number of GPUs: 8
 | bits   | gpus   | summarization time [sec]   | generation speed [tokens/sec]   | exception   |
 |--------|--------|----------------------------|---------------------------------|-------------|
+### Model: h3oai/h2ogpt-4096-llama2-70b-chat
+### Number of GPUs: 1
+| bits   | gpus   | summarization time [sec]   | generation speed [tokens/sec]   | exception   |
+|--------|--------|----------------------------|---------------------------------|-------------|
+### Number of GPUs: 2
+| bits   | gpus   | summarization time [sec]   | generation speed [tokens/sec]   | exception   |
+|--------|--------|----------------------------|---------------------------------|-------------|
+### Number of GPUs: 4
+|   bits | gpus                             |   summarization time [sec] |   generation speed [tokens/sec] | exception   |
+|-------:|:---------------------------------|---------------------------:|--------------------------------:|:------------|
+|      4 | 4 x NVIDIA RTX A6000 (46068 MiB) |                    175.491 |                          6.5798 |             |
 ### Number of GPUs: 8
 | bits   | gpus   | summarization time [sec]   | generation speed [tokens/sec]   | exception   |
 |--------|--------|----------------------------|---------------------------------|-------------|
@@ -168,6 +190,19 @@
 | bits   | gpus   | summarization time [sec]   | generation speed [tokens/sec]   | exception   |
 |--------|--------|----------------------------|---------------------------------|-------------|
 ### Model: h2oai/h2ogpt-4096-llama2-70b-chat
+### Number of GPUs: 1
+| bits   | gpus   | summarization time [sec]   | generation speed [tokens/sec]   | exception   |
+|--------|--------|----------------------------|---------------------------------|-------------|
+### Number of GPUs: 2
+| bits   | gpus   | summarization time [sec]   | generation speed [tokens/sec]   | exception   |
+|--------|--------|----------------------------|---------------------------------|-------------|
+### Number of GPUs: 4
+| bits   | gpus   | summarization time [sec]   | generation speed [tokens/sec]   | exception   |
+|--------|--------|----------------------------|---------------------------------|-------------|
+### Number of GPUs: 8
+| bits   | gpus   | summarization time [sec]   | generation speed [tokens/sec]   | exception   |
+|--------|--------|----------------------------|---------------------------------|-------------|
+### Model: h3oai/h2ogpt-4096-llama2-70b-chat
 ### Number of GPUs: 1
 | bits   | gpus   | summarization time [sec]   | generation speed [tokens/sec]   | exception   |
 |--------|--------|----------------------------|---------------------------------|-------------|
