@@ -138,20 +138,7 @@
 |-------:|:---------------------------------|---------------------------:|--------------------------------:|:------------|
 |     16 | 4 x NVIDIA RTX A6000 (46068 MiB) |                    267.056 |                         4.24242 |             |
 |      8 | 4 x NVIDIA RTX A6000 (46068 MiB) |                    413.957 |                         2.22551 |             |
-### Number of GPUs: 8
-| bits   | gpus   | summarization time [sec]   | generation speed [tokens/sec]   | exception   |
-|--------|--------|----------------------------|---------------------------------|-------------|
-### Model: h3oai/h2ogpt-4096-llama2-70b-chat
-### Number of GPUs: 1
-| bits   | gpus   | summarization time [sec]   | generation speed [tokens/sec]   | exception   |
-|--------|--------|----------------------------|---------------------------------|-------------|
-### Number of GPUs: 2
-| bits   | gpus   | summarization time [sec]   | generation speed [tokens/sec]   | exception   |
-|--------|--------|----------------------------|---------------------------------|-------------|
-### Number of GPUs: 4
-|   bits | gpus                             |   summarization time [sec] |   generation speed [tokens/sec] | exception   |
-|-------:|:---------------------------------|---------------------------:|--------------------------------:|:------------|
-|      4 | 4 x NVIDIA RTX A6000 (46068 MiB) |                    175.491 |                          6.5798 |             |
+|      4 | 4 x NVIDIA RTX A6000 (46068 MiB) |                    175.491 |                         6.5798  |             |
 ### Number of GPUs: 8
 | bits   | gpus   | summarization time [sec]   | generation speed [tokens/sec]   | exception   |
 |--------|--------|----------------------------|---------------------------------|-------------|
@@ -190,19 +177,6 @@
 | bits   | gpus   | summarization time [sec]   | generation speed [tokens/sec]   | exception   |
 |--------|--------|----------------------------|---------------------------------|-------------|
 ### Model: h2oai/h2ogpt-4096-llama2-70b-chat
-### Number of GPUs: 1
-| bits   | gpus   | summarization time [sec]   | generation speed [tokens/sec]   | exception   |
-|--------|--------|----------------------------|---------------------------------|-------------|
-### Number of GPUs: 2
-| bits   | gpus   | summarization time [sec]   | generation speed [tokens/sec]   | exception   |
-|--------|--------|----------------------------|---------------------------------|-------------|
-### Number of GPUs: 4
-| bits   | gpus   | summarization time [sec]   | generation speed [tokens/sec]   | exception   |
-|--------|--------|----------------------------|---------------------------------|-------------|
-### Number of GPUs: 8
-| bits   | gpus   | summarization time [sec]   | generation speed [tokens/sec]   | exception   |
-|--------|--------|----------------------------|---------------------------------|-------------|
-### Model: h3oai/h2ogpt-4096-llama2-70b-chat
 ### Number of GPUs: 1
 | bits   | gpus   | summarization time [sec]   | generation speed [tokens/sec]   | exception   |
 |--------|--------|----------------------------|---------------------------------|-------------|
