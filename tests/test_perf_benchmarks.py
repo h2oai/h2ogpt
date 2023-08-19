@@ -98,7 +98,12 @@ def test_perf_benchmarks(backend, base_model, task, bits, ngpus):
             inference_server = 'http://127.0.0.1:%s' % inf_port
             docker_hash1 = run_docker(inf_port, base_model, low_mem_mode=False)  # don't do low-mem, since need tokens for summary
             import time
-            time.sleep(30)
+            connected = False
+            while not connected:
+                cmd = 'docker logs %s' % docker_hash1
+                o = subprocess.check_output(cmd, shell=True, timeout=15)
+                connected = 'Connected' in o.decode("utf-8")
+                time.sleep(10)
             os.system('docker logs %s | tail -10' % docker_hash1)
 
             # h2oGPT server
@@ -115,9 +120,12 @@ def test_perf_benchmarks(backend, base_model, task, bits, ngpus):
             inference_server = 'http://127.0.0.1:%s' % inf_port
             docker_hash1 = run_docker(inf_port, base_model, low_mem_mode=False)  # don't do low-mem, since need tokens for summary
             import time
-            time.sleep(90)
-            os.system('docker logs %s | tail -10' % docker_hash1)
-
+            connected = False
+            while not connected:
+                cmd = 'docker logs %s' % docker_hash1
+                o = subprocess.check_output(cmd, shell=True, timeout=15)
+                connected = 'Connected' in o.decode("utf-8")
+                time.sleep(10)
             from src.gen import main
             main(**h2ogpt_args)
         else:
