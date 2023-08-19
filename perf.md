@@ -139,6 +139,7 @@
 |   bits | gpus                                           |   summarization time [sec] |   generation speed [tokens/sec] | exception   |
 |-------:|:-----------------------------------------------|---------------------------:|--------------------------------:|:------------|
 |     16 | 1 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                    39.0155 |                         55.2139 |             |
+|     16 | 1 x NVIDIA GeForce RTX 3090 (24576 MiB)        |                    29.129  |                         45.9535 |             |
 |     16 | 1 x NVIDIA GeForce RTX 4090 (24564 MiB)        |                    24.3988 |                         44.5878 |             |
 ### Number of GPUs: 2
 |   bits | gpus                                           |   summarization time [sec] |   generation speed [tokens/sec] | exception   |
@@ -155,6 +156,7 @@
 |   bits | gpus                                           |   summarization time [sec] |   generation speed [tokens/sec] | exception   |
 |-------:|:-----------------------------------------------|---------------------------:|--------------------------------:|:------------|
 |     16 | 1 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                    21.7823 |                         33.7132 |             |
+|     16 | 1 x NVIDIA GeForce RTX 3090 (24576 MiB)        |                   nan      |                        nan      | OOM         |
 ### Number of GPUs: 2
 |   bits | gpus                                           |   summarization time [sec] |   generation speed [tokens/sec] | exception   |
 |-------:|:-----------------------------------------------|---------------------------:|--------------------------------:|:------------|
