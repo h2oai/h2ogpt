@@ -111,64 +111,35 @@
 |      4 | 8 x NVIDIA A100-SXM4-80GB (81920 MiB) |                    83.0479 |                        13.969   |             |
 ### Model: h2oai/h2ogpt-4096-llama2-70b-chat
 ### Number of GPUs: 1
-|   bits | gpus                                           |   summarization time [sec] |   generation speed [tokens/sec] | exception                                                       |
-|-------:|:-----------------------------------------------|---------------------------:|--------------------------------:|:----------------------------------------------------------------|
-|     16 | 1 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                        nan |                             nan | OOM                                                             |
-|     16 | 1 x NVIDIA GeForce RTX 3090 (24576 MiB)        |                        nan |                             nan | OOM                                                             |
-|     16 | 1 x NVIDIA A100-SXM4-80GB (81920 MiB)          |                        nan |                             nan | OOM                                                             |
-|     16 | 1 x NVIDIA RTX A6000 (46068 MiB)               |                        nan |                             nan | OOM                                                             |
-|      8 | 1 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                        nan |                             nan | OOM                                                             |
-|      8 | 1 x NVIDIA GeForce RTX 3090 (24576 MiB)        |                        nan |                             nan | OOM                                                             |
-|      8 | 1 x NVIDIA A100-SXM4-80GB (81920 MiB)          |                        nan |                             nan | shape '[1, 2089, 64, 128]' is invalid for input of size 2139136 |
-|      8 | 1 x NVIDIA RTX A6000 (46068 MiB)               |                        nan |                             nan | OOM                                                             |
-|      4 | 1 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                        nan |                             nan | shape '[1, 2089, 64, 128]' is invalid for input of size 2139136 |
-|      4 | 1 x NVIDIA GeForce RTX 3090 (24576 MiB)        |                        nan |                             nan | OOM                                                             |
-|      4 | 1 x NVIDIA A100-SXM4-80GB (81920 MiB)          |                        nan |                             nan | shape '[1, 2089, 64, 128]' is invalid for input of size 2139136 |
-|      4 | 1 x NVIDIA RTX A6000 (46068 MiB)               |                        nan |                             nan | shape '[1, 2089, 64, 128]' is invalid for input of size 2139136 |
+|   bits | gpus                                           |   summarization time [sec] |   generation speed [tokens/sec] | exception   |
+|-------:|:-----------------------------------------------|---------------------------:|--------------------------------:|:------------|
+|     16 | 1 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                    nan     |                        nan      | OOM         |
+|     16 | 1 x NVIDIA GeForce RTX 3090 (24576 MiB)        |                    nan     |                        nan      | OOM         |
+|     16 | 1 x NVIDIA A100-SXM4-80GB (81920 MiB)          |                    nan     |                        nan      | OOM         |
+|     16 | 1 x NVIDIA RTX A6000 (46068 MiB)               |                    nan     |                        nan      | OOM         |
+|      8 | 1 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                    nan     |                        nan      | OOM         |
+|      8 | 1 x NVIDIA GeForce RTX 3090 (24576 MiB)        |                    nan     |                        nan      | OOM         |
+|      8 | 1 x NVIDIA RTX A6000 (46068 MiB)               |                    nan     |                        nan      | OOM         |
+|      4 | 1 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                    122.132 |                         10.6495 |             |
+|      4 | 1 x NVIDIA GeForce RTX 3090 (24576 MiB)        |                    nan     |                        nan      | OOM         |
 ### Number of GPUs: 2
-|   bits | gpus                                           |   summarization time [sec] |   generation speed [tokens/sec] | exception                                                                                                                      |
-|-------:|:-----------------------------------------------|---------------------------:|--------------------------------:|:-------------------------------------------------------------------------------------------------------------------------------|
-|     16 | 2 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                        nan |                             nan | shape '[1, 2089, 64, 128]' is invalid for input of size 2139136                                                                |
-|     16 | 2 x NVIDIA GeForce RTX 3090 (24576 MiB)        |                        nan |                             nan | shape '[1, 2089, 64, 128]' is invalid for input of size 2139136                                                                |
-|     16 | 2 x NVIDIA A100-SXM4-80GB (81920 MiB)          |                        nan |                             nan | shape '[1, 2089, 64, 128]' is invalid for input of size 2139136                                                                |
-|     16 | 2 x NVIDIA RTX A6000 (46068 MiB)               |                        nan |                             nan | shape '[1, 2089, 64, 128]' is invalid for input of size 2139136                                                                |
-|      8 | 2 x NVIDIA GeForce RTX 3090 (24576 MiB)        |                        nan |                             nan | Some modules are dispatched on the CPU or the disk. Make sure you have enough GPU RAM to fit                                   |
-|        |                                                |                            |                                 |                         the quantized model. If you want to dispatch the model on the CPU or the disk while keeping            |
-|        |                                                |                            |                                 |                         these modules in 32-bit, you need to set `load_in_8bit_fp32_cpu_offload=True` and pass a custom        |
-|        |                                                |                            |                                 |                         `device_map` to `from_pretrained`. Check                                                               |
-|        |                                                |                            |                                 |                         https://huggingface.co/docs/transformers/main/en/main_classes/quantization#offload-between-cpu-and-gpu |
-|        |                                                |                            |                                 |                         for more details.                                                                                      |
-|      8 | 2 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                        nan |                             nan | shape '[1, 2089, 64, 128]' is invalid for input of size 2139136                                                                |
-|      8 | 2 x NVIDIA A100-SXM4-80GB (81920 MiB)          |                        nan |                             nan | shape '[1, 2089, 64, 128]' is invalid for input of size 2139136                                                                |
-|      8 | 2 x NVIDIA RTX A6000 (46068 MiB)               |                        nan |                             nan | shape '[1, 2089, 64, 128]' is invalid for input of size 2139136                                                                |
-|      4 | 2 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                        nan |                             nan | shape '[1, 2089, 64, 128]' is invalid for input of size 2139136                                                                |
-|      4 | 2 x NVIDIA GeForce RTX 3090 (24576 MiB)        |                        nan |                             nan | OOM                                                                                                                            |
-|      4 | 2 x NVIDIA A100-SXM4-80GB (81920 MiB)          |                        nan |                             nan | shape '[1, 2089, 64, 128]' is invalid for input of size 2139136                                                                |
-|      4 | 2 x NVIDIA RTX A6000 (46068 MiB)               |                        nan |                             nan | shape '[1, 2089, 64, 128]' is invalid for input of size 2139136                                                                |
+|   bits | gpus                                           |   summarization time [sec] |   generation speed [tokens/sec] | exception   |
+|-------:|:-----------------------------------------------|---------------------------:|--------------------------------:|:------------|
+|      4 | 2 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                    120.538 |                         10.5008 |             |
+|      4 | 2 x NVIDIA GeForce RTX 3090 (24576 MiB)        |                    nan     |                        nan      | OOM         |
 ### Number of GPUs: 4
-|   bits | gpus                                  |   summarization time [sec] |   generation speed [tokens/sec] | exception                                                       |
-|-------:|:--------------------------------------|---------------------------:|--------------------------------:|:----------------------------------------------------------------|
-|     16 | 4 x NVIDIA A100-SXM4-80GB (81920 MiB) |                        nan |                             nan | shape '[1, 2089, 64, 128]' is invalid for input of size 2139136 |
-|     16 | 4 x NVIDIA RTX A6000 (46068 MiB)      |                        nan |                             nan | shape '[1, 2089, 64, 128]' is invalid for input of size 2139136 |
-|      8 | 4 x NVIDIA A100-SXM4-80GB (81920 MiB) |                        nan |                             nan | shape '[1, 2089, 64, 128]' is invalid for input of size 2139136 |
-|      8 | 4 x NVIDIA RTX A6000 (46068 MiB)      |                        nan |                             nan | shape '[1, 2089, 64, 128]' is invalid for input of size 2139136 |
-|      4 | 4 x NVIDIA A100-SXM4-80GB (81920 MiB) |                        nan |                             nan | shape '[1, 2089, 64, 128]' is invalid for input of size 2139136 |
-|      4 | 4 x NVIDIA RTX A6000 (46068 MiB)      |                        nan |                             nan | shape '[1, 2089, 64, 128]' is invalid for input of size 2139136 |
+| bits   | gpus   | summarization time [sec]   | generation speed [tokens/sec]   | exception   |
+|--------|--------|----------------------------|---------------------------------|-------------|
 ### Number of GPUs: 8
-|   bits | gpus                                  |   summarization time [sec] |   generation speed [tokens/sec] | exception                                                       |
-|-------:|:--------------------------------------|---------------------------:|--------------------------------:|:----------------------------------------------------------------|
-|     16 | 8 x NVIDIA A100-SXM4-80GB (81920 MiB) |                        nan |                             nan | shape '[1, 2089, 64, 128]' is invalid for input of size 2139136 |
-|      8 | 8 x NVIDIA A100-SXM4-80GB (81920 MiB) |                        nan |                             nan | shape '[1, 2089, 64, 128]' is invalid for input of size 2139136 |
-|      4 | 8 x NVIDIA A100-SXM4-80GB (81920 MiB) |                        nan |                             nan | shape '[1, 2089, 64, 128]' is invalid for input of size 2139136 |
+| bits   | gpus   | summarization time [sec]   | generation speed [tokens/sec]   | exception   |
+|--------|--------|----------------------------|---------------------------------|-------------|
 ## Backend: text-generation-inference
 ### Model: h2oai/h2ogpt-4096-llama2-7b-chat
 ### Number of GPUs: 1
-|   bits | gpus                                           |   summarization time [sec] |   generation speed [tokens/sec] | exception                                        |
-|-------:|:-----------------------------------------------|---------------------------:|--------------------------------:|:-------------------------------------------------|
-|     16 | 1 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                    39.0155 |                         55.2139 |                                                  |
-|     16 | 1 x NVIDIA GeForce RTX 4090 (24564 MiB)        |                    24.3988 |                         44.5878 |                                                  |
-|     16 | 1 x NVIDIA GeForce RTX 3090 (24576 MiB)        |                   nan      |                        nan      | assert "[Errno 13] P.../home/h2ogpt'" == ''      |
-|        |                                                |                            |                                 |   + [Errno 13] Permission denied: '/home/h2ogpt' |
+|   bits | gpus                                           |   summarization time [sec] |   generation speed [tokens/sec] | exception   |
+|-------:|:-----------------------------------------------|---------------------------:|--------------------------------:|:------------|
+|     16 | 1 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                    39.0155 |                         55.2139 |             |
+|     16 | 1 x NVIDIA GeForce RTX 4090 (24564 MiB)        |                    24.3988 |                         44.5878 |             |
 ### Number of GPUs: 2
 |   bits | gpus                                           |   summarization time [sec] |   generation speed [tokens/sec] | exception   |
 |-------:|:-----------------------------------------------|---------------------------:|--------------------------------:|:------------|
@@ -184,8 +155,6 @@
 |   bits | gpus                                           |   summarization time [sec] |   generation speed [tokens/sec] | exception   |
 |-------:|:-----------------------------------------------|---------------------------:|--------------------------------:|:------------|
 |     16 | 1 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                    21.7823 |                         33.7132 |             |
-|     16 | 1 x NVIDIA GeForce RTX 4090 (24564 MiB)        |                   nan      |                        nan      |             |
-|     16 | 1 x NVIDIA GeForce RTX 3090 (24576 MiB)        |                   nan      |                        nan      |             |
 ### Number of GPUs: 2
 |   bits | gpus                                           |   summarization time [sec] |   generation speed [tokens/sec] | exception   |
 |-------:|:-----------------------------------------------|---------------------------:|--------------------------------:|:------------|
@@ -198,13 +167,11 @@
 |--------|--------|----------------------------|---------------------------------|-------------|
 ### Model: h2oai/h2ogpt-4096-llama2-70b-chat
 ### Number of GPUs: 1
-|   bits | gpus                                           |   summarization time [sec] |   generation speed [tokens/sec] | exception   |
-|-------:|:-----------------------------------------------|---------------------------:|--------------------------------:|:------------|
-|     16 | 1 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                        nan |                             nan |             |
+| bits   | gpus   | summarization time [sec]   | generation speed [tokens/sec]   | exception   |
+|--------|--------|----------------------------|---------------------------------|-------------|
 ### Number of GPUs: 2
-|   bits | gpus                                           |   summarization time [sec] |   generation speed [tokens/sec] | exception   |
-|-------:|:-----------------------------------------------|---------------------------:|--------------------------------:|:------------|
-|     16 | 2 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                        nan |                             nan |             |
+| bits   | gpus   | summarization time [sec]   | generation speed [tokens/sec]   | exception   |
+|--------|--------|----------------------------|---------------------------------|-------------|
 ### Number of GPUs: 4
 | bits   | gpus   | summarization time [sec]   | generation speed [tokens/sec]   | exception   |
 |--------|--------|----------------------------|---------------------------------|-------------|
