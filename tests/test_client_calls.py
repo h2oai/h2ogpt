@@ -8,7 +8,7 @@ import pytest
 
 from tests.utils import wrap_test_forked, make_user_path_test, get_llama, get_inf_server, get_inf_port
 from src.client_test import get_client, get_args, run_client_gen
-from src.enums import LangChainAction, LangChainMode
+from src.enums import LangChainAction, LangChainMode, no_model_str, no_lora_str, no_server_str
 from src.utils import get_githash, remove, download_simple, hash_file, makedirs
 
 
@@ -432,7 +432,7 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'is a private, secure, and encrypted' in res_dict['response'] or
             'H2O AI is a cloud-based platform for building' in res_dict['response'] or
             'a private chat between' in res_dict['response'] or
-            'whisper is a chat bot'  in res_dict['response']
+            'whisper is a chat bot' in res_dict['response']
             ) \
            and '.md' in res_dict['response']
 
@@ -874,7 +874,8 @@ def test_client_chat_stream_langchain_steps3():
     # check sources, and do after so would detect leakage
     sources = ast.literal_eval(client.predict(langchain_mode, api_name='/get_sources_api'))
     assert isinstance(sources, list)
-    sources_expected = ['user_path_test/FAQ.md', 'user_path_test/README.md', 'user_path_test/next.txt', 'user_path_test/pexels-evg-kowalievska-1170986_small.jpg', 'user_path_test/sample1.pdf']
+    sources_expected = ['user_path_test/FAQ.md', 'user_path_test/README.md', 'user_path_test/next.txt',
+                        'user_path_test/pexels-evg-kowalievska-1170986_small.jpg', 'user_path_test/sample1.pdf']
     assert sources == sources_expected
 
     # even normal langchain_mode  passed to this should get the other langchain_mode2
@@ -1009,7 +1010,8 @@ def test_client_chat_stream_langchain_steps3():
     assert source_list_assert[0] not in sources_text_after_delete
 
     sources_state_after_delete = ast.literal_eval(client.predict(langchain_mode3, api_name='/get_sources_api'))
-    sources_state_after_delete = [x.replace('v1', '').replace('v7', '') for x in sources_state_after_delete]  # for arxiv for asserts
+    sources_state_after_delete = [x.replace('v1', '').replace('v7', '') for x in
+                                  sources_state_after_delete]  # for arxiv for asserts
     assert isinstance(sources_state_after_delete, list)
     source_list_assert = [x.replace('v1', '').replace('v7', '') for x in source_list]  # for arxiv for asserts
     assert source_list_assert[0] not in sources_state_after_delete
@@ -1040,7 +1042,85 @@ def test_client_chat_stream_langchain_steps3():
                               ['MyData2', 'personal', ''],
                               ]
 
-    # FIXME: Add load_model, unload_model, etc.
+
+@pytest.mark.need_tokens
+@wrap_test_forked
+def test_client_load_unload_models():
+    os.environ['VERBOSE_PIPELINE'] = '1'
+    user_path = make_user_path_test()
+
+    stream_output = True
+    max_new_tokens = 256
+    base_model = ''
+    prompt_type = 'human_bot'
+    langchain_mode = 'UserData'
+    langchain_modes = ['UserData', 'MyData', 'github h2oGPT', 'LLM', 'Disabled']
+
+    from src.gen import main
+    main(base_model=base_model, prompt_type=prompt_type, chat=True,
+         stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
+         max_new_tokens=max_new_tokens,
+         langchain_mode=langchain_mode, user_path=user_path,
+         langchain_modes=langchain_modes,
+         score_model='',
+         verbose=True)
+
+    from src.client_test import get_client, get_args, run_client
+    # serialize=False would lead to returning dict for some objects or files for get_sources
+    client = get_client(serialize=False)
+
+    model_choice = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
+    lora_choice = ''
+    server_choice = ''
+    # model_state
+    prompt_type = ''
+    model_load8bit_checkbox = False
+    model_load4bit_checkbox = True
+    model_low_bit_mode = 1
+    model_load_gptq = ''
+    model_load_exllama_checkbox = False
+    model_safetensors_checkbox = False
+    model_revision = ''
+    model_use_gpu_id_checkbox = True
+    model_gpu = 0
+    max_seq_len = 2048
+    rope_scaling = '{}'
+    # GGML:
+    model_path_llama = ''
+    model_name_gptj = ''
+    model_name_gpt4all_llama = ''
+    n_gpu_layers = 100
+    n_batch = 128
+    n_gqa = 0  # llama2 needs 8
+    llamacpp_dict_more = '{}'
+    args_list = [model_choice, lora_choice, server_choice,
+                 # model_state,
+                 prompt_type,
+                 model_load8bit_checkbox, model_load4bit_checkbox, model_low_bit_mode,
+                 model_load_gptq, model_load_exllama_checkbox,
+                 model_safetensors_checkbox, model_revision,
+                 model_use_gpu_id_checkbox, model_gpu,
+                 max_seq_len, rope_scaling,
+                 model_path_llama, model_name_gptj, model_name_gpt4all_llama,
+                 n_gpu_layers, n_batch, n_gqa, llamacpp_dict_more]
+    res = client.predict(*tuple(args_list), api_name='/load_model')
+    res_expected = ('h2oai/h2ogpt-oig-oasst1-512-6_9b', '', '', 'human_bot', {'__type__': 'update', 'maximum': 1024},
+                    {'__type__': 'update', 'maximum': 1024})
+    assert res == res_expected
+    model_used, lora_used, server_used, prompt_type, max_new_tokens, min_new_tokens = res_expected
+
+    prompt = "Who are you?"
+    kwargs = dict(stream_output=stream_output, instruction=prompt)
+    res_dict, client = run_client_gen(client, prompt, None, kwargs)
+    response = res_dict['response']
+    assert 'What do you want to be?' in response
+
+    # unload
+    args_list[0] = no_model_str
+    res = client.predict(*tuple(args_list), api_name='/load_model')
+    res_expected = (no_model_str, no_lora_str, no_server_str, '', {'__type__': 'update', 'maximum': 256},
+                    {'__type__': 'update', 'maximum': 256})
+    assert res == res_expected
 
 
 @pytest.mark.need_tokens
@@ -1300,8 +1380,8 @@ def test_fastsys(stream_output, bits, prompt_type):
     res_dict, client = run_client_gen(client, prompt, None, kwargs)
     response = res_dict['response']
     assert """As  an  AI  language  model,  I  don't  have  a  physical  identity  or  a  physical  body.  I  exist  solely  to  assist  users  with  their  questions  and  provide  information  to  the  best  of  my  ability.  Is  there  something  specific  you  would  like  to  know  or  discuss?""" in response or \
-        "As  an  AI  language  model,  I  don't  have  a  personal  identity  or  physical  presence.  I  exist  solely  to  provide  information  and  answer  questions  to  the  best  of  my  ability.  How  can  I  assist  you  today?" in response or \
-        "As  an  AI  language  model,  I  don't  have  a  physical  identity  or  a  physical  presence.  I  exist  solely  to  provide  information  and  answer  questions  to  the  best  of  my  ability.  How  can  I  assist  you  today?" in response
+           "As  an  AI  language  model,  I  don't  have  a  personal  identity  or  physical  presence.  I  exist  solely  to  provide  information  and  answer  questions  to  the  best  of  my  ability.  How  can  I  assist  you  today?" in response or \
+           "As  an  AI  language  model,  I  don't  have  a  physical  identity  or  a  physical  presence.  I  exist  solely  to  provide  information  and  answer  questions  to  the  best  of  my  ability.  How  can  I  assist  you  today?" in response
     sources = res_dict['sources']
     assert sources == ''
 
@@ -1343,7 +1423,7 @@ def test_fastsys(stream_output, bits, prompt_type):
     response = res_dict['response']
     if bits is None:
         assert """Whisper is a machine learning model developed by OpenAI for speech recognition. It is trained on large amounts of text data from the internet and uses a minimalist approach to data pre-processing, relying on the expressiveness of sequence-to-sequence models to learn to map between words in a transcript. The model is designed to be able to predict the raw text of transcripts without any significant standardization, allowing it to learn to map between words in different languages without having to rely on pre-trained models.""" in response or \
-            """Whisper  is  a  speech  processing  system  that  is  designed  to  generalize  well  across  domains,  tasks,  and  languages.  It  is  based  on  a  single  robust  architecture  that  is  trained  on  a  wide  set  of  existing  datasets,  and  it  is  able  to  generalize  well  across  domains,  tasks,  and  languages.  The  goal  of  Whisper  is  to  develop  a  single  robust  speech  processing  system  that  works  reliably  without  the  need  for  dataset-specific  fine-tuning  to  achieve  high-quality  results  on  specific  distributions.""" in response
+               """Whisper  is  a  speech  processing  system  that  is  designed  to  generalize  well  across  domains,  tasks,  and  languages.  It  is  based  on  a  single  robust  architecture  that  is  trained  on  a  wide  set  of  existing  datasets,  and  it  is  able  to  generalize  well  across  domains,  tasks,  and  languages.  The  goal  of  Whisper  is  to  develop  a  single  robust  speech  processing  system  that  works  reliably  without  the  need  for  dataset-specific  fine-tuning  to  achieve  high-quality  results  on  specific  distributions.""" in response
     else:
         assert """single  robust  speech  processing  system  that  works""" in response or """Whisper""" in response
     sources = res_dict['sources']
