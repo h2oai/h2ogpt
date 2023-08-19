@@ -115,7 +115,7 @@ def test_perf_benchmarks(backend, base_model, task, bits, ngpus):
             inference_server = 'http://127.0.0.1:%s' % inf_port
             docker_hash1 = run_docker(inf_port, base_model, low_mem_mode=False)  # don't do low-mem, since need tokens for summary
             import time
-            time.sleep(30)
+            time.sleep(90)
             os.system('docker logs %s | tail -10' % docker_hash1)
 
             from src.gen import main
