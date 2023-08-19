@@ -32,8 +32,16 @@ results_file = "./perf.json"
     4,
 ], ids=["16-bit", "8-bit", "4-bit"])
 @pytest.mark.parametrize("ngpus", [
-    1, 2, 4, 8
-], ids=["1 GPU", "2 GPUs", "4 GPUs", "8 GPUs"])
+    1,
+    2,
+    4,
+    8,
+], ids=[
+    "1 GPU",
+    "2 GPUs",
+    "4 GPUs",
+    "8 GPUs",
+])
 @pytest.mark.need_tokens
 @wrap_test_forked
 def test_perf_benchmarks(backend, base_model, task, bits, ngpus):
