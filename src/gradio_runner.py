@@ -58,7 +58,7 @@ from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt
     get_prompt
 from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping, makedirs, get_kwargs, system_info, ping_gpu, get_url, get_local_ip, \
-    save_generate_output, url_alive
+    save_generate_output, url_alive, remove
 from gen import get_model, languages_covered, evaluate, score_qa, inputs_kwargs_list, \
     get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list
 from evaluate_params import eval_func_param_names, no_default_param_names, eval_func_param_names_defaults, \
@@ -426,7 +426,7 @@ def go_gradio(**kwargs):
             allow = False
         return allow
 
-    with demo:
+    with (demo):
         # avoid actual model/tokenizer here or anything that would be bad to deepcopy
         # https://github.com/gradio-app/gradio/issues/3558
         model_state = gr.State(
@@ -534,9 +534,22 @@ def go_gradio(**kwargs):
                 df2 = pd.DataFrame.from_dict(langchain_mode_types.items(), orient='columns')
                 df2.columns = ['Collection', 'Type']
                 df2 = df2.set_index('Collection')
+
+                from src.gpt_langchain import get_persist_directory
+                persist_directory_dict = {}
+                for langchain_mode3 in langchain_mode_types:
+                    langchain_type3 = langchain_mode_types.get(langchain_mode3, LangChainTypes.EITHER.value)
+                    persist_directory3, langchain_type3 = get_persist_directory(langchain_mode3, langchain_type=langchain_type3)
+                    persist_directory_dict[langchain_mode3] = persist_directory3
+
+                df3 = pd.DataFrame.from_dict(persist_directory_dict.items(), orient='columns')
+                df3.columns = ['Collection', 'Directory']
+                df3 = df3.set_index('Collection')
             else:
                 df2 = pd.DataFrame(None)
-            df = df2.join(df1, on='Collection').replace(np.nan, '')
+                df3 = pd.DataFrame(None)
+            df_tmp = df2.join(df1, on='Collection').replace(np.nan, '')
+            df = df_tmp.join(df3, on='Collection').replace(np.nan, '')
             df = df.reset_index()
             return df
 
@@ -693,8 +706,14 @@ def go_gradio(**kwargs):
                         with gr.Column(scale=1):
                             get_sources_btn = gr.Button(value="Update UI with Document(s) from DB", scale=0, size='sm',
                                                         visible=sources_visible)
+                            # handle API get sources
+                            get_sources_api_btn = gr.Button(visible=False)
+                            get_sources_api_text = gr.Textbox(visible=False)
+
                             show_sources_btn = gr.Button(value="Show Sources from DB", scale=0, size='sm',
                                                          visible=sources_visible)
+                            delete_sources_btn = gr.Button(value="Delete Selected Sources from DB", scale=0, size='sm',
+                                                           visible=sources_visible)
                             refresh_sources_btn = gr.Button(value="Update DB with new/changed files on disk", scale=0,
                                                             size='sm',
                                                             visible=sources_visible and allow_upload_to_user_data)
@@ -713,21 +732,23 @@ def go_gradio(**kwargs):
                                                                  placeholder=add_placeholder,
                                                                  interactive=True)
                             remove_langchain_mode_text = gr.Textbox(value="", visible=visible_add_remove_collection,
-                                                                    label='Remove Collection',
+                                                                    label='Remove Collection from UI',
                                                                     placeholder=remove_placeholder,
                                                                     interactive=True)
+                            purge_langchain_mode_text = gr.Textbox(value="", visible=visible_add_remove_collection,
+                                                                   label='Purge Collection (UI, DB, & source files)',
+                                                                   placeholder=remove_placeholder,
+                                                                   interactive=True)
                             load_langchain = gr.Button(value="Load LangChain State", scale=0, size='sm',
                                                        visible=allow_upload_to_user_data and
                                                                kwargs['langchain_mode'] != 'Disabled')
-                        with gr.Column(scale=1):
+                        with gr.Column(scale=5):
                             df0 = get_df_langchain_mode_paths(selection_docs_state0)
                             langchain_mode_path_text = gr.Dataframe(value=df0,
                                                                     visible=visible_add_remove_collection,
                                                                     label='LangChain Mode-Path',
                                                                     show_label=False,
                                                                     interactive=False)
-                        with gr.Column(scale=4):
-                            pass
 
                     sources_row = gr.Row(visible=kwargs['langchain_mode'] != 'Disabled' and enable_sources_list,
                                          equal_height=False)
@@ -1324,7 +1345,14 @@ def go_gradio(**kwargs):
                      eventdb3a, eventdb3b, eventdb3, eventdb3c]
 
         get_sources1 = functools.partial(get_sources_gr, dbs=dbs, docs_state0=docs_state0,
-                                         get_userid_auth=get_userid_auth)
+                                         load_db_if_exists=load_db_if_exists,
+                                         db_type=db_type,
+                                         use_openai_embedding=use_openai_embedding,
+                                         hf_embedding_model=hf_embedding_model,
+                                         migrate_embedding_model=migrate_embedding_model,
+                                         verbose=verbose,
+                                         get_userid_auth=get_userid_auth,
+                                         )
 
         # if change collection source, must clear doc selections from it to avoid inconsistency
         def clear_doc_choice():
@@ -1373,17 +1401,25 @@ def go_gradio(**kwargs):
             return gr.Dropdown.update(choices=x, value=[docs_state0[0]])
 
         get_sources_args = dict(fn=get_sources1,
-                                inputs=[my_db_state, requests_state, langchain_mode],
+                                inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode],
                                 outputs=[file_source, docs_state],
-                                queue=queue,
-                                api_name='get_sources' if allow_api else None)
+                                queue=queue)
 
         eventdb7a = get_sources_btn.click(user_state_setup,
                                           inputs=[my_db_state, requests_state, get_sources_btn, get_sources_btn],
                                           outputs=[my_db_state, requests_state, get_sources_btn],
                                           show_progress='minimal')
-        eventdb7 = eventdb7a.then(**get_sources_args) \
+        eventdb7 = eventdb7a.then(**get_sources_args,
+                                  api_name='get_sources' if allow_api else None) \
             .then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
+
+        get_sources_api_args = dict(fn=functools.partial(get_sources1, api=True),
+                                    inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode],
+                                    outputs=get_sources_api_text,
+                                    queue=queue)
+        get_sources_api_btn.click(**get_sources_api_args,
+                                  api_name='get_sources_api' if allow_api else None)
+
         # show button, else only show when add.
         # Could add to above get_sources for download/dropdown, but bit much maybe
         show_sources1 = functools.partial(get_source_files_given_langchain_mode_gr,
@@ -1399,18 +1435,26 @@ def go_gradio(**kwargs):
                                            inputs=[my_db_state, requests_state, show_sources_btn, show_sources_btn],
                                            outputs=[my_db_state, requests_state, show_sources_btn],
                                            show_progress='minimal')
-        eventdb8 = eventdb8a.then(fn=show_sources1,
-                                  inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode],
-                                  outputs=sources_text,
+        show_sources_kwargs = dict(fn=show_sources1,
+                                   inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode],
+                                   outputs=sources_text)
+        eventdb8 = eventdb8a.then(**show_sources_kwargs,
                                   api_name='show_sources' if allow_api else None)
 
         def update_viewable_dropdown(x):
             return gr.Dropdown.update(choices=x,
                                       value=viewable_docs_state0[0] if len(viewable_docs_state0) > 0 else None)
 
-        get_viewable_sources1 = functools.partial(get_sources_gr, dbs=dbs, docs_state0=viewable_docs_state0)
+        get_viewable_sources1 = functools.partial(get_sources_gr, dbs=dbs, docs_state0=viewable_docs_state0,
+                                                  load_db_if_exists=load_db_if_exists,
+                                                  db_type=db_type,
+                                                  use_openai_embedding=use_openai_embedding,
+                                                  hf_embedding_model=hf_embedding_model,
+                                                  migrate_embedding_model=migrate_embedding_model,
+                                                  verbose=kwargs['verbose'],
+                                                  get_userid_auth=get_userid_auth)
         get_viewable_sources_args = dict(fn=get_viewable_sources1,
-                                         inputs=[my_db_state, requests_state, langchain_mode],
+                                         inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode],
                                          outputs=[file_source, viewable_docs_state],
                                          queue=queue,
                                          api_name='get_viewable_sources' if allow_api else None)
@@ -1543,6 +1587,28 @@ def go_gradio(**kwargs):
                                           langchain_mode, chunk, chunk_size],
                                   outputs=sources_text,
                                   api_name='refresh_sources' if allow_api else None)
+
+        delete_sources1 = functools.partial(del_source_files_given_langchain_mode_gr,
+                                            dbs=dbs,
+                                            load_db_if_exists=load_db_if_exists,
+                                            db_type=db_type,
+                                            use_openai_embedding=use_openai_embedding,
+                                            hf_embedding_model=hf_embedding_model,
+                                            migrate_embedding_model=migrate_embedding_model,
+                                            verbose=verbose,
+                                            get_userid_auth=get_userid_auth)
+        eventdb90a = delete_sources_btn.click(user_state_setup,
+                                              inputs=[my_db_state, requests_state,
+                                                      delete_sources_btn, delete_sources_btn],
+                                              outputs=[my_db_state, requests_state, delete_sources_btn],
+                                              show_progress='minimal')
+        eventdb90 = eventdb90a.then(fn=delete_sources1,
+                                    inputs=[my_db_state, selection_docs_state, requests_state, document_choice,
+                                            langchain_mode],
+                                    outputs=sources_text,
+                                    api_name='delete_sources' if allow_api else None) \
+            .then(**get_sources_args) \
+            .then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
 
         def check_admin_pass(x):
             return gr.update(visible=x == admin_pass)
@@ -1793,9 +1859,12 @@ def go_gradio(**kwargs):
                                                           value=langchain_mode2), textbox, df_langchain_mode_paths1
 
         def remove_langchain_mode(db1s, selection_docs_state1, requests_state1,
-                                  langchain_mode1, langchain_mode2, dbsu=None, auth_filename=None, auth_freeze=None):
+                                  langchain_mode1, langchain_mode2, dbsu=None, auth_filename=None, auth_freeze=None,
+                                  guest_name=None,
+                                  purge=False):
             assert auth_filename is not None
             assert auth_freeze is not None
+
             set_userid_gr(db1s, requests_state1, get_userid_auth)
             for k in db1s:
                 set_dbid_gr(db1s[k])
@@ -1803,39 +1872,73 @@ def go_gradio(**kwargs):
             langchain_modes = selection_docs_state1['langchain_modes']
             langchain_mode_paths = selection_docs_state1['langchain_mode_paths']
             langchain_mode_types = selection_docs_state1['langchain_mode_types']
+            langchain_type2 = langchain_mode_types.get(langchain_mode2, LangChainTypes.EITHER.value)
 
-            valid = False
+            changed_state = False
+            textbox = "Invalid access, cannot remove %s" % langchain_mode2
             in_scratch_db = langchain_mode2 in db1s
             in_user_db = dbsu is not None and langchain_mode2 in dbsu
             if in_scratch_db and not allow_upload_to_my_data or \
                     in_user_db and not allow_upload_to_user_data or \
                     langchain_mode2 in langchain_modes_intrinsic:
-                # NOTE: Doesn't fail if remove MyData, but didn't debug odd behavior seen with upload after gone
-                textbox = "Invalid access, cannot remove %s" % langchain_mode2
-                df_langchain_mode_paths1 = get_df_langchain_mode_paths(selection_docs_state1)
+                can_remove = False
+                can_purge = False
+                if langchain_mode2 in langchain_modes_intrinsic:
+                    can_purge = True
             else:
-                # change global variables
-                if langchain_mode2 in langchain_modes:
-                    langchain_modes.remove(langchain_mode2)
-                    textbox = ""
-                    valid = True
-                else:
-                    textbox = "%s was not visible" % langchain_mode2
-                if langchain_mode2 in langchain_mode_paths:
-                    langchain_mode_paths.pop(langchain_mode2)
-                if langchain_mode2 in db1s:
-                    # remove db entirely, so not in list, else need to manage visible list in update_langchain_mode_paths()
-                    # FIXME: Remove location?
-                    if langchain_mode2 != LangChainMode.MY_DATA.value:
+                can_remove = True
+                can_purge = True
+
+            # change global variables
+            if langchain_mode2 in langchain_modes or langchain_mode2 in langchain_mode_paths or langchain_mode2 in db1s:
+                if can_purge and purge:
+                    # remove source files
+                    from src.gpt_langchain import get_sources, del_from_db
+                    sources_file, source_list, db = get_sources(db1s, selection_docs_state1,
+                                                                requests_state1, langchain_mode2, dbs=dbsu,
+                                                                docs_state0=docs_state0,
+                                                                load_db_if_exists=load_db_if_exists,
+                                                                db_type=db_type,
+                                                                use_openai_embedding=use_openai_embedding,
+                                                                hf_embedding_model=hf_embedding_model,
+                                                                migrate_embedding_model=migrate_embedding_model,
+                                                                verbose=verbose,
+                                                                get_userid_auth=get_userid_auth)
+                    del_from_db(db, source_list, db_type=db_type)
+                    for fil in source_list:
+                        if os.path.isfile(fil):
+                            print("Purged %s" % fil, flush=True)
+                            remove(fil)
+                    # remove db directory
+                    from src.gpt_langchain import get_persist_directory
+                    persist_directory, langchain_type2 = \
+                        get_persist_directory(langchain_mode2, langchain_type=langchain_type2,
+                                              db1s=db1s, dbs=dbsu)
+                    print("removed persist_directory %s" % persist_directory, flush=True)
+                    remove(persist_directory)
+                    textbox = "Purged, but did not remove %s" % langchain_mode2
+                if can_remove:
+                    if langchain_mode2 in langchain_modes:
+                        langchain_modes.remove(langchain_mode2)
+                    if langchain_mode2 in langchain_mode_paths:
+                        langchain_mode_paths.pop(langchain_mode2)
+                    if langchain_mode2 in langchain_mode_types:
+                        langchain_mode_types.pop(langchain_mode2)
+                    if langchain_mode2 in db1s and langchain_mode2 != LangChainMode.MY_DATA.value:
                         # don't remove last MyData, used as user hash
                         db1s.pop(langchain_mode2)
-                # only show
-                selection_docs_state1 = update_langchain_mode_paths(selection_docs_state1)
-                df_langchain_mode_paths1 = get_df_langchain_mode_paths(selection_docs_state1)
+                    textbox = ""
+                    changed_state = True
+            else:
+                textbox = "%s is not visible" % langchain_mode2
 
-                if valid:
-                    save_auth(requests_state1, auth_filename, auth_freeze, selection_docs_state1=selection_docs_state1,
-                              langchain_mode1=langchain_mode2)
+            # update
+            selection_docs_state1 = update_langchain_mode_paths(selection_docs_state1)
+            df_langchain_mode_paths1 = get_df_langchain_mode_paths(selection_docs_state1)
+
+            if changed_state:
+                save_auth(requests_state1, auth_filename, auth_freeze, selection_docs_state1=selection_docs_state1,
+                          langchain_mode1=langchain_mode2)
 
             return db1s, selection_docs_state1, \
                 gr.update(choices=get_langchain_choices(selection_docs_state1),
@@ -1859,7 +1962,12 @@ def go_gradio(**kwargs):
                                               new_langchain_mode_text,
                                               langchain_mode_path_text],
                                      api_name='new_langchain_mode_text' if allow_api and allow_upload_to_user_data else None)
-        remove_langchain_mode_func = functools.partial(remove_langchain_mode, dbsu=dbs)
+        remove_langchain_mode_func = functools.partial(remove_langchain_mode,
+                                                       dbsu=dbs,
+                                                       auth_filename=kwargs['auth_filename'],
+                                                       auth_freeze=kwargs['auth_freeze'],
+                                                       guest_name=kwargs['guest_name'],
+                                                       )
         eventdb21a = remove_langchain_mode_text.submit(user_state_setup,
                                                        inputs=[my_db_state,
                                                                requests_state,
@@ -1867,14 +1975,38 @@ def go_gradio(**kwargs):
                                                        outputs=[my_db_state,
                                                                 requests_state, remove_langchain_mode_text],
                                                        show_progress='minimal')
-        eventdb21b = eventdb21a.then(fn=remove_langchain_mode_func,
-                                     inputs=[my_db_state, selection_docs_state, requests_state,
-                                             langchain_mode,
-                                             remove_langchain_mode_text],
-                                     outputs=[my_db_state, selection_docs_state, langchain_mode,
-                                              remove_langchain_mode_text,
-                                              langchain_mode_path_text],
+        remove_langchain_mode_kwargs = dict(fn=remove_langchain_mode_func,
+                                            inputs=[my_db_state, selection_docs_state, requests_state,
+                                                    langchain_mode,
+                                                    remove_langchain_mode_text],
+                                            outputs=[my_db_state, selection_docs_state, langchain_mode,
+                                                     remove_langchain_mode_text,
+                                                     langchain_mode_path_text])
+        eventdb21b = eventdb21a.then(**remove_langchain_mode_kwargs,
                                      api_name='remove_langchain_mode_text' if allow_api and allow_upload_to_user_data else None)
+
+        eventdb22a = purge_langchain_mode_text.submit(user_state_setup,
+                                                      inputs=[my_db_state,
+                                                              requests_state,
+                                                              purge_langchain_mode_text, purge_langchain_mode_text],
+                                                      outputs=[my_db_state,
+                                                               requests_state, purge_langchain_mode_text],
+                                                      show_progress='minimal')
+        purge_langchain_mode_func = functools.partial(remove_langchain_mode_func, purge=True)
+        purge_langchain_mode_kwargs = dict(fn=purge_langchain_mode_func,
+                                           inputs=[my_db_state, selection_docs_state, requests_state,
+                                                   langchain_mode,
+                                                   purge_langchain_mode_text],
+                                           outputs=[my_db_state, selection_docs_state, langchain_mode,
+                                                    purge_langchain_mode_text,
+                                                    langchain_mode_path_text])
+        # purge_langchain_mode_kwargs = remove_langchain_mode_kwargs.copy()
+        # purge_langchain_mode_kwargs['fn'] = functools.partial(remove_langchain_mode_kwargs['fn'], purge=True)
+        eventdb22b = eventdb22a.then(**purge_langchain_mode_kwargs,
+                                     api_name='purge_langchain_mode_text' if allow_api and allow_upload_to_user_data else None) \
+            .then(**get_sources_args) \
+            .then(**show_sources_kwargs) \
+            .then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
 
         def load_langchain_gr(db1s, selection_docs_state1, requests_state1, langchain_mode1, auth_filename=None):
             load_auth(db1s, requests_state1, auth_filename, selection_docs_state1=selection_docs_state1)
@@ -1923,6 +2055,11 @@ def go_gradio(**kwargs):
                 user_kwargs['langchain_action'] = LangChainAction.QUERY.value
             if 'langchain_agents' not in user_kwargs:
                 user_kwargs['langchain_agents'] = []
+            # be flexible
+            if 'instruction' in user_kwargs and 'instruction_nochat' not in user_kwargs:
+                user_kwargs['instruction_nochat'] = user_kwargs['instruction']
+            if 'iinput' in user_kwargs and 'iinput_nochat' not in user_kwargs:
+                user_kwargs['iinput_nochat'] = user_kwargs['iinput']
 
             set1 = set(list(default_kwargs1.keys()))
             set2 = set(eval_func_param_names)
@@ -3102,7 +3239,7 @@ def go_gradio(**kwargs):
         chatbot_update_args = dict(fn=chatbot_list, inputs=[text_output, model_used], outputs=text_output)
         nochat_update_args = dict(fn=chatbot_list, inputs=[text_output_nochat, model_used], outputs=text_output_nochat)
         load_model_event = load_model_button.click(**load_model_args,
-                                                   api_name='load_model' if allow_api and is_public else None) \
+                                                   api_name='load_model' if allow_api and not is_public else None) \
             .then(**prompt_update_args) \
             .then(**chatbot_update_args) \
             .then(**nochat_update_args) \
@@ -3124,7 +3261,7 @@ def go_gradio(**kwargs):
         prompt_update_args2 = dict(fn=dropdown_prompt_type_list, inputs=prompt_type2, outputs=prompt_type2)
         chatbot_update_args2 = dict(fn=chatbot_list, inputs=[text_output2, model_used2], outputs=text_output2)
         load_model_event2 = load_model_button2.click(**load_model_args2,
-                                                     api_name='load_model2' if allow_api and is_public else None) \
+                                                     api_name='load_model2' if allow_api and not is_public else None) \
             .then(**prompt_update_args2) \
             .then(**chatbot_update_args2) \
             .then(clear_torch_cache)
@@ -3306,9 +3443,11 @@ def go_gradio(**kwargs):
                                [submit_event_nochat, submit_event_nochat2] +
                                [eventdb1, eventdb2, eventdb3] +
                                [eventdb7a, eventdb7, eventdb8a, eventdb8, eventdb9a, eventdb9, eventdb12a, eventdb12] +
+                               [eventdb90a, eventdb90] +
                                db_events +
                                [eventdb20a, eventdb20b] +
                                [eventdb21a, eventdb21b] +
+                               [eventdb22a, eventdb22b] +
                                [eventdbloadla, eventdbloadlb] +
                                [clear_event] +
                                [submit_event_nochat_api, submit_event_nochat] +
@@ -3438,13 +3577,33 @@ def update_user_db_gr(file, db1s, selection_docs_state1, requests_state1,
                           **kwargs)
 
 
-def get_sources_gr(db1s, requests_state1, langchain_mode, dbs=None, docs_state0=None, get_userid_auth=None):
+def get_sources_gr(db1s, selection_docs_state1, requests_state1, langchain_mode, dbs=None, docs_state0=None,
+                   load_db_if_exists=None,
+                   db_type=None,
+                   use_openai_embedding=None,
+                   hf_embedding_model=None,
+                   migrate_embedding_model=None,
+                   verbose=False,
+                   get_userid_auth=None,
+                   api=False):
     from src.gpt_langchain import get_sources
-    return get_sources(db1s, requests_state1, langchain_mode, dbs=dbs, docs_state0=docs_state0,
-                       get_userid_auth=get_userid_auth)
+    sources_file, source_list, db = get_sources(db1s, selection_docs_state1, requests_state1, langchain_mode,
+                                                dbs=dbs, docs_state0=docs_state0,
+                                                load_db_if_exists=load_db_if_exists,
+                                                db_type=db_type,
+                                                use_openai_embedding=use_openai_embedding,
+                                                hf_embedding_model=hf_embedding_model,
+                                                migrate_embedding_model=migrate_embedding_model,
+                                                verbose=verbose,
+                                                get_userid_auth=get_userid_auth,
+                                                )
+    if api:
+        return source_list
+    return sources_file, source_list
 
 
-def get_source_files_given_langchain_mode_gr(db1s, selection_docs_state1, requests_state1, langchain_mode,
+def get_source_files_given_langchain_mode_gr(db1s, selection_docs_state1, requests_state1,
+                                             langchain_mode,
                                              dbs=None,
                                              load_db_if_exists=None,
                                              db_type=None,
@@ -3454,7 +3613,8 @@ def get_source_files_given_langchain_mode_gr(db1s, selection_docs_state1, reques
                                              verbose=False,
                                              get_userid_auth=None):
     from src.gpt_langchain import get_source_files_given_langchain_mode
-    return get_source_files_given_langchain_mode(db1s, selection_docs_state1, requests_state1, langchain_mode,
+    return get_source_files_given_langchain_mode(db1s, selection_docs_state1, requests_state1, None,
+                                                 langchain_mode,
                                                  dbs=dbs,
                                                  load_db_if_exists=load_db_if_exists,
                                                  db_type=db_type,
@@ -3462,7 +3622,32 @@ def get_source_files_given_langchain_mode_gr(db1s, selection_docs_state1, reques
                                                  hf_embedding_model=hf_embedding_model,
                                                  migrate_embedding_model=migrate_embedding_model,
                                                  verbose=verbose,
-                                                 get_userid_auth=get_userid_auth)
+                                                 get_userid_auth=get_userid_auth,
+                                                 delete_sources=False)
+
+
+def del_source_files_given_langchain_mode_gr(db1s, selection_docs_state1, requests_state1, document_choice1,
+                                             langchain_mode,
+                                             dbs=None,
+                                             load_db_if_exists=None,
+                                             db_type=None,
+                                             use_openai_embedding=None,
+                                             hf_embedding_model=None,
+                                             migrate_embedding_model=None,
+                                             verbose=False,
+                                             get_userid_auth=None):
+    from src.gpt_langchain import get_source_files_given_langchain_mode
+    return get_source_files_given_langchain_mode(db1s, selection_docs_state1, requests_state1, document_choice1,
+                                                 langchain_mode,
+                                                 dbs=dbs,
+                                                 load_db_if_exists=load_db_if_exists,
+                                                 db_type=db_type,
+                                                 use_openai_embedding=use_openai_embedding,
+                                                 hf_embedding_model=hf_embedding_model,
+                                                 migrate_embedding_model=migrate_embedding_model,
+                                                 verbose=verbose,
+                                                 get_userid_auth=get_userid_auth,
+                                                 delete_sources=True)
 
 
 def update_and_get_source_files_given_langchain_mode_gr(db1s,

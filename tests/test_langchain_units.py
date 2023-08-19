@@ -56,7 +56,7 @@ def run_qa_wiki(use_openai_model=False, first_para=True, text_limit=None, chain_
     from langchain.chains.qa_with_sources import load_qa_with_sources_chain
 
     sources = get_wiki_sources(first_para=first_para, text_limit=text_limit)
-    llm, model_name, streamer, prompt_type_out, async_output = \
+    llm, model_name, streamer, prompt_type_out, async_output, only_new_text = \
         get_llm(use_openai_model=use_openai_model, prompt_type=prompt_type, llamacpp_dict={})
     chain = load_qa_with_sources_chain(llm, chain_type=chain_type)
 
@@ -462,9 +462,9 @@ def test_make_add_db(repeat, db_type):
                     selection_docs_state1 = dict(langchain_modes=[langchain_mode], langchain_mode_paths={},
                                                  langchain_mode_types={})
                     requests_state1 = dict()
-                    get_source_files_given_langchain_mode(db1, selection_docs_state1, requests_state1,
-                                                          langchain_mode=langchain_mode, dbs={langchain_mode: db})
-                    get_source_files_given_langchain_mode(db1, selection_docs_state1, requests_state1,
+                    get_source_files_given_langchain_mode(db1, selection_docs_state1, requests_state1, None,
+                                                          langchain_mode, dbs={langchain_mode: db})
+                    get_source_files_given_langchain_mode(db1, selection_docs_state1, requests_state1, None,
                                                           langchain_mode='MyData', dbs={})
                     get_any_db(db1, langchain_mode='UserData',
                                langchain_mode_paths=selection_docs_state1['langchain_mode_paths'],
@@ -526,8 +526,8 @@ def test_make_add_db(repeat, db_type):
                     assert langchain_mode == z2
                     assert z1 is None
                     docs_state0 = [x.name for x in list(DocumentSubset)]
-                    get_sources(db1, {}, langchain_mode, dbs={langchain_mode: db}, docs_state0=docs_state0)
-                    get_sources(db1, {}, 'MyData', dbs={}, docs_state0=docs_state0)
+                    get_sources(db1, selection_docs_state1, {}, langchain_mode, dbs={langchain_mode: db}, docs_state0=docs_state0)
+                    get_sources(db1, selection_docs_state1, {}, 'MyData', dbs={}, docs_state0=docs_state0)
                     selection_docs_state1['langchain_mode_paths'] = {langchain_mode: tmp_user_path}
                     kwargs2 = dict(first_para=False,
                                    text_limit=None, chunk=chunk, chunk_size=chunk_size,
