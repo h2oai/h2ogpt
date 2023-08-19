@@ -52,7 +52,7 @@ def get_stopping(prompt_type, prompt_dict, tokenizer, device, base_model,
                        PromptType.human_bot_orig.name]
     all_types = user_human_assistant_types + human_bot_types
     if prompt_type in all_types:
-        if prompt_type in human:
+        if prompt_type in human_bot_types:
             # encounters = [prompt.count(human) + 1, prompt.count(bot) + 1]
             # stopping only starts once output is beyond prompt
             # 1 human is enough to trigger, but need 2 bots, because very first view back will be bot we added
