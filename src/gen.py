@@ -940,6 +940,8 @@ def main(
                 model0, tokenizer0, device = get_model(reward_type=False,
                                                        **get_kwargs(get_model, exclude_names=['reward_type'],
                                                                     **all_kwargs))
+                # update to be consistent with what is passed from CLI and model chose
+                max_seq_len = tokenizer0.model_max_length
             else:
                 # if empty model, then don't load anything, just get gradio up
                 model0, tokenizer0, device = None, None, None
