@@ -26,6 +26,7 @@ pip wheel rouge-score==0.1.2
 pip wheel sentence-transformers==2.2.2
 pip wheel sgmllib3k==1.0.0
 pip wheel validators==0.20.0
+pip wheel python-magic-bin==0.4.14
 pip wheel setuptools
 # CPU only
 pip wheel torch==2.0.1 --extra-index-url https://download.pytorch.org/whl/cpu
