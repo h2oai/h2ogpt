@@ -159,6 +159,10 @@ def _get_unique_sources_in_weaviate(db):
 def del_from_db(db, sources, db_type=None):
     if db_type == 'chroma':
         # sources should be list of x.metadata['source'] from document metadatas
+        if isinstance(sources, str):
+            sources = [sources]
+        else:
+            assert isinstance(sources, (list, tuple, types.GeneratorType))
         metadatas = set(sources)
         client_collection = db._client.get_collection(name=db._collection.name,
                                                       embedding_function=db._collection._embedding_function)

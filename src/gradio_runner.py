@@ -695,7 +695,7 @@ def go_gradio(**kwargs):
                                                         visible=sources_visible)
                             # handle API get sources
                             get_sources_api_btn = gr.Button(visible=False)
-                            get_sources_text = gr.Textbox(visible=False)
+                            get_sources_api_text = gr.Textbox(visible=False)
 
                             show_sources_btn = gr.Button(value="Show Sources from DB", scale=0, size='sm',
                                                          visible=sources_visible)
@@ -1403,8 +1403,8 @@ def go_gradio(**kwargs):
             .then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
 
         get_sources_api_args = dict(fn=functools.partial(get_sources1, api=True),
-                                    inputs=[my_db_state, selection_docs_state, langchain_mode],
-                                    outputs=get_sources_text,
+                                    inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode],
+                                    outputs=get_sources_api_text,
                                     queue=queue)
         get_sources_api_btn.click(**get_sources_api_args,
                                   api_name='get_sources_api' if allow_api else None)

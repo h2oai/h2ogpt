@@ -861,12 +861,19 @@ def test_client_chat_stream_langchain_steps3():
                                                                                                            '/').replace(
         '\r', '\n')
 
-    # check sources, and do after so would detect leakage
-    sources = ast.literal_eval(client.predict(langchain_mode, api_name='/get_sources_api'))
-    assert isinstance(sources, list)
+    res = client.predict(langchain_mode, api_name='/get_sources')
+    # is not actual data!
+    with open(res['name'], 'rb') as f:
+        sources = f.read().decode()
     sources_expected = f'{user_path}/FAQ.md\n{user_path}/README.md\n{user_path}/next.txt\n{user_path}/pexels-evg-kowalievska-1170986_small.jpg\n{user_path}/sample1.pdf'
     assert sources == sources_expected or sources.replace('\\', '/').replace('\r', '') == sources_expected.replace(
         '\\', '/').replace('\r', '')
+
+    # check sources, and do after so would detect leakage
+    sources = ast.literal_eval(client.predict(langchain_mode, api_name='/get_sources_api'))
+    assert isinstance(sources, list)
+    sources_expected = ['user_path_test/FAQ.md', 'user_path_test/README.md', 'user_path_test/next.txt', 'user_path_test/pexels-evg-kowalievska-1170986_small.jpg', 'user_path_test/sample1.pdf']
+    assert sources == sources_expected
 
     # even normal langchain_mode  passed to this should get the other langchain_mode2
     res = client.predict(langchain_mode, api_name='/load_langchain')
@@ -901,13 +908,13 @@ def test_client_chat_stream_langchain_steps3():
         '\r', '\n')
     assert res[3] == ''
 
-    langchain_mode = LangChainMode.MY_DATA.value
+    langchain_mode_my = LangChainMode.MY_DATA.value
     url = 'https://www.africau.edu/images/default/sample.pdf'
     test_file1 = os.path.join('/tmp/', 'sample1.pdf')
     download_simple(url, dest=test_file1)
-    res = client.predict(test_file1, True, 512, langchain_mode, api_name='/add_file_api')
+    res = client.predict(test_file1, True, 512, langchain_mode_my, api_name='/add_file_api')
     assert res[0] is None
-    assert res[1] == langchain_mode
+    assert res[1] == langchain_mode_my
     # will just use source location, e.g. for UI will be /tmp/gradio
     sources_expected = 'file//tmp/sample1.pdf'
     assert sources_expected in res[2] or sources_expected.replace('\\', '/').replace('\r', '') in res[2].replace('\\',
@@ -919,7 +926,7 @@ def test_client_chat_stream_langchain_steps3():
     user_path2b = ''
     langchain_mode2 = 'MyData2'
     new_langchain_mode_text = '%s, %s, %s' % (langchain_mode2, 'personal', user_path2b)
-    res = client.predict(langchain_mode, new_langchain_mode_text, api_name='/new_langchain_mode_text')
+    res = client.predict(langchain_mode2, new_langchain_mode_text, api_name='/new_langchain_mode_text')
     assert res[0]['value'] == langchain_mode2
     assert langchain_mode2 in res[0]['choices']
     assert res[1] == ''
@@ -988,15 +995,19 @@ def test_client_chat_stream_langchain_steps3():
     assert [x in sources_text or x.replace('https', 'http') in sources_text for x in urls]
 
     source_list = ast.literal_eval(client.predict(langchain_mode3, api_name='/get_sources_api'))
+    source_list_assert = [x.replace('v1', '').replace('v7', '') for x in source_list]  # for arxiv for asserts
     assert isinstance(source_list, list)
-    assert [x in source_list or x.replace('https', 'http') in source_list for x in urls]
+    assert [x in source_list_assert or x.replace('https', 'http') in source_list_assert for x in urls]
 
     sources_text_after_delete = client.predict(source_list[0], langchain_mode3, api_name='/delete_sources')
-    assert source_list[0] not in sources_text_after_delete
+    source_list_assert = [x.replace('v1', '').replace('v7', '') for x in source_list]  # for arxiv for asserts
+    assert source_list_assert[0] not in sources_text_after_delete
 
     sources_state_after_delete = ast.literal_eval(client.predict(langchain_mode3, api_name='/get_sources_api'))
+    sources_state_after_delete = [x.replace('v1', '').replace('v7', '') for x in sources_state_after_delete]  # for arxiv for asserts
     assert isinstance(sources_state_after_delete, list)
-    assert source_list[0] not in sources_state_after_delete
+    source_list_assert = [x.replace('v1', '').replace('v7', '') for x in source_list]  # for arxiv for asserts
+    assert source_list_assert[0] not in sources_state_after_delete
 
     res = client.predict(langchain_mode3, langchain_mode3, api_name='/remove_langchain_mode_text')
     assert res[0]['value'] == langchain_mode3
@@ -1006,18 +1017,21 @@ def test_client_chat_stream_langchain_steps3():
     assert res[2]['data'] == [['UserData', 'shared', user_path],
                               ['github h2oGPT', 'shared', ''],
                               ['MyData', 'personal', ''],
-                              [langchain_mode2, 'shared', user_path2]]
+                              ['UserData2', 'shared', user_path2],
+                              [langchain_mode2, 'personal', '']]
 
-    assert os.path.isdir("db_dir_%s" % langchain_mode2)
-    res = client.predict(langchain_mode2, langchain_mode2, api_name='/purge_langchain_mode_text')
-    assert not os.path.isdir("db_dir_%s" % langchain_mode2)
-    assert res[0]['value'] == langchain_mode2
-    assert langchain_mode2 in res[0]['choices']
+    # FIXME: could do MyData personal type, but would need to know path and don't have access via API
+    assert os.path.isdir("db_dir_%s" % langchain_mode)
+    res = client.predict(langchain_mode, langchain_mode, api_name='/purge_langchain_mode_text')
+    assert not os.path.isdir("db_dir_%s" % langchain_mode)
+    assert res[0]['value'] == langchain_mode
+    assert langchain_mode not in res[0]['choices']
     assert res[1] == ''
     assert res[2]['headers'] == ['Collection', 'Type', 'Path']
-    assert res[2]['data'] == [['UserData', 'shared', user_path],
-                              ['github h2oGPT', 'shared', ''],
+    assert res[2]['data'] == [['github h2oGPT', 'shared', ''],
                               ['MyData', 'personal', ''],
+                              ['UserData2', 'shared', 'user_path2'],
+                              ['MyData2', 'personal', ''],
                               ]
 
     # FIXME: Add load_model, unload_model, etc.
