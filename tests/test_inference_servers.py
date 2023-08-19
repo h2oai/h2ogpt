@@ -174,7 +174,7 @@ def run_docker(inf_port, base_model, low_mem_mode=False):
                         '--sharded', 'false' if n_gpus == 1 else 'true'
                         ]
     if n_gpus > 1:
-        cmd.extend(['--num_shard', '%s' % n_gpus])
+        cmd.extend(['--num-shard', '%s' % n_gpus])
     if low_mem_mode:
         cmd.extend(['--max-input-length', '1024',
                     '--max-total-tokens', '2048',
