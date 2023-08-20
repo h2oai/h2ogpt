@@ -150,7 +150,7 @@ docker run -d \
 ```
 or change `max_max_new_tokens` to `2048` for low-memory case.
 
-For maximal summarization performance when connecting to TGI server, auto-detection of file chnages in `--user_path` every query, and maximum document filling of context, add these options:
+For maximal summarization performance when connecting to TGI server, auto-detection of file changes in `--user_path` every query, and maximum document filling of context, add these options:
 ```
           --num_async=10 \
           --top_k_docs=-1
