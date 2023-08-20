@@ -52,9 +52,7 @@ docker run \
           --save_dir='/workspace/save/' \
           --score_model=None \
           --max_max_new_tokens=2048 \
-          --max_new_tokens=1024 \
-          --num_async=10 \
-          --top_k_docs=-1
+          --max_new_tokens=1024
 ```
 then go to http://localhost:7860/ or http://127.0.0.1:7860/.
 
@@ -77,8 +75,6 @@ docker run \
           --score_model=None \
           --max_max_new_tokens=2048 \
           --max_new_tokens=1024 \
-          --num_async=10 \
-          --top_k_docs=-1 \
           --use_auth_token=$HUGGING_FACE_HUB_TOKEN
 ```
 for some token `<hf_...>`.  See [Hugging Face User Tokens](https://huggingface.co/docs/hub/security-tokens) for more details.
@@ -150,12 +146,16 @@ docker run -d \
           --score_model=None \
           --max_max_new_tokens=4096 \
           --max_new_tokens=1024 \
-          --num_async=10 \
-          --top_k_docs=-1 \
           --use_auth_token="$HUGGING_FACE_HUB_TOKEN"
 ```
 or change `max_max_new_tokens` to `2048` for low-memory case.
 
+For maximal summarization performance when connecting to TGI server, auto-detection of file chnages in `--user_path` every query, and maximum document filling of context, add these options:
+```
+          --num_async=10 \
+          --top_k_docs=-1
+          --detect_user_path_changes_every_query=True
+```
 When one is done with the docker instance, run `docker ps` and find the container ID's hash, then run `docker stop <hash>`.
 
 Follow [README_InferenceServers.md](README_InferenceServers.md) for similar (and more) examples of how to launch TGI server using docker.
