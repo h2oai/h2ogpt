@@ -76,6 +76,7 @@ For newer builds of windows versions of 10/11.
     # Optional but required for PlayWright
     playwright install --with-deps
     # Note: for Selenium, we match versions of playwright so above installer will add chrome version needed
+    # *Set* environment variable KEEP_PLAYWRIGHT='1' if want to use playwright, which we found to hang too often and is disabled unless set
 * GPU Optional: For optional AutoGPTQ support:
    ```bash
     pip uninstall -y auto-gptq
@@ -111,7 +112,6 @@ For newer builds of windows versions of 10/11.
   * Note that once `llama-cpp-python` is compiled to support CUDA, it no longer works for CPU mode, so one would have to reinstall it without the above options to recovers CPU mode or have a separate h2oGPT env for CPU mode.
 * For supporting Word and Excel documents, if you don't have Word/Excel already, then download and install libreoffice: https://www.libreoffice.org/download/download-libreoffice/ .
 * To support OCR, download and install [tesseract](https://github.com/UB-Mannheim/tesseract/wiki), see also: [Tesseract Documentation](https://tesseract-ocr.github.io/tessdoc/Installation.html).  Please add the installation directories to your PATH.
-
 ---
 
 ## Run
@@ -209,3 +209,4 @@ See [CPU](README_CPU.md) and [GPU](README_GPU.md) for some other general aspects
   python generate.py ...
   ```
   for some options ...
+* For easier handling of command line operations, consider using bash in windows with [coreutils](https://github.com/git-for-windows/git/releases/download/v2.41.0.windows.3/Git-2.41.0.3-64-bit.exe).

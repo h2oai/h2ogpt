@@ -1102,7 +1102,8 @@ except (PackageNotFoundError, AssertionError):
 only_unstructured_urls = os.environ.get("ONLY_UNSTRUCTURED_URLS", "0") == "1"
 only_selenium = os.environ.get("ONLY_SELENIUM", "0") == "1"
 only_playwright = os.environ.get("ONLY_PLAYWRIGHT", "0") == "1"
-if not only_playwright and platform.system() == "Linux":
+keep_playwright = os.environ.get("KEEP_PLAYWRIGHT", "0") == "1"
+if not only_playwright or keep_playwright:
     # disable, hangs too often
     have_playwright = False
 
