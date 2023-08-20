@@ -1013,7 +1013,7 @@ def get_config(base_model,
             if raise_exception:
                 raise
             if 'not a local folder and is not a valid model identifier listed on' in str(
-                    e) or '404 Client Error' in str(e):
+                    e) or '404 Client Error' in str(e) or "couldn't connect" in str(e):
                 # e.g. llama, gpjt, etc.
                 # e.g. HF TGI but not model on HF or private etc.
                 if max_seq_len is None and base_model.lower() in non_hf_types:
@@ -1347,6 +1347,10 @@ def get_model(
             inference_server.startswith('openai') or
             inference_server.startswith('vllm') or
             inference_server.startswith('replicate')):
+        # Don't return None, None for model, tokenizer so triggers
+        # include small token cushion
+        tokenizer = FakeTokenizer(model_max_length=max_seq_len - 50)
+
         if inference_server.startswith('openai'):
             assert os.getenv('OPENAI_API_KEY'), "Set environment for OPENAI_API_KEY"
             # Don't return None, None for model, tokenizer so triggers
@@ -1363,9 +1367,6 @@ def get_model(
                     "Could not import replicate python package. "
                     "Please install it with `pip install replicate`."
                 )
-            # Don't return None, None for model, tokenizer so triggers
-            # include small token cushion
-            tokenizer = FakeTokenizer(model_max_length=max_seq_len - 50)
         return inference_server, tokenizer, inference_server
     assert not inference_server, "Malformed inference_server=%s" % inference_server
     if base_model in non_hf_types:

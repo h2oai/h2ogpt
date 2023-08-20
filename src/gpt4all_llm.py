@@ -136,7 +136,11 @@ def get_llm_gpt4all(model_name,
         if model is None:
             llamacpp_dict = llamacpp_dict.copy()
             model_path = llamacpp_dict.pop('model_path_llama')
-            if url_alive(model_path):
+            if os.path.isfile(os.path.basename(model_path)):
+                # e.g. if offline but previously downloaded
+                model_path = os.path.basename(model_path)
+            elif url_alive(model_path):
+                # oneline
                 model_path = download_simple(model_path)
         else:
             model_path = model
