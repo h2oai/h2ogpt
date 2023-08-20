@@ -41,6 +41,10 @@ For newer builds of windows versions of 10/11.
     conda install cudatoolkit=11.7 -c conda-forge -y
     set CUDA_HOME=$CONDA_PREFIX
     ```
+* Install Git:
+   ```bash
+    conda install -c conda-forge git
+    ```
 * Install h2oGPT:
    ```bash
     git clone https://github.com/h2oai/h2ogpt.git
