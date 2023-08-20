@@ -783,7 +783,6 @@ def go_gradio(**kwargs):
                                                                  visible=kwargs['db_type'] == 'chroma')
                         with gr.Column(scale=4):
                             pass
-                    document = 'http://infolab.stanford.edu/pub/papers/google.pdf'
                     doc_view = gr.HTML(visible=False)
                     doc_view2 = gr.Dataframe(visible=False)
                     doc_view3 = gr.JSON(visible=False)
