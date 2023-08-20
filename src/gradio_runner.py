@@ -58,7 +58,7 @@ from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt
     get_prompt
 from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping, makedirs, get_kwargs, system_info, ping_gpu, get_url, get_local_ip, \
-    save_generate_output, url_alive, remove
+    save_generate_output, url_alive, remove, dict_to_html, text_to_html
 from gen import get_model, languages_covered, evaluate, score_qa, inputs_kwargs_list, \
     get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list
 from evaluate_params import eval_func_param_names, no_default_param_names, eval_func_param_names_defaults, \
@@ -539,7 +539,8 @@ def go_gradio(**kwargs):
                 persist_directory_dict = {}
                 for langchain_mode3 in langchain_mode_types:
                     langchain_type3 = langchain_mode_types.get(langchain_mode3, LangChainTypes.EITHER.value)
-                    persist_directory3, langchain_type3 = get_persist_directory(langchain_mode3, langchain_type=langchain_type3)
+                    persist_directory3, langchain_type3 = get_persist_directory(langchain_mode3,
+                                                                                langchain_type=langchain_type3)
                     persist_directory_dict[langchain_mode3] = persist_directory3
 
                 df3 = pd.DataFrame.from_dict(persist_directory_dict.items(), orient='columns')
@@ -777,6 +778,9 @@ def go_gradio(**kwargs):
                                                                multiselect=False,
                                                                visible=True,
                                                                )
+                            view_raw_text_checkbox = gr.Checkbox(label="View Database Text", value=False,
+                                                                 info="Raw text shown if render of original doc fails",
+                                                                 visible=kwargs['db_type'] == 'chroma')
                         with gr.Column(scale=4):
                             pass
                     document = 'http://infolab.stanford.edu/pub/papers/google.pdf'
@@ -784,6 +788,7 @@ def go_gradio(**kwargs):
                     doc_view2 = gr.Dataframe(visible=False)
                     doc_view3 = gr.JSON(visible=False)
                     doc_view4 = gr.Markdown(visible=False)
+                    doc_view5 = gr.HTML(visible=False)
 
                 chat_tab = gr.TabItem("Chat History") \
                     if kwargs['visible_chat_history_tab'] else gr.Row(visible=False)
@@ -1467,9 +1472,89 @@ def go_gradio(**kwargs):
             .then(fn=update_viewable_dropdown, inputs=viewable_docs_state,
                   outputs=view_document_choice)
 
-        def show_doc(file):
+        def show_doc(db1s, selection_docs_state1, requests_state1,
+                     langchain_mode1,
+                     single_document_choice1,
+                     view_raw_text_checkbox1,
+                     dbs1=None,
+                     load_db_if_exists1=None,
+                     db_type1=None,
+                     use_openai_embedding1=None,
+                     hf_embedding_model1=None,
+                     migrate_embedding_model1=None,
+                     verbose1=False,
+                     get_userid_auth1=None):
+            file = single_document_choice1
+            document_choice1 = [single_document_choice1]
+            content = None
+            if db_type == 'chroma':
+                assert langchain_mode1 is not None
+                langchain_mode_paths = selection_docs_state1['langchain_mode_paths']
+                langchain_mode_types = selection_docs_state1['langchain_mode_types']
+                from src.gpt_langchain import set_userid, get_any_db, get_docs_and_meta
+                set_userid(db1s, requests_state1, get_userid_auth1)
+                top_k_docs = -1
+                db = get_any_db(db1s, langchain_mode1, langchain_mode_paths, langchain_mode_types,
+                                dbs=dbs1,
+                                load_db_if_exists=load_db_if_exists1,
+                                db_type=db_type1,
+                                use_openai_embedding=use_openai_embedding1,
+                                hf_embedding_model=hf_embedding_model1,
+                                migrate_embedding_model=migrate_embedding_model1,
+                                for_sources_list=True,
+                                verbose=verbose1,
+                                )
+                query_action = False  # long chunks like would be used for summarize
+                # the below is as or filter, so will show doc or by chunk, unrestricted
+                one_filter = \
+                    [{"source": {"$eq": x}, "chunk_id": {"$gte": 0}} if query_action else {"source": {"$eq": x},
+                                                                                           "chunk_id": {
+                                                                                               "$eq": -1}}
+                     for x in document_choice1][0]
+                if view_raw_text_checkbox1:
+                    # like or, full raw all chunk types
+                    filter_kwargs = dict(filter=one_filter)
+                else:
+                    filter_kwargs = dict(filter={"$and": [dict(source=one_filter['source']),
+                                                          dict(chunk_id=one_filter['chunk_id'])]})
+                db_documents, db_metadatas = get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs)
+                # order documents
+                from langchain.docstore.document import Document
+                docs_with_score = [(Document(page_content=result[0], metadata=result[1] or {}), 0)
+                                   for result in zip(db_documents, db_metadatas)]
+                doc_chunk_ids = [x.get('chunk_id', -1) for x in db_metadatas]
+                doc_hashes = [x.get('doc_hash', 'None') for x in db_metadatas]
+                docs_with_score = [x for hx, cx, x in
+                                   sorted(zip(doc_hashes, doc_chunk_ids, docs_with_score), key=lambda x: (x[0], x[1]))
+                                   #if cx == -1
+                                   ]
+                db_metadatas = [x[0].metadata for x in docs_with_score]
+                db_documents = [x[0].page_content for x in docs_with_score]
+                # done reordering
+                if view_raw_text_checkbox1:
+                    content = [dict_to_html(x) + '\n' + text_to_html(y) for x, y in zip(db_metadatas, db_documents)]
+                else:
+                    content = [text_to_html(y) for x, y in zip(db_metadatas, db_documents)]
+                content = '\n'.join(content)
+                content = f"""<!DOCTYPE html>
+<html>
+ <head>
+    <title>{file}</title>
+ </head>
+  <body>
+  {content}
+  </body>
+</html>"""
+
             dummy1 = gr.update(visible=False, value=None)
-            dummy_ret = dummy1, dummy1, dummy1, dummy1
+            # backup is text dump of db version
+            if content:
+                dummy_ret = dummy1, dummy1, dummy1, dummy1, gr.update(visible=True, value=content)
+                if view_raw_text_checkbox1:
+                    return dummy_ret
+            else:
+                dummy_ret = dummy1, dummy1, dummy1, dummy1, dummy1
+
             if not isinstance(file, str):
                 return dummy_ret
 
@@ -1477,7 +1562,7 @@ def go_gradio(**kwargs):
                 try:
                     with open(file, 'rt') as f:
                         content = f.read()
-                    return gr.update(visible=True, value=content), dummy1, dummy1, dummy1
+                    return gr.update(visible=True, value=content), dummy1, dummy1, dummy1, dummy1
                 except:
                     return dummy_ret
 
@@ -1485,7 +1570,7 @@ def go_gradio(**kwargs):
                 try:
                     with open(file, 'rt') as f:
                         content = f.read()
-                    return dummy1, dummy1, dummy1, gr.update(visible=True, value=content)
+                    return dummy1, dummy1, dummy1, gr.update(visible=True, value=content), dummy1
                 except:
                     return dummy_ret
 
@@ -1494,7 +1579,7 @@ def go_gradio(**kwargs):
                     with open(file, 'rt') as f:
                         content = f.read()
                     content = f"```python\n{content}\n```"
-                    return dummy1, dummy1, dummy1, gr.update(visible=True, value=content)
+                    return dummy1, dummy1, dummy1, gr.update(visible=True, value=content), dummy1
                 except:
                     return dummy_ret
 
@@ -1504,7 +1589,7 @@ def go_gradio(**kwargs):
                     with open(file, 'rt') as f:
                         content = f.read()
                     content = f"```text\n{content}\n```"
-                    return dummy1, dummy1, dummy1, gr.update(visible=True, value=content)
+                    return dummy1, dummy1, dummy1, gr.update(visible=True, value=content), dummy1
                 except:
                     return dummy_ret
 
@@ -1524,7 +1609,7 @@ def go_gradio(**kwargs):
                     df = func(file).head(100)
                 except:
                     return dummy_ret
-                return dummy1, gr.update(visible=True, value=df), dummy1, dummy1
+                return dummy1, gr.update(visible=True, value=df), dummy1, dummy1, dummy1
             port = int(os.getenv('GRADIO_SERVER_PORT', '7860'))
             import pathlib
             absolute_path_string = os.path.abspath(file)
@@ -1532,7 +1617,7 @@ def go_gradio(**kwargs):
             url = get_url(absolute_path_string, from_str=True)
             img_url = url.replace("""<a href=""", """<img src=""")
             if file.lower().endswith('.png') or file.lower().endswith('.jpg') or file.lower().endswith('.jpeg'):
-                return gr.update(visible=True, value=img_url), dummy1, dummy1, dummy1
+                return gr.update(visible=True, value=img_url), dummy1, dummy1, dummy1, dummy1
             elif file.lower().endswith('.pdf') or 'arxiv.org/pdf' in file:
 
                 # account for when use `wget -b -m -k -o wget.log -e robots=off`
@@ -1547,19 +1632,35 @@ def go_gradio(**kwargs):
                     return gr.update(visible=True,
                                      value=f"""<iframe width="1000" height="800" src="https://docs.google.com/viewerng/viewer?url={document1}&embedded=true" frameborder="0" height="100%" width="100%">
 </iframe>
-"""), dummy1, dummy1, dummy1
+"""), dummy1, dummy1, dummy1, dummy1
                 else:
                     ip = get_local_ip()
                     document1 = url_path.replace('file://', f'http://{ip}:{port}/')
                     # document1 = url
                     return gr.update(visible=True, value=f"""<object data="{document1}" type="application/pdf">
     <iframe src="https://docs.google.com/viewer?url={document1}&embedded=true"></iframe>
-</object>"""), dummy1, dummy1, dummy1
+</object>"""), dummy1, dummy1, dummy1, dummy1
             else:
                 return dummy_ret
 
-        view_document_choice.select(fn=show_doc, inputs=view_document_choice,
-                                    outputs=[doc_view, doc_view2, doc_view3, doc_view4])
+        eventdb_viewa = view_document_choice.select(user_state_setup,
+                                                    inputs=[my_db_state, requests_state,
+                                                            view_document_choice, view_document_choice],
+                                                    outputs=[my_db_state, requests_state, view_document_choice],
+                                                    show_progress='minimal')
+        show_doc_func = functools.partial(show_doc,
+                                          dbs1=dbs,
+                                          load_db_if_exists1=load_db_if_exists,
+                                          db_type1=db_type,
+                                          use_openai_embedding1=use_openai_embedding,
+                                          hf_embedding_model1=hf_embedding_model,
+                                          migrate_embedding_model1=migrate_embedding_model,
+                                          verbose1=verbose,
+                                          get_userid_auth1=get_userid_auth)
+        eventdb_viewa.then(fn=show_doc_func,
+                           inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode,
+                                   view_document_choice, view_raw_text_checkbox],
+                           outputs=[doc_view, doc_view2, doc_view3, doc_view4, doc_view5])
 
         # Get inputs to evaluate() and make_db()
         # don't deepcopy, can contain model itself

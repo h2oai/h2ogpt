@@ -26,6 +26,8 @@ import numpy as np
 import pandas as pd
 import requests
 import uuid
+
+import tabulate
 from fire import inspectutils
 from joblib import Parallel
 from tqdm.auto import tqdm
@@ -1179,3 +1181,32 @@ def url_alive(url):
             return True
         else:
             return False
+
+
+def dict_to_html(x, small=True):
+    df = pd.DataFrame(x.items(), columns=['Key', 'Value'])
+    df.index = df.index + 1
+    df.index.name = 'index'
+    res = tabulate.tabulate(df, headers='keys', tablefmt='unsafehtml')
+    if small:
+        return "<small>" + res + "</small>"
+    else:
+        return res
+
+
+def text_to_html(x):
+    return """
+<style>
+      pre {
+        overflow-x: auto;
+        white-space: pre-wrap;
+        white-space: -moz-pre-wrap;
+        white-space: -pre-wrap;
+        white-space: -o-pre-wrap;
+        word-wrap: break-word;
+      }
+    </style>
+<pre>
+%s
+</pre>
+""" % x
