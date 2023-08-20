@@ -2402,10 +2402,20 @@ def evaluate(
                              remove_invalid_values=True,
                              use_cache=use_cache,
                              )
-    token_ids = ['eos_token_id', 'pad_token_id', 'bos_token_id', 'cls_token_id', 'sep_token_id']
-    for token_id in token_ids:
-        if hasattr(tokenizer, token_id) and getattr(tokenizer, token_id) is not None:
-            gen_config_kwargs.update({token_id: getattr(tokenizer, token_id)})
+    if False:
+        # unclear impact, some odd things going on inside
+        # leads to:
+        # The attention mask and the pad token id were not set. As a consequence, you may observe unexpected behavior. Please pass your input's `attention_mask` to obtain reliable results.
+        # Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
+        # or leads to:
+        # Using cls_token, but it is not set yet.
+        # Using mask_token, but it is not set yet.
+        # Using pad_token, but it is not set yet.
+        # Using sep_token, but it is not set yet.
+        token_ids = ['eos_token_id', 'pad_token_id', 'bos_token_id', 'cls_token_id', 'sep_token_id']
+        for token_id in token_ids:
+            if hasattr(tokenizer, token_id) and getattr(tokenizer, token_id) is not None:
+                gen_config_kwargs.update({token_id: getattr(tokenizer, token_id)})
     generation_config = GenerationConfig(**gen_config_kwargs)
 
     gen_kwargs = dict(input_ids=input_ids,
@@ -2426,9 +2436,9 @@ def evaluate(
         gen_kwargs.update(dict(forced_bos_token_id=tokenizer.lang_code_to_id[tgt_lang]))
     else:
         token_ids = ['eos_token_id', 'bos_token_id', 'pad_token_id']
-        for token_id in token_ids:
-            if hasattr(tokenizer, token_id) and getattr(tokenizer, token_id) is not None:
-                gen_kwargs.update({token_id: getattr(tokenizer, token_id)})
+        #for token_id in token_ids:
+        #    if hasattr(tokenizer, token_id) and getattr(tokenizer, token_id) is not None:
+        #        gen_kwargs.update({token_id: getattr(tokenizer, token_id)})
 
     decoder_kwargs = dict(skip_special_tokens=True,
                           clean_up_tokenization_spaces=True)
@@ -2637,8 +2647,10 @@ class H2OTextIteratorStreamer(TextIteratorStreamer):
             self.print_len += len(printable_text)
         # Otherwise, prints until the last space char (simple heuristic to avoid printing incomplete words,
         # which may change with the subsequent token -- there are probably smarter ways to do this!)
+        elif len(text) > 0 and text[-1] == '�':
+            printable_text = text[self.print_len : text.rfind(" ") + 1]
+            self.print_len += len(printable_text)
         else:
-            # printable_text = text[self.print_len : text.rfind(" ") + 1]
             printable_text = text[self.print_len:]
             self.print_len += len(printable_text)
 
