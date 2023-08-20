@@ -1633,12 +1633,16 @@ def go_gradio(**kwargs):
 </iframe>
 """), dummy1, dummy1, dummy1, dummy1
                 else:
-                    ip = get_local_ip()
-                    document1 = url_path.replace('file://', f'http://{ip}:{port}/')
-                    # document1 = url
-                    return gr.update(visible=True, value=f"""<object data="{document1}" type="application/pdf">
-    <iframe src="https://docs.google.com/viewer?url={document1}&embedded=true"></iframe>
-</object>"""), dummy1, dummy1, dummy1, dummy1
+                    # FIXME: This doesn't work yet, just return dummy result for now
+                    if False:
+                        ip = get_local_ip()
+                        document1 = url_path.replace('file://', f'http://{ip}:{port}/')
+                        # document1 = url
+                        return gr.update(visible=True, value=f"""<object data="{document1}" type="application/pdf">
+        <iframe src="https://docs.google.com/viewer?url={document1}&embedded=true"></iframe>
+    </object>"""), dummy1, dummy1, dummy1, dummy1
+                    else:
+                        return dummy_ret
             else:
                 return dummy_ret
 
