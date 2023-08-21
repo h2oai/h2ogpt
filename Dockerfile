@@ -49,6 +49,7 @@ EXPOSE 8888
 EXPOSE 7860
 
 ENV TRANSFORMERS_CACHE=/workspace/.cache/huggingface/hub/
+ENV TIKTOKEN_CACHE_DIR=/workspace/.cache/
 
 COPY build_info.txt* /build_info.txt
 RUN touch /build_info.txt
