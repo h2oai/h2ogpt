@@ -9,7 +9,7 @@ from tests.test_inference_servers import run_h2ogpt_docker
 from tests.utils import wrap_test_forked, get_inf_server, get_inf_port
 from src.utils import download_simple
 
-results_file = "./perf.json"
+results_file = "./benchmarks/perf.json"
 
 @pytest.mark.parametrize("backend", [
     # 'transformers',
@@ -241,7 +241,7 @@ def test_plot_results():
     result_cols = ['summarization time [sec]', 'generation speed [tokens/sec]']
     X[result_cols[0]] = X['summarize_time']
     X[result_cols[1]] = X['generate_output_len_bytes'] / 4 / X['generate_time']
-    with open("perf.md", "w") as f:
+    with open(results_file.replace(".json", ".md"), "w") as f:
         for backend in pd.unique(X['backend']):
             print("# Backend: %s" % backend, file=f)
             for base_model in pd.unique(X['base_model']):
