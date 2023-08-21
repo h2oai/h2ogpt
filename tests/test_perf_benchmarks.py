@@ -233,8 +233,9 @@ def test_plot_results():
     X = pd.DataFrame(res)
     X.to_csv(results_file + ".csv", index=False)
 
-    X['summarization time [sec]'] = X['summarize_time']
-    X['generation speed [tokens/sec]'] = X['generate_output_len_bytes'] / 4 / X['generate_time']
+    result_cols = ['summarization time [sec]', 'generation speed [tokens/sec]']
+    X[result_cols[0]] = X['summarize_time']
+    X[result_cols[1]] = X['generate_output_len_bytes'] / 4 / X['generate_time']
     with open("perf.md", "w") as f:
         for backend in pd.unique(X['backend']):
             print("## Backend: %s" % backend, file=f)
@@ -244,6 +245,7 @@ def test_plot_results():
                     print("### Number of GPUs: %s" % n_gpus, file=f)
 
                     XX = X[(X['base_model'] == base_model) & (X['backend'] == backend) & (X['n_gpus'] == n_gpus)]
-                    XX = XX.sort_values(['bits', 'generation speed [tokens/sec]'], ascending=[False, False])
+                    XX.drop_duplicates(subset=['bits', 'gpus'], keep='first', inplace=True)
+                    XX = XX.sort_values(['bits', result_cols[1]], ascending=[False, False])
                     XX['exception'] = XX['exception'].astype(str).replace("nan", "")
-                    print(XX[['bits', 'gpus', 'summarization time [sec]', 'generation speed [tokens/sec]', 'exception']].to_markdown(index=False), file=f)
+                    print(XX[['bits', 'gpus', result_cols[0], result_cols[1], 'exception']].to_markdown(index=False), file=f)
