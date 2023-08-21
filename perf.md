@@ -155,6 +155,7 @@
 |   bits | gpus                                           |   summarization time [sec] |   generation speed [tokens/sec] | exception   |
 |-------:|:-----------------------------------------------|---------------------------:|--------------------------------:|:------------|
 |     16 | 1 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                    21.7823 |                         33.7132 |             |
+|     16 | 1 x NVIDIA A100-SXM4-80GB (81920 MiB)          |                    51.8428 |                         19.083  |             |
 |     16 | 1 x NVIDIA GeForce RTX 3090 (24576 MiB)        |                   nan      |                        nan      | OOM         |
 |     16 | 1 x NVIDIA RTX A6000 (46068 MiB)               |                   nan      |                        nan      | OOM         |
 ### Number of GPUs: 2
@@ -174,9 +175,10 @@
 |     16 | 8 x NVIDIA A100-SXM4-80GB (81920 MiB) |                    54.2352 |                         21.1159 |             |
 ## Model: h2oai/h2ogpt-4096-llama2-70b-chat (text-generation-inference)
 ### Number of GPUs: 4
-|   bits | gpus                             |   summarization time [sec] |   generation speed [tokens/sec] | exception   |
-|-------:|:---------------------------------|---------------------------:|--------------------------------:|:------------|
-|     16 | 4 x NVIDIA RTX A6000 (46068 MiB) |                        nan |                             nan | OOM         |
+|   bits | gpus                                  |   summarization time [sec] |   generation speed [tokens/sec] | exception   |
+|-------:|:--------------------------------------|---------------------------:|--------------------------------:|:------------|
+|     16 | 4 x NVIDIA A100-SXM4-80GB (81920 MiB) |                    131.453 |                         9.61851 |             |
+|     16 | 4 x NVIDIA RTX A6000 (46068 MiB)      |                    nan     |                       nan       | OOM         |
 ### Number of GPUs: 8
 |   bits | gpus                                  |   summarization time [sec] |   generation speed [tokens/sec] | exception   |
 |-------:|:--------------------------------------|---------------------------:|--------------------------------:|:------------|
