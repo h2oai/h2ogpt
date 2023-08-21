@@ -3572,16 +3572,11 @@ def go_gradio(**kwargs):
         else:
             auth = None
             load_func, load_inputs, load_outputs = None, None, None
-        load_event = demo.load(fn=load_func, inputs=load_inputs, outputs=load_outputs)
+        load_event = demo.load(fn=load_func, inputs=load_inputs, outputs=load_outputs, _js=app_js)
         if load_func:
-            load_event2 = load_event.then(load_login_func,
-                                          inputs=login_inputs,
-                                          outputs=login_outputs)
-            # have to put app_js after else messes up other functions
-            load_event2.then(None, None, None, _js=app_js)
-        else:
-            # have to put app_js after else messes up other functions
-            load_event.then(None, None, None, _js=app_js)
+            load_event.then(load_login_func,
+                                    inputs=login_inputs,
+                                    outputs=login_outputs)
 
     demo.queue(concurrency_count=kwargs['concurrency_count'], api_open=kwargs['api_open'])
     favicon_file = "h2o-logo.svg"
