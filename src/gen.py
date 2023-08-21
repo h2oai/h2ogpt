@@ -2410,7 +2410,7 @@ def evaluate(
                              remove_invalid_values=True,
                              use_cache=use_cache,
                              )
-    if False:
+    if True:
         # unclear impact, some odd things going on inside
         # leads to:
         # The attention mask and the pad token id were not set. As a consequence, you may observe unexpected behavior. Please pass your input's `attention_mask` to obtain reliable results.
