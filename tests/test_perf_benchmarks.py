@@ -240,9 +240,10 @@ def test_plot_results():
     X[result_cols[1]] = X['generate_output_len_bytes'] / 4 / X['generate_time']
     with open("perf.md", "w") as f:
         for backend in pd.unique(X['backend']):
+            backend_str = backend
             if backend == "text-generation-inference-":
-                backend = "text-generation-inference"
-            print("## Backend: %s" % backend, file=f)
+                backend_str = "text-generation-inference"
+            print("## Backend: %s" % backend_str, file=f)
             for base_model in pd.unique(X['base_model']):
                 print("### Model: %s" % base_model, file=f)
                 for n_gpus in pd.unique(X['n_gpus']):
