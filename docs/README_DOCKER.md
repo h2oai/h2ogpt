@@ -27,14 +27,35 @@ If running on A100's, might require [Installing Fabric Manager](INSTALL.md#insta
 
 ## Run h2oGPT using Docker
 
-An example of running h2oGPT via docker using AutoGPTQ LLaMa2 7B model is as follows.  First, ensure you have the latest docker image:
+All available public h2oGPT docker images can be found in [Google Container Registry](https://console.cloud.google.com/gcr/images/vorvan/global/h2oai/h2ogpt-runtime).
+
+Ensure image is up-to-date by running:
 ```bash
 docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0
 ```
 
-All available public h2oGPT docker images can be found in [Google Container Registry](https://console.cloud.google.com/gcr/images/vorvan/global/h2oai/h2ogpt-runtime).
+An example running h2oGPT via docker using LLaMa2 7B model is:
+```bash
+docker run \
+       --gpus all \
+       --runtime=nvidia \
+       --shm-size=2g \
+       -p 7860:7860 \
+       --rm --init \
+       -v "${HOME}"/.cache:/workspace/.cache \
+       -v "${HOME}"/save:/workspace/save \
+       gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 /workspace/generate.py \
+          --base_model=h2oai/h2ogpt-4096-llama2-7b-chat \
+          --use_safetensors=True \
+          --prompt_type=llama2 \
+          --save_dir='/workspace/save/' \
+          --score_model=None \
+          --max_max_new_tokens=2048 \
+          --max_new_tokens=1024
+```
+then go to http://localhost:7860/ or http://127.0.0.1:7860/.
 
-then run:
+An example of running h2oGPT via docker using AutoGPTQ (4-bit, so using less GPU memory) with LLaMa2 7B model is:
 ```bash
 docker run \
        --gpus all \
