@@ -43,8 +43,9 @@ RUN python3.10 -m pip install https://github.com/jllllll/exllama/releases/downlo
 
 COPY . .
 
-RUN cd $(python3.10 -c 'import site; print(site.getsitepackages()[0])') && \
+RUN sp=`python3.10 -c 'import site; print(site.getsitepackages()[0])'` && \
     sed -i 's/posthog\.capture/return\n            posthog.capture/' $sp/chromadb/telemetry/posthog.py && \
+    cd $sp && \
     rm -rf openai_vllm* && \
     cp -a openai openai_vllm && \
     cp -a openai-0.27.8.dist-info openai_vllm-0.27.8.dist-info && \
@@ -53,7 +54,8 @@ RUN cd $(python3.10 -c 'import site; print(site.getsitepackages()[0])') && \
     find openai_vllm -name '*.py' | xargs sed -i 's/from openai\./from openai_vllm./g' && \
     find openai_vllm -name '*.py' | xargs sed -i 's/import openai/import openai_vllm/g' && \
     conda create -n vllm python=3.10 -y && \
-    /h2ogpt_conda/envs/vllm/bin/python3.10 -m pip install vllm ray pandas
+    /h2ogpt_conda/envs/vllm/bin/python3.10 -m pip install vllm ray pandas && \
+    mkdir /home/h2ogpt
 
 EXPOSE 8888
 EXPOSE 7860
@@ -72,6 +74,7 @@ ARG gid=1000
 RUN groupadd -g ${gid} ${group} && useradd -u ${uid} -g ${group} -s /bin/bash ${user}
 RUN chmod -R a+rwx /workspace
 RUN chmod -R a+rwx /h2ogpt_conda
+RUN chmod -R a+rwx /home/h2ogpt
 
 USER h2ogpt
 
