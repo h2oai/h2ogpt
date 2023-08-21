@@ -214,6 +214,8 @@ def main(
         pre_prompt_summary: str = '',
         prompt_summary: str = '',
         add_chat_history_to_context: bool = True,
+        context: str = '',
+        iinput: str = '',
         allow_upload_to_user_data: bool = True,
         reload_langchain_state: bool = True,
         allow_upload_to_my_data: bool = True,
@@ -497,6 +499,8 @@ def main(
     :param add_chat_history_to_context: Include chat context when performing action
            Not supported yet for openai_chat when using document collection instead of LLM
            Also not supported when using CLI mode
+    :param context: Default context to use (for system pre-context in gradio UI)
+    :param iinput: Default input for instruction-based prompts
     :param allow_upload_to_user_data: Whether to allow file uploads to update shared vector db (UserData or custom user dbs)
            Ensure pass user_path for the files uploaded to be moved to this location for linking.
     :param reload_langchain_state: Whether to reload langchain_modes.pkl file that contains any new user collections.
@@ -2406,7 +2410,7 @@ def evaluate(
                              remove_invalid_values=True,
                              use_cache=use_cache,
                              )
-    if False:
+    if True:
         # unclear impact, some odd things going on inside
         # leads to:
         # The attention mask and the pad token id were not set. As a consequence, you may observe unexpected behavior. Please pass your input's `attention_mask` to obtain reliable results.

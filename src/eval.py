@@ -64,6 +64,7 @@ def run_eval(  # for local function:
         show_accordions=None,
         show_link_in_sources=None,
         add_chat_history_to_context=None,
+        context=None, iinput=None,
         db_type=None, first_para=None, text_limit=None, verbose=None, cli=None, reverse_docs=None,
         use_cache=None,
         auto_reduce_chunks=None, max_chunks=None,
@@ -71,6 +72,10 @@ def run_eval(  # for local function:
         model_state_none=None,
 ):
     check_locals(**locals())
+
+    if not context:
+        # get hidden context if have one
+        context = get_context(chat_context, prompt_type)
 
     if eval_prompts_only_num > 0:
         np.random.seed(eval_prompts_only_seed)
@@ -98,8 +103,8 @@ def run_eval(  # for local function:
                 examplenew = example1.copy()
                 assert not chat, "No gradio must use chat=False, uses nochat instruct"
                 examplenew[eval_func_param_names.index('instruction_nochat')] = instruction
-                examplenew[eval_func_param_names.index('iinput_nochat')] = ''  # no input
-                examplenew[eval_func_param_names.index('context')] = get_context(chat_context, prompt_type)
+                examplenew[eval_func_param_names.index('iinput_nochat')] = iinput
+                examplenew[eval_func_param_names.index('context')] = context
                 examples.append(examplenew)
                 responses.append(output)
         else:
@@ -113,8 +118,8 @@ def run_eval(  # for local function:
                 output = data[i].get('output', '')  # not required
                 assert not chat, "No gradio must use chat=False, uses nochat instruct"
                 examplenew[eval_func_param_names.index('instruction_nochat')] = instruction
-                examplenew[eval_func_param_names.index('iinput_nochat')] = ''  # no input
-                examplenew[eval_func_param_names.index('context')] = get_context(chat_context, prompt_type)
+                examplenew[eval_func_param_names.index('iinput_nochat')] = iinput
+                examplenew[eval_func_param_names.index('context')] = context
                 examples.append(examplenew)
                 responses.append(output)
 
