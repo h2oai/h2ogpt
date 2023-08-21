@@ -644,6 +644,7 @@ def go_gradio(**kwargs):
                         )
                         iinput_nochat = gr.Textbox(lines=4, label="Input context for Instruction",
                                                    placeholder=kwargs['placeholder_input'],
+                                                   value=kwargs['iinput'],
                                                    visible=not kwargs['chat'])
                         submit_nochat = gr.Button("Submit", size='sm', visible=not kwargs['chat'])
                         flag_btn_nochat = gr.Button("Flag", size='sm', visible=not kwargs['chat'])
@@ -831,8 +832,10 @@ def go_gradio(**kwargs):
                                                        visible=False and not kwargs['model_lock'],
                                                        interactive=not is_public)
                             context = gr.Textbox(lines=2, label="System Pre-Context",
-                                                 info="Directly pre-appended without prompt processing")
+                                                 info="Directly pre-appended without prompt processing",
+                                                 value=kwargs['context'])
                             iinput = gr.Textbox(lines=2, label="Input for Instruct prompt types",
+                                                value=kwargs['iinput'],
                                                 placeholder=kwargs['placeholder_input'],
                                                 interactive=not is_public)
                         with gr.Column():
@@ -2513,17 +2516,18 @@ def go_gradio(**kwargs):
             # apply back to args_list for evaluate()
             args_list[eval_func_param_names.index('prompt_type')] = prompt_type1
             args_list[eval_func_param_names.index('prompt_dict')] = prompt_dict1
+            context1 = args_list[eval_func_param_names.index('context')]
 
             chat1 = args_list[eval_func_param_names.index('chat')]
             model_max_length1 = get_model_max_length(model_state1)
-            context1 = history_to_context(history, langchain_mode1,
+            context2 = history_to_context(history, langchain_mode1,
                                           add_chat_history_to_context1,
                                           prompt_type1, prompt_dict1, chat1,
                                           model_max_length1, memory_restriction_level,
                                           kwargs['keep_sources_in_context'],
                                           kwargs['use_system_prompt'])
             args_list[0] = instruction1  # override original instruction with history from user
-            args_list[2] = context1
+            args_list[2] = context1 + context2
 
             fun1 = partial(evaluate,
                            model_state1,
