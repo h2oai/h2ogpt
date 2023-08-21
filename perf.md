@@ -1,5 +1,5 @@
-## Backend: transformers
-### Model: h2oai/h2ogpt-4096-llama2-7b-chat
+# Backend: transformers
+## Model: h2oai/h2ogpt-4096-llama2-7b-chat (transformers)
 ### Number of GPUs: 1
 |   bits | gpus                                           |   summarization time [sec] |   generation speed [tokens/sec] | exception   |
 |-------:|:-----------------------------------------------|---------------------------:|--------------------------------:|:------------|
@@ -48,7 +48,7 @@
 |     16 | 8 x NVIDIA A100-SXM4-80GB (81920 MiB) |                    42.09   |                        29.6427  |             |
 |      8 | 8 x NVIDIA A100-SXM4-80GB (81920 MiB) |                   185.282  |                         7.28475 |             |
 |      4 | 8 x NVIDIA A100-SXM4-80GB (81920 MiB) |                    60.9919 |                        21.316   |             |
-### Model: h2oai/h2ogpt-4096-llama2-13b-chat
+## Model: h2oai/h2ogpt-4096-llama2-13b-chat (transformers)
 ### Number of GPUs: 1
 |   bits | gpus                                           |   summarization time [sec] |   generation speed [tokens/sec] | exception   |
 |-------:|:-----------------------------------------------|---------------------------:|--------------------------------:|:------------|
@@ -97,7 +97,7 @@
 |     16 | 8 x NVIDIA A100-SXM4-80GB (81920 MiB) |                    55.3965 |                        22.302   |             |
 |      8 | 8 x NVIDIA A100-SXM4-80GB (81920 MiB) |                   185.328  |                         5.38647 |             |
 |      4 | 8 x NVIDIA A100-SXM4-80GB (81920 MiB) |                    83.0479 |                        13.969   |             |
-### Model: h2oai/h2ogpt-4096-llama2-70b-chat
+## Model: h2oai/h2ogpt-4096-llama2-70b-chat (transformers)
 ### Number of GPUs: 1
 |   bits | gpus                                           |   summarization time [sec] |   generation speed [tokens/sec] | exception   |
 |-------:|:-----------------------------------------------|---------------------------:|--------------------------------:|:------------|
@@ -125,8 +125,8 @@
 |     16 | 4 x NVIDIA RTX A6000 (46068 MiB) |                    267.056 |                         4.24242 |             |
 |      8 | 4 x NVIDIA RTX A6000 (46068 MiB) |                    413.957 |                         2.22551 |             |
 |      4 | 4 x NVIDIA RTX A6000 (46068 MiB) |                    175.491 |                         6.5798  |             |
-## Backend: text-generation-inference
-### Model: h2oai/h2ogpt-4096-llama2-7b-chat
+# Backend: text-generation-inference
+## Model: h2oai/h2ogpt-4096-llama2-7b-chat (text-generation-inference)
 ### Number of GPUs: 1
 |   bits | gpus                                           |   summarization time [sec] |   generation speed [tokens/sec] | exception   |
 |-------:|:-----------------------------------------------|---------------------------:|--------------------------------:|:------------|
@@ -150,7 +150,7 @@
 |   bits | gpus                                  |   summarization time [sec] |   generation speed [tokens/sec] | exception   |
 |-------:|:--------------------------------------|---------------------------:|--------------------------------:|:------------|
 |     16 | 8 x NVIDIA A100-SXM4-80GB (81920 MiB) |                    42.8594 |                         27.8644 |             |
-### Model: h2oai/h2ogpt-4096-llama2-13b-chat
+## Model: h2oai/h2ogpt-4096-llama2-13b-chat (text-generation-inference)
 ### Number of GPUs: 1
 |   bits | gpus                                           |   summarization time [sec] |   generation speed [tokens/sec] | exception   |
 |-------:|:-----------------------------------------------|---------------------------:|--------------------------------:|:------------|
@@ -172,7 +172,7 @@
 |   bits | gpus                                  |   summarization time [sec] |   generation speed [tokens/sec] | exception   |
 |-------:|:--------------------------------------|---------------------------:|--------------------------------:|:------------|
 |     16 | 8 x NVIDIA A100-SXM4-80GB (81920 MiB) |                    54.2352 |                         21.1159 |             |
-### Model: h2oai/h2ogpt-4096-llama2-70b-chat
+## Model: h2oai/h2ogpt-4096-llama2-70b-chat (text-generation-inference)
 ### Number of GPUs: 4
 |   bits | gpus                             |   summarization time [sec] |   generation speed [tokens/sec] | exception   |
 |-------:|:---------------------------------|---------------------------:|--------------------------------:|:------------|
