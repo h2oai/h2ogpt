@@ -22,7 +22,7 @@ bitsandbytes==0.41.1
 accelerate==0.20.3
 peft==0.4.0
 # 4.31.0+ breaks load_in_8bit=True (https://github.com/huggingface/transformers/issues/25026)
-transformers==4.31.0
+transformers==4.30.2
 tokenizers==0.13.3
 APScheduler==3.10.1
 
