@@ -212,9 +212,10 @@ def test_perf_benchmarks(backend, base_model, task, bits, ngpus):
         bench_dict["exception"] = str(e)
         raise
     finally:
-        with open(results_file, mode="a") as f:
-            f.write(json.dumps(bench_dict) + "\n")
-        if backend == "text-generation-inference":
+        if 'summarize_time' in bench_dict or 'generate_time' in bench_dict:
+            with open(results_file, mode="a") as f:
+                f.write(json.dumps(bench_dict) + "\n")
+        if "text-generation-inference" in backend:
             if docker_hash1:
                 os.system("docker stop %s" % docker_hash1)
             if docker_hash2:
