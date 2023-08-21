@@ -65,4 +65,8 @@ RUN chmod -R a+rwx /h2ogpt_conda
 
 USER h2ogpt
 
+# preload encodings (add more as needed)
+RUN python -c "import tiktoken; tiktoken.get_encoding('cl100k_base')"
+RUN chmod -R a+rwx /workspace
+
 ENTRYPOINT ["python3.10"]
