@@ -1353,15 +1353,11 @@ def get_model(
             inference_server.startswith('openai') or
             inference_server.startswith('vllm') or
             inference_server.startswith('replicate')):
-        # Don't return None, None for model, tokenizer so triggers
-        # include small token cushion
-        tokenizer = FakeTokenizer(model_max_length=max_seq_len - 50)
-
         if inference_server.startswith('openai'):
             assert os.getenv('OPENAI_API_KEY'), "Set environment for OPENAI_API_KEY"
             # Don't return None, None for model, tokenizer so triggers
             # include small token cushion
-            tokenizer = FakeTokenizer(model_max_length=model_token_mapping[base_model] - 50)
+            max_seq_len = model_token_mapping[base_model]
         if inference_server.startswith('replicate'):
             assert len(inference_server.split(':')) >= 3, "Expected replicate:model string, got %s" % inference_server
             assert os.getenv('REPLICATE_API_TOKEN'), "Set environment for REPLICATE_API_TOKEN"
@@ -1373,6 +1369,9 @@ def get_model(
                     "Could not import replicate python package. "
                     "Please install it with `pip install replicate`."
                 )
+        # Don't return None, None for model, tokenizer so triggers
+        # include small token cushion
+        tokenizer = FakeTokenizer(model_max_length=max_seq_len - 50)
         return inference_server, tokenizer, inference_server
     assert not inference_server, "Malformed inference_server=%s" % inference_server
     if base_model in non_hf_types:
