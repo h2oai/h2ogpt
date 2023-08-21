@@ -197,7 +197,7 @@ def run_h2ogpt_docker(port, base_model, inference_server=None):
                         '--gpus', 'device=%d' % int(os.getenv('CUDA_VISIBLE_DEVICES', '0')),
                         '--shm-size', '1g',
                         '-p', '%s:7860' % port,
-                        '-v', '%s/.cache:/.cache/' % home_dir,
+                        '-v', '%s/.cache:/workspace/.cache/' % home_dir,
                         '-v', 'save:/save',
                         '-e', 'HUGGING_FACE_HUB_TOKEN=%s' % os.environ['HUGGING_FACE_HUB_TOKEN'],
                         '--network', 'host',

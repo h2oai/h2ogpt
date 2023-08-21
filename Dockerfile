@@ -62,6 +62,7 @@ ARG gid=1000
 RUN groupadd -g ${gid} ${group} && useradd -u ${uid} -g ${group} -s /bin/bash ${user}
 RUN chmod -R a+rwx /workspace
 RUN chmod -R a+rwx /h2ogpt_conda
+ENV HOME=/workspace
 
 USER h2ogpt
 
