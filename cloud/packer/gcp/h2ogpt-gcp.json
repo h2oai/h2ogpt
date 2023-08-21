@@ -2,18 +2,22 @@
   "variables": {
     "project_id": "eng-llm",
     "account_file": "<NAME OF GCP CREDENTIALS JSON FILE>",
-    "h2ogpt_version": "010"
+    "h2ogpt_version": "010",
+    "base_model": "llama-2-13b-chat-fp16"
   },
   "builders": [
     {
       "type": "googlecompute",
       "project_id": "{{user `project_id`}}",
       "account_file": "{{user `account_file`}}",
-      "machine_type": "n1-standard-2",
+      "machine_type": "n1-standard-8",
+      "on_host_maintenance": "TERMINATE",
+      "accelerator_type": "projects/eng-llm/zones/us-west1-b/acceleratorTypes/nvidia-tesla-t4",
+      "accelerator_count": "4",
       "source_image_family": "ubuntu-2004-lts",
       "zone": "us-west1-b",
       "image_description": "h2ogpt using Packer",
-      "image_name": "h2ogpt-{{user `h2ogpt_version`}}",
+      "image_name": "h2ogpt-{{user `h2ogpt_version`}}-{{user `base_model`}}",
       "disk_size": 512,
       "disk_type": "pd-ssd",
       "ssh_username": "ubuntu"
@@ -35,6 +39,11 @@
     {
       "type": "shell",
       "script": "install_h2ogpt.sh",
+      "pause_after": "50s"
+    },
+    {
+      "type": "shell",
+      "script": "{{user `base_model`}}.sh",
       "pause_after": "50s"
     }
   ]
