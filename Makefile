@@ -75,6 +75,10 @@ docker_build_runner: docker_build
 	docker push gcr.io/vorvan/h2oai/h2ogpt-runtime:$(BUILD_TAG)
 	docker push gcr.io/vorvan/h2oai/h2ogpt-runtime:$(PACKAGE_VERSION)
 	docker push gcr.io/vorvan/h2oai/h2ogpt-runtime:latest
+ifdef BUILD_ID
+	docker tag $(DOCKER_TEST_IMAGE) gcr.io/vorvan/h2oai/h2ogpt-runtime:$(PACKAGE_VERSION)-$(BUILD_ID)
+	docker push gcr.io/vorvan/h2oai/h2ogpt-runtime:$(PACKAGE_VERSION)-$(BUILD_ID)
+endif
 
 print-%:
 	@echo $($*)
