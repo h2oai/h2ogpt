@@ -213,6 +213,9 @@ def test_perf_benchmarks(backend, base_model, task, bits, ngpus):
         else:
             raise
     finally:
+        if bench_dict["backend"] == "text-generation-inference-":
+            # Fixup, so appears as same
+            bench_dict["backend"] = "text-generation-inference"
         if 'summarize_time' in bench_dict or 'generate_time' in bench_dict or bench_dict.get('exception') == "OOM":
             with open(results_file, mode="a") as f:
                 f.write(json.dumps(bench_dict) + "\n")
@@ -240,10 +243,7 @@ def test_plot_results():
     X[result_cols[1]] = X['generate_output_len_bytes'] / 4 / X['generate_time']
     with open("perf.md", "w") as f:
         for backend in pd.unique(X['backend']):
-            backend_str = backend
-            if backend == "text-generation-inference-":
-                backend_str = "text-generation-inference"
-            print("## Backend: %s" % backend_str, file=f)
+            print("## Backend: %s" % backend, file=f)
             for base_model in pd.unique(X['base_model']):
                 print("### Model: %s" % base_model, file=f)
                 for n_gpus in pd.unique(X['n_gpus']):
