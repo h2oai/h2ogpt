@@ -176,20 +176,18 @@
 ### Number of GPUs: 8
 | bits   | gpus   | summarization time [sec]   | generation speed [tokens/sec]   | exception   |
 |--------|--------|----------------------------|---------------------------------|-------------|
-## Backend: text-generation-inference-
+## Backend: text-generation-inference
 ### Model: h2oai/h2ogpt-4096-llama2-7b-chat
 ### Number of GPUs: 1
-|   bits | gpus                                           |   summarization time [sec] |   generation speed [tokens/sec] | exception                |
-|-------:|:-----------------------------------------------|---------------------------:|--------------------------------:|:-------------------------|
-|     16 | 1 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                        nan |                             nan | 'HUGGING_FACE_HUB_TOKEN' |
-|      8 | 1 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                        nan |                             nan |                          |
-|      4 | 1 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                        nan |                             nan |                          |
+|   bits | gpus                                           |   summarization time [sec] |   generation speed [tokens/sec] | exception   |
+|-------:|:-----------------------------------------------|---------------------------:|--------------------------------:|:------------|
+|     16 | 1 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                    39.0155 |                         55.2139 |             |
+|     16 | 1 x NVIDIA GeForce RTX 3090 (24576 MiB)        |                    29.129  |                         45.9535 |             |
+|     16 | 1 x NVIDIA GeForce RTX 4090 (24564 MiB)        |                    24.3988 |                         44.5878 |             |
 ### Number of GPUs: 2
-|   bits | gpus                                           |   summarization time [sec] |   generation speed [tokens/sec] | exception                |
-|-------:|:-----------------------------------------------|---------------------------:|--------------------------------:|:-------------------------|
-|     16 | 2 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                        nan |                             nan | 'HUGGING_FACE_HUB_TOKEN' |
-|      8 | 2 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                        nan |                             nan |                          |
-|      4 | 2 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                        nan |                             nan |                          |
+|   bits | gpus                                           |   summarization time [sec] |   generation speed [tokens/sec] | exception   |
+|-------:|:-----------------------------------------------|---------------------------:|--------------------------------:|:------------|
+|     16 | 2 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                    7.63612 |                         71.7881 |             |
 ### Number of GPUs: 4
 | bits   | gpus   | summarization time [sec]   | generation speed [tokens/sec]   | exception   |
 |--------|--------|----------------------------|---------------------------------|-------------|
@@ -198,17 +196,15 @@
 |--------|--------|----------------------------|---------------------------------|-------------|
 ### Model: h2oai/h2ogpt-4096-llama2-13b-chat
 ### Number of GPUs: 1
-|   bits | gpus                                           |   summarization time [sec] |   generation speed [tokens/sec] | exception                |
-|-------:|:-----------------------------------------------|---------------------------:|--------------------------------:|:-------------------------|
-|     16 | 1 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                        nan |                             nan | 'HUGGING_FACE_HUB_TOKEN' |
-|      8 | 1 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                        nan |                             nan |                          |
-|      4 | 1 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                        nan |                             nan |                          |
+|   bits | gpus                                           |   summarization time [sec] |   generation speed [tokens/sec] | exception   |
+|-------:|:-----------------------------------------------|---------------------------:|--------------------------------:|:------------|
+|     16 | 1 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                    21.7823 |                         33.7132 |             |
+|     16 | 1 x NVIDIA GeForce RTX 3090 (24576 MiB)        |                   nan      |                        nan      | OOM         |
 ### Number of GPUs: 2
-|   bits | gpus                                           |   summarization time [sec] |   generation speed [tokens/sec] | exception                |
-|-------:|:-----------------------------------------------|---------------------------:|--------------------------------:|:-------------------------|
-|     16 | 2 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                        nan |                             nan | 'HUGGING_FACE_HUB_TOKEN' |
-|      8 | 2 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                        nan |                             nan |                          |
-|      4 | 2 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                        nan |                             nan |                          |
+|   bits | gpus                                           |   summarization time [sec] |   generation speed [tokens/sec] | exception   |
+|-------:|:-----------------------------------------------|---------------------------:|--------------------------------:|:------------|
+|     16 | 2 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                    10.8242 |                         57.8237 |             |
+|     16 | 2 x NVIDIA GeForce RTX 3090 (24576 MiB)        |                    42.2111 |                         31.4247 |             |
 ### Number of GPUs: 4
 | bits   | gpus   | summarization time [sec]   | generation speed [tokens/sec]   | exception   |
 |--------|--------|----------------------------|---------------------------------|-------------|
@@ -217,17 +213,11 @@
 |--------|--------|----------------------------|---------------------------------|-------------|
 ### Model: h2oai/h2ogpt-4096-llama2-70b-chat
 ### Number of GPUs: 1
-|   bits | gpus                                           |   summarization time [sec] |   generation speed [tokens/sec] | exception                |
-|-------:|:-----------------------------------------------|---------------------------:|--------------------------------:|:-------------------------|
-|     16 | 1 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                        nan |                             nan | 'HUGGING_FACE_HUB_TOKEN' |
-|      8 | 1 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                        nan |                             nan |                          |
-|      4 | 1 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                        nan |                             nan |                          |
+| bits   | gpus   | summarization time [sec]   | generation speed [tokens/sec]   | exception   |
+|--------|--------|----------------------------|---------------------------------|-------------|
 ### Number of GPUs: 2
-|   bits | gpus                                           |   summarization time [sec] |   generation speed [tokens/sec] | exception                |
-|-------:|:-----------------------------------------------|---------------------------:|--------------------------------:|:-------------------------|
-|     16 | 2 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                        nan |                             nan | 'HUGGING_FACE_HUB_TOKEN' |
-|      8 | 2 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                        nan |                             nan |                          |
-|      4 | 2 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                        nan |                             nan |                          |
+| bits   | gpus   | summarization time [sec]   | generation speed [tokens/sec]   | exception   |
+|--------|--------|----------------------------|---------------------------------|-------------|
 ### Number of GPUs: 4
 | bits   | gpus   | summarization time [sec]   | generation speed [tokens/sec]   | exception   |
 |--------|--------|----------------------------|---------------------------------|-------------|

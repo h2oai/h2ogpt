@@ -209,8 +209,9 @@ def test_perf_benchmarks(backend, base_model, task, bits, ngpus):
     except BaseException as e:
         if 'CUDA out of memory' in str(e):
             e = "OOM"
-        bench_dict["exception"] = str(e)
-        raise
+            bench_dict["exception"] = str(e)
+        else:
+            raise
     finally:
         if 'summarize_time' in bench_dict or 'generate_time' in bench_dict or bench_dict.get('exception') == "OOM":
             with open(results_file, mode="a") as f:
