@@ -125,9 +125,6 @@
 |     16 | 4 x NVIDIA RTX A6000 (46068 MiB) |                    267.056 |                         4.24242 |             |
 |      8 | 4 x NVIDIA RTX A6000 (46068 MiB) |                    413.957 |                         2.22551 |             |
 |      4 | 4 x NVIDIA RTX A6000 (46068 MiB) |                    175.491 |                         6.5798  |             |
-### Number of GPUs: 8
-| bits   | gpus   | summarization time [sec]   | generation speed [tokens/sec]   | exception   |
-|--------|--------|----------------------------|---------------------------------|-------------|
 ## Backend: text-generation-inference
 ### Model: h2oai/h2ogpt-4096-llama2-7b-chat
 ### Number of GPUs: 1
@@ -176,12 +173,6 @@
 |-------:|:--------------------------------------|---------------------------:|--------------------------------:|:------------|
 |     16 | 8 x NVIDIA A100-SXM4-80GB (81920 MiB) |                    54.2352 |                         21.1159 |             |
 ### Model: h2oai/h2ogpt-4096-llama2-70b-chat
-### Number of GPUs: 1
-| bits   | gpus   | summarization time [sec]   | generation speed [tokens/sec]   | exception   |
-|--------|--------|----------------------------|---------------------------------|-------------|
-### Number of GPUs: 2
-| bits   | gpus   | summarization time [sec]   | generation speed [tokens/sec]   | exception   |
-|--------|--------|----------------------------|---------------------------------|-------------|
 ### Number of GPUs: 4
 |   bits | gpus                             |   summarization time [sec] |   generation speed [tokens/sec] | exception   |
 |-------:|:---------------------------------|---------------------------:|--------------------------------:|:------------|

@@ -247,9 +247,10 @@ def test_plot_results():
             for base_model in pd.unique(X['base_model']):
                 print("### Model: %s" % base_model, file=f)
                 for n_gpus in pd.unique(X['n_gpus']):
-                    print("### Number of GPUs: %s" % n_gpus, file=f)
-
                     XX = X[(X['base_model'] == base_model) & (X['backend'] == backend) & (X['n_gpus'] == n_gpus)]
+                    if XX.shape[0] == 0:
+                        continue
+                    print("### Number of GPUs: %s" % n_gpus, file=f)
                     XX.drop_duplicates(subset=['bits', 'gpus'], keep='first', inplace=True)
                     XX = XX.sort_values(['bits', result_cols[1]], ascending=[False, False])
                     XX['exception'] = XX['exception'].astype(str).replace("nan", "")
