@@ -44,6 +44,7 @@ def run_cli(  # for local function:
         answer_with_sources=None,
         append_sources_to_answer=None,
         show_accordions=None,
+        show_link_in_sources=None,
         add_chat_history_to_context=None,
         db_type=None, first_para=None, text_limit=None, verbose=None, cli=None, reverse_docs=None,
         use_cache=None,

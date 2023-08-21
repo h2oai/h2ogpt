@@ -210,6 +210,7 @@ def main(
         answer_with_sources: bool = True,
         append_sources_to_answer: bool = True,
         show_accordions: bool = True,
+        show_link_in_sources: bool = True,
         pre_prompt_summary: str = '',
         prompt_summary: str = '',
         add_chat_history_to_context: bool = True,
@@ -490,6 +491,7 @@ def main(
     :param answer_with_sources: Whether to determine (and return) sources
     :param append_sources_to_answer: Whether to place source information in chat response (ignored by LLM).  Always disabled for API.
     :param show_accordions: whether to show accordion for document references in chatbot UI
+    :param show_link_in_sources: Whether to show URL link to source document in references
     :param pre_prompt_summary: prompt before documents to summarize, if empty string then use internal defaults
     :param prompt_summary: prompt after documents to summarize, if empty string then use internal defaults
     :param add_chat_history_to_context: Include chat context when performing action
@@ -1777,6 +1779,7 @@ def evaluate(
         first_para=None,
         text_limit=None,
         show_accordions=None,
+        show_link_in_sources=None,
         verbose=False,
         cli=False,
         reverse_docs=True,
@@ -1998,6 +2001,7 @@ def evaluate(
                 first_para=first_para,
                 text_limit=text_limit,
                 show_accordions=show_accordions,
+                show_link_in_sources=show_link_in_sources,
 
                 # evaluate args items
                 query=instruction,
