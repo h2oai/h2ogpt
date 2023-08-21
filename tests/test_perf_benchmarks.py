@@ -212,7 +212,7 @@ def test_perf_benchmarks(backend, base_model, task, bits, ngpus):
         bench_dict["exception"] = str(e)
         raise
     finally:
-        if 'summarize_time' in bench_dict or 'generate_time' in bench_dict or 'exception' in bench_dict:
+        if 'summarize_time' in bench_dict or 'generate_time' in bench_dict or bench_dict.get('exception') == "OOM":
             with open(results_file, mode="a") as f:
                 f.write(json.dumps(bench_dict) + "\n")
         if "text-generation-inference" in backend:
