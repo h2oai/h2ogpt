@@ -168,7 +168,7 @@ def run_docker(inf_port, base_model, low_mem_mode=False):
                         '-p', '%s:80' % inf_port,
                         '-v', '%s/.cache:/.cache/' % home_dir,
                         '-v', '%s:/data' % data_dir,
-                        'ghcr.io/huggingface/text-generation-inference:0.9.4',
+                        'ghcr.io/huggingface/text-generation-inference:0.9.3',
                         '--model-id', base_model,
                         '--max-stop-sequences', '6',
                         '--sharded', 'false' if n_gpus == 1 else 'true'
@@ -178,12 +178,12 @@ def run_docker(inf_port, base_model, low_mem_mode=False):
     if low_mem_mode:
         cmd.extend(['--max-input-length', '1024',
                     '--max-total-tokens', '2048',
-                    '--cuda-memory-fraction', '0.3',
+                    # '--cuda-memory-fraction', '0.3',
                     ])
     else:
         cmd.extend(['--max-input-length', '4096',
                     '--max-total-tokens', '8192',
-                    '--cuda-memory-fraction', '0.8',
+                    # '--cuda-memory-fraction', '0.8',
                     ])
 
     print(cmd, flush=True)
