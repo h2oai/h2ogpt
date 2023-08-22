@@ -51,10 +51,12 @@ EXPOSE 7860
 # /workspace/.cache is the equivalent to ~/.cache
 ENV HOME=/workspace
 
-# cache directory for the HF models
+# cache directory for the HF and Torch models
 ENV TRANSFORMERS_CACHE=/workspace/.cache/huggingface/transformers/
 ENV HF_HOME=/workspace/.cache/huggingface/
 ENV TIKTOKEN_CACHE_DIR=/workspace/.cache/
+ENV XDG_CACHE_HOME=/workspace/.cache/
+ENV TORCH_HOME=/workspace/.cache/torch/
 
 COPY build_info.txt* /build_info.txt
 RUN touch /build_info.txt
