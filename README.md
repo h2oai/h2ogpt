@@ -73,10 +73,10 @@ then go to your browser by visiting [http://127.0.0.1:7860](http://127.0.0.1:786
 ---
 
 #### Example Models
-* [Highest accuracy and speed](https://huggingface.co/TheBloke/Llama-2-70B-Chat-fp16) on 16-bit with TGI/vLLM using ~48GB/GPU when in use (4xA100 high concurrency, 2xA100 for low concurrency)
+* [Highest accuracy and speed](https://huggingface.co/h2oai/h2ogpt-4096-llama2-70b-chat) on 16-bit with TGI/vLLM using ~48GB/GPU when in use (4xA100 high concurrency, 2xA100 for low concurrency)
 * [Middle-range accuracy](https://huggingface.co/h2oai/h2ogpt-gm-oasst1-en-2048-falcon-40b-v2) on 16-bit with TGI/vLLM using ~45GB/GPU when in use (2xA100)
 * [Small memory profile with ok accuracy](https://huggingface.co/TheBloke/Llama-2-13B-Chat-GGML) 16GB GPU if full GPU offloading
-* [Balanced accuracy and size](https://huggingface.co/TheBloke/Llama-2-13B-Chat-fp16) on 16-bit with TGI/vLLM using ~45GB/GPU when in use (1xA100)
+* [Balanced accuracy and size](https://huggingface.co/h2oai/h2ogpt-4096-llama2-13b-chat) on 16-bit with TGI/vLLM using ~45GB/GPU when in use (1xA100)
 * [Smallest or CPU friendly](https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML) 32GB system ram or 9GB GPU if full GPU offloading
 
 **GPU** mode requires CUDA support via torch and transformers.  A 6.9B (or 12GB) model in 8-bit uses 8GB (or 13GB) of GPU memory. 8-bit precision, 4-bit precision, and AutoGPTQ can further reduce memory requirements down no more than about 6.5GB when asking a question about your documents (see [low-memory mode](docs/FAQ.md#low-memory-mode)).
@@ -84,6 +84,10 @@ then go to your browser by visiting [http://127.0.0.1:7860](http://127.0.0.1:786
 **CPU** mode uses GPT4ALL and LLaMa.cpp, e.g. gpt4all-j, requiring about 14GB of system RAM in typical use.
 
 ---
+
+#### Benchmark Results
+
+* [Performance benchmarks for Llama2](https://github.com/h2oai/h2ogpt/blob/main/benchmarks/perf.md) created with [pytest](https://github.com/h2oai/h2ogpt/blob/main/tests/test_perf_benchmarks.py)
 
 ### Live Demos
 - [![img-small.png](docs/img-small.png) Live h2oGPT Document Q/A Demo](https://gpt.h2o.ai/)
