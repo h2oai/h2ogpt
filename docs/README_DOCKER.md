@@ -36,6 +36,8 @@ docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0
 
 An example running h2oGPT via docker using LLaMa2 7B model is:
 ```bash
+mkdir -p ~/.cache
+mkdir -p ~/save
 docker run \
        --gpus all \
        --runtime=nvidia \
@@ -57,9 +59,12 @@ docker run \
           --max_new_tokens=1024
 ```
 then go to http://localhost:7860/ or http://127.0.0.1:7860/.
+(`mkdir -p ~/save` prior to running docker to make sure those directories exist, and are created by the local user in case dockerd was installed with root, not that this is true for any other directories you wish to mount to the container as a volume.)
 
 An example of running h2oGPT via docker using AutoGPTQ (4-bit, so using less GPU memory) with LLaMa2 7B model is:
 ```bash
+mkdir -p ~/.cache
+mkdir -p ~/save
 docker run \
        --gpus all \
        --runtime=nvidia \
@@ -86,6 +91,8 @@ then go to http://localhost:7860/ or http://127.0.0.1:7860/.
 If one needs to use a Hugging Face token to access certain Hugging Face models like Meta version of LLaMa2, can run like:
 ```bash
 export HUGGING_FACE_HUB_TOKEN=<hf_...>
+mkdir -p ~/.cache
+mkdir -p ~/save
 docker run \
        --gpus all \
        --runtime=nvidia \
@@ -160,6 +167,8 @@ then wait till it comes up (e.g. check docker logs for detatched container hash 
 ```bash
 export GRADIO_SERVER_PORT=7860
 export CUDA_VISIBLE_DEVICES=0
+mkdir -p ~/.cache
+mkdir -p ~/save
 docker run -d \
        --gpus all \
        --runtime=nvidia \
