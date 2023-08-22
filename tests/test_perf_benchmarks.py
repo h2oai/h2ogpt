@@ -251,7 +251,7 @@ def test_plot_results():
                     if XX.shape[0] == 0:
                         continue
                     print("### Number of GPUs: %s" % n_gpus, file=f)
-                    XX.drop_duplicates(subset=['bits', 'gpus'], keep='first', inplace=True)
+                    XX.drop_duplicates(subset=['bits', 'gpus'], keep='last', inplace=True)
                     XX = XX.sort_values(['bits', result_cols[1]], ascending=[False, False])
                     XX['exception'] = XX['exception'].astype(str).replace("nan", "")
                     print(XX[['bits', 'gpus', result_cols[0], result_cols[1], 'exception']].to_markdown(index=False), file=f)
