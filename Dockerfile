@@ -53,7 +53,7 @@ ENV HOME=/workspace
 
 # cache directory for the HF models
 ENV TRANSFORMERS_CACHE=/workspace/.cache/huggingface/transformers/
-ENV HUGGINGFACE_HUB_CACHE=/workspace/.cache/huggingface/hub/
+ENV HF_HOME=/workspace/.cache/huggingface/
 ENV TIKTOKEN_CACHE_DIR=/workspace/.cache/
 
 COPY build_info.txt* /build_info.txt
