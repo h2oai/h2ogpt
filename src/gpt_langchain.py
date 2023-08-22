@@ -1947,6 +1947,9 @@ def prep_langchain(persist_directory,
     if os.getenv("HARD_ASSERTS"):
         assert langchain_mode not in ['MyData'], "Should not prep scratch/personal data"
 
+    if langchain_mode in langchain_modes_intrinsic:
+        return None
+
     db_dir_exists = os.path.isdir(persist_directory)
     user_path = langchain_mode_paths.get(langchain_mode)
 
