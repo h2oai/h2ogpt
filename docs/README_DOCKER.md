@@ -107,7 +107,7 @@ docker run \
        -v "${HOME}"/save:/workspace/save \
        -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN \
        gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 /workspace/generate.py \
-          --base_model=meta-llama/Llama-2-7b-chat-hf \
+          --base_model=h2oai/h2ogpt-4096-llama2-7b-chat \
           --prompt_type=llama2 \
           --save_dir='/workspace/save/' \
           --score_model=None \
@@ -127,7 +127,7 @@ One can run an inference server in one docker and h2oGPT in another docker.
 
 For the TGI server run (e.g. to run on GPU 0)
 ```bash
-export MODEL=meta-llama/Llama-2-7b-chat-hf
+export MODEL=h2oai/h2ogpt-4096-llama2-7b-chat
 export HUGGING_FACE_HUB_TOKEN=<hf_...>
 export CUDA_VISIBLE_DEVICES=0
 docker run -d --gpus all \
@@ -147,7 +147,7 @@ Each docker can run on any system where network can reach or on same system on d
 
 One a low-memory GPU system can add other options to limit batching, e.g.:
 ```bash
-export MODEL=meta-llama/Llama-2-7b-chat-hf
+export MODEL=h2oai/h2ogpt-4096-llama2-7b-chat
 export HUGGING_FACE_HUB_TOKEN=<hf_...>
 unset CUDA_VISIBLE_DEVICES
 docker run -d --gpus '"device=0"' \
