@@ -61,7 +61,7 @@ def create_long_prompt_with_secret(prompt_len=None, secret_pos=None, model_name=
     return prompt
 
 
-@pytest.mark.parametrize("base_model", ['meta-llama/Llama-2-13b-chat-hf'])
+@pytest.mark.parametrize("base_model", ['h2oai/h2ogpt-4096-llama2-13b-chat'])
 @pytest.mark.parametrize("rope_scaling", [
     # None,
     # "{'type':'linear', 'factor':2}",
