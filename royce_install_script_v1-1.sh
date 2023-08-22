@@ -12,6 +12,33 @@ sudo apt-get update
 sudo apt-get install nvidia-driver-470 # Change the version if necessary
 sudo reboot
 
+# Check if nvidia-smi is on the PATH
+if which nvidia-smi >/dev/null 2>&1; then
+  echo "nvidia-smi is on the PATH and can be executed."
+else
+  echo "nvidia-smi is not on the PATH. Attempting to locate and add to PATH."
+
+  # Locate nvidia-smi
+  NVIDIA_SMI_PATH=$(sudo find / -name "nvidia-smi" 2>/dev/null | head -n 1)
+
+  if [ -n "$NVIDIA_SMI_PATH" ]; then
+    # Extract the directory containing nvidia-smi
+    NVIDIA_SMI_DIR=$(dirname "$NVIDIA_SMI_PATH")
+
+    # Add the directory to PATH in .bashrc
+    echo "export PATH=\$PATH:$NVIDIA_SMI_DIR" >> ~/.bashrc
+
+    # Reload .bashrc to update the current shell's PATH
+    source ~/.bashrc
+
+    echo "nvidia-smi has been added to the PATH."
+  else
+    echo "nvidia-smi not found. Please check the NVIDIA driver installation."
+  fi
+fi
+
+nvidia-smi
+
 # Update and install git
 sudo apt-get update -y
 if ! command -v git &> /dev/null; then
