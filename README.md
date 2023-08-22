@@ -88,6 +88,8 @@ then go to your browser by visiting [http://127.0.0.1:7860](http://127.0.0.1:786
 #### Benchmark Results
 
 * [Performance benchmarks for Llama2](https://github.com/h2oai/h2ogpt/blob/main/benchmarks/perf.md) created with [pytest](https://github.com/h2oai/h2ogpt/blob/main/tests/test_perf_benchmarks.py)
+ 
+---
 
 ### Live Demos
 - [![img-small.png](docs/img-small.png) Live h2oGPT Document Q/A Demo](https://gpt.h2o.ai/)
