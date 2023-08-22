@@ -57,6 +57,7 @@ docker run \
           --use_safetensors=True \
           --prompt_type=llama2 \
           --save_dir='/workspace/save/' \
+          --use_gpu_id=False \
           --score_model=None \
           --max_max_new_tokens=2048 \
           --max_new_tokens=1024
@@ -89,6 +90,7 @@ docker run \
           --use_safetensors=True \
           --prompt_type=llama2 \
           --save_dir='/workspace/save/' \
+          --use_gpu_id=False \
           --score_model=None \
           --max_max_new_tokens=2048 \
           --max_new_tokens=1024
@@ -117,6 +119,7 @@ docker run \
           --base_model=h2oai/h2ogpt-4096-llama2-7b-chat \
           --prompt_type=llama2 \
           --save_dir='/workspace/save/' \
+          --use_gpu_id=False \
           --score_model=None \
           --max_max_new_tokens=2048 \
           --max_new_tokens=1024 \
@@ -193,6 +196,7 @@ docker run -d \
           --inference_server=http://localhost:6112 \
           --prompt_type=llama2 \
           --save_dir='/workspace/save/' \
+          --use_gpu_id=False \
           --score_model=None \
           --max_max_new_tokens=4096 \
           --max_new_tokens=1024 \
