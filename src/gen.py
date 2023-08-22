@@ -921,13 +921,15 @@ def main(
                                  langchain_mode_types=langchain_mode_types)
     selection_docs_state = copy.deepcopy(selection_docs_state0)
 
-    # initial state for query prompt
-    model_name = base_model
-    pre_prompt_query, prompt_query, pre_prompt_summary, prompt_summary = \
-        get_langchain_prompts(pre_prompt_query, prompt_query,
-                         pre_prompt_summary, prompt_summary,
-                         model_name, inference_server,
-                         model_path_llama)
+    if cli or not gradio:
+        # initial state for query prompt
+        model_name = base_model
+        pre_prompt_query, prompt_query, pre_prompt_summary, prompt_summary = \
+            get_langchain_prompts(pre_prompt_query, prompt_query,
+                             pre_prompt_summary, prompt_summary,
+                             model_name, inference_server,
+                             model_path_llama)
+
     if cli:
         from cli import run_cli
         return run_cli(**get_kwargs(run_cli, exclude_names=['model_state0'], **locals()))
