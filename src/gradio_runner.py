@@ -2239,7 +2239,7 @@ def go_gradio(**kwargs):
             None,
             None,
             None,
-            _js=wrap_js_to_lambda(get_dark_js()),
+            _js=wrap_js_to_lambda(0, get_dark_js()),
             api_name="dark" if allow_api else None,
             queue=False,
         )
@@ -3571,10 +3571,6 @@ def go_gradio(**kwargs):
                        ,
                        queue=False, api_name='stop' if allow_api else None).then(clear_torch_cache, queue=False)
 
-        app_js = wrap_js_to_lambda(
-            get_dark_js() if kwargs['dark'] else None,
-            get_heap_js(heap_app_id) if is_heap_analytics_enabled else None)
-
         if kwargs['auth'] is not None:
             auth = authf
             load_func = user_state_setup
@@ -3583,16 +3579,18 @@ def go_gradio(**kwargs):
         else:
             auth = None
             load_func, load_inputs, load_outputs = None, None, None
-        load_event = demo.load(fn=load_func, inputs=load_inputs, outputs=load_outputs)
+
+        app_js = wrap_js_to_lambda(
+            len(load_inputs) if load_inputs else 0,
+            get_dark_js() if kwargs['dark'] else None,
+            get_heap_js(heap_app_id) if is_heap_analytics_enabled else None)
+
+        load_event = demo.load(fn=load_func, inputs=load_inputs, outputs=load_outputs, _js=app_js)
+
         if load_func:
             load_event2 = load_event.then(load_login_func,
                                           inputs=login_inputs,
                                           outputs=login_outputs)
-            # have to put app_js after else messes up other functions
-            load_event2.then(None, None, None, _js=app_js)
-        else:
-            # have to put app_js after else messes up other functions
-            load_event.then(None, None, None, _js=app_js)
 
     demo.queue(concurrency_count=kwargs['concurrency_count'], api_open=kwargs['api_open'])
     favicon_file = "h2o-logo.svg"
