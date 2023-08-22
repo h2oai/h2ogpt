@@ -27,8 +27,8 @@ def run_cli(  # for local function:
         langchain_mode=None, langchain_action=None, langchain_agents=None,
         document_subset=None, document_choice=None,
         top_k_docs=None, chunk=None, chunk_size=None,
-        pre_prompt_summary=None,
-        prompt_summary=None,
+        pre_prompt_query=None, prompt_query=None,
+        pre_prompt_summary=None, prompt_summary=None,
         # for evaluate kwargs
         src_lang=None, tgt_lang=None, concurrency_count=None, save_dir=None, sanitize_bot_response=None,
         model_state0=None,

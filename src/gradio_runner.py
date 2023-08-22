@@ -741,7 +741,7 @@ def go_gradio(**kwargs):
                                                                    label='Purge Collection (UI, DB, & source files)',
                                                                    placeholder=remove_placeholder,
                                                                    interactive=True)
-                            load_langchain = gr.Button(value="Load LangChain State", scale=0, size='sm',
+                            load_langchain = gr.Button(value="Load Collections State", scale=0, size='sm',
                                                        visible=allow_upload_to_user_data and
                                                                kwargs['langchain_mode'] != 'Disabled')
                         with gr.Column(scale=5):
@@ -835,20 +835,27 @@ def go_gradio(**kwargs):
                                                  info="Directly pre-appended without prompt processing",
                                                  value=kwargs['context'])
                             iinput = gr.Textbox(lines=2, label="Input for Instruct prompt types",
+                                                info="If given for document query, added after query",
                                                 value=kwargs['iinput'],
                                                 placeholder=kwargs['placeholder_input'],
                                                 interactive=not is_public)
-                        with gr.Column():
                             system_prompt = gr.Textbox(label="System Prompt",
                                                        info="If empty, uses prompt_type's system prompt,"
                                                             " else use this message.  Use space for actually empty.",
                                                        value=kwargs['system_prompt'])
+                        with gr.Column():
+                            pre_prompt_query = gr.Textbox(label="Query Pre-Prompt",
+                                                          info="Added before documents",
+                                                          value=kwargs['pre_prompt_query'] or '')
+                            prompt_query = gr.Textbox(label="Query Prompt",
+                                                      info="Added after documents",
+                                                      value=kwargs['prompt_query'] or '')
                             pre_prompt_summary = gr.Textbox(label="Summary Pre-Prompt",
-                                                            info="Empty means use internal defaults",
-                                                            value='')
-                            prompt_summary = gr.Textbox(label="Summary Prompt before text",
-                                                        info="Empty means use internal defaults",
-                                                        value='')
+                                                            info="Added before documents",
+                                                            value=kwargs['pre_prompt_summary'] or '')
+                            prompt_summary = gr.Textbox(label="Summary Prompt",
+                                                        info="Added after documents (if query given, 'Focusing on {query}, ' is pre-appended)",
+                                                        value=kwargs['prompt_summary'] or '')
                     with gr.Row():
                         min_top_k_docs, max_top_k_docs, label_top_k_docs = get_minmax_top_k_docs(is_public)
                         top_k_docs = gr.Slider(minimum=min_top_k_docs, maximum=max_top_k_docs, step=1,
@@ -1528,7 +1535,7 @@ def go_gradio(**kwargs):
                 doc_hashes = [x.get('doc_hash', 'None') for x in db_metadatas]
                 docs_with_score = [x for hx, cx, x in
                                    sorted(zip(doc_hashes, doc_chunk_ids, docs_with_score), key=lambda x: (x[0], x[1]))
-                                   #if cx == -1
+                                   # if cx == -1
                                    ]
                 db_metadatas = [x[0].metadata for x in docs_with_score]
                 db_documents = [x[0].page_content for x in docs_with_score]
