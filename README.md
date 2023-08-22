@@ -85,12 +85,11 @@ then go to your browser by visiting [http://127.0.0.1:7860](http://127.0.0.1:786
 
 ---
 
-#### 1/2/4/8 GPU Inference Benchmark Results for Transformers and Text-Generation-Inference backends
+### Inference Benchmark Results for Transformers and Text-Generation-Inference backends
 
 * [Benchmark results for Llama2](https://github.com/h2oai/h2ogpt/blob/main/benchmarks/perf.md)
 * [pytest to create benchmark results](https://github.com/h2oai/h2ogpt/blob/main/tests/test_perf_benchmarks.py)
- 
----
+* [Raw benchmark results (JSON)](https://github.com/h2oai/h2ogpt/blob/main/benchmarks/perf.json)
 
 ### Live Demos
 - [![img-small.png](docs/img-small.png) Live h2oGPT Document Q/A Demo](https://gpt.h2o.ai/)
