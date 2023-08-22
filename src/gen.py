@@ -962,7 +962,8 @@ def main(
             model_dict['tokenizer_base_model'] = model_dict.get('tokenizer_base_model', '')
             model_dict['lora_weights'] = model_dict.get('lora_weights', '')
             model_dict['inference_server'] = model_dict.get('inference_server', '')
-            prompt_type1 = model_dict.get('prompt_type', model_list0[0]['prompt_type'])  # don't use mutated value
+            prompt_type_infer = not model_dict.get('prompt_type')
+            model_dict['prompt_type'] = model_dict.get('prompt_type', model_list0[0]['prompt_type'])  # don't use mutated value
             # rest of generic defaults
             for k in model_list0[0]:
                 if k not in model_dict:
@@ -984,19 +985,18 @@ def main(
             prompt_summary = prompt_summary or prompt_summary1
 
             # try to infer, ignore empty initial state leading to get_generate_params -> 'plain'
-            if model_dict.get('prompt_type') is None:
+            if prompt_type_infer:
                 model_lower1 = model_dict['base_model'].lower()
                 if model_lower1 in inv_prompt_type_to_model_lower:
-                    prompt_type1 = inv_prompt_type_to_model_lower[model_lower1]
-                    prompt_dict1, error0 = get_prompt(prompt_type1, '',
+                    model_dict['prompt_type'] = inv_prompt_type_to_model_lower[model_lower1]
+                    model_dict['prompt_dict'], error0 = get_prompt(model_dict['prompt_type'], '',
                                                       chat=False, context='', reduced=False, making_context=False,
                                                       return_dict=True)
                 else:
-                    prompt_dict1 = prompt_dict
+                    model_dict['prompt_dict'] = prompt_dict
             else:
-                prompt_dict1 = prompt_dict
-            model_dict['prompt_type'] = prompt_type1
-            model_dict['prompt_dict'] = prompt_dict1 = model_dict.get('prompt_dict', prompt_dict1)
+                model_dict['prompt_dict'] = prompt_dict
+            model_dict['prompt_dict'] = model_dict.get('prompt_dict', model_dict['prompt_dict'])
             # end prompt adjustments
             all_kwargs = locals().copy()
             all_kwargs.update(model_dict)
