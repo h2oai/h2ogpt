@@ -164,6 +164,7 @@
 |     16 | 2 x NVIDIA RTX 6000 Ada Generation (49140 MiB) |                    10.8242 |                         57.8237 |             |
 |     16 | 2 x NVIDIA GeForce RTX 3090 (24576 MiB)        |                    42.2111 |                         31.4247 |             |
 |     16 | 2 x NVIDIA A100-SXM4-80GB (81920 MiB)          |                    53.3837 |                         22.223  |             |
+|     16 | 2 x NVIDIA RTX A6000 (46068 MiB)               |                    64.782  |                         21.3549 |             |
 ### Number of GPUs: 4
 |   bits | gpus                                  |   summarization time [sec] |   generation speed [tokens/sec] | exception   |
 |-------:|:--------------------------------------|---------------------------:|--------------------------------:|:------------|
