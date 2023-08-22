@@ -134,7 +134,7 @@
 |     16 | 1 x NVIDIA GeForce RTX 3090 (24576 MiB)        |                    29.129  |                         45.9535 |             |
 |     16 | 1 x NVIDIA GeForce RTX 4090 (24564 MiB)        |                    24.3988 |                         44.5878 |             |
 |     16 | 1 x NVIDIA A100-SXM4-80GB (81920 MiB)          |                    38.7538 |                         30.5051 |             |
-|     16 | 1 x NVIDIA RTX A6000 (46068 MiB)               |                   nan      |                        nan      | OOM         |
+|     16 | 1 x NVIDIA RTX A6000 (46068 MiB)               |                    40.3622 |                         29.9724 |             |
 ### Number of GPUs: 2
 |   bits | gpus                                           |   summarization time [sec] |   generation speed [tokens/sec] | exception   |
 |-------:|:-----------------------------------------------|---------------------------:|--------------------------------:|:------------|
