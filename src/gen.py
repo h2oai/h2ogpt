@@ -968,12 +968,18 @@ def main(
 
             # begin prompt adjustments
             # get query prompt for (say) last base model if using model lock
-            pre_prompt_query, prompt_query, pre_prompt_summary, prompt_summary = (
+            pre_prompt_query1, prompt_query1, pre_prompt_summary1, prompt_summary1 = (
                 get_langchain_prompts(pre_prompt_query, prompt_query,
                                  pre_prompt_summary, prompt_summary,
                                  model_dict['base_model'],
                                  model_dict['inference_server'],
                                  model_dict['model_path_llama']))
+            # if mixed setup, choose non-empty so best models best
+            # FIXME: Make per model dict passed through to evaluate
+            pre_prompt_query = pre_prompt_query or pre_prompt_query1
+            prompt_query = prompt_query or prompt_query1
+            pre_prompt_summary = pre_prompt_summary or pre_prompt_summary1
+            prompt_summary = prompt_summary or prompt_summary1
 
             # try to infer, ignore empty initial state leading to get_generate_params -> 'plain'
             if model_dict.get('prompt_type') is None:
@@ -1020,12 +1026,6 @@ def main(
             else:
                 model_state0 = model_state_trial.copy()
             assert len(model_state_none) == len(model_state0)
-        pre_prompt_query, prompt_query, pre_prompt_summary, prompt_summary = \
-            get_langchain_prompts(pre_prompt_query, prompt_query,
-                             pre_prompt_summary, prompt_summary,
-                             base_model,
-                             inference_server,
-                             model_path_llama)
 
         # get score model
         all_kwargs = locals().copy()
