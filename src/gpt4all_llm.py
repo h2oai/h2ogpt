@@ -254,6 +254,10 @@ class H2OGPT4All(gpt4all.GPT4All):
         # FIXME: GPT4ALl doesn't support yield during generate, so cannot support streaming except via itself to stdout
         return super()._call(prompt, stop=stop, run_manager=run_manager)
 
+    # FIXME:  Unsure what uses
+    #def get_token_ids(self, text: str) -> List[int]:
+    #    return self.client.tokenize(b" " + text.encode("utf-8"))
+
 
 from langchain.llms import LlamaCpp
 
@@ -381,3 +385,6 @@ class H2OLlamaCpp(LlamaCpp):
         # actual new tokens
         for chunk in super()._stream(prompt, stop=stop, run_manager=run_manager, **kwargs):
             yield chunk
+
+    def get_token_ids(self, text: str) -> List[int]:
+        return self.client.tokenize(b" " + text.encode("utf-8"))

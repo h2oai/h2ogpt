@@ -56,7 +56,7 @@ from langchain.document_loaders import PyPDFLoader, TextLoader, CSVLoader, Pytho
     UnstructuredURLLoader, UnstructuredHTMLLoader, UnstructuredWordDocumentLoader, UnstructuredMarkdownLoader, \
     EverNoteLoader, UnstructuredEmailLoader, UnstructuredODTLoader, UnstructuredPowerPointLoader, \
     UnstructuredEPubLoader, UnstructuredImageLoader, UnstructuredRTFLoader, ArxivLoader, UnstructuredPDFLoader, \
-    UnstructuredExcelLoader
+    UnstructuredExcelLoader, JSONLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter, Language
 from langchain.chains.question_answering import load_qa_chain
 from langchain.docstore.document import Document
@@ -376,6 +376,7 @@ class GradioInference(LLM):
     context: Any = ''
     iinput: Any = ''
     client: Any = None
+    tokenizer: Any = None
 
     class Config:
         """Configuration for this pydantic object."""
@@ -507,6 +508,11 @@ class GradioInference(LLM):
                 text_callback(text_chunk)
             return self.prompter.get_response(prompt + text, prompt=prompt,
                                               sanitize_bot_response=self.sanitize_bot_response)
+
+    def get_token_ids(self, text: str) -> List[int]:
+        return self.tokenizer.encode(text)
+        # avoid base method that is not aware of how to properly tokenize (uses GPT2)
+        # return _get_token_ids_default_method(text)
 
 
 class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
@@ -789,6 +795,13 @@ class H2OOpenAI(OpenAI):
         choices[0]['text'] = text
         return self.create_llm_result(choices, prompts, token_usage)
 
+    def get_token_ids(self, text: str) -> List[int]:
+        if self.tokenizer is not None:
+            return self.tokenizer.encode(text)
+        else:
+            # OpenAI uses tiktoken
+            return super().get_token_ids(text)
+
 
 class H2OReplicate(Replicate):
     stop_sequences: Any = None
@@ -816,6 +829,11 @@ class H2OReplicate(Replicate):
         prompt, num_prompt_tokens = H2OTextGenerationPipeline.limit_prompt(prompt, self.tokenizer)
         # Note Replicate handles the prompting of the specific model
         return super()._call(prompt, stop=stop, run_manager=run_manager, **kwargs)
+
+    def get_token_ids(self, text: str) -> List[int]:
+        return self.tokenizer.encode(text)
+        # avoid base method that is not aware of how to properly tokenize (uses GPT2)
+        # return _get_token_ids_default_method(text)
 
 
 class H2OChatOpenAI(ChatOpenAI):
@@ -933,6 +951,8 @@ def get_llm(use_openai_model=False,
         if inf_type == 'openai_chat' or inf_type == 'vllm_chat':
             cls = H2OChatOpenAI
             # FIXME: Support context, iinput
+            #if inf_type == 'vllm_chat':
+            #    kwargs_extra.update(dict(tokenizer=tokenizer))
         elif inf_type == 'openai_azure_chat':
             cls = H2OAzureChatOpenAI
             kwargs_extra.update(dict(openai_api_type='azure'))
@@ -1036,6 +1056,7 @@ def get_llm(use_openai_model=False,
                 iinput=iinput,
                 client=gr_client,
                 sanitize_bot_response=sanitize_bot_response,
+                tokenizer=tokenizer,
             )
         elif hf_client:
             # no need to pass original client, no state and fast, so can use same validate_environment from base class
@@ -1386,6 +1407,20 @@ def add_meta(docs1, file, headsize):
                             head=x.page_content[:headsize].strip())) for x in docs1]
 
 
+def json_metadata_func(record: dict, metadata: dict) -> dict:
+    # Define the metadata extraction function.
+
+    metadata["sender_name"] = record.get("sender_name")
+    metadata["timestamp_ms"] = record.get("timestamp_ms")
+
+    if "source" in metadata:
+        metadata["source_json"] = metadata['source']
+    if "seq_num" in metadata:
+        metadata["seq_num_json"] = metadata['seq_num']
+
+    return metadata
+
+
 def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                 chunk=True, chunk_size=512, n_jobs=-1,
                 is_url=False, is_txt=False,
@@ -1592,6 +1627,19 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             doc1 = Document(page_content=f.read(), metadata={"source": file})
         add_meta(doc1, file, headsize)
         doc1 = chunk_sources(doc1, language=Language.RST)
+    elif file.lower().endswith('.json'):
+        loader = JSONLoader(
+                    file_path=file,
+                    jq_schema='.messages[].content',
+                    metadata_func=json_metadata_func)
+        doc1 = loader.load()
+    elif file.lower().endswith('.jsonl'):
+        loader = JSONLoader(
+                    file_path=file,
+                    jq_schema='.messages[].content',
+                    json_lines=True,
+                    metadata_func=json_metadata_func)
+        doc1 = loader.load()
     elif file.lower().endswith('.pdf'):
         pdf_class_name = os.getenv('PDF_CLASS_NAME', 'PyMuPDFParser')
         doc1 = []

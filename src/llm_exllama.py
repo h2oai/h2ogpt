@@ -225,6 +225,11 @@ class Exllama(LLM):
         """Get the number of tokens present in the text."""
         return self.generator.tokenizer.num_tokens(text)
 
+    def get_token_ids(self, text: str) -> List[int]:
+        return self.generator.tokenizer.encode(text)
+        # avoid base method that is not aware of how to properly tokenize (uses GPT2)
+        # return _get_token_ids_default_method(text)
+
     def _call(
             self,
             prompt: str,
