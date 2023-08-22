@@ -120,6 +120,8 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
                  'document_subset': DocumentSubset.Relevant.name,  # matches return
                  'document_choice': np.array([]),  # matches return
                  'langchain_agents': np.array([]),  # matches return
+                 'pre_prompt_query': '',
+                 'prompt_query': '',
                  'pre_prompt_summary': '',
                  'prompt_summary': '',
                  'system_prompt': '',
