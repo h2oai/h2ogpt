@@ -48,8 +48,15 @@ RUN sp=`python3.10 -c 'import site; print(site.getsitepackages()[0])'` && sed -i
 EXPOSE 8888
 EXPOSE 7860
 
-ENV TRANSFORMERS_CACHE=/workspace/.cache/huggingface/hub/
+# /workspace/.cache is the equivalent to ~/.cache
+ENV HOME=/workspace
+
+# cache directory for the HF and Torch models
+ENV TRANSFORMERS_CACHE=/workspace/.cache/huggingface/transformers/
+ENV HF_HOME=/workspace/.cache/huggingface/
 ENV TIKTOKEN_CACHE_DIR=/workspace/.cache/
+ENV XDG_CACHE_HOME=/workspace/.cache/
+ENV TORCH_HOME=/workspace/.cache/torch/
 
 COPY build_info.txt* /build_info.txt
 RUN touch /build_info.txt
@@ -62,12 +69,7 @@ ARG gid=1000
 RUN groupadd -g ${gid} ${group} && useradd -u ${uid} -g ${group} -s /bin/bash ${user}
 RUN chmod -R a+rwx /workspace
 RUN chmod -R a+rwx /h2ogpt_conda
-ENV HOME=/workspace
 
 USER h2ogpt
-
-# preload encodings (add more as needed)
-RUN python -c "import tiktoken; tiktoken.get_encoding('cl100k_base')"
-RUN chmod -R a+rwx /workspace
 
 ENTRYPOINT ["python3.10"]
