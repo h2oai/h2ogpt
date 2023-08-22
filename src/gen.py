@@ -26,7 +26,7 @@ warnings.filterwarnings('ignore', category=UserWarning, message='TypedStorage is
 from evaluate_params import eval_func_param_names, no_default_param_names, input_args_list
 from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mapping, no_model_str, \
     LangChainAction, LangChainAgent, DocumentChoice, LangChainTypes, super_source_prefix, \
-    super_source_postfix, t5_type
+    super_source_postfix, t5_type, get_langchain_prompts
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
@@ -211,8 +211,10 @@ def main(
         append_sources_to_answer: bool = True,
         show_accordions: bool = True,
         show_link_in_sources: bool = True,
-        pre_prompt_summary: str = '',
-        prompt_summary: str = '',
+        pre_prompt_query: str = None,
+        prompt_query: str = None,
+        pre_prompt_summary: str = None,
+        prompt_summary: str = None,
         add_chat_history_to_context: bool = True,
         context: str = '',
         iinput: str = '',
@@ -494,8 +496,13 @@ def main(
     :param append_sources_to_answer: Whether to place source information in chat response (ignored by LLM).  Always disabled for API.
     :param show_accordions: whether to show accordion for document references in chatbot UI
     :param show_link_in_sources: Whether to show URL link to source document in references
-    :param pre_prompt_summary: prompt before documents to summarize, if empty string then use internal defaults
-    :param prompt_summary: prompt after documents to summarize, if empty string then use internal defaults
+    :param pre_prompt_query: prompt before documents to query, if None then use internal defaults
+    :param prompt_query: prompt after documents to query, if None then use internal defaults
+    :param pre_prompt_summary: prompt before documents to summarize, if None then use internal defaults
+    :param prompt_summary: prompt after documents to summarize, if None then use internal defaults
+           For summarize, normal to have empty query (nothing added in ask anything in UI or empty string in API)
+           If pass query, template is "Focusing on %s, %s" % (query, prompt_summary)
+           If pass query and iinput, template is "Focusing on %s, %s, %s" % (query, iinput, prompt_summary)
     :param add_chat_history_to_context: Include chat context when performing action
            Not supported yet for openai_chat when using document collection instead of LLM
            Also not supported when using CLI mode
@@ -834,7 +841,10 @@ def main(
         get_generate_params(model_lower,
                             chat,
                             stream_output, show_examples,
-                            prompt_type, prompt_dict, system_prompt,
+                            prompt_type, prompt_dict,
+                            pre_prompt_query, prompt_query,
+                            pre_prompt_summary, prompt_summary,
+                            system_prompt,
                             temperature, top_p, top_k, num_beams,
                             max_new_tokens, min_new_tokens, early_stopping, max_time,
                             repetition_penalty, num_return_sequences,
@@ -889,15 +899,35 @@ def main(
             assert 'gpt_langchain' not in sys.modules, "Dev bug, import of langchain when should not have"
             assert 'langchain' not in sys.modules, "Dev bug, import of langchain when should not have"
 
+    other_model_state_defaults = dict(load_8bit=load_8bit, load_4bit=load_4bit, low_bit_mode=low_bit_mode,
+                                      load_half=load_half,
+                                      load_gptq=load_gptq, load_exllama=load_exllama, use_safetensors=use_safetensors,
+                                      revision=revision, use_gpu_id=use_gpu_id, gpu_id=gpu_id,
+                                      compile_model=compile_model,
+                                      use_cache=use_cache,
+                                      llamacpp_dict=llamacpp_dict, model_path_llama=model_path_llama,
+                                      model_name_gptj=model_name_gptj,
+                                      model_name_gpt4all_llama=model_name_gpt4all_llama,
+                                      model_name_exllama_if_no_config=model_name_exllama_if_no_config,
+                                      )
     model_state_none = dict(model=None, tokenizer=None, device=None,
                             base_model=None, tokenizer_base_model=None, lora_weights=None,
-                            inference_server=None, prompt_type=None, prompt_dict=None)
+                            inference_server=None, prompt_type=None, prompt_dict=None,
+                            )
+    model_state_none.update(other_model_state_defaults)
     my_db_state0 = {LangChainMode.MY_DATA.value: [None, None, None]}
     selection_docs_state0 = dict(langchain_modes=langchain_modes,
                                  langchain_mode_paths=langchain_mode_paths,
                                  langchain_mode_types=langchain_mode_types)
     selection_docs_state = copy.deepcopy(selection_docs_state0)
 
+    # initial state for query prompt
+    model_name = base_model
+    pre_prompt_query, prompt_query, pre_prompt_summary, prompt_summary = \
+        get_langchain_prompts(pre_prompt_query, prompt_query,
+                         pre_prompt_summary, prompt_summary,
+                         model_name, inference_server,
+                         model_path_llama)
     if cli:
         from cli import run_cli
         return run_cli(**get_kwargs(run_cli, exclude_names=['model_state0'], **locals()))
@@ -912,22 +942,42 @@ def main(
         model_states = []
         model_list = [dict(base_model=base_model, tokenizer_base_model=tokenizer_base_model, lora_weights=lora_weights,
                            inference_server=inference_server, prompt_type=prompt_type, prompt_dict=prompt_dict)]
+        model_list[0].update(other_model_state_defaults)
+        # FIXME: hyper per model, not about model loading
+        # for k in gen_hyper:
+        #     model_list[k] = locals()[k]
+
         model_list0 = copy.deepcopy(model_list)  # just strings, safe to deepcopy
         model_state0 = model_state_none.copy()
         assert len(model_state_none) == len(model_state0)
         if model_lock:
             model_list = model_lock
+        # do reverse, so first is default base_model etc., so some logic works in go_gradio() more easily
         for model_dict in reversed(model_list):
-            # do reverse, so first is default base_model etc., so some logic works in go_gradio() more easily
-            # handles defaults user didn't have to pass
-            model_dict['base_model'] = base_model1 = model_dict.get('base_model', '')
-            model_dict['tokenizer_base_model'] = tokenizer_base_model1 = model_dict.get('tokenizer_base_model', '')
-            model_dict['lora_weights'] = lora_weights1 = model_dict.get('lora_weights', '')
-            model_dict['inference_server'] = inference_server1 = model_dict.get('inference_server', '')
+            # handle defaults user didn't have to pass
+            # special defaults, ignore defaults for these if not specifically set, replace with ''
+            model_dict['base_model'] = model_dict.get('base_model', '')
+            model_dict['tokenizer_base_model'] = model_dict.get('tokenizer_base_model', '')
+            model_dict['lora_weights'] = model_dict.get('lora_weights', '')
+            model_dict['inference_server'] = model_dict.get('inference_server', '')
             prompt_type1 = model_dict.get('prompt_type', model_list0[0]['prompt_type'])  # don't use mutated value
+            # rest of generic defaults
+            for k in model_list0[0]:
+                if k not in model_dict:
+                    model_dict[k] = model_list0[0][k]
+
+            # begin prompt adjustments
+            # get query prompt for (say) last base model if using model lock
+            pre_prompt_query, prompt_query, pre_prompt_summary, prompt_summary = (
+                get_langchain_prompts(pre_prompt_query, prompt_query,
+                                 pre_prompt_summary, prompt_summary,
+                                 model_dict['base_model'],
+                                 model_dict['inference_server'],
+                                 model_dict['model_path_llama']))
+
             # try to infer, ignore empty initial state leading to get_generate_params -> 'plain'
             if model_dict.get('prompt_type') is None:
-                model_lower1 = base_model1.lower()
+                model_lower1 = model_dict['base_model'].lower()
                 if model_lower1 in inv_prompt_type_to_model_lower:
                     prompt_type1 = inv_prompt_type_to_model_lower[model_lower1]
                     prompt_dict1, error0 = get_prompt(prompt_type1, '',
@@ -939,10 +989,10 @@ def main(
                 prompt_dict1 = prompt_dict
             model_dict['prompt_type'] = prompt_type1
             model_dict['prompt_dict'] = prompt_dict1 = model_dict.get('prompt_dict', prompt_dict1)
+            # end prompt adjustments
             all_kwargs = locals().copy()
-            all_kwargs.update(dict(base_model=base_model1, tokenizer_base_model=tokenizer_base_model1,
-                                   lora_weights=lora_weights1, inference_server=inference_server1))
-            if base_model1 and not login_mode_if_model0:
+            all_kwargs.update(model_dict)
+            if model_dict['base_model'] and not login_mode_if_model0:
                 model0, tokenizer0, device = get_model(reward_type=False,
                                                        **get_kwargs(get_model, exclude_names=['reward_type'],
                                                                     **all_kwargs))
@@ -970,6 +1020,12 @@ def main(
             else:
                 model_state0 = model_state_trial.copy()
             assert len(model_state_none) == len(model_state0)
+        pre_prompt_query, prompt_query, pre_prompt_summary, prompt_summary = \
+            get_langchain_prompts(pre_prompt_query, prompt_query,
+                             pre_prompt_summary, prompt_summary,
+                             base_model,
+                             inference_server,
+                             model_path_llama)
 
         # get score model
         all_kwargs = locals().copy()
@@ -1748,6 +1804,8 @@ def evaluate(
         chunk_size,
         document_subset,
         document_choice,
+        pre_prompt_query,
+        prompt_query,
         pre_prompt_summary,
         prompt_summary,
         system_prompt,
@@ -2021,6 +2079,8 @@ def evaluate(
                 top_k_docs=top_k_docs,
                 prompt_type=prompt_type,
                 prompt_dict=prompt_dict,
+                pre_prompt_query=pre_prompt_query,
+                prompt_query=prompt_query,
                 pre_prompt_summary=pre_prompt_summary,
                 prompt_summary=prompt_summary,
 
@@ -2443,7 +2503,7 @@ def evaluate(
         gen_kwargs.update(dict(forced_bos_token_id=tokenizer.lang_code_to_id[tgt_lang]))
     else:
         token_ids = ['eos_token_id', 'bos_token_id', 'pad_token_id']
-        #for token_id in token_ids:
+        # for token_id in token_ids:
         #    if hasattr(tokenizer, token_id) and getattr(tokenizer, token_id) is not None:
         #        gen_kwargs.update({token_id: getattr(tokenizer, token_id)})
 
@@ -2468,6 +2528,7 @@ def evaluate(
             if verbose:
                 print('Pre-Generate: %s' % str(datetime.now()), flush=True)
             decoded_output = None
+            response = ''
             with context_class("generate.lock"):
                 if verbose:
                     print('Generate: %s' % str(datetime.now()), flush=True)
@@ -2655,7 +2716,7 @@ class H2OTextIteratorStreamer(TextIteratorStreamer):
         # Otherwise, prints until the last space char (simple heuristic to avoid printing incomplete words,
         # which may change with the subsequent token -- there are probably smarter ways to do this!)
         elif len(text) > 0 and text[-1] == '�':
-            printable_text = text[self.print_len : text.rfind(" ") + 1]
+            printable_text = text[self.print_len: text.rfind(" ") + 1]
             self.print_len += len(printable_text)
         else:
             printable_text = text[self.print_len:]
@@ -2700,7 +2761,10 @@ def generate_with_exceptions(func, *args, raise_generate_gpu_exceptions=True, **
 def get_generate_params(model_lower,
                         chat,
                         stream_output, show_examples,
-                        prompt_type, prompt_dict, system_prompt,
+                        prompt_type, prompt_dict,
+                        system_prompt,
+                        pre_prompt_query, prompt_query,
+                        pre_prompt_summary, prompt_summary,
                         temperature, top_p, top_k, num_beams,
                         max_new_tokens, min_new_tokens, early_stopping, max_time,
                         repetition_penalty, num_return_sequences,
@@ -2871,7 +2935,10 @@ y = np.random.randint(0, 1, 100)
     for example in examples:
         example += [chat, '', '', LangChainMode.DISABLED.value, True,
                     LangChainAction.QUERY.value, [],
-                    top_k_docs, chunk, chunk_size, DocumentSubset.Relevant.name, [], '', '', system_prompt
+                    top_k_docs, chunk, chunk_size, DocumentSubset.Relevant.name, [],
+                    pre_prompt_query, prompt_query,
+                    pre_prompt_summary, prompt_summary,
+                    system_prompt,
                     ]
         # adjust examples if non-chat mode
         if not chat:

@@ -2477,6 +2477,8 @@ def _run_qa_db(query=None,
                langchain_agents=None,
                document_subset=DocumentSubset.Relevant.name,
                document_choice=[DocumentChoice.ALL.value],
+               pre_prompt_query=None,
+               prompt_query=None,
                pre_prompt_summary=None,
                prompt_summary=None,
                n_jobs=-1,
@@ -2752,6 +2754,8 @@ def get_chain(query=None,
               langchain_agents=None,
               document_subset=DocumentSubset.Relevant.name,
               document_choice=[DocumentChoice.ALL.value],
+              pre_prompt_query=None,
+              prompt_query=None,
               pre_prompt_summary=None,
               prompt_summary=None,
               n_jobs=-1,
@@ -2819,16 +2823,6 @@ def get_chain(query=None,
     if langchain_action == LangChainAction.QUERY.value:
         if iinput:
             query = "%s\n%s" % (query, iinput)
-
-        if 'falcon' in model_name or 'Llama-2'.lower() in model_name.lower():
-            extra = "According to only the information in the document sources provided within the context above, "
-            prefix = "Pay attention and remember information below, which will help to answer the question or imperative after the context ends.\n"
-        elif inference_server.startswith('openai'):
-            extra = "According to (primarily) the information in the document sources provided within context above, "
-            prefix = "Pay attention and remember information below, which will help to answer the question or imperative after the context ends.  If the answer cannot be primarily obtained from information within the context, then respond that the answer does not appear in the context of the documents.\n"
-        else:
-            extra = ""
-            prefix = ""
         if langchain_mode in ['Disabled', 'LLM'] or not use_docs_planned:
             template_if_no_docs = template = """{context}{question}"""
         else:
@@ -2836,22 +2830,16 @@ def get_chain(query=None,
     \"\"\"
     {context}
     \"\"\"
-    %s{question}""" % (prefix, extra)
+    %s{question}""" % (pre_prompt_query, prompt_query)
             template_if_no_docs = """{context}{question}"""
     elif langchain_action in [LangChainAction.SUMMARIZE_ALL.value, LangChainAction.SUMMARIZE_MAP.value]:
         none = ['', '\n', None]
 
-        if not pre_prompt_summary:
-            pre_prompt_summary = """In order to write a concise single-paragraph or bulleted list summary, pay attention to the following text\n"""
-        if not prompt_summary:
-            if query in none and iinput in none:
-                prompt_summary = "Using only the text above, write a condensed and concise summary of key results (preferably as bullet points):\n"
-            elif query not in none:
-                prompt_summary = "Focusing on %s, write a condensed and concise Summary:\n" % query
-            elif iinput not in None:
-                prompt_summary = iinput
-            else:
-                prompt_summary = "Focusing on %s, %s:\n" % (query, iinput)
+        # modify prompt_summary if user passes query or iinput
+        if query not in none and iinput not in none:
+            prompt_summary = "Focusing on %s, %s, %s" % (query, iinput, prompt_summary)
+        elif query not in none:
+            prompt_summary = "Focusing on %s, %s" % (query, prompt_summary)
         # don't auto reduce
         auto_reduce_chunks = False
         if langchain_action == LangChainAction.SUMMARIZE_MAP.value:
