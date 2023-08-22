@@ -65,7 +65,7 @@ def main(
         tokenizer_base_model: str = '',
         lora_weights: str = "",
         gpu_id: int = 0,
-        compile_model: bool = True,
+        compile_model: bool = None,
         use_cache: bool = None,
         inference_server: str = "",
         prompt_type: Union[int, str] = None,
@@ -824,6 +824,10 @@ def main(
     # hard-coded defaults
     first_para = False
     text_limit = None
+
+    if compile_model is None:
+        # too avoid noisy CLI
+        compile_model = not cli
 
     if offload_folder:
         offload_folder = makedirs(offload_folder, exist_ok=True, tmp_ok=True, use_base=True)

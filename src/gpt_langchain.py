@@ -31,7 +31,7 @@ from tqdm import tqdm
 
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
-    super_source_postfix
+    super_source_postfix, langchain_modes_intrinsic
 from evaluate_params import gen_hyper
 from gen import get_model, SEED
 from prompter import non_hf_types, PromptType, Prompter
@@ -117,6 +117,8 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
                             langchain_mode, langchain_mode_paths, langchain_mode_types,
                             hf_embedding_model, migrate_embedding_model, verbose=False)
         if db is None:
+            import logging
+            logging.getLogger("chromadb").setLevel(logging.ERROR)
             from chromadb.config import Settings
             client_settings = Settings(anonymized_telemetry=False,
                                        chroma_db_impl="duckdb+parquet",
@@ -2050,6 +2052,8 @@ def get_existing_db(db, persist_directory,
             if got_embedding:
                 use_openai_embedding, hf_embedding_model = use_openai_embedding0, hf_embedding_model0
             embedding = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model)
+            import logging
+            logging.getLogger("chromadb").setLevel(logging.ERROR)
             from chromadb.config import Settings
             client_settings = Settings(anonymized_telemetry=False,
                                        chroma_db_impl="duckdb+parquet",
@@ -2312,8 +2316,8 @@ def _make_db(use_openai_embedding=False,
                         migrate_embedding_model=migrate_embedding_model)
             if verbose:
                 print("Generated db", flush=True)
-        else:
-            print("Did not generate db since no sources", flush=True)
+        elif langchain_mode not in langchain_modes_intrinsic:
+            print("Did not generate db for %s since no sources" % langchain_mode, flush=True)
         new_sources_metadata = [x.metadata for x in sources]
     elif user_path is not None:
         print("Existing db, potentially adding %s sources from user_path=%s" % (len(sources), user_path), flush=True)
@@ -2898,6 +2902,8 @@ def get_chain(query=None,
             # only chroma supports filtering
             filter_kwargs = {}
         else:
+            import logging
+            logging.getLogger("chromadb").setLevel(logging.ERROR)
             assert document_choice is not None, "Document choice was None"
             if len(document_choice) >= 1 and document_choice[0] == DocumentChoice.ALL.value:
                 filter_kwargs = {"filter": {"chunk_id": {"$gte": 0}}} if query_action else \

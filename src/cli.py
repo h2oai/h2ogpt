@@ -54,6 +54,13 @@ def run_cli(  # for local function:
         # unique to this function:
         cli_loop=None,
 ):
+    # avoid noisy command line outputs
+    import warnings
+    warnings.filterwarnings("ignore")
+    import logging
+    logging.getLogger("torch").setLevel(logging.ERROR)
+    logging.getLogger("transformers").setLevel(logging.ERROR)
+
     check_locals(**locals())
 
     score_model = ""  # FIXME: For now, so user doesn't have to pass
@@ -125,7 +132,7 @@ def run_cli(  # for local function:
                     outr += res  # just is one thing
                     if extra:
                         # show sources at end after model itself had streamed to std rest of response
-                        print(extra, flush=True)
+                        print('\n\n' + extra, flush=True)
             all_generations.append(outr + '\n')
             if not cli_loop:
                 break
