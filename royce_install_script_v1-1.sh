@@ -7,6 +7,11 @@
 # less royce_install_script.sh # this will allow you to check the script before running it to make sure it is not compromised
 # sudo ./royce_install_script.sh # this will run the script in the codespace.
 
+# Install NVIDIA Drivers
+sudo apt-get update
+sudo apt-get install nvidia-driver-470 # Change the version if necessary
+sudo reboot
+
 # Update and install git
 sudo apt-get update -y
 if ! command -v git &> /dev/null; then
@@ -38,13 +43,14 @@ conda init bash
 if [ -n "$BASH_VERSION" ]; then
     echo "export PATH=\"$HOME/miniconda3/bin:\$PATH\"" >> ~/.bashrc
     source ~/.bashrc
+    echo "bashrc file successfully initialized for conda environment"
 elif [ -n "$ZSH_VERSION" ]; then
     echo "export PATH=\"$HOME/miniconda3/bin:\$PATH\"" >> ~/.zshrc
     source ~/.zshrc
+    echo "zshrc file successfully initialized for conda environment"
 else
     echo "Shell not supported for automatic PATH update. Please manually update your PATH."
 fi
-
 
 # Clone repository if not already cloned
 if [ ! -d "h2ogpt_rg" ]; then
@@ -73,7 +79,7 @@ source activate h2ogpt_rg || conda activate h2ogpt_rg
 python --version
 
 # Print a hello message
-python -c "import os, sys ; print('hello world')"
+python -c "import os, sys ; print('hello world - conda successfully installed and python is working')"
 
 # Install other dependencies
 conda install cudatoolkit-dev -c conda-forge -y
@@ -103,11 +109,13 @@ sed -i 's/posthog\.capture/return\n            posthog.capture/' $sp/chromadb/te
 pip uninstall -y llama-cpp-python
 pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.1.73+cu117-cp310-cp310-linux_x86_64.whl
 
-# GPU handling requires more detailed instructions and is commented for now
-# Please see the original text for manual handling
-
 # Test CUDA availability
-python -c "import torch; print(torch.cuda.is_available())"
+CUDA_AVAILABLE=$(python -c "import torch; print(torch.cuda.is_available())")
+
+if [ "$CUDA_AVAILABLE" == "False" ]; then
+  echo "CUDA is not available. Please go back to troubleshoot the install or the settings in the VM to ensure CUDA is available."
+  exit 1
+fi
 
 # Print instructions for the first session
 echo "UI using GPU with at least 24GB with streaming:"
