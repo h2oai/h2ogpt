@@ -236,6 +236,10 @@ def run_h2ogpt_docker(port, base_model, inference_server=None, max_new_tokens=No
     if inference_server:
         cmd.extend(['--inference_server=%s' % inference_server])
 
+    # make sure mounted dirs exist and belong to current user
+    subprocess.check_output(['mkdir', '-p', 'save'])
+    subprocess.check_output(['mkdir', '-p', '%s/.cache' % home_dir])
+
     print(cmd, flush=True)
     docker_hash = subprocess.check_output(cmd).decode().strip()
     print("Done starting h2oGPT server: %s" % docker_hash, flush=True)
