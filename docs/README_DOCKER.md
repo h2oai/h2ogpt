@@ -64,12 +64,11 @@ docker run \
 ```
 then go to http://localhost:7860/ or http://127.0.0.1:7860/.
 
-(`mkdir -p ~/save` prior to running docker to make sure those directories exist, and are created by the local user in case dockerd was installed with root, not that this is true for any other directories you wish to mount to the container as a volume).
-
 An example of running h2oGPT via docker using AutoGPTQ (4-bit, so using less GPU memory) with LLaMa2 7B model is:
 ```bash
-mkdir -p ~/.cache
-mkdir -p ~/save
+mkdir -p $HOME/.cache
+mkdir -p $HOME/save
+mkdir -p $HOME/.vllm_cache
 export CUDA_VISIBLE_DEVICES=0
 docker run \
        --gpus all \

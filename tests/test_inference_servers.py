@@ -4,7 +4,7 @@ import time
 from datetime import datetime
 import pytest
 
-from src.utils import get_ngpus_vis
+from src.utils import get_ngpus_vis, makedirs
 from tests.utils import wrap_test_forked, get_inf_port, get_inf_server
 from tests.test_langchain_units import have_openai_key, have_replicate_key
 from src.client_test import run_client_many
@@ -160,18 +160,19 @@ def run_docker(inf_port, base_model, low_mem_mode=False):
     n_gpus = get_ngpus_vis()
     cmd = ["docker"] + ['run',
                         '-d',
-                        '--shm-size', '1g',
-                        '-e', 'HUGGING_FACE_HUB_TOKEN=%s' % os.environ['HUGGING_FACE_HUB_TOKEN'],
-                        '-e', 'TRANSFORMERS_CACHE="/.cache/"',
-                        '-p', '%s:80' % inf_port,
-                        '-v', '%s/.cache:/.cache/' % home_dir,
-                        '-v', '%s:/data' % data_dir,
-                        'ghcr.io/huggingface/text-generation-inference:0.9.3',
-                        '--model-id', base_model,
-                        '--max-stop-sequences', '6',
-                        '--sharded', 'false' if n_gpus == 1 else 'true'
-                        ]
-    add_gpus_to_cmd(cmd)
+                        '--runtime', 'nvidia',
+                        ] + gpus_cmd() + [
+              '--shm-size', '1g',
+              '-e', 'HUGGING_FACE_HUB_TOKEN=%s' % os.environ['HUGGING_FACE_HUB_TOKEN'],
+              '-e', 'TRANSFORMERS_CACHE="/.cache/"',
+              '-p', '%s:80' % inf_port,
+              '-v', '%s/.cache:/.cache/' % home_dir,
+              '-v', '%s:/data' % data_dir,
+              'ghcr.io/huggingface/text-generation-inference:0.9.3',
+              '--model-id', base_model,
+              '--max-stop-sequences', '6',
+              '--sharded', 'false' if n_gpus == 1 else 'true'
+          ]
     if n_gpus > 1:
         cmd.extend(['--num-shard', '%s' % n_gpus])
     if low_mem_mode:
@@ -198,16 +199,24 @@ def run_docker(inf_port, base_model, low_mem_mode=False):
     return docker_hash
 
 
-def add_gpus_to_cmd(cmd):
+def gpus_cmd():
     n_gpus = get_ngpus_vis()
     if n_gpus == 1:
-        cmd.extend(['--gpus', 'device=%d' % int(os.getenv('CUDA_VISIBLE_DEVICES', '0'))])
+        return ['--gpus', 'device=%d' % int(os.getenv('CUDA_VISIBLE_DEVICES', '0'))]
     elif n_gpus > 2:
-        cmd.extend(['--gpus', "device=%s" % os.getenv('CUDA_VISIBLE_DEVICES', str(range(0, n_gpus)))])
+        return ['--gpus', '"device=%s"' % os.getenv('CUDA_VISIBLE_DEVICES',
+                                                  str(list(range(0, n_gpus))).replace(']', '').replace('[', '').replace(
+                                                      ' ', '')
+                                                  )]
 
 
 def run_vllm_docker(inf_port, base_model, tokenizer=None):
+    if base_model == 'h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2':
+        # 7b has 71 heads, not divisible
+        os.environ['CUDA_VISIBLE_DEVICES'] = '0'
     os.system("docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0")
+    home_dir = os.path.expanduser('~')
+    makedirs(os.path.join(home_dir, '.vllm_cache'))
     datetime_str = str(datetime.now()).replace(" ", "_").replace(":", "_")
     msg = "Starting vLLM inference %s..." % datetime_str
     print(msg, flush=True)
@@ -215,35 +224,34 @@ def run_vllm_docker(inf_port, base_model, tokenizer=None):
     data_dir = '%s/.cache/huggingface/hub/' % home_dir
     n_gpus = get_ngpus_vis()
     cmd = ["docker"] + ['run',
-                       # '-d',
-                       '--runtime', 'nvidia',
-                        '--shm-size', '4g',
-                        '-e', 'HUGGING_FACE_HUB_TOKEN=%s' % os.environ['HUGGING_FACE_HUB_TOKEN'],
-                        '-e', 'TRANSFORMERS_CACHE="/.cache/"',
-                        '-p', '%s:5000' % inf_port,
-                        '--entrypoint', '/h2ogpt_conda/envs/vllm/bin/python3.10',
-                        '-e', 'NCCL_IGNORE_DISABLED_P2P=1',
-                        '-v', '/etc/passwd:/etc/passwd:ro',
-                        '-v', '/etc/group:/etc/group:ro',
-                        '-u', '%s:%s' % (os.getuid(), os.getgid()),
-                        '-v', '%s/.vllm_cache:/workspace/.vllm_cache' % home_dir,
-                        '-v', '%s/.cache:/.cache/' % home_dir,
-                        '-v', '%s:/data' % data_dir,
-                        '-v', '%s/save:/workspace/save' % home_dir,
-                        '--network', 'host',
-                        # 'gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0',
-                        #'h2ogpt',  # use when built locally with vLLM just freshly added
-                        'docker.io/library/h2ogpt',
-                        '-m', 'vllm.entrypoints.openai.api_server',
-                        '--port=5000',
-                        '--host=0.0.0.0',
-                        '--model=%s' % base_model,
-                        '--tensor-parallel-size=%s' % n_gpus,
-                        '--seed', '1234',
-                        '--trust-remote-code',
-                        '--download-dir=.vllm_cache',
-                        ]
-    add_gpus_to_cmd(cmd)
+                        # '-d',
+                        '--runtime', 'nvidia',
+                        ] + gpus_cmd() + [
+              '--shm-size', '4g',
+              '-e', 'HUGGING_FACE_HUB_TOKEN=%s' % os.environ['HUGGING_FACE_HUB_TOKEN'],
+              '-e', 'TRANSFORMERS_CACHE="/.cache/"',
+              '-p', '%s:5000' % inf_port,
+              '--entrypoint', '/h2ogpt_conda/envs/vllm/bin/python3.10',
+              '-e', 'NCCL_IGNORE_DISABLED_P2P=1',
+              '-v', '/etc/passwd:/etc/passwd:ro',
+              '-v', '/etc/group:/etc/group:ro',
+              '-u', '%s:%s' % (os.getuid(), os.getgid()),
+              '-v', '%s/.vllm_cache:/workspace/.vllm_cache' % home_dir,
+              '-v', '%s/.cache:/.cache/' % home_dir,
+              '-v', '%s:/data' % data_dir,
+              '--network', 'host',
+              # 'gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0',
+              # 'h2ogpt',  # use when built locally with vLLM just freshly added
+              'docker.io/library/h2ogpt',
+              '-m', 'vllm.entrypoints.openai.api_server',
+              '--port=5000',
+              '--host=0.0.0.0',
+                    '--model=%s' % base_model,
+                    '--tensor-parallel-size=%s' % n_gpus,
+              '--seed', '1234',
+              '--trust-remote-code',
+              '--download-dir=/workspace/.vllm_cache',
+          ]
     if tokenizer:
         cmd.append('--tokenizer=%s' % tokenizer)
 
@@ -266,43 +274,40 @@ def run_h2ogpt_docker(port, base_model, inference_server=None, max_new_tokens=No
     msg = "Starting h2oGPT %s..." % datetime_str
     print(msg, flush=True)
     home_dir = os.path.expanduser('~')
+    makedirs(os.path.join(home_dir, '.cache'))
+    makedirs(os.path.join(home_dir, 'save'))
     cmd = ["docker"] + ['run',
                         '-d',
                         '--runtime', 'nvidia',
-                        '--shm-size', '1g',
-                        '-p', '%s:7860' % port,
-                        '-v', '%s/.cache:/workspace/.cache/' % home_dir,
-                        '-v', 'save:/save',
-                        '-v', '/etc/passwd:/etc/passwd:ro',
-                        '-v', '/etc/group:/etc/group:ro',
-                        '-u', '%s:%s' % (os.getuid(), os.getgid()),
-                        '-e', 'CUDA_VISIBLE_DEVICES=%s' % os.getenv('CUDA_VISIBLE_DEVICES', '0'),
-                        '-e', 'HUGGING_FACE_HUB_TOKEN=%s' % os.environ['HUGGING_FACE_HUB_TOKEN'],
-                        '--network', 'host',
-                        'gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0',
-                        '/workspace/generate.py',
-                        '--base_model=%s' % base_model,
-                        '--use_safetensors=True',
-                        '--save_dir=/workspace/save/',
-                        '--score_model=None',
-                        '--max_max_new_tokens=%s' % (max_new_tokens or 2048),
-                        '--max_new_tokens=%s' % (max_new_tokens or 1024),
-                        '--num_async=10',
-                        '--num_beams=1',
-                        '--top_k_docs=-1',
-                        '--chat=True',
-                        '--stream_output=True',
-                        # '--debug=True',
-                        ]
-
-    add_gpus_to_cmd(cmd)
+                        ] + gpus_cmd() + [
+              '--shm-size', '1g',
+              '-p', '%s:7860' % port,
+              '-v', '%s/.cache:/workspace/.cache/' % home_dir,
+              '-v', '%s/save:/workspace/save' % home_dir,
+              '-v', '/etc/passwd:/etc/passwd:ro',
+              '-v', '/etc/group:/etc/group:ro',
+              '-u', '%s:%s' % (os.getuid(), os.getgid()),
+              '-e', 'CUDA_VISIBLE_DEVICES=%s' % os.getenv('CUDA_VISIBLE_DEVICES', '0'),
+              '-e', 'HUGGING_FACE_HUB_TOKEN=%s' % os.environ['HUGGING_FACE_HUB_TOKEN'],
+              '--network', 'host',
+              'gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0',
+              '/workspace/generate.py',
+                    '--base_model=%s' % base_model,
+              '--use_safetensors=True',
+              '--save_dir=/workspace/save/',
+              '--score_model=None',
+                    '--max_max_new_tokens=%s' % (max_new_tokens or 2048),
+                    '--max_new_tokens=%s' % (max_new_tokens or 1024),
+              '--num_async=10',
+              '--num_beams=1',
+              '--top_k_docs=-1',
+              '--chat=True',
+              '--stream_output=True',
+              # '--debug=True',
+          ]
 
     if inference_server:
         cmd.extend(['--inference_server=%s' % inference_server])
-
-    # make sure mounted dirs exist and belong to current user
-    subprocess.check_output(['mkdir', '-p', 'save'])
-    subprocess.check_output(['mkdir', '-p', '%s/.cache' % home_dir])
 
     print(cmd, flush=True)
     docker_hash = subprocess.check_output(cmd).decode().strip()
