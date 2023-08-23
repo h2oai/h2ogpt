@@ -36,12 +36,20 @@ docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0
 
 An example running h2oGPT via docker using LLaMa2 7B model is:
 ```bash
+mkdir -p ~/.cache
+mkdir -p ~/save
+export CUDA_VISIBLE_DEVICES=0
 docker run \
        --gpus all \
        --runtime=nvidia \
        --shm-size=2g \
        -p 7860:7860 \
        --rm --init \
+       --network host \
+       -e CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES \
+       -v /etc/passwd:/etc/passwd:ro \
+       -v /etc/group:/etc/group:ro \
+       -u `id -u`:`id -g` \
        -v "${HOME}"/.cache:/workspace/.cache \
        -v "${HOME}"/save:/workspace/save \
        gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 /workspace/generate.py \
@@ -49,28 +57,40 @@ docker run \
           --use_safetensors=True \
           --prompt_type=llama2 \
           --save_dir='/workspace/save/' \
+          --use_gpu_id=False \
           --score_model=None \
           --max_max_new_tokens=2048 \
           --max_new_tokens=1024
 ```
 then go to http://localhost:7860/ or http://127.0.0.1:7860/.
 
+(`mkdir -p ~/save` prior to running docker to make sure those directories exist, and are created by the local user in case dockerd was installed with root, not that this is true for any other directories you wish to mount to the container as a volume).
+
 An example of running h2oGPT via docker using AutoGPTQ (4-bit, so using less GPU memory) with LLaMa2 7B model is:
 ```bash
+mkdir -p ~/.cache
+mkdir -p ~/save
+export CUDA_VISIBLE_DEVICES=0
 docker run \
        --gpus all \
        --runtime=nvidia \
        --shm-size=2g \
        -p 7860:7860 \
        --rm --init \
+       --network host \
+       -v /etc/passwd:/etc/passwd:ro \
+       -v /etc/group:/etc/group:ro \
+       -u `id -u`:`id -g` \
        -v "${HOME}"/.cache:/workspace/.cache \
        -v "${HOME}"/save:/workspace/save \
+       -e CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES \
        gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 /workspace/generate.py \
           --base_model=TheBloke/Llama-2-7b-Chat-GPTQ \
           --load_gptq="gptq_model-4bit-128g" \
           --use_safetensors=True \
           --prompt_type=llama2 \
           --save_dir='/workspace/save/' \
+          --use_gpu_id=False \
           --score_model=None \
           --max_max_new_tokens=2048 \
           --max_new_tokens=1024
@@ -79,26 +99,31 @@ then go to http://localhost:7860/ or http://127.0.0.1:7860/.
 
 If one needs to use a Hugging Face token to access certain Hugging Face models like Meta version of LLaMa2, can run like:
 ```bash
-export HUGGING_FACE_HUB_TOKEN=<hf_...>
+mkdir -p ~/.cache
+mkdir -p ~/save
+export CUDA_VISIBLE_DEVICES=0
 docker run \
        --gpus all \
        --runtime=nvidia \
        --shm-size=2g \
        -p 7860:7860 \
        --rm --init \
+       --network host \
+       -v /etc/passwd:/etc/passwd:ro \
+       -v /etc/group:/etc/group:ro \
+       -u `id -u`:`id -g` \
        -v "${HOME}"/.cache:/workspace/.cache \
        -v "${HOME}"/save:/workspace/save \
-       -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN \
+       -e CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES \
        gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 /workspace/generate.py \
-          --base_model=meta-llama/Llama-2-7b-chat-hf \
+          --base_model=h2oai/h2ogpt-4096-llama2-7b-chat \
           --prompt_type=llama2 \
           --save_dir='/workspace/save/' \
+          --use_gpu_id=False \
           --score_model=None \
           --max_max_new_tokens=2048 \
-          --max_new_tokens=1024 \
-          --use_auth_token=$HUGGING_FACE_HUB_TOKEN
+          --max_new_tokens=1024
 ```
-for some token `<hf_...>`.  See [Hugging Face User Tokens](https://huggingface.co/docs/hub/security-tokens) for more details.
 
 For [GGML/GPT4All models](FAQ.md#adding-models), one should either download the file and map that path outsider docker to a pain told to h2oGPT for inside docker, or pass a URL that would download the model internally to docker.
 
@@ -236,13 +261,12 @@ One can run an inference server in one docker and h2oGPT in another docker.
 
 For the TGI server run (e.g. to run on GPU 0)
 ```bash
-export MODEL=meta-llama/Llama-2-7b-chat-hf
-export HUGGING_FACE_HUB_TOKEN=<hf_...>
+export MODEL=h2oai/h2ogpt-4096-llama2-7b-chat
 export CUDA_VISIBLE_DEVICES=0
 docker run -d --gpus all \
        --shm-size 1g \
+       --network host \
        -e CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES \
-       -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN \
        -e TRANSFORMERS_CACHE="/.cache/" \
        -p 6112:80 \
        -v $HOME/.cache:/.cache/ \
@@ -256,12 +280,10 @@ Each docker can run on any system where network can reach or on same system on d
 
 One a low-memory GPU system can add other options to limit batching, e.g.:
 ```bash
-export MODEL=meta-llama/Llama-2-7b-chat-hf
-export HUGGING_FACE_HUB_TOKEN=<hf_...>
+export MODEL=h2oai/h2ogpt-4096-llama2-7b-chat
 unset CUDA_VISIBLE_DEVICES
 docker run -d --gpus '"device=0"' \
         --shm-size 1g \
-        -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN \
         -e TRANSFORMERS_CACHE="/.cache/" \
         -p 6112:80 \
         -v $HOME/.cache:/.cache/ \
@@ -277,6 +299,8 @@ then wait till it comes up (e.g. check docker logs for detatched container hash 
 ```bash
 export GRADIO_SERVER_PORT=7860
 export CUDA_VISIBLE_DEVICES=0
+mkdir -p ~/.cache
+mkdir -p ~/save
 docker run -d \
        --gpus all \
        --runtime=nvidia \
@@ -284,18 +308,21 @@ docker run -d \
        -p $GRADIO_SERVER_PORT:7860 \
        --rm --init \
        --network host \
+       -v /etc/passwd:/etc/passwd:ro \
+       -v /etc/group:/etc/group:ro \
+       -u `id -u`:`id -g` \
        -v "${HOME}"/.cache:/workspace/.cache \
        -v "${HOME}"/save:/workspace/save \
-       -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN \
+       -e CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES \
        gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 /workspace/generate.py \
           --base_model=$MODEL \
           --inference_server=http://localhost:6112 \
           --prompt_type=llama2 \
           --save_dir='/workspace/save/' \
+          --use_gpu_id=False \
           --score_model=None \
           --max_max_new_tokens=4096 \
           --max_new_tokens=1024 \
-          --use_auth_token="$HUGGING_FACE_HUB_TOKEN"
 ```
 or change `max_max_new_tokens` to `2048` for low-memory case.
 

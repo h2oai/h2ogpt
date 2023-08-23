@@ -106,8 +106,10 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
                          chunk_size=512,
                          document_subset=DocumentSubset.Relevant.name,
                          document_choice=[],
-                         pre_prompt_summary='',
-                         prompt_summary='',
+                         pre_prompt_query=None,
+                         prompt_query=None,
+                         pre_prompt_summary=None,
+                         prompt_summary=None,
                          )
     diff = 0
     if version is None:

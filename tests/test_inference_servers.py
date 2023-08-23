@@ -156,10 +156,13 @@ def run_docker(inf_port, base_model, low_mem_mode=False):
     print(msg, flush=True)
     home_dir = os.path.expanduser('~')
     data_dir = '%s/.cache/huggingface/hub/' % home_dir
+    import torch
+    n_gpus = torch.cuda.device_count()
     cmd = ["docker"] + ['run',
                         '-d',
-                        '--gpus', 'device=%d' % int(os.getenv('CUDA_VISIBLE_DEVICES', '0')),
+                        '--gpus', 'all',
                         '--shm-size', '1g',
+                        '-e', 'CUDA_VISIBLE_DEVICES=%s' % os.getenv('CUDA_VISIBLE_DEVICES', '0'),
                         '-e', 'HUGGING_FACE_HUB_TOKEN=%s' % os.environ['HUGGING_FACE_HUB_TOKEN'],
                         '-e', 'TRANSFORMERS_CACHE="/.cache/"',
                         '-p', '%s:80' % inf_port,
@@ -168,20 +171,30 @@ def run_docker(inf_port, base_model, low_mem_mode=False):
                         'ghcr.io/huggingface/text-generation-inference:0.9.3',
                         '--model-id', base_model,
                         '--max-stop-sequences', '6',
+                        '--sharded', 'false' if n_gpus == 1 else 'true'
                         ]
+    if n_gpus > 1:
+        cmd.extend(['--num-shard', '%s' % n_gpus])
     if low_mem_mode:
         cmd.extend(['--max-input-length', '1024',
                     '--max-total-tokens', '2048',
-                    '--max-batch-prefill-tokens', '2048',
-                    '--max-batch-total-tokens', '2048',
+                    # '--cuda-memory-fraction', '0.3',  # for 0.9.4, but too memory hungry
                     ])
     else:
-        cmd.extend(['--max-input-length', '2048',
-                    '--max-total-tokens', '4096',
+        cmd.extend(['--max-input-length', '4096',
+                    '--max-total-tokens', '8192',
+                    # '--cuda-memory-fraction', '0.8',  # for 0.9.4, but too memory hungry
                     ])
 
     print(cmd, flush=True)
     docker_hash = subprocess.check_output(cmd).decode().strip()
+    import time
+    connected = False
+    while not connected:
+        cmd = 'docker logs %s' % docker_hash
+        o = subprocess.check_output(cmd, shell=True, timeout=15)
+        connected = 'Connected' in o.decode("utf-8")
+        time.sleep(5)
     print("Done starting TGI server: %s" % docker_hash, flush=True)
     return docker_hash
 
@@ -248,11 +261,15 @@ def run_h2ogpt_docker(port, base_model, inference_server=None, max_new_tokens=No
     cmd = ["docker"] + ['run',
                         '-d',
                         '--runtime', 'nvidia',
-                        '--gpus', 'device=%d' % int(os.getenv('CUDA_VISIBLE_DEVICES', '0')),
+                        '--gpus', 'all',
                         '--shm-size', '1g',
                         '-p', '%s:7860' % port,
-                        '-v', '%s/.cache:/.cache/' % home_dir,
+                        '-v', '%s/.cache:/workspace/.cache/' % home_dir,
                         '-v', 'save:/save',
+                        '-v', '/etc/passwd:/etc/passwd:ro',
+                        '-v', '/etc/group:/etc/group:ro',
+                        '-u', '%s:%s' % (os.getuid(), os.getgid()),
+                        '-e', 'CUDA_VISIBLE_DEVICES=%s' % os.getenv('CUDA_VISIBLE_DEVICES', '0'),
                         '-e', 'HUGGING_FACE_HUB_TOKEN=%s' % os.environ['HUGGING_FACE_HUB_TOKEN'],
                         '--network', 'host',
                         'gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0',
@@ -261,9 +278,10 @@ def run_h2ogpt_docker(port, base_model, inference_server=None, max_new_tokens=No
                         '--use_safetensors=True',
                         '--save_dir=/workspace/save/',
                         '--score_model=None',
-                        '--max_max_new_tokens=2048',
-                        '--max_new_tokens=1024',
+                        '--max_max_new_tokens=%s' % (max_new_tokens or 2048),
+                        '--max_new_tokens=%s' % (max_new_tokens or 1024),
                         '--num_async=10',
+                        '--num_beams=1',
                         '--top_k_docs=-1',
                         '--chat=True',
                         '--stream_output=True',
@@ -271,6 +289,10 @@ def run_h2ogpt_docker(port, base_model, inference_server=None, max_new_tokens=No
                         ]
     if inference_server:
         cmd.extend(['--inference_server=%s' % inference_server])
+
+    # make sure mounted dirs exist and belong to current user
+    subprocess.check_output(['mkdir', '-p', 'save'])
+    subprocess.check_output(['mkdir', '-p', '%s/.cache' % home_dir])
 
     print(cmd, flush=True)
     docker_hash = subprocess.check_output(cmd).decode().strip()
@@ -301,7 +323,6 @@ def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain,
     inf_port = gradio_port + 1
     inference_server = 'http://127.0.0.1:%s' % inf_port
     docker_hash = run_docker(inf_port, base_model, low_mem_mode=True)
-    time.sleep(60)
 
     if force_langchain_evaluate:
         langchain_mode = 'MyData'
@@ -483,7 +504,6 @@ def test_gradio_tgi_docker(base_model):
     inf_port = gradio_port + 1
     inference_server = 'http://127.0.0.1:%s' % inf_port
     docker_hash1 = run_docker(inf_port, base_model, low_mem_mode=True)
-    time.sleep(30)
     os.system('docker logs %s | tail -10' % docker_hash1)
 
     # h2oGPT server

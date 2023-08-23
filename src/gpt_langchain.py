@@ -31,7 +31,7 @@ from tqdm import tqdm
 
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
-    super_source_postfix
+    super_source_postfix, langchain_modes_intrinsic
 from evaluate_params import gen_hyper
 from gen import get_model, SEED
 from prompter import non_hf_types, PromptType, Prompter
@@ -117,6 +117,8 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
                             langchain_mode, langchain_mode_paths, langchain_mode_types,
                             hf_embedding_model, migrate_embedding_model, verbose=False)
         if db is None:
+            import logging
+            logging.getLogger("chromadb").setLevel(logging.ERROR)
             from chromadb.config import Settings
             client_settings = Settings(anonymized_telemetry=False,
                                        chroma_db_impl="duckdb+parquet",
@@ -1945,6 +1947,9 @@ def prep_langchain(persist_directory,
     if os.getenv("HARD_ASSERTS"):
         assert langchain_mode not in ['MyData'], "Should not prep scratch/personal data"
 
+    if langchain_mode in langchain_modes_intrinsic:
+        return None
+
     db_dir_exists = os.path.isdir(persist_directory)
     user_path = langchain_mode_paths.get(langchain_mode)
 
@@ -2050,6 +2055,8 @@ def get_existing_db(db, persist_directory,
             if got_embedding:
                 use_openai_embedding, hf_embedding_model = use_openai_embedding0, hf_embedding_model0
             embedding = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model)
+            import logging
+            logging.getLogger("chromadb").setLevel(logging.ERROR)
             from chromadb.config import Settings
             client_settings = Settings(anonymized_telemetry=False,
                                        chroma_db_impl="duckdb+parquet",
@@ -2312,8 +2319,8 @@ def _make_db(use_openai_embedding=False,
                         migrate_embedding_model=migrate_embedding_model)
             if verbose:
                 print("Generated db", flush=True)
-        else:
-            print("Did not generate db since no sources", flush=True)
+        elif langchain_mode not in langchain_modes_intrinsic:
+            print("Did not generate db for %s since no sources" % langchain_mode, flush=True)
         new_sources_metadata = [x.metadata for x in sources]
     elif user_path is not None:
         print("Existing db, potentially adding %s sources from user_path=%s" % (len(sources), user_path), flush=True)
@@ -2477,6 +2484,8 @@ def _run_qa_db(query=None,
                langchain_agents=None,
                document_subset=DocumentSubset.Relevant.name,
                document_choice=[DocumentChoice.ALL.value],
+               pre_prompt_query=None,
+               prompt_query=None,
                pre_prompt_summary=None,
                prompt_summary=None,
                n_jobs=-1,
@@ -2557,8 +2566,8 @@ def _run_qa_db(query=None,
                 prompt_type=prompt_type,
                 prompt_dict=prompt_dict,
                 prompter=prompter,
-                context=context if add_chat_history_to_context else '',
-                iinput=iinput if add_chat_history_to_context else '',
+                context=context,
+                iinput=iinput,
                 sanitize_bot_response=sanitize_bot_response,
                 system_prompt=system_prompt,
                 n_jobs=n_jobs,
@@ -2752,6 +2761,8 @@ def get_chain(query=None,
               langchain_agents=None,
               document_subset=DocumentSubset.Relevant.name,
               document_choice=[DocumentChoice.ALL.value],
+              pre_prompt_query=None,
+              prompt_query=None,
               pre_prompt_summary=None,
               prompt_summary=None,
               n_jobs=-1,
@@ -2819,16 +2830,6 @@ def get_chain(query=None,
     if langchain_action == LangChainAction.QUERY.value:
         if iinput:
             query = "%s\n%s" % (query, iinput)
-
-        if 'falcon' in model_name or 'Llama-2'.lower() in model_name.lower():
-            extra = "According to only the information in the document sources provided within the context above, "
-            prefix = "Pay attention and remember information below, which will help to answer the question or imperative after the context ends.\n"
-        elif inference_server.startswith('openai'):
-            extra = "According to (primarily) the information in the document sources provided within context above, "
-            prefix = "Pay attention and remember information below, which will help to answer the question or imperative after the context ends.  If the answer cannot be primarily obtained from information within the context, then respond that the answer does not appear in the context of the documents.\n"
-        else:
-            extra = ""
-            prefix = ""
         if langchain_mode in ['Disabled', 'LLM'] or not use_docs_planned:
             template_if_no_docs = template = """{context}{question}"""
         else:
@@ -2836,22 +2837,16 @@ def get_chain(query=None,
     \"\"\"
     {context}
     \"\"\"
-    %s{question}""" % (prefix, extra)
+    %s{question}""" % (pre_prompt_query, prompt_query)
             template_if_no_docs = """{context}{question}"""
     elif langchain_action in [LangChainAction.SUMMARIZE_ALL.value, LangChainAction.SUMMARIZE_MAP.value]:
         none = ['', '\n', None]
 
-        if not pre_prompt_summary:
-            pre_prompt_summary = """In order to write a concise single-paragraph or bulleted list summary, pay attention to the following text\n"""
-        if not prompt_summary:
-            if query in none and iinput in none:
-                prompt_summary = "Using only the text above, write a condensed and concise summary of key results (preferably as bullet points):\n"
-            elif query not in none:
-                prompt_summary = "Focusing on %s, write a condensed and concise Summary:\n" % query
-            elif iinput not in None:
-                prompt_summary = iinput
-            else:
-                prompt_summary = "Focusing on %s, %s:\n" % (query, iinput)
+        # modify prompt_summary if user passes query or iinput
+        if query not in none and iinput not in none:
+            prompt_summary = "Focusing on %s, %s, %s" % (query, iinput, prompt_summary)
+        elif query not in none:
+            prompt_summary = "Focusing on %s, %s" % (query, prompt_summary)
         # don't auto reduce
         auto_reduce_chunks = False
         if langchain_action == LangChainAction.SUMMARIZE_MAP.value:
@@ -2910,6 +2905,8 @@ def get_chain(query=None,
             # only chroma supports filtering
             filter_kwargs = {}
         else:
+            import logging
+            logging.getLogger("chromadb").setLevel(logging.ERROR)
             assert document_choice is not None, "Document choice was None"
             if len(document_choice) >= 1 and document_choice[0] == DocumentChoice.ALL.value:
                 filter_kwargs = {"filter": {"chunk_id": {"$gte": 0}}} if query_action else \

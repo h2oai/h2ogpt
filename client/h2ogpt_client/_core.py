@@ -116,6 +116,8 @@ class TextCompletionCreator:
         params["chunk_size"] = 512  # langchain: chunk size for document chunking
         params["document_subset"] = DocumentSubset.Relevant.name
         params["document_choice"] = []
+        params["pre_prompt_query"] = ""
+        params["prompt_query"] = ""
         params["pre_prompt_summary"] = ""
         params["prompt_summary"] = ""
         params["system_prompt"] = ""
@@ -234,6 +236,8 @@ class ChatCompletionCreator:
         params["chunk_size"] = 512  # langchain: chunk size for document chunking
         params["document_subset"] = DocumentSubset.Relevant.name
         params["document_choice"] = []
+        params["pre_prompt_query"] = ""
+        params["prompt_query"] = ""
         params["pre_prompt_summary"] = ""
         params["prompt_summary"] = ""
         params["chatbot"] = []  # chat history
