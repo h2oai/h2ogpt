@@ -248,7 +248,7 @@ def test_plot_results():
             print("# Backend: %s" % backend, file=f)
             for base_model in pd.unique(X['base_model']):
                 print("## Model: %s (%s)" % (base_model, backend), file=f)
-                for n_gpus in pd.unique(X['n_gpus']):
+                for n_gpus in sorted(pd.unique(X['n_gpus'])):
                     XX = X[(X['base_model'] == base_model) & (X['backend'] == backend) & (X['n_gpus'] == n_gpus)]
                     if XX.shape[0] == 0:
                         continue
