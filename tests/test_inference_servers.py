@@ -4,6 +4,7 @@ import time
 from datetime import datetime
 import pytest
 
+from src.utils import get_ngpus_vis
 from tests.utils import wrap_test_forked, get_inf_port, get_inf_server
 from tests.test_langchain_units import have_openai_key, have_replicate_key
 from src.client_test import run_client_many
@@ -156,8 +157,7 @@ def run_docker(inf_port, base_model, low_mem_mode=False):
     print(msg, flush=True)
     home_dir = os.path.expanduser('~')
     data_dir = '%s/.cache/huggingface/hub/' % home_dir
-    import torch
-    n_gpus = torch.cuda.device_count()
+    n_gpus = get_ngpus_vis()
     cmd = ["docker"] + ['run',
                         '-d',
                         '--gpus', 'all',
@@ -206,6 +206,7 @@ def run_vllm_docker(inf_port, base_model, tokenizer=None):
     print(msg, flush=True)
     home_dir = os.path.expanduser('~')
     data_dir = '%s/.cache/huggingface/hub/' % home_dir
+    n_gpus = get_ngpus_vis()
     cmd = ["docker"] + ['run',
                        # '-d',
                        '--runtime', 'nvidia',
@@ -232,8 +233,9 @@ def run_vllm_docker(inf_port, base_model, tokenizer=None):
                         '--port=5000',
                         '--host=0.0.0.0',
                         '--model=%s' % base_model,
-                        '--tensor-parallel-size=2',
+                        '--tensor-parallel-size=%s' % n_gpus,
                         '--seed', '1234',
+                        '--trust-remote-code',
                         '--download-dir=.vllm_cache',
                         ]
     if tokenizer:
