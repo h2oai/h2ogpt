@@ -195,9 +195,10 @@ def run_vllm_docker(inf_port, base_model, tokenizer=None):
     data_dir = '%s/.cache/huggingface/hub/' % home_dir
     cmd = ["docker"] + ['run',
                        # '-d',
-                        '--gpus', 'all',
-                        '--shm-size', '1g',
-                        '-e', 'CUDA_VISIBLE_DEVICES=%s' % os.getenv('CUDA_VISIBLE_DEVICES', '0'),
+                       '--runtime', 'nvidia',
+                        '--gpus', 'device=%d' % int(os.getenv('CUDA_VISIBLE_DEVICES', '0')),
+                        '--shm-size', '2g',
+                        #'-e', 'CUDA_VISIBLE_DEVICES=%s' % os.getenv('CUDA_VISIBLE_DEVICES', '0'),
                         '-e', 'HUGGING_FACE_HUB_TOKEN=%s' % os.environ['HUGGING_FACE_HUB_TOKEN'],
                         '-e', 'TRANSFORMERS_CACHE="/.cache/"',
                         '-p', '%s:5000' % inf_port,
@@ -211,14 +212,15 @@ def run_vllm_docker(inf_port, base_model, tokenizer=None):
                         '-v', '%s:/data' % data_dir,
                         '-v', '%s/save:/workspace/save' % home_dir,
                         '--network', 'host',
-                        'gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0',
-                        #'h2ogpt',
-                        '-m vllm.entrypoints.openai.api_server',
+                        # 'gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0',
+                        #'h2ogpt',  # use when built locally with vLLM just freshly added
+                        'docker.io/library/h2ogpt',
+                        '-m', 'vllm.entrypoints.openai.api_server',
                         '--port=5000',
                         '--host=0.0.0.0',
                         '--model=%s' % base_model,
                         '--tensor-parallel-size=2',
-                        '--seed 1234',
+                        '--seed', '1234',
                         '--download-dir=.vllm_cache',
                         ]
     if tokenizer:
