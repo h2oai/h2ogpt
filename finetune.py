@@ -62,7 +62,7 @@ def train(
         batch_size: int = 128,
         micro_batch_size: int = 4,
         gradient_checkpointing=False,  # unnecessary with gradient accumulation enabled
-        bf16=False,
+        bf16=False,  # needed (and automatically enabled) for llama2-7b
         fp16=True,
         train_8bit=False,
         train_4bit=False,
