@@ -160,9 +160,7 @@ def run_docker(inf_port, base_model, low_mem_mode=False):
     n_gpus = get_ngpus_vis()
     cmd = ["docker"] + ['run',
                         '-d',
-                        '--gpus', 'all',
                         '--shm-size', '1g',
-                        '-e', 'CUDA_VISIBLE_DEVICES=%s' % os.getenv('CUDA_VISIBLE_DEVICES', '0'),
                         '-e', 'HUGGING_FACE_HUB_TOKEN=%s' % os.environ['HUGGING_FACE_HUB_TOKEN'],
                         '-e', 'TRANSFORMERS_CACHE="/.cache/"',
                         '-p', '%s:80' % inf_port,
@@ -173,6 +171,7 @@ def run_docker(inf_port, base_model, low_mem_mode=False):
                         '--max-stop-sequences', '6',
                         '--sharded', 'false' if n_gpus == 1 else 'true'
                         ]
+    add_gpus_to_cmd(cmd)
     if n_gpus > 1:
         cmd.extend(['--num-shard', '%s' % n_gpus])
     if low_mem_mode:
@@ -199,6 +198,14 @@ def run_docker(inf_port, base_model, low_mem_mode=False):
     return docker_hash
 
 
+def add_gpus_to_cmd(cmd):
+    n_gpus = get_ngpus_vis()
+    if n_gpus == 1:
+        cmd.extend(['--gpus', 'device=%d' % int(os.getenv('CUDA_VISIBLE_DEVICES', '0'))])
+    elif n_gpus > 2:
+        cmd.extend(['--gpus', "device=%s" % os.getenv('CUDA_VISIBLE_DEVICES', str(range(0, n_gpus)))])
+
+
 def run_vllm_docker(inf_port, base_model, tokenizer=None):
     os.system("docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0")
     datetime_str = str(datetime.now()).replace(" ", "_").replace(":", "_")
@@ -210,9 +217,7 @@ def run_vllm_docker(inf_port, base_model, tokenizer=None):
     cmd = ["docker"] + ['run',
                        # '-d',
                        '--runtime', 'nvidia',
-                        '--gpus', 'device=%d' % int(os.getenv('CUDA_VISIBLE_DEVICES', '0')),
-                        '--shm-size', '2g',
-                        #'-e', 'CUDA_VISIBLE_DEVICES=%s' % os.getenv('CUDA_VISIBLE_DEVICES', '0'),
+                        '--shm-size', '4g',
                         '-e', 'HUGGING_FACE_HUB_TOKEN=%s' % os.environ['HUGGING_FACE_HUB_TOKEN'],
                         '-e', 'TRANSFORMERS_CACHE="/.cache/"',
                         '-p', '%s:5000' % inf_port,
@@ -238,6 +243,7 @@ def run_vllm_docker(inf_port, base_model, tokenizer=None):
                         '--trust-remote-code',
                         '--download-dir=.vllm_cache',
                         ]
+    add_gpus_to_cmd(cmd)
     if tokenizer:
         cmd.append('--tokenizer=%s' % tokenizer)
 
@@ -263,7 +269,6 @@ def run_h2ogpt_docker(port, base_model, inference_server=None, max_new_tokens=No
     cmd = ["docker"] + ['run',
                         '-d',
                         '--runtime', 'nvidia',
-                        '--gpus', 'all',
                         '--shm-size', '1g',
                         '-p', '%s:7860' % port,
                         '-v', '%s/.cache:/workspace/.cache/' % home_dir,
@@ -289,6 +294,9 @@ def run_h2ogpt_docker(port, base_model, inference_server=None, max_new_tokens=No
                         '--stream_output=True',
                         # '--debug=True',
                         ]
+
+    add_gpus_to_cmd(cmd)
+
     if inference_server:
         cmd.extend(['--inference_server=%s' % inference_server])
 
