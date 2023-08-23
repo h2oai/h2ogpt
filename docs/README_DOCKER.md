@@ -104,7 +104,7 @@ For [GGML/GPT4All models](FAQ.md#adding-models), one should either download the 
 
 See [README_GPU](README_GPU.md) for more details about what to run.
 
-## Run h2oGPT and vLLM using Docker
+## Run h2oGPT +  vLLM or vLLM using Docker
 
 One can run an inference server in one docker and h2oGPT in another docker.
 
@@ -128,6 +128,7 @@ mkdir -p $HOME/save
 ```
 
 For the vLLM server run (eg: to run on GPU 0 & 1)
+If one is only setting up vLLMn use `--gpus all`.
 ```bash
 docker run -d \
     --gpus '"device=0,1"' \
@@ -176,7 +177,7 @@ curl http://localhost:5000/v1/completions \
     "temperature": 0
     }'
 ```
-If ones sees similar output to below, then endpoint it up & running.
+If one sees similar output to below, then endpoint it up & running.
 
 ```json
 {
@@ -199,6 +200,8 @@ If ones sees similar output to below, then endpoint it up & running.
     }
 }
 ```
+
+If one needs to only setup vLLM one can stop here.
 
 ### Run h2oGPT
 ```bash
