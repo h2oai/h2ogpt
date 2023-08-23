@@ -104,6 +104,129 @@ For [GGML/GPT4All models](FAQ.md#adding-models), one should either download the 
 
 See [README_GPU](README_GPU.md) for more details about what to run.
 
+## Run h2oGPT and vLLM using Docker
+
+One can run an inference server in one docker and h2oGPT in another docker.
+
+An example of running h2oai/h2ogpt-4096-llama2-7b-chat model is as follows (4 gpus).
+Make sure you have the latest `h2ogpt-runtime` image.
+
+```bash
+docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime
+```
+
+Make sure `CUDA_VISIBLE_DEVICES` is unset.
+```bash
+unset CUDA_VISIBLE_DEVICES
+```
+
+Make sure following directories exist.
+```bash
+mkdir -p $HOME/.vllm_cache
+mkdir -p $HOME/.cache
+mkdir -p $HOME/save
+```
+
+For the vLLM server run (eg: to run on GPU 0 & 1)
+```bash
+docker run -d \
+    --gpus '"device=0,1"' \
+    --runtime=nvidia \
+    --shm-size=2gb \
+    -p 5000:5000 \
+    --rm --init \
+    --entrypoint /h2ogpt_conda/envs/vllm/bin/python3.10 \
+    -e NCCL_IGNORE_DISABLED_P2P=1 \
+    -v /etc/passwd:/etc/passwd:ro \
+    -v /etc/group:/etc/group:ro \
+    -u `id -u`:`id -g` \
+    -v $HOME/.vllm_cache:/workspace/.vllm_cache \
+    -v $HOME/.cache:/workspace/.cache \
+    -v $HOME/save:/workspace/save \
+    h2ogpt -m vllm.entrypoints.openai.api_server \
+        --port=5000 \
+        --host=0.0.0.0 \
+        --model h2oai/h2ogpt-4096-llama2-7b-chat \
+        --tokenizer=hf-internal-testing/llama-tokenizer \
+        --tensor-parallel-size=2 \
+        --seed 1234 \
+        --download-dir=.vllm_cache &>> logs.vllm_server.txt
+```
+
+Checks the logs `logs.vllm_server.txt` to make sure server is running.
+If ones sees similar output to below, then endpoint it up & running.
+```bash
+INFO:     Started server process [7]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:5000 (Press CTRL+C to quit
+```
+
+### Curl Test
+
+
+One can also verify the endpoint by running following curl command.
+```bash
+curl http://localhost:5000/v1/completions \
+    -H "Content-Type: application/json" \
+    -d '{
+    "model": "h2oai/h2ogpt-4096-llama2-7b-chat",
+    "prompt": "San Francisco is a",
+    "max_tokens": 7,
+    "temperature": 0
+    }'
+```
+If ones sees similar output to below, then endpoint it up & running.
+
+```json
+{
+    "id": "cmpl-4b9584f743ff4dc590f0c168f82b063b",
+    "object": "text_completion",
+    "created": 1692796549,
+    "model": "h2oai/h2ogpt-4096-llama2-7b-chat",
+    "choices": [
+        {
+            "index": 0,
+            "text": "city in Northern California that is known",
+            "logprobs": null,
+            "finish_reason": "length"
+        }
+    ],
+    "usage": {
+        "prompt_tokens": 5,
+        "total_tokens": 12,
+        "completion_tokens": 7
+    }
+}
+```
+
+### Run h2oGPT
+```bash
+docker run \
+    --gpus '"device=2,3"' \
+    --runtime=nvidia \
+    --shm-size=2g \
+    -p 7860:7860 \
+    --rm --init \
+    --network host \
+    -v /etc/passwd:/etc/passwd:ro \
+    -v /etc/group:/etc/group:ro \
+    -u `id -u`:`id -g` \
+    -v "${HOME}"/.cache:/workspace/.cache \
+    -v "${HOME}"/save:/workspace/save \
+    h2ogpt /workspace/generate.py \
+        --inference_server="vllm:0.0.0.0:5000" \
+        --base_model=h2oai/h2ogpt-4096-llama2-7b-chat \
+        --langchain_mode=UserData
+```
+
+Make sure to set `--inference_server` argument to the correct vllm endpoint.
+
+
+When one is done with the docker instance, run `docker ps` and find the container ID's hash, then run `docker stop <hash>`.
+
+Follow [README_InferenceServers.md](README_InferenceServers.md) for more information on how to setup vLLM.
+
 ## Run h2oGPT and TGI using Docker
 
 One can run an inference server in one docker and h2oGPT in another docker.
