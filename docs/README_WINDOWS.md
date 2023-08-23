@@ -80,7 +80,6 @@ For newer builds of windows versions of 10/11.
     # Optional but required for PlayWright
     playwright install --with-deps
     # Note: for Selenium, we match versions of playwright so above installer will add chrome version needed
-    # *Set* environment variable KEEP_PLAYWRIGHT='1' if want to use playwright, which we found to hang too often and is disabled unless set
 * GPU Optional: For optional AutoGPTQ support:
    ```bash
     pip uninstall -y auto-gptq

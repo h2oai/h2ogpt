@@ -171,3 +171,27 @@ def get_langchain_prompts(pre_prompt_query, prompt_query, pre_prompt_summary, pr
         prompt_summary = prompt_summary1
 
     return pre_prompt_query, prompt_query, pre_prompt_summary, prompt_summary
+
+
+def gr_to_lg(image_loaders,
+             pdf_loaders,
+             url_loaders,
+             ):
+    # translate:
+    return dict(
+        # urls
+        use_unstructured='Unstructured' in url_loaders,
+        use_playwright='PlayWright' in url_loaders,
+        use_selenium='Selenium' in url_loaders,
+
+        # pdfs
+        use_pymupdf='PyMuPDF' in pdf_loaders,
+        use_unstructured_pdf='Unstructured' in pdf_loaders,
+        use_pypdf='PyPDF' in pdf_loaders,
+        enable_pdf_ocr='on' if 'OCR' in pdf_loaders else 'auto',
+        try_pdf_as_html='TryHTML' in pdf_loaders,
+
+        # images
+        enable_ocr='OCR' in image_loaders,
+        enable_captions='Caption' in image_loaders,
+    )

@@ -21,6 +21,8 @@ gen_hyper = ['temperature',
              'do_sample',
              ]
 
+reader_names = ['image_loaders', 'pdf_loaders', 'url_loaders', 'jq_schema']
+
 eval_func_param_names = ['instruction',
                          'iinput',
                          'context',
@@ -45,7 +47,8 @@ eval_func_param_names = ['instruction',
                          'pre_prompt_summary',
                          'prompt_summary',
                          'system_prompt',
-                         ]
+                         ] + \
+                        reader_names
 
 # form evaluate defaults for submit_nochat_api
 eval_func_param_names_defaults = eval_func_param_names.copy()

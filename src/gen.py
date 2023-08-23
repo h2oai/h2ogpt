@@ -26,11 +26,11 @@ warnings.filterwarnings('ignore', category=UserWarning, message='TypedStorage is
 from evaluate_params import eval_func_param_names, no_default_param_names, input_args_list
 from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mapping, no_model_str, \
     LangChainAction, LangChainAgent, DocumentChoice, LangChainTypes, super_source_prefix, \
-    super_source_postfix, t5_type, get_langchain_prompts
+    super_source_postfix, t5_type, get_langchain_prompts, gr_to_lg
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
-    have_langchain, set_openai, cuda_vis_check, H2O_Fire
+    have_langchain, set_openai, cuda_vis_check, H2O_Fire, lg_to_gr
 
 start_faulthandler()
 import_matplotlib()
@@ -231,12 +231,32 @@ def main(
         auto_reduce_chunks: bool = True,
         max_chunks: int = 100,
         n_jobs: int = -1,
-        enable_captions: bool = True,
-        captions_model: str = "Salesforce/blip-image-captioning-base",
+
+        # urls
+        use_unstructured=True,
+        use_playwright=False,
+        use_selenium=False,
+
+        # pdfs
+        use_pymupdf=True,
+        use_unstructured_pdf=False,
+        use_pypdf=False,
+        enable_pdf_ocr='auto',
+        try_pdf_as_html=True,
+
+        # images
+        enable_ocr=False,
+        enable_captions=True,
         pre_load_caption_model: bool = False,
         caption_gpu: bool = True,
-        enable_ocr: bool = False,
-        enable_pdf_ocr: str = 'auto',
+        captions_model: str = "Salesforce/blip-image-captioning-base",
+        caption_loader=None,
+
+        # json
+        jq_schema='.[]',
+
+        max_quality: bool = False,
+
         enable_heap_analytics: bool = True,
         heap_app_id: str = "1680123994",
 ):
@@ -832,6 +852,14 @@ def main(
     if offload_folder:
         offload_folder = makedirs(offload_folder, exist_ok=True, tmp_ok=True, use_base=True)
 
+    image_loaders_options0, image_loaders_options, \
+        pdf_loaders_options0, pdf_loaders_options, \
+        url_loaders_options0, url_loaders_options = lg_to_gr(**locals())
+    # transcribe
+    image_loaders = image_loaders_options0
+    pdf_loaders = pdf_loaders_options0
+    url_loaders = url_loaders_options0
+
     placeholder_instruction, placeholder_input, \
         stream_output, show_examples, \
         prompt_type, prompt_dict, \
@@ -856,6 +884,10 @@ def main(
                             top_k_docs,
                             chunk,
                             chunk_size,
+                            image_loaders,
+                            pdf_loaders,
+                            url_loaders,
+                            jq_schema,
                             verbose,
                             )
 
@@ -930,9 +962,9 @@ def main(
         model_name = base_model
         pre_prompt_query, prompt_query, pre_prompt_summary, prompt_summary = \
             get_langchain_prompts(pre_prompt_query, prompt_query,
-                             pre_prompt_summary, prompt_summary,
-                             model_name, inference_server,
-                             model_path_llama)
+                                  pre_prompt_summary, prompt_summary,
+                                  model_name, inference_server,
+                                  model_path_llama)
 
     if cli:
         from cli import run_cli
@@ -967,7 +999,8 @@ def main(
             model_dict['lora_weights'] = model_dict.get('lora_weights', '')
             model_dict['inference_server'] = model_dict.get('inference_server', '')
             prompt_type_infer = not model_dict.get('prompt_type')
-            model_dict['prompt_type'] = model_dict.get('prompt_type', model_list0[0]['prompt_type'])  # don't use mutated value
+            model_dict['prompt_type'] = model_dict.get('prompt_type',
+                                                       model_list0[0]['prompt_type'])  # don't use mutated value
             # rest of generic defaults
             for k in model_list0[0]:
                 if k not in model_dict:
@@ -977,10 +1010,10 @@ def main(
             # get query prompt for (say) last base model if using model lock
             pre_prompt_query1, prompt_query1, pre_prompt_summary1, prompt_summary1 = (
                 get_langchain_prompts(pre_prompt_query, prompt_query,
-                                 pre_prompt_summary, prompt_summary,
-                                 model_dict['base_model'],
-                                 model_dict['inference_server'],
-                                 model_dict['model_path_llama']))
+                                      pre_prompt_summary, prompt_summary,
+                                      model_dict['base_model'],
+                                      model_dict['inference_server'],
+                                      model_dict['model_path_llama']))
             # if mixed setup, choose non-empty so best models best
             # FIXME: Make per model dict passed through to evaluate
             pre_prompt_query = pre_prompt_query or pre_prompt_query1
@@ -994,8 +1027,9 @@ def main(
                 if model_lower1 in inv_prompt_type_to_model_lower:
                     model_dict['prompt_type'] = inv_prompt_type_to_model_lower[model_lower1]
                     model_dict['prompt_dict'], error0 = get_prompt(model_dict['prompt_type'], '',
-                                                      chat=False, context='', reduced=False, making_context=False,
-                                                      return_dict=True)
+                                                                   chat=False, context='', reduced=False,
+                                                                   making_context=False,
+                                                                   return_dict=True)
                 else:
                     model_dict['prompt_dict'] = prompt_dict
             else:
@@ -1815,7 +1849,15 @@ def evaluate(
         pre_prompt_summary,
         prompt_summary,
         system_prompt,
+
+        image_loaders,
+        pdf_loaders,
+        url_loaders,
+        jq_schema,
+
         # END NOTE: Examples must have same order of parameters
+        captions_model=None,
+        caption_loader=None,
         async_output=None,
         num_async=None,
         src_lang=None,
@@ -2043,6 +2085,14 @@ def evaluate(
                                    max_time=max_time,
                                    num_return_sequences=num_return_sequences,
                                    )
+        loaders_dict = gr_to_lg(image_loaders,
+                 pdf_loaders,
+                 url_loaders,
+                 )
+        loaders_dict.update(dict(captions_model=captions_model,
+                                 caption_loader=caption_loader,
+                                 jq_schema=jq_schema,
+                                 ))
         for r in run_qa_db(
                 inference_server=inference_server,
                 model_name=base_model, model=model, tokenizer=tokenizer,
@@ -2077,6 +2127,9 @@ def evaluate(
                 stream_output=stream_output,
                 chunk=chunk,
                 chunk_size=chunk_size,
+
+                **loaders_dict,
+
                 langchain_mode=langchain_mode,
                 langchain_action=langchain_action,
                 langchain_agents=langchain_agents,
@@ -2776,7 +2829,12 @@ def get_generate_params(model_lower,
                         repetition_penalty, num_return_sequences,
                         do_sample,
                         top_k_docs, chunk, chunk_size,
-                        verbose):
+                        image_loaders,
+                        pdf_loaders,
+                        url_loaders,
+                        jq_schema,
+                        verbose,
+                        ):
     use_defaults = False
     use_default_examples = True
     examples = []
@@ -2945,6 +3003,10 @@ y = np.random.randint(0, 1, 100)
                     pre_prompt_query, prompt_query,
                     pre_prompt_summary, prompt_summary,
                     system_prompt,
+                    image_loaders,
+                    pdf_loaders,
+                    url_loaders,
+                    jq_schema,
                     ]
         # adjust examples if non-chat mode
         if not chat:
