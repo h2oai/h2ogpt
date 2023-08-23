@@ -36,11 +36,13 @@ results_file = "./benchmarks/perf.json"
     "4-bit",
 ])
 @pytest.mark.parametrize("ngpus", [
+    0,
     1,
     2,
     4,
     8,
 ], ids=[
+    "CPU",
     "1 GPU",
     "2 GPUs",
     "4 GPUs",
@@ -54,7 +56,7 @@ def test_perf_benchmarks(backend, base_model, task, bits, ngpus):
     from datetime import datetime
     import json
     import socket
-    os.environ['CUDA_VISIBLE_DEVICES'] = "0" if ngpus == 1 else ",".join([str(x) for x in range(ngpus)])
+    os.environ['CUDA_VISIBLE_DEVICES'] = "" if ngpus == 0 else "0" if ngpus == 1 else ",".join([str(x) for x in range(ngpus)])
     import torch
     n_gpus = torch.cuda.device_count()
     if n_gpus != ngpus:
@@ -77,9 +79,9 @@ def test_perf_benchmarks(backend, base_model, task, bits, ngpus):
     # get GPU memory, assumes homogeneous system
     cmd = 'nvidia-smi -i 0 -q | grep -A 1 "FB Memory Usage" | cut -d: -f2 | tail -n 1'
     o = subprocess.check_output(cmd, shell=True, timeout=15)
-    mem_gpu = o.decode("utf-8").splitlines()[0].strip()
+    mem_gpu = o.decode("utf-8").splitlines()[0].strip() if n_gpus else 0
 
-    bench_dict["gpus"] = "%d x %s (%s)" % (n_gpus, gpu_list[0], mem_gpu)
+    bench_dict["gpus"] = "%d x %s (%s)" % (n_gpus, gpu_list[0], mem_gpu) if n_gpus else "CPU"
     assert all([x == gpu_list[0] for x in gpu_list])
     print(bench_dict)
 
@@ -90,7 +92,7 @@ def test_perf_benchmarks(backend, base_model, task, bits, ngpus):
     try:
         h2ogpt_args = dict(base_model=base_model,
              chat=True, gradio=True, num_beams=1, block_gradio_exit=False, verbose=True,
-             load_half=bits == 16,
+             load_half=bits == 16 and n_gpus,
              load_8bit=bits == 8,
              load_4bit=bits == 4,
              langchain_mode='MyData',

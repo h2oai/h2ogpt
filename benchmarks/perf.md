@@ -48,6 +48,12 @@
 |     16 | 8 x NVIDIA A100-SXM4-80GB (81920 MiB) |                    40.4986 |                        30.5489  |             |
 |      8 | 8 x NVIDIA A100-SXM4-80GB (81920 MiB) |                   186.713  |                         7.23498 |             |
 |      4 | 8 x NVIDIA A100-SXM4-80GB (81920 MiB) |                    60.1828 |                        21.9172  |             |
+### Number of GPUs: 0
+|   bits | gpus   |   summarization time [sec] |   generation speed [tokens/sec] | exception   |
+|-------:|:-------|---------------------------:|--------------------------------:|:------------|
+|     16 | CPU    |                    1215.52 |                         1.17546 |             |
+|      8 | CPU    |                    1216.98 |                         1.17641 |             |
+|      4 | CPU    |                    1217.17 |                         1.16575 |             |
 ## Model: h2oai/h2ogpt-4096-llama2-13b-chat (transformers)
 ### Number of GPUs: 1
 |   bits | gpus                                           |   summarization time [sec] |   generation speed [tokens/sec] | exception   |
