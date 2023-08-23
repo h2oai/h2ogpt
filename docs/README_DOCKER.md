@@ -122,10 +122,8 @@ docker run \
           --use_gpu_id=False \
           --score_model=None \
           --max_max_new_tokens=2048 \
-          --max_new_tokens=1024 \
-          --use_auth_token=$HUGGING_FACE_HUB_TOKEN
+          --max_new_tokens=1024
 ```
-for some token `<hf_...>`.  See [Hugging Face User Tokens](https://huggingface.co/docs/hub/security-tokens) for more details.
 
 For [GGML/GPT4All models](FAQ.md#adding-models), one should either download the file and map that path outsider docker to a pain told to h2oGPT for inside docker, or pass a URL that would download the model internally to docker.
 
@@ -189,7 +187,6 @@ docker run -d \
        -u `id -u`:`id -g` \
        -v "${HOME}"/.cache:/workspace/.cache \
        -v "${HOME}"/save:/workspace/save \
-       -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN \
        -e CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES \
        gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 /workspace/generate.py \
           --base_model=$MODEL \
@@ -200,7 +197,6 @@ docker run -d \
           --score_model=None \
           --max_max_new_tokens=4096 \
           --max_new_tokens=1024 \
-          --use_auth_token="$HUGGING_FACE_HUB_TOKEN"
 ```
 or change `max_max_new_tokens` to `2048` for low-memory case.
 
