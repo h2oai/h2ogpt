@@ -186,7 +186,59 @@ def run_docker(inf_port, base_model, low_mem_mode=False):
     return docker_hash
 
 
-def run_h2ogpt_docker(port, base_model, inference_server=None):
+def run_vllm_docker(inf_port, base_model, tokenizer=None):
+    os.system("docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0")
+    datetime_str = str(datetime.now()).replace(" ", "_").replace(":", "_")
+    msg = "Starting vLLM inference %s..." % datetime_str
+    print(msg, flush=True)
+    home_dir = os.path.expanduser('~')
+    data_dir = '%s/.cache/huggingface/hub/' % home_dir
+    cmd = ["docker"] + ['run',
+                       # '-d',
+                        '--gpus', 'all',
+                        '--shm-size', '1g',
+                        '-e', 'CUDA_VISIBLE_DEVICES=%s' % os.getenv('CUDA_VISIBLE_DEVICES', '0'),
+                        '-e', 'HUGGING_FACE_HUB_TOKEN=%s' % os.environ['HUGGING_FACE_HUB_TOKEN'],
+                        '-e', 'TRANSFORMERS_CACHE="/.cache/"',
+                        '-p', '%s:5000' % inf_port,
+                        '--entrypoint', '/h2ogpt_conda/envs/vllm/bin/python3.10',
+                        '-e', 'NCCL_IGNORE_DISABLED_P2P=1',
+                        '-v', '/etc/passwd:/etc/passwd:ro',
+                        '-v', '/etc/group:/etc/group:ro',
+                        '-u', '%s:%s' % (os.getuid(), os.getgid()),
+                        '-v', '%s/.vllm_cache:/workspace/.vllm_cache' % home_dir,
+                        '-v', '%s/.cache:/.cache/' % home_dir,
+                        '-v', '%s:/data' % data_dir,
+                        '-v', '%s/save:/workspace/save' % home_dir,
+                        '--network', 'host',
+                        'gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0',
+                        #'h2ogpt',
+                        '-m vllm.entrypoints.openai.api_server',
+                        '--port=5000',
+                        '--host=0.0.0.0',
+                        '--model=%s' % base_model,
+                        '--tensor-parallel-size=2',
+                        '--seed 1234',
+                        '--download-dir=.vllm_cache',
+                        ]
+    if tokenizer:
+        cmd.append('--tokenizer=%s' % tokenizer)
+
+    print(cmd, flush=True)
+    docker_hash = subprocess.check_output(cmd).decode().strip()
+    import time
+    connected = False
+    while not connected:
+        cmd = 'docker logs %s' % docker_hash
+        o = subprocess.check_output(cmd, shell=True, timeout=15)
+        connected = 'Connected' in o.decode("utf-8")
+        time.sleep(5)
+    print("Done starting TGI server: %s" % docker_hash, flush=True)
+    return docker_hash
+
+
+def run_h2ogpt_docker(port, base_model, inference_server=None, max_new_tokens=None):
+    os.system("docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0")
     datetime_str = str(datetime.now()).replace(" ", "_").replace(":", "_")
     msg = "Starting h2oGPT %s..." % datetime_str
     print(msg, flush=True)
@@ -430,6 +482,74 @@ def test_gradio_tgi_docker(base_model):
     inference_server = 'http://127.0.0.1:%s' % inf_port
     docker_hash1 = run_docker(inf_port, base_model, low_mem_mode=True)
     time.sleep(30)
+    os.system('docker logs %s | tail -10' % docker_hash1)
+
+    # h2oGPT server
+    docker_hash2 = run_h2ogpt_docker(gradio_port, base_model, inference_server=inference_server)
+    time.sleep(30)  # assumes image already downloaded, else need more time
+    os.system('docker logs %s | tail -10' % docker_hash2)
+
+    # test this version for now, until docker updated
+    version = 0
+
+    try:
+        # client test to server that only consumes inference server
+        prompt = 'Who are you?'
+        print("Starting client tests with prompt: %s using %s" % (prompt, get_inf_server()))
+        from src.client_test import run_client_chat
+        res_dict, client = run_client_chat(prompt=prompt,
+                                           stream_output=True,
+                                           max_new_tokens=256,
+                                           langchain_mode='Disabled',
+                                           langchain_action=LangChainAction.QUERY.value,
+                                           langchain_agents=[],
+                                           version=version)
+        assert res_dict['prompt'] == prompt
+        assert res_dict['iinput'] == ''
+
+        # will use HOST from above
+        # client shouldn't have to specify
+        ret1, ret2, ret3, ret4, ret5, ret6, ret7 = run_client_many(prompt_type=None, version=version)
+        if 'llama' in base_model.lower():
+            who = "I'm LLaMA, an AI assistant developed by Meta AI"
+            assert who in ret1['response']
+            assert who in ret1['response']
+            assert 'Once upon a time' in ret2['response']
+            assert 'Once upon a time' in ret3['response']
+            assert who in ret4['response']
+            assert who in ret5['response']
+            assert who in ret6['response']
+            assert who in ret7['response']
+        else:
+            who = 'I am an AI language model'
+            assert who in ret1['response']
+            assert 'Once upon a time' in ret2['response']
+            assert 'Once upon a time' in ret3['response']
+            assert who in ret4['response']
+            assert who in ret5['response']
+            assert who in ret6['response']
+            assert who in ret7['response']
+        print("DONE", flush=True)
+    finally:
+        os.system("docker stop %s" % docker_hash1)
+        os.system("docker stop %s" % docker_hash2)
+
+
+@pytest.mark.parametrize("base_model",
+                         ['h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2', 'meta-llama/Llama-2-7b-chat-hf']
+                         )
+@wrap_test_forked
+def test_gradio_vllm_docker(base_model):
+    # HF inference server
+    gradio_port = get_inf_port()
+    inf_port = gradio_port + 1
+    inference_server = 'http://127.0.0.1:%s' % inf_port
+    if 'llama' in base_model:
+        tokenizer = 'hf-internal-testing/llama-tokenizer'
+    else:
+        tokenizer = None
+
+    docker_hash1 = run_vllm_docker(inf_port, base_model, tokenizer)
     os.system('docker logs %s | tail -10' % docker_hash1)
 
     # h2oGPT server

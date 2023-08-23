@@ -312,8 +312,6 @@ Follow [README_InferenceServers.md](README_InferenceServers.md) for similar (and
 ## Build Docker
 
 ```bash
-# build auto-gptq
-make docker_build_deps
 # build image
 touch build_info.txt
 docker build -t h2ogpt .

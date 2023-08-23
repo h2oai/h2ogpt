@@ -548,7 +548,7 @@ def test_autogptq():
     stream_output = False
     max_new_tokens = 256
     base_model = 'TheBloke/Nous-Hermes-13B-GPTQ'
-    load_gptq = 'nous-hermes-13b-GPTQ-4bit-128g.no-act.order'
+    load_gptq = 'model'
     use_safetensors = True
     prompt_type = 'instruct'
     langchain_mode = 'Disabled'
