@@ -549,9 +549,7 @@ def train(
             load_best_model_at_end=True if val_set_size > 0 else False,
             ddp_find_unused_parameters=False if ddp else None,
             group_by_length=group_by_length,
-            fsdp="full_shard auto_wrap" if gpus > 1 and not ddp else "",
-            fsdp_transformer_layer_cls_to_wrap='LlamaDecoderLayer' if gpus > 1 and not ddp else None,
-            # fsdp_min_num_params=20000 if gpus > 1 and not ddp else None,
+            fsdp=gpus > 1 and not ddp,
             report_to='tensorboard' if not neptune_run else 'neptune',
         ),
         data_collator=transformers.DataCollatorForSeq2Seq(
