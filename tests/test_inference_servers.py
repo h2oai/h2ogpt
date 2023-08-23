@@ -156,6 +156,7 @@ def run_docker(inf_port, base_model, low_mem_mode=False):
     msg = "Starting HF inference %s..." % datetime_str
     print(msg, flush=True)
     home_dir = os.path.expanduser('~')
+    makedirs(os.path.join(home_dir, '.cache/huggingface/hub'))
     data_dir = '%s/.cache/huggingface/hub/' % home_dir
     n_gpus = get_ngpus_vis()
     cmd = ["docker"] + ['run',
@@ -215,16 +216,14 @@ def run_vllm_docker(inf_port, base_model, tokenizer=None):
         # 7b has 71 heads, not divisible
         os.environ['CUDA_VISIBLE_DEVICES'] = '0'
     os.system("docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0")
-    home_dir = os.path.expanduser('~')
-    makedirs(os.path.join(home_dir, '.vllm_cache'))
     datetime_str = str(datetime.now()).replace(" ", "_").replace(":", "_")
     msg = "Starting vLLM inference %s..." % datetime_str
     print(msg, flush=True)
     home_dir = os.path.expanduser('~')
-    data_dir = '%s/.cache/huggingface/hub/' % home_dir
+    makedirs(os.path.join(home_dir, '.cache/huggingface/hub'))
     n_gpus = get_ngpus_vis()
     cmd = ["docker"] + ['run',
-                        # '-d',
+                        '-d',
                         '--runtime', 'nvidia',
                         ] + gpus_cmd() + [
               '--shm-size', '4g',
@@ -236,9 +235,7 @@ def run_vllm_docker(inf_port, base_model, tokenizer=None):
               '-v', '/etc/passwd:/etc/passwd:ro',
               '-v', '/etc/group:/etc/group:ro',
               '-u', '%s:%s' % (os.getuid(), os.getgid()),
-              '-v', '%s/.vllm_cache:/workspace/.vllm_cache' % home_dir,
               '-v', '%s/.cache:/.cache/' % home_dir,
-              '-v', '%s:/data' % data_dir,
               '--network', 'host',
               # 'gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0',
               # 'h2ogpt',  # use when built locally with vLLM just freshly added
@@ -250,7 +247,7 @@ def run_vllm_docker(inf_port, base_model, tokenizer=None):
                     '--tensor-parallel-size=%s' % n_gpus,
               '--seed', '1234',
               '--trust-remote-code',
-              '--download-dir=/workspace/.vllm_cache',
+              '--download-dir=/.cache/huggingface/hub',
           ]
     if tokenizer:
         cmd.append('--tokenizer=%s' % tokenizer)
@@ -274,7 +271,7 @@ def run_h2ogpt_docker(port, base_model, inference_server=None, max_new_tokens=No
     msg = "Starting h2oGPT %s..." % datetime_str
     print(msg, flush=True)
     home_dir = os.path.expanduser('~')
-    makedirs(os.path.join(home_dir, '.cache'))
+    makedirs(os.path.join(home_dir, '.cache/huggingface/hub'))
     makedirs(os.path.join(home_dir, 'save'))
     cmd = ["docker"] + ['run',
                         '-d',
@@ -287,7 +284,6 @@ def run_h2ogpt_docker(port, base_model, inference_server=None, max_new_tokens=No
               '-v', '/etc/passwd:/etc/passwd:ro',
               '-v', '/etc/group:/etc/group:ro',
               '-u', '%s:%s' % (os.getuid(), os.getgid()),
-              '-e', 'CUDA_VISIBLE_DEVICES=%s' % os.getenv('CUDA_VISIBLE_DEVICES', '0'),
               '-e', 'HUGGING_FACE_HUB_TOKEN=%s' % os.environ['HUGGING_FACE_HUB_TOKEN'],
               '--network', 'host',
               'gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0',

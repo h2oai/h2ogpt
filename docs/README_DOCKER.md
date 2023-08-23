@@ -62,13 +62,12 @@ docker run \
           --max_max_new_tokens=2048 \
           --max_new_tokens=1024
 ```
-then go to http://localhost:7860/ or http://127.0.0.1:7860/.
+Use `docker run -d` to run in detached background. Then go to http://localhost:7860/ or http://127.0.0.1:7860/.
 
 An example of running h2oGPT via docker using AutoGPTQ (4-bit, so using less GPU memory) with LLaMa2 7B model is:
 ```bash
 mkdir -p $HOME/.cache
 mkdir -p $HOME/save
-mkdir -p $HOME/.vllm_cache
 export CUDA_VISIBLE_DEVICES=0
 docker run \
        --gpus all \
@@ -94,7 +93,7 @@ docker run \
           --max_max_new_tokens=2048 \
           --max_new_tokens=1024
 ```
-then go to http://localhost:7860/ or http://127.0.0.1:7860/.
+Use `docker run -d` to run in detached background.  Then go to http://localhost:7860/ or http://127.0.0.1:7860/.
 
 If one needs to use a Hugging Face token to access certain Hugging Face models like Meta version of LLaMa2, can run like:
 ```bash
@@ -123,6 +122,7 @@ docker run \
           --max_max_new_tokens=2048 \
           --max_new_tokens=1024
 ```
+Use `docker run -d` to run in detached background.
 
 For [GGML/GPT4All models](FAQ.md#adding-models), one should either download the file and map that path outsider docker to a pain told to h2oGPT for inside docker, or pass a URL that would download the model internally to docker.
 
@@ -132,32 +132,17 @@ See [README_GPU](README_GPU.md) for more details about what to run.
 
 One can run an inference server in one docker and h2oGPT in another docker.
 
-An example of running h2oai/h2ogpt-4096-llama2-7b-chat model is as follows (4 gpus).
-Make sure you have the latest `h2ogpt-runtime` image.
-
+For the vLLM server running on 2 GPUs using h2oai/h2ogpt-4096-llama2-7b-chat model, run:
 ```bash
 docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime
-```
-
-Make sure `CUDA_VISIBLE_DEVICES` is unset.
-```bash
 unset CUDA_VISIBLE_DEVICES
-```
-
-Make sure following directories exist.
-```bash
-mkdir -p $HOME/.vllm_cache
-mkdir -p $HOME/.cache
+mkdir -p $HOME/.cache/huggingface/hub
 mkdir -p $HOME/save
-```
-
-For the vLLM server run (eg: to run on GPU 0 & 1)
-If one is only setting up vLLMn use `--gpus all`.
-```bash
-docker run -d \
-    --gpus '"device=0,1"' \
+docker run \
     --runtime=nvidia \
-    --shm-size=2gb \
+    --gpus '"device=0,1"' \
+    --shm-size=4gb \
+    -e TRANSFORMERS_CACHE="/.cache/" \
     -p 5000:5000 \
     --rm --init \
     --entrypoint /h2ogpt_conda/envs/vllm/bin/python3.10 \
@@ -165,18 +150,19 @@ docker run -d \
     -v /etc/passwd:/etc/passwd:ro \
     -v /etc/group:/etc/group:ro \
     -u `id -u`:`id -g` \
-    -v $HOME/.vllm_cache:/workspace/.vllm_cache \
-    -v $HOME/.cache:/workspace/.cache \
-    -v $HOME/save:/workspace/save \
+    -v $HOME/.cache:/.cache \
+    --network host \
     h2ogpt -m vllm.entrypoints.openai.api_server \
         --port=5000 \
         --host=0.0.0.0 \
-        --model h2oai/h2ogpt-4096-llama2-7b-chat \
+        --model=h2oai/h2ogpt-4096-llama2-7b-chat \
         --tokenizer=hf-internal-testing/llama-tokenizer \
         --tensor-parallel-size=2 \
         --seed 1234 \
-        --download-dir=.vllm_cache &>> logs.vllm_server.txt
+        --trust-remote-code \
+        --download-dir=/.cache/huggingface/hub &>> logs.vllm_server.txt
 ```
+Use `docker run -d` to run in detached background.
 
 Checks the logs `logs.vllm_server.txt` to make sure server is running.
 If ones sees similar output to below, then endpoint it up & running.
