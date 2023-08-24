@@ -99,11 +99,7 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     ```bash
     pip uninstall -y auto-gptq ; GITHUB_ACTIONS=true pip install auto-gptq --extra-index-url https://huggingface.github.io/autogptq-index/whl/cu118/ --no-cache-dir
     ```
-   We recommend to install like the above in order to avoid warnings and inefficient memory usage. If one has trouble installing AutoGPTQ, can try:
-   ```bash
-   pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.4.1/auto_gptq-0.4.1+cu117-cp310-cp310-linux_x86_64.whl
-   ```
-    However, if one sees `CUDA extension not installed` in output after loading model, one needs to compile it, else will use double memory and be slower on GPU.
+    If one sees `CUDA extension not installed` in output after loading model, one needs to compile AutoGPTQ, else will use double memory and be slower on GPU.
     See [AutoGPTQ](README_GPU.md#autogptq) about running AutoGPT models.
 * GPU Optional: For exllama support on x86_64 linux
     ```bash
