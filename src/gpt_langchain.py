@@ -1618,7 +1618,8 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         docs1 = []
         if have_tesseract and enable_ocr:
             # OCR, somewhat works, but not great
-            docs1.extend(UnstructuredImageLoader(file).load())
+            # docs1.extend(UnstructuredImageLoader(file, strategy='ocr_only').load())
+            docs1.extend(UnstructuredImageLoader(file, strategy='hi_res').load())
             add_meta(docs1, file, headsize)
         if enable_captions:
             # BLIP
