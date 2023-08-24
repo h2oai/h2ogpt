@@ -1188,7 +1188,7 @@ def test_client_chat_stream_langchain_openai_embeddings():
     url = 'https://www.africau.edu/images/default/sample.pdf'
     test_file1 = os.path.join('/tmp/', 'sample1.pdf')
     download_simple(url, dest=test_file1)
-    res = client.predict(test_file1, True, 512, langchain_mode,
+    res = client.predict(test_file1, langchain_mode, True, 512,
                          None, None, None, None,
                          api_name='/add_file_api')
     assert res[0] is None
