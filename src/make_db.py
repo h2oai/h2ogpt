@@ -1,6 +1,10 @@
 import ast
 import os
+import sys
 from typing import Union, List
+
+if os.path.dirname(os.path.abspath(os.path.join(__file__, '..'))) not in sys.path:
+    sys.path.append(os.path.dirname(os.path.abspath(os.path.join(__file__, '..'))))
 
 from gpt_langchain import path_to_docs, get_some_dbs_from_hf, all_db_zips, some_db_zips, create_or_update_db, \
     get_persist_directory

@@ -215,6 +215,8 @@ If one needs to only setup vLLM one can stop here.
 
 ### Run h2oGPT
 ```bash
+mkdir -p ~/.cache
+mkdir -p ~/save
 docker run \
     --gpus '"device=2,3"' \
     --runtime=nvidia \
@@ -320,6 +322,62 @@ For maximal summarization performance when connecting to TGI server, auto-detect
 When one is done with the docker instance, run `docker ps` and find the container ID's hash, then run `docker stop <hash>`.
 
 Follow [README_InferenceServers.md](README_InferenceServers.md) for similar (and more) examples of how to launch TGI server using docker.
+
+## Make UserData db for generate.py using Docker
+
+To make UserData db for generate.py, put pdfs, etc. into path user_path and run:
+```bash
+mkdir -p ~/.cache
+mkdir -p ~/save
+mkdir -p user_path 
+mkdir -p db_dir_UserData
+docker run \
+       --gpus all \
+       --runtime=nvidia \
+       --shm-size=2g \
+       --rm --init \
+       --network host \
+       -v /etc/passwd:/etc/passwd:ro \
+       -v /etc/group:/etc/group:ro \
+       -u `id -u`:`id -g` \
+       -v "${HOME}"/.cache:/workspace/.cache \
+       -v "${HOME}"/save:/workspace/save \
+       -v user_path:/workspace/user_path \
+       -v db_dir_UserData:/workspace/db_dir_UserData \
+       gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 /workspace/src/make_db.py
+```
+
+Once db is made, can use in generate.py like:
+```bash
+export CUDA_VISIBLE_DEVICES=0
+docker run \
+       --gpus all \
+       --runtime=nvidia \
+       --shm-size=2g \
+       -p 7860:7860 \
+       --rm --init \
+       --network host \
+       -e CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES \
+       -v /etc/passwd:/etc/passwd:ro \
+       -v /etc/group:/etc/group:ro \
+       -u `id -u`:`id -g` \
+       -v "${HOME}"/.cache:/workspace/.cache \
+       -v "${HOME}"/save:/workspace/save \
+       -v user_path:/workspace/user_path \
+       -v db_dir_UserData:/workspace/db_dir_UserData \
+       gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 /workspace/generate.py \
+          --base_model=h2oai/h2ogpt-4096-llama2-7b-chat \
+          --use_safetensors=True \
+          --prompt_type=llama2 \
+          --save_dir='/workspace/save/' \
+          --use_gpu_id=False \
+          --score_model=None \
+          --max_max_new_tokens=2048 \
+          --max_new_tokens=1024 \
+          --langchain_mode=UserData
+```
+
+For a more detailed description of other parameters of the make_db script, checkout the definition in this file: https://github.com/h2oai/h2ogpt/blob/main/src/make_db.py
 
 ## Build Docker
 
