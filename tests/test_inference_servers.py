@@ -239,8 +239,8 @@ def run_vllm_docker(inf_port, base_model, tokenizer=None):
               '-u', '%s:%s' % (os.getuid(), os.getgid()),
               '-v', '%s/.cache:/.cache/' % home_dir,
               #'--network', 'host',
-              # 'gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0',
-              # 'h2ogpt',  # use when built locally with vLLM just freshly added
+              'gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0',
+               # 'h2ogpt',  # use when built locally with vLLM just freshly added
               'docker.io/library/h2ogpt',
               '-m', 'vllm.entrypoints.openai.api_server',
               '--port=5000',
@@ -292,8 +292,8 @@ def run_h2ogpt_docker(port, base_model, inference_server=None, max_new_tokens=No
               '-u', '%s:%s' % (os.getuid(), os.getgid()),
               '-e', 'HUGGING_FACE_HUB_TOKEN=%s' % os.environ['HUGGING_FACE_HUB_TOKEN'],
               '--network', 'host',
-              #'gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0',
-              'h2ogpt',
+              'gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0',
+              #'h2ogpt',  # use when built locally with vLLM just freshly added
               '/workspace/generate.py',
                     '--base_model=%s' % base_model,
               '--use_safetensors=True',

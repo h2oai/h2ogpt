@@ -235,7 +235,6 @@ docker run \
 
 Make sure to set `--inference_server` argument to the correct vllm endpoint.
 
-
 When one is done with the docker instance, run `docker ps` and find the container ID's hash, then run `docker stop <hash>`.
 
 Follow [README_InferenceServers.md](README_InferenceServers.md) for more information on how to setup vLLM.
