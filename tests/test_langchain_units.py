@@ -501,8 +501,8 @@ def test_make_add_db(repeat, db_type):
                                                                             selection_docs_state2,
                                                                             requests_state2,
                                                                             langchain_mode2,
-                                                                            chunk,
-                                                                            chunk_size,
+                                                                            chunk=chunk,
+                                                                            chunk_size=chunk_size,
                                                                             dbs={}, db_type=db_type,
                                                                             **kwargs)
                     assert z1 is None
@@ -518,7 +518,8 @@ def test_make_add_db(repeat, db_type):
                                                                             selection_docs_state1,
                                                                             requests_state1,
                                                                             langchain_mode,
-                                                                            chunk, chunk_size,
+                                                                            chunk=chunk,
+                                                                            chunk_size=chunk_size,
                                                                             dbs={langchain_mode: db},
                                                                             db_type=db_type,
                                                                             **kwargs)
