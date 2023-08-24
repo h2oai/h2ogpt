@@ -87,7 +87,7 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
 * GPU Optional: For AutoGPTQ support on x86_64 linux
     Try H2O.ai's pre-built wheel:
     ```bash
-    pip uninstall -y auto-gptq ; pip install https://s3.amazonaws.com/artifacts.h2o.ai/deps/h2ogpt/auto_gptq-0.4.1-cp310-cp310-linux_x86_64.whl --use-deprecated=legacy-resolver
+    pip uninstall -y auto-gptq ; pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.4.1/auto_gptq-0.4.1+cu117-cp310-cp310-linux_x86_64.whl
     ```
     This avoids issues with missing cuda extensions etc.  if this does not apply to your system, run:
     ```bash
