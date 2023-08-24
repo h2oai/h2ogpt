@@ -109,7 +109,7 @@ In either case, if the model card doesn't have that information, you'll need to 
 
 The option `--use_openai_embedding` set to `True` or `False` controls whether use OpenAI embedding, `--hf_embedding_model` set to some HuggingFace model name sets that as embedding model if not using OpenAI.  The setting `--migrate_embedding_model` as `True` or `False` chooses whether to migrate to new chosen embeddings or stick with existing/original embedding for a given database.  The option `--cut_distance` as float chooses the distance above which to avoid using document sources.  The default is 1.64, tuned for  Mini and instructor-large.  One can pass `--cut_distance=100000` to avoid any filter.  E.g.
 ```bash
-python generate.py --base_model=meta-llama/Llama-2-13b-chat-hf  --score_model=None --langchain_mode='UserData' --user_path=user_path --use_auth_token=True --hf_embedding_model=BAAI/bge-large-en --cut_distance=1000000
+python generate.py --base_model=h2oai/h2ogpt-4096-llama2-13b-chat  --score_model=None --langchain_mode='UserData' --user_path=user_path --use_auth_token=True --hf_embedding_model=BAAI/bge-large-en --cut_distance=1000000
 ```
 
 ### In-Context learning via Prompt Engineering
