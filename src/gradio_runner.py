@@ -783,8 +783,11 @@ def go_gradio(**kwargs):
                                                                multiselect=False,
                                                                visible=True,
                                                                )
+                            info_view_raw = "Raw text shown if render of original doc fails"
+                            if is_public:
+                                info_view_raw += " (Up to %s chunks in public portal)" % kwargs['max_raw_chunks']
                             view_raw_text_checkbox = gr.Checkbox(label="View Database Text", value=False,
-                                                                 info="Raw text shown if render of original doc fails",
+                                                                 info=info_view_raw,
                                                                  visible=kwargs['db_type'] == 'chroma')
                         with gr.Column(scale=4):
                             pass
@@ -1553,7 +1556,8 @@ def go_gradio(**kwargs):
                      hf_embedding_model1=None,
                      migrate_embedding_model1=None,
                      verbose1=False,
-                     get_userid_auth1=None):
+                     get_userid_auth1=None,
+                     max_raw_chunks=1000000):
             file = single_document_choice1
             document_choice1 = [single_document_choice1]
             content = None
@@ -1593,13 +1597,14 @@ def go_gradio(**kwargs):
                 docs_with_score = [(Document(page_content=result[0], metadata=result[1] or {}), 0)
                                    for result in zip(db_documents, db_metadatas)]
                 doc_chunk_ids = [x.get('chunk_id', -1) for x in db_metadatas]
+                doc_page_ids = [x.get('page', 0) for x in db_metadatas]
                 doc_hashes = [x.get('doc_hash', 'None') for x in db_metadatas]
-                docs_with_score = [x for hx, cx, x in
-                                   sorted(zip(doc_hashes, doc_chunk_ids, docs_with_score), key=lambda x: (x[0], x[1]))
+                docs_with_score = [x for hx, px, cx, x in
+                                   sorted(zip(doc_hashes, doc_page_ids, doc_chunk_ids, docs_with_score), key=lambda x: (x[0], x[1]))
                                    # if cx == -1
                                    ]
-                db_metadatas = [x[0].metadata for x in docs_with_score]
-                db_documents = [x[0].page_content for x in docs_with_score]
+                db_metadatas = [x[0].metadata for x in docs_with_score][:max_raw_chunks]
+                db_documents = [x[0].page_content for x in docs_with_score][:max_raw_chunks]
                 # done reordering
                 if view_raw_text_checkbox1:
                     content = [dict_to_html(x) + '\n' + text_to_html(y) for x, y in zip(db_metadatas, db_documents)]
@@ -1730,7 +1735,9 @@ def go_gradio(**kwargs):
                                           hf_embedding_model1=hf_embedding_model,
                                           migrate_embedding_model1=migrate_embedding_model,
                                           verbose1=verbose,
-                                          get_userid_auth1=get_userid_auth)
+                                          get_userid_auth1=get_userid_auth,
+                                          max_raw_chunks=kwargs['max_raw_chunks'],
+                                          )
         eventdb_viewa.then(fn=show_doc_func,
                            inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode,
                                    view_document_choice, view_raw_text_checkbox],

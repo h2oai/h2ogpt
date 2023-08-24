@@ -1412,7 +1412,11 @@ def try_as_html(doc1, file):
     return doc1
 
 
-def add_meta(docs1, file, headsize):
+def add_parser(docs1, parser):
+    [x.metadata.update(dict(parser=x.metadata.get('parser', parser))) for x in docs1]
+
+
+def add_meta(docs1, file, headsize, parser='NotSet'):
     if os.path.isfile(file):
         file_extension = pathlib.Path(file).suffix
         hashid = hash_file(file)
@@ -1423,6 +1427,7 @@ def add_meta(docs1, file, headsize):
     if not isinstance(docs1, (list, tuple, types.GeneratorType)):
         docs1 = [docs1]
     [x.metadata.update(dict(input_type=file_extension,
+                            parser=x.metadata.get('parser', parser),
                             date=str(datetime.now()),
                             hashid=hashid,
                             doc_hash=doc_hash,
@@ -1535,14 +1540,17 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             if only_unstructured_urls or only_playwright:
                 do_selenium = False
             if do_unstructured or use_unstructured:
-                docs1 = UnstructuredURLLoader(urls=[file]).load()
-                docs1 = [x for x in docs1 if x.page_content]
+                docs1a = UnstructuredURLLoader(urls=[file]).load()
+                docs1a = [x for x in docs1a if x.page_content]
+                add_parser(docs1a, 'UnstructuredURLLoader')
             if len(docs1) == 0 and have_playwright or do_playwright:
                 # then something went wrong, try another loader:
                 from langchain.document_loaders import PlaywrightURLLoader
                 docs1a = asyncio.run(PlaywrightURLLoader(urls=[file]).aload())
                 #docs1 = PlaywrightURLLoader(urls=[file]).load()
-                docs1.extend([x for x in docs1a if x.page_content])
+                docs1a = [x for x in docs1a if x.page_content]
+                add_parser(docs1a, 'PlaywrightURLLoader')
+                docs1.extend(docs1a)
             if len(docs1) == 0 and have_selenium or do_selenium:
                 # then something went wrong, try another loader:
                 # but requires Chrome binary, else get: selenium.common.exceptions.WebDriverException:
@@ -1551,11 +1559,13 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                 from selenium.common.exceptions import WebDriverException
                 try:
                     docs1a = SeleniumURLLoader(urls=[file]).load()
-                    docs1.extend([x for x in docs1a if x.page_content])
+                    docs1a = [x for x in docs1a if x.page_content]
+                    add_parser(docs1a, 'SeleniumURLLoader')
+                    docs1.extend(docs1a)
                 except WebDriverException as e:
                     print("No web driver: %s" % str(e), flush=True)
             [x.metadata.update(dict(input_type='url', date=str(datetime.now))) for x in docs1]
-        add_meta(docs1, file, headsize)
+        add_meta(docs1, file, headsize, parser="is_url")
         docs1 = clean_doc(docs1)
         doc1 = chunk_sources(docs1)
     elif is_txt:
@@ -1566,28 +1576,28 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             f.write(file)
         metadata = dict(source=source_file, date=str(datetime.now()), input_type='pasted txt')
         doc1 = Document(page_content=file, metadata=metadata)
-        add_meta(doc1, file, headsize)
+        add_meta(doc1, file, headsize, parser="f.write")
         doc1 = clean_doc(doc1)
     elif file.lower().endswith('.html') or file.lower().endswith('.mhtml') or file.lower().endswith('.htm'):
         docs1 = UnstructuredHTMLLoader(file_path=file).load()
-        add_meta(docs1, file, headsize)
+        add_meta(docs1, file, headsize, parser='UnstructuredHTMLLoader')
         docs1 = clean_doc(docs1)
         doc1 = chunk_sources(docs1, language=Language.HTML)
     elif (file.lower().endswith('.docx') or file.lower().endswith('.doc')) and (have_libreoffice or True):
         docs1 = UnstructuredWordDocumentLoader(file_path=file).load()
-        add_meta(docs1, file, headsize)
+        add_meta(docs1, file, headsize, parser='UnstructuredWordDocumentLoader')
         doc1 = chunk_sources(docs1)
     elif (file.lower().endswith('.xlsx') or file.lower().endswith('.xls')) and (have_libreoffice or True):
         docs1 = UnstructuredExcelLoader(file_path=file).load()
-        add_meta(docs1, file, headsize)
+        add_meta(docs1, file, headsize, parser='UnstructuredExcelLoader')
         doc1 = chunk_sources(docs1)
     elif file.lower().endswith('.odt'):
         docs1 = UnstructuredODTLoader(file_path=file).load()
-        add_meta(docs1, file, headsize)
+        add_meta(docs1, file, headsize, parser='UnstructuredODTLoader')
         doc1 = chunk_sources(docs1)
     elif file.lower().endswith('pptx') or file.lower().endswith('ppt'):
         docs1 = UnstructuredPowerPointLoader(file_path=file).load()
-        add_meta(docs1, file, headsize)
+        add_meta(docs1, file, headsize, parser='UnstructuredPowerPointLoader')
         docs1 = clean_doc(docs1)
         doc1 = chunk_sources(docs1)
     elif file.lower().endswith('.txt'):
@@ -1596,38 +1606,39 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         # makes just one, but big one
         doc1 = chunk_sources(docs1)
         doc1 = clean_doc(doc1)
-        add_meta(doc1, file, headsize)
+        add_meta(doc1, file, headsize, parser='TextLoader')
     elif file.lower().endswith('.rtf'):
         docs1 = UnstructuredRTFLoader(file).load()
-        add_meta(docs1, file, headsize)
+        add_meta(docs1, file, headsize, parser='UnstructuredRTFLoader')
         doc1 = chunk_sources(docs1)
     elif file.lower().endswith('.md'):
         docs1 = UnstructuredMarkdownLoader(file).load()
-        add_meta(docs1, file, headsize)
+        add_meta(docs1, file, headsize, parser='UnstructuredMarkdownLoader')
         docs1 = clean_doc(docs1)
         doc1 = chunk_sources(docs1, language=Language.MARKDOWN)
     elif file.lower().endswith('.enex'):
         docs1 = EverNoteLoader(file).load()
-        add_meta(doc1, file, headsize)
+        add_meta(doc1, file, headsize, parser='EverNoteLoader')
         doc1 = chunk_sources(docs1)
     elif file.lower().endswith('.epub'):
         docs1 = UnstructuredEPubLoader(file).load()
-        add_meta(docs1, file, headsize)
+        add_meta(docs1, file, headsize, parser='UnstructuredEPubLoader')
         doc1 = chunk_sources(docs1)
     elif any(file.lower().endswith(x) for x in set_image_types1):
         docs1 = []
         if have_tesseract and enable_ocr:
             # OCR, somewhat works, but not great
             # docs1.extend(UnstructuredImageLoader(file, strategy='ocr_only').load())
-            docs1.extend(UnstructuredImageLoader(file, strategy='hi_res').load())
-            add_meta(docs1, file, headsize)
+            docs1a = UnstructuredImageLoader(file, strategy='hi_res').load()
+            add_meta(docs1a, file, headsize, parser='UnstructuredImageLoader')
+            docs1.extend(docs1a)
         if enable_captions:
             # BLIP
             if caption_loader is not None and not isinstance(caption_loader, (str, bool)):
                 # assumes didn't fork into this process with joblib, else can deadlock
                 caption_loader.set_image_paths([file])
                 docs1c = caption_loader.load()
-                add_meta(docs1c, file, headsize)
+                add_meta(docs1c, file, headsize, parser='caption_loader')
                 docs1.extend(docs1c)
             else:
                 from image_captions import H2OImageCaptionLoader
@@ -1636,7 +1647,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                                                        blip_processor=captions_model)
                 caption_loader.set_image_paths([file])
                 docs1c = caption_loader.load()
-                add_meta(docs1c, file, headsize)
+                add_meta(docs1c, file, headsize, parser='H2OImageCaptionLoader: %s' % captions_model)
                 docs1.extend(docs1c)
             # caption didn't set source, so fix-up meta
             for doci in docs1:
@@ -1651,7 +1662,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
     elif file.lower().endswith('.eml'):
         try:
             docs1 = UnstructuredEmailLoader(file).load()
-            add_meta(docs1, file, headsize)
+            add_meta(docs1, file, headsize, parser='UnstructuredEmailLoader')
             doc1 = chunk_sources(docs1)
         except ValueError as e:
             if 'text/html content not found in email' in str(e):
@@ -1664,7 +1675,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             # doc1 = TextLoader(file, encoding="utf8").load()
             docs1 = UnstructuredEmailLoader(file, content_source="text/plain").load()
             docs1 = [x for x in docs1 if x.page_content]
-            add_meta(docs1, file, headsize)
+            add_meta(docs1, file, headsize, parser='UnstructuredEmailLoader text/plain')
             doc1 = chunk_sources(docs1)
     # elif file.lower().endswith('.gcsdir'):
     #    doc1 = GCSDirectoryLoader(project_name, bucket, prefix).load()
@@ -1673,7 +1684,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
     elif file.lower().endswith('.rst'):
         with open(file, "r") as f:
             doc1 = Document(page_content=f.read(), metadata={"source": file})
-        add_meta(doc1, file, headsize)
+        add_meta(doc1, file, headsize, parser='f.read()')
         doc1 = chunk_sources(doc1, language=Language.RST)
     elif file.lower().endswith('.json'):
         loader = JSONLoader(
@@ -1683,6 +1694,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             text_content=False,
             metadata_func=json_metadata_func)
         doc1 = loader.load()
+        add_meta(doc1, file, headsize, parser='JSONLoader: %s' % jq_schema)
     elif file.lower().endswith('.jsonl'):
         loader = JSONLoader(
             file_path=file,
@@ -1692,6 +1704,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             text_content=False,
             metadata_func=json_metadata_func)
         doc1 = loader.load()
+        add_meta(doc1, file, headsize, parser='JSONLoader: %s' % jq_schema)
     elif file.lower().endswith('.pdf'):
         doc1 = []
         handled = False
@@ -1709,6 +1722,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             handled |= len(doc1a) > 0
             doc1a = [x for x in doc1a if x.page_content]
             doc1a = clean_doc(doc1a)
+            add_parser(doc1a, 'PyMuPDFLoader')
             doc1.extend(doc1a)
         if len(doc1) == 0 or use_unstructured_pdf:
             try:
@@ -1719,6 +1733,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             handled |= len(doc1a) > 0
             # remove empty documents
             doc1a = [x for x in doc1a if x.page_content]
+            add_parser(doc1a, 'UnstructuredPDFLoader')
             # seems to not need cleaning in most cases
             doc1.extend(doc1a)
         if len(doc1) == 0 or use_pypdf:
@@ -1733,6 +1748,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             # remove empty documents
             doc1a = [x for x in doc1a if x.page_content]
             doc1a = clean_doc(doc1a)
+            add_parser(doc1a, 'PyPDFLoader')
             doc1.extend(doc1a)
         if ((have_pymupdf and len(doc1) == 0) and
                 (have_pymupdf and use_pymupdf)):
@@ -1749,9 +1765,11 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             # remove empty documents
             doc1a = [x for x in doc1a if x.page_content]
             doc1a = clean_doc(doc1a)
+            add_parser(doc1a, 'PyMuPDFLoader2')
             doc1.extend(doc1a)
         if try_pdf_as_html:
             doc1a = try_as_html(doc1, file)
+            add_parser(doc1a, 'try_as_html')
             doc1.extend(doc1a)
         if len(doc1) == 0 and enable_pdf_ocr == 'auto' or enable_pdf_ocr == 'on':
             # try OCR in end since slowest, but works on pure image pages well
@@ -1759,6 +1777,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             handled |= len(doc1a) > 0
             # remove empty documents
             doc1a = [x for x in doc1a if x.page_content]
+            add_parser(doc1a, 'UnstructuredPDFLoader ocr_only')
             # seems to not need cleaning in most cases
             doc1.extend(doc1a)
         # Some PDFs return nothing or junk from PDFMinerLoader
@@ -1768,11 +1787,11 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                 raise ValueError("%s had no valid text, but meta data was parsed" % file)
             else:
                 raise ValueError("%s had no valid text and no meta data was parsed: %s" % (file, str(e)))
-        add_meta(doc1, file, headsize)
+        add_meta(doc1, file, headsize, parser='pdf')
         doc1 = chunk_sources(doc1)
     elif file.lower().endswith('.csv'):
         doc1 = CSVLoader(file).load()
-        add_meta(doc1, file, headsize)
+        add_meta(doc1, file, headsize, parser='CSVLoader')
         if isinstance(doc1, list):
             # each row is a Document, identify
             [x.metadata.update(dict(chunk_id=chunk_id)) for chunk_id, x in enumerate(doc1)]
@@ -1783,11 +1802,11 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                 doc1 = sdoc1 + doc1
     elif file.lower().endswith('.py'):
         doc1 = PythonLoader(file).load()
-        add_meta(doc1, file, headsize)
+        add_meta(doc1, file, headsize, parser='PythonLoader')
         doc1 = chunk_sources(doc1, language=Language.PYTHON)
     elif file.lower().endswith('.toml'):
         doc1 = TomlLoader(file).load()
-        add_meta(doc1, file, headsize)
+        add_meta(doc1, file, headsize, parser='TomlLoader')
         doc1 = chunk_sources(doc1)
     elif file.lower().endswith('.urls'):
         with open(file, "r") as f:

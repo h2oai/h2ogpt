@@ -165,6 +165,7 @@ def main(
         visible_hosts_tab: bool = False,
         chat_tables: bool = False,
         visible_h2ogpt_header: bool = True,
+        max_raw_chunks: int = None,
 
         sanitize_user_prompt: bool = False,
         sanitize_bot_response: bool = False,
@@ -681,6 +682,8 @@ def main(
         allow_upload_to_user_data = False
         if LangChainMode.USER_DATA.value in langchain_modes:
             langchain_modes.remove(LangChainMode.USER_DATA.value)
+    if max_raw_chunks is None:
+        max_raw_chunks = 30 if is_public else 1000000
 
     # in-place, for non-scratch dbs
     if allow_upload_to_user_data:
