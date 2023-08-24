@@ -1701,36 +1701,39 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             from langchain.document_loaders import PyMuPDFLoader
             # load() still chunks by pages, but every page has title at start to help
             try:
-                doc1 = PyMuPDFLoader(file).load()
+                doc1a = PyMuPDFLoader(file).load()
             except BaseException as e0:
                 print("PyMuPDFLoader: %s" % str(e0), flush=True)
                 e = e0
             # remove empty documents
-            handled |= len(doc1) > 0
-            doc1 = [x for x in doc1 if x.page_content]
-            doc1 = clean_doc(doc1)
+            handled |= len(doc1a) > 0
+            doc1a = [x for x in doc1a if x.page_content]
+            doc1a = clean_doc(doc1a)
+            doc1.extend(doc1a)
         if len(doc1) == 0 or use_unstructured_pdf:
             try:
-                doc1 = UnstructuredPDFLoader(file).load()
+                doc1a = UnstructuredPDFLoader(file).load()
             except BaseException as e0:
                 print("UnstructuredPDFLoader: %s" % str(e0), flush=True)
                 e = e0
-            handled |= len(doc1) > 0
+            handled |= len(doc1a) > 0
             # remove empty documents
-            doc1 = [x for x in doc1 if x.page_content]
+            doc1a = [x for x in doc1a if x.page_content]
             # seems to not need cleaning in most cases
+            doc1.extend(doc1a)
         if len(doc1) == 0 or use_pypdf:
             # open-source fallback
             # load() still chunks by pages, but every page has title at start to help
             try:
-                doc1 = PyPDFLoader(file).load()
+                doc1a = PyPDFLoader(file).load()
             except BaseException as e0:
                 print("PyPDFLoader: %s" % str(e0), flush=True)
                 e = e0
-            handled |= len(doc1) > 0
+            handled |= len(doc1a) > 0
             # remove empty documents
-            doc1 = [x for x in doc1 if x.page_content]
-            doc1 = clean_doc(doc1)
+            doc1a = [x for x in doc1a if x.page_content]
+            doc1a = clean_doc(doc1a)
+            doc1.extend(doc1a)
         if ((have_pymupdf and len(doc1) == 0) and
                 (have_pymupdf and use_pymupdf)):
             # try again in case only others used, but only if didn't already try (2nd part of and)
@@ -1738,23 +1741,26 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             from langchain.document_loaders import PyMuPDFLoader
             # load() still chunks by pages, but every page has title at start to help
             try:
-                doc1 = PyMuPDFLoader(file).load()
+                doc1a = PyMuPDFLoader(file).load()
             except BaseException as e0:
                 print("PyMuPDFLoader: %s" % str(e0), flush=True)
                 e = e0
-            handled |= len(doc1) > 0
+            handled |= len(doc1a) > 0
             # remove empty documents
-            doc1 = [x for x in doc1 if x.page_content]
-            doc1 = clean_doc(doc1)
+            doc1a = [x for x in doc1a if x.page_content]
+            doc1a = clean_doc(doc1a)
+            doc1.extend(doc1a)
         if try_pdf_as_html:
-            doc1 = try_as_html(doc1, file)
+            doc1a = try_as_html(doc1, file)
+            doc1.extend(doc1a)
         if len(doc1) == 0 and enable_pdf_ocr == 'auto' or enable_pdf_ocr == 'on':
             # try OCR in end since slowest, but works on pure image pages well
-            doc1 = UnstructuredPDFLoader(file, strategy='ocr_only').load()
-            handled |= len(doc1) > 0
+            doc1a = UnstructuredPDFLoader(file, strategy='ocr_only').load()
+            handled |= len(doc1a) > 0
             # remove empty documents
-            doc1 = [x for x in doc1 if x.page_content]
+            doc1a = [x for x in doc1a if x.page_content]
             # seems to not need cleaning in most cases
+            doc1.extend(doc1a)
         # Some PDFs return nothing or junk from PDFMinerLoader
         if len(doc1) == 0:
             # if literally nothing, show failed to parse so user knows, since unlikely nothing in PDF at all.
