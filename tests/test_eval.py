@@ -120,11 +120,15 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
                  'document_subset': DocumentSubset.Relevant.name,  # matches return
                  'document_choice': np.array([]),  # matches return
                  'langchain_agents': np.array([]),  # matches return
-                 'pre_prompt_query': '',
-                 'prompt_query': '',
-                 'pre_prompt_summary': '',
+                 'pre_prompt_query': None,
+                 'prompt_query': None,
+                 'pre_prompt_summary': None,
                  'prompt_summary': '',
-                 'system_prompt': '',
+                 'system_prompt': None,
+                 'image_loaders': np.array(['Caption'], dtype=object),
+                 'pdf_loaders': np.array(['PyMuPDF'], dtype=object),
+                 'url_loaders': np.array(['Unstructured'], dtype=object),
+                 'jq_schema': '.[]',
                  }
     expected1.update({k: v for k, v in kwargs.items() if
                       k not in ['load_half', 'load_4bit', 'load_8bit', 'load_gptq', 'load_exllama', 'use_safetensors']})

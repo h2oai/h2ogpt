@@ -30,7 +30,7 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mappin
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
-    have_langchain, set_openai, cuda_vis_check, H2O_Fire, lg_to_gr
+    have_langchain, set_openai, cuda_vis_check, H2O_Fire, lg_to_gr, get_ngpus_vis
 
 start_faulthandler()
 import_matplotlib()
@@ -855,6 +855,7 @@ def main(
     image_loaders_options0, image_loaders_options, \
         pdf_loaders_options0, pdf_loaders_options, \
         url_loaders_options0, url_loaders_options = lg_to_gr(**locals())
+    jq_schema0 = jq_schema
     # transcribe
     image_loaders = image_loaders_options0
     pdf_loaders = pdf_loaders_options0
@@ -1213,7 +1214,8 @@ def get_non_lora_model(base_model, model_loader, load_half,
     else:
         device_map = "auto"
 
-    n_gpus = torch.cuda.device_count() if torch.cuda.is_available else 0
+    n_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 0
+    n_gpus, gpu_ids = cuda_vis_check(n_gpus)
 
     if n_gpus > 0:
         if gpu_id >= 0:
@@ -1610,25 +1612,27 @@ def get_hf_model(load_8bit: bool = False,
             model_kwargs.pop('torch_dtype', None)
         pop_unused_model_kwargs(model_kwargs)
 
-        if low_bit_mode == 1:
+        n_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 0
+        n_gpus, gpu_ids = cuda_vis_check(n_gpus)
+        if low_bit_mode == 1 and n_gpus != 0:
             from transformers import BitsAndBytesConfig
             model_kwargs['quantization_config'] = BitsAndBytesConfig(bnb_4bit_compute_dtype=torch.bfloat16,
                                                                      load_in_4bit=load_4bit,
                                                                      load_in_8bit=load_8bit,
                                                                      )
-        elif low_bit_mode == 2:
+        elif low_bit_mode == 2 and n_gpus != 0:
             from transformers import BitsAndBytesConfig
             model_kwargs['quantization_config'] = BitsAndBytesConfig(bnb_4bit_quant_type="nf4",
                                                                      load_in_4bit=load_4bit,
                                                                      load_in_8bit=load_8bit,
                                                                      )
-        elif low_bit_mode == 3:
+        elif low_bit_mode == 3 and n_gpus != 0:
             from transformers import BitsAndBytesConfig
             model_kwargs['quantization_config'] = BitsAndBytesConfig(bnb_4bit_use_double_quant=True,
                                                                      load_in_4bit=load_4bit,
                                                                      load_in_8bit=load_8bit,
                                                                      )
-        elif low_bit_mode == 4:
+        elif low_bit_mode == 4 and n_gpus != 0:
             from transformers import BitsAndBytesConfig
             model_kwargs['quantization_config'] = BitsAndBytesConfig(bnb_4bit_use_double_quant=True,
                                                                      bnb_4bit_quant_type="nf4",
