@@ -280,7 +280,8 @@ docker run -d --gpus '"device=0"' \
         --max-batch-total-tokens 2048 \
         --max-stop-sequences 6 &>> logs.infserver.txt
 ```
-then wait till it comes up (e.g. check docker logs for detatched container hash in logs.infserver.txt), about 30 seconds for 7B LLaMa2 on 1 GPU.  Then for h2oGPT, just run one of the commands like the above, but add e.g. `--inference_server=192.168.0.1:6112` to the docker command line.  E.g. using same export's as above, run:
+
+Then wait till it comes up (e.g. check docker logs for detached container hash in logs.infserver.txt), about 30 seconds for 7B LLaMa2 on 1 GPU.  Then for h2oGPT, just run one of the commands like the above, but add e.g. `--inference_server=192.168.0.1:6112` to the docker command line.  E.g. using same export's as above, run:
 ```bash
 export GRADIO_SERVER_PORT=7860
 export CUDA_VISIBLE_DEVICES=0
@@ -290,7 +291,7 @@ docker run -d \
        --gpus all \
        --runtime=nvidia \
        --shm-size=2g \
-       -p $GRADIO_SERVER_PORT:7860 \
+       -p $GRADIO_SERVER_PORT:$GRADIO_SERVER_PORT \
        --rm --init \
        --network host \
        -v /etc/passwd:/etc/passwd:ro \
@@ -309,7 +310,7 @@ docker run -d \
           --max_max_new_tokens=4096 \
           --max_new_tokens=1024 \
 ```
-or change `max_max_new_tokens` to `2048` for low-memory case.
+or change `max_max_new_tokens` to `2048` for low-memory case.  Note the h2oGPT container has `--network host` with same port inside and outside so the other container on same host can see it.  Otherwise use actual IP addersses if on separate hosts.
 
 For maximal summarization performance when connecting to TGI server, auto-detection of file changes in `--user_path` every query, and maximum document filling of context, add these options:
 ```
