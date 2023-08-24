@@ -1639,7 +1639,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                 docs1.extend(docs1c)
             # caption didn't set source, so fix-up meta
             for doci in docs1:
-                doci.metadata['source'] = doci.metadata['image_path']
+                doci.metadata['source'] = doci.metadata.get('image_path', file)
                 doci.metadata['hashid'] = hash_file(doci.metadata['source'])
             if docs1:
                 doc1 = chunk_sources(docs1)
