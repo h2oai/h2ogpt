@@ -11,6 +11,8 @@ from src.utils import download_simple
 
 results_file = "./benchmarks/perf.json"
 
+@pytest.mark.skipif(not os.getenv('BENCHMARK'),
+                    reason="Only for benchmarking")
 @pytest.mark.parametrize("backend", [
     # 'transformers',
     # 'text-generation-inference',

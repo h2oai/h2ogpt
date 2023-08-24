@@ -82,14 +82,14 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
         if model_max_length is not None:
             # can't wait for "hole" if not plain prompt_type, since would lose prefix like <human>:
             # For https://github.com/h2oai/h2ogpt/issues/192
-            for trial in range(0, 3):
+            for trial in range(0, 5):
                 prompt_tokens = tokenizer(prompt_text)['input_ids']
                 num_prompt_tokens = len(prompt_tokens)
                 if num_prompt_tokens > model_max_length:
                     # conservative by using int()
                     chars_per_token = len(prompt_text) / num_prompt_tokens
                     # keep tail, where question is if using langchain
-                    model_max_length_with_buffer = model_max_length - 50
+                    model_max_length_with_buffer = model_max_length - 256
                     prompt_text = prompt_text[-int(model_max_length_with_buffer * chars_per_token):]
                     if verbose:
                         print("reducing %s tokens, assuming average of %s chars/token for %s characters" % (

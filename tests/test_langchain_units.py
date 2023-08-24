@@ -1,3 +1,6 @@
+import gzip
+import io
+import json
 import os
 import shutil
 import tempfile
@@ -213,7 +216,8 @@ def test_qa_daidocs_db_chunk_hf_dbs(db_type, top_k_docs):
     langchain_mode = 'DriverlessAI docs'
     langchain_action = LangChainAction.QUERY.value
     langchain_agents = []
-    persist_directory, langchain_type = get_persist_directory(langchain_mode, langchain_type=LangChainTypes.SHARED.value)
+    persist_directory, langchain_type = get_persist_directory(langchain_mode,
+                                                              langchain_type=LangChainTypes.SHARED.value)
     assert langchain_type == LangChainTypes.SHARED.value
     remove(persist_directory)
     from src.gpt_langchain import _run_qa_db
@@ -280,7 +284,8 @@ def test_qa_daidocs_db_chunk_hf_dbs_switch_embedding(db_type):
     langchain_mode = 'DriverlessAI docs'
     langchain_action = LangChainAction.QUERY.value
     langchain_agents = []
-    persist_directory, langchain_type = get_persist_directory(langchain_mode, langchain_type=LangChainTypes.SHARED.value)
+    persist_directory, langchain_type = get_persist_directory(langchain_mode,
+                                                              langchain_type=LangChainTypes.SHARED.value)
     assert langchain_type == LangChainTypes.SHARED.value
     remove(persist_directory)
     from src.gpt_langchain import _run_qa_db
@@ -500,9 +505,9 @@ def test_make_add_db(repeat, db_type):
                     z1, z2, source_files_added, exceptions = update_user_db(test_file2_my, db1,
                                                                             selection_docs_state2,
                                                                             requests_state2,
-                                                                            chunk,
-                                                                            chunk_size,
                                                                             langchain_mode2,
+                                                                            chunk=chunk,
+                                                                            chunk_size=chunk_size,
                                                                             dbs={}, db_type=db_type,
                                                                             **kwargs)
                     assert z1 is None
@@ -517,8 +522,9 @@ def test_make_add_db(repeat, db_type):
                     z1, z2, source_files_added, exceptions = update_user_db(test_file2, db1,
                                                                             selection_docs_state1,
                                                                             requests_state1,
-                                                                            chunk, chunk_size,
                                                                             langchain_mode,
+                                                                            chunk=chunk,
+                                                                            chunk_size=chunk_size,
                                                                             dbs={langchain_mode: db},
                                                                             db_type=db_type,
                                                                             **kwargs)
@@ -526,7 +532,8 @@ def test_make_add_db(repeat, db_type):
                     assert langchain_mode == z2
                     assert z1 is None
                     docs_state0 = [x.name for x in list(DocumentSubset)]
-                    get_sources(db1, selection_docs_state1, {}, langchain_mode, dbs={langchain_mode: db}, docs_state0=docs_state0)
+                    get_sources(db1, selection_docs_state1, {}, langchain_mode, dbs={langchain_mode: db},
+                                docs_state0=docs_state0)
                     get_sources(db1, selection_docs_state1, {}, 'MyData', dbs={}, docs_state0=docs_state0)
                     selection_docs_state1['langchain_mode_paths'] = {langchain_mode: tmp_user_path}
                     kwargs2 = dict(first_para=False,
@@ -878,7 +885,7 @@ def test_pdf_add(db_type):
                                                add_if_exists=False)
             assert db is not None
             docs = db.similarity_search("Suggestions")
-            assert len(docs) == 3 + (1 if db_type == 'chroma' else 0)
+            assert len(docs) == 3 + (1 if db_type == 'chroma' else 1)  # weaviate uses backup parsers?
             assert 'And more text. And more text.' in docs[0].page_content
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
@@ -1074,6 +1081,96 @@ def test_url_more_add(db_type):
         docs = db.similarity_search("Ukraine")
         assert len(docs) == 4
         assert 'Ukraine' in docs[0].page_content
+
+
+json_data = {
+    "quiz": {
+        "sport": {
+            "q1": {
+                "question": "Which one is correct team name in NBA?",
+                "options": [
+                    "New York Bulls",
+                    "Los Angeles Kings",
+                    "Golden State Warriros",
+                    "Huston Rocket"
+                ],
+                "answer": "Huston Rocket"
+            }
+        },
+        "maths": {
+            "q1": {
+                "question": "5 + 7 = ?",
+                "options": [
+                    "10",
+                    "11",
+                    "12",
+                    "13"
+                ],
+                "answer": "12"
+            },
+            "q2": {
+                "question": "12 - 8 = ?",
+                "options": [
+                    "1",
+                    "2",
+                    "3",
+                    "4"
+                ],
+                "answer": "4"
+            }
+        }
+    }
+}
+
+
+@pytest.mark.parametrize("db_type", db_types)
+@wrap_test_forked
+def test_json_add(db_type):
+    kill_weaviate(db_type)
+    from src.make_db import make_db_main
+    with tempfile.TemporaryDirectory() as tmp_persist_directory:
+        with tempfile.TemporaryDirectory() as tmp_user_path:
+            # too slow:
+            # eval_filename = 'ShareGPT_V3_unfiltered_cleaned_split_no_imsorry.json'
+            # url = "https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/resolve/main/%s" % eval_filename
+            test_file1 = os.path.join(tmp_user_path, 'sample.json')
+            # download_simple(url, dest=test_file1)
+
+            with open(test_file1, 'wt') as f:
+                f.write(json.dumps(json_data))
+
+            db, collection_name = make_db_main(persist_directory=tmp_persist_directory, user_path=tmp_user_path,
+                                               fail_any_exception=True, db_type=db_type,
+                                               add_if_exists=False)
+            assert db is not None
+            docs = db.similarity_search("NBA")
+            assert len(docs) == 2 if db_type == 'chroma' else 1
+            assert 'Bulls' in docs[0].page_content
+            assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+
+
+@pytest.mark.parametrize("db_type", db_types)
+@wrap_test_forked
+def test_jsonl_gz_add(db_type):
+    kill_weaviate(db_type)
+    from src.make_db import make_db_main
+    with tempfile.TemporaryDirectory() as tmp_persist_directory:
+        with tempfile.TemporaryDirectory() as tmp_user_path:
+            # url = "https://huggingface.co/datasets/OpenAssistant/oasst1/resolve/main/2023-04-12_oasst_spam.messages.jsonl.gz"
+            test_file1 = os.path.join(tmp_user_path, 'sample.jsonl.gz')
+            # download_simple(url, dest=test_file1)
+
+            with gzip.open(test_file1, 'wb') as f:
+                f.write(json.dumps(json_data).encode())
+
+            db, collection_name = make_db_main(persist_directory=tmp_persist_directory, user_path=tmp_user_path,
+                                               fail_any_exception=True, db_type=db_type,
+                                               add_if_exists=False)
+            assert db is not None
+            docs = db.similarity_search("NBA")
+            assert len(docs) == 2 if db_type == 'chroma' else 1
+            assert 'Bulls' in docs[0].page_content
+            assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1).replace('.gz', '')
 
 
 @wrap_test_forked

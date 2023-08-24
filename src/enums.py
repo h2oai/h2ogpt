@@ -144,11 +144,12 @@ def t5_type(model_name):
 
 
 def get_langchain_prompts(pre_prompt_query, prompt_query, pre_prompt_summary, prompt_summary,
-                     model_name, inference_server, model_path_llama):
+                          model_name, inference_server, model_path_llama):
     if model_name and ('falcon' in model_name or
                        'Llama-2'.lower() in model_name.lower() or
-                       model_path_llama and 'llama-2' in model_path_llama.lower()
-    ):
+                       model_path_llama and 'llama-2' in model_path_llama.lower()) or \
+            model_name in [None, '']:
+        # use when no model, like no --base_model
         pre_prompt_query1 = "Pay attention and remember information below, which will help to answer the question or imperative after the context ends.\n"
         prompt_query1 = "According to only the information in the document sources provided within the context above, "
     elif inference_server and inference_server.startswith('openai'):
@@ -171,3 +172,40 @@ def get_langchain_prompts(pre_prompt_query, prompt_query, pre_prompt_summary, pr
         prompt_summary = prompt_summary1
 
     return pre_prompt_query, prompt_query, pre_prompt_summary, prompt_summary
+
+
+def gr_to_lg(image_loaders,
+             pdf_loaders,
+             url_loaders,
+             **kwargs,
+             ):
+    if image_loaders is None:
+        image_loaders = kwargs['image_loaders_options0']
+    if pdf_loaders is None:
+        pdf_loaders = kwargs['pdf_loaders_options0']
+    if url_loaders is None:
+        url_loaders = kwargs['url_loaders_options0']
+    # translate:
+    ret = dict(
+        # urls
+        use_unstructured='Unstructured' in url_loaders,
+        use_playwright='PlayWright' in url_loaders,
+        use_selenium='Selenium' in url_loaders,
+
+        # pdfs
+        use_pymupdf='PyMuPDF' in pdf_loaders,
+        use_unstructured_pdf='Unstructured' in pdf_loaders,
+        use_pypdf='PyPDF' in pdf_loaders,
+        enable_pdf_ocr='on' if 'OCR' in pdf_loaders else 'auto',
+        try_pdf_as_html='TryHTML' in pdf_loaders,
+
+        # images
+        enable_ocr='OCR' in image_loaders,
+        enable_captions='Caption' in image_loaders or 'CaptionBlip2' in image_loaders,
+    )
+    if 'CaptionBlip2' in image_loaders:
+        # just override, don't actually do both even if user chose both
+        captions_model = "Salesforce/blip2-flan-t5-xl"
+    else:
+        captions_model = kwargs['captions_model']
+    return ret, captions_model

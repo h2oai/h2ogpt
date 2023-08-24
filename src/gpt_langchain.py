@@ -3,6 +3,7 @@ import asyncio
 import copy
 import functools
 import glob
+import gzip
 import inspect
 import os
 import pathlib
@@ -31,7 +32,7 @@ from tqdm import tqdm
 
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
-    super_source_postfix, langchain_modes_intrinsic
+    super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts
 from evaluate_params import gen_hyper
 from gen import get_model, SEED
 from prompter import non_hf_types, PromptType, Prompter
@@ -39,7 +40,7 @@ from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename
     get_device, ProgressParallel, remove, hash_file, clear_torch_cache, NullContext, get_hf_server, FakeTokenizer, \
     have_libreoffice, have_arxiv, have_playwright, have_selenium, have_tesseract, have_pymupdf, set_openai, \
     get_list_or_str, have_pillow, only_selenium, only_playwright, only_unstructured_urls, get_sha, get_short_name, \
-    get_accordion
+    get_accordion, have_jq
 from utils_langchain import StreamingGradioCallbackHandler
 
 import_matplotlib()
@@ -56,7 +57,7 @@ from langchain.document_loaders import PyPDFLoader, TextLoader, CSVLoader, Pytho
     UnstructuredURLLoader, UnstructuredHTMLLoader, UnstructuredWordDocumentLoader, UnstructuredMarkdownLoader, \
     EverNoteLoader, UnstructuredEmailLoader, UnstructuredODTLoader, UnstructuredPowerPointLoader, \
     UnstructuredEPubLoader, UnstructuredImageLoader, UnstructuredRTFLoader, ArxivLoader, UnstructuredPDFLoader, \
-    UnstructuredExcelLoader
+    UnstructuredExcelLoader, JSONLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter, Language
 from langchain.chains.question_answering import load_qa_chain
 from langchain.docstore.document import Document
@@ -376,6 +377,7 @@ class GradioInference(LLM):
     context: Any = ''
     iinput: Any = ''
     client: Any = None
+    tokenizer: Any = None
 
     class Config:
         """Configuration for this pydantic object."""
@@ -507,6 +509,11 @@ class GradioInference(LLM):
                 text_callback(text_chunk)
             return self.prompter.get_response(prompt + text, prompt=prompt,
                                               sanitize_bot_response=self.sanitize_bot_response)
+
+    def get_token_ids(self, text: str) -> List[int]:
+        return self.tokenizer.encode(text)
+        # avoid base method that is not aware of how to properly tokenize (uses GPT2)
+        # return _get_token_ids_default_method(text)
 
 
 class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
@@ -789,6 +796,13 @@ class H2OOpenAI(OpenAI):
         choices[0]['text'] = text
         return self.create_llm_result(choices, prompts, token_usage)
 
+    def get_token_ids(self, text: str) -> List[int]:
+        if self.tokenizer is not None:
+            return self.tokenizer.encode(text)
+        else:
+            # OpenAI uses tiktoken
+            return super().get_token_ids(text)
+
 
 class H2OReplicate(Replicate):
     stop_sequences: Any = None
@@ -816,6 +830,11 @@ class H2OReplicate(Replicate):
         prompt, num_prompt_tokens = H2OTextGenerationPipeline.limit_prompt(prompt, self.tokenizer)
         # Note Replicate handles the prompting of the specific model
         return super()._call(prompt, stop=stop, run_manager=run_manager, **kwargs)
+
+    def get_token_ids(self, text: str) -> List[int]:
+        return self.tokenizer.encode(text)
+        # avoid base method that is not aware of how to properly tokenize (uses GPT2)
+        # return _get_token_ids_default_method(text)
 
 
 class H2OChatOpenAI(ChatOpenAI):
@@ -933,6 +952,8 @@ def get_llm(use_openai_model=False,
         if inf_type == 'openai_chat' or inf_type == 'vllm_chat':
             cls = H2OChatOpenAI
             # FIXME: Support context, iinput
+            # if inf_type == 'vllm_chat':
+            #    kwargs_extra.update(dict(tokenizer=tokenizer))
         elif inf_type == 'openai_azure_chat':
             cls = H2OAzureChatOpenAI
             kwargs_extra.update(dict(openai_api_type='azure'))
@@ -1036,6 +1057,7 @@ def get_llm(use_openai_model=False,
                 iinput=iinput,
                 client=gr_client,
                 sanitize_bot_response=sanitize_bot_response,
+                tokenizer=tokenizer,
             )
         elif hf_client:
             # no need to pass original client, no state and fast, so can use same validate_environment from base class
@@ -1335,7 +1357,10 @@ def get_supported_types():
                         "md",
                         "html", "mhtml", "htm",
                         "enex", "eml", "epub", "odt", "pptx", "ppt",
-                        "zip", "urls",
+                        "zip",
+                        "gz",
+                        "gzip",
+                        "urls",
                         ]
     # "msg",  GPL3
 
@@ -1365,11 +1390,33 @@ set_image_types = set(image_types)
 if have_libreoffice or True:
     # or True so it tries to load, e.g. on MAC/Windows, even if don't have libreoffice since works without that
     non_image_types.extend(["docx", "doc", "xls", "xlsx"])
+if have_jq:
+    non_image_types.extend(["json", "jsonl"])
 
 file_types = non_image_types + image_types
 
 
-def add_meta(docs1, file, headsize):
+def try_as_html(doc1, file):
+    # try treating as html as occurs when scraping websites
+    if len(doc1) == 0:
+        from bs4 import BeautifulSoup
+        with open(file, "rt") as f:
+            try:
+                is_html = bool(BeautifulSoup(f.read(), "html.parser").find())
+            except:  # FIXME
+                is_html = False
+        if is_html:
+            file_url = 'file://' + file
+            doc1 = UnstructuredURLLoader(urls=[file_url]).load()
+            doc1 = [x for x in doc1 if x.page_content]
+    return doc1
+
+
+def add_parser(docs1, parser):
+    [x.metadata.update(dict(parser=x.metadata.get('parser', parser))) for x in docs1]
+
+
+def add_meta(docs1, file, headsize, parser='NotSet'):
     if os.path.isfile(file):
         file_extension = pathlib.Path(file).suffix
         hashid = hash_file(file)
@@ -1380,18 +1427,52 @@ def add_meta(docs1, file, headsize):
     if not isinstance(docs1, (list, tuple, types.GeneratorType)):
         docs1 = [docs1]
     [x.metadata.update(dict(input_type=file_extension,
+                            parser=x.metadata.get('parser', parser),
                             date=str(datetime.now()),
                             hashid=hashid,
                             doc_hash=doc_hash,
                             head=x.page_content[:headsize].strip())) for x in docs1]
 
 
+def json_metadata_func(record: dict, metadata: dict) -> dict:
+    # Define the metadata extraction function.
+
+    metadata["sender_name"] = record.get("sender_name")
+    metadata["timestamp_ms"] = record.get("timestamp_ms")
+
+    if "source" in metadata:
+        metadata["source_json"] = metadata['source']
+    if "seq_num" in metadata:
+        metadata["seq_num_json"] = metadata['seq_num']
+
+    return metadata
+
+
 def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                 chunk=True, chunk_size=512, n_jobs=-1,
                 is_url=False, is_txt=False,
+
+                # urls
+                use_unstructured=True,
+                use_playwright=False,
+                use_selenium=False,
+
+                # pdfs
+                use_pymupdf=True,
+                use_unstructured_pdf=False,
+                use_pypdf=False,
+                enable_pdf_ocr='auto',
+                try_pdf_as_html=True,
+
+                # images
+                enable_ocr=False,
                 enable_captions=True,
                 captions_model=None,
-                enable_ocr=False, enable_pdf_ocr='auto', caption_loader=None,
+                caption_loader=None,
+
+                # json
+                jq_schema='.[]',
+
                 headsize=50,
                 db_type=None,
                 selected_file_types=None):
@@ -1449,31 +1530,43 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             if not (file.startswith("http://") or file.startswith("file://") or file.startswith("https://")):
                 file = 'http://' + file
             docs1 = []
-            do_unstructured = only_unstructured_urls or not (only_selenium or only_playwright)
-            do_playwright = have_playwright and (only_playwright or not (only_selenium or only_unstructured_urls))
-            do_selenium = have_selenium and (only_selenium or not (only_playwright or only_unstructured_urls))
-
-            if do_unstructured:
-                docs1 = UnstructuredURLLoader(urls=[file]).load()
-                docs1 = [x for x in docs1 if x.page_content]
-            if len(docs1) == 0 and do_playwright:
+            do_unstructured = only_unstructured_urls or use_unstructured
+            if only_selenium or only_playwright:
+                do_unstructured = False
+            do_playwright = have_playwright and (use_playwright or only_playwright)
+            if only_unstructured_urls or only_selenium:
+                do_playwright = False
+            do_selenium = have_selenium and (use_selenium or only_selenium)
+            if only_unstructured_urls or only_playwright:
+                do_selenium = False
+            if do_unstructured or use_unstructured:
+                docs1a = UnstructuredURLLoader(urls=[file]).load()
+                docs1a = [x for x in docs1a if x.page_content]
+                add_parser(docs1a, 'UnstructuredURLLoader')
+                docs1.extend(docs1a)
+            if len(docs1) == 0 and have_playwright or do_playwright:
                 # then something went wrong, try another loader:
                 from langchain.document_loaders import PlaywrightURLLoader
-                docs1 = PlaywrightURLLoader(urls=[file]).load()
-                docs1 = [x for x in docs1 if x.page_content]
-            if len(docs1) == 0 and do_selenium:
+                docs1a = asyncio.run(PlaywrightURLLoader(urls=[file]).aload())
+                #docs1 = PlaywrightURLLoader(urls=[file]).load()
+                docs1a = [x for x in docs1a if x.page_content]
+                add_parser(docs1a, 'PlaywrightURLLoader')
+                docs1.extend(docs1a)
+            if len(docs1) == 0 and have_selenium or do_selenium:
                 # then something went wrong, try another loader:
                 # but requires Chrome binary, else get: selenium.common.exceptions.WebDriverException:
                 # Message: unknown error: cannot find Chrome binary
                 from langchain.document_loaders import SeleniumURLLoader
                 from selenium.common.exceptions import WebDriverException
                 try:
-                    docs1 = SeleniumURLLoader(urls=[file]).load()
-                    docs1 = [x for x in docs1 if x.page_content]
+                    docs1a = SeleniumURLLoader(urls=[file]).load()
+                    docs1a = [x for x in docs1a if x.page_content]
+                    add_parser(docs1a, 'SeleniumURLLoader')
+                    docs1.extend(docs1a)
                 except WebDriverException as e:
                     print("No web driver: %s" % str(e), flush=True)
             [x.metadata.update(dict(input_type='url', date=str(datetime.now))) for x in docs1]
-        add_meta(docs1, file, headsize)
+        add_meta(docs1, file, headsize, parser="is_url")
         docs1 = clean_doc(docs1)
         doc1 = chunk_sources(docs1)
     elif is_txt:
@@ -1484,28 +1577,28 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             f.write(file)
         metadata = dict(source=source_file, date=str(datetime.now()), input_type='pasted txt')
         doc1 = Document(page_content=file, metadata=metadata)
-        add_meta(doc1, file, headsize)
+        add_meta(doc1, file, headsize, parser="f.write")
         doc1 = clean_doc(doc1)
     elif file.lower().endswith('.html') or file.lower().endswith('.mhtml') or file.lower().endswith('.htm'):
         docs1 = UnstructuredHTMLLoader(file_path=file).load()
-        add_meta(docs1, file, headsize)
+        add_meta(docs1, file, headsize, parser='UnstructuredHTMLLoader')
         docs1 = clean_doc(docs1)
         doc1 = chunk_sources(docs1, language=Language.HTML)
     elif (file.lower().endswith('.docx') or file.lower().endswith('.doc')) and (have_libreoffice or True):
         docs1 = UnstructuredWordDocumentLoader(file_path=file).load()
-        add_meta(docs1, file, headsize)
+        add_meta(docs1, file, headsize, parser='UnstructuredWordDocumentLoader')
         doc1 = chunk_sources(docs1)
     elif (file.lower().endswith('.xlsx') or file.lower().endswith('.xls')) and (have_libreoffice or True):
         docs1 = UnstructuredExcelLoader(file_path=file).load()
-        add_meta(docs1, file, headsize)
+        add_meta(docs1, file, headsize, parser='UnstructuredExcelLoader')
         doc1 = chunk_sources(docs1)
     elif file.lower().endswith('.odt'):
         docs1 = UnstructuredODTLoader(file_path=file).load()
-        add_meta(docs1, file, headsize)
+        add_meta(docs1, file, headsize, parser='UnstructuredODTLoader')
         doc1 = chunk_sources(docs1)
     elif file.lower().endswith('pptx') or file.lower().endswith('ppt'):
         docs1 = UnstructuredPowerPointLoader(file_path=file).load()
-        add_meta(docs1, file, headsize)
+        add_meta(docs1, file, headsize, parser='UnstructuredPowerPointLoader')
         docs1 = clean_doc(docs1)
         doc1 = chunk_sources(docs1)
     elif file.lower().endswith('.txt'):
@@ -1514,37 +1607,39 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         # makes just one, but big one
         doc1 = chunk_sources(docs1)
         doc1 = clean_doc(doc1)
-        add_meta(doc1, file, headsize)
+        add_meta(doc1, file, headsize, parser='TextLoader')
     elif file.lower().endswith('.rtf'):
         docs1 = UnstructuredRTFLoader(file).load()
-        add_meta(docs1, file, headsize)
+        add_meta(docs1, file, headsize, parser='UnstructuredRTFLoader')
         doc1 = chunk_sources(docs1)
     elif file.lower().endswith('.md'):
         docs1 = UnstructuredMarkdownLoader(file).load()
-        add_meta(docs1, file, headsize)
+        add_meta(docs1, file, headsize, parser='UnstructuredMarkdownLoader')
         docs1 = clean_doc(docs1)
         doc1 = chunk_sources(docs1, language=Language.MARKDOWN)
     elif file.lower().endswith('.enex'):
         docs1 = EverNoteLoader(file).load()
-        add_meta(doc1, file, headsize)
+        add_meta(doc1, file, headsize, parser='EverNoteLoader')
         doc1 = chunk_sources(docs1)
     elif file.lower().endswith('.epub'):
         docs1 = UnstructuredEPubLoader(file).load()
-        add_meta(docs1, file, headsize)
+        add_meta(docs1, file, headsize, parser='UnstructuredEPubLoader')
         doc1 = chunk_sources(docs1)
     elif any(file.lower().endswith(x) for x in set_image_types1):
         docs1 = []
         if have_tesseract and enable_ocr:
             # OCR, somewhat works, but not great
-            docs1.extend(UnstructuredImageLoader(file).load())
-            add_meta(docs1, file, headsize)
+            # docs1.extend(UnstructuredImageLoader(file, strategy='ocr_only').load())
+            docs1a = UnstructuredImageLoader(file, strategy='hi_res').load()
+            add_meta(docs1a, file, headsize, parser='UnstructuredImageLoader')
+            docs1.extend(docs1a)
         if enable_captions:
             # BLIP
             if caption_loader is not None and not isinstance(caption_loader, (str, bool)):
                 # assumes didn't fork into this process with joblib, else can deadlock
                 caption_loader.set_image_paths([file])
                 docs1c = caption_loader.load()
-                add_meta(docs1c, file, headsize)
+                add_meta(docs1c, file, headsize, parser='caption_loader')
                 docs1.extend(docs1c)
             else:
                 from image_captions import H2OImageCaptionLoader
@@ -1553,11 +1648,11 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                                                        blip_processor=captions_model)
                 caption_loader.set_image_paths([file])
                 docs1c = caption_loader.load()
-                add_meta(docs1c, file, headsize)
+                add_meta(docs1c, file, headsize, parser='H2OImageCaptionLoader: %s' % captions_model)
                 docs1.extend(docs1c)
             # caption didn't set source, so fix-up meta
             for doci in docs1:
-                doci.metadata['source'] = doci.metadata['image_path']
+                doci.metadata['source'] = doci.metadata.get('image_path', file)
                 doci.metadata['hashid'] = hash_file(doci.metadata['source'])
             if docs1:
                 doc1 = chunk_sources(docs1)
@@ -1568,7 +1663,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
     elif file.lower().endswith('.eml'):
         try:
             docs1 = UnstructuredEmailLoader(file).load()
-            add_meta(docs1, file, headsize)
+            add_meta(docs1, file, headsize, parser='UnstructuredEmailLoader')
             doc1 = chunk_sources(docs1)
         except ValueError as e:
             if 'text/html content not found in email' in str(e):
@@ -1581,7 +1676,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             # doc1 = TextLoader(file, encoding="utf8").load()
             docs1 = UnstructuredEmailLoader(file, content_source="text/plain").load()
             docs1 = [x for x in docs1 if x.page_content]
-            add_meta(docs1, file, headsize)
+            add_meta(docs1, file, headsize, parser='UnstructuredEmailLoader text/plain')
             doc1 = chunk_sources(docs1)
     # elif file.lower().endswith('.gcsdir'):
     #    doc1 = GCSDirectoryLoader(project_name, bucket, prefix).load()
@@ -1590,81 +1685,102 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
     elif file.lower().endswith('.rst'):
         with open(file, "r") as f:
             doc1 = Document(page_content=f.read(), metadata={"source": file})
-        add_meta(doc1, file, headsize)
+        add_meta(doc1, file, headsize, parser='f.read()')
         doc1 = chunk_sources(doc1, language=Language.RST)
+    elif file.lower().endswith('.json'):
+        loader = JSONLoader(
+            file_path=file,
+            # jq_schema='.messages[].content',
+            jq_schema=jq_schema,
+            text_content=False,
+            metadata_func=json_metadata_func)
+        doc1 = loader.load()
+        add_meta(doc1, file, headsize, parser='JSONLoader: %s' % jq_schema)
+    elif file.lower().endswith('.jsonl'):
+        loader = JSONLoader(
+            file_path=file,
+            # jq_schema='.messages[].content',
+            jq_schema=jq_schema,
+            json_lines=True,
+            text_content=False,
+            metadata_func=json_metadata_func)
+        doc1 = loader.load()
+        add_meta(doc1, file, headsize, parser='JSONLoader: %s' % jq_schema)
     elif file.lower().endswith('.pdf'):
-        pdf_class_name = os.getenv('PDF_CLASS_NAME', 'PyMuPDFParser')
         doc1 = []
         handled = False
         e = None
-        if have_pymupdf and pdf_class_name == 'PyMuPDFParser':
+        if have_pymupdf and use_pymupdf:
             # GPL, only use if installed
             from langchain.document_loaders import PyMuPDFLoader
             # load() still chunks by pages, but every page has title at start to help
             try:
-                doc1 = PyMuPDFLoader(file).load()
+                doc1a = PyMuPDFLoader(file).load()
             except BaseException as e0:
                 print("PyMuPDFLoader: %s" % str(e0), flush=True)
                 e = e0
             # remove empty documents
-            handled |= len(doc1) > 0
-            doc1 = [x for x in doc1 if x.page_content]
-            doc1 = clean_doc(doc1)
-        if len(doc1) == 0:
+            handled |= len(doc1a) > 0
+            doc1a = [x for x in doc1a if x.page_content]
+            doc1a = clean_doc(doc1a)
+            add_parser(doc1a, 'PyMuPDFLoader')
+            doc1.extend(doc1a)
+        if len(doc1) == 0 or use_unstructured_pdf:
             try:
-                doc1 = UnstructuredPDFLoader(file).load()
+                doc1a = UnstructuredPDFLoader(file).load()
             except BaseException as e0:
                 print("UnstructuredPDFLoader: %s" % str(e0), flush=True)
                 e = e0
-            handled |= len(doc1) > 0
+            handled |= len(doc1a) > 0
             # remove empty documents
-            doc1 = [x for x in doc1 if x.page_content]
+            doc1a = [x for x in doc1a if x.page_content]
+            add_parser(doc1a, 'UnstructuredPDFLoader')
             # seems to not need cleaning in most cases
-        if len(doc1) == 0:
+            doc1.extend(doc1a)
+        if len(doc1) == 0 or use_pypdf:
             # open-source fallback
             # load() still chunks by pages, but every page has title at start to help
             try:
-                doc1 = PyPDFLoader(file).load()
+                doc1a = PyPDFLoader(file).load()
             except BaseException as e0:
                 print("PyPDFLoader: %s" % str(e0), flush=True)
                 e = e0
-            handled |= len(doc1) > 0
+            handled |= len(doc1a) > 0
             # remove empty documents
-            doc1 = [x for x in doc1 if x.page_content]
-            doc1 = clean_doc(doc1)
-        if have_pymupdf and len(doc1) == 0:
+            doc1a = [x for x in doc1a if x.page_content]
+            doc1a = clean_doc(doc1a)
+            add_parser(doc1a, 'PyPDFLoader')
+            doc1.extend(doc1a)
+        if ((have_pymupdf and len(doc1) == 0) and
+                (have_pymupdf and use_pymupdf)):
+            # try again in case only others used, but only if didn't already try (2nd part of and)
             # GPL, only use if installed
             from langchain.document_loaders import PyMuPDFLoader
             # load() still chunks by pages, but every page has title at start to help
             try:
-                doc1 = PyMuPDFLoader(file).load()
+                doc1a = PyMuPDFLoader(file).load()
             except BaseException as e0:
                 print("PyMuPDFLoader: %s" % str(e0), flush=True)
                 e = e0
-            handled |= len(doc1) > 0
+            handled |= len(doc1a) > 0
             # remove empty documents
-            doc1 = [x for x in doc1 if x.page_content]
-            doc1 = clean_doc(doc1)
-
-        # try treating as html as occurs when scraping websites
-        if len(doc1) == 0:
-            from bs4 import BeautifulSoup
-            with open(file, "rt") as f:
-                try:
-                    is_html = bool(BeautifulSoup(f.read(), "html.parser").find())
-                except:  # FIXME
-                    is_html = False
-            if is_html:
-                file_url = 'file://' + file
-                doc1 = UnstructuredURLLoader(urls=[file_url]).load()
-                doc1 = [x for x in doc1 if x.page_content]
+            doc1a = [x for x in doc1a if x.page_content]
+            doc1a = clean_doc(doc1a)
+            add_parser(doc1a, 'PyMuPDFLoader2')
+            doc1.extend(doc1a)
+        if try_pdf_as_html:
+            doc1a = try_as_html(doc1, file)
+            add_parser(doc1a, 'try_as_html')
+            doc1.extend(doc1a)
         if len(doc1) == 0 and enable_pdf_ocr == 'auto' or enable_pdf_ocr == 'on':
             # try OCR in end since slowest, but works on pure image pages well
-            doc1 = UnstructuredPDFLoader(file, strategy='ocr_only').load()
-            handled |= len(doc1) > 0
+            doc1a = UnstructuredPDFLoader(file, strategy='ocr_only').load()
+            handled |= len(doc1a) > 0
             # remove empty documents
-            doc1 = [x for x in doc1 if x.page_content]
+            doc1a = [x for x in doc1a if x.page_content]
+            add_parser(doc1a, 'UnstructuredPDFLoader ocr_only')
             # seems to not need cleaning in most cases
+            doc1.extend(doc1a)
         # Some PDFs return nothing or junk from PDFMinerLoader
         if len(doc1) == 0:
             # if literally nothing, show failed to parse so user knows, since unlikely nothing in PDF at all.
@@ -1672,11 +1788,11 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                 raise ValueError("%s had no valid text, but meta data was parsed" % file)
             else:
                 raise ValueError("%s had no valid text and no meta data was parsed: %s" % (file, str(e)))
-        add_meta(doc1, file, headsize)
+        add_meta(doc1, file, headsize, parser='pdf')
         doc1 = chunk_sources(doc1)
     elif file.lower().endswith('.csv'):
         doc1 = CSVLoader(file).load()
-        add_meta(doc1, file, headsize)
+        add_meta(doc1, file, headsize, parser='CSVLoader')
         if isinstance(doc1, list):
             # each row is a Document, identify
             [x.metadata.update(dict(chunk_id=chunk_id)) for chunk_id, x in enumerate(doc1)]
@@ -1687,11 +1803,11 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                 doc1 = sdoc1 + doc1
     elif file.lower().endswith('.py'):
         doc1 = PythonLoader(file).load()
-        add_meta(doc1, file, headsize)
+        add_meta(doc1, file, headsize, parser='PythonLoader')
         doc1 = chunk_sources(doc1, language=Language.PYTHON)
     elif file.lower().endswith('.toml'):
         doc1 = TomlLoader(file).load()
-        add_meta(doc1, file, headsize)
+        add_meta(doc1, file, headsize, parser='TomlLoader')
         doc1 = chunk_sources(doc1)
     elif file.lower().endswith('.urls'):
         with open(file, "r") as f:
@@ -1707,6 +1823,43 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             # recurse
             doc1 = path_to_docs(base_path, verbose=verbose, fail_any_exception=fail_any_exception, n_jobs=n_jobs,
                                 db_type=db_type)
+    elif file.lower().endswith('.gz') or file.lower().endswith('.gzip'):
+        if file.lower().endswith('.gz'):
+            de_file = file.lower().replace('.gz', '')
+        else:
+            de_file = file.lower().replace('.gzip', '')
+        with gzip.open(file, 'rb') as f_in:
+            with open(de_file, 'wb') as f_out:
+                shutil.copyfileobj(f_in, f_out)
+        # recurse
+        doc1 = file_to_doc(de_file, base_path=base_path, verbose=verbose, fail_any_exception=fail_any_exception,
+                           chunk=chunk, chunk_size=chunk_size, n_jobs=n_jobs,
+                           is_url=is_url, is_txt=is_txt,
+
+                           # urls
+                           use_unstructured=use_unstructured,
+                           use_playwright=use_playwright,
+                           use_selenium=use_selenium,
+
+                           # pdfs
+                           use_pymupdf=use_pymupdf,
+                           use_unstructured_pdf=use_unstructured_pdf,
+                           use_pypdf=use_pypdf,
+                           enable_pdf_ocr=enable_pdf_ocr,
+                           try_pdf_as_html=try_pdf_as_html,
+
+                           # images
+                           enable_ocr=enable_ocr,
+                           enable_captions=enable_captions,
+                           captions_model=captions_model,
+                           caption_loader=caption_loader,
+
+                           # json
+                           jq_schema=jq_schema,
+
+                           headsize=headsize,
+                           db_type=db_type,
+                           selected_file_types=selected_file_types)
     else:
         raise RuntimeError("No file handler for %s" % os.path.basename(file))
 
@@ -1728,9 +1881,28 @@ def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True
                  chunk=True, chunk_size=512,
                  n_jobs=-1,
                  is_url=False, is_txt=False,
+
+                 # urls
+                 use_unstructured=True,
+                 use_playwright=False,
+                 use_selenium=False,
+
+                 # pdfs
+                 use_pymupdf=True,
+                 use_unstructured_pdf=False,
+                 use_pypdf=False,
+                 enable_pdf_ocr='auto',
+                 try_pdf_as_html=True,
+
+                 # images
+                 enable_ocr=False,
                  enable_captions=True,
                  captions_model=None,
-                 enable_ocr=False, enable_pdf_ocr='auto', caption_loader=None,
+                 caption_loader=None,
+
+                 # json
+                 jq_schema='.[]',
+
                  db_type=None,
                  selected_file_types=None):
     assert db_type is not None
@@ -1748,11 +1920,28 @@ def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True
                           chunk=chunk, chunk_size=chunk_size,
                           n_jobs=n_jobs,
                           is_url=is_url, is_txt=is_txt,
+
+                          # urls
+                          use_unstructured=use_unstructured,
+                          use_playwright=use_playwright,
+                          use_selenium=use_selenium,
+
+                          # pdfs
+                          use_pymupdf=use_pymupdf,
+                          use_unstructured_pdf=use_unstructured_pdf,
+                          use_pypdf=use_pypdf,
+                          enable_pdf_ocr=enable_pdf_ocr,
+                          try_pdf_as_html=try_pdf_as_html,
+
+                          # images
+                          enable_ocr=enable_ocr,
                           enable_captions=enable_captions,
                           captions_model=captions_model,
-                          enable_ocr=enable_ocr,
-                          enable_pdf_ocr=enable_pdf_ocr,
                           caption_loader=caption_loader,
+
+                          # json
+                          jq_schema=jq_schema,
+
                           db_type=db_type,
                           selected_file_types=selected_file_types)
     except BaseException as e:
@@ -1786,11 +1975,28 @@ def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True
 def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=-1,
                  chunk=True, chunk_size=512,
                  url=None, text=None,
+
+                 # urls
+                 use_unstructured=True,
+                 use_playwright=False,
+                 use_selenium=False,
+
+                 # pdfs
+                 use_pymupdf=True,
+                 use_unstructured_pdf=False,
+                 use_pypdf=False,
+                 enable_pdf_ocr='auto',
+                 try_pdf_as_html=True,
+
+                 # images
+                 enable_ocr=False,
                  enable_captions=True,
                  captions_model=None,
                  caption_loader=None,
-                 enable_ocr=False,
-                 enable_pdf_ocr='auto',
+
+                 # json
+                 jq_schema='.[]',
+
                  existing_files=[],
                  existing_hash_ids={},
                  db_type=None,
@@ -1884,11 +2090,28 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
                   n_jobs=n_jobs,
                   is_url=is_url,
                   is_txt=is_txt,
+
+                  # urls
+                  use_unstructured=use_unstructured,
+                  use_playwright=use_playwright,
+                  use_selenium=use_selenium,
+
+                  # pdfs
+                  use_pymupdf=use_pymupdf,
+                  use_unstructured_pdf=use_unstructured_pdf,
+                  use_pypdf=use_pypdf,
+                  enable_pdf_ocr=enable_pdf_ocr,
+                  try_pdf_as_html=try_pdf_as_html,
+
+                  # images
+                  enable_ocr=enable_ocr,
                   enable_captions=enable_captions,
                   captions_model=captions_model,
                   caption_loader=caption_loader,
-                  enable_ocr=enable_ocr,
-                  enable_pdf_ocr=enable_pdf_ocr,
+
+                  # json
+                  jq_schema=jq_schema,
+
                   db_type=db_type,
                   selected_file_types=selected_file_types,
                   )
@@ -2214,6 +2437,28 @@ def _make_db(use_openai_embedding=False,
              migrate_embedding_model=False,
              first_para=False, text_limit=None,
              chunk=True, chunk_size=512,
+
+             # urls
+             use_unstructured=True,
+             use_playwright=False,
+             use_selenium=False,
+
+             # pdfs
+             use_pymupdf=True,
+             use_unstructured_pdf=False,
+             use_pypdf=False,
+             enable_pdf_ocr='auto',
+             try_pdf_as_html=True,
+
+             # images
+             enable_ocr=False,
+             enable_captions=True,
+             captions_model=None,
+             caption_loader=None,
+
+             # json
+             jq_schema='.[]',
+
              langchain_mode=None,
              langchain_mode_paths=None,
              langchain_mode_types=None,
@@ -2278,6 +2523,27 @@ def _make_db(use_openai_embedding=False,
         # FIXME: If first had old Hash=None and switch embeddings,
         #  then re-embed, and then hit here and reload so have hash, and then re-embed.
         sources1 = path_to_docs(user_path, n_jobs=n_jobs, chunk=chunk, chunk_size=chunk_size,
+                                # urls
+                                use_unstructured=use_unstructured,
+                                use_playwright=use_playwright,
+                                use_selenium=use_selenium,
+
+                                # pdfs
+                                use_pymupdf=use_pymupdf,
+                                use_unstructured_pdf=use_unstructured_pdf,
+                                use_pypdf=use_pypdf,
+                                enable_pdf_ocr=enable_pdf_ocr,
+                                try_pdf_as_html=try_pdf_as_html,
+
+                                # images
+                                enable_ocr=enable_ocr,
+                                enable_captions=enable_captions,
+                                captions_model=captions_model,
+                                caption_loader=caption_loader,
+
+                                # json
+                                jq_schema=jq_schema,
+
                                 existing_files=existing_files, existing_hash_ids=existing_hash_ids,
                                 db_type=db_type)
         new_metadata_sources = set([x.metadata['source'] for x in sources1])
@@ -2441,6 +2707,28 @@ def _run_qa_db(query=None,
                context=None,
                use_openai_model=False, use_openai_embedding=False,
                first_para=False, text_limit=None, top_k_docs=4, chunk=True, chunk_size=512,
+
+               # urls
+               use_unstructured=True,
+               use_playwright=False,
+               use_selenium=False,
+
+               # pdfs
+               use_pymupdf=True,
+               use_unstructured_pdf=False,
+               use_pypdf=False,
+               enable_pdf_ocr='auto',
+               try_pdf_as_html=True,
+
+               # images
+               enable_ocr=False,
+               enable_captions=True,
+               captions_model=None,
+               caption_loader=None,
+
+               # json
+               jq_schema='.[]',
+
                langchain_mode_paths={},
                langchain_mode_types={},
                detect_user_path_changes_every_query=False,
@@ -2522,6 +2810,13 @@ def _run_qa_db(query=None,
     if langchain_action in [LangChainAction.QUERY.value]:
         # only summarization supported
         async_output = False
+
+    # in case None, e.g. lazy client, then set based upon actual model
+    pre_prompt_query, prompt_query, pre_prompt_summary, prompt_summary = \
+        get_langchain_prompts(pre_prompt_query, prompt_query,
+                              pre_prompt_summary, prompt_summary,
+                              model_name, inference_server,
+                              llamacpp_dict.get('model_path_llama'))
 
     assert db_type is not None
     assert hf_embedding_model is not None
@@ -2741,6 +3036,28 @@ def get_chain(query=None,
               context=None,  # FIXME: https://github.com/hwchase17/langchain/issues/6638
               use_openai_model=False, use_openai_embedding=False,
               first_para=False, text_limit=None, top_k_docs=4, chunk=True, chunk_size=512,
+
+              # urls
+              use_unstructured=True,
+              use_playwright=False,
+              use_selenium=False,
+
+              # pdfs
+              use_pymupdf=True,
+              use_unstructured_pdf=False,
+              use_pypdf=False,
+              enable_pdf_ocr='auto',
+              try_pdf_as_html=True,
+
+              # images
+              enable_ocr=False,
+              enable_captions=True,
+              captions_model=None,
+              caption_loader=None,
+
+              # json
+              jq_schema='.[]',
+
               langchain_mode_paths=None,
               langchain_mode_types=None,
               detect_user_path_changes_every_query=False,
@@ -2816,8 +3133,29 @@ def get_chain(query=None,
                                                         hf_embedding_model=hf_embedding_model,
                                                         migrate_embedding_model=migrate_embedding_model,
                                                         first_para=first_para, text_limit=text_limit,
-                                                        chunk=chunk,
-                                                        chunk_size=chunk_size,
+                                                        chunk=chunk, chunk_size=chunk_size,
+
+                                                        # urls
+                                                        use_unstructured=use_unstructured,
+                                                        use_playwright=use_playwright,
+                                                        use_selenium=use_selenium,
+
+                                                        # pdfs
+                                                        use_pymupdf=use_pymupdf,
+                                                        use_unstructured_pdf=use_unstructured_pdf,
+                                                        use_pypdf=use_pypdf,
+                                                        enable_pdf_ocr=enable_pdf_ocr,
+                                                        try_pdf_as_html=try_pdf_as_html,
+
+                                                        # images
+                                                        enable_ocr=enable_ocr,
+                                                        enable_captions=enable_captions,
+                                                        captions_model=captions_model,
+                                                        caption_loader=caption_loader,
+
+                                                        # json
+                                                        jq_schema=jq_schema,
+
                                                         langchain_mode=langchain_mode,
                                                         langchain_mode_paths=langchain_mode_paths,
                                                         langchain_mode_types=langchain_mode_types,
@@ -3352,7 +3690,7 @@ def get_sources(db1s, selection_docs_state1, requests_state1, langchain_mode,
 
 
 def update_user_db(file, db1s, selection_docs_state1, requests_state1,
-                   chunk, chunk_size, langchain_mode, dbs=None,
+                   langchain_mode=None,
                    get_userid_auth=None,
                    **kwargs):
     kwargs.update(selection_docs_state1)
@@ -3362,8 +3700,8 @@ def update_user_db(file, db1s, selection_docs_state1, requests_state1,
         raise RuntimeError("Don't use change, use input")
 
     try:
-        return _update_user_db(file, db1s=db1s, chunk=chunk, chunk_size=chunk_size,
-                               langchain_mode=langchain_mode, dbs=dbs,
+        return _update_user_db(file, db1s=db1s,
+                               langchain_mode=langchain_mode,
                                **kwargs)
     except BaseException as e:
         print(traceback.format_exc(), flush=True)
@@ -3397,20 +3735,37 @@ def get_lock_file(db1, langchain_mode):
 
 def _update_user_db(file,
                     db1s=None,
-                    chunk=None, chunk_size=None,
-                    dbs=None, db_type=None,
                     langchain_mode='UserData',
+                    chunk=None, chunk_size=None,
+
+                    # urls
+                    use_unstructured=True,
+                    use_playwright=False,
+                    use_selenium=False,
+
+                    # pdfs
+                    use_pymupdf=True,
+                    use_unstructured_pdf=False,
+                    use_pypdf=False,
+                    enable_pdf_ocr='auto',
+                    try_pdf_as_html=True,
+
+                    # images
+                    enable_ocr=False,
+                    enable_captions=True,
+                    captions_model=None,
+                    caption_loader=None,
+
+                    # json
+                    jq_schema='.[]',
+
+                    dbs=None, db_type=None,
                     langchain_modes=None,
                     langchain_mode_paths=None,
                     langchain_mode_types=None,
                     use_openai_embedding=None,
                     hf_embedding_model=None,
                     migrate_embedding_model=None,
-                    caption_loader=None,
-                    enable_captions=None,
-                    captions_model=None,
-                    enable_ocr=None,
-                    enable_pdf_ocr=None,
                     verbose=None,
                     n_jobs=-1,
                     is_url=None, is_txt=None,
@@ -3489,11 +3844,28 @@ def _update_user_db(file,
                            chunk=chunk, chunk_size=chunk_size,
                            url=file if is_url else None,
                            text=file if is_txt else None,
+
+                           # urls
+                           use_unstructured=use_unstructured,
+                           use_playwright=use_playwright,
+                           use_selenium=use_selenium,
+
+                           # pdfs
+                           use_pymupdf=use_pymupdf,
+                           use_unstructured_pdf=use_unstructured_pdf,
+                           use_pypdf=use_pypdf,
+                           enable_pdf_ocr=enable_pdf_ocr,
+                           try_pdf_as_html=try_pdf_as_html,
+
+                           # images
+                           enable_ocr=enable_ocr,
                            enable_captions=enable_captions,
                            captions_model=captions_model,
-                           enable_ocr=enable_ocr,
-                           enable_pdf_ocr=enable_pdf_ocr,
                            caption_loader=caption_loader,
+
+                           # json
+                           jq_schema=jq_schema,
+
                            db_type=db_type,
                            )
     exceptions = [x for x in sources if x.metadata.get('exception')]
@@ -3693,6 +4065,28 @@ def update_and_get_source_files_given_langchain_mode(db1s,
                                                      selection_docs_state,
                                                      requests_state,
                                                      langchain_mode, chunk, chunk_size,
+
+                                                     # urls
+                                                     use_unstructured=True,
+                                                     use_playwright=False,
+                                                     use_selenium=False,
+
+                                                     # pdfs
+                                                     use_pymupdf=True,
+                                                     use_unstructured_pdf=False,
+                                                     use_pypdf=False,
+                                                     enable_pdf_ocr='auto',
+                                                     try_pdf_as_html=True,
+
+                                                     # images
+                                                     enable_ocr=False,
+                                                     enable_captions=True,
+                                                     captions_model=None,
+                                                     caption_loader=None,
+
+                                                     # json
+                                                     jq_schema='.[]',
+
                                                      dbs=None, first_para=None,
                                                      hf_embedding_model=None,
                                                      use_openai_embedding=None,
@@ -3732,6 +4126,28 @@ def update_and_get_source_files_given_langchain_mode(db1s,
                                                         first_para=first_para, text_limit=text_limit,
                                                         chunk=chunk,
                                                         chunk_size=chunk_size,
+
+                                                        # urls
+                                                        use_unstructured=use_unstructured,
+                                                        use_playwright=use_playwright,
+                                                        use_selenium=use_selenium,
+
+                                                        # pdfs
+                                                        use_pymupdf=use_pymupdf,
+                                                        use_unstructured_pdf=use_unstructured_pdf,
+                                                        use_pypdf=use_pypdf,
+                                                        enable_pdf_ocr=enable_pdf_ocr,
+                                                        try_pdf_as_html=try_pdf_as_html,
+
+                                                        # images
+                                                        enable_ocr=enable_ocr,
+                                                        enable_captions=enable_captions,
+                                                        captions_model=captions_model,
+                                                        caption_loader=caption_loader,
+
+                                                        # json
+                                                        jq_schema=jq_schema,
+
                                                         langchain_mode=langchain_mode,
                                                         langchain_mode_paths=langchain_mode_paths,
                                                         langchain_mode_types=langchain_mode_types,

@@ -38,6 +38,8 @@ HOST = "localhost:7860"  # choose
 import ast
 import os
 import traceback
+from enum import Enum
+from typing import Union
 
 from gradio_client.client import Job
 
@@ -120,15 +122,16 @@ class GradioClient(Client):
         return job
 
 
+from .settings import settings
 
-client = GradioClient(HOST)
+# TODO use settings.llm_api_key for auth
+client = GradioClient(settings.llm_address)
 
 
 def _call_h2o_gpt_api(prompt: str) -> str:
     # don't specify prompt_type etc., use whatever endpoint setup
     kwargs = dict(
         stream_output=False,
-        max_new_tokens=768,
         max_time=360,
         instruction_nochat=prompt,
     )
@@ -149,26 +152,93 @@ def answer_question_using_context(question: str, context: str) -> str:
     return ast.literal_eval(answer)['response']
 
 
+class LangChainAction(Enum):
+    """LangChain action"""
+
+    QUERY = "Query"
+    SUMMARIZE_MAP = "Summarize"
+
+
+def query(instruction: str = None,
+          text: str = None,
+          file: str = None,
+          url: str = None,
+          top_k_docs: int = 4,
+          pre_prompt_query: str = None,
+          prompt_query: str = None,
+          asserts: bool = True) -> str:
+    """
+    Query using h2oGPT
+    """
+    return query_or_summarize(instruction=instruction,
+                              text=text,
+                              file=file,
+                              url=url,
+                              langchain_action=LangChainAction.QUERY.value,
+                              top_k_docs=top_k_docs,
+                              pre_prompt_query=pre_prompt_query,
+                              prompt_query=prompt_query,
+                              asserts=asserts)
+
+
 def summarize(text: str = None,
               file: str = None,
               url: str = None,
               top_k_docs: int = 4,
-              pre_prompt_summary: str = '',
-              prompt_summary: str = '',
+              pre_prompt_summary: str = None,
+              prompt_summary: str = None,
               asserts: bool = True) -> str:
     """
     Summarize using h2oGPT
+    """
+    return query_or_summarize(text=text,
+                              file=file,
+                              url=url,
+                              langchain_action=LangChainAction.SUMMARIZE_MAP.value,
+                              top_k_docs=top_k_docs,
+                              pre_prompt_summary=pre_prompt_summary,
+                              prompt_summary=prompt_summary,
+                              asserts=asserts)
+
+
+def query_or_summarize(instruction: str = '',
+                       text: Union[list[str], str] = None,
+                       file: Union[list[str], str] = None,
+                       url: Union[list[str], str] = None,
+                       langchain_action: str = None,
+                       top_k_docs: int = 4,
+                       pre_prompt_query: str = None,
+                       prompt_query: str = None,
+                       pre_prompt_summary: str = None,
+                       prompt_summary: str = None,
+                       asserts: bool = True) -> str:
+    """
+    Query or Summarize using h2oGPT
     Args:
-        text: textual content
-        file: a local file to upload
-        url: a url to give
-        top_k_docs: number of document parts.  E.g. if PDF, then number of pages
+        instruction: Query
+        For query, prompt template is:
+          "{pre_prompt_query}\"\"\"
+            {content}
+            \"\"\"\n{prompt_query}{instruction}"
+         If added to summarization, prompt template is
+          "{pre_prompt_summary}:\"\"\"
+            {content}
+            \"\"\"\n, Focusing on {instruction}, {prompt_summary}"
+        text: textual content or list of such contents
+        file: a local file to upload or files to upload
+        url: a url to give or urls to use
+        langchain_action: Action to take, "Query" or "Summarize"
+        top_k_docs: number of document parts.
+                    When doing query, number of chunks
                     When doing summarization, not related to vectorDB chunks that are not used
+                    E.g. if PDF, then number of pages
+        pre_prompt_query: Prompt that comes before document part
+        prompt_query: Prompt that comes after document part
         pre_prompt_summary: Prompt that comes before document part
-           '' makes h2oGPT internally use its defaults
+           None makes h2oGPT internally use its defaults
            E.g. "In order to write a concise single-paragraph or bulleted list summary, pay attention to the following text"
         prompt_summary: Prompt that comes after document part
-          '' makes h2oGPT internally use its defaults
+          None makes h2oGPT internally use its defaults
           E.g. "Using only the text above, write a condensed and concise summary of key results (preferably as bullet points):\n"
         i.e. for some internal document part fstring, the template looks like:
             template = "%s:
@@ -188,11 +258,14 @@ def summarize(text: str = None,
     # chunking not used here
     chunk = True
     chunk_size = 512
-    # MyData specifies personal/scratch space, only persisted for this individual client call
+    # MyData specifies scratch space, only persisted for this individual client call
     langchain_mode = 'MyData'
+    loaders = tuple([None, None, None, None])
 
     if text:
-        res = client_persist.predict(text, chunk, chunk_size, langchain_mode, api_name='/add_text')
+        res = client_persist.predict(text, langchain_mode, chunk, chunk_size,
+                                     *loaders,
+                                     api_name='/add_text')
         if asserts:
             assert res[0] is None
             assert res[1] == langchain_mode
@@ -203,33 +276,48 @@ def summarize(text: str = None,
         # after below call, "file" replaced with remote location of file
         _, file = client_persist.predict(file, api_name='/upload_api')
 
-        res = client_persist.predict(file, chunk, chunk_size, langchain_mode, api_name='/add_file_api')
+        res = client_persist.predict(file, langchain_mode, chunk, chunk_size,
+                                     *loaders,
+                                     api_name='/add_file_api')
         if asserts:
             assert res[0] is None
             assert res[1] == langchain_mode
             assert os.path.basename(file) in res[2]
             assert res[3] == ''
     if url:
-        res = client_persist.predict(url, chunk, chunk_size, langchain_mode, api_name='/add_url')
+        res = client_persist.predict(url, langchain_mode, chunk, chunk_size,
+                                     *loaders,
+                                     api_name='/add_url')
         if asserts:
             assert res[0] is None
             assert res[1] == langchain_mode
             assert url in res[2]
             assert res[3] == ''
 
+    if langchain_action == LangChainAction.SUMMARIZE_MAP.value:
+        # ensure, so full asyncio mode used when gradio connected to TGI server
+        stream_output = False
+    else:
+        # FIXME: should stream
+        stream_output = False
+
     # ask for summary, need to use same client if using MyData
     api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
-    kwargs = dict(langchain_mode=langchain_mode,
-                  langchain_action="Summarize",  # uses full document, not vectorDB chunks
+    kwargs = dict(instruction=instruction,
+                  langchain_mode=langchain_mode,
+                  langchain_action=langchain_action,  # uses full document, not vectorDB chunks
                   top_k_docs=top_k_docs,
-                  stream_output=False,  # ensure, so full asyncio mode used when gradio connected to TGI server
+                  stream_output=stream_output,
                   document_subset='Relevant',
                   document_choice='All',
                   max_new_tokens=256,
-                  max_time=300,
+                  max_time=360,
                   do_sample=False,
+                  pre_prompt_query=pre_prompt_query,
+                  prompt_query=prompt_query,
                   pre_prompt_summary=pre_prompt_summary,
-                  prompt_summary=prompt_summary)
+                  prompt_summary=prompt_summary,
+                  )
 
     # get result
     res = client_persist.predict(
@@ -237,7 +325,7 @@ def summarize(text: str = None,
         api_name=api_name,
     )
     res = ast.literal_eval(res)
-    summary = res['response']
+    response = res['response']
 
     if asserts:
         sources = res['sources']
@@ -248,7 +336,7 @@ def summarize(text: str = None,
         if url:
             assert url in sources
 
-    return summary
+    return response
 ```
 See tests in https://github.com/h2oai/h2ogpt/blob/main/tests/test_client_calls.py#L678-L1036 that this code is based upon.
 

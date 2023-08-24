@@ -174,7 +174,7 @@ pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt
 ```
 but pymupdf is AGPL, requiring any source code be made available, which is not an issue directly for h2oGPT, but it's like GPL and too strong a constraint for general commercial use.
 
-When pymupdf is installed, we will use `PyMuPDFLoader` by default to parse PDFs since it's better than `PyPDFLoader` and much better than `PDFMinerLoader`.  This can be overridden by setting the environment variable `PDF_CLASS_NAME=PyPDFLoader`.
+When pymupdf is installed, we will use `PyMuPDFLoader` by default to parse PDFs since it's better than `PyPDFLoader` and much better than `PDFMinerLoader`.
 
 ### Adding new file types
 
