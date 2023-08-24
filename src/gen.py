@@ -1257,11 +1257,14 @@ def get_non_lora_model(base_model, model_loader, load_half,
             **model_kwargs,
         )
     else:
+
         model = model_loader(
             base_model,
             config=config,
             **model_kwargs,
-        ).half()
+        )
+        if not getattr(model, "is_quantized", False):
+            model = model.half()
     return model
 
 
@@ -1655,7 +1658,9 @@ def get_hf_model(load_8bit: bool = False,
                         model = model_loader(
                             base_model,
                             config=config,
-                            **model_kwargs).half()
+                            **model_kwargs)
+                        if not getattr(model, "is_quantized", False):
+                            model = model.half()
                     else:
                         model = model_loader(
                             base_model,
@@ -1704,7 +1709,8 @@ def get_hf_model(load_8bit: bool = False,
                     device_map="auto",
                 )
                 if load_half and not load_gptq:
-                    model.half()
+                    if not getattr(model, "is_quantized", False):
+                        model = model.half()
 
     # unwind broken decapoda-research config
     if llama_type:

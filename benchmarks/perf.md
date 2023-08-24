@@ -1,5 +1,11 @@
 # Backend: transformers
 ## Model: h2oai/h2ogpt-4096-llama2-7b-chat (transformers)
+### Number of GPUs: 0
+|   bits | gpus   |   summarization time [sec] |   generation speed [tokens/sec] | exception   |
+|-------:|:-------|---------------------------:|--------------------------------:|:------------|
+|     16 | CPU    |                    1215.52 |                         1.17546 |             |
+|      8 | CPU    |                    1216.98 |                         1.17641 |             |
+|      4 | CPU    |                    1217.17 |                         1.16575 |             |
 ### Number of GPUs: 1
 |   bits | gpus                                           |   summarization time [sec] |   generation speed [tokens/sec] | exception   |
 |-------:|:-----------------------------------------------|---------------------------:|--------------------------------:|:------------|

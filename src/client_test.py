@@ -110,6 +110,7 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
                          prompt_query=None,
                          pre_prompt_summary=None,
                          prompt_summary=None,
+                         system_prompt="",
                          )
     diff = 0
     if version is None:
