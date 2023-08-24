@@ -1,7 +1,7 @@
 # for generate (gradio server) and finetune
 datasets==2.13.0
 sentencepiece==0.1.99
-gradio==3.40.1
+gradio==3.41.0
 huggingface_hub==0.16.4
 appdirs==1.4.4
 fire==0.5.0
@@ -19,8 +19,8 @@ pandas==2.0.2
 matplotlib==3.7.1
 loralib==0.1.1
 bitsandbytes==0.41.1
-accelerate==0.20.3
-peft==0.4.0
+accelerate==0.22.0
+peft==0.5.0
 # 4.31.0+ breaks load_in_8bit=True (https://github.com/huggingface/transformers/issues/25026)
 transformers==4.32.0
 tokenizers==0.13.3
@@ -37,7 +37,7 @@ tensorboard==2.13.0
 neptune==1.2.0
 
 # for gradio client
-gradio_client==0.4.0
+gradio_client==0.5.0
 beautifulsoup4==4.12.2
 markdown==3.4.3
 
