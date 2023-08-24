@@ -9,7 +9,7 @@ import pytest
 from tests.utils import wrap_test_forked, make_user_path_test, get_llama, get_inf_server, get_inf_port
 from src.client_test import get_client, get_args, run_client_gen
 from src.enums import LangChainAction, LangChainMode, no_model_str, no_lora_str, no_server_str
-from src.utils import get_githash, remove, download_simple, hash_file, makedirs
+from src.utils import get_githash, remove, download_simple, hash_file, makedirs, lg_to_gr
 
 
 @wrap_test_forked
@@ -746,9 +746,19 @@ def test_text_generation_inference_server1():
 
 @pytest.mark.need_tokens
 @wrap_test_forked
-def test_client_chat_stream_langchain_steps3():
+@pytest.mark.parametrize("loaders", ['all', None])
+def test_client_chat_stream_langchain_steps3(loaders):
     os.environ['VERBOSE_PIPELINE'] = '1'
     user_path = make_user_path_test()
+
+    if loaders is None:
+        loaders = tuple([None, None, None, None])
+    else:
+        image_loaders_options0, image_loaders_options, \
+            pdf_loaders_options0, pdf_loaders_options, \
+            url_loaders_options0, url_loaders_options = \
+            lg_to_gr(enable_ocr=True, enable_captions=True, enable_pdf_ocr=True)
+        loaders = [image_loaders_options, pdf_loaders_options, url_loaders_options, None]
 
     stream_output = True
     max_new_tokens = 256
@@ -773,7 +783,7 @@ def test_client_chat_stream_langchain_steps3():
     test_file1 = os.path.join('/tmp/', 'sample1.pdf')
     download_simple(url, dest=test_file1)
     res = client.predict(test_file1, langchain_mode, True, 512,
-                         None, None, None, None,
+                         *loaders,
                          api_name='/add_file_api')
     assert res[0] is None
     assert res[1] == langchain_mode
@@ -805,7 +815,7 @@ def test_client_chat_stream_langchain_steps3():
     # download_simple(url, dest=test_file1)
     shutil.copy('tests/pdf-sample.pdf', test_file1)
     res = client.predict(test_file1, langchain_mode2, True, 512,
-                         None, None, None, None,
+                         *loaders,
                          api_name='/add_file_api')
     assert res[0] is None
     assert res[1] == langchain_mode2
@@ -864,7 +874,7 @@ def test_client_chat_stream_langchain_steps3():
     # refresh
     shutil.copy('tests/next.txt', user_path)
     res = client.predict(langchain_mode, True, 512,
-                         None, None, None, None,
+                         *loaders,
                          api_name='/refresh_sources')
     sources_expected = 'file/%s/next.txt' % user_path
     assert sources_expected in res or sources_expected.replace('\\', '/').replace('\r', '') in res.replace('\\',
@@ -904,7 +914,7 @@ def test_client_chat_stream_langchain_steps3():
 
     url = 'https://research.google/pubs/pub334.pdf'
     res = client.predict(url, langchain_mode, True, 512,
-                         None, None, None, None,
+                         *loaders,
                          api_name='/add_url')
     assert res[0] is None
     assert res[1] == langchain_mode
@@ -913,7 +923,7 @@ def test_client_chat_stream_langchain_steps3():
 
     text = "Yufuu is a wonderful place and you should really visit because there is lots of sun."
     res = client.predict(text, langchain_mode, True, 512,
-                         None, None, None, None,
+                         *loaders,
                          api_name='/add_text')
     assert res[0] is None
     assert res[1] == langchain_mode
@@ -930,7 +940,7 @@ def test_client_chat_stream_langchain_steps3():
     test_file1 = os.path.join('/tmp/', 'sample1.pdf')
     download_simple(url, dest=test_file1)
     res = client.predict(test_file1, langchain_mode_my, True, 512,
-                         None, None, None, None,
+                         *loaders,
                          api_name='/add_file_api')
     assert res[0] is None
     assert res[1] == langchain_mode_my
@@ -963,7 +973,7 @@ def test_client_chat_stream_langchain_steps3():
     # download_simple(url, dest=test_file1)
     shutil.copy('tests/pdf-sample.pdf', test_file1)
     res = client.predict(test_file1, langchain_mode2, True, 512,
-                         None, None, None, None,
+                         *loaders,
                          api_name='/add_file_api')
     assert res[0] is None
     assert res[1] == langchain_mode2
@@ -984,7 +994,7 @@ def test_client_chat_stream_langchain_steps3():
         with open(urls_file, 'wt') as f:
             f.write('\n'.join(urls))
         res = client.predict(urls_file, langchain_mode2, True, 512,
-                             None, None, None, None,
+                             *loaders,
                              api_name='/add_file_api')
         assert res[0] is None
         assert res[1] == langchain_mode2
@@ -1011,7 +1021,7 @@ def test_client_chat_stream_langchain_steps3():
 
     with tempfile.TemporaryDirectory() as tmp_user_path:
         res = client.predict(urls, langchain_mode3, True, 512,
-                             None, None, None, None,
+                             *loaders,
                              api_name='/add_url')
         print(res)
         assert res[0] is None

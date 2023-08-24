@@ -1534,24 +1534,24 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             do_selenium = have_selenium and (use_selenium or only_selenium)
             if only_unstructured_urls or only_playwright:
                 do_selenium = False
-
-            if do_unstructured:
+            if do_unstructured or use_unstructured:
                 docs1 = UnstructuredURLLoader(urls=[file]).load()
                 docs1 = [x for x in docs1 if x.page_content]
-            if len(docs1) == 0 and do_playwright:
+            if len(docs1) == 0 and have_playwright or do_playwright:
                 # then something went wrong, try another loader:
                 from langchain.document_loaders import PlaywrightURLLoader
-                docs1 = PlaywrightURLLoader(urls=[file]).load()
-                docs1 = [x for x in docs1 if x.page_content]
-            if len(docs1) == 0 and do_selenium:
+                docs1a = asyncio.run(PlaywrightURLLoader(urls=[file]).aload())
+                #docs1 = PlaywrightURLLoader(urls=[file]).load()
+                docs1.extend([x for x in docs1a if x.page_content])
+            if len(docs1) == 0 and have_selenium or do_selenium:
                 # then something went wrong, try another loader:
                 # but requires Chrome binary, else get: selenium.common.exceptions.WebDriverException:
                 # Message: unknown error: cannot find Chrome binary
                 from langchain.document_loaders import SeleniumURLLoader
                 from selenium.common.exceptions import WebDriverException
                 try:
-                    docs1 = SeleniumURLLoader(urls=[file]).load()
-                    docs1 = [x for x in docs1 if x.page_content]
+                    docs1a = SeleniumURLLoader(urls=[file]).load()
+                    docs1.extend([x for x in docs1a if x.page_content])
                 except WebDriverException as e:
                     print("No web driver: %s" % str(e), flush=True)
             [x.metadata.update(dict(input_type='url', date=str(datetime.now))) for x in docs1]
