@@ -1297,6 +1297,10 @@ def go_gradio(**kwargs):
                                            verbose=kwargs['verbose'],
                                            n_jobs=kwargs['n_jobs'],
                                            get_userid_auth=get_userid_auth,
+                                           image_loaders_options0=image_loaders_options0,
+                                           pdf_loaders_options0=pdf_loaders_options0,
+                                           url_loaders_options0=url_loaders_options0,
+                                           jq_schema0=jq_schema0,
                                            )
         add_file_outputs = [fileup_output, langchain_mode]
         add_file_kwargs = dict(fn=update_db_func,
@@ -1717,10 +1721,6 @@ def go_gradio(**kwargs):
         all_kwargs.update(locals())
 
         refresh_sources1 = functools.partial(update_and_get_source_files_given_langchain_mode_gr,
-                                             image_loaders,
-                                             pdf_loaders,
-                                             url_loaders,
-                                             jq_schema,
                                              captions_model=captions_model,
                                              caption_loader=caption_loader,
                                              dbs=dbs,
@@ -1732,7 +1732,12 @@ def go_gradio(**kwargs):
                                              db_type=db_type,
                                              load_db_if_exists=load_db_if_exists,
                                              n_jobs=n_jobs, verbose=verbose,
-                                             get_userid_auth=get_userid_auth)
+                                             get_userid_auth=get_userid_auth,
+                                             image_loaders_options0=image_loaders_options0,
+                                             pdf_loaders_options0=pdf_loaders_options0,
+                                             url_loaders_options0=url_loaders_options0,
+                                             jq_schema0=jq_schema0,
+                                             )
         eventdb9a = refresh_sources_btn.click(user_state_setup,
                                               inputs=[my_db_state, requests_state,
                                                       refresh_sources_btn, refresh_sources_btn],
@@ -1740,7 +1745,12 @@ def go_gradio(**kwargs):
                                               show_progress='minimal')
         eventdb9 = eventdb9a.then(fn=refresh_sources1,
                                   inputs=[my_db_state, selection_docs_state, requests_state,
-                                          langchain_mode, chunk, chunk_size],
+                                          langchain_mode, chunk, chunk_size,
+                                          image_loaders,
+                                          pdf_loaders,
+                                          url_loaders,
+                                          jq_schema,
+                                          ],
                                   outputs=sources_text,
                                   api_name='refresh_sources' if allow_api else None)
 
@@ -3738,11 +3748,18 @@ def update_user_db_gr(file, db1s, selection_docs_state1, requests_state1,
     loaders_dict = gr_to_lg(image_loaders,
                             pdf_loaders,
                             url_loaders,
+                            **kwargs,
                             )
+    if jq_schema is None:
+        jq_schema = kwargs['jq_schema0']
     loaders_dict.update(dict(captions_model=captions_model,
                              caption_loader=caption_loader,
                              jq_schema=jq_schema,
                              ))
+    kwargs.pop('image_loaders_options0', None)
+    kwargs.pop('pdf_loaders_options0', None)
+    kwargs.pop('url_loaders_options0', None)
+    kwargs.pop('jq_schema0', None)
 
     from src.gpt_langchain import update_user_db
     return update_user_db(file, db1s, selection_docs_state1, requests_state1,
@@ -3845,13 +3862,22 @@ def update_and_get_source_files_given_langchain_mode_gr(db1s,
                                                         migrate_embedding_model=None,
                                                         text_limit=None,
                                                         db_type=None, load_db_if_exists=None,
-                                                        n_jobs=None, verbose=None, get_userid_auth=None):
+                                                        n_jobs=None, verbose=None, get_userid_auth=None,
+                                                        image_loaders_options0=None,
+                                                        pdf_loaders_options0=None,
+                                                        url_loaders_options0=None,
+                                                        jq_schema0=None):
     from src.gpt_langchain import update_and_get_source_files_given_langchain_mode
 
     loaders_dict = gr_to_lg(image_loaders,
                             pdf_loaders,
                             url_loaders,
+                            image_loaders_options0=image_loaders_options0,
+                            pdf_loaders_options0=pdf_loaders_options0,
+                            url_loaders_options0=url_loaders_options0,
                             )
+    if jq_schema is None:
+        jq_schema = jq_schema0
     loaders_dict.update(dict(captions_model=captions_model,
                              caption_loader=caption_loader,
                              jq_schema=jq_schema,

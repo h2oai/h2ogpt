@@ -1525,11 +1525,15 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             if not (file.startswith("http://") or file.startswith("file://") or file.startswith("https://")):
                 file = 'http://' + file
             docs1 = []
-            do_unstructured = only_unstructured_urls or not (use_unstructured or only_selenium or only_playwright)
-            do_playwright = have_playwright and (
-                    use_playwright or only_playwright or not (only_selenium or only_unstructured_urls))
-            do_selenium = have_selenium and (
-                    use_selenium or only_selenium or not (only_playwright or only_unstructured_urls))
+            do_unstructured = only_unstructured_urls or use_unstructured
+            if only_selenium or only_playwright:
+                do_unstructured = False
+            do_playwright = have_playwright and (use_playwright or only_playwright)
+            if only_unstructured_urls or only_selenium:
+                do_playwright = False
+            do_selenium = have_selenium and (use_selenium or only_selenium)
+            if only_unstructured_urls or only_playwright:
+                do_selenium = False
 
             if do_unstructured:
                 docs1 = UnstructuredURLLoader(urls=[file]).load()

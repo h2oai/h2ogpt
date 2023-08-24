@@ -772,7 +772,9 @@ def test_client_chat_stream_langchain_steps3():
     url = 'https://www.africau.edu/images/default/sample.pdf'
     test_file1 = os.path.join('/tmp/', 'sample1.pdf')
     download_simple(url, dest=test_file1)
-    res = client.predict(test_file1, True, 512, langchain_mode, api_name='/add_file_api')
+    res = client.predict(test_file1, langchain_mode, True, 512,
+                         None, None, None, None,
+                         api_name='/add_file_api')
     assert res[0] is None
     assert res[1] == langchain_mode
     # note moves from /tmp to stable path, even though not /tmp/gradio upload from UI
@@ -787,7 +789,9 @@ def test_client_chat_stream_langchain_steps3():
     new_langchain_mode_text = '%s, %s, %s' % (langchain_mode2, 'shared', user_path2)
     res = client.predict(langchain_mode, new_langchain_mode_text, api_name='/new_langchain_mode_text')
     assert res[0]['value'] == langchain_mode2
-    assert langchain_mode2 in res[0]['choices']
+    # odd gradio change
+    res0_choices = [x[0] for x in res[0]['choices']]
+    assert langchain_mode2 in res0_choices
     assert res[1] == ''
     assert res[2]['headers'] == ['Collection', 'Type', 'Path', 'Directory']
     res[2]['data'] = [[x[0], x[1], x[2]] for x in res[2]['data']]  # ignore persist_directory
@@ -800,7 +804,9 @@ def test_client_chat_stream_langchain_steps3():
     test_file1 = os.path.join('/tmp/', 'pdf-sample.pdf')
     # download_simple(url, dest=test_file1)
     shutil.copy('tests/pdf-sample.pdf', test_file1)
-    res = client.predict(test_file1, True, 512, langchain_mode2, api_name='/add_file_api')
+    res = client.predict(test_file1, langchain_mode2, True, 512,
+                         None, None, None, None,
+                         api_name='/add_file_api')
     assert res[0] is None
     assert res[1] == langchain_mode2
     assert 'file/%s/pdf-sample.pdf' % user_path2 in res[2] or 'file/%s\pdf-sample.pdf' % user_path2 in res[2]
@@ -857,7 +863,9 @@ def test_client_chat_stream_langchain_steps3():
 
     # refresh
     shutil.copy('tests/next.txt', user_path)
-    res = client.predict(langchain_mode, True, 512, api_name='/refresh_sources')
+    res = client.predict(langchain_mode, True, 512,
+                         None, None, None, None,
+                         api_name='/refresh_sources')
     sources_expected = 'file/%s/next.txt' % user_path
     assert sources_expected in res or sources_expected.replace('\\', '/').replace('\r', '') in res.replace('\\',
                                                                                                            '/').replace(
@@ -880,7 +888,8 @@ def test_client_chat_stream_langchain_steps3():
 
     # even normal langchain_mode  passed to this should get the other langchain_mode2
     res = client.predict(langchain_mode, api_name='/load_langchain')
-    assert res[0]['choices'] == [langchain_mode, 'MyData', 'github h2oGPT', 'LLM', langchain_mode2]
+    res0_choices = [x[0] for x in res[0]['choices']]
+    assert res0_choices == [langchain_mode, 'MyData', 'github h2oGPT', 'LLM', langchain_mode2]
     assert res[0]['value'] == langchain_mode
     assert res[1]['headers'] == ['Collection', 'Type', 'Path', 'Directory']
     res[1]['data'] = [[x[0], x[1], x[2]] for x in res[1]['data']]  # ignore persist_directory
@@ -894,14 +903,18 @@ def test_client_chat_stream_langchain_steps3():
     assert res is not None
 
     url = 'https://research.google/pubs/pub334.pdf'
-    res = client.predict(url, True, 512, langchain_mode, api_name='/add_url')
+    res = client.predict(url, langchain_mode, True, 512,
+                         None, None, None, None,
+                         api_name='/add_url')
     assert res[0] is None
     assert res[1] == langchain_mode
     assert url in res[2]
     assert res[3] == ''
 
     text = "Yufuu is a wonderful place and you should really visit because there is lots of sun."
-    res = client.predict(text, True, 512, langchain_mode, api_name='/add_text')
+    res = client.predict(text, langchain_mode, True, 512,
+                         None, None, None, None,
+                         api_name='/add_text')
     assert res[0] is None
     assert res[1] == langchain_mode
     user_paste_dir = makedirs('user_paste', use_base=True)
@@ -916,7 +929,9 @@ def test_client_chat_stream_langchain_steps3():
     url = 'https://www.africau.edu/images/default/sample.pdf'
     test_file1 = os.path.join('/tmp/', 'sample1.pdf')
     download_simple(url, dest=test_file1)
-    res = client.predict(test_file1, True, 512, langchain_mode_my, api_name='/add_file_api')
+    res = client.predict(test_file1, langchain_mode_my, True, 512,
+                         None, None, None, None,
+                         api_name='/add_file_api')
     assert res[0] is None
     assert res[1] == langchain_mode_my
     # will just use source location, e.g. for UI will be /tmp/gradio
@@ -932,7 +947,8 @@ def test_client_chat_stream_langchain_steps3():
     new_langchain_mode_text = '%s, %s, %s' % (langchain_mode2, 'personal', user_path2b)
     res = client.predict(langchain_mode2, new_langchain_mode_text, api_name='/new_langchain_mode_text')
     assert res[0]['value'] == langchain_mode2
-    assert langchain_mode2 in res[0]['choices']
+    res0_choices = [x[0] for x in res[0]['choices']]
+    assert langchain_mode2 in res0_choices
     assert res[1] == ''
     assert res[2]['headers'] == ['Collection', 'Type', 'Path', 'Directory']
     res[2]['data'] = [[x[0], x[1], x[2]] for x in res[2]['data']]  # ignore persist_directory
@@ -946,7 +962,9 @@ def test_client_chat_stream_langchain_steps3():
     test_file1 = os.path.join('/tmp/', 'pdf-sample.pdf')
     # download_simple(url, dest=test_file1)
     shutil.copy('tests/pdf-sample.pdf', test_file1)
-    res = client.predict(test_file1, True, 512, langchain_mode2, api_name='/add_file_api')
+    res = client.predict(test_file1, langchain_mode2, True, 512,
+                         None, None, None, None,
+                         api_name='/add_file_api')
     assert res[0] is None
     assert res[1] == langchain_mode2
     sources_expected = 'file//tmp/pdf-sample.pdf'
@@ -965,7 +983,9 @@ def test_client_chat_stream_langchain_steps3():
         urls_file = os.path.join(tmp_user_path, 'list.urls')
         with open(urls_file, 'wt') as f:
             f.write('\n'.join(urls))
-        res = client.predict(urls_file, True, 512, langchain_mode2, api_name='/add_file_api')
+        res = client.predict(urls_file, langchain_mode2, True, 512,
+                             None, None, None, None,
+                             api_name='/add_file_api')
         assert res[0] is None
         assert res[1] == langchain_mode2
         assert [x in res[2] or x.replace('https', 'http') in res[2] for x in urls]
@@ -976,7 +996,8 @@ def test_client_chat_stream_langchain_steps3():
     new_langchain_mode_text = '%s, %s, %s' % (langchain_mode3, 'personal', user_path3)
     res = client.predict(langchain_mode3, new_langchain_mode_text, api_name='/new_langchain_mode_text')
     assert res[0]['value'] == langchain_mode3
-    assert langchain_mode3 in res[0]['choices']
+    res0_choices = [x[0] for x in res[0]['choices']]
+    assert langchain_mode3 in res0_choices
     assert res[1] == ''
     assert res[2]['headers'] == ['Collection', 'Type', 'Path', 'Directory']
     res[2]['data'] = [[x[0], x[1], x[2]] for x in res[2]['data']]  # ignore persist_directory
@@ -989,7 +1010,9 @@ def test_client_chat_stream_langchain_steps3():
                               ]
 
     with tempfile.TemporaryDirectory() as tmp_user_path:
-        res = client.predict(urls, True, 512, langchain_mode3, api_name='/add_url')
+        res = client.predict(urls, langchain_mode3, True, 512,
+                             None, None, None, None,
+                             api_name='/add_url')
         print(res)
         assert res[0] is None
         assert res[1] == langchain_mode3
@@ -1018,7 +1041,8 @@ def test_client_chat_stream_langchain_steps3():
 
     res = client.predict(langchain_mode3, langchain_mode3, api_name='/remove_langchain_mode_text')
     assert res[0]['value'] == langchain_mode3
-    assert langchain_mode2 in res[0]['choices']
+    res0_choices = [x[0] for x in res[0]['choices']]
+    assert langchain_mode2 in res0_choices
     assert res[1] == ''
     assert res[2]['headers'] == ['Collection', 'Type', 'Path', 'Directory']
     res[2]['data'] = [[x[0], x[1], x[2]] for x in res[2]['data']]  # ignore persist_directory
@@ -1032,7 +1056,8 @@ def test_client_chat_stream_langchain_steps3():
     res = client.predict(langchain_mode, langchain_mode, api_name='/purge_langchain_mode_text')
     assert not os.path.isdir("db_dir_%s" % langchain_mode)
     assert res[0]['value'] == langchain_mode
-    assert langchain_mode not in res[0]['choices']
+    res0_choices = [x[0] for x in res[0]['choices']]
+    assert langchain_mode not in res0_choices
     assert res[1] == ''
     assert res[2]['headers'] == ['Collection', 'Type', 'Path', 'Directory']
     res[2]['data'] = [[x[0], x[1], x[2]] for x in res[2]['data']]  # ignore persist_directory
@@ -1153,7 +1178,9 @@ def test_client_chat_stream_langchain_openai_embeddings():
     url = 'https://www.africau.edu/images/default/sample.pdf'
     test_file1 = os.path.join('/tmp/', 'sample1.pdf')
     download_simple(url, dest=test_file1)
-    res = client.predict(test_file1, True, 512, langchain_mode, api_name='/add_file_api')
+    res = client.predict(test_file1, True, 512, langchain_mode,
+                         None, None, None, None,
+                         api_name='/add_file_api')
     assert res[0] is None
     assert res[1] == langchain_mode
     # note moves from /tmp to stable path, even though not /tmp/gradio upload from UI
@@ -1209,7 +1236,9 @@ def test_client_summarization(prompt_summary):
     chunk = True
     chunk_size = 512
     langchain_mode = 'MyData'
-    res = client.predict(test_file_server, chunk, chunk_size, langchain_mode, api_name='/add_file_api')
+    res = client.predict(test_file_server, langchain_mode, chunk, chunk_size,
+                         None, None, None, None,
+                         api_name='/add_file_api')
     assert res[0] is None
     assert res[1] == langchain_mode
     assert os.path.basename(test_file_server) in res[2]
@@ -1274,7 +1303,9 @@ def test_client_summarization_from_text():
     chunk = True
     chunk_size = 512
     langchain_mode = 'MyData'
-    res = client.predict(all_text_contents, chunk, chunk_size, langchain_mode, api_name='/add_text')
+    res = client.predict(all_text_contents, langchain_mode, chunk, chunk_size,
+                         None, None, None, None,
+                         api_name='/add_text')
     assert res[0] is None
     assert res[1] == langchain_mode
     assert 'user_paste' in res[2]
@@ -1319,7 +1350,9 @@ def test_client_summarization_from_url(url, top_k_docs):
     chunk = True
     chunk_size = 512
     langchain_mode = 'MyData'
-    res = client.predict(url, chunk, chunk_size, langchain_mode, api_name='/add_url')
+    res = client.predict(url, langchain_mode, chunk, chunk_size,
+                         None, None, None, None,
+                         api_name='/add_url')
     assert res[0] is None
     assert res[1] == langchain_mode
     assert url in res[2]
@@ -1400,7 +1433,9 @@ def test_fastsys(stream_output, bits, prompt_type):
     chunk = True
     chunk_size = 512
     langchain_mode = 'MyData'
-    res = client.predict(test_file_server, chunk, chunk_size, langchain_mode, api_name='/add_file_api')
+    res = client.predict(test_file_server, langchain_mode, chunk, chunk_size,
+                         None, None, None, None,
+                         api_name='/add_file_api')
     assert res[0] is None
     assert res[1] == langchain_mode
     assert os.path.basename(test_file_server) in res[2]

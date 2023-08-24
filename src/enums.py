@@ -177,7 +177,14 @@ def get_langchain_prompts(pre_prompt_query, prompt_query, pre_prompt_summary, pr
 def gr_to_lg(image_loaders,
              pdf_loaders,
              url_loaders,
+             **kwargs,
              ):
+    if image_loaders is None:
+        image_loaders = kwargs['image_loaders_options0']
+    if pdf_loaders is None:
+        pdf_loaders = kwargs['pdf_loaders_options0']
+    if url_loaders is None:
+        url_loaders = kwargs['url_loaders_options0']
     # translate:
     return dict(
         # urls

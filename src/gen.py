@@ -2105,9 +2105,9 @@ def evaluate(
                                    num_return_sequences=num_return_sequences,
                                    )
         loaders_dict = gr_to_lg(image_loaders,
-                 pdf_loaders,
-                 url_loaders,
-                 )
+                                pdf_loaders,
+                                url_loaders,
+                                )
         loaders_dict.update(dict(captions_model=captions_model,
                                  caption_loader=caption_loader,
                                  jq_schema=jq_schema,
