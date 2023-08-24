@@ -72,6 +72,8 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     ```
 * Install document question-answer dependencies:
     ```bash
+    # May be required for jq package:
+    sudo apt-get install autoconf libtool
     # Required for Doc Q/A: LangChain:
     pip install -r reqs_optional/requirements_optional_langchain.txt
     # Required for CPU: LLaMa/GPT4All:
@@ -82,8 +84,6 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     pip install -r reqs_optional/requirements_optional_langchain.urls.txt
     # Optional: support docx, pptx, ArXiv, etc. required by some python packages
     sudo apt-get install -y libmagic-dev poppler-utils tesseract-ocr libtesseract-dev libreoffice
-    # Optional: for json support
-    sudo apt-get install autoconf libtool
     # Optional: for supporting unstructured package
     python -m nltk.downloader all
 * GPU Optional: For AutoGPTQ support on x86_64 linux
