@@ -168,6 +168,7 @@ def test_perf_benchmarks(backend, base_model, task, bits, ngpus):
                           max_time=300,
                           do_sample=False,
                           prompt_summary='Summarize into single paragraph',
+                          system_prompt='',
                           )
 
             t0 = time.time()

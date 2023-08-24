@@ -236,7 +236,7 @@ find openai_vllm -name '*.py' | xargs sed -i 's/from openai\./from openai_vllm./
 find openai_vllm -name '*.py' | xargs sed -i 's/import openai/import openai_vllm/g'
 ```
 
-Assuming torch was installed with CUDA 11.7, and you have installed cuda locally in `/usr/local/cuda-11.7`, then can start in OpenAI compliant mode.  E.g. for LLaMa 65B on 2 GPUs:
+Assuming torch was installed with CUDA 11.7, and you have installed cuda locally in `/usr/local/cuda-11.7`, then can start in OpenAI compliant mode.  E.g. for LLaMa 65B on 2*A100 GPUs:
 ```bash
 CUDA_HOME=/usr/local/cuda-11.7 pip install vllm ray pandas
 export NCCL_IGNORE_DISABLED_P2P=1
@@ -339,7 +339,7 @@ If started OpenAI-compliant server, then run h2oGPT:
 ```bash
 python generate.py --inference_server="vllm:0.0.0.0:5000" --base_model=h2oai/h2ogpt-oasst1-falcon-40b --langchain_mode=UserData
 ```
-Note: `vllm_chat` ChatCompletion is not supported by vLLM project.
+Note: `vllm_chat` ChatCompletion is not supported by vLLM project.  Do not add `https://` or `http://` as prefix to IP address for vLLM.
 
 Note vLLM has bug in stopping sequence that is does not return the last token, unlike OpenAI, so a hack is in place for `prompt_type=human_bot`, and other prompts may need similar hacks.  See `fix_text()` in `src/prompter.py`.
 
