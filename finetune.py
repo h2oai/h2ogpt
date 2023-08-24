@@ -31,16 +31,9 @@ def train(
         save_code: bool = False,
         run_id: int = None,
 
-        base_model: str = 'h2oai/h2ogpt-oig-oasst1-512-6_9b',
-        # base_model: str = 'h2oai/h2ogpt-oasst1-512-12b',
-        # base_model: str = 'h2oai/h2ogpt-oasst1-512-20b',
-        # base_model: str = 'EleutherAI/gpt-neox-20b',
-        # base_model: str = 'EleutherAI/pythia-12b-deduped',
-        # base_model: str = 'togethercomputer/GPT-NeoXT-Chat-Base-20B',
-        # base_model: str = 'decapoda-research/llama-7b-hf',
-        # base_model: str = 'decapoda-research/llama-13b-hf',
-        # base_model: str = 'decapoda-research/llama-30b-hf',
-        # base_model: str = 'EleutherAI/gpt-j-6B',
+        base_model: str = 'h2oai/h2ogpt-4096-llama2-7b',
+        # base_model: str = 'h2oai/h2ogpt-4096-llama2-13b',
+        # base_model: str = 'h2oai/h2ogpt-4096-llama2-70b',
 
         # only needed if base_model is self-exported HF state without tokenizer
         tokenizer_base_model: str = None,
@@ -69,6 +62,7 @@ def train(
         batch_size: int = 128,
         micro_batch_size: int = 4,
         gradient_checkpointing=False,  # unnecessary with gradient accumulation enabled
+        bf16=False,  # needed (and automatically enabled) for llama2-7b
         fp16=True,
         train_8bit=False,
         train_4bit=False,
@@ -113,6 +107,9 @@ def train(
         # Need to call this before importing transformers.
         from src.llama_flash_attn_monkey_patch import replace_llama_attn_with_flash_attn
         replace_llama_attn_with_flash_attn()
+    if "llama2-7b" in base_model:
+        fp16 = False
+        bf16 = True
 
     # allow set token directly
     use_auth_token = os.environ.get("HUGGING_FACE_HUB_TOKEN", use_auth_token)
@@ -202,6 +199,7 @@ def train(
         resume_download=resume_download,
         use_auth_token=use_auth_token,
     )
+    print(model)
     if gpus > 1:
         if not ddp:
             log("model parallel")
@@ -536,6 +534,7 @@ def train(
             num_train_epochs=num_epochs,
             learning_rate=learning_rate,
             gradient_checkpointing=gradient_checkpointing,
+            bf16=bf16,
             fp16=fp16,
             # cosnider 8-bit adam: https://huggingface.co/docs/transformers/v4.18.0/en/performance#8bit-adam
             optim="adamw_torch",  # consider "adafactor" to save memory
@@ -550,8 +549,7 @@ def train(
             load_best_model_at_end=True if val_set_size > 0 else False,
             ddp_find_unused_parameters=False if ddp else None,
             group_by_length=group_by_length,
-            # fsdp="shard_grad_op auto_wrap" if gpus > 1 and not ddp else None,
-            # fsdp_min_num_params=20000 if gpus > 1 and not ddp else None,
+            # fsdp=gpus > 1 and not ddp,
             report_to='tensorboard' if not neptune_run else 'neptune',
         ),
         data_collator=transformers.DataCollatorForSeq2Seq(
