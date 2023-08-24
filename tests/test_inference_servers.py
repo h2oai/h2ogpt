@@ -205,7 +205,7 @@ def gpus_cmd():
     if n_gpus == 1:
         return ['--gpus', 'device=%d' % int(os.getenv('CUDA_VISIBLE_DEVICES', '0'))]
     elif n_gpus > 2:
-        return ['--gpus', '\"device=%s\"' % os.getenv('CUDA_VISIBLE_DEVICES',
+        return ['--gpus', '\'\"device=%s\"\'' % os.getenv('CUDA_VISIBLE_DEVICES',
                                                     str(list(range(0, n_gpus))).replace(']', '').replace('[',
                                                                                                          '').replace(
                                                         ' ', '')
@@ -250,17 +250,21 @@ def run_vllm_docker(inf_port, base_model, tokenizer=None):
               '--trust-remote-code',
               '--download-dir=/.cache/huggingface/hub',
           ]
+    os.environ.pop('CUDA_VISIBLE_DEVICES', None)
     if tokenizer:
         cmd.append('--tokenizer=%s' % tokenizer)
 
     print(cmd, flush=True)
+    print(' '.join(cmd), flush=True)
     docker_hash = subprocess.check_output(cmd).decode().strip()
     import time
     connected = False
     while not connected:
         cmd = 'docker logs %s' % docker_hash
         o = subprocess.check_output(cmd, shell=True, timeout=15)
-        connected = 'Connected' in o.decode("utf-8")
+        connected = 'Uvicorn running on' in o.decode("utf-8")
+        # somehow above message doesn't come up
+        connected |= 'GPU blocks' in o.decode("utf-8")
         time.sleep(5)
     print("Done starting vLLM server: %s" % docker_hash, flush=True)
     return docker_hash
