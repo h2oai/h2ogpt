@@ -529,7 +529,7 @@ def test_gradio_tgi_docker(base_model):
     os.system('docker logs %s | tail -10' % docker_hash2)
 
     # test this version for now, until docker updated
-    version = 0
+    version = 1
 
     try:
         # client test to server that only consumes inference server
@@ -599,7 +599,7 @@ def test_gradio_vllm_docker(base_model):
     os.system('docker logs %s | tail -10' % docker_hash2)
 
     # test this version for now, until docker updated
-    version = 0
+    version = 1
 
     try:
         # client test to server that only consumes inference server
