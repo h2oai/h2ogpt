@@ -205,7 +205,8 @@ def gpus_cmd():
     if n_gpus == 1:
         return ['--gpus', 'device=%d' % int(os.getenv('CUDA_VISIBLE_DEVICES', '0'))]
     elif n_gpus > 2:
-        return ['--gpus', '\'\"device=%s\"\'' % os.getenv('CUDA_VISIBLE_DEVICES',
+        # note below if joined loses ' needed
+        return ['--gpus', '\"device=%s\"' % os.getenv('CUDA_VISIBLE_DEVICES',
                                                     str(list(range(0, n_gpus))).replace(']', '').replace('[',
                                                                                                          '').replace(
                                                         ' ', '')
@@ -583,7 +584,7 @@ def test_gradio_vllm_docker(base_model):
     # HF inference server
     gradio_port = get_inf_port()
     inf_port = gradio_port + 1
-    inference_server = 'http://127.0.0.1:%s' % inf_port
+    inference_server = 'vllm:http://127.0.0.1:%s' % inf_port
     if 'llama' in base_model:
         tokenizer = 'hf-internal-testing/llama-tokenizer'
     else:
