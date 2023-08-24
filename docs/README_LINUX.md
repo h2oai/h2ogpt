@@ -86,6 +86,8 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     sudo apt-get install -y libmagic-dev poppler-utils tesseract-ocr libtesseract-dev libreoffice
     # Optional: for supporting unstructured package
     python -m nltk.downloader all
+    # Optional but required for PlayWright
+    playwright install --with-deps
 * GPU Optional: For AutoGPTQ support on x86_64 linux
     Try H2O.ai's pre-built wheel:
     ```bash
