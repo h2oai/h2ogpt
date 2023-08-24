@@ -151,7 +151,7 @@ def test_gradio_inference_server(base_model, force_langchain_evaluate, do_langch
     print("DONE", flush=True)
 
 
-def run_docker(inf_port, base_model, low_mem_mode=False):
+def run_docker(inf_port, base_model, low_mem_mode=False, do_shared=True):
     datetime_str = str(datetime.now()).replace(" ", "_").replace(":", "_")
     msg = "Starting HF inference %s..." % datetime_str
     print(msg, flush=True)
@@ -172,9 +172,9 @@ def run_docker(inf_port, base_model, low_mem_mode=False):
               'ghcr.io/huggingface/text-generation-inference:0.9.3',
               '--model-id', base_model,
               '--max-stop-sequences', '6',
-              '--sharded', 'false' if n_gpus == 1 else 'true'
+              '--sharded', 'false' if n_gpus == 1 or not do_shared else 'true'
           ]
-    if n_gpus > 1:
+    if n_gpus > 1 and do_shared:
         cmd.extend(['--num-shard', '%s' % n_gpus])
     if low_mem_mode:
         cmd.extend(['--max-input-length', '1024',
@@ -240,7 +240,7 @@ def run_vllm_docker(inf_port, base_model, tokenizer=None):
               '-v', '%s/.cache:/.cache/' % home_dir,
               #'--network', 'host',
               'gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0',
-               # 'h2ogpt',  # use when built locally with vLLM just freshly added
+              #'h2ogpt',  # use when built locally with vLLM just freshly added
               'docker.io/library/h2ogpt',
               '-m', 'vllm.entrypoints.openai.api_server',
               '--port=5000',
@@ -340,7 +340,7 @@ def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain,
     gradio_port = get_inf_port()
     inf_port = gradio_port + 1
     inference_server = 'http://127.0.0.1:%s' % inf_port
-    docker_hash = run_docker(inf_port, base_model, low_mem_mode=True)
+    docker_hash = run_docker(inf_port, base_model, low_mem_mode=True, do_shared=False)
 
     if force_langchain_evaluate:
         langchain_mode = 'MyData'
@@ -521,7 +521,7 @@ def test_gradio_tgi_docker(base_model):
     gradio_port = get_inf_port()
     inf_port = gradio_port + 1
     inference_server = 'http://127.0.0.1:%s' % inf_port
-    docker_hash1 = run_docker(inf_port, base_model, low_mem_mode=True)
+    docker_hash1 = run_docker(inf_port, base_model, low_mem_mode=True, do_shared=False)
     os.system('docker logs %s | tail -10' % docker_hash1)
 
     # h2oGPT server
