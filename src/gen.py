@@ -1907,6 +1907,10 @@ def evaluate(
         load_exllama=None,
         answer_with_sources=None,
         append_sources_to_answer=None,
+        image_loaders_options0=None,
+        pdf_loaders_options0=None,
+        url_loaders_options0=None,
+        jq_schema0=None,
 ):
     # ensure passed these
     assert concurrency_count is not None
@@ -1925,6 +1929,15 @@ def evaluate(
     assert first_para is not None
     assert isinstance(add_chat_history_to_context, bool)
     assert load_exllama is not None
+    # for lazy client (even chat client)
+    if image_loaders is None:
+        image_loaders = image_loaders_options0
+    if pdf_loaders is None:
+        pdf_loaders = pdf_loaders_options0
+    if url_loaders is None:
+        url_loaders = url_loaders_options0
+    if jq_schema is None:
+        jq_schema = jq_schema0
 
     langchain_modes = selection_docs_state['langchain_modes']
     langchain_mode_paths = selection_docs_state['langchain_mode_paths']

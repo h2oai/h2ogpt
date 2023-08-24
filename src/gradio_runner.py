@@ -426,6 +426,11 @@ def go_gradio(**kwargs):
             allow = False
         return allow
 
+    image_loaders_options0, image_loaders_options, \
+        pdf_loaders_options0, pdf_loaders_options, \
+        url_loaders_options0, url_loaders_options = lg_to_gr(**kwargs)
+    jq_schema0 = '.[]'
+
     with (demo):
         # avoid actual model/tokenizer here or anything that would be bad to deepcopy
         # https://github.com/gradio-app/gradio/issues/3558
@@ -858,9 +863,6 @@ def go_gradio(**kwargs):
                                                         info="Added after documents (if query given, 'Focusing on {query}, ' is pre-appended)",
                                                         value=kwargs['prompt_summary'] or '')
                     with gr.Row(visible=not is_public):
-                        image_loaders_options0, image_loaders_options, \
-                            pdf_loaders_options0, pdf_loaders_options, \
-                            url_loaders_options0, url_loaders_options = lg_to_gr(**kwargs)
                         image_loaders = gr.CheckboxGroup(image_loaders_options,
                                                          label="Force Image Reader",
                                                          value=image_loaders_options0)
@@ -869,7 +871,7 @@ def go_gradio(**kwargs):
                                                        value=pdf_loaders_options0)
                         url_loaders = gr.CheckboxGroup(url_loaders_options,
                                                        label="Force URL Reader", value=url_loaders_options0)
-                        jq_schema = gr.Textbox(label="JSON jq_schema", value='.[]')
+                        jq_schema = gr.Textbox(label="JSON jq_schema", value=jq_schema0)
 
                         min_top_k_docs, max_top_k_docs, label_top_k_docs = get_minmax_top_k_docs(is_public)
                         top_k_docs = gr.Slider(minimum=min_top_k_docs, maximum=max_top_k_docs, step=1,

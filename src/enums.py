@@ -144,11 +144,12 @@ def t5_type(model_name):
 
 
 def get_langchain_prompts(pre_prompt_query, prompt_query, pre_prompt_summary, prompt_summary,
-                     model_name, inference_server, model_path_llama):
+                          model_name, inference_server, model_path_llama):
     if model_name and ('falcon' in model_name or
                        'Llama-2'.lower() in model_name.lower() or
-                       model_path_llama and 'llama-2' in model_path_llama.lower()
-    ):
+                       model_path_llama and 'llama-2' in model_path_llama.lower()) or \
+            model_name in [None, '']:
+        # use when no model, like no --base_model
         pre_prompt_query1 = "Pay attention and remember information below, which will help to answer the question or imperative after the context ends.\n"
         prompt_query1 = "According to only the information in the document sources provided within the context above, "
     elif inference_server and inference_server.startswith('openai'):

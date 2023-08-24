@@ -32,7 +32,7 @@ from tqdm import tqdm
 
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
-    super_source_postfix, langchain_modes_intrinsic
+    super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts
 from evaluate_params import gen_hyper
 from gen import get_model, SEED
 from prompter import non_hf_types, PromptType, Prompter
@@ -2779,6 +2779,13 @@ def _run_qa_db(query=None,
     if langchain_action in [LangChainAction.QUERY.value]:
         # only summarization supported
         async_output = False
+
+    # in case None, e.g. lazy client, then set based upon actual model
+    pre_prompt_query, prompt_query, pre_prompt_summary, prompt_summary = \
+        get_langchain_prompts(pre_prompt_query, prompt_query,
+                              pre_prompt_summary, prompt_summary,
+                              model_name, inference_server,
+                              llamacpp_dict.get('model_path_llama'))
 
     assert db_type is not None
     assert hf_embedding_model is not None

@@ -111,6 +111,10 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
                          pre_prompt_summary=None,
                          prompt_summary=None,
                          system_prompt="",
+                         image_loaders=None,
+                         pdf_loaders=None,
+                         url_loaders=None,
+                         jq_schema=None,
                          )
     diff = 0
     if version is None:
