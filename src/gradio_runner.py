@@ -111,10 +111,7 @@ def go_gradio(**kwargs):
     hf_embedding_model = kwargs['hf_embedding_model']
     load_db_if_exists = kwargs['load_db_if_exists']
     migrate_embedding_model = kwargs['migrate_embedding_model']
-    # enable_captions = kwargs['enable_captions']
     captions_model = kwargs['captions_model']
-    # enable_ocr = kwargs['enable_ocr']
-    # enable_pdf_ocr = kwargs['enable_pdf_ocr']
     caption_loader = kwargs['caption_loader']
 
     n_jobs = kwargs['n_jobs']
@@ -582,7 +579,8 @@ def go_gradio(**kwargs):
                                                     elem_id="warning", elem_classes="feedback",
                                                     )
                             fileup_output_text = gr.Textbox(visible=False)
-                    max_quality = gr.Checkbox(label="Maximum Ingest Quality", value=kwargs['max_quality'])
+                    max_quality = gr.Checkbox(label="Maximum Ingest Quality", value=kwargs['max_quality'],
+                                              visible=not is_public)
                     url_visible = kwargs['langchain_mode'] != 'Disabled' and allow_upload and enable_url_upload
                     url_label = 'URL/ArXiv' if have_arxiv else 'URL'
                     url_text = gr.Textbox(label=url_label,
@@ -1282,6 +1280,32 @@ def go_gradio(**kwargs):
             else:
                 return tuple([gr.update(interactive=True)] * len(args))
 
+        def set_loaders(max_quality1,
+                        image_loaders_options1=None,
+                        pdf_loaders_options1=None,
+                        url_loaders_options1=None,
+                        image_loaders_options01=None,
+                        pdf_loaders_options01=None,
+                        url_loaders_options01=None,
+                        ):
+            if not max_quality1:
+                return image_loaders_options01, pdf_loaders_options01, url_loaders_options01
+            else:
+                return image_loaders_options1, pdf_loaders_options1, url_loaders_options1
+
+        set_loaders_func = functools.partial(set_loaders,
+                                             image_loaders_options1=image_loaders_options,
+                                             pdf_loaders_options1=pdf_loaders_options,
+                                             url_loaders_options1=url_loaders_options,
+                                             image_loaders_options01=image_loaders_options0,
+                                             pdf_loaders_options01=pdf_loaders_options0,
+                                             url_loaders_options01=url_loaders_options0,
+                                             )
+
+        max_quality.change(fn=set_loaders_func,
+                           inputs=max_quality,
+                           outputs=[image_loaders, pdf_loaders, url_loaders])
+
         # Add to UserData or custom user db
         update_db_func = functools.partial(update_user_db_gr,
                                            dbs=dbs,
@@ -1290,10 +1314,7 @@ def go_gradio(**kwargs):
                                            hf_embedding_model=hf_embedding_model,
                                            migrate_embedding_model=migrate_embedding_model,
                                            captions_model=captions_model,
-                                           # enable_captions=enable_captions,
                                            caption_loader=caption_loader,
-                                           # enable_ocr=enable_ocr,
-                                           # enable_pdf_ocr=enable_pdf_ocr,
                                            verbose=kwargs['verbose'],
                                            n_jobs=kwargs['n_jobs'],
                                            get_userid_auth=get_userid_auth,
@@ -3745,11 +3766,12 @@ def update_user_db_gr(file, db1s, selection_docs_state1, requests_state1,
                       dbs=None,
                       get_userid_auth=None,
                       **kwargs):
-    loaders_dict = gr_to_lg(image_loaders,
-                            pdf_loaders,
-                            url_loaders,
-                            **kwargs,
-                            )
+    loaders_dict, captions_model = gr_to_lg(image_loaders,
+                                            pdf_loaders,
+                                            url_loaders,
+                                            captions_model=captions_model,
+                                            **kwargs,
+                                            )
     if jq_schema is None:
         jq_schema = kwargs['jq_schema0']
     loaders_dict.update(dict(captions_model=captions_model,
@@ -3869,13 +3891,14 @@ def update_and_get_source_files_given_langchain_mode_gr(db1s,
                                                         jq_schema0=None):
     from src.gpt_langchain import update_and_get_source_files_given_langchain_mode
 
-    loaders_dict = gr_to_lg(image_loaders,
-                            pdf_loaders,
-                            url_loaders,
-                            image_loaders_options0=image_loaders_options0,
-                            pdf_loaders_options0=pdf_loaders_options0,
-                            url_loaders_options0=url_loaders_options0,
-                            )
+    loaders_dict, captions_model = gr_to_lg(image_loaders,
+                                            pdf_loaders,
+                                            url_loaders,
+                                            image_loaders_options0=image_loaders_options0,
+                                            pdf_loaders_options0=pdf_loaders_options0,
+                                            url_loaders_options0=url_loaders_options0,
+                                            captions_model=captions_model,
+                                            )
     if jq_schema is None:
         jq_schema = jq_schema0
     loaders_dict.update(dict(captions_model=captions_model,

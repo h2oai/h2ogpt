@@ -186,7 +186,7 @@ def gr_to_lg(image_loaders,
     if url_loaders is None:
         url_loaders = kwargs['url_loaders_options0']
     # translate:
-    return dict(
+    ret = dict(
         # urls
         use_unstructured='Unstructured' in url_loaders,
         use_playwright='PlayWright' in url_loaders,
@@ -201,5 +201,11 @@ def gr_to_lg(image_loaders,
 
         # images
         enable_ocr='OCR' in image_loaders,
-        enable_captions='Caption' in image_loaders,
+        enable_captions='Caption' in image_loaders or 'CaptionBlip2' in image_loaders,
     )
+    if 'CaptionBlip2' in image_loaders:
+        # just override, don't actually do both even if user chose both
+        captions_model = "Salesforce/blip2-flan-t5-xl"
+    else:
+        captions_model = kwargs['captions_model']
+    return ret, captions_model

@@ -548,7 +548,8 @@ def main(
     :param auto_reduce_chunks: Whether to automatically reduce top_k_docs to fit context given prompt
     :param max_chunks: If top_k_docs=-1, maximum number of chunks to allow
     :param n_jobs: Number of processors to use when consuming documents (-1 = all, is default)
-    :param enable_captions: Whether to support captions using BLIP for image files as documents, then preloads that model
+    :param enable_captions: Whether to support captions using BLIP for image files as documents,
+           then preloads that model if pre_load_caption_model=True
     :param captions_model: Which model to use for captions.
            captions_model: str = "Salesforce/blip-image-captioning-base",  # continue capable
            captions_model: str = "Salesforce/blip2-flan-t5-xl",   # question/answer capable, 16GB state
@@ -2108,10 +2109,11 @@ def evaluate(
                                    max_time=max_time,
                                    num_return_sequences=num_return_sequences,
                                    )
-        loaders_dict = gr_to_lg(image_loaders,
-                                pdf_loaders,
-                                url_loaders,
-                                )
+        loaders_dict, captions_model = gr_to_lg(image_loaders,
+                                                pdf_loaders,
+                                                url_loaders,
+                                                captions_model=captions_model,
+                                                )
         loaders_dict.update(dict(captions_model=captions_model,
                                  caption_loader=caption_loader,
                                  jq_schema=jq_schema,

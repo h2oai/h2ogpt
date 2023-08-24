@@ -941,7 +941,6 @@ def get_kwargs(func, exclude_names=None, **kwargs):
 
 from importlib.metadata import distribution, PackageNotFoundError
 
-
 have_faiss = False
 
 try:
@@ -1068,7 +1067,6 @@ import distutils.spawn
 have_tesseract = distutils.spawn.find_executable("tesseract")
 have_libreoffice = distutils.spawn.find_executable("libreoffice")
 
-
 try:
     assert distribution('arxiv') is not None
     assert distribution('pymupdf') is not None
@@ -1105,7 +1103,6 @@ try:
     have_jq = True
 except (PackageNotFoundError, AssertionError):
     have_jq = False
-
 
 only_unstructured_urls = os.environ.get("ONLY_UNSTRUCTURED_URLS", "0") == "1"
 only_selenium = os.environ.get("ONLY_SELENIUM", "0") == "1"
@@ -1218,14 +1215,23 @@ def lg_to_gr(
         **kwargs,
 ):
     # translate:
-    image_loaders_options = ['Caption']
+    import torch
+    n_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 0
+    n_gpus, gpu_ids = cuda_vis_check(n_gpus)
+    if n_gpus != 0:
+        image_loaders_options = ['Caption', 'CaptionBlip2']
+    else:
+        image_loaders_options = []
     if have_tesseract:
         image_loaders_options.append('OCR')
     image_loaders_options0 = []
     if have_tesseract and kwargs['enable_ocr']:
         image_loaders_options0.append('OCR')
     if kwargs['enable_captions']:
-        image_loaders_options0.append('Caption')
+        if kwargs['max_quality']:
+            image_loaders_options0.append('CaptionBlip2')
+        else:
+            image_loaders_options0.append('Caption')
     assert len(set(image_loaders_options0).difference(image_loaders_options)) == 0
 
     pdf_loaders_options = ['PyMuPDF', 'Unstructured', 'PyPDF', 'TryHTML']
