@@ -1111,7 +1111,7 @@ def get_config(base_model,
                                                 trust_remote_code=trust_remote_code,
                                                 offload_folder=offload_folder,
                                                 revision=revision,
-                                                rope_scaling=rope_scaling)
+                                                rope_scaling=rope_scaling if rope_scaling else None)
         except OSError as e:
             if raise_exception:
                 raise
