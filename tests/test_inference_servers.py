@@ -205,10 +205,11 @@ def gpus_cmd():
     if n_gpus == 1:
         return ['--gpus', 'device=%d' % int(os.getenv('CUDA_VISIBLE_DEVICES', '0'))]
     elif n_gpus > 2:
-        return ['--gpus', '"device=%s"' % os.getenv('CUDA_VISIBLE_DEVICES',
-                                                  str(list(range(0, n_gpus))).replace(']', '').replace('[', '').replace(
-                                                      ' ', '')
-                                                  )]
+        return ['--gpus', '\"device=%s\"' % os.getenv('CUDA_VISIBLE_DEVICES',
+                                                    str(list(range(0, n_gpus))).replace(']', '').replace('[',
+                                                                                                         '').replace(
+                                                        ' ', '')
+                                                    )]
 
 
 def run_vllm_docker(inf_port, base_model, tokenizer=None):
@@ -226,7 +227,7 @@ def run_vllm_docker(inf_port, base_model, tokenizer=None):
                         '-d',
                         '--runtime', 'nvidia',
                         ] + gpus_cmd() + [
-              '--shm-size', '4g',
+              '--shm-size', '10.24g',
               '-e', 'HUGGING_FACE_HUB_TOKEN=%s' % os.environ['HUGGING_FACE_HUB_TOKEN'],
               '-e', 'TRANSFORMERS_CACHE="/.cache/"',
               '-p', '%s:5000' % inf_port,
@@ -243,8 +244,8 @@ def run_vllm_docker(inf_port, base_model, tokenizer=None):
               '-m', 'vllm.entrypoints.openai.api_server',
               '--port=5000',
               '--host=0.0.0.0',
-                    '--model=%s' % base_model,
-                    '--tensor-parallel-size=%s' % n_gpus,
+              '--model=%s' % base_model,
+              '--tensor-parallel-size=%s' % n_gpus,
               '--seed', '1234',
               '--trust-remote-code',
               '--download-dir=/.cache/huggingface/hub',
@@ -261,7 +262,7 @@ def run_vllm_docker(inf_port, base_model, tokenizer=None):
         o = subprocess.check_output(cmd, shell=True, timeout=15)
         connected = 'Connected' in o.decode("utf-8")
         time.sleep(5)
-    print("Done starting TGI server: %s" % docker_hash, flush=True)
+    print("Done starting vLLM server: %s" % docker_hash, flush=True)
     return docker_hash
 
 
@@ -569,7 +570,9 @@ def test_gradio_tgi_docker(base_model):
 
 
 @pytest.mark.parametrize("base_model",
-                         ['h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2', 'meta-llama/Llama-2-7b-chat-hf']
+                         [
+                             'h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2',
+                             'h2oai/h2ogpt-4096-llama2-7b-chat']  # avoid meta to avoid hassle of key
                          )
 @wrap_test_forked
 def test_gradio_vllm_docker(base_model):

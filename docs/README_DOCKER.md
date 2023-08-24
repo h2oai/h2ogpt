@@ -141,7 +141,7 @@ mkdir -p $HOME/save
 docker run \
     --runtime=nvidia \
     --gpus '"device=0,1"' \
-    --shm-size=4gb \
+    --shm-size=10.24gb \
     -e TRANSFORMERS_CACHE="/.cache/" \
     -p 5000:5000 \
     --rm --init \
