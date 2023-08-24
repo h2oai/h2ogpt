@@ -1543,6 +1543,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                 docs1a = UnstructuredURLLoader(urls=[file]).load()
                 docs1a = [x for x in docs1a if x.page_content]
                 add_parser(docs1a, 'UnstructuredURLLoader')
+                docs1.extend(docs1a)
             if len(docs1) == 0 and have_playwright or do_playwright:
                 # then something went wrong, try another loader:
                 from langchain.document_loaders import PlaywrightURLLoader
