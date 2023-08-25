@@ -38,7 +38,7 @@ from gen import get_model, SEED
 from prompter import non_hf_types, PromptType, Prompter
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
     get_device, ProgressParallel, remove, hash_file, clear_torch_cache, NullContext, get_hf_server, FakeTokenizer, \
-    have_libreoffice, have_arxiv, have_playwright, have_selenium, have_tesseract, have_pymupdf, set_openai, \
+    have_libreoffice, have_arxiv, have_playwright, have_selenium, have_tesseract, have_doctr, have_pymupdf, set_openai, \
     get_list_or_str, have_pillow, only_selenium, only_playwright, only_unstructured_urls, get_sha, get_short_name, \
     get_accordion, have_jq
 from utils_langchain import StreamingGradioCallbackHandler
@@ -1466,9 +1466,11 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
 
                 # images
                 enable_ocr=False,
+                enable_doctr=False,
                 enable_captions=True,
                 captions_model=None,
                 caption_loader=None,
+                doctr_loader=None,
 
                 # json
                 jq_schema='.[]',
@@ -1626,6 +1628,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         add_meta(docs1, file, headsize, parser='UnstructuredEPubLoader')
         doc1 = chunk_sources(docs1)
     elif any(file.lower().endswith(x) for x in set_image_types1):
+        print(enable_ocr, enable_doctr, enable_captions)
         docs1 = []
         if have_tesseract and enable_ocr:
             # OCR, somewhat works, but not great
@@ -1633,6 +1636,25 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             docs1a = UnstructuredImageLoader(file, strategy='hi_res').load()
             add_meta(docs1a, file, headsize, parser='UnstructuredImageLoader')
             docs1.extend(docs1a)
+        if have_doctr and enable_doctr:
+            if doctr_loader is not None and not isinstance(doctr_loader, (str, bool)):
+                doctr_loader.set_image_paths([file])
+                docs1c = doctr_loader.load()
+                add_meta(docs1c, file, headsize, parser='doctr_loader')
+                docs1.extend(docs1c)
+            else:
+                from image_doctr import H2OOCRLoader
+                doctr_loader = H2OOCRLoader()
+                doctr_loader.set_image_paths([file])
+                docs1c = doctr_loader.load()
+                add_meta(docs1c, file, headsize, parser='H2OOCRLoader: %s' % captions_model)
+                docs1.extend(docs1c)
+            # caption didn't set source, so fix-up meta
+            for doci in docs1:
+                doci.metadata['source'] = doci.metadata.get('image_path', file)
+                doci.metadata['hashid'] = hash_file(doci.metadata['source'])
+            if docs1:
+                doc1 = chunk_sources(docs1)
         if enable_captions:
             # BLIP
             if caption_loader is not None and not isinstance(caption_loader, (str, bool)):
@@ -1850,6 +1872,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
 
                            # images
                            enable_ocr=enable_ocr,
+                           enable_doctr=enable_doctr,
                            enable_captions=enable_captions,
                            captions_model=captions_model,
                            caption_loader=caption_loader,
@@ -1896,9 +1919,11 @@ def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True
 
                  # images
                  enable_ocr=False,
+                 enable_doctr=False,
                  enable_captions=True,
                  captions_model=None,
                  caption_loader=None,
+                 doctr_loader=None,
 
                  # json
                  jq_schema='.[]',
@@ -1935,6 +1960,7 @@ def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True
 
                           # images
                           enable_ocr=enable_ocr,
+                          enable_doctr=enable_doctr,
                           enable_captions=enable_captions,
                           captions_model=captions_model,
                           caption_loader=caption_loader,
@@ -1990,9 +2016,11 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
 
                  # images
                  enable_ocr=False,
+                 enable_doctr = False,
                  enable_captions=True,
                  captions_model=None,
                  caption_loader=None,
+                 doctr_loader=None,
 
                  # json
                  jq_schema='.[]',
@@ -2105,6 +2133,7 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
 
                   # images
                   enable_ocr=enable_ocr,
+                  enable_doctr=enable_doctr,
                   enable_captions=enable_captions,
                   captions_model=captions_model,
                   caption_loader=caption_loader,
@@ -2452,9 +2481,11 @@ def _make_db(use_openai_embedding=False,
 
              # images
              enable_ocr=False,
+             enable_doctr=False,
              enable_captions=True,
              captions_model=None,
              caption_loader=None,
+             doctr_loader=None,
 
              # json
              jq_schema='.[]',
@@ -2537,6 +2568,7 @@ def _make_db(use_openai_embedding=False,
 
                                 # images
                                 enable_ocr=enable_ocr,
+                                enable_doctr=enable_doctr,
                                 enable_captions=enable_captions,
                                 captions_model=captions_model,
                                 caption_loader=caption_loader,
@@ -2722,9 +2754,11 @@ def _run_qa_db(query=None,
 
                # images
                enable_ocr=False,
+               enable_doctr=False,
                enable_captions=True,
                captions_model=None,
                caption_loader=None,
+               doctr_loader=None,
 
                # json
                jq_schema='.[]',
@@ -3051,9 +3085,11 @@ def get_chain(query=None,
 
               # images
               enable_ocr=False,
+              enable_doctr=False,
               enable_captions=True,
               captions_model=None,
               caption_loader=None,
+              doctr_loader=None,
 
               # json
               jq_schema='.[]',
@@ -3149,6 +3185,7 @@ def get_chain(query=None,
 
                                                         # images
                                                         enable_ocr=enable_ocr,
+                                                        enable_doctr=enable_doctr,
                                                         enable_captions=enable_captions,
                                                         captions_model=captions_model,
                                                         caption_loader=caption_loader,
@@ -3752,9 +3789,11 @@ def _update_user_db(file,
 
                     # images
                     enable_ocr=False,
+                    enable_doctr=False,
                     enable_captions=True,
                     captions_model=None,
                     caption_loader=None,
+                    doctr_loader=None,
 
                     # json
                     jq_schema='.[]',
@@ -3780,6 +3819,7 @@ def _update_user_db(file,
     assert enable_captions is not None
     assert captions_model is not None
     assert enable_ocr is not None
+    assert enable_doctr is not None
     assert enable_pdf_ocr is not None
     assert verbose is not None
 
@@ -3859,6 +3899,7 @@ def _update_user_db(file,
 
                            # images
                            enable_ocr=enable_ocr,
+                           enable_doctr=enable_doctr,
                            enable_captions=enable_captions,
                            captions_model=captions_model,
                            caption_loader=caption_loader,
@@ -4080,9 +4121,11 @@ def update_and_get_source_files_given_langchain_mode(db1s,
 
                                                      # images
                                                      enable_ocr=False,
+                                                     enable_doctr=False,
                                                      enable_captions=True,
                                                      captions_model=None,
                                                      caption_loader=None,
+                                                     doctr_loader=None,
 
                                                      # json
                                                      jq_schema='.[]',
@@ -4141,6 +4184,7 @@ def update_and_get_source_files_given_langchain_mode(db1s,
 
                                                         # images
                                                         enable_ocr=enable_ocr,
+                                                        enable_doctr=enable_doctr,
                                                         enable_captions=enable_captions,
                                                         captions_model=captions_model,
                                                         caption_loader=caption_loader,

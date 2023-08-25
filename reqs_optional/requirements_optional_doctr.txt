@@ -1,0 +1,1 @@
+python-doctr @ git+https://github.com/h2oai/doctr.git@9d0b160ee80b38d8c12672bde78aed7965054567

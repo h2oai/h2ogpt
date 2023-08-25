@@ -28,6 +28,7 @@ def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False,
 
                # images
                enable_ocr=False,
+               enable_doctr=False,
                enable_captions=True,
                captions_model=None,
                caption_loader=None,
@@ -57,6 +58,7 @@ def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False,
 
                             # images
                             enable_ocr=enable_ocr,
+                            enable_doctr=enable_doctr,
                             enable_captions=enable_captions,
                             captions_model=captions_model,
                             caption_loader=caption_loader,
@@ -103,6 +105,7 @@ def make_db_main(use_openai_embedding: bool = False,
 
                  # images
                  enable_ocr=False,
+                 enable_doctr=False,
                  enable_captions=True,
                  captions_model: str = "Salesforce/blip-image-captioning-base",
                  # caption_loader=None,  # set internally
@@ -243,6 +246,7 @@ def make_db_main(use_openai_embedding: bool = False,
 
                          # images
                          enable_ocr=enable_ocr,
+                         enable_doctr=enable_doctr,
                          enable_captions=enable_captions,
                          captions_model=captions_model,
                          caption_loader=caption_loader,
