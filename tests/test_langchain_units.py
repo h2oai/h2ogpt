@@ -492,6 +492,7 @@ def test_make_add_db(repeat, db_type):
                                   migrate_embedding_model=True,
                                   caption_loader=False,
                                   enable_captions=False,
+                                  enable_doctr=False,
                                   captions_model="Salesforce/blip-image-captioning-base",
                                   enable_ocr=False,
                                   enable_pdf_ocr='auto',
