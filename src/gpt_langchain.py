@@ -3227,8 +3227,13 @@ def get_chain(query=None,
         # don't trust that fake tokenizer (e.g. GGML) will make lots of tokens normally, allow more input
         max_input_tokens = tokenizer.model_max_length - min(256, max_new_tokens)
     elif hasattr(tokenizer, 'model_max_length'):
-        # trust that maybe model will make so many tokens, so limit input
-        max_input_tokens = tokenizer.model_max_length - max_new_tokens
+        if 'falcon' in model_name:
+            # allow for more input for falcon, assume won't make as long outputs as default max_new_tokens
+            # this works if using TGI where tell it input may be same as output, even if model can't actually handle
+            max_input_tokens = tokenizer.model_max_length - min(256, max_new_tokens)
+        else:
+            # trust that maybe model will make so many tokens, so limit input
+            max_input_tokens = tokenizer.model_max_length - max_new_tokens
     else:
         # leave some room for 1 paragraph, even if min_new_tokens=0
         max_input_tokens = 2048 - min(256, max_new_tokens)
