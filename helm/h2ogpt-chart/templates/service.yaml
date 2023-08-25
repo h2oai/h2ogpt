@@ -18,7 +18,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "h2ogpt.fullname" . }}-gpt
+  name: {{ include "h2ogpt.fullname" . }}
   namespace: {{ .Release.Namespace }}
 spec:
   selector:
@@ -28,20 +28,36 @@ spec:
       port: {{ .Values.h2ogpt.service.gptPort }}
       targetPort: 8888
   type: NodePort
-  {{- end }}
+{{- end }}
 ---
 {{- if .Values.tgi.enabled }}
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "h2ogpt.fullname" . }}-inference
+  name: {{ include "h2ogpt.fullname" . }}-tgi-inference
   namespace: {{ .Release.Namespace }}
 spec:
   selector:
-    app: {{ include "h2ogpt.fullname" . }}-inference
+    app: {{ include "h2ogpt.fullname" . }}-tgi-inference
   ports:
     - protocol: TCP
       port: {{ .Values.tgi.service.port }}
       targetPort: 80
   type: NodePort
-  {{- end }}
+{{- end }}
+---
+{{- if .Values.vllm.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "h2ogpt.fullname" . }}-vllm-inference
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    app: {{ include "h2ogpt.fullname" . }}-vllm-inference
+  ports:
+    - protocol: TCP
+      port: {{ .Values.vllm.service.port }}
+      targetPort: 5000
+  type: NodePort
+{{- end }}
