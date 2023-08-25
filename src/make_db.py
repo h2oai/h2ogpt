@@ -118,6 +118,7 @@ def make_db_main(use_openai_embedding: bool = False,
                  caption_gpu: bool = True,
                  db_type: str = 'chroma',
                  selected_file_types: Union[List[str], str] = None,
+                 fail_if_no_sources: bool = True
                  ):
     """
     # To make UserData db for generate.py, put pdfs, etc. into path user_path and run:
@@ -263,13 +264,13 @@ def make_db_main(use_openai_embedding: bool = False,
     print("Exceptions: %s/%s %s" % (len(exceptions), len(sources), exceptions), flush=True)
     sources = [x for x in sources if 'exception' not in x.metadata]
 
-    assert len(sources) > 0, "No sources found"
+    assert len(sources) > 0 or not fail_if_no_sources, "No sources found"
     db = create_or_update_db(db_type, persist_directory,
                              collection_name, user_path, langchain_type,
                              sources, use_openai_embedding, add_if_exists, verbose,
                              hf_embedding_model, migrate_embedding_model)
 
-    assert db is not None
+    assert db is not None or not fail_if_no_sources
     if verbose:
         print("DONE", flush=True)
     return db, collection_name

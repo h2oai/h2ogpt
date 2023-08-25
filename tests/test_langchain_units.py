@@ -976,60 +976,176 @@ def test_msg_add(db_type):
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
 
+os.system('cd tests ; unzip -o driverslicense.jpeg.zip')
+
+
+@pytest.mark.parametrize("file", ['data/pexels-evg-kowalievska-1170986_small.jpg',
+                                  'tests/driverslicense.jpeg.zip',
+                                  'tests/driverslicense.jpeg'])
 @pytest.mark.parametrize("db_type", db_types)
+@pytest.mark.parametrize("enable_doctr", [False, True])
+@pytest.mark.parametrize("enable_ocr", [False, True])
+@pytest.mark.parametrize("enable_captions", [False, True])
+@pytest.mark.parametrize("pre_load_caption_model", [False, True])
+@pytest.mark.parametrize("caption_gpu", [False, True])
+@pytest.mark.parametrize("captions_model", [None, 'Salesforce/blip2-flan-t5-xl'])
 @wrap_test_forked
-def test_png_add(db_type):
+def test_png_add(captions_model, caption_gpu, pre_load_caption_model, enable_captions,
+                 enable_doctr, enable_ocr, db_type, file):
+    if not have_gpus and caption_gpu:
+        # if have no GPUs, don't enable caption on GPU
+        return
+    if not enable_captions and pre_load_caption_model:
+        # nothing to preload if not enabling captions
+        return
+    if captions_model == 'Salesforce/blip2-flan-t5-xl' and not (have_gpus and mem_gpus[0] > 20 * 1024 ** 3):
+        # requires GPUs and enough memory to run
+        return
+    if not (enable_ocr or enable_doctr or enable_captions):
+        # nothing enabled for images
+        return
     kill_weaviate(db_type)
-    return run_png_add(captions_model=None, caption_gpu=False, db_type=db_type)
+    return run_png_add(captions_model=captions_model, caption_gpu=caption_gpu,
+                       pre_load_caption_model=pre_load_caption_model,
+                       enable_captions=enable_captions,
+                       enable_ocr=enable_ocr,
+                       enable_doctr=enable_doctr,
+                       db_type=db_type,
+                       file=file)
 
 
-@pytest.mark.skipif(not have_gpus, reason="requires GPUs to run")
-@pytest.mark.parametrize("db_type", db_types)
-@wrap_test_forked
-def test_png_add_gpu(db_type):
-    kill_weaviate(db_type)
-    return run_png_add(captions_model=None, caption_gpu=True, db_type=db_type)
-
-
-@pytest.mark.skipif(not have_gpus, reason="requires GPUs to run")
-@pytest.mark.parametrize("db_type", db_types)
-@wrap_test_forked
-def test_png_add_gpu_preload(db_type):
-    kill_weaviate(db_type)
-    return run_png_add(captions_model=None, caption_gpu=True, pre_load_caption_model=True, db_type=db_type)
-
-
-@pytest.mark.skipif(not (have_gpus and mem_gpus[0] > 20 * 1024 ** 3), reason="requires GPUs and enough memory to run")
-@pytest.mark.parametrize("db_type", db_types)
-@wrap_test_forked
-def test_png_add_gpu_blip2(db_type):
-    kill_weaviate(db_type)
-    return run_png_add(captions_model='Salesforce/blip2-flan-t5-xl', caption_gpu=True, db_type=db_type)
-
-
-def run_png_add(captions_model=None, caption_gpu=False, pre_load_caption_model=False, db_type='chroma'):
+def run_png_add(captions_model=None, caption_gpu=False,
+                pre_load_caption_model=False,
+                enable_captions=True,
+                enable_ocr=False,
+                enable_doctr=False,
+                db_type='chroma',
+                file='data/pexels-evg-kowalievska-1170986_small.jpg'):
     from src.make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persist_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
-            test_file1 = 'data/pexels-evg-kowalievska-1170986_small.jpg'
+            test_file1 = file
             if not os.path.isfile(test_file1):
                 # see if ran from tests directory
-                test_file1 = '../data/pexels-evg-kowalievska-1170986_small.jpg'
+                test_file1 = os.path.join('../', file)
                 assert os.path.isfile(test_file1)
             test_file1 = os.path.abspath(test_file1)
             shutil.copy(test_file1, tmp_user_path)
             test_file1 = os.path.join(tmp_user_path, os.path.basename(test_file1))
             db, collection_name = make_db_main(persist_directory=tmp_persist_directory, user_path=tmp_user_path,
-                                               fail_any_exception=True, enable_ocr=False, enable_pdf_ocr='auto',
+                                               fail_any_exception=True,
+                                               enable_ocr=enable_ocr,
+                                               enable_pdf_ocr='auto',
                                                caption_gpu=caption_gpu,
                                                pre_load_caption_model=pre_load_caption_model,
-                                               captions_model=captions_model, db_type=db_type,
-                                               add_if_exists=False)
-            assert db is not None
-            docs = db.similarity_search("cat")
-            assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
-            assert 'a cat sitting on a window' in docs[0].page_content
-            assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+                                               captions_model=captions_model,
+                                               enable_captions=enable_captions,
+                                               enable_doctr=enable_doctr,
+                                               db_type=db_type,
+                                               add_if_exists=False,
+                                               fail_if_no_sources=False)
+            if enable_captions and not enable_doctr and not enable_ocr:
+                if 'kowalievska' in file:
+                    docs = db.similarity_search("cat")
+                    assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
+                    assert 'a cat sitting on a window' in docs[0].page_content
+                    check_source(docs, test_file1)
+                else:
+                    docs = db.similarity_search("license")
+                    assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
+                    check_content_captions(docs)
+                    check_source(docs, test_file1)
+            elif not enable_captions and not enable_doctr and enable_ocr:
+                if 'kowalievska' in file:
+                    assert db is None
+                else:
+                    docs = db.similarity_search("license")
+                    assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
+                    check_content_ocr(docs)
+                    check_source(docs, test_file1)
+            elif not enable_captions and enable_doctr and not enable_ocr:
+                if 'kowalievska' in file:
+                    assert db is None
+                else:
+                    docs = db.similarity_search("license")
+                    assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
+                    check_content_doctr(docs)
+                    check_source(docs, test_file1)
+            elif not enable_captions and enable_doctr and enable_ocr:
+                if 'kowalievska' in file:
+                    assert db is None
+                else:
+                    docs = db.similarity_search("license")
+                    assert len(docs) == 2 + (2 if db_type == 'chroma' else 0)
+                    assert 'California SA DRIVERLICENSE oL11234568 CLASSC EXP 08/31/2014' in docs[0].page_content
+                    check_content_doctr(docs)
+                    check_content_ocr(docs)
+                    check_source(docs, test_file1)
+            elif enable_captions and not enable_doctr and enable_ocr:
+                if 'kowalievska' in file:
+                    docs = db.similarity_search("cat")
+                    assert len(docs) == 2 + (2 if db_type == 'chroma' else 0)
+                    assert 'a cat sitting on a window' in docs[0].page_content
+                    check_source(docs, test_file1)
+                else:
+                    docs = db.similarity_search("license")
+                    assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
+                    check_content_ocr(docs)
+                    check_content_captions(docs)
+                    check_source(docs, test_file1)
+            elif enable_captions and enable_doctr and not enable_ocr:
+                if 'kowalievska' in file:
+                    docs = db.similarity_search("cat")
+                    assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
+                    assert 'a cat sitting on a window' in docs[0].page_content
+                    check_source(docs, test_file1)
+                else:
+                    docs = db.similarity_search("license")
+                    assert len(docs) == 2 + (2 if db_type == 'chroma' else 0)
+                    check_content_doctr(docs)
+                    check_content_captions(docs)
+                    check_source(docs, test_file1)
+            elif enable_captions and enable_doctr and enable_ocr:
+                if 'kowalievska' in file:
+                    docs = db.similarity_search("cat")
+                    assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
+                    assert 'a cat sitting on a window' in docs[0].page_content
+                    check_source(docs, test_file1)
+                else:
+                    docs = db.similarity_search("license")
+                    assert len(docs) == 3 + (3 if db_type == 'chroma' else 0)
+                    check_content_ocr(docs)
+                    check_content_doctr(docs)
+                    check_content_captions(docs)
+                    check_source(docs, test_file1)
+            else:
+                raise NotImplementedError()
+
+
+def check_content_captions(docs):
+    assert any(['license' in docs[ix].page_content for ix in range(len(docs))])
+    assert any(["""a california driver's license with a picture of a woman's face and a picture of a man's face""" in
+                docs[ix].page_content for ix in range(len(docs))])
+
+
+def check_content_doctr(docs):
+    assert any(['DRIVERLICENSE' in docs[ix].page_content for ix in range(len(docs))])
+    assert any(['California' in docs[ix].page_content for ix in range(len(docs))])
+    assert any(['EXP 08/31/2014' in docs[ix].page_content for ix in range(len(docs))])
+    assert any(['VETERAN' in docs[ix].page_content for ix in range(len(docs))])
+
+
+def check_content_ocr(docs):
+    assert any(['Californias' in docs[ix].page_content for ix in range(len(docs))])
+
+
+def check_source(docs, test_file1):
+    if test_file1.endswith('.zip'):
+        # when zip, adds dir etc.:
+        # AssertionError: assert '/tmp/tmp63h5dxxv/driverslicense.jpeg.zip_d7d5f561-6/driverslicense.jpeg' == '/tmp/tmp63h5dxxv/driverslicense.jpeg.zip'
+        assert os.path.basename(os.path.normpath(test_file1)) in os.path.normpath(docs[0].metadata['source'])
+    else:
+        assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
 
 @pytest.mark.parametrize("db_type", db_types)
