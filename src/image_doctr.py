@@ -88,5 +88,4 @@ class H2OOCRLoader(ImageCaptionLoader):
                         continue
                     words.append(word.value)
         metadata: dict = {"image_path": path_image}
-        print(words)
         return " ".join(words), metadata
