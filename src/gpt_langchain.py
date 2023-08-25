@@ -1628,7 +1628,6 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         add_meta(docs1, file, headsize, parser='UnstructuredEPubLoader')
         doc1 = chunk_sources(docs1)
     elif any(file.lower().endswith(x) for x in set_image_types1):
-        print(enable_ocr, enable_doctr, enable_captions)
         docs1 = []
         if have_tesseract and enable_ocr:
             # OCR, somewhat works, but not great
