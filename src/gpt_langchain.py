@@ -1667,35 +1667,35 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             # OCR, somewhat works, but not great
             # docs1.extend(UnstructuredImageLoader(file, strategy='ocr_only').load())
             docs1a = UnstructuredImageLoader(file, strategy='hi_res').load()
+            docs1a = [x for x in docs1a if x.page_content]
             add_meta(docs1a, file, headsize, parser='UnstructuredImageLoader')
             docs1.extend(docs1a)
         if have_doctr and enable_doctr:
             if doctr_loader is not None and not isinstance(doctr_loader, (str, bool)):
                 doctr_loader.set_image_paths([file])
                 docs1c = doctr_loader.load()
+                docs1c = [x for x in docs1c if x.page_content]
                 add_meta(docs1c, file, headsize, parser='doctr_loader')
-                docs1.extend(docs1c)
             else:
                 from image_doctr import H2OOCRLoader
                 doctr_loader = H2OOCRLoader()
                 doctr_loader.set_image_paths([file])
                 docs1c = doctr_loader.load()
+                docs1c = [x for x in docs1c if x.page_content]
                 add_meta(docs1c, file, headsize, parser='H2OOCRLoader: %s' % captions_model)
-                docs1.extend(docs1c)
             # caption didn't set source, so fix-up meta
-            for doci in docs1:
+            for doci in docs1c:
                 doci.metadata['source'] = doci.metadata.get('image_path', file)
                 doci.metadata['hashid'] = hash_file(doci.metadata['source'])
-            if docs1:
-                doc1 = chunk_sources(docs1)
+            docs1.extend(docs1c)
         if enable_captions:
             # BLIP
             if caption_loader is not None and not isinstance(caption_loader, (str, bool)):
                 # assumes didn't fork into this process with joblib, else can deadlock
                 caption_loader.set_image_paths([file])
                 docs1c = caption_loader.load()
+                docs1c = [x for x in docs1c if x.page_content]
                 add_meta(docs1c, file, headsize, parser='caption_loader')
-                docs1.extend(docs1c)
             else:
                 from image_captions import H2OImageCaptionLoader
                 caption_loader = H2OImageCaptionLoader(caption_gpu=caption_loader == 'gpu',
@@ -1703,14 +1703,14 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                                                        blip_processor=captions_model)
                 caption_loader.set_image_paths([file])
                 docs1c = caption_loader.load()
+                docs1c = [x for x in docs1c if x.page_content]
                 add_meta(docs1c, file, headsize, parser='H2OImageCaptionLoader: %s' % captions_model)
-                docs1.extend(docs1c)
             # caption didn't set source, so fix-up meta
-            for doci in docs1:
+            for doci in docs1c:
                 doci.metadata['source'] = doci.metadata.get('image_path', file)
                 doci.metadata['hashid'] = hash_file(doci.metadata['source'])
-            if docs1:
-                doc1 = chunk_sources(docs1)
+            docs1.extend(docs1c)
+        doc1 = chunk_sources(docs1)
     elif file.lower().endswith('.msg'):
         raise RuntimeError("Not supported, GPL3 license")
         # docs1 = OutlookMessageLoader(file).load()
