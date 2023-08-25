@@ -253,6 +253,7 @@ def main(
         caption_gpu: bool = True,
         captions_model: str = "Salesforce/blip-image-captioning-base",
         caption_loader=None,
+        doctr_loader=None,
 
         # json
         jq_schema='.[]',
@@ -1874,6 +1875,7 @@ def evaluate(
         # END NOTE: Examples must have same order of parameters
         captions_model=None,
         caption_loader=None,
+        doctr_loader=None,
         async_output=None,
         num_async=None,
         src_lang=None,
@@ -2122,6 +2124,7 @@ def evaluate(
         loaders_dict.update(dict(captions_model=captions_model,
                                  caption_loader=caption_loader,
                                  jq_schema=jq_schema,
+                                 doctr_loader=doctr_loader
                                  ))
         for r in run_qa_db(
                 inference_server=inference_server,

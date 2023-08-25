@@ -1875,6 +1875,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                            enable_captions=enable_captions,
                            captions_model=captions_model,
                            caption_loader=caption_loader,
+                           doctr_loader=doctr_loader,
 
                            # json
                            jq_schema=jq_schema,
@@ -1963,6 +1964,7 @@ def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True
                           enable_captions=enable_captions,
                           captions_model=captions_model,
                           caption_loader=caption_loader,
+                          doctr_loader=doctr_loader,
 
                           # json
                           jq_schema=jq_schema,
@@ -2136,6 +2138,7 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
                   enable_captions=enable_captions,
                   captions_model=captions_model,
                   caption_loader=caption_loader,
+                  doctr_loader=doctr_loader,
 
                   # json
                   jq_schema=jq_schema,
@@ -2571,6 +2574,7 @@ def _make_db(use_openai_embedding=False,
                                 enable_captions=enable_captions,
                                 captions_model=captions_model,
                                 caption_loader=caption_loader,
+                                doctr_loader=doctr_loader,
 
                                 # json
                                 jq_schema=jq_schema,
@@ -3188,6 +3192,7 @@ def get_chain(query=None,
                                                         enable_captions=enable_captions,
                                                         captions_model=captions_model,
                                                         caption_loader=caption_loader,
+                                                        doctr_loader=doctr_loader,
 
                                                         # json
                                                         jq_schema=jq_schema,
@@ -3902,6 +3907,7 @@ def _update_user_db(file,
                            enable_captions=enable_captions,
                            captions_model=captions_model,
                            caption_loader=caption_loader,
+                           doctr_loader=doctr_loader,
 
                            # json
                            jq_schema=jq_schema,
@@ -4187,6 +4193,7 @@ def update_and_get_source_files_given_langchain_mode(db1s,
                                                         enable_captions=enable_captions,
                                                         captions_model=captions_model,
                                                         caption_loader=caption_loader,
+                                                        doctr_loader=doctr_loader,
 
                                                         # json
                                                         jq_schema=jq_schema,

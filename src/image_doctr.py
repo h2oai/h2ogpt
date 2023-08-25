@@ -73,7 +73,7 @@ class H2OOCRLoader(ImageCaptionLoader):
         except ImportError:
             raise ValueError(
                 "`doctr` package not found, please install with "
-                "`pip install git+https://github.com/h2oai/doctr.git[torch]`."
+                "`pip install git+https://github.com/h2oai/doctr.git`."
             )
         try:
             image = DocumentFile.from_images(path_image)[0]
@@ -88,4 +88,5 @@ class H2OOCRLoader(ImageCaptionLoader):
                         continue
                     words.append(word.value)
         metadata: dict = {"image_path": path_image}
+        print(words)
         return " ".join(words), metadata

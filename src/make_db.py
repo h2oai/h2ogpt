@@ -109,6 +109,7 @@ def make_db_main(use_openai_embedding: bool = False,
                  enable_captions=True,
                  captions_model: str = "Salesforce/blip-image-captioning-base",
                  # caption_loader=None,  # set internally
+                 doctr_loader=None,
 
                  # json
                  jq_schema='.[]',
@@ -250,6 +251,7 @@ def make_db_main(use_openai_embedding: bool = False,
                          enable_captions=enable_captions,
                          captions_model=captions_model,
                          caption_loader=caption_loader,
+                         doctr_loader=doctr_loader,
 
                          # json
                          jq_schema=jq_schema,
