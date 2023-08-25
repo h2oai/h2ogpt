@@ -240,8 +240,8 @@ def run_vllm_docker(inf_port, base_model, tokenizer=None):
               '-v', '%s/.cache:/.cache/' % home_dir,
               #'--network', 'host',
               'gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0',
-              #'h2ogpt',  # use when built locally with vLLM just freshly added
-              'docker.io/library/h2ogpt',
+              # 'h2ogpt',  # use when built locally with vLLM just freshly added
+              # 'docker.io/library/h2ogpt',  # use when built locally with vLLM just freshly added
               '-m', 'vllm.entrypoints.openai.api_server',
               '--port=5000',
               '--host=0.0.0.0',
