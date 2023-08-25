@@ -3064,6 +3064,7 @@ def get_chain(query=None,
               db_type='faiss',
               model_name=None,
               inference_server='',
+              max_new_tokens=None,
               langchain_only_model=False,
               hf_embedding_model=None,
               migrate_embedding_model=False,
@@ -3216,19 +3217,21 @@ def get_chain(query=None,
         max_input_tokens = llm.pipeline.max_input_tokens
     elif inference_server in ['openai', 'openai_azure']:
         max_tokens = llm.modelname_to_contextsize(model_name)
-        # leave some room for 1 paragraph, even if min_new_tokens=0
-        max_input_tokens = max_tokens - 256
+        # openai can't handle tokens + max_new_tokens > max_tokens even if never generate those tokens
+        max_input_tokens = max_tokens - max_new_tokens
     elif inference_server in ['openai_chat', 'openai_azure_chat']:
         max_tokens = model_token_mapping[model_name]
-        # leave some room for 1 paragraph, even if min_new_tokens=0
-        max_input_tokens = max_tokens - 256
+        # openai can't handle tokens + max_new_tokens > max_tokens even if never generate those tokens
+        max_input_tokens = max_tokens - max_new_tokens
     elif isinstance(tokenizer, FakeTokenizer):
-        max_input_tokens = tokenizer.model_max_length - 256
+        # don't trust that fake tokenizer (e.g. GGML) will make lots of tokens normally, allow more input
+        max_input_tokens = tokenizer.model_max_length - min(256, max_new_tokens)
     elif hasattr(tokenizer, 'model_max_length'):
-        max_input_tokens = tokenizer.model_max_length - 256
+        # trust that maybe model will make so many tokens, so limit input
+        max_input_tokens = tokenizer.model_max_length - max_new_tokens
     else:
         # leave some room for 1 paragraph, even if min_new_tokens=0
-        max_input_tokens = 2048 - 256
+        max_input_tokens = 2048 - min(256, max_new_tokens)
 
     if db and use_docs_planned:
         base_path = 'locks'
