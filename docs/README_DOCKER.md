@@ -152,7 +152,7 @@ docker run \
     -u `id -u`:`id -g` \
     -v $HOME/.cache:/.cache \
     --network host \
-    h2ogpt -m vllm.entrypoints.openai.api_server \
+    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 -m vllm.entrypoints.openai.api_server \
         --port=5000 \
         --host=0.0.0.0 \
         --model=h2oai/h2ogpt-4096-llama2-7b-chat \
@@ -229,7 +229,7 @@ docker run \
     -u `id -u`:`id -g` \
     -v "${HOME}"/.cache:/workspace/.cache \
     -v "${HOME}"/save:/workspace/save \
-    h2ogpt /workspace/generate.py \
+    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 /workspace/generate.py \
         --inference_server="vllm:0.0.0.0:5000" \
         --base_model=h2oai/h2ogpt-4096-llama2-7b-chat \
         --langchain_mode=UserData
