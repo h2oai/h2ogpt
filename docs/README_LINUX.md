@@ -85,6 +85,7 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     # Optional: support docx, pptx, ArXiv, etc. required by some python packages
     sudo apt-get install -y libmagic-dev poppler-utils tesseract-ocr libtesseract-dev libreoffice
     # Improved OCR with DocTR:
+    conda install -c conda-forge pygobject
     pip install -r reqs_optional/requirements_optional_doctr.txt
     # go back to older onnx so Tesseract OCR still works
     pip install onnxruntime==1.15.0 onnxruntime-gpu==1.15.0
