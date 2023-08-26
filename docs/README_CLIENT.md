@@ -206,6 +206,7 @@ def query_or_summarize(instruction: str = '',
                        file: Union[list[str], str] = None,
                        url: Union[list[str], str] = None,
                        langchain_action: str = None,
+                       embed: str = True,
                        top_k_docs: int = 4,
                        pre_prompt_query: str = None,
                        prompt_query: str = None,
@@ -227,6 +228,7 @@ def query_or_summarize(instruction: str = '',
         text: textual content or list of such contents
         file: a local file to upload or files to upload
         url: a url to give or urls to use
+        embed: whether to embed content uploaded
         langchain_action: Action to take, "Query" or "Summarize"
         top_k_docs: number of document parts.
                     When doing query, number of chunks
@@ -261,9 +263,11 @@ def query_or_summarize(instruction: str = '',
     # MyData specifies scratch space, only persisted for this individual client call
     langchain_mode = 'MyData'
     loaders = tuple([None, None, None, None])
+    doc_options = tuple([langchain_mode, chunk, chunk_size, embed])
 
     if text:
-        res = client_persist.predict(text, langchain_mode, chunk, chunk_size,
+        res = client_persist.predict(text,
+                                     *doc_options,
                                      *loaders,
                                      api_name='/add_text')
         if asserts:
@@ -276,7 +280,8 @@ def query_or_summarize(instruction: str = '',
         # after below call, "file" replaced with remote location of file
         _, file = client_persist.predict(file, api_name='/upload_api')
 
-        res = client_persist.predict(file, langchain_mode, chunk, chunk_size,
+        res = client_persist.predict(file,
+                                     *doc_options,
                                      *loaders,
                                      api_name='/add_file_api')
         if asserts:
@@ -285,7 +290,8 @@ def query_or_summarize(instruction: str = '',
             assert os.path.basename(file) in res[2]
             assert res[3] == ''
     if url:
-        res = client_persist.predict(url, langchain_mode, chunk, chunk_size,
+        res = client_persist.predict(url,
+                                     *doc_options,
                                      *loaders,
                                      api_name='/add_url')
         if asserts:

@@ -40,7 +40,7 @@ from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename
     get_device, ProgressParallel, remove, hash_file, clear_torch_cache, NullContext, get_hf_server, FakeTokenizer, \
     have_libreoffice, have_arxiv, have_playwright, have_selenium, have_tesseract, have_doctr, have_pymupdf, set_openai, \
     get_list_or_str, have_pillow, only_selenium, only_playwright, only_unstructured_urls, get_sha, get_short_name, \
-    get_accordion, have_jq
+    get_accordion, have_jq, get_doc
 from utils_langchain import StreamingGradioCallbackHandler
 
 import_matplotlib()
@@ -307,6 +307,25 @@ def create_or_update_db(db_type, persist_directory, collection_name,
     return db
 
 
+from langchain.embeddings import FakeEmbeddings
+
+
+class H2OFakeEmbeddings(FakeEmbeddings):
+    """Fake embedding model, but constant instead of random"""
+
+    size: int
+    """The size of the embedding vector."""
+
+    def _get_embedding(self) -> typing.List[float]:
+        return [1] * self.size
+
+    def embed_documents(self, texts: typing.List[str]) -> typing.List[typing.List[float]]:
+        return [self._get_embedding() for _ in texts]
+
+    def embed_query(self, text: str) -> typing.List[float]:
+        return self._get_embedding()
+
+
 def get_embedding(use_openai_embedding, hf_embedding_model=None):
     assert hf_embedding_model is not None
     # Get embedding model
@@ -314,6 +333,8 @@ def get_embedding(use_openai_embedding, hf_embedding_model=None):
         assert os.getenv("OPENAI_API_KEY") is not None, "Set ENV OPENAI_API_KEY"
         from langchain.embeddings import OpenAIEmbeddings
         embedding = OpenAIEmbeddings(disallowed_special=())
+    elif hf_embedding_model == 'fake':
+        embedding = H2OFakeEmbeddings(size=1)
     else:
         # to ensure can fork without deadlock
         from langchain.embeddings import HuggingFaceEmbeddings
@@ -2385,7 +2406,7 @@ def clear_embedding(db):
         return
     # don't keep on GPU, wastes memory, push back onto CPU and only put back on GPU once again embed
     try:
-        if hasattr(db._embedding_function.client, 'cpu'):
+        if hasattr(db._embedding_function, 'client') and hasattr(db._embedding_function.client, 'cpu'):
             db._embedding_function.client.cpu()
         clear_torch_cache()
     except RuntimeError as e:
@@ -3062,6 +3083,7 @@ def _run_qa_db(query=None,
                                         show_accordions=show_accordions,
                                         show_link_in_sources=show_link_in_sources,
                                         top_k_docs_max_show=top_k_docs_max_show,
+                                        reverse_docs=reverse_docs,
                                         verbose=verbose,
                                         t_run=t_run,
                                         count_input_tokens=llm.count_input_tokens
@@ -3542,6 +3564,7 @@ def get_sources_answer(query, docs, answer, scores, show_rank,
                        show_accordions=True,
                        show_link_in_sources=True,
                        top_k_docs_max_show=10,
+                       reverse_docs=True,
                        verbose=False,
                        t_run=None,
                        count_input_tokens=None, count_output_tokens=None):
@@ -3552,6 +3575,18 @@ def get_sources_answer(query, docs, answer, scores, show_rank,
     if len(docs) == 0:
         extra = ''
         ret = answer + extra
+        return ret, extra
+
+    if answer_with_sources == -1:
+        extra = [(score, get_doc(x)) for score, x in zip(scores, docs)][:top_k_docs_max_show]
+        if reverse_docs:
+            # undo reverse for context filling since not using scores here
+            extra.reverse()
+        if append_sources_to_answer:
+            extra_str = [str(x) for x in extra]
+            ret = answer + '\n\n' + '\n'.join(extra_str)
+        else:
+            ret = answer
         return ret, extra
 
     # link

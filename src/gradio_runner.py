@@ -894,6 +894,10 @@ def go_gradio(**kwargs):
                                                        info="For LangChain",
                                                        visible=kwargs['langchain_mode'] != 'Disabled',
                                                        interactive=not is_public)
+                        embed = gr.components.Checkbox(value=True,
+                                                       label="Whether to embed text",
+                                                       info="For LangChain",
+                                                       visible=False)
                     with gr.Row():
                         stream_output = gr.components.Checkbox(label="Stream output",
                                                                value=kwargs['stream_output'])
@@ -1329,7 +1333,7 @@ def go_gradio(**kwargs):
         add_file_outputs = [fileup_output, langchain_mode]
         add_file_kwargs = dict(fn=update_db_func,
                                inputs=[fileup_output, my_db_state, selection_docs_state, requests_state,
-                                       langchain_mode, chunk, chunk_size,
+                                       langchain_mode, chunk, chunk_size, embed,
                                        image_loaders,
                                        pdf_loaders,
                                        url_loaders,
@@ -1351,7 +1355,7 @@ def go_gradio(**kwargs):
         # deal with challenge to have fileup_output itself as input
         add_file_kwargs2 = dict(fn=update_db_func,
                                 inputs=[fileup_output_text, my_db_state, selection_docs_state, requests_state,
-                                        langchain_mode, chunk, chunk_size,
+                                        langchain_mode, chunk, chunk_size, embed,
                                         image_loaders,
                                         pdf_loaders,
                                         url_loaders,
@@ -1372,7 +1376,7 @@ def go_gradio(**kwargs):
         add_url_outputs = [url_text, langchain_mode]
         add_url_kwargs = dict(fn=update_user_db_url_func,
                               inputs=[url_text, my_db_state, selection_docs_state, requests_state,
-                                      langchain_mode, chunk, chunk_size,
+                                      langchain_mode, chunk, chunk_size, embed,
                                       image_loaders,
                                       pdf_loaders,
                                       url_loaders,
@@ -1398,7 +1402,7 @@ def go_gradio(**kwargs):
         add_text_outputs = [user_text_text, langchain_mode]
         add_text_kwargs = dict(fn=update_user_db_txt_func,
                                inputs=[user_text_text, my_db_state, selection_docs_state, requests_state,
-                                       langchain_mode, chunk, chunk_size,
+                                       langchain_mode, chunk, chunk_size, embed,
                                        image_loaders,
                                        pdf_loaders,
                                        url_loaders,
@@ -2238,6 +2242,13 @@ def go_gradio(**kwargs):
                 user_kwargs = ast.literal_eval(user_kwargs)
             else:
                 user_kwargs = {k: v for k, v in zip(eval_func_param_names, args_list[len(input_args_list):])}
+            # control kwargs1 for evaluate
+            kwargs1['answer_with_sources'] = -1  # just text chunk, not URL etc.
+            kwargs1['show_accordions'] = False
+            kwargs1['append_sources_to_answer'] = False
+            kwargs1['show_link_in_sources'] = False
+            kwargs1['top_k_docs_max_show'] = 30
+
             # only used for submit_nochat_api
             user_kwargs['chat'] = False
             if 'stream_output' not in user_kwargs:
@@ -3760,7 +3771,7 @@ def get_inputs_list(inputs_dict, model_lower, model_id=1):
 
 
 def update_user_db_gr(file, db1s, selection_docs_state1, requests_state1,
-                      langchain_mode, chunk, chunk_size,
+                      langchain_mode, chunk, chunk_size, embed,
 
                       image_loaders,
                       pdf_loaders,
@@ -3789,6 +3800,10 @@ def update_user_db_gr(file, db1s, selection_docs_state1, requests_state1,
     kwargs.pop('pdf_loaders_options0', None)
     kwargs.pop('url_loaders_options0', None)
     kwargs.pop('jq_schema0', None)
+    if not embed:
+        kwargs['use_openai_embedding'] = False
+        kwargs['hf_embedding_model'] = 'fake'
+        kwargs['migrate_embedding_model'] = False
 
     from src.gpt_langchain import update_user_db
     return update_user_db(file, db1s, selection_docs_state1, requests_state1,

@@ -757,7 +757,7 @@ def test_client_chat_stream_langchain_steps3(loaders):
         image_loaders_options0, image_loaders_options, \
             pdf_loaders_options0, pdf_loaders_options, \
             url_loaders_options0, url_loaders_options = \
-            lg_to_gr(enable_ocr=True, enable_captions=True, enable_pdf_ocr=True, enable_doctr=True)
+            lg_to_gr(enable_ocr=True, enable_captions=True, enable_pdf_ocr=True, enable_doctr=True, max_quality=True)
         loaders = [image_loaders_options, pdf_loaders_options, url_loaders_options, None]
 
     stream_output = True
@@ -782,7 +782,8 @@ def test_client_chat_stream_langchain_steps3(loaders):
     url = 'https://www.africau.edu/images/default/sample.pdf'
     test_file1 = os.path.join('/tmp/', 'sample1.pdf')
     download_simple(url, dest=test_file1)
-    res = client.predict(test_file1, langchain_mode, True, 512,
+    res = client.predict(test_file1,
+                         langchain_mode, True, 512, True,
                          *loaders,
                          api_name='/add_file_api')
     assert res[0] is None
@@ -814,7 +815,7 @@ def test_client_chat_stream_langchain_steps3(loaders):
     test_file1 = os.path.join('/tmp/', 'pdf-sample.pdf')
     # download_simple(url, dest=test_file1)
     shutil.copy('tests/pdf-sample.pdf', test_file1)
-    res = client.predict(test_file1, langchain_mode2, True, 512,
+    res = client.predict(test_file1, langchain_mode2, True, 512, True,
                          *loaders,
                          api_name='/add_file_api')
     assert res[0] is None
@@ -913,7 +914,7 @@ def test_client_chat_stream_langchain_steps3(loaders):
     assert res is not None
 
     url = 'https://research.google/pubs/pub334.pdf'
-    res = client.predict(url, langchain_mode, True, 512,
+    res = client.predict(url, langchain_mode, True, 512, True,
                          *loaders,
                          api_name='/add_url')
     assert res[0] is None
@@ -922,7 +923,7 @@ def test_client_chat_stream_langchain_steps3(loaders):
     assert res[3] == ''
 
     text = "Yufuu is a wonderful place and you should really visit because there is lots of sun."
-    res = client.predict(text, langchain_mode, True, 512,
+    res = client.predict(text, langchain_mode, True, 512, True,
                          *loaders,
                          api_name='/add_text')
     assert res[0] is None
@@ -939,7 +940,7 @@ def test_client_chat_stream_langchain_steps3(loaders):
     url = 'https://www.africau.edu/images/default/sample.pdf'
     test_file1 = os.path.join('/tmp/', 'sample1.pdf')
     download_simple(url, dest=test_file1)
-    res = client.predict(test_file1, langchain_mode_my, True, 512,
+    res = client.predict(test_file1, langchain_mode_my, True, 512, True,
                          *loaders,
                          api_name='/add_file_api')
     assert res[0] is None
@@ -972,7 +973,7 @@ def test_client_chat_stream_langchain_steps3(loaders):
     test_file1 = os.path.join('/tmp/', 'pdf-sample.pdf')
     # download_simple(url, dest=test_file1)
     shutil.copy('tests/pdf-sample.pdf', test_file1)
-    res = client.predict(test_file1, langchain_mode2, True, 512,
+    res = client.predict(test_file1, langchain_mode2, True, 512, True,
                          *loaders,
                          api_name='/add_file_api')
     assert res[0] is None
@@ -993,7 +994,7 @@ def test_client_chat_stream_langchain_steps3(loaders):
         urls_file = os.path.join(tmp_user_path, 'list.urls')
         with open(urls_file, 'wt') as f:
             f.write('\n'.join(urls))
-        res = client.predict(urls_file, langchain_mode2, True, 512,
+        res = client.predict(urls_file, langchain_mode2, True, 512, True,
                              *loaders,
                              api_name='/add_file_api')
         assert res[0] is None
@@ -1020,7 +1021,7 @@ def test_client_chat_stream_langchain_steps3(loaders):
                               ]
 
     with tempfile.TemporaryDirectory() as tmp_user_path:
-        res = client.predict(urls, langchain_mode3, True, 512,
+        res = client.predict(urls, langchain_mode3, True, 512, True,
                              *loaders,
                              api_name='/add_url')
         print(res)
@@ -1188,7 +1189,7 @@ def test_client_chat_stream_langchain_openai_embeddings():
     url = 'https://www.africau.edu/images/default/sample.pdf'
     test_file1 = os.path.join('/tmp/', 'sample1.pdf')
     download_simple(url, dest=test_file1)
-    res = client.predict(test_file1, langchain_mode, True, 512,
+    res = client.predict(test_file1, langchain_mode, True, 512, True,
                          None, None, None, None,
                          api_name='/add_file_api')
     assert res[0] is None
@@ -1202,6 +1203,89 @@ def test_client_chat_stream_langchain_openai_embeddings():
     assert use_openai_embedding
     assert hf_embedding_model == 'hkunlp/instructor-large'  # but not used
     assert got_embedding
+
+
+@wrap_test_forked
+def test_client_chat_stream_langchain_fake_embeddings():
+    os.environ['VERBOSE_PIPELINE'] = '1'
+    remove('db_dir_UserData')
+
+    stream_output = True
+    max_new_tokens = 256
+    # base_model = 'distilgpt2'
+    base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
+    prompt_type = 'human_bot'
+    langchain_mode = 'UserData'
+    langchain_modes = ['UserData', 'MyData', 'github h2oGPT', 'LLM', 'Disabled']
+
+    from src.gen import main
+    main(base_model=base_model, prompt_type=prompt_type, chat=True,
+         stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
+         max_new_tokens=max_new_tokens,
+         langchain_mode=langchain_mode,
+         langchain_modes=langchain_modes,
+         use_openai_embedding=True,
+         verbose=True)
+
+    from src.client_test import get_client, get_args, run_client
+    # serialize=False would lead to returning dict for some objects or files for get_sources
+    client = get_client(serialize=False)
+
+    texts = ['first', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'last']
+    langchain_mode = "UserData"
+    res = client.predict(texts,
+                         langchain_mode, True, 512, False,
+                         None, None, None, None,
+                         api_name='/add_text')
+    assert res[0] is None
+    assert res[1] == langchain_mode
+    assert all([x in res[2] for x in texts])
+    assert res[3] == ''
+
+    from src.gpt_langchain import load_embed
+    got_embedding, use_openai_embedding, hf_embedding_model = load_embed(persist_directory='db_dir_%s' % langchain_mode)
+    assert not use_openai_embedding
+    assert hf_embedding_model == 'fake'
+    assert got_embedding
+
+    api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
+
+    prompt = "Documents"
+    kwargs = dict(
+        instruction='',
+        max_new_tokens=200,
+        min_new_tokens=1,
+        max_time=300,
+        do_sample=False,
+        instruction_nochat=prompt,
+    )
+    res = client.predict(
+        str(dict(kwargs)),
+        api_name=api_name,
+    )
+    print("Raw client result: %s" % res, flush=True)
+    assert isinstance(res, str)
+    res_dict = ast.literal_eval(res)
+    assert 'response' in res_dict and res_dict['response']
+
+    kwargs.update(dict(
+        langchain_mode=langchain_mode,
+        langchain_action="Query",
+        top_k_docs=-1,
+        document_subset='Relevant',
+        document_choice='All',
+    ))
+    res = client.predict(
+        str(dict(kwargs)),
+        api_name=api_name,
+    )
+    print("Raw client result: %s" % res, flush=True)
+    assert isinstance(res, str)
+    res_dict = ast.literal_eval(res)
+    assert 'response' in res_dict and res_dict['response']
+    sources = res_dict['sources']
+    texts_out = [x[1] for x in sources]
+    assert texts == texts_out
 
 
 @pytest.mark.parametrize("prompt_summary", ['', 'Summarize into single paragraph'])
@@ -1246,7 +1330,8 @@ def test_client_summarization(prompt_summary):
     chunk = True
     chunk_size = 512
     langchain_mode = 'MyData'
-    res = client.predict(test_file_server, langchain_mode, chunk, chunk_size,
+    res = client.predict(test_file_server,
+                         langchain_mode, chunk, chunk_size, True,
                          None, None, None, None,
                          api_name='/add_file_api')
     assert res[0] is None
@@ -1313,7 +1398,8 @@ def test_client_summarization_from_text():
     chunk = True
     chunk_size = 512
     langchain_mode = 'MyData'
-    res = client.predict(all_text_contents, langchain_mode, chunk, chunk_size,
+    res = client.predict(all_text_contents,
+                         langchain_mode, chunk, chunk_size, True,
                          None, None, None, None,
                          api_name='/add_text')
     assert res[0] is None
@@ -1360,7 +1446,8 @@ def test_client_summarization_from_url(url, top_k_docs):
     chunk = True
     chunk_size = 512
     langchain_mode = 'MyData'
-    res = client.predict(url, langchain_mode, chunk, chunk_size,
+    res = client.predict(url,
+                         langchain_mode, chunk, chunk_size, True,
                          None, None, None, None,
                          api_name='/add_url')
     assert res[0] is None
@@ -1443,7 +1530,8 @@ def test_fastsys(stream_output, bits, prompt_type):
     chunk = True
     chunk_size = 512
     langchain_mode = 'MyData'
-    res = client.predict(test_file_server, langchain_mode, chunk, chunk_size,
+    res = client.predict(test_file_server,
+                         langchain_mode, chunk, chunk_size, True,
                          None, None, None, None,
                          api_name='/add_file_api')
     assert res[0] is None

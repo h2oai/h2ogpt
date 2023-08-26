@@ -211,6 +211,7 @@ def main(
         answer_with_sources: bool = True,
         append_sources_to_answer: bool = True,
         show_accordions: bool = True,
+        top_k_docs_max_show: int = 10,
         show_link_in_sources: bool = True,
         pre_prompt_query: str = None,
         prompt_query: str = None,
@@ -518,6 +519,7 @@ def main(
     :param answer_with_sources: Whether to determine (and return) sources
     :param append_sources_to_answer: Whether to place source information in chat response (ignored by LLM).  Always disabled for API.
     :param show_accordions: whether to show accordion for document references in chatbot UI
+    :param top_k_docs_max_show: Max number of docs to show in UI for sources
     :param show_link_in_sources: Whether to show URL link to source document in references
     :param pre_prompt_query: prompt before documents to query, if None then use internal defaults
     :param prompt_query: prompt after documents to query, if None then use internal defaults
@@ -1910,6 +1912,7 @@ def evaluate(
         first_para=None,
         text_limit=None,
         show_accordions=None,
+        top_k_docs_max_show=None,
         show_link_in_sources=None,
         verbose=False,
         cli=False,
@@ -2155,6 +2158,7 @@ def evaluate(
                 first_para=first_para,
                 text_limit=text_limit,
                 show_accordions=show_accordions,
+                top_k_docs_max_show=top_k_docs_max_show,
                 show_link_in_sources=show_link_in_sources,
 
                 # evaluate args items

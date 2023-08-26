@@ -616,6 +616,10 @@ def download(url, dest=None, dest_path=None):
     return dest
 
 
+def get_doc(x):
+    return x.page_content
+
+
 def get_accordion(x, font_size=2, head_acc=50):
     title = x.page_content[:head_acc].replace("\n", ' ').replace("<br>", ' ').replace("<p>", ' ').replace("\r", ' ')
     content = x.page_content
