@@ -20,6 +20,8 @@ RUN wget https://repo.anaconda.com/miniconda/Miniconda3-py310_23.1.0-1-Linux-x86
 
 WORKDIR /workspace
 
+RUN apt-get install -y libmagic-dev poppler-utils tesseract-ocr libtesseract-dev libreoffice autoconf libtool
+
 COPY requirements.txt requirements.txt
 COPY reqs_optional reqs_optional
 
@@ -29,7 +31,9 @@ RUN python3.10 -m pip install -r reqs_optional/requirements_optional_gpt4all.txt
 RUN python3.10 -m pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt
 RUN python3.10 -m pip install -r reqs_optional/requirements_optional_langchain.urls.txt
 
-RUN apt-get install -y libmagic-dev poppler-utils tesseract-ocr libtesseract-dev libreoffice
+RUN python3.10 -m pip install -r reqs_optional/requirements_optional_doctr.txt
+# go back to older onnx so Tesseract OCR still works
+RUN python3.10 -m pip install onnxruntime==1.15.0 onnxruntime-gpu==1.15.0
 
 ENV CUDA_HOME=/usr/local/cuda-11.8
 
@@ -39,7 +43,7 @@ RUN python3.10 -m nltk.downloader all
 RUN python3.10 -m pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.4.1/auto_gptq-0.4.1+cu118-cp310-cp310-linux_x86_64.whl
 RUN python3.10 -m pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.1.73+cu118-cp310-cp310-linux_x86_64.whl
 RUN python3.10 -m pip install https://github.com/jllllll/exllama/releases/download/0.0.8/exllama-0.0.8+cu118-cp310-cp310-linux_x86_64.whl --no-cache-dir
-RUN playwright install
+RUN playwright install --with-deps
 
 COPY . .
 
