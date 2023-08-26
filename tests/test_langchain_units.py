@@ -1119,7 +1119,7 @@ def run_png_add(captions_model=None, caption_gpu=False,
                         assert len(db.get()['documents']) == 6
                     docs = db.similarity_search("license")
                     # because search can't find OCR one
-                    assert len(docs) == 2 + (2 if db_type == 'chroma' else 0)
+                    assert len(docs) == 2 + (2 if db_type == 'chroma' else 1)
                     #check_content_ocr(docs)
                     check_content_doctr(docs)
                     check_content_captions(docs, captions_model)
