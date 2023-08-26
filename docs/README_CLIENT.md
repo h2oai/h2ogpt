@@ -332,15 +332,23 @@ def query_or_summarize(instruction: str = '',
     )
     res = ast.literal_eval(res)
     response = res['response']
+    sources = res['sources']
 
-    if asserts:
-        sources = res['sources']
-        if text:
-            assert 'user_paste' in sources
-        if file:
-            assert file in sources
-        if url:
-            assert url in sources
+    if api_name == '/submit_nochat_api':
+        scores_out = [x[0] for x in sources]
+        texts_out = [x[1] for x in sources]
+        if asserts and text and not file and not url:
+            assert text == texts_out
+            assert len(text) == len(scores_out)
+    else:
+        if asserts:
+            # only pass back file link etc. if not nochat
+            if text:
+                assert 'user_paste' in sources
+            if file:
+                assert file in sources
+            if url:
+                assert url in sources
 
     return response
 ```
