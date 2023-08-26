@@ -1703,7 +1703,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                 doctr_loader.set_image_paths([file])
                 docs1c = doctr_loader.load()
                 docs1c = [x for x in docs1c if x.page_content]
-                add_meta(docs1c, file, headsize, parser='H2OOCRLoader: %s' % captions_model)
+                add_meta(docs1c, file, headsize, parser='H2OOCRLoader: %s' % 'DocTR')
             # caption didn't set source, so fix-up meta
             for doci in docs1c:
                 doci.metadata['source'] = doci.metadata.get('image_path', file)
