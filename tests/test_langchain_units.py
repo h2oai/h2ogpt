@@ -1056,7 +1056,7 @@ def run_png_add(captions_model=None, caption_gpu=False,
                 else:
                     docs = db.similarity_search("license")
                     assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
-                    check_content_captions(docs)
+                    check_content_captions(docs, captions_model)
                     check_source(docs, test_file1)
             elif not enable_captions and not enable_doctr and enable_ocr:
                 if 'kowalievska' in file:
@@ -1094,7 +1094,7 @@ def run_png_add(captions_model=None, caption_gpu=False,
                     docs = db.similarity_search("license")
                     assert len(docs) == 2 + (2 if db_type == 'chroma' else 0)
                     check_content_ocr(docs)
-                    check_content_captions(docs)
+                    check_content_captions(docs, captions_model)
                     check_source(docs, test_file1)
             elif enable_captions and enable_doctr and not enable_ocr:
                 if 'kowalievska' in file:
@@ -1106,7 +1106,7 @@ def run_png_add(captions_model=None, caption_gpu=False,
                     docs = db.similarity_search("license")
                     assert len(docs) == 2 + (2 if db_type == 'chroma' else 0)
                     check_content_doctr(docs)
-                    check_content_captions(docs)
+                    check_content_captions(docs, captions_model)
                     check_source(docs, test_file1)
             elif enable_captions and enable_doctr and enable_ocr:
                 if 'kowalievska' in file:
@@ -1122,16 +1122,19 @@ def run_png_add(captions_model=None, caption_gpu=False,
                     assert len(docs) == 2 + (2 if db_type == 'chroma' else 0)
                     #check_content_ocr(docs)
                     check_content_doctr(docs)
-                    check_content_captions(docs)
+                    check_content_captions(docs, captions_model)
                     check_source(docs, test_file1)
             else:
                 raise NotImplementedError()
 
 
-def check_content_captions(docs):
+def check_content_captions(docs, caption_model):
     assert any(['license' in docs[ix].page_content for ix in range(len(docs))])
-    assert any(["""a california driver's license with a picture of a woman's face and a picture of a man's face""" in
-                docs[ix].page_content for ix in range(len(docs))])
+    if 'blip2' in caption_model:
+        str_expected = """california driver license with a woman's face on it california driver license"""
+    else:
+        str_expected = """a california driver's license with a picture of a woman's face and a picture of a man's face"""
+    assert any([str_expected in docs[ix].page_content for ix in range(len(docs))])
 
 
 def check_content_doctr(docs):
