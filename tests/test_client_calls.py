@@ -1218,14 +1218,16 @@ def test_client_chat_stream_langchain_fake_embeddings():
     langchain_mode = 'UserData'
     langchain_modes = ['UserData', 'MyData', 'github h2oGPT', 'LLM', 'Disabled']
 
-    from src.gen import main
-    main(base_model=base_model, prompt_type=prompt_type, chat=True,
-         stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
-         max_new_tokens=max_new_tokens,
-         langchain_mode=langchain_mode,
-         langchain_modes=langchain_modes,
-         use_openai_embedding=True,
-         verbose=True)
+    local_server = True  # set to False to test local server, e.g. gradio connected to TGI server
+    if local_server:
+        from src.gen import main
+        main(base_model=base_model, prompt_type=prompt_type, chat=True,
+             stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
+             max_new_tokens=max_new_tokens,
+             langchain_mode=langchain_mode,
+             langchain_modes=langchain_modes,
+             use_openai_embedding=True,
+             verbose=True)
 
     from src.client_test import get_client, get_args, run_client
     # serialize=False would lead to returning dict for some objects or files for get_sources

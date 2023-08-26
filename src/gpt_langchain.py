@@ -3413,6 +3413,11 @@ def get_chain(query=None,
                     # more accurate
                     tokens = [len(llm.pipeline.tokenizer(x[0].page_content)['input_ids']) for x in docs_with_score]
                     template_tokens = len(llm.pipeline.tokenizer(template)['input_ids'])
+                elif hasattr(llm, 'tokenizer'):
+                    # e.g. TGI client mode etc.
+                    tokz = llm.tokenizer
+                    tokens = [len(tokz.encode(x[0].page_content)) for x in docs_with_score]
+                    template_tokens = len(tokz.encode(template))
                 elif inference_server in ['openai', 'openai_chat', 'openai_azure',
                                           'openai_azure_chat'] or use_openai_model:
                     tokens = [llm.get_num_tokens(x[0].page_content) for x in docs_with_score]
@@ -3420,16 +3425,21 @@ def get_chain(query=None,
                 elif isinstance(tokenizer, FakeTokenizer):
                     tokens = [tokenizer.num_tokens_from_string(x[0].page_content) for x in docs_with_score]
                     template_tokens = tokenizer.num_tokens_from_string(template)
-                elif db_type in ['faiss', 'weaviate']:
-                    # use ticktoken for faiss since embedding called differently
-                    tokz = FakeTokenizer()
-                    tokens = [tokz.num_tokens_from_string(x[0].page_content) for x in docs_with_score]
-                    template_tokens = tokz.num_tokens_from_string(template)
-                else:
+                elif (hasattr(db, '_embedding_function') and
+                      hasattr(db._embedding_function, 'client') and
+                      hasattr(db._embedding_function.client, 'tokenize')):
                     # in case model is not our pipeline with HF tokenizer
                     tokens = [db._embedding_function.client.tokenize([x[0].page_content])['input_ids'].shape[1] for x in
                               docs_with_score]
                     template_tokens = db._embedding_function.client.tokenize([template])['input_ids'].shape[1]
+                else:
+                    # backup method
+                    if os.getenv('HARD_ASSERTS'):
+                        assert db_type in ['faiss', 'weaviate']
+                    # use tiktoken for faiss since embedding called differently
+                    tokz = FakeTokenizer()
+                    tokens = [tokz.num_tokens_from_string(x[0].page_content) for x in docs_with_score]
+                    template_tokens = tokz.num_tokens_from_string(template)
                 tokens_cumsum = np.cumsum(tokens)
                 max_input_tokens -= template_tokens
                 # FIXME: Doesn't account for query, == context, or new lines between contexts
