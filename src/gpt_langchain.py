@@ -38,7 +38,7 @@ from gen import get_model, SEED
 from prompter import non_hf_types, PromptType, Prompter
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
     get_device, ProgressParallel, remove, hash_file, clear_torch_cache, NullContext, get_hf_server, FakeTokenizer, \
-    have_libreoffice, have_arxiv, have_playwright, have_selenium, have_tesseract, have_pymupdf, set_openai, \
+    have_libreoffice, have_arxiv, have_playwright, have_selenium, have_tesseract, have_doctr, have_pymupdf, set_openai, \
     get_list_or_str, have_pillow, only_selenium, only_playwright, only_unstructured_urls, get_sha, get_short_name, \
     get_accordion, have_jq
 from utils_langchain import StreamingGradioCallbackHandler
@@ -1466,9 +1466,11 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
 
                 # images
                 enable_ocr=False,
+                enable_doctr=False,
                 enable_captions=True,
                 captions_model=None,
                 caption_loader=None,
+                doctr_loader=None,
 
                 # json
                 jq_schema='.[]',
@@ -1483,6 +1485,40 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
 
     assert db_type is not None
     chunk_sources = functools.partial(_chunk_sources, chunk=chunk, chunk_size=chunk_size, db_type=db_type)
+    path_to_docs_func = functools.partial(path_to_docs,
+                                          verbose=verbose,
+                                          fail_any_exception=fail_any_exception,
+                                          n_jobs=n_jobs,
+                                          chunk=chunk, chunk_size=chunk_size,
+                                          # url=file if is_url else None,
+                                          # text=file if is_txt else None,
+
+                                          # urls
+                                          use_unstructured=use_unstructured,
+                                          use_playwright=use_playwright,
+                                          use_selenium=use_selenium,
+
+                                          # pdfs
+                                          use_pymupdf=use_pymupdf,
+                                          use_unstructured_pdf=use_unstructured_pdf,
+                                          use_pypdf=use_pypdf,
+                                          enable_pdf_ocr=enable_pdf_ocr,
+                                          try_pdf_as_html=try_pdf_as_html,
+
+                                          # images
+                                          enable_ocr=enable_ocr,
+                                          enable_doctr=enable_doctr,
+                                          enable_captions=enable_captions,
+                                          captions_model=captions_model,
+                                          caption_loader=caption_loader,
+                                          doctr_loader=doctr_loader,
+
+                                          # json
+                                          jq_schema=jq_schema,
+
+                                          db_type=db_type,
+                                          )
+
     if file is None:
         if fail_any_exception:
             raise RuntimeError("Unexpected None file")
@@ -1548,7 +1584,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                 # then something went wrong, try another loader:
                 from langchain.document_loaders import PlaywrightURLLoader
                 docs1a = asyncio.run(PlaywrightURLLoader(urls=[file]).aload())
-                #docs1 = PlaywrightURLLoader(urls=[file]).load()
+                # docs1 = PlaywrightURLLoader(urls=[file]).load()
                 docs1a = [x for x in docs1a if x.page_content]
                 add_parser(docs1a, 'PlaywrightURLLoader')
                 docs1.extend(docs1a)
@@ -1631,16 +1667,35 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             # OCR, somewhat works, but not great
             # docs1.extend(UnstructuredImageLoader(file, strategy='ocr_only').load())
             docs1a = UnstructuredImageLoader(file, strategy='hi_res').load()
+            docs1a = [x for x in docs1a if x.page_content]
             add_meta(docs1a, file, headsize, parser='UnstructuredImageLoader')
             docs1.extend(docs1a)
+        if have_doctr and enable_doctr:
+            if doctr_loader is not None and not isinstance(doctr_loader, (str, bool)):
+                doctr_loader.set_image_paths([file])
+                docs1c = doctr_loader.load()
+                docs1c = [x for x in docs1c if x.page_content]
+                add_meta(docs1c, file, headsize, parser='doctr_loader')
+            else:
+                from image_doctr import H2OOCRLoader
+                doctr_loader = H2OOCRLoader()
+                doctr_loader.set_image_paths([file])
+                docs1c = doctr_loader.load()
+                docs1c = [x for x in docs1c if x.page_content]
+                add_meta(docs1c, file, headsize, parser='H2OOCRLoader: %s' % captions_model)
+            # caption didn't set source, so fix-up meta
+            for doci in docs1c:
+                doci.metadata['source'] = doci.metadata.get('image_path', file)
+                doci.metadata['hashid'] = hash_file(doci.metadata['source'])
+            docs1.extend(docs1c)
         if enable_captions:
             # BLIP
             if caption_loader is not None and not isinstance(caption_loader, (str, bool)):
                 # assumes didn't fork into this process with joblib, else can deadlock
                 caption_loader.set_image_paths([file])
                 docs1c = caption_loader.load()
+                docs1c = [x for x in docs1c if x.page_content]
                 add_meta(docs1c, file, headsize, parser='caption_loader')
-                docs1.extend(docs1c)
             else:
                 from image_captions import H2OImageCaptionLoader
                 caption_loader = H2OImageCaptionLoader(caption_gpu=caption_loader == 'gpu',
@@ -1648,14 +1703,14 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                                                        blip_processor=captions_model)
                 caption_loader.set_image_paths([file])
                 docs1c = caption_loader.load()
+                docs1c = [x for x in docs1c if x.page_content]
                 add_meta(docs1c, file, headsize, parser='H2OImageCaptionLoader: %s' % captions_model)
-                docs1.extend(docs1c)
             # caption didn't set source, so fix-up meta
-            for doci in docs1:
+            for doci in docs1c:
                 doci.metadata['source'] = doci.metadata.get('image_path', file)
                 doci.metadata['hashid'] = hash_file(doci.metadata['source'])
-            if docs1:
-                doc1 = chunk_sources(docs1)
+            docs1.extend(docs1c)
+        doc1 = chunk_sources(docs1)
     elif file.lower().endswith('.msg'):
         raise RuntimeError("Not supported, GPL3 license")
         # docs1 = OutlookMessageLoader(file).load()
@@ -1813,16 +1868,14 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         with open(file, "r") as f:
             urls = f.readlines()
             # recurse
-            doc1 = path_to_docs(None, url=urls, verbose=verbose, fail_any_exception=fail_any_exception, n_jobs=n_jobs,
-                                db_type=db_type)
+            doc1 = path_to_docs_func(None, url=urls)
     elif file.lower().endswith('.zip'):
         with zipfile.ZipFile(file, 'r') as zip_ref:
             # don't put into temporary path, since want to keep references to docs inside zip
             # so just extract in path where
             zip_ref.extractall(base_path)
             # recurse
-            doc1 = path_to_docs(base_path, verbose=verbose, fail_any_exception=fail_any_exception, n_jobs=n_jobs,
-                                db_type=db_type)
+            doc1 = path_to_docs_func(base_path)
     elif file.lower().endswith('.gz') or file.lower().endswith('.gzip'):
         if file.lower().endswith('.gz'):
             de_file = file.lower().replace('.gz', '')
@@ -1850,9 +1903,11 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
 
                            # images
                            enable_ocr=enable_ocr,
+                           enable_doctr=enable_doctr,
                            enable_captions=enable_captions,
                            captions_model=captions_model,
                            caption_loader=caption_loader,
+                           doctr_loader=doctr_loader,
 
                            # json
                            jq_schema=jq_schema,
@@ -1896,9 +1951,11 @@ def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True
 
                  # images
                  enable_ocr=False,
+                 enable_doctr=False,
                  enable_captions=True,
                  captions_model=None,
                  caption_loader=None,
+                 doctr_loader=None,
 
                  # json
                  jq_schema='.[]',
@@ -1935,9 +1992,11 @@ def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True
 
                           # images
                           enable_ocr=enable_ocr,
+                          enable_doctr=enable_doctr,
                           enable_captions=enable_captions,
                           captions_model=captions_model,
                           caption_loader=caption_loader,
+                          doctr_loader=doctr_loader,
 
                           # json
                           jq_schema=jq_schema,
@@ -1990,9 +2049,11 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
 
                  # images
                  enable_ocr=False,
+                 enable_doctr=False,
                  enable_captions=True,
                  captions_model=None,
                  caption_loader=None,
+                 doctr_loader=None,
 
                  # json
                  jq_schema='.[]',
@@ -2105,9 +2166,11 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
 
                   # images
                   enable_ocr=enable_ocr,
+                  enable_doctr=enable_doctr,
                   enable_captions=enable_captions,
                   captions_model=captions_model,
                   caption_loader=caption_loader,
+                  doctr_loader=doctr_loader,
 
                   # json
                   jq_schema=jq_schema,
@@ -2452,9 +2515,11 @@ def _make_db(use_openai_embedding=False,
 
              # images
              enable_ocr=False,
+             enable_doctr=False,
              enable_captions=True,
              captions_model=None,
              caption_loader=None,
+             doctr_loader=None,
 
              # json
              jq_schema='.[]',
@@ -2537,9 +2602,11 @@ def _make_db(use_openai_embedding=False,
 
                                 # images
                                 enable_ocr=enable_ocr,
+                                enable_doctr=enable_doctr,
                                 enable_captions=enable_captions,
                                 captions_model=captions_model,
                                 caption_loader=caption_loader,
+                                doctr_loader=doctr_loader,
 
                                 # json
                                 jq_schema=jq_schema,
@@ -2722,9 +2789,11 @@ def _run_qa_db(query=None,
 
                # images
                enable_ocr=False,
+               enable_doctr=False,
                enable_captions=True,
                captions_model=None,
                caption_loader=None,
+               doctr_loader=None,
 
                # json
                jq_schema='.[]',
@@ -3051,9 +3120,11 @@ def get_chain(query=None,
 
               # images
               enable_ocr=False,
+              enable_doctr=False,
               enable_captions=True,
               captions_model=None,
               caption_loader=None,
+              doctr_loader=None,
 
               # json
               jq_schema='.[]',
@@ -3150,9 +3221,11 @@ def get_chain(query=None,
 
                                                         # images
                                                         enable_ocr=enable_ocr,
+                                                        enable_doctr=enable_doctr,
                                                         enable_captions=enable_captions,
                                                         captions_model=captions_model,
                                                         caption_loader=caption_loader,
+                                                        doctr_loader=doctr_loader,
 
                                                         # json
                                                         jq_schema=jq_schema,
@@ -3760,9 +3833,11 @@ def _update_user_db(file,
 
                     # images
                     enable_ocr=False,
+                    enable_doctr=False,
                     enable_captions=True,
                     captions_model=None,
                     caption_loader=None,
+                    doctr_loader=None,
 
                     # json
                     jq_schema='.[]',
@@ -3788,6 +3863,7 @@ def _update_user_db(file,
     assert enable_captions is not None
     assert captions_model is not None
     assert enable_ocr is not None
+    assert enable_doctr is not None
     assert enable_pdf_ocr is not None
     assert verbose is not None
 
@@ -3848,6 +3924,7 @@ def _update_user_db(file,
 
     sources = path_to_docs(file if not is_url and not is_txt else None,
                            verbose=verbose,
+                           fail_any_exception=False,
                            n_jobs=n_jobs,
                            chunk=chunk, chunk_size=chunk_size,
                            url=file if is_url else None,
@@ -3867,9 +3944,11 @@ def _update_user_db(file,
 
                            # images
                            enable_ocr=enable_ocr,
+                           enable_doctr=enable_doctr,
                            enable_captions=enable_captions,
                            captions_model=captions_model,
                            caption_loader=caption_loader,
+                           doctr_loader=doctr_loader,
 
                            # json
                            jq_schema=jq_schema,
@@ -4088,9 +4167,11 @@ def update_and_get_source_files_given_langchain_mode(db1s,
 
                                                      # images
                                                      enable_ocr=False,
+                                                     enable_doctr=False,
                                                      enable_captions=True,
                                                      captions_model=None,
                                                      caption_loader=None,
+                                                     doctr_loader=None,
 
                                                      # json
                                                      jq_schema='.[]',
@@ -4149,9 +4230,11 @@ def update_and_get_source_files_given_langchain_mode(db1s,
 
                                                         # images
                                                         enable_ocr=enable_ocr,
+                                                        enable_doctr=enable_doctr,
                                                         enable_captions=enable_captions,
                                                         captions_model=captions_model,
                                                         caption_loader=caption_loader,
+                                                        doctr_loader=doctr_loader,
 
                                                         # json
                                                         jq_schema=jq_schema,

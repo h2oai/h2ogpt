@@ -251,7 +251,16 @@ print(image_types)
 Select types, and pass to `make_db` like:
 ```bash
 python src/make_db.py --user_path="/home/jon/Downloads/demo_data" --collection_name=VAData --enable_pdf_ocr='off' --selected_file_types="['pdf', 'html', 'htm']"
-python generate.py --langchain_mode=VAData --langchain_modes=['VAData']
+python generate.py  --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode=VAData --langchain_modes=['VAData']
+```
+
+To ensure a collection is persisted even when not using any athentication, be sure it is shared type, e.g.:
+```bash
+python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --max_max_new_tokens=2048 --max_new_tokens=1024 \
+       --visible_tos_tab=False --visible_hosts_tab=False --visible_models_tab=False \
+       --langchain_modes="['LLM','PersistData']" --langchain_mode=PersistData \
+       --langchain_mode_types="{'PersistData':'shared'}" \
+       --top_k_docs=-1 --max_time=360 --save_dir=save
 ```
 
 ### Note about Embeddings

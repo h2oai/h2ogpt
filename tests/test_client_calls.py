@@ -757,7 +757,7 @@ def test_client_chat_stream_langchain_steps3(loaders):
         image_loaders_options0, image_loaders_options, \
             pdf_loaders_options0, pdf_loaders_options, \
             url_loaders_options0, url_loaders_options = \
-            lg_to_gr(enable_ocr=True, enable_captions=True, enable_pdf_ocr=True)
+            lg_to_gr(enable_ocr=True, enable_captions=True, enable_pdf_ocr=True, enable_doctr=True)
         loaders = [image_loaders_options, pdf_loaders_options, url_loaders_options, None]
 
     stream_output = True
