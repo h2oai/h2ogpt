@@ -1130,7 +1130,7 @@ def run_png_add(captions_model=None, caption_gpu=False,
 
 def check_content_captions(docs, caption_model):
     assert any(['license' in docs[ix].page_content for ix in range(len(docs))])
-    if 'blip2' in caption_model:
+    if caption_model is not None and 'blip2' in caption_model:
         str_expected = """california driver license with a woman's face on it california driver license"""
     else:
         str_expected = """a california driver's license with a picture of a woman's face and a picture of a man's face"""
