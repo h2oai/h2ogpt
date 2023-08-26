@@ -1084,12 +1084,12 @@ def run_png_add(captions_model=None, caption_gpu=False,
             elif enable_captions and not enable_doctr and enable_ocr:
                 if 'kowalievska' in file:
                     docs = db.similarity_search("cat")
-                    assert len(docs) == 2 + (2 if db_type == 'chroma' else 0)
+                    assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
                     assert 'a cat sitting on a window' in docs[0].page_content
                     check_source(docs, test_file1)
                 else:
                     docs = db.similarity_search("license")
-                    assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
+                    assert len(docs) == 2 + (2 if db_type == 'chroma' else 0)
                     check_content_ocr(docs)
                     check_content_captions(docs)
                     check_source(docs, test_file1)
