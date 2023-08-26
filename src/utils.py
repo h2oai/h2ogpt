@@ -1226,7 +1226,7 @@ def lg_to_gr(
     if n_gpus != 0:
         image_loaders_options = ['Caption', 'CaptionBlip2']
     else:
-        image_loaders_options = []
+        image_loaders_options = ['Caption']
     if have_tesseract:
         image_loaders_options.append('OCR')
     if have_doctr:
@@ -1237,7 +1237,8 @@ def lg_to_gr(
     if have_doctr and kwargs['enable_doctr']:
         image_loaders_options0.append('DocTR')
     if kwargs['enable_captions']:
-        if kwargs['max_quality']:
+        if kwargs['max_quality'] and n_gpus > 0:
+            # BLIP2 only on GPU
             image_loaders_options0.append('CaptionBlip2')
         else:
             image_loaders_options0.append('Caption')
