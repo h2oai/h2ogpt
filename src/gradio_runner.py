@@ -1337,10 +1337,6 @@ def go_gradio(**kwargs):
                                          outputs=[my_db_state, requests_state, langchain_mode],
                                          show_progress='minimal')
         eventdb1 = eventdb1a.then(**add_file_kwargs, show_progress='full')
-        
-        # eventdb1b = eventdb1.then(make_interactive, inputs=add_file_outputs, outputs=[],
-        #                           show_progress='minimal')
-
         # deal with challenge to have fileup_output itself as input
         add_file_kwargs2 = dict(fn=update_db_func,
                                 inputs=[fileup_output_text, my_db_state, selection_docs_state, requests_state,
