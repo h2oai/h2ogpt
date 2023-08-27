@@ -1382,6 +1382,7 @@ def get_supported_types():
                         "gz",
                         "gzip",
                         "urls",
+                        "xml"
                         ]
     # "msg",  GPL3
 
@@ -1658,7 +1659,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         add_meta(docs1, file, headsize, parser='UnstructuredPowerPointLoader')
         docs1 = clean_doc(docs1)
         doc1 = chunk_sources(docs1)
-    elif file.lower().endswith('.txt'):
+    elif file.lower().endswith('.txt') or file.lower().endswith('.xml'):
         # use UnstructuredFileLoader ?
         docs1 = TextLoader(file, encoding="utf8", autodetect_encoding=True).load()
         # makes just one, but big one
