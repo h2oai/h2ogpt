@@ -1275,18 +1275,6 @@ def go_gradio(**kwargs):
         def clear_file_list():
             return None
 
-        def make_non_interactive(*args):
-            if len(args) == 1:
-                return gr.update(interactive=False)
-            else:
-                return tuple([gr.update(interactive=False)] * len(args))
-
-        def make_interactive(*args):
-            if len(args) == 1:
-                return gr.update(interactive=True)
-            else:
-                return tuple([gr.update(interactive=True)] * len(args))
-
         def set_loaders(max_quality1,
                         image_loaders_options1=None,
                         pdf_loaders_options1=None,
@@ -1393,11 +1381,7 @@ def go_gradio(**kwargs):
                                     queue=queue,
                                     show_progress='minimal')
         # work around https://github.com/gradio-app/gradio/issues/4733
-        eventdb2b = eventdb2a.then(make_non_interactive, inputs=add_url_outputs, outputs=add_url_outputs,
-                                   show_progress='minimal')
-        eventdb2 = eventdb2b.then(**add_url_kwargs, show_progress='full')
-        eventdb2c = eventdb2.then(make_interactive, inputs=add_url_outputs, outputs=add_url_outputs,
-                                  show_progress='minimal')
+        eventdb2 = eventdb2a.then(**add_url_kwargs, show_progress='full')
 
         update_user_db_txt_func = functools.partial(update_db_func, is_txt=True)
         add_text_outputs = [user_text_text, langchain_mode]
@@ -1418,14 +1402,10 @@ def go_gradio(**kwargs):
                                           outputs=[my_db_state, requests_state, user_text_text],
                                           queue=queue,
                                           show_progress='minimal')
-        eventdb3b = eventdb3a.then(make_non_interactive, inputs=add_text_outputs, outputs=add_text_outputs,
-                                   show_progress='minimal')
-        eventdb3 = eventdb3b.then(**add_text_kwargs, show_progress='full')
-        eventdb3c = eventdb3.then(make_interactive, inputs=add_text_outputs, outputs=add_text_outputs,
-                                  show_progress='minimal')
+        eventdb3 = eventdb3a.then(**add_text_kwargs, show_progress='full')
         db_events = [eventdb1a, eventdb1, eventdb1_api,
-                     eventdb2a, eventdb2, eventdb2b, eventdb2c,
-                     eventdb3a, eventdb3b, eventdb3, eventdb3c]
+                     eventdb2a, eventdb2,
+                     eventdb3a, eventdb3]
 
         get_sources1 = functools.partial(get_sources_gr, dbs=dbs, docs_state0=docs_state0,
                                          load_db_if_exists=load_db_if_exists,
