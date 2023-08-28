@@ -1581,7 +1581,8 @@ def go_gradio(**kwargs):
                 doc_page_ids = [x.get('page', 0) for x in db_metadatas]
                 doc_hashes = [x.get('doc_hash', 'None') for x in db_metadatas]
                 docs_with_score = [x for hx, px, cx, x in
-                                   sorted(zip(doc_hashes, doc_page_ids, doc_chunk_ids, docs_with_score), key=lambda x: (x[0], x[1]))
+                                   sorted(zip(doc_hashes, doc_page_ids, doc_chunk_ids, docs_with_score),
+                                          key=lambda x: (x[0], x[1]))
                                    # if cx == -1
                                    ]
                 db_metadatas = [x[0].metadata for x in docs_with_score][:max_raw_chunks]
@@ -3695,6 +3696,7 @@ def go_gradio(**kwargs):
 
     # set port in case GRADIO_SERVER_PORT was already set in prior main() call,
     # gradio does not listen if change after import
+    # Keep None if not set so can find an open port above used ports
     server_port = os.getenv('GRADIO_SERVER_PORT')
     if server_port is not None:
         server_port = int(server_port)
@@ -3708,8 +3710,9 @@ def go_gradio(**kwargs):
                 auth=auth,
                 auth_message=auth_message,
                 root_path=kwargs['root_path'])
-    if kwargs['verbose']:
-        print("Started GUI", flush=True)
+    if kwargs['verbose'] or not (kwargs['base_model'] in ['gptj', 'gpt4all_llama']):
+        print("Started Gradio Server and/or GUI: server_name: %s port: %s" % (kwargs['server_name'], server_port),
+              flush=True)
     if kwargs['block_gradio_exit']:
         demo.block_thread()
 
