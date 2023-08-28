@@ -88,7 +88,7 @@ For newer builds of windows versions of 10/11.
 * GPU Optional: For optional exllama support:
     ```bash
     pip uninstall -y exllama
-    pip install https://github.com/jllllll/exllama/releases/download/0.0.8/exllama-0.0.8+cu118-cp310-cp310-win_amd64.whl --no-cache-dir
+    pip install https://github.com/jllllll/exllama/releases/download/0.0.13/exllama-0.0.13+cu118-cp310-cp310-win_amd64.whl --no-cache-dir
     ```
 * GPU Optional: Support LLaMa.cpp with CUDA via llama-cpp-python:
   * Download/Install [CUDA llama-cpp-python wheel](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels), or choose link and run pip directly.  E.g.:

@@ -108,7 +108,7 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     See [AutoGPTQ](README_GPU.md#autogptq) about running AutoGPT models.
 * GPU Optional: For exllama support on x86_64 linux
     ```bash
-    pip uninstall -y exllama ; pip install https://github.com/jllllll/exllama/releases/download/0.0.8/exllama-0.0.8+cu118-cp310-cp310-linux_x86_64.whl --no-cache-dir
+    pip uninstall -y exllama ; pip install https://github.com/jllllll/exllama/releases/download/0.0.13/exllama-0.0.13+cu118-cp310-cp310-linux_x86_64.whl --no-cache-dir
     ```
     See [exllama](README_GPU.md#exllama) about running exllama models.
 
