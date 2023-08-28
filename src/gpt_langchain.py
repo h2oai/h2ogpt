@@ -1274,7 +1274,7 @@ def get_wiki_data(title, first_paragraph_only, text_limit=None, take_head=True):
         page_content = page_content[:text_limit] if take_head else page_content[-text_limit:]
     title_url = str(title).replace(' ', '_')
     return Document(
-        page_content=page_content,
+        page_content=str(page_content),
         metadata={"source": f"https://en.wikipedia.org/wiki/{title_url}"},
     )
 
@@ -1317,7 +1317,7 @@ def get_github_docs(repo_owner, repo_name):
             with open(markdown_file, "r") as f:
                 relative_path = markdown_file.relative_to(repo_path)
                 github_url = f"https://github.com/{repo_owner}/{repo_name}/blob/{git_sha}/{relative_path}"
-                yield Document(page_content=f.read(), metadata={"source": github_url})
+                yield Document(page_content=str(f.read()), metadata={"source": github_url})
 
 
 def get_dai_pickle(dest="."):
@@ -1366,7 +1366,7 @@ def get_dai_docs(from_hf=False, get_pickle=True):
         if os.path.lexists(sym_dst):
             os.remove(sym_dst)
         os.symlink(sym_src, sym_dst)
-        itm = Document(page_content=line, metadata={"source": file})
+        itm = Document(page_content=str(line), metadata={"source": file})
         # NOTE: yield has issues when going into db, loses metadata
         # yield itm
         sources.append(itm)
@@ -1633,7 +1633,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         with open(source_file, "wt") as f:
             f.write(file)
         metadata = dict(source=source_file, date=str(datetime.now()), input_type='pasted txt')
-        doc1 = Document(page_content=file, metadata=metadata)
+        doc1 = Document(page_content=str(file), metadata=metadata)
         add_meta(doc1, file, headsize, parser="f.write")
         doc1 = clean_doc(doc1)
     elif file.lower().endswith('.html') or file.lower().endswith('.mhtml') or file.lower().endswith('.htm'):
@@ -1760,7 +1760,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
     # doc1 = GCSFileLoader(project_name, bucket, blob).load()
     elif file.lower().endswith('.rst'):
         with open(file, "r") as f:
-            doc1 = Document(page_content=f.read(), metadata={"source": file})
+            doc1 = Document(page_content=str(f.read()), metadata={"source": file})
         add_meta(doc1, file, headsize, parser='f.read()')
         doc1 = chunk_sources(doc1, language=Language.RST)
     elif file.lower().endswith('.json'):
