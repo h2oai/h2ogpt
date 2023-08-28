@@ -417,7 +417,7 @@ For links to direct to the document and download to your local machine, the orig
 
 * [ChatBox](https://github.com/Bin-Huang/chatbox) has ability to collaborate.
 
-* [Chat2GB](https://github.com/alibaba/Chat2DB) like DB-GPT by Alibaba.
+* [Chat2DB](https://github.com/alibaba/Chat2DB) like DB-GPT by Alibaba.
 
 * [pdfGPT](https://github.com/bhaskatripathi/pdfGPT) like PrivateGPT but no longer maintained.
 
