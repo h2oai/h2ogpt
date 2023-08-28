@@ -22,3 +22,10 @@ or for LLaMa2:
 python generate.py --base_model='llama' --prompt_type=llama2 --cli=True --langchain_mode=UserData --user_path=user_path --answer_with_sources=False
 ```
 
+### Evaluation
+
+To evaluate some custom json data by making the LLM generate responses and/or give reward scores, with parquet output, run:
+```bash
+python generate.py --base_model=MYMODEL --eval_filename=MYFILE.json --eval_prompts_only_num=NPROMPTS
+```
+where NPROMPTS is the number of prompts in the json file to evaluate (can be less than total).  See `tests/test_eval.py::test_eval_json` for a test code example.
