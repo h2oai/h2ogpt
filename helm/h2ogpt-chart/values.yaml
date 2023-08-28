@@ -19,11 +19,6 @@ h2ogpt:
     webPort: 80
     gptPort: 8888
 
-  resources:
-
-  nodeSelector:
-
-  tolerations:
 
   podSecurityContext:
     runAsNonRoot: true
@@ -40,6 +35,10 @@ h2ogpt:
     seccompProfile:
       type: RuntimeDefault
   
+  resources:
+  nodeSelector:
+  tolerations:
+
   podAnnotations: {}
   podLabels: {}
   autoscaling: {}
@@ -58,24 +57,19 @@ tgi:
     class: ebs-csi
   
   overrideConfig:
-  
   hfSecret: 
-
   containerArgs:
 
   service:
     type: NodePort
     port: 8080
 
-  resources:
-
-  nodeSelector:
-
-  tolerations:
-
   podSecurityContext:
-
   securityContext:
+
+  resources:
+  nodeSelector:
+  tolerations:
 
   podAnnotations: {}
   podLabels: {}
@@ -95,19 +89,11 @@ vllm:
     class: ebs-csi
   
   overrideConfig:
-  
-
   containerArgs:
 
   service:
     type: NodePort
     port: 5000
-
-  resources:
-
-  nodeSelector:
-
-  tolerations:
 
   podSecurityContext:
     runAsNonRoot: true
@@ -122,6 +108,10 @@ vllm:
       drop:
         - ALL
     seccompProfile:
+
+  resources:
+  nodeSelector:
+  tolerations:
 
   podAnnotations: {}
   podLabels: {}
