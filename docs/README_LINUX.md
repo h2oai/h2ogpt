@@ -96,7 +96,7 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
 * GPU Optional: For AutoGPTQ support on x86_64 linux
     Try H2O.ai's pre-built wheel:
     ```bash
-    pip uninstall -y auto-gptq ; pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.4.1/auto_gptq-0.4.1+cu117-cp310-cp310-linux_x86_64.whl
+    pip uninstall -y auto-gptq ; pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.4.2/auto_gptq-0.4.2+cu118-cp310-cp310-linux_x86_64.whl
     # in-transformers support of AutoGPTQ
     pip install git+https://github.com/huggingface/optimum.git
     ```

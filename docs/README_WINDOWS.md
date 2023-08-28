@@ -83,7 +83,7 @@ For newer builds of windows versions of 10/11.
 * GPU Optional: For optional AutoGPTQ support:
    ```bash
     pip uninstall -y auto-gptq
-    pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.4.1/auto_gptq-0.4.1+cu118-cp310-cp310-win_amd64.whl
+    pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.4.2/auto_gptq-0.4.2+cu118-cp310-cp310-win_amd64.whl
    ```
 * GPU Optional: For optional exllama support:
     ```bash
