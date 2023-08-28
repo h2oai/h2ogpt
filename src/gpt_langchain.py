@@ -40,7 +40,7 @@ from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename
     get_device, ProgressParallel, remove, hash_file, clear_torch_cache, NullContext, get_hf_server, FakeTokenizer, \
     have_libreoffice, have_arxiv, have_playwright, have_selenium, have_tesseract, have_doctr, have_pymupdf, set_openai, \
     get_list_or_str, have_pillow, only_selenium, only_playwright, only_unstructured_urls, get_sha, get_short_name, \
-    get_accordion, have_jq, get_doc
+    get_accordion, have_jq, get_doc, get_source
 from utils_langchain import StreamingGradioCallbackHandler
 
 import_matplotlib()
@@ -3588,7 +3588,7 @@ def get_sources_answer(query, docs, answer, scores, show_rank,
         return ret, extra
 
     if answer_with_sources == -1:
-        extra = [(score, get_doc(x)) for score, x in zip(scores, docs)][:top_k_docs_max_show]
+        extra = [dict(score=score, content=get_doc(x), source=get_source(x)) for score, x in zip(scores, docs)][:top_k_docs_max_show]
         if reverse_docs:
             # undo reverse for context filling since not using scores here
             extra.reverse()

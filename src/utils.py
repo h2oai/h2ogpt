@@ -620,6 +620,10 @@ def get_doc(x):
     return x.page_content
 
 
+def get_source(x):
+    return x.metadata.get('source', "UNKNOWN SOURCE")
+
+
 def get_accordion(x, font_size=2, head_acc=50):
     title = x.page_content[:head_acc].replace("\n", ' ').replace("<br>", ' ').replace("<p>", ' ').replace("\r", ' ')
     content = x.page_content

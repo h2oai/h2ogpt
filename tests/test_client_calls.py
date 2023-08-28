@@ -1286,7 +1286,7 @@ def test_client_chat_stream_langchain_fake_embeddings():
     res_dict = ast.literal_eval(res)
     assert 'response' in res_dict and res_dict['response']
     sources = res_dict['sources']
-    texts_out = [x[1] for x in sources]
+    texts_out = [x['content'] for x in sources]
     assert texts == texts_out
 
 
@@ -1370,7 +1370,8 @@ def test_client_summarization(prompt_summary):
         assert 'various techniques and approaches in speech recognition' in summary or \
                'capabilities of speech processing systems' in summary or \
                'speech recognition' in summary
-    assert 'my_test_pdf.pdf' in sources
+    assert 'Robust Speech Recognition' in [x['content'] for x in sources][0]
+    assert 'my_test_pdf.pdf' in [x['source'] for x in sources][0]
 
 
 @pytest.mark.need_tokens
@@ -1427,7 +1428,8 @@ def test_client_summarization_from_text():
     summary = res['response']
     sources = res['sources']
     assert 'Whisper' in summary or 'robust speech recognition system' in summary
-    assert 'user_paste' in sources
+    assert 'Robust Speech Recognition' in [x['content'] for x in sources][0]
+    assert 'user_paste' in [x['source'] for x in sources][0]
 
 
 @pytest.mark.parametrize("url", ['https://cdn.openai.com/papers/whisper.pdf', 'https://github.com/h2oai/h2ogpt'])
@@ -1478,13 +1480,15 @@ def test_client_summarization_from_url(url, top_k_docs):
         assert 'Whisper' in summary or \
                'robust speech recognition system' in summary or \
                'speech recognition' in summary
+        assert 'Robust Speech Recognition' in [x['content'] for x in sources][0]
     if 'h2ogpt' in url:
         assert 'Accurate embeddings for private offline databases' in summary \
                or 'private offline database' in summary \
                or 'H2OGPT is an open-source project' in summary \
                or 'is an open-source project for document Q/A' in summary \
                or 'h2oGPT is an open-source project' in summary
-    assert url in sources
+        assert 'h2oGPT' in [x['content'] for x in sources][0]
+    assert url in [x['source'] for x in sources][0]
 
 
 @pytest.mark.parametrize("prompt_type", ['instruct_vicuna', 'one_shot'])
