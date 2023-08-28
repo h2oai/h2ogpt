@@ -429,6 +429,8 @@ For links to direct to the document and download to your local machine, the orig
 
 * [TryGloo](https://www.trygloo.com/) Semantic Search and Classification.
 
+* [Cuba](https://cube.dev/blog/introducing-the-langchain-integration).
+
 * [Sharly](https://www.sharly.ai/) but h2oGPT is open-source and private and many more data types.  Sharly and h2oGPT both allow sharing work through UserData shared collection.
 
 * [ChatDoc](https://chatdoc.com/) but h2oGPT is open-source and private. ChatDoc shows nice side-by-side view with doc on one side and chat in other.  Select specific doc or text in doc for question/summary.
