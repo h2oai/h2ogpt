@@ -33,7 +33,9 @@ RUN python3.10 -m pip install -r reqs_optional/requirements_optional_langchain.u
 
 RUN python3.10 -m pip install -r reqs_optional/requirements_optional_doctr.txt --extra-index-url https://download.pytorch.org/whl/cu118
 # go back to older onnx so Tesseract OCR still works
-RUN python3.10 -m pip install onnxruntime==1.15.0 onnxruntime-gpu==1.15.0 --extra-index-url https://download.pytorch.org/whl/cu118
+RUN python3.10 -m pip install onnxruntime==1.15.0 onnxruntime-gpu==1.15.0 --extra-index-url https://download.pytorch.org/whl/cu118 && \
+    python3.10 -m pip uninstall weasyprint && \
+    python3.10 -m pip install weasyprint==0.59.0
 
 ENV CUDA_HOME=/usr/local/cuda-11.8
 
