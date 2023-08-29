@@ -83,7 +83,10 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
             # can't wait for "hole" if not plain prompt_type, since would lose prefix like <human>:
             # For https://github.com/h2oai/h2ogpt/issues/192
             for trial in range(0, 5):
-                prompt_tokens = tokenizer(prompt_text)['input_ids']
+                if prompt_text:
+                    prompt_tokens = tokenizer(prompt_text)['input_ids']
+                else:
+                    prompt_tokens = []
                 num_prompt_tokens = len(prompt_tokens)
                 if num_prompt_tokens > model_max_length:
                     # conservative by using int()
