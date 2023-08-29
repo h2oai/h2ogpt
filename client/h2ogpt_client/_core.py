@@ -121,6 +121,10 @@ class TextCompletionCreator:
         params["pre_prompt_summary"] = ""
         params["prompt_summary"] = ""
         params["system_prompt"] = ""
+        params["image_loaders"] = None
+        params["pdf_loaders"] = None
+        params["url_loaders"] = None
+        params["jq_schema"] = None
         return TextCompletion(self._client, params)
 
 
@@ -240,6 +244,10 @@ class ChatCompletionCreator:
         params["prompt_query"] = ""
         params["pre_prompt_summary"] = ""
         params["prompt_summary"] = ""
+        params["image_loaders"] = None
+        params["pdf_loaders"] = None
+        params["url_loaders"] = None
+        params["jq_schema"] = None
         params["chatbot"] = []  # chat history
         return ChatCompletion(self._client, params)
 
