@@ -16,7 +16,7 @@ ARG PATH="/h2ogpt_conda/bin:${PATH}"
 RUN wget https://repo.anaconda.com/miniconda/Miniconda3-py310_23.1.0-1-Linux-x86_64.sh && \
     mkdir -p h2ogpt_conda && \
     bash ./Miniconda3-py310_23.1.0-1-Linux-x86_64.sh -b -u -p /h2ogpt_conda && \
-    conda install python=3.10 pygobject -c conda-forge -y
+    conda install python=3.10 pygobject weasyprint -c conda-forge -y
 
 WORKDIR /workspace
 
@@ -35,7 +35,7 @@ RUN python3.10 -m pip install -r reqs_optional/requirements_optional_doctr.txt -
 # go back to older onnx so Tesseract OCR still works
 RUN python3.10 -m pip install onnxruntime==1.15.0 onnxruntime-gpu==1.15.0 --extra-index-url https://download.pytorch.org/whl/cu118 && \
     python3.10 -m pip uninstall -y weasyprint && \
-    python3.10 -m pip install weasyprint==0.59.0
+    python3.10 -m pip install weasyprint
 
 ENV CUDA_HOME=/usr/local/cuda-11.8
 
