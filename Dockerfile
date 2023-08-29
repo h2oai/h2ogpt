@@ -26,14 +26,14 @@ COPY requirements.txt requirements.txt
 COPY reqs_optional reqs_optional
 
 RUN python3.10 -m pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cu118
-RUN python3.10 -m pip install -r reqs_optional/requirements_optional_langchain.txt
-RUN python3.10 -m pip install -r reqs_optional/requirements_optional_gpt4all.txt
-RUN python3.10 -m pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt
-RUN python3.10 -m pip install -r reqs_optional/requirements_optional_langchain.urls.txt
+RUN python3.10 -m pip install -r reqs_optional/requirements_optional_langchain.txt --extra-index-url https://download.pytorch.org/whl/cu118
+RUN python3.10 -m pip install -r reqs_optional/requirements_optional_gpt4all.txt --extra-index-url https://download.pytorch.org/whl/cu118
+RUN python3.10 -m pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt --extra-index-url https://download.pytorch.org/whl/cu118
+RUN python3.10 -m pip install -r reqs_optional/requirements_optional_langchain.urls.txt --extra-index-url https://download.pytorch.org/whl/cu118
 
-RUN python3.10 -m pip install -r reqs_optional/requirements_optional_doctr.txt
+RUN python3.10 -m pip install -r reqs_optional/requirements_optional_doctr.txt --extra-index-url https://download.pytorch.org/whl/cu118
 # go back to older onnx so Tesseract OCR still works
-RUN python3.10 -m pip install onnxruntime==1.15.0 onnxruntime-gpu==1.15.0
+RUN python3.10 -m pip install onnxruntime==1.15.0 onnxruntime-gpu==1.15.0 --extra-index-url https://download.pytorch.org/whl/cu118
 
 ENV CUDA_HOME=/usr/local/cuda-11.8
 
