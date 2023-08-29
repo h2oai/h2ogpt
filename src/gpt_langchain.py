@@ -33,7 +33,7 @@ from tqdm import tqdm
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts
-from evaluate_params import gen_hyper
+from evaluate_params import gen_hyper, gen_hyper0
 from gen import get_model, SEED
 from prompter import non_hf_types, PromptType, Prompter
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
@@ -1191,9 +1191,6 @@ def get_llm(use_openai_model=False,
         max_max_tokens = tokenizer.model_max_length
         only_new_text = True
         gen_kwargs = dict(do_sample=do_sample,
-                          temperature=temperature,
-                          top_k=top_k,
-                          top_p=top_p,
                           num_beams=num_beams,
                           max_new_tokens=max_new_tokens,
                           min_new_tokens=min_new_tokens,
@@ -1203,7 +1200,13 @@ def get_llm(use_openai_model=False,
                           num_return_sequences=num_return_sequences,
                           return_full_text=not only_new_text,
                           handle_long_generation=None)
-        assert len(set(gen_hyper).difference(gen_kwargs.keys())) == 0
+        if do_sample:
+            gen_kwargs.update(dict(temperature=temperature,
+                                   top_k=top_k,
+                                   top_p=top_p))
+            assert len(set(gen_hyper).difference(gen_kwargs.keys())) == 0
+        else:
+            assert len(set(gen_hyper0).difference(gen_kwargs.keys())) == 0
 
         if stream_output:
             skip_prompt = only_new_text
@@ -3593,7 +3596,8 @@ def get_sources_answer(query, docs, answer, scores, show_rank,
         return ret, extra
 
     if answer_with_sources == -1:
-        extra = [dict(score=score, content=get_doc(x), source=get_source(x)) for score, x in zip(scores, docs)][:top_k_docs_max_show]
+        extra = [dict(score=score, content=get_doc(x), source=get_source(x)) for score, x in zip(scores, docs)][
+                :top_k_docs_max_show]
         if reverse_docs:
             # undo reverse for context filling since not using scores here
             extra.reverse()

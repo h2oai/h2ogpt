@@ -8,19 +8,18 @@ no_default_param_names = [
     'iinput_nochat',
 ]
 
-gen_hyper = ['temperature',
-             'top_p',
-             'top_k',
-             'num_beams',
-             'max_new_tokens',
-             'min_new_tokens',
-             'early_stopping',
-             'max_time',
-             'repetition_penalty',
-             'num_return_sequences',
-             'do_sample',
-             ]
-
+gen_hyper0 = ['num_beams',
+              'max_new_tokens',
+              'min_new_tokens',
+              'early_stopping',
+              'max_time',
+              'repetition_penalty',
+              'num_return_sequences',
+              'do_sample',
+              ]
+gen_hyper = gen_hyper0 + ['temperature',
+                          'top_p',
+                          'top_k']
 reader_names = ['image_loaders', 'pdf_loaders', 'url_loaders', 'jq_schema']
 
 eval_func_param_names = ['instruction',
