@@ -1075,6 +1075,7 @@ import distutils.spawn
 have_tesseract = distutils.spawn.find_executable("tesseract")
 have_libreoffice = distutils.spawn.find_executable("libreoffice")
 try:
+    from weasyprint import HTML
     import doctr
     have_doctr = True
 except:

@@ -31,6 +31,7 @@ class H2OOCRLoader(ImageCaptionLoader):
 
     def load_model(self):
         try:
+            from weasyprint import HTML  # to avoid warning
             from doctr.models.zoo import ocr_predictor
         except ImportError:
             raise ValueError(
