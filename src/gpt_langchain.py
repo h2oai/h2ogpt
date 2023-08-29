@@ -1374,7 +1374,7 @@ def get_dai_docs(from_hf=False, get_pickle=True):
 
 
 def get_supported_types():
-    non_image_types0 = ["pdf", "txt", "csv", "toml", "py", "rst", "rtf",
+    non_image_types0 = ["pdf", "txt", "csv", "toml", "py", "rst", "xml", "rtf",
                         "md",
                         "html", "mhtml", "htm",
                         "enex", "eml", "epub", "odt", "pptx", "ppt",
@@ -1885,6 +1885,11 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         doc1 = TomlLoader(file).load()
         add_meta(doc1, file, headsize, parser='TomlLoader')
         doc1 = chunk_sources(doc1)
+    elif file.lower().endswith('.xml'):
+        from langchain.document_loaders import UnstructuredXMLLoader
+        loader = UnstructuredXMLLoader(file_path=file)
+        doc1 = loader.load()
+        add_meta(doc1, file, headsize, parser='UnstructuredXMLLoader')
     elif file.lower().endswith('.urls'):
         with open(file, "r") as f:
             urls = f.readlines()

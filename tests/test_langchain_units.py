@@ -782,6 +782,46 @@ def test_md_add(db_type):
 
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
+def test_rst_add(db_type):
+    kill_weaviate(db_type)
+    from src.make_db import make_db_main
+    with tempfile.TemporaryDirectory() as tmp_persist_directory:
+        with tempfile.TemporaryDirectory() as tmp_user_path:
+            url = 'https://gist.githubusercontent.com/javiertejero/4585196/raw/21786e2145c0cc0a202ffc4f257f99c26985eaea/README.rst'
+            test_file1 = os.path.join(tmp_user_path, 'demo.rst')
+            download_simple(url, dest=test_file1)
+            test_file1 = os.path.join(tmp_user_path, os.path.basename(test_file1))
+            db, collection_name = make_db_main(persist_directory=tmp_persist_directory, user_path=tmp_user_path,
+                                               fail_any_exception=True, db_type=db_type)
+            assert db is not None
+            docs = db.similarity_search("Font Faces - Emphasis and Examples")
+            assert len(docs) == 4
+            assert 'Within paragraphs, inline markup' in docs[0].page_content
+            assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+
+
+@pytest.mark.parametrize("db_type", db_types)
+@wrap_test_forked
+def test_xml_add(db_type):
+    kill_weaviate(db_type)
+    from src.make_db import make_db_main
+    with tempfile.TemporaryDirectory() as tmp_persist_directory:
+        with tempfile.TemporaryDirectory() as tmp_user_path:
+            url = 'https://gist.githubusercontent.com/theresajayne/1409545/raw/a8b46e7799805e86f4339172c9778fa55afb0f30/gistfile1.txt'
+            test_file1 = os.path.join(tmp_user_path, 'demo.xml')
+            download_simple(url, dest=test_file1)
+            test_file1 = os.path.join(tmp_user_path, os.path.basename(test_file1))
+            db, collection_name = make_db_main(persist_directory=tmp_persist_directory, user_path=tmp_user_path,
+                                               fail_any_exception=True, db_type=db_type)
+            assert db is not None
+            docs = db.similarity_search("Entrance Hall")
+            assert len(docs) == 4 if db_type == 'chroma' else 3
+            assert 'Ensuite Bathroom' in docs[0].page_content
+            assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+
+
+@pytest.mark.parametrize("db_type", db_types)
+@wrap_test_forked
 def test_eml_add(db_type):
     kill_weaviate(db_type)
     from src.make_db import make_db_main

@@ -428,7 +428,7 @@ def go_gradio(**kwargs):
         url_loaders_options0, url_loaders_options = lg_to_gr(**kwargs)
     jq_schema0 = '.[]'
 
-    with (demo):
+    with ((demo)):
         # avoid actual model/tokenizer here or anything that would be bad to deepcopy
         # https://github.com/gradio-app/gradio/issues/3558
         model_state = gr.State(
@@ -1615,7 +1615,8 @@ def go_gradio(**kwargs):
             if not isinstance(file, str):
                 return dummy_ret
 
-            if file.lower().endswith('.html') or file.lower().endswith('.mhtml') or file.lower().endswith('.htm'):
+            if file.lower().endswith('.html') or file.lower().endswith('.mhtml') or file.lower().endswith('.htm') or \
+                    file.lower().endswith('.xml'):
                 try:
                     with open(file, 'rt') as f:
                         content = f.read()
@@ -1659,8 +1660,9 @@ def go_gradio(**kwargs):
                 func = pd.read_excel
             elif file.lower().endswith('.json'):
                 func = pd.read_json
-            elif file.lower().endswith('.xml'):
-                func = pd.read_xml
+            # pandas doesn't show full thing, even if html view shows broken things still better
+            #elif file.lower().endswith('.xml'):
+            #    func = pd.read_xml
             if func is not None:
                 try:
                     df = func(file).head(100)

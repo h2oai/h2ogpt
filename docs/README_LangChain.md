@@ -46,6 +46,7 @@ Open-source data types are supported, .msg is not supported due to GPL-3 require
    - `.odt`: Open Document Text,
    - `.pptx` : PowerPoint Document,
    - `.ppt` : PowerPoint Document,
+   - `.xml`: XML,
    - `.apng` : APNG Image (optional),
    - `.blp` : BLP Image (optional),
    - `.bmp` : BMP Image (optional),
