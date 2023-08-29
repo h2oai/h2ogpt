@@ -95,6 +95,8 @@ class H2OOCRLoader(ImageCaptionLoader):
             texts = [words[i] for i in ids]
             text_boxes = [boxes[i] for i in ids]
             words = space_layout(texts=texts, boxes=text_boxes)
+        else:
+            words = " ".join(words)
         # words = space_layout(texts=words, boxes=boxes)
         metadata: dict = {"image_path": path_image}
         return words, metadata
