@@ -60,7 +60,7 @@ RUN sp=`python3.10 -c 'import site; print(site.getsitepackages()[0])'` && \
     find openai_vllm -name '*.py' | xargs sed -i 's/from openai\./from openai_vllm./g' && \
     find openai_vllm -name '*.py' | xargs sed -i 's/import openai/import openai_vllm/g' && \
     conda create -n vllm python=3.10 -y && \
-    /h2ogpt_conda/envs/vllm/bin/python3.10 -m pip install vllm ray pandas && \
+    /h2ogpt_conda/envs/vllm/bin/python3.10 -m pip install vllm ray pandas --extra-index-url https://download.pytorch.org/whl/cu118 && \
     mkdir ${VLLM_CACHE}
 
 EXPOSE 8888
