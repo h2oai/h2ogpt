@@ -17,9 +17,9 @@ gen_hyper0 = ['num_beams',
               'num_return_sequences',
               'do_sample',
               ]
-gen_hyper = gen_hyper0 + ['temperature',
+gen_hyper = ['temperature',
                           'top_p',
-                          'top_k']
+                          'top_k'] + gen_hyper0
 reader_names = ['image_loaders', 'pdf_loaders', 'url_loaders', 'jq_schema']
 
 eval_func_param_names = ['instruction',
