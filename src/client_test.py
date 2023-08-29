@@ -140,6 +140,16 @@ def test_client_basic(prompt_type='human_bot', version=None):
     return run_client_nochat(prompt='Who are you?', prompt_type=prompt_type, max_new_tokens=50, version=version)
 
 
+"""
+time HOST=https://gpt-internal.h2o.ai PYTHONPATH=. pytest -n 20 src/client_test.py::test_client_basic_benchmark
+127 seconds for 70B llama2 on 4x A100 80GB
+"""
+@pytest.mark.skip(reason="For manual use against some server, no server launched")
+@pytest.mark.parametrize("id", range(100))
+def test_client_basic_benchmark(id, prompt_type='human_bot', version=None):
+    return run_client_nochat(prompt='Who are you?', prompt_type=prompt_type, max_new_tokens=50, version=version)
+
+
 def run_client_nochat(prompt, prompt_type, max_new_tokens, version=None):
     kwargs, args = get_args(prompt, prompt_type, chat=False, max_new_tokens=max_new_tokens, version=version)
 
