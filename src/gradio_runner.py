@@ -282,8 +282,12 @@ def go_gradio(**kwargs):
                   auth_access=None,
                   auth_freeze=None,
                   guest_name=None,
-                  selection_docs_state1=None, **kwargs):
+                  selection_docs_state1=None,
+                  selection_docs_state00=None,
+                  **kwargs):
         assert auth_freeze is not None
+        if selection_docs_state1 is None:
+            selection_docs_state1 = selection_docs_state00
         assert selection_docs_state1 is not None
         assert auth_filename and isinstance(auth_filename, str), "Auth file must be a non-empty string, got: %s" % str(
             auth_filename)
@@ -390,7 +394,7 @@ def go_gradio(**kwargs):
                               auth_access=kwargs['auth_access'],
                               auth_freeze=kwargs['auth_freeze'],
                               guest_name=kwargs['guest_name'],
-                              selection_docs_state1=selection_docs_state0)
+                              selection_docs_state00=selection_docs_state0)
 
     def get_request_state(request):
         # if need to get state, do it now
@@ -1811,7 +1815,7 @@ def go_gradio(**kwargs):
                 password1 = None
                 authorized1 = True
             else:
-                authorized1 = authf(username1, password1)
+                authorized1 = authf(username1, password1, selection_docs_state1=selection_docs_state1)
             if authorized1:
                 set_userid_gr(db1s, requests_state1, get_userid_auth)
                 username2 = get_username(requests_state1)
