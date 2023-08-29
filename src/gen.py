@@ -2558,10 +2558,7 @@ def evaluate(
     # required for falcon if multiple threads or asyncio accesses to model during generation
     if use_cache is None:
         use_cache = False if 'falcon' in base_model else True
-    gen_config_kwargs = dict(temperature=float(temperature),
-                             top_p=float(top_p),
-                             top_k=top_k,
-                             num_beams=num_beams,
+    gen_config_kwargs = dict(num_beams=num_beams,
                              do_sample=do_sample,
                              repetition_penalty=float(repetition_penalty),
                              num_return_sequences=num_return_sequences,
@@ -2569,6 +2566,10 @@ def evaluate(
                              remove_invalid_values=True,
                              use_cache=use_cache,
                              )
+    if do_sample:
+        gen_config_kwargs.update(dict(temperature=float(temperature),
+                                      top_p=float(top_p),
+                                      top_k=top_k))
     if True:
         # unclear impact, some odd things going on inside
         # leads to:
