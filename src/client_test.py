@@ -48,7 +48,11 @@ import markdown  # pip install markdown
 import pytest
 from bs4 import BeautifulSoup  # pip install beautifulsoup4
 
-from enums import DocumentSubset, LangChainAction
+try:
+    from enums import DocumentSubset, LangChainAction
+except:
+    from src.enums import DocumentSubset, LangChainAction
+
 from tests.utils import get_inf_server
 
 debug = False
@@ -142,12 +146,54 @@ def test_client_basic(prompt_type='human_bot', version=None):
 
 """
 time HOST=https://gpt-internal.h2o.ai PYTHONPATH=. pytest -n 20 src/client_test.py::test_client_basic_benchmark
-127 seconds for 70B llama2 on 4x A100 80GB
+32 seconds to answer 20 questions at once with 70B llama2 on 4x A100 80GB using TGI 0.9.3
 """
 @pytest.mark.skip(reason="For manual use against some server, no server launched")
-@pytest.mark.parametrize("id", range(100))
+@pytest.mark.parametrize("id", range(20))
 def test_client_basic_benchmark(id, prompt_type='human_bot', version=None):
-    return run_client_nochat(prompt='Who are you?', prompt_type=prompt_type, max_new_tokens=50, version=version)
+    return run_client_nochat(prompt="""
+/nfs4/llm/h2ogpt/h2ogpt/bin/python /home/arno/pycharm-2022.2.2/plugins/python/helpers/pycharm/_jb_pytest_runner.py --target src/client_test.py::test_client_basic
+Testing started at 8:41 AM ...
+Launching pytest with arguments src/client_test.py::test_client_basic --no-header --no-summary -q in /nfs4/llm/h2ogpt
+
+============================= test session starts ==============================
+collecting ...
+src/client_test.py:None (src/client_test.py)
+ImportError while importing test module '/nfs4/llm/h2ogpt/src/client_test.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+h2ogpt/lib/python3.10/site-packages/_pytest/python.py:618: in _importtestmodule
+    mod = import_path(self.path, mode=importmode, root=self.config.rootpath)
+h2ogpt/lib/python3.10/site-packages/_pytest/pathlib.py:533: in import_path
+    importlib.import_module(module_name)
+/usr/lib/python3.10/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+<frozen importlib._bootstrap>:1050: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1027: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1006: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:688: in _load_unlocked
+    ???
+h2ogpt/lib/python3.10/site-packages/_pytest/assertion/rewrite.py:168: in exec_module
+    exec(co, module.__dict__)
+src/client_test.py:51: in <module>
+    from enums import DocumentSubset, LangChainAction
+E   ModuleNotFoundError: No module named 'enums'
+
+
+collected 0 items / 1 error
+
+=============================== 1 error in 0.14s ===============================
+ERROR: not found: /nfs4/llm/h2ogpt/src/client_test.py::test_client_basic
+(no name '/nfs4/llm/h2ogpt/src/client_test.py::test_client_basic' in any of [<Module client_test.py>])
+
+
+Process finished with exit code 4
+
+What happened?
+""", prompt_type=prompt_type, max_new_tokens=100, version=version)
 
 
 def run_client_nochat(prompt, prompt_type, max_new_tokens, version=None):
