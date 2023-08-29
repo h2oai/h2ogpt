@@ -36,7 +36,7 @@
                 "Scheduling": "self-managed"
             },
             "location": "East US",
-            "vm_size": "Standard_NC24rs_v2",
+            "vm_size": "Standard_NC24s_v3",
             "ssh_username": "ubuntu"
         }
     ],

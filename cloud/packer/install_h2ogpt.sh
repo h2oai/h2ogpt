@@ -36,4 +36,4 @@ sudo echo "export PATH=$PATH:/home/ubuntu/.local/bin" >> ~/.bashrc
 export PATH=$PATH:/home/ubuntu/.local/bin 
 
 virtualenv -p /usr/bin/python3.10 vllm
-vllm/bin/python3.10 -m pip install vllm ray pandas
+vllm/bin/python3.10 -m pip install vllm ray pandas --extra-index-url https://download.pytorch.org/whl/cu118

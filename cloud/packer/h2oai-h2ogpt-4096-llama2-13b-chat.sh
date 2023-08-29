@@ -2,11 +2,7 @@
 
 source vllm/bin/activate
 
-export NCCL_IGNORE_DISABLED_P2P=1
-export CUDA_VISIBLE_DEVICES=0,1
-
 sudo echo "export NCCL_IGNORE_DISABLED_P2P=1" >> ~/.bashrc
-sudo echo "export CUDA_VISIBLE_DEVICES=0,1" >> ~/.bashrc
 
 cd /etc/systemd/system
 sudo chown -R ubuntu:ubuntu .
@@ -18,7 +14,7 @@ After=network.target
 Type=simple
 User=ubuntu
 WorkingDirectory=/home/ubuntu
-ExecStart=/home/ubuntu/vllm/bin/python3.10 -m vllm.entrypoints.openai.api_server --port=5000 --host=0.0.0.0 --model h2oai/h2ogpt-4096-llama2-13b-chat --tokenizer=hf-internal-testing/llama-tokenizer --tensor-parallel-size=2 --seed 1234
+ExecStart=/home/ubuntu/vllm/bin/python3.10 -m vllm.entrypoints.openai.api_server --port=5000 --host=0.0.0.0 --model h2oai/h2ogpt-4096-llama2-13b-chat --tokenizer=hf-internal-testing/llama-tokenizer --tensor-parallel-size=$(nvidia-smi --query-gpu=gpu_name --format=csv,noheader | wc -l) --seed 1234
 Restart=always
 [Install]
 WantedBy=multi-user.target
@@ -32,9 +28,6 @@ deactivate
 
 cd $HOME/h2ogpt
 source venv/bin/activate
-
-export CUDA_VISIBLE_DEVICES=2,3
-sudo echo "export CUDA_VISIBLE_DEVICES=2,3" >> ~/.bashrc
 
 cd /etc/systemd/system
 
