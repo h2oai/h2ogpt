@@ -255,27 +255,27 @@ def go_gradio(**kwargs):
         # else gets input_list at time of submit that is old, and shows up as truncated in chatbot
         return x
 
-    def update_auth_selection(auth_user, selection_docs_state1):
+    def update_auth_selection(auth_user, selection_docs_state1, save=False):
         # in-place update of both
-        if 'selection_docs_state' in auth_user:
-            for k, v in auth_user['selection_docs_state'].items():
-                # add values, don't overwrite or remove here
-                if isinstance(selection_docs_state1[k], dict):
+        if 'selection_docs_state' not in auth_user:
+            auth_user['selection_docs_state'] = selection_docs_state0
+        for k, v in auth_user['selection_docs_state'].items():
+            if isinstance(selection_docs_state1[k], dict):
+                if save:
+                    auth_user['selection_docs_state'][k].clear()
                     auth_user['selection_docs_state'][k].update(selection_docs_state1[k])
+                else:
                     selection_docs_state1[k].clear()
                     selection_docs_state1[k].update(auth_user['selection_docs_state'][k])
-                elif isinstance(selection_docs_state1[k], list):
-                    auth_user['selection_docs_state'][k].extend(selection_docs_state1[k])
-                    tmp = auth_user['selection_docs_state'][k].copy()
+            elif isinstance(selection_docs_state1[k], list):
+                if save:
                     auth_user['selection_docs_state'][k].clear()
-                    [auth_user['selection_docs_state'][k].append(x) for x in tmp if
-                     x not in auth_user['selection_docs_state'][k]]
+                    auth_user['selection_docs_state'][k].extend(selection_docs_state1[k])
+                else:
                     selection_docs_state1[k].clear()
                     selection_docs_state1[k].extend(auth_user['selection_docs_state'][k])
-                else:
-                    raise RuntimeError("Bad type: %s" % selection_docs_state1[k])
-        else:
-            auth_user.update(dict(selection_docs_state=selection_docs_state1))
+            else:
+                raise RuntimeError("Bad type: %s" % selection_docs_state1[k])
 
     # BEGIN AUTH THINGS
     def auth_func(username1, password1, auth_pairs=None, auth_filename=None,
@@ -1943,7 +1943,7 @@ def go_gradio(**kwargs):
                     if username1 in auth_dict:
                         auth_user = auth_dict[username1]
                         if selection_docs_state1:
-                            update_auth_selection(auth_user, selection_docs_state1)
+                            update_auth_selection(auth_user, selection_docs_state1, save=True)
                         if chat_state1:
                             # overwrite
                             auth_user['chat_state'] = chat_state1
