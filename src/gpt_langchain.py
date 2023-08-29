@@ -3965,6 +3965,8 @@ def _update_user_db(file,
                     if os.path.isfile(new_fil):
                         remove(new_fil)
                     try:
+                        if os.path.dirname(new_fil):
+                            makedirs(os.path.dirname(new_fil))
                         shutil.move(fil, new_fil)
                     except FileExistsError:
                         pass
