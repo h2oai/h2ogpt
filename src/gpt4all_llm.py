@@ -140,8 +140,10 @@ def get_llm_gpt4all(model_name,
                 # e.g. if offline but previously downloaded
                 model_path = os.path.basename(model_path)
             elif url_alive(model_path):
-                # oneline
-                model_path = download_simple(model_path)
+                # online
+                ggml_path = os.getenv('GGML_PATH')
+                dest = os.path.join(ggml_path, os.path.basename(model_path)) if ggml_path else None
+                model_path = download_simple(model_path, dest=dest)
         else:
             model_path = model
         model_kwargs = get_model_kwargs(llamacpp_dict, default_kwargs, cls, exclude_list=['lc_kwargs'])
@@ -156,7 +158,10 @@ def get_llm_gpt4all(model_name,
             llamacpp_dict = llamacpp_dict.copy()
             model_path = llamacpp_dict.pop('model_name_gpt4all_llama')
             if url_alive(model_path):
-                model_path = download_simple(model_path)
+                # online
+                ggml_path = os.getenv('GGML_PATH')
+                dest = os.path.join(ggml_path, os.path.basename(model_path)) if ggml_path else None
+                model_path = download_simple(model_path, dest=dest)
         else:
             model_path = model
         model_kwargs = get_model_kwargs(llamacpp_dict, default_kwargs, cls, exclude_list=['lc_kwargs'])
@@ -171,7 +176,9 @@ def get_llm_gpt4all(model_name,
             llamacpp_dict = llamacpp_dict.copy()
             model_path = llamacpp_dict.pop('model_name_gptj') if model is None else model
             if url_alive(model_path):
-                model_path = download_simple(model_path)
+                ggml_path = os.getenv('GGML_PATH')
+                dest = os.path.join(ggml_path, os.path.basename(model_path)) if ggml_path else None
+                model_path = download_simple(model_path, dest=dest)
         else:
             model_path = model
         model_kwargs = get_model_kwargs(llamacpp_dict, default_kwargs, cls, exclude_list=['lc_kwargs'])
