@@ -30,7 +30,7 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mappin
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
-    have_langchain, set_openai, cuda_vis_check, H2O_Fire, lg_to_gr, get_ngpus_vis
+    have_langchain, set_openai, cuda_vis_check, H2O_Fire, lg_to_gr
 
 start_faulthandler()
 import_matplotlib()
@@ -250,11 +250,10 @@ def main(
         enable_ocr=False,
         enable_doctr=False,
         enable_captions=True,
+
         pre_load_caption_model: bool = False,
         caption_gpu: bool = True,
         captions_model: str = "Salesforce/blip-image-captioning-base",
-        caption_loader=None,
-        doctr_loader=None,
 
         # json
         jq_schema='.[]',
@@ -553,23 +552,44 @@ def main(
     :param auto_reduce_chunks: Whether to automatically reduce top_k_docs to fit context given prompt
     :param max_chunks: If top_k_docs=-1, maximum number of chunks to allow
     :param n_jobs: Number of processors to use when consuming documents (-1 = all, is default)
+
+    :param use_unstructured: Enable unstructured URL loader
+    :param use_playwright: Enable PlayWright URL loader
+    :param use_selenium: Enable Selenium URL loader
+
+    :param use_pymupdf: enable PyMUPDF
+    :param use_unstructured_pdf: enable Unstructured PDF loader
+    :param use_pypdf: enable PyPDF loader
+    :param enable_pdf_ocr: 'auto' means only use OCR if normal text extraction fails.  Useful for pure image-based PDFs with text
+                            'on' means always do OCR as additional parsing of same documents
+                            'off' means don't do OCR (e.g. because it's slow even if 'auto' only would trigger if nothing else worked)
+    :param try_pdf_as_html: Try "PDF" as if HTML file, in case web link has .pdf extension but really is just HTML
+
+    :param enable_ocr: Whether to support OCR on images
+    :param enable_doctr: Whether to support doctr on images
     :param enable_captions: Whether to support captions using BLIP for image files as documents,
            then preloads that model if pre_load_caption_model=True
+
+    :param pre_load_caption_model: Whether to preload caption model, or load after forking parallel doc loader
+           parallel loading disabled if preload and have images, to prevent deadlocking on cuda context
+           Recommended if using larger caption model
     :param captions_model: Which model to use for captions.
            captions_model: str = "Salesforce/blip-image-captioning-base",  # continue capable
            captions_model: str = "Salesforce/blip2-flan-t5-xl",   # question/answer capable, 16GB state
            captions_model: str = "Salesforce/blip2-flan-t5-xxl",  # question/answer capable, 60GB state
            Note: opt-based blip2 are not permissive license due to opt and Meta license restrictions
            Disabled for CPU since BLIP requires CUDA
-    :param pre_load_caption_model: Whether to preload caption model, or load after forking parallel doc loader
-           parallel loading disabled if preload and have images, to prevent deadlocking on cuda context
-           Recommended if using larger caption model
     :param caption_gpu: If support caption, then use GPU if exists
-    :param enable_ocr: Whether to support OCR on images
-    :param enable_doctr: Whether to support doctr on images
-    :param enable_pdf_ocr: 'auto' means only use OCR if normal text extraction fails.  Useful for pure image-based PDFs with text
-                            'on' means always do OCR as additional parsing of same documents
-                            'off' means don't do OCR (e.g. because it's slow even if 'auto' only would trigger if nothing else worked)
+
+    :param jq_schema: control json loader
+           By default '.[]. ingests everything in brute-force way, but better to match your schema
+           See: https://python.langchain.com/docs/modules/data_connection/document_loaders/json#using-jsonloader
+
+    :param max_quality: Choose maximum quality ingestion with all available parsers
+           Pro: Catches document when some default parsers would fail
+           Pro: Enables DocTR that has much better OCR than Tesseract
+           Con: Fills DB with results from all parsers, so similarity search gives redundant results
+
     :param enable_heap_analytics: Toggle telemetry.
     :param heap_app_id: App ID for Heap, change to your ID.
     :return:
@@ -966,6 +986,10 @@ def main(
                                  langchain_mode_paths=langchain_mode_paths,
                                  langchain_mode_types=langchain_mode_types)
     selection_docs_state = copy.deepcopy(selection_docs_state0)
+
+    # defaults
+    caption_loader = None
+    doctr_loader = None
 
     if cli or not gradio:
         # initial state for query prompt
