@@ -1691,7 +1691,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             print("BEGIN: Tesseract", flush=True)
         if have_tesseract and enable_ocr:
             # OCR, somewhat works, but not great
-            docs1.extend(UnstructuredImageLoader(file, strategy='ocr_only').load())
+            docs1a = UnstructuredImageLoader(file, strategy='ocr_only').load()
             # docs1a = UnstructuredImageLoader(file, strategy='hi_res').load()
             docs1a = [x for x in docs1a if x.page_content]
             add_meta(docs1a, file, headsize, parser='UnstructuredImageLoader')
