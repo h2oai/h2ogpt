@@ -582,7 +582,7 @@ def main(
     :param caption_gpu: If support caption, then use GPU if exists
 
     :param jq_schema: control json loader
-           By default '.[]. ingests everything in brute-force way, but better to match your schema
+           By default '.[]' ingests everything in brute-force way, but better to match your schema
            See: https://python.langchain.com/docs/modules/data_connection/document_loaders/json#using-jsonloader
 
     :param max_quality: Choose maximum quality ingestion with all available parsers
