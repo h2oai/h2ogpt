@@ -97,7 +97,6 @@ class H2OOCRLoader(ImageCaptionLoader):
             words = space_layout(texts=texts, boxes=text_boxes)
         else:
             words = " ".join(words)
-        # words = space_layout(texts=words, boxes=boxes)
         metadata: dict = {"image_path": path_image}
         return words, metadata
     
@@ -178,13 +177,13 @@ def space_layout(texts, boxes):
             left_char_num = max((left_char_num - len(space_line_text)), 1)
             
             #verbose layout
-            # space_line_text += " " * left_char_num
+            space_line_text += " " * left_char_num
             
             #minified layout
-            if left_char_num > 1:
-                space_line_text += f" <{left_char_num}> " 
-            else:
-                space_line_text += " "
+            # if left_char_num > 1:
+            #     space_line_text += f" <{left_char_num}> " 
+            # else:
+            #     space_line_text += " "
             
             space_line_text += line_texts[i][j]
         space_line_texts.append(space_line_text + "\n")
