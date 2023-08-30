@@ -223,7 +223,6 @@ docker run \
     --shm-size=2g \
     -p 7860:7860 \
     --rm --init \
-    --network host \
     -v /etc/passwd:/etc/passwd:ro \
     -v /etc/group:/etc/group:ro \
     -u `id -u`:`id -g` \
