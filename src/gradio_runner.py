@@ -1596,7 +1596,7 @@ def go_gradio(**kwargs):
                 doc_hashes = [x.get('doc_hash', 'None') for x in db_metadatas]
                 docs_with_score = [x for hx, px, cx, x in
                                    sorted(zip(doc_hashes, doc_page_ids, doc_chunk_ids, docs_with_score),
-                                          key=lambda x: (x[0], x[1]))
+                                          key=lambda x: (x[0], x[1], x[2]))
                                    # if cx == -1
                                    ]
                 db_metadatas = [x[0].metadata for x in docs_with_score][:max_raw_chunks]
