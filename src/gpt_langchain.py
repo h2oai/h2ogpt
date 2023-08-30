@@ -1711,6 +1711,12 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                 doctr_loader = H2OOCRLoader()
                 doctr_loader.set_image_paths([file])
                 docs1c = doctr_loader.load()
+                if hasattr(doctr_loader._ocr_model.det_predictor.model, 'cpu'):
+                    doctr_loader._ocr_model.det_predictor.model.cpu()
+                    clear_torch_cache()
+                if hasattr(doctr_loader._ocr_model.reco_predictor.model, 'cpu'):
+                    doctr_loader._ocr_model.reco_predictor.model.cpu()
+                    clear_torch_cache()
                 if hasattr(doctr_loader._ocr_model, 'cpu'):
                     doctr_loader._ocr_model.cpu()
                     clear_torch_cache()
