@@ -1687,6 +1687,8 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         doc1 = chunk_sources(docs1)
     elif any(file.lower().endswith(x) for x in set_image_types1):
         docs1 = []
+        if verbose:
+            print("BEGIN: Tesseract", flush=True)
         if have_tesseract and enable_ocr:
             # OCR, somewhat works, but not great
             # docs1.extend(UnstructuredImageLoader(file, strategy='ocr_only').load())
@@ -1694,7 +1696,11 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             docs1a = [x for x in docs1a if x.page_content]
             add_meta(docs1a, file, headsize, parser='UnstructuredImageLoader')
             docs1.extend(docs1a)
+        if verbose:
+            print("END: Tesseract", flush=True)
         if have_doctr and enable_doctr:
+            if verbose:
+                print("BEGIN: DocTR", flush=True)
             if doctr_loader is not None and not isinstance(doctr_loader, (str, bool)):
                 doctr_loader.set_image_paths([file])
                 docs1c = doctr_loader.load()
@@ -1705,6 +1711,9 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                 doctr_loader = H2OOCRLoader()
                 doctr_loader.set_image_paths([file])
                 docs1c = doctr_loader.load()
+                if hasattr(doctr_loader._ocr_model, 'cpu'):
+                    doctr_loader._ocr_model.cpu()
+                    clear_torch_cache()
                 docs1c = [x for x in docs1c if x.page_content]
                 add_meta(docs1c, file, headsize, parser='H2OOCRLoader: %s' % 'DocTR')
             # caption didn't set source, so fix-up meta
@@ -1712,8 +1721,12 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                 doci.metadata['source'] = doci.metadata.get('image_path', file)
                 doci.metadata['hashid'] = hash_file(doci.metadata['source'])
             docs1.extend(docs1c)
+            if verbose:
+                print("END: DocTR", flush=True)
         if enable_captions:
             # BLIP
+            if verbose:
+                print("BEGIN: BLIP", flush=True)
             if caption_loader is not None and not isinstance(caption_loader, (str, bool)):
                 # assumes didn't fork into this process with joblib, else can deadlock
                 caption_loader.set_image_paths([file])
@@ -1727,6 +1740,10 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                                                        blip_processor=captions_model)
                 caption_loader.set_image_paths([file])
                 docs1c = caption_loader.load()
+                # clear off GPU since will be reloaded later
+                if hasattr(caption_loader.model, 'cpu'):
+                    caption_loader.model.cpu()
+                    clear_torch_cache()
                 docs1c = [x for x in docs1c if x.page_content]
                 add_meta(docs1c, file, headsize, parser='H2OImageCaptionLoader: %s' % captions_model)
             # caption didn't set source, so fix-up meta
@@ -1734,6 +1751,8 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                 doci.metadata['source'] = doci.metadata.get('image_path', file)
                 doci.metadata['hashid'] = hash_file(doci.metadata['source'])
             docs1.extend(docs1c)
+            if verbose:
+                print("END: BLIP", flush=True)
         doc1 = chunk_sources(docs1)
     elif file.lower().endswith('.msg'):
         raise RuntimeError("Not supported, GPL3 license")
