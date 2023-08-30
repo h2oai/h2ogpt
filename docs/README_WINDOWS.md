@@ -93,8 +93,11 @@ For newer builds of windows versions of 10/11.
 * GPU Optional: Support LLaMa.cpp with CUDA via llama-cpp-python:
   * Download/Install [CUDA llama-cpp-python wheel](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels), or choose link and run pip directly.  E.g.:
     ```bash
-      pip uninstall -y llama-cpp-python
+      pip uninstall -y llama-cpp-python llama_cpp_python_cuda
+      # GGMLv3 ONLY:
       pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.1.73+cu117-cp310-cp310-win_amd64.whl
+      # GGUF ONLY:
+      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.1.83+cu117-cp310-cp310-win_amd64.whl
     ```
   * If any issues, then must compile llama-cpp-python with CUDA support:
     ```bash
