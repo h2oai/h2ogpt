@@ -1420,19 +1420,20 @@ if have_jq:
 file_types = non_image_types + image_types
 
 
-def try_as_html(doc1, file):
+def try_as_html(file):
     # try treating as html as occurs when scraping websites
-    if len(doc1) == 0:
-        from bs4 import BeautifulSoup
-        with open(file, "rt") as f:
-            try:
-                is_html = bool(BeautifulSoup(f.read(), "html.parser").find())
-            except:  # FIXME
-                is_html = False
-        if is_html:
-            file_url = 'file://' + file
-            doc1 = UnstructuredURLLoader(urls=[file_url]).load()
-            doc1 = [x for x in doc1 if x.page_content]
+    from bs4 import BeautifulSoup
+    with open(file, "rt") as f:
+        try:
+            is_html = bool(BeautifulSoup(f.read(), "html.parser").find())
+        except:  # FIXME
+            is_html = False
+    if is_html:
+        file_url = 'file://' + file
+        doc1 = UnstructuredURLLoader(urls=[file_url]).load()
+        doc1 = [x for x in doc1 if x.page_content]
+    else:
+        doc1 = []
     return doc1
 
 
@@ -1813,6 +1814,8 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
     elif file.lower().endswith('.pdf'):
         doc1 = []
         handled = False
+        did_pymupdf = False
+        did_unstructured = False
         e = None
         if have_pymupdf and use_pymupdf:
             # GPL, only use if installed
@@ -1820,7 +1823,9 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             # load() still chunks by pages, but every page has title at start to help
             try:
                 doc1a = PyMuPDFLoader(file).load()
+                did_pymupdf = True
             except BaseException as e0:
+                doc1a = []
                 print("PyMuPDFLoader: %s" % str(e0), flush=True)
                 e = e0
             # remove empty documents
@@ -1832,7 +1837,9 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         if len(doc1) == 0 or use_unstructured_pdf:
             try:
                 doc1a = UnstructuredPDFLoader(file).load()
+                did_unstructured = True
             except BaseException as e0:
+                doc1a = []
                 print("UnstructuredPDFLoader: %s" % str(e0), flush=True)
                 e = e0
             handled |= len(doc1a) > 0
@@ -1847,6 +1854,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             try:
                 doc1a = PyPDFLoader(file).load()
             except BaseException as e0:
+                doc1a = []
                 print("PyPDFLoader: %s" % str(e0), flush=True)
                 e = e0
             handled |= len(doc1a) > 0
@@ -1855,8 +1863,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             doc1a = clean_doc(doc1a)
             add_parser(doc1a, 'PyPDFLoader')
             doc1.extend(doc1a)
-        if ((have_pymupdf and len(doc1) == 0) and
-                (have_pymupdf and use_pymupdf)):
+        if not did_pymupdf and ((have_pymupdf and len(doc1) == 0) and (have_pymupdf and use_pymupdf)):
             # try again in case only others used, but only if didn't already try (2nd part of and)
             # GPL, only use if installed
             from langchain.document_loaders import PyMuPDFLoader
@@ -1864,6 +1871,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             try:
                 doc1a = PyMuPDFLoader(file).load()
             except BaseException as e0:
+                doc1a = []
                 print("PyMuPDFLoader: %s" % str(e0), flush=True)
                 e = e0
             handled |= len(doc1a) > 0
@@ -1873,10 +1881,10 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             add_parser(doc1a, 'PyMuPDFLoader2')
             doc1.extend(doc1a)
         if try_pdf_as_html:
-            doc1a = try_as_html(doc1, file)
+            doc1a = try_as_html(file)
             add_parser(doc1a, 'try_as_html')
             doc1.extend(doc1a)
-        if len(doc1) == 0 and enable_pdf_ocr == 'auto' or enable_pdf_ocr == 'on':
+        if not did_unstructured and (len(doc1) == 0 and enable_pdf_ocr == 'auto' or enable_pdf_ocr == 'on'):
             # try OCR in end since slowest, but works on pure image pages well
             doc1a = UnstructuredPDFLoader(file, strategy='ocr_only').load()
             handled |= len(doc1a) > 0
