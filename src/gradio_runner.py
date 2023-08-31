@@ -2249,7 +2249,13 @@ def go_gradio(**kwargs):
                 user_kwargs['stream_output'] = False
             if 'langchain_mode' not in user_kwargs:
                 # if user doesn't specify, then assume disabled, not use default
-                user_kwargs['langchain_mode'] = 'Disabled'
+                if LangChainMode.LLM.value in kwargs['langchain_modes']:
+                    user_kwargs['langchain_mode'] = LangChainMode.LLM.value
+                elif len(kwargs['langchain_modes']) >= 1:
+                    user_kwargs['langchain_mode'] = kwargs['langchain_modes'][0]
+                else:
+                    # disabled should always be allowed
+                    user_kwargs['langchain_mode'] = LangChainMode.DISABLED.value
             if 'langchain_action' not in user_kwargs:
                 user_kwargs['langchain_action'] = LangChainAction.QUERY.value
             if 'langchain_agents' not in user_kwargs:
