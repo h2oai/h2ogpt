@@ -1488,6 +1488,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                 use_pypdf=False,
                 enable_pdf_ocr='auto',
                 try_pdf_as_html=True,
+                enable_pdf_doctr=False,
 
                 # images
                 enable_ocr=False,
@@ -1528,6 +1529,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                                           use_unstructured_pdf=use_unstructured_pdf,
                                           use_pypdf=use_pypdf,
                                           enable_pdf_ocr=enable_pdf_ocr,
+                                          enable_pdf_doctr=enable_pdf_doctr,
                                           try_pdf_as_html=try_pdf_as_html,
 
                                           # images
@@ -1703,14 +1705,14 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             if verbose:
                 print("BEGIN: DocTR", flush=True)
             if doctr_loader is not None and not isinstance(doctr_loader, (str, bool)):
-                doctr_loader.set_image_paths([file])
+                doctr_loader.set_document_paths([file])
                 docs1c = doctr_loader.load()
                 docs1c = [x for x in docs1c if x.page_content]
                 add_meta(docs1c, file, headsize, parser='doctr_loader')
             else:
                 from image_doctr import H2OOCRLoader
                 doctr_loader = H2OOCRLoader()
-                doctr_loader.set_image_paths([file])
+                doctr_loader.set_document_paths([file])
                 docs1c = doctr_loader.load()
                 if hasattr(doctr_loader._ocr_model.det_predictor.model, 'cpu'):
                     doctr_loader._ocr_model.det_predictor.model.cpu()
@@ -1725,7 +1727,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                 add_meta(docs1c, file, headsize, parser='H2OOCRLoader: %s' % 'DocTR')
             # caption didn't set source, so fix-up meta
             for doci in docs1c:
-                doci.metadata['source'] = doci.metadata.get('image_path', file)
+                doci.metadata['source'] = doci.metadata.get('document_path', file)
                 doci.metadata['hashid'] = hash_file(doci.metadata['source'])
             docs1.extend(docs1c)
             if verbose:
@@ -1834,7 +1836,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             doc1a = clean_doc(doc1a)
             add_parser(doc1a, 'PyMuPDFLoader')
             doc1.extend(doc1a)
-        if len(doc1) == 0 or use_unstructured_pdf:
+        if (len(doc1) == 0 or use_unstructured_pdf) and use_unstructured_pdf:
             try:
                 doc1a = UnstructuredPDFLoader(file).load()
                 did_unstructured = True
@@ -1848,7 +1850,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             add_parser(doc1a, 'UnstructuredPDFLoader')
             # seems to not need cleaning in most cases
             doc1.extend(doc1a)
-        if len(doc1) == 0 or use_pypdf:
+        if (len(doc1) == 0 or use_pypdf) and use_pypdf:
             # open-source fallback
             # load() still chunks by pages, but every page has title at start to help
             try:
@@ -1884,7 +1886,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             doc1a = try_as_html(file)
             add_parser(doc1a, 'try_as_html')
             doc1.extend(doc1a)
-        if not did_unstructured and (len(doc1) == 0 and enable_pdf_ocr == 'auto' or enable_pdf_ocr == 'on'):
+        if not did_unstructured and (len(doc1) == 0 and (enable_pdf_ocr == 'auto' and not enable_pdf_doctr) or enable_pdf_ocr == 'on'):
             # try OCR in end since slowest, but works on pure image pages well
             doc1a = UnstructuredPDFLoader(file, strategy='ocr_only').load()
             handled |= len(doc1a) > 0
@@ -1894,6 +1896,39 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             # seems to not need cleaning in most cases
             doc1.extend(doc1a)
         # Some PDFs return nothing or junk from PDFMinerLoader
+        print(use_pymupdf, use_pypdf, use_unstructured_pdf, try_pdf_as_html, enable_pdf_ocr, enable_pdf_doctr)
+        if (len(doc1) == 0 and enable_pdf_doctr):
+            if verbose:
+                print("BEGIN: DocTR", flush=True)
+            if doctr_loader is not None and not isinstance(doctr_loader, (str, bool)):
+                doctr_loader.set_document_paths([file])
+                doc1a = doctr_loader.load()
+                doc1a = [x for x in doc1a if x.page_content]
+                add_meta(doc1a, file, headsize, parser='doctr_loader')
+            else:
+                from image_doctr import H2OOCRLoader
+                doctr_loader = H2OOCRLoader()
+                doctr_loader.set_document_paths([file])
+                doc1a = doctr_loader.load()
+                if hasattr(doctr_loader._ocr_model.det_predictor.model, 'cpu'):
+                    doctr_loader._ocr_model.det_predictor.model.cpu()
+                    clear_torch_cache()
+                if hasattr(doctr_loader._ocr_model.reco_predictor.model, 'cpu'):
+                    doctr_loader._ocr_model.reco_predictor.model.cpu()
+                    clear_torch_cache()
+                if hasattr(doctr_loader._ocr_model, 'cpu'):
+                    doctr_loader._ocr_model.cpu()
+                    clear_torch_cache()
+                doc1a = [x for x in doc1a if x.page_content]
+                add_meta(doc1a, file, headsize, parser='H2OOCRLoader: %s' % 'DocTR')
+            # caption didn't set source, so fix-up meta
+            for doci in doc1a:
+                doci.metadata['source'] = doci.metadata.get('document_path', file)
+                doci.metadata['hashid'] = hash_file(doci.metadata['source'])
+            doc1.extend(doc1a)
+            if verbose:
+                print("END: DocTR", flush=True)
+                
         if len(doc1) == 0:
             # if literally nothing, show failed to parse so user knows, since unlikely nothing in PDF at all.
             if handled:
@@ -2009,6 +2044,7 @@ def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True
                  use_unstructured_pdf=False,
                  use_pypdf=False,
                  enable_pdf_ocr='auto',
+                 enable_pdf_doctr=False,
                  try_pdf_as_html=True,
 
                  # images
@@ -2050,6 +2086,7 @@ def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True
                           use_unstructured_pdf=use_unstructured_pdf,
                           use_pypdf=use_pypdf,
                           enable_pdf_ocr=enable_pdf_ocr,
+                          enable_pdf_doctr=enable_pdf_doctr,
                           try_pdf_as_html=try_pdf_as_html,
 
                           # images
@@ -2107,6 +2144,7 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
                  use_unstructured_pdf=False,
                  use_pypdf=False,
                  enable_pdf_ocr='auto',
+                 enable_pdf_doctr=False,
                  try_pdf_as_html=True,
 
                  # images
@@ -2224,6 +2262,7 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
                   use_unstructured_pdf=use_unstructured_pdf,
                   use_pypdf=use_pypdf,
                   enable_pdf_ocr=enable_pdf_ocr,
+                  enable_pdf_doctr=enable_pdf_doctr,
                   try_pdf_as_html=try_pdf_as_html,
 
                   # images
@@ -2573,6 +2612,7 @@ def _make_db(use_openai_embedding=False,
              use_unstructured_pdf=False,
              use_pypdf=False,
              enable_pdf_ocr='auto',
+             enable_pdf_doctr=False,
              try_pdf_as_html=True,
 
              # images
@@ -2660,6 +2700,7 @@ def _make_db(use_openai_embedding=False,
                                 use_unstructured_pdf=use_unstructured_pdf,
                                 use_pypdf=use_pypdf,
                                 enable_pdf_ocr=enable_pdf_ocr,
+                                enable_pdf_doctr=enable_pdf_doctr,
                                 try_pdf_as_html=try_pdf_as_html,
 
                                 # images
@@ -2847,6 +2888,7 @@ def _run_qa_db(query=None,
                use_unstructured_pdf=False,
                use_pypdf=False,
                enable_pdf_ocr='auto',
+               enable_pdf_doctr=False,
                try_pdf_as_html=True,
 
                # images
@@ -3179,6 +3221,7 @@ def get_chain(query=None,
               use_unstructured_pdf=False,
               use_pypdf=False,
               enable_pdf_ocr='auto',
+              enable_pdf_doctr=False,
               try_pdf_as_html=True,
 
               # images
@@ -3280,6 +3323,7 @@ def get_chain(query=None,
                                                         use_unstructured_pdf=use_unstructured_pdf,
                                                         use_pypdf=use_pypdf,
                                                         enable_pdf_ocr=enable_pdf_ocr,
+                                                        enable_pdf_doctr=enable_pdf_doctr,
                                                         try_pdf_as_html=try_pdf_as_html,
 
                                                         # images
@@ -3916,6 +3960,7 @@ def _update_user_db(file,
                     use_unstructured_pdf=False,
                     use_pypdf=False,
                     enable_pdf_ocr='auto',
+                    enable_pdf_doctr=False,
                     try_pdf_as_html=True,
 
                     # images
@@ -3951,6 +3996,7 @@ def _update_user_db(file,
     assert captions_model is not None
     assert enable_ocr is not None
     assert enable_doctr is not None
+    assert enable_pdf_doctr is not None
     assert enable_pdf_ocr is not None
     assert verbose is not None
 
@@ -4029,6 +4075,7 @@ def _update_user_db(file,
                            use_unstructured_pdf=use_unstructured_pdf,
                            use_pypdf=use_pypdf,
                            enable_pdf_ocr=enable_pdf_ocr,
+                           enable_pdf_doctr=enable_pdf_doctr,
                            try_pdf_as_html=try_pdf_as_html,
 
                            # images
@@ -4252,6 +4299,7 @@ def update_and_get_source_files_given_langchain_mode(db1s,
                                                      use_unstructured_pdf=False,
                                                      use_pypdf=False,
                                                      enable_pdf_ocr='auto',
+                                                     enable_pdf_doctr=False,
                                                      try_pdf_as_html=True,
 
                                                      # images
@@ -4315,6 +4363,7 @@ def update_and_get_source_files_given_langchain_mode(db1s,
                                                         use_unstructured_pdf=use_unstructured_pdf,
                                                         use_pypdf=use_pypdf,
                                                         enable_pdf_ocr=enable_pdf_ocr,
+                                                        enable_pdf_doctr=enable_pdf_doctr,
                                                         try_pdf_as_html=try_pdf_as_html,
 
                                                         # images

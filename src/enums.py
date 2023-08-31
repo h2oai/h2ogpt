@@ -197,6 +197,7 @@ def gr_to_lg(image_loaders,
         use_unstructured_pdf='Unstructured' in pdf_loaders,
         use_pypdf='PyPDF' in pdf_loaders,
         enable_pdf_ocr='on' if 'OCR' in pdf_loaders else 'auto',
+        enable_pdf_doctr='DocTR' in pdf_loaders,
         try_pdf_as_html='TryHTML' in pdf_loaders,
 
         # images

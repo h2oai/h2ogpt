@@ -244,6 +244,7 @@ def main(
         use_unstructured_pdf=False,
         use_pypdf=False,
         enable_pdf_ocr='auto',
+        enable_pdf_doctr=False,
         try_pdf_as_html=True,
 
         # images
@@ -563,6 +564,7 @@ def main(
     :param enable_pdf_ocr: 'auto' means only use OCR if normal text extraction fails.  Useful for pure image-based PDFs with text
                             'on' means always do OCR as additional parsing of same documents
                             'off' means don't do OCR (e.g. because it's slow even if 'auto' only would trigger if nothing else worked)
+    :param enable_pdf_doctr: Whether to support doctr on pdfs
     :param try_pdf_as_html: Try "PDF" as if HTML file, in case web link has .pdf extension but really is just HTML
 
     :param enable_ocr: Whether to support OCR on images
