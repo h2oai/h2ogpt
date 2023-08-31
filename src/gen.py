@@ -887,6 +887,10 @@ def main(
     if offload_folder:
         offload_folder = makedirs(offload_folder, exist_ok=True, tmp_ok=True, use_base=True)
 
+    # defaults
+    caption_loader = None
+    doctr_loader = None
+
     image_loaders_options0, image_loaders_options, \
         pdf_loaders_options0, pdf_loaders_options, \
         url_loaders_options0, url_loaders_options = lg_to_gr(**locals())
@@ -993,10 +997,6 @@ def main(
                                  langchain_mode_paths=langchain_mode_paths,
                                  langchain_mode_types=langchain_mode_types)
     selection_docs_state = copy.deepcopy(selection_docs_state0)
-
-    # defaults
-    caption_loader = None
-    doctr_loader = None
 
     if cli or not gradio:
         # initial state for query prompt
