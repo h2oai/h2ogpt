@@ -918,6 +918,7 @@ def main(
                             pdf_loaders,
                             url_loaders,
                             jq_schema,
+                            use_system_prompt,
                             verbose,
                             )
 
@@ -1954,6 +1955,7 @@ def evaluate(
         pdf_loaders_options0=None,
         url_loaders_options0=None,
         jq_schema0=None,
+        use_system_prompt=None,
 ):
     # ensure passed these
     assert concurrency_count is not None
@@ -2097,7 +2099,8 @@ def evaluate(
     num_prompt_tokens = (num_prompt_tokens1 or 0) + (num_prompt_tokens2 or 0) + (num_prompt_tokens3 or 0)
 
     # get prompt
-    prompter = Prompter(prompt_type, prompt_dict, debug=debug, chat=chat, stream_output=stream_output)
+    prompter = Prompter(prompt_type, prompt_dict, debug=debug, chat=chat, stream_output=stream_output,
+                        use_system_prompt=use_system_prompt)
     data_point = dict(context=context, instruction=instruction, input=iinput)
     prompt = prompter.generate_prompt(data_point)
 
@@ -2899,6 +2902,7 @@ def get_generate_params(model_lower,
                         pdf_loaders,
                         url_loaders,
                         jq_schema,
+                        use_system_prompt,
                         verbose,
                         ):
     use_defaults = False
@@ -3090,7 +3094,8 @@ y = np.random.randint(0, 1, 100)
 
     # get prompt_dict from prompt_type, so user can see in UI etc., or for custom do nothing except check format
     prompt_dict, error0 = get_prompt(prompt_type, prompt_dict,
-                                     chat=False, context='', reduced=False, making_context=False, return_dict=True)
+                                     chat=False, context='', reduced=False, making_context=False, return_dict=True,
+                                     use_system_prompt=use_system_prompt)
     if error0:
         raise RuntimeError("Prompt wrong: %s" % error0)
 
