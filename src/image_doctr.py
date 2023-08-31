@@ -5,13 +5,16 @@ But accepts preloaded model to avoid slowness in use and CUDA forking issues
 Loader that uses H2O DocTR OCR models to extract text from images
 
 """
-from typing import List, Union, Any, Tuple
+from typing import List, Union, Any, Tuple, Optional
 
 import requests
 from langchain.docstore.document import Document
 from langchain.document_loaders import ImageCaptionLoader
 import numpy as np
 from utils import get_device, NullContext
+import pypdfium2 as pdfium
+from doctr.utils.common_types import AbstractFile
+
 
 class H2OOCRLoader(ImageCaptionLoader):
     """Loader that extracts text from images"""
@@ -42,30 +45,30 @@ class H2OOCRLoader(ImageCaptionLoader):
         self._ocr_model = ocr_predictor(det_arch="db_resnet50", reco_arch="crnn_efficientnetv2_mV2", pretrained=True).to(self.device)
         return self
 
-    def set_image_paths(self, path_images: Union[str, List[str]]):
+    def set_document_paths(self, document_paths: Union[str, List[str]]):
         """
         Load from a list of image files
         """
-        if isinstance(path_images, str):
-            self.image_paths = [path_images]
+        if isinstance(document_paths, str):
+            self.document_paths = [document_paths]
         else:
-            self.image_paths = path_images
+            self.document_paths = document_paths
 
     def load(self, prompt=None) -> List[Document]:
         if self._ocr_model is None:
             self.load_model()
         results = []
-        for path_image in self.image_paths:
+        for document_path in self.document_paths:
             caption, metadata = self._get_captions_and_metadata(
-                model=self._ocr_model, path_image=path_image
+                model=self._ocr_model, document_path=document_path
             )
-            doc = Document(page_content=caption, metadata=metadata)
+            doc = Document(page_content=" \n".join(caption), metadata=metadata)
             results.append(doc)
 
         return results
 
     def _get_captions_and_metadata(
-            self, model: Any, path_image: str) -> Tuple[str, dict]:
+            self, model: Any, document_path: str) -> Tuple[str, dict]:
         """
         Helper function for getting the captions and metadata of an image
         """
@@ -77,28 +80,35 @@ class H2OOCRLoader(ImageCaptionLoader):
                 "`pip install git+https://github.com/h2oai/doctr.git`."
             )
         try:
-            image = DocumentFile.from_images(path_image)[0]
+            if document_path.lower().endswith(".pdf"):
+                #load at roughly 300 dpi
+                images = read_pdf(document_path)
+            else:
+                images = DocumentFile.from_images(document_path)
         except Exception:
-            raise ValueError(f"Could not get image data for {path_image}")
-        ocr_output = model([image])
-        words = []
-        boxes = []
-        for block_num, block in enumerate(ocr_output.pages[0].blocks):
-            for line_num, line in enumerate(block.lines):
-                for word_num, word in enumerate(line.words):
-                    if not (word.value or "").strip():
-                        continue
-                    words.append(word.value)
-                    boxes.append([word.geometry[0][0], word.geometry[0][1], word.geometry[1][0], word.geometry[1][1]])
-        if self.layout_aware:
-            ids = boxes_sort(boxes)
-            texts = [words[i] for i in ids]
-            text_boxes = [boxes[i] for i in ids]
-            words = space_layout(texts=texts, boxes=text_boxes)
-        else:
-            words = " ".join(words)
-        metadata: dict = {"image_path": path_image}
-        return words, metadata
+            raise ValueError(f"Could not get image data for {document_path}")
+        document_words = []
+        for image in images:
+            ocr_output = model([image])
+            page_words = []
+            page_boxes = []
+            for block_num, block in enumerate(ocr_output.pages[0].blocks):
+                for line_num, line in enumerate(block.lines):
+                    for word_num, word in enumerate(line.words):
+                        if not (word.value or "").strip():
+                            continue
+                        page_words.append(word.value)
+                        page_boxes.append([word.geometry[0][0], word.geometry[0][1], word.geometry[1][0], word.geometry[1][1]])
+            if self.layout_aware:
+                ids = boxes_sort(page_boxes)
+                texts = [page_words[i] for i in ids]
+                text_boxes = [page_boxes[i] for i in ids]
+                page_words = space_layout(texts=texts, boxes=text_boxes)
+            else:
+                page_words = " ".join(page_words)
+            document_words.append(page_words)
+        metadata: dict = {"image_path": document_path}
+        return document_words, metadata
     
 def boxes_sort(boxes):
     """ From left top to right bottom
@@ -189,3 +199,30 @@ def space_layout(texts, boxes):
         space_line_texts.append(space_line_text + "\n")
 
     return "".join(space_line_texts)
+
+def read_pdf(
+    file: AbstractFile,
+    scale: float = 300/72,
+    rgb_mode: bool = True,
+    password: Optional[str] = None,
+    **kwargs: Any,
+) -> List[np.ndarray]:
+    """Read a PDF file and convert it into an image in numpy format
+
+    >>> from doctr.documents import read_pdf
+    >>> doc = read_pdf("path/to/your/doc.pdf")
+
+    Args:
+        file: the path to the PDF file
+        scale: rendering scale (1 corresponds to 72dpi)
+        rgb_mode: if True, the output will be RGB, otherwise BGR
+        password: a password to unlock the document, if encrypted
+        kwargs: additional parameters to :meth:`pypdfium2.PdfPage.render`
+
+    Returns:
+        the list of pages decoded as numpy ndarray of shape H x W x C
+    """
+
+    # Rasterise pages to numpy ndarrays with pypdfium2
+    pdf = pdfium.PdfDocument(file, password=password, autoclose=True)
+    return [page.render(scale=scale, rev_byteorder=rgb_mode, **kwargs).to_numpy() for page in pdf]
