@@ -32,7 +32,6 @@ source ~/.bashrc
 
 deactivate
 cd $HOME
-sudo echo "export PATH=$PATH:/home/ubuntu/.local/bin" >> ~/.bashrc
 export PATH=$PATH:/home/ubuntu/.local/bin 
 
 virtualenv -p /usr/bin/python3.10 vllm

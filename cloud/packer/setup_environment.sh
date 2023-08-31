@@ -24,7 +24,6 @@ sudo DEBIAN_FRONTEND=noninteractive add-apt-repository -y ppa:deadsnakes/ppa
 sudo DEBIAN_FRONTEND=noninteractive apt-get -y update
 sudo DEBIAN_FRONTEND=noninteractive apt-get -y install python3.10 python3.10-dev python3.10-distutils
 
-sudo echo "export PATH=$PATH:/home/ubuntu/.local/bin" >> ~/.bashrc
 export PATH=$PATH:/home/ubuntu/.local/bin
 
 curl -sS https://bootstrap.pypa.io/get-pip.py | python3.10
