@@ -1896,7 +1896,6 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             # seems to not need cleaning in most cases
             doc1.extend(doc1a)
         # Some PDFs return nothing or junk from PDFMinerLoader
-        print(use_pymupdf, use_pypdf, use_unstructured_pdf, try_pdf_as_html, enable_pdf_ocr, enable_pdf_doctr)
         if (len(doc1) == 0 and enable_pdf_doctr):
             if verbose:
                 print("BEGIN: DocTR", flush=True)
