@@ -10,6 +10,7 @@ from exllama.generator import ExLlamaGenerator
 from exllama.lora import ExLlamaLora
 import os, glob
 
+BROKEN_UNICODE = b'\\ufffd'.decode('unicode_escape')
 
 class H2OExLlamaTokenizer(ExLlamaTokenizer):
     def __call__(self, text, *args, **kwargs):
@@ -349,7 +350,7 @@ class Exllama(LLM):
                 # Partially matched a stop, continue buffering but don't yield.
                 continue
             elif status == self.MatchStatus.NO_MATCH:
-                if text_callback:
+                if text_callback and not (text_chunk == BROKEN_UNICODE):
                     text_callback(text_chunk)
                 yield text  # Not a stop, yield the match buffer.
 
