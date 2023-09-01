@@ -318,6 +318,7 @@ class Exllama(LLM):
             has_unicode_combined = cursor_tail<cursor_head
             text_chunk = stuff[cursor_head:cursor_tail]
             if has_unicode_combined:
+                # replace the broken unicode character with combined one
                 text=text[:-2]
                 text_chunk = stuff[cursor_tail-1:cursor_tail]
                 
