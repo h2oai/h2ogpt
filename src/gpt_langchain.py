@@ -1705,26 +1705,15 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             if verbose:
                 print("BEGIN: DocTR", flush=True)
             if doctr_loader is not None and not isinstance(doctr_loader, (str, bool)):
-                doctr_loader.set_document_paths([file])
-                docs1c = doctr_loader.load()
-                docs1c = [x for x in docs1c if x.page_content]
-                add_meta(docs1c, file, headsize, parser='doctr_loader')
+                doctr_loader.load_model()
             else:
                 from image_doctr import H2OOCRLoader
                 doctr_loader = H2OOCRLoader()
-                doctr_loader.set_document_paths([file])
-                docs1c = doctr_loader.load()
-                if hasattr(doctr_loader._ocr_model.det_predictor.model, 'cpu'):
-                    doctr_loader._ocr_model.det_predictor.model.cpu()
-                    clear_torch_cache()
-                if hasattr(doctr_loader._ocr_model.reco_predictor.model, 'cpu'):
-                    doctr_loader._ocr_model.reco_predictor.model.cpu()
-                    clear_torch_cache()
-                if hasattr(doctr_loader._ocr_model, 'cpu'):
-                    doctr_loader._ocr_model.cpu()
-                    clear_torch_cache()
-                docs1c = [x for x in docs1c if x.page_content]
-                add_meta(docs1c, file, headsize, parser='H2OOCRLoader: %s' % 'DocTR')
+            doctr_loader.set_document_paths([file])
+            docs1c = doctr_loader.load()
+            doctr_loader.unload_model()
+            docs1c = [x for x in docs1c if x.page_content]
+            add_meta(docs1c, file, headsize, parser='H2OOCRLoader: %s' % 'DocTR')
             # caption didn't set source, so fix-up meta
             for doci in docs1c:
                 doci.metadata['source'] = doci.metadata.get('document_path', file)
@@ -1738,28 +1727,27 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                 print("BEGIN: BLIP", flush=True)
             if caption_loader is not None and not isinstance(caption_loader, (str, bool)):
                 # assumes didn't fork into this process with joblib, else can deadlock
-                caption_loader.set_image_paths([file])
-                docs1c = caption_loader.load()
-                docs1c = [x for x in docs1c if x.page_content]
-                add_meta(docs1c, file, headsize, parser='caption_loader')
+                caption_loader.to(caption_loader.device)
             else:
                 from image_captions import H2OImageCaptionLoader
                 caption_loader = H2OImageCaptionLoader(caption_gpu=caption_loader == 'gpu',
                                                        blip_model=captions_model,
                                                        blip_processor=captions_model)
-                caption_loader.set_image_paths([file])
-                docs1c = caption_loader.load()
-                # clear off GPU since will be reloaded later
-                if hasattr(caption_loader.model, 'cpu'):
-                    caption_loader.model.cpu()
-                    clear_torch_cache()
-                docs1c = [x for x in docs1c if x.page_content]
-                add_meta(docs1c, file, headsize, parser='H2OImageCaptionLoader: %s' % captions_model)
+            caption_loader.set_image_paths([file])
+            docs1c = caption_loader.load()
+            docs1c = [x for x in docs1c if x.page_content]
+            add_meta(docs1c, file, headsize, parser='H2OImageCaptionLoader: %s' % captions_model)
             # caption didn't set source, so fix-up meta
             for doci in docs1c:
                 doci.metadata['source'] = doci.metadata.get('image_path', file)
                 doci.metadata['hashid'] = hash_file(doci.metadata['source'])
             docs1.extend(docs1c)
+            
+            # clear off GPU since will be reloaded later
+            if hasattr(caption_loader.model, 'cpu'):
+                caption_loader.model.cpu()
+                clear_torch_cache()
+                
             if verbose:
                 print("END: BLIP", flush=True)
         doc1 = chunk_sources(docs1)
@@ -1836,7 +1824,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             doc1a = clean_doc(doc1a)
             add_parser(doc1a, 'PyMuPDFLoader')
             doc1.extend(doc1a)
-        if (len(doc1) == 0 or use_unstructured_pdf) and use_unstructured_pdf:
+        if (len(doc1) == 0 and use_unstructured_pdf) or use_unstructured_pdf:
             try:
                 doc1a = UnstructuredPDFLoader(file).load()
                 did_unstructured = True
@@ -1900,31 +1888,21 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             if verbose:
                 print("BEGIN: DocTR", flush=True)
             if doctr_loader is not None and not isinstance(doctr_loader, (str, bool)):
-                doctr_loader.set_document_paths([file])
-                doc1a = doctr_loader.load()
-                doc1a = [x for x in doc1a if x.page_content]
-                add_meta(doc1a, file, headsize, parser='doctr_loader')
+                doctr_loader.load_model()
             else:
                 from image_doctr import H2OOCRLoader
                 doctr_loader = H2OOCRLoader()
-                doctr_loader.set_document_paths([file])
-                doc1a = doctr_loader.load()
-                if hasattr(doctr_loader._ocr_model.det_predictor.model, 'cpu'):
-                    doctr_loader._ocr_model.det_predictor.model.cpu()
-                    clear_torch_cache()
-                if hasattr(doctr_loader._ocr_model.reco_predictor.model, 'cpu'):
-                    doctr_loader._ocr_model.reco_predictor.model.cpu()
-                    clear_torch_cache()
-                if hasattr(doctr_loader._ocr_model, 'cpu'):
-                    doctr_loader._ocr_model.cpu()
-                    clear_torch_cache()
-                doc1a = [x for x in doc1a if x.page_content]
-                add_meta(doc1a, file, headsize, parser='H2OOCRLoader: %s' % 'DocTR')
+            doctr_loader.set_document_paths([file])
+            doc1a = doctr_loader.load()
+            doc1a = [x for x in doc1a if x.page_content]
+            add_meta(doc1a, file, headsize, parser='H2OOCRLoader: %s' % 'DocTR')
+            handled |= len(doc1a) > 0
             # caption didn't set source, so fix-up meta
             for doci in doc1a:
                 doci.metadata['source'] = doci.metadata.get('document_path', file)
                 doci.metadata['hashid'] = hash_file(doci.metadata['source'])
             doc1.extend(doc1a)
+            doctr_loader.unload_model()
             if verbose:
                 print("END: DocTR", flush=True)
                 
@@ -2278,7 +2256,6 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
                   db_type=db_type,
                   selected_file_types=selected_file_types,
                   )
-
     if n_jobs != 1 and len(globs_non_image_types) > 1:
         # avoid nesting, e.g. upload 1 zip and then inside many files
         # harder to handle if upload many zips with many files, inner parallel one will be disabled by joblib

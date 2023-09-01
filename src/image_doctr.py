@@ -11,7 +11,7 @@ import requests
 from langchain.docstore.document import Document
 from langchain.document_loaders import ImageCaptionLoader
 import numpy as np
-from utils import get_device, NullContext
+from utils import get_device, clear_torch_cache
 import pypdfium2 as pdfium
 from doctr.utils.common_types import AbstractFile
 
@@ -39,11 +39,24 @@ class H2OOCRLoader(ImageCaptionLoader):
         except ImportError:
             raise ValueError(
                 "`doctr` package not found, please install with "
-                "`pip install git+https://github.com/h2oai/doctr.git[torch]`."
+                "`pip install git+https://github.com/h2oai/doctr.git`."
             )
+        if self._ocr_model:
+            self._ocr_model = self._ocr_model.to(self.device)
         self.set_context()
         self._ocr_model = ocr_predictor(det_arch="db_resnet50", reco_arch="crnn_efficientnetv2_mV2", pretrained=True).to(self.device)
         return self
+    def unload_model(self):
+        if hasattr(self._ocr_model.det_predictor.model, 'cpu'):
+            self._ocr_model.det_predictor.model.cpu()
+            clear_torch_cache()
+        if hasattr(self._ocr_model.reco_predictor.model, 'cpu'):
+            self._ocr_model.reco_predictor.model.cpu()
+            clear_torch_cache()
+        if hasattr(self._ocr_model, 'cpu'):
+            self._ocr_model.cpu()
+            clear_torch_cache()
+            
 
     def set_document_paths(self, document_paths: Union[str, List[str]]):
         """
@@ -187,13 +200,13 @@ def space_layout(texts, boxes):
             left_char_num = max((left_char_num - len(space_line_text)), 1)
             
             #verbose layout
-            space_line_text += " " * left_char_num
+            # space_line_text += " " * left_char_num
             
             #minified layout
-            # if left_char_num > 1:
-            #     space_line_text += f" <{left_char_num}> " 
-            # else:
-            #     space_line_text += " "
+            if left_char_num > 1:
+                space_line_text += f" <{left_char_num}> " 
+            else:
+                space_line_text += " "
             
             space_line_text += line_texts[i][j]
         space_line_texts.append(space_line_text + "\n")
