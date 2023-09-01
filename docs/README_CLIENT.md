@@ -363,7 +363,12 @@ An OpenAI compliant client is available. Refer the [README](../client/README.md)
 ##### Curl Client API
 
 As long as objects within the `gradio_runner.py` for a given api_name are for a function without `gr.State()` objects, then curl can work.  Full `curl` capability is not supported in Gradio [yet](https://github.com/gradio-app/gradio/issues/4932).
-One can use the `submit_nochat_plain_api` that has no `state` objects.
+
+For example, for a server launched as:
+```bash
+python generate.py --base_model=TheBloke/Llama-2-7b-Chat-GPTQ --load_gptq="model" --use_safetensors=True --prompt_type=llama2 --save_dir=fooasdf --use_system_prompt=True
+```
+one can use the `submit_nochat_plain_api` that has no `state` objects to perform chat via `curl` by doing:
 ```bash
 curl 127.0.0.1:7860/api/submit_nochat_plain_api -X POST -d '{"data": ["{\"instruction_nochat\": \"Who are you?\"}"]}' -H 'Content-Type: application/json'
 ```
