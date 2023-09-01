@@ -315,7 +315,12 @@ class Exllama(LLM):
             # Tokenize the string from the last new line, we can't just decode the last token due to how sentencepiece decodes.
             stuff = generator.tokenizer.decode(generator.sequence_actual[0][last_newline_pos:])
             cursor_tail = len(stuff)
+            has_unicode_combined = cursor_tail<cursor_head
             text_chunk = stuff[cursor_head:cursor_tail]
+            if has_unicode_combined:
+                text=text[:-2]
+                text_chunk = stuff[cursor_tail-1:cursor_tail]
+                
             cursor_head = cursor_tail
 
             # Append the generated chunk to our stream buffer
