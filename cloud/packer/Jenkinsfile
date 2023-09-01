@@ -29,7 +29,7 @@ node('docker') {
                             withCredentials([file(credentialsId: 'GCP_MARKETPLACE_SERVICE_ACCOUNT', variable: 'GCP_ACCOUNT_FILE')]) {
                                 dir('cloud/packer') {
                                     if (params.GCP) {
-                                        sh("packer build \
+                                        sh("packer --force build \
                                             -var 'project_id=eng-llm' \
                                             -var 'account_file=$GCP_ACCOUNT_FILE' \
                                             -var 'h2ogpt_version=${H2OGPT_VERSION}' \
@@ -50,7 +50,7 @@ node('docker') {
                                              string(credentialsId: "AZURE_MARKETPLACE_TENANT_ID", variable: "AZURE_TENANT_ID")]) {
                                 dir('cloud/packer') {
                                     if (params.AZURE) {
-                                        sh("packer build \
+                                        sh("packer --force build \
                                             -var 'client_id=$AZURE_CLIENT_ID' \
                                             -var 'client_secret=$AZURE_CLIENT_SECRET' \
                                             -var 'managed_image_resource_group_name=H2OIMAGES' \
