@@ -1492,10 +1492,12 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                 # images
                 enable_ocr=False,
                 enable_doctr=False,
+                enable_pix2struct=False,
                 enable_captions=True,
                 captions_model=None,
                 caption_loader=None,
                 doctr_loader=None,
+                pix2struct_loader=None,
 
                 # json
                 jq_schema='.[]',
@@ -1533,10 +1535,12 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                                           # images
                                           enable_ocr=enable_ocr,
                                           enable_doctr=enable_doctr,
+                                          enable_pix2struct=enable_pix2struct,
                                           enable_captions=enable_captions,
                                           captions_model=captions_model,
                                           caption_loader=caption_loader,
                                           doctr_loader=doctr_loader,
+                                          pix2struct_loader=pix2struct_loader,
 
                                           # json
                                           jq_schema=jq_schema,
@@ -1760,6 +1764,27 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             docs1.extend(docs1c)
             if verbose:
                 print("END: BLIP", flush=True)
+        if enable_pix2struct:
+            # BLIP
+            if verbose:
+                print("BEGIN: Pix2Struct", flush=True)
+            if pix2struct_loader is not None and not isinstance(pix2struct_loader, (str, bool)):
+                pix2struct_loader = pix2struct_loader.load_model()
+            else:
+                from image_pix2struct import H2OPix2StructLoader
+                pix2struct_loader = H2OPix2StructLoader()
+                pix2struct_loader.set_image_paths([file])
+                docs1c = pix2struct_loader.load()
+                docs1c = [x for x in docs1c if x.page_content]
+                add_meta(docs1c, file, headsize, parser='H2OPix2StructLoader: %s' % pix2struct_loader)
+            # caption didn't set source, so fix-up meta
+            for doci in docs1c:
+                doci.metadata['source'] = doci.metadata.get('image_path', file)
+                doci.metadata['hashid'] = hash_file(doci.metadata['source'])
+            docs1.extend(docs1c)
+            pix2struct_loader.unload_model()
+            if verbose:
+                print("END: Pix2Struct", flush=True)
         doc1 = chunk_sources(docs1)
     elif file.lower().endswith('.msg'):
         raise RuntimeError("Not supported, GPL3 license")
@@ -1966,10 +1991,12 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                            # images
                            enable_ocr=enable_ocr,
                            enable_doctr=enable_doctr,
+                           enable_pix2struct=enable_pix2struct,
                            enable_captions=enable_captions,
                            captions_model=captions_model,
                            caption_loader=caption_loader,
                            doctr_loader=doctr_loader,
+                           pix2struct_loader=pix2struct_loader,
 
                            # json
                            jq_schema=jq_schema,
@@ -2014,10 +2041,12 @@ def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True
                  # images
                  enable_ocr=False,
                  enable_doctr=False,
+                 enable_pix2struct=False,
                  enable_captions=True,
                  captions_model=None,
                  caption_loader=None,
                  doctr_loader=None,
+                 pix2struct_loader=None,
 
                  # json
                  jq_schema='.[]',
@@ -2055,10 +2084,12 @@ def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True
                           # images
                           enable_ocr=enable_ocr,
                           enable_doctr=enable_doctr,
+                          enable_pix2struct=enable_pix2struct,
                           enable_captions=enable_captions,
                           captions_model=captions_model,
                           caption_loader=caption_loader,
                           doctr_loader=doctr_loader,
+                          pix2struct_loader=pix2struct_loader,
 
                           # json
                           jq_schema=jq_schema,
@@ -2112,10 +2143,12 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
                  # images
                  enable_ocr=False,
                  enable_doctr=False,
+                 enable_pix2struct=False,
                  enable_captions=True,
                  captions_model=None,
                  caption_loader=None,
                  doctr_loader=None,
+                 pix2struct_loader=None,
 
                  # json
                  jq_schema='.[]',
@@ -2229,10 +2262,12 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
                   # images
                   enable_ocr=enable_ocr,
                   enable_doctr=enable_doctr,
+                  enable_pix2struct=enable_pix2struct,
                   enable_captions=enable_captions,
                   captions_model=captions_model,
                   caption_loader=caption_loader,
                   doctr_loader=doctr_loader,
+                  pix2struct_loader=pix2struct_loader,
 
                   # json
                   jq_schema=jq_schema,
@@ -2578,10 +2613,12 @@ def _make_db(use_openai_embedding=False,
              # images
              enable_ocr=False,
              enable_doctr=False,
+             enable_pix2struct=False,
              enable_captions=True,
              captions_model=None,
              caption_loader=None,
              doctr_loader=None,
+             pix2struct_loader=None,
 
              # json
              jq_schema='.[]',
@@ -2665,10 +2702,12 @@ def _make_db(use_openai_embedding=False,
                                 # images
                                 enable_ocr=enable_ocr,
                                 enable_doctr=enable_doctr,
+                                enable_pix2struct=enable_pix2struct,
                                 enable_captions=enable_captions,
                                 captions_model=captions_model,
                                 caption_loader=caption_loader,
                                 doctr_loader=doctr_loader,
+                                pix2struct_loader=pix2struct_loader,
 
                                 # json
                                 jq_schema=jq_schema,
@@ -2852,10 +2891,12 @@ def _run_qa_db(query=None,
                # images
                enable_ocr=False,
                enable_doctr=False,
+               enable_pix2struct=False,
                enable_captions=True,
                captions_model=None,
                caption_loader=None,
                doctr_loader=None,
+               pix2struct_loader=None,
 
                # json
                jq_schema='.[]',
@@ -3184,10 +3225,12 @@ def get_chain(query=None,
               # images
               enable_ocr=False,
               enable_doctr=False,
+              enable_pix2struct=False,
               enable_captions=True,
               captions_model=None,
               caption_loader=None,
               doctr_loader=None,
+              pix2struct_loader=None,
 
               # json
               jq_schema='.[]',
@@ -3285,10 +3328,12 @@ def get_chain(query=None,
                                                         # images
                                                         enable_ocr=enable_ocr,
                                                         enable_doctr=enable_doctr,
+                                                        enable_pix2struct=enable_pix2struct,
                                                         enable_captions=enable_captions,
                                                         captions_model=captions_model,
                                                         caption_loader=caption_loader,
                                                         doctr_loader=doctr_loader,
+                                                        pix2struct_loader=pix2struct_loader,
 
                                                         # json
                                                         jq_schema=jq_schema,
@@ -3921,10 +3966,12 @@ def _update_user_db(file,
                     # images
                     enable_ocr=False,
                     enable_doctr=False,
+                    enable_pix2struct=False,
                     enable_captions=True,
                     captions_model=None,
                     caption_loader=None,
                     doctr_loader=None,
+                    pix2struct_loader=None,
 
                     # json
                     jq_schema='.[]',
@@ -3951,6 +3998,7 @@ def _update_user_db(file,
     assert captions_model is not None
     assert enable_ocr is not None
     assert enable_doctr is not None
+    assert enable_pix2struct is not None
     assert enable_pdf_ocr is not None
     assert verbose is not None
 
@@ -4034,10 +4082,12 @@ def _update_user_db(file,
                            # images
                            enable_ocr=enable_ocr,
                            enable_doctr=enable_doctr,
+                           enable_pix2struct=enable_pix2struct,
                            enable_captions=enable_captions,
                            captions_model=captions_model,
                            caption_loader=caption_loader,
                            doctr_loader=doctr_loader,
+                           pix2struct_loader=pix2struct_loader,
 
                            # json
                            jq_schema=jq_schema,
@@ -4257,10 +4307,12 @@ def update_and_get_source_files_given_langchain_mode(db1s,
                                                      # images
                                                      enable_ocr=False,
                                                      enable_doctr=False,
+                                                     enable_pix2struct=False,
                                                      enable_captions=True,
                                                      captions_model=None,
                                                      caption_loader=None,
                                                      doctr_loader=None,
+                                                     pix2struct_loader=None,
 
                                                      # json
                                                      jq_schema='.[]',
@@ -4320,10 +4372,12 @@ def update_and_get_source_files_given_langchain_mode(db1s,
                                                         # images
                                                         enable_ocr=enable_ocr,
                                                         enable_doctr=enable_doctr,
+                                                        enable_pix2struct=enable_pix2struct,
                                                         enable_captions=enable_captions,
                                                         captions_model=captions_model,
                                                         caption_loader=caption_loader,
                                                         doctr_loader=doctr_loader,
+                                                        pix2struct_loader=pix2struct_loader,
 
                                                         # json
                                                         jq_schema=jq_schema,
