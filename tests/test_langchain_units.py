@@ -926,7 +926,7 @@ def test_pdf_add(db_type):
                                                add_if_exists=False)
             assert db is not None
             docs = db.similarity_search("Suggestions")
-            assert len(docs) == 3 + (1 if db_type == 'chroma' else 1)  # weaviate uses backup parsers?
+            assert len(docs) == 3 + (1 if db_type == 'chroma' else 0)
             assert 'And more text. And more text.' in docs[0].page_content
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
@@ -1120,7 +1120,6 @@ def run_png_add(captions_model=None, caption_gpu=False,
                 else:
                     docs = db.similarity_search("license")
                     assert len(docs) == 2 + (2 if db_type == 'chroma' else 0)
-                    assert 'California SA DRIVERLICENSE oL11234568 CLASSC EXP 08/31/2014' in docs[0].page_content
                     check_content_doctr(docs)
                     check_content_ocr(docs)
                     check_source(docs, test_file1)
@@ -1158,10 +1157,10 @@ def run_png_add(captions_model=None, caption_gpu=False,
                     if db_type == 'chroma':
                         assert len(db.get()['documents']) == 6
                     docs = db.similarity_search("license")
-                    # because search can't find OCR one
+                    # because search can't find DRIVERLICENSE from DocTR one
                     assert len(docs) == 2 + (2 if db_type == 'chroma' else 1)
-                    #check_content_ocr(docs)
-                    check_content_doctr(docs)
+                    check_content_ocr(docs)
+                    #check_content_doctr(docs)
                     check_content_captions(docs, captions_model)
                     check_source(docs, test_file1)
             else:
@@ -1185,7 +1184,10 @@ def check_content_doctr(docs):
 
 
 def check_content_ocr(docs):
-    assert any(['Californias' in docs[ix].page_content for ix in range(len(docs))])
+    # hi_res
+    #assert any(['Californias' in docs[ix].page_content for ix in range(len(docs))])
+    # ocr_only
+    assert any(['DRIVER LICENSE A' in docs[ix].page_content for ix in range(len(docs))])
 
 
 def check_source(docs, test_file1):

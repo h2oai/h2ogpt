@@ -116,7 +116,10 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
   * Download/Install [CUDA llama-cpp-python wheel](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels), E.g.:
     ```bash
     pip uninstall -y llama-cpp-python llama-cpp-python-cuda
+    # GGMLv3 ONLY:
     pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.1.73+cu117-cp310-cp310-linux_x86_64.whl
+    # GGUF ONLY:
+    pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.1.83+cu117-cp310-cp310-linux_x86_64.whl
     ```
   * If any issues, then must compile llama-cpp-python with CUDA support:
    ```bash

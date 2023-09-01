@@ -1565,5 +1565,5 @@ def test_fastsys(stream_output, bits, prompt_type):
                """Whisper  is  a  speech  processing  system  that  is  designed  to  generalize  well  across  domains,  tasks,  and  languages.  It  is  based  on  a  single  robust  architecture  that  is  trained  on  a  wide  set  of  existing  datasets,  and  it  is  able  to  generalize  well  across  domains,  tasks,  and  languages.  The  goal  of  Whisper  is  to  develop  a  single  robust  speech  processing  system  that  works  reliably  without  the  need  for  dataset-specific  fine-tuning  to  achieve  high-quality  results  on  specific  distributions.""" in response
     else:
         assert """single  robust  speech  processing  system  that  works""" in response or """Whisper""" in response
-    sources = res_dict['sources']
-    assert 'my_test_pdf.pdf' in sources
+    sources = [x['source'] for x in res_dict['sources']]
+    assert 'my_test_pdf.pdf' in sources[0]

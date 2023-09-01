@@ -148,10 +148,10 @@ def go_gradio(**kwargs):
 
     title = 'h2oGPT'
     if kwargs['visible_h2ogpt_header']:
-        description = """<iframe src="https://ghbtns.com/github-btn.html?user=h2oai&repo=h2ogpt&type=star&count=true&size=small" frameborder="0" scrolling="0" width="280" height="20" title="GitHub"></iframe><small><a href="https://github.com/h2oai/h2ogpt">h2oGPT</a> <a href="https://evalgpt.ai/">LLM Leaderboard</a>  <a href="https://github.com/h2oai/h2o-llmstudio">LLM Studio</a><br><a href="https://huggingface.co/h2oai">🤗 Models</a>"""
+        description = """<iframe src="https://ghbtns.com/github-btn.html?user=h2oai&repo=h2ogpt&type=star&count=true&size=small" frameborder="0" scrolling="0" width="280" height="20" title="GitHub"></iframe><small><a href="https://github.com/h2oai/h2ogpt">h2oGPT</a> <a href="https://evalgpt.ai/">LLM Leaderboard</a> <a href="https://github.com/h2oai/h2o-llmstudio">LLM Studio</a><br /><a href="https://codellama.h2o.ai">CodeLlama</a> <br /><a href="https://huggingface.co/h2oai">🤗 Models</a>"""
     else:
         description = None
-    description_bottom = "If this host is busy, try<br>[Multi-Model](https://gpt.h2o.ai)<br>[Llama2 70B](https://llama.h2o.ai)<br>[Falcon 40B](https://falcon.h2o.ai)<br>[HF Spaces1](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot)<br>[HF Spaces2](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot2)<br>"
+    description_bottom = "If this host is busy, try<br>[Multi-Model](https://gpt.h2o.ai)<br>[CodeLlama](https://codellama.h2o.ai)<br>[Llama2 70B](https://llama.h2o.ai)<br>[Falcon 40B](https://falcon.h2o.ai)<br>[HF Spaces1](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot)<br>[HF Spaces2](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot2)<br>"
     if is_hf:
         description_bottom += '''<a href="https://huggingface.co/spaces/h2oai/h2ogpt-chatbot?duplicate=true"><img src="https://bit.ly/3gLdBN6" style="white-space: nowrap" alt="Duplicate Space"></a>'''
     task_info_md = ''
@@ -1596,7 +1596,7 @@ def go_gradio(**kwargs):
                 doc_hashes = [x.get('doc_hash', 'None') for x in db_metadatas]
                 docs_with_score = [x for hx, px, cx, x in
                                    sorted(zip(doc_hashes, doc_page_ids, doc_chunk_ids, docs_with_score),
-                                          key=lambda x: (x[0], x[1]))
+                                          key=lambda x: (x[0], x[1], x[2]))
                                    # if cx == -1
                                    ]
                 db_metadatas = [x[0].metadata for x in docs_with_score][:max_raw_chunks]
@@ -2228,13 +2228,20 @@ def go_gradio(**kwargs):
         for k in inputs_kwargs_list:
             assert k in kwargs_evaluate, "Missing %s" % k
 
-        def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, **kwargs1):
+        def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False, **kwargs1):
             args_list = list(args1)
             if str_api:
+                if plain_api:
+                    # i.e. not fresh model, tells evaluate to use model_state0
+                    args_list.insert(0, kwargs['model_state_none'].copy())
+                    args_list.insert(1, my_db_state0.copy())
+                    args_list.insert(2, selection_docs_state0.copy())
+                    args_list.insert(3, requests_state0.copy())
                 user_kwargs = args_list[len(input_args_list)]
                 assert isinstance(user_kwargs, str)
                 user_kwargs = ast.literal_eval(user_kwargs)
             else:
+                assert not plain_api
                 user_kwargs = {k: v for k, v in zip(eval_func_param_names, args_list[len(input_args_list):])}
             # control kwargs1 for evaluate
             kwargs1['answer_with_sources'] = -1  # just text chunk, not URL etc.
@@ -2247,9 +2254,17 @@ def go_gradio(**kwargs):
             user_kwargs['chat'] = False
             if 'stream_output' not in user_kwargs:
                 user_kwargs['stream_output'] = False
+            if plain_api:
+                user_kwargs['stream_output'] = False
             if 'langchain_mode' not in user_kwargs:
                 # if user doesn't specify, then assume disabled, not use default
-                user_kwargs['langchain_mode'] = 'Disabled'
+                if LangChainMode.LLM.value in kwargs['langchain_modes']:
+                    user_kwargs['langchain_mode'] = LangChainMode.LLM.value
+                elif len(kwargs['langchain_modes']) >= 1:
+                    user_kwargs['langchain_mode'] = kwargs['langchain_modes'][0]
+                else:
+                    # disabled should always be allowed
+                    user_kwargs['langchain_mode'] = LangChainMode.DISABLED.value
             if 'langchain_action' not in user_kwargs:
                 user_kwargs['langchain_action'] = LangChainAction.QUERY.value
             if 'langchain_agents' not in user_kwargs:
@@ -2317,6 +2332,13 @@ def go_gradio(**kwargs):
         fun_with_dict_str = partial(evaluate_nochat,
                                     default_kwargs1=default_kwargs,
                                     str_api=True,
+                                    **kwargs_evaluate_nochat
+                                    )
+
+        fun_with_dict_str_plain = partial(evaluate_nochat,
+                                    default_kwargs1=default_kwargs,
+                                    str_api=True,
+                                    plain_api=True,
                                     **kwargs_evaluate_nochat
                                     )
 
@@ -3277,7 +3299,13 @@ def go_gradio(**kwargs):
                                                           outputs=text_output_nochat_api,
                                                           queue=True,  # required for generator
                                                           api_name='submit_nochat_api' if allow_api else None) \
-            .then(clear_torch_cache)
+
+        submit_event_nochat_api_plain = submit_nochat_api.click(fun_with_dict_str_plain,
+                                                          inputs=inputs_dict_str,
+                                                          outputs=text_output_nochat_api,
+                                                          queue=False,
+                                                          api_name='submit_nochat_plain_api' if allow_api else None) \
+
 
         def load_model(model_name, lora_weights, server_name, model_state_old, prompt_type_old,
                        load_8bit, load_4bit, low_bit_mode,
