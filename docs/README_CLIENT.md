@@ -1,6 +1,6 @@
 ### Client APIs
 
-A Gradio API and an OpenAI-compliant API are supported.
+A Gradio API and an OpenAI-compliant API are supported.  One can also use `curl` to some extent for basic API.
 
 ##### Gradio Client API
 
@@ -359,3 +359,16 @@ See tests in https://github.com/h2oai/h2ogpt/blob/main/tests/test_client_calls.p
 
 An OpenAI compliant client is available. Refer the [README](../client/README.md)  for more details.
 
+
+##### Curl Client API
+
+As long as objects within the `gradio_runner.py` for a given api_name are for a function without `gr.State()` objects, then curl can work.  Full `curl` capability is not supported in Gradio [yet](https://github.com/gradio-app/gradio/issues/4932).
+One can use the `submit_nochat_plain_api` that has no `state` objects.
+```bash
+curl 127.0.0.1:7860/api/submit_nochat_plain_api -X POST -d '{"data": ["{\"instruction_nochat\": \"Who are you?\"}"]}' -H 'Content-Type: application/json'
+```
+and get back for a 7B LLaMA2-chat GPTQ model:
+
+`{"data":["{'response': \" Hello! I'm just an AI assistant designed to provide helpful and informative responses to your questions. My purpose is to assist and provide accurate information to the best of my abilities, while adhering to ethical and moral guidelines. I am not capable of providing personal opinions or engaging in discussions that promote harmful or offensive content. My goal is to be a positive and respectful presence in your interactions with me. Is there anything else I can help you with?\", 'sources': '', 'save_dict': {'prompt': \"<s>[INST] <<SYS>>\\nYou are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe. Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.\\n\\nIf a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.\\n<</SYS>>\\n\\nWho are you? [/INST]\", 'output': \" Hello! I'm just an AI assistant designed to provide helpful and informative responses to your questions. My purpose is to assist and provide accurate information to the best of my abilities, while adhering to ethical and moral guidelines. I am not capable of providing personal opinions or engaging in discussions that promote harmful or offensive content. My goal is to be a positive and respectful presence in your interactions with me. Is there anything else I can help you with?\", 'base_model': 'TheBloke/Llama-2-7b-Chat-GPTQ', 'save_dir': 'fooasdf', 'where_from': 'evaluate_False', 'extra_dict': {'num_beams': 1, 'do_sample': False, 'repetition_penalty': 1.07, 'num_return_sequences': 1, 'renormalize_logits': True, 'remove_invalid_values': True, 'use_cache': True, 'eos_token_id': 2, 'bos_token_id': 1, 'num_prompt_tokens': 5, 't_generate': 9.243812322616577, 'ntokens': 120, 'tokens_persecond': 12.981605669647344}, 'error': None, 'extra': None}}"],"is_generating":true,"duration":39.33809685707092,"average_duration":39.33809685707092}`
+
+This contains the full dictionary of `data` from `curl` operation as well is the data contents that are a string of a dictionary like when using the API `submit_nochat_api` for Gradio client.  This inner string of a dictionary can be parsed as a literal python string to get keys `response`, `source`, `save_dict`, where `save_dict` contains meta data about the query such as generation hyperparameters, tokens generated, etc.

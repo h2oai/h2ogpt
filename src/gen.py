@@ -2035,7 +2035,7 @@ def evaluate(
         chosen_model_state = model_state
     elif have_cli_model:
         # USE MODEL SETUP AT CLI
-        assert isinstance(model_state['model'], str)  # expect no fresh model
+        assert isinstance(model_state['model'], (type(None), str))  # expect no fresh model
         chosen_model_state = model_state0
     else:
         raise AssertionError(no_model_msg)
