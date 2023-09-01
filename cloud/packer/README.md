@@ -11,7 +11,7 @@ Follow the instructions specified [here](https://developer.hashicorp.com/packer/
 ## GCP
 
 ```
-packer build --force -var "account_file=/Users/admin/gcp-packer-eng-llm-credentials.json" h2ogpt-gcp.json
+packer build --force -var "account_file=" h2ogpt-gcp.json
 ```
 
 ## Azure
