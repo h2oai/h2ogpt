@@ -43,6 +43,7 @@ class H2OOCRLoader(ImageCaptionLoader):
             )
         if self._ocr_model:
             self._ocr_model = self._ocr_model.to(self.device)
+            return self
         self.set_context()
         self._ocr_model = ocr_predictor(det_arch="db_resnet50", reco_arch="crnn_efficientnetv2_mV2", pretrained=True).to(self.device)
         return self
