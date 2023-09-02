@@ -1233,7 +1233,7 @@ def lg_to_gr(
     n_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 0
     n_gpus, gpu_ids = cuda_vis_check(n_gpus)
     if n_gpus != 0:
-        image_loaders_options = ['Caption', 'CaptionBlip2']
+        image_loaders_options = ['Caption', 'CaptionBlip2', 'Pix2Struct']
     else:
         image_loaders_options = ['Caption']
     if have_tesseract:

@@ -250,6 +250,7 @@ def main(
         # images
         enable_ocr=False,
         enable_doctr=False,
+        enable_pix2struct=False,
         enable_captions=True,
 
         pre_load_caption_model: bool = False,
@@ -892,6 +893,7 @@ def main(
     # defaults
     caption_loader = None
     doctr_loader = None
+    pix2struct_loader = None
 
     image_loaders_options0, image_loaders_options, \
         pdf_loaders_options0, pdf_loaders_options, \
@@ -1915,6 +1917,7 @@ def evaluate(
         captions_model=None,
         caption_loader=None,
         doctr_loader=None,
+        pix2struct_loader=None,
         async_output=None,
         num_async=None,
         src_lang=None,
@@ -2037,7 +2040,7 @@ def evaluate(
         chosen_model_state = model_state
     elif have_cli_model:
         # USE MODEL SETUP AT CLI
-        assert isinstance(model_state['model'], str)  # expect no fresh model
+        assert isinstance(model_state['model'], (type(None), str))  # expect no fresh model
         chosen_model_state = model_state0
     else:
         raise AssertionError(no_model_msg)
@@ -2166,7 +2169,8 @@ def evaluate(
         loaders_dict.update(dict(captions_model=captions_model,
                                  caption_loader=caption_loader,
                                  jq_schema=jq_schema,
-                                 doctr_loader=doctr_loader
+                                 doctr_loader=doctr_loader,
+                                 pix2struct_loader=pix2struct_loader,
                                  ))
         for r in run_qa_db(
                 inference_server=inference_server,

@@ -10,3 +10,4 @@ h2ogpt.egg-info
 venv
 build
 dist
+Dockerfile

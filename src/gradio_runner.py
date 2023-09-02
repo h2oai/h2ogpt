@@ -2228,13 +2228,20 @@ def go_gradio(**kwargs):
         for k in inputs_kwargs_list:
             assert k in kwargs_evaluate, "Missing %s" % k
 
-        def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, **kwargs1):
+        def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False, **kwargs1):
             args_list = list(args1)
             if str_api:
+                if plain_api:
+                    # i.e. not fresh model, tells evaluate to use model_state0
+                    args_list.insert(0, kwargs['model_state_none'].copy())
+                    args_list.insert(1, my_db_state0.copy())
+                    args_list.insert(2, selection_docs_state0.copy())
+                    args_list.insert(3, requests_state0.copy())
                 user_kwargs = args_list[len(input_args_list)]
                 assert isinstance(user_kwargs, str)
                 user_kwargs = ast.literal_eval(user_kwargs)
             else:
+                assert not plain_api
                 user_kwargs = {k: v for k, v in zip(eval_func_param_names, args_list[len(input_args_list):])}
             # control kwargs1 for evaluate
             kwargs1['answer_with_sources'] = -1  # just text chunk, not URL etc.
@@ -2246,6 +2253,8 @@ def go_gradio(**kwargs):
             # only used for submit_nochat_api
             user_kwargs['chat'] = False
             if 'stream_output' not in user_kwargs:
+                user_kwargs['stream_output'] = False
+            if plain_api:
                 user_kwargs['stream_output'] = False
             if 'langchain_mode' not in user_kwargs:
                 # if user doesn't specify, then assume disabled, not use default
@@ -2323,6 +2332,13 @@ def go_gradio(**kwargs):
         fun_with_dict_str = partial(evaluate_nochat,
                                     default_kwargs1=default_kwargs,
                                     str_api=True,
+                                    **kwargs_evaluate_nochat
+                                    )
+
+        fun_with_dict_str_plain = partial(evaluate_nochat,
+                                    default_kwargs1=default_kwargs,
+                                    str_api=True,
+                                    plain_api=True,
                                     **kwargs_evaluate_nochat
                                     )
 
@@ -3283,7 +3299,13 @@ def go_gradio(**kwargs):
                                                           outputs=text_output_nochat_api,
                                                           queue=True,  # required for generator
                                                           api_name='submit_nochat_api' if allow_api else None) \
-            .then(clear_torch_cache)
+
+        submit_event_nochat_api_plain = submit_nochat_api.click(fun_with_dict_str_plain,
+                                                          inputs=inputs_dict_str,
+                                                          outputs=text_output_nochat_api,
+                                                          queue=False,
+                                                          api_name='submit_nochat_plain_api' if allow_api else None) \
+
 
         def load_model(model_name, lora_weights, server_name, model_state_old, prompt_type_old,
                        load_8bit, load_4bit, low_bit_mode,

@@ -203,6 +203,7 @@ def gr_to_lg(image_loaders,
         # images
         enable_ocr='OCR' in image_loaders,
         enable_doctr='DocTR' in image_loaders,
+        enable_pix2struct='Pix2Struct' in image_loaders,
         enable_captions='Caption' in image_loaders or 'CaptionBlip2' in image_loaders,
     )
     if 'CaptionBlip2' in image_loaders:
