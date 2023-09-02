@@ -1849,7 +1849,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             doc1a = clean_doc(doc1a)
             add_parser(doc1a, 'PyMuPDFLoader')
             doc1.extend(doc1a)
-        if (len(doc1) == 0 and use_unstructured_pdf) or use_unstructured_pdf:
+        if len(doc1) == 0 or use_unstructured_pdf:
             try:
                 doc1a = UnstructuredPDFLoader(file).load()
                 did_unstructured = True
@@ -1863,7 +1863,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             add_parser(doc1a, 'UnstructuredPDFLoader')
             # seems to not need cleaning in most cases
             doc1.extend(doc1a)
-        if (len(doc1) == 0 or use_pypdf) and use_pypdf:
+        if len(doc1) == 0 or use_pypdf:
             # open-source fallback
             # load() still chunks by pages, but every page has title at start to help
             try:
