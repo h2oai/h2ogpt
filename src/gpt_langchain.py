@@ -1909,7 +1909,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             # seems to not need cleaning in most cases
             doc1.extend(doc1a)
         # Some PDFs return nothing or junk from PDFMinerLoader
-        if (len(doc1) == 0 and enable_pdf_doctr):
+        if (len(doc1) == 0 or enable_pdf_doctr):
             if verbose:
                 print("BEGIN: DocTR", flush=True)
             if doctr_loader is not None and not isinstance(doctr_loader, (str, bool)):
