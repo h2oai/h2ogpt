@@ -1746,12 +1746,12 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                 doci.metadata['source'] = doci.metadata.get('image_path', file)
                 doci.metadata['hashid'] = hash_file(doci.metadata['source'])
             docs1.extend(docs1c)
-            
+
             # clear off GPU since will be reloaded later
             if hasattr(caption_loader.model, 'cpu'):
                 caption_loader.model.cpu()
                 clear_torch_cache()
-                
+
             if verbose:
                 print("END: BLIP", flush=True)
         if enable_pix2struct:
@@ -1899,7 +1899,9 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             doc1a = try_as_html(file)
             add_parser(doc1a, 'try_as_html')
             doc1.extend(doc1a)
-        if not did_unstructured and (len(doc1) == 0 and (enable_pdf_ocr == 'auto' and not enable_pdf_doctr) or enable_pdf_ocr == 'on'):
+        if not did_unstructured and (
+                len(doc1) == 0 and (enable_pdf_ocr == 'auto' and not enable_pdf_doctr)
+                or enable_pdf_ocr == 'on'):
             # try OCR in end since slowest, but works on pure image pages well
             doc1a = UnstructuredPDFLoader(file, strategy='ocr_only').load()
             handled |= len(doc1a) > 0
@@ -1909,7 +1911,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             # seems to not need cleaning in most cases
             doc1.extend(doc1a)
         # Some PDFs return nothing or junk from PDFMinerLoader
-        if (len(doc1) == 0 or enable_pdf_doctr):
+        if len(doc1) == 0 or enable_pdf_doctr:
             if verbose:
                 print("BEGIN: DocTR", flush=True)
             if doctr_loader is not None and not isinstance(doctr_loader, (str, bool)):
@@ -1930,7 +1932,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             doctr_loader.unload_model()
             if verbose:
                 print("END: DocTR", flush=True)
-                
+
         if len(doc1) == 0:
             # if literally nothing, show failed to parse so user knows, since unlikely nothing in PDF at all.
             if handled:
