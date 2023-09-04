@@ -8,7 +8,7 @@ python3.10 -m pip install virtualenv
 virtualenv -p python3.10 venv
 source venv/bin/activate
 
-python3.10 -m pip install -r requirements.txt --extra-index-url https://download.pyt orch.org/whl/cu118 --no-cache-dir
+python3.10 -m pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cu118 --no-cache-dir
 python3.10 -m pip install -r reqs_optional/requirements_optional_langchain.txt --no-cache-dir
 python3.10 -m pip install -r reqs_optional/requirements_optional_gpt4all.txt --no-cache-dir
 python3.10 -m pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt --no-cache-dir
