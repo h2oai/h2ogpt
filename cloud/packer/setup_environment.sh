@@ -1,4 +1,4 @@
- #!/bin/bash -e
+#!/bin/bash -e
 
 sudo DEBIAN_FRONTEND=noninteractive apt-get -y update
 sudo DEBIAN_FRONTEND=noninteractive apt-get -y --no-install-recommends install \
@@ -9,7 +9,20 @@ sudo DEBIAN_FRONTEND=noninteractive apt-get -y --no-install-recommends install \
   apt-utils \
   make \
   build-essential \
-  wget
+  wget \
+  gnupg2 \
+  ca-certificates \
+  lsb-release \
+  ubuntu-keyring
+
+curl https://nginx.org/keys/nginx_signing.key | gpg --dearmor | sudo tee /usr/share/keyrings/nginx-archive-keyring.gpg >/dev/null
+gpg --dry-run --quiet --no-keyring --import --import-options import-show /usr/share/keyrings/nginx-archive-keyring.gpg
+echo "deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] http://nginx.org/packages/ubuntu `lsb_release -cs` nginx" sudo tee /etc/apt/sources.list.d/nginx.list
+echo -e "Package: *\nPin: origin nginx.org\nPin: release o=nginx\nPin-Priority: 900\n" sudo tee /etc/apt/preferences.d/99nginx
+
+sudo DEBIAN_FRONTEND=noninteractive apt -y update
+sudo DEBIAN_FRONTEND=noninteractive apt -y install nginx
+
 
 MAX_GCC_VERSION=11
 sudo DEBIAN_FRONTEND=noninteractive add-apt-repository -y ppa:ubuntu-toolchain-r/test
@@ -25,15 +38,7 @@ sudo DEBIAN_FRONTEND=noninteractive apt-get -y update
 sudo DEBIAN_FRONTEND=noninteractive apt-get -y install python3.10 python3.10-dev python3.10-distutils
 
 export PATH=$PATH:/home/ubuntu/.local/bin
-
 curl -sS https://bootstrap.pypa.io/get-pip.py | python3.10
-
-git clone https://github.com/h2oai/h2ogpt.git
-cd h2ogpt
-
-python3.10 -m pip install virtualenv
-virtualenv -p python3.10 venv
-source venv/bin/activate
 
 wget --quiet https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-ubuntu2004.pin
 sudo mv cuda-ubuntu2004.pin /etc/apt/preferences.d/cuda-repository-pin-600

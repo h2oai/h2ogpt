@@ -1,5 +1,52 @@
 #!/bin/bash -e
 
+
+cd /etc/nginx/conf.d
+sudo chown -R ubuntu:ubuntu .
+cd $HOME
+printf """
+server {
+    listen 80;
+    listen [::]:80;
+    server_name <|_SUBST_PUBLIC_IP|>;  # Change this to your domain name
+
+    location / {  # Change this if you'd like to server your Gradio app on a different path
+        proxy_pass http://0.0.0.0:7860/; # Change this if your Gradio app will be running on a different port
+        proxy_redirect off;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection \"upgrade\";
+        proxy_set_header Host \$host;
+    }
+}
+""" > temp.conf
+
+printf """
+ip=\$(dig +short myip.opendns.com @resolver1.opendns.com)
+sed \"s/<|_SUBST_PUBLIC_IP|>;/\$ip;/g\" /home/ubuntu/temp.conf  > /etc/nginx/conf.d/h2ogpt.conf
+""" > run_nginx.sh
+
+sudo chmod u+x run_nginx.sh
+
+cd /etc/systemd/system
+sudo chown -R ubuntu:ubuntu .
+printf """
+[Unit]
+Description=h2oGPT Nginx Server
+After=network.target
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu
+ExecStart=bash /home/ubuntu/run_nginx.sh
+Restart=always
+[Install]
+WantedBy=multi-user.target
+""" > h2ogpt_nginx.service
+
+sudo systemctl daemon-reload
+sudo systemctl enable h2ogpt_nginx.service
+
 cd $HOME
 printf """
 tps=\$(nvidia-smi --query-gpu=gpu_name --format=csv,noheader | wc -l | awk '{if (\$1 > 1) print int(\$1/2); else print 1}')
@@ -30,7 +77,6 @@ WantedBy=multi-user.target
 
 sudo systemctl daemon-reload
 sudo systemctl enable vllm.service
-sudo systemctl start vllm.service
 
 cd $HOME/h2ogpt
 
@@ -56,4 +102,9 @@ WantedBy=multi-user.target
 
 sudo systemctl daemon-reload
 sudo systemctl enable h2ogpt.service
-sudo systemctl start h2ogpt.service
+
+cd $HOME
+sudo rm -rf $HOME/.cache/huggingface/hub/
+sudo DEBIAN_FRONTEND=noninteractive apt-get -y autoremove
+sudo DEBIAN_FRONTEND=noninteractive apt-get -y clean
+sudo rm -rf *.deb

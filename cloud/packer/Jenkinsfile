@@ -5,7 +5,7 @@ properties(
         parameters(
             [
                 string(name: 'BRANCH_TAG', defaultValue: 'origin/main'),
-                booleanParam(name: 'AWS', defaultValue: true, description: 'Make Amazon Machine Image/Not?'),
+                booleanParam(name: 'AZURE', defaultValue: true, description: 'Make Azure Machine Image/Not?'),
                 booleanParam(name: 'GCP', defaultValue: true, description: 'Make GCP Image/Not?'),
                 string(name: 'H2OGPT_VERSION', description: 'Example: for version 1.10.5 use 1105')
             ]

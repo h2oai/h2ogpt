@@ -16,7 +16,7 @@
             "subscription_id": "{{user `subscription_id`}}",
             "tenant_id": "{{user `tenant_id`}}",
             "capture_container_name": "h2ovhdimages",
-            "capture_name_prefix": "h2ogpt-{{user `h2ogpt_version`}}-{{user `base_model`}}",
+            "capture_name_prefix": "h2ogpt-{{user `h2ogpt_version`}}",
             "resource_group_name": "{{user `managed_image_resource_group_name`}}",
             "temp_resource_group_name": "Engineering_DevOps_h2oGPT-Ubuntu",
             "storage_account": "h2ovhdimages",
