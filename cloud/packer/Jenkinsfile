@@ -31,7 +31,7 @@ node('mr-0x16') {
                                     if (params.GCP) {
                                         sh("packer build \
                                             --force \
-                                            -var 'project_id=eng-llm' \
+                                            -var 'project_id=h2o-gce' \
                                             -var 'account_file=$GCP_ACCOUNT_FILE' \
                                             -var 'h2ogpt_version=${H2OGPT_VERSION}' \
                                             h2ogpt-gcp.json"
