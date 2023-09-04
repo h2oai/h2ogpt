@@ -12,7 +12,6 @@ from langchain.docstore.document import Document
 from langchain.document_loaders import ImageCaptionLoader
 import numpy as np
 from utils import get_device, clear_torch_cache
-import pypdfium2 as pdfium
 from doctr.utils.common_types import AbstractFile
 
 
@@ -238,5 +237,6 @@ def read_pdf(
     """
 
     # Rasterise pages to numpy ndarrays with pypdfium2
+    import pypdfium2 as pdfium
     pdf = pdfium.PdfDocument(file, password=password, autoclose=True)
     return [page.render(scale=scale, rev_byteorder=rgb_mode, **kwargs).to_numpy() for page in pdf]

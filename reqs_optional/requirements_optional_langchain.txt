@@ -3,6 +3,7 @@ langchain==0.0.250
 pypdf==3.14.0
 # avoid textract, requires old six
 #textract==1.6.5
+pypdfium2==4.19.0
 
 # for HF embeddings
 sentence_transformers==2.2.2
