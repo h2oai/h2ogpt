@@ -7,13 +7,13 @@ properties(
                 string(name: 'BRANCH_TAG', defaultValue: 'origin/main'),
                 booleanParam(name: 'AZURE', defaultValue: true, description: 'Make Azure Machine Image/Not?'),
                 booleanParam(name: 'GCP', defaultValue: true, description: 'Make GCP Image/Not?'),
-                string(name: 'H2OGPT_VERSION', description: 'Example: for version 1.10.5 use 1105')
+                string(name: 'H2OGPT_VERSION', defaultValue: "010", description: 'Example: for version 1.10.5 use 1105')
             ]
         )
     ]
 )
 
-node('docker') {
+node('mr-0x16') {
     stage('Init') {
         cleanWs()
         currentBuild.displayName = "#${BUILD_NUMBER} - Rel:${H2OGPT_VERSION}"
@@ -29,7 +29,8 @@ node('docker') {
                             withCredentials([file(credentialsId: 'GCP_MARKETPLACE_SERVICE_ACCOUNT', variable: 'GCP_ACCOUNT_FILE')]) {
                                 dir('cloud/packer') {
                                     if (params.GCP) {
-                                        sh("packer --force build \
+                                        sh("packer build \
+                                            --force \
                                             -var 'project_id=eng-llm' \
                                             -var 'account_file=$GCP_ACCOUNT_FILE' \
                                             -var 'h2ogpt_version=${H2OGPT_VERSION}' \
@@ -50,7 +51,8 @@ node('docker') {
                                              string(credentialsId: "AZURE_MARKETPLACE_TENANT_ID", variable: "AZURE_TENANT_ID")]) {
                                 dir('cloud/packer') {
                                     if (params.AZURE) {
-                                        sh("packer --force build \
+                                        sh("packer build \
+                                            --force \
                                             -var 'client_id=$AZURE_CLIENT_ID' \
                                             -var 'client_secret=$AZURE_CLIENT_SECRET' \
                                             -var 'managed_image_resource_group_name=H2OIMAGES' \
