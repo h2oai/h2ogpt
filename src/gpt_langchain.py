@@ -1731,7 +1731,8 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                 print("BEGIN: BLIP", flush=True)
             if caption_loader is not None and not isinstance(caption_loader, (str, bool)):
                 # assumes didn't fork into this process with joblib, else can deadlock
-                caption_loader.model.to(caption_loader.model.device)
+                if not caption_loader.load_in_8bit:
+                    caption_loader.model.to(caption_loader.model.device)
             else:
                 from image_captions import H2OImageCaptionLoader
                 caption_loader = H2OImageCaptionLoader(caption_gpu=caption_loader == 'gpu',
