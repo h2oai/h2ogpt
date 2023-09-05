@@ -64,6 +64,8 @@ docker_build: build_info.txt
 ifeq ($(shell curl --connect-timeout 4 --write-out %{http_code} -sS --output /dev/null -X GET http://harbor.h2o.ai/api/v2.0/projects/h2ogpt/repositories/test-image/artifacts/$(BUILD_TAG)/tags),200)
 	@echo "Image already pushed to Harbor: $(DOCKER_TEST_IMAGE)"
 else
+	-docker rmi h2ogpt-base
+	DOCKER_BUILDKIT=1 docker build -t h2ogpt-base -f Dockerfile-base .
 	DOCKER_BUILDKIT=1 docker build -t $(DOCKER_TEST_IMAGE) -f Dockerfile .
 	docker push $(DOCKER_TEST_IMAGE)
 endif

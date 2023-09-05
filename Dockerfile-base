@@ -1,0 +1,35 @@
+# devel needed for bitsandbytes requirement of libcudart.so, otherwise runtime sufficient
+FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu20.04
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    wget \
+    software-properties-common \
+    pandoc \
+    vim \
+    libmagic-dev \
+    poppler-utils \
+    tesseract-ocr \
+    libtesseract-dev \
+    libreoffice \
+    autoconf \
+    libtool
+
+EXPOSE 8888
+EXPOSE 7860
+EXPOSE 5000
+
+WORKDIR /workspace
+
+ENV HOME=/workspace
+ENV CUDA_HOME=/usr/local/cuda-11.8
+
+ARG user=h2ogpt
+ARG group=h2ogpt
+ARG uid=1000
+ARG gid=1000
+
+RUN groupadd -g ${gid} ${group} && useradd -u ${uid} -g ${group} -s /bin/bash ${user}
