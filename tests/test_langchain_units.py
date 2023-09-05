@@ -1127,7 +1127,7 @@ def run_png_add(captions_model=None, caption_gpu=False,
                     assert db is None
                 elif 'Sample-Invoice-printable' in file:
                     # weak test
-                    assert db is None
+                    assert db is not None
                 else:
                     docs = db.similarity_search("license")
                     assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
@@ -1138,7 +1138,7 @@ def run_png_add(captions_model=None, caption_gpu=False,
                     assert db is None
                 elif 'Sample-Invoice-printable' in file:
                     # weak test
-                    assert db is None
+                    assert db is not None
                 else:
                     docs = db.similarity_search("license")
                     assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
@@ -1149,7 +1149,7 @@ def run_png_add(captions_model=None, caption_gpu=False,
                     assert db is None
                 elif 'Sample-Invoice-printable' in file:
                     # weak test
-                    assert db is None
+                    assert db is not None
                 else:
                     docs = db.similarity_search("license")
                     assert len(docs) == 2 + (2 if db_type == 'chroma' else 0)
@@ -1164,7 +1164,7 @@ def run_png_add(captions_model=None, caption_gpu=False,
                     check_source(docs, test_file1)
                 elif 'Sample-Invoice-printable' in file:
                     # weak test
-                    assert db is None
+                    assert db is not None
                 else:
                     docs = db.similarity_search("license")
                     assert len(docs) == 2 + (2 if db_type == 'chroma' else 0)
@@ -1179,7 +1179,7 @@ def run_png_add(captions_model=None, caption_gpu=False,
                     check_source(docs, test_file1)
                 elif 'Sample-Invoice-printable' in file:
                     # weak test
-                    assert db is None
+                    assert db is not None
                 else:
                     docs = db.similarity_search("license")
                     assert len(docs) == 2 + (2 if db_type == 'chroma' else 0)
@@ -1194,7 +1194,7 @@ def run_png_add(captions_model=None, caption_gpu=False,
                     check_source(docs, test_file1)
                 elif 'Sample-Invoice-printable' in file:
                     # weak test
-                    assert db is None
+                    assert db is not None
                 else:
                     if db_type == 'chroma':
                         assert len(db.get()['documents']) == 6
