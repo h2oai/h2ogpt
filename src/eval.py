@@ -56,6 +56,7 @@ def run_eval(  # for local function:
         captions_model=None,
         caption_loader=None,
         doctr_loader=None,
+        pix2struct_loader=None,
         image_loaders_options0=None,
         pdf_loaders_options0=None,
         url_loaders_options0=None,
