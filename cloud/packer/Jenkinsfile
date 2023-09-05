@@ -13,7 +13,7 @@ properties(
     ]
 )
 
-node('mr-0x16') {
+node('linux && docker') {
     stage('Init') {
         cleanWs()
         currentBuild.displayName = "#${BUILD_NUMBER} - Rel:${H2OGPT_VERSION}"

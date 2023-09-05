@@ -16,6 +16,7 @@ These scripts help create images in public clouds that can then submitted to Azu
     - vLLM, h2oGPT and Nginx are executed through services
     - Model is downloaded at the runtime
 
+__Jenkins Pipeline__: http://jenkins.h2o.local:8080/job/build-h2ogpt-cloud-images/
+
 ### Notes:
- - Since model is downloaded at the runtime after VM is provisioned it take 5 - 10 min start h2oGPT correctly
- 
+ - Since model is downloaded at the runtime after VM is provisioned it takes around 5 - 10 min start h2oGPT correctly
