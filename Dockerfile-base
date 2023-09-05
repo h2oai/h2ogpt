@@ -23,6 +23,7 @@ EXPOSE 7860
 EXPOSE 5000
 
 WORKDIR /workspace
+RUN mkdir -p /workspace && chmod -R a+rwx /workspace
 
 ENV HOME=/workspace
 ENV CUDA_HOME=/usr/local/cuda-11.8

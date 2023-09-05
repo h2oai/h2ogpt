@@ -47,8 +47,11 @@ build_info.txt:
 
 # Deprecated for now, no 0.4.1 on pypi, use release binary wheel that has no CUDA errors anymore
 docker_build_deps:
+	-docker rmi h2ogpt-base
+	DOCKER_BUILDKIT=1 docker build -t h2ogpt-base -f Dockerfile-base .
 	@rm -rf Dockerfile_deps
 	@sed '/# Install prebuilt dependencies/,$$d' Dockerfile > Dockerfile_deps
+	@sed -i "s/as stage0//g" Dockerfile_deps
 	@docker build -t h2ogpt-deps-builder -f Dockerfile_deps .
 	@docker run \
 		--rm -it --entrypoint bash --runtime nvidia -v `pwd`:/dot \
