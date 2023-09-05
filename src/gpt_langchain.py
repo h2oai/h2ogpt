@@ -1764,10 +1764,10 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             else:
                 from image_pix2struct import H2OPix2StructLoader
                 pix2struct_loader = H2OPix2StructLoader()
-                pix2struct_loader.set_image_paths([file])
-                docs1c = pix2struct_loader.load()
-                docs1c = [x for x in docs1c if x.page_content]
-                add_meta(docs1c, file, headsize, parser='H2OPix2StructLoader: %s' % pix2struct_loader)
+            pix2struct_loader.set_image_paths([file])
+            docs1c = pix2struct_loader.load()
+            docs1c = [x for x in docs1c if x.page_content]
+            add_meta(docs1c, file, headsize, parser='H2OPix2StructLoader: %s' % pix2struct_loader)
             # caption didn't set source, so fix-up meta
             for doci in docs1c:
                 doci.metadata['source'] = doci.metadata.get('image_path', file)
@@ -2001,6 +2001,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                            use_unstructured_pdf=use_unstructured_pdf,
                            use_pypdf=use_pypdf,
                            enable_pdf_ocr=enable_pdf_ocr,
+                           enable_pdf_doctr=enable_pdf_doctr,
                            try_pdf_as_html=try_pdf_as_html,
 
                            # images
@@ -4022,9 +4023,9 @@ def _update_user_db(file,
     assert captions_model is not None
     assert enable_ocr is not None
     assert enable_doctr is not None
+    assert enable_pdf_ocr is not None
     assert enable_pdf_doctr is not None
     assert enable_pix2struct is not None
-    assert enable_pdf_ocr is not None
     assert verbose is not None
 
     if dbs is None:

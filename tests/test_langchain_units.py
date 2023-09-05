@@ -493,9 +493,11 @@ def test_make_add_db(repeat, db_type):
                                   caption_loader=False,
                                   enable_captions=False,
                                   enable_doctr=False,
+                                  enable_pix2struct=False,
                                   captions_model="Salesforce/blip-image-captioning-base",
                                   enable_ocr=False,
                                   enable_pdf_ocr='auto',
+                                  enable_pdf_doctr=False,
                                   verbose=False,
                                   is_url=False, is_txt=False)
                     langchain_mode2 = 'MyData'
@@ -931,10 +933,11 @@ def test_pdf_add(db_type):
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
 
+@pytest.mark.parametrize("enable_pdf_doctr", [False, True])
 @pytest.mark.parametrize("enable_pdf_ocr", ['auto', 'on'])
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
-def test_image_pdf_add(db_type, enable_pdf_ocr):
+def test_image_pdf_add(db_type, enable_pdf_ocr, enable_pdf_doctr):
     kill_weaviate(db_type)
     from src.make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persist_directory:
@@ -945,6 +948,7 @@ def test_image_pdf_add(db_type, enable_pdf_ocr):
             db, collection_name = make_db_main(persist_directory=tmp_persist_directory, user_path=tmp_user_path,
                                                fail_any_exception=True, db_type=db_type,
                                                enable_pdf_ocr=enable_pdf_ocr,
+                                               enable_pdf_doctr=enable_pdf_doctr,
                                                add_if_exists=False)
             assert db is not None
             docs = db.similarity_search("List Tshwane's concerns about water.")
@@ -1023,6 +1027,7 @@ os.system('cd tests ; unzip -o driverslicense.jpeg.zip')
                                   'tests/driverslicense.jpeg.zip',
                                   'tests/driverslicense.jpeg'])
 @pytest.mark.parametrize("db_type", db_types)
+@pytest.mark.parametrize("enable_pix2struct", [False, True])
 @pytest.mark.parametrize("enable_doctr", [False, True])
 @pytest.mark.parametrize("enable_ocr", [False, True])
 @pytest.mark.parametrize("enable_captions", [False, True])
@@ -1031,7 +1036,7 @@ os.system('cd tests ; unzip -o driverslicense.jpeg.zip')
 @pytest.mark.parametrize("captions_model", [None, 'Salesforce/blip2-flan-t5-xl'])
 @wrap_test_forked
 def test_png_add(captions_model, caption_gpu, pre_load_caption_model, enable_captions,
-                 enable_doctr, enable_ocr, db_type, file):
+                 enable_doctr, enable_pix2struct, enable_ocr, db_type, file):
     if not have_gpus and caption_gpu:
         # if have no GPUs, don't enable caption on GPU
         return
@@ -1044,8 +1049,11 @@ def test_png_add(captions_model, caption_gpu, pre_load_caption_model, enable_cap
     if captions_model == 'Salesforce/blip2-flan-t5-xl' and not (have_gpus and mem_gpus[0] > 20 * 1024 ** 3):
         # requires GPUs and enough memory to run
         return
-    if not (enable_ocr or enable_doctr or enable_captions):
+    if not (enable_ocr or enable_doctr or enable_pix2struct or enable_captions):
         # nothing enabled for images
+        return
+    # FIXME (too many permutations):
+    if enable_pix2struct and (pre_load_caption_model or enable_captions or enable_ocr or enable_doctr):
         return
     kill_weaviate(db_type)
     return run_png_add(captions_model=captions_model, caption_gpu=caption_gpu,
@@ -1053,6 +1061,7 @@ def test_png_add(captions_model, caption_gpu, pre_load_caption_model, enable_cap
                        enable_captions=enable_captions,
                        enable_ocr=enable_ocr,
                        enable_doctr=enable_doctr,
+                       enable_pix2struct=enable_pix2struct,
                        db_type=db_type,
                        file=file)
 
@@ -1062,6 +1071,7 @@ def run_png_add(captions_model=None, caption_gpu=False,
                 enable_captions=True,
                 enable_ocr=False,
                 enable_doctr=False,
+                enable_pix2struct=False,
                 db_type='chroma',
                 file='data/pexels-evg-kowalievska-1170986_small.jpg'):
     from src.make_db import make_db_main
@@ -1079,15 +1089,17 @@ def run_png_add(captions_model=None, caption_gpu=False,
                                                fail_any_exception=True,
                                                enable_ocr=enable_ocr,
                                                enable_pdf_ocr='auto',
+                                               enable_pdf_doctr=False,
                                                caption_gpu=caption_gpu,
                                                pre_load_caption_model=pre_load_caption_model,
                                                captions_model=captions_model,
                                                enable_captions=enable_captions,
                                                enable_doctr=enable_doctr,
+                                               enable_pix2struct=enable_pix2struct,
                                                db_type=db_type,
                                                add_if_exists=False,
                                                fail_if_no_sources=False)
-            if enable_captions and not enable_doctr and not enable_ocr:
+            if (enable_captions or enable_pix2struct) and not enable_doctr and not enable_ocr:
                 if 'kowalievska' in file:
                     docs = db.similarity_search("cat")
                     assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
@@ -1098,7 +1110,7 @@ def run_png_add(captions_model=None, caption_gpu=False,
                     assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
                     check_content_captions(docs, captions_model)
                     check_source(docs, test_file1)
-            elif not enable_captions and not enable_doctr and enable_ocr:
+            elif not (enable_captions or enable_pix2struct) and not enable_doctr and enable_ocr:
                 if 'kowalievska' in file:
                     assert db is None
                 else:
@@ -1106,7 +1118,7 @@ def run_png_add(captions_model=None, caption_gpu=False,
                     assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
                     check_content_ocr(docs)
                     check_source(docs, test_file1)
-            elif not enable_captions and enable_doctr and not enable_ocr:
+            elif not (enable_captions or enable_pix2struct) and enable_doctr and not enable_ocr:
                 if 'kowalievska' in file:
                     assert db is None
                 else:
@@ -1114,7 +1126,7 @@ def run_png_add(captions_model=None, caption_gpu=False,
                     assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
                     check_content_doctr(docs)
                     check_source(docs, test_file1)
-            elif not enable_captions and enable_doctr and enable_ocr:
+            elif not (enable_captions or enable_pix2struct) and enable_doctr and enable_ocr:
                 if 'kowalievska' in file:
                     assert db is None
                 else:
@@ -1123,7 +1135,7 @@ def run_png_add(captions_model=None, caption_gpu=False,
                     check_content_doctr(docs)
                     check_content_ocr(docs)
                     check_source(docs, test_file1)
-            elif enable_captions and not enable_doctr and enable_ocr:
+            elif (enable_captions or enable_pix2struct) and not enable_doctr and enable_ocr:
                 if 'kowalievska' in file:
                     docs = db.similarity_search("cat")
                     assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
@@ -1135,7 +1147,7 @@ def run_png_add(captions_model=None, caption_gpu=False,
                     check_content_ocr(docs)
                     check_content_captions(docs, captions_model)
                     check_source(docs, test_file1)
-            elif enable_captions and enable_doctr and not enable_ocr:
+            elif (enable_captions or enable_pix2struct) and enable_doctr and not enable_ocr:
                 if 'kowalievska' in file:
                     docs = db.similarity_search("cat")
                     assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
@@ -1147,7 +1159,7 @@ def run_png_add(captions_model=None, caption_gpu=False,
                     check_content_doctr(docs)
                     check_content_captions(docs, captions_model)
                     check_source(docs, test_file1)
-            elif enable_captions and enable_doctr and enable_ocr:
+            elif (enable_captions or enable_pix2struct) and enable_doctr and enable_ocr:
                 if 'kowalievska' in file:
                     docs = db.similarity_search("cat")
                     assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)

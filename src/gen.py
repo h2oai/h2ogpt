@@ -570,6 +570,7 @@ def main(
 
     :param enable_ocr: Whether to support OCR on images
     :param enable_doctr: Whether to support doctr on images
+    :param enable_pix2struct: Whether to support pix2struct on images for captions
     :param enable_captions: Whether to support captions using BLIP for image files as documents,
            then preloads that model if pre_load_caption_model=True
 
