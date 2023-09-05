@@ -1053,7 +1053,7 @@ def test_png_add(captions_model, caption_gpu, pre_load_caption_model, enable_cap
         # nothing enabled for images
         return
     # FIXME (too many permutations):
-    if enable_pix2struct and (pre_load_caption_model or enable_captions or enable_ocr or enable_doctr):
+    if enable_pix2struct and (pre_load_caption_model or enable_captions or enable_ocr or enable_doctr or captions_model or caption_gpu):
         return
     kill_weaviate(db_type)
     return run_png_add(captions_model=captions_model, caption_gpu=caption_gpu,
