@@ -1026,6 +1026,7 @@ os.system('cd tests ; unzip -o driverslicense.jpeg.zip')
 
 
 @pytest.mark.parametrize("file", ['data/pexels-evg-kowalievska-1170986_small.jpg',
+                                  'data/Sample-Invoice-printable.png',
                                   'tests/driverslicense.jpeg.zip',
                                   'tests/driverslicense.jpeg'])
 @pytest.mark.parametrize("db_type", db_types)
@@ -1107,6 +1108,12 @@ def run_png_add(captions_model=None, caption_gpu=False,
                     assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
                     assert 'a cat sitting on a window' in docs[0].page_content
                     check_source(docs, test_file1)
+                elif 'Sample-Invoice-printable' in file:
+                    docs = db.similarity_search("invoice")
+                    assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
+                    # weak test
+                    assert 'plumbing' in docs[0].page_content.lower() or 'invoice' in docs[0].page_content.lower()
+                    check_source(docs, test_file1)
                 else:
                     docs = db.similarity_search("license")
                     assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
@@ -1114,6 +1121,9 @@ def run_png_add(captions_model=None, caption_gpu=False,
                     check_source(docs, test_file1)
             elif not (enable_captions or enable_pix2struct) and not enable_doctr and enable_ocr:
                 if 'kowalievska' in file:
+                    assert db is None
+                elif 'Sample-Invoice-printable' in file:
+                    # weak test
                     assert db is None
                 else:
                     docs = db.similarity_search("license")
@@ -1123,6 +1133,9 @@ def run_png_add(captions_model=None, caption_gpu=False,
             elif not (enable_captions or enable_pix2struct) and enable_doctr and not enable_ocr:
                 if 'kowalievska' in file:
                     assert db is None
+                elif 'Sample-Invoice-printable' in file:
+                    # weak test
+                    assert db is None
                 else:
                     docs = db.similarity_search("license")
                     assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
@@ -1130,6 +1143,9 @@ def run_png_add(captions_model=None, caption_gpu=False,
                     check_source(docs, test_file1)
             elif not (enable_captions or enable_pix2struct) and enable_doctr and enable_ocr:
                 if 'kowalievska' in file:
+                    assert db is None
+                elif 'Sample-Invoice-printable' in file:
+                    # weak test
                     assert db is None
                 else:
                     docs = db.similarity_search("license")
@@ -1143,6 +1159,9 @@ def run_png_add(captions_model=None, caption_gpu=False,
                     assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
                     assert 'a cat sitting on a window' in docs[0].page_content
                     check_source(docs, test_file1)
+                elif 'Sample-Invoice-printable' in file:
+                    # weak test
+                    assert db is None
                 else:
                     docs = db.similarity_search("license")
                     assert len(docs) == 2 + (2 if db_type == 'chroma' else 0)
@@ -1155,6 +1174,9 @@ def run_png_add(captions_model=None, caption_gpu=False,
                     assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
                     assert 'a cat sitting on a window' in docs[0].page_content
                     check_source(docs, test_file1)
+                elif 'Sample-Invoice-printable' in file:
+                    # weak test
+                    assert db is None
                 else:
                     docs = db.similarity_search("license")
                     assert len(docs) == 2 + (2 if db_type == 'chroma' else 0)
@@ -1167,6 +1189,9 @@ def run_png_add(captions_model=None, caption_gpu=False,
                     assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
                     assert 'a cat sitting on a window' in docs[0].page_content
                     check_source(docs, test_file1)
+                elif 'Sample-Invoice-printable' in file:
+                    # weak test
+                    assert db is None
                 else:
                     if db_type == 'chroma':
                         assert len(db.get()['documents']) == 6
