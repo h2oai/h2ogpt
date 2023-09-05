@@ -1440,6 +1440,7 @@ def get_model(
                          revision=revision,
                          max_seq_len=max_seq_len,
                          verbose=verbose)
+    print(non_hf_types, base_model)
     config, _, max_seq_len = get_config(base_model, **config_kwargs, raise_exception=False)
 
     if base_model in non_hf_types:
