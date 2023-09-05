@@ -52,6 +52,7 @@ RUN sp=`python3.10 -c 'import site; print(site.getsitepackages()[0])'` && \
     /h2ogpt_conda/vllm_env/bin/python -m pip install vllm ray pandas --extra-index-url https://download.pytorch.org/whl/cu118 && \
     mkdir ${VLLM_CACHE}
 
+RUN chmod -R a+rwx /h2ogpt_conda
 
 FROM h2ogpt-base as stage1
 
@@ -66,7 +67,6 @@ COPY build_info.txt* /build_info.txt
 RUN touch /build_info.txt
 
 RUN chmod -R a+rwx /workspace
-RUN chmod -R a+rwx /h2ogpt_conda
 
 USER h2ogpt
 
