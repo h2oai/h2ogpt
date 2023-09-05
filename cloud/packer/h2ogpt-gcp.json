@@ -1,8 +1,9 @@
 {
   "variables": {
-    "project_id": "h2o-gce",
+    "project_id": "eng-llm",
     "account_file": "<NAME OF GCP CREDENTIALS JSON FILE>",
     "h2ogpt_version": "010",
+    "branch_tag": "main",
     "base_model": "h2oai-h2ogpt-4096-llama2-13b-chat"
   },
   "builders": [
@@ -50,6 +51,7 @@
     },
     {
       "type": "shell",
+      "environment_vars": ["BRANCH_TAG={{user `branch_tag`}}"],
       "script": "install_h2ogpt.sh",
       "pause_after": "50s"
     },

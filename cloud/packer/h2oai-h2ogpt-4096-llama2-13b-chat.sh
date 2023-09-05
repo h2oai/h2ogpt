@@ -24,6 +24,7 @@ server {
 printf """
 ip=\$(dig +short myip.opendns.com @resolver1.opendns.com)
 sed \"s/<|_SUBST_PUBLIC_IP|>;/\$ip;/g\" /home/ubuntu/temp.conf  > /etc/nginx/conf.d/h2ogpt.conf
+sudo systemctl restart nginx.service
 """ > run_nginx.sh
 
 sudo chmod u+x run_nginx.sh
@@ -33,6 +34,8 @@ sudo chown -R ubuntu:ubuntu .
 printf """
 [Unit]
 Description=h2oGPT Nginx Server
+StartLimitIntervalSec=300
+StartLimitBurst=5
 After=network.target
 [Service]
 Type=simple
@@ -40,6 +43,7 @@ User=ubuntu
 WorkingDirectory=/home/ubuntu
 ExecStart=bash /home/ubuntu/run_nginx.sh
 Restart=always
+RestartSec=10
 [Install]
 WantedBy=multi-user.target
 """ > h2ogpt_nginx.service

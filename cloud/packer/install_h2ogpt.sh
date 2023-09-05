@@ -4,6 +4,13 @@ export PATH=$PATH:/home/ubuntu/.local/bin
 git clone https://github.com/h2oai/h2ogpt.git
 cd h2ogpt
 
+if [ -z "$BRANCH_TAG" ]; then
+  echo "BRANCH_TAG environment variable is not set."
+  exit 1
+fi
+
+git checkout $BRANCH_TAG
+
 python3.10 -m pip install virtualenv
 virtualenv -p python3.10 venv
 source venv/bin/activate

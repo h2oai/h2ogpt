@@ -1,22 +1,21 @@
 # h2oGPT Packer Templates
 
-These scripts help create images in public clouds that can then submitted to AWS/Azure/GCP Marketplace for commercial use.
+These scripts help create images in public clouds that can then submitted to Azure/GCP Marketplace for commercial use.
 
-### Prerequisites
-The templates require packer software, that can be downloaded from packer.io. Each cloud is unique, so there are three templates that captures the differences.
-Follow the instructions specified [here](https://developer.hashicorp.com/packer/tutorials/docker-get-started/get-started-install-cli) to install & setup Packer cli.
+### Packer Scripts 
+- Azure - `h2ogpt-azure.json`
+- GCP - `h2ogpt-gcp.json`
 
-### Creating an image
+### Provisioning Scripts
+ - `setup_environment.sh`
+    - Responsible for setting up CUDA, GCC, Nginx, Python
+- `install_h2ogpt.sh`
+    - Responsible for setting up h2oGPT with its dependencies
+- `h2oai-h2ogpt-4096-llama2-13b-chat.sh`
+    - Responsible for setting up default model h2oai-h2ogpt-4096-llama2-13b-chat with vLLM in port 80 via Nginx
+    - vLLM, h2oGPT and Nginx are executed through services
+    - Model is downloaded at the runtime
 
-## GCP
-
-```
-packer build --force -var "account_file=" h2ogpt-gcp.json
-```
-
-## Azure
-
-```
-packer build h2ogpt-azure.json
-```
-
+### Notes:
+ - Since model is downloaded at the runtime after VM is provisioned it take 5 - 10 min start h2oGPT correctly
+ 

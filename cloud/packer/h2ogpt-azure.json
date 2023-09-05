@@ -6,6 +6,7 @@
         "tenant_id": "840229f2-c911-49e6-a73d-5b3a4311835a",
         "managed_image_resource_group_name": "H2OIMAGES",
         "h2ogpt_version": "010",
+        "branch_tag": "main",
         "base_model": "h2oai-h2ogpt-4096-llama2-13b-chat"
     },
     "builders": [
@@ -66,6 +67,7 @@
         },
         {
           "type": "shell",
+          "environment_vars": ["BRANCH_TAG={{user `branch_tag`}}"],
           "script": "install_h2ogpt.sh",
           "pause_after": "50s"
         },

@@ -34,6 +34,7 @@ node('mr-0x16') {
                                             -var 'project_id=h2o-gce' \
                                             -var 'account_file=$GCP_ACCOUNT_FILE' \
                                             -var 'h2ogpt_version=${H2OGPT_VERSION}' \
+                                            -var 'branch_tag=${BRANCH_TAG}' \
                                             h2ogpt-gcp.json"
                                         )
                                         archiveArtifacts artifacts: '*-image-info.json'
@@ -59,6 +60,7 @@ node('mr-0x16') {
                                             -var 'subscription_id=$AZURE_SUBSCRIPTION_ID' \
                                             -var 'tenant_id=$AZURE_TENANT_ID' \
                                             -var 'h2ogpt_version=${H2OGPT_VERSION}' \
+                                            -var 'branch_tag=${BRANCH_TAG}' \
                                             h2ogpt-azure.json"
                                         )
                                         archiveArtifacts artifacts: '*-image-info.json'
