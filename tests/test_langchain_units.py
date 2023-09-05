@@ -934,10 +934,12 @@ def test_pdf_add(db_type):
 
 
 @pytest.mark.parametrize("enable_pdf_doctr", [False, True])
-@pytest.mark.parametrize("enable_pdf_ocr", ['auto', 'on'])
+@pytest.mark.parametrize("enable_pdf_ocr", ['auto', 'on', 'off'])
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
 def test_image_pdf_add(db_type, enable_pdf_ocr, enable_pdf_doctr):
+    if enable_pdf_ocr == 'off' and not enable_pdf_doctr:
+        return
     kill_weaviate(db_type)
     from src.make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persist_directory:
