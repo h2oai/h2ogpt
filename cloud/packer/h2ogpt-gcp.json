@@ -31,7 +31,7 @@
       "strip_path": true,
       "custom_data": {
         "base_image": "GCP Ubuntu 20.04",
-        "llm_studio_version": "{{user `h2ogpt_version`}}"
+        "h2ogpt_version": "{{user `h2ogpt_version`}}"
       }
     }
   ],
