@@ -145,7 +145,7 @@ docker run \
     -e TRANSFORMERS_CACHE="/.cache/" \
     -p 5000:5000 \
     --rm --init \
-    --entrypoint /h2ogpt_conda/envs/vllm/bin/python3.10 \
+    --entrypoint /h2ogpt_conda/vllm_env/bin/python3.10 \
     -e NCCL_IGNORE_DISABLED_P2P=1 \
     -v /etc/passwd:/etc/passwd:ro \
     -v /etc/group:/etc/group:ro \

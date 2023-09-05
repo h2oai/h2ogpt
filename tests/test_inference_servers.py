@@ -232,7 +232,7 @@ def run_vllm_docker(inf_port, base_model, tokenizer=None):
               '-e', 'HUGGING_FACE_HUB_TOKEN=%s' % os.environ['HUGGING_FACE_HUB_TOKEN'],
               '-e', 'TRANSFORMERS_CACHE="/.cache/"',
               '-p', '%s:5000' % inf_port,
-              '--entrypoint', '/h2ogpt_conda/envs/vllm/bin/python3.10',
+              '--entrypoint', '/h2ogpt_conda/vllm_env/bin/python3.10',
               '-e', 'NCCL_IGNORE_DISABLED_P2P=1',
               '-v', '/etc/passwd:/etc/passwd:ro',
               '-v', '/etc/group:/etc/group:ro',
