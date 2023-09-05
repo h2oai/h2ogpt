@@ -728,6 +728,9 @@ def go_gradio(**kwargs):
                             get_sources_api_btn = gr.Button(visible=False)
                             get_sources_api_text = gr.Textbox(visible=False)
 
+                            get_document_api_btn = gr.Button(visible=False)
+                            get_document_api_text = gr.Textbox(visible=False)
+
                             show_sources_btn = gr.Button(value="Show Sources from DB", scale=0, size='sm',
                                                          visible=sources_visible)
                             delete_sources_btn = gr.Button(value="Delete Selected Sources from DB", scale=0, size='sm',
@@ -1552,10 +1555,13 @@ def go_gradio(**kwargs):
                      migrate_embedding_model1=None,
                      verbose1=False,
                      get_userid_auth1=None,
-                     max_raw_chunks=1000000):
+                     max_raw_chunks=1000000,
+                     api=False):
             file = single_document_choice1
             document_choice1 = [single_document_choice1]
             content = None
+            db_documents = []
+            db_metadatas = []
             if db_type == 'chroma':
                 assert langchain_mode1 is not None
                 langchain_mode_paths = selection_docs_state1['langchain_mode_paths']
@@ -1616,6 +1622,15 @@ def go_gradio(**kwargs):
   {content}
   </body>
 </html>"""
+            if api:
+                if view_raw_text_checkbox1:
+                    return dict(contents=db_documents, metadatas=db_metadatas)
+                else:
+                    contents = [text_to_html(y, api=api) for y in db_documents]
+                    metadatas = [dict_to_html(x, api=api) for x in db_metadatas]
+                    return dict(contents=contents, metadatas=metadatas)
+            else:
+                assert not api, "API mode for get_document only supported for chroma"
 
             dummy1 = gr.update(visible=False, value=None)
             # backup is text dump of db version
@@ -1735,11 +1750,19 @@ def go_gradio(**kwargs):
                                           verbose1=verbose,
                                           get_userid_auth1=get_userid_auth,
                                           max_raw_chunks=kwargs['max_raw_chunks'],
+                                          api=False,
                                           )
+        # Note: Not really useful for API, so no api_name
         eventdb_viewa.then(fn=show_doc_func,
                            inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode,
                                    view_document_choice, view_raw_text_checkbox],
                            outputs=[doc_view, doc_view2, doc_view3, doc_view4, doc_view5])
+
+        show_doc_func_api = functools.partial(show_doc_func, api=True)
+        get_document_api_btn.click(fn=show_doc_func_api,
+                                   inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode,
+                                           view_document_choice, view_raw_text_checkbox],
+                                   outputs=get_document_api_text, api_name='get_document_api')
 
         # Get inputs to evaluate() and make_db()
         # don't deepcopy, can contain model itself

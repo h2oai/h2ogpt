@@ -1196,18 +1196,23 @@ def url_alive(url):
             return False
 
 
-def dict_to_html(x, small=True):
+def dict_to_html(x, small=True, api=False):
     df = pd.DataFrame(x.items(), columns=['Key', 'Value'])
     df.index = df.index + 1
     df.index.name = 'index'
-    res = tabulate.tabulate(df, headers='keys', tablefmt='unsafehtml')
-    if small:
-        return "<small>" + res + "</small>"
+    if api:
+        return tabulate.tabulate(df, headers='keys')
     else:
-        return res
+        res = tabulate.tabulate(df, headers='keys', tablefmt='unsafehtml')
+        if small:
+            return "<small>" + res + "</small>"
+        else:
+            return res
 
 
-def text_to_html(x):
+def text_to_html(x, api=False):
+    if api:
+        return x
     return """
 <style>
       pre {

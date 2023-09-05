@@ -901,6 +901,25 @@ def test_client_chat_stream_langchain_steps3(loaders):
                         'user_path_test/pexels-evg-kowalievska-1170986_small.jpg', 'user_path_test/sample1.pdf']
     assert sources == sources_expected
 
+    file_to_get = sources_expected[3]
+    view_raw_text = False
+    source_dict = ast.literal_eval(client.predict(langchain_mode, file_to_get, view_raw_text, api_name='/get_document_api'))
+    assert len(source_dict['contents']) == 1
+    assert len(source_dict['metadatas']) == 1
+    assert isinstance(source_dict['contents'][0], str)
+    assert 'a cat sitting on a window' in source_dict['contents'][0]
+    assert isinstance(source_dict['metadatas'][0], str)
+    assert sources_expected[3] in source_dict['metadatas'][0]
+
+    view_raw_text = True  # dict of metadatas stays dict instead of string
+    source_dict = ast.literal_eval(client.predict(langchain_mode, file_to_get, view_raw_text, api_name='/get_document_api'))
+    assert len(source_dict['contents']) == 2  # chunk_id=0 (query) and -1 (summarization)
+    assert len(source_dict['metadatas']) == 2  # chunk_id=0 (query) and -1 (summarization)
+    assert isinstance(source_dict['contents'][0], str)
+    assert 'a cat sitting on a window' in source_dict['contents'][0]
+    assert isinstance(source_dict['metadatas'][0], dict)
+    assert sources_expected[3] == source_dict['metadatas'][0]['source']
+
     # even normal langchain_mode  passed to this should get the other langchain_mode2
     res = client.predict(langchain_mode, api_name='/load_langchain')
     res0_choices = [x[0] for x in res[0]['choices']]
