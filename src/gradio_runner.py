@@ -688,6 +688,7 @@ def go_gradio(**kwargs):
                                         attach_button = gr.UploadButton(
                                             elem_id="attach-button",
                                             value="",
+                                            label="Upload File(s)",
                                             size="sm",
                                             min_width=24,
                                             file_types=file_types,
@@ -733,7 +734,7 @@ def go_gradio(**kwargs):
                     with gr.Row():
                         with gr.Column(scale=1):
                             get_sources_btn = gr.Button(value="Update UI with Document(s) from DB", scale=0, size='sm',
-                                                        visible=sources_visible)
+                                                        visible=sources_visible and kwargs['large_file_count_mode'])
                             # handle API get sources
                             get_sources_api_btn = gr.Button(visible=False)
                             get_sources_api_text = gr.Textbox(visible=False)
@@ -800,7 +801,8 @@ def go_gradio(**kwargs):
                         with gr.Column(scale=2):
                             get_viewable_sources_btn = gr.Button(value="Update UI with Document(s) from DB", scale=0,
                                                                  size='sm',
-                                                                 visible=sources_visible)
+                                                                 visible=sources_visible and kwargs[
+                                                                     'large_file_count_mode'])
                             view_document_choice = gr.Dropdown(viewable_docs_state0,
                                                                label="Select Single Document",
                                                                value=None,
@@ -1369,8 +1371,9 @@ def go_gradio(**kwargs):
         event_attach1 = attach_button.upload(**user_state_kwargs)
         attach_file_kwargs = add_file_kwargs.copy()
         attach_file_kwargs['inputs'][0] = attach_button
+        attach_file_kwargs['outputs'][0] = attach_button
         attach_file_kwargs['api_name'] = 'attach_file'
-        event_attach2 = event_attach1.then(**add_file_kwargs, show_progress='full')
+        event_attach2 = event_attach1.then(**attach_file_kwargs, show_progress='full')
 
         # deal with challenge to have fileup_output itself as input
         add_file_kwargs2 = dict(fn=update_db_func,
@@ -1434,6 +1437,7 @@ def go_gradio(**kwargs):
                                           queue=queue,
                                           show_progress='minimal')
         eventdb3 = eventdb3a.then(**add_text_kwargs, show_progress='full')
+
         db_events = [eventdb1a, eventdb1, eventdb1_api,
                      eventdb2a, eventdb2,
                      eventdb3a, eventdb3]
@@ -1452,7 +1456,8 @@ def go_gradio(**kwargs):
         def clear_doc_choice():
             return gr.Dropdown.update(choices=docs_state0, value=DocumentChoice.ALL.value)
 
-        langchain_mode.change(clear_doc_choice, inputs=None, outputs=document_choice, queue=False)
+        lg_change_event = langchain_mode.change(clear_doc_choice, inputs=None, outputs=document_choice,
+                                                queue=not kwargs['large_file_count_mode'])
 
         def change_visible_llama(x):
             if x == 'llama':
@@ -1494,16 +1499,16 @@ def go_gradio(**kwargs):
         def update_dropdown(x):
             return gr.Dropdown.update(choices=x, value=[docs_state0[0]])
 
-        get_sources_args = dict(fn=get_sources1,
-                                inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode],
-                                outputs=[file_source, docs_state],
-                                queue=queue)
+        get_sources_kwargs = dict(fn=get_sources1,
+                                  inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode],
+                                  outputs=[file_source, docs_state],
+                                  queue=queue)
 
         eventdb7a = get_sources_btn.click(user_state_setup,
                                           inputs=[my_db_state, requests_state, get_sources_btn, get_sources_btn],
                                           outputs=[my_db_state, requests_state, get_sources_btn],
                                           show_progress='minimal')
-        eventdb7 = eventdb7a.then(**get_sources_args,
+        eventdb7 = eventdb7a.then(**get_sources_kwargs,
                                   api_name='get_sources' if allow_api else None) \
             .then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
 
@@ -1550,16 +1555,16 @@ def go_gradio(**kwargs):
         get_viewable_sources_args = dict(fn=get_viewable_sources1,
                                          inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode],
                                          outputs=[file_source, viewable_docs_state],
-                                         queue=queue,
-                                         api_name='get_viewable_sources' if allow_api else None)
+                                         queue=queue)
         eventdb12a = get_viewable_sources_btn.click(user_state_setup,
                                                     inputs=[my_db_state, requests_state,
                                                             get_viewable_sources_btn, get_viewable_sources_btn],
                                                     outputs=[my_db_state, requests_state, get_viewable_sources_btn],
                                                     show_progress='minimal')
-        eventdb12 = eventdb12a.then(**get_viewable_sources_args) \
-            .then(fn=update_viewable_dropdown, inputs=viewable_docs_state,
-                  outputs=view_document_choice)
+        viewable_kwargs = dict(fn=update_viewable_dropdown, inputs=viewable_docs_state, outputs=view_document_choice)
+        eventdb12 = eventdb12a.then(**get_viewable_sources_args,
+                                         api_name='get_viewable_sources' if allow_api else None) \
+            .then(**viewable_kwargs)
 
         def show_doc(db1s, selection_docs_state1, requests_state1,
                      langchain_mode1,
@@ -1840,8 +1845,40 @@ def go_gradio(**kwargs):
                                             langchain_mode],
                                     outputs=sources_text,
                                     api_name='delete_sources' if allow_api else None) \
-            .then(**get_sources_args) \
+            .then(**get_sources_kwargs) \
             .then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
+
+        if not kwargs['large_file_count_mode']:
+            # all update events when not doing large file count mode
+            lg_change_event2 = lg_change_event.then(**get_sources_kwargs)
+            lg_change_event3 = lg_change_event2.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
+            lg_change_event4 = lg_change_event3.then(**show_sources_kwargs)
+            lg_change_event5 = lg_change_event4.then(**get_viewable_sources_args)
+            lg_change_event6 = lg_change_event5.then(**viewable_kwargs)
+
+            eventdb2c = eventdb2.then(**get_sources_kwargs)
+            eventdb2d = eventdb2.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
+            eventdb2e = eventdb2d.then(**show_sources_kwargs)
+            eventdb2f = eventdb2e.then(**get_viewable_sources_args)
+            eventdb2g = eventdb2f.then(**viewable_kwargs)
+
+            eventdb1c = eventdb1.then(**get_sources_kwargs)
+            eventdb1d = eventdb1c.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
+            eventdb1e = eventdb1d.then(**show_sources_kwargs)
+            eventdb1f = eventdb1e.then(**get_viewable_sources_args)
+            eventdb1g = eventdb1f.then(**viewable_kwargs)
+
+            eventdb3c = eventdb3.then(**get_sources_kwargs)
+            eventdb3d = eventdb3c.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
+            eventdb3e = eventdb3d.then(**show_sources_kwargs)
+            eventdb3f = eventdb3e.then(**get_viewable_sources_args)
+            eventdb3g = eventdb3f.then(**viewable_kwargs)
+
+            db_events.extend([lg_change_event, lg_change_event2, lg_change_event3, lg_change_event4, lg_change_event5,
+                              lg_change_event6] +
+                             [eventdb2c, eventdb2d, eventdb2e, eventdb2f, eventdb2g] +
+                             [eventdb1c, eventdb1d, eventdb1e, eventdb1f, eventdb1g] +
+                             [eventdb3c, eventdb3d, eventdb3e, eventdb3f, eventdb3g])
 
         def check_admin_pass(x):
             return gr.update(visible=x == admin_pass)
@@ -2237,7 +2274,7 @@ def go_gradio(**kwargs):
         # purge_langchain_mode_kwargs['fn'] = functools.partial(remove_langchain_mode_kwargs['fn'], purge=True)
         eventdb22b = eventdb22a.then(**purge_langchain_mode_kwargs,
                                      api_name='purge_langchain_mode_text' if allow_api and allow_upload_to_user_data else None) \
-            .then(**get_sources_args) \
+            .then(**get_sources_kwargs) \
             .then(**show_sources_kwargs) \
             .then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
 
@@ -3342,10 +3379,10 @@ def go_gradio(**kwargs):
                                                           api_name='submit_nochat_api' if allow_api else None)
 
         submit_event_nochat_api_plain = submit_nochat_api.click(fun_with_dict_str_plain,
-                                                          inputs=inputs_dict_str,
-                                                          outputs=text_output_nochat_api,
-                                                          queue=False,
-                                                          api_name='submit_nochat_plain_api' if allow_api else None)
+                                                                inputs=inputs_dict_str,
+                                                                outputs=text_output_nochat_api,
+                                                                queue=False,
+                                                                api_name='submit_nochat_plain_api' if allow_api else None)
 
         def load_model(model_name, lora_weights, server_name, model_state_old, prompt_type_old,
                        load_8bit, load_4bit, low_bit_mode,
