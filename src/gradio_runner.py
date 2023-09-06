@@ -3978,7 +3978,7 @@ def get_sources_gr(db1s, selection_docs_state1, requests_state1, langchain_mode,
                    get_userid_auth=None,
                    api=False):
     from src.gpt_langchain import get_sources
-    sources_file, source_list, num_chunks, db = (
+    sources_file, source_list, num_chunks, db = \
         get_sources(db1s, selection_docs_state1, requests_state1, langchain_mode,
                     dbs=dbs, docs_state0=docs_state0,
                     load_db_if_exists=load_db_if_exists,
@@ -3988,7 +3988,7 @@ def get_sources_gr(db1s, selection_docs_state1, requests_state1, langchain_mode,
                     migrate_embedding_model=migrate_embedding_model,
                     verbose=verbose,
                     get_userid_auth=get_userid_auth,
-                    ))
+                    )
     if api:
         return source_list
     return sources_file, source_list, "Docs: %d\nChunks: %d" % (len(source_list), num_chunks)
