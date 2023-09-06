@@ -782,7 +782,10 @@ def go_gradio(**kwargs):
                                                        visible=allow_upload_to_user_data and
                                                                kwargs['langchain_mode'] != 'Disabled')
                         with gr.Column(scale=5):
-                            df0 = get_df_langchain_mode_paths(selection_docs_state0)
+                            if kwargs['langchain_mode'] != 'Disabled' and visible_add_remove_collection:
+                                df0 = get_df_langchain_mode_paths(selection_docs_state0)
+                            else:
+                                df0 = pd.DataFrame(None)
                             langchain_mode_path_text = gr.Dataframe(value=df0,
                                                                     visible=visible_add_remove_collection,
                                                                     label='LangChain Mode-Path',
