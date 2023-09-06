@@ -1813,6 +1813,11 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         add_meta(doc1, file, headsize, parser='f.read()')
         doc1 = chunk_sources(doc1, language=Language.RST)
     elif file.lower().endswith('.json'):
+        # 10k rows, 100 columns-like parts 4 bytes each
+        JSON_SIZE_LIMIT = int(os.getenv('JSON_SIZE_LIMIT', str(10 * 10 * 1024 * 10 * 4)))
+        if os.path.getsize(file) > JSON_SIZE_LIMIT:
+            raise ValueError(
+                "JSON file sizes > %s not supported for naive parsing and embedding, requires Agents enabled" % JSON_SIZE_LIMIT)
         loader = JSONLoader(
             file_path=file,
             # jq_schema='.messages[].content',
@@ -1946,6 +1951,10 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         add_meta(doc1, file, headsize, parser='pdf')
         doc1 = chunk_sources(doc1)
     elif file.lower().endswith('.csv'):
+        CSV_SIZE_LIMIT = int(os.getenv('CSV_SIZE_LIMIT', str(10 * 1024 * 10 * 4)))
+        if os.path.getsize(file) > CSV_SIZE_LIMIT:
+            raise ValueError(
+                "CSV file sizes > %s not supported for naive parsing and embedding, requires Agents enabled" % CSV_SIZE_LIMIT)
         doc1 = CSVLoader(file).load()
         add_meta(doc1, file, headsize, parser='CSVLoader')
         if isinstance(doc1, list):
