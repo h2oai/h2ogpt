@@ -1,6 +1,6 @@
 # Windows 10/11
 
-If using GPU on Windows 10 Pro 64-bit, we recommend [downloading and installing Windows installer](https://h2o-release.s3.amazonaws.com/h2ogpt/h2oGPT_0.0.1.exe)
+If using GPU on Windows 10/11 Pro 64-bit, we recommend using [Windows installers](../README.md#windows-1011-64-bit-with-full-document-qa-capability).
 
 For newer builds of windows versions of 10/11.
 
@@ -41,6 +41,10 @@ For newer builds of windows versions of 10/11.
     conda install cudatoolkit=11.7 -c conda-forge -y
     set CUDA_HOME=$CONDA_PREFIX
     ```
+* Install Git:
+   ```bash
+    conda install -c conda-forge git
+    ```
 * Install h2oGPT:
    ```bash
     git clone https://github.com/h2oai/h2ogpt.git
@@ -59,7 +63,7 @@ For newer builds of windows versions of 10/11.
     Optional: for bitsandbytes 4-bit and 8-bit:
        ```bash
        pip uninstall bitsandbytes -y
-       pip install https://github.com/jllllll/bitsandbytes-windows-webui/releases/download/wheels/bitsandbytes-0.40.1.post1-py3-none-win_amd64.whl
+       pip install https://github.com/jllllll/bitsandbytes-windows-webui/releases/download/wheels/bitsandbytes-0.41.1-py3-none-win_amd64.whl
        ```
 * Install document question-answer dependencies:
    ```bash
@@ -73,22 +77,27 @@ For newer builds of windows versions of 10/11.
     pip install -r reqs_optional/requirements_optional_langchain.urls.txt
     # Optional: for supporting unstructured package
     python -m nltk.downloader all
-   ```
+    # Optional but required for PlayWright
+    playwright install --with-deps
+    # Note: for Selenium, we match versions of playwright so above installer will add chrome version needed
 * GPU Optional: For optional AutoGPTQ support:
    ```bash
     pip uninstall -y auto-gptq
-    pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.3.0/auto_gptq-0.3.0+cu118-cp310-cp310-win_amd64.whl
+    pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.4.2/auto_gptq-0.4.2+cu118-cp310-cp310-win_amd64.whl
    ```
 * GPU Optional: For optional exllama support:
     ```bash
     pip uninstall -y exllama
-    pip install https://github.com/jllllll/exllama/releases/download/0.0.8/exllama-0.0.8+cu118-cp310-cp310-win_amd64.whl --no-cache-dir
+    pip install https://github.com/jllllll/exllama/releases/download/0.0.13/exllama-0.0.13+cu118-cp310-cp310-win_amd64.whl --no-cache-dir
     ```
 * GPU Optional: Support LLaMa.cpp with CUDA via llama-cpp-python:
   * Download/Install [CUDA llama-cpp-python wheel](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels), or choose link and run pip directly.  E.g.:
     ```bash
-      pip uninstall -y llama-cpp-python
+      pip uninstall -y llama-cpp-python llama_cpp_python_cuda
+      # GGMLv3 ONLY:
       pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.1.73+cu117-cp310-cp310-win_amd64.whl
+      # GGUF ONLY:
+      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.1.83+cu117-cp310-cp310-win_amd64.whl
     ```
   * If any issues, then must compile llama-cpp-python with CUDA support:
     ```bash
@@ -109,7 +118,6 @@ For newer builds of windows versions of 10/11.
   * Note that once `llama-cpp-python` is compiled to support CUDA, it no longer works for CPU mode, so one would have to reinstall it without the above options to recovers CPU mode or have a separate h2oGPT env for CPU mode.
 * For supporting Word and Excel documents, if you don't have Word/Excel already, then download and install libreoffice: https://www.libreoffice.org/download/download-libreoffice/ .
 * To support OCR, download and install [tesseract](https://github.com/UB-Mannheim/tesseract/wiki), see also: [Tesseract Documentation](https://tesseract-ocr.github.io/tessdoc/Installation.html).  Please add the installation directories to your PATH.
-
 ---
 
 ## Run
@@ -201,3 +209,10 @@ See [CPU](README_CPU.md) and [GPU](README_GPU.md) for some other general aspects
   * Try: https://stackoverflow.com/a/75111104
   * Or try: https://github.com/huggingface/transformers/issues/17611#issuecomment-1619582900
   * Try using proxy.
+* If you see import problems, then try setting `PYTHONPATH` in a `.bat` file:
+  ```shell
+  SET PYTHONPATH=.:src:$PYTHONPATH
+  python generate.py ...
+  ```
+  for some options ...
+* For easier handling of command line operations, consider using bash in windows with [coreutils](https://github.com/git-for-windows/git/releases/download/v2.41.0.windows.3/Git-2.41.0.3-64-bit.exe).

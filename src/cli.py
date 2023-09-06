@@ -2,7 +2,7 @@ import copy
 import torch
 
 from evaluate_params import eval_func_param_names
-from gen import get_score_model, get_model, evaluate, check_locals
+from gen import get_score_model, get_model, evaluate, check_locals, get_context
 from prompter import non_hf_types
 from utils import clear_torch_cache, NullContext, get_kwargs
 
@@ -12,7 +12,7 @@ def run_cli(  # for local function:
         debug=None, chat_context=None,
         examples=None, memory_restriction_level=None,
         # for get_model:
-        score_model=None, load_8bit=None, load_4bit=None, load_half=None,
+        score_model=None, load_8bit=None, load_4bit=None, low_bit_mode=None, load_half=None,
         load_gptq=None, load_exllama=None, use_safetensors=None, revision=None,
         use_gpu_id=None, tokenizer_base_model=None,
         gpu_id=None, n_jobs=None, local_files_only=None, resume_download=None, use_auth_token=None,
@@ -27,9 +27,21 @@ def run_cli(  # for local function:
         langchain_mode=None, langchain_action=None, langchain_agents=None,
         document_subset=None, document_choice=None,
         top_k_docs=None, chunk=None, chunk_size=None,
-        pre_prompt_summary=None,
-        prompt_summary=None,
+        pre_prompt_query=None, prompt_query=None,
+        pre_prompt_summary=None, prompt_summary=None,
+        image_loaders=None,
+        pdf_loaders=None,
+        url_loaders=None,
+        jq_schema=None,
         # for evaluate kwargs
+        use_system_prompt=None,
+        captions_model=None,
+        caption_loader=None,
+        doctr_loader=None,
+        image_loaders_options0=None,
+        pdf_loaders_options0=None,
+        url_loaders_options0=None,
+        jq_schema0=None,
         src_lang=None, tgt_lang=None, concurrency_count=None, save_dir=None, sanitize_bot_response=None,
         model_state0=None,
         max_max_new_tokens=None,
@@ -44,7 +56,10 @@ def run_cli(  # for local function:
         answer_with_sources=None,
         append_sources_to_answer=None,
         show_accordions=None,
+        top_k_docs_max_show=None,
+        show_link_in_sources=None,
         add_chat_history_to_context=None,
+        context=None, iinput=None,
         db_type=None, first_para=None, text_limit=None, verbose=None, cli=None, reverse_docs=None,
         use_cache=None,
         auto_reduce_chunks=None, max_chunks=None, model_lock=None, force_langchain_evaluate=None,
@@ -52,6 +67,13 @@ def run_cli(  # for local function:
         # unique to this function:
         cli_loop=None,
 ):
+    # avoid noisy command line outputs
+    import warnings
+    warnings.filterwarnings("ignore")
+    import logging
+    logging.getLogger("torch").setLevel(logging.ERROR)
+    logging.getLogger("transformers").setLevel(logging.ERROR)
+
     check_locals(**locals())
 
     score_model = ""  # FIXME: For now, so user doesn't have to pass
@@ -83,6 +105,9 @@ def run_cli(  # for local function:
 
         example1 = examples[-1]  # pick reference example
         all_generations = []
+        if not context:
+            # get hidden context if have one
+            context = get_context(chat_context, prompt_type)
         while True:
             clear_torch_cache()
             instruction = input("\nEnter an instruction: ")
@@ -93,8 +118,8 @@ def run_cli(  # for local function:
             eval_vars[eval_func_param_names.index('instruction')] = \
                 eval_vars[eval_func_param_names.index('instruction_nochat')] = instruction
             eval_vars[eval_func_param_names.index('iinput')] = \
-                eval_vars[eval_func_param_names.index('iinput_nochat')] = ''  # no input yet
-            eval_vars[eval_func_param_names.index('context')] = ''  # no context yet
+                eval_vars[eval_func_param_names.index('iinput_nochat')] = iinput
+            eval_vars[eval_func_param_names.index('context')] = context
 
             # grab other parameters, like langchain_mode
             for k in eval_func_param_names:
@@ -120,7 +145,7 @@ def run_cli(  # for local function:
                     outr += res  # just is one thing
                     if extra:
                         # show sources at end after model itself had streamed to std rest of response
-                        print(extra, flush=True)
+                        print('\n\n' + extra, flush=True)
             all_generations.append(outr + '\n')
             if not cli_loop:
                 break

@@ -46,6 +46,7 @@ Open-source data types are supported, .msg is not supported due to GPL-3 require
    - `.odt`: Open Document Text,
    - `.pptx` : PowerPoint Document,
    - `.ppt` : PowerPoint Document,
+   - `.xml`: XML,
    - `.apng` : APNG Image (optional),
    - `.blp` : BLP Image (optional),
    - `.bmp` : BMP Image (optional),
@@ -174,7 +175,7 @@ pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt
 ```
 but pymupdf is AGPL, requiring any source code be made available, which is not an issue directly for h2oGPT, but it's like GPL and too strong a constraint for general commercial use.
 
-When pymupdf is installed, we will use `PyMuPDFLoader` by default to parse PDFs since it's better than `PyPDFLoader` and much better than `PDFMinerLoader`.  This can be overridden by setting the environment variable `PDF_CLASS_NAME=PyPDFLoader`.
+When pymupdf is installed, we will use `PyMuPDFLoader` by default to parse PDFs since it's better than `PyPDFLoader` and much better than `PDFMinerLoader`.
 
 ### Adding new file types
 
@@ -251,7 +252,16 @@ print(image_types)
 Select types, and pass to `make_db` like:
 ```bash
 python src/make_db.py --user_path="/home/jon/Downloads/demo_data" --collection_name=VAData --enable_pdf_ocr='off' --selected_file_types="['pdf', 'html', 'htm']"
-python generate.py --langchain_mode=VAData --langchain_modes=['VAData']
+python generate.py  --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode=VAData --langchain_modes=['VAData']
+```
+
+To ensure a collection is persisted even when not using any athentication, be sure it is shared type, e.g.:
+```bash
+python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --max_max_new_tokens=2048 --max_new_tokens=1024 \
+       --visible_tos_tab=False --visible_hosts_tab=False --visible_models_tab=False \
+       --langchain_modes="['LLM','PersistData']" --langchain_mode=PersistData \
+       --langchain_mode_types="{'PersistData':'shared'}" \
+       --top_k_docs=-1 --max_time=360 --save_dir=save
 ```
 
 ### Note about Embeddings
@@ -408,7 +418,7 @@ For links to direct to the document and download to your local machine, the orig
 
 * [ChatBox](https://github.com/Bin-Huang/chatbox) has ability to collaborate.
 
-* [Chat2GB](https://github.com/alibaba/Chat2DB) like DB-GPT by Alibaba.
+* [Chat2DB](https://github.com/alibaba/Chat2DB) like DB-GPT by Alibaba.
 
 * [pdfGPT](https://github.com/bhaskatripathi/pdfGPT) like PrivateGPT but no longer maintained.
 
@@ -417,6 +427,12 @@ For links to direct to the document and download to your local machine, the orig
 * [KhoJ](https://github.com/khoj-ai/khoj) but also access from emacs or Obsidian.
 
 * [ChatPDF](https://www.chatpdf.com/) but h2oGPT is open-source and private and many more data types.
+
+* [TryGloo](https://www.trygloo.com/) Semantic Search and Classification.
+
+* [Cube](https://cube.dev/blog/introducing-the-langchain-integration).
+
+* [RFPBot](https://www.datarobot.com/platform/generative-ai/).  Confidence score, slack integration.
 
 * [Sharly](https://www.sharly.ai/) but h2oGPT is open-source and private and many more data types.  Sharly and h2oGPT both allow sharing work through UserData shared collection.
 

@@ -1,0 +1,57 @@
+name: Build & Publish h2oGPT Python wheel to PYPI
+
+on:
+  workflow_dispatch:
+    inputs:
+      pypi-index:
+        type: choice
+        description: PyPI index that needed to be published
+        required: true
+        default: Test-PyPI
+        options:
+          - PyPI
+          - Test-PyPI
+      version:
+        description: |
+          Override the current version for the python package for dev purposes when uploading to Test-PyPI
+        type: string
+
+jobs:
+  build_and_upload:
+    runs-on: ubuntu-latest
+    steps:
+        - uses: actions/checkout@v3.5.3
+
+        - uses: actions/setup-python@v4
+          with:
+            python-version: '3.10'
+        
+        - name: Install Dependencies
+          run: |
+            python3.10 -m pip install --upgrade pip
+            python3.10 -m pip install setuptools wheel twine --upgrade
+
+        - name: Build Wheel
+          run: make clean dist
+        
+        - name: Modify Version
+          if: ${{ inputs.version != ''}}
+          run: |
+            echo ${{ inputs.version}} > version.txt
+            echo "h2ogpt-wheel-version  = $(cat version.txt)"
+        
+        - name: Publish to Test-PyPI
+          if: ${{ inputs.pypi-index == 'Test-PyPI' }}
+          run: |
+            twine upload -r testpypi dist/*
+          env:
+            TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}  
+            TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+        
+        - name: Publish to PyPI
+          if: ${{ inputs.pypi-index == 'PyPI' }}
+          run: |
+            twine upload dist/*
+          env:
+            TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}  
+            TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}

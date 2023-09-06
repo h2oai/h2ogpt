@@ -1,6 +1,10 @@
 import ast
 import os
+import sys
 from typing import Union, List
+
+if os.path.dirname(os.path.abspath(os.path.join(__file__, '..'))) not in sys.path:
+    sys.path.append(os.path.dirname(os.path.abspath(os.path.join(__file__, '..'))))
 
 from gpt_langchain import path_to_docs, get_some_dbs_from_hf, all_db_zips, some_db_zips, create_or_update_db, \
     get_persist_directory
@@ -9,10 +13,29 @@ from utils import get_ngpus_vis, H2O_Fire, makedirs
 
 def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False,
                fail_any_exception=False, n_jobs=-1, url=None,
-               enable_captions=True, captions_model=None,
-               caption_loader=None,
-               enable_ocr=False,
+
+               # urls
+               use_unstructured=True,
+               use_playwright=False,
+               use_selenium=False,
+
+               # pdfs
+               use_pymupdf=True,
+               use_unstructured_pdf=False,
+               use_pypdf=False,
                enable_pdf_ocr='auto',
+               try_pdf_as_html=True,
+
+               # images
+               enable_ocr=False,
+               enable_doctr=False,
+               enable_captions=True,
+               captions_model=None,
+               caption_loader=None,
+
+               # json
+               jq_schema='.[]',
+
                db_type=None,
                selected_file_types=None):
     assert db_type is not None
@@ -20,11 +43,29 @@ def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False,
                             n_jobs=n_jobs,
                             chunk=chunk,
                             chunk_size=chunk_size, url=url,
+
+                            # urls
+                            use_unstructured=use_unstructured,
+                            use_playwright=use_playwright,
+                            use_selenium=use_selenium,
+
+                            # pdfs
+                            use_pymupdf=use_pymupdf,
+                            use_unstructured_pdf=use_unstructured_pdf,
+                            use_pypdf=use_pypdf,
+                            enable_pdf_ocr=enable_pdf_ocr,
+                            try_pdf_as_html=try_pdf_as_html,
+
+                            # images
+                            enable_ocr=enable_ocr,
+                            enable_doctr=enable_doctr,
                             enable_captions=enable_captions,
                             captions_model=captions_model,
                             caption_loader=caption_loader,
-                            enable_ocr=enable_ocr,
-                            enable_pdf_ocr=enable_pdf_ocr,
+
+                            # json
+                            jq_schema=jq_schema,
+
                             db_type=db_type,
                             selected_file_types=selected_file_types,
                             )
@@ -49,14 +90,35 @@ def make_db_main(use_openai_embedding: bool = False,
                  download_one: str = None,
                  download_dest: str = None,
                  n_jobs: int = -1,
-                 enable_captions: bool = True,
+
+                 # urls
+                 use_unstructured=True,
+                 use_playwright=False,
+                 use_selenium=False,
+
+                 # pdfs
+                 use_pymupdf=True,
+                 use_unstructured_pdf=False,
+                 use_pypdf=False,
+                 enable_pdf_ocr='auto',
+                 try_pdf_as_html=True,
+
+                 # images
+                 enable_ocr=False,
+                 enable_doctr=False,
+                 enable_captions=True,
                  captions_model: str = "Salesforce/blip-image-captioning-base",
+                 # caption_loader=None,  # set internally
+                 # doctr_loader=None,  #  unused
+
+                 # json
+                 jq_schema='.[]',
+
                  pre_load_caption_model: bool = False,
                  caption_gpu: bool = True,
-                 enable_ocr: bool = False,
-                 enable_pdf_ocr: str = 'auto',
                  db_type: str = 'chroma',
                  selected_file_types: Union[List[str], str] = None,
+                 fail_if_no_sources: bool = True
                  ):
     """
     # To make UserData db for generate.py, put pdfs, etc. into path user_path and run:
@@ -114,7 +176,7 @@ def make_db_main(use_openai_embedding: bool = False,
     if isinstance(selected_file_types, str):
         selected_file_types = ast.literal_eval(selected_file_types)
     if persist_directory is None:
-        persist_directory = get_persist_directory(collection_name, langchain_type=langchain_type)
+        persist_directory, langchain_type = get_persist_directory(collection_name, langchain_type=langchain_type)
     if download_dest is None:
         download_dest = makedirs('./', use_base=True)
 
@@ -171,11 +233,30 @@ def make_db_main(use_openai_embedding: bool = False,
         assert os.path.isdir(user_path), "user_path=%s does not exist" % user_path
     sources = glob_to_db(user_path, chunk=chunk, chunk_size=chunk_size, verbose=verbose,
                          fail_any_exception=fail_any_exception, n_jobs=n_jobs, url=url,
+
+                         # urls
+                         use_unstructured=use_unstructured,
+                         use_playwright=use_playwright,
+                         use_selenium=use_selenium,
+
+                         # pdfs
+                         use_pymupdf=use_pymupdf,
+                         use_unstructured_pdf=use_unstructured_pdf,
+                         use_pypdf=use_pypdf,
+                         enable_pdf_ocr=enable_pdf_ocr,
+                         try_pdf_as_html=try_pdf_as_html,
+
+                         # images
+                         enable_ocr=enable_ocr,
+                         enable_doctr=enable_doctr,
                          enable_captions=enable_captions,
                          captions_model=captions_model,
                          caption_loader=caption_loader,
-                         enable_ocr=enable_ocr,
-                         enable_pdf_ocr=enable_pdf_ocr,
+                         # Note: we don't reload doctr model
+
+                         # json
+                         jq_schema=jq_schema,
+
                          db_type=db_type,
                          selected_file_types=selected_file_types,
                          )
@@ -183,13 +264,13 @@ def make_db_main(use_openai_embedding: bool = False,
     print("Exceptions: %s/%s %s" % (len(exceptions), len(sources), exceptions), flush=True)
     sources = [x for x in sources if 'exception' not in x.metadata]
 
-    assert len(sources) > 0, "No sources found"
+    assert len(sources) > 0 or not fail_if_no_sources, "No sources found"
     db = create_or_update_db(db_type, persist_directory,
                              collection_name, user_path, langchain_type,
                              sources, use_openai_embedding, add_if_exists, verbose,
                              hf_embedding_model, migrate_embedding_model)
 
-    assert db is not None
+    assert db is not None or not fail_if_no_sources
     if verbose:
         print("DONE", flush=True)
     return db, collection_name

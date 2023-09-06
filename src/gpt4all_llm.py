@@ -136,8 +136,14 @@ def get_llm_gpt4all(model_name,
         if model is None:
             llamacpp_dict = llamacpp_dict.copy()
             model_path = llamacpp_dict.pop('model_path_llama')
-            if url_alive(model_path):
-                model_path = download_simple(model_path)
+            if os.path.isfile(os.path.basename(model_path)):
+                # e.g. if offline but previously downloaded
+                model_path = os.path.basename(model_path)
+            elif url_alive(model_path):
+                # online
+                ggml_path = os.getenv('GGML_PATH')
+                dest = os.path.join(ggml_path, os.path.basename(model_path)) if ggml_path else None
+                model_path = download_simple(model_path, dest=dest)
         else:
             model_path = model
         model_kwargs = get_model_kwargs(llamacpp_dict, default_kwargs, cls, exclude_list=['lc_kwargs'])
@@ -152,7 +158,10 @@ def get_llm_gpt4all(model_name,
             llamacpp_dict = llamacpp_dict.copy()
             model_path = llamacpp_dict.pop('model_name_gpt4all_llama')
             if url_alive(model_path):
-                model_path = download_simple(model_path)
+                # online
+                ggml_path = os.getenv('GGML_PATH')
+                dest = os.path.join(ggml_path, os.path.basename(model_path)) if ggml_path else None
+                model_path = download_simple(model_path, dest=dest)
         else:
             model_path = model
         model_kwargs = get_model_kwargs(llamacpp_dict, default_kwargs, cls, exclude_list=['lc_kwargs'])
@@ -167,7 +176,9 @@ def get_llm_gpt4all(model_name,
             llamacpp_dict = llamacpp_dict.copy()
             model_path = llamacpp_dict.pop('model_name_gptj') if model is None else model
             if url_alive(model_path):
-                model_path = download_simple(model_path)
+                ggml_path = os.getenv('GGML_PATH')
+                dest = os.path.join(ggml_path, os.path.basename(model_path)) if ggml_path else None
+                model_path = download_simple(model_path, dest=dest)
         else:
             model_path = model
         model_kwargs = get_model_kwargs(llamacpp_dict, default_kwargs, cls, exclude_list=['lc_kwargs'])
@@ -249,6 +260,10 @@ class H2OGPT4All(gpt4all.GPT4All):
             print("_call prompt: %s" % prompt, flush=True)
         # FIXME: GPT4ALl doesn't support yield during generate, so cannot support streaming except via itself to stdout
         return super()._call(prompt, stop=stop, run_manager=run_manager)
+
+    # FIXME:  Unsure what uses
+    #def get_token_ids(self, text: str) -> List[int]:
+    #    return self.client.tokenize(b" " + text.encode("utf-8"))
 
 
 from langchain.llms import LlamaCpp
@@ -377,3 +392,6 @@ class H2OLlamaCpp(LlamaCpp):
         # actual new tokens
         for chunk in super()._stream(prompt, stop=stop, run_manager=run_manager, **kwargs):
             yield chunk
+
+    def get_token_ids(self, text: str) -> List[int]:
+        return self.client.tokenize(b" " + text.encode("utf-8"))

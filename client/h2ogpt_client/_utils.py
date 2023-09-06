@@ -31,9 +31,15 @@ H2OGPT_PARAMETERS_TO_CLIENT = collections.OrderedDict(
     chunk_size="langchain_chunk_size",
     document_subset="langchain_document_subset",
     document_choice="langchain_document_choice",
+    pre_prompt_query="pre_prompt_query",
+    prompt_query="prompt_query",
     pre_prompt_summary="pre_prompt_summary",
     prompt_summary="prompt_summary",
     system_prompt="system_prompt",
+    image_loaders="image_loaders",
+    pdf_loaders="pdf_loaders",
+    url_loaders="url_loaders",
+    jq_schema="jq_schema",
 )
 
 

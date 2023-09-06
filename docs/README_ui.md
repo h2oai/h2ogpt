@@ -9,7 +9,7 @@
 * RLHF response score evaluation for every query-response
 
 
-We disable background uploads by disabling telemetry for Hugging Face, gradio, and chroma, and one can additionally avoid downloads (of fonts) by running `generate.py` with `--gradio_offline_level=2`.  See [Offline Documentation](offline.md) for details.
+We disable background uploads by disabling telemetry for Hugging Face, gradio, and chroma, and one can additionally avoid downloads (of fonts) by running `generate.py` with `--gradio_offline_level=2`.  See [Offline Documentation](README_offline.md) for details.
 
 
 
@@ -70,13 +70,19 @@ The most normal task is keep it on `Relevant` and just make a query, which will 
 
 ![ui_6.png](ui_6.png)
 
-| Dropdown or Button or panel or text box | Purpose                                                                 |
-|-----------------------------------------|-------------------------------------------------------------------------|
-| Select Subset of Document(s)            | Select documents to consider for query or summarization actions         |
-| Update UI with Document(s) from DB      | Update the drop-down for selecting subset *and* Download File w/Sources |
-| Show Sources from DB                    | Show HTML links of sources in right panel                               |
-| Download File w/Sources                 | Download list of sources after clicking on "Update UI..." button        |
-| Document Exceptions                     | Location where document ingestion failurse are located                  |
+| Dropdown or Button or panel or text box   | Purpose                                                                    |
+|-------------------------------------------|----------------------------------------------------------------------------|
+| Select Subset of Document(s)              | Select documents to consider for query or summarization actions            |
+| Update UI with Document(s) from DB        | Update the drop-down for selecting subset *and* Download File w/Sources    |
+| Show Sources from DB                      | Show HTML links of sources in right panel                                  |
+| Delete Selected Sources from DB           | Delete documents from DB (uses subset selection dropdown)                  |
+| Update DB with new/changed files on disk  | Use path of sources and look for new files or changes files and update DB  |
+| Add Collection                            | Add a new collection. Specify name, shared/personal, user_path.            |
+| Remove Collection from UI                 | Remove collection by name (only removes from UI and persisted auth records |
+| Purge Collection (UI, DB, & source files) | Remove collection, all source files, and full database on disk             |
+| Load LangChain State                      | Load collection names and related info out of auth records if present      |
+| Download File w/Sources                   | Download list of sources after clicking on "Update UI..." button           |
+| Document Exceptions                       | Location where document ingestion failures are located                     |
 
 A normal task is to subset on just 1-2 documents, and make a query on those.
 
@@ -173,7 +179,7 @@ Requires admin password if in public mode (i.e. env HUGGINGFACE_SPACES=1 or GPT_
 
 The sidebar and submit buttons can be toggled in UI or CLI.  The tabs can be controlled by CLI options.  If one only wants to see the chat view, do:
 ```bash
-python generate.py --base_model=meta-llama/Llama-2-13b-chat-hf --visible_submit_buttons=False --visible_side_bar=False --visible_submit_buttons=False --visible_side_bar=False --visible_chat_tab=False --visible_doc_selection_tab=False --visible_doc_view_tab=False --visible_chat_history_tab=False --visible_expert_tab=False --visible_models_tab=False --visible_system_tab=False --visible_tos_tab=False --visible_hosts_tab=False --chat_tabless=True
+python generate.py --base_model=h2oai/h2ogpt-4096-llama2-13b-chat --visible_submit_buttons=False --visible_side_bar=False --visible_submit_buttons=False --visible_side_bar=False --visible_chat_tab=False --visible_doc_selection_tab=False --visible_doc_view_tab=False --visible_chat_history_tab=False --visible_expert_tab=False --visible_models_tab=False --visible_system_tab=False --visible_tos_tab=False --visible_hosts_tab=False --chat_tabless=True
 ```
 where one can still at least hit enter to submit queries. This looks like:
 ![chat_tabless.png](chat_tabless.png)

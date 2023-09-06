@@ -1,0 +1,361 @@
+{{- if and .Values.vllm.enabled .Values.tgi.enabled }}
+  {{- fail "Both TGI and vLLM cannot be enabled at the same time. Enable only one and try again" }}
+{{- end }}
+---
+{{- if .Values.h2ogpt.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "h2ogpt.fullname" . }}
+  labels:
+    app: {{ include "h2ogpt.fullname" . }}
+spec:
+  {{- if not .Values.h2ogpt.autoscaling.enabled }}
+  replicas: {{ .Values.h2ogpt.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      app: {{ include "h2ogpt.fullname" . }}
+  template:
+    metadata:
+      {{- with .Values.h2ogpt.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        app: {{ include "h2ogpt.fullname" . }}
+    spec:
+      {{- with .Values.h2ogpt.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.h2ogpt.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.h2ogpt.podSecurityContext | nindent 8 }}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - {{ include "h2ogpt.fullname" . }}
+                topologyKey: failure-domain.beta.kubernetes.io/zone
+{{- if .Values.tgi.enabled }}
+      initContainers:
+        - name: tgi-check
+          securityContext:
+            {{- toYaml .Values.h2ogpt.securityContext | nindent 12 }}
+          image: busybox:1.36
+          command: ["/bin/sh", "-c"]
+          args:
+            - >
+              until wget -O- http://{{ include "h2ogpt.fullname" . }}-tgi-inference:{{ .Values.tgi.service.port }}/ >/dev/null 2>&1;
+              do
+                echo "Waiting for inference service to become ready...";
+                sleep 5;
+              done
+{{- end }}
+{{- if .Values.vllm.enabled }}
+      initContainers:
+        - name: vllm-check
+          securityContext:
+            {{- toYaml .Values.h2ogpt.securityContext | nindent 12 }}
+          image: busybox:1.36
+          command: ["/bin/sh", "-c"]
+          args:
+            - >
+              until wget -O- http://{{ include "h2ogpt.fullname" . }}-vllm-inference:{{ .Values.vllm.service.port }}/v1/models >/dev/null 2>&1;
+              do
+                echo "Waiting for inference service to become ready...";
+                sleep 5;
+              done
+{{- end }}
+      containers:
+        - name: {{ include "h2ogpt.fullname" . }}
+          securityContext:
+            {{- toYaml .Values.h2ogpt.securityContext | nindent 12 }}
+          image: "{{ .Values.h2ogpt.image.repository }}:{{ .Values.h2ogpt.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.h2ogpt.image.pullPolicy }}
+          command: []
+          args:
+            - /workspace/generate.py
+          ports:
+            - name: http
+              containerPort: 7860
+              protocol: TCP
+            - name: gpt
+              containerPort: 8888
+              protocol: TCP
+          {{- if .Values.h2ogpt.livenessProbe }}
+          livenessProbe:
+            httpGet:
+              path:  /
+              scheme: HTTP
+              port: http
+            {{- toYaml .Values.h2ogpt.livenessProbe | nindent 12 }}
+          {{- end }}
+          {{- if .Values.h2ogpt.readinessProbe }}
+          readinessProbe:
+            httpGet:
+              path:  /
+              scheme: HTTP
+              port: http
+            {{- toYaml .Values.h2ogpt.readinessProbe | nindent 12 }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.h2ogpt.resources | nindent 12 }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "h2ogpt.fullname" . }}-config
+{{- if .Values.tgi.enabled }}
+          env:
+          - name: h2ogpt_inference_server
+            value: "http://{{ include "h2ogpt.fullname" . }}-tgi-inference:{{ .Values.tgi.service.port }}"
+{{- end }}
+{{- if .Values.vllm.enabled }}
+          env:
+          - name: h2ogpt_inference_server
+            value: "vllm:{{ include "h2ogpt.fullname" . }}-vllm-inference:{{ .Values.vllm.service.port }}"
+{{- end }}
+          volumeMounts:
+            - name: h2ogpt-volume
+              mountPath: /workspace/.cache
+            - name: h2ogpt-volume
+              mountPath: /workspace/save
+      volumes:
+        - name: h2ogpt-volume
+          ephemeral:
+            volumeClaimTemplate:
+              spec:
+                accessModes: 
+                  - ReadWriteOnce
+                resources:
+                  requests: 
+                    storage: {{ .Values.h2ogpt.storage.size | quote }}
+                storageClassName: {{ .Values.h2ogpt.storage.class | quote }}
+{{- end }}
+---
+{{- if .Values.tgi.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "h2ogpt.fullname" . }}-tgi-inference
+  labels:
+    app: {{ include "h2ogpt.fullname" . }}-tgi-inference
+spec:
+  {{- if not .Values.tgi.autoscaling.enabled }}
+  replicas: {{ .Values.tgi.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      app: {{ include "h2ogpt.fullname" . }}-tgi-inference
+  template:
+    metadata:
+      {{- with .Values.tgi.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        app: {{ include "h2ogpt.fullname" . }}-tgi-inference
+    spec:
+      {{- with .Values.tgi.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tgi.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.tgi.podSecurityContext | nindent 8 }}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - {{ include "h2ogpt.fullname" . }}
+                topologyKey: failure-domain.beta.kubernetes.io/zone
+      containers:
+        - name: {{ include "h2ogpt.fullname" . }}-tgi-inference
+          securityContext:
+            {{- toYaml .Values.tgi.securityContext | nindent 12 }}
+          image: "{{ .Values.tgi.image.repository }}:{{ .Values.tgi.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.tgi.image.pullPolicy }}
+          command: []
+          args: 
+{{- range $arg := .Values.tgi.containerArgs }}
+            - "{{ $arg }}"
+{{- end }}
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          {{- if .Values.tgi.livenessProbe }}
+          livenessProbe:
+            httpGet:
+              path:  /
+              scheme: HTTP
+              port: http
+            {{- toYaml .Values.tgi.livenessProbe | nindent 12 }}
+          {{- end }}
+          {{- if .Values.tgi.readinessProbe }}
+          readinessProbe:
+            httpGet:
+              path:  /
+              scheme: HTTP
+              port: http
+            {{- toYaml .Values.tgi.readinessProbe | nindent 12 }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.tgi.resources | nindent 12 }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "h2ogpt.fullname" . }}-tgi-inference-config
+            - secretRef:
+                name: {{ .Values.tgi.hfSecret }}
+          volumeMounts:
+            - name: h2ogpt-tgi-inference-volume
+              mountPath: /app/cache
+            - name: h2ogpt-tgi-inference-volume
+              mountPath: /data
+            - name: h2ogpt-tgi-inference-volume
+              mountPath: /dev/shm
+      volumes:
+        - name: h2ogpt-tgi-inference-volume
+          ephemeral:
+            volumeClaimTemplate:
+              spec:
+                accessModes: 
+                  - ReadWriteOnce
+                resources:
+                  requests: 
+                    storage: {{ .Values.tgi.storage.size | quote }}
+                storageClassName: {{ .Values.tgi.storage.class | quote }}
+{{- end }}
+---
+{{- if .Values.vllm.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "h2ogpt.fullname" . }}-vllm-inference
+  labels:
+    app: {{ include "h2ogpt.fullname" . }}-vllm-inference
+spec:
+  {{- if not .Values.vllm.autoscaling.enabled }}
+  replicas: {{ .Values.vllm.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      app: {{ include "h2ogpt.fullname" . }}-vllm-inference
+  template:
+    metadata:
+      {{- with .Values.vllm.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        app: {{ include "h2ogpt.fullname" . }}-vllm-inference
+    spec:
+      {{- with .Values.vllm.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.vllm.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.vllm.podSecurityContext | nindent 8 }}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - {{ include "h2ogpt.fullname" . }}
+                topologyKey: failure-domain.beta.kubernetes.io/zone
+      containers:
+        - name: {{ include "h2ogpt.fullname" . }}-vllm-inference
+          securityContext:
+            {{- toYaml .Values.vllm.securityContext | nindent 12 }}
+          image: "{{ .Values.vllm.image.repository }}:{{ .Values.vllm.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.vllm.image.pullPolicy }}
+          command: ["/h2ogpt_conda/envs/vllm/bin/python3.10"]
+          args: 
+            - "-m" 
+            - "vllm.entrypoints.openai.api_server"
+            - "--port"
+            - "5000"
+            - "--host"
+            - "0.0.0.0"
+            - "--download-dir"
+            - "/workspace/.cache/huggingface/hub"
+{{- range $arg := .Values.vllm.containerArgs }}
+            - "{{ $arg }}"
+{{- end }}
+          ports:
+            - name: http
+              containerPort: 5000
+              protocol: TCP
+          {{- if .Values.vllm.livenessProbe }}
+          livenessProbe:
+            httpGet:
+              path:  /
+              scheme: HTTP
+              port: http
+            {{- toYaml .Values.vllm.livenessProbe | nindent 12 }}
+          {{- end }}
+          {{- if .Values.vllm.readinessProbe }}
+          readinessProbe:
+            httpGet:
+              path:  /
+              scheme: HTTP
+              port: http
+            {{- toYaml .Values.vllm.readinessProbe | nindent 12 }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.vllm.resources | nindent 12 }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "h2ogpt.fullname" . }}-vllm-inference-config
+          env:
+          - name: TRANSFORMERS_CACHE
+            value: "/workspace/.cache/"
+          - name: NCCL_IGNORE_DISABLED_P2P
+            value: "1"
+          volumeMounts:
+            - name: h2ogpt-vllm-inference-volume
+              mountPath: /workspace/.cache
+            - name: h2ogpt-vllm-inference-volume
+              mountPath: /workspace/.cache/huggingface/hub
+            - name: h2ogpt-vllm-inference-volume
+              mountPath: /dev/shm
+      volumes:
+        - name: h2ogpt-vllm-inference-volume
+          ephemeral:
+            volumeClaimTemplate:
+              spec:
+                accessModes: 
+                  - ReadWriteOnce
+                resources:
+                  requests: 
+                    storage: {{ .Values.vllm.storage.size | quote }}
+                storageClassName: {{ .Values.vllm.storage.class | quote }}
+{{- end }}
+

@@ -11,7 +11,7 @@ from transformers import PreTrainedModel
 
 
 def do_export():
-    BASE_MODEL = 'meta-llama/Llama-2-13b-chat-hf'
+    BASE_MODEL = 'h2oai/h2ogpt-4096-llama2-13b-chat'
     LORA_WEIGHTS = 'Llama-2-13b-chat-hf.h2oaiopenassistant_oasst1_h2ogpt_llama2_chat.1_epochs.b2aed9250804d815c258976c98ce968bacd88389.7'
     OUTPUT_NAME = "h2ogpt-oasst1-4096-llama2-13b"
 
@@ -35,7 +35,8 @@ def do_export():
     as_pytorch = False  # False -> HF
 
     from loaders import get_loaders
-    model_loader, tokenizer_loader = get_loaders(model_name=BASE_MODEL, reward_type=False, llama_type=llama_type)
+    model_loader, tokenizer_loader, conditional_type = (
+        get_loaders(model_name=BASE_MODEL, reward_type=False, llama_type=llama_type))
 
     tokenizer = tokenizer_loader.from_pretrained(
         BASE_MODEL,

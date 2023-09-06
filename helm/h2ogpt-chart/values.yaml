@@ -1,0 +1,118 @@
+nameOverride: ""
+fullnameOverride: h2ogpt
+
+h2ogpt:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: gcr.io/vorvan/h2oai/h2ogpt-runtime
+    pullPolicy: IfNotPresent
+
+  storage:
+    size: 128Gi
+    class: ebs-csi
+
+  overrideConfig:
+
+  service:
+    type: NodePort
+    webPort: 80
+    gptPort: 8888
+
+
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+
+  securityContext:
+    runAsNonRoot: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    seccompProfile:
+      type: RuntimeDefault
+  
+  resources:
+  nodeSelector:
+  tolerations:
+
+  podAnnotations: {}
+  podLabels: {}
+  autoscaling: {}
+
+tgi:
+  enabled: false
+  replicaCount: 1
+
+  image:
+    repository: ghcr.io/huggingface/text-generation-inference
+    tag: 0.9.3
+    pullPolicy: IfNotPresent
+
+  storage:
+    size: 512Gi
+    class: ebs-csi
+  
+  overrideConfig:
+  hfSecret: 
+  containerArgs:
+
+  service:
+    type: NodePort
+    port: 8080
+
+  podSecurityContext:
+  securityContext:
+
+  resources:
+  nodeSelector:
+  tolerations:
+
+  podAnnotations: {}
+  podLabels: {}
+  autoscaling: {}
+
+
+vllm:
+  enabled: false
+  replicaCount: 1
+
+  image:
+    repository: gcr.io/vorvan/h2oai/h2ogpt-runtime
+    pullPolicy: IfNotPresent
+
+  storage:
+    size: 512Gi
+    class: ebs-csi
+  
+  overrideConfig:
+  containerArgs:
+
+  service:
+    type: NodePort
+    port: 5000
+
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+
+  securityContext:
+    runAsNonRoot: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    seccompProfile:
+
+  resources:
+  nodeSelector:
+  tolerations:
+
+  podAnnotations: {}
+  podLabels: {}
+  autoscaling: {}

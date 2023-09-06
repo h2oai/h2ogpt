@@ -19,7 +19,7 @@ def run_eval(  # for local function:
         eval_filename=None, eval_prompts_only_num=None, eval_prompts_only_seed=None, eval_as_output=None,
         examples=None, memory_restriction_level=None,
         # for get_model:
-        score_model=None, load_8bit=None, load_4bit=None, load_half=None,
+        score_model=None, load_8bit=None, load_4bit=None, low_bit_mode=None, load_half=None,
         load_gptq=None, load_exllama=None, use_safetensors=None, revision=None,
         use_gpu_id=None, tokenizer_base_model=None,
         gpu_id=None, n_jobs=None, local_files_only=None, resume_download=None, use_auth_token=None,
@@ -45,9 +45,21 @@ def run_eval(  # for local function:
         chunk_size=None,
         document_subset=None,
         document_choice=None,
-        pre_prompt_summary=None,
-        prompt_summary=None,
+        pre_prompt_query=None, prompt_query=None,
+        pre_prompt_summary=None, prompt_summary=None,
+        image_loaders=None,
+        pdf_loaders=None,
+        url_loaders=None,
+        jq_schema=None,
         # for evaluate kwargs:
+        use_system_prompt=None,
+        captions_model=None,
+        caption_loader=None,
+        doctr_loader=None,
+        image_loaders_options0=None,
+        pdf_loaders_options0=None,
+        url_loaders_options0=None,
+        jq_schema0=None,
         src_lang=None, tgt_lang=None, concurrency_count=None, save_dir=None, sanitize_bot_response=None,
         model_state0=None,
         max_max_new_tokens=None,
@@ -62,7 +74,10 @@ def run_eval(  # for local function:
         answer_with_sources=None,
         append_sources_to_answer=None,
         show_accordions=None,
+        top_k_docs_max_show=None,
+        show_link_in_sources=None,
         add_chat_history_to_context=None,
+        context=None, iinput=None,
         db_type=None, first_para=None, text_limit=None, verbose=None, cli=None, reverse_docs=None,
         use_cache=None,
         auto_reduce_chunks=None, max_chunks=None,
@@ -70,6 +85,10 @@ def run_eval(  # for local function:
         model_state_none=None,
 ):
     check_locals(**locals())
+
+    if not context:
+        # get hidden context if have one
+        context = get_context(chat_context, prompt_type)
 
     if eval_prompts_only_num > 0:
         np.random.seed(eval_prompts_only_seed)
@@ -97,8 +116,8 @@ def run_eval(  # for local function:
                 examplenew = example1.copy()
                 assert not chat, "No gradio must use chat=False, uses nochat instruct"
                 examplenew[eval_func_param_names.index('instruction_nochat')] = instruction
-                examplenew[eval_func_param_names.index('iinput_nochat')] = ''  # no input
-                examplenew[eval_func_param_names.index('context')] = get_context(chat_context, prompt_type)
+                examplenew[eval_func_param_names.index('iinput_nochat')] = iinput
+                examplenew[eval_func_param_names.index('context')] = context
                 examples.append(examplenew)
                 responses.append(output)
         else:
@@ -112,8 +131,8 @@ def run_eval(  # for local function:
                 output = data[i].get('output', '')  # not required
                 assert not chat, "No gradio must use chat=False, uses nochat instruct"
                 examplenew[eval_func_param_names.index('instruction_nochat')] = instruction
-                examplenew[eval_func_param_names.index('iinput_nochat')] = ''  # no input
-                examplenew[eval_func_param_names.index('context')] = get_context(chat_context, prompt_type)
+                examplenew[eval_func_param_names.index('iinput_nochat')] = iinput
+                examplenew[eval_func_param_names.index('context')] = context
                 examples.append(examplenew)
                 responses.append(output)
 
@@ -251,7 +270,7 @@ def run_eval(  # for local function:
                     # dump every score in case abort
                     df_scores = pd.DataFrame(score_dump,
                                              columns=eval_func_param_names +
-                                             eval_extra_columns)
+                                                     eval_extra_columns)
                     df_scores.to_parquet(eval_out_filename, index=False)
                     # plot histogram so far
                     plt.figure(figsize=(10, 10))

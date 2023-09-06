@@ -1,6 +1,6 @@
 ### Client APIs
 
-A Gradio API and an OpenAI-compliant API are supported.
+A Gradio API and an OpenAI-compliant API are supported.  One can also use `curl` to some extent for basic API.
 
 ##### Gradio Client API
 
@@ -38,6 +38,8 @@ HOST = "localhost:7860"  # choose
 import ast
 import os
 import traceback
+from enum import Enum
+from typing import Union
 
 from gradio_client.client import Job
 
@@ -120,15 +122,16 @@ class GradioClient(Client):
         return job
 
 
+from .settings import settings
 
-client = GradioClient(HOST)
+# TODO use settings.llm_api_key for auth
+client = GradioClient(settings.llm_address)
 
 
 def _call_h2o_gpt_api(prompt: str) -> str:
     # don't specify prompt_type etc., use whatever endpoint setup
     kwargs = dict(
         stream_output=False,
-        max_new_tokens=768,
         max_time=360,
         instruction_nochat=prompt,
     )
@@ -149,26 +152,95 @@ def answer_question_using_context(question: str, context: str) -> str:
     return ast.literal_eval(answer)['response']
 
 
+class LangChainAction(Enum):
+    """LangChain action"""
+
+    QUERY = "Query"
+    SUMMARIZE_MAP = "Summarize"
+
+
+def query(instruction: str = None,
+          text: str = None,
+          file: str = None,
+          url: str = None,
+          top_k_docs: int = 4,
+          pre_prompt_query: str = None,
+          prompt_query: str = None,
+          asserts: bool = True) -> str:
+    """
+    Query using h2oGPT
+    """
+    return query_or_summarize(instruction=instruction,
+                              text=text,
+                              file=file,
+                              url=url,
+                              langchain_action=LangChainAction.QUERY.value,
+                              top_k_docs=top_k_docs,
+                              pre_prompt_query=pre_prompt_query,
+                              prompt_query=prompt_query,
+                              asserts=asserts)
+
+
 def summarize(text: str = None,
               file: str = None,
               url: str = None,
               top_k_docs: int = 4,
-              pre_prompt_summary: str = '',
-              prompt_summary: str = '',
+              pre_prompt_summary: str = None,
+              prompt_summary: str = None,
               asserts: bool = True) -> str:
     """
     Summarize using h2oGPT
+    """
+    return query_or_summarize(text=text,
+                              file=file,
+                              url=url,
+                              langchain_action=LangChainAction.SUMMARIZE_MAP.value,
+                              top_k_docs=top_k_docs,
+                              pre_prompt_summary=pre_prompt_summary,
+                              prompt_summary=prompt_summary,
+                              asserts=asserts)
+
+
+def query_or_summarize(instruction: str = '',
+                       text: Union[list[str], str] = None,
+                       file: Union[list[str], str] = None,
+                       url: Union[list[str], str] = None,
+                       langchain_action: str = None,
+                       embed: str = True,
+                       top_k_docs: int = 4,
+                       pre_prompt_query: str = None,
+                       prompt_query: str = None,
+                       pre_prompt_summary: str = None,
+                       prompt_summary: str = None,
+                       asserts: bool = True) -> str:
+    """
+    Query or Summarize using h2oGPT
     Args:
-        text: textual content
-        file: a local file to upload
-        url: a url to give
-        top_k_docs: number of document parts.  E.g. if PDF, then number of pages
+        instruction: Query
+        For query, prompt template is:
+          "{pre_prompt_query}\"\"\"
+            {content}
+            \"\"\"\n{prompt_query}{instruction}"
+         If added to summarization, prompt template is
+          "{pre_prompt_summary}:\"\"\"
+            {content}
+            \"\"\"\n, Focusing on {instruction}, {prompt_summary}"
+        text: textual content or list of such contents
+        file: a local file to upload or files to upload
+        url: a url to give or urls to use
+        embed: whether to embed content uploaded
+        langchain_action: Action to take, "Query" or "Summarize"
+        top_k_docs: number of document parts.
+                    When doing query, number of chunks
                     When doing summarization, not related to vectorDB chunks that are not used
+                    E.g. if PDF, then number of pages
+        pre_prompt_query: Prompt that comes before document part
+        prompt_query: Prompt that comes after document part
         pre_prompt_summary: Prompt that comes before document part
-           '' makes h2oGPT internally use its defaults
+           None makes h2oGPT internally use its defaults
            E.g. "In order to write a concise single-paragraph or bulleted list summary, pay attention to the following text"
         prompt_summary: Prompt that comes after document part
-          '' makes h2oGPT internally use its defaults
+          None makes h2oGPT internally use its defaults
           E.g. "Using only the text above, write a condensed and concise summary of key results (preferably as bullet points):\n"
         i.e. for some internal document part fstring, the template looks like:
             template = "%s:
@@ -188,11 +260,16 @@ def summarize(text: str = None,
     # chunking not used here
     chunk = True
     chunk_size = 512
-    # MyData specifies personal/scratch space, only persisted for this individual client call
+    # MyData specifies scratch space, only persisted for this individual client call
     langchain_mode = 'MyData'
+    loaders = tuple([None, None, None, None])
+    doc_options = tuple([langchain_mode, chunk, chunk_size, embed])
 
     if text:
-        res = client_persist.predict(text, chunk, chunk_size, langchain_mode, api_name='/add_text')
+        res = client_persist.predict(text,
+                                     *doc_options,
+                                     *loaders,
+                                     api_name='/add_text')
         if asserts:
             assert res[0] is None
             assert res[1] == langchain_mode
@@ -203,33 +280,50 @@ def summarize(text: str = None,
         # after below call, "file" replaced with remote location of file
         _, file = client_persist.predict(file, api_name='/upload_api')
 
-        res = client_persist.predict(file, chunk, chunk_size, langchain_mode, api_name='/add_file_api')
+        res = client_persist.predict(file,
+                                     *doc_options,
+                                     *loaders,
+                                     api_name='/add_file_api')
         if asserts:
             assert res[0] is None
             assert res[1] == langchain_mode
             assert os.path.basename(file) in res[2]
             assert res[3] == ''
     if url:
-        res = client_persist.predict(url, chunk, chunk_size, langchain_mode, api_name='/add_url')
+        res = client_persist.predict(url,
+                                     *doc_options,
+                                     *loaders,
+                                     api_name='/add_url')
         if asserts:
             assert res[0] is None
             assert res[1] == langchain_mode
             assert url in res[2]
             assert res[3] == ''
 
+    if langchain_action == LangChainAction.SUMMARIZE_MAP.value:
+        # ensure, so full asyncio mode used when gradio connected to TGI server
+        stream_output = False
+    else:
+        # FIXME: should stream
+        stream_output = False
+
     # ask for summary, need to use same client if using MyData
     api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
-    kwargs = dict(langchain_mode=langchain_mode,
-                  langchain_action="Summarize",  # uses full document, not vectorDB chunks
+    kwargs = dict(instruction=instruction,
+                  langchain_mode=langchain_mode,
+                  langchain_action=langchain_action,  # uses full document, not vectorDB chunks
                   top_k_docs=top_k_docs,
-                  stream_output=False,  # ensure, so full asyncio mode used when gradio connected to TGI server
+                  stream_output=stream_output,
                   document_subset='Relevant',
                   document_choice='All',
                   max_new_tokens=256,
-                  max_time=300,
+                  max_time=360,
                   do_sample=False,
+                  pre_prompt_query=pre_prompt_query,
+                  prompt_query=prompt_query,
                   pre_prompt_summary=pre_prompt_summary,
-                  prompt_summary=prompt_summary)
+                  prompt_summary=prompt_summary,
+                  )
 
     # get result
     res = client_persist.predict(
@@ -237,18 +331,26 @@ def summarize(text: str = None,
         api_name=api_name,
     )
     res = ast.literal_eval(res)
-    summary = res['response']
+    response = res['response']
+    sources = res['sources']
 
-    if asserts:
-        sources = res['sources']
-        if text:
-            assert 'user_paste' in sources
-        if file:
-            assert file in sources
-        if url:
-            assert url in sources
+    if api_name == '/submit_nochat_api':
+        scores_out = [x[0] for x in sources]
+        texts_out = [x[1] for x in sources]
+        if asserts and text and not file and not url:
+            assert text == texts_out
+            assert len(text) == len(scores_out)
+    else:
+        if asserts:
+            # only pass back file link etc. if not nochat
+            if text:
+                assert 'user_paste' in sources
+            if file:
+                assert file in sources
+            if url:
+                assert url in sources
 
-    return summary
+    return response
 ```
 See tests in https://github.com/h2oai/h2ogpt/blob/main/tests/test_client_calls.py#L678-L1036 that this code is based upon.
 
@@ -257,3 +359,21 @@ See tests in https://github.com/h2oai/h2ogpt/blob/main/tests/test_client_calls.p
 
 An OpenAI compliant client is available. Refer the [README](../client/README.md)  for more details.
 
+
+##### Curl Client API
+
+As long as objects within the `gradio_runner.py` for a given api_name are for a function without `gr.State()` objects, then curl can work.  Full `curl` capability is not supported in Gradio [yet](https://github.com/gradio-app/gradio/issues/4932).
+
+For example, for a server launched as:
+```bash
+python generate.py --base_model=TheBloke/Llama-2-7b-Chat-GPTQ --load_gptq="model" --use_safetensors=True --prompt_type=llama2 --save_dir=fooasdf --use_system_prompt=True
+```
+one can use the `submit_nochat_plain_api` that has no `state` objects to perform chat via `curl` by doing:
+```bash
+curl 127.0.0.1:7860/api/submit_nochat_plain_api -X POST -d '{"data": ["{\"instruction_nochat\": \"Who are you?\"}"]}' -H 'Content-Type: application/json'
+```
+and get back for a 7B LLaMA2-chat GPTQ model:
+
+`{"data":["{'response': \" Hello! I'm just an AI assistant designed to provide helpful and informative responses to your questions. My purpose is to assist and provide accurate information to the best of my abilities, while adhering to ethical and moral guidelines. I am not capable of providing personal opinions or engaging in discussions that promote harmful or offensive content. My goal is to be a positive and respectful presence in your interactions with me. Is there anything else I can help you with?\", 'sources': '', 'save_dict': {'prompt': \"<s>[INST] <<SYS>>\\nYou are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe. Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.\\n\\nIf a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.\\n<</SYS>>\\n\\nWho are you? [/INST]\", 'output': \" Hello! I'm just an AI assistant designed to provide helpful and informative responses to your questions. My purpose is to assist and provide accurate information to the best of my abilities, while adhering to ethical and moral guidelines. I am not capable of providing personal opinions or engaging in discussions that promote harmful or offensive content. My goal is to be a positive and respectful presence in your interactions with me. Is there anything else I can help you with?\", 'base_model': 'TheBloke/Llama-2-7b-Chat-GPTQ', 'save_dir': 'fooasdf', 'where_from': 'evaluate_False', 'extra_dict': {'num_beams': 1, 'do_sample': False, 'repetition_penalty': 1.07, 'num_return_sequences': 1, 'renormalize_logits': True, 'remove_invalid_values': True, 'use_cache': True, 'eos_token_id': 2, 'bos_token_id': 1, 'num_prompt_tokens': 5, 't_generate': 9.243812322616577, 'ntokens': 120, 'tokens_persecond': 12.981605669647344}, 'error': None, 'extra': None}}"],"is_generating":true,"duration":39.33809685707092,"average_duration":39.33809685707092}`
+
+This contains the full dictionary of `data` from `curl` operation as well is the data contents that are a string of a dictionary like when using the API `submit_nochat_api` for Gradio client.  This inner string of a dictionary can be parsed as a literal python string to get keys `response`, `source`, `save_dict`, where `save_dict` contains meta data about the query such as generation hyperparameters, tokens generated, etc.
