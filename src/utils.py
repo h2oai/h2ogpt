@@ -1261,6 +1261,8 @@ def lg_to_gr(
     pdf_loaders_options = ['PyMuPDF', 'Unstructured', 'PyPDF', 'TryHTML']
     if have_tesseract:
         pdf_loaders_options.append('OCR')
+    if have_doctr:
+        pdf_loaders_options.append('DocTR')
     pdf_loaders_options0 = ['PyMuPDF']
     assert len(set(pdf_loaders_options0).difference(pdf_loaders_options)) == 0
     if kwargs['enable_pdf_ocr'] == 'on':
