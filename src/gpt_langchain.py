@@ -1706,11 +1706,11 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             if verbose:
                 print("BEGIN: DocTR", flush=True)
             if model_loaders['doctr'] is not None and not isinstance(model_loaders['doctr'], (str, bool)):
-                if verbose or True:
+                if verbose:
                     print("Reuse DocTR", flush=True)
                 model_loaders['doctr'].load_model()
             else:
-                if verbose or True:
+                if verbose:
                     print("Fresh DocTR", flush=True)
                 from image_doctr import H2OOCRLoader
                 model_loaders['doctr'] = H2OOCRLoader()
