@@ -847,6 +847,8 @@ def test_client_chat_stream_langchain_steps3(loaders):
     # check sources, and do after so would detect leakage
     res = client.predict(langchain_mode, api_name='/get_sources')
     # is not actual data!
+    assert isinstance(res[1], str)
+    res = res[0]
     with open(res['name'], 'rb') as f:
         sources = f.read().decode()
     sources_expected = f'{user_path}/FAQ.md\n{user_path}/README.md\n{user_path}/pexels-evg-kowalievska-1170986_small.jpg\n{user_path}/sample1.pdf'
@@ -854,6 +856,8 @@ def test_client_chat_stream_langchain_steps3(loaders):
         '\\', '/').replace('\r', '')
 
     res = client.predict(langchain_mode2, api_name='/get_sources')
+    assert isinstance(res[1], str)
+    res = res[0]
     with open(res['name'], 'rb') as f:
         sources = f.read().decode()
     sources_expected = """%s/pdf-sample.pdf""" % user_path2
@@ -862,6 +866,8 @@ def test_client_chat_stream_langchain_steps3(loaders):
 
     # check sources, and do after so would detect leakage
     res = client.predict(langchain_mode, api_name='/get_viewable_sources')
+    assert isinstance(res[1], str)
+    res = res[0]
     # is not actual data!
     with open(res['name'], 'rb') as f:
         sources = f.read().decode()
@@ -870,6 +876,8 @@ def test_client_chat_stream_langchain_steps3(loaders):
         '\\', '/').replace('\r', '')
 
     res = client.predict(langchain_mode2, api_name='/get_viewable_sources')
+    assert isinstance(res[1], str)
+    res = res[0]
     with open(res['name'], 'rb') as f:
         sources = f.read().decode()
     sources_expected = """%s/pdf-sample.pdf""" % user_path2
@@ -887,6 +895,8 @@ def test_client_chat_stream_langchain_steps3(loaders):
         '\r', '\n')
 
     res = client.predict(langchain_mode, api_name='/get_sources')
+    assert isinstance(res[1], str)
+    res = res[0]
     # is not actual data!
     with open(res['name'], 'rb') as f:
         sources = f.read().decode()

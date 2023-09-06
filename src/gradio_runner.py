@@ -636,6 +636,13 @@ def go_gradio(**kwargs):
                         multiselect=True,
                         interactive=True,
                         visible=False)  # WIP
+                visible_doc_track = upload_visible and kwargs['visible_doc_track']
+                row_doc_track = gr.Row(visible=visible_doc_track)
+                with row_doc_track:
+                    text_doc_count = gr.Textbox(lines=2, label="Doc Counts", value="Docs: 0\nChunks: 0",
+                                                visible=visible_doc_track)
+                    text_file_last = gr.Textbox(lines=1, label="Newest Doc", value=None, visible=visible_doc_track)
+                    text_viewable_doc_count = gr.Textbox(lines=2, label=None, visible=False)
             col_tabs = gr.Column(elem_id="col_container", scale=10)
             with col_tabs, gr.Tabs():
                 if kwargs['chat_tables']:
@@ -691,7 +698,7 @@ def go_gradio(**kwargs):
                                             label="Upload File(s)",
                                             size="sm",
                                             min_width=24,
-                                            file_types=file_types,
+                                            file_types=['.' + x for x in file_types],
                                             file_count="multiple")
 
                                 submit_buttons = gr.Row(equal_height=False, visible=kwargs['visible_submit_buttons'])
@@ -1219,9 +1226,11 @@ def go_gradio(**kwargs):
                     with gr.Row():
                         with gr.Column(scale=1):
                             side_bar_text = gr.Textbox('on', visible=False, interactive=False)
+                            doc_count_text = gr.Textbox('on', visible=False, interactive=False)
                             submit_buttons_text = gr.Textbox('on', visible=False, interactive=False)
 
                             side_bar_btn = gr.Button("Toggle SideBar", variant="secondary", size="sm")
+                            doc_count_btn = gr.Button("Toggle SideBar Document Count/Show Newest", variant="secondary", size="sm")
                             submit_buttons_btn = gr.Button("Toggle Submit Buttons", variant="secondary", size="sm")
                             col_tabs_scale = gr.Slider(minimum=1, maximum=20, value=10, step=1, label='Window Size')
                             text_outputs_height = gr.Slider(minimum=100, maximum=2000, value=kwargs['height'] or 400,
@@ -1356,7 +1365,7 @@ def go_gradio(**kwargs):
                                        url_loaders,
                                        jq_schema,
                                        ],
-                               outputs=add_file_outputs + [sources_text, doc_exception_text],
+                               outputs=add_file_outputs + [sources_text, doc_exception_text, text_file_last],
                                queue=queue,
                                api_name='add_file' if allow_upload_api else None)
 
@@ -1384,7 +1393,7 @@ def go_gradio(**kwargs):
                                         url_loaders,
                                         jq_schema,
                                         ],
-                                outputs=add_file_outputs + [sources_text, doc_exception_text],
+                                outputs=add_file_outputs + [sources_text, doc_exception_text, text_file_last],
                                 queue=queue,
                                 api_name='add_file_api' if allow_upload_api else None)
         eventdb1_api = fileup_output_text.submit(**add_file_kwargs2, show_progress='full')
@@ -1405,7 +1414,7 @@ def go_gradio(**kwargs):
                                       url_loaders,
                                       jq_schema,
                                       ],
-                              outputs=add_url_outputs + [sources_text, doc_exception_text],
+                              outputs=add_url_outputs + [sources_text, doc_exception_text, text_file_last],
                               queue=queue,
                               api_name='add_url' if allow_upload_api else None)
 
@@ -1427,7 +1436,7 @@ def go_gradio(**kwargs):
                                        url_loaders,
                                        jq_schema,
                                        ],
-                               outputs=add_text_outputs + [sources_text, doc_exception_text],
+                               outputs=add_text_outputs + [sources_text, doc_exception_text, text_file_last],
                                queue=queue,
                                api_name='add_text' if allow_upload_api else None
                                )
@@ -1441,6 +1450,7 @@ def go_gradio(**kwargs):
         db_events = [eventdb1a, eventdb1, eventdb1_api,
                      eventdb2a, eventdb2,
                      eventdb3a, eventdb3]
+        db_events.extend([event_attach1, event_attach2])
 
         get_sources1 = functools.partial(get_sources_gr, dbs=dbs, docs_state0=docs_state0,
                                          load_db_if_exists=load_db_if_exists,
@@ -1501,7 +1511,7 @@ def go_gradio(**kwargs):
 
         get_sources_kwargs = dict(fn=get_sources1,
                                   inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode],
-                                  outputs=[file_source, docs_state],
+                                  outputs=[file_source, docs_state, text_doc_count],
                                   queue=queue)
 
         eventdb7a = get_sources_btn.click(user_state_setup,
@@ -1554,7 +1564,7 @@ def go_gradio(**kwargs):
                                                   get_userid_auth=get_userid_auth)
         get_viewable_sources_args = dict(fn=get_viewable_sources1,
                                          inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode],
-                                         outputs=[file_source, viewable_docs_state],
+                                         outputs=[file_source, viewable_docs_state, text_viewable_doc_count],
                                          queue=queue)
         eventdb12a = get_viewable_sources_btn.click(user_state_setup,
                                                     inputs=[my_db_state, requests_state,
@@ -1563,7 +1573,7 @@ def go_gradio(**kwargs):
                                                     show_progress='minimal')
         viewable_kwargs = dict(fn=update_viewable_dropdown, inputs=viewable_docs_state, outputs=view_document_choice)
         eventdb12 = eventdb12a.then(**get_viewable_sources_args,
-                                         api_name='get_viewable_sources' if allow_api else None) \
+                                    api_name='get_viewable_sources' if allow_api else None) \
             .then(**viewable_kwargs)
 
         def show_doc(db1s, selection_docs_state1, requests_state1,
@@ -1844,42 +1854,8 @@ def go_gradio(**kwargs):
                                     inputs=[my_db_state, selection_docs_state, requests_state, document_choice,
                                             langchain_mode],
                                     outputs=sources_text,
-                                    api_name='delete_sources' if allow_api else None) \
-            .then(**get_sources_kwargs) \
-            .then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
-
-        if not kwargs['large_file_count_mode']:
-            # FIXME: Could add all these functions, inputs, outputs into single function for snappier GUI
-            # all update events when not doing large file count mode
-            lg_change_event2 = lg_change_event.then(**get_sources_kwargs)
-            lg_change_event3 = lg_change_event2.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
-            lg_change_event4 = lg_change_event3.then(**show_sources_kwargs)
-            lg_change_event5 = lg_change_event4.then(**get_viewable_sources_args)
-            lg_change_event6 = lg_change_event5.then(**viewable_kwargs)
-
-            eventdb2c = eventdb2.then(**get_sources_kwargs)
-            eventdb2d = eventdb2c.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
-            eventdb2e = eventdb2d.then(**show_sources_kwargs)
-            eventdb2f = eventdb2e.then(**get_viewable_sources_args)
-            eventdb2g = eventdb2f.then(**viewable_kwargs)
-
-            eventdb1c = eventdb1.then(**get_sources_kwargs)
-            eventdb1d = eventdb1c.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
-            eventdb1e = eventdb1d.then(**show_sources_kwargs)
-            eventdb1f = eventdb1e.then(**get_viewable_sources_args)
-            eventdb1g = eventdb1f.then(**viewable_kwargs)
-
-            eventdb3c = eventdb3.then(**get_sources_kwargs)
-            eventdb3d = eventdb3c.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
-            eventdb3e = eventdb3d.then(**show_sources_kwargs)
-            eventdb3f = eventdb3e.then(**get_viewable_sources_args)
-            eventdb3g = eventdb3f.then(**viewable_kwargs)
-
-            db_events.extend([lg_change_event, lg_change_event2, lg_change_event3, lg_change_event4, lg_change_event5,
-                              lg_change_event6] +
-                             [eventdb2c, eventdb2d, eventdb2e, eventdb2f, eventdb2g] +
-                             [eventdb1c, eventdb1d, eventdb1e, eventdb1f, eventdb1g] +
-                             [eventdb3c, eventdb3d, eventdb3e, eventdb3f, eventdb3g])
+                                    api_name='delete_sources' if allow_api else None)
+        db_events.extend([eventdb90a, eventdb90])
 
         def check_admin_pass(x):
             return gr.update(visible=x == admin_pass)
@@ -2165,16 +2141,17 @@ def go_gradio(**kwargs):
                 if can_purge and purge:
                     # remove source files
                     from src.gpt_langchain import get_sources, del_from_db
-                    sources_file, source_list, db = get_sources(db1s, selection_docs_state1,
-                                                                requests_state1, langchain_mode2, dbs=dbsu,
-                                                                docs_state0=docs_state0,
-                                                                load_db_if_exists=load_db_if_exists,
-                                                                db_type=db_type,
-                                                                use_openai_embedding=use_openai_embedding,
-                                                                hf_embedding_model=hf_embedding_model,
-                                                                migrate_embedding_model=migrate_embedding_model,
-                                                                verbose=verbose,
-                                                                get_userid_auth=get_userid_auth)
+                    sources_file, source_list, num_chunks, db = \
+                        get_sources(db1s, selection_docs_state1,
+                                    requests_state1, langchain_mode2, dbs=dbsu,
+                                    docs_state0=docs_state0,
+                                    load_db_if_exists=load_db_if_exists,
+                                    db_type=db_type,
+                                    use_openai_embedding=use_openai_embedding,
+                                    hf_embedding_model=hf_embedding_model,
+                                    migrate_embedding_model=migrate_embedding_model,
+                                    verbose=verbose,
+                                    get_userid_auth=get_userid_auth)
                     del_from_db(db, source_list, db_type=db_type)
                     for fil in source_list:
                         if os.path.isfile(fil):
@@ -2233,6 +2210,8 @@ def go_gradio(**kwargs):
                                               new_langchain_mode_text,
                                               langchain_mode_path_text],
                                      api_name='new_langchain_mode_text' if allow_api and allow_upload_to_user_data else None)
+        db_events.extend([eventdb20a, eventdb20b])
+
         remove_langchain_mode_func = functools.partial(remove_langchain_mode,
                                                        dbsu=dbs,
                                                        auth_filename=kwargs['auth_filename'],
@@ -2255,6 +2234,7 @@ def go_gradio(**kwargs):
                                                      langchain_mode_path_text])
         eventdb21b = eventdb21a.then(**remove_langchain_mode_kwargs,
                                      api_name='remove_langchain_mode_text' if allow_api and allow_upload_to_user_data else None)
+        db_events.extend([eventdb21a, eventdb21b])
 
         eventdb22a = purge_langchain_mode_text.submit(user_state_setup,
                                                       inputs=[my_db_state,
@@ -2274,10 +2254,8 @@ def go_gradio(**kwargs):
         # purge_langchain_mode_kwargs = remove_langchain_mode_kwargs.copy()
         # purge_langchain_mode_kwargs['fn'] = functools.partial(remove_langchain_mode_kwargs['fn'], purge=True)
         eventdb22b = eventdb22a.then(**purge_langchain_mode_kwargs,
-                                     api_name='purge_langchain_mode_text' if allow_api and allow_upload_to_user_data else None) \
-            .then(**get_sources_kwargs) \
-            .then(**show_sources_kwargs) \
-            .then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
+                                     api_name='purge_langchain_mode_text' if allow_api and allow_upload_to_user_data else None)
+        db_events.extend([eventdb22a, eventdb22b])
 
         def load_langchain_gr(db1s, selection_docs_state1, requests_state1, langchain_mode1, auth_filename=None):
             load_auth(db1s, requests_state1, auth_filename, selection_docs_state1=selection_docs_state1)
@@ -2298,6 +2276,76 @@ def go_gradio(**kwargs):
                                            inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode],
                                            outputs=[selection_docs_state, langchain_mode, langchain_mode_path_text],
                                            api_name='load_langchain' if allow_api and allow_upload_to_user_data else None)
+
+        if not kwargs['large_file_count_mode']:
+            # FIXME: Could add all these functions, inputs, outputs into single function for snappier GUI
+            # all update events when not doing large file count mode
+            lg_change_event2 = lg_change_event.then(**get_sources_kwargs)
+            lg_change_event3 = lg_change_event2.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
+            lg_change_event4 = lg_change_event3.then(**show_sources_kwargs)
+            lg_change_event5 = lg_change_event4.then(**get_viewable_sources_args)
+            lg_change_event6 = lg_change_event5.then(**viewable_kwargs)
+
+            eventdb2c = eventdb2.then(**get_sources_kwargs)
+            eventdb2d = eventdb2c.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
+            eventdb2e = eventdb2d.then(**show_sources_kwargs)
+            eventdb2f = eventdb2e.then(**get_viewable_sources_args)
+            eventdb2g = eventdb2f.then(**viewable_kwargs)
+
+            eventdb1c = eventdb1.then(**get_sources_kwargs)
+            eventdb1d = eventdb1c.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
+            eventdb1e = eventdb1d.then(**show_sources_kwargs)
+            eventdb1f = eventdb1e.then(**get_viewable_sources_args)
+            eventdb1g = eventdb1f.then(**viewable_kwargs)
+
+            eventdb3c = eventdb3.then(**get_sources_kwargs)
+            eventdb3d = eventdb3c.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
+            eventdb3e = eventdb3d.then(**show_sources_kwargs)
+            eventdb3f = eventdb3e.then(**get_viewable_sources_args)
+            eventdb3g = eventdb3f.then(**viewable_kwargs)
+
+            eventdb90ua = eventdb90.then(**get_sources_kwargs)
+            eventdb90ub = eventdb90ua.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
+            eventdb90uc = eventdb90ub.then(**show_sources_kwargs)
+            eventdb90ud = eventdb90uc.then(**get_viewable_sources_args)
+            eventdb90ue = eventdb90ud.then(**viewable_kwargs)
+
+            eventdb20c = eventdb20b.then(**get_sources_kwargs)
+            eventdb20d = eventdb20c.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
+            eventdb20e = eventdb20d.then(**show_sources_kwargs)
+            eventdb20f = eventdb20e.then(**get_viewable_sources_args)
+            eventdb20g = eventdb20f.then(**viewable_kwargs)
+
+            eventdb21c = eventdb21b.then(**get_sources_kwargs)
+            eventdb21d = eventdb21c.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
+            eventdb21e = eventdb21d.then(**show_sources_kwargs)
+            eventdb21f = eventdb21e.then(**get_viewable_sources_args)
+            eventdb21g = eventdb21f.then(**viewable_kwargs)
+
+            eventdb22c = eventdb22b.then(**get_sources_kwargs)
+            eventdb22d = eventdb22c.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
+            eventdb22e = eventdb22d.then(**show_sources_kwargs)
+            eventdb22f = eventdb22e.then(**get_viewable_sources_args)
+            eventdb22g = eventdb22f.then(**viewable_kwargs)
+
+            event_attach3 = event_attach2.then(**get_sources_kwargs)
+            event_attach4 = event_attach3.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
+            event_attach5 = event_attach4.then(**show_sources_kwargs)
+            event_attach6 = event_attach5.then(**get_viewable_sources_args)
+            event_attach7 = event_attach6.then(**viewable_kwargs)
+
+            db_events.extend([lg_change_event, lg_change_event2, lg_change_event3, lg_change_event4, lg_change_event5,
+                              lg_change_event6] +
+                             [eventdb2c, eventdb2d, eventdb2e, eventdb2f, eventdb2g] +
+                             [eventdb1c, eventdb1d, eventdb1e, eventdb1f, eventdb1g] +
+                             [eventdb3c, eventdb3d, eventdb3e, eventdb3f, eventdb3g] +
+                             [eventdb90ua, eventdb90ub, eventdb90uc, eventdb90ud, eventdb90ue] +
+                             [eventdb20c, eventdb20d, eventdb20e, eventdb20f, eventdb20g] +
+                             [eventdb21c, eventdb21d, eventdb21e, eventdb21f, eventdb21g] +
+                             [eventdb22c, eventdb22d, eventdb22e, eventdb22f, eventdb22g] +
+                             [event_attach3, event_attach4, event_attach5, event_attach6, event_attach7]
+                             ,
+                             )
 
         inputs_list, inputs_dict = get_inputs_list(all_kwargs, kwargs['model_lower'], model_id=1)
         inputs_list2, inputs_dict2 = get_inputs_list(all_kwargs, kwargs['model_lower'], model_id=2)
@@ -2454,6 +2502,11 @@ def go_gradio(**kwargs):
         side_bar_btn.click(fn=visible_toggle,
                            inputs=side_bar_text,
                            outputs=[side_bar_text, side_bar],
+                           queue=False)
+
+        doc_count_btn.click(fn=visible_toggle,
+                           inputs=doc_count_text,
+                           outputs=[doc_count_text, row_doc_track],
                            queue=False)
 
         submit_buttons_btn.click(fn=visible_toggle,
@@ -3749,11 +3802,7 @@ def go_gradio(**kwargs):
                                [submit_event_nochat, submit_event_nochat2] +
                                [eventdb1, eventdb2, eventdb3] +
                                [eventdb7a, eventdb7, eventdb8a, eventdb8, eventdb9a, eventdb9, eventdb12a, eventdb12] +
-                               [eventdb90a, eventdb90] +
                                db_events +
-                               [eventdb20a, eventdb20b] +
-                               [eventdb21a, eventdb21b] +
-                               [eventdb22a, eventdb22b] +
                                [eventdbloadla, eventdbloadlb] +
                                [clear_event] +
                                [submit_event_nochat_api, submit_event_nochat] +
@@ -3926,19 +3975,20 @@ def get_sources_gr(db1s, selection_docs_state1, requests_state1, langchain_mode,
                    get_userid_auth=None,
                    api=False):
     from src.gpt_langchain import get_sources
-    sources_file, source_list, db = get_sources(db1s, selection_docs_state1, requests_state1, langchain_mode,
-                                                dbs=dbs, docs_state0=docs_state0,
-                                                load_db_if_exists=load_db_if_exists,
-                                                db_type=db_type,
-                                                use_openai_embedding=use_openai_embedding,
-                                                hf_embedding_model=hf_embedding_model,
-                                                migrate_embedding_model=migrate_embedding_model,
-                                                verbose=verbose,
-                                                get_userid_auth=get_userid_auth,
-                                                )
+    sources_file, source_list, num_chunks, db = (
+        get_sources(db1s, selection_docs_state1, requests_state1, langchain_mode,
+                    dbs=dbs, docs_state0=docs_state0,
+                    load_db_if_exists=load_db_if_exists,
+                    db_type=db_type,
+                    use_openai_embedding=use_openai_embedding,
+                    hf_embedding_model=hf_embedding_model,
+                    migrate_embedding_model=migrate_embedding_model,
+                    verbose=verbose,
+                    get_userid_auth=get_userid_auth,
+                    ))
     if api:
         return source_list
-    return sources_file, source_list
+    return sources_file, source_list, "Docs: %d\nChunks: %d" % (len(source_list), num_chunks)
 
 
 def get_source_files_given_langchain_mode_gr(db1s, selection_docs_state1, requests_state1,

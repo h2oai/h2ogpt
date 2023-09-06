@@ -154,6 +154,7 @@ def main(
 
         visible_submit_buttons: bool = True,
         visible_side_bar: bool = True,
+        visible_doc_track: bool = True,
         visible_chat_tab: bool = True,
         visible_doc_selection_tab: bool = True,
         visible_doc_view_tab: bool = True,
@@ -436,6 +437,7 @@ def main(
     :param max_max_new_tokens: Maximum max_new_tokens for gradio slider
     :param visible_submit_buttons: whether submit buttons are visible when UI first comes up
     :param visible_side_bar: whether left side bar is visible when UI first comes up
+    :param visible_doc_track: whether left side bar's document tracking is visible when UI first comes up
     :param visible_chat_tab: "" for chat tab
     :param visible_doc_selection_tab:  "" for doc selection tab
     :param visible_doc_view_tab: "" for doc view tab

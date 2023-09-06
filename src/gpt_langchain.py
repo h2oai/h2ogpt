@@ -3904,17 +3904,21 @@ def get_sources(db1s, selection_docs_state1, requests_state1, langchain_mode,
     if langchain_mode in ['LLM'] or db is None:
         source_files_added = "NA"
         source_list = []
+        num_chunks = 0
     elif langchain_mode in ['wiki_full']:
         source_files_added = "Not showing wiki_full, takes about 20 seconds and makes 4MB file." \
                              "  Ask jon.mckinney@h2o.ai for file if required."
         source_list = []
+        num_chunks = 0
     elif db is not None:
         metadatas = get_metadatas(db)
         source_list = sorted(set([x['source'] for x in metadatas]))
         source_files_added = '\n'.join(source_list)
+        num_chunks = len(metadatas)
     else:
         source_list = []
         source_files_added = "None"
+        num_chunks = 0
     sources_dir = "sources_dir"
     sources_dir = makedirs(sources_dir, exist_ok=True, tmp_ok=True, use_base=True)
     sources_file = os.path.join(sources_dir, 'sources_%s_%s' % (langchain_mode, str(uuid.uuid4())))
@@ -3923,7 +3927,7 @@ def get_sources(db1s, selection_docs_state1, requests_state1, langchain_mode,
     source_list = docs_state0 + source_list
     if 'All' in source_list:
         source_list.remove('All')
-    return sources_file, source_list, db
+    return sources_file, source_list, num_chunks, db
 
 
 def update_user_db(file, db1s, selection_docs_state1, requests_state1,
@@ -3957,7 +3961,7 @@ def update_user_db(file, db1s, selection_docs_state1, requests_state1,
         </html>
         """.format(ex_str)
         doc_exception_text = str(e)
-        return None, langchain_mode, source_files_added, doc_exception_text
+        return None, langchain_mode, source_files_added, doc_exception_text, None
     finally:
         clear_torch_cache()
 
@@ -4047,7 +4051,7 @@ def _update_user_db(file,
         file = [file]
 
     if langchain_mode == LangChainMode.DISABLED.value:
-        return None, langchain_mode, get_source_files(), ""
+        return None, langchain_mode, get_source_files(), "", None
 
     if langchain_mode in [LangChainMode.LLM.value]:
         # then switch to MyData, so langchain_mode also becomes way to select where upload goes
@@ -4057,7 +4061,7 @@ def _update_user_db(file,
         elif len(langchain_modes) >= 1:
             langchain_mode = langchain_modes[0]
         else:
-            return None, langchain_mode, get_source_files(), ""
+            return None, langchain_mode, get_source_files(), "", None
 
     if langchain_mode_paths is None:
         langchain_mode_paths = {}
@@ -4162,7 +4166,11 @@ def _update_user_db(file,
             if db is not None:
                 db1[0] = db
             source_files_added = get_source_files(db=db1[0], exceptions=exceptions)
-            return None, langchain_mode, source_files_added, '\n'.join(exceptions_strs)
+            if len(sources) > 0:
+                sources_last = os.path.basename(sources[-1].metadata.get('source', 'Unknown Source'))
+            else:
+                sources_last = None
+            return None, langchain_mode, source_files_added, '\n'.join(exceptions_strs), sources_last
         else:
             langchain_type = langchain_mode_types.get(langchain_mode, LangChainTypes.EITHER.value)
             persist_directory, langchain_type = get_persist_directory(langchain_mode, db1s=db1s, dbs=dbs,
@@ -4188,7 +4196,11 @@ def _update_user_db(file,
             # return dbs[langchain_mode]
             # db in this code path is updated in place
             source_files_added = get_source_files(db=dbs[langchain_mode], exceptions=exceptions)
-            return None, langchain_mode, source_files_added, '\n'.join(exceptions_strs)
+            if len(sources) > 0:
+                sources_last = os.path.basename(sources[-1].metadata.get('source', 'Unknown Source'))
+            else:
+                sources_last = None
+            return None, langchain_mode, source_files_added, '\n'.join(exceptions_strs), sources_last
 
 
 def get_source_files_given_langchain_mode(db1s, selection_docs_state1, requests_state1, document_choice1,
