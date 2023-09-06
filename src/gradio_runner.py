@@ -1857,7 +1857,7 @@ def go_gradio(**kwargs):
             lg_change_event6 = lg_change_event5.then(**viewable_kwargs)
 
             eventdb2c = eventdb2.then(**get_sources_kwargs)
-            eventdb2d = eventdb2.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
+            eventdb2d = eventdb2c.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
             eventdb2e = eventdb2d.then(**show_sources_kwargs)
             eventdb2f = eventdb2e.then(**get_viewable_sources_args)
             eventdb2g = eventdb2f.then(**viewable_kwargs)
