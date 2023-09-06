@@ -1539,7 +1539,10 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                                           enable_pix2struct=enable_pix2struct,
                                           enable_captions=enable_captions,
                                           captions_model=captions_model,
-                                          model_loaders=model_loaders,
+
+                                          caption_loader=model_loaders['caption'],
+                                          doctr_loader=model_loaders['doctr'],
+                                          pix2struct_loader=model_loaders['pix2struct'],
 
                                           # json
                                           jq_schema=jq_schema,
