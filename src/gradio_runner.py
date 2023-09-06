@@ -690,8 +690,7 @@ def go_gradio(**kwargs):
                                             value="",
                                             size="sm",
                                             min_width=24,
-                                            icon="static/attach.svg",
-                                            file_types=[".pdf", ".txt"],
+                                            file_types=file_types,
                                             file_count="multiple")
 
                                 submit_buttons = gr.Row(equal_height=False, visible=kwargs['visible_submit_buttons'])
@@ -708,14 +707,6 @@ def go_gradio(**kwargs):
                                         retry_btn = gr.Button("Redo", size='sm', min_width=mw2)
                                         undo = gr.Button("Undo", size='sm', min_width=mw2)
                                         clear_chat_btn = gr.Button(value="Clear", size='sm', min_width=mw2)
-
-                            def upload_file_fn(files, progress=gr.Progress()):
-                                imgs = [None] * 24
-                                for img in progress.tqdm(imgs, desc="Loading from list"):
-                                    time.sleep(0.1)
-                                return ''
-
-                            attach_button.upload(fn=upload_file_fn, inputs=attach_button, outputs=[instruction])
 
                             text_output, text_output2, text_outputs = make_chatbots(output_label0, output_label0_model2,
                                                                                     **kwargs)
@@ -1368,11 +1359,19 @@ def go_gradio(**kwargs):
                                api_name='add_file' if allow_upload_api else None)
 
         # then no need for add buttons, only single changeable db
-        eventdb1a = fileup_output.upload(user_state_setup,
-                                         inputs=[my_db_state, requests_state, langchain_mode],
-                                         outputs=[my_db_state, requests_state, langchain_mode],
-                                         show_progress='minimal')
+        user_state_kwargs = dict(fn=user_state_setup,
+                                 inputs=[my_db_state, requests_state, langchain_mode],
+                                 outputs=[my_db_state, requests_state, langchain_mode],
+                                 show_progress='minimal')
+        eventdb1a = fileup_output.upload(**user_state_kwargs)
         eventdb1 = eventdb1a.then(**add_file_kwargs, show_progress='full')
+
+        event_attach1 = attach_button.upload(**user_state_kwargs)
+        attach_file_kwargs = add_file_kwargs.copy()
+        attach_file_kwargs['inputs'][0] = attach_button
+        attach_file_kwargs['api_name'] = 'attach_file'
+        event_attach2 = event_attach1.then(**add_file_kwargs, show_progress='full')
+
         # deal with challenge to have fileup_output itself as input
         add_file_kwargs2 = dict(fn=update_db_func,
                                 inputs=[fileup_output_text, my_db_state, selection_docs_state, requests_state,
@@ -2378,11 +2377,11 @@ def go_gradio(**kwargs):
                                     )
 
         fun_with_dict_str_plain = partial(evaluate_nochat,
-                                    default_kwargs1=default_kwargs,
-                                    str_api=True,
-                                    plain_api=True,
-                                    **kwargs_evaluate_nochat
-                                    )
+                                          default_kwargs1=default_kwargs,
+                                          str_api=True,
+                                          plain_api=True,
+                                          **kwargs_evaluate_nochat
+                                          )
 
         dark_mode_btn.click(
             None,
@@ -3340,14 +3339,13 @@ def go_gradio(**kwargs):
                                                                   inputs_dict_str],
                                                           outputs=text_output_nochat_api,
                                                           queue=True,  # required for generator
-                                                          api_name='submit_nochat_api' if allow_api else None) \
+                                                          api_name='submit_nochat_api' if allow_api else None)
 
         submit_event_nochat_api_plain = submit_nochat_api.click(fun_with_dict_str_plain,
                                                           inputs=inputs_dict_str,
                                                           outputs=text_output_nochat_api,
                                                           queue=False,
-                                                          api_name='submit_nochat_plain_api' if allow_api else None) \
-
+                                                          api_name='submit_nochat_plain_api' if allow_api else None)
 
         def load_model(model_name, lora_weights, server_name, model_state_old, prompt_type_old,
                        load_8bit, load_4bit, low_bit_mode,
