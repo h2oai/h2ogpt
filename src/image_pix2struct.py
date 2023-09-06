@@ -12,14 +12,17 @@ from langchain.document_loaders import ImageCaptionLoader
 from utils import get_device, clear_torch_cache
 from PIL import Image
 
+
 class H2OPix2StructLoader(ImageCaptionLoader):
     """Loader that extracts text from images"""
 
-    def __init__(self, path_images: Union[str, List[str]] = None, model_type = "google/pix2struct-textcaps-base", max_new_tokens = 50):
+    def __init__(self, path_images: Union[str, List[str]] = None, model_type="google/pix2struct-textcaps-base",
+                 max_new_tokens=50):
         super().__init__(path_images)
         self._pix2struct_model = None
         self._model_type = model_type
         self._max_new_tokens = max_new_tokens
+
     def set_context(self):
         if get_device() == 'cuda':
             import torch
@@ -27,6 +30,8 @@ class H2OPix2StructLoader(ImageCaptionLoader):
             if n_gpus > 0:
                 self.context_class = torch.device
                 self.device = 'cuda'
+            else:
+                self.device = 'cpu'
         else:
             self.device = 'cpu'
 
@@ -45,12 +50,12 @@ class H2OPix2StructLoader(ImageCaptionLoader):
         self._pix2struct_processor = AutoProcessor.from_pretrained(self._model_type)
         self._pix2struct_model = Pix2StructForConditionalGeneration.from_pretrained(self._model_type).to(self.device)
         return self
-    
+
     def unload_model(self):
         if hasattr(self._pix2struct_model, 'cpu'):
             self._pix2struct_model.cpu()
             clear_torch_cache()
-            
+
     def set_image_paths(self, path_images: Union[str, List[str]]):
         """
         Load from a list of image files
@@ -74,7 +79,7 @@ class H2OPix2StructLoader(ImageCaptionLoader):
         return results
 
     def _get_captions_and_metadata(
-            self, processor:Any, model: Any, path_image: str) -> Tuple[str, dict]:
+            self, processor: Any, model: Any, path_image: str) -> Tuple[str, dict]:
         """
         Helper function for getting the captions and metadata of an image
         """

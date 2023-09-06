@@ -1496,9 +1496,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                 enable_pix2struct=False,
                 enable_captions=True,
                 captions_model=None,
-                caption_loader=None,
-                doctr_loader=None,
-                pix2struct_loader=None,
+                model_loaders=None,
 
                 # json
                 jq_schema='.[]',
@@ -1506,6 +1504,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                 headsize=50,
                 db_type=None,
                 selected_file_types=None):
+    assert isinstance(model_loaders, dict)
     if selected_file_types is not None:
         set_image_types1 = set_image_types.intersection(set(selected_file_types))
     else:
@@ -1540,9 +1539,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                                           enable_pix2struct=enable_pix2struct,
                                           enable_captions=enable_captions,
                                           captions_model=captions_model,
-                                          caption_loader=caption_loader,
-                                          doctr_loader=doctr_loader,
-                                          pix2struct_loader=pix2struct_loader,
+                                          model_loaders=model_loaders,
 
                                           # json
                                           jq_schema=jq_schema,
@@ -1708,14 +1705,17 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         if have_doctr and enable_doctr:
             if verbose:
                 print("BEGIN: DocTR", flush=True)
-            if doctr_loader is not None and not isinstance(doctr_loader, (str, bool)):
-                doctr_loader.load_model()
+            if model_loaders['doctr'] is not None and not isinstance(model_loaders['doctr'], (str, bool)):
+                if verbose or True:
+                    print("Reuse DocTR", flush=True)
+                model_loaders['doctr'].load_model()
             else:
+                if verbose or True:
+                    print("Fresh DocTR", flush=True)
                 from image_doctr import H2OOCRLoader
-                doctr_loader = H2OOCRLoader()
-            doctr_loader.set_document_paths([file])
-            docs1c = doctr_loader.load()
-            doctr_loader.unload_model()
+                model_loaders['doctr'] = H2OOCRLoader()
+            model_loaders['doctr'].set_document_paths([file])
+            docs1c = model_loaders['doctr'].load()
             docs1c = [x for x in docs1c if x.page_content]
             add_meta(docs1c, file, headsize, parser='H2OOCRLoader: %s' % 'DocTR')
             # caption didn't set source, so fix-up meta
@@ -1729,17 +1729,20 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             # BLIP
             if verbose:
                 print("BEGIN: BLIP", flush=True)
-            if caption_loader is not None and not isinstance(caption_loader, (str, bool)):
+            if model_loaders['caption'] is not None and not isinstance(model_loaders['caption'], (str, bool)):
                 # assumes didn't fork into this process with joblib, else can deadlock
-                if not caption_loader.load_in_8bit:
-                    caption_loader.model.to(caption_loader.model.device)
+                if verbose:
+                    print("Reuse BLIP", flush=True)
+                model_loaders['caption'].load_model()
             else:
+                if verbose:
+                    print("Fresh BLIP", flush=True)
                 from image_captions import H2OImageCaptionLoader
-                caption_loader = H2OImageCaptionLoader(caption_gpu=caption_loader == 'gpu',
-                                                       blip_model=captions_model,
-                                                       blip_processor=captions_model)
-            caption_loader.set_image_paths([file])
-            docs1c = caption_loader.load()
+                model_loaders['caption'] = H2OImageCaptionLoader(caption_gpu=model_loaders['caption'] == 'gpu',
+                                                                 blip_model=captions_model,
+                                                                 blip_processor=captions_model)
+            model_loaders['caption'].set_image_paths([file])
+            docs1c = model_loaders['caption'].load()
             docs1c = [x for x in docs1c if x.page_content]
             add_meta(docs1c, file, headsize, parser='H2OImageCaptionLoader: %s' % captions_model)
             # caption didn't set source, so fix-up meta
@@ -1748,32 +1751,30 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                 doci.metadata['hashid'] = hash_file(doci.metadata['source'])
             docs1.extend(docs1c)
 
-            # clear off GPU since will be reloaded later
-            if hasattr(caption_loader.model, 'cpu'):
-                caption_loader.model.cpu()
-                clear_torch_cache()
-
             if verbose:
                 print("END: BLIP", flush=True)
         if enable_pix2struct:
             # BLIP
             if verbose:
                 print("BEGIN: Pix2Struct", flush=True)
-            if pix2struct_loader is not None and not isinstance(pix2struct_loader, (str, bool)):
-                pix2struct_loader = pix2struct_loader.load_model()
+            if model_loaders['pix2struct'] is not None and not isinstance(model_loaders['pix2struct'], (str, bool)):
+                if verbose:
+                    print("Reuse pix2struct", flush=True)
+                model_loaders['pix2struct'].load_model()
             else:
+                if verbose:
+                    print("Fresh pix2struct", flush=True)
                 from image_pix2struct import H2OPix2StructLoader
-                pix2struct_loader = H2OPix2StructLoader()
-            pix2struct_loader.set_image_paths([file])
-            docs1c = pix2struct_loader.load()
+                model_loaders['pix2struct'] = H2OPix2StructLoader()
+            model_loaders['pix2struct'].set_image_paths([file])
+            docs1c = model_loaders['pix2struct'].load()
             docs1c = [x for x in docs1c if x.page_content]
-            add_meta(docs1c, file, headsize, parser='H2OPix2StructLoader: %s' % pix2struct_loader)
+            add_meta(docs1c, file, headsize, parser='H2OPix2StructLoader: %s' % model_loaders['pix2struct'])
             # caption didn't set source, so fix-up meta
             for doci in docs1c:
                 doci.metadata['source'] = doci.metadata.get('image_path', file)
                 doci.metadata['hashid'] = hash_file(doci.metadata['source'])
             docs1.extend(docs1c)
-            pix2struct_loader.unload_model()
             if verbose:
                 print("END: Pix2Struct", flush=True)
         doc1 = chunk_sources(docs1)
@@ -1915,13 +1916,13 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         if len(doc1) == 0 or enable_pdf_doctr:
             if verbose:
                 print("BEGIN: DocTR", flush=True)
-            if doctr_loader is not None and not isinstance(doctr_loader, (str, bool)):
-                doctr_loader.load_model()
+            if model_loaders['doctr'] is not None and not isinstance(model_loaders['doctr'], (str, bool)):
+                model_loaders['doctr'].load_model()
             else:
                 from image_doctr import H2OOCRLoader
-                doctr_loader = H2OOCRLoader()
-            doctr_loader.set_document_paths([file])
-            doc1a = doctr_loader.load()
+                model_loaders['doctr'] = H2OOCRLoader()
+            model_loaders['doctr'].set_document_paths([file])
+            doc1a = model_loaders['doctr'].load()
             doc1a = [x for x in doc1a if x.page_content]
             add_meta(doc1a, file, headsize, parser='H2OOCRLoader: %s' % 'DocTR')
             handled |= len(doc1a) > 0
@@ -1930,7 +1931,6 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                 doci.metadata['source'] = doci.metadata.get('document_path', file)
                 doci.metadata['hashid'] = hash_file(doci.metadata['source'])
             doc1.extend(doc1a)
-            doctr_loader.unload_model()
             if verbose:
                 print("END: DocTR", flush=True)
 
@@ -2010,9 +2010,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                            enable_pix2struct=enable_pix2struct,
                            enable_captions=enable_captions,
                            captions_model=captions_model,
-                           caption_loader=caption_loader,
-                           doctr_loader=doctr_loader,
-                           pix2struct_loader=pix2struct_loader,
+                           model_loaders=model_loaders,
 
                            # json
                            jq_schema=jq_schema,
@@ -2061,9 +2059,7 @@ def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True
                  enable_pix2struct=False,
                  enable_captions=True,
                  captions_model=None,
-                 caption_loader=None,
-                 doctr_loader=None,
-                 pix2struct_loader=None,
+                 model_loaders=None,
 
                  # json
                  jq_schema='.[]',
@@ -2105,9 +2101,7 @@ def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True
                           enable_pix2struct=enable_pix2struct,
                           enable_captions=enable_captions,
                           captions_model=captions_model,
-                          caption_loader=caption_loader,
-                          doctr_loader=doctr_loader,
-                          pix2struct_loader=pix2struct_loader,
+                          model_loaders=model_loaders,
 
                           # json
                           jq_schema=jq_schema,
@@ -2165,6 +2159,7 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
                  enable_pix2struct=False,
                  enable_captions=True,
                  captions_model=None,
+
                  caption_loader=None,
                  doctr_loader=None,
                  pix2struct_loader=None,
@@ -2248,17 +2243,25 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
         globs_non_image_types = [x for x in globs_non_image_types if x in new_files_non_image]
 
     # could use generator, but messes up metadata handling in recursive case
-    if caption_loader and not isinstance(caption_loader, (bool, str)) and \
-            caption_loader.device != 'cpu' or \
+    if caption_loader and not isinstance(caption_loader, (bool, str)) and caption_loader.device != 'cpu' or \
             get_device() == 'cuda':
         # to avoid deadlocks, presume was preloaded and so can't fork due to cuda context
+        # get_device() == 'cuda' because presume faster to process image from (temporarily) preloaded model
         n_jobs_image = 1
     else:
         n_jobs_image = n_jobs
+    if enable_pdf_doctr:
+        if doctr_loader and not isinstance(doctr_loader, (bool, str)) and doctr_loader.device != 'cpu':
+            # can't fork cuda context
+            n_jobs = 1
 
     return_file = True  # local choice
     is_url = url is not None
     is_txt = text is not None
+    model_loaders = dict(caption=caption_loader,
+                         doctr=doctr_loader,
+                         pix2struct=pix2struct_loader)
+    model_loaders0 = model_loaders.copy()
     kwargs = dict(verbose=verbose, fail_any_exception=fail_any_exception,
                   return_file=return_file,
                   chunk=chunk, chunk_size=chunk_size,
@@ -2285,9 +2288,7 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
                   enable_pix2struct=enable_pix2struct,
                   enable_captions=enable_captions,
                   captions_model=captions_model,
-                  caption_loader=caption_loader,
-                  doctr_loader=doctr_loader,
-                  pix2struct_loader=pix2struct_loader,
+                  model_loaders=model_loaders,
 
                   # json
                   jq_schema=jq_schema,
@@ -2313,6 +2314,15 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
         )
     else:
         image_documents = [path_to_doc1(file, **kwargs) for file in tqdm(globs_image_types)]
+
+    # unload loaders (image loaders, includes enable_pdf_doctr that uses same loader)
+    for name, loader in model_loaders.items():
+        loader0 = model_loaders0[name]
+        real_model_initial = loader0 is not None and not isinstance(loader0, (str, bool))
+        real_model_final = model_loaders[name] is not None and not isinstance(model_loaders[name], (str, bool))
+        if not real_model_initial and real_model_final:
+            # clear off GPU newly added model
+            model_loaders[name].unload_model()
 
     # add image docs in
     documents += image_documents

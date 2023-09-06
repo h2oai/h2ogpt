@@ -18,7 +18,7 @@ from doctr.utils.common_types import AbstractFile
 class H2OOCRLoader(ImageCaptionLoader):
     """Loader that extracts text from images"""
 
-    def __init__(self, path_images: Union[str, List[str]] = None, layout_aware = False):
+    def __init__(self, path_images: Union[str, List[str]] = None, layout_aware=False):
         super().__init__(path_images)
         self._ocr_model = None
         self.layout_aware = layout_aware
@@ -30,6 +30,10 @@ class H2OOCRLoader(ImageCaptionLoader):
             if n_gpus > 0:
                 self.context_class = torch.device
                 self.device = 'cuda'
+            else:
+                self.device = 'cpu'
+        else:
+            self.device = 'cpu'
 
     def load_model(self):
         try:
@@ -44,8 +48,10 @@ class H2OOCRLoader(ImageCaptionLoader):
             self._ocr_model = self._ocr_model.to(self.device)
             return self
         self.set_context()
-        self._ocr_model = ocr_predictor(det_arch="db_resnet50", reco_arch="crnn_efficientnetv2_mV2", pretrained=True).to(self.device)
+        self._ocr_model = ocr_predictor(det_arch="db_resnet50", reco_arch="crnn_efficientnetv2_mV2",
+                                        pretrained=True).to(self.device)
         return self
+
     def unload_model(self):
         if hasattr(self._ocr_model.det_predictor.model, 'cpu'):
             self._ocr_model.det_predictor.model.cpu()
@@ -56,7 +62,6 @@ class H2OOCRLoader(ImageCaptionLoader):
         if hasattr(self._ocr_model, 'cpu'):
             self._ocr_model.cpu()
             clear_torch_cache()
-            
 
     def set_document_paths(self, document_paths: Union[str, List[str]]):
         """
@@ -94,7 +99,7 @@ class H2OOCRLoader(ImageCaptionLoader):
             )
         try:
             if document_path.lower().endswith(".pdf"):
-                #load at roughly 300 dpi
+                # load at roughly 300 dpi
                 images = read_pdf(document_path)
             else:
                 images = DocumentFile.from_images(document_path)
@@ -111,7 +116,8 @@ class H2OOCRLoader(ImageCaptionLoader):
                         if not (word.value or "").strip():
                             continue
                         page_words.append(word.value)
-                        page_boxes.append([word.geometry[0][0], word.geometry[0][1], word.geometry[1][0], word.geometry[1][1]])
+                        page_boxes.append(
+                            [word.geometry[0][0], word.geometry[0][1], word.geometry[1][0], word.geometry[1][1]])
             if self.layout_aware:
                 ids = boxes_sort(page_boxes)
                 texts = [page_words[i] for i in ids]
@@ -122,7 +128,8 @@ class H2OOCRLoader(ImageCaptionLoader):
             document_words.append(page_words)
         metadata: dict = {"image_path": document_path}
         return document_words, metadata
-    
+
+
 def boxes_sort(boxes):
     """ From left top to right bottom
     Params:
@@ -132,8 +139,8 @@ def boxes_sort(boxes):
 
     # sorted_boxes = [boxes[id] for id in sorted_id]
 
-
     return sorted_id
+
 
 def is_same_line(box1, box2):
     """
@@ -141,7 +148,7 @@ def is_same_line(box1, box2):
         box1: [x1, y1, x2, y2]
         box2: [x1, y1, x2, y2]
     """
-    
+
     box1_midy = (box1[1] + box1[3]) / 2
     box2_midy = (box2[1] + box2[3]) / 2
 
@@ -149,7 +156,8 @@ def is_same_line(box1, box2):
         return True
     else:
         return False
-    
+
+
 def union_box(box1, box2):
     """
     Params:
@@ -163,6 +171,7 @@ def union_box(box1, box2):
 
     return [x1, y1, x2, y2]
 
+
 def space_layout(texts, boxes):
     line_boxes = []
     line_texts = []
@@ -173,14 +182,14 @@ def space_layout(texts, boxes):
     texts = np.array(texts)
     while len(boxes) > 0:
         box = boxes[0]
-        mid = (boxes[:, 3] + boxes[:, 1])/2
+        mid = (boxes[:, 3] + boxes[:, 1]) / 2
         inline_boxes = np.logical_and(mid > box[1], mid < box[3])
-        sorted_xs = np.argsort(boxes[inline_boxes][:, 0], axis = 0)
+        sorted_xs = np.argsort(boxes[inline_boxes][:, 0], axis=0)
         line_box = boxes[inline_boxes][sorted_xs]
         line_text = texts[inline_boxes][sorted_xs]
         boxes = boxes[~inline_boxes]
         texts = texts[~inline_boxes]
-        
+
         line_boxes.append(line_box.tolist())
         line_texts.append(line_text.tolist())
         if len(" ".join(line_texts[-1])) > max_line_char_num:
@@ -198,27 +207,28 @@ def space_layout(texts, boxes):
         for j, box in enumerate(line_box):
             left_char_num = int(box[0] / char_width)
             left_char_num = max((left_char_num - len(space_line_text)), 1)
-            
-            #verbose layout
+
+            # verbose layout
             # space_line_text += " " * left_char_num
-            
-            #minified layout
+
+            # minified layout
             if left_char_num > 1:
-                space_line_text += f" <{left_char_num}> " 
+                space_line_text += f" <{left_char_num}> "
             else:
                 space_line_text += " "
-            
+
             space_line_text += line_texts[i][j]
         space_line_texts.append(space_line_text + "\n")
 
     return "".join(space_line_texts)
 
+
 def read_pdf(
-    file: AbstractFile,
-    scale: float = 300/72,
-    rgb_mode: bool = True,
-    password: Optional[str] = None,
-    **kwargs: Any,
+        file: AbstractFile,
+        scale: float = 300 / 72,
+        rgb_mode: bool = True,
+        password: Optional[str] = None,
+        **kwargs: Any,
 ) -> List[np.ndarray]:
     """Read a PDF file and convert it into an image in numpy format
 
