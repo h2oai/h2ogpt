@@ -452,6 +452,8 @@ def main(
     :param visible_hosts_tab: "" for hosts tab
     :param chat_tables: Just show Chat as block without tab (useful if want only chat view)
     :param visible_h2ogpt_header: Whether github stars, URL, logo, and QR code are visible
+    :param max_raw_chunks: Maximum number of chunks to show in UI when asking for raw DB text from documents/collection
+
     :param sanitize_user_prompt: whether to remove profanity from user input (slows down input processing)
       Requires optional packages:
       pip install alt-profanity-check==1.2.2 better-profanity==0.7.0
