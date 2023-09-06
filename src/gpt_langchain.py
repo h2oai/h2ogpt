@@ -326,7 +326,7 @@ class H2OFakeEmbeddings(FakeEmbeddings):
         return self._get_embedding()
 
 
-def get_embedding(use_openai_embedding, hf_embedding_model=None):
+def get_embedding(use_openai_embedding, hf_embedding_model=None, preload=False):
     assert hf_embedding_model is not None
     # Get embedding model
     if use_openai_embedding:
@@ -336,6 +336,9 @@ def get_embedding(use_openai_embedding, hf_embedding_model=None):
     elif hf_embedding_model == 'fake':
         embedding = H2OFakeEmbeddings(size=1)
     else:
+        if not isinstance(hf_embedding_model, str):
+            # embedding itself preloaded globally
+            return hf_embedding_model
         # to ensure can fork without deadlock
         from langchain.embeddings import HuggingFaceEmbeddings
 
@@ -348,6 +351,7 @@ def get_embedding(use_openai_embedding, hf_embedding_model=None):
                                                       encode_kwargs=encode_kwargs)
         else:
             embedding = HuggingFaceEmbeddings(model_name=hf_embedding_model, model_kwargs=model_kwargs)
+        embedding.client.preload = preload
     return embedding
 
 
@@ -2524,8 +2528,10 @@ def clear_embedding(db):
     # don't keep on GPU, wastes memory, push back onto CPU and only put back on GPU once again embed
     try:
         if hasattr(db._embedding_function, 'client') and hasattr(db._embedding_function.client, 'cpu'):
-            db._embedding_function.client.cpu()
-        clear_torch_cache()
+            # only push back to CPU if each db/user has own embedding model, else if shared share on GPU
+            if hasattr(db._embedding_function.client, 'preload') and not db._embedding_function.client.preload:
+                db._embedding_function.client.cpu()
+                clear_torch_cache()
     except RuntimeError as e:
         print("clear_embedding error: %s" % ''.join(traceback.format_tb(e.__traceback__)), flush=True)
 

@@ -141,6 +141,7 @@ def main(
         gradio_size: str = None,
         show_copy_button: bool = True,
         large_file_count_mode: bool = False,
+        pre_load_embedding_model: bool = True,
 
         auth: Union[typing.List[typing.Tuple[str, str]], str] = None,
         auth_filename: str = None,
@@ -416,6 +417,7 @@ def main(
            Small useful for many chatbots in model_lock mode
     :param show_copy_button: Whether to show copy button for chatbots
     :param large_file_count_mode: Whether to force manual update to UI of drop-downs, good idea if millions of chunks or documents
+    :param pre_load_embedding_model: Whether to preload embedding model for shared use across DBs and users (multi-thread safe only)
 
     :param auth: gradio auth for launcher in form [(user1, pass1), (user2, pass2), ...]
                  e.g. --auth=[('jon','password')] with no spaces
@@ -1138,6 +1140,13 @@ def main(
                 caption_loader = 'gpu' if caption_gpu else 'cpu'
         else:
             caption_loader = False
+
+        if pre_load_embedding_model and langchain_mode != 'Disabled' and not use_openai_embedding:
+            from src.gpt_langchain import get_embedding
+            hf_embedding_model = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model,
+                                               preload=True)
+        else:
+            hf_embedding_model = None
 
         # assume gradio needs everything
         go_gradio(**locals())
