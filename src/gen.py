@@ -140,6 +140,7 @@ def main(
         input_lines: int = 1,
         gradio_size: str = None,
         show_copy_button: bool = True,
+        large_file_count_mode: bool = False,
 
         auth: Union[typing.List[typing.Tuple[str, str]], str] = None,
         auth_filename: str = None,
@@ -412,6 +413,7 @@ def main(
     :param gradio_size: Overall size of text and spaces: "xsmall", "small", "medium", "large".
            Small useful for many chatbots in model_lock mode
     :param show_copy_button: Whether to show copy button for chatbots
+    :param large_file_count_mode: Whether to force manual update to UI of drop-downs, good idea if millions of chunks or documents
 
     :param auth: gradio auth for launcher in form [(user1, pass1), (user2, pass2), ...]
                  e.g. --auth=[('jon','password')] with no spaces
