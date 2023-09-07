@@ -309,7 +309,7 @@ docker run -d \
           --use_gpu_id=False \
           --score_model=None \
           --max_max_new_tokens=4096 \
-          --max_new_tokens=1024 \
+          --max_new_tokens=1024
 ```
 or change `max_max_new_tokens` to `2048` for low-memory case.  Note the h2oGPT container has `--network host` with same port inside and outside so the other container on same host can see it.  Otherwise use actual IP addersses if on separate hosts.
 
