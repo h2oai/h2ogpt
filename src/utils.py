@@ -24,6 +24,7 @@ import filelock
 import fire
 import numpy as np
 import pandas as pd
+import psutil
 import requests
 import uuid
 

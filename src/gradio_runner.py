@@ -1463,6 +1463,7 @@ def go_gradio(**kwargs):
                                          migrate_embedding_model=migrate_embedding_model,
                                          verbose=verbose,
                                          get_userid_auth=get_userid_auth,
+                                         n_jobs=n_jobs,
                                          )
 
         # if change collection source, must clear doc selections from it to avoid inconsistency
@@ -1542,7 +1543,8 @@ def go_gradio(**kwargs):
                                           hf_embedding_model=hf_embedding_model,
                                           migrate_embedding_model=migrate_embedding_model,
                                           verbose=verbose,
-                                          get_userid_auth=get_userid_auth)
+                                          get_userid_auth=get_userid_auth,
+                                          n_jobs=n_jobs)
         eventdb8a = show_sources_btn.click(user_state_setup,
                                            inputs=[my_db_state, requests_state, show_sources_btn, show_sources_btn],
                                            outputs=[my_db_state, requests_state, show_sources_btn],
@@ -1564,7 +1566,8 @@ def go_gradio(**kwargs):
                                                   hf_embedding_model=hf_embedding_model,
                                                   migrate_embedding_model=migrate_embedding_model,
                                                   verbose=kwargs['verbose'],
-                                                  get_userid_auth=get_userid_auth)
+                                                  get_userid_auth=get_userid_auth,
+                                                  n_jobs=n_jobs)
         get_viewable_sources_args = dict(fn=get_viewable_sources1,
                                          inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode],
                                          outputs=[file_source, viewable_docs_state, text_viewable_doc_count],
@@ -1614,6 +1617,7 @@ def go_gradio(**kwargs):
                                 migrate_embedding_model=migrate_embedding_model1,
                                 for_sources_list=True,
                                 verbose=verbose1,
+                                n_jobs=n_jobs,
                                 )
                 query_action = False  # long chunks like would be used for summarize
                 # the below is as or filter, so will show doc or by chunk, unrestricted
@@ -1847,7 +1851,8 @@ def go_gradio(**kwargs):
                                             hf_embedding_model=hf_embedding_model,
                                             migrate_embedding_model=migrate_embedding_model,
                                             verbose=verbose,
-                                            get_userid_auth=get_userid_auth)
+                                            get_userid_auth=get_userid_auth,
+                                            n_jobs=n_jobs)
         eventdb90a = delete_sources_btn.click(user_state_setup,
                                               inputs=[my_db_state, requests_state,
                                                       delete_sources_btn, delete_sources_btn],
@@ -2154,7 +2159,8 @@ def go_gradio(**kwargs):
                                     hf_embedding_model=hf_embedding_model,
                                     migrate_embedding_model=migrate_embedding_model,
                                     verbose=verbose,
-                                    get_userid_auth=get_userid_auth)
+                                    get_userid_auth=get_userid_auth,
+                                    n_jobs=n_jobs)
                     del_from_db(db, source_list, db_type=db_type)
                     for fil in source_list:
                         if os.path.isfile(fil):
@@ -3976,7 +3982,8 @@ def get_sources_gr(db1s, selection_docs_state1, requests_state1, langchain_mode,
                    migrate_embedding_model=None,
                    verbose=False,
                    get_userid_auth=None,
-                   api=False):
+                   api=False,
+                   n_jobs=-1):
     from src.gpt_langchain import get_sources
     sources_file, source_list, num_chunks, db = \
         get_sources(db1s, selection_docs_state1, requests_state1, langchain_mode,
@@ -3988,6 +3995,7 @@ def get_sources_gr(db1s, selection_docs_state1, requests_state1, langchain_mode,
                     migrate_embedding_model=migrate_embedding_model,
                     verbose=verbose,
                     get_userid_auth=get_userid_auth,
+                    n_jobs=n_jobs,
                     )
     if api:
         return source_list
@@ -4003,7 +4011,8 @@ def get_source_files_given_langchain_mode_gr(db1s, selection_docs_state1, reques
                                              hf_embedding_model=None,
                                              migrate_embedding_model=None,
                                              verbose=False,
-                                             get_userid_auth=None):
+                                             get_userid_auth=None,
+                                             n_jobs=-1):
     from src.gpt_langchain import get_source_files_given_langchain_mode
     return get_source_files_given_langchain_mode(db1s, selection_docs_state1, requests_state1, None,
                                                  langchain_mode,
@@ -4015,7 +4024,8 @@ def get_source_files_given_langchain_mode_gr(db1s, selection_docs_state1, reques
                                                  migrate_embedding_model=migrate_embedding_model,
                                                  verbose=verbose,
                                                  get_userid_auth=get_userid_auth,
-                                                 delete_sources=False)
+                                                 delete_sources=False,
+                                                 n_jobs=n_jobs)
 
 
 def del_source_files_given_langchain_mode_gr(db1s, selection_docs_state1, requests_state1, document_choice1,
@@ -4027,7 +4037,8 @@ def del_source_files_given_langchain_mode_gr(db1s, selection_docs_state1, reques
                                              hf_embedding_model=None,
                                              migrate_embedding_model=None,
                                              verbose=False,
-                                             get_userid_auth=None):
+                                             get_userid_auth=None,
+                                             n_jobs=-1):
     from src.gpt_langchain import get_source_files_given_langchain_mode
     return get_source_files_given_langchain_mode(db1s, selection_docs_state1, requests_state1, document_choice1,
                                                  langchain_mode,
@@ -4039,7 +4050,8 @@ def del_source_files_given_langchain_mode_gr(db1s, selection_docs_state1, reques
                                                  migrate_embedding_model=migrate_embedding_model,
                                                  verbose=verbose,
                                                  get_userid_auth=get_userid_auth,
-                                                 delete_sources=True)
+                                                 delete_sources=True,
+                                                 n_jobs=n_jobs)
 
 
 def update_and_get_source_files_given_langchain_mode_gr(db1s,

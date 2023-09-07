@@ -33,6 +33,18 @@ RUN python3.10 -m pip install https://github.com/jllllll/llama-cpp-python-cuBLAS
 RUN python3.10 -m pip install https://github.com/jllllll/exllama/releases/download/0.0.13/exllama-0.0.13+cu118-cp310-cp310-linux_x86_64.whl --no-cache-dir
 RUN playwright install --with-deps
 
+# Uninstall duckdb and use own so can control thread count per db
+RUN python3.10 -m pip uninstall -y pyduckdb duckdb && \
+    git clone https://github.com/h2oai/duckdb.git && \
+    cd duckdb && \
+    git checkout dcd8c1ffc53dd020623630efb99ba6a3a4cbc5ad && \
+    BUILD_PYTHON=1 make release && \
+    cd tools/pythonpkg  && \
+    python3.10 setup.py bdist_wheel  && \
+    python3.10 -m pip install dist/duckdb-0.*.whl --no-cache-dir --force-reinstall
+# or use:
+# RUN python3.10 -m pip install https://h2o-release.s3.amazonaws.com/h2ogpt/duckdb-0.8.2.dev4025%2Bg9698e9e6a8.d20230907-cp310-cp310-linux_x86_64.whl
+
 # Install vllm
 ENV VLLM_CACHE=/workspace/.vllm_cache
 

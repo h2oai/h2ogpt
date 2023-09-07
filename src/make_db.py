@@ -290,7 +290,8 @@ def make_db_main(use_openai_embedding: bool = False,
     db = create_or_update_db(db_type, persist_directory,
                              collection_name, user_path, langchain_type,
                              sources, use_openai_embedding, add_if_exists, verbose,
-                             hf_embedding_model, migrate_embedding_model)
+                             hf_embedding_model, migrate_embedding_model,
+                             n_jobs=n_jobs)
 
     assert db is not None or not fail_if_no_sources
     if verbose:
