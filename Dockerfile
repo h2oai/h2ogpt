@@ -66,6 +66,9 @@ COPY --from=stage0 /h2ogpt_conda/ /h2ogpt_conda/
 COPY build_info.txt* /build_info.txt
 RUN touch /build_info.txt
 
+RUN mkdir -p /h2ogpt_conda/envs/vllm/bin && \
+    ln -s /h2ogpt_conda/vllm_env/bin/python3.10 /h2ogpt_conda/envs/vllm/bin/python3.10
+
 USER h2ogpt
 
 ENTRYPOINT ["python3.10"]
