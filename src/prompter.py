@@ -723,15 +723,24 @@ Remember to tailor the activities to the birthday child's interests and preferen
         botstr = PreResponse
     elif prompt_type in [PromptType.falcon_chat.value, str(PromptType.falcon_chat.value),
                          PromptType.falcon_chat.name]:
-        promptA = promptB = ""
+
+        if use_system_prompt and not (chat and reduced):
+            # too much safety, hurts accuracy
+            sys_msg = "System: You are an intelligent and helpful assistant.\n"
+            promptA = promptB = sys_msg
+        else:
+            promptA = promptB = ''
         PreInstruct = """User: """
         PreInput = None
-        PreResponse = """Falcon: """
-        terminate_response = ['\nUser:']
+        PreResponse = """Falcon:"""
+        terminate_response = ['\nUser:', "<|endoftext|>", " User:", "###"]
         chat_sep = '\n'
         chat_turn_sep = '\n'
         humanstr = PreInstruct
         botstr = PreResponse
+        if making_context:
+            # when making context, want it to appear as-if LLM generated, which starts with space after :
+            PreResponse = botstr + ' '
     else:
         raise RuntimeError("No such prompt_type=%s" % prompt_type)
 
