@@ -2293,6 +2293,7 @@ def go_gradio(**kwargs):
         if not kwargs['large_file_count_mode']:
             # FIXME: Could add all these functions, inputs, outputs into single function for snappier GUI
             # all update events when not doing large file count mode
+            # Note: Login touches langchain_mode, which triggers all these
             lg_change_event2 = lg_change_event.then(**get_sources_kwargs)
             lg_change_event3 = lg_change_event2.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
             lg_change_event4 = lg_change_event3.then(**show_sources_kwargs)
