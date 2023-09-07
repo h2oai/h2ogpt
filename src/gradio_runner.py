@@ -1904,7 +1904,9 @@ def go_gradio(**kwargs):
             if success1:
                 requests_state1['username'] = username1
             return db1s, selection_docs_state1, requests_state1, chat_state1, \
-                text_result, df_langchain_mode_paths1, \
+                text_result, \
+                gr.update(label='Ask anything, %s' % requests_state1['username']), \
+                df_langchain_mode_paths1, \
                 gr.update(choices=list(chat_state1.keys()), value=None), \
                 gr.update(choices=get_langchain_choices(selection_docs_state1),
                           value=langchain_mode1), \
@@ -1925,7 +1927,8 @@ def go_gradio(**kwargs):
                         username_text, password_text,
                         text_output, text_output2] + text_outputs
         login_outputs = [my_db_state, selection_docs_state, requests_state, chat_state,
-                         login_result_text, langchain_mode_path_text,
+                         login_result_text, instruction,
+                         langchain_mode_path_text,
                          radio_chats,
                          langchain_mode,
                          text_output, text_output2] + text_outputs
