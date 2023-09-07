@@ -60,8 +60,8 @@ docker_build_deps:
 			GITHUB_ACTIONS=true python3.10 -m pip install auto-gptq==0.4.2 --no-cache-dir --use-deprecated=legacy-resolver && \
 			python3.10 -m pip wheel auto-gptq==0.4.2 \
 		"
-	s3cmd put prebuilt_deps/auto_gptq-0.4.2-cp310-cp310-linux_x86_64.whl s3://artifacts.h2o.ai/deps/h2ogpt/ && \
-	s3cmd setacl s3://artifacts.h2o.ai/deps/h2ogpt/auto_gptq-0.4.2-cp310-cp310-linux_x86_64.whl --acl-public
+	s3cmd put prebuilt_deps/auto_gptq-0.4.2-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl s3://artifacts.h2o.ai/deps/h2ogpt/ && \
+	s3cmd setacl s3://artifacts.h2o.ai/deps/h2ogpt/auto_gptq-0.4.2-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl --acl-public
 
 docker_build: build_info.txt
 ifeq ($(shell curl --connect-timeout 4 --write-out %{http_code} -sS --output /dev/null -X GET http://harbor.h2o.ai/api/v2.0/projects/h2ogpt/repositories/test-image/artifacts/$(BUILD_TAG)/tags),200)
