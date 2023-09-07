@@ -1927,7 +1927,8 @@ def go_gradio(**kwargs):
                         username_text, password_text,
                         text_output, text_output2] + text_outputs
         login_outputs = [my_db_state, selection_docs_state, requests_state, chat_state,
-                         login_result_text, instruction,
+                         login_result_text,
+                         instruction,
                          langchain_mode_path_text,
                          radio_chats,
                          langchain_mode,
