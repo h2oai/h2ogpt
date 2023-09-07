@@ -383,6 +383,7 @@ For a more detailed description of other parameters of the make_db script, check
 
 ```bash
 # build image
+make docker_build_deps
 touch build_info.txt
 docker build -t h2ogpt .
 ```
