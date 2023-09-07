@@ -23,6 +23,24 @@ os.environ['HF_HUB_DISABLE_TELEMETRY'] = '1'
 os.environ['BITSANDBYTES_NOWELCOME'] = '1'
 warnings.filterwarnings('ignore', category=UserWarning, message='TypedStorage is deprecated')
 
+# more is not useful typically, don't let these go beyond limits and eat up resources
+max_cores = max(1, os.cpu_count() // 2)
+if os.getenv('NUMEXPR_MAX_THREADS') is None:
+    os.environ['NUMEXPR_MAX_THREADS'] = str(min(8, max_cores))
+if os.getenv('NUMEXPR_NUM_THREADS') is None:
+    os.environ['NUMEXPR_NUM_THREADS'] = str(min(8, max_cores))
+if os.getenv('OMP_NUM_THREADS') is None:
+    os.environ['OMP_NUM_THREADS'] = str(min(8, max_cores))
+if os.getenv('OPENBLAS_NUM_THREADS') is None:
+    os.environ['OPENBLAS_NUM_THREADS'] = str(min(8, max_cores))
+if os.getenv('DUCKDB_NUM_THREADS') is None:
+    os.environ['DUCKDB_NUM_THREADS'] = str(min(4, max_cores))
+if os.getenv('RAYON_RS_NUM_CPUS') is None:
+    os.environ['RAYON_RS_NUM_CPUS'] = str(min(8, max_cores))
+if os.getenv('RAYON_NUM_THREADS') is None:
+    os.environ['RAYON_NUM_THREADS'] = str(min(8, max_cores))
+
+
 from evaluate_params import eval_func_param_names, no_default_param_names, input_args_list
 from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mapping, no_model_str, \
     LangChainAction, LangChainAgent, DocumentChoice, LangChainTypes, super_source_prefix, \
@@ -2146,6 +2164,7 @@ def evaluate(
                     migrate_embedding_model=migrate_embedding_model,
                     for_sources_list=True,
                     verbose=verbose,
+                    n_jobs=n_jobs,
                     )
 
     t_generate = time.time()

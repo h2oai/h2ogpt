@@ -1,7 +1,7 @@
 all: clean dist
 
 PACKAGE_VERSION       := `cat version.txt | tr -d '\n'`
-BUILD_TAG_FILES       := requirements.txt Dockerfile `ls reqs_optional/*.txt | sort`
+BUILD_TAG_FILES       := docker_build_script_ubuntu.sh requirements.txt Dockerfile `ls reqs_optional/*.txt | sort`
 BUILD_TAG             := $(shell md5sum $(BUILD_TAG_FILES) 2> /dev/null | sort | md5sum | cut -d' ' -f1)
 DOCKER_TEST_IMAGE     := harbor.h2o.ai/h2ogpt/test-image:$(BUILD_TAG)
 PYTHON_BINARY         ?= `which python`
@@ -47,28 +47,51 @@ build_info.txt:
 
 # Deprecated for now, no 0.4.1 on pypi, use release binary wheel that has no CUDA errors anymore
 docker_build_deps:
-	-docker rmi h2ogpt-base
-	DOCKER_BUILDKIT=1 docker build -t h2ogpt-base -f Dockerfile-base .
-	@rm -rf Dockerfile_deps
-	@sed '/# Install prebuilt dependencies/,$$d' Dockerfile > Dockerfile_deps
-	@sed -i "s/as stage0//g" Dockerfile_deps
-	@docker build -t h2ogpt-deps-builder -f Dockerfile_deps .
+	@cp docker_build_script_ubuntu.sh docker_build_script_ubuntu.sh.back
+	@sed -i '/# Install prebuilt dependencies/,$$d' docker_build_script_ubuntu.sh
+	@docker build -t h2ogpt-deps-builder -f Dockerfile .
+	@mv docker_build_script_ubuntu.sh.back docker_build_script_ubuntu.sh
 	@docker run \
-		--rm -it --entrypoint bash --runtime nvidia -v `pwd`:/dot \
-		h2ogpt-deps-builder -c " \
+		--rm \
+		-it \
+		--entrypoint bash \
+		--runtime nvidia \
+		-v `pwd`:/dot \
+		-v /etc/passwd:/etc/passwd:ro \
+		-v /etc/group:/etc/group:ro \
+		-u `id -u`:`id -g` \
+		h2ogpt-deps-builder  -c " \
 			mkdir -p /dot/prebuilt_deps && cd /dot/prebuilt_deps && \
 			GITHUB_ACTIONS=true python3.10 -m pip install auto-gptq==0.4.2 --no-cache-dir --use-deprecated=legacy-resolver && \
 			python3.10 -m pip wheel auto-gptq==0.4.2 \
 		"
-	s3cmd put prebuilt_deps/auto_gptq-0.4.2-cp310-cp310-linux_x86_64.whl s3://artifacts.h2o.ai/deps/h2ogpt/ && \
-	s3cmd setacl s3://artifacts.h2o.ai/deps/h2ogpt/auto_gptq-0.4.2-cp310-cp310-linux_x86_64.whl --acl-public
+	@docker run \
+		--rm \
+		-it \
+		--entrypoint bash \
+		--runtime nvidia \
+		-v `pwd`:/dot \
+		-v /etc/passwd:/etc/passwd:ro \
+		-v /etc/group:/etc/group:ro \
+		-u `id -u`:`id -g` \
+		h2ogpt-deps-builder -c " \
+			git clone https://github.com/h2oai/duckdb.git && \
+			cd duckdb && \
+			git checkout dcd8c1ffc53dd020623630efb99ba6a3a4cbc5ad && \
+			BUILD_PYTHON=1 make release && \
+			cd tools/pythonpkg  && \
+			python3.10 setup.py bdist_wheel  && \
+			cp dist/duckdb-0.*.whl /dot/prebuilt_deps \
+		"
+	s3cmd put prebuilt_deps/auto_gptq-0.4.2-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl s3://artifacts.h2o.ai/deps/h2ogpt/ && \
+	s3cmd setacl s3://artifacts.h2o.ai/deps/h2ogpt/auto_gptq-0.4.2-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl --acl-public
+	s3cmd put prebuilt_deps/duckdb-0.8.2.dev4026+gdcd8c1ffc5-cp310-cp310-linux_x86_64.whl s3://artifacts.h2o.ai/deps/h2ogpt/ && \
+	s3cmd setacl s3://artifacts.h2o.ai/deps/h2ogpt/duckdb-0.8.2.dev4026+gdcd8c1ffc5-cp310-cp310-linux_x86_64.whl --acl-public
 
 docker_build: build_info.txt
 ifeq ($(shell curl --connect-timeout 4 --write-out %{http_code} -sS --output /dev/null -X GET http://harbor.h2o.ai/api/v2.0/projects/h2ogpt/repositories/test-image/artifacts/$(BUILD_TAG)/tags),200)
 	@echo "Image already pushed to Harbor: $(DOCKER_TEST_IMAGE)"
 else
-	-docker rmi h2ogpt-base
-	DOCKER_BUILDKIT=1 docker build -t h2ogpt-base -f Dockerfile-base .
 	DOCKER_BUILDKIT=1 docker build -t $(DOCKER_TEST_IMAGE) -f Dockerfile .
 	docker push $(DOCKER_TEST_IMAGE)
 endif

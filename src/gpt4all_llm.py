@@ -77,7 +77,7 @@ def get_gpt4all_default_kwargs(max_new_tokens=256,
                                verbose=False,
                                max_seq_len=None,
                                ):
-    if n_jobs is None:
+    if n_jobs in [None, -1]:
         n_jobs = int(os.getenv('OMP_NUM_THREADS', str(os.cpu_count()//2)))
     n_jobs = max(1, min(20, n_jobs))  # hurts beyond some point
     n_gpus = get_ngpus_vis()

@@ -7,7 +7,6 @@ import inspect
 import os
 import pathlib
 import pickle
-import platform
 import random
 import shutil
 import subprocess
