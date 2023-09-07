@@ -1,0 +1,64 @@
+{
+  "variables": {
+    "project_id": "eng-llm",
+    "account_file": "<NAME OF GCP CREDENTIALS JSON FILE>",
+    "h2ogpt_version": "010",
+    "branch_tag": "main",
+    "base_model": "h2oai-h2ogpt-4096-llama2-13b-chat"
+  },
+  "builders": [
+    {
+      "type": "googlecompute",
+      "project_id": "{{user `project_id`}}",
+      "account_file": "{{user `account_file`}}",
+      "machine_type": "n1-standard-8",
+      "on_host_maintenance": "TERMINATE",
+      "accelerator_type": "projects/{{user `project_id`}}/zones/us-west1-b/acceleratorTypes/nvidia-tesla-t4",
+      "accelerator_count": "4",
+      "source_image_family": "ubuntu-2004-lts",
+      "zone": "us-west1-b",
+      "image_description": "h2ogpt using Packer",
+      "image_name": "h2ogpt-{{user `h2ogpt_version`}}",
+      "disk_size": 512,
+      "disk_type": "pd-ssd",
+      "ssh_username": "ubuntu",
+      "tags": ["h2ogpt"]
+    }
+  ],
+  "post-processors": [
+    {
+      "type": "manifest",
+      "output": "gcp-image-info.json",
+      "strip_path": true,
+      "custom_data": {
+        "base_image": "GCP Ubuntu 20.04",
+        "h2ogpt_version": "{{user `h2ogpt_version`}}"
+      }
+    }
+  ],
+  "provisioners": [
+    {
+      "type": "shell",
+      "script": "setup_environment.sh",
+      "pause_before": "50s",
+      "pause_after": "50s"
+    },
+    {
+      "type": "shell",
+      "inline": ["sudo reboot now"],
+      "pause_after": "50s",
+      "expect_disconnect": true
+    },
+    {
+      "type": "shell",
+      "environment_vars": ["BRANCH_TAG={{user `branch_tag`}}"],
+      "script": "install_h2ogpt.sh",
+      "pause_after": "50s"
+    },
+    {
+      "type": "shell",
+      "script": "{{user `base_model`}}.sh",
+      "pause_after": "50s"
+    }
+  ]
+}

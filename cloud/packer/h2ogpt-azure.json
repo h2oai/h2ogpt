@@ -1,0 +1,80 @@
+{
+    "variables": {
+        "client_id": "<AZURE CLIENT ID>",
+        "client_secret": "<AZURE CLIENT SECRET>",
+        "subscription_id": "92429150-401a-431f-8955-e69c0c119e68",
+        "tenant_id": "840229f2-c911-49e6-a73d-5b3a4311835a",
+        "managed_image_resource_group_name": "H2OIMAGES",
+        "h2ogpt_version": "010",
+        "branch_tag": "main",
+        "base_model": "h2oai-h2ogpt-4096-llama2-13b-chat"
+    },
+    "builders": [
+        {
+            "type": "azure-arm",
+            "client_id": "{{user `client_id`}}",
+            "client_secret": "{{user `client_secret`}}",
+            "subscription_id": "{{user `subscription_id`}}",
+            "tenant_id": "{{user `tenant_id`}}",
+            "capture_container_name": "h2ovhdimages",
+            "capture_name_prefix": "h2ogpt-{{user `h2ogpt_version`}}",
+            "resource_group_name": "{{user `managed_image_resource_group_name`}}",
+            "temp_resource_group_name": "Engineering_DevOps_h2oGPT-Ubuntu",
+            "storage_account": "h2ovhdimages",
+            "os_type": "Linux",
+            "image_publisher": "Canonical",
+            "image_offer": "0001-com-ubuntu-server-focal",
+            "image_sku": "20_04-lts",
+            "os_disk_size_gb": 512,
+            "azure_tags": {
+                "dept": "Engineering",
+                "task": "Image deployment",
+                "Name": "H2OGPT-CLOUD-IMAGES",
+                "Owner": "ops@h2o.ai",
+                "Project": "DevOps",
+                "Department": "Engineering",
+                "Environment": "Dev",
+                "Scheduling": "self-managed"
+            },
+            "location": "East US",
+            "vm_size": "Standard_NC24s_v3",
+            "ssh_username": "ubuntu"
+        }
+    ],
+    "post-processors": [
+        {
+            "type": "manifest",
+            "output": "azure-ubuntu-image-info.json",
+            "strip_path": true,
+            "custom_data": {
+                "base_image": "AZURE Ubuntu 20.04",
+                "h2ogpt_version": "{{user `h2ogpt_version`}}"
+            }
+        }
+    ],
+    "provisioners": [
+        {
+          "type": "shell",
+          "script": "setup_environment.sh",
+          "pause_before": "50s",
+          "pause_after": "50s"
+        },
+        {
+          "type": "shell",
+          "inline": ["sudo reboot now"],
+          "pause_after": "50s",
+          "expect_disconnect": true
+        },
+        {
+          "type": "shell",
+          "environment_vars": ["BRANCH_TAG={{user `branch_tag`}}"],
+          "script": "install_h2ogpt.sh",
+          "pause_after": "50s"
+        },
+        {
+          "type": "shell",
+          "script": "{{user `base_model`}}.sh",
+          "pause_after": "50s"
+        }
+      ]
+}
