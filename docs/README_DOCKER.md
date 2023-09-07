@@ -134,7 +134,7 @@ One can run an inference server in one docker and h2oGPT in another docker.
 
 For the vLLM server running on 2 GPUs using h2oai/h2ogpt-4096-llama2-7b-chat model, run:
 ```bash
-docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime
+docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0
 unset CUDA_VISIBLE_DEVICES
 mkdir -p $HOME/.cache/huggingface/hub
 mkdir -p $HOME/save
@@ -142,7 +142,6 @@ docker run \
     --runtime=nvidia \
     --gpus '"device=0,1"' \
     --shm-size=10.24gb \
-    -e TRANSFORMERS_CACHE="/.cache/" \
     -p 5000:5000 \
     --rm --init \
     --entrypoint /h2ogpt_conda/vllm_env/bin/python3.10 \
@@ -150,7 +149,7 @@ docker run \
     -v /etc/passwd:/etc/passwd:ro \
     -v /etc/group:/etc/group:ro \
     -u `id -u`:`id -g` \
-    -v $HOME/.cache:/.cache \
+    -v "${HOME}"/.cache:/workspace/.cache \
     --network host \
     gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 -m vllm.entrypoints.openai.api_server \
         --port=5000 \
@@ -160,7 +159,7 @@ docker run \
         --tensor-parallel-size=2 \
         --seed 1234 \
         --trust-remote-code \
-        --download-dir=/.cache/huggingface/hub &>> logs.vllm_server.txt
+        --download-dir=/workspace/.cache/huggingface/hub &>> logs.vllm_server.txt
 ```
 Use `docker run -d` to run in detached background.
 
@@ -253,9 +252,7 @@ docker run -d --gpus all \
        --shm-size 1g \
        --network host \
        -e CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES \
-       -e TRANSFORMERS_CACHE="/.cache/" \
        -p 6112:80 \
-       -v $HOME/.cache:/.cache/ \
        -v $HOME/.cache/huggingface/hub/:/data ghcr.io/huggingface/text-generation-inference:0.9.3 \
        --model-id $MODEL \
        --max-input-length 4096 \
@@ -266,13 +263,12 @@ Each docker can run on any system where network can reach or on same system on d
 
 One a low-memory GPU system can add other options to limit batching, e.g.:
 ```bash
+mkdir -p $HOME/.cache/huggingface/hub/
 export MODEL=h2oai/h2ogpt-4096-llama2-7b-chat
 unset CUDA_VISIBLE_DEVICES
 docker run -d --gpus '"device=0"' \
         --shm-size 1g \
-        -e TRANSFORMERS_CACHE="/.cache/" \
         -p 6112:80 \
-        -v $HOME/.cache:/.cache/ \
         -v $HOME/.cache/huggingface/hub/:/data ghcr.io/huggingface/text-generation-inference:0.9.3 \
         --model-id $MODEL \
         --max-input-length 1024 \
