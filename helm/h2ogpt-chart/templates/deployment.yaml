@@ -335,8 +335,6 @@ spec:
             - configMapRef:
                 name: {{ include "h2ogpt.fullname" . }}-vllm-inference-config
           env:
-          - name: TRANSFORMERS_CACHE
-            value: "/workspace/.cache/"
           - name: NCCL_IGNORE_DISABLED_P2P
             value: "1"
           volumeMounts:

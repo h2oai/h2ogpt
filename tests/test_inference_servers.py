@@ -165,9 +165,8 @@ def run_docker(inf_port, base_model, low_mem_mode=False, do_shared=True):
                         ] + gpus_cmd() + [
               '--shm-size', '1g',
               '-e', 'HUGGING_FACE_HUB_TOKEN=%s' % os.environ['HUGGING_FACE_HUB_TOKEN'],
-              '-e', 'TRANSFORMERS_CACHE="/.cache/"',
               '-p', '%s:80' % inf_port,
-              '-v', '%s/.cache:/.cache/' % home_dir,
+              '-v', '%s/.cache/huggingface/hub/:/data' % home_dir,
               '-v', '%s:/data' % data_dir,
               'ghcr.io/huggingface/text-generation-inference:0.9.3',
               '--model-id', base_model,
@@ -230,14 +229,13 @@ def run_vllm_docker(inf_port, base_model, tokenizer=None):
                         ] + gpus_cmd() + [
               '--shm-size', '10.24g',
               '-e', 'HUGGING_FACE_HUB_TOKEN=%s' % os.environ['HUGGING_FACE_HUB_TOKEN'],
-              '-e', 'TRANSFORMERS_CACHE="/.cache/"',
               '-p', '%s:5000' % inf_port,
               '--entrypoint', '/h2ogpt_conda/vllm_env/bin/python3.10',
               '-e', 'NCCL_IGNORE_DISABLED_P2P=1',
               '-v', '/etc/passwd:/etc/passwd:ro',
               '-v', '/etc/group:/etc/group:ro',
               '-u', '%s:%s' % (os.getuid(), os.getgid()),
-              '-v', '%s/.cache:/.cache/' % home_dir,
+              '-v', '%s/.cache:/workspace/.cache' % home_dir,
               #'--network', 'host',
               'gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0',
               # 'h2ogpt',  # use when built locally with vLLM just freshly added
@@ -249,7 +247,7 @@ def run_vllm_docker(inf_port, base_model, tokenizer=None):
               '--tensor-parallel-size=%s' % n_gpus,
               '--seed', '1234',
               '--trust-remote-code',
-              '--download-dir=/.cache/huggingface/hub',
+              '--download-dir=/workspace/.cache/huggingface/hub',
           ]
     os.environ.pop('CUDA_VISIBLE_DEVICES', None)
     if tokenizer:
