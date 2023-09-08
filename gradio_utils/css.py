@@ -20,6 +20,10 @@ def make_css_base() -> str:
     
     body.dark{#warning {background-color: #555555};}
     
+    label > span:first-child {
+        background-color: var(--primary-200)
+    }
+    
     #small_btn {
         margin: 0.6em 0em 0.55em 0;
         max-width: 20em;
