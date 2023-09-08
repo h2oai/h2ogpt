@@ -1235,15 +1235,16 @@ def lg_to_gr(
     # translate:
     import torch
     n_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 0
-    n_gpus, gpu_ids = cuda_vis_check(n_gpus)
+    n_gpus, _ = cuda_vis_check(n_gpus)
+
+    image_loaders_options = ['Caption']
     if n_gpus != 0:
-        image_loaders_options = ['Caption', 'CaptionBlip2', 'Pix2Struct']
-    else:
-        image_loaders_options = ['Caption']
+        image_loaders_options.extend(['CaptionBlip2', 'Pix2Struct'])
     if have_tesseract:
         image_loaders_options.append('OCR')
     if have_doctr:
         image_loaders_options.append('DocTR')
+
     image_loaders_options0 = []
     if have_tesseract and kwargs['enable_ocr']:
         image_loaders_options0.append('OCR')
@@ -1255,17 +1256,18 @@ def lg_to_gr(
             image_loaders_options0.append('CaptionBlip2')
         else:
             image_loaders_options0.append('Caption')
-    assert len(set(image_loaders_options0).difference(image_loaders_options)) == 0
 
     pdf_loaders_options = ['PyMuPDF', 'Unstructured', 'PyPDF', 'TryHTML']
     if have_tesseract:
         pdf_loaders_options.append('OCR')
     if have_doctr:
         pdf_loaders_options.append('DocTR')
+
     pdf_loaders_options0 = ['PyMuPDF']
-    assert len(set(pdf_loaders_options0).difference(pdf_loaders_options)) == 0
     if kwargs['enable_pdf_ocr'] == 'on':
         pdf_loaders_options0.append('OCR')
+    if have_doctr and kwargs['enable_pdf_doctr']:
+        pdf_loaders_options0.append('DocTR')
 
     url_loaders_options = []
     if only_unstructured_urls:
@@ -1281,7 +1283,10 @@ def lg_to_gr(
         if have_playwright:
             url_loaders_options.append('PlayWright')
     url_loaders_options0 = [url_loaders_options[0]]
-    assert len(set(url_loaders_options0).difference(url_loaders_options)) == 0
+    
+    assert set(image_loaders_options0).issubset(image_loaders_options)
+    assert set(pdf_loaders_options0).issubset(pdf_loaders_options)
+    assert set(url_loaders_options0).issubset(url_loaders_options)
 
     return image_loaders_options0, image_loaders_options, \
         pdf_loaders_options0, pdf_loaders_options, \
