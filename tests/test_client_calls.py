@@ -30,6 +30,43 @@ def test_client1():
         'response']
 
 
+@wrap_test_forked
+def test_client1_lock_choose_model():
+    os.environ['TEST_LANGCHAIN_IMPORT'] = "1"
+    sys.modules.pop('gpt_langchain', None)
+    sys.modules.pop('langchain', None)
+
+    from src.gen import main
+    base1 = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
+    base2 = 'distilgpt2'
+    model_lock = [dict(base_model=base1, prompt_type='human_bot'),
+                  dict(base_model=base2, prompt_type='plain')]
+    main(chat=False, model_lock=model_lock,
+         stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False)
+
+    from src.client_test import test_client_basic
+
+    for prompt_type in ['human_bot', None, '']:
+        for model_active_choice in [None, 0, base1]:
+            prompt = 'Who are you?'
+            res_dict, _ = test_client_basic(model_active_choice=model_active_choice, prompt=prompt,
+                                            prompt_type=prompt_type)
+            assert res_dict['prompt'] == prompt
+            assert res_dict['iinput'] == ''
+            assert 'I am h2oGPT' in res_dict['response'] or "I'm h2oGPT" in res_dict['response'] or 'I’m h2oGPT' in \
+                   res_dict[
+                       'response']
+
+    for prompt_type in ['plain', None, '']:
+        for model_active_choice in [1, base2]:
+            prompt = 'The sky is'
+            res_dict, _ = test_client_basic(model_active_choice=model_active_choice, prompt=prompt,
+                                            prompt_type=prompt_type)
+            assert res_dict['prompt'] == prompt
+            assert res_dict['iinput'] == ''
+            assert 'the limit of time' in res_dict['response']
+
+
 @pytest.mark.parametrize("base_model", [
     # 'h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2',  # can't handle
     'llama',
@@ -913,7 +950,8 @@ def test_client_chat_stream_langchain_steps3(loaders):
 
     file_to_get = sources_expected[3]
     view_raw_text = False
-    source_dict = ast.literal_eval(client.predict(langchain_mode, file_to_get, view_raw_text, api_name='/get_document_api'))
+    source_dict = ast.literal_eval(
+        client.predict(langchain_mode, file_to_get, view_raw_text, api_name='/get_document_api'))
     assert len(source_dict['contents']) == 1
     assert len(source_dict['metadatas']) == 1
     assert isinstance(source_dict['contents'][0], str)
@@ -922,7 +960,8 @@ def test_client_chat_stream_langchain_steps3(loaders):
     assert sources_expected[3] in source_dict['metadatas'][0]
 
     view_raw_text = True  # dict of metadatas stays dict instead of string
-    source_dict = ast.literal_eval(client.predict(langchain_mode, file_to_get, view_raw_text, api_name='/get_document_api'))
+    source_dict = ast.literal_eval(
+        client.predict(langchain_mode, file_to_get, view_raw_text, api_name='/get_document_api'))
     assert len(source_dict['contents']) == 2  # chunk_id=0 (query) and -1 (summarization)
     assert len(source_dict['metadatas']) == 2  # chunk_id=0 (query) and -1 (summarization)
     assert isinstance(source_dict['contents'][0], str)

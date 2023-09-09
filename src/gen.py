@@ -40,7 +40,6 @@ if os.getenv('RAYON_RS_NUM_CPUS') is None:
 if os.getenv('RAYON_NUM_THREADS') is None:
     os.environ['RAYON_NUM_THREADS'] = str(min(8, max_cores))
 
-
 from evaluate_params import eval_func_param_names, no_default_param_names, input_args_list
 from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mapping, no_model_str, \
     LangChainAction, LangChainAgent, DocumentChoice, LangChainTypes, super_source_prefix, \
@@ -102,6 +101,7 @@ def main(
         model_lock: typing.List[typing.Dict[str, str]] = None,
         model_lock_columns: int = None,
         fail_if_cannot_connect: bool = False,
+        model_active_choice: list = None,
 
         # input to generation
         temperature: float = None,
@@ -366,6 +366,10 @@ def main(
            Maximum value is 4 due to non-dynamic gradio rendering elements
     :param fail_if_cannot_connect: if doing model locking (e.g. with many models), fail if True.  Otherwise ignore.
            Useful when many endpoints and want to just see what works, but still have to wait for timeout.
+    :param model_active_choice: List of models by name or by index in model_lock, to use for nochat API
+                                If None, then just use first model in model_lock list
+                                If model_lock not set, use model selected by CLI --base_model etc.
+
     :param temperature: generation temperature
     :param top_p: generation top_p
     :param top_k: generation top_k
@@ -654,8 +658,8 @@ def main(
 
     if model_lock:
         assert gradio, "model_lock only supported for gradio=True"
-        if len(model_lock) > 1:
-            assert chat, "model_lock only works for multiple models for chat=True"
+        # if len(model_lock) > 1:
+        #    assert chat, "model_lock only works for multiple models for chat=True"
         assert not cli, "model_lock only supported for cli=False"
         assert not (not cli and not gradio), "model_lock only supported for eval (cli=gradio=False)"
         assert not base_model, "Don't specify model_lock and base_model"
@@ -748,7 +752,8 @@ def main(
         if user_path:
             langchain_mode_paths['UserData'] = user_path
 
-    assert langchain_action in langchain_actions, "Invalid langchain_action %s not in %s" % (langchain_action, langchain_actions)
+    assert langchain_action in langchain_actions, "Invalid langchain_action %s not in %s" % (
+    langchain_action, langchain_actions)
     assert len(
         set(langchain_agents).difference(langchain_agents_list)) == 0, "Invalid langchain_agents %s" % langchain_agents
 
@@ -1944,6 +1949,7 @@ def evaluate(
         pdf_loaders,
         url_loaders,
         jq_schema,
+        model_active_choice,  # here only for simplicity, not used internally in this function, but just externally
 
         # END NOTE: Examples must have same order of parameters
         captions_model=None,
@@ -2149,7 +2155,8 @@ def evaluate(
 
     # THIRD PLACE where LangChain referenced, but imports only occur if enabled and have db to use
     assert langchain_mode in langchain_modes, "Invalid langchain_mode %s not in %s" % (langchain_mode, langchain_modes)
-    assert langchain_action in langchain_actions, "Invalid langchain_action %s not in %s" % (langchain_action, langchain_actions)
+    assert langchain_action in langchain_actions, "Invalid langchain_action %s not in %s" % (
+    langchain_action, langchain_actions)
     assert len(
         set(langchain_agents).difference(langchain_agents_list)) == 0, "Invalid langchain_agents %s" % langchain_agents
 
@@ -3122,6 +3129,7 @@ y = np.random.randint(0, 1, 100)
                     pdf_loaders,
                     url_loaders,
                     jq_schema,
+                    None,
                     ]
         # adjust examples if non-chat mode
         if not chat:

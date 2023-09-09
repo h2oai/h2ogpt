@@ -62,7 +62,7 @@ from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_all
 from gen import get_model, languages_covered, evaluate, score_qa, inputs_kwargs_list, \
     get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list
 from evaluate_params import eval_func_param_names, no_default_param_names, eval_func_param_names_defaults, \
-    input_args_list
+    input_args_list, key_overrides
 
 from apscheduler.schedulers.background import BackgroundScheduler
 
@@ -242,11 +242,23 @@ def go_gradio(**kwargs):
                 prompt_dict1 = model_state1.get('prompt_dict', prompt_dict1)
         return prompt_type1, prompt_dict1
 
+    def model_choice_str_to_int(model_active_choice1):
+        if model_active_choice1 is not None:
+            if isinstance(model_active_choice1, str):
+                base_model_list = [x['base_model'] for x in model_states]
+                if model_active_choice1 in base_model_list:
+                    # if dups, will just be first one
+                    model_active_choice1 = base_model_list.index(model_active_choice1)
+        else:
+            model_active_choice1 = 0
+        return model_active_choice1
+
     default_kwargs = {k: kwargs[k] for k in eval_func_param_names_defaults}
     # ensure prompt_type consistent with prep_bot(), so nochat API works same way
     default_kwargs['prompt_type'], default_kwargs['prompt_dict'] = \
         update_prompt(default_kwargs['prompt_type'], default_kwargs['prompt_dict'],
-                      model_state1=model_state0, which_model=0)
+                      model_state1=model_state0,
+                      which_model=model_choice_str_to_int(kwargs['model_active_choice']))
     for k in no_default_param_names:
         default_kwargs[k] = ''
 
@@ -677,6 +689,8 @@ def go_gradio(**kwargs):
                         inputs_dict_str = gr.Textbox(label='API input for nochat', show_label=False, visible=False)
                         text_output_nochat_api = gr.Textbox(lines=5, label='API nochat output', visible=False,
                                                             show_copy_button=True)
+                        model_active_choice = gr.Radio(value=kwargs['model_active_choice'],
+                                                       label="Model choice for nochat API", visible=False)
 
                         # CHAT
                         col_chat = gr.Column(visible=kwargs['chat'])
@@ -1233,7 +1247,8 @@ def go_gradio(**kwargs):
                             submit_buttons_text = gr.Textbox('on', visible=False, interactive=False)
 
                             side_bar_btn = gr.Button("Toggle SideBar", variant="secondary", size="sm")
-                            doc_count_btn = gr.Button("Toggle SideBar Document Count/Show Newest", variant="secondary", size="sm")
+                            doc_count_btn = gr.Button("Toggle SideBar Document Count/Show Newest", variant="secondary",
+                                                      size="sm")
                             submit_buttons_btn = gr.Button("Toggle Submit Buttons", variant="secondary", size="sm")
                             col_tabs_scale = gr.Slider(minimum=1, maximum=20, value=10, step=1, label='Window Size')
                             text_outputs_height = gr.Slider(minimum=100, maximum=2000, value=kwargs['height'] or 400,
@@ -2415,6 +2430,8 @@ def go_gradio(**kwargs):
                 user_kwargs['instruction_nochat'] = user_kwargs['instruction']
             if 'iinput' in user_kwargs and 'iinput_nochat' not in user_kwargs:
                 user_kwargs['iinput_nochat'] = user_kwargs['iinput']
+            if 'model_active_choice' not in user_kwargs:
+                user_kwargs['model_active_choice'] = 0
 
             set1 = set(list(default_kwargs1.keys()))
             set2 = set(eval_func_param_names)
@@ -2428,6 +2445,14 @@ def go_gradio(**kwargs):
                          in eval_func_param_names]
             assert len(args_list) == len(eval_func_param_names)
             stream_output1 = args_list[eval_func_param_names.index('stream_output')]
+            model_active_choice1 = args_list[eval_func_param_names.index('model_active_choice')]
+            model_active_choice1 = model_choice_str_to_int(model_active_choice1)
+            if len(model_states) > 1:
+                model_state1 = model_states[model_active_choice1 % len(model_states)]
+                for key in key_overrides:
+                    if user_kwargs.get(key) is None and model_state1.get(key) is not None:
+                        args_list[eval_func_param_names.index(key)] = model_state1[key]
+
             args_list = [model_state1, my_db_state1, selection_docs_state1, requests_state1] + args_list
 
             save_dict = dict()
@@ -2466,10 +2491,6 @@ def go_gradio(**kwargs):
                       default_kwargs1=default_kwargs,
                       str_api=False,
                       **kwargs_evaluate_nochat)
-        fun2 = partial(evaluate_nochat,
-                       default_kwargs1=default_kwargs,
-                       str_api=False,
-                       **kwargs_evaluate_nochat)
         fun_with_dict_str = partial(evaluate_nochat,
                                     default_kwargs1=default_kwargs,
                                     str_api=True,
@@ -2519,9 +2540,9 @@ def go_gradio(**kwargs):
                            queue=False)
 
         doc_count_btn.click(fn=visible_toggle,
-                           inputs=doc_count_text,
-                           outputs=[doc_count_text, row_doc_track],
-                           queue=False)
+                            inputs=doc_count_text,
+                            outputs=[doc_count_text, row_doc_track],
+                            queue=False)
 
         submit_buttons_btn.click(fn=visible_toggle,
                                  inputs=submit_buttons_text,

@@ -125,6 +125,7 @@ class TextCompletionCreator:
         params["pdf_loaders"] = None
         params["url_loaders"] = None
         params["jq_schema"] = None
+        params["model_active_choice"] = None
         return TextCompletion(self._client, params)
 
 
@@ -248,6 +249,7 @@ class ChatCompletionCreator:
         params["pdf_loaders"] = None
         params["url_loaders"] = None
         params["jq_schema"] = None
+        params["model_active_choice"] = None
         params["chatbot"] = []  # chat history
         return ChatCompletion(self._client, params)
 

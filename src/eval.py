@@ -51,6 +51,7 @@ def run_eval(  # for local function:
         pdf_loaders=None,
         url_loaders=None,
         jq_schema=None,
+        model_active_choice=None,
         # for evaluate kwargs:
         use_system_prompt=None,
         captions_model=None,

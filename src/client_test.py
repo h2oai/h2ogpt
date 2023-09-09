@@ -77,7 +77,8 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
              langchain_action=LangChainAction.QUERY.value,
              langchain_agents=[],
              prompt_dict=None,
-             version=None):
+             version=None,
+             model_active_choice=None):
     from collections import OrderedDict
     kwargs = OrderedDict(instruction=prompt if chat else '',  # only for chat=True
                          iinput='',  # only for chat=True
@@ -119,6 +120,7 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
                          pdf_loaders=None,
                          url_loaders=None,
                          jq_schema=None,
+                         model_active_choice=model_active_choice,
                          )
     diff = 0
     if version is None:
@@ -140,8 +142,9 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
 
 
 @pytest.mark.skip(reason="For manual use against some server, no server launched")
-def test_client_basic(prompt_type='human_bot', version=None):
-    return run_client_nochat(prompt='Who are you?', prompt_type=prompt_type, max_new_tokens=50, version=version)
+def test_client_basic(prompt_type='human_bot', version=None, model_active_choice=None, prompt='Who are you?'):
+    return run_client_nochat(prompt=prompt, prompt_type=prompt_type, max_new_tokens=50, version=version,
+                             model_active_choice=model_active_choice)
 
 
 """
@@ -196,8 +199,9 @@ What happened?
 """, prompt_type=prompt_type, max_new_tokens=100, version=version)
 
 
-def run_client_nochat(prompt, prompt_type, max_new_tokens, version=None):
-    kwargs, args = get_args(prompt, prompt_type, chat=False, max_new_tokens=max_new_tokens, version=version)
+def run_client_nochat(prompt, prompt_type, max_new_tokens, version=None, model_active_choice=None):
+    kwargs, args = get_args(prompt, prompt_type, chat=False, max_new_tokens=max_new_tokens, version=version,
+                            model_active_choice=model_active_choice)
 
     api_name = '/submit_nochat'
     client = get_client(serialize=True)
