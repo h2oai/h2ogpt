@@ -250,7 +250,8 @@ class ChatCompletionCreator:
         params["url_loaders"] = None
         params["jq_schema"] = None
         params["model_active_choice"] = None
-        params["chatbot"] = []  # chat history
+        params["chatbot"] = []  # chat history (FIXME: Only works if 1 model?)
+        params["visible_models"] = None  # leave as hard-coded to None
         return ChatCompletion(self._client, params)
 
 
