@@ -1374,6 +1374,15 @@ def go_gradio(**kwargs):
                            inputs=max_quality,
                            outputs=[image_loaders, pdf_loaders, url_loaders])
 
+        def get_model_lock_visible_list(visible_models1, all_models):
+            visible_list = []
+            for modeli, model in enumerate(all_models):
+                if model in visible_models1 or modeli in visible_models1:
+                    visible_list.append(True)
+                else:
+                    visible_list.append(False)
+            return visible_list
+
         def set_visible_models(visible_models1, num_model_lock=0, all_models=None):
             if num_model_lock == 0:
                 num_model_lock = 3  # 2 + 1 (which is dup of first)
@@ -1381,12 +1390,7 @@ def go_gradio(**kwargs):
             else:
                 assert isinstance(all_models, list)
                 assert num_model_lock == len(all_models)
-                visible_list = [False, False]
-                for modeli, model in enumerate(all_models):
-                    if model in visible_models1 or modeli in visible_models1:
-                        visible_list.append(True)
-                    else:
-                        visible_list.append(False)
+                visible_list = [False, False] + get_model_lock_visible_list(visible_models1, all_models)
                 ret_list = [gr.update(visible=x) for x in visible_list]
             return tuple(ret_list)
 
@@ -2765,11 +2769,20 @@ def go_gradio(**kwargs):
         def user(*args, undo=False, retry=False, sanitize_user_prompt=False):
             return update_history(*args, undo=undo, retry=retry, sanitize_user_prompt=sanitize_user_prompt)
 
-        def all_user(*args, undo=False, retry=False, sanitize_user_prompt=False, num_model_lock=0):
+        def all_user(*args, undo=False, retry=False, sanitize_user_prompt=False, num_model_lock=0, all_models=None):
             args_list = list(args)
+
+            visible_models1 = args_list[-1]
+            assert isinstance(all_models, list)
+            visible_list = get_model_lock_visible_list(visible_models1, all_models)
+            args_list = args_list[:-1]
+
             history_list = args_list[-num_model_lock:]
+            assert len(all_models) == len(history_list)
             assert len(history_list) > 0, "Bad history list: %s" % history_list
             for hi, history in enumerate(history_list):
+                if not visible_list[hi]:
+                    continue
                 if num_model_lock > 0:
                     hargs = args_list[:-num_model_lock].copy()
                 else:
@@ -2873,6 +2886,13 @@ def go_gradio(**kwargs):
 
             return history, fun1, langchain_mode1, my_db_state1, requests_state1
 
+        def gen1_fake(fun1, history):
+            error = ''
+            extra = ''
+            save_dict = dict()
+            yield history, error, extra, save_dict
+            return
+
         def get_response(fun1, history):
             """
             bot that consumes history for user input
@@ -2952,8 +2972,15 @@ def go_gradio(**kwargs):
             save_dict['extra'] = extra
             save_generate_output(**save_dict)
 
-        def all_bot(*args, retry=False, model_states1=None):
+        def all_bot(*args, retry=False, model_states1=None, all_models=None):
             args_list = list(args).copy()
+
+            visible_models1 = args_list[-1]
+            assert isinstance(all_models, list)
+            assert len(all_models) == len(model_states1)
+            visible_list = get_model_lock_visible_list(visible_models1, all_models)
+            args_list = args_list[:-1]
+
             chatbots = args_list[-len(model_states1):]
             args_list0 = args_list[:-len(model_states1)]  # same for all models
             exceptions = []
@@ -2983,10 +3010,13 @@ def go_gradio(**kwargs):
                     # langchain_mode1 and my_db_state1 and requests_state1 should be same for every bot
                     history, fun1, langchain_mode1, db1s, requests_state1 = prep_bot(*tuple(args_list1), retry=retry,
                                                                                      which_model=chatboti)
-                    gen1 = get_response(fun1, history)
-                    if stream_output1:
-                        gen1 = TimeoutIterator(gen1, timeout=0.01, sentinel=None, raise_on_exception=False)
-                    # else timeout will truncate output for non-streaming case
+                    if visible_list[chatboti]:
+                        gen1 = get_response(fun1, history)
+                        if stream_output1:
+                            gen1 = TimeoutIterator(gen1, timeout=0.01, sentinel=None, raise_on_exception=False)
+                        # else timeout will truncate output for non-streaming case
+                    else:
+                        gen1 = gen1_fake(fun1, history)
                     gen_list.append(gen1)
 
                 bots_old = chatbots.copy()
@@ -3101,31 +3131,38 @@ def go_gradio(**kwargs):
         all_user_args = dict(fn=functools.partial(all_user,
                                                   sanitize_user_prompt=kwargs['sanitize_user_prompt'],
                                                   num_model_lock=len(text_outputs),
+                                                  all_models=kwargs['all_models']
                                                   ),
-                             inputs=inputs_list + text_outputs,
+                             inputs=inputs_list + text_outputs + [visible_models],
                              outputs=text_outputs,
                              )
-        all_bot_args = dict(fn=functools.partial(all_bot, model_states1=model_states),
-                            inputs=inputs_list + [my_db_state, selection_docs_state, requests_state] + text_outputs,
+        all_bot_args = dict(fn=functools.partial(all_bot, model_states1=model_states,
+                                                 all_models=kwargs['all_models']),
+                            inputs=inputs_list + [my_db_state, selection_docs_state, requests_state] +
+                                   text_outputs + [visible_models],
                             outputs=text_outputs + [chat_exception_text],
                             )
-        all_retry_bot_args = dict(fn=functools.partial(all_bot, model_states1=model_states, retry=True),
-                                  inputs=inputs_list + [my_db_state, selection_docs_state,
-                                                        requests_state] + text_outputs,
+        all_retry_bot_args = dict(fn=functools.partial(all_bot, model_states1=model_states,
+                                                       all_models=kwargs['all_models'],
+                                                       retry=True),
+                                  inputs=inputs_list + [my_db_state, selection_docs_state, requests_state] +
+                                         text_outputs + [visible_models],
                                   outputs=text_outputs + [chat_exception_text],
                                   )
         all_retry_user_args = dict(fn=functools.partial(all_user, retry=True,
                                                         sanitize_user_prompt=kwargs['sanitize_user_prompt'],
                                                         num_model_lock=len(text_outputs),
+                                                        all_models=kwargs['all_models']
                                                         ),
-                                   inputs=inputs_list + text_outputs,
+                                   inputs=inputs_list + text_outputs + [visible_models],
                                    outputs=text_outputs,
                                    )
         all_undo_user_args = dict(fn=functools.partial(all_user, undo=True,
                                                        sanitize_user_prompt=kwargs['sanitize_user_prompt'],
                                                        num_model_lock=len(text_outputs),
+                                                       all_models=kwargs['all_models']
                                                        ),
-                                  inputs=inputs_list + text_outputs,
+                                  inputs=inputs_list + text_outputs + [visible_models],
                                   outputs=text_outputs,
                                   )
 
