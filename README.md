@@ -43,6 +43,7 @@ wget https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7
 python generate.py --base_model='llama' --prompt_type=llama2
 ```
 then go to your browser by visiting [http://127.0.0.1:7860](http://127.0.0.1:7860) or [http://localhost:7860](http://localhost:7860).
+If encounter issues with llama-cpp-python or other packages that try to compile and fail, try binary wheels for your platform as linked in the detailed instructions below.
 
 ---
 
