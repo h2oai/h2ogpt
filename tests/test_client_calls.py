@@ -30,6 +30,43 @@ def test_client1():
         'response']
 
 
+@wrap_test_forked
+def test_client1_lock_choose_model():
+    os.environ['TEST_LANGCHAIN_IMPORT'] = "1"
+    sys.modules.pop('gpt_langchain', None)
+    sys.modules.pop('langchain', None)
+
+    from src.gen import main
+    base1 = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
+    base2 = 'distilgpt2'
+    model_lock = [dict(base_model=base1, prompt_type='human_bot'),
+                  dict(base_model=base2, prompt_type='plain')]
+    main(chat=False, model_lock=model_lock,
+         stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False)
+
+    from src.client_test import test_client_basic
+
+    for prompt_type in ['human_bot', None, '']:
+        for model_active_choice in [None, 0, base1]:
+            prompt = 'Who are you?'
+            res_dict, _ = test_client_basic(model_active_choice=model_active_choice, prompt=prompt,
+                                            prompt_type=prompt_type)
+            assert res_dict['prompt'] == prompt
+            assert res_dict['iinput'] == ''
+            assert 'I am h2oGPT' in res_dict['response'] or "I'm h2oGPT" in res_dict['response'] or 'I’m h2oGPT' in \
+                   res_dict[
+                       'response']
+
+    for prompt_type in ['plain', None, '']:
+        for model_active_choice in [1, base2]:
+            prompt = 'The sky is'
+            res_dict, _ = test_client_basic(model_active_choice=model_active_choice, prompt=prompt,
+                                            prompt_type=prompt_type)
+            assert res_dict['prompt'] == prompt
+            assert res_dict['iinput'] == ''
+            assert 'the limit of time' in res_dict['response']
+
+
 @pytest.mark.parametrize("base_model", [
     # 'h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2',  # can't handle
     'llama',
@@ -147,6 +184,101 @@ def test_client1api_lean(save_dir, admin_pass):
 
     res = client2.get_server_hash()
     assert res == get_githash()
+
+
+@wrap_test_forked
+def test_client1api_lean_lock_choose_model():
+    from src.gen import main
+    base1 = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
+    base2 = 'distilgpt2'
+    model_lock = [dict(base_model=base1, prompt_type='human_bot'),
+                  dict(base_model=base2, prompt_type='plain')]
+    save_dir = 'save_test'
+    main(model_lock=model_lock, chat=False,
+         stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False,
+         save_dir=save_dir)
+
+    client = get_client(serialize=True)
+    for prompt_type in ['human_bot', None, '', 'plain']:
+        for model_active_choice in [None, 0, base1, 1, base2]:
+            base_model = base1 if model_active_choice in [None, 0, base1] else base2
+            if base_model == base1 and prompt_type == 'plain':
+                continue
+            if base_model == base2 and prompt_type == 'human_bot':
+                continue
+
+            api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
+            if base_model == base1:
+                prompt = 'Who are you?'
+            else:
+                prompt = 'The sky is'
+            kwargs = dict(instruction_nochat=prompt, prompt_type=prompt_type, model_active_choice=model_active_choice)
+            # pass string of dict.  All entries are optional, but expect at least instruction_nochat to be filled
+            res = client.predict(str(dict(kwargs)), api_name=api_name)
+            res = ast.literal_eval(res)
+            assert save_dir
+            assert 'base_model' in res['save_dict']
+            assert res['save_dict']['base_model'] == base_model
+            assert res['save_dict']['error'] is None
+            assert 'extra_dict' in res['save_dict']
+            assert res['save_dict']['extra_dict']['ntokens'] > 0
+            assert res['save_dict']['extra_dict']['t_generate'] > 0
+            assert res['save_dict']['extra_dict']['tokens_persecond'] > 0
+
+            print("Raw client result: %s" % res, flush=True)
+            response = res['response']
+
+            if base_model == base1:
+                assert 'I am h2oGPT' in response or "I'm h2oGPT" in response or 'I’m h2oGPT' in response
+            else:
+                assert 'the limit of time' in response
+
+    api_name = '/model_names'
+    res = client.predict(api_name=api_name)
+    res = ast.literal_eval(res)
+    assert [x['base_model'] for x in res] == [base1, base2]
+    assert res == [{'base_model': 'h2oai/h2ogpt-oig-oasst1-512-6_9b', 'prompt_type': 'human_bot',
+                    'prompt_dict': {'promptA': '', 'promptB': '', 'PreInstruct': '<human>: ',
+                                    'PreInput': None, 'PreResponse': '<bot>:',
+                                    'terminate_response': ['\n<human>:', '\n<bot>:', '<human>:',
+                                                           '<bot>:', '<bot>:'], 'chat_sep': '\n',
+                                    'chat_turn_sep': '\n', 'humanstr': '<human>:', 'botstr': '<bot>:',
+                                    'generates_leading_space': True, 'system_prompt': None},
+                    'load_8bit': False, 'load_4bit': False, 'low_bit_mode': 1, 'load_half': True,
+                    'load_gptq': '', 'load_exllama': False, 'use_safetensors': False,
+                    'revision': None, 'use_gpu_id': True, 'gpu_id': 0, 'compile_model': True,
+                    'use_cache': None,
+                    'llamacpp_dict': {'n_gpu_layers': 100, 'use_mlock': True, 'n_batch': 1024,
+                                      'n_gqa': 0,
+                                      'model_path_llama': 'https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin',
+                                      'model_name_gptj': 'ggml-gpt4all-j-v1.3-groovy.bin',
+                                      'model_name_gpt4all_llama': 'ggml-wizardLM-7B.q4_2.bin',
+                                      'model_name_exllama_if_no_config': 'TheBloke/Nous-Hermes-Llama2-GPTQ'},
+                    'model_path_llama': 'https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin',
+                    'model_name_gptj': 'ggml-gpt4all-j-v1.3-groovy.bin',
+                    'model_name_gpt4all_llama': 'ggml-wizardLM-7B.q4_2.bin',
+                    'model_name_exllama_if_no_config': 'TheBloke/Nous-Hermes-Llama2-GPTQ'},
+                   {'base_model': 'distilgpt2', 'prompt_type': 'plain',
+                    'prompt_dict': {'promptA': '', 'promptB': '', 'PreInstruct': '<human>: ',
+                                    'PreInput': None, 'PreResponse': '<bot>:',
+                                    'terminate_response': ['\n<human>:', '\n<bot>:', '<human>:',
+                                                           '<bot>:', '<bot>:'], 'chat_sep': '\n',
+                                    'chat_turn_sep': '\n', 'humanstr': '<human>:', 'botstr': '<bot>:',
+                                    'generates_leading_space': True, 'system_prompt': None},
+                    'load_8bit': False, 'load_4bit': False, 'low_bit_mode': 1, 'load_half': True,
+                    'load_gptq': '', 'load_exllama': False, 'use_safetensors': False,
+                    'revision': None, 'use_gpu_id': True, 'gpu_id': 0, 'compile_model': True,
+                    'use_cache': None,
+                    'llamacpp_dict': {'n_gpu_layers': 100, 'use_mlock': True, 'n_batch': 1024,
+                                      'n_gqa': 0,
+                                      'model_path_llama': 'https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin',
+                                      'model_name_gptj': 'ggml-gpt4all-j-v1.3-groovy.bin',
+                                      'model_name_gpt4all_llama': 'ggml-wizardLM-7B.q4_2.bin',
+                                      'model_name_exllama_if_no_config': 'TheBloke/Nous-Hermes-Llama2-GPTQ'},
+                    'model_path_llama': 'https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin',
+                    'model_name_gptj': 'ggml-gpt4all-j-v1.3-groovy.bin',
+                    'model_name_gpt4all_llama': 'ggml-wizardLM-7B.q4_2.bin',
+                    'model_name_exllama_if_no_config': 'TheBloke/Nous-Hermes-Llama2-GPTQ'}]
 
 
 @wrap_test_forked
@@ -648,6 +780,31 @@ def test_fast_up_auth2():
     # doesn't test login, has to be done manually
 
 
+@pytest.mark.parametrize("visible_models",
+                         [None,
+                          [0, 1],
+                          "[0,1]",
+                          "['h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v3','gpt-3.5-turbo']",
+                          ['h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v3', 'gpt-3.5-turbo']
+                          ])
+@wrap_test_forked
+def test_lock_up(visible_models):
+    from src.gen import main
+    main(gradio=True,
+         model_lock=[{'base_model': 'h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v3'},
+                     {'base_model': 'distilgpt2'},
+                     {'inference_server': 'openai_chat', 'base_model': 'gpt-3.5-turbo'}],
+         visible_models=visible_models,
+         model_lock_columns=3,
+         gradio_size='small',
+         height=400,
+         save_dir='save_gpt_test1',
+         max_max_new_tokens=2048,
+         max_new_tokens=1024,
+         langchain_mode='MyData',
+         block_gradio_exit=False)
+
+
 @pytest.mark.skipif(not os.getenv('STRESS'), reason="Only for stress testing already-running server")
 @pytest.mark.parametrize("repeat", list(range(0, 100)))
 @wrap_test_forked
@@ -913,7 +1070,8 @@ def test_client_chat_stream_langchain_steps3(loaders):
 
     file_to_get = sources_expected[3]
     view_raw_text = False
-    source_dict = ast.literal_eval(client.predict(langchain_mode, file_to_get, view_raw_text, api_name='/get_document_api'))
+    source_dict = ast.literal_eval(
+        client.predict(langchain_mode, file_to_get, view_raw_text, api_name='/get_document_api'))
     assert len(source_dict['contents']) == 1
     assert len(source_dict['metadatas']) == 1
     assert isinstance(source_dict['contents'][0], str)
@@ -922,7 +1080,8 @@ def test_client_chat_stream_langchain_steps3(loaders):
     assert sources_expected[3] in source_dict['metadatas'][0]
 
     view_raw_text = True  # dict of metadatas stays dict instead of string
-    source_dict = ast.literal_eval(client.predict(langchain_mode, file_to_get, view_raw_text, api_name='/get_document_api'))
+    source_dict = ast.literal_eval(
+        client.predict(langchain_mode, file_to_get, view_raw_text, api_name='/get_document_api'))
     assert len(source_dict['contents']) == 2  # chunk_id=0 (query) and -1 (summarization)
     assert len(source_dict['metadatas']) == 2  # chunk_id=0 (query) and -1 (summarization)
     assert isinstance(source_dict['contents'][0], str)

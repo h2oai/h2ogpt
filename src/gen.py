@@ -40,7 +40,6 @@ if os.getenv('RAYON_RS_NUM_CPUS') is None:
 if os.getenv('RAYON_NUM_THREADS') is None:
     os.environ['RAYON_NUM_THREADS'] = str(min(8, max_cores))
 
-
 from evaluate_params import eval_func_param_names, no_default_param_names, input_args_list
 from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mapping, no_model_str, \
     LangChainAction, LangChainAgent, DocumentChoice, LangChainTypes, super_source_prefix, \
@@ -102,6 +101,7 @@ def main(
         model_lock: typing.List[typing.Dict[str, str]] = None,
         model_lock_columns: int = None,
         fail_if_cannot_connect: bool = False,
+        model_active_choice: Union[int, str] = None,
 
         # input to generation
         temperature: float = None,
@@ -171,6 +171,8 @@ def main(
         max_max_time=None,
         max_max_new_tokens=None,
 
+        visible_models: list = None,
+        visible_visible_models: bool = True,
         visible_submit_buttons: bool = True,
         visible_side_bar: bool = True,
         visible_doc_track: bool = True,
@@ -366,6 +368,10 @@ def main(
            Maximum value is 4 due to non-dynamic gradio rendering elements
     :param fail_if_cannot_connect: if doing model locking (e.g. with many models), fail if True.  Otherwise ignore.
            Useful when many endpoints and want to just see what works, but still have to wait for timeout.
+    :param model_active_choice: List of models by name or by index in model_lock, to use for nochat API
+                                If None, then just use first model in model_lock list
+                                If model_lock not set, use model selected by CLI --base_model etc.
+
     :param temperature: generation temperature
     :param top_p: generation top_p
     :param top_k: generation top_k
@@ -455,6 +461,11 @@ def main(
 
     :param max_max_time: Maximum max_time for gradio slider
     :param max_max_new_tokens: Maximum max_new_tokens for gradio slider
+
+    :param visible_models: Which models in model_lock list to show by default
+           Takes integers of position in model_lock (model_states) list or strings of base_model names
+           Ignored if model_lock not used
+    :param visible_visible_models: Whether visible models drop-down is visible in UI
     :param visible_submit_buttons: whether submit buttons are visible when UI first comes up
     :param visible_side_bar: whether left side bar is visible when UI first comes up
     :param visible_doc_track: whether left side bar's document tracking is visible when UI first comes up
@@ -654,8 +665,6 @@ def main(
 
     if model_lock:
         assert gradio, "model_lock only supported for gradio=True"
-        if len(model_lock) > 1:
-            assert chat, "model_lock only works for multiple models for chat=True"
         assert not cli, "model_lock only supported for cli=False"
         assert not (not cli and not gradio), "model_lock only supported for eval (cli=gradio=False)"
         assert not base_model, "Don't specify model_lock and base_model"
@@ -748,7 +757,8 @@ def main(
         if user_path:
             langchain_mode_paths['UserData'] = user_path
 
-    assert langchain_action in langchain_actions, "Invalid langchain_action %s not in %s" % (langchain_action, langchain_actions)
+    assert langchain_action in langchain_actions, "Invalid langchain_action %s not in %s" % (
+        langchain_action, langchain_actions)
     assert len(
         set(langchain_agents).difference(langchain_agents_list)) == 0, "Invalid langchain_agents %s" % langchain_agents
 
@@ -1136,6 +1146,15 @@ def main(
             else:
                 model_state0 = model_state_trial.copy()
             assert len(model_state_none) == len(model_state0)
+
+        if isinstance(visible_models, str):
+            visible_models = ast.literal_eval(visible_models)
+        assert isinstance(visible_models, (type(None), list))
+        all_models = [x.get('base_model', xi) for xi, x in enumerate(model_states)]
+        visible_models_state0 = [x.get('base_model', xi) for xi, x in enumerate(model_states) if
+                                 visible_models is None or
+                                 x.get('base_model', xi) in visible_models or
+                                 xi in visible_models]
 
         # update to be consistent with what is passed from CLI and model chose
         # do after go over all models if multi-model, so don't contaminate
@@ -1944,6 +1963,7 @@ def evaluate(
         pdf_loaders,
         url_loaders,
         jq_schema,
+        model_active_choice,  # here only for simplicity, not used internally in this function, but just externally
 
         # END NOTE: Examples must have same order of parameters
         captions_model=None,
@@ -2141,6 +2161,10 @@ def evaluate(
     iinput, num_prompt_tokens3 = H2OTextGenerationPipeline.limit_prompt(iinput, tokenizer)
     num_prompt_tokens = (num_prompt_tokens1 or 0) + (num_prompt_tokens2 or 0) + (num_prompt_tokens3 or 0)
 
+    # limit so max_new_tokens = prompt + new < max
+    # otherwise model can fail etc. e.g. for distilgpt2 asking for 1024 tokens is enough to fail if prompt=1 token
+    max_new_tokens = min(max_new_tokens, max_max_new_tokens - num_prompt_tokens)
+
     # get prompt
     prompter = Prompter(prompt_type, prompt_dict, debug=debug, chat=chat, stream_output=stream_output,
                         use_system_prompt=use_system_prompt)
@@ -2149,7 +2173,8 @@ def evaluate(
 
     # THIRD PLACE where LangChain referenced, but imports only occur if enabled and have db to use
     assert langchain_mode in langchain_modes, "Invalid langchain_mode %s not in %s" % (langchain_mode, langchain_modes)
-    assert langchain_action in langchain_actions, "Invalid langchain_action %s not in %s" % (langchain_action, langchain_actions)
+    assert langchain_action in langchain_actions, "Invalid langchain_action %s not in %s" % (
+        langchain_action, langchain_actions)
     assert len(
         set(langchain_agents).difference(langchain_agents_list)) == 0, "Invalid langchain_agents %s" % langchain_agents
 
@@ -3122,6 +3147,7 @@ y = np.random.randint(0, 1, 100)
                     pdf_loaders,
                     url_loaders,
                     jq_schema,
+                    None,
                     ]
         # adjust examples if non-chat mode
         if not chat:
