@@ -101,7 +101,7 @@ def main(
         model_lock: typing.List[typing.Dict[str, str]] = None,
         model_lock_columns: int = None,
         fail_if_cannot_connect: bool = False,
-        model_active_choice: list = None,
+        model_active_choice: Union[int, str] = None,
 
         # input to generation
         temperature: float = None,
@@ -171,6 +171,8 @@ def main(
         max_max_time=None,
         max_max_new_tokens=None,
 
+        visible_models: list = None,
+        visible_visible_models: bool = True,
         visible_submit_buttons: bool = True,
         visible_side_bar: bool = True,
         visible_doc_track: bool = True,
@@ -459,6 +461,11 @@ def main(
 
     :param max_max_time: Maximum max_time for gradio slider
     :param max_max_new_tokens: Maximum max_new_tokens for gradio slider
+
+    :param visible_models: Which models in model_lock list to show by default
+           Takes integers of position in model_lock (model_states) list or strings of base_model names
+           Ignored if model_lock not used
+    :param visible_visible_models: Whether visible models drop-down is visible in UI
     :param visible_submit_buttons: whether submit buttons are visible when UI first comes up
     :param visible_side_bar: whether left side bar is visible when UI first comes up
     :param visible_doc_track: whether left side bar's document tracking is visible when UI first comes up
@@ -753,7 +760,7 @@ def main(
             langchain_mode_paths['UserData'] = user_path
 
     assert langchain_action in langchain_actions, "Invalid langchain_action %s not in %s" % (
-    langchain_action, langchain_actions)
+        langchain_action, langchain_actions)
     assert len(
         set(langchain_agents).difference(langchain_agents_list)) == 0, "Invalid langchain_agents %s" % langchain_agents
 
@@ -1141,6 +1148,10 @@ def main(
             else:
                 model_state0 = model_state_trial.copy()
             assert len(model_state_none) == len(model_state0)
+
+        all_models = [x.get('base_model', xi) for xi, x in enumerate(model_states)]
+        visible_models_state0 = [x.get('base_model', xi) for xi, x in enumerate(model_states) if
+                                 visible_models is None or x.get('base_model', xi) in visible_models]
 
         # update to be consistent with what is passed from CLI and model chose
         # do after go over all models if multi-model, so don't contaminate
@@ -2160,7 +2171,7 @@ def evaluate(
     # THIRD PLACE where LangChain referenced, but imports only occur if enabled and have db to use
     assert langchain_mode in langchain_modes, "Invalid langchain_mode %s not in %s" % (langchain_mode, langchain_modes)
     assert langchain_action in langchain_actions, "Invalid langchain_action %s not in %s" % (
-    langchain_action, langchain_actions)
+        langchain_action, langchain_actions)
     assert len(
         set(langchain_agents).difference(langchain_agents_list)) == 0, "Invalid langchain_agents %s" % langchain_agents
 

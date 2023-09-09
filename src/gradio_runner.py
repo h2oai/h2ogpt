@@ -122,6 +122,7 @@ def go_gradio(**kwargs):
     score_model_state0 = kwargs['score_model_state0']
     my_db_state0 = kwargs['my_db_state0']
     selection_docs_state0 = kwargs['selection_docs_state0']
+    visible_models_state0 = kwargs['visible_models_state0']
     # For Heap analytics
     is_heap_analytics_enabled = kwargs['enable_heap_analytics']
     heap_app_id = kwargs['heap_app_id']
@@ -730,6 +731,17 @@ def go_gradio(**kwargs):
                                         undo = gr.Button("Undo", size='sm', min_width=mw2)
                                         clear_chat_btn = gr.Button(value="Clear", size='sm', min_width=mw2)
 
+                            visible_model_choice = bool(kwargs['model_lock']) and \
+                                                   len(model_states) > 1 and \
+                                                   kwargs['visible_visible_models']
+                            visible_models = gr.Dropdown(kwargs['all_models'],
+                                                         label="Visible Models",
+                                                         value=visible_models_state0,
+                                                         interactive=True,
+                                                         multiselect=True,
+                                                         visible=visible_model_choice,
+                                                         )
+
                             text_output, text_output2, text_outputs = make_chatbots(output_label0, output_label0_model2,
                                                                                     **kwargs)
 
@@ -1022,11 +1034,8 @@ def go_gradio(**kwargs):
                                                       interactive=False)
 
                 models_tab = gr.TabItem("Models") \
-                    if kwargs['visible_models_tab'] else gr.Row(visible=False)
+                    if kwargs['visible_models_tab'] and not bool(kwargs['model_lock']) else gr.Row(visible=False)
                 with models_tab:
-                    model_lock_msg = gr.Textbox(lines=1, label="Model Lock Notice",
-                                                placeholder="Started in model_lock mode, no model changes allowed.",
-                                                visible=bool(kwargs['model_lock']), interactive=False)
                     load_msg = "Download/Load Model" if not is_public \
                         else "LOAD-UNLOAD DISABLED FOR HOSTED DEMO"
                     if kwargs['base_model'] not in ['', None, no_model_str]:
@@ -1242,14 +1251,19 @@ def go_gradio(**kwargs):
                 with system_tab:
                     with gr.Row():
                         with gr.Column(scale=1):
-                            side_bar_text = gr.Textbox('on', visible=False, interactive=False)
+                            side_bar_text = gr.Textbox('on' if kwargs['visible_side_bar'] else 'off',
+                                                       visible=False, interactive=False)
                             doc_count_text = gr.Textbox('on', visible=False, interactive=False)
-                            submit_buttons_text = gr.Textbox('on', visible=False, interactive=False)
+                            submit_buttons_text = gr.Textbox('on' if kwargs['visible_submit_buttons'] else 'off',
+                                                             visible=False, interactive=False)
+                            visible_models_text = gr.Textbox('on' if kwargs['visible_visible_models'] else 'off',
+                                                             visible=False, interactive=False)
 
                             side_bar_btn = gr.Button("Toggle SideBar", variant="secondary", size="sm")
                             doc_count_btn = gr.Button("Toggle SideBar Document Count/Show Newest", variant="secondary",
                                                       size="sm")
                             submit_buttons_btn = gr.Button("Toggle Submit Buttons", variant="secondary", size="sm")
+                            visible_model_btn = gr.Button("Toggle Visible Models", variant="secondary", size="sm")
                             col_tabs_scale = gr.Slider(minimum=1, maximum=20, value=10, step=1, label='Window Size')
                             text_outputs_height = gr.Slider(minimum=100, maximum=2000, value=kwargs['height'] or 400,
                                                             step=50, label='Chat Height')
@@ -1359,6 +1373,30 @@ def go_gradio(**kwargs):
         max_quality.change(fn=set_loaders_func,
                            inputs=max_quality,
                            outputs=[image_loaders, pdf_loaders, url_loaders])
+
+        def set_visible_models(visible_models1, num_model_lock=0, all_models=None):
+            if num_model_lock == 0:
+                num_model_lock = 3  # 2 + 1 (which is dup of first)
+                ret_list = [gr.update(visible=True)] * num_model_lock
+            else:
+                assert isinstance(all_models, list)
+                assert num_model_lock == len(all_models)
+                visible_list = [False, False]
+                for modeli, model in enumerate(all_models):
+                    if model in visible_models1 or modeli in visible_models1:
+                        visible_list.append(True)
+                    else:
+                        visible_list.append(False)
+                ret_list = [gr.update(visible=x) for x in visible_list]
+            return tuple(ret_list)
+
+        visible_models_func = functools.partial(set_visible_models,
+                                                num_model_lock=len(text_outputs),
+                                                all_models=kwargs['all_models'])
+        visible_models.change(fn=visible_models_func,
+                              inputs=visible_models,
+                              outputs=[text_output, text_output2] + text_outputs,
+                              )
 
         # Add to UserData or custom user db
         update_db_func = functools.partial(update_user_db_gr,
@@ -2558,6 +2596,11 @@ def go_gradio(**kwargs):
                                  inputs=submit_buttons_text,
                                  outputs=[submit_buttons_text, submit_buttons],
                                  queue=False)
+
+        visible_model_btn.click(fn=visible_toggle,
+                                inputs=visible_models_text,
+                                outputs=[visible_models_text, visible_models],
+                                queue=False)
 
         # examples after submit or any other buttons for chat or no chat
         if kwargs['examples'] is not None and kwargs['show_examples']:
