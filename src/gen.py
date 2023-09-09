@@ -1149,9 +1149,14 @@ def main(
                 model_state0 = model_state_trial.copy()
             assert len(model_state_none) == len(model_state0)
 
+        if isinstance(visible_models, str):
+            visible_models = ast.literal_eval(visible_models)
+        assert isinstance(visible_models, (type(None), list))
         all_models = [x.get('base_model', xi) for xi, x in enumerate(model_states)]
         visible_models_state0 = [x.get('base_model', xi) for xi, x in enumerate(model_states) if
-                                 visible_models is None or x.get('base_model', xi) in visible_models]
+                                 visible_models is None or
+                                 x.get('base_model', xi) in visible_models or
+                                 xi in visible_models]
 
         # update to be consistent with what is passed from CLI and model chose
         # do after go over all models if multi-model, so don't contaminate

@@ -238,47 +238,47 @@ def test_client1api_lean_lock_choose_model():
     res = ast.literal_eval(res)
     assert [x['base_model'] for x in res] == [base1, base2]
     assert res == [{'base_model': 'h2oai/h2ogpt-oig-oasst1-512-6_9b', 'prompt_type': 'human_bot',
-                                      'prompt_dict': {'promptA': '', 'promptB': '', 'PreInstruct': '<human>: ',
-                                                      'PreInput': None, 'PreResponse': '<bot>:',
-                                                      'terminate_response': ['\n<human>:', '\n<bot>:', '<human>:',
-                                                                             '<bot>:', '<bot>:'], 'chat_sep': '\n',
-                                                      'chat_turn_sep': '\n', 'humanstr': '<human>:', 'botstr': '<bot>:',
-                                                      'generates_leading_space': True, 'system_prompt': None},
-                                      'load_8bit': False, 'load_4bit': False, 'low_bit_mode': 1, 'load_half': True,
-                                      'load_gptq': '', 'load_exllama': False, 'use_safetensors': False,
-                                      'revision': None, 'use_gpu_id': True, 'gpu_id': 0, 'compile_model': True,
-                                      'use_cache': None,
-                                      'llamacpp_dict': {'n_gpu_layers': 100, 'use_mlock': True, 'n_batch': 1024,
-                                                        'n_gqa': 0,
-                                                        'model_path_llama': 'https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin',
-                                                        'model_name_gptj': 'ggml-gpt4all-j-v1.3-groovy.bin',
-                                                        'model_name_gpt4all_llama': 'ggml-wizardLM-7B.q4_2.bin',
-                                                        'model_name_exllama_if_no_config': 'TheBloke/Nous-Hermes-Llama2-GPTQ'},
+                    'prompt_dict': {'promptA': '', 'promptB': '', 'PreInstruct': '<human>: ',
+                                    'PreInput': None, 'PreResponse': '<bot>:',
+                                    'terminate_response': ['\n<human>:', '\n<bot>:', '<human>:',
+                                                           '<bot>:', '<bot>:'], 'chat_sep': '\n',
+                                    'chat_turn_sep': '\n', 'humanstr': '<human>:', 'botstr': '<bot>:',
+                                    'generates_leading_space': True, 'system_prompt': None},
+                    'load_8bit': False, 'load_4bit': False, 'low_bit_mode': 1, 'load_half': True,
+                    'load_gptq': '', 'load_exllama': False, 'use_safetensors': False,
+                    'revision': None, 'use_gpu_id': True, 'gpu_id': 0, 'compile_model': True,
+                    'use_cache': None,
+                    'llamacpp_dict': {'n_gpu_layers': 100, 'use_mlock': True, 'n_batch': 1024,
+                                      'n_gqa': 0,
                                       'model_path_llama': 'https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin',
                                       'model_name_gptj': 'ggml-gpt4all-j-v1.3-groovy.bin',
                                       'model_name_gpt4all_llama': 'ggml-wizardLM-7B.q4_2.bin',
                                       'model_name_exllama_if_no_config': 'TheBloke/Nous-Hermes-Llama2-GPTQ'},
-                                     {'base_model': 'distilgpt2', 'prompt_type': 'plain',
-                                      'prompt_dict': {'promptA': '', 'promptB': '', 'PreInstruct': '<human>: ',
-                                                      'PreInput': None, 'PreResponse': '<bot>:',
-                                                      'terminate_response': ['\n<human>:', '\n<bot>:', '<human>:',
-                                                                             '<bot>:', '<bot>:'], 'chat_sep': '\n',
-                                                      'chat_turn_sep': '\n', 'humanstr': '<human>:', 'botstr': '<bot>:',
-                                                      'generates_leading_space': True, 'system_prompt': None},
-                                      'load_8bit': False, 'load_4bit': False, 'low_bit_mode': 1, 'load_half': True,
-                                      'load_gptq': '', 'load_exllama': False, 'use_safetensors': False,
-                                      'revision': None, 'use_gpu_id': True, 'gpu_id': 0, 'compile_model': True,
-                                      'use_cache': None,
-                                      'llamacpp_dict': {'n_gpu_layers': 100, 'use_mlock': True, 'n_batch': 1024,
-                                                        'n_gqa': 0,
-                                                        'model_path_llama': 'https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin',
-                                                        'model_name_gptj': 'ggml-gpt4all-j-v1.3-groovy.bin',
-                                                        'model_name_gpt4all_llama': 'ggml-wizardLM-7B.q4_2.bin',
-                                                        'model_name_exllama_if_no_config': 'TheBloke/Nous-Hermes-Llama2-GPTQ'},
+                    'model_path_llama': 'https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin',
+                    'model_name_gptj': 'ggml-gpt4all-j-v1.3-groovy.bin',
+                    'model_name_gpt4all_llama': 'ggml-wizardLM-7B.q4_2.bin',
+                    'model_name_exllama_if_no_config': 'TheBloke/Nous-Hermes-Llama2-GPTQ'},
+                   {'base_model': 'distilgpt2', 'prompt_type': 'plain',
+                    'prompt_dict': {'promptA': '', 'promptB': '', 'PreInstruct': '<human>: ',
+                                    'PreInput': None, 'PreResponse': '<bot>:',
+                                    'terminate_response': ['\n<human>:', '\n<bot>:', '<human>:',
+                                                           '<bot>:', '<bot>:'], 'chat_sep': '\n',
+                                    'chat_turn_sep': '\n', 'humanstr': '<human>:', 'botstr': '<bot>:',
+                                    'generates_leading_space': True, 'system_prompt': None},
+                    'load_8bit': False, 'load_4bit': False, 'low_bit_mode': 1, 'load_half': True,
+                    'load_gptq': '', 'load_exllama': False, 'use_safetensors': False,
+                    'revision': None, 'use_gpu_id': True, 'gpu_id': 0, 'compile_model': True,
+                    'use_cache': None,
+                    'llamacpp_dict': {'n_gpu_layers': 100, 'use_mlock': True, 'n_batch': 1024,
+                                      'n_gqa': 0,
                                       'model_path_llama': 'https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin',
                                       'model_name_gptj': 'ggml-gpt4all-j-v1.3-groovy.bin',
                                       'model_name_gpt4all_llama': 'ggml-wizardLM-7B.q4_2.bin',
-                                      'model_name_exllama_if_no_config': 'TheBloke/Nous-Hermes-Llama2-GPTQ'}]
+                                      'model_name_exllama_if_no_config': 'TheBloke/Nous-Hermes-Llama2-GPTQ'},
+                    'model_path_llama': 'https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin',
+                    'model_name_gptj': 'ggml-gpt4all-j-v1.3-groovy.bin',
+                    'model_name_gpt4all_llama': 'ggml-wizardLM-7B.q4_2.bin',
+                    'model_name_exllama_if_no_config': 'TheBloke/Nous-Hermes-Llama2-GPTQ'}]
 
 
 @wrap_test_forked
@@ -778,6 +778,31 @@ def test_fast_up_auth2():
     from src.gen import main
     main(gradio=True, block_gradio_exit=False, score_model='', langchain_mode='LLM', auth='')
     # doesn't test login, has to be done manually
+
+
+@pytest.mark.parametrize("visible_models",
+                         [None,
+                          [0, 1],
+                          "[0,1]",
+                          "['h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v3','gpt-3.5-turbo']",
+                          ['h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v3', 'gpt-3.5-turbo']
+                          ])
+@wrap_test_forked
+def test_lock_up(visible_models):
+    from src.gen import main
+    main(gradio=True,
+         model_lock=[{'base_model': 'h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v3'},
+                     {'base_model': 'distilgpt2'},
+                     {'inference_server': 'openai_chat', 'base_model': 'gpt-3.5-turbo'}],
+         visible_models=visible_models,
+         model_lock_columns=3,
+         gradio_size='small',
+         height=400,
+         save_dir='save_gpt_test1',
+         max_max_new_tokens=2048,
+         max_new_tokens=1024,
+         langchain_mode='MyData',
+         block_gradio_exit=False)
 
 
 @pytest.mark.skipif(not os.getenv('STRESS'), reason="Only for stress testing already-running server")

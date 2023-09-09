@@ -6,6 +6,8 @@ import gradio as gr
 
 def make_chatbots(output_label0, output_label0_model2, **kwargs):
     visible_models = kwargs['visible_models']
+    all_models = kwargs['all_models']
+
     text_outputs = []
     chat_kwargs = []
     for model_state_locki, model_state_lock in enumerate(kwargs['model_states']):
@@ -18,7 +20,10 @@ def make_chatbots(output_label0, output_label0_model2, **kwargs):
         chat_kwargs.append(dict(label=output_label, elem_classes='chatsmall',
                                 height=kwargs['height'] or 400, min_width=min_width,
                                 show_copy_button=kwargs['show_copy_button'],
-                                visible=kwargs['model_lock'] and (visible_models is None or model_state_locki in visible_models)))
+                                visible=kwargs['model_lock'] and (visible_models is None or
+                                                                  model_state_locki in visible_models or
+                                                                  all_models[model_state_locki] in visible_models
+                                                                  )))
 
     if kwargs['model_lock_columns'] == -1:
         kwargs['model_lock_columns'] = len(kwargs['model_states'])
