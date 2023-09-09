@@ -26,8 +26,10 @@ def make_chatbots(output_label0, output_label0_model2, **kwargs):
                                                                   )))
 
     # base view on initial visible choice
-    len_visible = len(visible_models)
-    # len_visible = len(kwargs['model_states'])
+    if visible_models:
+        len_visible = len(visible_models)
+    else:
+        len_visible = len(kwargs['model_states'])
     if kwargs['model_lock_columns'] == -1:
         kwargs['model_lock_columns'] = len_visible
     if kwargs['model_lock_columns'] is None:
