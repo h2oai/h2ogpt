@@ -1253,7 +1253,8 @@ def go_gradio(**kwargs):
                         with gr.Column(scale=1):
                             side_bar_text = gr.Textbox('on' if kwargs['visible_side_bar'] else 'off',
                                                        visible=False, interactive=False)
-                            doc_count_text = gr.Textbox('on', visible=False, interactive=False)
+                            doc_count_text = gr.Textbox('on' if kwargs['visible_doc_track'] else 'off',
+                                                        visible=False, interactive=False)
                             submit_buttons_text = gr.Textbox('on' if kwargs['visible_submit_buttons'] else 'off',
                                                              visible=False, interactive=False)
                             visible_models_text = gr.Textbox('on' if kwargs['visible_visible_models'] else 'off',
