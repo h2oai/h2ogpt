@@ -2163,7 +2163,8 @@ def evaluate(
 
     # limit so max_new_tokens = prompt + new < max
     # otherwise model can fail etc. e.g. for distilgpt2 asking for 1024 tokens is enough to fail if prompt=1 token
-    max_new_tokens = min(max_new_tokens, max_max_new_tokens - num_prompt_tokens)
+    max_max_tokens = tokenizer.model_max_length if hasattr(tokenizer, 'model_max_length') else 2048
+    max_new_tokens = min(max_new_tokens, max_max_tokens - num_prompt_tokens)
 
     # get prompt
     prompter = Prompter(prompt_type, prompt_dict, debug=debug, chat=chat, stream_output=stream_output,
